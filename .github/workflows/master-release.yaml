@@ -55,6 +55,6 @@ jobs:
         working-directory: urbit-repo/pkg/herb
         run: |
           ./herb ../../../zod -p hood -d '+hood/commit %base'
-          ./herb ../../../zod -p hood -d='-garden!make-glob %base /homestead'
+          ./herb ../../../zod -d='-garden!make-glob %base /homestead'
           ls ../../../zod/.urb/put
       
