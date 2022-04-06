@@ -42,24 +42,25 @@ jobs:
       - name: Boot Fakezod
         working-directory: ./
         run: ./urbit -dF zod -B urbit-repo/bin/multi.pill
-      - name: Mount Desk
+      - name: Create & Mount Desk
         working-directory: urbit-repo/pkg/herb
         run: |
-          ./herb ../../../zod -p hood -d '+hood/mount %base'
+          ./herb ../../../zod -p hood -d '+hood/merge %work our %base'
+          ./herb ../../../zod -p hood -d '+hood/mount %work'
       - name: Install Packages & Build
         run: |
           npm install
           npm run build
-          rsync -avL --delete dist/* ../../zod/base/homestead/
+          rsync -avL --delete dist/* ../../zod/work/homestead/
       - name: Make and Update Glob
         working-directory: urbit-repo/pkg/herb
         run: |
-          echo "committing base"
-          ./herb ../../../zod -p hood -d '+hood/commit %base'
-          sleep 5s
+          echo "committing work"
+          ./herb ../../../zod -p hood -d '+hood/commit %work'
+          sleep 60s
           ls -al ../../../zod/.urb/put
           echo "globbing homestead"
-          ./herb ../../../zod -d='-garden!make-glob %base /homestead'
+          ./herb ../../../zod -d='-garden!make-glob %work /homestead'
           ls -al ../../../zod/.urb/put
           echo "exiting"
           ./herb ../../../zod -p hood -d '+hood/exit'
