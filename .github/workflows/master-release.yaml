@@ -17,6 +17,7 @@ jobs:
         with:
           node-version: 16
       - name: Get Urbit
+        working-directory: ./
         run: |
           curl -JLO https://urbit.org/install/linux64/latest
           tar zxvf ./linux64.tgz --strip-components=1 --strip=1
