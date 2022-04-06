@@ -1,0 +1,46 @@
+name: Master Release
+on:
+  push:
+    branches: [ master ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./main/ui
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          path: main
+      - name: Use Node.js 16
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16
+      - name: Get Urbit
+        run: |
+          curl -JLO https://urbit.org/install/linux64/latest
+          tar zxvf ./linux64.tgz --strip-components=1 --strip=1
+      - name: Boot Fakezod
+        working-directory: ./
+        run: ./urbit -dF zod
+      - name: Get Herb
+        uses: actions/checkout@v3
+        with:
+          repository: urbit/urbit
+          path: urbit-repo
+      - name: Mount Desk
+        working-directory: urbit-repo/pkg/herb
+        run: |
+          herb ./zod -p hood -d '+hood/mount %base'
+      - name: Install Packages & Build
+        run: |
+          npm install
+          npm run build
+          rsync -avL --delete dist/* ./zod/base/homestead/
+      - name: Make and Update Glob
+        working-directory: urbit-repo/pkg/herb
+        run: |
+          herb ./zod -p hood -d '+hood/commit %base'
+          herb ./zod -p hood -d '-garden!make-glob %base /homestead'
+
+      
