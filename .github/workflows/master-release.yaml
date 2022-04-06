@@ -29,7 +29,6 @@ jobs:
           repository: urbit/urbit
           path: urbit-repo
       - name: Get LFS
-        uses: actions/checkout@v3
         working-directory: urbit-repo
         run: |
           pwd
