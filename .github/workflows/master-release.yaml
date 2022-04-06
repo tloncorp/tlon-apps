@@ -19,20 +19,29 @@ jobs:
       - name: Get Urbit
         working-directory: ./
         run: |
+          pwd
           curl -JLO https://urbit.org/install/linux64/latest
           tar zxvf ./linux64.tgz --strip-components=1 --strip=1
-      - name: Boot Fakezod
-        working-directory: ./
-        run: ./urbit -dF zod
-      - name: Get Herb
+      - name: Get Urbit Repo
         uses: actions/checkout@v3
         with:
+          lfs: true
           repository: urbit/urbit
           path: urbit-repo
+      - name: Get LFS
+        uses: actions/checkout@v3
+        working-directory: urbit-repo
+        run: |
+          pwd
+          git lfs pull
+      - name: Boot Fakezod
+        working-directory: ./
+        run: ./urbit -dF zod -B urbit-repo/bin/multi.pill
       - name: Mount Desk
         working-directory: urbit-repo/pkg/herb
         run: |
-          herb ./zod -p hood -d '+hood/mount %base'
+          pwd
+          ./herb ../../../zod -p hood -d '+hood/mount %base'
       - name: Install Packages & Build
         run: |
           npm install
