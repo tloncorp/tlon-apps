@@ -52,12 +52,12 @@ jobs:
           npm install
           npm run build
           rsync -avL --delete dist/* ../../zod/work/homestead/
+          ls -al ../../zod/work/homestead
       - name: Make and Update Glob
         working-directory: urbit-repo/pkg/herb
         run: |
           echo "committing work"
           ./herb ../../../zod -p hood -d '+hood/commit %work'
-          sleep 60s
           ls -al ../../../zod/.urb/put
           echo "globbing homestead"
           ./herb ../../../zod -d='-garden!make-glob %work /homestead'
