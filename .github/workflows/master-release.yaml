@@ -46,7 +46,7 @@ jobs:
         working-directory: urbit-repo/pkg/herb
         run: |
           pwd
-          ./herb ../../../zod -p hood -d '+hood/mount %base'
+          ./herb ../../../zod -p hood -d "+hood/mount %base"
       - name: Install Packages & Build
         run: |
           npm install
@@ -55,7 +55,8 @@ jobs:
       - name: Make and Update Glob
         working-directory: urbit-repo/pkg/herb
         run: |
-          ./herb ../../../zod -p hood -d '+hood/commit %base'
-          ./herb ../../../zod -p hood -d '-garden!make-glob %base /homestead'
+          pwd
+          ./herb ../../../zod -p hood -d "+hood/commit %base"
+          ./herb ../../../zod -p hood -d "-garden!make-glob %base /homestead"
           ls ../../../zod/.urb/put
       
