@@ -2,6 +2,9 @@
   "name": "homestead",
   "version": "0.0.0",
   "private": true,
+  "engines": {
+    "node": "16.14.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
