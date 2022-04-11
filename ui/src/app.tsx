@@ -21,7 +21,7 @@ export function App() {
   return (
     <main className="flex items-center justify-center min-h-screen">
       <div className="max-w-md space-y-6 py-20">
-        <h1 className="text-3xl font-bold">Welcome to homestead</h1>
+        <h1 className="text-3xl font-bold text-blue">Welcome to homestead</h1>
         <p>Here&apos;s your urbit&apos;s installed apps:</p>
         {apps && (
           <ul className="space-y-4">
