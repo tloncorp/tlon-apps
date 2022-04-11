@@ -38,6 +38,15 @@ const config = resolveConfig({
       ],
       mono: ['Source Code Pro', 'Roboto mono', 'Courier New', 'monospace']
     },
+    fontSize: {
+      xs: ['.625rem', '1rem'],
+      sm: ['.75rem', '1rem'],
+      md: ['.875rem', '1rem'],
+      lg: ['1rem', '1.5rem'],
+      xl: ['1.25rem', '2rem'],
+      '2xl': ['1.5rem', '2rem'],
+      '3xl': ['2rem', '3rem']
+    },
     extend: {
       lineHeight: {
         tight: 1.2,
