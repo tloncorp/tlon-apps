@@ -1,4 +1,6 @@
+/// <reference types="vitest" />
 import { loadEnv, defineConfig } from 'vite';
+import react from '@vitejs/plugin-react'
 import reactRefresh from '@vitejs/plugin-react-refresh';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 
@@ -9,6 +11,17 @@ export default ({ mode }) => {
   console.log(SHIP_URL);
 
   return defineConfig({
-    plugins: [urbitPlugin({ base: 'homestead', target: SHIP_URL, secure: false }), reactRefresh()]
+    plugins: [urbitPlugin({ base: 'homestead', target: SHIP_URL, secure: false }), reactRefresh()],
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './test/setup.ts',
+      deps: {
+        // Inline these libs because their package.json declares them to be 
+        // ES6+ modules, but are actually CommonJS modules. Vite was choking
+        // on these because of the mismatch
+        inline: ['@urbit/api', '@urbit/http-api'],
+      }
+    },
   });
 };

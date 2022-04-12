@@ -8,7 +8,7 @@ function normalizeUrbitColor(color: string): string {
   return `#${color.slice(2).replace('.', '').toUpperCase()}`;
 }
 
-export const AppTile = ({ image, color }: Charge) => {
+export const AppTile = ({ image, color }: Partial<Charge>) => {
   const [imageError, setImageError] = useState(false);
 
   return (
@@ -20,7 +20,7 @@ export const AppTile = ({ image, color }: Charge) => {
         <img
           className="absolute top-0 left-0 h-full w-full object-cover"
           src={image}
-          alt=""
+          alt="urbit app tile"
           onError={() => setImageError(true)}
         />
       )}
