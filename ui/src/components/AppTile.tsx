@@ -1,14 +1,18 @@
-import { Charge } from '@urbit/api';
-import React, { useState } from 'react';
+import { Charge } from "@urbit/api";
+import React, { useState } from "react";
 
 function normalizeUrbitColor(color: string): string {
-  if (color.startsWith('#')) {
+  if (color.startsWith("#")) {
     return color;
   }
-  return `#${color.slice(2).replace('.', '').toUpperCase()}`;
+  return `#${color.slice(2).replace(".", "").toUpperCase()}`;
 }
 
-export const AppTile = ({ title, image, color }: Partial<Charge>) => {
+export const AppTile = ({
+  title,
+  image,
+  color,
+}: Pick<Charge, "title" | "image" | "color">) => {
   const [imageError, setImageError] = useState(false);
 
   return (
