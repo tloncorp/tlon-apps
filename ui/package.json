@@ -7,8 +7,10 @@
   },
   "scripts": {
     "build": "tsc && vite build",
+    "build:mock": "tsc && vite build --mode mock",
     "coverage": "vitest run --coverage",
     "dev": "vite",
+    "mock": "vite --mode mock",
     "serve": "vite preview",
     "test": "vitest",
     "tsc": "tsc --noEmit"

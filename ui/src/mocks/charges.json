@@ -1,0 +1,386 @@
+{
+  "initial": {
+    "escape": {
+      "image": "https://escape-app-dist.s3.us-east-2.amazonaws.com/uqbar-logo.png",
+      "title": "EScape",
+      "license": "MIT",
+      "version": "0.3.0",
+      "website": "https://uqbar.network",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://escape-app-dist.s3.us-east-2.amazonaws.com/glob-0v2.uip9q.150db.2q64g.o6inn.cm7a0.glob"
+            },
+            "hash": "0v2.uip9q.150db.2q64g.o6inn.cm7a0"
+          },
+          "base": "escape"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0xf2.f3ef",
+      "info": "EScape from Eternal September. The UI from Uqbar. "
+    },
+    "silo": {
+      "image": "",
+      "title": "silo",
+      "license": "",
+      "version": "0.0.5",
+      "website": "",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://hmillerdev.nyc3.digitaloceanspaces.com/silo/glob-0v6.f649g.tqu6r.4furg.h2me8.nvd5l.glob"
+            },
+            "hash": "0v6.f649g.tqu6r.4furg.h2me8.nvd5l"
+          },
+          "base": "silo"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0x4f.46e5",
+      "info": "An S3 storage manager"
+    },
+    "citadel": {
+      "image": "",
+      "title": "Citadel",
+      "license": "MIT",
+      "version": "0.1.0",
+      "website": "https://github.com/ryjm/citadel",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://bootstrap.urbit.org/glob-0v4.d1rjh.hcpp2.nd6gc.gd3tp.rpc8m.glob"
+            },
+            "hash": "0v4.d1rjh.hcpp2.nd6gc.gd3tp.rpc8m"
+          },
+          "base": "citadel"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0xef.86b4",
+      "info": "desk/agent/app creation tool"
+    },
+    "pals": {
+      "image": "",
+      "title": "pals",
+      "license": "MIT",
+      "version": "1.0.9",
+      "website": "https://pal.dev/suite/pals",
+      "href": { "site": "/pals" },
+      "chad": { "site": null },
+      "color": "0x99.d3bd",
+      "info": "friendlist for peer discovery"
+    },
+    "ballot": {
+      "image": "https://lomder-librun.sfo3.digitaloceanspaces.com/tiles/ballot-app-tile.svg",
+      "title": "Ballot (alpha)",
+      "license": "MIT",
+      "version": "0.0.3",
+      "website": "https://holium.com",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://lomder-librun.sfo3.digitaloceanspaces.com/globs/glob-0v1.a270h.77dm0.tp047.eg90e.qdqv4.glob"
+            },
+            "hash": "0v1.a270h.77dm0.tp047.eg90e.qdqv4"
+          },
+          "base": "ballot"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0xce.bef0",
+      "info": "An app that allows you to vote with other ships. Built by Holium."
+    },
+    "chess": {
+      "image": "https://static.sigryn-habrex.conormal.com/sigryn-habrex/2021.2.05..12.07.44-ponrep.svg",
+      "title": "Chess",
+      "license": "ISC",
+      "version": "0.8.0",
+      "website": "https://git.sr.ht/~ray/urbit-chess",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://www.peekabooo.icu/c07d524e5d0cd2e20baadd5b793da177/glob-0v6.n62l6.bqk34.225vl.bijj4.j7368.glob"
+            },
+            "hash": "0v6.n62l6.bqk34.225vl.bijj4.j7368"
+          },
+          "base": "chess"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0xff.ffff",
+      "info": "Fully peer-to-peer chess over Urbit"
+    },
+    "docs": {
+      "image": "https://m.tinnus-napbus.xyz/pub/books.svg",
+      "title": "Docs",
+      "license": "MIT",
+      "version": "0.2.3",
+      "website": "https://github.com/tinnus-napbus/docs-app",
+      "href": { "site": "/~/scry/docs/usr.html" },
+      "chad": { "site": null },
+      "color": "0xff.cf00",
+      "info": "User and developer documentation for Urbit apps"
+    },
+    "wrdu": {
+      "image": "",
+      "title": "wrdu",
+      "license": "Get Rekt",
+      "version": "0.0.1",
+      "website": "https://dalten.org/",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://freedom-club.sfo2.digitaloceanspaces.com/glob-0v5.178ai.km4bl.vnj6q.lkm0u.memnl.glob"
+            },
+            "hash": "0v5.178ai.km4bl.vnj6q.lkm0u.memnl"
+          },
+          "base": "wrdu"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0x6a.aa64",
+      "info": "word game by ~dalten for our mothers"
+    },
+    "garden": {
+      "image": "",
+      "title": "System",
+      "license": "MIT",
+      "version": "1.1.3",
+      "website": "https://tlon.io",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://bootstrap.urbit.org/glob-0v2.p3f6i.19q8d.lsgcb.mckg7.dtu8f.glob"
+            },
+            "hash": "0v2.p3f6i.19q8d.lsgcb.mckg7.dtu8f"
+          },
+          "base": "grid"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0xee.5432",
+      "info": "An app launcher for Urbit."
+    },
+    "webterm": {
+      "image": "",
+      "title": "Terminal",
+      "license": "MIT",
+      "version": "1.0.1",
+      "website": "https://tlon.io",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://bootstrap.urbit.org/glob-0v7.1hgb7.euged.6oj3e.cdhdg.rah02.glob"
+            },
+            "hash": "0v7.1hgb7.euged.6oj3e.cdhdg.rah02"
+          },
+          "base": "webterm"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0x2e.4347",
+      "info": "A web interface to your Urbit's command line."
+    },
+    "picture": {
+      "image": "/picture/image",
+      "title": "",
+      "license": "MIT",
+      "version": "1.1.2",
+      "website": "https://pal.dev/suite/picture",
+      "href": { "site": "/picture" },
+      "chad": { "site": null },
+      "color": "0xdd.dddd",
+      "info": "a picture frame for the garden"
+    },
+    "zone": {
+      "image": "",
+      "title": "Zone",
+      "license": "MIT",
+      "version": "0.1.0",
+      "website": "https://tlon.io",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://bootstrap.urbit.org/glob-0v6.sg922.r56c1.fpa5m.eb4ko.odab3.glob"
+            },
+            "hash": "0v6.sg922.r56c1.fpa5m.eb4ko.odab3"
+          },
+          "base": "zone"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0x29.8e40",
+      "info": "A world clock to keep track of your friends"
+    },
+    "landscape": {
+      "image": "",
+      "title": "Groups",
+      "license": "MIT",
+      "version": "1.0.10",
+      "website": "https://tlon.io",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://bootstrap.urbit.org/glob-0v6.v8tfj.52ls5.409gr.rnt3f.090hm.glob"
+            },
+            "hash": "0v6.v8tfj.52ls5.409gr.rnt3f.090hm"
+          },
+          "base": "landscape"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0xee.5432",
+      "info": "A suite of applications to communicate on Urbit"
+    },
+    "cliff": {
+      "image": "",
+      "title": "cliff",
+      "license": "MIT",
+      "version": "1.0.0",
+      "website": "https://pal.dev/suite/cliff",
+      "href": { "site": "/cliff/view/our/base/now" },
+      "chad": { "site": null },
+      "color": "0xe3.9871",
+      "info": "filesystem explorer"
+    },
+    "studio": {
+      "image": "https://tirrel.io/assets/stool.svg",
+      "title": "Studio",
+      "license": "MIT",
+      "version": "1.0.10",
+      "website": "https://tirrel.io",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://tirrel.io/assets/glob-0v7.2uf7j.o59qq.4818c.47q5b.d0jm7.glob"
+            },
+            "hash": "0v7.2uf7j.o59qq.4818c.47q5b.d0jm7"
+          },
+          "base": "studio"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0xa0.e2a7",
+      "info": "Tools for making money."
+    },
+    "canvas": {
+      "image": "https://yosoyubik.fra1.digitaloceanspaces.com/canvas/tile.svg",
+      "title": "Canvas",
+      "license": "MIT",
+      "version": "0.0.6",
+      "website": "https://github.com/yosoyubik/canvas",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://yosoyubik.fra1.digitaloceanspaces.com/canvas/glob-0v7.5nvph.u855t.s1vct.8nrl5.u6e1v.glob"
+            },
+            "hash": "0v7.5nvph.u855t.s1vct.8nrl5.u6e1v"
+          },
+          "base": "canvas"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0x22.88bd",
+      "info": "Collaborative Pixel Art"
+    },
+    "gora": {
+      "image": "",
+      "title": "Gora - ピタゴラ装置",
+      "license": "Get Rekt",
+      "version": "0.1.2",
+      "website": "https://dalten.org/",
+      "href": { "site": "/apps/gora" },
+      "chad": { "site": null },
+      "color": "0xff.d966",
+      "info": "A Proof of Attendance Protocol for Urbit"
+    },
+    "inet2022": {
+      "image": "https://pal.dev/props/inet2022/gradient.svg",
+      "title": "Invisible Networks 2022",
+      "license": "MIT",
+      "version": "1.0.4",
+      "website": "https://invisible.social/",
+      "href": { "site": "/invisible-networks" },
+      "chad": { "site": null },
+      "color": "0xff.dbb1",
+      "info": "Invent a weird/magical/terrifying social network every day."
+    },
+    "face": {
+      "image": "",
+      "title": "face",
+      "license": "MIT",
+      "version": "1.0.1",
+      "website": "https://pal.dev/suite/face",
+      "href": { "site": "/face" },
+      "chad": { "site": null },
+      "color": "0x3b.5998",
+      "info": "see your friends"
+    },
+    "urchatfm": {
+      "image": "",
+      "title": "urChatFM",
+      "license": "MIT",
+      "version": "0.2.0",
+      "website": "https://tlon.io",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://bootstrap.urbit.org/glob-0v3.8hnp4.a0ehv.dfoun.6ea8k.5ib2s.glob"
+            },
+            "hash": "0v3.8hnp4.a0ehv.dfoun.6ea8k.5ib2s"
+          },
+          "base": "urchatfm"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0xff.e4e6",
+      "info": "2-Way Video Calling"
+    },
+    "verse": {
+      "image": "/verse/verse",
+      "title": "",
+      "license": "MIT",
+      "version": "1.1.0",
+      "website": "https://pal.dev/suite/verse",
+      "href": { "site": "/verse/study" },
+      "chad": { "site": null },
+      "color": "0xee.eedd",
+      "info": "a random Bible verse, every day"
+    },
+    "bitcoin": {
+      "image": "https://urbit.ewr1.vultrobjects.com/hastuc-dibtux/2021.8.24..02.57.38-bitcoin.svg",
+      "title": "Bitcoin",
+      "license": "MIT",
+      "version": "0.0.1",
+      "website": "https://tlon.io",
+      "href": {
+        "glob": {
+          "glob-reference": {
+            "location": {
+              "http": "https://bootstrap.urbit.org/glob-0v3.7b5q1.gn30e.cpfem.abmqg.qh77v.glob"
+            },
+            "hash": "0v3.7b5q1.gn30e.cpfem.abmqg.qh77v"
+          },
+          "base": "bitcoin"
+        }
+      },
+      "chad": { "glob": null },
+      "color": "0xf9.8e40",
+      "info": "A Bitcoin Wallet that lets you send and receive Bitcoin directly to and from other Urbit users"
+    }
+  }
+}
