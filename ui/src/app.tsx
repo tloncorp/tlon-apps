@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import Urbit from '@urbit/http-api';
-import { Charges, ChargeUpdateInitial, scryCharges } from '@urbit/api';
-import { AppTile } from './components/AppTile';
+import React, { useEffect, useState } from "react";
+import Urbit from "@urbit/http-api";
+import { Charges, ChargeUpdateInitial, scryCharges } from "@urbit/api";
+import { AppTile } from "./components/AppTile";
 
-const api = new Urbit('', '', window.desk);
+const api = new Urbit("", "", window.desk);
 api.ship = window.ship;
 
 export function App() {
@@ -11,8 +11,11 @@ export function App() {
 
   useEffect(() => {
     async function init() {
-      const charges = (await api.scry<ChargeUpdateInitial>(scryCharges)).initial;
-      setApps(charges);
+      const charges =
+        import.meta.env.MODE === "mock"
+          ? (await import("./mocks/charges.json")).default
+          : await api.scry<ChargeUpdateInitial>(scryCharges);
+      setApps(charges.initial);
     }
 
     init();
@@ -26,7 +29,10 @@ export function App() {
         {apps && (
           <ul className="space-y-4">
             {Object.entries(apps).map(([desk, app]) => (
-              <li key={desk} className="flex items-center space-x-3 text-sm leading-tight">
+              <li
+                key={desk}
+                className="flex items-center space-x-3 text-sm leading-tight"
+              >
                 <AppTile {...app} />
                 <div className="flex-1 text-black">
                   <p>

@@ -10,7 +10,8 @@ export default ({ mode }) => {
   console.log(SHIP_URL);
 
   return defineConfig({
-    plugins: [urbitPlugin({ base: 'homestead', target: SHIP_URL, secure: false }), reactRefresh()],
+    base: mode === 'mock' ? undefined : '/apps/homestead/',
+    plugins: mode === 'mock' ? [reactRefresh()] : [urbitPlugin({ base: 'homestead', target: SHIP_URL, secure: false }), reactRefresh()],
     test: {
       globals: true,
       environment: 'jsdom',
