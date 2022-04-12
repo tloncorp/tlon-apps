@@ -1,6 +1,5 @@
 /// <reference types="vitest" />
 import { loadEnv, defineConfig } from 'vite';
-import react from '@vitejs/plugin-react'
 import reactRefresh from '@vitejs/plugin-react-refresh';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 
