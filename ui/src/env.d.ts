@@ -1,6 +1,4 @@
-interface ImportMetaEnv extends Readonly<Record<string, string | boolean | undefined>> {
-  /* Add custom env properties here */
-}
+type ImportMetaEnv = Readonly<Record<string, string | boolean | undefined>>
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
