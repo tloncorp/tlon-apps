@@ -3,9 +3,6 @@ on: pull_request
 jobs:
   test-build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./ui
     steps:
       - name: Checkout
         uses: actions/checkout@v3.0.0
@@ -13,13 +10,16 @@ jobs:
       - name: Setup Node.js environment
         uses: actions/setup-node@v3.1.1
         with:
-          node-version-file: .nvmrc
+          node-version-file: ./ui/.nvmrc
 
       - name: Install Dependencies
         run: npm install
+        working-directory: ./ui
 
       - name: Run Tests
         run: npm run test -- run
+        working-directory: ./ui
 
       - name: Build
         run: npm run build
+        working-directory: ./ui
