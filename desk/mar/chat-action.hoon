@@ -1,4 +1,5 @@
 /-  c=chat
+/+  j=chat-json
 |_  =action:c
 ++  grad  %noun
 ++  grow
@@ -8,5 +9,6 @@
 ++  grab
   |%
   ++  noun  action:c
+  ++  json  action:dejs:j
   --
 --

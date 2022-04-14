@@ -73,6 +73,7 @@
   ::
       %chat-action
     =+  !<(=action:c vase)
+    =.  p.q.action  now.bowl
     =/  chat-core  (ca-abed:ca-core p.action)
     ?:  =(p.p.action our.bowl)
       ca-abet:(ca-update:chat-core q.action)
@@ -97,9 +98,9 @@
   |=  =path
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
-    [%chats ~]  cor
+    [%chat ~]  cor
   ::
-      [%chats @ @ *]
+      [%chat @ @ *]
     =/  =ship  (slav %p i.t.path)
     =*  name   i.t.t.path
     ca-abet:(ca-watch:(ca-abed:ca-core ship name) t.t.t.path)
@@ -109,7 +110,7 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
-      [%chats @ @ *]
+      [%chat @ @ *]
     =/  =ship  (slav %p i.t.wire)
     =*  name   i.t.t.wire
     ca-abet:(ca-agent:(ca-abed:ca-core ship name) t.t.t.wire sign)
@@ -122,6 +123,7 @@
   cor
 ++  peek
   |=  =path
+  ~&  path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
   ::
@@ -141,12 +143,14 @@
   ++  ca-abed
     |=  r=resource
     ca-core(flag r, chat (~(got by chats) r))
-  ++  ca-area  `path`/chats/(scot %p p.flag)/[q.flag]
+  ++  ca-area  `path`/chat/(scot %p p.flag)/[q.flag]
   ++  ca-watch
     |=  =path
+    ^+  ca-core
     ?+    path  !!
-        [%updates *]
-      (ca-pub t.path)
+      [%updates *]  (ca-pub t.path)
+      [%ui ~]       ca-core
+    ::
     ==
   ++  ca-agent
     |=  [=wire =sign:agent:gall]
@@ -166,12 +170,12 @@
     ::
         [%fleet %newest count=@ ~]
       =/  count  (slav %ud count.pole)
-      ``writs+!>((scag count (tap:fleet-on:c r.chat)))
+      ``chat-writs+!>(`writs:c`(scag count (tap:fleet-on:c r.chat)))
     ::
         [%fleet %older start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %da start.pole)
-      ``writs+!>((tab:fleet-on:c r.chat `start count))
+      ``chat-writs+!>((tab:fleet-on:c r.chat `start count))
     ::
         [%fleet %writ writ=@ ~]
       =/  writ  (slav %da writ.pole)
@@ -255,8 +259,7 @@
       ?.  =((scag 4 path) (snoc ca-area %updates))
         out
       (~(put in out) path)
-    ?:  =(~ paths)
-      ca-core
+    =.  paths  (~(put in paths) (snoc ca-area %ui))
     =.  cor
       (give %fact ~(tap in paths) cage)
     ca-core
