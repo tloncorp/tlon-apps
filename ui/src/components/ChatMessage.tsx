@@ -1,5 +1,7 @@
-import { decToUd } from "@urbit/api";
+import { daToUnix, decToUd, udToDec } from "@urbit/api";
 import React from "react";
+import bigInt from "big-integer";
+import moment from 'moment';
 import _ from "lodash";
 import f from "lodash/fp";
 import api from "../api";
@@ -47,7 +49,7 @@ function ChatFeel(props: { feel: string; seal: ChatSeal }) {
   return (
     <div
       onClick={addFeel}
-      className="flex space-x-2 items-center border px-2 py-1"
+      className="flex space-x-2 items-center border rounded px-2 py-1"
     >
       <span>{feel}</span>
       <span>{count}</span>
@@ -58,7 +60,7 @@ function ChatFeels(props: ChatFeelProps) {
   const { seal } = props;
 
   return (
-    <div className="flex">
+    <div className="flex space-x-2">
       {Object.values(FEELS).map((feel) => (
         <ChatFeel seal={seal} feel={feel} />
       ))}
@@ -90,12 +92,14 @@ export function ChatMessage(props: ChatMessageProps) {
     });
   };
 
+  const time = moment(daToUnix(bigInt(udToDec(seal.time))));
+
   return (
-    <div className="flex flex-col">
-      <div className="flex space-between">
-        <div className="flex text-mono space-x-2">
+    <div className="flex flex-col space-y-3 border rounded p-2">
+      <div className="flex">
+        <div className="flex text-mono space-x-2 grow">
           <div>{memo.author}</div>
-          <div>{seal.time}</div>
+          <div className="text-gray">{time.format("HH:mm")}</div>
         </div>
         <button onClick={onDelete}>Delete</button>
       </div>

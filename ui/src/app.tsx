@@ -29,9 +29,6 @@ export function App() {
     <main className="flex items-center justify-center min-h-screen">
       <div className="max-w-md space-y-6 py-20">
         <h1 className="text-3xl font-bold text-blue">Welcome to homestead</h1>
-        <p className="font-mono">
-          Here&apos;s your urbit&apos;s installed apps:
-        </p>
         <div>
           {messages &&
             messages.keys().reverse().map((key) => {

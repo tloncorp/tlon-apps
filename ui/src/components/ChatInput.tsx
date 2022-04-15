@@ -28,12 +28,17 @@ export function ChatInput(props: {}) {
         },
       },
     });
-    setValue('');
+    setValue("");
   }, [value]);
 
   return (
     <div className="flex">
-      <input type="text" value={value} onChange={onChange} />
+      <input
+        className="border rounded"
+        type="text"
+        value={value}
+        onChange={onChange}
+      />
       <button type="button" onClick={onSubmit}>
         Submit!
       </button>
