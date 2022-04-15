@@ -12,6 +12,8 @@
     "dev": "vite",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
+    "lint:format": "prettier src/ --write",
+    "lint:all": "npm run lint:format && npm run lint:fix",
     "mock": "vite --mode mock",
     "serve": "vite preview",
     "test": "vitest",
