@@ -19,7 +19,11 @@
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
       cor   ~(. +> [bowl ~])
-  ++  on-init  `this
+  ++  on-init  
+    =^  cards  state
+      abet:(poke:cor flag+!>([~zod %test]))
+    [cards this]
+  ::
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
