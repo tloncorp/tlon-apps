@@ -10,6 +10,7 @@ module.exports = {
     },
   ],
   rules: {
+    semi: [2, 'always'],
     'react/jsx-filename-extension': [1, { extensions: ['.jsx', '.tsx'] }],
     'tailwindcss/no-custom-classname': [
       0,
@@ -18,4 +19,4 @@ module.exports = {
       },
     ],
   },
-}
+};
