@@ -1,10 +1,11 @@
 |%
 +$  writs  (list [=time writ])
 +$  writ   [seal memo]
++$  feel   @ta
 ::
 +$  seal
   $:  =time
-      feel=(jug term ship)
+      feels=(map ship feel)
   ==
 ::
 
@@ -12,8 +13,8 @@
 +$  diff
   $%  [%add p=memo]
       [%del p=time] 
-      [%add-feel p=time q=term]
-      [%del-feel p=time q=term]
+      [%add-feel p=time q=ship r=feel]
+      [%del-feel p=time q=ship]
   ==
 ::
 +$  fleet

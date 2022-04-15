@@ -18,6 +18,14 @@
     ?+  -.diff  ~
       %add  (memo p.diff)
       %del  s+(scot %ud p.diff)
+      %add-feel  (add-feel +.diff)
+    ==
+  ++  add-feel
+    |=  [tim=@da her=@p =feel:c]
+    %-  pairs
+    :~  time+s+(scot %ud tim)
+        feel+s+feel
+        ship+(ship her)
     ==
   ::
   ++  memo 
@@ -33,11 +41,11 @@
     %-  pairs
     :~  time+s+(scot %ud time.seal)
     ::
-        :-  %feel
+        :-  %feels
         %-  pairs
-        %+  turn  ~(tap by feel.seal)
-        |=  [=term ships=(set @p)]
-        [term a+(turn ~(tap in ships) ship)]
+        %+  turn  ~(tap by feels.seal)
+        |=  [her=@p =feel:c]
+        [(scot %p her) s+feel]
     ==
   ++  writ
     |=  =writ:c
@@ -78,7 +86,16 @@
     %-  of
     :~  add/memo
         del/(se %ud)
+        add-feel/add-feel
     ==
+  ::
+  ++  add-feel
+    %-  ot
+    :~  time/(se %ud)
+        ship/ship
+        feel/so
+    ==
+  ::
   ++  memo
     %-  ot
     :~  author/ship

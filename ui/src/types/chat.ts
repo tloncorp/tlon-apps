@@ -1,4 +1,3 @@
-
 export type Patda = string;
 export type Ship = string;
 
@@ -18,9 +17,9 @@ export interface ChatWrit {
 
 export interface ChatSeal {
   time: Patda;
-  feel: {
-    [name: string]: Ship[];
-  }
+  feels: {
+    [ship: Ship]: string;
+  };
 }
 
 export interface ChatMemo {
@@ -47,5 +46,12 @@ interface ChatDiffDel {
   del: string;
 }
 
+interface ChatDiffAddFeel {
+  "add-feel": {
+    time: string;
+    feel: string;
+    ship: string;
+  };
+}
 
-export type ChatDiff = ChatDiffAdd | ChatDiffDel;
+export type ChatDiff = ChatDiffAdd | ChatDiffDel | ChatDiffAddFeel;

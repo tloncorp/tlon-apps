@@ -15,7 +15,14 @@ export function App() {
   console.log(messages);
 
   useEffect(() => {
-    useChatState.getState().initialize("~zod/test");
+    (async () => {
+      console.log('initialize');
+      useChatState.getState().initialize("~zod/test");
+    })();
+
+    return () => {
+      api.reset();
+    };
   }, []);
 
   return (

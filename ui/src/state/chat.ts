@@ -7,6 +7,7 @@ import bigInt, { BigInteger } from "big-integer";
 import { useCallback } from "react";
 
 setAutoFreeze(false);
+window.api = api;
 
 interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
@@ -42,16 +43,22 @@ export const useChatState = create<ChatState>((set, get) => ({
       path: "/chat/~zod/test/ui",
       event: (data: any) => {
         const update = data as ChatUpdate;
-        console.log(update);
+        console.log('subscription', update);
         get().set((draft) => {
           if ("add" in update.diff) {
             const time = bigInt(udToDec(update.time));
-            const seal = { time: update.time, feel: {} };
+            const seal = { time: update.time, feels: {} };
             const writ = { seal, memo: update.diff.add };
             draft.chats["~zod/test"] = draft.chats["~zod/test"].set(time, writ);
           } else if ("del" in update.diff) {
             const time = bigInt(udToDec(update.diff.del));
             draft.chats["~zod/test"] = draft.chats["~zod/test"].delete(time);
+          } else if ("add-feel" in update.diff) {
+            const diff = update.diff['add-feel'];
+            const time = bigInt(udToDec(diff.time));
+            let writ = draft.chats["~zod/test"].get(time);
+            writ.seal.feels[diff.ship] = diff.feel;
+            draft.chats["~zod/test"] = draft.chats["~zod/test"].set(time, writ);
           }
         });
       },

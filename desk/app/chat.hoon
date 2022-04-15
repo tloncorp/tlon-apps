@@ -274,22 +274,28 @@
     ?-    -.d
         %add-feel
       =/  =writ:c  (got:fleet-on:c r.chat p.d)
-      =.  feel.writ  (~(put ju feel.writ) q.d src.bowl)
+      ?>  =(src.bowl q.d)
+      =.  feels.writ  (~(put by feels.writ) [q r]:d)
       =.  r.chat   (put:fleet-on:c r.chat p.d writ)
       ca-core
     ::
         %del-feel
       =/  =writ:c  (got:fleet-on:c r.chat p.d)
-      =.  feel.writ  (~(del ju feel.writ) q.d src.bowl)
+      ?>  =(src.bowl q.d)
+      =.  feels.writ  (~(del by feels.writ) q.d)
       =.  r.chat   (put:fleet-on:c r.chat p.d writ)
       ca-core
    ::
         %add
+      ?>  =(src.bowl author.p.d)
       =.  r.chat  
         (put:fleet-on:c r.chat time [time ~] p.d)
       ca-core
     ::
         %del
+      =/  =writ:c
+        (got:fleet-on:c r.chat p.d)
+      ?>  =(src.bowl author.writ)
       =.  r.chat
         +:(del:fleet-on:c r.chat p.d)
       ca-core
