@@ -1,8 +1,8 @@
 declare global {
   interface Window {
-    ship: string;
-    desk: string;
+    ship: string
+    desk: string
   }
 }
 
-export {};
+export {}
