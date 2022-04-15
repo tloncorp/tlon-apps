@@ -1,5 +1,9 @@
 name: CI (Test and Build)
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - './ui/**'
+
 jobs:
   test-build:
     runs-on: ubuntu-latest
@@ -16,11 +20,15 @@ jobs:
         run: npm install
         working-directory: ./ui
 
-      - name: Run Lint
+      - name: Lint
         run: npm run lint
         working-directory: ./ui
 
-      - name: Run Tests
+      - name: Prettier
+        run: npm run prettier
+        working-directory: ./ui
+
+      - name: Tests
         run: npm run test -- run
         working-directory: ./ui
 
