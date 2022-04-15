@@ -17,6 +17,7 @@
     %+  frond  -.diff
     ?+  -.diff  ~
       %add  (memo p.diff)
+      %del  s+(scot %ud p.diff)
     ==
   ::
   ++  memo 
@@ -76,6 +77,7 @@
   ++  diff
     %-  of
     :~  add/memo
+        del/(se %ud)
     ==
   ++  memo
     %-  ot

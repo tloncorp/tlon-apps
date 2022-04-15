@@ -17,17 +17,6 @@ interface ChatState {
   initialize: (flag: string) => Promise<void>;
 }
 
-export function daToBigInt(da: Patda): BigInteger {
-  //da = da.slice(1); // rm leading sig
-  //const [year, month, day,,hour, min, sec,,millis] = da.split('.');
-  const [, , ...millis] = da.slice(1).split("..");
-  const mill = console.log(millis);
-
-  const date = daToDate(da);
-  console.log(date);
-  return unixToDa(date.valueOf());
-}
-
 export const useChatState = create<ChatState>((set, get) => ({
   set: (fn: any) => {
     set(produce(get(), fn));
@@ -60,6 +49,9 @@ export const useChatState = create<ChatState>((set, get) => ({
             const seal = { time: update.time, feel: {} };
             const writ = { seal, memo: update.diff.add };
             draft.chats["~zod/test"] = draft.chats["~zod/test"].set(time, writ);
+          } else if ("del" in update.diff) {
+            const time = bigInt(udToDec(update.diff.del));
+            draft.chats["~zod/test"] = draft.chats["~zod/test"].delete(time);
           }
         });
       },

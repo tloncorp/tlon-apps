@@ -43,5 +43,9 @@ interface ChatDiffAdd {
   add: ChatMemo;
 }
 
+interface ChatDiffDel {
+  del: string;
+}
 
-export type ChatDiff = ChatDiffAdd;
+
+export type ChatDiff = ChatDiffAdd | ChatDiffDel;
