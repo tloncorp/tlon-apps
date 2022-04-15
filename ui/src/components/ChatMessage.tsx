@@ -1,7 +1,7 @@
 import { daToUnix, decToUd, udToDec } from "@urbit/api";
 import React from "react";
 import bigInt from "big-integer";
-import moment from 'moment';
+import moment from "moment";
 import _ from "lodash";
 import f from "lodash/fp";
 import api from "../api";
@@ -101,7 +101,9 @@ export function ChatMessage(props: ChatMessageProps) {
           <div>{memo.author}</div>
           <div className="text-gray">{time.format("HH:mm")}</div>
         </div>
-        <button onClick={onDelete}>Delete</button>
+        <button className="border rounded px-2" onClick={onDelete}>
+          Delete
+        </button>
       </div>
       <div>{memo.content}</div>
       <ChatFeels seal={seal} />
