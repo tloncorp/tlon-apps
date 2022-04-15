@@ -1,3 +1,11 @@
 module.exports = {
-  extends: '@urbit/eslint-config',
-};
+  extends: '@tloncorp/eslint-config',
+  overrides: [
+      {
+          files: ['**/*.ts', '**/*.tsx'],
+          parserOptions: {
+              project: './tsconfig.json',
+          },
+      },
+  ],
+}
