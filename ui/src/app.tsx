@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Urbit from '@urbit/http-api';
 import { Charges, ChargeUpdateInitial, scryCharges } from '@urbit/api';
-import AppTile from './components/AppTile';
+import AppTile from './components/app-tile/AppTile';
 
 const api = new Urbit('', '', window.desk);
 api.ship = window.ship;
