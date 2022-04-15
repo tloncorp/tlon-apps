@@ -10,7 +10,7 @@ describe('AppTile', () => {
         it('it renders an image', () => {
             render(<AppTile color="#fefefe" image="test.jpg" title="pals" />);
             expect(
-                screen.getByAltText('app tile for pals'),
+                screen.getByAltText('app tile for pals')
             ).toBeInTheDocument();
         });
     });
