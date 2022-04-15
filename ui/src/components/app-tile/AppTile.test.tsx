@@ -3,7 +3,7 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import renderer from 'react-test-renderer';
 import AppTile from './AppTile';
-import { render, screen } from '../../test/utils';
+import { render, screen } from '../../../test/utils';
 
 describe('AppTile', () => {
     describe('when image is available', () => {
