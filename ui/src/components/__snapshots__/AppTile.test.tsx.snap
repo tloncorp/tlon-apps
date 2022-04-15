@@ -2,7 +2,7 @@
 
 exports[`AppTile > renders as expected 1`] = `
 <div
-  className="flex-none relative w-12 h-12 mr-3 rounded-lg bg-gray-200 overflow-hidden"
+  className="overflow-hidden relative flex-none mr-3 w-12 h-12 bg-gray-200 rounded-lg"
   style={
     {
       "backgroundColor": "#fefefe",
@@ -11,7 +11,7 @@ exports[`AppTile > renders as expected 1`] = `
 >
   <img
     alt="app tile for pals"
-    className="absolute top-0 left-0 h-full w-full object-cover"
+    className="object-cover absolute top-0 left-0 w-full h-full"
     onError={[Function]}
     src="test.jpg"
   />
