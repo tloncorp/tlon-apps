@@ -16,7 +16,9 @@
     "serve": "vite preview",
     "test": "vitest",
     "tsc": "tsc --noEmit",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "prettier": "prettier --check src/",
+    "prettier:fix": "prettier --write src/"
   },
   "dependencies": {
     "@urbit/api": "^2.1.0",
