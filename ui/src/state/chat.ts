@@ -7,7 +7,6 @@ import bigInt, { BigInteger } from "big-integer";
 import { useCallback } from "react";
 
 setAutoFreeze(false);
-window.api = api;
 
 interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
