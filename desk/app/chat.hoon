@@ -5,6 +5,7 @@
   |%
   +$  card  card:agent:gall
   +$  resource  (pair ship term)
+  ++  def-flag  `flag:c`[~zod %test]
   +$  state-0
     $:  %0
         chats=(map flag:c chat:c)
@@ -20,15 +21,27 @@
       def   ~(. (default-agent this %|) bowl)
       cor   ~(. +> [bowl ~])
   ++  on-init  
+    ^-  (quip card _this)
     =^  cards  state
-      abet:(poke:cor flag+!>([~zod %test]))
+      abet:(poke:cor flag+!>(def-flag))
     [cards this]
   ::
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
-    =+  !<(old=state-0 vase)
-    `this(state old)
+    ^-  (quip card _this)
+    =/  old=(unit state-0)
+      (mole |.(!<(state-0 vase)))  
+    ?^  old  `this(state u.old)
+    ~&  >>>  "Incompatible load, nuking"
+    =^  cards  this  on-init
+    :_  this
+    =-  (welp - cards)
+    %+  turn  ~(tap in ~(key by wex.bowl))
+    |=  [=wire =ship =term] 
+    ^-  card
+    [%pass wire %agent [ship term] %leave ~]
+  ::
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
