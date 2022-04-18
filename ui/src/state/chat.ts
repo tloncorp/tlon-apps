@@ -40,7 +40,7 @@ export const useChatState = create<ChatState>((set, get) => ({
 
     api.subscribe({
       app: "chat",
-      path: "/chat/~zod/test/ui",
+      path: `/chat/${flag}/ui`,
       event: (data: any) => {
         const update = data as ChatUpdate;
         console.log('subscription', update);
@@ -49,16 +49,16 @@ export const useChatState = create<ChatState>((set, get) => ({
             const time = bigInt(udToDec(update.time));
             const seal = { time: update.time, feels: {} };
             const writ = { seal, memo: update.diff.add };
-            draft.chats["~zod/test"] = draft.chats["~zod/test"].set(time, writ);
+            draft.chats[flag] = draft.chats[flag].set(time, writ);
           } else if ("del" in update.diff) {
             const time = bigInt(udToDec(update.diff.del));
-            draft.chats["~zod/test"] = draft.chats["~zod/test"].delete(time);
+            draft.chats[flag] = draft.chats[flag].delete(time);
           } else if ("add-feel" in update.diff) {
             const diff = update.diff['add-feel'];
             const time = bigInt(udToDec(diff.time));
-            let writ = draft.chats["~zod/test"].get(time);
+            let writ = draft.chats[flag].get(time);
             writ.seal.feels[diff.ship] = diff.feel;
-            draft.chats["~zod/test"] = draft.chats["~zod/test"].set(time, writ);
+            draft.chats[flag] = draft.chats[flag].set(time, writ);
           }
         });
       },
