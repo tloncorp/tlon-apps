@@ -1,7 +1,7 @@
 import { daToUnix, decToUd, udToDec } from "@urbit/api";
 import React from "react";
 import bigInt from "big-integer";
-import moment from "moment";
+import { format } from "date-fns";
 import _ from "lodash";
 import f from "lodash/fp";
 import api from "../api";
@@ -92,14 +92,14 @@ export function ChatMessage(props: ChatMessageProps) {
     });
   };
 
-  const time = moment(daToUnix(bigInt(udToDec(seal.time))));
+  const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
 
   return (
     <div className="flex flex-col space-y-3 border rounded p-2">
       <div className="flex">
         <div className="flex text-mono space-x-2 grow">
           <div>{memo.author}</div>
-          <div className="text-gray">{time.format("HH:mm")}</div>
+          <div className="text-gray">{format(time, "HH:mm")}</div>
         </div>
         <button className="border rounded px-2" onClick={onDelete}>
           Delete
