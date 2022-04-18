@@ -1,11 +1,11 @@
 |%
-+$  writs  (list [=time writ])
 +$  writ   [seal memo]
 +$  feel   @ta
 ::
 +$  seal
   $:  =time
       feels=(map ship feel)
+      replied=(set time)
   ==
 ::
 
@@ -17,19 +17,20 @@
       [%del-feel p=time q=ship]
   ==
 ::
-+$  fleet
++$  writs
   ((mop time writ) lte)
-++  fleet-on
+++  writs-on
   ((on time writ) lte)
 +$  log
   ((mop time diff) lte)
 ++  log-on
   ((on time diff) lte)
 +$  chat
-  (trel net log fleet)
+  [=net =log =writs]
 ::
 +$  memo  
-  $:  author=ship
+  $:  replying=(unit time)
+      author=ship
       sent=time
       content=cord :: TODO
   ==

@@ -23,6 +23,7 @@ export interface ChatSeal {
 }
 
 export interface ChatMemo {
+  replying: Patda | null;
   author: Ship;
   sent: number;
   content: string;

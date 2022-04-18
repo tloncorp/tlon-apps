@@ -107,7 +107,7 @@
     |=  =flag:c
     ^+  cor
     =|  =chat:c
-    =.  p.chat  [%pub ~]
+    =.  net.chat  [%pub ~]
     =.  chats  (~(put by chats) flag chat)
     cor  :: TODO: emit facts
   --
@@ -185,18 +185,18 @@
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
     ::
-        [%fleet %newest count=@ ~]
+        [%writs %newest count=@ ~]
       =/  count  (slav %ud count.pole)
-      ``chat-writs+!>(`writs:c`(scag count (tap:fleet-on:c r.chat)))
+      ``chat-writs-list+!>((turn (scag count (tap:writs-on:c writs.chat)) tail))
     ::
-        [%fleet %older start=@ count=@ ~]
+        [%writs %older start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %da start.pole)
-      ``chat-writs+!>((tab:fleet-on:c r.chat `start count))
+      ``chat-writs+!>((turn (tab:writs-on:c writs.chat `start count) tail))
     ::
-        [%fleet %writ writ=@ ~]
+        [%writs %writ writ=@ ~]
       =/  writ  (slav %da writ.pole)
-      ``writ+!>((got:fleet-on:c r.chat writ))
+      ``writ+!>((got:writs-on:c writs.chat writ))
     ==
   ::
   ++  ca-take-update
@@ -206,7 +206,7 @@
       %kick  ca-sub
     ::
         %watch-ack
-      =.  p.chat  [%sub src.bowl]
+      =.  net.chat  [%sub src.bowl]
       %.  ca-core
       ?~  p.sign  same
       (slog leaf/"Failed subscription" u.p.sign)
@@ -231,9 +231,9 @@
     |=  =path
     ^+  ca-core
     =/  =logs:c
-      ?~  path  q.chat
+      ?~  path  log.chat
       =/  =time  (slav %da i.path)
-      (lot:log-on:c q.chat `time ~)
+      (lot:log-on:c log.chat `time ~)
     =/  =cage  chat-logs+!>(logs)
     =.  cor  (give %fact ~ cage)
     ca-core
@@ -241,7 +241,7 @@
   ++  ca-sub
     ^+  ca-core
     =/  tim=(unit time)
-      (bind (ram:log-on:c q.chat) head)
+      (bind (ram:log-on:c log.chat) head)
     =/  base=wire  (snoc ca-area %updates)
     =/  =path 
       %+  weld  base
@@ -284,37 +284,48 @@
   ++  ca-update
     |=  [=time d=diff:c]
     ^+  ca-core
-    =.  q.chat
-      (put:log-on:c q.chat time d)
+    =.  log.chat
+      (put:log-on:c log.chat time d)
     =.  ca-core
       (ca-give-updates chat-update+!>([time d]))
     ?-    -.d
         %add-feel
-      =/  =writ:c  (got:fleet-on:c r.chat p.d)
+      =/  =writ:c  (got:writs-on:c writs.chat p.d)
       ?>  |(=(p.flag src.bowl) =(src.bowl q.d))
       =.  feels.writ  (~(put by feels.writ) [q r]:d)
-      =.  r.chat   (put:fleet-on:c r.chat p.d writ)
+      =.  writs.chat   (put:writs-on:c writs.chat p.d writ)
       ca-core
     ::
         %del-feel
-      =/  =writ:c  (got:fleet-on:c r.chat p.d)
+      =/  =writ:c  (got:writs-on:c writs.chat p.d)
       ?>  |(=(p.flag src.bowl) =(src.bowl q.d))
       =.  feels.writ  (~(del by feels.writ) q.d)
-      =.  r.chat   (put:fleet-on:c r.chat p.d writ)
+      =.  writs.chat   (put:writs-on:c writs.chat p.d writ)
       ca-core
    ::
         %add
       ?>  |(=(src.bowl p.flag) =(src.bowl author.p.d))
-      =.  r.chat  
-        (put:fleet-on:c r.chat time [time ~] p.d)
+      =.  writs.chat  
+        (put:writs-on:c writs.chat time [time ~ ~] p.d)
+      ?~  replying.p.d  ca-core
+      =*  replying  u.replying.p.d
+      =/  reply=writ:c  (got:writs-on:c writs.chat replying)
+      =.  replied.reply  (~(put in replied.reply) time)
+      =.  writs.chat  (put:writs-on:c writs.chat replying reply)
       ca-core
     ::
         %del
       =/  =writ:c
-        (got:fleet-on:c r.chat p.d)
+        (got:writs-on:c writs.chat p.d)
+      =?  ca-core  ?=(^ replying.writ)  
+        =*  replying  u.replying.writ
+        =/  reply=writ:c  (got:writs-on:c writs.chat replying)
+        =.  replied.reply  (~(del in replied.reply) p.d)
+        =.  writs.chat  (put:writs-on:c writs.chat replying reply)
+        ca-core
       ?>  |(=(src.bowl p.flag) =(src.bowl author.writ))
-      =.  r.chat
-        +:(del:fleet-on:c r.chat p.d)
+      =.  writs.chat
+        +:(del:writs-on:c writs.chat p.d)
       ca-core
     ==
   --

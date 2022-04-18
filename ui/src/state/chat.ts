@@ -27,13 +27,13 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   sendMessage: () => {},
   initialize: async (flag: string) => {
-    const chat = await api.scry<ChatWrits>({
+    const chat = await api.scry<ChatWrit[]>({
       app: "chat",
-      path: `/chat/${flag}/fleet/newest/100`,
+      path: `/chat/${flag}/writs/newest/100`,
     });
     get().set((draft) => {
-      chat.forEach(({ time, writ }) => {
-        const tim = bigInt(udToDec(time));
+      chat.forEach((writ) => {
+        const tim = bigInt(udToDec(writ.seal.time));
         draft.chats[flag] = draft.chats[flag].set(tim, writ);
       });
     });

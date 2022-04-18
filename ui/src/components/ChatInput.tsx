@@ -11,6 +11,7 @@ export function ChatInput(props: {}) {
 
   const onSubmit = useCallback(() => {
     const memo: ChatMemo = {
+      replying: null,
       author: `~${window.ship}`,
       sent: Date.now(),
       content: value,

@@ -46,6 +46,10 @@
         %+  turn  ~(tap by feels.seal)
         |=  [her=@p =feel:c]
         [(scot %p her) s+feel]
+    ::
+        :-  %replied
+        :-  %a
+        (turn ~(tap in replied.seal) |=(tim=@da s+(scot %ud tim)))
     ==
   ++  writ
     |=  =writ:c
@@ -54,16 +58,10 @@
         memo+(memo +.writ)
     ==
   ::
-  ++  writs
-    |=  =writs:c
+  ++  writ-list
+    |=  w=(list writ:c)
     ^-  json
-    :-  %a
-    %+  turn  writs
-    |=  [tim=@da w=writ:c]
-    %-  pairs
-    :~  time+s+(scot %ud tim)
-        writ+(writ w)
-    ==
+    a+(turn w writ)
   --
 ++  dejs
   =,  dejs:format
@@ -98,7 +96,8 @@
   ::
   ++  memo
     %-  ot
-    :~  author/ship
+    :~  replying/(mu (se %ud))
+        author/ship
         sent/di
         content/so
     ==
