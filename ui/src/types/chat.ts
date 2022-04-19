@@ -6,9 +6,6 @@ export interface ChatWrit {
   memo: ChatMemo;
 }
 
-export interface ChatSeal {
-  time: Patda;
-}
 
 export interface ChatWrit {
   seal: ChatSeal;

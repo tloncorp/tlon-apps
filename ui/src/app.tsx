@@ -16,8 +16,7 @@ export function App() {
 
   useEffect(() => {
     (async () => {
-      console.log('initialize');
-      useChatState.getState().initialize("~littel-dister-hastuc-dibtux/test");
+      useChatState.getState().initialize("~zod/test");
     })();
 
     return () => {
