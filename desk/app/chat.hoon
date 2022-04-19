@@ -95,6 +95,10 @@
     ?:  =(p.p.action our.bowl)
       ca-abet:(ca-update:chat-core q.action)
     ca-abet:(ca-proxy:chat-core q.action)
+  ::
+      %chat-remark-action
+    =+  !<(act=remark-action:c vase)
+    ca-abet:(ca-remark-diff:(ca-abed:ca-core p.act) q.act)
   ==
   ::
   ++  join
@@ -280,6 +284,22 @@
     =.  cor
       (give %fact ~(tap in paths) cage)
     ca-core
+  ::
+  ++  ca-remark-diff
+    |=  diff=remark-diff:c
+    ^+  ca-core
+    =.  cor
+      (give %fact ~[(snoc ca-area %ui)] chat-remark-action+!>([flag diff]))
+    ?-  -.diff
+      %watch    ca-core(watching.remark.chat &)
+      %unwatch  ca-core(watching.remark.chat |)
+      %read-at  ca-core(last-read.remark.chat p.diff)
+    ::
+        %read 
+      =/  [=time =writ:c]  (need (ram:writs-on:c writs.chat))
+      =.  last-read.remark.chat  time
+      ca-core
+    ==
   ::
   ++  ca-update
     |=  [=time d=diff:c]

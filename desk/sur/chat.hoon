@@ -8,7 +8,15 @@
       replied=(set time)
   ==
 ::
-
++$  remark-action
+  (pair flag remark-diff)
+::
++$  remark-diff
+  $%  [%read ~]
+      [%read-at p=time]
+      [?(%watch %unwatch) ~]
+  ==
+::
 +$  flag  (pair ship term)
 +$  diff
   $%  [%add p=memo]
@@ -25,8 +33,10 @@
   ((mop time diff) lte)
 ++  log-on
   ((on time diff) lte)
++$  remark
+  [last-read=time watching=_| ~]
 +$  chat
-  [=net =log =writs]
+  [=net =remark =log =writs]
 ::
 +$  memo  
   $:  replying=(unit time)
