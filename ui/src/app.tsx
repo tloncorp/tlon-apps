@@ -1,23 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { ChatWrit, ChatWrits } from './types/chat';
-import { ChatMessage } from './components/ChatMessage';
-import { ChatInput } from './components/ChatInput';
+import React, { useEffect } from 'react';
+import ChatMessage from './components/ChatMessage';
+import ChatInput from './components/ChatInput';
 import api from './api';
 import { useChatState, useMessagesForChat } from './state/chat';
 
-const scryMessages = {
-  app: 'chat',
-  path: '/chat/~zod/test/fleet/newest/100',
-};
+const DEF_FLAG = '~zod/test';
 
-export function App() {
-  const messages = useMessagesForChat('~zod/test');
-  console.log(messages);
+export default function App() {
+  const messages = useMessagesForChat(DEF_FLAG);
 
   useEffect(() => {
-    (async () => {
-      useChatState.getState().initialize('~zod/test');
-    })();
+    useChatState.getState().initialize('~zod/test');
 
     return () => {
       api.reset();
@@ -38,7 +31,7 @@ export function App() {
                 return <ChatMessage key={writ.seal.time} writ={writ} />;
               })}
         </div>
-        <ChatInput />
+        <ChatInput flag={DEF_FLAG} />
       </div>
     </main>
   );

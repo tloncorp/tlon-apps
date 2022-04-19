@@ -1,4 +1,4 @@
-import { daToUnix, decToUd, udToDec } from '@urbit/api';
+import { daToUnix, udToDec } from '@urbit/api';
 import React from 'react';
 import bigInt from 'big-integer';
 import { format } from 'date-fns';
@@ -22,10 +22,9 @@ function ChatFeel(props: { feel: string; seal: ChatSeal }) {
   const { feel, seal } = props;
 
   const count = _.flow(
-    f.pickBy((f: string) => f == feel),
+    f.pickBy((fe: string) => fe === feel),
     f.keys
   )(seal.feels).length;
-  console.log(count);
 
   const addFeel = () => {
     api.poke({
@@ -73,7 +72,7 @@ interface ChatMessageProps {
   writ: ChatWrit;
 }
 
-export function ChatMessage(props: ChatMessageProps) {
+export default function ChatMessage(props: ChatMessageProps) {
   const { writ } = props;
   const { seal, memo } = writ;
 

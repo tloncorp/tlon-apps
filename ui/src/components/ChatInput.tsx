@@ -1,8 +1,13 @@
 import React, { ChangeEvent, useCallback, useState } from 'react';
-import api from '../api';
+import { useChatState } from '../state/chat';
 import { ChatMemo } from '../types/chat';
 
-export function ChatInput(props: {}) {
+interface ChatInputProps {
+  flag: string;
+}
+
+export default function ChatInput(props: ChatInputProps) {
+  const { flag } = props;
   const [value, setValue] = useState<string>('');
 
   const onChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -16,21 +21,9 @@ export function ChatInput(props: {}) {
       sent: Date.now(),
       content: value,
     };
-    api.poke({
-      app: 'chat',
-      mark: 'chat-action',
-      json: {
-        flag: '~zod/test',
-        update: {
-          time: '',
-          diff: {
-            add: memo,
-          },
-        },
-      },
-    });
+    useChatState.getState().sendMessage(flag, memo);
     setValue('');
-  }, [value]);
+  }, [value, flag]);
 
   return (
     <div className="flex space-x-2">

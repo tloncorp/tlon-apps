@@ -1,29 +1,46 @@
 import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, daToDate, udToDec, unixToDa } from '@urbit/api';
-import bigInt, { BigInteger } from 'big-integer';
+import { BigIntOrderedMap, udToDec } from '@urbit/api';
+import bigInt from 'big-integer';
 import { useCallback } from 'react';
+import { SubscriptionInterface } from '@urbit/http-api';
 import {
-  SubscriptionInterface,
-  SubscriptionRequestInterface,
-} from '@urbit/http-api';
-import { ChatUpdate, ChatWrit, ChatWrits, Patda } from '../types/chat';
+  ChatDiff,
+  ChatMemo,
+  ChatUpdate,
+  ChatWrit,
+} from '../types/chat';
 import api from '../api';
 import { chatWrits } from '../fixtures/chat';
 
 setAutoFreeze(false);
 const IS_MOCK = import.meta.env.MODE === 'mock';
-console.log('IS_MOCK', IS_MOCK);
 
 interface ChatApi {
   newest: (flag: string, count: number) => Promise<ChatWrit[]>;
   subscribe: (flag: string, opts: SubscriptionInterface) => Promise<number>;
+  sendMessage: (flag: string, memo: ChatMemo) => Promise<number>;
+}
+
+function chatAction(flag: string, diff: ChatDiff) {
+  return {
+    app: 'chat',
+    mark: 'chat-action',
+    json: {
+      flag,
+      update: {
+        time: '',
+        diff,
+      },
+    },
+  };
 }
 
 const chatApi: ChatApi = IS_MOCK
   ? {
-      subscribe: (flag, opts) => Promise.resolve(1),
-      newest: (flag, count) => Promise.resolve(chatWrits),
+      subscribe: () => Promise.resolve(1),
+      newest: () => Promise.resolve(chatWrits),
+      sendMessage: () => Promise.resolve(1),
     }
   : {
       subscribe: (flag, opts) =>
@@ -33,6 +50,7 @@ const chatApi: ChatApi = IS_MOCK
           app: 'chat',
           path: `/chat/${flag}/writs/newest/${count}`,
         }),
+      sendMessage: (flag, memo) => api.poke(chatAction(flag, { add: memo })),
     };
 
 interface ChatState {
@@ -40,21 +58,24 @@ interface ChatState {
   chats: {
     [flag: string]: BigIntOrderedMap<ChatWrit>;
   };
-  sendMessage: () => void;
+  sendMessage: (flag: string, memo: ChatMemo) => void;
   initialize: (flag: string) => Promise<void>;
 }
 
 export const useChatState = create<ChatState>((set, get) => ({
-  set: (fn: any) => {
+  set: (fn) => {
     set(produce(get(), fn));
   },
   chats: {
     '~zod/test': new BigIntOrderedMap<ChatWrit>(),
   },
-  sendMessage: () => {},
+  sendMessage: (flag, memo) => {
+    chatApi.sendMessage(flag, memo);
+  },
   initialize: async (flag: string) => {
     const chat = await chatApi.newest(flag, 100);
     get().set((draft) => {
+      draft.chats[flag] = new BigIntOrderedMap();
       chat.forEach((writ) => {
         const tim = bigInt(udToDec(writ.seal.time));
         draft.chats[flag] = draft.chats[flag].set(tim, writ);
@@ -62,9 +83,8 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
 
     chatApi.subscribe(flag, {
-      event: (data: any) => {
+      event: (data: unknown) => {
         const update = data as ChatUpdate;
-        console.log('subscription', update);
         get().set((draft) => {
           if ('add' in update.diff) {
             const time = bigInt(udToDec(update.time));
