@@ -1,9 +1,9 @@
-import React, { ChangeEvent, useCallback, useState } from "react";
-import api from "../api";
-import { ChatMemo } from "../types/chat";
+import React, { ChangeEvent, useCallback, useState } from 'react';
+import api from '../api';
+import { ChatMemo } from '../types/chat';
 
 export function ChatInput(props: {}) {
-  const [value, setValue] = useState<string>("");
+  const [value, setValue] = useState<string>('');
 
   const onChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setValue(e.target.value);
@@ -17,30 +17,30 @@ export function ChatInput(props: {}) {
       content: value,
     };
     api.poke({
-      app: "chat",
-      mark: "chat-action",
+      app: 'chat',
+      mark: 'chat-action',
       json: {
-        flag: "~zod/test",
+        flag: '~zod/test',
         update: {
-          time: "",
+          time: '',
           diff: {
             add: memo,
           },
         },
       },
     });
-    setValue("");
+    setValue('');
   }, [value]);
 
   return (
     <div className="flex space-x-2">
       <input
-        className="border rounded grow"
+        className="grow rounded border"
         type="text"
         value={value}
         onChange={onChange}
       />
-      <button className="px-2 border rounded" type="button" onClick={onSubmit}>
+      <button className="px-2 rounded border" type="button" onClick={onSubmit}>
         Submit!
       </button>
     </div>

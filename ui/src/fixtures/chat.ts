@@ -1,13 +1,13 @@
-import { ChatWrit } from '../types/chat';
 import { decToUd, unixToDa } from '@urbit/api';
 import { subMinutes } from 'date-fns';
+import { ChatWrit } from '../types/chat';
 
 export const makeChatWrit = (
   count: number,
   author: string,
   content: string
 ): ChatWrit => {
-  let unix = subMinutes(new Date(), count * 5).getTime();
+  const unix = subMinutes(new Date(), count * 5).getTime();
   const time = unixToDa(unix);
   const da = decToUd(time.toString());
   return {
@@ -31,3 +31,5 @@ export const chatWrits: ChatWrit[] = [
   makeChatWrit(4, '~hastuc-dibtux', 'A test message'),
   makeChatWrit(5, '~hastuc-dibtux', 'A test message'),
 ];
+
+chatWrits[3].seal.feels['~fabled-faster'] = '🔥';

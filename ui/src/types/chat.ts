@@ -6,7 +6,6 @@ export interface ChatWrit {
   memo: ChatMemo;
 }
 
-
 export interface ChatWrit {
   seal: ChatSeal;
   memo: ChatMemo;
@@ -45,7 +44,7 @@ interface ChatDiffDel {
 }
 
 interface ChatDiffAddFeel {
-  "add-feel": {
+  'add-feel': {
     time: string;
     feel: string;
     ship: string;

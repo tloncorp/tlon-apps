@@ -1,7 +1,5 @@
 import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
-import api from '../api';
-import { ChatUpdate, ChatWrit, ChatWrits, Patda } from '../types/chat';
 import { BigIntOrderedMap, daToDate, udToDec, unixToDa } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback } from 'react';
@@ -9,6 +7,8 @@ import {
   SubscriptionInterface,
   SubscriptionRequestInterface,
 } from '@urbit/http-api';
+import { ChatUpdate, ChatWrit, ChatWrits, Patda } from '../types/chat';
+import api from '../api';
 import { chatWrits } from '../fixtures/chat';
 
 setAutoFreeze(false);
@@ -28,12 +28,11 @@ const chatApi: ChatApi = IS_MOCK
   : {
       subscribe: (flag, opts) =>
         api.subscribe({ app: 'chat', path: `/chat/${flag}/ui`, ...opts }),
-      newest: (flag, count) => {
-        return api.scry<ChatWrit[]>({
+      newest: (flag, count) =>
+        api.scry<ChatWrit[]>({
           app: 'chat',
           path: `/chat/${flag}/writs/newest/${count}`,
-        });
-      },
+        }),
     };
 
 interface ChatState {
@@ -78,7 +77,7 @@ export const useChatState = create<ChatState>((set, get) => ({
           } else if ('add-feel' in update.diff) {
             const diff = update.diff['add-feel'];
             const time = bigInt(udToDec(diff.time));
-            let writ = draft.chats[flag].get(time);
+            const writ = draft.chats[flag].get(time);
             writ.seal.feels[diff.ship] = diff.feel;
             draft.chats[flag] = draft.chats[flag].set(time, writ);
           }

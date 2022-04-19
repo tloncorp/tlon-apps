@@ -1,20 +1,21 @@
-import { daToUnix, decToUd, udToDec } from "@urbit/api";
-import React from "react";
-import bigInt from "big-integer";
-import { format } from "date-fns";
-import _ from "lodash";
-import f from "lodash/fp";
-import api from "../api";
-import { ChatSeal, ChatWrit } from "../types/chat";
+import { daToUnix, decToUd, udToDec } from '@urbit/api';
+import React from 'react';
+import bigInt from 'big-integer';
+import { format } from 'date-fns';
+import _ from 'lodash';
+import f from 'lodash/fp';
+import api from '../api';
+import { ChatSeal, ChatWrit } from '../types/chat';
+import Author from './Author';
 
 interface ChatFeelProps {
   seal: ChatSeal;
 }
 
 const FEELS = {
-  HAHA: "😆",
-  WOW: "😮",
-  FIRE: "🔥",
+  HAHA: '😆',
+  WOW: '😮',
+  FIRE: '🔥',
 };
 
 function ChatFeel(props: { feel: string; seal: ChatSeal }) {
@@ -28,14 +29,14 @@ function ChatFeel(props: { feel: string; seal: ChatSeal }) {
 
   const addFeel = () => {
     api.poke({
-      app: "chat",
-      mark: "chat-action",
+      app: 'chat',
+      mark: 'chat-action',
       json: {
-        flag: "~zod/test",
+        flag: '~zod/test',
         update: {
-          time: "",
+          time: '',
           diff: {
-            "add-feel": {
+            'add-feel': {
               time: seal.time,
               feel,
               ship: `~${window.ship}`,
@@ -49,7 +50,7 @@ function ChatFeel(props: { feel: string; seal: ChatSeal }) {
   return (
     <div
       onClick={addFeel}
-      className="flex space-x-2 items-center border rounded px-2 py-1"
+      className="flex items-center py-1 px-2 space-x-2 text-sm leading-tight text-gray-600 bg-gray-50 rounded"
     >
       <span>{feel}</span>
       <span>{count}</span>
@@ -78,12 +79,12 @@ export function ChatMessage(props: ChatMessageProps) {
 
   const onDelete = () => {
     api.poke({
-      app: "chat",
-      mark: "chat-action",
+      app: 'chat',
+      mark: 'chat-action',
       json: {
-        flag: "~zod/test",
+        flag: '~zod/test',
         update: {
-          time: "",
+          time: '',
           diff: {
             del: writ.seal.time,
           },
@@ -95,13 +96,15 @@ export function ChatMessage(props: ChatMessageProps) {
   const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
 
   return (
-    <div className="flex flex-col space-y-3 border rounded p-2">
+    <div className="flex flex-col p-2 space-y-3 rounded border">
       <div className="flex">
-        <div className="flex text-mono space-x-2 grow">
-          <div>{memo.author}</div>
-          <div className="text-gray">{format(time, "HH:mm")}</div>
+        <div className="flex grow items-center space-x-2 text-mono">
+          <Author ship={memo.author} />
+          <div className="text-xs font-semibold text-gray">
+            {format(time, 'HH:mm')}
+          </div>
         </div>
-        <button className="border rounded px-2" onClick={onDelete}>
+        <button className="px-2 rounded border" onClick={onDelete}>
           Delete
         </button>
       </div>
