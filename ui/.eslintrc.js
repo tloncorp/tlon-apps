@@ -14,6 +14,7 @@ module.exports = {
     }],
     'tailwindcss/no-custom-classname': [0, {
       config: 'tailwind.config.js'
-    }]
-  }
+    }],
+    'no-param-reassign': ['error', { props: true, ignorePropertyModificationsFor: ['draft'] }],
+  },
 };
