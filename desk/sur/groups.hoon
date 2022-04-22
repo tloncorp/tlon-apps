@@ -22,6 +22,16 @@
     ==
   --
 ::
++$  meta
+  =<  meta
+  |%
+  +$  meta
+    $:  title=cord
+        description=cord
+        image=cord
+    ==
+  --
+::
 ++  channel
   =<  channel
   |%
@@ -42,14 +52,15 @@
       cabals=(map sect cabal)
       =channels:channel
       =cordon
+      =meta
   ==
 ++  cabal
   =<  cabal
   |%
+  ::
   +$  cabal
-    $:  title=cord
-        description=cord
-    ==
+    [=meta ~]
+  ::
   +$  diff
     $%  [%add =cabal]
         [%del ~]
