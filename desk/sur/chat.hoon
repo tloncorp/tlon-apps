@@ -58,4 +58,11 @@
   (pair time diff)
 +$  logs
   ((mop time diff) lte)
+::
++$  create-req
+  $:  =flag
+      group=flag  :: TODO: unmanaged-style group chats
+      title=cord
+      description=cord
+  ==
 --

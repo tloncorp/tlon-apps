@@ -1,4 +1,4 @@
-/-  c=chat
+/-  c=chat, g=groups
 /+  default-agent, verb, dbug
 ^-  agent:gall
 =>
@@ -83,9 +83,12 @@
   ?+    mark  ~|(bad-poke/mark !!)
       %flag
     =+  !<(=flag:c vase)
-    ?.  =(our.bowl p.flag)
-      (join flag)
-    (create flag)
+    ?<  =(our.bowl p.flag)
+    (join flag)
+  ::
+      %chat-create-req
+    =+  !<(req=create-req:c vase)
+    (create req)
   ::
       %chat-action
     =+  !<(=action:c vase)
@@ -107,12 +110,12 @@
     ca-abet:(ca-join:ca-core flag)
   ::
   ++  create
-    |=  =flag:c
+    |=  req=create-req:c
     ^+  cor
     =|  =chat:c
     =.  net.chat  [%pub ~]
-    =.  chats  (~(put by chats) flag chat)
-    cor  :: TODO: emit facts
+    =.  chats  (~(put by chats) flag.req chat)
+    ca-abet:(ca-init:(ca-abed:ca-core flag.req) req)
   --
 ++  watch
   |=  =path
@@ -172,6 +175,25 @@
       [%ui ~]       ca-core
     ::
     ==
+  ++  ca-pass
+    |%
+    ++  add-channel
+      |=  req=create-req:c
+      =/  =dock      [p.group.req %groups]
+      =/  =channel:g  =,(req [title description now.bowl])
+      =/  =action:g  [group.req now.bowl %channel flag %add channel]
+      =/  =cage      group-action+!>(action)
+      =/  =wire      (snoc ca-area %create)
+      =/  =card
+        [%pass ca-area %agent dock %poke cage]
+      =.  cor
+        (emit card)
+      ca-core
+    --
+  ++  ca-init
+    |=  req=create-req:c
+    (add-channel:ca-pass req)
+  ::
   ++  ca-agent
     |=  [=wire =sign:agent:gall]
     ^+  ca-core
@@ -181,6 +203,9 @@
     ::
         [%updates ~]
       (ca-take-update sign)
+    ::
+        [%create ~]
+      ca-core  :: TODO rollback creation if poke fails?
     ==
   ::
   ++  ca-peek
