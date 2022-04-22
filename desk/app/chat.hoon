@@ -4,7 +4,6 @@
 =>
   |%
   +$  card  card:agent:gall
-  +$  resource  (pair ship term)
   ++  def-flag  `flag:c`[~zod %test]
   +$  state-0
     $:  %0
@@ -162,8 +161,8 @@
   ++  ca-abet  
     cor(chats (~(put by chats) flag chat))
   ++  ca-abed
-    |=  r=resource
-    ca-core(flag r, chat (~(got by chats) r))
+    |=  f=flag:c
+    ca-core(flag f, chat (~(got by chats) f))
   ++  ca-area  `path`/chat/(scot %p p.flag)/[q.flag]
   ++  ca-watch
     |=  =path
