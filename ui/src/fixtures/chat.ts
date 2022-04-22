@@ -2,6 +2,7 @@ import { decToUd, unixToDa } from '@urbit/api';
 import { subMinutes } from 'date-fns';
 import { ChatWrit } from '../types/chat';
 
+// eslint-disable-next-line import/prefer-default-export
 export const makeChatWrit = (
   count: number,
   author: string,
@@ -24,12 +25,3 @@ export const makeChatWrit = (
   };
 };
 
-export const chatWrits: ChatWrit[] = [
-  makeChatWrit(1, '~hastuc-dibtux', 'A test message'),
-  makeChatWrit(2, '~hastuc-dibtux', 'A test message'),
-  makeChatWrit(3, '~hastuc-dibtux', 'A test message'),
-  makeChatWrit(4, '~hastuc-dibtux', 'A test message'),
-  makeChatWrit(5, '~hastuc-dibtux', 'A test message'),
-];
-
-chatWrits[3].seal.feels['~fabled-faster'] = '🔥';

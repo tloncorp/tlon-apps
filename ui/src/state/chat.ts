@@ -4,20 +4,13 @@ import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback } from 'react';
 import { SubscriptionInterface } from '@urbit/http-api';
-import {
-  ChatDiff,
-  ChatMemo,
-  ChatUpdate,
-  ChatWrit,
-} from '../types/chat';
+import { ChatDiff, ChatMemo, ChatUpdate, ChatWrit } from '../types/chat';
 import api from '../api';
-import { chatWrits } from '../fixtures/chat';
 
 setAutoFreeze(false);
-const IS_MOCK = import.meta.env.MODE === 'mock';
 
 interface ChatApi {
-  newest: (flag: string, count: number) => Promise<ChatWrit[]>;
+  newest: (flag: string, count: number) => Promise<Record<string, any>>;
   subscribe: (flag: string, opts: SubscriptionInterface) => Promise<number>;
   sendMessage: (flag: string, memo: ChatMemo) => Promise<number>;
 }
@@ -36,22 +29,16 @@ function chatAction(flag: string, diff: ChatDiff) {
   };
 }
 
-const chatApi: ChatApi = IS_MOCK
-  ? {
-      subscribe: () => Promise.resolve(1),
-      newest: () => Promise.resolve(chatWrits),
-      sendMessage: () => Promise.resolve(1),
-    }
-  : {
-      subscribe: (flag, opts) =>
-        api.subscribe({ app: 'chat', path: `/chat/${flag}/ui`, ...opts }),
-      newest: (flag, count) =>
-        api.scry<ChatWrit[]>({
-          app: 'chat',
-          path: `/chat/${flag}/writs/newest/${count}`,
-        }),
-      sendMessage: (flag, memo) => api.poke(chatAction(flag, { add: memo })),
-    };
+const chatApi: ChatApi = {
+  subscribe: (flag, opts) =>
+    api.subscribe({ app: 'chat', path: `/chat/${flag}/ui`, ...opts }),
+  newest: (flag, count) =>
+    api.scry({
+      app: 'chat',
+      path: `/chat/${flag}/writs/newest/${count}`,
+    }),
+  sendMessage: (flag, memo) => api.poke(chatAction(flag, { add: memo })),
+};
 
 interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
@@ -76,7 +63,7 @@ export const useChatState = create<ChatState>((set, get) => ({
     const chat = await chatApi.newest(flag, 100);
     get().set((draft) => {
       draft.chats[flag] = new BigIntOrderedMap();
-      chat.forEach((writ) => {
+      chat.forEach((writ: ChatWrit) => {
         const tim = bigInt(udToDec(writ.seal.time));
         draft.chats[flag] = draft.chats[flag].set(tim, writ);
       });
