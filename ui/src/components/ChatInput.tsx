@@ -1,41 +1,69 @@
-import React, { ChangeEvent, useCallback, useState } from 'react';
+import { EditorContent, useEditor } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
+import { Plugin, PluginKey } from 'prosemirror-state';
+import StarterKit from '@tiptap/starter-kit';
+import React, { FormEvent, useCallback } from 'react';
 import { useChatState } from '../state/chat';
 import { ChatMemo } from '../types/chat';
+import Button from './Button';
 
 interface ChatInputProps {
   flag: string;
 }
 
+const defaultEnter = Extension.create({
+  priority: 999999,
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => true,
+    };
+  },
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('eventHandler'),
+        props: {
+          handleKeyDown() {
+            return true;
+          },
+        },
+      }),
+    ];
+  },
+});
+
 export default function ChatInput(props: ChatInputProps) {
   const { flag } = props;
-  const [value, setValue] = useState<string>('');
+  const editor = useEditor({
+    extensions: [StarterKit, defaultEnter],
+    content: '',
+    editorProps: {
+      attributes: {
+        class: 'input',
+      },
+    },
+  });
 
-  const onChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setValue(e.target.value);
-  }, []);
+  const onSubmit = useCallback(
+    (event: FormEvent) => {
+      event.preventDefault();
 
-  const onSubmit = useCallback(() => {
-    const memo: ChatMemo = {
-      replying: null,
-      author: `~${window.ship}`,
-      sent: Date.now(),
-      content: value,
-    };
-    useChatState.getState().sendMessage(flag, memo);
-    setValue('');
-  }, [value, flag]);
+      const memo: ChatMemo = {
+        replying: null,
+        author: `~${window.ship}`,
+        sent: Date.now(),
+        content: JSON.stringify(editor?.getJSON()),
+      };
+      useChatState.getState().sendMessage(flag, memo);
+      editor?.commands.clearContent();
+    },
+    [editor, flag]
+  );
 
   return (
-    <div className="flex space-x-2">
-      <input
-        className="grow rounded border"
-        type="text"
-        value={value}
-        onChange={onChange}
-      />
-      <button className="px-2 rounded border" type="button" onClick={onSubmit}>
-        Submit!
-      </button>
-    </div>
+    <form onSubmit={onSubmit} className="flex w-full items-end space-x-2">
+      <EditorContent className="flex-1" editor={editor} />
+      <Button type="submit">Send</Button>
+    </form>
   );
 }

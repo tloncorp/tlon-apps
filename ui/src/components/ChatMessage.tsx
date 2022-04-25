@@ -49,7 +49,7 @@ function ChatFeel(props: { feel: string; seal: ChatSeal }) {
   return (
     <div
       onClick={addFeel}
-      className="flex items-center py-1 px-2 space-x-2 text-sm leading-tight text-gray-600 bg-gray-50 rounded"
+      className="flex items-center space-x-2 rounded bg-gray-50 py-1 px-2 text-sm leading-tight text-gray-600"
     >
       <span>{feel}</span>
       <span>{count}</span>
@@ -95,15 +95,15 @@ export default function ChatMessage(props: ChatMessageProps) {
   const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
 
   return (
-    <div className="flex flex-col p-2 space-y-3 rounded border">
+    <div className="flex flex-col space-y-3 rounded-md">
       <div className="flex">
-        <div className="flex grow items-center space-x-2 text-mono">
+        <div className="text-mono flex grow items-center space-x-2">
           <Author ship={memo.author} />
-          <div className="text-xs font-semibold text-gray">
+          <div className="text-gray text-xs font-semibold">
             {format(time, 'HH:mm')}
           </div>
         </div>
-        <button className="px-2 rounded border" onClick={onDelete}>
+        <button className="rounded border px-2" onClick={onDelete}>
           Delete
         </button>
       </div>

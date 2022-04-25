@@ -18,9 +18,8 @@ export default function App() {
   }, []);
 
   return (
-    <main className="flex justify-center items-center min-h-screen">
-      <div className="py-20 space-y-6 max-w-md">
-        <h1 className="text-3xl font-bold text-blue">Welcome to homestead</h1>
+    <main>
+      <div className="flex h-screen w-full flex-col justify-end space-y-6 p-4">
         <div className="space-y-4">
           {messages &&
             messages
