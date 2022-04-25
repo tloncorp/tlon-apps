@@ -13,7 +13,7 @@ jobs:
           node-version-file: ./ui/.nvmrc
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
         working-directory: ./ui
 
       - name: Run Lint
