@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -8,7 +8,9 @@ import {
 import cn from 'classnames';
 import Groups from './pages/Groups';
 import Channel from './pages/Channel';
-import {useGroup, useGroupList} from './state/groups';
+import { useGroup, useGroupList, useGroupState } from './state/groups';
+import NewGroup from './pages/NewGroup';
+import NewChannel from './pages/NewChannel';
 
 function SidebarRow(props: {
   icon?: string;
@@ -47,21 +49,28 @@ function Divider(props: { title: string }) {
 
 function App() {
   const groups = useGroupList();
+  useEffect(() => {
+    useGroupState.getState().fetchAll();
+  }, []);
   return (
     <Router basename="/apps/homestead">
       <div className="h-full w-full flex">
         <ul className="h-full p-2 w-56 border-r">
           <SidebarRow>Groups</SidebarRow>
           <SidebarRow>Profile</SidebarRow>
-          <SidebarRow>Profile</SidebarRow>
+          <SidebarRow>
+            <NavLink to="/groups/new">New Group</NavLink>
+          </SidebarRow>
           <Divider title="All Groups" />
           {groups.map((flag) => (
             <GroupItem key={flag} flag={flag} />
           ))}
         </ul>
         <Routes>
+          <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route path="channels/:app/:chShip/:chName" element={<Channel />} />
+            <Route path="channels/new" element={<NewChannel />} />
           </Route>
         </Routes>
       </div>

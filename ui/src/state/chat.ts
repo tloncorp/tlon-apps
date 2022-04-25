@@ -59,6 +59,12 @@ interface ChatState {
     [flag: string]: BigIntOrderedMap<ChatWrit>;
   };
   sendMessage: (flag: string, memo: ChatMemo) => void;
+  create: (req: {
+    group: string;
+    name: string;
+    title: string;
+    description: string;
+  }) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
 }
 
@@ -71,6 +77,13 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   sendMessage: (flag, memo) => {
     chatApi.sendMessage(flag, memo);
+  },
+  create: async req => {
+    await api.poke({
+      app: 'chat',
+      mark: 'chat-create',
+      json: req
+    });
   },
   initialize: async (flag: string) => {
     const chat = await chatApi.newest(flag, 100);
