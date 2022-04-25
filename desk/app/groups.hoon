@@ -78,7 +78,15 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
-      %groups-action  
+      %group-create
+    =+  !<(=create:g vase)
+    =/  =flag:g  [our.bowl name.create]
+    =/  =group:g
+      [~ ~ ~ open/~ title.create description.create ''] 
+    =.  groups  (~(put by groups) flag group)
+    go-abet:go-init:(go-abed:group-core flag)
+  ::
+      %group-action  
     =+  !<(=action:g vase)
     =/  group-core  (go-abed:group-core p.action)
     go-abet:(go-update:group-core q.action)
@@ -90,7 +98,11 @@
 ++  peek
   |=  =path
   ^-  (unit (unit cage))
-  !!
+  ?+    path  [~ ~]
+      [%x %groups ~]
+    ``groups+!>(groups)
+  ==
+    
 ++  agent
   |=  [=wire =sign:agent:gall]
   ^+  cor
@@ -107,6 +119,8 @@
     |=  f=flag:g
     ^+  go-core
     go-core(flag f, group (~(got by groups) f))
+  ::
+  ++  go-init  go-core
   ++  go-update
     |=  [=time =diff:g]
     ^+  go-core
@@ -171,6 +185,7 @@
   ++  go-channel-update
     |=  [ch=flag:g =diff:channel:g]
     ^+  go-core
+    ~&  [ch diff]
     ?-    -.diff
         %add
       =.  channels.group  (~(put by channels.group) ch channel.diff)

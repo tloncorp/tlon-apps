@@ -22,7 +22,7 @@
     ==
   --
 ::
-+$  meta
+++  meta
   =<  meta
   |%
   +$  meta
@@ -37,8 +37,7 @@
   |%
   +$  channels  (map flag channel)
   +$  channel
-    $:  title=cord
-        description=cord
+    $:  =meta
         added=time
     ==
   +$  diff
@@ -90,4 +89,13 @@
   (pair flag update)
 +$  update
   (pair time diff)
+::
++$  create
+  $:  name=term
+      title=cord
+      description=cord
+  ==
+::
++$  groups
+  (map flag group)
 --

@@ -86,8 +86,8 @@
     ?<  =(our.bowl p.flag)
     (join flag)
   ::
-      %chat-create-req
-    =+  !<(req=create-req:c vase)
+      %chat-create
+    =+  !<(req=create:c vase)
     (create req)
   ::
       %chat-action
@@ -110,12 +110,13 @@
     ca-abet:(ca-join:ca-core flag)
   ::
   ++  create
-    |=  req=create-req:c
+    |=  req=create:c
     ^+  cor
+    =/  =flag:c  [our.bowl name.req]
     =|  =chat:c
     =.  net.chat  [%pub ~]
-    =.  chats  (~(put by chats) flag.req chat)
-    ca-abet:(ca-init:(ca-abed:ca-core flag.req) req)
+    =.  chats  (~(put by chats) flag chat)
+    ca-abet:(ca-init:(ca-abed:ca-core flag) req)
   --
 ++  watch
   |=  =path
@@ -178,9 +179,9 @@
   ++  ca-pass
     |%
     ++  add-channel
-      |=  req=create-req:c
+      |=  req=create:c
       =/  =dock      [p.group.req %groups]
-      =/  =channel:g  =,(req [title description now.bowl])
+      =/  =channel:g  =,(req [[title description ''] now.bowl])
       =/  =action:g  [group.req now.bowl %channel flag %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc ca-area %create)
@@ -191,7 +192,7 @@
       ca-core
     --
   ++  ca-init
-    |=  req=create-req:c
+    |=  req=create:c
     (add-channel:ca-pass req)
   ::
   ++  ca-agent
@@ -205,7 +206,10 @@
       (ca-take-update sign)
     ::
         [%create ~]
-      ca-core  :: TODO rollback creation if poke fails?
+      ?>  ?=(%poke-ack -.sign)
+      %.  ca-core  :: TODO rollback creation if poke fails?
+      ?~  p.sign  same
+      (slog leaf/"poke failed" u.p.sign)
     ==
   ::
   ++  ca-peek

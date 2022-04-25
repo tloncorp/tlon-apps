@@ -59,9 +59,9 @@
 +$  logs
   ((mop time diff) lte)
 ::
-+$  create-req
-  $:  =flag
-      group=flag  :: TODO: unmanaged-style group chats
++$  create
+  $:  group=flag  :: TODO: unmanaged-style group chats
+      name=term
       title=cord
       description=cord
   ==

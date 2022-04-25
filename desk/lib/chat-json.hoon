@@ -66,6 +66,14 @@
 ++  dejs
   =,  dejs:format
   |%
+  ++  create
+    %-  ot
+    :~  group+flag
+        name+(se %tas)
+        title+so
+        description+so
+    ==
+
   ++  ship  (su ;~(pfix sig fed:ag))
   ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) sym))
   ++  action
