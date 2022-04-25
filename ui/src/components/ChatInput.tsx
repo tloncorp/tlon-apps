@@ -1,8 +1,13 @@
-import { EditorContent, useEditor } from '@tiptap/react';
-import { Extension } from '@tiptap/core';
-import { Plugin, PluginKey } from 'prosemirror-state';
+import {
+  Extension,
+  Editor,
+  EditorContent,
+  KeyboardShortcutCommand,
+  useEditor,
+  JSONContent,
+} from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import React, { FormEvent, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useChatState } from '../state/chat';
 import { ChatMemo } from '../types/chat';
 import Button from './Button';
@@ -11,31 +16,54 @@ interface ChatInputProps {
   flag: string;
 }
 
-const defaultEnter = Extension.create({
-  priority: 999999,
-  addKeyboardShortcuts() {
-    return {
-      Enter: () => true,
-    };
-  },
-  addProseMirrorPlugins() {
-    return [
-      new Plugin({
-        key: new PluginKey('eventHandler'),
-        props: {
-          handleKeyDown() {
-            return true;
-          },
-        },
-      }),
-    ];
-  },
-});
+// this will be replaced with more sophisticated logic based on
+// what we decide will be the message format
+function parseTipTapJSON(json: JSONContent): string {
+  if (json.content) {
+    return json.content.reduce(
+      (message, contents) => message + parseTipTapJSON(contents),
+      ''
+    );
+  }
+
+  return json.text || '';
+}
+
+const keyMap = (onEnter: KeyboardShortcutCommand) =>
+  Extension.create({
+    priority: 999999,
+    addKeyboardShortcuts() {
+      return {
+        Enter: ({ editor }) => onEnter({ editor }),
+      };
+    },
+  });
 
 export default function ChatInput(props: ChatInputProps) {
   const { flag } = props;
+  const onSubmit = useCallback(
+    (editor: Editor) => {
+      const memo: ChatMemo = {
+        replying: null,
+        author: `~${window.ship}`,
+        sent: Date.now(),
+        content: parseTipTapJSON(editor?.getJSON()),
+      };
+      useChatState.getState().sendMessage(flag, memo);
+      editor?.commands.setContent('');
+    },
+    [flag]
+  );
+  const keyMapExt = useMemo(
+    () =>
+      keyMap(({ editor }) => {
+        onSubmit(editor as Editor);
+        return true;
+      }),
+    [onSubmit]
+  );
   const editor = useEditor({
-    extensions: [StarterKit, defaultEnter],
+    extensions: [StarterKit, keyMapExt],
     content: '',
     editorProps: {
       attributes: {
@@ -44,26 +72,10 @@ export default function ChatInput(props: ChatInputProps) {
     },
   });
 
-  const onSubmit = useCallback(
-    (event: FormEvent) => {
-      event.preventDefault();
-
-      const memo: ChatMemo = {
-        replying: null,
-        author: `~${window.ship}`,
-        sent: Date.now(),
-        content: JSON.stringify(editor?.getJSON()),
-      };
-      useChatState.getState().sendMessage(flag, memo);
-      editor?.commands.clearContent();
-    },
-    [editor, flag]
-  );
-
   return (
-    <form onSubmit={onSubmit} className="flex w-full items-end space-x-2">
+    <div className="flex w-full items-end space-x-2">
       <EditorContent className="flex-1" editor={editor} />
-      <Button type="submit">Send</Button>
-    </form>
+      <Button onClick={() => editor && onSubmit(editor)}>Send</Button>
+    </div>
   );
 }
