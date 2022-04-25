@@ -26,7 +26,7 @@ export default function ChatInput(props: ChatInputProps) {
   }, [value, flag]);
 
   return (
-    <div className="flex space-x-2">
+    <div className="flex space-x-2 p-2">
       <input
         className="grow rounded border"
         type="text"

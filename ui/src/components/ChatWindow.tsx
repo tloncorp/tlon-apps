@@ -1,38 +1,34 @@
 import React, { useEffect } from 'react';
-import ChatMessage from './components/ChatMessage';
-import ChatInput from './components/ChatInput';
-import api from './api';
-import { useChatState, useMessagesForChat } from './state/chat';
+import ChatMessage from '../components/ChatMessage';
+import ChatInput from '../components/ChatInput';
+import api from '../api';
+import { useChatState, useMessagesForChat } from '../state/chat';
 
 const DEF_FLAG = '~zod/test';
 
-export default function App() {
-  const messages = useMessagesForChat(DEF_FLAG);
+export default function ChatWindow(props: { flag: string }) {
+  const { flag } = props;
+  const messages = useMessagesForChat(flag);
 
   useEffect(() => {
-    useChatState.getState().initialize('~zod/test');
+    useChatState.getState().initialize(flag);
 
-    return () => {
-      api.reset();
-    };
-  }, []);
+    return () => {};
+  }, [flag]);
 
   return (
-    <main className="flex justify-center items-center min-h-screen">
-      <div className="py-20 space-y-6 max-w-md">
-        <h1 className="text-3xl font-bold text-blue">Welcome to homestead</h1>
-        <div className="space-y-4">
-          {messages &&
-            messages
-              .keys()
-              .reverse()
-              .map((key) => {
-                const writ = messages.get(key);
-                return <ChatMessage key={writ.seal.time} writ={writ} />;
-              })}
-        </div>
-        <ChatInput flag={DEF_FLAG} />
+    <div className="h-100 flex flex-col grow">
+      <div className="space-y-4 px-2 pt-2 overflow-y-scroll">
+        {messages &&
+          messages
+            .keys()
+            .reverse()
+            .map((key) => {
+              const writ = messages.get(key);
+              return <ChatMessage key={writ.seal.time} writ={writ} />;
+            })}
       </div>
-    </main>
+      <ChatInput flag={DEF_FLAG} />
+    </div>
   );
 }

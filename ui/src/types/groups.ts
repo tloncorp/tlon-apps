@@ -11,6 +11,7 @@ export interface Cabal {
 
 export interface Channel {
   meta: GroupMeta;
+  channel: string;
 }
 
 export interface Group {
