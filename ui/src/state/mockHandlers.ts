@@ -11,8 +11,14 @@ const mockHandlers: Handler[] = [
     action: 'subscribe',
     app: 'chat',
     path: `/chat/~zod/test/ui`,
-    func: () => Promise.resolve(1)
-  }
+    func: () => Promise.resolve(1),
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'chat-action',
+    func: () => ({ data: { ok: 'ok', response: 'subscribe' }, event: '' }),
+  },
 ];
 
 export default mockHandlers;
