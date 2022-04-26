@@ -3,9 +3,10 @@ import UrbitMock from '@tloncorp/mock-http-api';
 import mockHandlers from './state/mockHandlers';
 
 const IS_MOCK = import.meta.env.MODE === 'mock';
+const URL = (import.meta.env.VITE_MOCK_URL || import.meta.env.VITE_VERCEL_URL) as string;
 
 const api = IS_MOCK
-  ? new UrbitMock('', '', mockHandlers)
+  ? new UrbitMock(URL, '', mockHandlers)
   : new Urbit('', '', window.desk);
 api.ship = window.ship;
 
