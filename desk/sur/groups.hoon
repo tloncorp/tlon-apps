@@ -61,7 +61,7 @@
     [=meta ~]
   ::
   +$  diff
-    $%  [%add =cabal]
+    $%  [%add =meta]
         [%del ~]
     ==
   --

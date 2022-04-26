@@ -83,12 +83,43 @@
 ++  dejs
   =,  dejs:format
   |%
+  ++  sym  (se %tas)
+  ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) ^sym))
   ++  create
     ^-  $-(json create:g)
     %-  ot
-    :~  name+(se %tas)
+    :~  name+sym
         title+so
         description+so
+    ==
+  ++  action
+    ^-  $-(json action:g)
+    %-  ot
+    :~  flag+flag
+        update+update
+    ==
+  ++  update
+    |=  j=json
+    ^-  update:g
+    ?>  ?=(%o -.j)
+    [*time (diff (~(got by p.j) %diff))]
+  ::
+  ++  diff
+    %-  of
+    :~  cabal/(ot sect/sym diff/cabal-diff ~)
+    ==
+  ::
+  ++  cabal-diff
+    %-  of
+    :~  add/meta
+        del/ul
+    ==
+  ::
+  ++  meta
+    %-  ot
+    :~  title/so
+        description/so
+        image/so
     ==
   --
 --

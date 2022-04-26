@@ -146,7 +146,9 @@
     ^+  go-core
     ?-    -.diff
         %add
-      =.  cabals.group  (~(put by cabals.group) sect cabal.diff)
+      =/  =cabal:g
+        [meta.diff ~]
+      =.  cabals.group  (~(put by cabals.group) sect cabal)
       go-core
     ::
         %del
