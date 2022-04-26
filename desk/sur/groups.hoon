@@ -84,6 +84,7 @@
       [%cabal p=sect q=diff:cabal]
       [%channel p=flag q=diff:channel]
       [%cordon p=diff:cordon]
+      [%create p=group]
   ==
 +$  action
   (pair flag update)
@@ -98,4 +99,17 @@
 ::
 +$  groups
   (map flag group)
+::
++$  log
+  ((mop time diff) lte)
+::
+++  log-on
+  ((on time diff) lte)
+::
++$  net
+  $~  [%pub ~]
+  $%  [%pub p=log]
+      [%sub p=time]
+      [%load ~]
+  ==
 --

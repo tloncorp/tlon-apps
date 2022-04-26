@@ -6,7 +6,7 @@
   +$  card  card:agent:gall
   +$  state-0
     $:  %0
-        groups=(map flag:g group:g)
+        groups=(map flag:g [net:g group:g])
     ==
   --
 =|  state-0
@@ -83,52 +83,171 @@
     =/  =flag:g  [our.bowl name.create]
     =/  =group:g
       [~ ~ ~ open/~ title.create description.create ''] 
-    =.  groups  (~(put by groups) flag group)
-    go-abet:go-init:(go-abed:group-core flag)
+    =.  groups  (~(put by groups) flag *net:g group)
+    go-abet:(go-init:(go-abed:group-core flag) create)
+  ::
+      %flag
+    =+  !<(=flag:g vase)
+    ?<  =(our.bowl p.flag)
+    =/  =net:g  [%sub *time]
+    =|  =group:g
+    =.  groups  (~(put by groups) flag net group)
+    go-abet:go-sub:(go-abed:group-core flag)
   ::
       %group-action  
     =+  !<(=action:g vase)
+    =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
     go-abet:(go-update:group-core q.action)
   ==
 ++  watch
-  |=  =path
+  |=  =(pole knot)
   ^+  cor
-  !!
+  ?+  pole  ~|(bad-watch/path !!)
+      [%groups ship=@ name=@ rest=*]
+    =/  ship=@p  (slav %p ship.pole)
+    go-abet:(go-watch:(go-abed:group-core ship name.pole) rest.pole)
+  ==
 ++  peek
   |=  =path
   ^-  (unit (unit cage))
   ?+    path  [~ ~]
       [%x %groups ~]
-    ``groups+!>(groups)
+    ``groups+!>(`groups:g`(~(run by groups) tail))
   ==
     
 ++  agent
-  |=  [=wire =sign:agent:gall]
+  |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
-  !!
+  ?+    pole  ~|(bad-agent-take/pole !!)
+      [%groups ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    go-abet:(go-agent:(go-abed:group-core ship name.pole) rest.pole sign)
+  ==
+::
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
   !!
 ++  group-core
-  |_  [=flag:g =group:g]
+  |_  [=flag:g =net:g =group:g]
   ++  go-core  .
-  ++  go-abet  cor(groups (~(put by groups) flag group))
+  ++  go-abet  cor(groups (~(put by groups) flag net group))
   ++  go-abed
     |=  f=flag:g
     ^+  go-core
-    go-core(flag f, group (~(got by groups) f))
+    =/  [n=net:g gr=group:g]  (~(got by groups) f)
+    go-core(flag f, group gr, net n)
   ::
-  ++  go-init  go-core
+  ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
+  ::
+  ++  go-init  
+    |=  =create:g
+    ~&  init/[net group]
+    =/  =diff:g  [%create group]
+    (go-tell-update now.bowl diff)
+  ::
+  ++  go-sub
+    ^+  go-core
+    ?>  ?=(%sub -.net)
+    =/  base=wire  (snoc go-area %updates)
+    =/  =path      (snoc base (scot %da p.net))
+    =/  =card
+      [%pass base %agent [p.flag dap.bowl] %watch path]
+    =.  cor  (emit card)
+    go-core
+  ::
+  ++  go-watch
+    |=  =(pole knot)
+    ^+  go-core
+    ?+  pole  !!
+      [%updates rest=*]  (go-pub rest.pole)
+      [%ui ~]       go-core
+    ==
+  ::
+  ++  go-agent
+    |=  [=wire =sign:agent:gall]
+    ^+  go-core
+    ?+  wire  !!
+      [%updates ~]  (go-take-update sign)
+    ==
+  ::
+  ++  go-take-update
+    |=  =sign:agent:gall
+    ^+  go-core
+    ?+    -.sign  go-sub
+      %kick  go-sub
+    ::
+        %watch-ack
+      %.  go-core
+      ?~  p.sign  same
+      (slog leaf/"Failed subscription" u.p.sign)
+    ::
+        %fact
+      =*  cage  cage.sign 
+      ?+  p.cage  go-core
+        %group-log     (go-apply-log !<(log:g q.cage))
+        %group-update  (go-update !<(update:g q.cage))
+      ==
+    ==
+
+  ::
+  ++  go-pub
+    |=  =path
+    ^+  go-core
+    ?>  ?=(%pub -.net)
+    =/  =log:g
+      ?~  path  p.net
+      =/  =time  (slav %da i.path)
+      (lot:log-on:g p.net `time ~)
+    =/  =cage  group-log+!>(log)
+    =.  cor  (give %fact ~ cage)
+    go-core
+  ::
+  ++  go-apply-log
+    |=  =log:g
+    =/  updates=(list update:g)
+      (tap:log-on:g log)
+    %+  roll  updates
+    |=  [=update:g go=_go-core]
+    (go-update:go update)
+  ::
+  ++  go-give-update
+    |=  =cage
+    ^+  go-core
+    =/  paths=(set path)
+      %+  roll  ~(val by sup.bowl)
+      |=  [[=ship =path] out=(set path)]
+      ?.  =((scag 4 path) (snoc go-area %updates))
+        out
+      (~(put in out) path)
+    =.  paths  (~(put in paths) (snoc go-area %ui))
+    =.  cor
+      (give %fact ~(tap in paths) cage)
+    go-core
+  ::
+  ++  go-tell-update
+    |=  [=time =diff:g]
+    ^+  go-core
+    =.  go-core  (go-give-update group-update+!>([time diff]))
+    ?.  ?=(%pub -.net)
+      go-core
+    =.  p.net
+      (put:log-on:g p.net time diff)
+    go-core
+  ::
   ++  go-update
     |=  [=time =diff:g]
     ^+  go-core
+    =.  go-core
+      (go-tell-update time diff)
+    =?  net  ?=(%sub -.net)  [%sub time]
     ?-  -.diff
       %channel  (go-channel-update [p q]:diff)
       %fleet    (go-fleet-update [p q]:diff)
       %cabal    (go-cabal-update [p q]:diff)
       %cordon   (go-cordon-update p.diff)
+      %create   go-core(group p.diff)
     ==
   ++  go-cordon-update
     |=  =diff:cordon:g
@@ -187,7 +306,6 @@
   ++  go-channel-update
     |=  [ch=flag:g =diff:channel:g]
     ^+  go-core
-    ~&  [ch diff]
     ?-    -.diff
         %add
       =.  channels.group  (~(put by channels.group) ch channel.diff)
