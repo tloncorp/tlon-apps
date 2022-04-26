@@ -12,6 +12,7 @@ import { useGroup, useGroupList, useGroupState } from './state/groups';
 import NewGroup from './pages/NewGroup';
 import NewChannel from './pages/NewChannel';
 import Members from './pages/Members';
+import Roles from './pages/Roles';
 
 function SidebarRow(props: {
   icon?: string;
@@ -70,7 +71,8 @@ function App() {
         <Routes>
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name" element={<Groups />}>
-            <Route path="members" element={ <Members /> } />
+            <Route path="members" element={<Members />} />
+            <Route path="roles" element={<Roles />} />
             <Route path="channels/:app/:chShip/:chName" element={<Channel />} />
             <Route path="channels/new" element={<NewChannel />} />
           </Route>

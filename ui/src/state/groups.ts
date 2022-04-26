@@ -3,16 +3,39 @@ import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback, useMemo } from 'react';
-import { Group } from '../types/groups';
+import { Group, GroupDiff } from '../types/groups';
 import { mockGroups } from '../fixtures/groups';
 import api from '../api';
 import { useParams } from 'react-router';
+
+function groupAction(flag: string, diff: GroupDiff) {
+  return {
+    app: 'groups',
+    mark: 'group-action',
+    json: {
+      flag,
+      update: {
+        time: '',
+        diff,
+      },
+    },
+  };
+}
 
 interface GroupState {
   set: (fn: (sta: GroupState) => void) => void;
   groups: {
     [flag: string]: Group;
   };
+  delRole: (flag: string, sect: string) => Promise<void>;
+  addRole: (
+    flag: string,
+    sect: string,
+    values: {
+      title: string;
+      description: string;
+    }
+  ) => Promise<void>;
   create: (req: {
     name: string;
     title: string;
@@ -28,6 +51,26 @@ export const useGroupState = create<GroupState>((set, get) => ({
       mark: 'group-create',
       json: req,
     });
+  },
+  addRole: async (flag, sect, meta) => {
+    const diff = {
+      cabal: {
+        sect,
+        diff: {
+          add: { ...meta, image: '' },
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  delRole: async (flag, sect) => {
+    const diff = {
+      cabal: {
+        sect,
+        diff: { del: null },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
   },
   fetchAll: async () => {
     const groups = await api.scry({

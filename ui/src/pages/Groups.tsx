@@ -73,6 +73,9 @@ function Groups() {
         <SidebarRow>
           <NavLink to={`/groups/${flag}/members`}>Members</NavLink>
         </SidebarRow>
+        <SidebarRow>
+          <NavLink to={`/groups/${flag}/roles`}>Roles</NavLink>
+        </SidebarRow>
         <Divider title="Channels" />
         <ChannelList group={group} flag={flag} />
       </div>

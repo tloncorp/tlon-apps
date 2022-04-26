@@ -26,3 +26,5 @@ export interface Group {
   meta: GroupMeta;
 }
 
+// TODO: elaborate
+export type  GroupDiff = any;
