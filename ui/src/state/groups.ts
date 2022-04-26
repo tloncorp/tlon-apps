@@ -2,10 +2,11 @@ import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Group } from '../types/groups';
 import { mockGroups } from '../fixtures/groups';
 import api from '../api';
+import { useParams } from 'react-router';
 
 interface GroupState {
   set: (fn: (sta: GroupState) => void) => void;
@@ -31,7 +32,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
   fetchAll: async () => {
     const groups = await api.scry({
       app: 'groups',
-      path: '/groups'
+      path: '/groups',
     });
     set((s) => ({
       ...s,
@@ -45,6 +46,11 @@ export const useGroupState = create<GroupState>((set, get) => ({
 
 export function useGroup(flag: string) {
   return useGroupState(useCallback((s) => s.groups[flag], [flag]));
+}
+
+export function useRouteGroup() {
+  const { ship, name } = useParams();
+  return useMemo(() => `${ship}/${name}`, [ship, name]);
 }
 
 const selList = (s: GroupState) => Object.keys(s.groups);

@@ -2,7 +2,7 @@ import React from 'react';
 import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
 import { Link, NavLink } from 'react-router-dom';
-import { useGroup } from '../state/groups';
+import { useGroup, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
 
 function SidebarRow(props: {
@@ -47,7 +47,7 @@ function ChannelList(props: { group: Group; flag: string }) {
     <ul className="p-2">
       {channels.map((channel) => (
         <li key={channel}>
-          <Link to={`/groups/${flag}/channels/${channel}`}>{channel}</Link>
+          <Link to={`/groups/${flag}/channels/chat/${channel}`}>{channel}</Link>
         </li>
       ))}
     </ul>
@@ -55,11 +55,11 @@ function ChannelList(props: { group: Group; flag: string }) {
 }
 
 function Groups() {
-  const { ship, name } = useParams();
-  const flag = `${ship!}/${name!}`;
-
-  const group = useGroup(flag!);
-  console.log(group);
+  const flag = useRouteGroup();
+  const group = useGroup(flag);
+  if(!group) {
+    return null;
+  }
   return (
     <div className="flex grow">
       <div className="w-56 p-2 border-r">
@@ -69,6 +69,9 @@ function Groups() {
         </div>
         <SidebarRow>
           <NavLink to={`/groups/${flag}/channels/new`}>New Channel</NavLink>
+        </SidebarRow>
+        <SidebarRow>
+          <NavLink to={`/groups/${flag}/members`}>Members</NavLink>
         </SidebarRow>
         <Divider title="Channels" />
         <ChannelList group={group} flag={flag} />

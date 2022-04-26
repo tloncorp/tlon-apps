@@ -28,7 +28,7 @@ export default function ChatWindow(props: { flag: string }) {
               return <ChatMessage key={writ.seal.time} writ={writ} />;
             })}
       </div>
-      <ChatInput flag={DEF_FLAG} />
+      <ChatInput flag={flag} />
     </div>
   );
 }
