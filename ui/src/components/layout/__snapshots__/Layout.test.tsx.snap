@@ -1,0 +1,24 @@
+// Vitest Snapshot v1
+
+exports[`Layout > renders as expected 1`] = `
+<div
+  id="layout"
+>
+  <div
+    id="header"
+  />
+  <div
+    id="sidebar"
+  />
+  <div
+    id="main"
+  >
+    <p>
+      content
+    </p>
+  </div>
+  <div
+    id="footer"
+  />
+</div>
+`;
