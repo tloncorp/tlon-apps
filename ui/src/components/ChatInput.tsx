@@ -45,7 +45,7 @@ export default function ChatInput(props: ChatInputProps) {
     (editor: Editor) => {
       const memo: ChatMemo = {
         replying: null,
-        author: `~${window.ship}`,
+        author: `~${window.ship || 'zod'}`,
         sent: Date.now(),
         content: parseTipTapJSON(editor?.getJSON()),
       };
