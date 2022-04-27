@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import ChatMessage from './components/ChatMessage';
-import ChatInput from './components/ChatInput';
+import ChatInput from './components/chat-input/ChatInput';
 import api from './api';
 import { useChatState, useMessagesForChat } from './state/chat';
 
@@ -18,8 +18,8 @@ export default function App() {
   }, []);
 
   return (
-    <main>
-      <div className="flex h-screen w-full flex-col justify-end space-y-6 p-4">
+    <main className="h-full">
+      <div className="flex h-full w-full flex-col justify-end space-y-6 p-4">
         <div className="space-y-4">
           {messages &&
             messages
