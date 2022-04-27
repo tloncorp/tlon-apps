@@ -104,6 +104,9 @@
   |=  =(pole knot)
   ^+  cor
   ?+  pole  ~|(bad-watch/path !!)
+  ::
+    [%groups %ui ~]  cor
+  ::
       [%groups ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
     go-abet:(go-watch:(go-abed:group-core ship name.pole) rest.pole)
@@ -190,7 +193,6 @@
         %group-update  (go-update !<(update:g q.cage))
       ==
     ==
-
   ::
   ++  go-pub
     |=  =path
@@ -222,6 +224,8 @@
         out
       (~(put in out) path)
     =.  paths  (~(put in paths) (snoc go-area %ui))
+    =.  paths  (~(put in paths) /groups/ui)
+    ~&  paths
     =.  cor
       (give %fact ~(tap in paths) cage)
     go-core

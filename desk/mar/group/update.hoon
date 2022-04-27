@@ -5,6 +5,7 @@
 ++  grow
   |%
   ++  noun  update
+  ++  json  (update:enjs:j update)
   --
 ++  grab
   |%

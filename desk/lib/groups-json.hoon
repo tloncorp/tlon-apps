@@ -3,6 +3,59 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  ship
+    |=  her=@p
+    s/(scot %p her)
+  ::
+  ++  update
+    |=  =update:g
+    %-  pairs
+    :~  time+s+(scot %ud p.update)
+        diff+(diff q.update)
+    ==
+  ::
+  ++  diff
+    |=  d=diff:g
+    %+  frond  -.d
+    ?-    -.d
+      %fleet    (pairs ship/(ship p.d) diff/(fleet-diff q.d) ~)
+      %channel  (pairs flag/s/(flag p.d) diff/(channel-diff q.d) ~)
+      %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
+      %cordon   (cordon-diff p.d)
+      %create   (group p.d)
+    ==
+  ::
+  ++  cordon-diff
+    |=  d=diff:cordon:g
+    %+  frond  -.d
+    s/p.d
+  ::
+  ++  channel-diff
+    |=  d=diff:channel:g
+    %+  frond  -.d
+    ?-  -.d
+      %add  (channel channel.d)
+      %del  ~
+    ==
+  ::
+  ++  cabal-diff
+    |=  d=diff:cabal:g
+    %+  frond  -.d
+    ?-  -.d
+      %add  (meta meta.d)
+      %del  ~
+    ==
+  ::
+  ++  fleet-diff
+    |=  d=diff:fleet:g
+    %+  frond  -.d
+    ?-  -.d
+      %add  (vessel vessel.d)
+      %del  ~
+      %add-sects  a/(turn ~(tap in sects.d) (lead %s))
+      %del-sects  a/(turn ~(tap in sects.d) (lead %s))
+    ==
+  ::
   ++  groups
     |=  gs=(map flag:g group:g)
     %-  pairs
