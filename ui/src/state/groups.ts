@@ -3,7 +3,7 @@ import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback, useMemo } from 'react';
-import { Group, GroupDiff } from '../types/groups';
+import { Group, GroupDiff, GroupUpdate } from '../types/groups';
 import { mockGroups } from '../fixtures/groups';
 import api from '../api';
 import { useParams } from 'react-router';
@@ -27,6 +27,7 @@ interface GroupState {
   groups: {
     [flag: string]: Group;
   };
+  initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
   addRole: (
     flag: string,
@@ -81,6 +82,66 @@ export const useGroupState = create<GroupState>((set, get) => ({
       ...s,
       groups,
     }));
+  },
+  initialize: async (flag: string) => {
+    return api.subscribe({
+      app: 'groups',
+      path: `/groups/${flag}/ui`,
+      event: (data: unknown) => {
+        console.log('group-event', flag, data);
+        const { diff, time } = data as GroupUpdate;
+        if ('channel' in diff) {
+          const { flag: f, diff: d } = diff.channel;
+          if ('add' in d) {
+            get().set((draft) => {
+              draft.groups[flag].channels[f] = d.add;
+            });
+          } else if ('del' in d) {
+            get().set((draft) => {
+              delete draft.groups[flag].channels[f];
+            });
+          }
+        } else if ('fleet' in diff) {
+          const { ship, diff: d } = diff.fleet;
+          if ('add' in d) {
+            get().set((draft) => {
+              draft.groups[flag].fleet[ship] = d.add;
+            });
+          } else if ('del' in d) {
+            get().set((draft) => {
+              delete draft.groups[flag].fleet[ship];
+            });
+          } else if ('add-sects' in d) {
+            get().set((draft) => {
+              const vessel = draft.groups[flag].fleet[ship];
+              vessel.sects = [...vessel.sects, ...d['add-sects']];
+            });
+          } else if ('del-sects' in d) {
+            get().set((draft) => {
+              const vessel = draft.groups[flag].fleet[ship];
+              vessel.sects = vessel.sects.filter(
+                (s) => !d['del-sects'].includes(s)
+              );
+            });
+          }
+        } else if ('cabal' in diff) {
+          const { diff: d, sect } = diff.cabal;
+          if ('add' in d) {
+            get().set((draft) => {
+              draft.groups[flag].cabals[sect] = { meta: d.add };
+            });
+          } else if ('del' in d) {
+            get().set((draft) => {
+              delete draft.groups[flag].cabals[sect];
+            });
+          }
+        } else if ('cordon' in diff) {
+          console.log('todo');
+        } else {
+          console.log('unreachable');
+        }
+      },
+    });
   },
   set: (fn) => {
     set(produce(get(), fn));

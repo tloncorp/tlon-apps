@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
 import { Link, NavLink } from 'react-router-dom';
-import { useGroup, useRouteGroup } from '../state/groups';
+import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
+import api from '../api';
 
 function SidebarRow(props: {
   icon?: string;
@@ -57,7 +58,22 @@ function ChannelList(props: { group: Group; flag: string }) {
 function Groups() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
-  if(!group) {
+
+  useEffect(() => {
+    let id = null as number | null;
+    useGroupState
+      .getState()
+      .initialize(flag)
+      .then((i) => {
+        id = i;
+      });
+    return () => {
+      if (id) {
+        api.unsubscribe(id);
+      }
+    };
+  }, [group]);
+  if (!group) {
     return null;
   }
   return (

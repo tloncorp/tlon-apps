@@ -84,6 +84,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       mark: 'chat-create',
       json: req
     });
+
   },
   initialize: async (flag: string) => {
     const chat = await chatApi.newest(flag, 100);
