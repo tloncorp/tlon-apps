@@ -5,24 +5,10 @@ import {
   PokeHandler,
   ScryHandler,
   SubscriptionHandler,
-  SubscriptionRequestInterface,
-  UrbitResponse,
 } from '@tloncorp/mock-http-api';
-import { dateToDa, decToUd, unixToDa } from '@urbit/api';
+import { decToUd, unixToDa } from '@urbit/api';
 import chatWrits from '../mocks/mockWrits';
 import { ChatDiff } from '../types/chat';
-
-function createResponse<Action, Response>(
-  req: Message & (Poke<Action> | SubscriptionRequestInterface),
-  data?: Response
-): UrbitResponse<Response> {
-  return {
-    ok: true,
-    id: req.id || 0,
-    response: req.action as 'poke' | 'subscribe',
-    json: data || req.json,
-  };
-}
 
 const chatSub = {
   action: 'subscribe',
@@ -43,7 +29,10 @@ const mockHandlers: Handler[] = [
     app: 'chat',
     mark: 'chat-action',
     returnSubscription: chatSub,
-    dataResponder: (req: Poke<{ time: string; diff: ChatDiff }>) => ({
+    dataResponder: (
+      req: Message &
+        Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
+    ) => ({
       id: req.id,
       ok: true,
       response: 'diff',
