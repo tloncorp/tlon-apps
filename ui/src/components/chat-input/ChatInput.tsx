@@ -8,9 +8,9 @@ import {
 } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import React, { useCallback, useMemo } from 'react';
-import { useChatState } from '../state/chat';
-import { ChatMemo } from '../types/chat';
-import Button from './Button';
+import { useChatState } from '../../state/chat';
+import { ChatMemo } from '../../types/chat';
+import Button from '../button/Button';
 
 interface ChatInputProps {
   flag: string;
