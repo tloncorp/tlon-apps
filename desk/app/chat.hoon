@@ -227,6 +227,9 @@
         [%writs %writ writ=@ ~]
       =/  writ  (slav %da writ.pole)
       ``writ+!>((got:writs-on:c writs.chat writ))
+    ::
+        [%perm ~]
+      ``chat-perm+!>(perm.chat)
     ==
   ::
   ++  ca-take-update
@@ -335,6 +338,16 @@
     =.  ca-core
       (ca-give-updates chat-update+!>([time d]))
     ?-    -.d
+        %add-sects
+      =*  p  perm.chat
+      =.  writers.p  (~(uni in writers.p) p.d)
+      ca-core
+    ::
+        %del-sects
+      =*  p  perm.chat
+      =.  writers.p  (~(dif in writers.p) p.d)
+      ca-core
+    ::
         %add-feel
       =/  =writ:c  (got:writs-on:c writs.chat p.d)
       ?>  |(=(p.flag src.bowl) =(src.bowl q.d))

@@ -1,3 +1,4 @@
+/-  g=groups
 |%
 +$  writ   [seal memo]
 +$  feel   @ta
@@ -23,6 +24,9 @@
       [%del p=time] 
       [%add-feel p=time q=ship r=feel]
       [%del-feel p=time q=ship]
+    ::
+      [%add-sects p=(set sect:g)]
+      [%del-sects p=(set sect:g)]
   ==
 ::
 +$  writs
@@ -35,8 +39,13 @@
   ((on time diff) lte)
 +$  remark
   [last-read=time watching=_| ~]
+::
++$  perm
+  $:  writers=(set sect:g)
+      ~
+  ==
 +$  chat
-  [=net =remark =log =writs]
+  [=net =remark =log =perm =writs]
 ::
 +$  memo  
   $:  replying=(unit time)

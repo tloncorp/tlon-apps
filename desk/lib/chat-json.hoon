@@ -90,11 +90,15 @@
     [*time (diff (~(got by p.j) %diff))]
   ::
   ++  diff
+    ^-  $-(json diff:c)
     %-  of
     :~  add/memo
         del/(se %ud)
         add-feel/add-feel
+        add-sects/add-sects
     ==
+  ::
+  ++  add-sects  (as (se %tas))
   ::
   ++  add-feel
     %-  ot
