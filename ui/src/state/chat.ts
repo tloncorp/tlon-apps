@@ -2,9 +2,16 @@ import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { SubscriptionInterface } from '@urbit/http-api';
-import { ChatDiff, ChatMemo, ChatUpdate, ChatWrit } from '../types/chat';
+import {
+  ChatPerm,
+  Chat,
+  ChatDiff,
+  ChatMemo,
+  ChatUpdate,
+  ChatWrit,
+} from '../types/chat';
 import api from '../api';
 import { chatWrits } from '../fixtures/chat';
 
@@ -51,7 +58,7 @@ const chatApi: ChatApi = IS_MOCK
 interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
   chats: {
-    [flag: string]: BigIntOrderedMap<ChatWrit>;
+    [flag: string]: Chat;
   };
   flags: string[];
   fetchFlags: () => Promise<void>;
@@ -71,7 +78,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   set: (fn) => {
     set(produce(get(), fn));
   },
-  flags: [],
+  flags: [] as string[],
   fetchFlags: async () => {
     const flags = await api.scry<string[]>({
       app: 'chat',
@@ -82,9 +89,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       draft.flags = flags;
     });
   },
-  chats: {
-    '~zod/test': new BigIntOrderedMap<ChatWrit>(),
-  },
+  chats: {},
   joinChat: async (flag) => {
     await api.poke({
       app: 'chat',
@@ -107,12 +112,17 @@ export const useChatState = create<ChatState>((set, get) => ({
     await api.poke(chatAction(flag, { 'add-sects': sects }));
   },
   initialize: async (flag: string) => {
-    const chat = await chatApi.newest(flag, 100);
+    const perms = await api.scry<ChatPerm>({
+      app: 'chat',
+      path: `/chat/${flag}/perm`,
+    });
+    const writs = await chatApi.newest(flag, 100);
     get().set((draft) => {
-      draft.chats[flag] = new BigIntOrderedMap();
-      chat.forEach((writ) => {
+      const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
+      draft.chats[flag] = chat;
+      writs.forEach((writ) => {
         const tim = bigInt(udToDec(writ.seal.time));
-        draft.chats[flag] = draft.chats[flag].set(tim, writ);
+        draft.chats[flag].writs = draft.chats[flag].writs.set(tim, writ);
       });
     });
 
@@ -124,16 +134,16 @@ export const useChatState = create<ChatState>((set, get) => ({
             const time = bigInt(udToDec(update.time));
             const seal = { time: update.time, feels: {} };
             const writ = { seal, memo: update.diff.add };
-            draft.chats[flag] = draft.chats[flag].set(time, writ);
+            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
           } else if ('del' in update.diff) {
             const time = bigInt(udToDec(update.diff.del));
-            draft.chats[flag] = draft.chats[flag].delete(time);
+            draft.chats[flag].writs = draft.chats[flag].writs.delete(time);
           } else if ('add-feel' in update.diff) {
             const diff = update.diff['add-feel'];
             const time = bigInt(udToDec(diff.time));
-            const writ = draft.chats[flag].get(time);
+            const writ = draft.chats[flag].writs.get(time);
             writ.seal.feels[diff.ship] = diff.feel;
-            draft.chats[flag] = draft.chats[flag].set(time, writ);
+            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
           }
         });
       },
@@ -142,7 +152,18 @@ export const useChatState = create<ChatState>((set, get) => ({
 }));
 
 export function useMessagesForChat(flag: string) {
-  return useChatState(useCallback((s) => s.chats[flag], [flag]));
+  const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
+  return useChatState(useCallback((s) => s.chats[flag]?.writs || def, [flag]));
+}
+
+const defaultPerms = {
+  writers: [],
+};
+
+export function useChatPerms(flag: string) {
+  return useChatState(
+    useCallback((s) => s.chats[flag]?.perms || defaultPerms, [flag])
+  );
 }
 
 export function useChatIsJoined(flag: string) {

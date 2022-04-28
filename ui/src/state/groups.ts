@@ -29,6 +29,7 @@ interface GroupState {
   };
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
+  addSects: (flag: string, ship: string, sects: string[]) => Promise<void>;
   addRole: (
     flag: string,
     sect: string,
@@ -52,6 +53,17 @@ export const useGroupState = create<GroupState>((set, get) => ({
       mark: 'group-create',
       json: req,
     });
+  },
+  addSects: async (flag, ship, sects) => {
+    const diff = {
+      fleet: {
+        ship,
+        diff: {
+          'add-sects': sects,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
   },
   addRole: async (flag, sect, meta) => {
     const diff = {
@@ -160,4 +172,10 @@ export function useRouteGroup() {
 const selList = (s: GroupState) => Object.keys(s.groups);
 export function useGroupList() {
   return useGroupState(selList);
+}
+
+export function useVessel(flag: string, ship: string) {
+  return useGroupState(
+    useCallback((s) => s.groups[flag].fleet[ship], [ship, flag])
+  );
 }

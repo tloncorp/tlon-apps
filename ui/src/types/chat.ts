@@ -1,3 +1,5 @@
+import {BigIntOrderedMap} from "@urbit/api";
+
 export type Patda = string;
 export type Ship = string;
 
@@ -54,4 +56,12 @@ export type ChatDiff =
 export interface ChatUpdate {
   time: Patda;
   diff: ChatDiff;
+}
+export interface ChatPerm {
+  writers: string[];
+}
+
+export interface Chat {
+  writs: BigIntOrderedMap<ChatWrit>;
+  perms: ChatPerm;
 }

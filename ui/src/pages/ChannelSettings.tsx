@@ -1,7 +1,7 @@
 import { Field, FieldArray, Form, Formik } from 'formik';
 import React from 'react';
 import { useParams } from 'react-router';
-import { useChatState } from '../state/chat';
+import { useChatPerms, useChatState } from '../state/chat';
 import { useGroup, useRouteGroup } from '../state/groups';
 
 interface FormSchema {
@@ -13,18 +13,16 @@ export default function ChannelSettings(props: {}) {
   const group = useGroup(groupFlag);
   const { chShip, chName, app } = useParams();
   const flag = `${chShip}/${chName}`;
+  const perm = useChatPerms(flag);
   const initialValues = {
-    writers: [] as string[],
+    writers: perm.writers
   };
   const onSubmit = (values: FormSchema) => {
     useChatState.getState().addSects(flag, values.writers);
   };
   const sects = (curr: string[]) =>
     Object.keys(group.cabals).filter((s) => {
-      console.log(curr, s);
-      const result = !curr.includes(s);
-      console.log(result);
-      return result;
+      return !curr.includes(s);
     });
   return (
     <Formik onSubmit={onSubmit} initialValues={initialValues}>

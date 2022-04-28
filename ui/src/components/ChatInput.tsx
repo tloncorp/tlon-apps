@@ -1,6 +1,8 @@
 import React, { ChangeEvent, useCallback, useState } from 'react';
-import { useChatState } from '../state/chat';
+import { useChatPerms, useChatState } from '../state/chat';
 import { ChatMemo } from '../types/chat';
+import _ from 'lodash';
+import { useRouteGroup, useVessel } from '../state/groups';
 
 interface ChatInputProps {
   flag: string;
@@ -8,6 +10,14 @@ interface ChatInputProps {
 
 export default function ChatInput(props: ChatInputProps) {
   const { flag } = props;
+  const groupFlag = useRouteGroup();
+  const perms = useChatPerms(flag);
+  const vessel = useVessel(groupFlag, window.our);
+  console.log(perms)
+  console.log(vessel);
+  const canWrite =
+    perms.writers.length === 0 ||
+    _.intersection(perms.writers, vessel.sects).length !== 0;
   const [value, setValue] = useState<string>('');
 
   const onChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -25,7 +35,7 @@ export default function ChatInput(props: ChatInputProps) {
     setValue('');
   }, [value, flag]);
 
-  return (
+  return canWrite ? (
     <div className="flex space-x-2 p-2">
       <input
         className="grow rounded border"
@@ -37,5 +47,7 @@ export default function ChatInput(props: ChatInputProps) {
         Submit!
       </button>
     </div>
+  ) : (
+    <div>Do not have permissions to write to this chat</div>
   );
 }
