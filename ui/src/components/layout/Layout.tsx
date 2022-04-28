@@ -1,21 +1,19 @@
 import React from 'react';
 
-import './Layout.scss';
-
 interface LayoutProps {
-  children: React.ReactNode;
+  main: React.ReactNode;
   footer?: React.ReactNode;
   header?: React.ReactNode;
-  sidebar?: React.ReactNode;
+  aside?: React.ReactNode;
 }
 
-export default function Layout({ children, footer, header, sidebar }: LayoutProps) {
+export default function Layout({ main, footer, header, aside }: LayoutProps) {
   return (
-    <div id="layout">
-      <div id="header">{header}</div>
-      <div id="sidebar">{sidebar}</div>
-      <div id="main">{children}</div>
-      <div id="footer">{footer}</div>
+    <div className="layout">
+      {header && <header className="header">{header}</header>}
+      {aside && <aside className="aside">{aside}</aside>}
+      <main className="main">{main}</main>
+      {footer && <footer className="footer">{footer}</footer>}
     </div>
   );
 }

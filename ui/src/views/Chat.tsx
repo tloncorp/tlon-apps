@@ -34,25 +34,23 @@ export default function Chat() {
           </span>
         </div>
       }
-      sidebar={
-        <aside>test aside</aside>
-      }
-    >
-      <main className="flex justify-center items-center min-h-screen">
-        <div className="py-20 space-y-6 max-w-md">
-          <div className="space-y-4">
-            {messages &&
-              messages
-                .keys()
-                .reverse()
-                .map((key) => {
-                  const writ = messages.get(key);
-                  return <ChatMessage key={writ.seal.time} writ={writ} />;
-                })}
+      main={
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="py-20 space-y-6 max-w-md">
+            <div className="space-y-4">
+              {messages &&
+                messages
+                  .keys()
+                  .reverse()
+                  .map((key) => {
+                    const writ = messages.get(key);
+                    return <ChatMessage key={writ.seal.time} writ={writ} />;
+                  })}
+            </div>
+            <ChatInput flag={DEF_FLAG} />
           </div>
-          <ChatInput flag={DEF_FLAG} />
         </div>
-      </main>
-    </Layout>
+      }
+    />
   );
 }

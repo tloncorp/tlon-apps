@@ -7,7 +7,7 @@ import Layout from './Layout';
 describe('Layout', () => {
   it('renders as expected', () => {
     const tree = renderer
-      .create(<Layout><p>content</p></Layout>)
+      .create(<Layout main={<p>content</p>}/>)
       .toJSON();
     expect(tree).toMatchSnapshot();
   });
