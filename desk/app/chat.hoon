@@ -21,9 +21,7 @@
       cor   ~(. +> [bowl ~])
   ++  on-init  
     ^-  (quip card _this)
-    =^  cards  state
-      abet:(poke:cor flag+!>(def-flag))
-    [cards this]
+    `this
   ::
   ++  on-save  !>(state)
   ++  on-load
