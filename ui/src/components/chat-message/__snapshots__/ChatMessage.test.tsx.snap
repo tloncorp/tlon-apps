@@ -1,0 +1,117 @@
+// Vitest Snapshot v1
+
+exports[`ChatMessage > renders as expected 1`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col space-y-4"
+  >
+    <div
+      class="flex"
+    >
+      <div
+        class="flex items-center space-x-3 text-mono text-md align-center"
+      >
+        <div
+          class="p-1 w-6 h-6 bg-black rounded"
+        >
+          <svg
+            class=""
+            style="display: block; width: 16px; height: 16px;"
+            version="1.1"
+            viewBox="0 0 16 16"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect
+              fill="#000"
+              height="16px"
+              width="16px"
+              x="0px"
+              y="0px"
+            />
+            <g
+              transform="matrix(0.0625,0,0,0.0625,0,0)"
+            >
+              <g
+                fill="none"
+                transform="matrix(1,0,0,1,0,0)"
+              >
+                <rect
+                  dataisgeon="true"
+                  fill="#fff"
+                  height="128"
+                  stroke="#000"
+                  stroke-linecap="square"
+                  stroke-width="0.8px"
+                  vector-effect="non-scaling-stroke"
+                  width="128"
+                />
+              </g>
+              <g
+                fill="none"
+                transform="matrix(1,0,0,1,128,0)"
+              >
+                <circle
+                  cx="64"
+                  cy="64"
+                  dataisgeon="true"
+                  fill="#fff"
+                  r="64"
+                  stroke="#000"
+                  stroke-linecap="square"
+                  stroke-width="0.8px"
+                  vector-effect="non-scaling-stroke"
+                />
+              </g>
+              <g
+                fill="none"
+                transform="matrix(1,0,0,1,0,128)"
+              >
+                <path
+                  d="M0.0541 0C70.7217 0.0292317 128 57.3256 128 128C57.3177 128 0.0164917 70.7089 7.62806e-06 0.0305091C7.62851e-06 0.0203397 -4.44317e-10 0.01017 0 0H0.0541Z"
+                  dataisgeon="true"
+                  fill="#fff"
+                  stroke="#000"
+                  stroke-linecap="square"
+                  stroke-width="0.8px"
+                  vector-effect="non-scaling-stroke"
+                />
+              </g>
+              <g
+                fill="none"
+                transform="matrix(1,0,0,1,128,128)"
+              >
+                <path
+                  d="M64 128H0L5.59506e-06 0L64 5.59506e-06C99.3462 8.68512e-06 128 28.6538 128 64C128 99.3462 99.3462 128 64 128Z"
+                  dataisgeon="true"
+                  fill="#fff"
+                  stroke="#000"
+                  stroke-linecap="square"
+                  stroke-width="0.8px"
+                  vector-effect="non-scaling-stroke"
+                />
+              </g>
+            </g>
+          </svg>
+        </div>
+        <span
+          class="font-bold"
+        >
+          ~finned-palmer
+        </span>
+      </div>
+    </div>
+    <div
+      class="flex space-x-3"
+    >
+      <div
+        class="text-xs font-semibold text-gray-400"
+      >
+        13:42
+      </div>
+      <div>
+        A test message
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
