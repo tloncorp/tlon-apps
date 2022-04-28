@@ -16,7 +16,7 @@ export default function ChatReactions({ seal }: ChatReactionsProps) {
   return (
     <div className="flex my-2 space-x-2">
       {Object.values(FEELS).map((feel) => (
-        <ChatReaction seal={seal} feel={feel} />
+        <ChatReaction key={feel} seal={seal} feel={feel} />
       ))}
     </div>
   );
