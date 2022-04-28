@@ -3,7 +3,7 @@ import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format } from 'date-fns';
 import { ChatWrit } from '../../types/chat';
-import Author from '../Author';
+import Author from './Author';
 import ChatContent from '../chat-content/ChatContent';
 
 interface ChatMessageProps {
