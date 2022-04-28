@@ -112,4 +112,24 @@
       [%sub p=time]
       [%load ~]
   ==
+::
++$  join
+  $:  =flag
+      join-all=?
+  ==
+::
++$  progress
+  ?(%adding %watching %done %error)
+::
++$  claim
+  $:  join-all=?
+      =progress
+  ==
+::  TODO: finish
++$  preview  ~
+::  $gang: view of foreign group
++$  gang
+  $:  cam=(unit claim)
+      pev=(unit preview)
+  ==
 --

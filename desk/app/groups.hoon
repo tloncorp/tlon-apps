@@ -7,6 +7,7 @@
   +$  state-0
     $:  %0
         groups=(map flag:g [net:g group:g])
+        xeno=(map flag:g gang:g)
     ==
   --
 =|  state-0
@@ -86,19 +87,19 @@
     =.  groups  (~(put by groups) flag *net:g group)
     go-abet:(go-init:(go-abed:group-core flag) create)
   ::
-      %flag
-    =+  !<(=flag:g vase)
-    ?<  =(our.bowl p.flag)
-    =/  =net:g  [%sub *time]
-    =|  =group:g
-    =.  groups  (~(put by groups) flag net group)
-    go-abet:go-sub:(go-abed:group-core flag)
-  ::
       %group-action  
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
     go-abet:(go-update:group-core q.action)
+  ::
+      %group-join
+    =+  !<(=join:g vase)
+    =/  =gang:g  (~(gut by xeno) flag.join [~ ~])
+    =/  =claim:g  [join-all.join %adding]
+    =.  cam.gang  `claim
+    =.  xeno  (~(put by xeno) flag.join gang)
+    ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
   ==
 ++  watch
   |=  =(pole knot)
@@ -126,6 +127,10 @@
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     go-abet:(go-agent:(go-abed:group-core ship name.pole) rest.pole sign)
+  ::
+      [%gang ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    ga-abet:(ga-agent:(ga-abed:gang-core ship name.pole) rest.pole sign)
   ==
 ::
 ++  arvo
@@ -152,9 +157,10 @@
   ::
   ++  go-sub
     ^+  go-core
-    ?>  ?=(%sub -.net)
+    =/  =time
+      ?.(?=(%sub -.net) *time p.net)
     =/  base=wire  (snoc go-area %updates)
-    =/  =path      (snoc base (scot %da p.net))
+    =/  =path      (snoc base (scot %da time))
     =/  =card
       [%pass base %agent [p.flag dap.bowl] %watch path]
     =.  cor  (emit card)
@@ -182,6 +188,8 @@
       %kick  go-sub
     ::
         %watch-ack
+      =?  cor  (~(has by xeno) flag)
+        ga-abet:(ga-watched:(ga-abed:gang-core flag) p.sign)
       %.  go-core
       ?~  p.sign  same
       (slog leaf/"Failed subscription" u.p.sign)
@@ -245,7 +253,7 @@
     ^+  go-core
     =.  go-core
       (go-tell-update time diff)
-    =?  net  ?=(%sub -.net)  [%sub time]
+    =?  net  ?=(?(%sub %load) -.net)  [%sub time]
     ?-  -.diff
       %channel  (go-channel-update [p q]:diff)
       %fleet    (go-fleet-update [p q]:diff)
@@ -319,5 +327,72 @@
       =.  channels.group  (~(del by channels.group) ch)
       go-core
     ==
+  --
+++  gang-core
+  |_  [=flag:g =gang:g]
+  ++  ga-core  .
+  ++  ga-abet  
+    =.  xeno  (~(put by xeno) flag gang)
+    ?.  (~(has by groups) flag)  cor
+    =/  [=net:g =group:g]  (~(got by groups) flag)
+    ?.  ?=(%load -.net)  cor
+    =.  xeno  (~(del by xeno) flag)
+    cor
+  ++  ga-abed
+    |=  f=flag:g
+    =/  ga=gang:g  (~(gut by xeno) f [~ ~])
+    ga-core(flag f, gang ga)
+  ::
+  ++  ga-area  /gang/(scot %p p.flag)/[q.flag]
+  ++  ga-pass
+    |%
+    ++  poke-host
+      |=  [=wire =cage]
+      ^-  card
+      [%pass (welp ga-area wire) %agent [p.flag dap.bowl] %poke cage]
+    ++  add-self
+      =/  =vessel:fleet:g  [~ now.bowl]
+      =/  =action:g  [flag now.bowl %fleet our.bowl %add vessel]
+      (poke-host /join/add group-action+!>(action))
+    --
+  ++  ga-start-join
+    ^+  ga-core
+    =.  cor  (emit add-self:ga-pass)
+    ga-core
+  ::
+  ++  ga-agent
+    |=  [=wire =sign:agent:gall]
+    ^+  ga-core
+    ?+    wire  ~|(bad-agent-take/wire !!)
+        [%join %add ~]
+      ?>  ?=(%poke-ack -.sign)
+      (ga-watch p.sign)
+    ==
+  ::
+  ++  ga-watch
+    |=  p=(unit tang)
+    ^+  ga-core
+    ?>  ?=(^ cam.gang)
+    ?^  p
+      =.  progress.u.cam.gang  %error
+      %-  (slog leaf/"Joining failed" u.p)
+      ga-core
+    =.  progress.u.cam.gang  %watching
+    =/  =net:g  [%load ~]
+    =|  =group:g
+    =.  groups  (~(put by groups) flag net group)
+    =.  cor
+      go-abet:go-sub:(go-abed:group-core flag)
+    ga-core
+  ::
+  ++  ga-watched
+    |=  p=(unit tang)
+    ?>  ?=(^ cam.gang)
+    ?^  p
+      %-  (slog leaf/"Failed to join" u.p)
+      =.  progress.u.cam.gang  %error
+      ga-core
+    ga-core
+  ::
   --
 --
