@@ -1,9 +1,9 @@
 import React from 'react';
 import { MessageContent } from '../../types/chat';
 
-type ChatContentProps = {
+interface ChatContentProps {
   content: MessageContent;
-};
+}
 
 export default function ChatContent({ content }: ChatContentProps) {
   if (Array.isArray(content)) {
@@ -30,7 +30,7 @@ export default function ChatContent({ content }: ChatContentProps) {
     );
   }
   switch (content.kind) {
-      // We'll build out components for each type and return them here.
+    // We'll build out components for each type and return them here.
     case 'text':
       return <div>{content.contentText}</div>;
     default:
