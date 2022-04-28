@@ -13,6 +13,7 @@ import NewGroup from './pages/NewGroup';
 import NewChannel from './pages/NewChannel';
 import Members from './pages/Members';
 import Roles from './pages/Roles';
+import {useChatState} from './state/chat';
 
 function SidebarRow(props: {
   icon?: string;
@@ -53,6 +54,7 @@ function App() {
   const groups = useGroupList();
   useEffect(() => {
     useGroupState.getState().fetchAll();
+    useChatState.getState().fetchFlags();
   }, []);
   return (
     <Router basename="/apps/homestead">

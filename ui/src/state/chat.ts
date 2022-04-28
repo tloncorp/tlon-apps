@@ -4,12 +4,7 @@ import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback } from 'react';
 import { SubscriptionInterface } from '@urbit/http-api';
-import {
-  ChatDiff,
-  ChatMemo,
-  ChatUpdate,
-  ChatWrit,
-} from '../types/chat';
+import { ChatDiff, ChatMemo, ChatUpdate, ChatWrit } from '../types/chat';
 import api from '../api';
 import { chatWrits } from '../fixtures/chat';
 
@@ -58,6 +53,9 @@ interface ChatState {
   chats: {
     [flag: string]: BigIntOrderedMap<ChatWrit>;
   };
+  flags: string[];
+  fetchFlags: () => Promise<void>;
+  joinChat: (flag: string) => Promise<void>;
   sendMessage: (flag: string, memo: ChatMemo) => void;
   create: (req: {
     group: string;
@@ -72,19 +70,37 @@ export const useChatState = create<ChatState>((set, get) => ({
   set: (fn) => {
     set(produce(get(), fn));
   },
+  flags: [],
+  fetchFlags: async () => {
+    const flags = await api.scry<string[]>({
+      app: 'chat',
+      path: '/chat',
+    });
+    console.log(flags);
+    get().set((draft) => {
+      draft.flags = flags;
+    });
+  },
   chats: {
     '~zod/test': new BigIntOrderedMap<ChatWrit>(),
+  },
+  joinChat: async (flag) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'flag',
+      json: flag,
+    });
+    await get().fetchFlags();
   },
   sendMessage: (flag, memo) => {
     chatApi.sendMessage(flag, memo);
   },
-  create: async req => {
+  create: async (req) => {
     await api.poke({
       app: 'chat',
       mark: 'chat-create',
-      json: req
+      json: req,
     });
-
   },
   initialize: async (flag: string) => {
     const chat = await chatApi.newest(flag, 100);
@@ -123,4 +139,8 @@ export const useChatState = create<ChatState>((set, get) => ({
 
 export function useMessagesForChat(flag: string) {
   return useChatState(useCallback((s) => s.chats[flag], [flag]));
+}
+
+export function useChatIsJoined(flag: string) {
+  return useChatState(useCallback((s) => s.flags.includes(flag), [flag]));
 }
