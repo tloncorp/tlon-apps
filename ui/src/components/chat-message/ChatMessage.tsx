@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../chat-content/ChatContent';
+import ChatReactions from '../chat-reactions/ChatReactions';
 
 interface ChatMessageProps {
   writ: ChatWrit;
@@ -23,7 +24,10 @@ export default function ChatMessage({ writ, newAuthor }: ChatMessageProps) {
         <div className="text-xs font-semibold text-gray-400">
           {format(time, 'HH:mm')}
         </div>
-        <ChatContent content={memo.content} />
+        <div className="flex flex-col space-y-2">
+          <ChatContent content={memo.content} />
+          {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
+        </div>
       </div>
     </div>
   );

@@ -13,7 +13,7 @@ const chatWrits: ChatWrit[] = [
   makeChatWrit(3, '~hastuc-dibtux', {
     kind: 'text',
     contentText: 'A test message',
-  }),
+  }, {HAHA: '😆'} ),
   makeChatWrit(4, '~hastuc-dibtux', {
     kind: 'text',
     contentText: 'A test message',

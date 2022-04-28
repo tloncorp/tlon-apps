@@ -6,7 +6,8 @@ import { ChatWrit, MessageContent } from '../types/chat';
 export const makeChatWrit = (
   count: number,
   author: string,
-  content: MessageContent
+  content: MessageContent,
+  feels?: Record<string, string>
 ): ChatWrit => {
   const unix = subMinutes(new Date(), count * 5).getTime();
   const time = unixToDa(unix);
@@ -14,7 +15,7 @@ export const makeChatWrit = (
   return {
     seal: {
       time: da,
-      feels: {},
+      feels: feels ?? {},
     },
     memo: {
       replying: null,
