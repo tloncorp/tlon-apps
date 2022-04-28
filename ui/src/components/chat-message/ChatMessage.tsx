@@ -21,7 +21,7 @@ export default function ChatMessage({ writ, newAuthor }: ChatMessageProps) {
     <div className="flex flex-col space-y-4">
       <div className="flex">{newAuthor && <Author ship={memo.author} />}</div>
       <div className="flex space-x-3">
-        <div className="text-xs font-semibold text-gray-400">
+        <div className="my-1 text-xs font-semibold text-gray-400">
           {format(time, 'HH:mm')}
         </div>
         <div className="flex flex-col space-y-2">
