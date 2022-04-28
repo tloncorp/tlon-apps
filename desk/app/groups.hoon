@@ -305,7 +305,7 @@
       =.  fleet.group  
         %+  ~(jab by fleet.group)  ship
         |=  vessel:fleet:g
-        +<(sects (~(int in sects) sects.diff))
+        +<(sects (~(uni in sects) sects.diff))
       go-core
     ::
         %del-sects

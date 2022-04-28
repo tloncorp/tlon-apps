@@ -3,6 +3,12 @@
 ++  enjs
   =,  enjs:format
   |%
+  ::
+  ++  perm
+    |=  p=perm:c
+    %-  pairs
+    :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+    ==
   ++  ship
     |=  her=@p
     n+(rap 3 '"' (scot %p her) '"' ~)

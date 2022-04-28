@@ -137,6 +137,7 @@
   =,  dejs:format
   |%
   ++  sym  (se %tas)
+  ++  ship  (se %p)
   ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) ^sym))
   ++  create
     ^-  $-(json create:g)
@@ -160,6 +161,12 @@
   ++  diff
     %-  of
     :~  cabal/(ot sect/sym diff/cabal-diff ~)
+        fleet/(ot ship/ship diff/fleet-diff ~)
+    ==
+  ::
+  ++  fleet-diff
+    %-  of
+    :~  [%add-sects (as sym)]
     ==
   ::
   ++  cabal-diff
