@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@tlon/sigil-js": "^1.4.5",
-    "@tloncorp/mock-http-api": "^1.0.6",
+    "@tloncorp/mock-http-api": "^1.1.2",
     "@urbit/api": "^2.1.0",
     "@urbit/http-api": "^2.1.0",
     "big-integer": "^1.6.51",
