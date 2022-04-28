@@ -6,7 +6,7 @@ const IS_MOCK = import.meta.env.MODE === 'mock';
 const URL = (import.meta.env.VITE_MOCK_URL || import.meta.env.VITE_VERCEL_URL) as string;
 
 const api = IS_MOCK
-  ? new UrbitMock(URL, '', mockHandlers)
+  ? new UrbitMock(mockHandlers, URL, '')
   : new Urbit('', '', window.desk);
 api.ship = window.ship;
 
