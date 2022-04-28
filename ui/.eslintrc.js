@@ -9,6 +9,7 @@ module.exports = {
   }],
   rules: {
     semi: [2, 'always'],
+    "react/require-default-props": [2, { ignoreFunctionalComponents: true }],
     'react/jsx-filename-extension': [1, {
       extensions: ['.jsx', '.tsx']
     }],
