@@ -13,10 +13,8 @@ import {
   ChatWrit,
 } from '../types/chat';
 import api from '../api';
-import { chatWrits } from '../fixtures/chat';
 
 setAutoFreeze(false);
-const IS_MOCK = import.meta.env.MODE === 'mock';
 
 interface ChatApi {
   newest: (flag: string, count: number) => Promise<ChatWrit[]>;
@@ -38,22 +36,16 @@ function chatAction(flag: string, diff: ChatDiff) {
   };
 }
 
-const chatApi: ChatApi = IS_MOCK
-  ? {
-      subscribe: () => Promise.resolve(1),
-      newest: () => Promise.resolve(chatWrits),
-      sendMessage: () => Promise.resolve(1),
-    }
-  : {
-      subscribe: (flag, opts) =>
-        api.subscribe({ app: 'chat', path: `/chat/${flag}/ui`, ...opts }),
-      newest: (flag, count) =>
-        api.scry<ChatWrit[]>({
-          app: 'chat',
-          path: `/chat/${flag}/writs/newest/${count}`,
-        }),
-      sendMessage: (flag, memo) => api.poke(chatAction(flag, { add: memo })),
-    };
+const chatApi: ChatApi = {
+  subscribe: (flag, opts) =>
+    api.subscribe({ app: 'chat', path: `/chat/${flag}/ui`, ...opts }),
+  newest: (flag, count) =>
+    api.scry({
+      app: 'chat',
+      path: `/chat/${flag}/writs/newest/${count}`,
+    }),
+  sendMessage: (flag, memo) => api.poke(chatAction(flag, { add: memo })),
+};
 
 interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
@@ -80,7 +72,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   flags: [] as string[],
   fetchFlags: async () => {
-    const flags = await api.scry<string[]>({
+    const flags = await api.scry({
       app: 'chat',
       path: '/chat',
     });
@@ -112,7 +104,7 @@ export const useChatState = create<ChatState>((set, get) => ({
     await api.poke(chatAction(flag, { 'add-sects': sects }));
   },
   initialize: async (flag: string) => {
-    const perms = await api.scry<ChatPerm>({
+    const perms = await api.scry({
       app: 'chat',
       path: `/chat/${flag}/perm`,
     });
