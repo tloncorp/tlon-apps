@@ -1,0 +1,33 @@
+:root {
+  --header-height: 80px;
+  --aside-width: 120px;
+}
+
+.layout {
+  display: grid;
+  grid-template-areas:
+    'header header'
+    'aside main'
+    'footer footer';
+  grid-template-columns: auto 1fr; /** collapsible aside, main expands to fill */
+  grid-template-rows: auto minmax(0, 1fr) auto; /** collapsible header, main expands to fill, collapsible footer */
+  height: 100%;
+}
+
+.aside {
+  grid-area: aside;
+  width: var(--aside-width);
+}
+
+.header {
+  grid-area: header;
+  height: var(--header-height);
+}
+
+.footer {
+  grid-area: footer;
+}
+
+.main {
+  grid-area: main;
+}

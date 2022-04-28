@@ -1,37 +1,14 @@
-import React, { useEffect } from 'react';
-import ChatMessage from './components/ChatMessage';
-import ChatInput from './components/chat-input/ChatInput';
-import api from './api';
-import { useChatState, useMessagesForChat } from './state/chat';
-
-const DEF_FLAG = '~zod/test';
+import React from 'react';
+import Chat from './views/Chat';
 
 export default function App() {
-  const messages = useMessagesForChat(DEF_FLAG);
+  // TODO: as we add views, can route like so:
 
-  useEffect(() => {
-    useChatState.getState().initialize('~zod/test');
+  // <Routes>
+  //   <Route path="/chat/*" element={<Chat />} />
+  //   <Route path="/settings/*" element={<Settings />} />
+  //   <Route path="*" element={<Navigate to={'/chat'} />} />
+  // </Routes>
 
-    return () => {
-      api.reset();
-    };
-  }, []);
-
-  return (
-    <main className="h-full">
-      <div className="flex h-full w-full flex-col justify-end space-y-6 p-4">
-        <div className="space-y-4">
-          {messages &&
-            messages
-              .keys()
-              .reverse()
-              .map((key) => {
-                const writ = messages.get(key);
-                return <ChatMessage key={writ.seal.time} writ={writ} />;
-              })}
-        </div>
-        <ChatInput flag={DEF_FLAG} />
-      </div>
-    </main>
-  );
+  return <Chat />;
 }
