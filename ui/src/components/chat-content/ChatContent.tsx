@@ -9,19 +9,19 @@ export default function ChatContent({ content }: ChatContentProps) {
   if (Array.isArray(content)) {
     return (
       <div>
-        {content.map((e) => {
-          switch (e.kind) {
+        {content.map((contentItem) => {
+          switch (contentItem.kind) {
             case 'image':
               return (
                 <img
-                  src={e.source}
-                  width={e.size.width}
-                  height={e.size.height}
-                  alt={e.altText}
+                  src={contentItem.source}
+                  width={contentItem.size.width}
+                  height={contentItem.size.height}
+                  alt={contentItem.altText}
                 />
               );
             default:
-              throw new Error(`Unhandled message type: ${e.kind}`);
+              throw new Error(`Unhandled message type: ${contentItem.kind}`);
           }
         })}
       </div>
