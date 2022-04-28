@@ -44,11 +44,13 @@ function Divider(props: { title: string }) {
 function ChannelList(props: { group: Group; flag: string }) {
   const { group, flag } = props;
   const channels = Object.keys(group.channels);
+  const channelHref = (ch: string) => `/groups/${flag}/channels/chat/${ch}`;
   return (
     <ul className="p-2">
       {channels.map((channel) => (
-        <li key={channel}>
-          <Link to={`/groups/${flag}/channels/chat/${channel}`}>{channel}</Link>
+        <li className="flex justify-between" key={channel}>
+          <Link to={channelHref(channel)}>{channel}</Link>
+          <Link to={`${channelHref(channel)}/settings`}>⚙️ </Link>
         </li>
       ))}
     </ul>

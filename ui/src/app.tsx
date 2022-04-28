@@ -13,7 +13,8 @@ import NewGroup from './pages/NewGroup';
 import NewChannel from './pages/NewChannel';
 import Members from './pages/Members';
 import Roles from './pages/Roles';
-import {useChatState} from './state/chat';
+import { useChatState } from './state/chat';
+import ChannelSettings from './pages/ChannelSettings';
 
 function SidebarRow(props: {
   icon?: string;
@@ -76,6 +77,10 @@ function App() {
             <Route path="members" element={<Members />} />
             <Route path="roles" element={<Roles />} />
             <Route path="channels/:app/:chShip/:chName" element={<Channel />} />
+            <Route
+              path="channels/:app/:chShip/:chName/settings"
+              element={<ChannelSettings />}
+            />
             <Route path="channels/new" element={<NewChannel />} />
           </Route>
         </Routes>

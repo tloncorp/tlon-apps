@@ -57,6 +57,7 @@ interface ChatState {
   fetchFlags: () => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   sendMessage: (flag: string, memo: ChatMemo) => void;
+  addSects: (flag: string, writers: string[]) => Promise<void>;
   create: (req: {
     group: string;
     name: string;
@@ -101,6 +102,9 @@ export const useChatState = create<ChatState>((set, get) => ({
       mark: 'chat-create',
       json: req,
     });
+  },
+  addSects: async (flag, sects) => {
+    await api.poke(chatAction(flag, { 'add-sects': sects }));
   },
   initialize: async (flag: string) => {
     const chat = await chatApi.newest(flag, 100);
