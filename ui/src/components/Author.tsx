@@ -7,9 +7,9 @@ interface AuthorProps {
 export default function Author(props: AuthorProps) {
   const { ship } = props;
   return (
-    <div className="flex items-center space-x-2 text-mono text-md align-center">
+    <div className="flex items-center space-x-3 text-mono text-md align-center">
       <ShipImage ship={ship} />
-      <div>{ship}</div>
+      <span className="font-bold">{ship}</span>
     </div>
   );
 }
