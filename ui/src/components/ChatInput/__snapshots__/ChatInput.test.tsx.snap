@@ -22,7 +22,7 @@ exports[`ChatInput > renders as expected 1`] = `
       </div>
     </div>
     <button
-      class="button text-white bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400"
+      class="button"
     >
       Send
     </button>

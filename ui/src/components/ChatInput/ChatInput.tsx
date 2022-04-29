@@ -10,7 +10,6 @@ import StarterKit from '@tiptap/starter-kit';
 import React, { useCallback, useMemo } from 'react';
 import { useChatState } from '../../state/chat';
 import { ChatMemo } from '../../types/chat';
-import Button from '../button/Button';
 
 interface ChatInputProps {
   flag: string;
@@ -57,6 +56,7 @@ export default function ChatInput(props: ChatInputProps) {
     },
     [flag]
   );
+
   const keyMapExt = useMemo(
     () =>
       keyMap(({ editor }) => {
@@ -65,6 +65,7 @@ export default function ChatInput(props: ChatInputProps) {
       }),
     [onSubmit]
   );
+
   const editor = useEditor({
     extensions: [StarterKit, keyMapExt],
     content: '',
@@ -75,10 +76,17 @@ export default function ChatInput(props: ChatInputProps) {
     },
   });
 
+  const onClick = useCallback(
+    () => editor && onSubmit(editor),
+    [editor, onSubmit]
+  );
+
   return (
     <div className="flex w-full items-end space-x-2">
       <EditorContent className="flex-1" editor={editor} />
-      <Button onClick={() => editor && onSubmit(editor)}>Send</Button>
+      <button className="button" onClick={onClick}>
+        Send
+      </button>
     </div>
   );
 }
