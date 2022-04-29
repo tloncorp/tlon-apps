@@ -14,7 +14,7 @@ export const FEELS = {
 
 export default function ChatReactions({ seal }: ChatReactionsProps) {
   return (
-    <div className="flex my-2 space-x-2">
+    <div className="my-2 flex space-x-2">
       {Object.values(FEELS).map((feel) => (
         <ChatReaction key={feel} seal={seal} feel={feel} />
       ))}

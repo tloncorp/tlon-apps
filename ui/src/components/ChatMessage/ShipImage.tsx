@@ -10,7 +10,7 @@ export default function ShipImage(props: ShipImageProps) {
   const { ship } = props;
 
   return (
-    <div className="p-1 w-6 h-6 bg-black rounded">
+    <div className="h-6 w-6 rounded bg-black p-1">
       {sigil({
         patp: ship,
         renderer: reactRenderer,

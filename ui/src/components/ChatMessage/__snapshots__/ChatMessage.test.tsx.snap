@@ -9,10 +9,10 @@ exports[`ChatMessage > renders as expected 1`] = `
       class="flex"
     >
       <div
-        class="flex items-center space-x-3 text-mono text-md align-center"
+        class="text-mono text-md align-center flex items-center space-x-3"
       >
         <div
-          class="p-1 w-6 h-6 bg-black rounded"
+          class="h-6 w-6 rounded bg-black p-1"
         >
           <svg
             class=""

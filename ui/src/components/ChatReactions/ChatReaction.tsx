@@ -39,7 +39,7 @@ export default function ChatReaction({ seal, feel }: ChatReactionProps) {
       {count > 0 && (
         <div
           onClick={addFeel}
-          className="flex items-center px-2 py-1 text-sm leading-tight text-gray-600 rounded space-x-2 bg-gray-50"
+          className="flex items-center space-x-2 rounded bg-gray-50 px-2 py-1 text-sm leading-tight text-gray-600"
         >
           <span>{feel}</span>
           <span>{count}</span>

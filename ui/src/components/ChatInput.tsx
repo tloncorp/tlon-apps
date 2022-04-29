@@ -28,12 +28,12 @@ export default function ChatInput(props: ChatInputProps) {
   return (
     <div className="flex space-x-2">
       <input
-        className="border rounded grow"
+        className="grow rounded border"
         type="text"
         value={value}
         onChange={onChange}
       />
-      <button className="px-2 border rounded" type="button" onClick={onSubmit}>
+      <button className="rounded border px-2" type="button" onClick={onSubmit}>
         Submit!
       </button>
     </div>
