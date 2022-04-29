@@ -4,8 +4,8 @@ import bigInt from 'big-integer';
 import { format } from 'date-fns';
 import { ChatWrit } from '../../types/chat';
 import Author from './Author';
-import ChatContent from '../chat-content/ChatContent';
-import ChatReactions from '../chat-reactions/ChatReactions';
+import ChatContent from '../ChatContent/ChatContent';
+import ChatReactions from '../ChatReactions/ChatReactions';
 
 interface ChatMessageProps {
   writ: ChatWrit;

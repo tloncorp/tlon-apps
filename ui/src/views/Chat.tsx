@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import ChatMessage from '../components/chat-message/ChatMessage';
+import ChatMessage from '../components/ChatMessage/ChatMessage';
 import ChatInput from '../components/ChatInput';
 import api from '../api';
 import { useChatState, useMessagesForChat } from '../state/chat';
