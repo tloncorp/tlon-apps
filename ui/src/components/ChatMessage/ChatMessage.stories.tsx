@@ -8,8 +8,8 @@ export default {
 };
 
 const writ = makeChatWrit(1, '~finned-palmer', {
-  kind: 'text',
-  contentText: 'A test message',
+    block: [],
+    inline: [{ bold: 'A bold test message' }, "with some more text"],
 });
 
 export function Text() {

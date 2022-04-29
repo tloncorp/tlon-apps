@@ -1,39 +1,74 @@
 import React from 'react';
-import { MessageContent } from '../../types/chat';
+import { ChatMessage, isBold, isItalics, isLink } from '../../types/chat';
 
 interface ChatContentProps {
-  content: MessageContent;
+  content: ChatMessage;
 }
 
 export default function ChatContent({ content }: ChatContentProps) {
-  if (Array.isArray(content)) {
-    // This will handle the various content types that will be received as arrays.
+  const inlineLength = content.inline.length;
+
+  if (inlineLength) {
     return (
       <div>
-        {content.map((contentItem) => {
-          switch (contentItem.kind) {
-            case 'image':
-              // This is just an example. This will be its own component soon.
-              return (
-                <img
-                  src={contentItem.source}
-                  width={contentItem.size.width}
-                  height={contentItem.size.height}
-                  alt={contentItem.altText}
-                />
-              );
-            default:
-              throw new Error(`Unhandled message type: ${contentItem.kind}`);
+        {content.inline.map((contentItem, index) => {
+          const key = `${contentItem.toString}-${index}`;
+          const space = inlineLength - 1 === index ? null : <span>&nbsp;</span>;
+
+          if (typeof contentItem === 'string') {
+            return (
+              <span key={key}>
+                {contentItem} {space}
+              </span>
+            );
           }
+
+          if (isBold(contentItem)) {
+            return (
+              <b key={key}>
+                {contentItem.bold} {space}
+              </b>
+            );
+          }
+
+          if (isItalics(contentItem)) {
+            return (
+              <i key={key}>
+                {contentItem.italics} {space}
+              </i>
+            );
+          }
+
+          if (isLink(contentItem)) {
+            return (
+              <a
+                target="_blank"
+                rel="noreferrer"
+                href={contentItem.href}
+                key={key}
+              >
+                {contentItem.href} {space}
+              </a>
+            );
+          }
+
+          throw new Error(
+            `Unhandled message type: ${JSON.stringify(contentItem)}`
+          );
         })}
       </div>
     );
   }
-  switch (content.kind) {
-    // We'll build out components for each type and return them here.
-    case 'text':
-      return <div>{content.contentText}</div>;
-    default:
-      throw new Error(`Unhandled message type: ${content.kind}`);
+
+  if (content.block) {
+    return (
+      <div>
+        {content.block.map((contentItem, index) => (
+          <div key={`${contentItem.bock}-${index}`}>{contentItem.block}</div>
+        ))}
+      </div>
+    );
   }
+
+  throw new Error(`Unhandled message type: ${JSON.stringify(content)}`);
 }

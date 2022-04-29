@@ -1,12 +1,12 @@
 import { decToUd, unixToDa } from '@urbit/api';
 import { subMinutes } from 'date-fns';
-import { ChatWrit, MessageContent } from '../types/chat';
+import { ChatWrit, ChatMessage } from '../types/chat';
 
 // eslint-disable-next-line import/prefer-default-export
 export const makeChatWrit = (
   count: number,
   author: string,
-  content: MessageContent,
+  content: ChatMessage,
   feels?: Record<string, string>,
   staticTime?: boolean
 ): ChatWrit => {

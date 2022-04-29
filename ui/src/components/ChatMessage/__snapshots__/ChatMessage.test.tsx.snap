@@ -112,7 +112,15 @@ exports[`ChatMessage > renders as expected 1`] = `
         class="flex flex-col space-y-2"
       >
         <div>
-          A test message
+          <b>
+            A bold test message 
+            <span>
+               
+            </span>
+          </b>
+          <span>
+            with some more text 
+          </span>
         </div>
       </div>
     </div>

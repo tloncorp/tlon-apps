@@ -19,7 +19,7 @@ export default function ChatInput(props: ChatInputProps) {
       replying: null,
       author: `~${window.ship}`,
       sent: Date.now(),
-      content: {kind: "text", contentText: value},
+      content: { inline: [value], block: [] },
     };
     useChatState.getState().sendMessage(flag, memo);
     setValue('');

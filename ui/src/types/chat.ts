@@ -1,95 +1,75 @@
 export type Patda = string;
 export type Ship = string;
 
-export interface MessageGraphRef {
-  kind: 'graphRef';
-  resourcePath: string;
+type ChatBlock = any;
+
+interface Italics {
+  italics: string;
 }
 
-export interface MessageImage {
-  kind: 'image';
-  source: string;
-  altText: string;
-  size: {
-    height: number;
-    width: number;
+
+interface Bold {
+  bold: string;
+}
+
+/**
+ A reference to the accompanying blocks, indexed at 0
+*/
+interface BlockReference {
+  block: {
+    index: number;
+    text: string;
   };
 }
 
-export interface MessageVideo {
-  kind: 'video';
-  source: string;
-  size: {
-    height: number;
-    width: number;
-  };
+interface InlineCode {
+  'inline-code': string;
 }
 
-export interface MessageFile {
-  kind: 'file';
-  source: string;
-  mimeType: MimeType;
-  size: number; // bytes
+interface BlockCode {
+  code: string;
 }
 
-export interface MessageSticker {
-  kind: 'sticker';
-  image: MessageImage;
-  metadata: Record<string, unknown>;
+interface Blockquote {
+  blockquote: string;
 }
 
-export interface MessageWeb2Link {
-  kind: 'web2Link';
-  url: string;
-  boomerWeb: boolean;
-  metadata: {
-    title: string;
-    description: string;
-    image: string;
-    author: string;
-    section: string;
-  };
+interface Tag {
+  tag: string;
 }
 
-export interface MessageLink {
-  kind: 'link';
-  url: string;
+interface Link {
+  href: string;
 }
 
-export interface MessageEmbed {
-  kind: 'embed';
-  url: string;
-  embedProvider: string;
+type ChatInline =
+  | string
+  | Bold
+  | Italics
+  | Ship
+  | BlockReference
+  | InlineCode
+  | BlockCode
+  | Blockquote
+  | Tag
+  | Link;
+
+export function isBold(item: any): item is Bold {
+  return !!item.bold && typeof item.bold === 'string';
 }
 
-export interface MessageReact {
-  kind: 'react';
-  ref: MessageGraphRef;
-  content: string;
+export function isItalics(item: any): item is Italics {
+  return !!item.italics && typeof item.italics === 'string';
 }
 
-export interface MessageDeleted {
-  kind: 'deleted';
-  removedBy: string;
+export function isLink(item: any): item is Link {
+  return !!item.href && typeof item.href === 'string';
 }
 
-export interface MessageText {
-  kind: 'text';
-  contentText: string;
+export interface ChatMessage {
+  block: ChatBlock[];
+  inline: ChatInline[];
 }
-
-export type MessageContent =
-  | MessageGraphRef
-  | MessageImage[]
-  | MessageVideo[]
-  | MessageFile[]
-  | MessageSticker
-  | MessageWeb2Link
-  | MessageLink
-  | MessageEmbed
-  | MessageReact
-  | MessageDeleted
-  | MessageText;
 
 export interface ChatSeal {
   time: Patda;
@@ -102,7 +82,7 @@ export interface ChatMemo {
   replying: Patda | null;
   author: Ship;
   sent: number;
-  content: MessageContent;
+  content: ChatMessage;
 }
 
 export interface ChatWrit {

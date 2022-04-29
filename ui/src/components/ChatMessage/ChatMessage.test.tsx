@@ -7,8 +7,8 @@ import { makeChatWrit } from '../../fixtures/chat';
 describe('ChatMessage', () => {
   it('renders as expected', () => {
     const writ = makeChatWrit(1, '~finned-palmer', {
-      kind: 'text',
-      contentText: 'A test message',
+    block: [],
+    inline: [{ bold: 'A bold test message' }, "with some more text"],
     },
     undefined,
     true,
