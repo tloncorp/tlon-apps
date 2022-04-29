@@ -38,11 +38,28 @@
 +$  chat
   [=net =remark =log =writs]
 ::
++$  content
+  (pair (list block) (list inline))
+::
++$  block  *
+::
++$  inline
+  $@  @t
+  $%  [%italics p=cord]
+      [%bold p=cord]
+      [%block p=@ud q=cord]
+      [%inline-code p=cord]
+      [%code p=cord]
+      [%blockquote p=cord]
+      [%tag p=cord]
+      [%href p=cord]
+  ==
+::
 +$  memo  
   $:  replying=(unit time)
       author=ship
       sent=time
-      content=cord :: TODO
+      =content
   ==
 ::
 +$  net

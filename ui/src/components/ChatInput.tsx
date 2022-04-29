@@ -19,7 +19,7 @@ export default function ChatInput(props: ChatInputProps) {
       replying: null,
       author: `~${window.ship}`,
       sent: Date.now(),
-      content: value,
+      content: { inline: [value], block: [] },
     };
     useChatState.getState().sendMessage(flag, memo);
     setValue('');
@@ -33,7 +33,7 @@ export default function ChatInput(props: ChatInputProps) {
         value={value}
         onChange={onChange}
       />
-      <button className="px-2 rounded border" type="button" onClick={onSubmit}>
+      <button className="rounded border px-2" type="button" onClick={onSubmit}>
         Submit!
       </button>
     </div>
