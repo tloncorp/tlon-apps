@@ -47,7 +47,10 @@ export default function ChatInput(props: ChatInputProps) {
         replying: null,
         author: `~${window.ship || 'zod'}`,
         sent: Date.now(),
-        content: parseTipTapJSON(editor?.getJSON()),
+        content: {
+          inline: [parseTipTapJSON(editor?.getJSON())],
+          block: [],
+        },
       };
       useChatState.getState().sendMessage(flag, memo);
       editor?.commands.setContent('');

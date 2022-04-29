@@ -26,7 +26,7 @@
     "@tiptap/react": "^2.0.0-beta.108",
     "@tiptap/starter-kit": "^2.0.0-beta.183",
     "@tlon/sigil-js": "^1.4.5",
-    "@tloncorp/mock-http-api": "^1.1.0",
+    "@tloncorp/mock-http-api": "^1.1.2",
     "@urbit/api": "^2.1.0",
     "@urbit/http-api": "^2.1.0",
     "big-integer": "^1.6.51",
