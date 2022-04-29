@@ -54,16 +54,16 @@ type ChatInline =
   | Tag
   | Link;
 
-export function isBold(item: any): item is Bold {
-  return !!item.bold && typeof item.bold === 'string';
+export function isBold(item: unknown): item is Bold {
+  return typeof item === "object" && item !== null && 'bold' in item;
 }
 
-export function isItalics(item: any): item is Italics {
-  return !!item.italics && typeof item.italics === 'string';
+export function isItalics(item: unknown): item is Italics {
+  return typeof item === "object" && item !== null && 'italics' in item;
 }
 
-export function isLink(item: any): item is Link {
-  return !!item.href && typeof item.href === 'string';
+export function isLink(item: unknown): item is Link {
+  return typeof item === "object" && item !== null && 'href' in item;
 }
 
 export interface ChatMessage {
