@@ -36,6 +36,7 @@
     ?-  -.d
       %add  (channel channel.d)
       %del  ~
+      ?(%add-sects %del-sects)  a/(turn ~(tap in sects.d) (lead %s))
     ==
   ::
   ++  cabal-diff

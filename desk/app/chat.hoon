@@ -1,5 +1,6 @@
 /-  c=chat, g=groups
 /+  default-agent, verb, dbug
+/+  chat-json
 ^-  agent:gall
 =>
   |%
@@ -112,6 +113,8 @@
     ^+  cor
     =/  =flag:c  [our.bowl name.req]
     =|  =chat:c
+    =/  =perm:c  [~ group.req]
+    =.  perm.chat  perm
     =.  net.chat  [%pub ~]
     =.  chats  (~(put by chats) flag chat)
     ca-abet:(ca-init:(ca-abed:ca-core flag) req)
@@ -145,7 +148,6 @@
   cor
 ++  peek
   |=  =path
-  ~&  path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
   ::
@@ -156,6 +158,8 @@
     =*  name   i.t.t.t.path
     (ca-peek:(ca-abed:ca-core ship name) t.t.t.t.path)
   ==
+::
+++  from-self  =(our src):bowl
 ::
 ++  ca-core
   |_  [=flag:c =chat:c]
@@ -171,7 +175,7 @@
     ^+  ca-core
     ?+    path  !!
       [%updates *]  (ca-pub t.path)
-      [%ui ~]       ca-core
+      [%ui ~]       ?>(from-self ca-core)
     ::
     ==
   ++  ca-pass
@@ -179,7 +183,8 @@
     ++  add-channel
       |=  req=create:c
       =/  =dock      [p.group.req %groups]
-      =/  =channel:g  =,(req [[title description ''] now.bowl])
+      =/  =channel:g  
+        =,(req [[title description ''] now.bowl readers])
       =/  =action:g  [group.req now.bowl %channel flag %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc ca-area %create)
@@ -254,15 +259,42 @@
   ++  ca-proxy
     |=  =update:c
     ^+  ca-core
+    ?>  ca-can-write
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  chat-action+!>([flag update])
     =.  cor
       (emit %pass ca-area %agent dock %poke cage)
     ca-core
   ::
+  ++  ca-groups-scry
+    =*  group  group.perm.chat
+    /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
+  ::
+  ++  ca-can-write
+    ?:  =(p.flag src.bowl)  &
+    =/  =path
+      %+  welp  ca-groups-scry
+      /fleet/(scot %p src.bowl)/vessel
+    =+  .^(=vessel:fleet:g %gx path)
+    ?:  =(~ writers.perm.chat)  &
+    !=(~ (~(int in writers.perm.chat) sects.vessel))
+  ::
+  ++  ca-can-read
+    =/  =path
+      %+  welp  ca-groups-scry
+      /channel/(scot %p p.flag)/[q.flag]/can-read/(scot %p src.bowl)/loob
+    .^  ?
+      %gx
+      (scot %p our.bowl)
+      %groups
+      (scot %da now.bowl)
+      path
+    ==
+  ::
   ++  ca-pub
     |=  =path
     ^+  ca-core
+    ?>  ca-can-read
     =/  =logs:c
       ?~  path  log.chat
       =/  =time  (slav %da i.path)
@@ -332,6 +364,7 @@
   ::
   ++  ca-update
     |=  [=time d=diff:c]
+    ?>  ca-can-write
     ^+  ca-core
     =.  log.chat
       (put:log-on:c log.chat time d)

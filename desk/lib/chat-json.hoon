@@ -74,11 +74,13 @@
   =,  dejs:format
   |%
   ++  create
+    ^-  $-(json create:c)
     %-  ot
     :~  group+flag
         name+(se %tas)
         title+so
         description+so
+        readers+(as (se %tas))
     ==
 
   ++  ship  (su ;~(pfix sig fed:ag))

@@ -1,5 +1,6 @@
 /-  g=groups
 /+  default-agent, verb, dbug
+/+  groups-json  :: unused, nice for perf
 ^-  agent:gall
 =>
   |%
@@ -113,11 +114,15 @@
     go-abet:(go-watch:(go-abed:group-core ship name.pole) rest.pole)
   ==
 ++  peek
-  |=  =path
+  |=  =(pole knot)
   ^-  (unit (unit cage))
-  ?+    path  [~ ~]
+  ?+    pole  [~ ~]
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
+  ::
+      [%x %groups ship=@ name=@ rest=*]
+    =/  ship  (slav %p ship.pole)
+    (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ==
     
 ++  agent
@@ -172,6 +177,23 @@
     ?+  pole  !!
       [%updates rest=*]  (go-pub rest.pole)
       [%ui ~]       go-core
+    ==
+  ::
+  ++  go-peek
+    |=  =(pole knot)
+    ^-  (unit (unit cage))
+    :-  ~
+    ?+    pole  ~
+        [%channel ship=@ name=@ rest=*]
+      =/  fog=flag:g  [(slav %p ship.pole) name.pole]
+      =/  =channel:g  (~(got by channels.group) fog)
+      ?+    rest.pole  ~
+          [%can-read src=@ ~]
+        =/  src  (slav %p src.rest.pole)
+        ?~  ves=(~(get by fleet.group) src)  `loob+!>(|)
+        ?:  =(~ readers.channel)  `loob+!>(&)
+        `loob+!>(!=(~ (~(int in readers.channel) sects.u.ves)))
+      ==
     ==
   ::
   ++  go-agent
@@ -233,7 +255,6 @@
       (~(put in out) path)
     =.  paths  (~(put in paths) (snoc go-area %ui))
     =.  paths  (~(put in paths) /groups/ui)
-    ~&  paths
     =.  cor
       (give %fact ~(tap in paths) cage)
     go-core
@@ -318,13 +339,27 @@
   ++  go-channel-update
     |=  [ch=flag:g =diff:channel:g]
     ^+  go-core
+    =*  by-ch  ~(. by channels.group)
     ?-    -.diff
         %add
-      =.  channels.group  (~(put by channels.group) ch channel.diff)
+      =.  channels.group  (put:by-ch ch channel.diff)
       go-core
     ::
         %del
-      =.  channels.group  (~(del by channels.group) ch)
+      =.  channels.group  (del:by-ch ch)
+      go-core
+    ::
+        %add-sects
+      =/  =channel:g  (got:by-ch ch)
+      =.  readers.channel  (~(uni in readers.channel) sects.diff)
+      =.  channels.group  (put:by-ch ch channel)
+      go-core
+    ::
+        %del-sects
+      =/  =channel:g  (got:by-ch ch)
+      =.  readers.channel  (~(dif in readers.channel) sects.diff)
+      =.  channels.group  (put:by-ch ch channel)
+      ::  TODO: revoke?
       go-core
     ==
   --

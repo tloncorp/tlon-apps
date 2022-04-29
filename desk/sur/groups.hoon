@@ -39,10 +39,14 @@
   +$  channel
     $:  =meta
         added=time
+        readers=(set sect)
     ==
   +$  diff
     $%  [%add =channel]
         [%del ~]
+      ::
+        [%add-sects sects=(set sect)]
+        [%del-sects sects=(set sect)]
     ==
   --
 ::

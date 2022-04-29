@@ -42,7 +42,7 @@
 ::
 +$  perm
   $:  writers=(set sect:g)
-      ~
+      group=flag
   ==
 +$  chat
   [=net =remark =log =perm =writs]
@@ -73,5 +73,6 @@
       name=term
       title=cord
       description=cord
+      readers=(set sect:g)
   ==
 --
