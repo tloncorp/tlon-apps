@@ -7,9 +7,13 @@ export const makeChatWrit = (
   count: number,
   author: string,
   content: MessageContent,
-  feels?: Record<string, string>
+  feels?: Record<string, string>,
+  staticTime?: boolean
 ): ChatWrit => {
-  const unix = subMinutes(new Date(), count * 5).getTime();
+  const unix = subMinutes(
+    staticTime ? new Date(2021) : new Date(),
+    count * 5
+  ).getTime();
   const time = unixToDa(unix);
   const da = decToUd(time.toString());
   return {
@@ -25,4 +29,3 @@ export const makeChatWrit = (
     },
   };
 };
-

@@ -9,7 +9,10 @@ describe('ChatMessage', () => {
     const writ = makeChatWrit(1, '~finned-palmer', {
       kind: 'text',
       contentText: 'A test message',
-    });
+    },
+    undefined,
+    true,
+    );
     const { asFragment } = render(<ChatMessage writ={writ} newAuthor />);
     expect(asFragment()).toMatchSnapshot();
   });
