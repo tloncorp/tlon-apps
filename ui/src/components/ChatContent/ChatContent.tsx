@@ -1,15 +1,16 @@
-import React, {memo} from 'react';
+import React from 'react';
 import { ChatMessage, isBold, isItalics, isLink } from '../../types/chat';
 
 interface ChatContentProps {
   content: ChatMessage;
 }
 
-export default function ChatContent({ content }: ChatContentProps) {
-  const inlineLength = content.inline.length;
-  const blockLength = content.block.length;
+interface InlineContentProps extends ChatContentProps {
+  inlineLength: number;
+}
 
-  const InlineContent = memo(() => (
+export function InlineContent({ content, inlineLength }: InlineContentProps) {
+  return (
     <div>
       {content.inline.map((contentItem, index) => {
         const key = `${contentItem.toString}-${index}`;
@@ -57,20 +58,29 @@ export default function ChatContent({ content }: ChatContentProps) {
         );
       })}
     </div>
-  ));
+  );
+}
 
-  const BlockContent = memo(() => (
+export function BlockContent({ content }: ChatContentProps) {
+  return (
     <div>
       {content.block.map((contentItem, index) => (
         <div key={`${contentItem.bock}-${index}`}>{contentItem.block}</div>
       ))}
     </div>
-  ));
+  );
+}
+
+export default function ChatContent({ content }: ChatContentProps) {
+  const inlineLength = content.inline.length;
+  const blockLength = content.block.length;
 
   return (
     <div>
-      {blockLength > 0 && <BlockContent />}
-      {inlineLength > 0 && <InlineContent />}
+      {blockLength > 0 ? <BlockContent content={content} /> : null}
+      {inlineLength > 0 ? (
+        <InlineContent content={content} inlineLength={inlineLength} />
+      ) : null}
     </div>
   );
 }
