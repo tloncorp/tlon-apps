@@ -17,5 +17,8 @@ module.exports = {
       config: 'tailwind.config.js'
     }],
     'no-param-reassign': ['error', { props: true, ignorePropertyModificationsFor: ['draft'] }],
+    'tailwindcss/classnames-order': [1, {
+      officialSorting: true,
+    }]
   },
 };

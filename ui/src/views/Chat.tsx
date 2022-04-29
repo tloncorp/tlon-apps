@@ -22,18 +22,18 @@ export default function Chat() {
   return (
     <Layout
       header={
-        <div className="flex items-center justify-center h-full">
+        <div className="flex h-full items-center justify-center ">
           <h1 className="text-3xl font-bold text-blue">Welcome to homestead</h1>
         </div>
       }
       footer={
-        <div className="flex items-center justify-center h-full">
+        <div className="flex h-full items-center justify-center">
           <span className="text-gray-300">homestead {version}</span>
         </div>
       }
       main={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="max-w-md py-20 space-y-6">
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="max-w-md space-y-6 py-20">
             <div className="space-y-4">
               {messages
                 .keys()
