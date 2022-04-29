@@ -1,24 +1,37 @@
 module.exports = {
   extends: ['@tloncorp/eslint-config', 'plugin:storybook/recommended'],
-  overrides: [{
-    files: ['**/*.ts', '**/*.tsx'],
-    parserOptions: {
-      project: 'tsconfig.json',
-      tsconfigRootDir: __dirname
-    }
-  }],
+  overrides: [
+    {
+      files: ['**/*.ts', '**/*.tsx'],
+      parserOptions: {
+        project: 'tsconfig.json',
+        tsconfigRootDir: __dirname,
+      },
+    },
+  ],
   rules: {
     semi: [2, 'always'],
-    "react/require-default-props": [2, { ignoreFunctionalComponents: true }],
-    'react/jsx-filename-extension': [1, {
-      extensions: ['.jsx', '.tsx']
-    }],
-    'tailwindcss/no-custom-classname': [0, {
-      config: 'tailwind.config.js'
-    }],
-    'no-param-reassign': ['error', { props: true, ignorePropertyModificationsFor: ['draft'] }],
-    'tailwindcss/classnames-order': [1, {
+    'react/require-default-props': [2, { ignoreFunctionalComponents: true }],
+    'react/jsx-filename-extension': [
+      1,
+      {
+        extensions: ['.jsx', '.tsx'],
+      },
+    ],
+    'tailwindcss/no-custom-classname': [
+      0,
+      {
+        config: 'tailwind.config.js',
+      },
+    ],
+    'no-param-reassign': [
+      'error',
+      { props: true, ignorePropertyModificationsFor: ['draft'] },
+    ],
+  },
+  settings: {
+    tailwindcss: {
       officialSorting: true,
-    }]
+    },
   },
 };

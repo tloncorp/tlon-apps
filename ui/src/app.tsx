@@ -10,7 +10,5 @@ export default function App() {
   //   <Route path="*" element={<Navigate to={'/chat'} />} />
   // </Routes>
 
-  return (
-    <Chat/>
-  );
+  return <Chat />;
 }
