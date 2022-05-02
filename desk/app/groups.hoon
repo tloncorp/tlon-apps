@@ -108,6 +108,7 @@
   ?+  pole  ~|(bad-watch/path !!)
   ::
     [%groups %ui ~]  cor
+    [%groups ~]      cor
   ::
       [%groups ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
@@ -245,7 +246,7 @@
     (go-update:go update)
   ::
   ++  go-give-update
-    |=  =cage
+    |=  [=time =diff:g]
     ^+  go-core
     =/  paths=(set path)
       %+  roll  ~(val by sup.bowl)
@@ -256,13 +257,15 @@
     =.  paths  (~(put in paths) (snoc go-area %ui))
     =.  paths  (~(put in paths) /groups/ui)
     =.  cor
-      (give %fact ~(tap in paths) cage)
+      (give %fact ~(tap in paths) group-update+!>(`update:g`[time diff]))
+    =.  cor
+      (give %fact ~[/groups] group-action+!>(`action:g`[flag time diff]))
     go-core
   ::
   ++  go-tell-update
     |=  [=time =diff:g]
     ^+  go-core
-    =.  go-core  (go-give-update group-update+!>([time diff]))
+    =.  go-core  (go-give-update time diff)
     ?.  ?=(%pub -.net)
       go-core
     =.  p.net

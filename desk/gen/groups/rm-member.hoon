@@ -10,4 +10,4 @@
 ^-  action:g
 :-  [her name]
 :-  now
-[%fleet ship %add vessel]
+[%fleet ship %del ~]

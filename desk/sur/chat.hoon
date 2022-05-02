@@ -27,6 +27,8 @@
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
+    ::
+      [%create p=perm]
   ==
 ::
 +$  writs
