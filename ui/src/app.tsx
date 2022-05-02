@@ -24,8 +24,8 @@ function SidebarRow(props: {
 }) {
   const { children, icon, img, className = '' } = props;
   return (
-    <li className={cn('flex p-2 space-x-2', className)}>
-      <div className="border w-6 h-6 rounded"></div>
+    <li className={cn('flex space-x-2 p-2', className)}>
+      <div className="h-6 w-6 rounded border" />
       {typeof children === 'string' ? <div>{children}</div> : children}
     </li>
   );
@@ -44,23 +44,28 @@ function GroupItem(props: { flag: string }) {
 function Divider(props: { title: string }) {
   const { title } = props;
   return (
-    <div className="flex p-2 space-x-2 items-center">
+    <div className="flex items-center space-x-2 p-2">
       <div>{title}</div>
-      <div className="grow border-b"></div>
+      <div className="grow border-b" />
     </div>
   );
 }
 
 function App() {
   const groups = useGroupList();
+  const { groups: groupMap } = useGroupState();
+
+  console.log(groupMap);
+
   useEffect(() => {
     useGroupState.getState().fetchAll();
     useChatState.getState().fetchFlags();
   }, []);
+
   return (
     <Router basename="/apps/homestead">
-      <div className="h-full w-full flex">
-        <ul className="h-full p-2 w-56 border-r">
+      <div className="flex h-full w-full">
+        <ul className="h-full w-56 border-r p-2">
           <SidebarRow>Groups</SidebarRow>
           <SidebarRow>Profile</SidebarRow>
           <SidebarRow>

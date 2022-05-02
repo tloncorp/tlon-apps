@@ -1,0 +1,12 @@
+/**
+* See: https://tailwindcss.com/docs/using-with-preprocessors#using-post-css-as-your-preprocessor=
+*/
+@import 'tailwindcss/base';
+@import './base';
+
+@import 'tailwindcss/components';
+@import './components';
+@import '../components/layout/Layout.css';
+
+@import 'tailwindcss/utilities';
+@import './utilities';

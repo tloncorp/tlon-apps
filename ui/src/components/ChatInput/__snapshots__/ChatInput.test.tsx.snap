@@ -1,0 +1,31 @@
+// Vitest Snapshot v1
+
+exports[`ChatInput > renders as expected 1`] = `
+<DocumentFragment>
+  <div
+    class="flex w-full items-end space-x-2"
+  >
+    <div
+      class="flex-1"
+    >
+      <div
+        class="ProseMirror input"
+        contenteditable="true"
+        tabindex="0"
+        translate="no"
+      >
+        <p>
+          <br
+            class="ProseMirror-trailingBreak"
+          />
+        </p>
+      </div>
+    </div>
+    <button
+      class="button"
+    >
+      Send
+    </button>
+  </div>
+</DocumentFragment>
+`;

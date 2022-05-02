@@ -1,10 +1,6 @@
 import React, { useEffect } from 'react';
-import ChatMessage from '../components/ChatMessage';
-import ChatInput from '../components/ChatInput';
-import api from '../api';
+import ChatMessage from './ChatMessage/ChatMessage';
 import { useChatState, useMessagesForChat } from '../state/chat';
-
-const DEF_FLAG = '~zod/test';
 
 export default function ChatWindow(props: { flag: string }) {
   const { flag } = props;
@@ -12,23 +8,32 @@ export default function ChatWindow(props: { flag: string }) {
 
   useEffect(() => {
     useChatState.getState().initialize(flag);
-
-    return () => {};
   }, [flag]);
 
   return (
-    <div className="h-100 flex flex-col grow">
-      <div className="space-y-4 px-2 pt-2 overflow-y-scroll">
-        {messages &&
-          messages
-            .keys()
-            .reverse()
-            .map((key) => {
-              const writ = messages.get(key);
-              return <ChatMessage key={writ.seal.time} writ={writ} />;
-            })}
+    <div className="flex h-full w-full flex-col overflow-auto p-4">
+      <div className="mt-auto flex flex-col justify-end space-y-4">
+        {messages
+          .keys()
+          .reverse()
+          .map((key, index) => {
+            const writ = messages.get(key);
+            const lastWrit =
+              index > 0
+                ? messages.get(messages.keys().reverse()[index - 1])
+                : undefined;
+            const newAuthor = lastWrit
+              ? writ.memo.author !== lastWrit.memo.author
+              : true;
+            return (
+              <ChatMessage
+                key={writ.seal.time}
+                writ={writ}
+                newAuthor={newAuthor}
+              />
+            );
+          })}
       </div>
-      <ChatInput flag={flag} />
     </div>
   );
 }

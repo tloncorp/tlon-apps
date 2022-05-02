@@ -1,7 +1,7 @@
 import React from 'react';
 import { render } from 'react-dom';
 import App from './app';
-import './index.css';
+import './styles/index.css';
 window.our = `~${window.ship}`;
 
 const root = document.getElementById('app') as HTMLElement;

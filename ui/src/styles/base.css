@@ -1,0 +1,6 @@
+html,
+body,
+#app {
+  /* adding for mobile bottom bars */
+  @apply h-full w-full;
+}

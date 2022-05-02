@@ -2,11 +2,10 @@ import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
+import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
 import { Group, GroupDiff, GroupUpdate } from '../types/groups';
-import { mockGroups } from '../fixtures/groups';
 import api from '../api';
-import { useParams } from 'react-router';
 
 function groupAction(flag: string, diff: GroupDiff) {
   return {
@@ -46,7 +45,7 @@ interface GroupState {
   fetchAll: () => Promise<void>;
 }
 export const useGroupState = create<GroupState>((set, get) => ({
-  groups: mockGroups,
+  groups: {},
   create: async (req) => {
     await api.poke({
       app: 'groups',
@@ -161,7 +160,15 @@ export const useGroupState = create<GroupState>((set, get) => ({
 }));
 
 export function useGroup(flag: string) {
-  return useGroupState(useCallback((s) => s.groups[flag], [flag]));
+  return useGroupState(
+    useCallback(
+      (s) => {
+        debugger;
+        return s.groups[flag];
+      },
+      [flag]
+    )
+  );
 }
 
 export function useRouteGroup() {

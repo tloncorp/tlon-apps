@@ -40,7 +40,29 @@
     %-  pairs
     :~  author+(ship author.memo)
         sent+(time sent.memo)
-        content+s+content.memo
+        content+(content content.memo)
+    ==
+  ::
+  ++  block
+    |=  b=block:c
+    *json
+  ::
+  ++  content
+    |=  c=content:c
+    %-  pairs
+    :~  block/a/(turn p.c block)
+        inline/a/(turn q.c inline)
+    ==
+  ::
+  ++  inline
+    |=  i=inline:c
+    ^-  json
+    ?@  i  s+i
+    %+  frond  -.i
+    ?.  ?=(%block -.i)  s+p.i
+    %-  pairs
+    :~  index+(numb p.i)
+        text+s+q.i
     ==
   ::
   ++  seal
@@ -116,11 +138,45 @@
     ==
   ::
   ++  memo
+    ^-  $-(json memo:c)
     %-  ot
     :~  replying/(mu (se %ud))
         author/ship
         sent/di
-        content/so
+        content/content
+    ==
+  ::
+  ++  content
+    ^-  $-(json content:c)
+    %-  ot
+    :~  block/(ar block)
+        inline/(ar inline)
+    ==
+  ::
+  ++  block
+    |=  j=json
+    *block:c
+  ::
+  ++  inline
+    |=  j=json
+    ^-  inline:c
+    ?:  ?=([%s *] j)  p.j
+    =>  .(j `json`j)
+    %.  j
+    %-  of
+    :~  italics/so
+        bold/so
+        inline-code/so
+        code/so
+        blockquote/so
+        tag/so
+        href/so
+    ::
+      :-  %block
+      %-  ot
+      :~  index/ni
+          text/so
+      ==
     ==
   --
 --
