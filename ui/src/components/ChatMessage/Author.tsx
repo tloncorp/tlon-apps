@@ -1,6 +1,5 @@
 import React from 'react';
-import usePrettyDayAndDateAndTime from '../../hooks/usePrettyDayAndDateAndTime';
-import usePrettyDayAndTime from '../../hooks/usePrettyDayAndTime';
+import {makePrettyDayAndDateAndTime, makePrettyDayAndTime} from '../../utils';
 import ShipImage from './ShipImage';
 
 interface AuthorProps {
@@ -8,8 +7,8 @@ interface AuthorProps {
   date: Date;
 }
 export default function Author({ ship, date }: AuthorProps) {
-  const prettyDayAndTime = usePrettyDayAndTime(date);
-  const prettyDayAndDateAndTime = usePrettyDayAndDateAndTime(date);
+  const prettyDayAndTime = makePrettyDayAndTime(date);
+  const prettyDayAndDateAndTime = makePrettyDayAndDateAndTime(date);
 
   return (
     <div className="align-center group flex flex items-center space-x-3 py-1">

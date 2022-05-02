@@ -1,12 +1,12 @@
 import React from 'react';
-import usePrettyDay from '../../hooks/usePrettyDay';
+import { makePrettyDay } from '../../utils';
 
 interface DateDividerProps {
   date: Date;
 }
 
 export default function DateDivider({ date }: DateDividerProps) {
-  const prettyDay = usePrettyDay(date);
+  const prettyDay = makePrettyDay(date);
 
   return (
     <div className="flex w-full items-center py-2">
