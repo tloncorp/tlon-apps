@@ -160,15 +160,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
 }));
 
 export function useGroup(flag: string) {
-  return useGroupState(
-    useCallback(
-      (s) => {
-        debugger;
-        return s.groups[flag];
-      },
-      [flag]
-    )
-  );
+  return useGroupState(useCallback((s) => s.groups[flag], [flag]));
 }
 
 export function useRouteGroup() {

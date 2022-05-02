@@ -11,7 +11,7 @@ export default function NewChannel() {
     description: '',
   };
   const onSubmit = (values: any) => {
-    useChatState.getState().create({ ...values, name: values.title, group });
+    useChatState.getState().create({ ...values, name: values.title, group, readers: [] });
   };
   return (
     <Formik onSubmit={onSubmit} initialValues={initialValues}>
