@@ -29,7 +29,7 @@ export default function ChatMessage({
     <div className="flex flex-col">
       <div className="flex">{newDay ? <DateDivider date={time} /> : null}</div>
       <div className="flex py-1">
-        {newAuthor ? <Author ship={memo.author} /> : null}
+        {newAuthor ? <Author ship={memo.author} date={time} /> : null}
       </div>
       <div
         className="flex space-x-3"

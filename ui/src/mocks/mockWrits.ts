@@ -59,6 +59,26 @@ const chatWrits: ChatWrit[] = [
     undefined,
     subDays(today, 3)
   ),
+  makeChatWrit(
+    6,
+    '~finned-palmer',
+    {
+      block: [],
+      inline: ['hmmm...'],
+    },
+    undefined,
+    subDays(today, 7)
+  ),
+  makeChatWrit(
+    6,
+    '~hastuc-dibtux',
+    {
+      block: [],
+      inline: ['FIRST'],
+    },
+    undefined,
+    subDays(today, 8)
+  ),
 ];
 
 export default chatWrits;
