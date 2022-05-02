@@ -19,7 +19,7 @@ export default function DateDivider({ date }: DateDividerProps) {
   };
 
   return (
-    <div className="flex w-full items-center">
+    <div className="flex w-full items-center py-2">
       <div className="h-[2px] w-6 rounded-sm bg-gray-200">&nbsp;</div>
       <span className="whitespace-nowrap px-3 font-semibold text-gray-500">
         {prettyDay()}

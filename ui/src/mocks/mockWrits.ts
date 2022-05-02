@@ -20,13 +20,23 @@ const chatWrits: ChatWrit[] = [
     '~finned-palmer',
     {
       block: [],
-      inline: ['A finned normal message'],
+      inline: ['A finned normal message on the same day'],
     },
     undefined,
     subDays(today, 1)
   ),
   makeChatWrit(
     3,
+    '~finned-palmer',
+    {
+      block: [],
+      inline: ['A finned normal message'],
+    },
+    undefined,
+    subDays(today, 1)
+  ),
+  makeChatWrit(
+    4,
     '~hastuc-dibtux',
     {
       block: [],
@@ -40,7 +50,7 @@ const chatWrits: ChatWrit[] = [
     subDays(today, 2)
   ),
   makeChatWrit(
-    4,
+    5,
     '~hastuc-dibtux',
     {
       block: [],
