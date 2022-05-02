@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import usePrettyDayAndDateAndTime from '../../hooks/usePrettyDayAndDateAndTime';
 import usePrettyDayAndTime from '../../hooks/usePrettyDayAndTime';
 import ShipImage from './ShipImage';
@@ -10,17 +10,16 @@ interface AuthorProps {
 export default function Author({ ship, date }: AuthorProps) {
   const prettyDayAndTime = usePrettyDayAndTime(date);
   const prettyDayAndDateAndTime = usePrettyDayAndDateAndTime(date);
-  const [showFullDate, setShowFullDate] = useState(false);
 
   return (
-    <div className="align-center flex flex items-center space-x-3 py-1"
-      onMouseOver={() => setShowFullDate(true)}
-      onMouseLeave={() => setShowFullDate(false)}
-    >
+    <div className="align-center group flex flex items-center space-x-3 py-1">
       <ShipImage ship={ship} />
       <span className="text-md font-semibold">{ship}</span>
-      <span className="text-sm font-semibold text-gray-500">
-        {showFullDate ? prettyDayAndDateAndTime : prettyDayAndTime}
+      <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
+        {prettyDayAndDateAndTime}
+      </span>
+      <span className="block text-sm font-semibold text-gray-500 group-hover:hidden">
+        {prettyDayAndTime}
       </span>
     </div>
   );

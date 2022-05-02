@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format } from 'date-fns';
-import classNames from 'classnames';
 import { ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
@@ -20,7 +19,6 @@ export default function ChatMessage({
   newAuthor,
   newDay,
 }: ChatMessageProps) {
-  const [showTime, setShowTime] = useState(false);
   const { seal, memo } = writ;
 
   const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
@@ -29,17 +27,8 @@ export default function ChatMessage({
     <div className="flex flex-col">
       {newDay ? <DateDivider date={time} /> : null}
       {newAuthor ? <Author ship={memo.author} date={time} /> : null}
-      <div
-        className="flex space-x-3"
-        onMouseOver={() => setShowTime(true)}
-        onMouseOut={() => setShowTime(false)}
-      >
-        <div
-          className={classNames('py-3 text-xs font-semibold text-gray-400', {
-            invisible: !showTime,
-            visible: showTime,
-          })}
-        >
+      <div className="group flex space-x-3">
+        <div className="invisible py-3 text-xs font-semibold text-gray-400 group-hover:visible">
           {format(time, 'HH:mm')}
         </div>
         <div className="flex flex-col space-y-2 p-2">
