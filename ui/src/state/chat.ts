@@ -62,6 +62,7 @@ interface ChatState {
     name: string;
     title: string;
     description: string;
+    readers: string[];
   }) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
 }
