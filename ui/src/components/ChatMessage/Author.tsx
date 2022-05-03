@@ -11,7 +11,7 @@ export default function Author({ ship, date }: AuthorProps) {
   const prettyDayAndDateAndTime = makePrettyDayAndDateAndTime(date);
 
   return (
-    <div className="align-center group flex items-center space-x-3 py-2">
+    <div className="align-center group flex items-center space-x-3 py-1">
       <ShipImage ship={ship} />
       <span className="text-md font-semibold">{ship}</span>
       <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
