@@ -15,6 +15,7 @@ import Members from './pages/Members';
 import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
+import {IS_MOCK} from './api';
 
 function SidebarRow(props: {
   icon?: string;
@@ -55,15 +56,13 @@ function App() {
   const groups = useGroupList();
   const { groups: groupMap } = useGroupState();
 
-  console.log(groupMap);
-
   useEffect(() => {
     useGroupState.getState().fetchAll();
     useChatState.getState().fetchFlags();
   }, []);
 
   return (
-    <Router basename="/apps/homestead">
+    <Router basename={IS_MOCK ? "/" : "/apps/homestead"}>
       <div className="flex h-full w-full">
         <ul className="h-full w-56 border-r p-2">
           <SidebarRow>Groups</SidebarRow>

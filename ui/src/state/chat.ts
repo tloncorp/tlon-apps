@@ -144,6 +144,10 @@ export const useChatState = create<ChatState>((set, get) => ({
             const writ = draft.chats[flag].writs.get(time);
             writ.seal.feels[diff.ship] = diff.feel;
             draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
+          } else if ('add-sects' in update.diff) {
+            const diff = update.diff['add-sects'];
+            const chat = draft.chats[flag];
+            perms.writers = [...perms.writers, ...diff];
           }
         });
       },

@@ -26,3 +26,9 @@ const chatWrits: ChatWrit[] = [
 ];
 
 export default chatWrits;
+
+export const chatKeys = ['~zod/test'];
+
+export const chatPerm = {
+  writers: [],
+}
