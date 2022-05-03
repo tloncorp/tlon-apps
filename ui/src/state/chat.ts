@@ -5,7 +5,7 @@ import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback, useMemo } from 'react';
 import { SubscriptionInterface } from '@urbit/http-api';
-import { Chat, ChatDiff, ChatMemo, ChatUpdate, ChatWrit } from '../types/chat';
+import { Chat, ChatDiff, ChatMemo, ChatPerm, ChatUpdate, ChatWrit } from '../types/chat';
 import api from '../api';
 
 setAutoFreeze(false);
@@ -73,7 +73,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   flags: [] as string[],
   fetchFlags: async () => {
-    const flags = await api.scry({
+    const flags = await api.scry<string[]>({
       app: 'chat',
       path: '/chat',
     });
@@ -104,7 +104,7 @@ export const useChatState = create<ChatState>((set, get) => ({
     await api.poke(chatAction(flag, { 'add-sects': sects }));
   },
   initialize: async (flag: string) => {
-    const perms = await api.scry({
+    const perms = await api.scry<ChatPerm>({
       app: 'chat',
       path: `/chat/${flag}/perm`,
     });

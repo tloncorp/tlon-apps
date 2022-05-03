@@ -3,7 +3,7 @@ import create from 'zustand';
 import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
-import { Group, GroupDiff, GroupUpdate } from '../types/groups';
+import { Group, GroupDiff, Groups, GroupUpdate } from '../types/groups';
 import api from '../api';
 
 function groupAction(flag: string, diff: GroupDiff) {
@@ -85,7 +85,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
     await api.poke(groupAction(flag, diff));
   },
   fetchAll: async () => {
-    const groups = await api.scry({
+    const groups = await api.scry<Groups>({
       app: 'groups',
       path: '/groups',
     });

@@ -99,3 +99,7 @@ export interface GroupAction {
   flag: string;
   update: GroupUpdate;
 }
+
+export interface Groups {
+  [flag: string]: Group;
+}
