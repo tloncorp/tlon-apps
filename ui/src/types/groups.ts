@@ -103,3 +103,30 @@ export interface GroupAction {
 export interface Groups {
   [flag: string]: Group;
 }
+
+export interface GroupPreview {
+  meta: GroupMeta;
+}
+
+export interface Invite {
+  text: string;
+  ship: string;
+}
+
+export type JoinProgress = 'adding' | 'watching' | 'done' | 'error';
+
+interface GroupClaim {
+  progress: JoinProgress;
+  'join-all': boolean;
+}
+
+
+export interface Gang {
+  preview: GroupPreview | null;
+  invite: Invite | null;
+  claim: GroupClaim | null;
+}
+
+export interface Gangs {
+  [flag: string]: Gang;
+}

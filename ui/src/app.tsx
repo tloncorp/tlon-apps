@@ -8,7 +8,12 @@ import {
 import cn from 'classnames';
 import Groups from './pages/Groups';
 import Channel from './pages/Channel';
-import { useGroup, useGroupList, useGroupState } from './state/groups';
+import {
+  useGangList,
+  useGroup,
+  useGroupList,
+  useGroupState,
+} from './state/groups';
 import NewGroup from './pages/NewGroup';
 import NewChannel from './pages/NewChannel';
 import Members from './pages/Members';
@@ -16,6 +21,7 @@ import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
 import { IS_MOCK } from './api';
+import Gang from './pages/Gang';
 
 function SidebarRow(props: {
   className?: string;
@@ -40,6 +46,15 @@ function GroupItem(props: { flag: string }) {
   );
 }
 
+function GangItem(props: { flag: string }) {
+  const { flag } = props;
+  return (
+    <SidebarRow>
+      <NavLink to={`/gangs/${flag}`}>{flag}</NavLink>
+    </SidebarRow>
+  );
+}
+
 function Divider(props: { title: string }) {
   const { title } = props;
   return (
@@ -52,6 +67,7 @@ function Divider(props: { title: string }) {
 
 function App() {
   const groups = useGroupList();
+  const gangs = useGangList();
 
   useEffect(() => {
     useGroupState.getState().fetchAll();
@@ -71,8 +87,13 @@ function App() {
           {groups.map((flag) => (
             <GroupItem key={flag} flag={flag} />
           ))}
+          <Divider title="Pending" />
+          {gangs.map((flag) => (
+            <GangItem key={flag} flag={flag} />
+          ))}
         </ul>
         <Routes>
+          <Route path="/gangs/:ship/:name" element={<Gang />} />
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route path="members" element={<Members />} />

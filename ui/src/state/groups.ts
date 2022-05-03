@@ -3,7 +3,7 @@ import create from 'zustand';
 import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
-import { Group, GroupDiff, Groups, GroupUpdate } from '../types/groups';
+import { Gangs, Group, GroupDiff, Groups, GroupUpdate } from '../types/groups';
 import api from '../api';
 
 function groupAction(flag: string, diff: GroupDiff) {
@@ -26,6 +26,7 @@ interface GroupState {
   groups: {
     [flag: string]: Group;
   };
+  gangs: Gangs;
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
   addSects: (flag: string, ship: string, sects: string[]) => Promise<void>;
@@ -46,6 +47,7 @@ interface GroupState {
 }
 export const useGroupState = create<GroupState>((set, get) => ({
   groups: {},
+  gangs: {},
   create: async (req) => {
     await api.poke({
       app: 'groups',
@@ -85,13 +87,17 @@ export const useGroupState = create<GroupState>((set, get) => ({
     await api.poke(groupAction(flag, diff));
   },
   fetchAll: async () => {
-    const groups = await api.scry<Groups>({
+    const [groups, gangs] = await Promise.all([api.scry<Groups>({
       app: 'groups',
       path: '/groups',
-    });
+    }), api.scry<Gangs>({
+      app: 'groups',
+      path: '/gangs'
+    })]);
     set((s) => ({
       ...s,
       groups,
+      gangs
     }));
   },
   initialize: async (flag: string) =>
@@ -180,4 +186,19 @@ export function useVessel(flag: string, ship: string) {
   return useGroupState(
     useCallback((s) => s.groups[flag].fleet[ship], [ship, flag])
   );
+}
+
+const defGang = {
+  invite: null,
+  claim: null,
+  preview: null
+}
+
+export function useGang(flag: string) {
+  return useGroupState(useCallback(s => s.gangs[flag] || defGang, [flag]));
+}
+
+const selGangList = (s: GroupState) => Object.keys(s.gangs);
+export function useGangList() {
+  return useGroupState(selGangList);
 }

@@ -1,4 +1,4 @@
-import { Group, Vessel } from '../types/groups';
+import { Group, Vessel, Gangs } from '../types/groups';
 
 const emptyVessel = (): Vessel => ({
   sects: [],
@@ -53,6 +53,28 @@ const mockGroupTwo: Group = {
 const mockGroups = {
   '~zod/tlon': mockGroupOne,
   '~zod/remco': mockGroupTwo,
+};
+
+export const mockGangs: Gangs = {
+  '~zod/structure': {
+    invite: {
+      text: 'Come join the group',
+      ship: '~fabled-faster',
+    },
+    claim: {
+      progress: 'adding',
+      'join-all': true,
+    },
+    preview: {
+      meta: {
+        title: 'Structure',
+        description:
+          'Urbit Structural Design and Engineering Group. Always Thinking About Mechanics.',
+        image:
+          'https://fabled-faster.nyc3.digitaloceanspaces.com/fabled-faster/2022.1.27..17.59.43-image.png',
+      },
+    },
+  },
 };
 
 export default mockGroups;
