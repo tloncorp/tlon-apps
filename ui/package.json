@@ -23,6 +23,7 @@
     "build-storybook": "build-storybook"
   },
   "dependencies": {
+    "@tiptap/extension-placeholder": "^2.0.0-beta.48",
     "@tiptap/react": "^2.0.0-beta.108",
     "@tiptap/starter-kit": "^2.0.0-beta.183",
     "@tlon/sigil-js": "^1.4.5",

@@ -1,3 +1,4 @@
+import Placeholder from '@tiptap/extension-placeholder';
 import {
   Extension,
   Editor,
@@ -67,11 +68,17 @@ export default function ChatInput(props: ChatInputProps) {
   );
 
   const editor = useEditor({
-    extensions: [StarterKit, keyMapExt],
+    extensions: [
+      StarterKit,
+      keyMapExt,
+      Placeholder.configure({
+        placeholder: 'Message',
+      }),
+    ],
     content: '',
     editorProps: {
       attributes: {
-        class: 'input',
+        class: 'input block',
       },
     },
   });
