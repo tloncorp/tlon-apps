@@ -6,25 +6,32 @@ import { ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
+import DateDivider from './DateDivider';
 
 interface ChatMessageProps {
   writ: ChatWrit;
   newAuthor: boolean;
+  newDay: boolean;
 }
 
-export default function ChatMessage({ writ, newAuthor }: ChatMessageProps) {
+export default function ChatMessage({
+  writ,
+  newAuthor,
+  newDay,
+}: ChatMessageProps) {
   const { seal, memo } = writ;
 
   const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
 
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex">{newAuthor && <Author ship={memo.author} />}</div>
-      <div className="flex space-x-3">
-        <div className="my-1 text-xs font-semibold text-gray-400">
+    <div className="flex flex-col">
+      {newDay ? <DateDivider date={time} /> : null}
+      {newAuthor ? <Author ship={memo.author} date={time} /> : null}
+      <div className="group flex space-x-3">
+        <div className="py-2 text-xs font-semibold text-gray-400 opacity-0 group-hover:opacity-100">
           {format(time, 'HH:mm')}
         </div>
-        <div className="flex flex-col space-y-2">
+        <div className="flex flex-col space-y-2 px-2 py-1">
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
         </div>
