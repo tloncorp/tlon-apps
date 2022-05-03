@@ -4,6 +4,8 @@ import {
   Routes,
   Route,
   NavLink,
+  useLocation,
+  Location,
 } from 'react-router-dom';
 import cn from 'classnames';
 import Groups from './pages/Groups';
@@ -21,8 +23,9 @@ import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
 import { IS_MOCK } from './api';
-import Gang from './pages/Gang';
+import Gang, { GangModal } from './pages/Gang';
 import GangName from './components/GangName/GangName';
+import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 
 function SidebarRow(props: {
   className?: string;
@@ -69,6 +72,7 @@ function Divider(props: { title: string }) {
 }
 
 function App() {
+  const location = useLocation();
   const groups = useGroupList();
   const gangs = useGangList();
 
@@ -77,41 +81,59 @@ function App() {
     useChatState.getState().fetchFlags();
   }, []);
 
+  const state = location.state as { backgroundLocation?: Location } | null;
+
+  return (
+    <div className="flex h-full w-full">
+      <ul className="h-full w-56 border-r p-2">
+        <SidebarRow>Groups</SidebarRow>
+        <SidebarRow>Profile</SidebarRow>
+        <SidebarRow>
+          <NavLink to="/groups/new">New Group</NavLink>
+        </SidebarRow>
+        <SidebarRow>
+          <NavLink to="/groups/join">Join Group</NavLink>
+        </SidebarRow>
+        <Divider title="All Groups" />
+        {groups.map((flag) => (
+          <GroupItem key={flag} flag={flag} />
+        ))}
+        <Divider title="Pending" />
+        {gangs.map((flag) => (
+          <GangItem key={flag} flag={flag} />
+        ))}
+      </ul>
+      <Routes location={state?.backgroundLocation || location}>
+        <Route path="/gangs/:ship/:name" element={<Gang />} />
+        <Route path="/groups/new" element={<NewGroup />} />
+        <Route path="/groups/join" element={<JoinGroup />} />
+        <Route path="/groups/:ship/:name" element={<Groups />}>
+          <Route path="members" element={<Members />} />
+          <Route path="roles" element={<Roles />} />
+          <Route path="channels/:app/:chShip/:chName" element={<Channel />} />
+          <Route
+            path="channels/:app/:chShip/:chName/settings"
+            element={<ChannelSettings />}
+          />
+          <Route path="channels/new" element={<NewChannel />} />
+        </Route>
+      </Routes>
+      {state?.backgroundLocation ? (
+        <Routes>
+          <Route path="/groups/join" element={<JoinGroupModal />} />
+          <Route path="/gangs/:ship/:name" element={<GangModal />} />
+        </Routes>
+      ) : null}
+    </div>
+  );
+}
+
+function RoutedApp() {
   return (
     <Router basename={IS_MOCK ? '/' : '/apps/homestead'}>
-      <div className="flex h-full w-full">
-        <ul className="h-full w-56 border-r p-2">
-          <SidebarRow>Groups</SidebarRow>
-          <SidebarRow>Profile</SidebarRow>
-          <SidebarRow>
-            <NavLink to="/groups/new">New Group</NavLink>
-          </SidebarRow>
-          <Divider title="All Groups" />
-          {groups.map((flag) => (
-            <GroupItem key={flag} flag={flag} />
-          ))}
-          <Divider title="Pending" />
-          {gangs.map((flag) => (
-            <GangItem key={flag} flag={flag} />
-          ))}
-        </ul>
-        <Routes>
-          <Route path="/gangs/:ship/:name" element={<Gang />} />
-          <Route path="/groups/new" element={<NewGroup />} />
-          <Route path="/groups/:ship/:name" element={<Groups />}>
-            <Route path="members" element={<Members />} />
-            <Route path="roles" element={<Roles />} />
-            <Route path="channels/:app/:chShip/:chName" element={<Channel />} />
-            <Route
-              path="channels/:app/:chShip/:chName/settings"
-              element={<ChannelSettings />}
-            />
-            <Route path="channels/new" element={<NewChannel />} />
-          </Route>
-        </Routes>
-      </div>
+      <App />
     </Router>
   );
 }
 
-export default App;
+export default RoutedApp;

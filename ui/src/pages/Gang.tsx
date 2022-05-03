@@ -1,5 +1,7 @@
 import React from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import cn from 'classnames';
+import { Location, useLocation, useNavigate } from 'react-router';
 import ShipImage from '../components/ChatMessage/ShipImage';
 import { useGang, useRouteGroup } from '../state/groups';
 import { JoinProgress } from '../types/groups';
@@ -75,5 +77,29 @@ export default function Gang() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export function GangModal() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as { backgroundLocation: Location };
+  const onOpenChange = (isOpen: boolean) => {
+    if (!isOpen && state?.backgroundLocation) {
+      navigate(state?.backgroundLocation);
+    }
+  };
+
+  return (
+    <Dialog.Root defaultOpen onOpenChange={onOpenChange}>
+      <Dialog.Trigger />
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 flex items-center justify-center bg-black shadow">
+          <Dialog.Content className="w-144 rounded bg-white">
+            <Gang />
+          </Dialog.Content>
+        </Dialog.Overlay>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

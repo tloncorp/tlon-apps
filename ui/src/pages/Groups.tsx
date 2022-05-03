@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import cn from 'classnames';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import { Link, NavLink } from 'react-router-dom';
 import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
@@ -63,6 +63,7 @@ function Groups() {
       }
     };
   }, [flag]);
+  const location = useLocation();
   if (!group) {
     return null;
   }
@@ -80,8 +81,20 @@ function Groups() {
           <NavLink to={`/groups/${flag}/members`}>Members</NavLink>
         </SidebarRow>
         <SidebarRow>
+          <NavLink
+            to={`/gangs/~zod/structure`}
+            state={{ backgroundLocation: location }}
+          >
+            Test Overlay
+          </NavLink>
+        </SidebarRow>
+        <SidebarRow>
           <NavLink to={`/groups/${flag}/roles`}>Roles</NavLink>
         </SidebarRow>
+        <SidebarRow>
+          <NavLink to={`/groups/${flag}/roles`}>Roles</NavLink>
+        </SidebarRow>
+
         <Divider title="Channels" />
         <ChannelList group={group} flag={flag} />
       </div>
