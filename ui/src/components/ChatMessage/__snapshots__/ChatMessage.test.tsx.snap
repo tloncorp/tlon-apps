@@ -6,7 +6,7 @@ exports[`ChatMessage > renders as expected 1`] = `
     class="flex flex-col"
   >
     <div
-      class="flex w-full items-center py-2"
+      class="flex w-full items-center py-4"
     >
       <div
         class="h-[2px] w-6 rounded-sm bg-gray-200"
@@ -25,7 +25,7 @@ exports[`ChatMessage > renders as expected 1`] = `
       </div>
     </div>
     <div
-      class="align-center group flex flex items-center space-x-3 py-1"
+      class="align-center group flex items-center space-x-3 py-2"
     >
       <div
         class="h-6 w-6 rounded bg-black p-1"
