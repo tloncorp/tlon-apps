@@ -5,7 +5,14 @@ import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback, useMemo } from 'react';
 import { SubscriptionInterface } from '@urbit/http-api';
-import { Chat, ChatDiff, ChatMemo, ChatPerm, ChatUpdate, ChatWrit } from '../types/chat';
+import {
+  Chat,
+  ChatDiff,
+  ChatMemo,
+  ChatPerm,
+  ChatUpdate,
+  ChatWrit,
+} from '../types/chat';
 import api from '../api';
 
 setAutoFreeze(false);

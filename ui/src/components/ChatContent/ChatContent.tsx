@@ -65,7 +65,7 @@ export function BlockContent({ content }: ChatContentProps) {
   return (
     <div>
       {content.block.map((contentItem, index) => (
-        <div key={index}></div>
+        <div key={index} />
       ))}
     </div>
   );
