@@ -36,11 +36,11 @@ export function makePrettyDayAndDateAndTime(date: Date) {
   )}`;
   switch (true) {
     case diff === 0:
-      return `Today • ${fullDate} • ${time}`;
+      return `Today • ${time} • ${fullDate}`;
     case diff === 1:
-      return `Yesterday • ${fullDate} • ${time}`;
+      return `Yesterday • ${time} • ${fullDate}`;
     case diff > 1 && diff < 8:
-      return `${format(date, 'cccc')} • ${fullDate} • ${time}`;
+      return `${format(date, 'cccc')} • ${time} • ${fullDate}`;
     default:
       return `${fullDate} • ${time}`;
   }
