@@ -5,14 +5,7 @@ import { BigIntOrderedMap, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback, useMemo } from 'react';
 import { SubscriptionInterface } from '@urbit/http-api';
-import {
-  ChatPerm,
-  Chat,
-  ChatDiff,
-  ChatMemo,
-  ChatUpdate,
-  ChatWrit,
-} from '../types/chat';
+import { Chat, ChatDiff, ChatMemo, ChatUpdate, ChatWrit } from '../types/chat';
 import api from '../api';
 
 setAutoFreeze(false);
@@ -73,7 +66,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   set: (fn) => {
     set(produce(get(), fn));
   },
-  batchSet: fn => {
+  batchSet: (fn) => {
     batchUpdates(() => {
       get().set(fn);
     });
@@ -84,7 +77,6 @@ export const useChatState = create<ChatState>((set, get) => ({
       app: 'chat',
       path: '/chat',
     });
-    console.log(flags);
     get().batchSet((draft) => {
       draft.flags = flags;
     });
@@ -147,7 +139,7 @@ export const useChatState = create<ChatState>((set, get) => ({
           } else if ('add-sects' in update.diff) {
             const diff = update.diff['add-sects'];
             const chat = draft.chats[flag];
-            perms.writers = [...perms.writers, ...diff];
+            chat.perms.writers = [...chat.perms.writers, ...diff];
           }
         });
       },
@@ -157,7 +149,9 @@ export const useChatState = create<ChatState>((set, get) => ({
 
 export function useMessagesForChat(flag: string) {
   const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
-  return useChatState(useCallback((s) => s.chats[flag]?.writs || def, [flag]));
+  return useChatState(
+    useCallback((s) => s.chats[flag]?.writs || def, [flag, def])
+  );
 }
 
 const defaultPerms = {

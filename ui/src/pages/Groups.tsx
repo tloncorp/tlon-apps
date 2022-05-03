@@ -1,42 +1,30 @@
 import React, { useEffect } from 'react';
 import cn from 'classnames';
-import { Outlet, useParams } from 'react-router';
+import { Outlet } from 'react-router';
 import { Link, NavLink } from 'react-router-dom';
 import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
 import api from '../api';
 
 function SidebarRow(props: {
-  icon?: string;
-  img?: string;
   className?: string;
   children?: React.ReactChild | React.ReactChild[];
 }) {
-  const { children, icon, img, className = '' } = props;
+  const { children, className = '' } = props;
   return (
-    <li className={cn('flex p-2 space-x-2', className)}>
-      <div className="border w-6 h-6 rounded"></div>
+    <li className={cn('flex space-x-2 p-2', className)}>
+      <div className="h-6 w-6 rounded border" />
       {typeof children === 'string' ? <div>{children}</div> : children}
     </li>
-  );
-}
-
-function GroupItem(props: { flag: string }) {
-  const { flag } = props;
-  const { meta } = useGroup(flag);
-  return (
-    <SidebarRow>
-      <NavLink to={`/groups/${flag}`}>{meta.title}</NavLink>
-    </SidebarRow>
   );
 }
 
 function Divider(props: { title: string }) {
   const { title } = props;
   return (
-    <div className="flex p-2 space-x-2 items-center">
+    <div className="flex items-center space-x-2 p-2">
       <div>{title}</div>
-      <div className="grow border-b"></div>
+      <div className="grow border-b" />
     </div>
   );
 }
@@ -74,13 +62,13 @@ function Groups() {
         api.unsubscribe(id);
       }
     };
-  }, [group]);
+  }, [flag]);
   if (!group) {
     return null;
   }
   return (
     <div className="flex grow">
-      <div className="w-56 p-2 border-r">
+      <div className="w-56 border-r p-2">
         <div className="p-2">
           <h1>{group.meta.title}</h1>
           <p>{group.meta.description}</p>

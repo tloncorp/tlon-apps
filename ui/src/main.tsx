@@ -4,7 +4,7 @@ import App from './app';
 import { IS_MOCK } from './api';
 import './styles/index.css';
 
-if(IS_MOCK) {
+if (IS_MOCK) {
   window.ship = 'finned-palmer';
 }
 window.our = `~${window.ship}`;

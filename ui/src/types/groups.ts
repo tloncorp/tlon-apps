@@ -27,7 +27,7 @@ export interface Group {
   channels: {
     [flag: string]: Channel;
   };
-  cordon: any;
+  cordon: unknown;
   meta: GroupMeta;
 }
 

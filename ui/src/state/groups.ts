@@ -1,8 +1,6 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
-import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, udToDec } from '@urbit/api';
-import bigInt from 'big-integer';
+import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
 import { Group, GroupDiff, GroupUpdate } from '../types/groups';
@@ -96,13 +94,12 @@ export const useGroupState = create<GroupState>((set, get) => ({
       groups,
     }));
   },
-  initialize: async (flag: string) => {
-    return api.subscribe({
+  initialize: async (flag: string) =>
+    api.subscribe({
       app: 'groups',
       path: `/groups/${flag}/ui`,
       event: (data: unknown) => {
-        console.log('group-event', flag, data);
-        const { diff, time } = data as GroupUpdate;
+        const { diff } = data as GroupUpdate;
         if ('channel' in diff) {
           const { flag: f, diff: d } = diff.channel;
           if ('add' in d) {
@@ -149,21 +146,20 @@ export const useGroupState = create<GroupState>((set, get) => ({
             });
           }
         } else if ('cordon' in diff) {
-          console.log('todo');
+          // console.log('todo');
         } else {
-          console.log('unreachable');
+          // console.log('unreachable');
         }
       },
-    });
-  },
+    }),
   set: (fn) => {
     set(produce(get(), fn));
   },
   batchSet: (fn) => {
     batchUpdates(() => {
-      get().set(fn)
+      get().set(fn);
     });
-  }
+  },
 }));
 
 export function useGroup(flag: string) {

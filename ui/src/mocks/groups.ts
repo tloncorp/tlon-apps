@@ -2,14 +2,14 @@ import { Group, Vessel } from '../types/groups';
 
 const emptyVessel = (): Vessel => ({
   sects: [],
-  joined: Date.now()
-})
+  joined: Date.now(),
+});
 
 const mockGroupOne: Group = {
   fleet: {
-    "~hastuc-dibtux": emptyVessel(),
-    "~finned-palmer": emptyVessel(),
-    "~zod": emptyVessel(),
+    '~hastuc-dibtux': emptyVessel(),
+    '~finned-palmer': emptyVessel(),
+    '~zod': emptyVessel(),
   },
   cabals: {},
   channels: {
@@ -46,14 +46,13 @@ const mockGroupTwo: Group = {
   cordon: {},
   meta: {
     title: 'remco',
-    description:
-      'The urbit group for remilia, a digital art collective',
+    description: 'The urbit group for remilia, a digital art collective',
     image: '',
   },
-}
-export const mockGroups = {
+};
+const mockGroups = {
   '~zod/tlon': mockGroupOne,
   '~zod/remco': mockGroupTwo,
 };
 
-
+export default mockGroups;

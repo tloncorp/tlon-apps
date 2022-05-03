@@ -11,8 +11,9 @@ function Role(props: { sect: string; cabal: Cabal }) {
   };
 
   return (
-    <li className="text-mono grow flex justify-between w-full">
+    <li className="text-mono flex w-full grow justify-between">
       {sect}
+      {cabal.meta.description}
       <button onClick={onDelete}>x</button>
     </li>
   );
@@ -23,7 +24,7 @@ interface FormSchema {
   description: string;
 }
 
-export function AddRole(props: {}) {
+export function AddRole() {
   const flag = useRouteGroup();
   const initialValues: FormSchema = {
     title: '',
@@ -52,7 +53,7 @@ export default function Roles() {
 
   const sects = Object.keys(group.cabals);
   return (
-    <div className="p-2 w-100">
+    <div className="w-100 p-2">
       <h1>Role</h1>
       <AddRole />
       <ul className="w-100">

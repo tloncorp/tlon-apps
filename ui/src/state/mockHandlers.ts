@@ -7,10 +7,10 @@ import {
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
 import { decToUd, unixToDa } from '@urbit/api';
-import {mockGroups} from '../mocks/groups';
-import chatWrits, {chatKeys, chatPerm} from '../mocks/mockWrits';
+import mockGroups from '../mocks/groups';
+import chatWrits, { chatKeys, chatPerm } from '../mocks/mockWrits';
 import { ChatDiff } from '../types/chat';
-import {GroupAction} from '../types/groups';
+import { GroupAction } from '../types/groups';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 
@@ -20,11 +20,13 @@ const chatSub = {
   path: `/chat/~zod/test/ui`,
 } as SubscriptionHandler;
 
-const groupSubs = ['~zod/tlon'].map((g): SubscriptionHandler => ({
-  action: 'subscribe',
-  app: 'groups',
-  path: `/groups/${g}/ui`
-}))
+const groupSubs = ['~zod/tlon'].map(
+  (g): SubscriptionHandler => ({
+    action: 'subscribe',
+    app: 'groups',
+    path: `/groups/${g}/ui`,
+  })
+);
 
 const mockHandlers: Handler[] = [
   {
@@ -48,7 +50,7 @@ const mockHandlers: Handler[] = [
       response: 'diff',
       json: {
         ...req.json.update,
-        time: getNowUd()
+        time: getNowUd(),
       },
     }),
   } as PokeHandler,
@@ -57,23 +59,21 @@ const mockHandlers: Handler[] = [
     app: 'groups',
     mark: 'group-action',
     returnSubscription: groupSubs[0],
-    dataResponder: (
-      req: Message & Poke<GroupAction>
-    ) => ({
+    dataResponder: (req: Message & Poke<GroupAction>) => ({
       id: req.id!,
       ok: true,
       response: 'diff',
       json: {
         ...req.json.update,
-        time: getNowUd()
-      }
-    })
+        time: getNowUd(),
+      },
+    }),
   },
   {
     action: 'scry',
     app: 'groups',
     path: '/groups',
-    func: () => mockGroups
+    func: () => mockGroups,
   } as ScryHandler,
   {
     action: 'scry',
@@ -88,7 +88,7 @@ const mockHandlers: Handler[] = [
     func: () => chatPerm,
   } as ScryHandler,
 
-  ...groupSubs
+  ...groupSubs,
 ];
 
 export default mockHandlers;

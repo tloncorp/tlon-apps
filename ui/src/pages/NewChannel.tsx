@@ -1,17 +1,24 @@
 import React from 'react';
 import { Field, Form, Formik } from 'formik';
+import { useParams } from 'react-router';
 import { useChatState } from '../state/chat';
-import {useParams} from 'react-router';
+
+interface FormSchema {
+  title: string;
+  description: string;
+}
 
 export default function NewChannel() {
   const { ship, name } = useParams();
   const group = `${ship}/${name}`;
-  const initialValues = {
+  const initialValues: FormSchema = {
     title: '',
     description: '',
   };
-  const onSubmit = (values: any) => {
-    useChatState.getState().create({ ...values, name: values.title, group, readers: [] });
+  const onSubmit = (values: FormSchema) => {
+    useChatState
+      .getState()
+      .create({ ...values, name: values.title, group, readers: [] });
   };
   return (
     <Formik onSubmit={onSubmit} initialValues={initialValues}>

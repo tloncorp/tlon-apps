@@ -15,7 +15,6 @@ function Member(props: { ship: string }) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const vessel = useVessel(flag, ship);
-  console.log(vessel);
   const initialValues: FormSchema = {
     sects: vessel.sects,
   };
@@ -29,9 +28,9 @@ function Member(props: { ship: string }) {
       <div>
         <Formik onSubmit={onChangeRoles} initialValues={initialValues}>
           {({ values }) => (
-            <Form className="flex flex-col space-y-2 w-56">
+            <Form className="flex w-56 flex-col space-y-2">
               <FieldArray name="sects">
-                {({ insert, remove, push }) => {
+                {({ remove, push }) => {
                   const unpicked = Object.keys(group.cabals).filter(
                     (s) => !values.sects.includes(s)
                   );

@@ -4,7 +4,7 @@ import { ChatWrit } from '../types/chat';
 const chatWrits: ChatWrit[] = [
   makeChatWrit(1, '~hastuc-dibtux', {
     block: [],
-    inline: [{ bold: 'A bold test message' }, "with some more text"],
+    inline: [{ bold: 'A bold test message' }, 'with some more text'],
   }),
   makeChatWrit(2, '~finned-palmer', {
     block: [],
@@ -15,13 +15,17 @@ const chatWrits: ChatWrit[] = [
     '~hastuc-dibtux',
     {
       block: [],
-      inline: [{italics: 'An italicized test message'}, "with a link:", {href: "https://urbit.org"}],
+      inline: [
+        { italics: 'An italicized test message' },
+        'with a link:',
+        { href: 'https://urbit.org' },
+      ],
     },
     { HAHA: '😆' }
   ),
   makeChatWrit(4, '~hastuc-dibtux', {
     block: [],
-    inline: [{href:'https://tlon.io/'}],
+    inline: [{ href: 'https://tlon.io/' }],
   }),
 ];
 
@@ -31,4 +35,4 @@ export const chatKeys = ['~zod/test'];
 
 export const chatPerm = {
   writers: [],
-}
+};

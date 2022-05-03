@@ -1,14 +1,13 @@
-import {BigIntOrderedMap} from "@urbit/api";
+import { BigIntOrderedMap } from '@urbit/api';
 
 export type Patda = string;
 export type Ship = string;
 
-type ChatBlock = any;
+type ChatBlock = unknown;
 
 interface Italics {
   italics: string;
 }
-
 
 interface Bold {
   bold: string;
@@ -57,15 +56,15 @@ type ChatInline =
   | Link;
 
 export function isBold(item: unknown): item is Bold {
-  return typeof item === "object" && item !== null && 'bold' in item;
+  return typeof item === 'object' && item !== null && 'bold' in item;
 }
 
 export function isItalics(item: unknown): item is Italics {
-  return typeof item === "object" && item !== null && 'italics' in item;
+  return typeof item === 'object' && item !== null && 'italics' in item;
 }
 
 export function isLink(item: unknown): item is Link {
-  return typeof item === "object" && item !== null && 'href' in item;
+  return typeof item === 'object' && item !== null && 'href' in item;
 }
 
 export interface ChatMessage {

@@ -1,11 +1,10 @@
 import { Group } from '../types/groups';
 
 const mockGroupOne: Group = {
-  fleet: [],
+  fleet: {},
   cabals: {},
   channels: {
-    'chat/~zod/test': {
-      channel: 'chat',
+    '~zod/test': {
       meta: {
         title: 'Watercooler',
         description:
@@ -24,11 +23,10 @@ const mockGroupOne: Group = {
 };
 
 const mockGroupTwo: Group = {
-  fleet: [],
+  fleet: {},
   cabals: {},
   channels: {
     'chat/~zod/test': {
-      channel: 'chat',
       meta: {
         title: 'Milady',
         description: 'Milady maker chatroom',
@@ -39,12 +37,13 @@ const mockGroupTwo: Group = {
   cordon: {},
   meta: {
     title: 'remco',
-    description:
-      'The urbit group for remilia, a digital art collective',
+    description: 'The urbit group for remilia, a digital art collective',
     image: '',
   },
-}
-export const mockGroups = {
+};
+const mockGroups = {
   '~zod/tlon': mockGroupOne,
   '~zod/remco': mockGroupTwo,
 };
+
+export default mockGroups;

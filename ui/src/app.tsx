@@ -15,15 +15,13 @@ import Members from './pages/Members';
 import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
-import {IS_MOCK} from './api';
+import { IS_MOCK } from './api';
 
 function SidebarRow(props: {
-  icon?: string;
-  img?: string;
   className?: string;
   children?: React.ReactChild | React.ReactChild[];
 }) {
-  const { children, icon, img, className = '' } = props;
+  const { children, className = '' } = props;
   return (
     <li className={cn('flex space-x-2 p-2', className)}>
       <div className="h-6 w-6 rounded border" />
@@ -54,7 +52,6 @@ function Divider(props: { title: string }) {
 
 function App() {
   const groups = useGroupList();
-  const { groups: groupMap } = useGroupState();
 
   useEffect(() => {
     useGroupState.getState().fetchAll();
@@ -62,7 +59,7 @@ function App() {
   }, []);
 
   return (
-    <Router basename={IS_MOCK ? "/" : "/apps/homestead"}>
+    <Router basename={IS_MOCK ? '/' : '/apps/homestead'}>
       <div className="flex h-full w-full">
         <ul className="h-full w-56 border-r p-2">
           <SidebarRow>Groups</SidebarRow>
