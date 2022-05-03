@@ -2,5 +2,10 @@ html,
 body,
 #app {
   /* adding for mobile bottom bars */
-  @apply h-full;
+  @apply h-full min-h-screen;
+  min-height: -webkit-fill-available;
+}
+
+blockquote {
+  @apply block border-l-2 border-gray-100 pl-3 text-gray-600;
 }

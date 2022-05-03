@@ -152,6 +152,9 @@ module.exports = {
       '3xl': ['2rem', '3rem'],
     },
     extend: {
+      colors: {
+        current: 'currentColor',
+      },
       minWidth: (theme) => theme('spacing'),
     },
   },

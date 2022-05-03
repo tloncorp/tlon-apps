@@ -1,64 +1,76 @@
 import React from 'react';
-import { ChatMessage, isBold, isItalics, isLink } from '../../types/chat';
+import {
+  ChatInline,
+  ChatMessage,
+  isBlockquote,
+  isBold,
+  isInlineCode,
+  isItalics,
+  isLink,
+} from '../../types/chat';
 
 interface ChatContentProps {
   content: ChatMessage;
 }
 
-interface InlineContentProps extends ChatContentProps {
-  inlineLength: number;
+interface InlineContentProps {
+  content: ChatInline;
 }
 
-export function InlineContent({ content, inlineLength }: InlineContentProps) {
-  return (
-    <div>
-      {content.inline.map((contentItem, index) => {
-        const key = `${contentItem.toString}-${index}`;
-        const space = inlineLength - 1 === index ? null : <span>&nbsp;</span>;
+export function InlineContent({ content }: InlineContentProps) {
+  if (typeof content === 'string') {
+    return <span>{content}</span>;
+  }
 
-        if (typeof contentItem === 'string') {
-          return (
-            <span key={key}>
-              {contentItem} {space}
-            </span>
-          );
-        }
+  if (isBold(content)) {
+    return (
+      <strong>
+        {typeof content.bold === 'object' ? (
+          <InlineContent content={content.bold} />
+        ) : (
+          content.bold
+        )}
+      </strong>
+    );
+  }
 
-        if (isBold(contentItem)) {
-          return (
-            <b key={key}>
-              {contentItem.bold} {space}
-            </b>
-          );
-        }
+  if (isItalics(content)) {
+    return (
+      <em>
+        {typeof content.italics === 'object' ? (
+          <InlineContent content={content.italics} />
+        ) : (
+          content.italics
+        )}
+      </em>
+    );
+  }
 
-        if (isItalics(contentItem)) {
-          return (
-            <i key={key}>
-              {contentItem.italics} {space}
-            </i>
-          );
-        }
+  if (isLink(content)) {
+    return (
+      <a target="_blank" rel="noreferrer" href={content.href}>
+        {content.href}
+      </a>
+    );
+  }
 
-        if (isLink(contentItem)) {
-          return (
-            <a
-              target="_blank"
-              rel="noreferrer"
-              href={contentItem.href}
-              key={key}
-            >
-              {contentItem.href} {space}
-            </a>
-          );
-        }
+  if (isBlockquote(content)) {
+    return (
+      <blockquote className="leading-6">
+        {typeof content.blockquote === 'object' ? (
+          <InlineContent content={content.blockquote} />
+        ) : (
+          content.blockquote
+        )}
+      </blockquote>
+    );
+  }
 
-        throw new Error(
-          `Unhandled message type: ${JSON.stringify(contentItem)}`
-        );
-      })}
-    </div>
-  );
+  if (isInlineCode(content)) {
+    return <code>{content['inline-code']}</code>;
+  }
+
+  throw new Error(`Unhandled message type: ${JSON.stringify(content)}`);
 }
 
 export function BlockContent({ content }: ChatContentProps) {
@@ -79,7 +91,16 @@ export default function ChatContent({ content }: ChatContentProps) {
     <div>
       {blockLength > 0 ? <BlockContent content={content} /> : null}
       {inlineLength > 0 ? (
-        <InlineContent content={content} inlineLength={inlineLength} />
+        <div>
+          {content.inline.map((contentItem, index) => (
+            <>
+              <InlineContent
+                key={`${contentItem.toString()}-${index}`}
+                content={contentItem}
+              />{' '}
+            </>
+          ))}
+        </div>
       ) : null}
     </div>
   );

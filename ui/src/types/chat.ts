@@ -3,50 +3,59 @@ export type Ship = string;
 
 type ChatBlock = any;
 
-interface Italics {
-  italics: string;
+export interface Italics {
+  italics: ChatInline;
 }
 
+export interface Bold {
+  bold: ChatInline;
+}
 
-interface Bold {
-  bold: string;
+export interface Strikethrough {
+  strike: ChatInline;
 }
 
 /**
  A reference to the accompanying blocks, indexed at 0
 */
-interface BlockReference {
+export interface BlockReference {
   block: {
     index: number;
     text: string;
   };
 }
 
-interface InlineCode {
+export interface Break {
+  break: true;
+}
+
+export interface InlineCode {
   'inline-code': string;
 }
 
-interface BlockCode {
+export interface BlockCode {
   code: string;
 }
 
-interface Blockquote {
-  blockquote: string;
+export interface Blockquote {
+  blockquote: ChatInline;
 }
 
-interface Tag {
+export interface Tag {
   tag: string;
 }
 
-interface Link {
+export interface Link {
   href: string;
 }
 
-type ChatInline =
+export type ChatInline =
   | string
   | Bold
   | Italics
+  | Strikethrough
   | Ship
+  | Break
   | BlockReference
   | InlineCode
   | BlockCode
@@ -55,15 +64,27 @@ type ChatInline =
   | Link;
 
 export function isBold(item: unknown): item is Bold {
-  return typeof item === "object" && item !== null && 'bold' in item;
+  return typeof item === 'object' && item !== null && 'bold' in item;
 }
 
 export function isItalics(item: unknown): item is Italics {
-  return typeof item === "object" && item !== null && 'italics' in item;
+  return typeof item === 'object' && item !== null && 'italics' in item;
 }
 
 export function isLink(item: unknown): item is Link {
-  return typeof item === "object" && item !== null && 'href' in item;
+  return typeof item === 'object' && item !== null && 'href' in item;
+}
+
+export function isStrikethrough(item: unknown): item is Strikethrough {
+  return typeof item === 'object' && item !== null && 'strike' in item;
+}
+
+export function isBlockquote(item: unknown): item is Blockquote {
+  return typeof item === 'object' && item !== null && 'blockquote' in item;
+}
+
+export function isInlineCode(item: unknown): item is InlineCode {
+  return typeof item === 'object' && item !== null && 'inline-code' in item;
 }
 
 export interface ChatMessage {
