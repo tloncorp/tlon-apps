@@ -22,6 +22,7 @@ import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
 import { IS_MOCK } from './api';
 import Gang from './pages/Gang';
+import GangName from './components/GangName/GangName';
 
 function SidebarRow(props: {
   className?: string;
@@ -29,7 +30,7 @@ function SidebarRow(props: {
 }) {
   const { children, className = '' } = props;
   return (
-    <li className={cn('flex space-x-2 p-2', className)}>
+    <li className={cn('flex items-center space-x-2 p-2', className)}>
       <div className="h-6 w-6 rounded border" />
       {typeof children === 'string' ? <div>{children}</div> : children}
     </li>
@@ -50,7 +51,9 @@ function GangItem(props: { flag: string }) {
   const { flag } = props;
   return (
     <SidebarRow>
-      <NavLink to={`/gangs/${flag}`}>{flag}</NavLink>
+      <NavLink to={`/gangs/${flag}`}>
+        <GangName flag={flag} />
+      </NavLink>
     </SidebarRow>
   );
 }

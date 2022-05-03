@@ -87,17 +87,20 @@ export const useGroupState = create<GroupState>((set, get) => ({
     await api.poke(groupAction(flag, diff));
   },
   fetchAll: async () => {
-    const [groups, gangs] = await Promise.all([api.scry<Groups>({
-      app: 'groups',
-      path: '/groups',
-    }), api.scry<Gangs>({
-      app: 'groups',
-      path: '/gangs'
-    })]);
+    const [groups, gangs] = await Promise.all([
+      api.scry<Groups>({
+        app: 'groups',
+        path: '/groups',
+      }),
+      api.scry<Gangs>({
+        app: 'groups',
+        path: '/gangs',
+      }),
+    ]);
     set((s) => ({
       ...s,
       groups,
-      gangs
+      gangs,
     }));
   },
   initialize: async (flag: string) =>
@@ -191,11 +194,11 @@ export function useVessel(flag: string, ship: string) {
 const defGang = {
   invite: null,
   claim: null,
-  preview: null
-}
+  preview: null,
+};
 
 export function useGang(flag: string) {
-  return useGroupState(useCallback(s => s.gangs[flag] || defGang, [flag]));
+  return useGroupState(useCallback((s) => s.gangs[flag] || defGang, [flag]));
 }
 
 const selGangList = (s: GroupState) => Object.keys(s.gangs);

@@ -7,8 +7,8 @@ export default function GangName(props: { flag: string; className?: string }) {
   const { preview } = useGang(flag);
 
   return (
-    <span className={cn(className, !!preview ? '' : 'text-mono')}>
-      {!!preview ? preview.meta.title : flag}
+    <span className={cn(className, preview ? '' : 'text-mono')}>
+      {preview ? preview.meta.title : flag}
     </span>
   );
 }

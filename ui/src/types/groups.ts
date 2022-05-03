@@ -120,7 +120,6 @@ interface GroupClaim {
   'join-all': boolean;
 }
 
-
 export interface Gang {
   preview: GroupPreview | null;
   invite: Invite | null;

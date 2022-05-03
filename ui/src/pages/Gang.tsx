@@ -2,8 +2,9 @@ import React from 'react';
 import cn from 'classnames';
 import ShipImage from '../components/ChatMessage/ShipImage';
 import { useGang, useRouteGroup } from '../state/groups';
-import { GroupPreview, Invite, JoinProgress } from '../types/groups';
+import { JoinProgress } from '../types/groups';
 import GangName from '../components/GangName/GangName';
+import GangPreview from '../components/GangPreview/GangPreview';
 
 function progressDescription(progress: JoinProgress) {
   switch (progress) {
@@ -15,6 +16,8 @@ function progressDescription(progress: JoinProgress) {
       return 'Join finished';
     case 'error':
       return 'Join errored unexpectedly';
+    default:
+      return '';
   }
 }
 
@@ -28,6 +31,8 @@ function progressClass(progress: JoinProgress) {
       return 'w-72';
     case 'error':
       return 'w-72 bg-red-500';
+    default:
+      return '';
   }
 }
 
@@ -36,18 +41,7 @@ export default function Gang() {
   const { invite, claim, preview } = useGang(flag);
   return (
     <div className="flex flex-col space-y-4 p-4">
-      {preview ? (
-        <div className="flex space-x-4 rounded border p-2">
-          {preview.meta.image.length > 0 ? (
-            <img className="h-16 w-16" src={preview.meta.image} />
-          ) : null}
-          <div className="flex flex-col justify-around">
-            <h4 className="text-lg font-bold">{preview.meta.title}</h4>
-            <p>{preview.meta.description}</p>
-          </div>
-        </div>
-      ) : null}
-
+      {preview ? <GangPreview preview={preview} /> : null}
       {claim ? (
         <div className="flex flex-col space-y-3 rounded border p-2">
           <h4 className="font-bold">Joining Progress</h4>
@@ -58,7 +52,7 @@ export default function Gang() {
                   'h-4 rounded-l bg-blue',
                   progressClass(claim.progress)
                 )}
-              ></div>
+              />
             </div>
           </div>
           <p className="text-gray-600">{progressDescription(claim.progress)}</p>
