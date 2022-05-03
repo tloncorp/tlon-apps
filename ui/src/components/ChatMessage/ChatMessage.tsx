@@ -28,7 +28,7 @@ export default function ChatMessage({
       {newDay ? <DateDivider date={time} /> : null}
       {newAuthor ? <Author ship={memo.author} date={time} /> : null}
       <div className="group flex space-x-3">
-        <div className="invisible py-3 text-xs font-semibold text-gray-400 group-hover:visible">
+        <div className="py-3 text-xs font-semibold text-gray-400 opacity-0 group-hover:opacity-100">
           {format(time, 'HH:mm')}
         </div>
         <div className="flex flex-col space-y-2 p-2">

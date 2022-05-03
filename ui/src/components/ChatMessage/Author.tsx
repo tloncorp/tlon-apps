@@ -1,5 +1,5 @@
 import React from 'react';
-import {makePrettyDayAndDateAndTime, makePrettyDayAndTime} from '../../utils';
+import { makePrettyDayAndDateAndTime, makePrettyDayAndTime } from '../../utils';
 import ShipImage from './ShipImage';
 
 interface AuthorProps {

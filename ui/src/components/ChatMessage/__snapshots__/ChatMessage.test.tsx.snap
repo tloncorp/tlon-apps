@@ -25,7 +25,7 @@ exports[`ChatMessage > renders as expected 1`] = `
       </div>
     </div>
     <div
-      class="align-center flex flex items-center space-x-3 py-1"
+      class="align-center group flex flex items-center space-x-3 py-1"
     >
       <div
         class="h-6 w-6 rounded bg-black p-1"
@@ -115,16 +115,21 @@ exports[`ChatMessage > renders as expected 1`] = `
         ~finned-palmer
       </span>
       <span
-        class="text-sm font-semibold text-gray-500"
+        class="hidden text-sm font-semibold text-gray-500 group-hover:block"
+      >
+        February 1st, 2021 • 12:55
+      </span>
+      <span
+        class="block text-sm font-semibold text-gray-500 group-hover:hidden"
       >
         February 1st • 12:55
       </span>
     </div>
     <div
-      class="flex space-x-3"
+      class="group flex space-x-3"
     >
       <div
-        class="py-3 text-xs font-semibold text-gray-400 invisible"
+        class="py-3 text-xs font-semibold text-gray-400 opacity-0 group-hover:opacity-100"
       >
         12:55
       </div>
