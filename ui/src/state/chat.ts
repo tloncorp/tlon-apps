@@ -1,3 +1,4 @@
+import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, udToDec } from '@urbit/api';
@@ -49,6 +50,7 @@ const chatApi: ChatApi = {
 
 interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
+  batchSet: (fn: (sta: ChatState) => void) => void;
   chats: {
     [flag: string]: Chat;
   };
@@ -71,6 +73,11 @@ export const useChatState = create<ChatState>((set, get) => ({
   set: (fn) => {
     set(produce(get(), fn));
   },
+  batchSet: fn => {
+    batchUpdates(() => {
+      get().set(fn);
+    });
+  },
   flags: [] as string[],
   fetchFlags: async () => {
     const flags = await api.scry({
@@ -78,7 +85,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       path: '/chat',
     });
     console.log(flags);
-    get().set((draft) => {
+    get().batchSet((draft) => {
       draft.flags = flags;
     });
   },
@@ -110,7 +117,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       path: `/chat/${flag}/perm`,
     });
     const writs = await chatApi.newest(flag, 100);
-    get().set((draft) => {
+    get().batchSet((draft) => {
       const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
       draft.chats[flag] = chat;
       writs.forEach((writ) => {
@@ -122,7 +129,7 @@ export const useChatState = create<ChatState>((set, get) => ({
     chatApi.subscribe(flag, {
       event: (data: unknown) => {
         const update = data as ChatUpdate;
-        get().set((draft) => {
+        get().batchSet((draft) => {
           if ('add' in update.diff) {
             const time = bigInt(udToDec(update.time));
             const seal = { time: update.time, feels: {} };
