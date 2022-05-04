@@ -44,15 +44,45 @@ interface GroupState {
     description: string;
   }) => Promise<void>;
   fetchAll: () => Promise<void>;
+  search: (flag: string) => Promise<void>;
+  join: (flag: string, joinAll: boolean) => Promise<void>;
 }
 export const useGroupState = create<GroupState>((set, get) => ({
   groups: {},
   gangs: {},
+  search: async (flag) => {
+    try {
+      const res = await api.subscribeOnce('groups', `/gangs/${flag}/preview`);
+      console.log(res);
+      get().batchSet((draft) => {
+        const gang = draft.gangs[flag] || {
+          preview: null,
+          invite: null,
+          claim: null,
+        };
+        gang.preview = res;
+        draft.gangs[flag] = gang;
+      });
+    } catch (e) {
+      // TODO: fix error handling
+      console.error(e);
+    }
+  },
   create: async (req) => {
     await api.poke({
       app: 'groups',
       mark: 'group-create',
       json: req,
+    });
+  },
+  join: async (flag, joinAll) => {
+    api.poke({
+      app: 'groups',
+      mark: 'group-join',
+      json: {
+        flag,
+        'join-all': joinAll,
+      },
     });
   },
   addSects: async (flag, ship, sects) => {
@@ -92,10 +122,12 @@ export const useGroupState = create<GroupState>((set, get) => ({
         app: 'groups',
         path: '/groups',
       }),
-      api.scry<Gangs>({
+      Promise.resolve({}),
+      // TODO: fix
+      /*api.scry<Gangs>({
         app: 'groups',
         path: '/gangs',
-      }),
+      }),*/
     ]);
     set((s) => ({
       ...s,

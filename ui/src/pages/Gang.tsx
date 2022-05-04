@@ -3,10 +3,11 @@ import * as Dialog from '@radix-ui/react-dialog';
 import cn from 'classnames';
 import { Location, useLocation, useNavigate } from 'react-router';
 import ShipImage from '../components/ChatMessage/ShipImage';
-import { useGang, useRouteGroup } from '../state/groups';
+import { useGang, useGroupState, useRouteGroup } from '../state/groups';
 import { JoinProgress } from '../types/groups';
 import GangName from '../components/GangName/GangName';
 import GangPreview from '../components/GangPreview/GangPreview';
+import { ModalLocationState, useDismissNavigate } from '../hooks/routing';
 
 function progressDescription(progress: JoinProgress) {
   switch (progress) {
@@ -41,6 +42,9 @@ function progressClass(progress: JoinProgress) {
 export default function Gang() {
   const flag = useRouteGroup();
   const { invite, claim, preview } = useGang(flag);
+  const onJoin = async () => {
+    useGroupState.getState().join(flag, false);
+  };
   return (
     <div className="flex flex-col space-y-4 p-4">
       {preview ? <GangPreview preview={preview} /> : null}
@@ -76,17 +80,26 @@ export default function Gang() {
           </button>
         </div>
       ) : null}
+      <div className="flex flex-col space-y-3 rounded border p-2">
+        <button
+          type="button"
+          onClick={onJoin}
+          className="rounded bg-blue p-2 text-white"
+        >
+          Join Group
+        </button>
+      </div>
     </div>
   );
 }
 
 export function GangModal() {
-  const navigate = useNavigate();
+  const dismiss = useDismissNavigate();
   const location = useLocation();
-  const state = location.state as { backgroundLocation: Location };
+  const state = location.state as ModalLocationState | null;
   const onOpenChange = (isOpen: boolean) => {
-    if (!isOpen && state?.backgroundLocation) {
-      navigate(state?.backgroundLocation);
+    if (!isOpen) {
+      dismiss();
     }
   };
 

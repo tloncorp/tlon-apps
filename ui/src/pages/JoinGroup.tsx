@@ -1,20 +1,23 @@
 import { Field, Form, Formik } from 'formik';
 import React from 'react';
 import api from '../api';
+import {useModalNavigate} from '../hooks/routing';
+import {useGroupState} from '../state/groups';
 
 interface FormSchema {
   flag: string;
 }
 
 export default function JoinGroup() {
+  const navigate = useModalNavigate();
   const initialValues: FormSchema = {
     flag: '',
   };
 
   const onSubmit = async (values: FormSchema) => {
-    const res = await api.subscribeOnce('groups', `/gangs/${values.flag}/preview`);
-    console.log(res);
-
+    const { flag } = values;
+    await useGroupState.getState().search(values.flag);
+    navigate(`/gangs/${flag}`);
   };
 
   return (
