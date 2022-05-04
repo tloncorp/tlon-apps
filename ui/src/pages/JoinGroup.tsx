@@ -1,5 +1,6 @@
 import { Field, Form, Formik } from 'formik';
 import React from 'react';
+import api from '../api';
 
 interface FormSchema {
   flag: string;
@@ -10,8 +11,10 @@ export default function JoinGroup() {
     flag: '',
   };
 
-  const onSubmit = (values: FormSchema) => {
-    console.log(values);
+  const onSubmit = async (values: FormSchema) => {
+    const res = await api.subscribeOnce('groups', `/gangs/${values.flag}/preview`);
+    console.log(res);
+
   };
 
   return (
@@ -23,12 +26,13 @@ export default function JoinGroup() {
           <Field name="flag" className="rounded border" />
         </div>
         <button type="submit" className="mr-auto rounded border px-2">
-          Join Group
+          Search Group
         </button>
       </Form>
     </Formik>
   );
 }
+
 
 export function JoinGroupModal() {
   return (

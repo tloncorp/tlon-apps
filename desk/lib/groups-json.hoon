@@ -7,6 +7,13 @@
     |=  her=@p
     s/(scot %p her)
   ::
+  ++  preview
+    |=  p=preview:g
+    %-  pairs
+    :~  time+(time time.p)
+        meta+(meta meta.p)
+    ==
+  ::
   ++  update
     |=  =update:g
     %-  pairs

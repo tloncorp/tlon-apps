@@ -130,7 +130,10 @@
       =progress
   ==
 ::  TODO: finish
-+$  preview  ~
++$  preview  
+  $:  =meta
+      =time
+  ==
 ::  $gang: view of foreign group
 +$  gang
   $:  cam=(unit claim)

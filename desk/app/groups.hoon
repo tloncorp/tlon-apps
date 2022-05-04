@@ -113,6 +113,10 @@
       [%groups ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
     go-abet:(go-watch:(go-abed:group-core ship name.pole) rest.pole)
+  ::
+     [%gangs ship=@ name=@ rest=*]
+     =/  ship=@p  (slav %p ship.pole)
+     ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
   ==
 ++  peek
   |=  =(pole knot)
@@ -134,7 +138,7 @@
     =/  =ship  (slav %p ship.pole)
     go-abet:(go-agent:(go-abed:group-core ship name.pole) rest.pole sign)
   ::
-      [%gang ship=@ name=@ rest=*]
+      [%gangs ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     ga-abet:(ga-agent:(ga-abed:gang-core ship name.pole) rest.pole sign)
   ==
@@ -177,8 +181,18 @@
     ^+  go-core
     ?+  pole  !!
       [%updates rest=*]  (go-pub rest.pole)
-      [%ui ~]       go-core
+      [%ui ~]            go-core
+      [%preview ~]       go-preview
     ==
+  ::
+  ++  go-preview
+    =/  =preview:g
+      [meta.group now.bowl]
+    =.  cor
+      (emit %give %fact ~ group-preview+!>(preview))
+    =.  cor
+      (emit %give %kick ~ ~)
+    go-core
   ::
   ++  go-peek
     |=  =(pole knot)
@@ -376,52 +390,82 @@
     ?.  ?=(%load -.net)  cor
     =.  xeno  (~(del by xeno) flag)
     cor
+  ::
   ++  ga-abed
     |=  f=flag:g
     =/  ga=gang:g  (~(gut by xeno) f [~ ~])
     ga-core(flag f, gang ga)
   ::
-  ++  ga-area  /gang/(scot %p p.flag)/[q.flag]
+  ++  ga-area  `wire`/gangs/(scot %p p.flag)/[q.flag]
   ++  ga-pass
     |%
-    ++  poke-host
-      |=  [=wire =cage]
+    ++  poke-host  |=([=wire =cage] (pass-host wire %poke cage))
+    ++  pass-host
+      |=  [=wire =task:agent:gall]
       ^-  card
-      [%pass (welp ga-area wire) %agent [p.flag dap.bowl] %poke cage]
+      [%pass (welp ga-area wire) %agent [p.flag dap.bowl] task]
     ++  add-self
       =/  =vessel:fleet:g  [~ now.bowl]
       =/  =action:g  [flag now.bowl %fleet our.bowl %add vessel]
       (poke-host /join/add group-action+!>(action))
+    ::
+    ++  get-preview
+      =/  =task:agent:gall  [%watch /groups/(scot %p p.flag)/[q.flag]/preview]
+      (pass-host /preview task)
     --
   ++  ga-start-join
     ^+  ga-core
     =.  cor  (emit add-self:ga-pass)
     ga-core
   ::
+  ++  ga-watch
+    |=  =(pole knot)
+    ^+  ga-core
+    =.  cor  (emit get-preview:ga-pass)
+    ga-core
+  ::
   ++  ga-agent
     |=  [=wire =sign:agent:gall]
     ^+  ga-core
     ?+    wire  ~|(bad-agent-take/wire !!)
+        [%preview ~]
+      ?+  -.sign  ~|(weird-take/[wire -.sign] !!)
+        %watch-ack
+        ?~  p.sign  ga-core :: TODO: report retreival failure
+        %-  (slog u.p.sign)
+        ga-core
+        ::
+          %fact
+        ?.  =(%group-preview p.cage.sign)  ga-core
+        =+  !<(=preview:g q.cage.sign)
+        =.  pev.gang  `preview
+        =/  =path  (snoc ga-area %preview)
+        =.  cor
+          (emit %give %fact ~[path] cage.sign)
+        =.  cor
+          (emit %give %kick ~[path] ~)
+        ga-core
+      ::
+          %kick
+        ?^  pev.gang  ga-core
+        ga-core(cor (emit get-preview:ga-pass))
+      ==
+    ::
         [%join %add ~]
       ?>  ?=(%poke-ack -.sign)
-      (ga-watch p.sign)
-    ==
-  ::
-  ++  ga-watch
-    |=  p=(unit tang)
-    ^+  ga-core
-    ?>  ?=(^ cam.gang)
-    ?^  p
-      =.  progress.u.cam.gang  %error
-      %-  (slog leaf/"Joining failed" u.p)
+      ?>  ?=(^ cam.gang)
+      ?^  p.sign
+        =.  progress.u.cam.gang  %error
+        %-  (slog leaf/"Joining failed" u.p.sign)
+        ga-core
+      =.  progress.u.cam.gang  %watching
+      =/  =net:g  [%load ~]
+      =|  =group:g
+      =.  groups  (~(put by groups) flag net group)
+      =.  cor
+        go-abet:go-sub:(go-abed:group-core flag)
       ga-core
-    =.  progress.u.cam.gang  %watching
-    =/  =net:g  [%load ~]
-    =|  =group:g
-    =.  groups  (~(put by groups) flag net group)
-    =.  cor
-      go-abet:go-sub:(go-abed:group-core flag)
-    ga-core
+    ==
   ::
   ++  ga-watched
     |=  p=(unit tang)
