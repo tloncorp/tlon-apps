@@ -87,8 +87,17 @@ interface CordonDiff {
     change: string;
   };
 }
+
+export interface GroupCreateDiff {
+  create: Group;
+}
 // TODO: elaborate
-export type GroupDiff = FleetDiff | CabalDiff | ChannelDiff | CordonDiff;
+export type GroupDiff =
+  | GroupCreateDiff
+  | FleetDiff
+  | CabalDiff
+  | ChannelDiff
+  | CordonDiff;
 
 export interface GroupUpdate {
   time: string;

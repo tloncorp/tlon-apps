@@ -3,7 +3,14 @@ import create from 'zustand';
 import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
-import { Gangs, Group, GroupDiff, Groups, GroupUpdate } from '../types/groups';
+import {
+  Gangs,
+  Group,
+  GroupDiff,
+  Groups,
+  GroupUpdate,
+  GroupAction,
+} from '../types/groups';
 import api from '../api';
 
 function groupAction(flag: string, diff: GroupDiff) {
@@ -43,7 +50,7 @@ interface GroupState {
     title: string;
     description: string;
   }) => Promise<void>;
-  fetchAll: () => Promise<void>;
+  start: () => Promise<void>;
   search: (flag: string) => Promise<void>;
   join: (flag: string, joinAll: boolean) => Promise<void>;
 }
@@ -116,7 +123,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  fetchAll: async () => {
+  start: async () => {
     const [groups, gangs] = await Promise.all([
       api.scry<Groups>({
         app: 'groups',
@@ -134,6 +141,20 @@ export const useGroupState = create<GroupState>((set, get) => ({
       groups,
       gangs,
     }));
+    await api.subscribe({
+      app: 'groups',
+      path: '/groups/ui',
+      event: (data) => {
+        const { flag, update } = data as GroupAction;
+        if ('create' in update.diff) {
+          const group = update.diff.create;
+          get().batchSet((draft) => {
+            draft.groups[flag] = group;
+          });
+        } else {
+        }
+      },
+    });
   },
   initialize: async (flag: string) =>
     api.subscribe({

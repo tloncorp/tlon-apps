@@ -1,6 +1,7 @@
 import React from 'react';
 import { Field, Form, Formik } from 'formik';
 import { useGroupState } from '../state/groups';
+import {useNavigate} from 'react-router';
 
 interface FormSchema {
   title: string;
@@ -8,13 +9,16 @@ interface FormSchema {
   image: string;
 }
 export default function NewGroup() {
+  const navigate = useNavigate();
   const initialValues: FormSchema = {
     title: '',
     description: '',
     image: ''
   };
-  const onSubmit = (values: FormSchema) => {
-    useGroupState.getState().create({ ...values, name: values.title });
+  const onSubmit = async (values: FormSchema) => {
+    await useGroupState.getState().create({ ...values, name: values.title });
+    const flag = `${window.our}/${values.title}`;
+    navigate(`/groups/${flag}`);
   };
   return (
     <Formik onSubmit={onSubmit} initialValues={initialValues}>

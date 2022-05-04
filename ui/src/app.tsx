@@ -77,7 +77,7 @@ function App() {
   const gangs = useGangList();
 
   useEffect(() => {
-    useGroupState.getState().fetchAll();
+    useGroupState.getState().start();
     useChatState.getState().fetchFlags();
   }, []);
 
