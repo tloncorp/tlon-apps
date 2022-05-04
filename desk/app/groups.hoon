@@ -273,7 +273,7 @@
     =.  cor
       (give %fact ~(tap in paths) group-update+!>(`update:g`[time diff]))
     =.  cor
-      (give %fact ~[/groups] group-action+!>(`action:g`[flag time diff]))
+      (give %fact ~[/groups/ui] group-action+!>(`action:g`[flag time diff]))
     go-core
   ::
   ++  go-tell-update

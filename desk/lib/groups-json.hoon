@@ -7,6 +7,13 @@
     |=  her=@p
     s/(scot %p her)
   ::
+  ++  action
+    |=  a=action:g
+    %-  pairs
+    :~  flag/s/(flag p.a)
+        update/(update q.a)
+    ==
+  ::
   ++  preview
     |=  p=preview:g
     %-  pairs
