@@ -70,8 +70,8 @@ function Groups() {
   return (
     <div className="flex grow">
       <div className="w-56 border-r p-2">
-        <div className="p-2">
-          <h1>{group.meta.title}</h1>
+        <div className="space-y-2 p-2">
+          <h1 className="text-lg font-bold">{group.meta.title}</h1>
           <p>{group.meta.description}</p>
         </div>
         <SidebarRow>

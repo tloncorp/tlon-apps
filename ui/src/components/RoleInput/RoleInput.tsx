@@ -22,8 +22,8 @@ export default function RoleInput(props: {
     control,
     name: 'roles',
   });
-  const unpicked = options.filter((o) =>
-    fields.some(({ value }) => value == o)
+  const unpicked = options.filter(
+    (o) => !fields.some(({ value }) => value == o)
   );
 
   const onAdd = () => {

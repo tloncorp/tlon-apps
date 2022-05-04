@@ -129,12 +129,10 @@ export const useGroupState = create<GroupState>((set, get) => ({
         app: 'groups',
         path: '/groups',
       }),
-      Promise.resolve({}),
-      // TODO: fix
-      /*api.scry<Gangs>({
+      api.scry<Gangs>({
         app: 'groups',
         path: '/gangs',
-      }),*/
+      }),
     ]);
     set((s) => ({
       ...s,

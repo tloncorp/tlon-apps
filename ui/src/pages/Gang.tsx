@@ -48,22 +48,6 @@ export default function Gang() {
   return (
     <div className="flex flex-col space-y-4 p-4">
       {preview ? <GangPreview preview={preview} /> : null}
-      {claim ? (
-        <div className="flex flex-col space-y-3 rounded border p-2">
-          <h4 className="font-bold">Joining Progress</h4>
-          <div>
-            <div className="h-4 w-72 rounded bg-gray-100">
-              <div
-                className={cn(
-                  'h-4 rounded-l bg-blue',
-                  progressClass(claim.progress)
-                )}
-              />
-            </div>
-          </div>
-          <p className="text-gray-600">{progressDescription(claim.progress)}</p>
-        </div>
-      ) : null}
 
       {invite ? (
         <div className="flex flex-col space-y-3 rounded border p-2">
@@ -80,15 +64,32 @@ export default function Gang() {
           </button>
         </div>
       ) : null}
-      <div className="flex flex-col space-y-3 rounded border p-2">
-        <button
-          type="button"
-          onClick={onJoin}
-          className="rounded bg-blue p-2 text-white"
-        >
-          Join Group
-        </button>
-      </div>
+      {claim ? (
+        <div className="flex flex-col space-y-3 rounded border p-2">
+          <h4 className="font-bold">Joining Progress</h4>
+          <div>
+            <div className="h-4 w-72 rounded bg-gray-100">
+              <div
+                className={cn(
+                  'h-4 rounded-l bg-blue',
+                  progressClass(claim.progress)
+                )}
+              />
+            </div>
+          </div>
+          <p className="text-gray-600">{progressDescription(claim.progress)}</p>
+        </div>
+      ) : (
+        <div className="flex flex-col space-y-3 rounded border p-2">
+          <button
+            type="button"
+            onClick={onJoin}
+            className="rounded bg-blue p-2 text-white"
+          >
+            Join Group
+          </button>
+        </div>
+      )}
     </div>
   );
 }
