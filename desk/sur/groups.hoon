@@ -99,6 +99,7 @@
   $:  name=term
       title=cord
       description=cord
+      image=cord
   ==
 ::
 +$  groups

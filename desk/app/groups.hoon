@@ -84,7 +84,7 @@
     =+  !<(=create:g vase)
     =/  =flag:g  [our.bowl name.create]
     =/  =group:g
-      [~ ~ ~ open/~ title.create description.create ''] 
+      [~ ~ ~ open/~ title.create description.create image.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     go-abet:(go-init:(go-abed:group-core flag) create)
   ::

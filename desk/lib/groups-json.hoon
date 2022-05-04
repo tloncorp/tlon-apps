@@ -153,6 +153,14 @@
     :~  name+sym
         title+so
         description+so
+        image+so
+    ==
+  ::
+  ++  join
+    ^-  $-(json join:g)
+    %-  ot
+    :~  flag/flag
+        join-all/bo
     ==
   ++  action
     ^-  $-(json action:g)
