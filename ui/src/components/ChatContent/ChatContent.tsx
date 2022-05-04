@@ -76,7 +76,7 @@ export default function ChatContent({ content }: ChatContentProps) {
   const blockLength = content.block.length;
 
   return (
-    <div>
+    <div className="leading-6">
       {blockLength > 0 ? <BlockContent content={content} /> : null}
       {inlineLength > 0 ? (
         <InlineContent content={content} inlineLength={inlineLength} />
