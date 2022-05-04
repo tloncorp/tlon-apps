@@ -1,0 +1,6 @@
+#!/bin/sh
+cd ui
+
+npx lint-staged
+
+npm run test -- run
