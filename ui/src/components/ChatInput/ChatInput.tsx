@@ -99,11 +99,7 @@ export default function ChatInput(props: ChatInputProps) {
 
   return (
     <div className="flex w-full items-end space-x-2">
-      <div className="flex-1">
-        {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
-        <MessageEditor editor={messageEditor} />
-        <ChatInputMenu editor={messageEditor} />
-      </div>
+      <MessageEditor editor={messageEditor} className="flex-1" />
       <button className="button" onClick={onClick}>
         Send
       </button>

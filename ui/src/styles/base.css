@@ -9,3 +9,7 @@ body,
 blockquote {
   @apply block border-l-2 border-gray-100 pl-3 text-gray-600;
 }
+
+a:not([class]) {
+  @apply underline;
+}

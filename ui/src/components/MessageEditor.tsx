@@ -1,3 +1,4 @@
+import classNames from 'classnames';
 import { Editor, EditorContent, Extension, useEditor } from '@tiptap/react';
 import React, { useMemo } from 'react';
 import Document from '@tiptap/extension-document';
@@ -11,6 +12,7 @@ import Link from '@tiptap/extension-link';
 import Text from '@tiptap/extension-text';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
+import ChatInputMenu from './ChatInputMenu/ChatInputMenu';
 
 interface HandlerParams {
   editor: Editor;
@@ -63,7 +65,7 @@ export function useMessageEditor({
     content: '',
     editorProps: {
       attributes: {
-        class: 'input block',
+        class: 'focus:outline-none',
         'aria-label': 'Message editor with formatting menu',
       },
     },
@@ -72,8 +74,23 @@ export function useMessageEditor({
 
 interface MessageEditorProps {
   editor: Editor;
+  className?: string;
 }
 
-export default function MessageEditor({ editor }: MessageEditorProps) {
-  return <EditorContent className="w-full" editor={editor} />;
+export default function MessageEditor({
+  editor,
+  className,
+}: MessageEditorProps) {
+  return (
+    <div
+      className={classNames(
+        'input block focus-within:bg-white focus-within:ring-2',
+        className
+      )}
+    >
+      {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
+      <EditorContent className="w-full" editor={editor} />
+      <ChatInputMenu editor={editor} />
+    </div>
+  );
 }

@@ -1,6 +1,6 @@
 import { BubbleMenu, Editor } from '@tiptap/react';
-import classNames from 'classnames';
 import React, { KeyboardEvent, useCallback, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import BlockquoteIcon from '../icons/BlockquoteIcon';
 import BoldIcon from '../icons/BoldIcon';
 import CodeIcon from '../icons/CodeIcon';
@@ -13,12 +13,18 @@ interface ChatInputMenuProps {
   editor: Editor;
 }
 
+interface LinkEditorForm {
+  url: string;
+}
+
 export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
   const [selected, setSelected] = useState(-1);
+  const [editingLink, setEditingLink] = useState(false);
   const options = useMemo(
     () => ['bold', 'italic', 'strike', 'link', 'blockquote', 'code'],
     []
   );
+  const { register, handleSubmit } = useForm<LinkEditorForm>();
 
   const isSelected = useCallback(
     (key: string) => {
@@ -31,11 +37,38 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     [selected, options]
   );
 
+  const toggleLinkEditor = useCallback(() => {
+    setEditingLink(!editingLink);
+  }, [editingLink]);
+
+  const setLink = useCallback(
+    ({ url }: LinkEditorForm) => {
+      if (url === '') {
+        editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      } else {
+        editor
+          .chain()
+          .focus()
+          .extendMarkRange('link')
+          .setLink({ href: url })
+          .run();
+      }
+
+      setEditingLink(false);
+    },
+    [editor]
+  );
+
   const onNavigation = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key === 'Escape') {
-        editor.commands.deleteSelection();
-        setSelected(-1);
+        if (!editingLink) {
+          editor.commands.deleteSelection();
+          setSelected(-1);
+        } else {
+          editor.commands.focus();
+          setEditingLink(false);
+        }
       }
 
       const total = options.length;
@@ -47,7 +80,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         setSelected((total + selected - 1) % total);
       }
     },
-    [selected, options, editor]
+    [selected, options, editingLink, editor]
   );
 
   return (
@@ -59,61 +92,85 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         aria-label="Text Formatting Menu"
         onKeyDown={onNavigation}
       >
-        <ChatInputMenuButton
-          isActive={editor.isActive('bold')}
-          isSelected={isSelected('bold')}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          unpressedLabel="Apply Bold"
-          pressedLabel="Remove Bold"
-        >
-          <BoldIcon className="h-6 w-6" />
-        </ChatInputMenuButton>
-        <ChatInputMenuButton
-          isActive={editor.isActive('italic')}
-          isSelected={isSelected('italic')}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          unpressedLabel={'Apply Italic'}
-          pressedLabel={'Remove Italic'}
-        >
-          <ItalicIcon className="h-6 w-6" />
-        </ChatInputMenuButton>
-        <ChatInputMenuButton
-          isActive={editor.isActive('strike')}
-          isSelected={isSelected('strike')}
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          unpressedLabel="Apply Strikethrough"
-          pressedLabel="Remove Strikethrough"
-        >
-          <StrikeIcon className="h-6 w-6" />
-        </ChatInputMenuButton>
-        <ChatInputMenuButton
-          isActive={editor.isActive('link')}
-          isSelected={isSelected('link')}
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          unpressedLabel="Add Link"
-          pressedLabel="Remove Link"
-        >
-          <span className="sr-only">Convert to Link</span>
-          <LinkIcon className="h-5 w-5" />
-        </ChatInputMenuButton>
-        <ChatInputMenuButton
-          isActive={editor.isActive('blockquote')}
-          isSelected={isSelected('blockqoute')}
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          unpressedLabel="Apply Blockquote"
-          pressedLabel="Remove Blockquote"
-        >
-          <BlockquoteIcon className="h-6 w-6" />
-        </ChatInputMenuButton>
-        <ChatInputMenuButton
-          isActive={editor.isActive('code')}
-          isSelected={isSelected('code')}
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          unpressedLabel="Apply Code"
-          pressedLabel="Remove Code"
-        >
-          <CodeIcon className="h-6 w-6" />
-        </ChatInputMenuButton>
+        {editingLink ? (
+          <form
+            className="flex items-center space-x-1 p-1"
+            onSubmit={handleSubmit(setLink)}
+          >
+            <label htmlFor="url" className="sr-only">
+              Enter a url
+            </label>
+            <input
+              type="url"
+              {...register('url')}
+              defaultValue={editor.getAttributes('link').href || ''}
+              autoFocus
+              placeholder="https://urbit.org"
+              className="input min-w-14 py-1 px-2 leading-4"
+            />
+            <button type="submit" className="button py-1 px-2 leading-4">
+              save
+            </button>
+          </form>
+        ) : (
+          <>
+            <ChatInputMenuButton
+              isActive={editor.isActive('bold')}
+              isSelected={isSelected('bold')}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              unpressedLabel="Apply Bold"
+              pressedLabel="Remove Bold"
+            >
+              <BoldIcon className="h-6 w-6" />
+            </ChatInputMenuButton>
+            <ChatInputMenuButton
+              isActive={editor.isActive('italic')}
+              isSelected={isSelected('italic')}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              unpressedLabel={'Apply Italic'}
+              pressedLabel={'Remove Italic'}
+            >
+              <ItalicIcon className="h-6 w-6" />
+            </ChatInputMenuButton>
+            <ChatInputMenuButton
+              isActive={editor.isActive('strike')}
+              isSelected={isSelected('strike')}
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              unpressedLabel="Apply Strikethrough"
+              pressedLabel="Remove Strikethrough"
+            >
+              <StrikeIcon className="h-6 w-6" />
+            </ChatInputMenuButton>
+            <ChatInputMenuButton
+              isActive={editor.isActive('link')}
+              isSelected={isSelected('link')}
+              onClick={toggleLinkEditor}
+              unpressedLabel="Add Link"
+              pressedLabel="Remove Link"
+            >
+              <span className="sr-only">Convert to Link</span>
+              <LinkIcon className="h-5 w-5" />
+            </ChatInputMenuButton>
+            <ChatInputMenuButton
+              isActive={editor.isActive('blockquote')}
+              isSelected={isSelected('blockqoute')}
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              unpressedLabel="Apply Blockquote"
+              pressedLabel="Remove Blockquote"
+            >
+              <BlockquoteIcon className="h-6 w-6" />
+            </ChatInputMenuButton>
+            <ChatInputMenuButton
+              isActive={editor.isActive('code')}
+              isSelected={isSelected('code')}
+              onClick={() => editor.chain().focus().toggleCode().run()}
+              unpressedLabel="Apply Code"
+              pressedLabel="Remove Code"
+            >
+              <CodeIcon className="h-6 w-6" />
+            </ChatInputMenuButton>
+          </>
+        )}
       </div>
     </BubbleMenu>
   );
