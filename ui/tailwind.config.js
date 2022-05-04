@@ -167,6 +167,7 @@ module.exports = {
     },
   },
   plugins: [
+    require('tailwindcss-scoped-groups'),
     require('@tailwindcss/aspect-ratio'),
     require('tailwindcss-theming')({
       themes,
