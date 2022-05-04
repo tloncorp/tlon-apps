@@ -34,7 +34,7 @@ export default function IconButton({ icon, action, label }: IconButtonProps) {
       ) : null}
       <div
         className="rounded px-2 py-1 group-two-hover:bg-gray-50"
-        onClick={() => action()}
+        onClick={action}
       >
         {icon}
       </div>
