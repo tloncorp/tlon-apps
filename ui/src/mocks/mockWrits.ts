@@ -5,6 +5,14 @@ import { ChatWrit } from '../types/chat';
 const today = new Date();
 
 const chatWrits: ChatWrit[] = [
+  makeChatWrit(1, '~hastuc-dibtux', {
+    block: [],
+    inline: [{ bold: 'A bold test message' }, 'with some more text'],
+  }),
+  makeChatWrit(2, '~finned-palmer', {
+    block: [],
+    inline: ['A finned normal message'],
+  }),
   makeChatWrit(
     1,
     '~hastuc-dibtux',
@@ -79,6 +87,16 @@ const chatWrits: ChatWrit[] = [
     undefined,
     subDays(today, 8)
   ),
+  makeChatWrit(4, '~hastuc-dibtux', {
+    block: [],
+    inline: [{ href: 'https://tlon.io/' }],
+  }),
 ];
 
 export default chatWrits;
+
+export const chatKeys = ['~zod/test'];
+
+export const chatPerm = {
+  writers: [],
+};

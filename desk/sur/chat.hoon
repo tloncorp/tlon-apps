@@ -1,3 +1,4 @@
+/-  g=groups
 |%
 +$  writ   [seal memo]
 +$  feel   @ta
@@ -23,6 +24,11 @@
       [%del p=time] 
       [%add-feel p=time q=ship r=feel]
       [%del-feel p=time q=ship]
+    ::
+      [%add-sects p=(set sect:g)]
+      [%del-sects p=(set sect:g)]
+    ::
+      [%create p=perm]
   ==
 ::
 +$  writs
@@ -35,8 +41,13 @@
   ((on time diff) lte)
 +$  remark
   [last-read=time watching=_| ~]
+::
++$  perm
+  $:  writers=(set sect:g)
+      group=flag
+  ==
 +$  chat
-  [=net =remark =log =writs]
+  [=net =remark =log =perm =writs]
 ::
 +$  content
   (pair (list block) (list inline))
@@ -75,4 +86,12 @@
   (pair time diff)
 +$  logs
   ((mop time diff) lte)
+::
++$  create
+  $:  group=flag  :: TODO: unmanaged-style group chats
+      name=term
+      title=cord
+      description=cord
+      readers=(set sect:g)
+  ==
 --
