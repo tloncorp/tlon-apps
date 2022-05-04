@@ -9,9 +9,15 @@ interface LayoutProps {
   aside?: React.ReactNode;
 }
 
-export default function Layout({ className, main, footer, header, aside }: LayoutProps) {
+export default function Layout({
+  className,
+  main,
+  footer,
+  header,
+  aside,
+}: LayoutProps) {
   return (
-    <div className={cn(className, "layout")}>
+    <div className={cn(className, 'layout')}>
       {header && <header className="header">{header}</header>}
       {aside && <aside className="aside">{aside}</aside>}
       <main className="main">{main}</main>
