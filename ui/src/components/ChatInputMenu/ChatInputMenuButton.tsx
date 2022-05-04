@@ -29,8 +29,8 @@ export default function ChatInputMenuButton({
     <button
       ref={ref}
       className={classNames(
-        'icon-button default-focus',
-        isActive && 'icon-button-active'
+        'icon-toggle default-focus',
+        isActive && 'icon-toggle-active'
       )}
       onClick={onClick}
       tabIndex={-1}

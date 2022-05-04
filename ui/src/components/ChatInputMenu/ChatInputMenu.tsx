@@ -7,6 +7,7 @@ import CodeIcon from '../icons/CodeIcon';
 import ItalicIcon from '../icons/ItalicIcon';
 import LinkIcon from '../icons/LinkIcon';
 import StrikeIcon from '../icons/StrikeIcon';
+import XIcon from '../icons/XIcon';
 import ChatInputMenuButton from './ChatInputMenuButton';
 
 interface ChatInputMenuProps {
@@ -37,9 +38,9 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     [selected, options]
   );
 
-  const toggleLinkEditor = useCallback(() => {
-    setEditingLink(!editingLink);
-  }, [editingLink]);
+  const openLinkEditor = useCallback(() => {
+    setEditingLink(true);
+  }, []);
 
   const setLink = useCallback(
     ({ url }: LinkEditorForm) => {
@@ -59,6 +60,11 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     [editor]
   );
 
+  const closeLinkEditor = useCallback(() => {
+    editor.commands.focus();
+    setEditingLink(false);
+  }, [editor]);
+
   const onNavigation = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key === 'Escape') {
@@ -66,8 +72,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
           editor.commands.deleteSelection();
           setSelected(-1);
         } else {
-          editor.commands.focus();
-          setEditingLink(false);
+          closeLinkEditor();
         }
       }
 
@@ -80,13 +85,13 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         setSelected((total + selected - 1) % total);
       }
     },
-    [selected, options, editingLink, editor]
+    [selected, options, editingLink, editor, closeLinkEditor]
   );
 
   return (
     <BubbleMenu editor={editor}>
       <div
-        className="default-focus m-2 flex items-center space-x-1 rounded-md bg-white p-1 shadow-lg"
+        className="default-focus m-2 rounded-md bg-white shadow-lg"
         role="toolbar"
         tabIndex={0}
         aria-label="Text Formatting Menu"
@@ -94,7 +99,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
       >
         {editingLink ? (
           <form
-            className="flex items-center space-x-1 p-1"
+            className="input flex min-w-80 items-center space-x-1 p-1 py-1 px-2 leading-4"
             onSubmit={handleSubmit(setLink)}
           >
             <label htmlFor="url" className="sr-only">
@@ -106,14 +111,24 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
               defaultValue={editor.getAttributes('link').href || ''}
               autoFocus
               placeholder="https://urbit.org"
-              className="input min-w-14 py-1 px-2 leading-4"
+              className="flex-1 bg-transparent focus:outline-none"
             />
-            <button type="submit" className="button py-1 px-2 leading-4">
+            <button
+              type="submit"
+              className="button bg-gray-100 py-0.5 px-1.5 text-sm leading-4 text-gray-600 hover:bg-gray-200"
+            >
               save
+            </button>
+            <button
+              type="button"
+              className="icon-button bg h-5 w-5"
+              onClick={closeLinkEditor}
+            >
+              <XIcon className="h-4 w-4" />
             </button>
           </form>
         ) : (
-          <>
+          <div className="flex items-center space-x-1 p-1">
             <ChatInputMenuButton
               isActive={editor.isActive('bold')}
               isSelected={isSelected('bold')}
@@ -144,7 +159,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
             <ChatInputMenuButton
               isActive={editor.isActive('link')}
               isSelected={isSelected('link')}
-              onClick={toggleLinkEditor}
+              onClick={openLinkEditor}
               unpressedLabel="Add Link"
               pressedLabel="Remove Link"
             >
@@ -169,7 +184,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
             >
               <CodeIcon className="h-6 w-6" />
             </ChatInputMenuButton>
-          </>
+          </div>
         )}
       </div>
     </BubbleMenu>

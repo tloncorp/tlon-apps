@@ -82,12 +82,7 @@ export default function MessageEditor({
   className,
 }: MessageEditorProps) {
   return (
-    <div
-      className={classNames(
-        'input block focus-within:bg-white focus-within:ring-2',
-        className
-      )}
-    >
+    <div className={classNames('input block', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
       <EditorContent className="w-full" editor={editor} />
       <ChatInputMenu editor={editor} />
