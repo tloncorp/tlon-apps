@@ -24,7 +24,7 @@
     "build-storybook": "build-storybook"
   },
   "lint-staged": {
-  "*.{js,jsx,ts,tsx,css}": ["eslint src/", "prettier src/ --write"]
+  "*.{js,jsx,ts,tsx}": ["eslint src/", "prettier src/ --write"]
   },
   "dependencies": {
     "@tiptap/react": "^2.0.0-beta.108",
