@@ -13,5 +13,5 @@ const writ = makeChatWrit(1, '~finned-palmer', {
 });
 
 export function Text() {
-  return <ChatMessage writ={writ} newAuthor />;
+  return <ChatMessage writ={writ} newAuthor newDay />;
 }

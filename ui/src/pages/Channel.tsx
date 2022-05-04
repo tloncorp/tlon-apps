@@ -20,14 +20,7 @@ function Channel() {
     useChatState.getState().joinChat(flag);
   };
   return isJoined ? (
-    <div className="flex grow flex-col">
-      <ChatWindow flag={flag} />
-      {canWrite ? (
-        <div className="p-4">
-          <ChatInput flag={flag} />
-        </div>
-      ) : null}
-    </div>
+    <ChatWindow flag={flag} />
   ) : (
     <div>
       <h1>{flag}</h1>

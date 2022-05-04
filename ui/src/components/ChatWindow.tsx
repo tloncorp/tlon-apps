@@ -1,6 +1,12 @@
 import React, { useEffect } from 'react';
-import ChatMessage from './ChatMessage/ChatMessage';
+import { differenceInDays } from 'date-fns';
+import { daToUnix, udToDec } from '@urbit/api';
+import bigInt from 'big-integer';
+import ChatInput from '../components/ChatInput/ChatInput';
+import ChatMessage from '../components/ChatMessage/ChatMessage';
 import { useChatState, useMessagesForChat } from '../state/chat';
+import Layout from '../components/layout/Layout';
+
 
 export default function ChatWindow(props: { flag: string }) {
   const { flag } = props;
@@ -11,29 +17,50 @@ export default function ChatWindow(props: { flag: string }) {
   }, [flag]);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-auto p-4">
-      <div className="mt-auto flex flex-col justify-end space-y-4">
-        {messages
-          .keys()
-          .reverse()
-          .map((key, index) => {
-            const writ = messages.get(key);
-            const lastWrit =
-              index > 0
-                ? messages.get(messages.keys().reverse()[index - 1])
-                : undefined;
-            const newAuthor = lastWrit
-              ? writ.memo.author !== lastWrit.memo.author
-              : true;
-            return (
-              <ChatMessage
-                key={writ.seal.time}
-                writ={writ}
-                newAuthor={newAuthor}
-              />
-            );
-          })}
-      </div>
-    </div>
+    <Layout
+      className="grow"
+      footer={
+        <div className="p-4">
+          <ChatInput flag={flag} />
+        </div>
+      }
+      main={
+        <div className="flex h-full w-full flex-col overflow-auto px-4">
+          <div className="mt-auto flex flex-col justify-end">
+            {messages
+              .keys()
+              .reverse()
+              .map((key, index) => {
+                const writ = messages.get(key);
+                const lastWrit =
+                  index > 0
+                    ? messages.get(messages.keys().reverse()[index - 1])
+                    : undefined;
+                const newAuthor = lastWrit
+                  ? writ.memo.author !== lastWrit.memo.author
+                  : true;
+                const writDay = new Date(
+                  daToUnix(bigInt(udToDec(writ.seal.time)))
+                );
+                const lastWritDay = lastWrit
+                  ? new Date(daToUnix(bigInt(udToDec(lastWrit.seal.time))))
+                  : undefined;
+                const newDay =
+                  lastWrit && lastWritDay
+                    ? differenceInDays(writDay, lastWritDay) > 0
+                    : false;
+                return (
+                  <ChatMessage
+                    key={writ.seal.time}
+                    writ={writ}
+                    newAuthor={newAuthor}
+                    newDay={newDay}
+                  />
+                );
+              })}
+          </div>
+        </div>
+      }
+    />
   );
 }

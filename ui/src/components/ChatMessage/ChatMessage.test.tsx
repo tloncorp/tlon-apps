@@ -23,7 +23,7 @@ describe('ChatMessage', () => {
       undefined,
       new Date(2021, 1, 1, 13)
     );
-    const { asFragment } = render(<ChatMessage writ={writ} newAuthor />);
+    const { asFragment } = render(<ChatMessage writ={writ} newAuthor newDay />);
     expect(asFragment()).toMatchSnapshot();
   });
 });
