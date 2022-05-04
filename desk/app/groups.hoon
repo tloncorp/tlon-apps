@@ -96,7 +96,7 @@
   ::
       %group-join
     =+  !<(=join:g vase)
-    =/  =gang:g  (~(gut by xeno) flag.join [~ ~])
+    =/  =gang:g  (~(gut by xeno) flag.join [~ ~ ~])
     =/  =claim:g  [join-all.join %adding]
     =.  cam.gang  `claim
     =.  xeno  (~(put by xeno) flag.join gang)
@@ -124,6 +124,9 @@
   ?+    pole  [~ ~]
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
+  ::
+      [%x %gangs ~]
+    ``gangs+!>(`gangs:g`xeno)
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
@@ -161,7 +164,8 @@
   ::
   ++  go-init  
     |=  =create:g
-    ~&  init/[net group]
+    =|  our=vessel:fleet:g
+    =.  fleet.group  (~(put by fleet.group) our.bowl our)
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
   ::
@@ -393,7 +397,7 @@
   ::
   ++  ga-abed
     |=  f=flag:g
-    =/  ga=gang:g  (~(gut by xeno) f [~ ~])
+    =/  ga=gang:g  (~(gut by xeno) f [~ ~ ~])
     ga-core(flag f, gang ga)
   ::
   ++  ga-area  `wire`/gangs/(scot %p p.flag)/[q.flag]

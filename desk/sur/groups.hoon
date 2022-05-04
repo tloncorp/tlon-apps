@@ -135,9 +135,14 @@
   $:  =meta
       =time
   ==
+::
++$  invite  ~
 ::  $gang: view of foreign group
 +$  gang
   $:  cam=(unit claim)
       pev=(unit preview)
+      vit=(unit invite)
   ==
+::
++$  gangs  (map flag gang)
 --

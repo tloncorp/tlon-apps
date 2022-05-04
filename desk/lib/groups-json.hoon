@@ -78,6 +78,32 @@
     |=  [f=flag:g gr=group:g]
     [(flag f) (group gr)]
   ::
+  ++  gangs
+    |=  gs=(map flag:g gang:g)
+    %-  pairs
+    %+  turn  ~(tap by gs)
+    |=  [f=flag:g gr=gang:g]
+    [(flag f) (gang gr)]
+  ::
+  ++  gang
+    |=  ga=gang:g
+    %-  pairs
+    :~  claim/?~(cam.ga ~ (claim u.cam.ga))
+        preview/?~(pev.ga ~ (preview u.pev.ga))
+        invite/?~(vit.ga ~ (invite u.vit.ga))
+    ==
+  ::
+  ++  claim
+    |=  c=claim:g
+    %-  pairs
+    :~  join-all/b/join-all.c
+        progress/s/`@t`progress.c
+    ==
+  ::
+  ++  invite
+    |=  i=invite:g
+    `json`~
+  ::
   ++  group
     |=  gr=group:g
     %-  pairs
