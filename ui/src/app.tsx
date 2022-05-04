@@ -30,11 +30,16 @@ import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 function SidebarRow(props: {
   className?: string;
   children?: React.ReactChild | React.ReactChild[];
+  img?: string;
 }) {
-  const { children, className = '' } = props;
+  const { img, children, className = '' } = props;
   return (
     <li className={cn('flex items-center space-x-2 p-2', className)}>
-      <div className="h-6 w-6 rounded border" />
+      {(img || '').length > 0 ? (
+        <img className="h-6 w-6 rounded border" src={img} />
+      ) : (
+        <div className="h-6 w-6 rounded border" />
+      )}
       {typeof children === 'string' ? <div>{children}</div> : children}
     </li>
   );
@@ -44,7 +49,7 @@ function GroupItem(props: { flag: string }) {
   const { flag } = props;
   const { meta } = useGroup(flag);
   return (
-    <SidebarRow>
+    <SidebarRow img={meta.image}>
       <NavLink to={`/groups/${flag}`}>{meta.title}</NavLink>
     </SidebarRow>
   );
