@@ -2,7 +2,7 @@ import { Editor, EditorContent, JSONContent } from '@tiptap/react';
 import React, { useCallback } from 'react';
 import { useChatState } from '../../state/chat';
 import { ChatInline, ChatMemo } from '../../types/chat';
-import ChatFormattingMenu from '../ChatFormattingMenu';
+import ChatInputMenu from '../ChatInputMenu/ChatInputMenu';
 import MessageEditor, { useMessageEditor } from '../MessageEditor';
 
 interface ChatInputProps {
@@ -102,7 +102,7 @@ export default function ChatInput(props: ChatInputProps) {
       <div className="flex-1">
         {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
         <MessageEditor editor={messageEditor} />
-        <ChatFormattingMenu editor={messageEditor} />
+        <ChatInputMenu editor={messageEditor} />
       </div>
       <button className="button" onClick={onClick}>
         Send

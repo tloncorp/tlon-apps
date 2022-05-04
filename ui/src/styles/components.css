@@ -1,9 +1,13 @@
 .button {
-  @apply inline-flex items-center justify-center rounded-md bg-gray-800 py-2 px-4 text-lg font-semibold leading-4 text-white disabled:bg-gray-200 disabled:text-gray-400 sm:text-base;
+  @apply inline-flex items-center justify-center rounded-md bg-gray-800 py-2 px-4 text-lg font-semibold leading-4 text-white ring-gray-200 ring-offset-2 focus:outline-none focus:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:text-base;
 }
 
 .icon-button {
-  @apply inline-flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 p-0 text-sm font-bold leading-4 text-gray-600 transition-colors hover:bg-gray-300 disabled:text-gray-400 sm:text-base;
+  @apply inline-flex h-6 w-6 items-center justify-center rounded-md bg-white p-0 text-sm font-bold leading-4 text-gray-400 ring-gray-200 ring-offset-2 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 disabled:text-gray-200 sm:text-base;
+}
+
+.icon-button-active {
+  @apply bg-gray-100 text-gray-600;
 }
 
 .input {

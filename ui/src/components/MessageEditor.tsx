@@ -64,6 +64,7 @@ export function useMessageEditor({
     editorProps: {
       attributes: {
         class: 'input block',
+        'aria-label': 'Message editor with formatting menu',
       },
     },
   });
