@@ -10,7 +10,7 @@ export default function IconButton({ icon, action, label }: IconButtonProps) {
   return (
     <div className="group-two relative cursor-pointer">
       {label ? (
-        <div className="z-2 absolute -top-12 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100">
+        <div className="z-2 absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100">
           <div className="w-fit rounded bg-gray-400 px-4 py-2">
             <label className="whitespace-nowrap font-semibold text-white">
               {label}
@@ -33,7 +33,7 @@ export default function IconButton({ icon, action, label }: IconButtonProps) {
         </div>
       ) : null}
       <div
-        className="rounded px-2 py-1 group-two-hover:bg-gray-50"
+        className="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
         onClick={action}
       >
         {icon}

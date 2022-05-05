@@ -14,7 +14,7 @@ exports[`ChatMessage > renders as expected 1`] = `
          
       </div>
       <span
-        class="whitespace-nowrap px-3 font-semibold text-gray-500"
+        class="whitespace-nowrap px-3 font-semibold text-gray-400"
       >
         February 1st
       </span>
@@ -133,13 +133,13 @@ exports[`ChatMessage > renders as expected 1`] = `
       class="group-one relative z-0 flex space-x-3 rounded hover:bg-gray-50"
     >
       <div
-        class="z-1 absolute right-2 -top-7 flex rounded-md border-[1px] border-gray-100 bg-white p-2 align-middle opacity-0 group-one-hover:opacity-100"
+        class="z-1 absolute right-2 -top-5 flex flex space-x-[2px] rounded-md border-[1px] border-gray-100 bg-white p-[2px] align-middle opacity-0 group-one-hover:opacity-100"
       >
         <div
           class="group-two relative cursor-pointer"
         >
           <div
-            class="z-2 absolute -top-12 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+            class="z-2 absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
           >
             <div
               class="w-fit rounded bg-gray-400 px-4 py-2"
@@ -166,9 +166,10 @@ exports[`ChatMessage > renders as expected 1`] = `
             </div>
           </div>
           <div
-            class="rounded px-2 py-1 group-two-hover:bg-gray-50"
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
+              class="text-gray-400"
               fill="none"
               viewBox="0 0 20 20"
               xmlns="http://www.w3.org/2000/svg"
@@ -186,7 +187,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           class="group-two relative cursor-pointer"
         >
           <div
-            class="z-2 absolute -top-12 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+            class="z-2 absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
           >
             <div
               class="w-fit rounded bg-gray-400 px-4 py-2"
@@ -213,9 +214,10 @@ exports[`ChatMessage > renders as expected 1`] = `
             </div>
           </div>
           <div
-            class="rounded px-2 py-1 group-two-hover:bg-gray-50"
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
+              class="text-gray-400"
               fill="none"
               viewBox="0 0 20 20 "
               xmlns="http://www.w3.org/2000/svg"
@@ -231,7 +233,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           class="group-two relative cursor-pointer"
         >
           <div
-            class="z-2 absolute -top-12 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+            class="z-2 absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
           >
             <div
               class="w-fit rounded bg-gray-400 px-4 py-2"
@@ -258,9 +260,10 @@ exports[`ChatMessage > renders as expected 1`] = `
             </div>
           </div>
           <div
-            class="rounded px-2 py-1 group-two-hover:bg-gray-50"
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
+              class="text-gray-400"
               fill="none"
               viewBox="0 0 16 18"
               xmlns="http://www.w3.org/2000/svg"
@@ -278,7 +281,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           class="group-two relative cursor-pointer"
         >
           <div
-            class="z-2 absolute -top-12 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+            class="z-2 absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
           >
             <div
               class="w-fit rounded bg-gray-400 px-4 py-2"
@@ -305,9 +308,10 @@ exports[`ChatMessage > renders as expected 1`] = `
             </div>
           </div>
           <div
-            class="rounded px-2 py-1 group-two-hover:bg-gray-50"
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
+              class="text-gray-400"
               fill="none"
               viewBox="0 0 16 16"
               xmlns="http://www.w3.org/2000/svg"
@@ -325,7 +329,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           class="group-two relative cursor-pointer"
         >
           <div
-            class="z-2 absolute -top-12 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+            class="z-2 absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
           >
             <div
               class="w-fit rounded bg-gray-400 px-4 py-2"
@@ -352,9 +356,10 @@ exports[`ChatMessage > renders as expected 1`] = `
             </div>
           </div>
           <div
-            class="rounded px-2 py-1 group-two-hover:bg-gray-50"
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
+              class="text-gray-400"
               fill="none"
               viewBox="0 0 18 18"
               xmlns="http://www.w3.org/2000/svg"

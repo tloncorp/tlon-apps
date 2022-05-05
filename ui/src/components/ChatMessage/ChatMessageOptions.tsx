@@ -8,29 +8,29 @@ import ShareIcon from '../icons/ShareIcon';
 
 export default function ChatMessageOptions() {
   return (
-    <div className="z-1 absolute right-2 -top-7 flex rounded-md border-[1px] border-gray-100 bg-white p-2 align-middle opacity-0 group-one-hover:opacity-100">
+    <div className="z-1 absolute right-2 -top-5 flex flex space-x-[2px] rounded-md border-[1px] border-gray-100 bg-white p-[2px] align-middle opacity-0 group-one-hover:opacity-100">
       <IconButton
-        icon={<FaceIcon />}
+        icon={<FaceIcon className="text-gray-400" />}
         label="React"
         action={() => console.log('react')}
       />
       <IconButton
-        icon={<BubbleIcon />}
+        icon={<BubbleIcon className="text-gray-400" />}
         label="Reply"
         action={() => console.log('reply')}
       />
       <IconButton
-        icon={<HashIcon />}
+        icon={<HashIcon className="text-gray-400" />}
         label="Start Thread"
         action={() => console.log('start thread')}
       />
       <IconButton
-        icon={<ShareIcon />}
+        icon={<ShareIcon className="text-gray-400" />}
         label="Send to..."
         action={() => console.log('send to..')}
       />
       <IconButton
-        icon={<ElipsisIcon />}
+        icon={<ElipsisIcon className="text-gray-400" />}
         label="More..."
         action={() => console.log('More...')}
       />
