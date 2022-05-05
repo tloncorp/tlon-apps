@@ -82,10 +82,55 @@ interface ChannelDiff {
   };
 }
 
-interface CordonDiff {
-  cordon: {
-    change: string;
+interface CordonDiffOpenAddShips {
+  'add-ships': string[];
+}
+
+interface CordonDiffOpenDelShips {
+  'del-ships': string[];
+}
+
+interface CordonDiffOpenAddRanks {
+  'add-ranks': string[];
+}
+interface CordonDiffOpenDelRanks {
+  'del-ranks': string[];
+}
+
+interface CordonDiffOpen {
+  open:
+    | CordonDiffOpenAddShips
+    | CordonDiffOpenDelShips
+    | CordonDiffOpenAddRanks
+    | CordonDiffOpenDelRanks;
+}
+
+interface CordonDiffShutAddShips {
+  'add-ships': string[];
+}
+
+interface CordonDiffShutDelShips {
+  'del-ships': string[];
+}
+
+interface CordonDiffShut {
+  shut: CordonDiffShutAddShips | CordonDiffShutDelShips;
+}
+interface OpenCordon {
+  open: {
+    ships: string[];
+    ranks: string[];
   };
+}
+
+interface ShutCordon {
+  shut: string[];
+}
+
+type Cordon = OpenCordon | ShutCordon;
+
+interface CordonDiff {
+  cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };
 }
 
 export interface GroupCreateDiff {
