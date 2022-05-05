@@ -50,7 +50,7 @@ export function InlineContent({ content }: InlineContentProps) {
   if (isLink(content)) {
     return (
       <a target="_blank" rel="noreferrer" href={content.link.href}>
-        {content.link.content}
+        {content.link.content || content.link.href}
       </a>
     );
   }
