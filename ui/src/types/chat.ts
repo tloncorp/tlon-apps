@@ -38,7 +38,7 @@ export interface BlockCode {
 }
 
 export interface Blockquote {
-  blockquote: ChatInline;
+  blockquote: ChatInline[];
 }
 
 export interface Tag {

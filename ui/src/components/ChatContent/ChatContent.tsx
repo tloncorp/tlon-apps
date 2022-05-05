@@ -96,13 +96,14 @@ export default function ChatContent({ content }: ChatContentProps) {
     <div>
       {blockLength > 0 ? <BlockContent content={content} /> : null}
       {inlineLength > 0 ? (
-        <div>
+        <>
           {content.inline.map((contentItem, index) => (
-            <span key={`${contentItem.toString()}-${index}`}>
-              <InlineContent content={contentItem} />{' '}
-            </span>
+            <InlineContent
+              key={`${contentItem.toString()}-${index}`}
+              content={contentItem}
+            />
           ))}
-        </div>
+        </>
       ) : null}
     </div>
   );

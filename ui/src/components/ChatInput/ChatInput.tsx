@@ -28,8 +28,9 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
   if (json.content) {
     if (json.content.length === 1) {
       if (json.type === 'blockquote') {
+        const parsed = parseTipTapJSON(json.content[0]);
         return {
-          blockquote: parseTipTapJSON(json.content[0]),
+          blockquote: Array.isArray(parsed) ? parsed : [parsed],
         } as ChatInline;
       }
 
