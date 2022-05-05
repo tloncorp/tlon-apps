@@ -4,7 +4,7 @@ import { render } from '@testing-library/react';
 import GangPreview from './GangPreview';
 import { mockGangs } from '../../mocks/groups';
 
-describe('ChatInput', () => {
+describe('GangPreview', () => {
   it('renders preview', () => {
     const { asFragment } = render(
       <GangPreview preview={mockGangs['~zod/structure'].preview!} />

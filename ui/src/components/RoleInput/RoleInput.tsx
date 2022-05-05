@@ -23,7 +23,7 @@ export default function RoleInput(props: {
     name: 'roles',
   });
   const unpicked = options.filter(
-    (o) => !fields.some(({ value }) => value == o)
+    (o) => !fields.some(({ value }) => value === o)
   );
 
   const onAdd = () => {
@@ -32,23 +32,21 @@ export default function RoleInput(props: {
 
   return (
     <div className="flex flex-col">
-      {fields.map((field, index) => {
-        return (
-          <div className="flex">
-            <select key={field.id} {...register(`roles.${index}.value`)}>
-              <option key={field.value}>{field.value}</option>
-              {unpicked.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
-            <button onClick={() => remove(index)} type="button">
-              X
-            </button>
-          </div>
-        );
-      })}
+      {fields.map((field, index) => (
+        <div className="flex">
+          <select key={field.id} {...register(`roles.${index}.value`)}>
+            <option key={field.value}>{field.value}</option>
+            {unpicked.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
+          <button onClick={() => remove(index)} type="button">
+            X
+          </button>
+        </div>
+      ))}
       {unpicked.length > 0 ? (
         <button onClick={onAdd} type="button">
           Add Role

@@ -16,12 +16,7 @@ export default function MetadataForm(props: {
     <div className="flex flex-col">
       <div className="p-2">
         <label htmlFor="title">Title</label>
-        <input
-          {...register('title')}
-          className="rounded border"
-          type="text"
-          name="title"
-        />
+        <input {...register('title')} className="rounded border" type="text" />
       </div>
       <div className="p-2">
         <label htmlFor="description">Description</label>
@@ -29,17 +24,11 @@ export default function MetadataForm(props: {
           {...register('description')}
           className="rounded border"
           type="text"
-          name="description"
         />
       </div>
       <div className="p-2">
         <label htmlFor="description">Image</label>
-        <input
-          {...register('image')}
-          className="rounded border"
-          type="text"
-          name="image"
-        />
+        <input {...register('image')} className="rounded border" type="url" />
       </div>
     </div>
   );

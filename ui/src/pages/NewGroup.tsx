@@ -1,7 +1,7 @@
 import React from 'react';
-import { useGroupState } from '../state/groups';
 import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
+import { useGroupState } from '../state/groups';
 import MetadataForm from '../components/MetadataForm/MetadataForm';
 
 interface FormSchema {

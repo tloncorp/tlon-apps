@@ -60,7 +60,6 @@ export const useGroupState = create<GroupState>((set, get) => ({
   search: async (flag) => {
     try {
       const res = await api.subscribeOnce('groups', `/gangs/${flag}/preview`);
-      console.log(res);
       get().batchSet((draft) => {
         const gang = draft.gangs[flag] || {
           preview: null,
@@ -149,7 +148,6 @@ export const useGroupState = create<GroupState>((set, get) => ({
           get().batchSet((draft) => {
             draft.groups[flag] = group;
           });
-        } else {
         }
       },
     });

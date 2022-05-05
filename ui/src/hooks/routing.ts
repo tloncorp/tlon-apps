@@ -6,19 +6,22 @@ export interface ModalLocationState {
 }
 
 /**
- * Returns an imperative method for navigating while preserving the navigation 
+ * Returns an imperative method for navigating while preserving the navigation
  * state underneath the overlay
  */
 export function useModalNavigate() {
   const navigate = useNavigate();
   const location = useLocation();
-  return useCallback((to: To, opts?: NavigateOptions)=> {
-    if (location.state) {
-      const s = location.state;
-      navigate(to, { ...(opts || {}), state: location.state })
-    }
-    navigate(to, opts);
-  }, [navigate, location.state]);
+  return useCallback(
+    (to: To, opts?: NavigateOptions) => {
+      if (location.state) {
+        const s = location.state;
+        navigate(to, { ...(opts || {}), state: location.state });
+      }
+      navigate(to, opts);
+    },
+    [navigate, location.state]
+  );
 }
 
 export function useDismissNavigate() {
