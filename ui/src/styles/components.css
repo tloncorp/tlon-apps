@@ -15,8 +15,8 @@
 }
 
 .input {
-  @apply flex rounded-md bg-gray-50 py-1.5 px-2 text-lg leading-5 ring-gray-100 ring-offset-0 transition-colors focus-within:bg-white focus-within:ring-2
-  focus:bg-white focus:outline-none focus:ring-2 sm:text-base sm:leading-5;
+  @apply flex rounded-md border-2 border-transparent bg-gray-50 py-1 px-2 text-lg leading-5 transition-colors focus-within:border-gray-100 focus-within:bg-white
+  focus:border-gray-100 focus:bg-white focus:outline-none sm:text-base sm:leading-5;
 }
 
 .input-inner {

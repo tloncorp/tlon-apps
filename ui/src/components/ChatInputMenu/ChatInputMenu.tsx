@@ -1,5 +1,12 @@
 import { BubbleMenu, Editor } from '@tiptap/react';
-import React, { KeyboardEvent, useCallback, useMemo, useState } from 'react';
+import React, {
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useForm } from 'react-hook-form';
 import BlockquoteIcon from '../icons/BlockquoteIcon';
 import BoldIcon from '../icons/BoldIcon';
@@ -19,6 +26,7 @@ interface LinkEditorForm {
 }
 
 export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(-1);
   const [editingLink, setEditingLink] = useState(false);
   const options = useMemo(
@@ -26,6 +34,18 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     []
   );
   const { register, handleSubmit } = useForm<LinkEditorForm>();
+
+  const onSelection = useCallback(() => {
+    setEditingLink(false);
+  }, []);
+
+  useEffect(() => {
+    editor.on('selectionUpdate', onSelection);
+
+    return () => {
+      editor.off('selectionUpdate', onSelection);
+    };
+  }, [editor, onSelection]);
 
   const isSelected = useCallback(
     (key: string) => {
@@ -69,7 +89,11 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key === 'Escape') {
         if (!editingLink) {
-          editor.commands.deleteSelection();
+          editor
+            .chain()
+            .setTextSelection(editor.state.selection.from)
+            .focus()
+            .run();
           setSelected(-1);
         } else {
           closeLinkEditor();
@@ -91,6 +115,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
   return (
     <BubbleMenu editor={editor}>
       <div
+        ref={toolbarRef}
         className="default-focus m-2 rounded-md bg-white shadow-lg"
         role="toolbar"
         tabIndex={0}

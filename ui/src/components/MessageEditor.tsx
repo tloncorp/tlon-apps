@@ -55,7 +55,9 @@ export function useMessageEditor({
       Document,
       HardBreak,
       Italic,
-      Link,
+      Link.configure({
+        openOnClick: false,
+      }),
       keyMapExt,
       Paragraph,
       Placeholder.configure({ placeholder }),
