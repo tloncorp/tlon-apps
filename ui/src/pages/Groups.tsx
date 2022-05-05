@@ -13,7 +13,7 @@ function SidebarRow(props: {
   const { children, className = '' } = props;
   return (
     <li className={cn('flex space-x-2 p-2', className)}>
-      <div className="h-6 w-6 rounded border" />
+      <div className="h-6 w-6 rounded border border-black" />
       {typeof children === 'string' ? <div>{children}</div> : children}
     </li>
   );
@@ -24,7 +24,7 @@ function Divider(props: { title: string }) {
   return (
     <div className="flex items-center space-x-2 p-2">
       <div>{title}</div>
-      <div className="grow border-b" />
+      <div className="grow border-b border-black" />
     </div>
   );
 }
@@ -68,7 +68,7 @@ function Groups() {
   }
   return (
     <div className="flex grow">
-      <div className="w-56 border-r p-2">
+      <div className="w-56 border-r border-black p-2">
         <div className="p-2">
           <h1>{group.meta.title}</h1>
           <p>{group.meta.description}</p>

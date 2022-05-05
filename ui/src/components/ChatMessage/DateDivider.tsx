@@ -11,7 +11,7 @@ export default function DateDivider({ date }: DateDividerProps) {
   return (
     <div className="flex w-full items-center py-4">
       <div className="h-[2px] w-6 rounded-sm bg-gray-200">&nbsp;</div>
-      <span className="whitespace-nowrap px-3 font-semibold text-gray-500">
+      <span className="whitespace-nowrap px-3 font-semibold text-gray-400">
         {prettyDay}
       </span>
       <div className="h-[2px] w-full rounded-sm bg-gray-200">&nbsp;</div>
