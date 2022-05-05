@@ -59,7 +59,9 @@ export function InlineContent({ content }: InlineContentProps) {
     return (
       <blockquote className="leading-6">
         {Array.isArray(content.blockquote)
-          ? content.blockquote.map((item) => <InlineContent content={item} />)
+          ? content.blockquote.map((item, index) => (
+              <InlineContent key={item.toString() + index} content={item} />
+            ))
           : content.blockquote}
       </blockquote>
     );
@@ -96,12 +98,9 @@ export default function ChatContent({ content }: ChatContentProps) {
       {inlineLength > 0 ? (
         <div>
           {content.inline.map((contentItem, index) => (
-            <>
-              <InlineContent
-                key={`${contentItem.toString()}-${index}`}
-                content={contentItem}
-              />{' '}
-            </>
+            <span key={`${contentItem.toString()}-${index}`}>
+              <InlineContent content={contentItem} />{' '}
+            </span>
           ))}
         </div>
       ) : null}
