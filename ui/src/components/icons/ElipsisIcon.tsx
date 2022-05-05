@@ -1,19 +1,19 @@
 import React from 'react';
+import { IconProps } from './icon';
 
-export default function ElipsisIcon() {
+export default function ElipsisIcon({ className }: IconProps) {
   return (
     <svg
-      width="4"
-      height="18"
-      viewBox="0 0 4 18"
+      className={className}
+      viewBox="0 0 18 18"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M4 16C4 14.8954 3.10457 14 2 14C0.89543 14 -1.35705e-07 14.8954 -8.74228e-08 16C-3.91405e-08 17.1046 0.895431 18 2 18C3.10457 18 4 17.1046 4 16ZM2 7C3.10457 7 4 7.89543 4 9C4 10.1046 3.10457 11 2 11C0.89543 11 -3.4512e-07 10.1046 -3.93402e-07 9C-4.41684e-07 7.89543 0.89543 7 2 7ZM2 -8.74228e-08C3.10457 -1.35705e-07 4 0.895429 4 2C4 3.10457 3.10457 4 2 4C0.89543 4 -6.511e-07 3.10457 -6.99382e-07 2C-7.47665e-07 0.89543 0.89543 -3.91405e-08 2 -8.74228e-08Z"
-        fill="#999999"
+        d="M4 16a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM2 7a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm0-7a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"
+        className="fill-current"
       />
     </svg>
   );

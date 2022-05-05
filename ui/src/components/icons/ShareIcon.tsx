@@ -1,10 +1,10 @@
 import React from 'react';
+import { IconProps } from './icon';
 
-export default function ShareIcon() {
+export default function ShareIcon({ className }: IconProps) {
   return (
     <svg
-      width="16"
-      height="16"
+      className={className}
       viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -12,8 +12,8 @@ export default function ShareIcon() {
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M9 3.41421V10C9 10.5523 8.55228 11 8 11C7.44772 11 7 10.5523 7 10V3.41421L4.70711 5.70711C4.31658 6.09763 3.68342 6.09763 3.29289 5.70711C2.90237 5.31658 2.90237 4.68342 3.29289 4.29289L7.29289 0.292893C7.68342 -0.0976315 8.31658 -0.0976315 8.70711 0.292893L12.7071 4.29289C13.0976 4.68342 13.0976 5.31658 12.7071 5.70711C12.3166 6.09763 11.6834 6.09763 11.2929 5.70711L9 3.41421ZM2 10C2 9.44771 1.55228 9 1 9C0.447715 9 0 9.44771 0 10V13C0 14.6569 1.34315 16 3 16H13C14.6569 16 16 14.6569 16 13V10C16 9.44771 15.5523 9 15 9C14.4477 9 14 9.44771 14 10V13C14 13.5523 13.5523 14 13 14H3C2.44772 14 2 13.5523 2 13V10Z"
-        fill="#999999"
+        d="M9 3.414V10a1 1 0 1 1-2 0V3.414L4.707 5.707a1 1 0 0 1-1.414-1.414l4-4a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1-1.414 1.414L9 3.414ZM2 10a1 1 0 1 0-2 0v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3a1 1 0 1 0-2 0v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-3Z"
+        className="fill-current"
       />
     </svg>
   );

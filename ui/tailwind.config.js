@@ -153,6 +153,9 @@ module.exports = {
     },
     extend: {
       minWidth: (theme) => theme('spacing'),
+      colors: {
+        current: 'currentColor'
+      }
     },
   },
   screens: {
