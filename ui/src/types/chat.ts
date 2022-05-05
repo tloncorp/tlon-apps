@@ -26,7 +26,7 @@ export interface BlockReference {
 }
 
 export interface Break {
-  break: true;
+  break: null;
 }
 
 export interface InlineCode {
@@ -46,7 +46,10 @@ export interface Tag {
 }
 
 export interface Link {
-  href: string;
+  link: {
+    href: string;
+    content: string;
+  };
 }
 
 export type ChatInline =
@@ -85,6 +88,10 @@ export function isBlockquote(item: unknown): item is Blockquote {
 
 export function isInlineCode(item: unknown): item is InlineCode {
   return typeof item === 'object' && item !== null && 'inline-code' in item;
+}
+
+export function isBreak(item: unknown): item is Break {
+  return typeof item === 'object' && item !== null && 'break' in item;
 }
 
 export interface ChatMessage {

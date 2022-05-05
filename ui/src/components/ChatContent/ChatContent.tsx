@@ -4,6 +4,7 @@ import {
   ChatMessage,
   isBlockquote,
   isBold,
+  isBreak,
   isInlineCode,
   isItalics,
   isLink,
@@ -48,8 +49,8 @@ export function InlineContent({ content }: InlineContentProps) {
 
   if (isLink(content)) {
     return (
-      <a target="_blank" rel="noreferrer" href={content.href}>
-        {content.href}
+      <a target="_blank" rel="noreferrer" href={content.link.href}>
+        {content.link.content}
       </a>
     );
   }
@@ -57,17 +58,19 @@ export function InlineContent({ content }: InlineContentProps) {
   if (isBlockquote(content)) {
     return (
       <blockquote className="leading-6">
-        {typeof content.blockquote === 'object' ? (
-          <InlineContent content={content.blockquote} />
-        ) : (
-          content.blockquote
-        )}
+        {Array.isArray(content.blockquote)
+          ? content.blockquote.map((item) => <InlineContent content={item} />)
+          : content.blockquote}
       </blockquote>
     );
   }
 
   if (isInlineCode(content)) {
     return <code>{content['inline-code']}</code>;
+  }
+
+  if (isBreak(content)) {
+    return <br />;
   }
 
   throw new Error(`Unhandled message type: ${JSON.stringify(content)}`);

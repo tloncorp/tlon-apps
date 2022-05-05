@@ -1,8 +1,7 @@
-import { Editor, EditorContent, JSONContent } from '@tiptap/react';
+import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback } from 'react';
 import { useChatState } from '../../state/chat';
 import { ChatInline, ChatMemo } from '../../types/chat';
-import ChatInputMenu from '../ChatInputMenu/ChatInputMenu';
 import MessageEditor, { useMessageEditor } from '../MessageEditor';
 
 interface ChatInputProps {
@@ -15,6 +14,8 @@ function convertMarkType(type: string): string {
       return 'italics';
     case 'code':
       return 'inline-code';
+    case 'link':
+      return 'href';
     default:
       return type;
   }
@@ -23,6 +24,7 @@ function convertMarkType(type: string): string {
 // this will be replaced with more sophisticated logic based on
 // what we decide will be the message format
 function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
+  debugger;
   if (json.content) {
     if (json.content.length === 1) {
       if (json.type === 'blockquote') {
@@ -34,7 +36,27 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
       return parseTipTapJSON(json.content[0]);
     }
 
-    return json.content.reduce(
+    /* Only allow two or less consecutive breaks */
+    const breaksAdded: JSONContent[] = [];
+    let count = 0;
+    json.content.forEach((item) => {
+      if (item.type === 'paragraph' && !item.content) {
+        if (count === 1) {
+          breaksAdded.push(item);
+          count += 1;
+        }
+        return;
+      }
+
+      breaksAdded.push(item);
+
+      if (item.type === 'paragraph' && item.content) {
+        breaksAdded.push({ type: 'paragraph' });
+        count = 1;
+      }
+    });
+
+    return breaksAdded.reduce(
       (message, contents) => message.concat(parseTipTapJSON(contents)),
       [] as ChatInline[]
     );
@@ -50,6 +72,12 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
     return {
       [convertMarkType(first.type)]: parseTipTapJSON(json),
     } as unknown as ChatInline;
+  }
+
+  if (json.type === 'paragraph') {
+    return {
+      break: null,
+    };
   }
 
   return json.text || '';

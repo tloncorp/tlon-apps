@@ -110,7 +110,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
               {...register('url')}
               defaultValue={editor.getAttributes('link').href || ''}
               autoFocus
-              placeholder="https://urbit.org"
+              placeholder="Enter URL"
               className="flex-1 bg-transparent focus:outline-none"
             />
             <button
@@ -168,7 +168,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
             </ChatInputMenuButton>
             <ChatInputMenuButton
               isActive={editor.isActive('blockquote')}
-              isSelected={isSelected('blockqoute')}
+              isSelected={isSelected('blockquote')}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
               unpressedLabel="Apply Blockquote"
               pressedLabel="Remove Blockquote"

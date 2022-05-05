@@ -13,3 +13,7 @@ blockquote {
 a:not([class]) {
   @apply underline;
 }
+
+::selection {
+  @apply bg-gray-100;
+}
