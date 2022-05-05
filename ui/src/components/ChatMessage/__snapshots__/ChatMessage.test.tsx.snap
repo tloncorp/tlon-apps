@@ -165,7 +165,8 @@ exports[`ChatMessage > renders as expected 1`] = `
               </svg>
             </div>
           </div>
-          <div
+          <button
+            aria-label="React"
             class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
@@ -181,7 +182,7 @@ exports[`ChatMessage > renders as expected 1`] = `
                 fill-rule="evenodd"
               />
             </svg>
-          </div>
+          </button>
         </div>
         <div
           class="group-two relative cursor-pointer"
@@ -213,7 +214,8 @@ exports[`ChatMessage > renders as expected 1`] = `
               </svg>
             </div>
           </div>
-          <div
+          <button
+            aria-label="Reply"
             class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
@@ -227,7 +229,7 @@ exports[`ChatMessage > renders as expected 1`] = `
                 d="m1.5 12.966.944-.33-.944.33Zm16.518 1.126-.98.197-.069-.342.159-.31.89.455Zm.834 4.173.98-.197-.98.197Zm-.588.588.196-.98-.196.98Zm-4.173-.835-.455-.89.31-.159.341.069-.196.98Zm-7.056.482.329-.944-.33.944ZM2 10c0 .925.157 1.812.444 2.636l-1.888.659A9.987 9.987 0 0 1 0 10h2Zm8-8a8 8 0 0 0-8 8H0C0 4.477 4.477 0 10 0v2Zm8 8a8 8 0 0 0-8-8V0c5.523 0 10 4.477 10 10h-2Zm-.872 3.637A7.962 7.962 0 0 0 18 10h2a9.962 9.962 0 0 1-1.092 4.548l-1.78-.91Zm1.87.26.835 4.171-1.961.393-.835-4.172L19 13.896Zm.835 4.171a1.5 1.5 0 0 1-1.765 1.765l.392-1.96a.5.5 0 0 0-.588.588l1.96-.393Zm-1.765 1.765L13.895 19l.393-1.961 4.172.834-.392 1.962ZM10 18a7.962 7.962 0 0 0 3.636-.872l.91 1.78A9.961 9.961 0 0 1 10 20v-2Zm-2.636-.444c.824.287 1.71.444 2.636.444v2a9.986 9.986 0 0 1-3.295-.556l.659-1.888Zm-4.92-4.92a8.025 8.025 0 0 0 4.92 4.92l-.659 1.888a10.025 10.025 0 0 1-6.15-6.15l1.89-.658Z"
               />
             </svg>
-          </div>
+          </button>
         </div>
         <div
           class="group-two relative cursor-pointer"
@@ -259,7 +261,8 @@ exports[`ChatMessage > renders as expected 1`] = `
               </svg>
             </div>
           </div>
-          <div
+          <button
+            aria-label="Start Thread"
             class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
@@ -275,7 +278,7 @@ exports[`ChatMessage > renders as expected 1`] = `
                 fill-rule="evenodd"
               />
             </svg>
-          </div>
+          </button>
         </div>
         <div
           class="group-two relative cursor-pointer"
@@ -307,7 +310,8 @@ exports[`ChatMessage > renders as expected 1`] = `
               </svg>
             </div>
           </div>
-          <div
+          <button
+            aria-label="Send to..."
             class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
@@ -323,7 +327,7 @@ exports[`ChatMessage > renders as expected 1`] = `
                 fill-rule="evenodd"
               />
             </svg>
-          </div>
+          </button>
         </div>
         <div
           class="group-two relative cursor-pointer"
@@ -355,7 +359,8 @@ exports[`ChatMessage > renders as expected 1`] = `
               </svg>
             </div>
           </div>
-          <div
+          <button
+            aria-label="More..."
             class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
           >
             <svg
@@ -371,7 +376,7 @@ exports[`ChatMessage > renders as expected 1`] = `
                 fill-rule="evenodd"
               />
             </svg>
-          </div>
+          </button>
         </div>
       </div>
       <div

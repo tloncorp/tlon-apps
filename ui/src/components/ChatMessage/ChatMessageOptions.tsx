@@ -12,26 +12,31 @@ export default function ChatMessageOptions() {
       <IconButton
         icon={<FaceIcon className="text-gray-400" />}
         label="React"
+        showTooltip
         action={() => console.log('react')}
       />
       <IconButton
         icon={<BubbleIcon className="text-gray-400" />}
         label="Reply"
+        showTooltip
         action={() => console.log('reply')}
       />
       <IconButton
         icon={<HashIcon className="text-gray-400" />}
         label="Start Thread"
+        showTooltip
         action={() => console.log('start thread')}
       />
       <IconButton
         icon={<ShareIcon className="text-gray-400" />}
         label="Send to..."
+        showTooltip
         action={() => console.log('send to..')}
       />
       <IconButton
         icon={<ElipsisIcon className="text-gray-400" />}
         label="More..."
+        showTooltip
         action={() => console.log('More...')}
       />
     </div>

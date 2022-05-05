@@ -3,13 +3,19 @@ import React from 'react';
 interface IconButtonProps {
   icon: React.ReactElement;
   action: () => void;
-  label?: string;
+  label: string;
+  showTooltip?: boolean;
 }
 
-export default function IconButton({ icon, action, label }: IconButtonProps) {
+export default function IconButton({
+  icon,
+  action,
+  label,
+  showTooltip,
+}: IconButtonProps) {
   return (
     <div className="group-two relative cursor-pointer">
-      {label ? (
+      {showTooltip ? (
         <div className="z-2 absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100">
           <div className="w-fit rounded bg-gray-400 px-4 py-2">
             <label className="whitespace-nowrap font-semibold text-white">
@@ -32,12 +38,13 @@ export default function IconButton({ icon, action, label }: IconButtonProps) {
           </div>
         </div>
       ) : null}
-      <div
+      <button
         className="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
         onClick={action}
+        aria-label={label}
       >
         {icon}
-      </div>
+      </button>
     </div>
   );
 }
