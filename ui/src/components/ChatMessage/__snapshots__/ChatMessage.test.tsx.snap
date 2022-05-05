@@ -391,13 +391,17 @@ exports[`ChatMessage > renders as expected 1`] = `
           class="leading-6"
         >
           <div>
-            <b>
+            <b
+              class="-ml-4"
+            >
               A bold test message 
               <span>
                  
               </span>
             </b>
-            <span>
+            <span
+              class=""
+            >
               with some more text 
             </span>
           </div>

@@ -1,3 +1,4 @@
+import classNames from 'classnames';
 import React from 'react';
 import { ChatMessage, isBold, isItalics, isLink } from '../../types/chat';
 
@@ -18,7 +19,7 @@ export function InlineContent({ content, inlineLength }: InlineContentProps) {
 
         if (typeof contentItem === 'string') {
           return (
-            <span key={key}>
+            <span className={classNames({ '-ml-4': index === 0 })} key={key}>
               {contentItem} {space}
             </span>
           );
@@ -26,7 +27,7 @@ export function InlineContent({ content, inlineLength }: InlineContentProps) {
 
         if (isBold(contentItem)) {
           return (
-            <b key={key}>
+            <b className={classNames({ '-ml-4': index === 0 })} key={key}>
               {contentItem.bold} {space}
             </b>
           );
@@ -34,7 +35,7 @@ export function InlineContent({ content, inlineLength }: InlineContentProps) {
 
         if (isItalics(contentItem)) {
           return (
-            <i key={key}>
+            <i className={classNames({ '-ml-4': index === 0 })} key={key}>
               {contentItem.italics} {space}
             </i>
           );
@@ -43,6 +44,7 @@ export function InlineContent({ content, inlineLength }: InlineContentProps) {
         if (isLink(contentItem)) {
           return (
             <a
+              className={classNames({ '-ml-4': index === 0 })}
               target="_blank"
               rel="noreferrer"
               href={contentItem.href}
@@ -65,7 +67,7 @@ export function BlockContent({ content }: ChatContentProps) {
   return (
     <div>
       {content.block.map((contentItem, index) => (
-        <div key={index} />
+        <div key={index} className={classNames({ '-ml-4': index === 0 })} />
       ))}
     </div>
   );
