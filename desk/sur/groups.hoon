@@ -72,17 +72,36 @@
 ++  cordon
   =<  cordon
   |%
-  +$  type
-    ?(%open %secret %private)
+  ++  open
+    |%
+    +$  ban  [ships=(set ship) ranks=(set rank:title)]
+    +$  diff
+      $%  [%add-ships p=(set ship)]
+          [%del-ships p=(set ship)]
+        ::
+          [%add-ranks p=(set rank:title)]
+          [%del-ranks p=(set rank:title)]
+      ==
+    --
+  ++  shut
+    |%
+    ++  diff
+      $%  [%add-ships p=(set ship)]
+          [%del-ships p=(set ship)]
+      ==
+    --
+  ::
   +$  cordon
-    $%  [%open ~]
-        [%secret ~]
-        [%private ~]
+    $%  [%open =ban:open]
+        [%shut pending=(set ship)]
     ==
+  ::
   +$  diff
-    [%change p=type]
+    $%  [%shut p=diff:shut]
+        [%open p=diff:open]
+        [%swap p=cordon]
+    ==
   --
-    
 +$  diff
   $%  [%fleet p=ship q=diff:fleet]
       [%cabal p=sect q=diff:cabal]

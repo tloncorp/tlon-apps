@@ -83,8 +83,9 @@
       %group-create
     =+  !<(=create:g vase)
     =/  =flag:g  [our.bowl name.create]
+    =|  =cordon:g
     =/  =group:g
-      [~ ~ ~ open/~ title.create description.create image.create] 
+      [~ ~ ~ cordon title.create description.create image.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     go-abet:(go-init:(go-abed:group-core flag) create)
   ::
@@ -305,14 +306,43 @@
     ==
   ++  go-cordon-update
     |=  =diff:cordon:g
-    ^+  go-core
+    |^  ^+  go-core
     =.  cordon.group  
-      ?-  p.diff 
-        %open     [%open ~]
-        %secret   [%secret ~]
-        %private  [%private ~]
+      ?-  -.diff 
+        %open     (open p.diff)
+        %shut     (shut p.diff)
+        %swap     p.diff
       ==
     go-core
+    ::
+    ++  open
+      |=  =diff:open:cordon:g
+      ^-  cordon:g
+      =*  cordon  cordon.group
+      ?>  ?=(%open -.cordon) 
+      ?-  -.diff
+      ::
+          %add-ships  
+        cordon(ships.ban (~(uni in ships.ban.cordon) p.diff))
+      ::
+          %del-ships 
+        cordon(ships.ban (~(dif in ships.ban.cordon) p.diff))
+          %add-ranks
+        cordon(ranks.ban (~(uni in ranks.ban.cordon) p.diff))
+          %del-ranks
+        cordon(ranks.ban (~(dif in ranks.ban.cordon) p.diff))
+      ==
+    ::
+    ++  shut
+      |=  =diff:shut:cordon:g
+      ^-  cordon:g
+      =*  cordon  cordon.group
+      ?>  ?=(%shut -.cordon)
+      ?-  -.diff
+        %add-ships  cordon(pending (~(uni in pending.cordon) p.diff))
+        %del-ships  cordon(pending (~(dif in pending.cordon) p.diff))
+      ==
+    --
   ::
   ++  go-cabal-update
     |=  [=sect:g =diff:cabal:g]

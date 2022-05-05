@@ -42,7 +42,24 @@
   ++  cordon-diff
     |=  d=diff:cordon:g
     %+  frond  -.d
-    s/p.d
+    ?-  -.d
+      %open  (open-cordon-diff p.d)
+      %shut  (shut-cordon-diff p.d)
+      %swap  (cordon p.d)
+    ==
+  ::
+  ++  open-cordon-diff
+    |=  d=diff:open:cordon:g
+    %+  frond  -.d
+    ?-  -.d
+      ?(%add-ships %del-ships)  a/(turn ~(tap in p.d) ship)
+      ?(%add-ranks %del-ranks)  a/(turn ~(tap in p.d) (lead %s))
+    ==
+  ::
+  ++  shut-cordon-diff
+    |=  d=diff:shut:cordon:g
+    %+  frond  -.d
+    a/(turn ~(tap in p.d) ship)
   ::
   ++  channel-diff
     |=  d=diff:channel:g
@@ -161,8 +178,18 @@
   ::
   ++  cordon
     |=  c=cordon:g
+    %+  frond  -.c
+    ?-  -.c
+      %open  (ban-cordon ban.c)
+      %shut  a/(turn ~(tap in pending.c) ship)
+    ==
+  ::
+  ::
+  ++  ban-cordon
+    |=  b=ban:open:cordon:g
     %-  pairs
-    :~  [-.c ~]
+    :~  ships/a/(turn ~(tap in ships.b) ship)
+        ranks/a/(turn ~(tap in ranks.b) (lead %s))
     ==
   ::
   ++  meta
@@ -179,6 +206,7 @@
   |%
   ++  sym  (se %tas)
   ++  ship  (se %p)
+  ++  rank  (su (perk %czar %king %duke %earl %pawn ~))
   ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) ^sym))
   ++  create
     ^-  $-(json create:g)
@@ -211,6 +239,40 @@
     %-  of
     :~  cabal/(ot sect/sym diff/cabal-diff ~)
         fleet/(ot ship/ship diff/fleet-diff ~)
+        cordon/cordon-diff
+    ==
+  ::
+  ++  cordon
+    %-  of
+    :~  open/open-cordon
+        shut/(as ship)
+    ==
+  ::
+  ++  open-cordon
+    %-  ot
+    :~  ships/(as ship)
+        ranks/(as rank)
+    ==
+  ::
+  ++  cordon-diff
+    %-  of
+    :~  open/open-cordon-diff
+        shut/shut-cordon-diff
+        swap/cordon
+    ==
+  ::
+  ++  open-cordon-diff
+    %-  of
+    :~  add-ships/(as ship)
+        del-ships/(as ship)
+        add-ranks/(as rank)
+        del-ranks/(as rank)
+    ==
+  ::
+  ++  shut-cordon-diff
+    %-  of
+    :~  add-ships/(as ship)
+        del-ships/(as ship)
     ==
   ::
   ++  fleet-diff
