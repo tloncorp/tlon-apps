@@ -1,4 +1,13 @@
+import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
+
+/**
+ * Processes a string to make it `@tas` compatible 
+ */
+export function strToSym(str: string): string {
+  const ascii = anyAscii(str);
+  return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
+}
 
 export function makePrettyDay(date: Date) {
   const diff = differenceInDays(new Date(), date);

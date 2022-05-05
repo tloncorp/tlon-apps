@@ -30,6 +30,7 @@
     "@tloncorp/mock-http-api": "^1.1.2",
     "@urbit/api": "^2.1.0",
     "@urbit/http-api": "^2.1.0",
+    "any-ascii": "^0.3.1",
     "big-integer": "^1.6.51",
     "classnames": "^2.3.1",
     "date-fns": "^2.28.0",

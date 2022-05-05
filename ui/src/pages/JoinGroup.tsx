@@ -1,6 +1,5 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import api from '../api';
 import { useModalNavigate } from '../hooks/routing';
 import { useGroupState } from '../state/groups';
 

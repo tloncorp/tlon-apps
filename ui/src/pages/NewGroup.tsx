@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { useGroupState } from '../state/groups';
 import MetadataForm from '../components/MetadataForm/MetadataForm';
+import {strToSym} from '../utils';
 
 interface FormSchema {
   title: string;
@@ -18,8 +19,9 @@ export default function NewGroup() {
   };
   const { handleSubmit, register } = useForm<FormSchema>({ defaultValues });
   const onSubmit = async (values: FormSchema) => {
-    await useGroupState.getState().create({ ...values, name: values.title });
-    const flag = `${window.our}/${values.title}`;
+    const name = strToSym(values.title);
+    await useGroupState.getState().create({ ...values, name });
+    const flag = `${window.our}/${name}`;
     navigate(`/groups/${flag}`);
   };
   return (
