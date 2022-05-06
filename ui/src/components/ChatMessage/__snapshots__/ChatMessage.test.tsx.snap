@@ -6,7 +6,7 @@ exports[`ChatMessage > renders as expected 1`] = `
     class="flex flex-col"
   >
     <div
-      class="flex w-full items-center pb-1 pt-3"
+      class="flex w-full items-center py-4"
     >
       <div
         class="h-[2px] w-8 rounded-sm bg-gray-200"
