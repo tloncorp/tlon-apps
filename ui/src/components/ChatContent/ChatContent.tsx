@@ -48,8 +48,13 @@ export function InlineContent({ content }: InlineContentProps) {
   }
 
   if (isLink(content)) {
+    const containsProtocol = content.link.href.match(/https?:\/\//);
     return (
-      <a target="_blank" rel="noreferrer" href={content.link.href}>
+      <a
+        target="_blank"
+        rel="noreferrer"
+        href={containsProtocol ? content.link.href : `//${content.link.href}`}
+      >
         {content.link.content || content.link.href}
       </a>
     );

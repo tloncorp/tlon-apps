@@ -70,6 +70,15 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
       throw new Error('Unsure what this is');
     }
 
+    if (first.type === 'link' && first.attrs) {
+      return {
+        link: {
+          href: first.attrs.href,
+          content: json.text || first.attrs.href,
+        },
+      };
+    }
+
     return {
       [convertMarkType(first.type)]: parseTipTapJSON(json),
     } as unknown as ChatInline;

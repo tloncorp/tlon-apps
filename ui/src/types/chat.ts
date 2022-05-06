@@ -75,7 +75,7 @@ export function isItalics(item: unknown): item is Italics {
 }
 
 export function isLink(item: unknown): item is Link {
-  return typeof item === 'object' && item !== null && 'href' in item;
+  return typeof item === 'object' && item !== null && 'link' in item;
 }
 
 export function isStrikethrough(item: unknown): item is Strikethrough {

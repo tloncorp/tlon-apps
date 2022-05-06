@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import isURL from 'validator/es/lib/isURL';
 import { useForm } from 'react-hook-form';
 import BlockquoteIcon from '../icons/BlockquoteIcon';
 import BoldIcon from '../icons/BoldIcon';
@@ -14,7 +15,6 @@ import CodeIcon from '../icons/CodeIcon';
 import ItalicIcon from '../icons/ItalicIcon';
 import LinkIcon from '../icons/LinkIcon';
 import StrikeIcon from '../icons/StrikeIcon';
-import XIcon from '../icons/XIcon';
 import ChatInputMenuButton from './ChatInputMenuButton';
 
 interface ChatInputMenuProps {
@@ -33,9 +33,12 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     () => ['bold', 'italic', 'strike', 'link', 'blockquote', 'code'],
     []
   );
-  const { register, handleSubmit } = useForm<LinkEditorForm>();
+  const { register, handleSubmit, formState } = useForm<LinkEditorForm>({
+    mode: 'onChange',
+  });
 
   const onSelection = useCallback(() => {
+    setSelected(-1);
     setEditingLink(false);
   }, []);
 
@@ -65,7 +68,13 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
   const setLink = useCallback(
     ({ url }: LinkEditorForm) => {
       if (url === '') {
-        editor.chain().focus().extendMarkRange('link').unsetLink().run();
+        editor
+          .chain()
+          .focus()
+          .extendMarkRange('link')
+          .unsetLink()
+          .focus()
+          .run();
       } else {
         editor
           .chain()
@@ -80,11 +89,6 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     [editor]
   );
 
-  const closeLinkEditor = useCallback(() => {
-    editor.commands.focus();
-    setEditingLink(false);
-  }, [editor]);
-
   const onNavigation = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key === 'Escape') {
@@ -96,7 +100,8 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
             .run();
           setSelected(-1);
         } else {
-          closeLinkEditor();
+          editor.commands.focus();
+          setEditingLink(false);
         }
       }
 
@@ -109,14 +114,14 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         setSelected((total + selected - 1) % total);
       }
     },
-    [selected, options, editingLink, editor, closeLinkEditor]
+    [selected, options, editingLink, editor]
   );
 
   return (
     <BubbleMenu editor={editor}>
       <div
         ref={toolbarRef}
-        className="default-focus m-2 rounded-md bg-white shadow-lg"
+        className="default-focus rounded-md bg-white shadow-lg"
         role="toolbar"
         tabIndex={0}
         aria-label="Text Formatting Menu"
@@ -131,8 +136,10 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
               Enter a url
             </label>
             <input
-              type="url"
-              {...register('url')}
+              type="text"
+              {...register('url', {
+                validate: (value) => value === '' || isURL(value),
+              })}
               defaultValue={editor.getAttributes('link').href || ''}
               autoFocus
               placeholder="Enter URL"
@@ -140,16 +147,10 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
             />
             <button
               type="submit"
-              className="button bg-gray-100 py-0.5 px-1.5 text-sm leading-4 text-gray-600 hover:bg-gray-200"
+              className="button bg-transparent py-0.5 px-1.5 text-sm font-medium leading-4 text-gray-800 hover:bg-transparent hover:ring-2 disabled:bg-transparent disabled:text-gray-400"
+              disabled={!formState.isValid}
             >
-              save
-            </button>
-            <button
-              type="button"
-              className="icon-button bg h-5 w-5"
-              onClick={closeLinkEditor}
-            >
-              <XIcon className="h-4 w-4" />
+              Done
             </button>
           </form>
         ) : (
