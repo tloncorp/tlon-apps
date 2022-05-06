@@ -19,7 +19,7 @@ export function InlineContent({ content, inlineLength }: InlineContentProps) {
 
         if (typeof contentItem === 'string') {
           return (
-            <span className={classNames({ '-ml-4': index === 0 })} key={key}>
+            <span key={key}>
               {contentItem} {space}
             </span>
           );
@@ -27,7 +27,7 @@ export function InlineContent({ content, inlineLength }: InlineContentProps) {
 
         if (isBold(contentItem)) {
           return (
-            <b className={classNames({ '-ml-4': index === 0 })} key={key}>
+            <b key={key}>
               {contentItem.bold} {space}
             </b>
           );
@@ -35,7 +35,7 @@ export function InlineContent({ content, inlineLength }: InlineContentProps) {
 
         if (isItalics(contentItem)) {
           return (
-            <i className={classNames({ '-ml-4': index === 0 })} key={key}>
+            <i key={key}>
               {contentItem.italics} {space}
             </i>
           );
@@ -44,7 +44,6 @@ export function InlineContent({ content, inlineLength }: InlineContentProps) {
         if (isLink(contentItem)) {
           return (
             <a
-              className={classNames({ '-ml-4': index === 0 })}
               target="_blank"
               rel="noreferrer"
               href={contentItem.href}
@@ -67,7 +66,7 @@ export function BlockContent({ content }: ChatContentProps) {
   return (
     <div>
       {content.block.map((contentItem, index) => (
-        <div key={index} className={classNames({ '-ml-4': index === 0 })} />
+        <div key={index} />
       ))}
     </div>
   );
