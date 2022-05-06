@@ -13,7 +13,7 @@ export default function Author({ ship, date }: AuthorProps) {
   return (
     <div className="align-center group flex items-center space-x-3 py-1">
       <ShipImage ship={ship} />
-      <span className="text-md pl-1 font-semibold">{ship}</span>
+      <span className="text-md font-semibold">{ship}</span>
       <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
         {prettyDayAndDateAndTime}
       </span>
