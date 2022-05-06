@@ -268,7 +268,7 @@ exports[`ChatMessage > renders as expected 1`] = `
             <svg
               class="text-gray-400"
               fill="none"
-              viewBox="0 0 16 18"
+              viewBox="0 0 18 18"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path

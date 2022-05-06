@@ -5,7 +5,7 @@ export default function HashIcon({ className }: IconProps) {
   return (
     <svg
       className={className}
-      viewBox="0 0 16 18"
+      viewBox="0 0 18 18"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
