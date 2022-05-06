@@ -17,7 +17,7 @@ export default function IconButton({
     <div className="group-two relative cursor-pointer">
       {showTooltip ? (
         <div className="z-2 absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100">
-          <div className="w-fit rounded bg-gray-400 px-4 py-2">
+          <div className="hidden w-fit cursor-none rounded bg-gray-400 px-4 py-2 group-two-hover:block">
             <label className="whitespace-nowrap font-semibold text-white">
               {label}
             </label>
