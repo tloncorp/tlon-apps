@@ -1,4 +1,3 @@
-import classNames from 'classnames';
 import React from 'react';
 import { ChatMessage, isBold, isItalics, isLink } from '../../types/chat';
 
