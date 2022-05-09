@@ -24,7 +24,7 @@ function SidebarRow(props: {
   const { children, className = '' } = props;
   return (
     <li className={cn('flex space-x-2 p-2', className)}>
-      <div className="h-6 w-6 rounded border" />
+      <div className="h-6 w-6 rounded border border-black" />
       {typeof children === 'string' ? <div>{children}</div> : children}
     </li>
   );
@@ -45,7 +45,7 @@ function Divider(props: { title: string }) {
   return (
     <div className="flex items-center space-x-2 p-2">
       <div>{title}</div>
-      <div className="grow border-b" />
+      <div className="grow border-b border-black" />
     </div>
   );
 }
@@ -61,7 +61,7 @@ function App() {
   return (
     <Router basename={IS_MOCK ? '/' : '/apps/homestead'}>
       <div className="flex h-full w-full">
-        <ul className="h-full w-56 border-r p-2">
+        <ul className="h-full w-56 border-r border-black p-2">
           <SidebarRow>Groups</SidebarRow>
           <SidebarRow>Profile</SidebarRow>
           <SidebarRow>

@@ -7,6 +7,7 @@ import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
 import DateDivider from './DateDivider';
+import ChatMessageOptions from './ChatMessageOptions';
 
 interface ChatMessageProps {
   writ: ChatWrit;
@@ -27,11 +28,12 @@ export default function ChatMessage({
     <div className="flex flex-col">
       {newDay ? <DateDivider date={time} /> : null}
       {newAuthor ? <Author ship={memo.author} date={time} /> : null}
-      <div className="group flex space-x-3">
-        <div className="py-2 text-xs font-semibold text-gray-400 opacity-0 group-hover:opacity-100">
+      <div className="group-one relative z-0 flex">
+        <ChatMessageOptions />
+        <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
           {format(time, 'HH:mm')}
         </div>
-        <div className="flex flex-col space-y-2 px-2 py-1">
+        <div className="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50">
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
         </div>

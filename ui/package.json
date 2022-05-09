@@ -24,7 +24,10 @@
     "build-storybook": "build-storybook"
   },
   "lint-staged": {
-  "*.{js,jsx,ts,tsx,css}": ["eslint src/", "prettier src/ --write"]
+    "*.{js,jsx,ts,tsx}": [
+      "eslint src/",
+      "prettier src/ --write"
+    ]
   },
   "dependencies": {
     "@tiptap/react": "^2.0.0-beta.108",
@@ -39,10 +42,11 @@
     "formik": "^2.2.9",
     "immer": "^9.0.12",
     "lodash": "^4.17.21",
-    "react-router": "^6.3.0",
-    "react-router-dom": "^6.3.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
+    "react-router": "^6.3.0",
+    "react-router-dom": "^6.3.0",
+    "tailwindcss-scoped-groups": "^2.0.0",
     "zustand": "^3.7.2"
   },
   "devDependencies": {
@@ -95,7 +99,7 @@
     "prettier-plugin-tailwindcss": "^0.1.10",
     "react-test-renderer": "^17.0.2",
     "tailwindcss": "^3.0.23",
-    "tailwindcss-theming": "^3.0.0-beta.3",
+    "tailwindcss-theme-swapper": "^0.6.2",
     "typescript": "^4.6.3",
     "vite": "^2.9.1",
     "vitest": "^0.9.3"
