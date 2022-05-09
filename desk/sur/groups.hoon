@@ -94,6 +94,7 @@
   +$  cordon
     $%  [%shut pending=(set ship)]
         [%open =ban:open]
+        [%afar app=flag =path desc=@t]
     ==
   ::
   +$  diff
@@ -152,6 +153,7 @@
 ::  TODO: finish
 +$  preview  
   $:  =meta
+      =cordon
       =time
   ==
 ::

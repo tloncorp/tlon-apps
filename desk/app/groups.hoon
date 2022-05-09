@@ -192,7 +192,8 @@
   ::
   ++  go-preview
     =/  =preview:g
-      [meta.group now.bowl]
+      =,  group
+      [meta cordon now.bowl]
     =.  cor
       (emit %give %fact ~ group-preview+!>(preview))
     =.  cor

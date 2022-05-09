@@ -19,6 +19,7 @@
     %-  pairs
     :~  time+(time time.p)
         meta+(meta meta.p)
+        cordon+(cordon cordon.p)
     ==
   ::
   ++  update
@@ -182,8 +183,16 @@
     ?-  -.c
       %open  (ban-cordon ban.c)
       %shut  a/(turn ~(tap in pending.c) ship)
+      %afar  (afar-cordon +.c)
     ==
   ::
+  ++  afar-cordon
+    |=  [app=flag:g pax=^path desc=@t]
+    %-  pairs
+    :~  app/s/(flag app)
+        path/s/(spat pax)
+        desc/s/desc
+    ==
   ::
   ++  ban-cordon
     |=  b=ban:open:cordon:g
