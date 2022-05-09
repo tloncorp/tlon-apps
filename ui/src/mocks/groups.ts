@@ -66,6 +66,13 @@ export const mockGangs: Gangs = {
       'join-all': true,
     },
     preview: {
+      cordon: {
+        afar: {
+          app: '~zod/eth-verify',
+          path: '/x/can-join/',
+          desc: 'This group requires a'
+        }
+      },
       meta: {
         title: 'Structure',
         description:

@@ -93,8 +93,8 @@
   ::
   +$  cordon
     $%  [%shut pending=(set ship)]
+        [%afar =flag =path desc=@t]
         [%open =ban:open]
-        [%afar app=flag =path desc=@t]
     ==
   ::
   +$  diff

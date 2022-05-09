@@ -8,6 +8,7 @@ import { JoinProgress } from '../types/groups';
 import GangName from '../components/GangName/GangName';
 import GangPreview from '../components/GangPreview/GangPreview';
 import { ModalLocationState, useDismissNavigate } from '../hooks/routing';
+import { JoinGroup } from '../components/JoinGroup';
 
 function progressDescription(progress: JoinProgress) {
   switch (progress) {
@@ -80,15 +81,7 @@ export default function Gang() {
           <p className="text-gray-600">{progressDescription(claim.progress)}</p>
         </div>
       ) : (
-        <div className="flex flex-col space-y-3 rounded border p-2">
-          <button
-            type="button"
-            onClick={onJoin}
-            className="rounded bg-blue p-2 text-white"
-          >
-            Join Group
-          </button>
-        </div>
+        <JoinGroup flag={flag} />
       )}
     </div>
   );

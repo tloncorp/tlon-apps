@@ -132,7 +132,15 @@ export interface ShutCordon {
   shut: string[];
 }
 
-export type Cordon = OpenCordon | ShutCordon;
+export interface AfarCordon {
+  afar: {
+    app: string;
+    path: string;
+    desc: string;
+  }
+}
+
+export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 
 interface CordonDiff {
   cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };
@@ -165,6 +173,7 @@ export interface Groups {
 
 export interface GroupPreview {
   meta: GroupMeta;
+  cordon: Cordon;
 }
 
 export interface Invite {
