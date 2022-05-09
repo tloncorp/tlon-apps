@@ -8,6 +8,7 @@ import {
   isInlineCode,
   isItalics,
   isLink,
+  isStrikethrough,
 } from '../../types/chat';
 
 interface ChatContentProps {
@@ -44,6 +45,18 @@ export function InlineContent({ content }: InlineContentProps) {
           content.italics
         )}
       </em>
+    );
+  }
+
+  if (isStrikethrough(content)) {
+    return (
+      <span className="line-through">
+        {typeof content.strike === 'object' ? (
+          <InlineContent content={content.strike} />
+        ) : (
+          content.strike
+        )}
+      </span>
     );
   }
 
