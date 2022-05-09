@@ -4,14 +4,12 @@ import {
   isTextSelection,
   posToDOMRect,
 } from '@tiptap/react';
-import { Selection } from 'prosemirror-state';
 import { Editor as CoreEditor } from '@tiptap/core';
 import * as Popover from '@radix-ui/react-popover';
 import React, {
   KeyboardEvent,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -35,15 +33,13 @@ interface LinkEditorForm {
 
 type MenuState = 'closed' | 'open' | 'editing-link' | 'link-hover';
 
+const options = ['bold', 'italic', 'strike', 'link', 'blockquote', 'code'];
+
 export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(-1);
   const [selectionPos, setSelectionPos] = useState<DOMRect>();
   const [status, setStatus] = useState<MenuState>('closed');
-  const options = useMemo(
-    () => ['bold', 'italic', 'strike', 'link', 'blockquote', 'code'],
-    []
-  );
   const { register, handleSubmit, formState } = useForm<LinkEditorForm>({
     mode: 'onChange',
   });
@@ -99,7 +95,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
 
       return options[selected] === key;
     },
-    [selected, options]
+    [selected]
   );
 
   const openLinkEditor = useCallback(() => {
@@ -146,7 +142,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         setSelected((total + selected - 1) % total);
       }
     },
-    [selected, options, status, editor]
+    [selected, status, editor]
   );
 
   return (
