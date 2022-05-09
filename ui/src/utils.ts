@@ -1,8 +1,23 @@
 import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
+import { Rank } from './types/groups';
+
+export function renderRank(rank: Rank, plural = false) {
+  if (rank === 'czar') {
+    return plural ? 'Galaxies' : 'Galaxy';
+  } else if (rank === 'king') {
+    return plural ? 'Stars' : 'Star';
+  } else if (rank === 'duke') {
+    return plural ? 'Planets' : 'Planet';
+  } else if (rank === 'earl') {
+    return plural ? 'Moons' : 'Moon';
+  } else {
+    return plural ? 'Comets' : 'Comet';
+  }
+}
 
 /**
- * Processes a string to make it `@tas` compatible 
+ * Processes a string to make it `@tas` compatible
  */
 export function strToSym(str: string): string {
   const ascii = anyAscii(str);

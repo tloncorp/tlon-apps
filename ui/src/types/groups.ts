@@ -1,3 +1,7 @@
+
+export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
+export type Rank = typeof allRanks[number];
+
 export interface GroupMeta {
   title: string;
   description: string;
@@ -27,7 +31,7 @@ export interface Group {
   channels: {
     [flag: string]: Channel;
   };
-  cordon: unknown;
+  cordon: Cordon;
   meta: GroupMeta;
 }
 
@@ -116,18 +120,19 @@ interface CordonDiffShutDelShips {
 interface CordonDiffShut {
   shut: CordonDiffShutAddShips | CordonDiffShutDelShips;
 }
-interface OpenCordon {
+
+export interface OpenCordon {
   open: {
     ships: string[];
     ranks: string[];
   };
 }
 
-interface ShutCordon {
+export interface ShutCordon {
   shut: string[];
 }
 
-type Cordon = OpenCordon | ShutCordon;
+export type Cordon = OpenCordon | ShutCordon;
 
 interface CordonDiff {
   cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };

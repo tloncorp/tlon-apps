@@ -26,6 +26,7 @@ import { IS_MOCK } from './api';
 import Gang, { GangModal } from './pages/Gang';
 import GangName from './components/GangName/GangName';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
+import Policy from './pages/Policy';
 
 function SidebarRow(props: {
   className?: string;
@@ -103,7 +104,7 @@ function App() {
         {groups.map((flag) => (
           <GroupItem key={flag} flag={flag} />
         ))}
-        <Divider title="Pending" />
+        {gangs.length > 0 ? <Divider title="Pending" /> : null}
         {gangs.map((flag) => (
           <GangItem key={flag} flag={flag} />
         ))}
@@ -115,6 +116,7 @@ function App() {
         <Route path="/groups/:ship/:name" element={<Groups />}>
           <Route path="members" element={<Members />} />
           <Route path="roles" element={<Roles />} />
+          <Route path="policy" element={<Policy />} />
           <Route path="channels/:app/:chShip/:chName" element={<Channel />} />
           <Route
             path="channels/:app/:chShip/:chName/settings"

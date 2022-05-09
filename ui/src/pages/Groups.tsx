@@ -92,7 +92,7 @@ function Groups() {
           <NavLink to={`/groups/${flag}/roles`}>Roles</NavLink>
         </SidebarRow>
         <SidebarRow>
-          <NavLink to={`/groups/${flag}/roles`}>Roles</NavLink>
+          <NavLink to={`/groups/${flag}/policy`}>Policy</NavLink>
         </SidebarRow>
 
         <Divider title="Channels" />

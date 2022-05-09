@@ -10,6 +10,7 @@ import {
   Groups,
   GroupUpdate,
   GroupAction,
+  Rank,
 } from '../types/groups';
 import api from '../api';
 
@@ -36,6 +37,8 @@ interface GroupState {
   gangs: Gangs;
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
+  banRanks: (flag: string, ranks: Rank[]) => Promise<void>;
+  unbanRanks: (flag: string, ranks: Rank[]) => Promise<void>;
   addSects: (flag: string, ship: string, sects: string[]) => Promise<void>;
   addRole: (
     flag: string,
@@ -57,6 +60,28 @@ interface GroupState {
 export const useGroupState = create<GroupState>((set, get) => ({
   groups: {},
   gangs: {},
+  banRanks: async (flag, ranks) => {
+    await api.poke(
+      groupAction(flag, {
+        cordon: {
+          open: {
+            'add-ranks': ranks,
+          },
+        },
+      })
+    );
+  },
+  unbanRanks: async (flag, ranks) => {
+    await api.poke(
+      groupAction(flag, {
+        cordon: {
+          open: {
+            'del-ranks': ranks,
+          },
+        },
+      })
+    );
+  },
   search: async (flag) => {
     try {
       const res = await api.subscribeOnce('groups', `/gangs/${flag}/preview`);
