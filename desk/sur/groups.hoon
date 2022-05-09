@@ -92,8 +92,8 @@
     --
   ::
   +$  cordon
-    $%  [%open =ban:open]
-        [%shut pending=(set ship)]
+    $%  [%shut pending=(set ship)]
+        [%open =ban:open]
     ==
   ::
   +$  diff
