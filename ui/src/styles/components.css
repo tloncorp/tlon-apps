@@ -20,7 +20,7 @@
 }
 
 .input-inner {
-  @apply bg-transparent;
+  @apply bg-transparent py-1 px-2 text-lg leading-5 focus:outline-none sm:text-base sm:leading-5;
 }
 
 /* Placeholder (at the top) */

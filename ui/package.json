@@ -23,6 +23,7 @@
     "build-storybook": "build-storybook"
   },
   "dependencies": {
+    "@radix-ui/react-popover": "^0.1.6",
     "@tiptap/extension-blockquote": "^2.0.0-beta.26",
     "@tiptap/extension-bold": "^2.0.0-beta.26",
     "@tiptap/extension-code": "^2.0.0-beta.26",

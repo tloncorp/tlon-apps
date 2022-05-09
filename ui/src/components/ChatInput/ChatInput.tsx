@@ -97,7 +97,10 @@ export default function ChatInput(props: ChatInputProps) {
   const { flag } = props;
   const onSubmit = useCallback(
     (editor: Editor) => {
-      console.log(editor?.getJSON());
+      if (!editor.getText()) {
+        return;
+      }
+
       const data = parseTipTapJSON(editor?.getJSON());
       const memo: ChatMemo = {
         replying: null,
@@ -108,7 +111,6 @@ export default function ChatInput(props: ChatInputProps) {
           block: [],
         },
       };
-      console.log(memo.content);
       useChatState.getState().sendMessage(flag, memo);
       editor?.commands.setContent('');
     },

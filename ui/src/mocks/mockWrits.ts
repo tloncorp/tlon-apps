@@ -4,7 +4,7 @@ import { ChatWrit } from '../types/chat';
 const chatWrits: ChatWrit[] = [
   makeChatWrit(1, '~hastuc-dibtux', {
     block: [],
-    inline: [{ bold: 'A bold test message' }, 'with some more text'],
+    inline: [{ bold: 'A bold test message' }, ' with some more text'],
   }),
   makeChatWrit(2, '~finned-palmer', {
     block: [],
@@ -17,7 +17,7 @@ const chatWrits: ChatWrit[] = [
       block: [],
       inline: [
         { italics: 'An italicized test message' },
-        'with a link:',
+        ' with a link:',
         { link: { href: 'https://urbit.org', content: '' } },
       ],
     },
