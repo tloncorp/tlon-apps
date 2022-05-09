@@ -51,7 +51,7 @@ export function useMessageEditor({
     extensions: [
       Blockquote,
       Bold,
-      Code,
+      Code.extend({ excludes: null }),
       Document,
       HardBreak,
       Italic,

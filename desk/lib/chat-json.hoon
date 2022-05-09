@@ -56,10 +56,10 @@
         %break
       ~
     ::
-        ?(%italics %bold %strike)
+        ?(%italics %bold %strike %inline-code)
       (inline p.i)
     ::
-        ?(%inline-code %code %tag)
+        ?(%code %tag)
       s+p.i
     ::
         %blockquote
@@ -167,7 +167,7 @@
     :~  italics/inline
         bold/inline
         strike/inline
-        inline-code/so
+        inline-code/inline
         code/so
         blockquote/(ar inline)
         tag/so

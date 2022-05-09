@@ -86,7 +86,15 @@ export function InlineContent({ content }: InlineContentProps) {
   }
 
   if (isInlineCode(content)) {
-    return <code>{content['inline-code']}</code>;
+    return (
+      <code>
+        {typeof content['inline-code'] === 'object' ? (
+          <InlineContent content={content['inline-code']} />
+        ) : (
+          content['inline-code']
+        )}
+      </code>
+    );
   }
 
   if (isBreak(content)) {
