@@ -5,15 +5,17 @@ import { Rank } from './types/groups';
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
     return plural ? 'Galaxies' : 'Galaxy';
-  } else if (rank === 'king') {
-    return plural ? 'Stars' : 'Star';
-  } else if (rank === 'duke') {
-    return plural ? 'Planets' : 'Planet';
-  } else if (rank === 'earl') {
-    return plural ? 'Moons' : 'Moon';
-  } else {
-    return plural ? 'Comets' : 'Comet';
   }
+  if (rank === 'king') {
+    return plural ? 'Stars' : 'Star';
+  }
+  if (rank === 'duke') {
+    return plural ? 'Planets' : 'Planet';
+  }
+  if (rank === 'earl') {
+    return plural ? 'Moons' : 'Moon';
+  }
+  return plural ? 'Comets' : 'Comet';
 }
 
 /**

@@ -9,8 +9,8 @@ function RankPerm(props: { rank: Rank; flag: string; cordon: OpenCordon }) {
   const isBanned = banned.includes(rank);
   const [checked, setChecked] = useState(isBanned);
   const onChange = () => {
-    let state = useGroupState.getState();
-    let func = checked ? state.unbanRanks : state.banRanks;
+    const state = useGroupState.getState();
+    const func = checked ? state.unbanRanks : state.banRanks;
     func(flag, [rank]);
     setChecked((s) => !s);
   };
@@ -43,7 +43,7 @@ function OpenPolicy(props: { flag: string; cordon: OpenCordon }) {
         ) : (
           <div>No ships are currently banned</div>
         )}
-        <div></div>
+        <div />
       </div>
       <div className="space-y-2">
         <h4 className="font-bold">Banned Ranks</h4>

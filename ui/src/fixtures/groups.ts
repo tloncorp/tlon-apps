@@ -13,7 +13,12 @@ const mockGroupOne: Group = {
       },
     },
   },
-  cordon: {},
+  cordon: {
+    open: {
+      ranks: ['czar'],
+      ships: ['~bus'],
+    },
+  },
   meta: {
     title: 'Tlon Corporation',
     description:
@@ -34,7 +39,12 @@ const mockGroupTwo: Group = {
       },
     },
   },
-  cordon: {},
+  cordon: {
+    open: {
+      ranks: ['czar'],
+      ships: ['~bus'],
+    },
+  },
   meta: {
     title: 'remco',
     description: 'The urbit group for remilia, a digital art collective',

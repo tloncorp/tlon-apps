@@ -8,7 +8,7 @@ import { JoinProgress } from '../types/groups';
 import GangName from '../components/GangName/GangName';
 import GangPreview from '../components/GangPreview/GangPreview';
 import { ModalLocationState, useDismissNavigate } from '../hooks/routing';
-import { JoinGroup } from '../components/JoinGroup';
+import JoinGroup from '../components/JoinGroup';
 
 function progressDescription(progress: JoinProgress) {
   switch (progress) {

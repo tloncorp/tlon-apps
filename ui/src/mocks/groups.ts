@@ -22,7 +22,12 @@ const mockGroupOne: Group = {
       },
     },
   },
-  cordon: {},
+  cordon: {
+    open: {
+      ranks: ['czar'],
+      ships: ['~bus'],
+    },
+  },
   meta: {
     title: 'Tlon Corporation',
     description:
@@ -43,7 +48,12 @@ const mockGroupTwo: Group = {
       },
     },
   },
-  cordon: {},
+  cordon: {
+    open: {
+      ranks: ['czar'],
+      ships: ['~bus'],
+    },
+  },
   meta: {
     title: 'remco',
     description: 'The urbit group for remilia, a digital art collective',
@@ -70,8 +80,8 @@ export const mockGangs: Gangs = {
         afar: {
           app: '~zod/eth-verify',
           path: '/x/can-join/',
-          desc: 'This group requires a'
-        }
+          desc: 'This group requires a',
+        },
       },
       meta: {
         title: 'Structure',

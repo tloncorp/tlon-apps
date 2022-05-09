@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGang, useGroupState } from '../state/groups';
 
-export function JoinGroup(props: { flag: string; }) {
+export default function JoinGroup(props: { flag: string }) {
   const { flag } = props;
   const gang = useGang(flag);
   const onJoin = () => {
@@ -10,8 +10,8 @@ export function JoinGroup(props: { flag: string; }) {
   const onRequest = () => {
     console.warn('unimplemented');
   };
-  const cordon = gang.preview?.cordon
-  if(!cordon) {
+  const cordon = gang.preview?.cordon;
+  if (!cordon) {
     return null;
   }
   return (

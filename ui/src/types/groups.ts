@@ -1,4 +1,3 @@
-
 export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
 export type Rank = typeof allRanks[number];
 
@@ -20,6 +19,27 @@ export interface Vessel {
   sects: string[];
   joined: number;
 }
+
+export interface OpenCordon {
+  open: {
+    ships: string[];
+    ranks: string[];
+  };
+}
+
+export interface ShutCordon {
+  shut: string[];
+}
+
+export interface AfarCordon {
+  afar: {
+    app: string;
+    path: string;
+    desc: string;
+  };
+}
+
+export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 
 export interface Group {
   fleet: {
@@ -120,27 +140,6 @@ interface CordonDiffShutDelShips {
 interface CordonDiffShut {
   shut: CordonDiffShutAddShips | CordonDiffShutDelShips;
 }
-
-export interface OpenCordon {
-  open: {
-    ships: string[];
-    ranks: string[];
-  };
-}
-
-export interface ShutCordon {
-  shut: string[];
-}
-
-export interface AfarCordon {
-  afar: {
-    app: string;
-    path: string;
-    desc: string;
-  }
-}
-
-export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 
 interface CordonDiff {
   cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };
