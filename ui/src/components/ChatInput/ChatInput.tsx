@@ -24,7 +24,6 @@ function convertMarkType(type: string): string {
 // this will be replaced with more sophisticated logic based on
 // what we decide will be the message format
 function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
-  debugger;
   if (json.content) {
     if (json.content.length === 1) {
       if (json.type === 'blockquote') {

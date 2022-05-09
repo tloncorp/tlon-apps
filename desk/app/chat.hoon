@@ -1,10 +1,10 @@
-/-  c=chat
+/-  c=chat, g=groups
 /+  default-agent, verb, dbug
+/+  chat-json
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
-  +$  resource  (pair ship term)
   ++  def-flag  `flag:c`[~zod %test]
   +$  state-0
     $:  %0
@@ -23,7 +23,7 @@
   ++  on-init  
     ^-  (quip card _this)
     =^  cards  state
-      abet:(poke:cor flag+!>(def-flag))
+      abet:init:cor
     [cards this]
   ::
   ++  on-save  !>(state)
@@ -78,15 +78,26 @@
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  init
+  ^+  cor
+  watch-groups
+::
+++  watch-groups
+  ^+  cor
+  (emit %pass /groups %agent [our.bowl %groups] %watch /groups)
+::
 ++  poke
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
       %flag
     =+  !<(=flag:c vase)
-    ?.  =(our.bowl p.flag)
-      (join flag)
-    (create flag)
+    ?<  =(our.bowl p.flag)
+    (join flag)
+  ::
+      %chat-create
+    =+  !<(req=create:c vase)
+    (create req)
   ::
       %chat-action
     =+  !<(=action:c vase)
@@ -108,12 +119,15 @@
     ca-abet:(ca-join:ca-core flag)
   ::
   ++  create
-    |=  =flag:c
+    |=  req=create:c
     ^+  cor
+    =/  =flag:c  [our.bowl name.req]
     =|  =chat:c
+    =/  =perm:c  [~ group.req]
+    =.  perm.chat  perm
     =.  net.chat  [%pub ~]
     =.  chats  (~(put by chats) flag chat)
-    cor  :: TODO: emit facts
+    ca-abet:(ca-init:(ca-abed:ca-core flag) req)
   --
 ++  watch
   |=  =path
@@ -135,6 +149,53 @@
     =/  =ship  (slav %p i.t.wire)
     =*  name   i.t.t.wire
     ca-abet:(ca-agent:(ca-abed:ca-core ship name) t.t.t.wire sign)
+  ::
+      [%groups ~]
+    ?+    -.sign  !!
+      %kick  watch-groups
+    ::
+        %watch-ack
+      %.  cor
+      ?~  p.sign  same
+      =/  =tank
+        leaf/"Failed groups subscription in {<dap.bowl>}, unexpected"
+      (slog tank u.p.sign)
+    ::
+        %fact
+      ?.  =(%group-action p.cage.sign)  cor
+      (take-groups !<(=action:g q.cage.sign))
+    ==
+  ==
+::  TODO: more efficient?
+::    perhaps a cached index of (jug group=flag chat=flag)
+++  take-groups
+  |=  =action:g
+  =/  affected=(list flag:c)
+    %+  murn  ~(tap by chats)
+    |=  [=flag:c =chat:c]
+    ?.  =(p.action group.perm.chat)  ~
+    `flag
+  ?+    q.q.action  cor
+      [%fleet @ %del ~]
+    ~&  'revoke perms for'
+    %+  roll  affected
+    |=  [=flag:c co=_cor]
+    =/  ca  (ca-abed:ca-core:co flag)
+    ca-abet:(ca-revoke:ca p.q.q.action)
+  ::
+      [%fleet @ %del-sects *]
+    ~&  'recheck permissions'
+    %+  roll  affected
+    |=  [=flag:c co=_cor]
+    =/  ca  (ca-abed:ca-core:co flag)
+    ca-abet:ca-recheck:ca
+  ::
+      [%channel * %del-sects *]
+    ~&  'recheck permissions'
+    %+  roll  affected
+    |=  [=flag:c co=_cor]
+    =/  ca  (ca-abed:ca-core:co flag)
+    ca-abet:ca-recheck:ca
   ==
 ::
 ++  arvo
@@ -144,7 +205,6 @@
   cor
 ++  peek
   |=  =path
-  ~&  path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
   ::
@@ -156,23 +216,51 @@
     (ca-peek:(ca-abed:ca-core ship name) t.t.t.t.path)
   ==
 ::
+++  from-self  =(our src):bowl
+::
 ++  ca-core
-  |_  [=flag:c =chat:c]
+  |_  [=flag:c =chat:c gone=_|]
   ++  ca-core  .
+  ::  TODO: archive??
   ++  ca-abet  
-    cor(chats (~(put by chats) flag chat))
+    %_  cor
+        chats  
+      ?:(gone (~(del by chats) flag) (~(put by chats) flag chat))
+    ==
   ++  ca-abed
-    |=  r=resource
-    ca-core(flag r, chat (~(got by chats) r))
+    |=  f=flag:c
+    ca-core(flag f, chat (~(got by chats) f))
   ++  ca-area  `path`/chat/(scot %p p.flag)/[q.flag]
   ++  ca-watch
     |=  =path
     ^+  ca-core
     ?+    path  !!
       [%updates *]  (ca-pub t.path)
-      [%ui ~]       ca-core
+      [%ui ~]       ?>(from-self ca-core)
     ::
     ==
+  ++  ca-pass
+    |%
+    ++  add-channel
+      |=  req=create:c
+      =/  =dock      [p.group.req %groups]
+      =/  =channel:g  
+        =,(req [[title description ''] now.bowl readers])
+      =/  =action:g  [group.req now.bowl %channel flag %add channel]
+      =/  =cage      group-action+!>(action)
+      =/  =wire      (snoc ca-area %create)
+      =/  =card
+        [%pass ca-area %agent dock %poke cage]
+      =.  cor
+        (emit card)
+      ca-core
+    --
+  ++  ca-init
+    |=  req=create:c
+    =/  =perm:c  [~ group.req]
+    =.  ca-core  (ca-update now.bowl %create perm)
+    (add-channel:ca-pass req)
+  ::
   ++  ca-agent
     |=  [=wire =sign:agent:gall]
     ^+  ca-core
@@ -182,6 +270,12 @@
     ::
         [%updates ~]
       (ca-take-update sign)
+    ::
+        [%create ~]
+      ?>  ?=(%poke-ack -.sign)
+      %.  ca-core  :: TODO rollback creation if poke fails?
+      ?~  p.sign  same
+      (slog leaf/"poke failed" u.p.sign)
     ==
   ::
   ++  ca-peek
@@ -201,7 +295,23 @@
         [%writs %writ writ=@ ~]
       =/  writ  (slav %da writ.pole)
       ``writ+!>((got:writs-on:c writs.chat writ))
+    ::
+        [%perm ~]
+      ``chat-perm+!>(perm.chat)
     ==
+  ::
+  ++  ca-revoke
+    |=  her=ship
+    %+  roll  ~(tap in ca-subscriptions)
+    |=  [[=ship =path] ca=_ca-core]
+    ?.  =(ship her)  ca
+    ca(cor (emit %give %kick ~[path] `ship))
+  ::
+  ++  ca-recheck
+    %+  roll  ~(tap in ca-subscriptions)
+    |=  [[=ship =path] ca=_ca-core]
+    ?:  (ca-can-read:ca ship)  ca
+    ca(cor (emit %give %kick ~[path] `ship))
   ::
   ++  ca-take-update
     |=  =sign:agent:gall
@@ -211,9 +321,10 @@
     ::
         %watch-ack
       =.  net.chat  [%sub src.bowl]
-      %.  ca-core
-      ?~  p.sign  same
-      (slog leaf/"Failed subscription" u.p.sign)
+      ?~  p.sign  ca-core
+      %-  (slog leaf/"Failed subscription" u.p.sign)
+      =.  gone  &
+      ca-core
     ::
         %fact
       =*  cage  cage.sign 
@@ -225,15 +336,37 @@
   ++  ca-proxy
     |=  =update:c
     ^+  ca-core
+    ?>  ca-can-write
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  chat-action+!>([flag update])
     =.  cor
       (emit %pass ca-area %agent dock %poke cage)
     ca-core
   ::
+  ++  ca-groups-scry
+    =*  group  group.perm.chat
+    /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
+  ::
+  ++  ca-can-write
+    ?:  =(p.flag src.bowl)  &
+    =/  =path
+      %+  welp  ca-groups-scry
+      /fleet/(scot %p src.bowl)/vessel
+    =+  .^(=vessel:fleet:g %gx path)
+    ?:  =(~ writers.perm.chat)  &
+    !=(~ (~(int in writers.perm.chat) sects.vessel))
+  ::
+  ++  ca-can-read
+    |=  her=ship
+    =/  =path
+      %+  welp  ca-groups-scry
+      /channel/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
+    .^(? %gx path)
+  ::
   ++  ca-pub
     |=  =path
     ^+  ca-core
+    ?>  (ca-can-read src.bowl)
     =/  =logs:c
       ?~  path  log.chat
       =/  =time  (slav %da i.path)
@@ -271,15 +404,19 @@
     |=  [=update:c ca=_ca-core]
     (ca-update:ca update)
   ::
+  ++  ca-subscriptions
+    %+  roll  ~(val by sup.bowl)
+    |=  [[=ship =path] out=(set [ship path])]
+    ?.  =((scag 4 path) (snoc ca-area %updates))
+      out
+    (~(put in out) [ship path])
+  ::
   ++  ca-give-updates
     |=  =cage
     ^+  ca-core
     =/  paths=(set path)
-      %+  roll  ~(val by sup.bowl)
-      |=  [[=ship =path] out=(set path)]
-      ?.  =((scag 4 path) (snoc ca-area %updates))
-        out
-      (~(put in out) path)
+      %-  ~(gas in *(set path))
+      (turn ~(tap in ca-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc ca-area %ui))
     =.  cor
       (give %fact ~(tap in paths) cage)
@@ -303,12 +440,23 @@
   ::
   ++  ca-update
     |=  [=time d=diff:c]
+    ?>  ca-can-write
     ^+  ca-core
     =.  log.chat
       (put:log-on:c log.chat time d)
     =.  ca-core
       (ca-give-updates chat-update+!>([time d]))
     ?-    -.d
+        %add-sects
+      =*  p  perm.chat
+      =.  writers.p  (~(uni in writers.p) p.d)
+      ca-core
+    ::
+        %del-sects
+      =*  p  perm.chat
+      =.  writers.p  (~(dif in writers.p) p.d)
+      ca-core
+    ::
         %add-feel
       =/  =writ:c  (got:writs-on:c writs.chat p.d)
       ?>  |(=(p.flag src.bowl) =(src.bowl q.d))
@@ -346,6 +494,10 @@
       ?>  |(=(src.bowl p.flag) =(src.bowl author.writ))
       =.  writs.chat
         +:(del:writs-on:c writs.chat p.d)
+      ca-core
+    ::
+        %create
+      =.  perm.chat  p.d
       ca-core
     ==
   --

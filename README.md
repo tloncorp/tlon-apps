@@ -39,6 +39,9 @@ To deploy, run `npm run build` in the `ui` directory which will bundle all the c
 
 11. This can now be safely committed and deployed.
 
+### Husky
+This project uses husky to run git pre-commit hooks. If you don't like husky you can turn it off by adding "HUSKY=0" to your .zshrc or .bashrc.
+
 [react]: https://reactjs.org/
 [typescript]: https://www.typescriptlang.org/
 [tailwind css]: https://tailwindcss.com/

@@ -108,7 +108,7 @@ export function BlockContent({ content }: ChatContentProps) {
   return (
     <div>
       {content.block.map((contentItem, index) => (
-        <div key={`${contentItem.bock}-${index}`}>{contentItem.block}</div>
+        <div key={index} />
       ))}
     </div>
   );
@@ -119,7 +119,7 @@ export default function ChatContent({ content }: ChatContentProps) {
   const blockLength = content.block.length;
 
   return (
-    <div>
+    <div className="leading-6">
       {blockLength > 0 ? <BlockContent content={content} /> : null}
       {inlineLength > 0 ? (
         <>

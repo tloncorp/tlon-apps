@@ -1,7 +1,9 @@
+import { BigIntOrderedMap } from '@urbit/api';
+
 export type Patda = string;
 export type Ship = string;
 
-type ChatBlock = any;
+type ChatBlock = unknown;
 
 export interface Italics {
   italics: ChatInline;
@@ -139,9 +141,25 @@ interface ChatDiffAddFeel {
   };
 }
 
-export type ChatDiff = ChatDiffAdd | ChatDiffDel | ChatDiffAddFeel;
+interface ChatDiffAddSects {
+  'add-sects': string[];
+}
+
+export type ChatDiff =
+  | ChatDiffAdd
+  | ChatDiffDel
+  | ChatDiffAddFeel
+  | ChatDiffAddSects;
 
 export interface ChatUpdate {
   time: Patda;
   diff: ChatDiff;
+}
+export interface ChatPerm {
+  writers: string[];
+}
+
+export interface Chat {
+  writs: BigIntOrderedMap<ChatWrit>;
+  perms: ChatPerm;
 }

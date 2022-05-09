@@ -3,9 +3,16 @@
 ++  enjs
   =,  enjs:format
   |%
+  ::
+  ++  perm
+    |=  p=perm:c
+    %-  pairs
+    :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+    ==
   ++  ship
     |=  her=@p
     n+(rap 3 '"' (scot %p her) '"' ~)
+  ::
   ++  update
     |=  =update:c
     %-  pairs
@@ -109,6 +116,16 @@
 ++  dejs
   =,  dejs:format
   |%
+  ++  create
+    ^-  $-(json create:c)
+    %-  ot
+    :~  group+flag
+        name+(se %tas)
+        title+so
+        description+so
+        readers+(as (se %tas))
+    ==
+
   ++  ship  (su ;~(pfix sig fed:ag))
   ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) sym))
   ++  action
@@ -124,11 +141,15 @@
     [*time (diff (~(got by p.j) %diff))]
   ::
   ++  diff
+    ^-  $-(json diff:c)
     %-  of
     :~  add/memo
         del/(se %ud)
         add-feel/add-feel
+        add-sects/add-sects
     ==
+  ::
+  ++  add-sects  (as (se %tas))
   ::
   ++  add-feel
     %-  ot
