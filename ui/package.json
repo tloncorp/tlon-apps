@@ -36,6 +36,7 @@
     "@tiptap/extension-code": "^2.0.0-beta.26",
     "@tiptap/extension-document": "^2.0.0-beta.15",
     "@tiptap/extension-hard-break": "^2.0.0-beta.30",
+    "@tiptap/extension-history": "^2.0.0-beta.21",
     "@tiptap/extension-italic": "^2.0.0-beta.26",
     "@tiptap/extension-link": "^2.0.0-beta.37",
     "@tiptap/extension-paragraph": "^2.0.0-beta.23",
@@ -56,10 +57,10 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-hook-form": "^7.30.0",
-    "validator": "^13.7.0",
     "react-router": "^6.3.0",
     "react-router-dom": "^6.3.0",
     "tailwindcss-scoped-groups": "^2.0.0",
+    "validator": "^13.7.0",
     "zustand": "^3.7.2"
   },
   "devDependencies": {

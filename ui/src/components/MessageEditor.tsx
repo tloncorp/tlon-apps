@@ -13,6 +13,7 @@ import Text from '@tiptap/extension-text';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
 import ChatInputMenu from './ChatInputMenu/ChatInputMenu';
+import History from '@tiptap/extension-history';
 
 interface HandlerParams {
   editor: Editor;
@@ -54,6 +55,7 @@ export function useMessageEditor({
       Code.extend({ excludes: null }),
       Document,
       HardBreak,
+      History.configure({ newGroupDelay: 100 }),
       Italic,
       Link.configure({
         openOnClick: false,
