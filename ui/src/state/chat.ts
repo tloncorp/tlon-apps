@@ -74,6 +74,7 @@ interface ChatState {
     readers: string[];
   }) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
+  initializeDm: (ship: string) => Promise<void>;
 }
 
 export const useChatState = create<ChatState>((set, get) => ({
@@ -180,6 +181,54 @@ export const useChatState = create<ChatState>((set, get) => ({
       },
     });
   },
+  initializeDm: async (ship: string) => {
+    const writs = await api.scry<ChatWrit[]>({
+      app: 'chat',
+      path: `/dm/${ship}/newest/100`,
+    });
+    const perms = {
+      writers: [],
+    };
+    get().batchSet((draft) => {
+      const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
+      draft.dms[ship] = chat;
+      writs.forEach((writ) => {
+        const tim = bigInt(udToDec(writ.seal.time));
+        draft.dms[ship].writs = draft.dms[ship].writs.set(tim, writ);
+      });
+    });
+
+    /*api.subscribe({
+      app: 'chat',
+      path: '
+
+      event: (data: unknown) => {
+        const update = data as ChatUpdate;
+        get().batchSet((draft) => {
+          if ('add' in update.diff) {
+            const time = bigInt(udToDec(update.time));
+            const seal = { time: update.time, feels: {} };
+            const writ = { seal, memo: update.diff.add };
+            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
+          } else if ('del' in update.diff) {
+            const time = bigInt(udToDec(update.diff.del));
+            draft.chats[flag].writs = draft.chats[flag].writs.delete(time);
+          } else if ('add-feel' in update.diff) {
+            const diff = update.diff['add-feel'];
+            const time = bigInt(udToDec(diff.time));
+            const writ = draft.chats[flag].writs.get(time);
+            writ.seal.feels[diff.ship] = diff.feel;
+            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
+          } else if ('add-sects' in update.diff) {
+            const diff = update.diff['add-sects'];
+            const chat = draft.chats[flag];
+            chat.perms.writers = [...chat.perms.writers, ...diff];
+          }
+        });
+      },
+    });
+    */
+  },
 }));
 
 export function useMessagesForChat(flag: string) {
@@ -207,4 +256,8 @@ const selDmList = (s: ChatState) => Object.keys(s.dms);
 
 export function useDmList() {
   return useChatState(selDmList);
+}
+
+export function useDmMessages(ship: string) {
+  return useChatState(useCallback((s) => s.dms[ship].writs, [ship]));
 }

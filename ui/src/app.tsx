@@ -33,7 +33,7 @@ function SidebarRow(props: {
         to={to}
       >
         <div className="h-6 w-6 rounded border border-black" />
-        {typeof children === 'string' ? <div>{children}</div> : children}
+        <div>{children}</div>
       </NavLink>
     </li>
   );

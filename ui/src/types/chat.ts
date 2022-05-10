@@ -163,3 +163,8 @@ export interface Chat {
   writs: BigIntOrderedMap<ChatWrit>;
   perms: ChatPerm;
 }
+
+/**
+ * Either a `@p` or a `$flag` rendered as string
+ */
+export type ChatWhom = string;

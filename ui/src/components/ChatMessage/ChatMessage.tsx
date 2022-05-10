@@ -2,7 +2,7 @@ import React from 'react';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format } from 'date-fns';
-import { ChatWrit } from '../../types/chat';
+import { ChatWhom, ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
@@ -10,14 +10,14 @@ import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
 
 interface ChatMessageProps {
-  flag: string;
+  whom: ChatWhom;
   writ: ChatWrit;
   newAuthor: boolean;
   newDay: boolean;
 }
 
 export default function ChatMessage({
-  flag,
+  whom,
   writ,
   newAuthor,
   newDay,
@@ -31,7 +31,7 @@ export default function ChatMessage({
       {newDay ? <DateDivider date={time} /> : null}
       {newAuthor ? <Author ship={memo.author} date={time} /> : null}
       <div className="group-one relative z-0 flex">
-        <ChatMessageOptions flag={flag} writ={writ} />
+        <ChatMessageOptions whom={whom} writ={writ} />
         <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
           {format(time, 'HH:mm')}
         </div>

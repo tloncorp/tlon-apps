@@ -1,4 +1,5 @@
 import { format, differenceInDays } from 'date-fns';
+import { ChatWhom } from './types/chat';
 
 export function makePrettyDay(date: Date) {
   const diff = differenceInDays(new Date(), date);
@@ -44,4 +45,8 @@ export function makePrettyDayAndDateAndTime(date: Date) {
     default:
       return `${fullDate} • ${time}`;
   }
+}
+
+export function whomIsDm(whom: ChatWhom) {
+  return whom.startsWith('~');
 }

@@ -1,11 +1,11 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback } from 'react';
 import { useChatState } from '../../state/chat';
-import { ChatInline, ChatMemo } from '../../types/chat';
+import { ChatInline, ChatMemo, ChatWhom } from '../../types/chat';
 import MessageEditor, { useMessageEditor } from '../MessageEditor';
 
 interface ChatInputProps {
-  flag: string;
+  whom: ChatWhom;
 }
 
 function convertMarkType(type: string): string {
@@ -93,7 +93,7 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
 }
 
 export default function ChatInput(props: ChatInputProps) {
-  const { flag } = props;
+  const { whom } = props;
   const onSubmit = useCallback(
     (editor: Editor) => {
       if (!editor.getText()) {
@@ -110,10 +110,10 @@ export default function ChatInput(props: ChatInputProps) {
           block: [],
         },
       };
-      useChatState.getState().sendMessage(flag, memo);
+      useChatState.getState().sendMessage(whom, memo);
       editor?.commands.setContent('');
     },
-    [flag]
+    [whom]
   );
 
   const messageEditor = useMessageEditor({

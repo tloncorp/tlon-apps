@@ -1,6 +1,6 @@
 import React from 'react';
 import { useChatState } from '../../state/chat';
-import { ChatWrit } from '../../types/chat';
+import { ChatWhom, ChatWrit } from '../../types/chat';
 import IconButton from '../IconButton';
 import BubbleIcon from '../icons/BubbleIcon';
 import ElipsisIcon from '../icons/ElipsisIcon';
@@ -10,12 +10,12 @@ import ShareIcon from '../icons/ShareIcon';
 import XIcon from '../icons/XIcon';
 
 export default function ChatMessageOptions(props: {
-  flag: string;
+  whom: ChatWhom;
   writ: ChatWrit;
 }) {
-  const { flag, writ } = props;
+  const { whom, writ } = props;
   const onDelete = () => {
-    useChatState.getState().delMessage(flag, writ.seal.time);
+    useChatState.getState().delMessage(whom, writ.seal.time);
   };
 
   return (
