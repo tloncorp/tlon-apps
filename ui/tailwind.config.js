@@ -3,7 +3,6 @@
 const defaultTheme = require('tailwindcss/defaultTheme');
 
 const lightColors = {
-  transparent: 'transparent',
   white: '#FFFFFF',
   black: '#000000',
   gray: {
@@ -45,7 +44,6 @@ const lightColors = {
 };
 
 const darkColors = {
-  transparent: 'transparent',
   white: '#000000',
   black: '#FFFFFF',
   gray: {
@@ -125,10 +123,11 @@ module.exports = {
       '3xl': ['2rem', '3rem'],
     },
     extend: {
-      minWidth: (theme) => theme('spacing'),
       colors: {
+        transparent: 'transparent',
         current: 'currentColor',
       },
+      minWidth: (theme) => theme('spacing'),
       lineHeight: {
         tight: 1.2,
         snug: 1.33334,
