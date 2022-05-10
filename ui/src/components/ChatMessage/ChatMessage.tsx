@@ -1,13 +1,19 @@
 import React from 'react';
+import _ from 'lodash';
+import f from 'lodash/fp';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
 import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
+import { useMessagesForChat } from '../../state/chat';
+import ShipImage from './ShipImage';
+import { useChannelFlag } from '../../hooks';
 
 export interface ChatMessageProps {
   writ: ChatWrit;
@@ -22,11 +28,26 @@ export default function ChatMessage({
   newDay = false,
   hideReplies = false,
 }: ChatMessageProps) {
+  const flag = useChannelFlag()!;
   const { seal, memo } = writ;
 
   const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
 
+  const messages = useMessagesForChat(flag);
+
   const numReplies = seal.replied.length;
+  const replyAuthors = _.flow(
+    f.map((k: string) => {
+      const mess = messages.get(bigInt(udToDec(k)));
+      if (!mess) {
+        return undefined;
+      }
+      return mess.memo.author;
+    }),
+    f.compact,
+    f.uniq,
+    f.take(3)
+  )(seal.replied);
 
   return (
     <div className="flex flex-col">
@@ -41,9 +62,17 @@ export default function ChatMessage({
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
           {numReplies > 0 && !hideReplies ? (
-            <span className="font-sm text-gray-400">
-              {numReplies} {numReplies > 1 ? 'Replies' : 'Reply'}{' '}
-            </span>
+            <Link to={`message/${seal.time}`} className="font-sm text-gray-400">
+              <div className="flex items-center space-x-2">
+                {replyAuthors.map((ship) => (
+                  <ShipImage key={ship} ship={ship} />
+                ))}
+
+                <span>
+                  {numReplies} {numReplies > 1 ? 'Replies' : 'Reply'}{' '}
+                </span>
+              </div>
+            </Link>
           ) : null}
         </div>
       </div>
