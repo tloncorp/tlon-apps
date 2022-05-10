@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
+import { MemoryRouter } from 'react-router';
 import { render } from '@testing-library/react';
 import ChatMessage from './ChatMessage';
 import { makeChatWrit } from '../../fixtures/chat';
-import { MemoryRouter } from 'react-router';
 
 describe('ChatMessage', () => {
   beforeEach(() => {
