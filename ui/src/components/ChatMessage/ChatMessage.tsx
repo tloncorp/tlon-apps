@@ -13,12 +13,14 @@ export interface ChatMessageProps {
   writ: ChatWrit;
   newAuthor?: boolean;
   newDay?: boolean;
+  hideReplies?: boolean;
 }
 
 export default function ChatMessage({
   writ,
   newAuthor = false,
   newDay = false,
+  hideReplies = false,
 }: ChatMessageProps) {
   const { seal, memo } = writ;
 
@@ -38,7 +40,7 @@ export default function ChatMessage({
         <div className="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50">
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
-          {numReplies > 0 ? (
+          {numReplies > 0 && !hideReplies ? (
             <span className="font-sm text-gray-400">
               {numReplies} {numReplies > 1 ? 'Replies' : 'Reply'}{' '}
             </span>

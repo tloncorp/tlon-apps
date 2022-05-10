@@ -194,5 +194,3 @@ export function useReplies(flag: string, time: string) {
   );
   return replyKeys;
 }
-
-window.chat = useChatState.getState;
