@@ -10,10 +10,10 @@ import Italic from '@tiptap/extension-italic';
 import Strike from '@tiptap/extension-strike';
 import Link from '@tiptap/extension-link';
 import Text from '@tiptap/extension-text';
+import History from '@tiptap/extension-history';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
 import ChatInputMenu from './ChatInputMenu/ChatInputMenu';
-import History from '@tiptap/extension-history';
 
 interface HandlerParams {
   editor: Editor;
