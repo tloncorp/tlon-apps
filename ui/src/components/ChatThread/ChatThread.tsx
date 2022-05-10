@@ -6,6 +6,7 @@ import { useChannelFlag } from '../../hooks';
 import { useMessagesForChat, useReplies } from '../../state/chat';
 import ChatInput from '../ChatInput/ChatInput';
 import ChatMessage from '../ChatMessage/ChatMessage';
+import ChatMessages from '../ChatMessages';
 
 export default function ChatThread() {
   const flag = useChannelFlag()!;
@@ -16,13 +17,11 @@ export default function ChatThread() {
   const replies = useReplies(flag, time);
 
   return (
-    <div className="flex w-48 flex-col p-2">
+    <div className="flex h-full w-72 flex-col space-y-2 border-l p-2">
       <div className="flex flex-col space-y-2">
         <ChatMessage writ={writ} newAuthor />
         <div className="flex flex-col">
-          {replies.map((w) => (
-            <ChatMessage writ={w} newAuthor />
-          ))}
+          <ChatMessages flag={flag} replying={time} />
         </div>
       </div>
       <ChatInput flag={flag} replying={time} />

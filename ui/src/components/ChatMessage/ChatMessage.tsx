@@ -9,7 +9,7 @@ import ChatReactions from '../ChatReactions/ChatReactions';
 import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
 
-interface ChatMessageProps {
+export interface ChatMessageProps {
   writ: ChatWrit;
   newAuthor?: boolean;
   newDay?: boolean;

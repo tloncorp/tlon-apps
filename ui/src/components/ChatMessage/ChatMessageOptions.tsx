@@ -24,22 +24,26 @@ export default function ChatMessageOptions(props: { writ: ChatWrit }) {
         showTooltip
         action={() => console.log('react')}
       />
-      <IconButton
-        icon={<BubbleIcon className="text-gray-400" />}
-        label="Reply"
-        showTooltip
-        action={() => console.log('reply')}
-      />
-      <IconButton
-        icon={<HashIcon className="text-gray-400" />}
-        label="Start Thread"
-        showTooltip
-        action={() =>
-          navigate(
-            `/groups/${groupFlag}/channels/chat/${flag}/message/${writ.seal.time}`
-          )
-        }
-      />
+      {!writ.memo.replying ? (
+        <>
+          <IconButton
+            icon={<BubbleIcon className="text-gray-400" />}
+            label="Reply"
+            showTooltip
+            action={() => console.log('reply')}
+          />
+          <IconButton
+            icon={<HashIcon className="text-gray-400" />}
+            label="Start Thread"
+            showTooltip
+            action={() =>
+              navigate(
+                `/groups/${groupFlag}/channels/chat/${flag}/message/${writ.seal.time}`
+              )
+            }
+          />
+        </>
+      ) : null}
       <IconButton
         icon={<ShareIcon className="text-gray-400" />}
         label="Send to..."
