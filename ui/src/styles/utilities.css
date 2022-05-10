@@ -6,3 +6,8 @@
 .default-focus-on {
   @apply outline-none ring-2;
 }
+
+a.active {
+  @apply bg-gray-50;
+
+}

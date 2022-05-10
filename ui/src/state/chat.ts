@@ -56,8 +56,12 @@ interface ChatState {
   chats: {
     [flag: string]: Chat;
   };
+  dms: {
+    [ship: string]: Chat;
+  };
   flags: string[];
   fetchFlags: () => Promise<void>;
+  fetchDms: () => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   sendMessage: (flag: string, memo: ChatMemo) => void;
   delMessage: (flag: string, time: string) => void;
@@ -81,6 +85,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       get().set(fn);
     });
   },
+  dms: {},
   flags: [] as string[],
   fetchFlags: async () => {
     const flags = await api.scry<string[]>({
@@ -89,6 +94,23 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
     get().batchSet((draft) => {
       draft.flags = flags;
+    });
+  },
+  fetchDms: async () => {
+    const dms = await api.scry<string[]>({
+      app: 'chat',
+      path: '/dm',
+    });
+    get().batchSet((draft) => {
+      dms.forEach((ship) => {
+        const chat = {
+          writs: new BigIntOrderedMap<ChatWrit>(),
+          perms: {
+            writers: [],
+          },
+        };
+        draft.dms[ship] = chat;
+      });
     });
   },
   chats: {},
@@ -179,4 +201,10 @@ export function useChatPerms(flag: string) {
 
 export function useChatIsJoined(flag: string) {
   return useChatState(useCallback((s) => s.flags.includes(flag), [flag]));
+}
+
+const selDmList = (s: ChatState) => Object.keys(s.dms);
+
+export function useDmList() {
+  return useChatState(selDmList);
 }

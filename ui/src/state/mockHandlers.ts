@@ -8,7 +8,7 @@ import {
 } from '@tloncorp/mock-http-api';
 import { decToUd, unixToDa } from '@urbit/api';
 import mockGroups from '../mocks/groups';
-import chatWrits, { chatKeys, chatPerm } from '../mocks/mockWrits';
+import chatWrits, { chatKeys, chatPerm, dmList } from '../mocks/mockWrits';
 import { ChatDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
 
@@ -81,6 +81,13 @@ const mockHandlers: Handler[] = [
     path: '/chat',
     func: () => chatKeys,
   } as ScryHandler,
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/dm',
+    func: () => dmList,
+  } as ScryHandler,
+
   {
     action: 'scry',
     app: 'chat',

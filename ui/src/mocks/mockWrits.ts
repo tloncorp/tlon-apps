@@ -85,6 +85,15 @@ export default chatWrits;
 
 export const chatKeys = ['~zod/test'];
 
+export const dmList = [
+  '~fabled-faster',
+  '~nocsyx-lassul',
+  '~fallyn-ballus',
+  '~finned-palmer',
+  '~datder-sonnet',
+  '~hastuc-dibtux',
+];
+
 export const chatPerm = {
   writers: [],
 };

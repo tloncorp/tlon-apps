@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   NavLink,
+  To,
 } from 'react-router-dom';
 import cn from 'classnames';
 import Groups from './pages/Groups';
@@ -16,16 +17,24 @@ import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
 import { IS_MOCK } from './api';
+import Dms from './pages/Dms';
+import Dm from './pages/Dm';
 
 function SidebarRow(props: {
   className?: string;
+  to: To;
   children?: React.ReactChild | React.ReactChild[];
 }) {
-  const { children, className = '' } = props;
+  const { children, to, className = '' } = props;
   return (
-    <li className={cn('flex space-x-2 p-2', className)}>
-      <div className="h-6 w-6 rounded border border-black" />
-      {typeof children === 'string' ? <div>{children}</div> : children}
+    <li>
+      <NavLink
+        className={cn('flex items-center space-x-2 p-3', className)}
+        to={to}
+      >
+        <div className="h-6 w-6 rounded border border-black" />
+        {typeof children === 'string' ? <div>{children}</div> : children}
+      </NavLink>
     </li>
   );
 }
@@ -33,11 +42,7 @@ function SidebarRow(props: {
 function GroupItem(props: { flag: string }) {
   const { flag } = props;
   const { meta } = useGroup(flag);
-  return (
-    <SidebarRow>
-      <NavLink to={`/groups/${flag}`}>{meta.title}</NavLink>
-    </SidebarRow>
-  );
+  return <SidebarRow to={`/groups/${flag}`}>{meta.title}</SidebarRow>;
 }
 
 function Divider(props: { title: string }) {
@@ -56,17 +61,18 @@ function App() {
   useEffect(() => {
     useGroupState.getState().fetchAll();
     useChatState.getState().fetchFlags();
+    useChatState.getState().fetchDms();
   }, []);
 
   return (
     <Router basename={IS_MOCK ? '/' : '/apps/homestead'}>
       <div className="flex h-full w-full">
-        <ul className="h-full w-56 border-r border-black p-2">
-          <SidebarRow>Groups</SidebarRow>
-          <SidebarRow>Profile</SidebarRow>
-          <SidebarRow>
-            <NavLink to="/groups/new">New Group</NavLink>
-          </SidebarRow>
+        <ul className="h-full w-56 border-r border-black">
+          <SidebarRow to="/foo">Groups</SidebarRow>
+          <SidebarRow to="/dm">Direct Messages</SidebarRow>
+
+          <SidebarRow to="/">Profile</SidebarRow>
+          <SidebarRow to="/groups/new">New Group</SidebarRow>
           <Divider title="All Groups" />
           {groups.map((flag) => (
             <GroupItem key={flag} flag={flag} />
@@ -83,6 +89,10 @@ function App() {
               element={<ChannelSettings />}
             />
             <Route path="channels/new" element={<NewChannel />} />
+          </Route>
+          <Route path="/dm" element={<Dms />}>
+            <Route path=":ship" element={<Dm />} />
+            <Route index element={<div>Select a DM</div>} />
           </Route>
         </Routes>
       </div>
