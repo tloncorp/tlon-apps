@@ -4,14 +4,12 @@ import { Outlet } from 'react-router';
 import ChatInput from './ChatInput/ChatInput';
 import { useMessagesForChat, useChatPerms, useChatState } from '../state/chat';
 import { useRouteGroup, useVessel } from '../state/groups';
-import ChatMessage from './ChatMessage/ChatMessage';
 import Layout from './layout/Layout';
 import ChatMessages from './ChatMessages';
 
 export default function ChatWindow(props: { flag: string }) {
   const { flag } = props;
   const groupFlag = useRouteGroup();
-  const messages = useMessagesForChat(flag);
 
   useEffect(() => {
     useChatState.getState().initialize(flag);
