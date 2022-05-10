@@ -38,7 +38,8 @@
   ++  memo 
     |=  =memo:c
     %-  pairs
-    :~  author+(ship author.memo)
+    :~  replying+?~(replying.memo ~ s/(scot %ud u.replying.memo))
+        author+(ship author.memo)
         sent+(time sent.memo)
         content+(content content.memo)
     ==
