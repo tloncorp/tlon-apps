@@ -1,64 +1,107 @@
 import React from 'react';
-import { ChatMessage, isBold, isItalics, isLink } from '../../types/chat';
+import {
+  ChatInline,
+  ChatMessage,
+  isBlockquote,
+  isBold,
+  isBreak,
+  isInlineCode,
+  isItalics,
+  isLink,
+  isStrikethrough,
+} from '../../types/chat';
 
 interface ChatContentProps {
   content: ChatMessage;
 }
 
-interface InlineContentProps extends ChatContentProps {
-  inlineLength: number;
+interface InlineContentProps {
+  content: ChatInline;
 }
 
-export function InlineContent({ content, inlineLength }: InlineContentProps) {
-  return (
-    <div>
-      {content.inline.map((contentItem, index) => {
-        const key = `${contentItem.toString}-${index}`;
-        const space = inlineLength - 1 === index ? null : <span>&nbsp;</span>;
+export function InlineContent({ content }: InlineContentProps) {
+  if (typeof content === 'string') {
+    return <span>{content}</span>;
+  }
 
-        if (typeof contentItem === 'string') {
-          return (
-            <span key={key}>
-              {contentItem} {space}
-            </span>
-          );
-        }
+  if (isBold(content)) {
+    return (
+      <strong>
+        {typeof content.bold === 'object' ? (
+          <InlineContent content={content.bold} />
+        ) : (
+          content.bold
+        )}
+      </strong>
+    );
+  }
 
-        if (isBold(contentItem)) {
-          return (
-            <b key={key}>
-              {contentItem.bold} {space}
-            </b>
-          );
-        }
+  if (isItalics(content)) {
+    return (
+      <em>
+        {typeof content.italics === 'object' ? (
+          <InlineContent content={content.italics} />
+        ) : (
+          content.italics
+        )}
+      </em>
+    );
+  }
 
-        if (isItalics(contentItem)) {
-          return (
-            <i key={key}>
-              {contentItem.italics} {space}
-            </i>
-          );
-        }
+  if (isStrikethrough(content)) {
+    return (
+      <span className="line-through">
+        {typeof content.strike === 'object' ? (
+          <InlineContent content={content.strike} />
+        ) : (
+          content.strike
+        )}
+      </span>
+    );
+  }
 
-        if (isLink(contentItem)) {
-          return (
-            <a
-              target="_blank"
-              rel="noreferrer"
-              href={contentItem.href}
-              key={key}
-            >
-              {contentItem.href} {space}
-            </a>
-          );
-        }
+  if (isLink(content)) {
+    const containsProtocol = content.link.href.match(/https?:\/\//);
+    return (
+      <a
+        target="_blank"
+        rel="noreferrer"
+        href={containsProtocol ? content.link.href : `//${content.link.href}`}
+      >
+        {content.link.content || content.link.href}
+      </a>
+    );
+  }
 
-        throw new Error(
-          `Unhandled message type: ${JSON.stringify(contentItem)}`
-        );
-      })}
-    </div>
-  );
+  if (isBlockquote(content)) {
+    return (
+      <blockquote className="leading-6">
+        {Array.isArray(content.blockquote)
+          ? content.blockquote.map((item, index) => (
+              <InlineContent key={item.toString() + index} content={item} />
+            ))
+          : content.blockquote}
+      </blockquote>
+    );
+  }
+
+  if (isInlineCode(content)) {
+    return (
+      <code>
+        {typeof content['inline-code'] === 'object' ? (
+          <InlineContent content={content['inline-code']} />
+        ) : (
+          content['inline-code']
+        )}
+      </code>
+    );
+  }
+
+  if (isBreak(content)) {
+    return <br />;
+  }
+
+  throw new Error(`Unhandled message type: ${JSON.stringify(content)}`);
 }
 
 export function BlockContent({ content }: ChatContentProps) {
@@ -79,7 +122,14 @@ export default function ChatContent({ content }: ChatContentProps) {
     <div className="leading-6">
       {blockLength > 0 ? <BlockContent content={content} /> : null}
       {inlineLength > 0 ? (
-        <InlineContent content={content} inlineLength={inlineLength} />
+        <>
+          {content.inline.map((contentItem, index) => (
+            <InlineContent
+              key={`${contentItem.toString()}-${index}`}
+              content={contentItem}
+            />
+          ))}
+        </>
       ) : null}
     </div>
   );

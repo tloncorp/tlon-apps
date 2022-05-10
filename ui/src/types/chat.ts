@@ -5,49 +5,62 @@ export type Ship = string;
 
 type ChatBlock = unknown;
 
-interface Italics {
-  italics: string;
+export interface Italics {
+  italics: ChatInline;
 }
 
-interface Bold {
-  bold: string;
+export interface Bold {
+  bold: ChatInline;
+}
+
+export interface Strikethrough {
+  strike: ChatInline;
 }
 
 /**
  A reference to the accompanying blocks, indexed at 0
 */
-interface BlockReference {
+export interface BlockReference {
   block: {
     index: number;
     text: string;
   };
 }
 
-interface InlineCode {
+export interface Break {
+  break: null;
+}
+
+export interface InlineCode {
   'inline-code': string;
 }
 
-interface BlockCode {
+export interface BlockCode {
   code: string;
 }
 
-interface Blockquote {
-  blockquote: string;
+export interface Blockquote {
+  blockquote: ChatInline[];
 }
 
-interface Tag {
+export interface Tag {
   tag: string;
 }
 
-interface Link {
-  href: string;
+export interface Link {
+  link: {
+    href: string;
+    content: string;
+  };
 }
 
-type ChatInline =
+export type ChatInline =
   | string
   | Bold
   | Italics
+  | Strikethrough
   | Ship
+  | Break
   | BlockReference
   | InlineCode
   | BlockCode
@@ -64,7 +77,23 @@ export function isItalics(item: unknown): item is Italics {
 }
 
 export function isLink(item: unknown): item is Link {
-  return typeof item === 'object' && item !== null && 'href' in item;
+  return typeof item === 'object' && item !== null && 'link' in item;
+}
+
+export function isStrikethrough(item: unknown): item is Strikethrough {
+  return typeof item === 'object' && item !== null && 'strike' in item;
+}
+
+export function isBlockquote(item: unknown): item is Blockquote {
+  return typeof item === 'object' && item !== null && 'blockquote' in item;
+}
+
+export function isInlineCode(item: unknown): item is InlineCode {
+  return typeof item === 'object' && item !== null && 'inline-code' in item;
+}
+
+export function isBreak(item: unknown): item is Break {
+  return typeof item === 'object' && item !== null && 'break' in item;
 }
 
 export interface ChatMessage {

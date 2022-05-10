@@ -60,10 +60,31 @@
     ^-  json
     ?@  i  s+i
     %+  frond  -.i
-    ?.  ?=(%block -.i)  s+p.i
-    %-  pairs
-    :~  index+(numb p.i)
-        text+s+q.i
+    ?-  -.i
+        %break
+      ~
+    ::
+        ?(%italics %bold %strike %inline-code)
+      (inline p.i)
+    ::
+        ?(%code %tag)
+      s+p.i
+    ::
+        %blockquote
+      :-  %a
+      (turn p.i inline)
+    ::
+        %block
+      %-  pairs
+      :~  index+(numb p.i)
+          text+s+q.i
+      ==
+    ::
+        %link
+      %-  pairs
+      :~  href+s+p.i
+          content+s+q.i
+      ==
     ==
   ::
   ++  seal
@@ -165,18 +186,25 @@
     =>  .(j `json`j)
     %.  j
     %-  of
-    :~  italics/so
-        bold/so
-        inline-code/so
+    :~  italics/inline
+        bold/inline
+        strike/inline
+        inline-code/inline
         code/so
-        blockquote/so
+        blockquote/(ar inline)
         tag/so
-        href/so
+        break/ul
     ::
       :-  %block
       %-  ot
       :~  index/ni
           text/so
+      ==
+    ::
+      :-  %link
+      %-  ot
+      :~  href/so
+          content/so
       ==
     ==
   --

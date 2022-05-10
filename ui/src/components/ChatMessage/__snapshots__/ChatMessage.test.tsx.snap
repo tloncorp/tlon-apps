@@ -390,17 +390,12 @@ exports[`ChatMessage > renders as expected 1`] = `
         <div
           class="leading-6"
         >
-          <div>
-            <b>
-              A bold test message 
-              <span>
-                 
-              </span>
-            </b>
-            <span>
-              with some more text 
-            </span>
-          </div>
+          <strong>
+            A bold test message
+          </strong>
+          <span>
+            with some more text
+          </span>
         </div>
       </div>
     </div>

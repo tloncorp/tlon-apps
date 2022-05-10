@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router';
 import { useChannelFlag } from '../../hooks';
 import { useRouteGroup } from '../../state/groups';
+import { useChatState } from '../../state/chat';
 import { ChatWrit } from '../../types/chat';
 import IconButton from '../IconButton';
 import BubbleIcon from '../icons/BubbleIcon';
@@ -9,11 +10,15 @@ import ElipsisIcon from '../icons/ElipsisIcon';
 import FaceIcon from '../icons/FaceIcon';
 import HashIcon from '../icons/HashIcon';
 import ShareIcon from '../icons/ShareIcon';
+import XIcon from '../icons/XIcon';
 
 export default function ChatMessageOptions(props: { writ: ChatWrit }) {
   const { writ } = props;
-  const flag = useChannelFlag();
+  const flag = useChannelFlag()!;
   const groupFlag = useRouteGroup();
+  const onDelete = () => {
+    useChatState.getState().delMessage(flag, writ.seal.time);
+  };
 
   const navigate = useNavigate();
   return (
@@ -50,6 +55,15 @@ export default function ChatMessageOptions(props: { writ: ChatWrit }) {
         showTooltip
         action={() => console.log('send to..')}
       />
+      {window.our === writ.memo.author ? (
+        <IconButton
+          icon={<XIcon className="text-red" />}
+          label="Delete"
+          showTooltip
+          action={onDelete}
+        />
+      ) : null}
+
       <IconButton
         icon={<ElipsisIcon className="text-gray-400" />}
         label="More..."
