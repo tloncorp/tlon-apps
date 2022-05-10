@@ -21,6 +21,7 @@ interface ChatApi {
   newest: (flag: string, count: number) => Promise<ChatWrit[]>;
   subscribe: (flag: string, opts: SubscriptionInterface) => Promise<number>;
   sendMessage: (flag: string, memo: ChatMemo) => Promise<number>;
+  delMessage: (flag: string, time: string) => Promise<number>;
 }
 
 function chatAction(flag: string, diff: ChatDiff) {
@@ -46,6 +47,7 @@ const chatApi: ChatApi = {
       path: `/chat/${flag}/writs/newest/${count}`,
     }),
   sendMessage: (flag, memo) => api.poke(chatAction(flag, { add: memo })),
+  delMessage: (flag, idx) => api.poke(chatAction(flag, { del: idx })),
 };
 
 interface ChatState {
@@ -58,6 +60,7 @@ interface ChatState {
   fetchFlags: () => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   sendMessage: (flag: string, memo: ChatMemo) => void;
+  delMessage: (flag: string, time: string) => void;
   addSects: (flag: string, writers: string[]) => Promise<void>;
   create: (req: {
     group: string;
@@ -99,6 +102,9 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   sendMessage: (flag, memo) => {
     chatApi.sendMessage(flag, memo);
+  },
+  delMessage: (flag, time) => {
+    chatApi.delMessage(flag, time);
   },
   create: async (req) => {
     await api.poke({
