@@ -27,7 +27,7 @@ html,
 body,
 #app {
   /* adding for mobile bottom bars */
-  @apply h-full w-full min-h-screen;
+  @apply h-full min-h-screen w-full;
   min-height: -webkit-fill-available;
 }
 

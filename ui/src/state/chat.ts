@@ -152,8 +152,26 @@ export const useChatState = create<ChatState>((set, get) => ({
             ws = ws.set(time, writ);
             draft.chats[flag].writs = ws;
           } else if ('del' in update.diff) {
-            const time = bigInt(udToDec(update.diff.del));
-            draft.chats[flag].writs = draft.chats[flag].writs.delete(time);
+            const time = update.diff.del;
+            const key = bigInt(udToDec(time));
+            const writ = draft.chats[flag].writs.get(key);
+            if (!writ) {
+              return;
+            }
+            if (writ.memo.replying) {
+              const ancestorId = bigInt(udToDec(writ.memo.replying));
+              const ancestor = draft.chats[flag].writs.get(ancestorId);
+              if (ancestor) {
+                ancestor.seal.replied = ancestor.seal.replied.filter(
+                  (r) => r !== time
+                );
+                draft.chats[flag].writs = draft.chats[flag].writs.set(
+                  ancestorId,
+                  ancestor
+                );
+              }
+            }
+            draft.chats[flag].writs = draft.chats[flag].writs.delete(key);
           } else if ('add-feel' in update.diff) {
             const diff = update.diff['add-feel'];
             const time = bigInt(udToDec(diff.time));
