@@ -3,6 +3,7 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import ChatMessage from './ChatMessage';
 import { makeChatWrit } from '../../fixtures/chat';
+import { MemoryRouter } from 'react-router';
 
 describe('ChatMessage', () => {
   beforeEach(() => {
@@ -23,7 +24,11 @@ describe('ChatMessage', () => {
       undefined,
       new Date(2021, 1, 1, 13)
     );
-    const { asFragment } = render(<ChatMessage writ={writ} newAuthor newDay />);
+    const { asFragment } = render(
+      <MemoryRouter>
+        <ChatMessage writ={writ} newAuthor newDay />
+      </MemoryRouter>
+    );
     expect(asFragment()).toMatchSnapshot();
   });
 });

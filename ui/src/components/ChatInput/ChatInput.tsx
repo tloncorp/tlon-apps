@@ -13,6 +13,7 @@ import { ChatMemo } from '../../types/chat';
 
 interface ChatInputProps {
   flag: string;
+  replying?: string;
 }
 
 // this will be replaced with more sophisticated logic based on
@@ -39,11 +40,11 @@ const keyMap = (onEnter: KeyboardShortcutCommand) =>
   });
 
 export default function ChatInput(props: ChatInputProps) {
-  const { flag } = props;
+  const { flag, replying = null } = props;
   const onSubmit = useCallback(
     (editor: Editor) => {
       const memo: ChatMemo = {
-        replying: null,
+        replying,
         author: `~${window.ship || 'zod'}`,
         sent: Date.now(),
         content: {
@@ -54,7 +55,7 @@ export default function ChatInput(props: ChatInputProps) {
       useChatState.getState().sendMessage(flag, memo);
       editor?.commands.setContent('');
     },
-    [flag]
+    [flag, replying]
   );
 
   const keyMapExt = useMemo(

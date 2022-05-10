@@ -16,6 +16,7 @@ import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
 import { IS_MOCK } from './api';
+import ChatThread from './components/ChatThread/ChatThread';
 
 function SidebarRow(props: {
   className?: string;
@@ -77,7 +78,9 @@ function App() {
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route path="members" element={<Members />} />
             <Route path="roles" element={<Roles />} />
-            <Route path="channels/:app/:chShip/:chName" element={<Channel />} />
+            <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
+              <Route path="message/:time" element={<ChatThread />} />
+            </Route>
             <Route
               path="channels/:app/:chShip/:chName/settings"
               element={<ChannelSettings />}

@@ -11,31 +11,38 @@ import ChatMessageOptions from './ChatMessageOptions';
 
 interface ChatMessageProps {
   writ: ChatWrit;
-  newAuthor: boolean;
-  newDay: boolean;
+  newAuthor?: boolean;
+  newDay?: boolean;
 }
 
 export default function ChatMessage({
   writ,
-  newAuthor,
-  newDay,
+  newAuthor = false,
+  newDay = false,
 }: ChatMessageProps) {
   const { seal, memo } = writ;
 
   const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
+
+  const numReplies = seal.replied.length;
 
   return (
     <div className="flex flex-col">
       {newDay ? <DateDivider date={time} /> : null}
       {newAuthor ? <Author ship={memo.author} date={time} /> : null}
       <div className="group-one relative z-0 flex">
-        <ChatMessageOptions />
+        <ChatMessageOptions writ={writ} />
         <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
           {format(time, 'HH:mm')}
         </div>
         <div className="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50">
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
+          {numReplies > 0 ? (
+            <span className="font-sm text-gray-400">
+              {numReplies} {numReplies > 1 ? 'Replies' : 'Reply'}{' '}
+            </span>
+          ) : null}
         </div>
       </div>
     </div>

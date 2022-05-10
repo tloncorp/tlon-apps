@@ -131,9 +131,20 @@ export const useChatState = create<ChatState>((set, get) => ({
         get().batchSet((draft) => {
           if ('add' in update.diff) {
             const time = bigInt(udToDec(update.time));
-            const seal = { time: update.time, feels: {} };
-            const writ = { seal, memo: update.diff.add };
-            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
+            const seal = { time: update.time, feels: {}, replied: [] };
+            const memo = update.diff.add;
+            const writ = { seal, memo };
+            let ws = draft.chats[flag].writs;
+            if (writ.memo.replying) {
+              const replyId = bigInt(udToDec(writ.memo.replying));
+              const replying = ws.get(replyId);
+              if (replying) {
+                replying.seal.replied = [...replying.seal.replied, update.time];
+                ws = ws.set(replyId, replying);
+              }
+            }
+            ws = ws.set(time, writ);
+            draft.chats[flag].writs = ws;
           } else if ('del' in update.diff) {
             const time = bigInt(udToDec(update.diff.del));
             draft.chats[flag].writs = draft.chats[flag].writs.delete(time);
@@ -174,3 +185,14 @@ export function useChatPerms(flag: string) {
 export function useChatIsJoined(flag: string) {
   return useChatState(useCallback((s) => s.flags.includes(flag), [flag]));
 }
+
+export function useReplies(flag: string, time: string) {
+  const messages = useMessagesForChat(flag);
+  const message = messages.get(bigInt(udToDec(time)));
+  const replyKeys = (message?.seal?.replied || []).map((r) =>
+    messages.get(bigInt(udToDec(r)))
+  );
+  return replyKeys;
+}
+
+window.chat = useChatState.getState;

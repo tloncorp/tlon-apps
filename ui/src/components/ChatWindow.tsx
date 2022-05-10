@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { differenceInDays } from 'date-fns';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
+import { Outlet } from 'react-router';
 import ChatInput from './ChatInput/ChatInput';
 import { useMessagesForChat, useChatPerms, useChatState } from '../state/chat';
 import { useRouteGroup, useVessel } from '../state/groups';
@@ -23,31 +24,31 @@ export default function ChatWindow(props: { flag: string }) {
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
+  const keys = messages
+    .keys()
+    .reverse()
+    .filter((k) => !messages.get(k)!.memo.replying);
 
   return (
-    <Layout
-      className="grow"
-      footer={
-        <div className="p-4">
-          {canWrite ? (
-            <ChatInput flag={flag} />
-          ) : (
-            <span>Cannot write to this channel</span>
-          )}
-        </div>
-      }
-      main={
-        <div className="flex h-full w-full flex-col overflow-auto px-4">
-          <div className="mt-auto flex flex-col justify-end">
-            {messages
-              .keys()
-              .reverse()
-              .map((key, index) => {
+    <div className="flex h-full w-full">
+      <Layout
+        className="grow"
+        footer={
+          <div className="p-4">
+            {canWrite ? (
+              <ChatInput flag={flag} />
+            ) : (
+              <span>Cannot write to this channel</span>
+            )}
+          </div>
+        }
+        main={
+          <div className="flex h-full w-full flex-col overflow-auto px-4">
+            <div className="mt-auto flex flex-col justify-end">
+              {keys.map((key, index) => {
                 const writ = messages.get(key);
                 const lastWrit =
-                  index > 0
-                    ? messages.get(messages.keys().reverse()[index - 1])
-                    : undefined;
+                  index > 0 ? messages.get(keys[index - 1]) : undefined;
                 const newAuthor = lastWrit
                   ? writ.memo.author !== lastWrit.memo.author
                   : true;
@@ -70,9 +71,11 @@ export default function ChatWindow(props: { flag: string }) {
                   />
                 );
               })}
+            </div>
           </div>
-        </div>
-      }
-    />
+        }
+      />
+      <Outlet />
+    </div>
   );
 }
