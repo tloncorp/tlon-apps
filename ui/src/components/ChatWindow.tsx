@@ -64,6 +64,7 @@ export default function ChatWindow(props: { flag: string }) {
                 return (
                   <ChatMessage
                     key={writ.seal.time}
+                    flag={flag}
                     writ={writ}
                     newAuthor={newAuthor}
                     newDay={newDay}

@@ -10,12 +10,14 @@ import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
 
 interface ChatMessageProps {
+  flag: string;
   writ: ChatWrit;
   newAuthor: boolean;
   newDay: boolean;
 }
 
 export default function ChatMessage({
+  flag,
   writ,
   newAuthor,
   newDay,
@@ -29,7 +31,7 @@ export default function ChatMessage({
       {newDay ? <DateDivider date={time} /> : null}
       {newAuthor ? <Author ship={memo.author} date={time} /> : null}
       <div className="group-one relative z-0 flex">
-        <ChatMessageOptions />
+        <ChatMessageOptions flag={flag} writ={writ} />
         <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
           {format(time, 'HH:mm')}
         </div>
