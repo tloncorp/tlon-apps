@@ -119,6 +119,7 @@ export interface ChatSeal {
   feels: {
     [ship: Ship]: string;
   };
+  replied: string[];
 }
 
 export interface ChatMemo {

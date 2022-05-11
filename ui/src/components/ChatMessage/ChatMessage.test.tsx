@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
+import { MemoryRouter } from 'react-router';
 import { render } from '@testing-library/react';
 import ChatMessage from './ChatMessage';
 import { makeChatWrit } from '../../fixtures/chat';
@@ -24,7 +25,9 @@ describe('ChatMessage', () => {
       new Date(2021, 1, 1, 13)
     );
     const { asFragment } = render(
-      <ChatMessage flag="~zod/test" writ={writ} newAuthor newDay />
+      <MemoryRouter>
+        <ChatMessage writ={writ} newAuthor newDay />
+      </MemoryRouter>
     );
     expect(asFragment()).toMatchSnapshot();
   });
