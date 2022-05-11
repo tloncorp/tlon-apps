@@ -187,7 +187,6 @@
   ++  block
     |=  j=json
     ^-  block:c
-    =>  .(j `json`j)
     %.  j
     %-  of
     :~
