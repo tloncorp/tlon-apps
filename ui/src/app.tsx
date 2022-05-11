@@ -19,6 +19,7 @@ import ChannelSettings from './pages/ChannelSettings';
 import { IS_MOCK } from './api';
 import Dms from './pages/Dms';
 import Dm from './pages/Dm';
+import NewDM from './pages/NewDm';
 
 function SidebarRow(props: {
   className?: string;
@@ -91,6 +92,7 @@ function App() {
             <Route path="channels/new" element={<NewChannel />} />
           </Route>
           <Route path="/dm" element={<Dms />}>
+            <Route path="new" element={<NewDM />} />
             <Route path=":ship" element={<Dm />} />
             <Route index element={<div>Select a DM</div>} />
           </Route>

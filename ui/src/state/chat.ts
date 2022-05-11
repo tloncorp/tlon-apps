@@ -1,7 +1,7 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, udToDec } from '@urbit/api';
+import { BigIntOrderedMap, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback, useMemo } from 'react';
 import { SubscriptionInterface } from '@urbit/http-api';
@@ -14,13 +14,14 @@ import {
   ChatWrit,
 } from '../types/chat';
 import api from '../api';
+import { whomIsDm } from '../utils';
 
 setAutoFreeze(false);
 
 interface ChatApi {
   newest: (flag: string, count: number) => Promise<ChatWrit[]>;
   subscribe: (flag: string, opts: SubscriptionInterface) => Promise<number>;
-  sendMessage: (flag: string, memo: ChatMemo) => Promise<number>;
+  sendMessage: (whom: string, memo: ChatMemo) => Promise<number>;
   delMessage: (flag: string, time: string) => Promise<number>;
 }
 
@@ -46,7 +47,6 @@ const chatApi: ChatApi = {
       app: 'chat',
       path: `/chat/${flag}/writs/newest/${count}`,
     }),
-  sendMessage: (flag, memo) => api.poke(chatAction(flag, { add: memo })),
   delMessage: (flag, idx) => api.poke(chatAction(flag, { del: idx })),
 };
 
@@ -63,7 +63,7 @@ interface ChatState {
   fetchFlags: () => Promise<void>;
   fetchDms: () => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
-  sendMessage: (flag: string, memo: ChatMemo) => void;
+  sendMessage: (whom: string, memo: ChatMemo) => void;
   delMessage: (flag: string, time: string) => void;
   addSects: (flag: string, writers: string[]) => Promise<void>;
   create: (req: {
@@ -123,8 +123,21 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
     await get().fetchFlags();
   },
-  sendMessage: (flag, memo) => {
-    chatApi.sendMessage(flag, memo);
+  sendMessage: (whom, memo) => {
+    const isDM = whomIsDm(whom);
+    const diff = { add: memo };
+    if (isDM) {
+      api.poke({
+        app: 'chat',
+        mark: 'dm-action',
+        json: {
+          ship: whom,
+          diff,
+        },
+      });
+    } else {
+      api.poke(chatAction(whom, diff));
+    }
   },
   delMessage: (flag, time) => {
     chatApi.delMessage(flag, time);
@@ -184,7 +197,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   initializeDm: async (ship: string) => {
     const writs = await api.scry<ChatWrit[]>({
       app: 'chat',
-      path: `/dm/${ship}/newest/100`,
+      path: `/dm/${ship}/writs/newest/100`,
     });
     const perms = {
       writers: [],
@@ -198,36 +211,30 @@ export const useChatState = create<ChatState>((set, get) => ({
       });
     });
 
-    /*api.subscribe({
+    api.subscribe({
       app: 'chat',
-      path: '
-
+      path: `/dm/${ship}/ui`,
       event: (data: unknown) => {
-        const update = data as ChatUpdate;
+        const diff = data as ChatDiff;
         get().batchSet((draft) => {
-          if ('add' in update.diff) {
-            const time = bigInt(udToDec(update.time));
-            const seal = { time: update.time, feels: {} };
-            const writ = { seal, memo: update.diff.add };
-            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
-          } else if ('del' in update.diff) {
-            const time = bigInt(udToDec(update.diff.del));
-            draft.chats[flag].writs = draft.chats[flag].writs.delete(time);
-          } else if ('add-feel' in update.diff) {
-            const diff = update.diff['add-feel'];
-            const time = bigInt(udToDec(diff.time));
-            const writ = draft.chats[flag].writs.get(time);
-            writ.seal.feels[diff.ship] = diff.feel;
-            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
-          } else if ('add-sects' in update.diff) {
-            const diff = update.diff['add-sects'];
-            const chat = draft.chats[flag];
-            chat.perms.writers = [...chat.perms.writers, ...diff];
+          if ('add' in diff) {
+            const time = bigInt(unixToDa(Date.now()));
+            const seal = { time: time.toString(), feels: {} };
+            const writ = { seal, memo: diff.add };
+            draft.dms[ship].writs = draft.dms[ship].writs.set(time, writ);
+          } else if ('del' in diff) {
+            const time = bigInt(udToDec(diff.del));
+            draft.dms[ship].writs = draft.dms[ship].writs.delete(time);
+          } else if ('add-feel' in diff) {
+            const d = diff['add-feel'];
+            const time = bigInt(udToDec(d.time));
+            const writ = draft.dms[ship].writs.get(time);
+            writ.seal.feels[d.ship] = d.feel;
+            draft.dms[ship].writs = draft.dms[ship].writs.set(time, writ);
           }
         });
       },
     });
-    */
   },
 }));
 
@@ -259,5 +266,7 @@ export function useDmList() {
 }
 
 export function useDmMessages(ship: string) {
-  return useChatState(useCallback((s) => s.dms[ship].writs, [ship]));
+  return useChatState(
+    useCallback((s) => s.dms[ship]?.writs || new BigIntOrderedMap(), [ship])
+  );
 }
