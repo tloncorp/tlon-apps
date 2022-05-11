@@ -1,6 +1,7 @@
 /-  c=chat, g=groups
 /+  default-agent, verb, dbug
 /+  chat-json
+/+  w=chat-writs
 ^-  agent:gall
 =>
   |%
@@ -447,6 +448,9 @@
     =.  ca-core
       (ca-give-updates chat-update+!>([time d]))
     ?-    -.d
+        %writs
+      ca-core(writs.chat (reduce:w flag writs.chat src.bowl time p.d))
+    ::
         %add-sects
       =*  p  perm.chat
       =.  writers.p  (~(uni in writers.p) p.d)
@@ -455,45 +459,6 @@
         %del-sects
       =*  p  perm.chat
       =.  writers.p  (~(dif in writers.p) p.d)
-      ca-core
-    ::
-        %add-feel
-      =/  =writ:c  (got:writs-on:c writs.chat p.d)
-      ?>  |(=(p.flag src.bowl) =(src.bowl q.d))
-      =.  feels.writ  (~(put by feels.writ) [q r]:d)
-      =.  writs.chat   (put:writs-on:c writs.chat p.d writ)
-      ca-core
-    ::
-        %del-feel
-      =/  =writ:c  (got:writs-on:c writs.chat p.d)
-      ?>  |(=(p.flag src.bowl) =(src.bowl q.d))
-      =.  feels.writ  (~(del by feels.writ) q.d)
-      =.  writs.chat   (put:writs-on:c writs.chat p.d writ)
-      ca-core
-   ::
-        %add
-      ?>  |(=(src.bowl p.flag) =(src.bowl author.p.d))
-      =.  writs.chat  
-        (put:writs-on:c writs.chat time [time ~ ~] p.d)
-      ?~  replying.p.d  ca-core
-      =*  replying  u.replying.p.d
-      =/  reply=writ:c  (got:writs-on:c writs.chat replying)
-      =.  replied.reply  (~(put in replied.reply) time)
-      =.  writs.chat  (put:writs-on:c writs.chat replying reply)
-      ca-core
-    ::
-        %del
-      =/  =writ:c
-        (got:writs-on:c writs.chat p.d)
-      =?  ca-core  ?=(^ replying.writ)  
-        =*  replying  u.replying.writ
-        =/  reply=writ:c  (got:writs-on:c writs.chat replying)
-        =.  replied.reply  (~(del in replied.reply) p.d)
-        =.  writs.chat  (put:writs-on:c writs.chat replying reply)
-        ca-core
-      ?>  |(=(src.bowl p.flag) =(src.bowl author.writ))
-      =.  writs.chat
-        +:(del:writs-on:c writs.chat p.d)
       ca-core
     ::
         %create

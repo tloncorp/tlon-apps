@@ -47,6 +47,6 @@ export function makePrettyDayAndDateAndTime(date: Date) {
   }
 }
 
-export function whomIsDm(whom: ChatWhom) {
-  return whom.startsWith('~');
+export function whomIsDm(whom: ChatWhom): boolean {
+  return !whom.match('/');
 }

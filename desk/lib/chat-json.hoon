@@ -23,8 +23,15 @@
     |=  =diff:c
     %+  frond  -.diff
     ?+  -.diff  ~
-      %add  (memo p.diff)
-      %del  s+(scot %ud p.diff)
+      %writs     (writs-diff p.diff)
+    ==
+  ::
+  ++  writs-diff
+    |=  =diff:writs:c
+    %+  frond  -.diff
+    ?+  -.diff  ~
+      %add       (memo p.diff)
+      %del       s+(scot %ud p.diff)
       %add-feel  (add-feel +.diff)
     ==
   ++  add-feel
@@ -143,10 +150,15 @@
   ++  diff
     ^-  $-(json diff:c)
     %-  of
+    :~  writs/writs-diff
+        add-sects/add-sects
+    ==
+  ::
+  ++  writs-diff
+    %-  of
     :~  add/memo
         del/(se %ud)
         add-feel/add-feel
-        add-sects/add-sects
     ==
   ::
   ++  add-sects  (as (se %tas))
