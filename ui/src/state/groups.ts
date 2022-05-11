@@ -4,11 +4,14 @@ import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
 import {
+  Gangs,
   Channel,
   Group,
   GroupDiff,
   Groups,
   GroupUpdate,
+  GroupAction,
+  Rank,
 } from '../types/groups';
 import api from '../api';
 
@@ -32,8 +35,11 @@ interface GroupState {
   groups: {
     [flag: string]: Group;
   };
+  gangs: Gangs;
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
+  banRanks: (flag: string, ranks: Rank[]) => Promise<void>;
+  unbanRanks: (flag: string, ranks: Rank[]) => Promise<void>;
   addSects: (flag: string, ship: string, sects: string[]) => Promise<void>;
   addRole: (
     flag: string,
@@ -48,15 +54,67 @@ interface GroupState {
     title: string;
     description: string;
   }) => Promise<void>;
-  fetchAll: () => Promise<void>;
+  start: () => Promise<void>;
+  search: (flag: string) => Promise<void>;
+  join: (flag: string, joinAll: boolean) => Promise<void>;
 }
 export const useGroupState = create<GroupState>((set, get) => ({
   groups: {},
+  gangs: {},
+  banRanks: async (flag, ranks) => {
+    await api.poke(
+      groupAction(flag, {
+        cordon: {
+          open: {
+            'add-ranks': ranks,
+          },
+        },
+      })
+    );
+  },
+  unbanRanks: async (flag, ranks) => {
+    await api.poke(
+      groupAction(flag, {
+        cordon: {
+          open: {
+            'del-ranks': ranks,
+          },
+        },
+      })
+    );
+  },
+  search: async (flag) => {
+    try {
+      const res = await api.subscribeOnce('groups', `/gangs/${flag}/preview`);
+      get().batchSet((draft) => {
+        const gang = draft.gangs[flag] || {
+          preview: null,
+          invite: null,
+          claim: null,
+        };
+        gang.preview = res;
+        draft.gangs[flag] = gang;
+      });
+    } catch (e) {
+      // TODO: fix error handling
+      console.error(e);
+    }
+  },
   create: async (req) => {
     await api.poke({
       app: 'groups',
       mark: 'group-create',
       json: req,
+    });
+  },
+  join: async (flag, joinAll) => {
+    api.poke({
+      app: 'groups',
+      mark: 'group-join',
+      json: {
+        flag,
+        'join-all': joinAll,
+      },
     });
   },
   addSects: async (flag, ship, sects) => {
@@ -90,15 +148,35 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  fetchAll: async () => {
-    const groups = await api.scry<Groups>({
-      app: 'groups',
-      path: '/groups',
-    });
+  start: async () => {
+    const [groups, gangs] = await Promise.all([
+      api.scry<Groups>({
+        app: 'groups',
+        path: '/groups',
+      }),
+      api.scry<Gangs>({
+        app: 'groups',
+        path: '/gangs',
+      }),
+    ]);
     set((s) => ({
       ...s,
       groups,
+      gangs,
     }));
+    await api.subscribe({
+      app: 'groups',
+      path: '/groups/ui',
+      event: (data) => {
+        const { flag, update } = data as GroupAction;
+        if ('create' in update.diff) {
+          const group = update.diff.create;
+          get().batchSet((draft) => {
+            draft.groups[flag] = group;
+          });
+        }
+      },
+    });
   },
   initialize: async (flag: string) =>
     api.subscribe({
@@ -186,6 +264,21 @@ export function useVessel(flag: string, ship: string) {
   return useGroupState(
     useCallback((s) => s.groups[flag].fleet[ship], [ship, flag])
   );
+}
+
+const defGang = {
+  invite: null,
+  claim: null,
+  preview: null,
+};
+
+export function useGang(flag: string) {
+  return useGroupState(useCallback((s) => s.gangs[flag] || defGang, [flag]));
+}
+
+const selGangList = (s: GroupState) => Object.keys(s.gangs);
+export function useGangList() {
+  return useGroupState(selGangList);
 }
 
 export function useChannel(flag: string, channel: string): Channel | undefined {

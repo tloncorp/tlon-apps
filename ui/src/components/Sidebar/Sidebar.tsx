@@ -1,8 +1,9 @@
 import classNames from 'classnames';
 import React from 'react';
-import { useGroup, useGroupList } from '../../state/groups';
+import { useGangList, useGroup, useGroupList } from '../../state/groups';
 import useSidebars from '../../state/sidebars';
 import Divider from '../Divider';
+import GangName from '../GangName/GangName';
 import XIcon from '../icons/XIcon';
 import SidebarLink from './SidebarLink';
 
@@ -11,8 +12,18 @@ function GroupItem({ flag }: { flag: string }) {
   return <SidebarLink to={`/groups/${flag}`}>{meta.title}</SidebarLink>;
 }
 
+function GangItem(props: { flag: string }) {
+  const { flag } = props;
+  return (
+    <SidebarLink to={`/gangs/${flag}`}>
+      <GangName flag={flag} />
+    </SidebarLink>
+  );
+}
+
 export default function Sidebar() {
   const groups = useGroupList();
+  const gangs = useGangList();
   const { groupsOpen, isMobile, transition } = useSidebars();
 
   return (
@@ -40,9 +51,14 @@ export default function Sidebar() {
           <SidebarLink to="/">Groups</SidebarLink>
           <SidebarLink to="/profile">Profile</SidebarLink>
           <SidebarLink to="/groups/new">New Group</SidebarLink>
+          <SidebarLink to="/groups/join">Join Group</SidebarLink>
           <Divider>All Groups</Divider>
           {groups.map((flag) => (
             <GroupItem key={flag} flag={flag} />
+          ))}
+          {gangs.length > 0 ? <Divider>Pending</Divider> : null}
+          {gangs.map((flag) => (
+            <GangItem key={flag} flag={flag} />
           ))}
         </ul>
       </div>

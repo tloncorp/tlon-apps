@@ -1,0 +1,21 @@
+// Vitest Snapshot v1
+
+exports[`ChatInput > renders default 1`] = `
+<DocumentFragment>
+  <span
+    class="text-mono"
+  >
+    ~zod/structure
+  </span>
+</DocumentFragment>
+`;
+
+exports[`ChatInput > renders preview 1`] = `
+<DocumentFragment>
+  <span
+    class=""
+  >
+    Structure
+  </span>
+</DocumentFragment>
+`;

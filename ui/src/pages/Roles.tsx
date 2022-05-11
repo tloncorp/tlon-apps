@@ -1,5 +1,6 @@
-import { Field, Form, Formik } from 'formik';
 import React from 'react';
+import { useForm } from 'react-hook-form';
+import MetadataForm from '../components/MetadataForm/MetadataForm';
 import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
 import { Cabal } from '../types/groups';
 
@@ -22,27 +23,28 @@ function Role(props: { sect: string; cabal: Cabal }) {
 interface FormSchema {
   title: string;
   description: string;
+  image: string;
 }
 
 export function AddRole() {
   const flag = useRouteGroup();
-  const initialValues: FormSchema = {
+  const defaultValues: FormSchema = {
     title: '',
     description: '',
+    image: '',
   };
   const onSubmit = (values: FormSchema) => {
     useGroupState.getState().addRole(flag, values.title, values);
   };
+  const { register, handleSubmit } = useForm({ defaultValues });
   return (
     <div>
       <h4>Add Role</h4>
-      <Formik onSubmit={onSubmit} initialValues={initialValues}>
-        <Form>
-          <Field name="title" type="text" />
-          <Field name="description" type="text" />
-          <button type="submit">Add</button>
-        </Form>
-      </Formik>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <MetadataForm register={register} />
+
+        <button type="submit">Add</button>
+      </form>
     </div>
   );
 }

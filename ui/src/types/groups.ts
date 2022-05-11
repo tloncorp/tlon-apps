@@ -1,3 +1,6 @@
+export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
+export type Rank = typeof allRanks[number];
+
 export interface GroupMeta {
   title: string;
   description: string;
@@ -17,6 +20,27 @@ export interface Vessel {
   joined: number;
 }
 
+export interface OpenCordon {
+  open: {
+    ships: string[];
+    ranks: string[];
+  };
+}
+
+export interface ShutCordon {
+  shut: string[];
+}
+
+export interface AfarCordon {
+  afar: {
+    app: string;
+    path: string;
+    desc: string;
+  };
+}
+
+export type Cordon = OpenCordon | ShutCordon | AfarCordon;
+
 export interface Group {
   fleet: {
     [ship: string]: Vessel;
@@ -27,7 +51,7 @@ export interface Group {
   channels: {
     [flag: string]: Channel;
   };
-  cordon: unknown;
+  cordon: Cordon;
   meta: GroupMeta;
 }
 
@@ -82,13 +106,55 @@ interface ChannelDiff {
   };
 }
 
+interface CordonDiffOpenAddShips {
+  'add-ships': string[];
+}
+
+interface CordonDiffOpenDelShips {
+  'del-ships': string[];
+}
+
+interface CordonDiffOpenAddRanks {
+  'add-ranks': string[];
+}
+interface CordonDiffOpenDelRanks {
+  'del-ranks': string[];
+}
+
+interface CordonDiffOpen {
+  open:
+    | CordonDiffOpenAddShips
+    | CordonDiffOpenDelShips
+    | CordonDiffOpenAddRanks
+    | CordonDiffOpenDelRanks;
+}
+
+interface CordonDiffShutAddShips {
+  'add-ships': string[];
+}
+
+interface CordonDiffShutDelShips {
+  'del-ships': string[];
+}
+
+interface CordonDiffShut {
+  shut: CordonDiffShutAddShips | CordonDiffShutDelShips;
+}
+
 interface CordonDiff {
-  cordon: {
-    change: string;
-  };
+  cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };
+}
+
+export interface GroupCreateDiff {
+  create: Group;
 }
 // TODO: elaborate
-export type GroupDiff = FleetDiff | CabalDiff | ChannelDiff | CordonDiff;
+export type GroupDiff =
+  | GroupCreateDiff
+  | FleetDiff
+  | CabalDiff
+  | ChannelDiff
+  | CordonDiff;
 
 export interface GroupUpdate {
   time: string;
@@ -102,4 +168,31 @@ export interface GroupAction {
 
 export interface Groups {
   [flag: string]: Group;
+}
+
+export interface GroupPreview {
+  meta: GroupMeta;
+  cordon: Cordon;
+}
+
+export interface Invite {
+  text: string;
+  ship: string;
+}
+
+export type JoinProgress = 'adding' | 'watching' | 'done' | 'error';
+
+interface GroupClaim {
+  progress: JoinProgress;
+  'join-all': boolean;
+}
+
+export interface Gang {
+  preview: GroupPreview | null;
+  invite: Invite | null;
+  claim: GroupClaim | null;
+}
+
+export interface Gangs {
+  [flag: string]: Gang;
 }

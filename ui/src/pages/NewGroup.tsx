@@ -1,32 +1,33 @@
 import React from 'react';
-import { Field, Form, Formik } from 'formik';
+import { useNavigate } from 'react-router';
+import { useForm } from 'react-hook-form';
 import { useGroupState } from '../state/groups';
+import MetadataForm from '../components/MetadataForm/MetadataForm';
+import { strToSym } from '../utils';
 
 interface FormSchema {
   title: string;
   description: string;
+  image: string;
 }
 export default function NewGroup() {
-  const initialValues: FormSchema = {
+  const navigate = useNavigate();
+  const defaultValues: FormSchema = {
     title: '',
     description: '',
+    image: '',
   };
-  const onSubmit = (values: FormSchema) => {
-    useGroupState.getState().create({ ...values, name: values.title });
+  const { handleSubmit, register } = useForm<FormSchema>({ defaultValues });
+  const onSubmit = async (values: FormSchema) => {
+    const name = strToSym(values.title);
+    await useGroupState.getState().create({ ...values, name });
+    const flag = `${window.our}/${name}`;
+    navigate(`/groups/${flag}`);
   };
   return (
-    <Formik onSubmit={onSubmit} initialValues={initialValues}>
-      <Form className="flex flex-col">
-        <div className="p-2">
-          <label htmlFor="title">Title</label>
-          <Field className="rounded border" type="text" name="title" />
-        </div>
-        <div className="p-2">
-          <label htmlFor="description">Description</label>
-          <Field className="rounded border" type="text" name="description" />
-        </div>
-        <button type="submit">Submit</button>
-      </Form>
-    </Formik>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
+      <MetadataForm register={register} />
+      <button type="submit">Submit</button>
+    </form>
   );
 }

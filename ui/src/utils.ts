@@ -1,4 +1,30 @@
+import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
+import { Rank } from './types/groups';
+
+export function renderRank(rank: Rank, plural = false) {
+  if (rank === 'czar') {
+    return plural ? 'Galaxies' : 'Galaxy';
+  }
+  if (rank === 'king') {
+    return plural ? 'Stars' : 'Star';
+  }
+  if (rank === 'duke') {
+    return plural ? 'Planets' : 'Planet';
+  }
+  if (rank === 'earl') {
+    return plural ? 'Moons' : 'Moon';
+  }
+  return plural ? 'Comets' : 'Comet';
+}
+
+/**
+ * Processes a string to make it `@tas` compatible
+ */
+export function strToSym(str: string): string {
+  const ascii = anyAscii(str);
+  return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
+}
 
 export function channelHref(flag: string, ch: string) {
   return `/groups/${flag}/channels/chat/${ch}`;

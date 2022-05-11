@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import classNames from 'classnames';
 import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
@@ -44,6 +44,7 @@ function Groups() {
       }
     };
   }, [flag]);
+  const location = useLocation();
   if (!group) {
     return null;
   }
@@ -86,7 +87,14 @@ function Groups() {
               New Channel
             </SidebarLink>
             <SidebarLink to={`/groups/${flag}/members`}>Members</SidebarLink>
+            <SidebarLink
+              to={`/gangs/~zod/structure`}
+              state={{ backgroundLocation: location }}
+            >
+              Test Overlay
+            </SidebarLink>
             <SidebarLink to={`/groups/${flag}/roles`}>Roles</SidebarLink>
+            <SidebarLink to={`/groups/${flag}/policy`}>Policy</SidebarLink>
           </ul>
           <Divider>Channels</Divider>
           <ChannelList group={group} flag={flag} />

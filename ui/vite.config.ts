@@ -14,6 +14,9 @@ export default ({ mode }) => {
 
   return defineConfig({
     base: mode === 'mock' ? undefined : '/apps/homestead/',
+    build: {
+      sourcemap: 'inline'
+    },
     plugins:
       mode === 'mock'
         ? [reactRefresh()]

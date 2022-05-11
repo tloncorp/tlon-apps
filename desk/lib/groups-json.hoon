@@ -7,6 +7,21 @@
     |=  her=@p
     s/(scot %p her)
   ::
+  ++  action
+    |=  a=action:g
+    %-  pairs
+    :~  flag/s/(flag p.a)
+        update/(update q.a)
+    ==
+  ::
+  ++  preview
+    |=  p=preview:g
+    %-  pairs
+    :~  time+(time time.p)
+        meta+(meta meta.p)
+        cordon+(cordon cordon.p)
+    ==
+  ::
   ++  update
     |=  =update:g
     %-  pairs
@@ -28,7 +43,24 @@
   ++  cordon-diff
     |=  d=diff:cordon:g
     %+  frond  -.d
-    s/p.d
+    ?-  -.d
+      %open  (open-cordon-diff p.d)
+      %shut  (shut-cordon-diff p.d)
+      %swap  (cordon p.d)
+    ==
+  ::
+  ++  open-cordon-diff
+    |=  d=diff:open:cordon:g
+    %+  frond  -.d
+    ?-  -.d
+      ?(%add-ships %del-ships)  a/(turn ~(tap in p.d) ship)
+      ?(%add-ranks %del-ranks)  a/(turn ~(tap in p.d) (lead %s))
+    ==
+  ::
+  ++  shut-cordon-diff
+    |=  d=diff:shut:cordon:g
+    %+  frond  -.d
+    a/(turn ~(tap in p.d) ship)
   ::
   ++  channel-diff
     |=  d=diff:channel:g
@@ -63,6 +95,32 @@
     %+  turn  ~(tap by gs)
     |=  [f=flag:g gr=group:g]
     [(flag f) (group gr)]
+  ::
+  ++  gangs
+    |=  gs=(map flag:g gang:g)
+    %-  pairs
+    %+  turn  ~(tap by gs)
+    |=  [f=flag:g gr=gang:g]
+    [(flag f) (gang gr)]
+  ::
+  ++  gang
+    |=  ga=gang:g
+    %-  pairs
+    :~  claim/?~(cam.ga ~ (claim u.cam.ga))
+        preview/?~(pev.ga ~ (preview u.pev.ga))
+        invite/?~(vit.ga ~ (invite u.vit.ga))
+    ==
+  ::
+  ++  claim
+    |=  c=claim:g
+    %-  pairs
+    :~  join-all/b/join-all.c
+        progress/s/`@t`progress.c
+    ==
+  ::
+  ++  invite
+    |=  i=invite:g
+    `json`~
   ::
   ++  group
     |=  gr=group:g
@@ -121,8 +179,26 @@
   ::
   ++  cordon
     |=  c=cordon:g
+    %+  frond  -.c
+    ?-  -.c
+      %open  (ban-cordon ban.c)
+      %shut  a/(turn ~(tap in pending.c) ship)
+      %afar  (afar-cordon +.c)
+    ==
+  ::
+  ++  afar-cordon
+    |=  [app=flag:g pax=^path desc=@t]
     %-  pairs
-    :~  [-.c ~]
+    :~  app/s/(flag app)
+        path/s/(spat pax)
+        desc/s/desc
+    ==
+  ::
+  ++  ban-cordon
+    |=  b=ban:open:cordon:g
+    %-  pairs
+    :~  ships/a/(turn ~(tap in ships.b) ship)
+        ranks/a/(turn ~(tap in ranks.b) (lead %s))
     ==
   ::
   ++  meta
@@ -139,6 +215,7 @@
   |%
   ++  sym  (se %tas)
   ++  ship  (se %p)
+  ++  rank  (su (perk %czar %king %duke %earl %pawn ~))
   ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) ^sym))
   ++  create
     ^-  $-(json create:g)
@@ -146,6 +223,14 @@
     :~  name+sym
         title+so
         description+so
+        image+so
+    ==
+  ::
+  ++  join
+    ^-  $-(json join:g)
+    %-  ot
+    :~  flag/flag
+        join-all/bo
     ==
   ++  action
     ^-  $-(json action:g)
@@ -163,6 +248,40 @@
     %-  of
     :~  cabal/(ot sect/sym diff/cabal-diff ~)
         fleet/(ot ship/ship diff/fleet-diff ~)
+        cordon/cordon-diff
+    ==
+  ::
+  ++  cordon
+    %-  of
+    :~  open/open-cordon
+        shut/(as ship)
+    ==
+  ::
+  ++  open-cordon
+    %-  ot
+    :~  ships/(as ship)
+        ranks/(as rank)
+    ==
+  ::
+  ++  cordon-diff
+    %-  of
+    :~  open/open-cordon-diff
+        shut/shut-cordon-diff
+        swap/cordon
+    ==
+  ::
+  ++  open-cordon-diff
+    %-  of
+    :~  add-ships/(as ship)
+        del-ships/(as ship)
+        add-ranks/(as rank)
+        del-ranks/(as rank)
+    ==
+  ::
+  ++  shut-cordon-diff
+    %-  of
+    :~  add-ships/(as ship)
+        del-ships/(as ship)
     ==
   ::
   ++  fleet-diff
