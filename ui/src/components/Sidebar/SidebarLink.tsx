@@ -8,11 +8,15 @@ type SidebarProps = PropsWithChildren<{
 }> &
   NavLinkProps;
 
-export default function SidebarLink({ to, img, children, className }: SidebarProps) {
+export default function SidebarLink({
+  img,
+  children,
+  className,
+  ...rest
+}: SidebarProps) {
   return (
     <li>
       <NavLink
-        to={to}
         className={({ isActive }) =>
           cn(
             'flex items-center space-x-3 rounded-md p-2 text-base font-semibold text-gray-600 hover:bg-gray-50',
@@ -20,9 +24,13 @@ export default function SidebarLink({ to, img, children, className }: SidebarPro
             className
           )
         }
+        {...rest}
       >
         {(img || '').length > 0 ? (
-          <img className="h-6 w-6 rounded border-2 border-transparent" src={img} />
+          <img
+            className="h-6 w-6 rounded border-2 border-transparent"
+            src={img}
+          />
         ) : (
           <div className="h-6 w-6 rounded border-2 border-gray-100" />
         )}
