@@ -1,44 +1,24 @@
 import React, { useEffect } from 'react';
-import cn from 'classnames';
 import { Outlet, useLocation } from 'react-router';
-import { Link, NavLink } from 'react-router-dom';
+import classNames from 'classnames';
 import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
 import api from '../api';
+import SidebarLink from '../components/Sidebar/SidebarLink';
+import Divider from '../components/Divider';
+import { channelHref } from '../utils';
+import useSidebars from '../state/sidebars';
+import XIcon from '../components/icons/XIcon';
+import LeftIcon from '../components/icons/LeftIcon';
 
-function SidebarRow(props: {
-  className?: string;
-  children?: React.ReactChild | React.ReactChild[];
-}) {
-  const { children, className = '' } = props;
+function ChannelList({ group, flag }: { group: Group; flag: string }) {
   return (
-    <li className={cn('flex space-x-2 p-2', className)}>
-      <div className="h-6 w-6 rounded border" />
-      {typeof children === 'string' ? <div>{children}</div> : children}
-    </li>
-  );
-}
-
-function Divider(props: { title: string }) {
-  const { title } = props;
-  return (
-    <div className="flex items-center space-x-2 p-2">
-      <div>{title}</div>
-      <div className="grow border-b" />
-    </div>
-  );
-}
-
-function ChannelList(props: { group: Group; flag: string }) {
-  const { group, flag } = props;
-  const channels = Object.keys(group.channels);
-  const channelHref = (ch: string) => `/groups/${flag}/channels/chat/${ch}`;
-  return (
-    <ul className="p-2">
-      {channels.map((channel) => (
-        <li className="flex justify-between" key={channel}>
-          <Link to={channelHref(channel)}>{channel}</Link>
-          <Link to={`${channelHref(channel)}/settings`}>⚙️ </Link>
+    <ul>
+      {Object.entries(group.channels).map(([key, channel]) => (
+        <li key={key}>
+          <SidebarLink to={channelHref(flag, key)}>
+            {channel.meta.title || key}
+          </SidebarLink>
         </li>
       ))}
     </ul>
@@ -48,6 +28,7 @@ function ChannelList(props: { group: Group; flag: string }) {
 function Groups() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const { channelsOpen, isMobile, transition } = useSidebars();
 
   useEffect(() => {
     let id = null as number | null;
@@ -69,35 +50,56 @@ function Groups() {
   }
   return (
     <div className="flex grow">
-      <div className="w-56 border-r p-2">
-        <div className="space-y-2 p-2">
-          <h1 className="text-lg font-bold">{group.meta.title}</h1>
-          <p>{group.meta.description}</p>
+      <nav
+        className={classNames(
+          'h-full border-r-2 border-gray-50 bg-white',
+          !isMobile && 'w-64',
+          isMobile &&
+            'fixed top-0 left-0 z-30 w-full -translate-x-full transition-transform',
+          channelsOpen && 'translate-x-0'
+        )}
+      >
+        {isMobile ? (
+          <header className="flex items-center border-b-2 border-gray-50 p-4">
+            <button
+              className="flex items-center text-lg font-semibold text-gray-600"
+              onClick={() => transition('groups-open')}
+            >
+              <LeftIcon className="h-6 w-6" />
+              Groups
+            </button>
+            <button
+              className="icon-button ml-auto h-8 w-8"
+              onClick={() => transition('closed')}
+              aria-label="Close Channels Menu"
+            >
+              <XIcon className="h-6 w-6" />
+            </button>
+          </header>
+        ) : null}
+        <div className="p-2">
+          <div className="p-2">
+            <h1 className="mb-2 font-semibold">{group.meta.title}</h1>
+            <p>{group.meta.description}</p>
+          </div>
+          <ul>
+            <SidebarLink to={`/groups/${flag}/channels/new`}>
+              New Channel
+            </SidebarLink>
+            <SidebarLink to={`/groups/${flag}/members`}>Members</SidebarLink>
+            <SidebarLink
+              to={`/gangs/~zod/structure`}
+              state={{ backgroundLocation: location }}
+            >
+              Test Overlay
+            </SidebarLink>
+            <SidebarLink to={`/groups/${flag}/roles`}>Roles</SidebarLink>
+            <SidebarLink to={`/groups/${flag}/policy`}>Policy</SidebarLink>
+          </ul>
+          <Divider>Channels</Divider>
+          <ChannelList group={group} flag={flag} />
         </div>
-        <SidebarRow>
-          <NavLink to={`/groups/${flag}/channels/new`}>New Channel</NavLink>
-        </SidebarRow>
-        <SidebarRow>
-          <NavLink to={`/groups/${flag}/members`}>Members</NavLink>
-        </SidebarRow>
-        <SidebarRow>
-          <NavLink
-            to={`/gangs/~zod/structure`}
-            state={{ backgroundLocation: location }}
-          >
-            Test Overlay
-          </NavLink>
-        </SidebarRow>
-        <SidebarRow>
-          <NavLink to={`/groups/${flag}/roles`}>Roles</NavLink>
-        </SidebarRow>
-        <SidebarRow>
-          <NavLink to={`/groups/${flag}/policy`}>Policy</NavLink>
-        </SidebarRow>
-
-        <Divider title="Channels" />
-        <ChannelList group={group} flag={flag} />
-      </div>
+      </nav>
       <Outlet />
     </div>
   );

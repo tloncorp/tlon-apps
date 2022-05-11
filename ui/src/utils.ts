@@ -26,6 +26,10 @@ export function strToSym(str: string): string {
   return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
 }
 
+export function channelHref(flag: string, ch: string) {
+  return `/groups/${flag}/channels/chat/${ch}`;
+}
+
 export function makePrettyDay(date: Date) {
   const diff = differenceInDays(new Date(), date);
   switch (diff) {

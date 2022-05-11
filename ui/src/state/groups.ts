@@ -5,6 +5,7 @@ import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
 import {
   Gangs,
+  Channel,
   Group,
   GroupDiff,
   Groups,
@@ -278,4 +279,10 @@ export function useGang(flag: string) {
 const selGangList = (s: GroupState) => Object.keys(s.gangs);
 export function useGangList() {
   return useGroupState(selGangList);
+}
+
+export function useChannel(flag: string, channel: string): Channel | undefined {
+  return useGroupState(
+    useCallback((s) => s.groups[flag].channels[channel], [flag, channel])
+  );
 }

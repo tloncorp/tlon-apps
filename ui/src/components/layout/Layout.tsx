@@ -1,17 +1,16 @@
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
 import cn from 'classnames';
 
-interface LayoutProps {
+type LayoutProps = PropsWithChildren<{
   className?: string;
-  main: React.ReactNode;
   footer?: React.ReactNode;
   header?: React.ReactNode;
   aside?: React.ReactNode;
-}
+}>;
 
 export default function Layout({
   className,
-  main,
+  children,
   footer,
   header,
   aside,
@@ -20,7 +19,7 @@ export default function Layout({
     <div className={cn(className, 'layout')}>
       {header && <header className="header">{header}</header>}
       {aside && <aside className="aside">{aside}</aside>}
-      <main className="main">{main}</main>
+      <main className="main">{children}</main>
       {footer && <footer className="footer">{footer}</footer>}
     </div>
   );

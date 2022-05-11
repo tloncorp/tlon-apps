@@ -5,20 +5,12 @@ import { ChatWrit } from '../types/chat';
 const today = new Date();
 
 const chatWrits: ChatWrit[] = [
-  makeChatWrit(1, '~hastuc-dibtux', {
-    block: [],
-    inline: [{ bold: 'A bold test message' }, 'with some more text'],
-  }),
-  makeChatWrit(2, '~finned-palmer', {
-    block: [],
-    inline: ['A finned normal message'],
-  }),
   makeChatWrit(
     1,
     '~hastuc-dibtux',
     {
       block: [],
-      inline: [{ bold: 'A bold test message' }, 'with some more text'],
+      inline: [{ bold: 'A bold test message' }, ' with some more text'],
     },
     undefined,
     today
@@ -50,8 +42,8 @@ const chatWrits: ChatWrit[] = [
       block: [],
       inline: [
         { italics: 'An italicized test message' },
-        'with a link:',
-        { href: 'https://urbit.org' },
+        ' with a link:',
+        { link: { href: 'https://urbit.org', content: '' } },
       ],
     },
     { HAHA: '😆' },
@@ -62,7 +54,7 @@ const chatWrits: ChatWrit[] = [
     '~hastuc-dibtux',
     {
       block: [],
-      inline: [{ href: 'https://tlon.io/' }],
+      inline: [{ link: { href: 'https://tlon.io/', content: '' } }],
     },
     undefined,
     subDays(today, 3)
@@ -78,7 +70,7 @@ const chatWrits: ChatWrit[] = [
     subDays(today, 7)
   ),
   makeChatWrit(
-    6,
+    7,
     '~hastuc-dibtux',
     {
       block: [],
@@ -87,10 +79,6 @@ const chatWrits: ChatWrit[] = [
     undefined,
     subDays(today, 8)
   ),
-  makeChatWrit(4, '~hastuc-dibtux', {
-    block: [],
-    inline: [{ href: 'https://tlon.io/' }],
-  }),
 ];
 
 export default chatWrits;

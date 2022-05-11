@@ -1,6 +1,44 @@
+@font-face {
+  font-family: 'Inter var';
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  font-named-instance: 'Regular';
+  src: url('../assets/Inter-roman.var.woff2?v=3.13') format('woff2');
+}
+@font-face {
+  font-family: 'Inter var';
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: italic;
+  font-named-instance: 'Italic';
+  src: url('../assets/Inter-italic.var.woff2?v=3.13') format('woff2');
+}
+@font-face {
+  font-family: 'Source Code Pro';
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  src: url('../assets/SourceCodePro-VariableFont_wght-subset.woff2')
+    format('woff2');
+}
+
 html,
 body,
 #app {
   /* adding for mobile bottom bars */
-  @apply h-full w-full;
+  @apply h-full min-h-screen w-full;
+  min-height: -webkit-fill-available;
+}
+
+blockquote {
+  @apply block border-l-2 border-gray-100 pl-3 text-gray-600;
+}
+
+a:not([class]) {
+  @apply underline;
+}
+
+::selection {
+  @apply bg-gray-100;
 }

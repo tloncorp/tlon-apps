@@ -56,14 +56,16 @@
 ::
 +$  inline
   $@  @t
-  $%  [%italics p=cord]
-      [%bold p=cord]
+  $%  [%italics p=inline]
+      [%bold p=inline]
+      [%strike p=inline]
+      [%inline-code p=inline]
+      [%blockquote p=(list inline)]
       [%block p=@ud q=cord]
-      [%inline-code p=cord]
       [%code p=cord]
-      [%blockquote p=cord]
       [%tag p=cord]
-      [%href p=cord]
+      [%link p=cord q=cord]
+      [%break ~]
   ==
 ::
 +$  memo  

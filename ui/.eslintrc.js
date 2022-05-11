@@ -28,6 +28,13 @@ module.exports = {
       'error',
       { props: true, ignorePropertyModificationsFor: ['draft'] },
     ],
+    'no-use-before-define': 'off',
+    '@typescript-eslint/no-use-before-define': [
+      'error',
+      {
+        typedefs: false,
+      },
+    ],
   },
   settings: {
     tailwindcss: {
