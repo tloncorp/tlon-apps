@@ -176,6 +176,9 @@ export const useChatState = create<ChatState>((set, get) => ({
             const diff = update.diff['add-feel'];
             const time = bigInt(udToDec(diff.time));
             const writ = draft.chats[flag].writs.get(time);
+            if (!writ) {
+              return;
+            }
             writ.seal.feels[diff.ship] = diff.feel;
             draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
           } else if ('add-sects' in update.diff) {
