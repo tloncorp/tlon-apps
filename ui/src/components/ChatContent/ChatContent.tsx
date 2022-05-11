@@ -118,7 +118,7 @@ export function BlockContent({ content }: BlockContentProps) {
         src={content.image.src}
         height={content.image.height}
         width={content.image.width}
-        altText={content.image.altText}
+        altText={content.image.alt}
       />
     );
   }
