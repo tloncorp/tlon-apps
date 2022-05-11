@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import React from 'react';
-import { useParams } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '../components/ChatInput/ChatInput';
 import ChatWindow from '../components/ChatWindow';
@@ -31,6 +31,7 @@ function Channel() {
   return (
     <Layout
       className="flex-1"
+      aside={<Outlet />}
       header={
         <div className="flex items-center border-b-2 border-gray-50 p-4">
           {isMobile ? (
