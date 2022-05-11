@@ -34,6 +34,8 @@
   |%
   +$  writs
     ((mop time writ) lte)
+  ++  on
+    ((^on time writ) lte)
   +$  diff
     $%  [%add p=memo]
         [%del p=time] 
@@ -41,8 +43,13 @@
         [%del-feel p=time q=ship]
     ==
   --
-++  writs-on
-  ((on time writ) lte)
+::
+++  dm
+  |%
+  +$  diff  diff:writs
+  +$  action  (pair ship diff)
+  --
+::
 +$  log
   ((mop time diff) lte)
 ++  log-on

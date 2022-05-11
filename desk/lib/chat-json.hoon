@@ -42,6 +42,13 @@
         ship+(ship her)
     ==
   ::
+  ++  dm-action
+    |=  =action:dm:c
+    %-  pairs
+    :~  ship+(ship p.action)
+        diff+(writs-diff q.action)
+    ==
+  ::
   ++  memo 
     |=  =memo:c
     %-  pairs
@@ -141,6 +148,13 @@
     :~  flag+flag
         update+update
     ==
+  ++  dm-action
+    ^-  $-(json action:dm:c)
+    %-  ot
+    :~  ship/ship
+        diff/writs-diff
+    ==
+  ::
   ++  update
     |=  j=json
     ^-  update:c
