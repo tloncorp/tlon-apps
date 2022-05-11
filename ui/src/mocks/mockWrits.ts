@@ -75,7 +75,9 @@ const chatWrits: ChatWrit[] = [
       {
         image: {
           src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.17..14.09.21-image.png',
-          width: 700,
+          width: 1289,
+          height: 661,
+          alt: '',
         },
       },
     ],
@@ -86,12 +88,17 @@ const chatWrits: ChatWrit[] = [
       {
         image: {
           src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.17..20.39.01-j-balla-photography-HvC0VnTkV5M-unsplash.jpg',
-          width: 400,
+          width: 670,
+          height: 1005,
+          alt: 'beautiful jungle waterfall',
         },
       },
       {
         image: {
           src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.23..17.22.38-image.png',
+          width: 828,
+          height: 196,
+          alt: '',
         },
       },
     ],

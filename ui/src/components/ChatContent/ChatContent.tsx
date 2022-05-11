@@ -118,7 +118,7 @@ export function BlockContent({ content }: BlockContentProps) {
         src={content.image.src}
         height={content.image.height}
         width={content.image.width}
-        altText={content.image.altText}
+        altText={content.image.alt}
       />
     );
   }
@@ -134,14 +134,16 @@ export default function ChatContent({ content }: ChatContentProps) {
     <div className="leading-6">
       {blockLength > 0 ? (
         <>
-          {content.block.map((contentItem, index) => (
-            <div
-              key={`${contentItem.toString()}-${index}`}
-              className="flex flex-col"
-            >
-              <BlockContent content={contentItem} />
-            </div>
-          ))}
+          {content.block
+            .filter((a) => !!a)
+            .map((contentItem, index) => (
+              <div
+                key={`${contentItem.toString()}-${index}`}
+                className="flex flex-col"
+              >
+                <BlockContent content={contentItem} />
+              </div>
+            ))}
         </>
       ) : null}
       {inlineLength > 0 ? (

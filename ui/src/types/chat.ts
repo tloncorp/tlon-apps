@@ -57,9 +57,9 @@ export interface Link {
 export interface ChatImage {
   image: {
     src: string;
-    height?: number;
-    width?: number;
-    altText?: string;
+    height: number;
+    width: number;
+    alt: string;
   };
 }
 
