@@ -22,7 +22,7 @@ export default function ChatThread() {
   const channel = useChannel(groupFlag, flag)!;
 
   return (
-    <div className="flex h-full w-72 flex-col space-y-2 border-l p-4">
+    <div className="flex h-full min-w-72 flex-col space-y-2 border-l p-4 xl:min-w-96">
       <div className="flex flex-col space-y-4">
         <div className="flex justify-between">
           <div>Thread: {channel.meta.title}</div>

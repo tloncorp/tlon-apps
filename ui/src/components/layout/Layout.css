@@ -16,7 +16,6 @@
 
 .aside {
   grid-area: aside;
-  width: var(--aside-width);
 }
 
 .header {
