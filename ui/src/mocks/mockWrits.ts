@@ -69,8 +69,29 @@ const chatWrits: ChatWrit[] = [
     undefined,
     subDays(today, 7)
   ),
+  makeChatWrit(7, '~finned-palmer', {
+    inline: [],
+    block: [
+      {
+        src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.17..14.09.21-image.png',
+        width: 700,
+      },
+    ],
+  }),
+  makeChatWrit(8, '~finned-palmer', {
+    inline: [],
+    block: [
+      {
+        src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.17..20.39.01-j-balla-photography-HvC0VnTkV5M-unsplash.jpg',
+        width: 400,
+      },
+      {
+        src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.23..17.22.38-image.png',
+      },
+    ],
+  }),
   makeChatWrit(
-    7,
+    9,
     '~hastuc-dibtux',
     {
       block: [],

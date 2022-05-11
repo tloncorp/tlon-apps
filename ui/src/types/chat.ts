@@ -3,7 +3,7 @@ import { BigIntOrderedMap } from '@urbit/api';
 export type Patda = string;
 export type Ship = string;
 
-type ChatBlock = unknown;
+export type ChatBlock = ChatImage;
 
 export interface Italics {
   italics: ChatInline;
@@ -54,6 +54,13 @@ export interface Link {
   };
 }
 
+export interface ChatImage {
+  src: string;
+  height?: number;
+  width?: number;
+  altText?: string;
+}
+
 export type ChatInline =
   | string
   | Bold
@@ -94,6 +101,10 @@ export function isInlineCode(item: unknown): item is InlineCode {
 
 export function isBreak(item: unknown): item is Break {
   return typeof item === 'object' && item !== null && 'break' in item;
+}
+
+export function isChatImage(item: unknown): item is ChatImage {
+  return typeof item === 'object' && item !== null && 'src' in item;
 }
 
 export interface ChatMessage {
