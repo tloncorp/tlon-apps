@@ -11,6 +11,8 @@
     $:  %0
         chats=(map flag:c chat:c)
         dms=(map ship writs:c)
+        bad=(set ship)
+        inv=(set ship)
     ==
   --
 =|  state-0
@@ -143,12 +145,16 @@
   |=  =path
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
-    [%chat ~]  cor
+      [%chat ~]  cor
   ::
       [%chat @ @ *]
     =/  =ship  (slav %p i.t.path)
     =*  name   i.t.t.path
     ca-abet:(ca-watch:(ca-abed:ca-core ship name) t.t.t.path)
+  ::
+      [%dm @ *]
+    =/  =ship  (slav %p i.t.path)
+    di-abet:(di-watch:(di-abed:di-core ship) t.t.path)
   ==
 ::
 ++  agent
@@ -477,7 +483,7 @@
   ++  di-abed
     |=  s=@p
     di-core(ship s, writs (~(gut by dms) s *writs:c))
-  ++  di-area  /dms/(scot %p ship)
+  ++  di-area  `path`/dm/(scot %p ship)
   ++  di-proxy
     |=  =diff:dm:c
     =.  di-core  (di-ingest-diff diff)
@@ -486,7 +492,17 @@
   ::
   ++  di-ingest-diff
     |=  =diff:dm:c
+    =/  =path  (snoc di-area %ui)
+    =.  cor  (emit %give %fact ~[path] dm-diff+!>(diff))
     di-core(writs (reduce:w ship writs ship now.bowl diff))
+  ::
+  ++  di-watch
+    |=  =path
+    ^+  di-core
+    ?>  =(src.bowl our.bowl)
+    ?+  path  !!
+      [%ui ~]  di-core
+    ==
   ::
   ++  di-agent
     |=  [=wire =sign:agent:gall]
