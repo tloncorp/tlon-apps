@@ -9,6 +9,7 @@ import MenuIcon from '../components/icons/MenuIcon';
 import Layout from '../components/layout/Layout';
 import { useChatIsJoined, useChatPerms, useChatState } from '../state/chat';
 import { useRouteGroup, useVessel } from '../state/groups';
+import useSidebars from '../state/sidebars';
 import { channelHref } from '../utils';
 
 function Channel() {
@@ -19,6 +20,7 @@ function Channel() {
   const join = () => {
     useChatState.getState().joinChat(flag);
   };
+  const { transition, isMobile } = useSidebars();
 
   const perms = useChatPerms(flag);
   const vessel = useVessel(groupFlag, window.our);
@@ -31,14 +33,20 @@ function Channel() {
       className="flex-1"
       header={
         <div className="flex items-center border-b-2 border-gray-50 p-4">
-          <button className="icon-button h-8 w-8">
-            <MenuIcon className="h-8 w-8" />
-          </button>
+          {isMobile ? (
+            <button
+              className="icon-button h-8 w-8"
+              onClick={() => transition('channels-open')}
+              aria-label="Open Channels Menu"
+            >
+              <MenuIcon className="h-8 w-8" />
+            </button>
+          ) : null}
           <Link
             className="icon-button ml-auto h-8 w-8"
             to={`${channelHref(groupFlag, flag)}/settings`}
           >
-            <ElipsisIcon className="h-6 w-6" />
+            <ElipsisIcon className="h-5 w-5" />
           </Link>
         </div>
       }
