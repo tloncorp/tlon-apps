@@ -137,16 +137,48 @@ export const useChatState = create<ChatState>((set, get) => ({
         get().batchSet((draft) => {
           if ('add' in update.diff) {
             const time = bigInt(udToDec(update.time));
-            const seal = { time: update.time, feels: {} };
-            const writ = { seal, memo: update.diff.add };
-            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
+            const seal = { time: update.time, feels: {}, replied: [] };
+            const memo = update.diff.add;
+            const writ = { seal, memo };
+            let ws = draft.chats[flag].writs;
+            if (writ.memo.replying) {
+              const replyId = bigInt(udToDec(writ.memo.replying));
+              const replying = ws.get(replyId);
+              if (replying) {
+                replying.seal.replied = [...replying.seal.replied, update.time];
+                ws = ws.set(replyId, replying);
+              }
+            }
+            ws = ws.set(time, writ);
+            draft.chats[flag].writs = ws;
           } else if ('del' in update.diff) {
-            const time = bigInt(udToDec(update.diff.del));
-            draft.chats[flag].writs = draft.chats[flag].writs.delete(time);
+            const time = update.diff.del;
+            const key = bigInt(udToDec(time));
+            const writ = draft.chats[flag].writs.get(key);
+            if (!writ) {
+              return;
+            }
+            if (writ.memo.replying) {
+              const ancestorId = bigInt(udToDec(writ.memo.replying));
+              const ancestor = draft.chats[flag].writs.get(ancestorId);
+              if (ancestor) {
+                ancestor.seal.replied = ancestor.seal.replied.filter(
+                  (r) => r !== time
+                );
+                draft.chats[flag].writs = draft.chats[flag].writs.set(
+                  ancestorId,
+                  ancestor
+                );
+              }
+            }
+            draft.chats[flag].writs = draft.chats[flag].writs.delete(key);
           } else if ('add-feel' in update.diff) {
             const diff = update.diff['add-feel'];
             const time = bigInt(udToDec(diff.time));
             const writ = draft.chats[flag].writs.get(time);
+            if (!writ) {
+              return;
+            }
             writ.seal.feels[diff.ship] = diff.feel;
             draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
           } else if ('add-sects' in update.diff) {
@@ -179,4 +211,13 @@ export function useChatPerms(flag: string) {
 
 export function useChatIsJoined(flag: string) {
   return useChatState(useCallback((s) => s.flags.includes(flag), [flag]));
+}
+
+export function useReplies(flag: string, time: string) {
+  const messages = useMessagesForChat(flag);
+  const message = messages.get(bigInt(udToDec(time)));
+  const replyKeys = (message?.seal?.replied || []).map((r) =>
+    messages.get(bigInt(udToDec(r)))
+  );
+  return replyKeys;
 }

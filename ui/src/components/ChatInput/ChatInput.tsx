@@ -6,6 +6,7 @@ import MessageEditor, { useMessageEditor } from '../MessageEditor';
 
 interface ChatInputProps {
   flag: string;
+  replying?: string;
 }
 
 function convertMarkType(type: string): string {
@@ -93,7 +94,7 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
 }
 
 export default function ChatInput(props: ChatInputProps) {
-  const { flag } = props;
+  const { flag, replying = null } = props;
   const onSubmit = useCallback(
     (editor: Editor) => {
       if (!editor.getText()) {
@@ -102,7 +103,7 @@ export default function ChatInput(props: ChatInputProps) {
 
       const data = parseTipTapJSON(editor?.getJSON());
       const memo: ChatMemo = {
-        replying: null,
+        replying,
         author: `~${window.ship || 'zod'}`,
         sent: Date.now(),
         content: {
@@ -113,7 +114,7 @@ export default function ChatInput(props: ChatInputProps) {
       useChatState.getState().sendMessage(flag, memo);
       editor?.commands.setContent('');
     },
-    [flag]
+    [flag, replying]
   );
 
   const messageEditor = useMessageEditor({

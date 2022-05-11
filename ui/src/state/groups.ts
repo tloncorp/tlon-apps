@@ -3,7 +3,13 @@ import create from 'zustand';
 import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
-import { Group, GroupDiff, Groups, GroupUpdate } from '../types/groups';
+import {
+  Channel,
+  Group,
+  GroupDiff,
+  Groups,
+  GroupUpdate,
+} from '../types/groups';
 import api from '../api';
 
 function groupAction(flag: string, diff: GroupDiff) {
@@ -179,5 +185,11 @@ export function useGroupList() {
 export function useVessel(flag: string, ship: string) {
   return useGroupState(
     useCallback((s) => s.groups[flag].fleet[ship], [ship, flag])
+  );
+}
+
+export function useChannel(flag: string, channel: string): Channel | undefined {
+  return useGroupState(
+    useCallback((s) => s.groups[flag].channels[channel], [flag, channel])
   );
 }
