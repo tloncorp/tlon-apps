@@ -6,6 +6,10 @@ exports[`Layout > renders as expected 1`] = `
 >
   <main
     className="main"
-  />
+  >
+    <p>
+      content
+    </p>
+  </main>
 </div>
 `;
