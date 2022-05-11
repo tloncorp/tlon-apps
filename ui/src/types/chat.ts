@@ -55,10 +55,12 @@ export interface Link {
 }
 
 export interface ChatImage {
-  src: string;
-  height?: number;
-  width?: number;
-  altText?: string;
+  image: {
+    src: string;
+    height?: number;
+    width?: number;
+    altText?: string;
+  };
 }
 
 export type ChatInline =
@@ -104,7 +106,7 @@ export function isBreak(item: unknown): item is Break {
 }
 
 export function isChatImage(item: unknown): item is ChatImage {
-  return typeof item === 'object' && item !== null && 'src' in item;
+  return typeof item === 'object' && item !== null && 'image' in item;
 }
 
 export interface ChatMessage {

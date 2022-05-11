@@ -73,8 +73,10 @@ const chatWrits: ChatWrit[] = [
     inline: [],
     block: [
       {
-        src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.17..14.09.21-image.png',
-        width: 700,
+        image: {
+          src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.17..14.09.21-image.png',
+          width: 700,
+        },
       },
     ],
   }),
@@ -82,11 +84,15 @@ const chatWrits: ChatWrit[] = [
     inline: [],
     block: [
       {
-        src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.17..20.39.01-j-balla-photography-HvC0VnTkV5M-unsplash.jpg',
-        width: 400,
+        image: {
+          src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.17..20.39.01-j-balla-photography-HvC0VnTkV5M-unsplash.jpg',
+          width: 400,
+        },
       },
       {
-        src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.23..17.22.38-image.png',
+        image: {
+          src: 'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.23..17.22.38-image.png',
+        },
       },
     ],
   }),

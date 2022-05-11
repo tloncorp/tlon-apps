@@ -12,7 +12,7 @@ import {
   isLink,
   isStrikethrough,
 } from '../../types/chat';
-import ChatImage from './ChatContentImage';
+import ChatContentImage from './ChatContentImage';
 
 interface ChatContentProps {
   content: ChatMessage;
@@ -114,11 +114,11 @@ export function InlineContent({ content }: InlineContentProps) {
 export function BlockContent({ content }: BlockContentProps) {
   if (isChatImage(content)) {
     return (
-      <ChatImage
-        src={content.src}
-        height={content.height}
-        width={content.width}
-        altText={content.altText}
+      <ChatContentImage
+        src={content.image.src}
+        height={content.image.height}
+        width={content.image.width}
+        altText={content.image.altText}
       />
     );
   }

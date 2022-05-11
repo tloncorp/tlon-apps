@@ -1,9 +1,20 @@
 import React from 'react';
-import { ChatImage } from '../../types/chat';
 import ElipsisCircleIcon from '../icons/ElipsisCircleIcon';
 import ExpandIcon from '../icons/ExpandIcon';
 
-export default function ChatImage({ src, height, width, altText }: ChatImage) {
+interface ChatContentImage {
+  src: string;
+  height?: number;
+  width?: number;
+  altText?: string;
+}
+
+export default function ChatContentImage({
+  src,
+  height,
+  width,
+  altText,
+}: ChatContentImage) {
   return (
     <div
       className="group relative py-2"
