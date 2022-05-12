@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import _ from 'lodash';
-import { Outlet } from 'react-router';
 import { useChatState } from '../state/chat';
 import ChatMessages from './ChatMessages';
 
@@ -11,7 +10,7 @@ export default function ChatWindow({ flag }: { flag: string }) {
 
   return (
     <div className="flex h-full w-full flex-col overflow-auto px-4 pb-4">
-      <div className="mt-auto flex flex-col justify-end">
+      <div className="mt-auto flex h-full flex-col justify-end">
         <ChatMessages flag={flag} />
       </div>
     </div>
