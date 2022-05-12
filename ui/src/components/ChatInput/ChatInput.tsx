@@ -28,6 +28,50 @@ function convertMarkType(type: string): string {
   }
 }
 
+function convertTipTapType(type: string): string {
+  switch (type) {
+    case 'italics':
+      return 'italic';
+    case 'inline-code':
+      return 'code';
+    default:
+      return type;
+  }
+}
+
+function tipTapToString(json: JSONContent): string {
+  if (json.content) {
+    if (json.content.length === 1) {
+      if (json.type === 'blockquote') {
+        const parsed = tipTapToString(json.content[0]);
+        return Array.isArray(parsed)
+          ? parsed.reduce((sum, item) => sum + item, '')
+          : parsed;
+      }
+
+      return tipTapToString(json.content[0]);
+    }
+
+    return json.content.reduce((sum, item) => sum + tipTapToString(item), '');
+  }
+
+  if (json.marks && json.marks.length > 0) {
+    const first = json.marks.pop();
+
+    if (!first) {
+      throw new Error('Unsure what this is');
+    }
+
+    if (first.type === 'link' && first.attrs) {
+      return first.attrs.href;
+    }
+
+    return tipTapToString(json);
+  }
+
+  return json.text || '';
+}
+
 // this will be replaced with more sophisticated logic based on
 // what we decide will be the message format
 function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
@@ -99,6 +143,42 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
   return json.text || '';
 }
 
+function wrapParagraphs(content: JSONContent[]) {
+  let currentContent = content;
+  const newContent: JSONContent[] = [];
+
+  let index = currentContent.findIndex((item) => item.type === 'paragraph');
+  while (index !== -1) {
+    const head = currentContent.slice(0, index);
+    const tail = currentContent.slice(index + 1, currentContent.length);
+
+    if (head.length !== 0) {
+      newContent.push({
+        type: 'paragraph',
+        content: head,
+      });
+    } else {
+      newContent.push({
+        type: 'paragraph',
+      });
+    }
+
+    currentContent = tail;
+    index = currentContent.findIndex((item) => item.type === 'paragraph');
+  }
+
+  if (newContent.length !== 0 && currentContent.length !== 0) {
+    newContent.push({
+      type: 'paragraph',
+      content: currentContent,
+    });
+  }
+
+  return newContent.length !== 0
+    ? newContent
+    : [{ type: 'paragraph', content }];
+}
+
 /* this parser is still imperfect */
 function parseChatMessage(message: ChatMessage): JSONContent {
   const parser = (inline: ChatInline): JSONContent => {
@@ -109,22 +189,22 @@ function parseChatMessage(message: ChatMessage): JSONContent {
     if ('blockquote' in inline) {
       return {
         type: 'blockquote',
-        content: inline.blockquote.map(parser),
+        content: wrapParagraphs(inline.blockquote.map(parser)),
       };
     }
 
     const keys = Object.keys(inline);
-    const simple = keys.find((k) => ['inline-code', 'tag'].includes(k));
+    const simple = keys.find((k) => ['code', 'tag'].includes(k));
     if (simple) {
       return {
         type: 'text',
-        marks: [{ type: simple }],
+        marks: [{ type: convertTipTapType(simple) }],
         text: (inline as any)[simple] || '',
       };
     }
 
     const recursive = keys.find((k) =>
-      ['bold', 'italics', 'strike'].includes(k)
+      ['bold', 'italics', 'strike', 'inline-code'].includes(k)
     );
     if (recursive) {
       const item = (inline as any)[recursive];
@@ -132,15 +212,18 @@ function parseChatMessage(message: ChatMessage): JSONContent {
       const content = hasNestedContent ? parser(item) : item;
 
       if (hasNestedContent) {
+        const marks = content.marks ? content.marks : [];
+
         return {
-          marks: [{ type: recursive }],
-          content: [content],
+          type: 'text',
+          marks: marks.concat([{ type: convertTipTapType(recursive) }]),
+          text: content.text,
         };
       }
 
       return {
         type: 'text',
-        marks: [{ type: recursive }],
+        marks: [{ type: convertTipTapType(recursive) }],
         text: content,
       };
     }
@@ -155,9 +238,10 @@ function parseChatMessage(message: ChatMessage): JSONContent {
     };
   }
 
+  const content = wrapParagraphs(message.inline.map(parser));
   return {
     type: 'doc',
-    content: message.inline.map(parser),
+    content,
   };
 }
 
@@ -171,7 +255,7 @@ export default function ChatInput({ flag, replying = null }: ChatInputProps) {
         inline: Array.isArray(data) ? data : [data],
         block: [],
       });
-    }, 500)
+    }, 5000)
   );
   const onSubmit = useCallback(
     (editor: Editor) => {
@@ -180,6 +264,7 @@ export default function ChatInput({ flag, replying = null }: ChatInputProps) {
       }
 
       const data = parseTipTapJSON(editor?.getJSON());
+      console.log(editor.getJSON());
       const memo: ChatMemo = {
         replying,
         author: `~${window.ship || 'zod'}`,
@@ -190,6 +275,7 @@ export default function ChatInput({ flag, replying = null }: ChatInputProps) {
         },
       };
       useChatState.getState().sendMessage(flag, memo);
+      useChatState.getState().draft(flag, { inline: [], block: [] });
       editor?.commands.setContent('');
     },
     [flag, replying]
@@ -216,7 +302,12 @@ export default function ChatInput({ flag, replying = null }: ChatInputProps) {
 
   useEffect(() => {
     if (draft && messageEditor) {
-      messageEditor.commands.setContent(parseChatMessage(draft));
+      const current = tipTapToString(messageEditor.getJSON());
+      const newDraft = tipTapToString(parseChatMessage(draft));
+      if (current !== newDraft) {
+        console.log(parseChatMessage(draft));
+        messageEditor.commands.setContent(parseChatMessage(draft), true);
+      }
     }
   }, [draft, messageEditor]);
 

@@ -32,7 +32,7 @@ export interface Break {
 }
 
 export interface InlineCode {
-  'inline-code': string;
+  'inline-code': ChatInline;
 }
 
 export interface BlockCode {
