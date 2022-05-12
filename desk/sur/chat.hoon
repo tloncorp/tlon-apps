@@ -1,12 +1,13 @@
 /-  g=groups
 |%
 +$  writ   [seal memo]
++$  id     (pair ship time)
 +$  feel   @ta
 ::
 +$  seal
-  $:  =time
+  $:  =id
       feels=(map ship feel)
-      replied=(set time)
+      replied=(set id)
   ==
 ::
 +$  remark-action
@@ -28,6 +29,13 @@
     ::
       [%create p=perm]
   ==
+
++$  index   (map id time)
+::
++$  pact
+  $:  wit=writs
+      dex=index
+  ==
 ::
 ++  writs
   =<  writs
@@ -37,16 +45,23 @@
   ++  on
     ((^on time writ) lte)
   +$  diff
+    (pair id delta)
+  +$  delta
     $%  [%add p=memo]
-        [%del p=time] 
-        [%add-feel p=time q=ship r=feel]
-        [%del-feel p=time q=ship]
+        [%del ~]
+        [%add-feel p=ship q=feel]
+        [%del-feel p=ship]
     ==
   --
 ::
 ++  dm
   |%
-  +$  diff  diff:writs
+  +$  dm
+    $:  =writs
+        dex=index
+    ==
+  +$  id      (pair ship time)
+  +$  diff    diff:writs
   +$  action  (pair ship diff)
   --
 ::
@@ -84,7 +99,7 @@
   ==
 ::
 +$  memo  
-  $:  replying=(unit time)
+  $:  replying=(unit id)
       author=ship
       sent=time
       =content

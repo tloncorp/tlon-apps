@@ -2,6 +2,7 @@
 /+  default-agent, verb, dbug
 /+  chat-json
 /+  w=chat-writs
+/+  pac=dm
 ^-  agent:gall
 =>
   |%
@@ -10,7 +11,7 @@
   +$  state-0
     $:  %0
         chats=(map flag:c chat:c)
-        dms=(map ship writs:c)
+        dms=(map ship pact:c)
         bad=(set ship)
         inv=(set ship)
     ==
@@ -475,14 +476,15 @@
     ==
   --
 ++  di-core
-  |_  [=ship =writs:c]
+  |_  [=ship =pact:c]
+  +*  di-pact  ~(. pac pact)
   ++  di-core  .
   ++  di-abet 
-    =.  dms  (~(put by dms) ship writs)
+    =.  dms  (~(put by dms) ship pact)
     cor
   ++  di-abed
     |=  s=@p
-    di-core(ship s, writs (~(gut by dms) s *writs:c))
+    di-core(ship s, pact (~(gut by dms) s *pact:c))
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-proxy
     |=  =diff:dm:c
@@ -494,7 +496,9 @@
     |=  =diff:dm:c
     =/  =path  (snoc di-area %ui)
     =.  cor  (emit %give %fact ~[path] dm-diff+!>(diff))
-    di-core(writs (reduce:w ship writs ship now.bowl diff))
+    =.  pact  (reduce:di-pact now.bowl diff)
+    di-core
+    :: di-core(pact (reduce:w ship writs ship now.bowl diff))
   ::
   ++  di-watch
     |=  =path
@@ -520,7 +524,8 @@
     |=  =path
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
-      [%writs *]  (scry:w writs t.path)
+      ::  [%writs *]  (scry:w writs t.path)
+      [%foo ~]  [~ ~]
     ==
   ::
   ++  di-pass

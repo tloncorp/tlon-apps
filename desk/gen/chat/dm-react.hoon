@@ -3,15 +3,11 @@
 /-  c=chat
 :-  %say
 |=  $:  [now=@da eny=@uvJ =beak]
-        [[her=ship mess=(list inline:c)] ~]
+        [[her=ship =id:c =feel:c ~] ~]
     ==
 ::
-=/  =content:c
-  [~ mess]
-=/  =memo:c
-  [~ p.beak now content]
 =/  =diff:dm:c
-  [[p.beak now] %add memo]
+  [id %add-feel p.beak 'HAHA']
 :-  %dm-action
 ^-  action:dm:c
 [her diff]
