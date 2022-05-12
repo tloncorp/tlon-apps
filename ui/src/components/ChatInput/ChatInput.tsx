@@ -1,12 +1,18 @@
 import { Editor, JSONContent } from '@tiptap/react';
-import React, { useCallback } from 'react';
-import { useChatState } from '../../state/chat';
-import { ChatInline, ChatMemo } from '../../types/chat';
+import { debounce } from 'lodash';
+import React, { useCallback, useEffect, useRef } from 'react';
+import {
+  useChat,
+  useChatDraft,
+  useChatIsJoined,
+  useChatState,
+} from '../../state/chat';
+import { ChatInline, ChatMemo, ChatMessage } from '../../types/chat';
 import MessageEditor, { useMessageEditor } from '../MessageEditor';
 
 interface ChatInputProps {
   flag: string;
-  replying?: string;
+  replying?: string | null;
 }
 
 function convertMarkType(type: string): string {
@@ -93,8 +99,80 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
   return json.text || '';
 }
 
-export default function ChatInput(props: ChatInputProps) {
-  const { flag, replying = null } = props;
+/* this parser is still imperfect */
+function parseChatMessage(message: ChatMessage): JSONContent {
+  const parser = (inline: ChatInline): JSONContent => {
+    if (typeof inline === 'string') {
+      return { type: 'text', text: inline };
+    }
+
+    if ('blockquote' in inline) {
+      return {
+        type: 'blockquote',
+        content: inline.blockquote.map(parser),
+      };
+    }
+
+    const keys = Object.keys(inline);
+    const simple = keys.find((k) => ['inline-code', 'tag'].includes(k));
+    if (simple) {
+      return {
+        type: 'text',
+        marks: [{ type: simple }],
+        text: (inline as any)[simple] || '',
+      };
+    }
+
+    const recursive = keys.find((k) =>
+      ['bold', 'italics', 'strike'].includes(k)
+    );
+    if (recursive) {
+      const item = (inline as any)[recursive];
+      const hasNestedContent = typeof item === 'object';
+      const content = hasNestedContent ? parser(item) : item;
+
+      if (hasNestedContent) {
+        return {
+          marks: [{ type: recursive }],
+          content: [content],
+        };
+      }
+
+      return {
+        type: 'text',
+        marks: [{ type: recursive }],
+        text: content,
+      };
+    }
+
+    return { type: 'paragraph' };
+  };
+
+  if (message.inline.length === 0) {
+    return {
+      type: 'doc',
+      content: [{ type: 'paragraph' }],
+    };
+  }
+
+  return {
+    type: 'doc',
+    content: message.inline.map(parser),
+  };
+}
+
+export default function ChatInput({ flag, replying = null }: ChatInputProps) {
+  const chat = useChat(flag);
+  const draft = useChatDraft(flag);
+  const onUpdate = useRef(
+    debounce(({ editor }) => {
+      const data = parseTipTapJSON(editor?.getJSON());
+      useChatState.getState().draft(flag, {
+        inline: Array.isArray(data) ? data : [data],
+        block: [],
+      });
+    }, 500)
+  );
   const onSubmit = useCallback(
     (editor: Editor) => {
       if (!editor.getText()) {
@@ -117,7 +195,14 @@ export default function ChatInput(props: ChatInputProps) {
     [flag, replying]
   );
 
+  useEffect(() => {
+    if (chat) {
+      useChatState.getState().getDraft(flag);
+    }
+  }, [flag, chat]);
+
   const messageEditor = useMessageEditor({
+    content: '',
     placeholder: 'Message',
     onEnter: useCallback(
       ({ editor }) => {
@@ -126,7 +211,14 @@ export default function ChatInput(props: ChatInputProps) {
       },
       [onSubmit]
     ),
+    onUpdate: onUpdate.current,
   });
+
+  useEffect(() => {
+    if (draft && messageEditor) {
+      messageEditor.commands.setContent(parseChatMessage(draft));
+    }
+  }, [draft, messageEditor]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
