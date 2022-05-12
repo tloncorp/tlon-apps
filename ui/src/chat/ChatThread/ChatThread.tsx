@@ -37,7 +37,9 @@ export default function ChatThread() {
           replies.length === 1 ? 'Reply' : 'Replies'
         }`}
       />
-      <ChatMessages flag={flag} replying={time} />
+      <div className="flex h-full flex-col">
+        <ChatMessages flag={flag} replying={time} />
+      </div>
       <div className="sticky bottom-0 z-10 bg-white py-4">
         <ChatInput flag={flag} replying={time} />
       </div>
