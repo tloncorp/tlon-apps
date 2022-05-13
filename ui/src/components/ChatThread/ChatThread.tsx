@@ -22,8 +22,8 @@ export default function ChatThread() {
   const channel = useChannel(groupFlag, flag)!;
 
   return (
-    <div className="flex h-full min-w-72 flex-col space-y-2 overflow-y-auto border-l p-4 xl:min-w-96">
-      <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-2">
+    <div className="flex h-full min-w-72 flex-col space-y-2 overflow-y-auto border-l px-4 pt-4 xl:min-w-96">
+      <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
         <div>Thread: {channel.meta.title}</div>
         <Link to="..">X</Link>
       </div>
@@ -35,7 +35,9 @@ export default function ChatThread() {
         }`}
       />
       <ChatMessages flag={flag} replying={time} />
-      <ChatInput className="sticky bottom-0" flag={flag} replying={time} />
+      <div className="sticky bottom-0 z-10 bg-white py-4">
+        <ChatInput flag={flag} replying={time} />
+      </div>
     </div>
   );
 }
