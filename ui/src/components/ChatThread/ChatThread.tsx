@@ -32,7 +32,7 @@ export default function ChatThread() {
       </div>
       <ChatMessage writ={writ} newAuthor hideReplies />
       <RowDivider
-        className="text-gray-400 py-2"
+        className="py-2 text-gray-400"
         label={`${replies.length} ${
           replies.length === 1 ? 'Reply' : 'Replies'
         }`}

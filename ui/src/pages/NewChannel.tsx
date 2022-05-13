@@ -2,6 +2,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { useChatState } from '../state/chat';
+import { useRouteGroup } from '../state/groups';
 import { strToSym } from '../utils';
 
 interface FormSchema {
@@ -10,8 +11,7 @@ interface FormSchema {
 }
 
 export default function NewChannel() {
-  const { ship, name } = useParams();
-  const group = `${ship}/${name}`;
+  const group = useRouteGroup();
   const navigate = useNavigate();
   const defaultValues: FormSchema = {
     title: '',
@@ -23,7 +23,6 @@ export default function NewChannel() {
     await useChatState
       .getState()
       .create({ ...values, name, group, readers: [] });
-    await new Promise(res => setTimeout(res, 500));
     navigate(`../channels/chat/${window.our}/${name}`);
   };
   return (
