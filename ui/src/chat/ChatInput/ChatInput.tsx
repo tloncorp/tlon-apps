@@ -182,10 +182,11 @@ export default function ChatInput({
             </button>
           </div>
         ) : null}
-        <div className="relative">
+        <div className="flex items-center justify-end">
           <MessageEditor editor={messageEditor} className="w-full" />
           <button
-            className="absolute top-1/2 right-2 -translate-y-1/2 text-gray-600 hover:text-gray-800"
+            // this is not contained by relative because of a bug in radix popovers
+            className="absolute mr-2 text-gray-600 hover:text-gray-800"
             aria-label="Add attachment"
             onClick={() => {
               useChatState.getState().sendMessage(flag, {

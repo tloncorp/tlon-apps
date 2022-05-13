@@ -9,7 +9,7 @@ exports[`ChatInput > renders as expected 1`] = `
       class="flex-1"
     >
       <div
-        class="relative"
+        class="flex items-center justify-end"
       >
         <div
           class="input block p-0 w-full"
@@ -40,7 +40,7 @@ exports[`ChatInput > renders as expected 1`] = `
         </div>
         <button
           aria-label="Add attachment"
-          class="absolute top-1/2 right-2 -translate-y-1/2 text-gray-600 hover:text-gray-800"
+          class="absolute mr-2 text-gray-600 hover:text-gray-800"
         >
           <svg
             class="h-6 w-4"

@@ -165,7 +165,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
       >
         <div
           ref={toolbarRef}
-          className="default-focus rounded-md bg-white shadow-lg"
+          className="default-focus rounded-md bg-white shadow-lg dark:border dark:border-black/10"
           role="toolbar"
           tabIndex={0}
           aria-label="Text Formatting Menu"
