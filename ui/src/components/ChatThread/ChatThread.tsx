@@ -9,6 +9,7 @@ import { useChannel, useRouteGroup } from '../../state/groups';
 import ChatInput from '../ChatInput/ChatInput';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatMessages from '../ChatMessages';
+import XIcon from '../icons/XIcon';
 import RowDivider from '../RowDivider';
 
 export default function ChatThread() {
@@ -25,11 +26,13 @@ export default function ChatThread() {
     <div className="flex h-full min-w-72 flex-col space-y-2 overflow-y-auto border-l px-4 pt-4 xl:min-w-96">
       <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
         <div>Thread: {channel.meta.title}</div>
-        <Link to="..">X</Link>
+        <Link to="..">
+          <XIcon className="h-4 w-4 text-gray-400" />
+        </Link>
       </div>
       <ChatMessage writ={writ} newAuthor hideReplies />
       <RowDivider
-        className="text-gray-400"
+        className="text-gray-400 py-2"
         label={`${replies.length} ${
           replies.length === 1 ? 'Reply' : 'Replies'
         }`}
