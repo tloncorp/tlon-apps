@@ -47,7 +47,9 @@ export default function ErrorAlert({
         )}
         <div className="flex space-x-6">
           <DialogClose className="button">Try Again</DialogClose>
-          <DialogClose as={SubmitIssue} error={error} />
+          <DialogClose asChild>
+            <SubmitIssue error={error} />
+          </DialogClose>
         </div>
       </DialogContent>
     </Dialog>
