@@ -1,5 +1,5 @@
 import React from 'react';
-import { makeChatWrit } from '../../fixtures/chat';
+import { makeChatWrit } from '../../mocks/chat';
 import ChatMessage from './ChatMessage';
 
 export default {

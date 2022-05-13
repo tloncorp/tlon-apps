@@ -48,6 +48,7 @@
     "@tiptap/react": "^2.0.0-beta.108",
     "@tlon/sigil-js": "^1.4.5",
     "@tloncorp/mock-http-api": "^1.1.2",
+    "@types/prosemirror-view": "^1.23.3",
     "@urbit/api": "^2.1.1",
     "@urbit/http-api": "^2.1.1",
     "any-ascii": "^0.3.1",
