@@ -2,12 +2,14 @@
 
 exports[`ChatInput > renders as expected 1`] = `
 <DocumentFragment>
-  <div>
+  <div
+    class="flex w-full items-end space-x-2"
+  >
     <div
-      class="flex w-full items-end space-x-2"
+      class="flex-1"
     >
       <div
-        class="input block p-0 flex-1"
+        class="input block p-0 w-full"
       >
         <div
           class="w-full"
@@ -33,12 +35,12 @@ exports[`ChatInput > renders as expected 1`] = `
           class="pointer-events-none fixed"
         />
       </div>
-      <button
-        class="button"
-      >
-        Send
-      </button>
     </div>
+    <button
+      class="button"
+    >
+      Send
+    </button>
   </div>
 </DocumentFragment>
 `;

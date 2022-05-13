@@ -3,7 +3,7 @@ import _ from 'lodash';
 import f from 'lodash/fp';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { ChatWrit } from '../../types/chat';
 import Author from './Author';
@@ -13,7 +13,7 @@ import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
 import { useMessagesForChat } from '../../state/chat';
 import { useChannelFlag } from '../../hooks';
-import Avatar from '../Avatar';
+import Avatar from '../../components/Avatar';
 
 export interface ChatMessageProps {
   writ: ChatWrit;
@@ -62,14 +62,23 @@ export default function ChatMessage({
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
           {numReplies > 0 && !hideReplies ? (
-            <Link to={`message/${seal.time}`} className="font-sm text-gray-400">
+            <Link
+              to={`message/${seal.time}`}
+              className="text-sm font-semibold text-blue"
+            >
               <div className="flex items-center space-x-2">
                 {replyAuthors.map((ship) => (
                   <Avatar key={ship} ship={ship} size="xs" />
                 ))}
 
                 <span>
-                  {numReplies} {numReplies > 1 ? 'Replies' : 'Reply'}{' '}
+                  {numReplies} {numReplies > 1 ? 'replies' : 'reply'}{' '}
+                </span>
+                <span className="text-gray-400">
+                  Last reply{' '}
+                  {isToday(time)
+                    ? `${formatDistanceToNow(time)} ago`
+                    : formatRelative(time, new Date())}
                 </span>
               </div>
             </Link>

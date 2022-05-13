@@ -21,7 +21,7 @@ import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 
 import Sidebar from './components/Sidebar/Sidebar';
-import ChatThread from './components/ChatThread/ChatThread';
+import ChatThread from './chat/ChatThread/ChatThread';
 import Policy from './pages/Policy';
 import useMedia from './logic/useMedia';
 import useErrorHandler from './logic/useErrorHandler';

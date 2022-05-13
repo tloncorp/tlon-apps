@@ -1,12 +1,21 @@
+import bigInt from 'big-integer';
+import { udToDec } from '@urbit/api';
 import { Editor, JSONContent } from '@tiptap/react';
-import React, { useCallback } from 'react';
-import { useChatState } from '../../state/chat';
+import React, { useCallback, useEffect } from 'react';
+import { useChatState, useMessagesForChat } from '../../state/chat';
 import { ChatInline, ChatMemo } from '../../types/chat';
-import MessageEditor, { useMessageEditor } from '../MessageEditor';
+import MessageEditor, {
+  useMessageEditor,
+} from '../../components/MessageEditor';
+import Avatar from '../../components/Avatar';
+import ShipName from '../../components/ShipName';
+import XIcon from '../../components/icons/XIcon';
+import { useChatStore } from '../useChatStore';
 
 interface ChatInputProps {
   flag: string;
-  replying?: string;
+  replying: string | null;
+  showReply?: boolean;
 }
 
 function convertMarkType(type: string): string {
@@ -93,14 +102,28 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
   return json.text || '';
 }
 
-export default function ChatInput(props: ChatInputProps) {
-  const { flag, replying = null } = props;
+export default function ChatInput({
+  flag,
+  replying,
+  showReply = false,
+}: ChatInputProps) {
+  const messages = useMessagesForChat(flag);
+  const replyingWrit = replying && messages.get(bigInt(udToDec(replying)));
+  const ship = replyingWrit && replyingWrit.memo.author;
+
+  console.log(replying);
+
+  const closeReply = useCallback(() => {
+    useChatStore.getState().reply(flag, null);
+  }, [flag]);
+
   const onSubmit = useCallback(
     (editor: Editor) => {
       if (!editor.getText()) {
         return;
       }
 
+      console.log('submitting', replying);
       const data = parseTipTapJSON(editor?.getJSON());
       const memo: ChatMemo = {
         replying,
@@ -111,10 +134,12 @@ export default function ChatInput(props: ChatInputProps) {
           block: [],
         },
       };
+
       useChatState.getState().sendMessage(flag, memo);
       editor?.commands.setContent('');
+      setTimeout(() => closeReply(), 0);
     },
-    [flag, replying]
+    [flag, replying, closeReply]
   );
 
   const messageEditor = useMessageEditor({
@@ -128,6 +153,12 @@ export default function ChatInput(props: ChatInputProps) {
     ),
   });
 
+  useEffect(() => {
+    if (replying) {
+      messageEditor?.commands.focus();
+    }
+  }, [replying, messageEditor]);
+
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
     [messageEditor, onSubmit]
@@ -138,18 +169,23 @@ export default function ChatInput(props: ChatInputProps) {
   }
 
   return (
-    <div>
-      {replying ? (
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-gray-600">Replying to</span>
-        </div>
-      ) : null}
-      <div className="flex w-full items-end space-x-2">
-        <MessageEditor editor={messageEditor} className="flex-1" />
-        <button className="button" onClick={onClick}>
-          Send
-        </button>
+    <div className="flex w-full items-end space-x-2">
+      <div className="flex-1">
+        {showReply && ship && replying ? (
+          <div className="mb-4 flex items-center justify-start font-semibold">
+            <span className="text-gray-600">Replying to</span>
+            <Avatar size="xs" ship={ship} className="ml-2" />
+            <ShipName name={ship} className="ml-2" />
+            <button className="icon-button ml-auto" onClick={closeReply}>
+              <XIcon className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
+        <MessageEditor editor={messageEditor} className="w-full" />
       </div>
+      <button className="button" onClick={onClick}>
+        Send
+      </button>
     </div>
   );
 }

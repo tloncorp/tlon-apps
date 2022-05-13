@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { useChannelFlag } from '../../hooks';
 import { useRouteGroup } from '../../state/groups';
 import { useChatState } from '../../state/chat';
 import { ChatWrit } from '../../types/chat';
-import IconButton from '../IconButton';
-import BubbleIcon from '../icons/BubbleIcon';
-import ElipsisIcon from '../icons/ElipsisIcon';
-import FaceIcon from '../icons/FaceIcon';
-import HashIcon from '../icons/HashIcon';
-import ShareIcon from '../icons/ShareIcon';
-import XIcon from '../icons/XIcon';
+import IconButton from '../../components/IconButton';
+import BubbleIcon from '../../components/icons/BubbleIcon';
+import ElipsisIcon from '../../components/icons/ElipsisIcon';
+import FaceIcon from '../../components/icons/FaceIcon';
+import HashIcon from '../../components/icons/HashIcon';
+import ShareIcon from '../../components/icons/ShareIcon';
+import XIcon from '../../components/icons/XIcon';
+import { useChatStore } from '../useChatStore';
 
 export default function ChatMessageOptions(props: { writ: ChatWrit }) {
   const { writ } = props;
@@ -19,6 +20,10 @@ export default function ChatMessageOptions(props: { writ: ChatWrit }) {
   const onDelete = () => {
     useChatState.getState().delMessage(flag, writ.seal.time);
   };
+
+  const reply = useCallback(() => {
+    useChatStore.getState().reply(flag, writ.seal.time);
+  }, [writ, flag]);
 
   const navigate = useNavigate();
   return (
@@ -35,7 +40,7 @@ export default function ChatMessageOptions(props: { writ: ChatWrit }) {
             icon={<BubbleIcon className="text-gray-400" />}
             label="Reply"
             showTooltip
-            action={() => console.log('reply')}
+            action={reply}
           />
           <IconButton
             icon={<HashIcon className="text-gray-400" />}

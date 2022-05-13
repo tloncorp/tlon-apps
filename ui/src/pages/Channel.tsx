@@ -2,8 +2,8 @@ import _ from 'lodash';
 import React from 'react';
 import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
-import ChatInput from '../components/ChatInput/ChatInput';
-import ChatWindow from '../components/ChatWindow';
+import ChatInput from '../chat/ChatInput/ChatInput';
+import ChatWindow from '../chat/ChatWindow';
 import ElipsisIcon from '../components/icons/ElipsisIcon';
 import MenuIcon from '../components/icons/MenuIcon';
 import Layout from '../components/layout/Layout';
@@ -11,10 +11,12 @@ import { useChatIsJoined, useChatPerms, useChatState } from '../state/chat';
 import { useRouteGroup, useVessel } from '../state/groups';
 import useSidebars from '../state/sidebars';
 import { channelHref } from '../logic/utils';
+import { useChat, useChatStore } from '../chat/useChatStore';
 
 function Channel() {
   const { chShip, chName } = useParams();
   const flag = `${chShip}/${chName}`;
+  const chat = useChat(flag);
   const groupFlag = useRouteGroup();
   const isJoined = useChatIsJoined(flag);
   const join = () => {
@@ -52,9 +54,13 @@ function Channel() {
         </div>
       }
       footer={
-        <div className="p-4">
+        <div className="border-t-2 border-black/10 p-4">
           {canWrite ? (
-            <ChatInput flag={flag} />
+            <ChatInput
+              flag={flag}
+              replying={chat?.replying || null}
+              showReply
+            />
           ) : (
             <span>Cannot write to this channel</span>
           )}

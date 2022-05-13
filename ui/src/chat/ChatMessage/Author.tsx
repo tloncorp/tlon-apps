@@ -3,8 +3,8 @@ import {
   makePrettyDayAndDateAndTime,
   makePrettyDayAndTime,
 } from '../../logic/utils';
-import Avatar from '../Avatar';
-import ShipName from '../ShipName';
+import Avatar from '../../components/Avatar';
+import ShipName from '../../components/ShipName';
 
 interface AuthorProps {
   ship: string;

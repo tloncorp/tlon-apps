@@ -9,7 +9,7 @@ import { useChannel, useRouteGroup } from '../../state/groups';
 import ChatInput from '../ChatInput/ChatInput';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatMessages from '../ChatMessages';
-import RowDivider from '../RowDivider';
+import RowDivider from '../../components/RowDivider';
 
 export default function ChatThread() {
   const flag = useChannelFlag()!;

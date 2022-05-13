@@ -15,12 +15,12 @@ import React, {
 } from 'react';
 import isURL from 'validator/es/lib/isURL';
 import { useForm } from 'react-hook-form';
-import BlockquoteIcon from '../icons/BlockquoteIcon';
-import BoldIcon from '../icons/BoldIcon';
-import CodeIcon from '../icons/CodeIcon';
-import ItalicIcon from '../icons/ItalicIcon';
-import LinkIcon from '../icons/LinkIcon';
-import StrikeIcon from '../icons/StrikeIcon';
+import BlockquoteIcon from '../../components/icons/BlockquoteIcon';
+import BoldIcon from '../../components/icons/BoldIcon';
+import CodeIcon from '../../components/icons/CodeIcon';
+import ItalicIcon from '../../components/icons/ItalicIcon';
+import LinkIcon from '../../components/icons/LinkIcon';
+import StrikeIcon from '../../components/icons/StrikeIcon';
 import ChatInputMenuButton from './ChatInputMenuButton';
 
 interface ChatInputMenuProps {

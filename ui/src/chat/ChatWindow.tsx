@@ -9,7 +9,7 @@ export default function ChatWindow({ flag }: { flag: string }) {
   }, [flag]);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-auto px-4">
+    <div className="flex h-full w-full flex-col overflow-auto px-4 pb-4">
       <div className="mt-auto flex flex-col justify-end">
         <ChatMessages flag={flag} />
       </div>
