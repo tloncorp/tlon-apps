@@ -5,6 +5,7 @@ import bigInt from 'big-integer';
 
 import { useMessagesForChat } from '../state/chat';
 import ChatMessage, { ChatMessageProps } from './ChatMessage/ChatMessage';
+import { useChat } from './useChatStore';
 
 interface ChatMessagesProps
   extends Omit<ChatMessageProps, 'writ' | 'newAuthor' | 'newDay'> {
@@ -15,6 +16,7 @@ interface ChatMessagesProps
 export default function ChatMessages(props: ChatMessagesProps) {
   const { flag, replying = null, ...rest } = props;
   const messages = useMessagesForChat(flag);
+  const chat = useChat(flag);
 
   const keys = messages
     .keys()
@@ -40,6 +42,7 @@ export default function ChatMessages(props: ChatMessagesProps) {
           <ChatMessage
             key={writ.seal.time}
             {...rest}
+            isReplyOp={chat?.replying === writ.seal.time}
             writ={writ}
             newAuthor={newAuthor}
             newDay={newDay}

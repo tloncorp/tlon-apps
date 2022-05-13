@@ -3,6 +3,7 @@ import _ from 'lodash';
 import f from 'lodash/fp';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
+import classNames from 'classnames';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { ChatWrit } from '../../types/chat';
@@ -17,6 +18,7 @@ import Avatar from '../../components/Avatar';
 
 export interface ChatMessageProps {
   writ: ChatWrit;
+  isReplyOp?: boolean;
   newAuthor?: boolean;
   newDay?: boolean;
   hideReplies?: boolean;
@@ -24,6 +26,7 @@ export interface ChatMessageProps {
 
 export default function ChatMessage({
   writ,
+  isReplyOp = false,
   newAuthor = false,
   newDay = false,
   hideReplies = false,
@@ -58,7 +61,12 @@ export default function ChatMessage({
         <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
           {format(time, 'HH:mm')}
         </div>
-        <div className="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50">
+        <div
+          className={classNames(
+            'flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50',
+            isReplyOp && 'bg-gray-50'
+          )}
+        >
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
           {numReplies > 0 && !hideReplies ? (
