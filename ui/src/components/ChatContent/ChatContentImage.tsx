@@ -23,6 +23,7 @@ export default function ChatContentImage({
       <a href={src} target="_blank" rel="noreferrer">
         <img
           src={src}
+          className="rounded"
           height={height}
           width={width}
           alt={altText ? altText : 'A chat image'}
