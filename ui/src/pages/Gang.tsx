@@ -1,14 +1,15 @@
 import React from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
 import cn from 'classnames';
-import { Location, useLocation, useNavigate } from 'react-router';
-import ShipImage from '../components/ChatMessage/ShipImage';
+import { useLocation } from 'react-router';
 import { useGang, useGroupState, useRouteGroup } from '../state/groups';
 import { JoinProgress } from '../types/groups';
 import GangName from '../components/GangName/GangName';
 import GangPreview from '../components/GangPreview/GangPreview';
-import { ModalLocationState, useDismissNavigate } from '../hooks/routing';
+import { ModalLocationState, useDismissNavigate } from '../logic/routing';
 import JoinGroup from '../components/JoinGroup';
+import Dialog, { DialogContent } from '../components/Dialog';
+import Avatar from '../components/Avatar';
+import ShipName from '../components/ShipName';
 
 function progressDescription(progress: JoinProgress) {
   switch (progress) {
@@ -53,9 +54,9 @@ export default function Gang() {
       {invite ? (
         <div className="flex flex-col space-y-3 rounded border p-2">
           <div className="flex items-center space-x-2">
-            <ShipImage ship={invite.ship} />
+            <Avatar ship={invite.ship} size="xs" />
             <p>
-              <span className="text-mono font-bold">{invite.ship}</span> invited
+              <ShipName name={invite.ship} className="font-semibold" /> invited
               you to <GangName flag={flag} />
             </p>
           </div>
@@ -98,15 +99,10 @@ export function GangModal() {
   };
 
   return (
-    <Dialog.Root defaultOpen onOpenChange={onOpenChange}>
-      <Dialog.Trigger />
-      <Dialog.Portal>
-        <Dialog.Overlay className="bg-black/50 fixed inset-0 flex items-center justify-center">
-          <Dialog.Content className="w-144 rounded bg-white">
-            <Gang />
-          </Dialog.Content>
-        </Dialog.Overlay>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog defaultOpen onOpenChange={onOpenChange}>
+      <DialogContent>
+        <Gang />
+      </DialogContent>
+    </Dialog>
   );
 }

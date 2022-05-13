@@ -138,11 +138,18 @@ export default function ChatInput(props: ChatInputProps) {
   }
 
   return (
-    <div className="flex w-full items-end space-x-2">
-      <MessageEditor editor={messageEditor} className="flex-1" />
-      <button className="button" onClick={onClick}>
-        Send
-      </button>
+    <div>
+      {replying ? (
+        <div className="mb-4 flex items-center justify-between">
+          <span className="text-gray-600">Replying to</span>
+        </div>
+      ) : null}
+      <div className="flex w-full items-end space-x-2">
+        <MessageEditor editor={messageEditor} className="flex-1" />
+        <button className="button" onClick={onClick}>
+          Send
+        </button>
+      </div>
     </div>
   );
 }

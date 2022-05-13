@@ -1,5 +1,5 @@
 import React from 'react';
-import { makePrettyDay } from '../../utils';
+import { makePrettyDay } from '../../logic/utils';
 
 interface DateDividerProps {
   date: Date;

@@ -12,8 +12,8 @@ import ChatReactions from '../ChatReactions/ChatReactions';
 import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
 import { useMessagesForChat } from '../../state/chat';
-import ShipImage from './ShipImage';
 import { useChannelFlag } from '../../hooks';
+import Avatar from '../Avatar';
 
 export interface ChatMessageProps {
   writ: ChatWrit;
@@ -65,7 +65,7 @@ export default function ChatMessage({
             <Link to={`message/${seal.time}`} className="font-sm text-gray-400">
               <div className="flex items-center space-x-2">
                 {replyAuthors.map((ship) => (
-                  <ShipImage key={ship} ship={ship} />
+                  <Avatar key={ship} ship={ship} size="xs" />
                 ))}
 
                 <span>

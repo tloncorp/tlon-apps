@@ -10,7 +10,7 @@ import Layout from '../components/layout/Layout';
 import { useChatIsJoined, useChatPerms, useChatState } from '../state/chat';
 import { useRouteGroup, useVessel } from '../state/groups';
 import useSidebars from '../state/sidebars';
-import { channelHref } from '../utils';
+import { channelHref } from '../logic/utils';
 
 function Channel() {
   const { chShip, chName } = useParams();

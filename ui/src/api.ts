@@ -1,6 +1,6 @@
 import Urbit from '@urbit/http-api';
 import UrbitMock from '@tloncorp/mock-http-api';
-import mockHandlers from './state/mockHandlers';
+import mockHandlers from './mocks/handlers';
 
 export const IS_MOCK = import.meta.env.MODE === 'mock';
 const URL = (import.meta.env.VITE_MOCK_URL ||

@@ -7,8 +7,8 @@ import {
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
 import { decToUd, unixToDa } from '@urbit/api';
-import mockGroups, { mockGangs } from '../mocks/groups';
-import chatWrits, { chatKeys, chatPerm } from '../mocks/mockWrits';
+import mockGroups, { mockGangs } from './groups';
+import chatWrits, { chatKeys, chatPerm } from './chat';
 import { ChatDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
 

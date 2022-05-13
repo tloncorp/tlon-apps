@@ -1,6 +1,7 @@
 import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
-import { Rank } from './types/groups';
+import _ from 'lodash';
+import { Rank } from '../types/groups';
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
@@ -75,3 +76,27 @@ export function makePrettyDayAndDateAndTime(date: Date) {
       return `${fullDate} • ${time}`;
   }
 }
+
+export function normalizeUrbitColor(color: string): string {
+  if (color.startsWith('#')) {
+    return color;
+  }
+
+  const colorString = color.slice(2).replace('.', '').toUpperCase();
+  const lengthAdjustedColor = _.padEnd(colorString, 6, _.last(colorString));
+  return `#${lengthAdjustedColor}`;
+}
+
+export function createStorageKey(name: string): string {
+  return `~${window.ship}/${window.desk}/${name}`;
+}
+
+// for purging storage with version updates
+export function clearStorageMigration<T>() {
+  return {} as T;
+}
+
+export const storageVersion = parseInt(
+  import.meta.env.VITE_STORAGE_VERSION,
+  10
+);

@@ -6,6 +6,7 @@ import {
   useLocation,
   Location,
 } from 'react-router-dom';
+import { ErrorBoundary } from 'react-error-boundary';
 import Groups from './pages/Groups';
 import Channel from './pages/Channel';
 import { useGroupState } from './state/groups';
@@ -15,20 +16,48 @@ import Members from './pages/Members';
 import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
-import { IS_MOCK } from './api';
+import api, { IS_MOCK } from './api';
 import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 
 import Sidebar from './components/Sidebar/Sidebar';
 import ChatThread from './components/ChatThread/ChatThread';
 import Policy from './pages/Policy';
+import useMedia from './logic/useMedia';
+import useErrorHandler from './logic/useErrorHandler';
+import { useSettingsState, useTheme } from './state/settings';
+import { useLocalState } from './state/local';
+import useContactState from './state/contact';
+import ErrorAlert from './components/ErrorAlert';
 
 function App() {
+  const handleError = useErrorHandler();
   const location = useLocation();
   useEffect(() => {
-    useGroupState.getState().start();
-    useChatState.getState().fetchFlags();
-  }, []);
+    handleError(() => {
+      useGroupState.getState().start();
+      useChatState.getState().fetchFlags();
+      const { initialize: settingsInitialize, fetchAll } =
+        useSettingsState.getState();
+      settingsInitialize(api);
+      fetchAll();
+
+      useContactState.getState().initialize(api);
+    })();
+  }, [handleError]);
+
+  const theme = useTheme();
+  const isDarkMode = useMedia('(prefers-color-scheme: dark)');
+
+  useEffect(() => {
+    if ((isDarkMode && theme === 'auto') || theme === 'dark') {
+      document.body.classList.add('dark');
+      useLocalState.setState({ currentTheme: 'dark' });
+    } else {
+      document.body.classList.remove('dark');
+      useLocalState.setState({ currentTheme: 'light' });
+    }
+  }, [isDarkMode, theme]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
@@ -65,9 +94,14 @@ function App() {
 
 function RoutedApp() {
   return (
-    <Router basename={IS_MOCK ? '/' : '/apps/homestead'}>
-      <App />
-    </Router>
+    <ErrorBoundary
+      FallbackComponent={ErrorAlert}
+      onReset={() => window.location.reload()}
+    >
+      <Router basename={IS_MOCK ? '/' : '/apps/homestead'}>
+        <App />
+      </Router>
+    </ErrorBoundary>
   );
 }
 

@@ -3,7 +3,7 @@ import React from 'react';
 import { MemoryRouter } from 'react-router';
 import { render } from '@testing-library/react';
 import ChatMessage from './ChatMessage';
-import { makeChatWrit } from '../../fixtures/chat';
+import { makeChatWrit } from '../../mocks/chat';
 
 describe('ChatMessage', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import create from 'zustand';
-import useMedia from '../hooks/useMedia';
+import useMedia from '../logic/useMedia';
 
 type SidebarState = 'closed' | 'channels-open' | 'groups-open';
 

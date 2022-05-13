@@ -1,6 +1,10 @@
 import React from 'react';
-import { makePrettyDayAndDateAndTime, makePrettyDayAndTime } from '../../utils';
-import ShipImage from './ShipImage';
+import {
+  makePrettyDayAndDateAndTime,
+  makePrettyDayAndTime,
+} from '../../logic/utils';
+import Avatar from '../Avatar';
+import ShipName from '../ShipName';
 
 interface AuthorProps {
   ship: string;
@@ -12,8 +16,8 @@ export default function Author({ ship, date }: AuthorProps) {
 
   return (
     <div className="align-center group flex items-center space-x-3 py-1">
-      <ShipImage ship={ship} />
-      <span className="text-md font-semibold">{ship}</span>
+      <Avatar ship={ship} size="xs" />
+      <ShipName name={ship} className="text-md font-semibold" />
       <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
         {prettyDayAndDateAndTime}
       </span>
