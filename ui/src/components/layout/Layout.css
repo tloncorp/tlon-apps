@@ -8,7 +8,7 @@
   grid-template-areas:
     'header header'
     'main aside'
-    'footer footer';
+    'footer aside';
   grid-template-columns: 1fr auto; /** collapsible aside, main expands to fill */
   grid-template-rows: auto minmax(0, 1fr) auto; /** collapsible header, main expands to fill, collapsible footer */
   height: 100%;

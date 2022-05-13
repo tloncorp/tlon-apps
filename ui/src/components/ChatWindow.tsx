@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import _ from 'lodash';
 import { useChatState } from '../state/chat';
 import ChatMessages from './ChatMessages';
+import {Outlet} from 'react-router';
 
 export default function ChatWindow({ flag }: { flag: string }) {
   useEffect(() => {
