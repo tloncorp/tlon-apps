@@ -9,6 +9,7 @@ import MessageEditor, {
 } from '../../components/MessageEditor';
 import Avatar from '../../components/Avatar';
 import ShipName from '../../components/ShipName';
+import AddIcon from '../../components/icons/AddIcon';
 import XIcon from '../../components/icons/XIcon';
 import { useChatStore } from '../useChatStore';
 
@@ -181,7 +182,35 @@ export default function ChatInput({
             </button>
           </div>
         ) : null}
-        <MessageEditor editor={messageEditor} className="w-full" />
+        <div className="relative">
+          <MessageEditor editor={messageEditor} className="w-full" />
+          <button
+            className="absolute top-1/2 right-2 -translate-y-1/2 text-gray-600 hover:text-gray-800"
+            aria-label="Add attachment"
+            onClick={() => {
+              useChatState.getState().sendMessage(flag, {
+                replying: null,
+                author: `~${window.ship || 'zod'}`,
+                sent: Date.now(),
+                content: {
+                  inline: [],
+                  block: [
+                    {
+                      image: {
+                        src: 'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.3.21..22.06.42-FBqq4mCVkAM8Cs5.jpeg',
+                        width: 750,
+                        height: 599,
+                        alt: '',
+                      },
+                    },
+                  ],
+                },
+              });
+            }}
+          >
+            <AddIcon className="h-6 w-4" />
+          </button>
+        </div>
       </div>
       <button className="button" onClick={onClick}>
         Send

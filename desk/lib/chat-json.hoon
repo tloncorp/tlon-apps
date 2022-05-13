@@ -46,7 +46,17 @@
   ::
   ++  block
     |=  b=block:c
-    *json
+    ^-  json
+    %+  frond  -.b
+    ?-  -.b
+        %image
+      %-  pairs
+      :~  src+s+src.b
+          height+(numb height.b)
+          width+(numb width.b)
+          alt+s+alt.b
+      ==
+    ==
   ::
   ++  content
     |=  c=content:c
@@ -177,7 +187,19 @@
   ::
   ++  block
     |=  j=json
-    *block:c
+    ^-  block:c
+    %.  j
+    %-  of
+    :~
+    ::
+      :-  %image
+      %-  ot
+      :~  src/so
+          height/ni
+          width/ni
+          alt/so
+      ==
+    ==
   ::
   ++  inline
     |=  j=json
