@@ -18,7 +18,7 @@ export default function ChatContentImage({
   return (
     <div
       className="group relative py-2"
-      style={{ width: width ? (width > 600 ? 375 : width) : 375 }}
+      style={{ width: width ? (width > 600 ? 600 : width) : 600 }}
     >
       <a href={src} target="_blank" rel="noreferrer">
         <img
