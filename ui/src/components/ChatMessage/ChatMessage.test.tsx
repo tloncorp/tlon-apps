@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
+import { MemoryRouter } from 'react-router';
 import { render } from '@testing-library/react';
 import { unixToDa } from '@urbit/api';
 import ChatMessage from './ChatMessage';
@@ -26,7 +27,9 @@ describe('ChatMessage', () => {
     );
     const da = unixToDa(date.valueOf());
     const { asFragment } = render(
-      <ChatMessage time={da} whom="~zod/test" writ={writ} newAuthor newDay />
+      <MemoryRouter>
+        <ChatMessage time={da} whom="~zod/test" writ={writ} newAuthor newDay />
+      </MemoryRouter>
     );
     expect(asFragment()).toMatchSnapshot();
   });

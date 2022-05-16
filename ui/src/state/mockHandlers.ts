@@ -7,8 +7,9 @@ import {
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
 import { decToUd, unixToDa } from '@urbit/api';
-import mockGroups from '../mocks/groups';
-import chatWrits, { chatKeys, chatPerm, dmList } from '../mocks/mockWrits';
+
+import mockGroups, { mockGangs } from '../mocks/groups';
+import chatWrits, { chatKeys, chatPerm } from '../mocks/mockWrits';
 import { ChatDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
 
@@ -77,29 +78,16 @@ const mockHandlers: Handler[] = [
   } as ScryHandler,
   {
     action: 'scry',
+    app: 'groups',
+    path: '/gangs',
+    func: () => mockGangs,
+  } as ScryHandler,
+  {
+    action: 'scry',
     app: 'chat',
     path: '/chat',
     func: () => chatKeys,
   } as ScryHandler,
-  {
-    action: 'scry',
-    app: 'chat',
-    path: '/dm',
-    func: () => dmList,
-  } as ScryHandler,
-
-  {
-    action: 'scry',
-    app: 'chat',
-    path: '/chat/~zod/test/perm',
-    func: () => chatPerm,
-  } as ScryHandler,
-  ...dmList.map((ship) => ({
-    action: 'scry' as const,
-    app: 'chat',
-    path: `/dm/${ship}/newest/100`,
-    func: () => chatWrits,
-  })),
   ...groupSubs,
 ];
 

@@ -4,7 +4,7 @@ import { BigInteger } from 'big-integer';
 export type Patda = string;
 export type Ship = string;
 
-type ChatBlock = unknown;
+export type ChatBlock = ChatImage;
 
 export interface Italics {
   italics: ChatInline;
@@ -55,6 +55,15 @@ export interface Link {
   };
 }
 
+export interface ChatImage {
+  image: {
+    src: string;
+    height: number;
+    width: number;
+    alt: string;
+  };
+}
+
 export type ChatInline =
   | string
   | Bold
@@ -97,6 +106,10 @@ export function isBreak(item: unknown): item is Break {
   return typeof item === 'object' && item !== null && 'break' in item;
 }
 
+export function isChatImage(item: unknown): item is ChatImage {
+  return typeof item === 'object' && item !== null && 'image' in item;
+}
+
 export interface ChatMessage {
   block: ChatBlock[];
   inline: ChatInline[];
@@ -107,6 +120,7 @@ export interface ChatSeal {
   feels: {
     [ship: Ship]: string;
   };
+  replied: string[];
 }
 
 export interface ChatMemo {

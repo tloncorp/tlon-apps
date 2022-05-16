@@ -17,6 +17,7 @@ export const makeChatWrit = (
     seal: {
       time: da,
       feels: feels ?? {},
+      replied: [],
     },
     memo: {
       replying: null,

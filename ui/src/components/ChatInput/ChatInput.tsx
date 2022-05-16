@@ -3,9 +3,11 @@ import React, { useCallback } from 'react';
 import { useChatState } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatWhom } from '../../types/chat';
 import MessageEditor, { useMessageEditor } from '../MessageEditor';
+import AddIcon from '../icons/AddIcon';
 
 interface ChatInputProps {
-  whom: ChatWhom;
+  whom: string;
+  replying?: string;
 }
 
 function convertMarkType(type: string): string {
@@ -93,7 +95,7 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
 }
 
 export default function ChatInput(props: ChatInputProps) {
-  const { whom } = props;
+  const { whom, replying = null } = props;
   const onSubmit = useCallback(
     (editor: Editor) => {
       if (!editor.getText()) {
@@ -102,7 +104,7 @@ export default function ChatInput(props: ChatInputProps) {
 
       const data = parseTipTapJSON(editor?.getJSON());
       const memo: ChatMemo = {
-        replying: null,
+        replying,
         author: `~${window.ship || 'zod'}`,
         sent: Date.now(),
         content: {
@@ -113,7 +115,7 @@ export default function ChatInput(props: ChatInputProps) {
       useChatState.getState().sendMessage(whom, memo);
       editor?.commands.setContent('');
     },
-    [whom]
+    [whom, replying]
   );
 
   const messageEditor = useMessageEditor({
@@ -138,7 +140,35 @@ export default function ChatInput(props: ChatInputProps) {
 
   return (
     <div className="flex w-full items-end space-x-2">
-      <MessageEditor editor={messageEditor} className="flex-1" />
+      <div className="relative flex-1">
+        <MessageEditor editor={messageEditor} className="w-full" />
+        <button
+          className="absolute top-1/2 right-2 -translate-y-1/2 text-gray-600 hover:text-gray-800"
+          aria-label="Add attachment"
+          onClick={() => {
+            useChatState.getState().sendMessage(whom, {
+              replying: null,
+              author: `~${window.ship || 'zod'}`,
+              sent: Date.now(),
+              content: {
+                inline: [],
+                block: [
+                  {
+                    image: {
+                      src: 'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.3.21..22.06.42-FBqq4mCVkAM8Cs5.jpeg',
+                      width: 750,
+                      height: 599,
+                      alt: '',
+                    },
+                  },
+                ],
+              },
+            });
+          }}
+        >
+          <AddIcon className="h-6 w-4" />
+        </button>
+      </div>
       <button className="button" onClick={onClick}>
         Send
       </button>

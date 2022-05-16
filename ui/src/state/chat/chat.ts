@@ -15,6 +15,7 @@ import {
   ChatWrit,
   ChatWrits,
   DmAction,
+  Pact,
   WritDelta,
   WritDiff,
 } from '../../types/chat';
@@ -216,4 +217,28 @@ export function useDmMessages(ship: string) {
   return useMessagesForChat(ship);
 }
 
-window.chat = useChatState.getState;
+export function usePact(whom: string) {
+  return useChatState(useCallback((s) => s.pacts[whom], [whom]));
+}
+
+function getPact(pact: Pact, id: string) {
+  const time = pact.index[id];
+  if (!time) {
+    return undefined;
+  }
+  return pact.writs.get(time);
+}
+
+export function useReplies(flag: string, id: string) {
+  const pact = usePact(flag);
+  const { writs, index } = pact;
+  const time = index[id];
+  if (!time) {
+    return [];
+  }
+  const message = writs.get(time);
+  const replyKeys = (message?.seal?.replied || [])
+    .map((r) => getPact(pact, r))
+    .filter((r): r is ChatWrit => !!r);
+  return replyKeys;
+}

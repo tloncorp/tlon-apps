@@ -1,0 +1,26 @@
+// Vitest Snapshot v1
+
+exports[`GangPreview > renders preview 1`] = `
+<DocumentFragment>
+  <div
+    class="flex space-x-4 rounded border p-2"
+  >
+    <img
+      class="h-16 w-16"
+      src="https://fabled-faster.nyc3.digitaloceanspaces.com/fabled-faster/2022.1.27..17.59.43-image.png"
+    />
+    <div
+      class="flex flex-col justify-around"
+    >
+      <h4
+        class="text-lg font-bold"
+      >
+        Structure
+      </h4>
+      <p>
+        Urbit Structural Design and Engineering Group. Always Thinking About Mechanics.
+      </p>
+    </div>
+  </div>
+</DocumentFragment>
+`;

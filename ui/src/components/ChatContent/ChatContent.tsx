@@ -1,15 +1,18 @@
 import React from 'react';
 import {
   ChatInline,
+  ChatBlock,
   ChatMessage,
   isBlockquote,
   isBold,
   isBreak,
+  isChatImage,
   isInlineCode,
   isItalics,
   isLink,
   isStrikethrough,
 } from '../../types/chat';
+import ChatContentImage from './ChatContentImage';
 
 interface ChatContentProps {
   content: ChatMessage;
@@ -17,6 +20,10 @@ interface ChatContentProps {
 
 interface InlineContentProps {
   content: ChatInline;
+}
+
+interface BlockContentProps {
+  content: ChatBlock;
 }
 
 export function InlineContent({ content }: InlineContentProps) {
@@ -104,14 +111,19 @@ export function InlineContent({ content }: InlineContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(content)}`);
 }
 
-export function BlockContent({ content }: ChatContentProps) {
-  return (
-    <div>
-      {content.block.map((contentItem, index) => (
-        <div key={index} />
-      ))}
-    </div>
-  );
+export function BlockContent({ content }: BlockContentProps) {
+  if (isChatImage(content)) {
+    return (
+      <ChatContentImage
+        src={content.image.src}
+        height={content.image.height}
+        width={content.image.width}
+        altText={content.image.alt}
+      />
+    );
+  }
+
+  throw new Error(`Unhandled message type: ${JSON.stringify(content)}`);
 }
 
 export default function ChatContent({ content }: ChatContentProps) {
@@ -120,7 +132,20 @@ export default function ChatContent({ content }: ChatContentProps) {
 
   return (
     <div className="leading-6">
-      {blockLength > 0 ? <BlockContent content={content} /> : null}
+      {blockLength > 0 ? (
+        <>
+          {content.block
+            .filter((a) => !!a)
+            .map((contentItem, index) => (
+              <div
+                key={`${contentItem.toString()}-${index}`}
+                className="flex flex-col"
+              >
+                <BlockContent content={contentItem} />
+              </div>
+            ))}
+        </>
+      ) : null}
       {inlineLength > 0 ? (
         <>
           {content.inline.map((contentItem, index) => (

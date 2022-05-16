@@ -1,32 +1,56 @@
 import React from 'react';
+import _ from 'lodash';
+import f from 'lodash/fp';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { ChatWhom, ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
 import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
+import { useMessagesForChat } from '../../state/chat';
+import ShipImage from './ShipImage';
+import { useChannelFlag } from '../../hooks';
 
-interface ChatMessageProps {
-  whom: ChatWhom;
-  writ: ChatWrit;
+export interface ChatMessageProps {
+  whom: string;
   time: BigInteger;
-  newAuthor: boolean;
-  newDay: boolean;
+  writ: ChatWrit;
+  newAuthor?: boolean;
+  newDay?: boolean;
+  hideReplies?: boolean;
 }
 
 export default function ChatMessage({
   whom,
-  writ,
   time,
-  newAuthor,
-  newDay,
+  writ,
+  newAuthor = false,
+  newDay = false,
+  hideReplies = false,
 }: ChatMessageProps) {
   const { seal, memo } = writ;
 
   const unix = new Date(daToUnix(time));
+
+  const messages = useMessagesForChat(whom);
+
+  const numReplies = seal.replied.length;
+  const replyAuthors = _.flow(
+    f.map((k: string) => {
+      const mess = messages.get(bigInt(udToDec(k)));
+      if (!mess) {
+        return undefined;
+      }
+      return mess.memo.author;
+    }),
+    f.compact,
+    f.uniq,
+    f.take(3)
+  )(seal.replied);
 
   return (
     <div className="flex flex-col">
@@ -40,6 +64,19 @@ export default function ChatMessage({
         <div className="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50">
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
+          {numReplies > 0 && !hideReplies ? (
+            <Link to={`message/${seal.id}`} className="font-sm text-gray-400">
+              <div className="flex items-center space-x-2">
+                {replyAuthors.map((ship) => (
+                  <ShipImage key={ship} ship={ship} />
+                ))}
+
+                <span>
+                  {numReplies} {numReplies > 1 ? 'Replies' : 'Reply'}{' '}
+                </span>
+              </div>
+            </Link>
+          ) : null}
         </div>
       </div>
     </div>
