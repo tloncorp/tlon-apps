@@ -467,7 +467,7 @@
       (ca-give-updates time d)
     ?-    -.d
         %writs
-      ca-core(pact.chat (reduce:pac time p.d))
+      ca-core(pact.chat (reduce:ca-pact time p.d))
     ::
         %add-sects
       =*  p  perm.chat
