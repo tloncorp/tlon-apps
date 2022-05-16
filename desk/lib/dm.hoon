@@ -32,7 +32,7 @@
     =.  dex.pac  (~(put by dex.pac) id now)
     ?~  replying.p.del  pac
     =*  replying  u.replying.p.del
-    (jab replying |=(writ:c +<(replied (~(put in replied) id))))
+    (jab replying |=(writ:c +<(replied (~(put in replied) ^id))))
   ::
       %del
     =/  =time     (~(got by dex.pac) id)
@@ -41,7 +41,7 @@
     =.  dex.pac  (~(del by dex.pac) id)
     ?~  wit  !!
     ?~  replying.u.wit  pac
-    (jab u.replying.u.wit |=(writ:c +<(replied (~(del in replied) id))))
+    (jab u.replying.u.wit |=(writ:c +<(replied (~(del in replied) ^id))))
   ::
       %add-feel
     %+  jab  id
