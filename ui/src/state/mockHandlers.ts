@@ -94,14 +94,12 @@ const mockHandlers: Handler[] = [
     path: '/chat/~zod/test/perm',
     func: () => chatPerm,
   } as ScryHandler,
-  ...dmList.map((ship) => {
-    return {
-      action: 'scry' as const,
-      app: 'chat',
-      path: `/dm/${ship}/newest/100`,
-      func: () => chatWrits,
-    };
-  }),
+  ...dmList.map((ship) => ({
+    action: 'scry' as const,
+    app: 'chat',
+    path: `/dm/${ship}/newest/100`,
+    func: () => chatWrits,
+  })),
   ...groupSubs,
 ];
 

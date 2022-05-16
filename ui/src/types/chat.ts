@@ -120,20 +120,24 @@ export interface ChatWrit {
   memo: ChatMemo;
 }
 
-export type ChatWrits = {
+export interface ChatWrits {
+  [time: string]: ChatWrit;
+}
+
+/* export type ChatWrits = {
   time: Patda;
   writ: ChatWrit;
-}[];
+}[]; */
 
-interface ChatDiffAdd {
+interface WritDeltaAdd {
   add: ChatMemo;
 }
 
-interface ChatDiffDel {
-  del: string;
+interface WritDeltaDel {
+  del: null;
 }
 
-interface ChatDiffAddFeel {
+interface WritDeltaAddFeel {
   'add-feel': {
     time: string;
     feel: string;
@@ -145,16 +149,20 @@ interface ChatDiffAddSects {
   'add-sects': string[];
 }
 
-export type ChatDiff =
-  | ChatDiffAdd
-  | ChatDiffDel
-  | ChatDiffAddFeel
-  | ChatDiffAddSects;
+export type WritDelta = WritDeltaAdd | WritDeltaDel | WritDeltaAddFeel;
+
+export interface WritDiff {
+  id: string;
+  delta: WritDelta;
+}
+
+export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects;
 
 export interface ChatUpdate {
   time: Patda;
-  diff: ChatDiff;
+  diff: WritDelta;
 }
+
 export interface ChatPerm {
   writers: string[];
 }
@@ -162,6 +170,11 @@ export interface ChatPerm {
 export interface Chat {
   writs: BigIntOrderedMap<ChatWrit>;
   perms: ChatPerm;
+}
+
+export interface DmAction {
+  ship: string;
+  diff: WritDiff;
 }
 
 /**

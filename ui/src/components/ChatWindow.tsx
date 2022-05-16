@@ -31,7 +31,7 @@ export default function ChatWindow(props: { flag: string }) {
       footer={
         <div className="p-4">
           {canWrite ? (
-            <ChatInput flag={flag} />
+            <ChatInput whom={flag} />
           ) : (
             <span>Cannot write to this channel</span>
           )}

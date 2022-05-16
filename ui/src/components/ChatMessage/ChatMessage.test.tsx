@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
+import { unixToDa } from '@urbit/api';
 import ChatMessage from './ChatMessage';
 import { makeChatWrit } from '../../fixtures/chat';
 
@@ -13,6 +14,7 @@ describe('ChatMessage', () => {
     vi.useRealTimers();
   });
   it('renders as expected', () => {
+    const date = new Date(2021, 1, 1, 13);
     const writ = makeChatWrit(
       1,
       '~finned-palmer',
@@ -20,11 +22,11 @@ describe('ChatMessage', () => {
         block: [],
         inline: [{ bold: 'A bold test message' }, 'with some more text'],
       },
-      undefined,
-      new Date(2021, 1, 1, 13)
+      undefined
     );
+    const da = unixToDa(date.valueOf());
     const { asFragment } = render(
-      <ChatMessage flag="~zod/test" writ={writ} newAuthor newDay />
+      <ChatMessage time={da} whom="~zod/test" writ={writ} newAuthor newDay />
     );
     expect(asFragment()).toMatchSnapshot();
   });

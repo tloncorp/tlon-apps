@@ -1,10 +1,10 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, udToDec, unixToDa } from '@urbit/api';
+import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
+import { Poke, SubscriptionInterface } from '@urbit/http-api';
 import bigInt from 'big-integer';
 import { useCallback, useMemo } from 'react';
-import { SubscriptionInterface } from '@urbit/http-api';
 import {
   Chat,
   ChatDiff,
@@ -12,6 +12,10 @@ import {
   ChatPerm,
   ChatUpdate,
   ChatWrit,
+  ChatWrits,
+  DmAction,
+  WritDelta,
+  WritDiff,
 } from '../types/chat';
 import api from '../api';
 import { whomIsDm } from '../utils';
@@ -21,7 +25,6 @@ setAutoFreeze(false);
 interface ChatApi {
   newest: (flag: string, count: number) => Promise<ChatWrit[]>;
   subscribe: (flag: string, opts: SubscriptionInterface) => Promise<number>;
-  sendMessage: (whom: string, memo: ChatMemo) => Promise<number>;
   delMessage: (flag: string, time: string) => Promise<number>;
 }
 
@@ -39,6 +42,33 @@ function chatAction(flag: string, diff: ChatDiff) {
   };
 }
 
+function chatWritDiff(flag: string, id: string, delta: WritDelta) {
+  return chatAction(flag, {
+    writs: {
+      id,
+      delta,
+    },
+  });
+}
+
+function makeId(ship: string) {
+  return `${window.our}/${decToUd(unixToDa(Date.now()).toString())}`;
+}
+
+function dmAction(ship: string, delta: WritDelta): Poke<DmAction> {
+  return {
+    app: 'chat',
+    mark: 'dm-action',
+    json: {
+      ship,
+      diff: {
+        id: makeId(ship),
+        delta,
+      },
+    },
+  };
+}
+
 const chatApi: ChatApi = {
   subscribe: (flag, opts) =>
     api.subscribe({ app: 'chat', path: `/chat/${flag}/ui`, ...opts }),
@@ -47,7 +77,7 @@ const chatApi: ChatApi = {
       app: 'chat',
       path: `/chat/${flag}/writs/newest/${count}`,
     }),
-  delMessage: (flag, idx) => api.poke(chatAction(flag, { del: idx })),
+  delMessage: (flag, idx) => api.poke(chatWritDiff(flag, idx, { del: null })),
 };
 
 interface ChatState {
@@ -127,16 +157,9 @@ export const useChatState = create<ChatState>((set, get) => ({
     const isDM = whomIsDm(whom);
     const diff = { add: memo };
     if (isDM) {
-      api.poke({
-        app: 'chat',
-        mark: 'dm-action',
-        json: {
-          ship: whom,
-          diff,
-        },
-      });
+      api.poke(dmAction(whom, { add: memo }));
     } else {
-      api.poke(chatAction(whom, diff));
+      // api.poke(chatAction(whom, ));
     }
   },
   delMessage: (flag, time) => {
@@ -177,25 +200,25 @@ export const useChatState = create<ChatState>((set, get) => ({
             const writ = { seal, memo: update.diff.add };
             draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
           } else if ('del' in update.diff) {
-            const time = bigInt(udToDec(update.diff.del));
-            draft.chats[flag].writs = draft.chats[flag].writs.delete(time);
+            /* const time = bigInt(udToDec(update.diff.del));
+            draft.chats[flag].writs = draft.chats[flag].writs.delete(time); */
           } else if ('add-feel' in update.diff) {
-            const diff = update.diff['add-feel'];
+            /* const diff = update.diff['add-feel'];
             const time = bigInt(udToDec(diff.time));
             const writ = draft.chats[flag].writs.get(time);
             writ.seal.feels[diff.ship] = diff.feel;
-            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
+            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ); */
           } else if ('add-sects' in update.diff) {
-            const diff = update.diff['add-sects'];
+            /* const diff = update.diff['add-sects'];
             const chat = draft.chats[flag];
-            chat.perms.writers = [...chat.perms.writers, ...diff];
+            chat.perms.writers = [...chat.perms.writers, ...diff]; */
           }
         });
       },
     });
   },
   initializeDm: async (ship: string) => {
-    const writs = await api.scry<ChatWrit[]>({
+    const writs = await api.scry<ChatWrits>({
       app: 'chat',
       path: `/dm/${ship}/writs/newest/100`,
     });
@@ -205,8 +228,9 @@ export const useChatState = create<ChatState>((set, get) => ({
     get().batchSet((draft) => {
       const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
       draft.dms[ship] = chat;
-      writs.forEach((writ) => {
-        const tim = bigInt(udToDec(writ.seal.time));
+      Object.keys(writs).forEach((key) => {
+        const writ = writs[key];
+        const tim = bigInt(udToDec(key));
         draft.dms[ship].writs = draft.dms[ship].writs.set(tim, writ);
       });
     });
@@ -215,22 +239,25 @@ export const useChatState = create<ChatState>((set, get) => ({
       app: 'chat',
       path: `/dm/${ship}/ui`,
       event: (data: unknown) => {
-        const diff = data as ChatDiff;
+        const { id, delta } = data as WritDiff;
         get().batchSet((draft) => {
-          if ('add' in diff) {
+          if ('add' in delta) {
             const time = bigInt(unixToDa(Date.now()));
             const seal = { time: time.toString(), feels: {} };
-            const writ = { seal, memo: diff.add };
+            const writ = { seal, memo: delta.add };
             draft.dms[ship].writs = draft.dms[ship].writs.set(time, writ);
-          } else if ('del' in diff) {
-            const time = bigInt(udToDec(diff.del));
-            draft.dms[ship].writs = draft.dms[ship].writs.delete(time);
-          } else if ('add-feel' in diff) {
-            const d = diff['add-feel'];
+          } else if ('del' in delta) {
+            // TODO: map from rcv -> id
+            // const time = bigInt(udToDec(delta.del));
+            // draft.dms[ship].writs = draft.dms[ship].writs.delete(time);
+          } else if ('add-feel' in delta) {
+            /*  see above TODO
+             * const d = delta['add-feel'];
             const time = bigInt(udToDec(d.time));
             const writ = draft.dms[ship].writs.get(time);
             writ.seal.feels[d.ship] = d.feel;
             draft.dms[ship].writs = draft.dms[ship].writs.set(time, writ);
+            */
           }
         });
       },
