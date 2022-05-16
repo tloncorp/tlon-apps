@@ -101,7 +101,7 @@ export function GangModal() {
     <Dialog.Root defaultOpen onOpenChange={onOpenChange}>
       <Dialog.Trigger />
       <Dialog.Portal>
-        <Dialog.Overlay className="bg-black/50 fixed inset-0 flex items-center justify-center">
+        <Dialog.Overlay className="fixed inset-0 flex items-center justify-center bg-black/50">
           <Dialog.Content className="w-144 rounded bg-white">
             <Gang />
           </Dialog.Content>
