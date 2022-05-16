@@ -168,8 +168,8 @@ export interface ChatPerm {
 }
 
 export interface Chat {
-  writs: BigIntOrderedMap<ChatWrit>;
   perms: ChatPerm;
+  // writs: BigIntOrderedMap<ChatWrit>;
 }
 
 export interface DmAction {

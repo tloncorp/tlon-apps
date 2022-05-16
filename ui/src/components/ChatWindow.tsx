@@ -18,6 +18,7 @@ export default function ChatWindow(props: { flag: string }) {
   useEffect(() => {
     useChatState.getState().initialize(flag);
   }, [flag]);
+  console.log(messages);
 
   const perms = useChatPerms(flag);
   const vessel = useVessel(groupFlag, window.our);

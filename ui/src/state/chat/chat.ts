@@ -11,14 +11,17 @@ import {
   ChatMemo,
   ChatPerm,
   ChatUpdate,
+  ChatWhom,
   ChatWrit,
   ChatWrits,
   DmAction,
   WritDelta,
   WritDiff,
-} from '../types/chat';
-import api from '../api';
-import { whomIsDm } from '../utils';
+} from '../../types/chat';
+import api from '../../api';
+import { whomIsDm } from '../../utils';
+import makeWritsStore from './writs';
+import { ChatState } from './type';
 
 setAutoFreeze(false);
 
@@ -51,7 +54,7 @@ function chatWritDiff(flag: string, id: string, delta: WritDelta) {
   });
 }
 
-function makeId(ship: string) {
+function makeId() {
   return `${window.our}/${decToUd(unixToDa(Date.now()).toString())}`;
 }
 
@@ -62,7 +65,7 @@ function dmAction(ship: string, delta: WritDelta): Poke<DmAction> {
     json: {
       ship,
       diff: {
-        id: makeId(ship),
+        id: makeId(),
         delta,
       },
     },
@@ -80,33 +83,6 @@ const chatApi: ChatApi = {
   delMessage: (flag, idx) => api.poke(chatWritDiff(flag, idx, { del: null })),
 };
 
-interface ChatState {
-  set: (fn: (sta: ChatState) => void) => void;
-  batchSet: (fn: (sta: ChatState) => void) => void;
-  chats: {
-    [flag: string]: Chat;
-  };
-  dms: {
-    [ship: string]: Chat;
-  };
-  flags: string[];
-  fetchFlags: () => Promise<void>;
-  fetchDms: () => Promise<void>;
-  joinChat: (flag: string) => Promise<void>;
-  sendMessage: (whom: string, memo: ChatMemo) => void;
-  delMessage: (flag: string, time: string) => void;
-  addSects: (flag: string, writers: string[]) => Promise<void>;
-  create: (req: {
-    group: string;
-    name: string;
-    title: string;
-    description: string;
-    readers: string[];
-  }) => Promise<void>;
-  initialize: (flag: string) => Promise<void>;
-  initializeDm: (ship: string) => Promise<void>;
-}
-
 export const useChatState = create<ChatState>((set, get) => ({
   set: (fn) => {
     set(produce(get(), fn));
@@ -116,6 +92,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       get().set(fn);
     });
   },
+  writs: {},
   dms: {},
   flags: [] as string[],
   fetchFlags: async () => {
@@ -159,7 +136,8 @@ export const useChatState = create<ChatState>((set, get) => ({
     if (isDM) {
       api.poke(dmAction(whom, { add: memo }));
     } else {
-      // api.poke(chatAction(whom, ));
+      const id = makeId();
+      api.poke(chatWritDiff(whom, id, diff));
     }
   },
   delMessage: (flag, time) => {
@@ -180,96 +158,36 @@ export const useChatState = create<ChatState>((set, get) => ({
       app: 'chat',
       path: `/chat/${flag}/perm`,
     });
-    const writs = await chatApi.newest(flag, 100);
     get().batchSet((draft) => {
       const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
       draft.chats[flag] = chat;
-      writs.forEach((writ) => {
-        const tim = bigInt(udToDec(writ.seal.time));
-        draft.chats[flag].writs = draft.chats[flag].writs.set(tim, writ);
-      });
     });
-
-    chatApi.subscribe(flag, {
-      event: (data: unknown) => {
-        const update = data as ChatUpdate;
-        get().batchSet((draft) => {
-          if ('add' in update.diff) {
-            const time = bigInt(udToDec(update.time));
-            const seal = { time: update.time, feels: {} };
-            const writ = { seal, memo: update.diff.add };
-            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ);
-          } else if ('del' in update.diff) {
-            /* const time = bigInt(udToDec(update.diff.del));
-            draft.chats[flag].writs = draft.chats[flag].writs.delete(time); */
-          } else if ('add-feel' in update.diff) {
-            /* const diff = update.diff['add-feel'];
-            const time = bigInt(udToDec(diff.time));
-            const writ = draft.chats[flag].writs.get(time);
-            writ.seal.feels[diff.ship] = diff.feel;
-            draft.chats[flag].writs = draft.chats[flag].writs.set(time, writ); */
-          } else if ('add-sects' in update.diff) {
-            /* const diff = update.diff['add-sects'];
-            const chat = draft.chats[flag];
-            chat.perms.writers = [...chat.perms.writers, ...diff]; */
-          }
-        });
-      },
-    });
+    await makeWritsStore(
+      flag,
+      get,
+      `/chat/${flag}/writs`,
+      `/chat/${flag}/ui/writs`
+    ).initialize();
   },
   initializeDm: async (ship: string) => {
-    const writs = await api.scry<ChatWrits>({
-      app: 'chat',
-      path: `/dm/${ship}/writs/newest/100`,
-    });
     const perms = {
       writers: [],
     };
     get().batchSet((draft) => {
       const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
-      draft.dms[ship] = chat;
-      Object.keys(writs).forEach((key) => {
-        const writ = writs[key];
-        const tim = bigInt(udToDec(key));
-        draft.dms[ship].writs = draft.dms[ship].writs.set(tim, writ);
-      });
     });
-
-    api.subscribe({
-      app: 'chat',
-      path: `/dm/${ship}/ui`,
-      event: (data: unknown) => {
-        const { id, delta } = data as WritDiff;
-        get().batchSet((draft) => {
-          if ('add' in delta) {
-            const time = bigInt(unixToDa(Date.now()));
-            const seal = { time: time.toString(), feels: {} };
-            const writ = { seal, memo: delta.add };
-            draft.dms[ship].writs = draft.dms[ship].writs.set(time, writ);
-          } else if ('del' in delta) {
-            // TODO: map from rcv -> id
-            // const time = bigInt(udToDec(delta.del));
-            // draft.dms[ship].writs = draft.dms[ship].writs.delete(time);
-          } else if ('add-feel' in delta) {
-            /*  see above TODO
-             * const d = delta['add-feel'];
-            const time = bigInt(udToDec(d.time));
-            const writ = draft.dms[ship].writs.get(time);
-            writ.seal.feels[d.ship] = d.feel;
-            draft.dms[ship].writs = draft.dms[ship].writs.set(time, writ);
-            */
-          }
-        });
-      },
-    });
+    await makeWritsStore(
+      ship,
+      get,
+      `/dm/${ship}/writs`,
+      `/dm/${ship}/ui`
+    ).initialize();
   },
 }));
 
-export function useMessagesForChat(flag: string) {
+export function useMessagesForChat(whom: string) {
   const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
-  return useChatState(
-    useCallback((s) => s.chats[flag]?.writs || def, [flag, def])
-  );
+  return useChatState(useCallback((s) => s.writs[whom] || def, [whom, def]));
 }
 
 const defaultPerms = {
@@ -293,7 +211,7 @@ export function useDmList() {
 }
 
 export function useDmMessages(ship: string) {
-  return useChatState(
-    useCallback((s) => s.dms[ship]?.writs || new BigIntOrderedMap(), [ship])
-  );
+  return useMessagesForChat(ship);
 }
+
+window.chat = useChatState.getState;
