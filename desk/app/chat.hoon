@@ -238,12 +238,16 @@
       [%x %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
     (di-peek:(di-abed:di-core ship) t.t.t.path)
+  ::
+      [%x %dm ~]
+    ``ships+!>(~(key by dms))
   ==
 ::
 ++  from-self  =(our src):bowl
 ::
 ++  ca-core
   |_  [=flag:c =chat:c gone=_|]
+  +*  ca-pact  ~(. pac pact.chat)
   ++  ca-core  .
   ::  TODO: archive??
   ++  ca-abet  
@@ -259,8 +263,9 @@
     |=  =path
     ^+  ca-core
     ?+    path  !!
-      [%updates *]  (ca-pub t.path)
-      [%ui ~]       ?>(from-self ca-core)
+      [%updates *]    (ca-pub t.path)
+      [%ui ~]         ?>(from-self ca-core)
+      [%ui %writs ~]       ?>(from-self ca-core)
     ::
     ==
   ++  ca-pass
@@ -306,7 +311,7 @@
     |=  =(pole knot)
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
-      [%writs rest=*]  (scry:w writs.chat rest.pole)
+      [%writs rest=*]  (peek:ca-pact rest.pole)
       [%perm ~]        ``chat-perm+!>(perm.chat)
     ==
   ::
@@ -422,14 +427,18 @@
     (~(put in out) [ship path])
   ::
   ++  ca-give-updates
-    |=  =cage
+    |=  [=time d=diff:c]
     ^+  ca-core
     =/  paths=(set path)
       %-  ~(gas in *(set path))
       (turn ~(tap in ca-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc ca-area %ui))
+    =/  cag=cage  chat-update+!>([time d])
     =.  cor
-      (give %fact ~(tap in paths) cage)
+      (give %fact ~(tap in paths) cag)
+    =?  cor  ?=(%writs -.d)
+      =/  =cage  writ-diff+!>(p.d)
+      (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
     ca-core
   ::
   ++  ca-remark-diff
@@ -442,10 +451,10 @@
       %unwatch  ca-core(watching.remark.chat |)
       %read-at  ca-core(last-read.remark.chat p.diff)
     ::
-        %read 
-      =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
-      =.  last-read.remark.chat  time
-      ca-core
+        %read   !!
+::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
+::    =.  last-read.remark.chat  time
+::    ca-core
     ==
   ::
   ++  ca-update
@@ -455,10 +464,10 @@
     =.  log.chat
       (put:log-on:c log.chat time d)
     =.  ca-core
-      (ca-give-updates chat-update+!>([time d]))
+      (ca-give-updates time d)
     ?-    -.d
         %writs
-      ca-core(writs.chat (reduce:w p.flag writs.chat src.bowl time p.d))
+      ca-core(pact.chat (reduce:pac time p.d))
     ::
         %add-sects
       =*  p  perm.chat
@@ -506,6 +515,7 @@
     ?>  =(src.bowl our.bowl)
     ?+  path  !!
       [%ui ~]  di-core
+      [%ui %writs ~]  di-core
     ==
   ::
   ++  di-agent

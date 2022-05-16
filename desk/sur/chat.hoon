@@ -77,7 +77,7 @@
       group=flag
   ==
 +$  chat
-  [=net =remark =log =perm =writs]
+  [=net =remark =log =perm =pact]
 ::
 +$  content
   (pair (list block) (list inline))
