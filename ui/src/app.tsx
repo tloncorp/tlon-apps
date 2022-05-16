@@ -22,8 +22,10 @@ import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 import Sidebar from './components/Sidebar/Sidebar';
 import ChatThread from './components/ChatThread/ChatThread';
 import Policy from './pages/Policy';
+import useSidebars from './state/sidebars';
 
 function App() {
+  const { isMobile } = useSidebars();
   const location = useLocation();
   useEffect(() => {
     useGroupState.getState().start();
@@ -34,16 +36,18 @@ function App() {
 
   return (
     <div className="flex h-full w-full">
-      <Sidebar />
+      <Routes>
+        <Route path={isMobile ? '/' : '*'} element={<Sidebar />} />
+      </Routes>
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/gangs/:ship/:name" element={<Gang />} />
         <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />
-        <Route path="/groups/:ship/:name" element={<Groups />}>
+        <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="members" element={<Members />} />
           <Route path="roles" element={<Roles />} />
           <Route path="policy" element={<Policy />} />
-          <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
+          <Route path="channels/:app/:chShip/:chName/*" element={<Channel />}>
             <Route path="message/:time" element={<ChatThread />} />
           </Route>
           <Route
