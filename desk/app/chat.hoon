@@ -495,7 +495,7 @@
   ++  di-ingest-diff
     |=  =diff:dm:c
     =/  =path  (snoc di-area %ui)
-    =.  cor  (emit %give %fact ~[path] dm-diff+!>(diff))
+    =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =.  pact  (reduce:di-pact now.bowl diff)
     di-core
     :: di-core(pact (reduce:w ship writs ship now.bowl diff))
@@ -524,8 +524,7 @@
     |=  =path
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
-      ::  [%writs *]  (scry:w writs t.path)
-      [%foo ~]  [~ ~]
+      [%writs *]  (peek:di-pact t.path)
     ==
   ::
   ++  di-pass

@@ -53,4 +53,26 @@
     |=  =writ:c
     writ(feels (~(del by feels.writ) p.del))
   ==
+::
+++  peek
+  |=  =(pole knot)
+  ^-  (unit (unit cage))
+  ?+    pole  [~ ~]
+  ::
+  ::  TODO: less iterations?
+      [%newest count=@ ~]
+    =/  count  (slav %ud count.pole)
+    =/  ls    (scag count (tap:on:writs:c wit.pac))
+    ``chat-writs+!>((gas:on:writs:c *writs:c ls))
+  ::
+      [%older start=@ count=@ ~]
+    =/  count  (slav %ud count.pole)
+    =/  start  (slav %da start.pole)
+    ``chat-writs+!>((turn (tab:on:writs:c wit.pac `start count) tail))
+  ::
+      [%writ %id ship=@ time=@ ~]
+    =/  ship  (slav %p ship.pole)
+    =/  time  (slav %ud time.pole)
+    ``writ+!>((got ship `@da`time))
+  ==
 --

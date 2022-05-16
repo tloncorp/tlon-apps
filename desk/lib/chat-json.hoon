@@ -22,6 +22,7 @@
     :~  time+s+(scot %ud p.update)
         diff+(diff q.update)
     ==
+  ::
   ++  diff
     |=  =diff:c
     %+  frond  -.diff
@@ -135,6 +136,15 @@
     |=  w=(list writ:c)
     ^-  json
     a+(turn w writ)
+  ::
+  ++  writs
+    |=  =writs:c
+    ^-  json
+    %-  pairs
+    %+  turn  (tap:on:writs:c writs) 
+    |=  [key=@da w=writ:c]
+    [(scot %ud key) (writ w)]
+
   --
 ++  dejs
   =,  dejs:format
