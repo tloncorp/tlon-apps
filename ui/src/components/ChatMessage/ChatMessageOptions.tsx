@@ -15,7 +15,8 @@ export default function ChatMessageOptions(props: {
 }) {
   const { whom, writ } = props;
   const onDelete = () => {
-    useChatState.getState().delMessage(whom, writ.seal.time);
+    console.log(writ.seal.id);
+    useChatState.getState().delMessage(whom, writ.seal.id);
   };
 
   return (

@@ -1,7 +1,7 @@
 import { BigIntOrderedMap, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import api from '../../api';
-import { ChatWrit, ChatWrits, WritDiff } from '../../types/chat';
+import { ChatWrit, ChatWrits, Pact, WritDiff } from '../../types/chat';
 import { ChatState } from './type';
 
 interface WritsStore {
@@ -24,13 +24,17 @@ export default function makeWritsStore(
       const writs = await scry<ChatWrits>(`/newest/100`);
       const sta = get();
       sta.batchSet((draft) => {
-        let map = draft.writs[whom] || new BigIntOrderedMap<ChatWrit>();
+        const pact: Pact = {
+          writs: new BigIntOrderedMap<ChatWrit>(),
+          index: {},
+        };
         Object.keys(writs).forEach((key) => {
           const writ = writs[key];
           const tim = bigInt(udToDec(key));
-          map = map.set(tim, writ);
+          pact.writs = pact.writs.set(tim, writ);
+          pact.index[writ.seal.id] = tim;
         });
-        draft.writs[whom] = map;
+        draft.pacts[whom] = pact;
       });
 
       api.subscribe({
@@ -40,13 +44,18 @@ export default function makeWritsStore(
           const { id, delta } = data as WritDiff;
           const s = get();
           s.batchSet((draft) => {
-            let map = draft.writs[whom];
+            const pact = draft.pacts[whom];
             if ('add' in delta) {
               const time = bigInt(unixToDa(Date.now()));
-              const seal = { time: time.toString(), feels: {} };
+              draft.pacts[whom].index[id] = time;
+              const seal = { id, feels: {} };
               const writ = { seal, memo: delta.add };
-              map = map.set(time, writ);
+              pact.writs = pact.writs.set(time, writ);
             } else if ('del' in delta) {
+              console.log('del', id);
+              const time = pact.index[id];
+              pact.writs = pact.writs.delete(time);
+              delete pact.index[id];
               // TODO: map from rcv -> id
               // const time = bigInt(udToDec(delta.del));
               // draft.dms[ship].writs = draft.dms[ship].writs.delete(time);
@@ -59,7 +68,7 @@ export default function makeWritsStore(
             draft.dms[ship].writs = draft.dms[ship].writs.set(time, writ);
             */
             }
-            draft.writs[whom] = map;
+            draft.pacts[whom] = pact;
           });
         },
       });

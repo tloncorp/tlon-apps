@@ -92,7 +92,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       get().set(fn);
     });
   },
-  writs: {},
+  pacts: {},
   dms: {},
   flags: [] as string[],
   fetchFlags: async () => {
@@ -187,7 +187,9 @@ export const useChatState = create<ChatState>((set, get) => ({
 
 export function useMessagesForChat(whom: string) {
   const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
-  return useChatState(useCallback((s) => s.writs[whom] || def, [whom, def]));
+  return useChatState(
+    useCallback((s) => s.pacts[whom]?.writs || def, [whom, def])
+  );
 }
 
 const defaultPerms = {

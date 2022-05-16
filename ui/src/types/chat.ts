@@ -1,4 +1,5 @@
 import { BigIntOrderedMap } from '@urbit/api';
+import { BigInteger } from 'big-integer';
 
 export type Patda = string;
 export type Ship = string;
@@ -102,7 +103,7 @@ export interface ChatMessage {
 }
 
 export interface ChatSeal {
-  time: Patda;
+  id: string;
   feels: {
     [ship: Ship]: string;
   };
@@ -175,6 +176,13 @@ export interface Chat {
 export interface DmAction {
   ship: string;
   diff: WritDiff;
+}
+
+export interface Pact {
+  writs: BigIntOrderedMap<ChatWrit>;
+  index: {
+    [id: string]: BigInteger;
+  };
 }
 
 /**
