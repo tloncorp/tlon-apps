@@ -11,7 +11,7 @@ import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
 import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
-import { useMessagesForChat } from '../../state/chat';
+import { useMessagesForChat, usePact } from '../../state/chat';
 import ShipImage from './ShipImage';
 import { useChannelFlag } from '../../hooks';
 
@@ -36,12 +36,13 @@ export default function ChatMessage({
 
   const unix = new Date(daToUnix(time));
 
-  const messages = useMessagesForChat(whom);
+  const pact = usePact(whom);
 
   const numReplies = seal.replied.length;
   const replyAuthors = _.flow(
     f.map((k: string) => {
-      const mess = messages.get(bigInt(udToDec(k)));
+      const time = pact.index[k];
+      const mess = pact.writs.get(time);
       if (!mess) {
         return undefined;
       }

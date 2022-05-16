@@ -7,20 +7,30 @@ import ChatMessage, { ChatMessageProps } from './ChatMessage/ChatMessage';
 import { ChatWrit } from '../types/chat';
 
 interface ChatMessagesProps
-  extends Omit<ChatMessageProps, 'writ' | 'newAuthor' | 'newDay' | 'time' | 'whom'> {
+  extends Omit<
+    ChatMessageProps,
+    'writ' | 'newAuthor' | 'newDay' | 'time' | 'whom'
+  > {
   whom: string;
 
   messages: BigIntOrderedMap<ChatWrit>;
-  replying?: string;
+  replying?: boolean;
 }
 
 export default function ChatMessages(props: ChatMessagesProps) {
-  const { messages, whom, replying = null, ...rest } = props;
+  const { messages, whom, replying = false, ...rest } = props;
 
   const keys = messages
     .keys()
     .reverse()
-    .filter((k) => messages.get(k)!.memo.replying === replying);
+    .filter((k) => {
+      if (replying) {
+        return true;
+      }
+      return messages.get(k)!.memo.replying === null;
+    });
+  console.log(messages);
+  console.log(keys);
   return (
     <>
       {keys.map((key, index) => {

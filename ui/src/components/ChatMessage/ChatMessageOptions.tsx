@@ -43,11 +43,7 @@ export default function ChatMessageOptions(props: {
             icon={<HashIcon className="text-gray-400" />}
             label="Start Thread"
             showTooltip
-            action={() =>
-              navigate(
-                `/groups/${groupFlag}/channels/chat/${whom}/message/${writ.seal.time}`
-              )
-            }
+            action={() => navigate(`message/${writ.seal.id}`)}
           />
         </>
       ) : null}

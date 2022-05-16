@@ -52,6 +52,7 @@ export default function Sidebar() {
           <SidebarLink to="/profile">Profile</SidebarLink>
           <SidebarLink to="/groups/new">New Group</SidebarLink>
           <SidebarLink to="/groups/join">Join Group</SidebarLink>
+          <SidebarLink to="/dm">Direct Messages</SidebarLink>
           <Divider>All Groups</Divider>
           {groups.map((flag) => (
             <GroupItem key={flag} flag={flag} />

@@ -54,7 +54,7 @@ function Channel() {
       footer={
         <div className="p-4">
           {canWrite ? (
-            <ChatInput flag={flag} />
+            <ChatInput whom={flag} />
           ) : (
             <span>Cannot write to this channel</span>
           )}

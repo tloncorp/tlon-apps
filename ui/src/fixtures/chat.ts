@@ -15,7 +15,7 @@ export const makeChatWrit = (
   const da = decToUd(time.toString());
   return {
     seal: {
-      time: da,
+      id: `~zod/${da}`,
       feels: feels ?? {},
       replied: [],
     },

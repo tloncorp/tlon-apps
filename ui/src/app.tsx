@@ -25,7 +25,10 @@ import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 
 import Sidebar from './components/Sidebar/Sidebar';
-import ChatThread from './components/ChatThread/ChatThread';
+import ChatThread, {
+  DmThread,
+  GroupChatThread,
+} from './components/ChatThread/ChatThread';
 import Policy from './pages/Policy';
 
 function Divider(props: { title: string }) {
@@ -54,7 +57,9 @@ function App() {
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm" element={<Dms />}>
           <Route path="new" element={<NewDM />} />
-          <Route path=":ship" element={<Dm />} />
+          <Route path=":ship" element={<Dm />}>
+            <Route path="message/:idShip/:idTime" element={<DmThread />} />
+          </Route>
           <Route index element={<div>Select a DM</div>} />
         </Route>
 
@@ -66,7 +71,10 @@ function App() {
           <Route path="roles" element={<Roles />} />
           <Route path="policy" element={<Policy />} />
           <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
-            <Route path="message/:time" element={<ChatThread />} />
+            <Route
+              path="message/:idShip/:idTime"
+              element={<GroupChatThread />}
+            />
           </Route>
           <Route
             path="channels/:app/:chShip/:chName/settings"

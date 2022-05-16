@@ -48,7 +48,7 @@ export default function makeWritsStore(
             if ('add' in delta) {
               const time = bigInt(unixToDa(Date.now()));
               draft.pacts[whom].index[id] = time;
-              const seal = { id, feels: {} };
+              const seal = { id, feels: {}, replied: [] };
               const writ = { seal, memo: delta.add };
               pact.writs = pact.writs.set(time, writ);
             } else if ('del' in delta) {

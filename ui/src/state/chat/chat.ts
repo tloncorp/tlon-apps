@@ -3,7 +3,7 @@ import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke, SubscriptionInterface } from '@urbit/http-api';
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useMemo } from 'react';
 import {
   Chat,
@@ -60,13 +60,15 @@ function makeId() {
 }
 
 function dmAction(ship: string, delta: WritDelta): Poke<DmAction> {
+  const id = makeId();
+  console.log(ship, id, delta);
   return {
     app: 'chat',
     mark: 'dm-action',
     json: {
       ship,
       diff: {
-        id: makeId(),
+        id,
         delta,
       },
     },
@@ -138,6 +140,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       api.poke(dmAction(whom, { add: memo }));
     } else {
       const id = makeId();
+      console.log(id, memo);
       api.poke(chatWritDiff(whom, id, diff));
     }
   },
@@ -231,14 +234,40 @@ function getPact(pact: Pact, id: string) {
 
 export function useReplies(flag: string, id: string) {
   const pact = usePact(flag);
-  const { writs, index } = pact;
-  const time = index[id];
-  if (!time) {
-    return [];
-  }
-  const message = writs.get(time);
-  const replyKeys = (message?.seal?.replied || [])
-    .map((r) => getPact(pact, r))
-    .filter((r): r is ChatWrit => !!r);
-  return replyKeys;
+  return useMemo(() => {
+    const { writs, index } = pact;
+    const time = index[id];
+    if (!time) {
+      return new BigIntOrderedMap<ChatWrit>();
+    }
+    const message = writs.get(time);
+    const replies = (message?.seal?.replied || [])
+      .map((r) => {
+        const t = pact.index[r];
+        const writ = t && writs.get(t);
+        return t && writ ? ([t, writ] as const) : undefined;
+      })
+      .filter((r): r is [BigInteger, ChatWrit] => !!r);
+    console.log(replies);
+    return new BigIntOrderedMap<ChatWrit>().gas(replies);
+  }, [pact, id, flag]);
+}
+
+export function useWrit(whom: string, id: string) {
+  return useChatState(
+    useCallback(
+      (s) => {
+        const pact = s.pacts[whom];
+        if (!pact) {
+          return undefined;
+        }
+        const time = pact.index[id];
+        if (!time) {
+          return undefined;
+        }
+        return [time, pact.writs.get(time)] as const;
+      },
+      [whom, id]
+    )
+  );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useParams } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 import ChatInput from '../components/ChatInput/ChatInput';
 import ChatMessages from '../components/ChatMessages';
 import Layout from '../components/layout/Layout';
@@ -16,18 +16,18 @@ export default function Dm() {
     <Layout
       className="h-full grow"
       header={<div className="border-b p-2 font-bold">{ship}</div>}
-      main={
-        <div className="flex h-full w-full flex-col overflow-auto px-4">
-          <div className="mt-auto flex flex-col justify-end">
-            <ChatMessages messages={messages} whom={ship} />
-          </div>
-        </div>
-      }
+      aside={<Outlet />}
       footer={
         <div className="p-2">
           <ChatInput whom={ship} />
         </div>
       }
-    />
+    >
+      <div className="flex h-full w-full flex-col overflow-auto px-4">
+        <div className="mt-auto flex flex-col justify-end">
+          <ChatMessages messages={messages} whom={ship} />
+        </div>
+      </div>
+    </Layout>
   );
 }
