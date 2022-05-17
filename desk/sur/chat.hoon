@@ -53,7 +53,9 @@
 +$  content
   (pair (list block) (list inline))
 ::
-+$  block  *
++$  block
+  $%  [%image src=cord height=@ud width=@ud alt=cord]
+  ==
 ::
 +$  inline
   $@  @t

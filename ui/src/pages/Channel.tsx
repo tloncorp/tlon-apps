@@ -8,7 +8,7 @@ import ElipsisIcon from '../components/icons/ElipsisIcon';
 import MenuIcon from '../components/icons/MenuIcon';
 import Layout from '../components/layout/Layout';
 import { useChatIsJoined, useChatPerms, useChatState } from '../state/chat';
-import { useRouteGroup, useVessel } from '../state/groups';
+import { useChannel, useRouteGroup, useVessel } from '../state/groups';
 import useSidebars from '../state/sidebars';
 import { channelHref } from '../utils';
 
@@ -27,13 +27,15 @@ function Channel() {
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
+  const channel = useChannel(groupFlag, flag)!;
 
   return (
     <Layout
       className="flex-1"
       aside={<Outlet />}
       header={
-        <div className="flex items-center border-b-2 border-gray-50 p-4">
+        <div className="flex h-full items-center border-b-2 border-gray-50 p-4">
+          <h3 className="text-lg font-bold">{channel.meta.title}</h3>
           {isMobile ? (
             <button
               className="icon-button h-8 w-8"
