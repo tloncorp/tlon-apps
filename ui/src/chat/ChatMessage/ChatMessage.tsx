@@ -34,23 +34,23 @@ const ChatMessage = React.forwardRef(({
   const flag = useChannelFlag()!;
   const { seal, memo } = writ;
 
-  const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
+    const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
 
-  const messages = useMessagesForChat(flag);
+    const messages = useMessagesForChat(flag);
 
-  const numReplies = seal.replied.length;
-  const replyAuthors = _.flow(
-    f.map((k: string) => {
-      const mess = messages.get(bigInt(udToDec(k)));
-      if (!mess) {
-        return undefined;
-      }
-      return mess.memo.author;
-    }),
-    f.compact,
-    f.uniq,
-    f.take(3)
-  )(seal.replied);
+    const numReplies = seal.replied.length;
+    const replyAuthors = _.flow(
+      f.map((k: string) => {
+        const mess = messages.get(bigInt(udToDec(k)));
+        if (!mess) {
+          return undefined;
+        }
+        return mess.memo.author;
+      }),
+      f.compact,
+      f.uniq,
+      f.take(3)
+    )(seal.replied);
 
   return (
     <div ref={ref} className="flex flex-col">
@@ -99,7 +99,8 @@ const ChatMessage = React.forwardRef(({
         </div>
       </div>
     </div>
-  );
-});
+    );
+  }
+);
 
 export default ChatMessage;

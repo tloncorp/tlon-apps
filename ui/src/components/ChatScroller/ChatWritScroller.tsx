@@ -1,7 +1,9 @@
 import bigInt, { BigInteger } from 'big-integer';
 import React from 'react';
 import { ChatWrit } from '../../types/chat';
-import VirtualScroller, { VirtualScrollerProps } from './VirtualScroller';
+import VirtualScroller, {
+  VirtualScrollerProps,
+} from '../VirtualScroller/VirtualScroller';
 
 type ChatWritScrollerProps = Omit<
   VirtualScrollerProps<BigInteger, ChatWrit>,
@@ -15,13 +17,13 @@ const ChatWritScroller = React.forwardRef<
   VirtualScroller<BigInteger, ChatWrit>,
   ChatWritScrollerProps
 >((props, ref) => (
-    <VirtualScroller
-      ref={ref}
-      {...props}
-      keyEq={keyEq}
-      keyToString={keyToString}
-      keyBunt={bigInt.zero}
-    />
-  ));
+  <VirtualScroller
+    ref={ref}
+    {...props}
+    keyEq={keyEq}
+    keyToString={keyToString}
+    keyBunt={bigInt.zero}
+  />
+));
 
 export default ChatWritScroller;

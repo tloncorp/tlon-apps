@@ -15,4 +15,3 @@ export default function usePreviousValue<T extends Primitive>(value: T): T {
 
   return prev.current!;
 }
-

@@ -48,7 +48,7 @@ export default function VirtuosoScroller(props: ChatScrollerProps) {
   return (
     <>
       <Virtuoso
-        className='h-full'
+        className="h-full"
         data={keys}
         endReached={endReached}
         itemContent={itemContent}
@@ -56,7 +56,8 @@ export default function VirtuosoScroller(props: ChatScrollerProps) {
         followOutput={'auto'}
         computeItemKey={(_index, key) => key.toString()}
         overscan={3} // TODO: tune for optimal experience vs performance
-      />;
+      />
+      ;
     </>
   );
 }

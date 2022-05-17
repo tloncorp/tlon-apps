@@ -1,10 +1,10 @@
 import React from 'react';
 import { useMessagesForChat } from '../state/chat';
-import { ChatMessageProps } from './ChatMessage/ChatMessage';
 import { useChat } from './useChatStore';
 
 import VirtuosoScroller from '../components/ChatScroller/VirtuosoScroller';
 import Groups1Scroller from '../components/ChatScroller/Groups1Scroller';
+import { ChatMessageProps } from './ChatMessage/ChatMessage';
 
 const GROUPS_SCROLLER = 'GROUPS1';
 const VIRTUOSO_SCROLLER = 'VIRTUOSO';
@@ -20,9 +20,10 @@ export default function ChatMessages(props: ChatMessagesProps) {
   const messages = useMessagesForChat(flag);
   const chat = useChat(flag);
 
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  const SCROLLER = window.scroller === 'virtuoso' ? VIRTUOSO_SCROLLER : GROUPS_SCROLLER;
+  const SCROLLER =
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    window.scroller === 'virtuoso' ? VIRTUOSO_SCROLLER : GROUPS_SCROLLER;
 
   return SCROLLER === VIRTUOSO_SCROLLER ?
     <VirtuosoScroller chat={chat} messages={messages} replying={replying} /> :
