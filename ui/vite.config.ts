@@ -1,10 +1,14 @@
 /// <reference types="vitest" />
+import packageJson from './package.json';
 import { loadEnv, defineConfig } from 'vite';
 import reactRefresh from '@vitejs/plugin-react-refresh';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 
 // https://vitejs.dev/config/
 export default ({ mode }) => {
+  process.env.VITE_STORAGE_VERSION =
+    mode === 'dev' ? Date.now().toString() : packageJson.version;
+
   Object.assign(process.env, loadEnv(mode, process.cwd()));
   const SHIP_URL =
     process.env.SHIP_URL ||
@@ -15,7 +19,7 @@ export default ({ mode }) => {
   return defineConfig({
     base: mode === 'mock' ? undefined : '/apps/homestead/',
     build: {
-      sourcemap: 'inline'
+      sourcemap: 'inline',
     },
     plugins:
       mode === 'mock'
@@ -28,12 +32,7 @@ export default ({ mode }) => {
       globals: true,
       environment: 'jsdom',
       setupFiles: './test/setup.ts',
-      deps: {
-        // Inline these libs because their package.json declares them to be
-        // ES6+ modules, but are actually CommonJS modules. Vite was choking
-        // on these because of the mismatch
-        inline: ['@urbit/api', '@urbit/http-api'],
-      },
+      deps: {},
     },
   });
 };

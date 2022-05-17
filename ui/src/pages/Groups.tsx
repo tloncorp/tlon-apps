@@ -6,7 +6,7 @@ import { Group } from '../types/groups';
 import api from '../api';
 import SidebarLink from '../components/Sidebar/SidebarLink';
 import Divider from '../components/Divider';
-import { channelHref } from '../utils';
+import { channelHref } from '../logic/utils';
 import useSidebars from '../state/sidebars';
 import XIcon from '../components/icons/XIcon';
 import LeftIcon from '../components/icons/LeftIcon';

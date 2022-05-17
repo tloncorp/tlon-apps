@@ -28,3 +28,15 @@
   content: attr(data-placeholder);
   @apply pointer-events-none float-left h-0 text-gray-400;
 }
+
+.dialog-container {
+  @apply fixed top-1/2 left-1/2 z-40 -translate-x-1/2 -translate-y-1/2 transform p-4;
+}
+
+.dialog {
+  @apply relative max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] overflow-auto rounded-xl bg-white p-6;
+}
+
+.dialog-inner-container {
+  @apply h-full space-y-8 overflow-y-auto p-4 md:p-8;
+}
