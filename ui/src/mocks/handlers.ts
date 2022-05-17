@@ -35,6 +35,12 @@ const mockHandlers: Handler[] = [
     path: '/chat/~zod/test/writs/newest/100',
     func: () => chatWrits,
   } as ScryHandler,
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/chat/~zod/test/draft',
+    func: () => JSON.parse(localStorage.getItem('~zod/test') || ''),
+  },
   chatSub,
   {
     action: 'poke',
@@ -44,15 +50,26 @@ const mockHandlers: Handler[] = [
     dataResponder: (
       req: Message &
         Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
-    ) => ({
-      id: req.id,
-      ok: true,
-      response: 'diff',
-      json: {
-        ...req.json.update,
-        time: getNowUd(),
-      },
-    }),
+    ) => {
+      const poke = {
+        id: req.id,
+        ok: true,
+        response: 'diff',
+        json: {
+          ...req.json.update,
+          time: getNowUd(),
+        },
+      };
+
+      if ('draft' in req.json.update.diff) {
+        localStorage.setItem(
+          req.json.flag,
+          JSON.stringify(req.json.update.diff.draft)
+        );
+      }
+
+      return poke;
+    },
   } as PokeHandler,
   {
     action: 'poke',

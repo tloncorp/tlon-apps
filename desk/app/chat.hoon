@@ -298,6 +298,9 @@
     ::
         [%perm ~]
       ``chat-perm+!>(perm.chat)
+    ::
+        [%draft ~]
+      ``chat-draft+!>(draft.chat)
     ==
   ::
   ++  ca-revoke
@@ -480,6 +483,11 @@
       =/  reply=writ:c  (got:writs-on:c writs.chat replying)
       =.  replied.reply  (~(put in replied.reply) time)
       =.  writs.chat  (put:writs-on:c writs.chat replying reply)
+      ca-core
+    ::
+        %draft
+      ?>  =(src.bowl p.flag)
+      =.  draft.chat  p.d
       ca-core
     ::
         %del

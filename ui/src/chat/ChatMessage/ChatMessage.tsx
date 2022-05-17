@@ -1,11 +1,11 @@
 import React from 'react';
+import cn from 'classnames';
 import _ from 'lodash';
 import f from 'lodash/fp';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
-import classNames from 'classnames';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
@@ -62,7 +62,7 @@ export default function ChatMessage({
           {format(time, 'HH:mm')}
         </div>
         <div
-          className={classNames(
+          className={cn(
             'flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50',
             isReplyOp && 'bg-gray-50'
           )}
@@ -70,9 +70,14 @@ export default function ChatMessage({
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
           {numReplies > 0 && !hideReplies ? (
-            <Link
+            <NavLink
               to={`message/${seal.time}`}
-              className="text-sm font-semibold text-blue"
+              className={({ isActive }) =>
+                cn(
+                  'rounded p-2 text-sm font-semibold text-blue',
+                  isActive ? 'bg-gray-50' : ''
+                )
+              }
             >
               <div className="flex items-center space-x-2">
                 {replyAuthors.map((ship) => (
@@ -89,7 +94,7 @@ export default function ChatMessage({
                     : formatRelative(time, new Date())}
                 </span>
               </div>
-            </Link>
+            </NavLink>
           ) : null}
         </div>
       </div>

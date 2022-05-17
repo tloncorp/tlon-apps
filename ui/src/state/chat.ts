@@ -9,6 +9,7 @@ import {
   Chat,
   ChatDiff,
   ChatMemo,
+  ChatMessage,
   ChatPerm,
   ChatUpdate,
   ChatWrit,
@@ -22,6 +23,8 @@ interface ChatApi {
   subscribe: (flag: string, opts: SubscriptionInterface) => Promise<number>;
   sendMessage: (flag: string, memo: ChatMemo) => Promise<number>;
   delMessage: (flag: string, time: string) => Promise<number>;
+  getDraft: (flag: string) => Promise<ChatMessage>;
+  draft: (flag: string, content: ChatMessage) => Promise<number>;
 }
 
 function chatAction(flag: string, diff: ChatDiff) {
@@ -48,6 +51,8 @@ const chatApi: ChatApi = {
     }),
   sendMessage: (flag, memo) => api.poke(chatAction(flag, { add: memo })),
   delMessage: (flag, idx) => api.poke(chatAction(flag, { del: idx })),
+  getDraft: (flag) => api.scry({ app: 'chat', path: `/chat/${flag}/draft` }),
+  draft: (flag, content) => api.poke(chatAction(flag, { draft: content })),
 };
 
 interface ChatState {
@@ -61,6 +66,8 @@ interface ChatState {
   joinChat: (flag: string) => Promise<void>;
   sendMessage: (flag: string, memo: ChatMemo) => void;
   delMessage: (flag: string, time: string) => void;
+  getDraft: (flag: string) => void;
+  draft: (flag: string, content: ChatMessage) => void;
   addSects: (flag: string, writers: string[]) => Promise<void>;
   create: (req: {
     group: string;
@@ -106,6 +113,18 @@ export const useChatState = create<ChatState>((set, get) => ({
   delMessage: (flag, time) => {
     chatApi.delMessage(flag, time);
   },
+  getDraft: async (flag) => {
+    const content = await chatApi.getDraft(flag);
+    set((draft) => {
+      const chat = draft.chats[flag];
+      if (chat) {
+        chat.draft = content;
+      }
+    });
+  },
+  draft: (flag, content) => {
+    chatApi.draft(flag, content);
+  },
   create: async (req) => {
     await api.poke({
       app: 'chat',
@@ -123,7 +142,11 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
     const writs = await chatApi.newest(flag, 100);
     get().batchSet((draft) => {
-      const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
+      const chat = {
+        writs: new BigIntOrderedMap<ChatWrit>(),
+        perms,
+        draft: { inline: [], block: [] },
+      };
       draft.chats[flag] = chat;
       writs.forEach((writ) => {
         const tim = bigInt(udToDec(writ.seal.time));
@@ -172,6 +195,8 @@ export const useChatState = create<ChatState>((set, get) => ({
               }
             }
             draft.chats[flag].writs = draft.chats[flag].writs.delete(key);
+          } else if ('draft' in update.diff) {
+            draft.chats[flag].draft = update.diff.draft;
           } else if ('add-feel' in update.diff) {
             const diff = update.diff['add-feel'];
             const time = bigInt(udToDec(diff.time));
@@ -207,6 +232,23 @@ export function useChatPerms(flag: string) {
   return useChatState(
     useCallback((s) => s.chats[flag]?.perms || defaultPerms, [flag])
   );
+}
+
+export function useChatDraft(flag: string) {
+  return useChatState(
+    useCallback(
+      (s) =>
+        s.chats[flag]?.draft || {
+          inline: [],
+          block: [],
+        },
+      [flag]
+    )
+  );
+}
+
+export function useChat(flag: string): Chat | undefined {
+  return useChatState(useCallback((s) => s.chats[flag], [flag]));
 }
 
 export function useChatIsJoined(flag: string) {

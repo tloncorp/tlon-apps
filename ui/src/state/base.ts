@@ -153,9 +153,7 @@ export const createState = <T extends Record<string, unknown>>(
           );
         },
         set: (fn) => stateSetter(fn, set, get),
-        optSet: (fn) => {
-          return optStateSetter(fn, set, get);
-        },
+        optSet: (fn) => optStateSetter(fn, set, get),
         patches: {},
         addPatch: (id: string, patch: Patch[]) => {
           set((s) => ({ ...s, patches: { ...s.patches, [id]: patch } }));

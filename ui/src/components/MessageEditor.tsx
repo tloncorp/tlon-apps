@@ -1,6 +1,12 @@
 import classNames from 'classnames';
 import { EditorView } from 'prosemirror-view';
-import { Editor, EditorContent, Extension, useEditor } from '@tiptap/react';
+import {
+  Editor,
+  EditorContent,
+  Extension,
+  JSONContent,
+  useEditor,
+} from '@tiptap/react';
 import React, { useMemo } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
@@ -26,13 +32,17 @@ interface HandlerParams {
 }
 
 interface useMessageEditorParams {
+  content: JSONContent | string;
   placeholder?: string;
   onEnter: ({ editor }: HandlerParams) => boolean;
+  onUpdate?: ({ editor }: HandlerParams) => void;
 }
 
 export function useMessageEditor({
+  content,
   placeholder,
   onEnter,
+  onUpdate,
 }: useMessageEditorParams) {
   const keyMapExt = useMemo(
     () =>
@@ -73,12 +83,17 @@ export function useMessageEditor({
         Strike,
         Text,
       ],
-      content: '',
+      content: content || '',
       editorProps: {
         attributes: {
           class: 'input-inner',
           'aria-label': 'Message editor with formatting menu',
         },
+      },
+      onUpdate: ({ editor }) => {
+        if (onUpdate) {
+          onUpdate({ editor } as any);
+        }
       },
     },
     [onEnter, placeholder]

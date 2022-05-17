@@ -77,7 +77,7 @@ function Groups() {
             </button>
           </header>
         ) : null}
-        <div className="p-2">
+        <div className="h-full overflow-y-auto p-2">
           <div className="p-2">
             <h1 className="mb-2 font-semibold">{group.meta.title}</h1>
             <p>{group.meta.description}</p>
