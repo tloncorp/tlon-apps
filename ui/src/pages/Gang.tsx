@@ -89,8 +89,7 @@ export default function Gang() {
 
 export function GangModal() {
   const dismiss = useDismissNavigate();
-  const location = useLocation();
-  const state = location.state as ModalLocationState | null;
+
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       dismiss();
@@ -101,7 +100,7 @@ export function GangModal() {
     <Dialog.Root defaultOpen onOpenChange={onOpenChange}>
       <Dialog.Trigger />
       <Dialog.Portal>
-        <Dialog.Overlay className="bg-black/50 fixed inset-0 flex items-center justify-center">
+        <Dialog.Overlay className="fixed inset-0 flex items-center justify-center bg-black/50">
           <Dialog.Content className="w-144 rounded bg-white">
             <Gang />
           </Dialog.Content>

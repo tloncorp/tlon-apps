@@ -1,15 +1,15 @@
 import _ from 'lodash';
 import React from 'react';
-import { Outlet, useParams } from 'react-router';
+import { Outlet, useLocation, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '../components/ChatInput/ChatInput';
 import ChatWindow from '../components/ChatWindow';
 import ElipsisIcon from '../components/icons/ElipsisIcon';
 import MenuIcon from '../components/icons/MenuIcon';
 import Layout from '../components/layout/Layout';
+import useMedia from '../hooks/useMedia';
 import { useChatIsJoined, useChatPerms, useChatState } from '../state/chat';
 import { useRouteGroup, useVessel } from '../state/groups';
-import useSidebars from '../state/sidebars';
 import { channelHref } from '../utils';
 
 function Channel() {
@@ -20,7 +20,8 @@ function Channel() {
   const join = () => {
     useChatState.getState().joinChat(flag);
   };
-  const { transition, isMobile } = useSidebars();
+  const location = useLocation();
+  const isMobile = useMedia('(max-width: 639px)');
 
   const perms = useChatPerms(flag);
   const vessel = useVessel(groupFlag, window.our);
@@ -35,13 +36,14 @@ function Channel() {
       header={
         <div className="flex items-center border-b-2 border-gray-50 p-4">
           {isMobile ? (
-            <button
+            <Link
+              to=".."
+              state={{ backgroundLocation: location }}
               className="icon-button h-8 w-8"
-              onClick={() => transition('channels-open')}
               aria-label="Open Channels Menu"
             >
               <MenuIcon className="h-8 w-8" />
-            </button>
+            </Link>
           ) : null}
           <Link
             className="icon-button ml-auto h-8 w-8"

@@ -3,8 +3,8 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  useLocation,
   Location,
+  useLocation,
 } from 'react-router-dom';
 import Groups from './pages/Groups';
 import Channel from './pages/Channel';
@@ -22,11 +22,13 @@ import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 import Sidebar from './components/Sidebar/Sidebar';
 import ChatThread from './components/ChatThread/ChatThread';
 import Policy from './pages/Policy';
-import useSidebars from './state/sidebars';
+import GroupSidebar from './components/GroupSidebar';
+import useMedia from './hooks/useMedia';
 
 function App() {
-  const { isMobile } = useSidebars();
   const location = useLocation();
+  const isMobile = useMedia('(max-width: 639px)');
+
   useEffect(() => {
     useGroupState.getState().start();
     useChatState.getState().fetchFlags();
@@ -38,6 +40,12 @@ function App() {
     <div className="flex h-full w-full">
       <Routes>
         <Route path={isMobile ? '/' : '*'} element={<Sidebar />} />
+      </Routes>
+      <Routes>
+        <Route
+          path={isMobile ? '/groups/:ship/:name' : '/groups/:ship/:name/*'}
+          element={<GroupSidebar />}
+        />
       </Routes>
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/gangs/:ship/:name" element={<Gang />} />

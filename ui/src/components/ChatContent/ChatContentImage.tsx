@@ -17,13 +17,13 @@ export default function ChatContentImage({
 }: ChatContentImage) {
   return (
     <div
-      className="group relative py-2"
-      style={{ width: width ? (width > 600 ? 600 : width) : 600 }}
+      className="group relative w-full py-2"
+      style={{ maxWidth: width ? (width > 600 ? 600 : width) : 600 }}
     >
       <a href={src} target="_blank" rel="noreferrer">
         <img
           src={src}
-          className="rounded"
+          className="max-w-full rounded"
           height={height}
           width={width}
           alt={altText ? altText : 'A chat image'}

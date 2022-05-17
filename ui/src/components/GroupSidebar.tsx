@@ -1,18 +1,17 @@
 import classNames from 'classnames';
 import React from 'react';
 import { useLocation } from 'react-router';
-import useSidebars from '../state/sidebars';
+import { Link } from 'react-router-dom';
+import { ModalLocationState } from '../hooks/routing';
+import useMedia from '../hooks/useMedia';
+import { useGroup, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
 import { channelHref } from '../utils';
 import Divider from './Divider';
 import LeftIcon from './icons/LeftIcon';
 import XIcon from './icons/XIcon';
+import RetainedStateLink from './RetainedStateLink';
 import SidebarLink from './Sidebar/SidebarLink';
-
-interface GroupSidebarProps {
-  flag: string;
-  group: Group;
-}
 
 function ChannelList({ group, flag }: { group: Group; flag: string }) {
   return (
@@ -28,36 +27,39 @@ function ChannelList({ group, flag }: { group: Group; flag: string }) {
   );
 }
 
-export default function GroupSidebar({ group, flag }: GroupSidebarProps) {
+export default function GroupSidebar() {
+  const flag = useRouteGroup();
+  const group = useGroup(flag);
   const location = useLocation();
-  const { channelsOpen, isMobile, transition } = useSidebars();
+  const isMobile = useMedia('(max-width: 639px)');
+  const routeState = location.state as ModalLocationState;
 
   return (
     <nav
       className={classNames(
         'h-full border-r-2 border-gray-50 bg-white',
         !isMobile && 'w-64',
-        isMobile &&
-          'fixed top-0 left-0 z-30 w-full -translate-x-full transition-transform',
-        channelsOpen && 'translate-x-0'
+        isMobile && 'fixed top-0 left-0 z-40 w-full'
       )}
     >
       {isMobile ? (
         <header className="flex items-center border-b-2 border-gray-50 p-4">
-          <button
+          <RetainedStateLink
+            to="/"
             className="flex items-center text-lg font-semibold text-gray-600"
-            onClick={() => transition('groups-open')}
           >
             <LeftIcon className="h-6 w-6" />
             Groups
-          </button>
-          <button
-            className="icon-button ml-auto h-8 w-8"
-            onClick={() => transition('closed')}
-            aria-label="Close Channels Menu"
-          >
-            <XIcon className="h-6 w-6" />
-          </button>
+          </RetainedStateLink>
+          {routeState.backgroundLocation ? (
+            <Link
+              to={routeState.backgroundLocation}
+              className="icon-button ml-auto h-8 w-8"
+              aria-label="Close Channels Menu"
+            >
+              <XIcon className="h-6 w-6" />
+            </Link>
+          ) : null}
         </header>
       ) : null}
       <div className="p-2">

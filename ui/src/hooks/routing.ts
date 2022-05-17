@@ -15,8 +15,8 @@ export function useModalNavigate() {
   return useCallback(
     (to: To, opts?: NavigateOptions) => {
       if (location.state) {
-        const s = location.state;
         navigate(to, { ...(opts || {}), state: location.state });
+        return;
       }
       navigate(to, opts);
     },

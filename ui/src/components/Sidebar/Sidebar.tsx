@@ -1,7 +1,9 @@
 import classNames from 'classnames';
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { ModalLocationState } from '../../hooks/routing';
+import useMedia from '../../hooks/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
-import useSidebars from '../../state/sidebars';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
 import XIcon from '../icons/XIcon';
@@ -24,27 +26,29 @@ function GangItem(props: { flag: string }) {
 export default function Sidebar() {
   const groups = useGroupList();
   const gangs = useGangList();
-  const { groupsOpen, isMobile, transition } = useSidebars();
+  const location = useLocation();
+  const isMobile = useMedia('(max-width: 639px)');
+  const routeState = location.state as ModalLocationState;
 
   return (
     <nav className="h-full">
       <div
         className={classNames(
           'h-full min-w-56 border-r-2 border-gray-50 bg-white',
-          isMobile &&
-            'fixed top-0 left-0 z-40 w-full -translate-x-full transition-transform',
-          groupsOpen && 'translate-x-0'
+          isMobile && 'fixed top-0 left-0 z-50 w-full'
         )}
       >
         {isMobile ? (
           <header className="flex items-center border-b-2 border-gray-50 p-4">
-            <button
-              className="icon-button ml-auto h-8 w-8"
-              onClick={() => transition('channels-open')}
-              aria-label="Close Channels Menu"
-            >
-              <XIcon className="h-6 w-6" />
-            </button>
+            {routeState.backgroundLocation ? (
+              <Link
+                to={routeState.backgroundLocation}
+                className="icon-button ml-auto h-8 w-8"
+                aria-label="Close Main Menu"
+              >
+                <XIcon className="h-6 w-6" />
+              </Link>
+            ) : null}
           </header>
         ) : null}
         <ul className="p-2">
