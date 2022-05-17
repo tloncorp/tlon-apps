@@ -24,13 +24,13 @@ export interface ChatMessageProps {
   hideReplies?: boolean;
 }
 
-export default function ChatMessage({
+const ChatMessage = React.forwardRef(({
   writ,
   isReplyOp = false,
   newAuthor = false,
   newDay = false,
   hideReplies = false,
-}: ChatMessageProps) {
+}: ChatMessageProps, ref) => {
   const flag = useChannelFlag()!;
   const { seal, memo } = writ;
 
@@ -53,7 +53,7 @@ export default function ChatMessage({
   )(seal.replied);
 
   return (
-    <div className="flex flex-col">
+    <div ref={ref} className="flex flex-col">
       {newDay ? <DateDivider date={time} /> : null}
       {newAuthor ? <Author ship={memo.author} date={time} /> : null}
       <div className="group-one relative z-0 flex">
@@ -100,4 +100,6 @@ export default function ChatMessage({
       </div>
     </div>
   );
-}
+});
+
+export default ChatMessage;
