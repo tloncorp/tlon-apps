@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import React, { PropsWithChildren } from 'react';
-import { Link, NavLink, NavLinkProps } from 'react-router-dom';
+import { NavLink, NavLinkProps } from 'react-router-dom';
 import RetainedStateLink from '../RetainedStateLink';
 
 type SidebarProps = PropsWithChildren<{
