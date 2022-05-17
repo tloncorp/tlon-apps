@@ -1,11 +1,10 @@
 import React from 'react';
 import cn from 'classnames';
-import { useLocation } from 'react-router';
 import { useGang, useGroupState, useRouteGroup } from '../state/groups';
 import { JoinProgress } from '../types/groups';
 import GangName from '../components/GangName/GangName';
 import GangPreview from '../components/GangPreview/GangPreview';
-import { ModalLocationState, useDismissNavigate } from '../logic/routing';
+import { useDismissNavigate } from '../logic/routing';
 import JoinGroup from '../components/JoinGroup';
 import Dialog, { DialogContent } from '../components/Dialog';
 import Avatar from '../components/Avatar';
@@ -90,8 +89,7 @@ export default function Gang() {
 
 export function GangModal() {
   const dismiss = useDismissNavigate();
-  const location = useLocation();
-  const state = location.state as ModalLocationState | null;
+
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       dismiss();

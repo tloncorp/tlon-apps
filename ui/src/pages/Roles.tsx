@@ -53,6 +53,10 @@ export default function Roles() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
 
+  if (!group) {
+    return null;
+  }
+
   const sects = Object.keys(group.cabals);
   return (
     <div className="w-100 p-2">

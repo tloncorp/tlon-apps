@@ -3,8 +3,8 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  useLocation,
   Location,
+  useLocation,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import Groups from './pages/Groups';
@@ -23,6 +23,7 @@ import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 import Sidebar from './components/Sidebar/Sidebar';
 import ChatThread from './chat/ChatThread/ChatThread';
 import Policy from './pages/Policy';
+import GroupSidebar from './components/GroupSidebar';
 import useMedia from './logic/useMedia';
 import useErrorHandler from './logic/useErrorHandler';
 import { useSettingsState, useTheme } from './state/settings';
@@ -33,6 +34,8 @@ import ErrorAlert from './components/ErrorAlert';
 function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
+  const isMobile = useMedia('(max-width: 639px)');
+
   useEffect(() => {
     handleError(() => {
       useGroupState.getState().start();
@@ -63,16 +66,24 @@ function App() {
 
   return (
     <div className="flex h-full w-full">
-      <Sidebar />
+      <Routes>
+        <Route path={isMobile ? '/' : '*'} element={<Sidebar />} />
+      </Routes>
+      <Routes>
+        <Route
+          path={isMobile ? '/groups/:ship/:name' : '/groups/:ship/:name/*'}
+          element={<GroupSidebar />}
+        />
+      </Routes>
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/gangs/:ship/:name" element={<Gang />} />
         <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />
-        <Route path="/groups/:ship/:name" element={<Groups />}>
+        <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="members" element={<Members />} />
           <Route path="roles" element={<Roles />} />
           <Route path="policy" element={<Policy />} />
-          <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
+          <Route path="channels/:app/:chShip/:chName/*" element={<Channel />}>
             <Route path="message/:time" element={<ChatThread />} />
           </Route>
           <Route

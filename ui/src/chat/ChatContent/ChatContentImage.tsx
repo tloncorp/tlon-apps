@@ -1,6 +1,4 @@
 import React from 'react';
-import ElipsisCircleIcon from '../../components/icons/ElipsisCircleIcon';
-import ExpandIcon from '../../components/icons/ExpandIcon';
 
 interface ChatContentImage {
   src: string;
@@ -17,13 +15,13 @@ export default function ChatContentImage({
 }: ChatContentImage) {
   return (
     <div
-      className="group relative py-2"
-      style={{ width: Math.min(width || 300, 300) }}
+      className="group relative w-full py-2"
+      style={{ maxWidth: width ? (width > 600 ? 600 : width) : 600 }}
     >
       <a href={src} target="_blank" rel="noreferrer">
         <img
           src={src}
-          className="rounded"
+          className="max-w-full rounded"
           height={height}
           width={width}
           alt={altText ? altText : 'A chat image'}
