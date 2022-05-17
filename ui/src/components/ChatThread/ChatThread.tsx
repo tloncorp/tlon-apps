@@ -9,6 +9,7 @@ import { useChannel, useRouteGroup } from '../../state/groups';
 import ChatInput from '../ChatInput/ChatInput';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatMessages from '../ChatMessages';
+import XIcon from '../icons/XIcon';
 import RowDivider from '../RowDivider';
 
 export default function ChatThread(
@@ -28,28 +29,22 @@ export default function ChatThread(
   const [time, writ] = maybeWrit;
 
   return (
-    <div className="flex h-full min-w-72 flex-col space-y-2 border-l p-4 xl:min-w-96">
-      <div className="flex flex-col space-y-4">
-        <div className="flex justify-between">
-          {children}
-          <Link to="..">X</Link>
-        </div>
-        <ChatMessage
-          whom={whom}
-          time={time}
-          writ={writ}
-          newAuthor
-          hideReplies
-        />
-        <RowDivider
-          className="text-gray-400"
-          label={`${replies.size} ${replies.size === 1 ? 'Reply' : 'Replies'}`}
-        />
-        <div className="flex flex-col">
-          <ChatMessages messages={replies} whom={whom} replying={true} />
-        </div>
+    <div className="flex h-full min-w-72 flex-col space-y-2 overflow-y-auto border-l px-4 pt-4 xl:min-w-96">
+      <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
+        {children}
+        <Link to="..">X</Link>
       </div>
-      <ChatInput whom={whom} replying={id} />
+      <ChatMessage whom={whom} time={time} writ={writ} newAuthor hideReplies />
+      <RowDivider
+        className="text-gray-400"
+        label={`${replies.size} ${replies.size === 1 ? 'Reply' : 'Replies'}`}
+      />
+      <div className="flex flex-col">
+        <ChatMessages messages={replies} whom={whom} replying={true} />
+      </div>
+      <div className="sticky bottom-0 z-10 bg-white py-4">
+        <ChatInput whom={whom} replying={id} />
+      </div>
     </div>
   );
 }
