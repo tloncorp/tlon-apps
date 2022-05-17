@@ -41,8 +41,8 @@ export default function ChatMessage({
   const numReplies = seal.replied.length;
   const replyAuthors = _.flow(
     f.map((k: string) => {
-      const time = pact.index[k];
-      const mess = pact.writs.get(time);
+      const t = pact.index[k];
+      const mess = t ? pact.writs.get(t) : undefined;
       if (!mess) {
         return undefined;
       }

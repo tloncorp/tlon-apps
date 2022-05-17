@@ -11,28 +11,6 @@ import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatMessages from '../ChatMessages';
 import RowDivider from '../RowDivider';
 
-export function GroupChatThread() {
-  const flag = useChannelFlag()!;
-  const groupFlag = useRouteGroup();
-  const channel = useChannel(groupFlag, flag)!;
-
-  return (
-    <ChatThread whom={flag}>
-      <div>Thread: {channel.meta.title}</div>
-    </ChatThread>
-  );
-}
-
-export function DmThread() {
-  const ship = useParams<{ ship: string }>().ship!;
-
-  return (
-    <ChatThread whom={ship}>
-      <div>Thread: {ship}</div>
-    </ChatThread>
-  );
-}
-
 export default function ChatThread(
   props: React.PropsWithChildren<{ whom: string }>
 ) {
@@ -73,5 +51,27 @@ export default function ChatThread(
       </div>
       <ChatInput whom={whom} replying={id} />
     </div>
+  );
+}
+
+export function GroupChatThread() {
+  const flag = useChannelFlag()!;
+  const groupFlag = useRouteGroup();
+  const channel = useChannel(groupFlag, flag)!;
+
+  return (
+    <ChatThread whom={flag}>
+      <div>Thread: {channel.meta.title}</div>
+    </ChatThread>
+  );
+}
+
+export function DmThread() {
+  const ship = useParams<{ ship: string }>().ship!;
+
+  return (
+    <ChatThread whom={ship}>
+      <div>Thread: {ship}</div>
+    </ChatThread>
   );
 }

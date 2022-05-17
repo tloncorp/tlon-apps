@@ -59,8 +59,11 @@ function makeId() {
   return `${window.our}/${decToUd(unixToDa(Date.now()).toString())}`;
 }
 
-function dmAction(ship: string, delta: WritDelta): Poke<DmAction> {
-  const id = makeId();
+function dmAction(
+  ship: string,
+  delta: WritDelta,
+  id = makeId()
+): Poke<DmAction> {
   console.log(ship, id, delta);
   return {
     app: 'chat',
@@ -144,8 +147,14 @@ export const useChatState = create<ChatState>((set, get) => ({
       api.poke(chatWritDiff(whom, id, diff));
     }
   },
-  delMessage: (flag, time) => {
-    chatApi.delMessage(flag, time);
+  delMessage: (whom, id) => {
+    const isDM = whomIsDm(whom);
+    const diff = { del: null };
+    if (isDM) {
+      api.poke(dmAction(whom, diff, id));
+    } else {
+      api.poke(chatWritDiff(whom, id, diff));
+    }
   },
   create: async (req) => {
     await api.poke({
@@ -250,7 +259,7 @@ export function useReplies(flag: string, id: string) {
       .filter((r): r is [BigInteger, ChatWrit] => !!r);
     console.log(replies);
     return new BigIntOrderedMap<ChatWrit>().gas(replies);
-  }, [pact, id, flag]);
+  }, [pact, id]);
 }
 
 export function useWrit(whom: string, id: string) {

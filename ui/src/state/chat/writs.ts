@@ -51,16 +51,34 @@ export default function makeWritsStore(
               const seal = { id, feels: {}, replied: [] };
               const writ = { seal, memo: delta.add };
               pact.writs = pact.writs.set(time, writ);
+              if (delta.add.replying) {
+                const replyTime = pact.index[delta.add.replying];
+                if (replyTime) {
+                  const ancestor = pact.writs.get(replyTime);
+                  ancestor.seal.replied = [...ancestor.seal.replied, id];
+                  pact.writs.set(replyTime, ancestor);
+                }
+              }
             } else if ('del' in delta) {
-              console.log('del', id);
               const time = pact.index[id];
+              const old = pact.writs.get(time);
               pact.writs = pact.writs.delete(time);
               delete pact.index[id];
-              // TODO: map from rcv -> id
+              if (old.memo.replying) {
+                const replyTime = pact.index[old.memo.replying];
+                if (replyTime) {
+                  const ancestor = pact.writs.get(replyTime);
+                  ancestor.seal.replied = ancestor.seal.replied.filter(
+                    (r) => r !== old.memo.replying
+                  );
+                  pact.writs.set(replyTime, ancestor);
+                }
+              }
               // const time = bigInt(udToDec(delta.del));
               // draft.dms[ship].writs = draft.dms[ship].writs.delete(time);
             } else if ('add-feel' in delta) {
-              /*  see above TODO
+              // TODO: map from rcv -> id
+              /*  
              * const d = delta['add-feel'];
             const time = bigInt(udToDec(d.time));
             const writ = draft.dms[ship].writs.get(time);
