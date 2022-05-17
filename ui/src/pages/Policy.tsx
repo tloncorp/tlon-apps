@@ -57,7 +57,13 @@ function OpenPolicy(props: { flag: string; cordon: OpenCordon }) {
 
 export default function Policy() {
   const flag = useRouteGroup();
-  const { cordon } = useGroup(flag);
+  const group = useGroup(flag);
+
+  if (!group) {
+    return null;
+  }
+
+  const { cordon } = group;
   return (
     <div className="w-100 space-y-4 p-4">
       <h2 className="text-lg font-bold">Policy</h2>

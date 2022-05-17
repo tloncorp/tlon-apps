@@ -23,6 +23,11 @@ export default function ChannelSettings() {
     useChatState.getState().addSects(flag, writers);
   };
   const { register, control, handleSubmit } = useForm({ defaultValues });
+
+  if (!group) {
+    return null;
+  }
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
