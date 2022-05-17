@@ -2,11 +2,11 @@ import classNames from 'classnames';
 import React from 'react';
 import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
-import { ModalLocationState } from '../hooks/routing';
-import useMedia from '../hooks/useMedia';
+import { ModalLocationState } from '../logic/routing';
+import useMedia from '../logic/useMedia';
 import { useGroup, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
-import { channelHref } from '../utils';
+import { channelHref } from '../logic/utils';
 import Divider from './Divider';
 import LeftIcon from './icons/LeftIcon';
 import XIcon from './icons/XIcon';
@@ -32,7 +32,7 @@ export default function GroupSidebar() {
   const group = useGroup(flag);
   const location = useLocation();
   const isMobile = useMedia('(max-width: 639px)');
-  const routeState = location.state as ModalLocationState;
+  const routeState = location.state as ModalLocationState | null;
 
   return (
     <nav
@@ -44,14 +44,11 @@ export default function GroupSidebar() {
     >
       {isMobile ? (
         <header className="flex items-center border-b-2 border-gray-50 p-4">
-          <RetainedStateLink
-            to="/"
-            className="flex items-center text-lg font-semibold text-gray-600"
-          >
-            <LeftIcon className="h-6 w-6" />
-            Groups
+          <RetainedStateLink to="/" className="flex items-center">
+            <LeftIcon className="h-5 w-5 text-gray-500" />
+            <h1 className="text-lg font-bold">{group?.meta.title}</h1>
           </RetainedStateLink>
-          {routeState.backgroundLocation ? (
+          {routeState?.backgroundLocation ? (
             <Link
               to={routeState.backgroundLocation}
               className="icon-button ml-auto h-8 w-8"
@@ -62,10 +59,10 @@ export default function GroupSidebar() {
           ) : null}
         </header>
       ) : null}
-      <div className="p-2">
+      <div className="h-full overflow-y-auto p-2">
         <div className="p-2">
-          <h1 className="mb-2 font-semibold">{group.meta.title}</h1>
-          <p>{group.meta.description}</p>
+          <h1 className="mb-2 font-semibold">{group?.meta.title}</h1>
+          <p>{group?.meta.description}</p>
         </div>
         <ul>
           <SidebarLink to={`/groups/${flag}/channels/new`}>
@@ -82,7 +79,7 @@ export default function GroupSidebar() {
           <SidebarLink to={`/groups/${flag}/policy`}>Policy</SidebarLink>
         </ul>
         <Divider>Channels</Divider>
-        <ChannelList group={group} flag={flag} />
+        {group ? <ChannelList group={group} flag={flag} /> : null}
       </div>
     </nav>
   );

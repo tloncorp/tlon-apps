@@ -1,8 +1,8 @@
 import classNames from 'classnames';
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ModalLocationState } from '../../hooks/routing';
-import useMedia from '../../hooks/useMedia';
+import { ModalLocationState } from '../../logic/routing';
+import useMedia from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
@@ -10,8 +10,12 @@ import XIcon from '../icons/XIcon';
 import SidebarLink from './SidebarLink';
 
 function GroupItem({ flag }: { flag: string }) {
-  const { meta } = useGroup(flag);
-  return <SidebarLink to={`/groups/${flag}`}>{meta.title}</SidebarLink>;
+  const group = useGroup(flag);
+  return (
+    <SidebarLink to={`/groups/${flag}`} retainState>
+      {group?.meta.title}
+    </SidebarLink>
+  );
 }
 
 function GangItem(props: { flag: string }) {
@@ -28,7 +32,7 @@ export default function Sidebar() {
   const gangs = useGangList();
   const location = useLocation();
   const isMobile = useMedia('(max-width: 639px)');
-  const routeState = location.state as ModalLocationState;
+  const routeState = location.state as ModalLocationState | null;
 
   return (
     <nav className="h-full">
@@ -40,7 +44,8 @@ export default function Sidebar() {
       >
         {isMobile ? (
           <header className="flex items-center border-b-2 border-gray-50 p-4">
-            {routeState.backgroundLocation ? (
+            <h1 className="text-lg font-bold">Groups</h1>
+            {routeState?.backgroundLocation ? (
               <Link
                 to={routeState.backgroundLocation}
                 className="icon-button ml-auto h-8 w-8"

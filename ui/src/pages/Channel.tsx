@@ -1,20 +1,24 @@
 import _ from 'lodash';
+import cn from 'classnames';
 import React from 'react';
 import { Outlet, useLocation, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
-import ChatInput from '../components/ChatInput/ChatInput';
-import ChatWindow from '../components/ChatWindow';
+import ChatInput from '../chat/ChatInput/ChatInput';
+import ChatWindow from '../chat/ChatWindow';
 import ElipsisIcon from '../components/icons/ElipsisIcon';
 import MenuIcon from '../components/icons/MenuIcon';
 import Layout from '../components/layout/Layout';
-import useMedia from '../hooks/useMedia';
+import useMedia from '../logic/useMedia';
 import { useChatIsJoined, useChatPerms, useChatState } from '../state/chat';
-import { useRouteGroup, useVessel } from '../state/groups';
-import { channelHref } from '../utils';
+import { useChannel, useRouteGroup, useVessel } from '../state/groups';
+import { channelHref } from '../logic/utils';
+import { useChat } from '../chat/useChatStore';
+import LeftIcon from '../components/icons/LeftIcon';
 
 function Channel() {
   const { chShip, chName } = useParams();
   const flag = `${chShip}/${chName}`;
+  const chat = useChat(flag);
   const groupFlag = useRouteGroup();
   const isJoined = useChatIsJoined(flag);
   const join = () => {
@@ -28,23 +32,29 @@ function Channel() {
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
+  const channel = useChannel(groupFlag, flag)!;
 
   return (
     <Layout
       className="flex-1"
       aside={<Outlet />}
       header={
-        <div className="flex items-center border-b-2 border-gray-50 p-4">
-          {isMobile ? (
-            <Link
-              to=".."
-              state={{ backgroundLocation: location }}
-              className="icon-button h-8 w-8"
-              aria-label="Open Channels Menu"
-            >
-              <MenuIcon className="h-8 w-8" />
-            </Link>
-          ) : null}
+        <div className="flex h-full items-center border-b-2 border-gray-50 p-4">
+          <Link
+            to=".."
+            state={{ backgroundLocation: location }}
+            className={cn(
+              isMobile &&
+                '-ml-2 flex items-center rounded-md p-2 hover:bg-gray-50'
+            )}
+            aria-label="Open Channels Menu"
+          >
+            {isMobile ? (
+              <LeftIcon className="mr-1 h-5 w-5 text-gray-500" />
+            ) : null}
+            <h1 className="text-lg font-bold">{channel.meta.title}</h1>
+          </Link>
+
           <Link
             className="icon-button ml-auto h-8 w-8"
             to={`${channelHref(groupFlag, flag)}/settings`}
@@ -54,9 +64,13 @@ function Channel() {
         </div>
       }
       footer={
-        <div className="p-4">
+        <div className="border-t-2 border-black/10 p-4">
           {canWrite ? (
-            <ChatInput flag={flag} />
+            <ChatInput
+              flag={flag}
+              replying={chat?.replying || null}
+              showReply
+            />
           ) : (
             <span>Cannot write to this channel</span>
           )}

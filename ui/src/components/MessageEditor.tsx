@@ -1,5 +1,12 @@
 import classNames from 'classnames';
-import { Editor, EditorContent, Extension, useEditor } from '@tiptap/react';
+import { EditorView } from 'prosemirror-view';
+import {
+  Editor,
+  EditorContent,
+  Extension,
+  JSONContent,
+  useEditor,
+} from '@tiptap/react';
 import React, { useMemo } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
@@ -13,20 +20,29 @@ import Text from '@tiptap/extension-text';
 import History from '@tiptap/extension-history';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
-import ChatInputMenu from './ChatInputMenu/ChatInputMenu';
+import ChatInputMenu from '../chat/ChatInputMenu/ChatInputMenu';
+
+EditorView.prototype.updateState = function updateState(state) {
+  if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
+  (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
+};
 
 interface HandlerParams {
   editor: Editor;
 }
 
 interface useMessageEditorParams {
+  content: JSONContent | string;
   placeholder?: string;
   onEnter: ({ editor }: HandlerParams) => boolean;
+  onUpdate?: ({ editor }: HandlerParams) => void;
 }
 
 export function useMessageEditor({
+  content,
   placeholder,
   onEnter,
+  onUpdate,
 }: useMessageEditorParams) {
   const keyMapExt = useMemo(
     () =>
@@ -48,32 +64,40 @@ export function useMessageEditor({
     [onEnter]
   );
 
-  return useEditor({
-    extensions: [
-      Blockquote,
-      Bold,
-      Code.extend({ excludes: null }),
-      Document,
-      HardBreak,
-      History.configure({ newGroupDelay: 100 }),
-      Italic,
-      Link.configure({
-        openOnClick: false,
-      }),
-      keyMapExt,
-      Paragraph,
-      Placeholder.configure({ placeholder }),
-      Strike,
-      Text,
-    ],
-    content: '',
-    editorProps: {
-      attributes: {
-        class: 'input-inner',
-        'aria-label': 'Message editor with formatting menu',
+  return useEditor(
+    {
+      extensions: [
+        Blockquote,
+        Bold,
+        Code.extend({ excludes: null }),
+        Document,
+        HardBreak,
+        History.configure({ newGroupDelay: 100 }),
+        Italic,
+        Link.configure({
+          openOnClick: false,
+        }),
+        keyMapExt,
+        Paragraph,
+        Placeholder.configure({ placeholder }),
+        Strike,
+        Text,
+      ],
+      content: content || '',
+      editorProps: {
+        attributes: {
+          class: 'input-inner',
+          'aria-label': 'Message editor with formatting menu',
+        },
+      },
+      onUpdate: ({ editor }) => {
+        if (onUpdate) {
+          onUpdate({ editor } as any);
+        }
       },
     },
-  });
+    [onEnter, placeholder]
+  );
 }
 
 interface MessageEditorProps {

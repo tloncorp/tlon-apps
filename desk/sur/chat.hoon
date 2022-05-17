@@ -24,6 +24,7 @@
       [%del p=time] 
       [%add-feel p=time q=ship r=feel]
       [%del-feel p=time q=ship]
+      [%draft p=content]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
@@ -47,7 +48,7 @@
       group=flag
   ==
 +$  chat
-  [=net =remark =log =perm =writs]
+  [=net =remark =log =perm =writs draft=content]
 ::
 +$  content
   (pair (list block) (list inline))

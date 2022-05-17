@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
 import { allRanks, OpenCordon, Rank } from '../types/groups';
-import { renderRank } from '../utils';
+import { renderRank } from '../logic/utils';
 
 function RankPerm(props: { rank: Rank; flag: string; cordon: OpenCordon }) {
   const { rank, flag, cordon } = props;

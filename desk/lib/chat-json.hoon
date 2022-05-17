@@ -26,6 +26,7 @@
       %add  (memo p.diff)
       %del  s+(scot %ud p.diff)
       %add-feel  (add-feel +.diff)
+      %draft  (content p.diff)
     ==
   ++  add-feel
     |=  [tim=@da her=@p =feel:c]
@@ -156,6 +157,7 @@
     %-  of
     :~  add/memo
         del/(se %ud)
+        draft/content
         add-feel/add-feel
         add-sects/add-sects
     ==

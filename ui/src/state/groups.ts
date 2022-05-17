@@ -246,7 +246,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
   },
 }));
 
-export function useGroup(flag: string) {
+export function useGroup(flag: string): Group | undefined {
   return useGroupState(useCallback((s) => s.groups[flag], [flag]));
 }
 
