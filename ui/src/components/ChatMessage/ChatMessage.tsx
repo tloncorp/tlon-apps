@@ -1,10 +1,11 @@
 import React from 'react';
+import cn from 'classnames';
 import _ from 'lodash';
 import f from 'lodash/fp';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
@@ -62,7 +63,15 @@ export default function ChatMessage({
           <ChatContent content={memo.content} />
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
           {numReplies > 0 && !hideReplies ? (
-            <Link to={`message/${seal.time}`} className="font-sm text-gray-400">
+            <NavLink
+              to={`message/${seal.time}`}
+              className={({ isActive }) =>
+                cn(
+                  'font-sm rounded p-2 text-gray-400',
+                  isActive ? 'bg-gray-50' : ''
+                )
+              }
+            >
               <div className="flex items-center space-x-2">
                 {replyAuthors.map((ship) => (
                   <ShipImage key={ship} ship={ship} />
@@ -72,7 +81,7 @@ export default function ChatMessage({
                   {numReplies} {numReplies > 1 ? 'Replies' : 'Reply'}{' '}
                 </span>
               </div>
-            </Link>
+            </NavLink>
           ) : null}
         </div>
       </div>

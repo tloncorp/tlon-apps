@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import _ from 'lodash';
+import { Outlet } from 'react-router';
 import { useChatState } from '../state/chat';
 import ChatMessages from './ChatMessages';
 

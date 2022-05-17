@@ -1,5 +1,6 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback } from 'react';
+import cn from 'classnames';
 import { useChatState } from '../../state/chat';
 import { ChatInline, ChatMemo } from '../../types/chat';
 import AddIcon from '../icons/AddIcon';
@@ -8,6 +9,7 @@ import MessageEditor, { useMessageEditor } from '../MessageEditor';
 interface ChatInputProps {
   flag: string;
   replying?: string;
+  className?: string;
 }
 
 function convertMarkType(type: string): string {
@@ -95,7 +97,7 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
 }
 
 export default function ChatInput(props: ChatInputProps) {
-  const { flag, replying = null } = props;
+  const { flag, replying = null, className = '' } = props;
   const onSubmit = useCallback(
     (editor: Editor) => {
       if (!editor.getText()) {
@@ -139,7 +141,7 @@ export default function ChatInput(props: ChatInputProps) {
   }
 
   return (
-    <div className="flex w-full items-end space-x-2">
+    <div className={cn('flex w-full items-end space-x-2', className)}>
       <div className="relative flex-1">
         <MessageEditor editor={messageEditor} className="w-full" />
         <button
