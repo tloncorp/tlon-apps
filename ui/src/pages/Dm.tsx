@@ -9,6 +9,7 @@ export default function Dm() {
   const ship = useParams().ship!;
   useEffect(() => {
     useChatState.getState().initializeDm(ship);
+    useChatState.getState().markRead(ship);
   }, [ship]);
   const messages = useDmMessages(ship);
 

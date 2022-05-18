@@ -10,8 +10,24 @@
       replied=(set id)
   ==
 ::
++$  whom
+  $%  [%flag p=flag]
+      [%ship p=ship]
+  == 
+::
+++  briefs
+  =<  briefs
+  |% 
+  +$  briefs
+    (map whom brief)
+  +$  brief
+    [last=time count=@ud]
+  +$  update
+    (pair whom brief)
+  --
+::
 +$  remark-action
-  (pair flag remark-diff)
+  (pair whom remark-diff)
 ::
 +$  remark-diff
   $%  [%read ~]
@@ -55,10 +71,11 @@
   --
 ::
 ++  dm
+  =<  dm
   |%
   +$  dm
-    $:  =writs
-        dex=index
+    $:  =pact
+        =remark
     ==
   +$  id      (pair ship time)
   +$  diff    diff:writs

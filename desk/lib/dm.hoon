@@ -1,5 +1,17 @@
 /-  c=chat
 |_  pac=pact:c
+++  brief
+  |=  [our=ship last-read=time]
+  ^-  brief:briefs:c
+  =/  =time
+    ?~  tim=(ram:on:writs:c wit.pac)  *time
+    key.u.tim
+  =/  count
+    %-  lent
+    %+  skim  ~(tap by (lot:on:writs.c wit.pac `last-read ~))
+    |=([tim=^time =writ:c] !=(author.writ our))
+  [time count]
+::
 ++  get
   |=  =id:c
   ^-  (unit [time writ:c])
