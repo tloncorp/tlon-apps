@@ -32,7 +32,9 @@ export default function ChatThread(
     <div className="flex h-full min-w-72 flex-col space-y-2 overflow-y-auto border-l px-4 pt-4 xl:min-w-96">
       <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
         {children}
-        <Link to="..">X</Link>
+        <Link to="..">
+          <XIcon className="h-4 w-4 text-gray-400" />
+        </Link>
       </div>
       <ChatMessage whom={whom} time={time} writ={writ} newAuthor hideReplies />
       <RowDivider

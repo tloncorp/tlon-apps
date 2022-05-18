@@ -35,8 +35,7 @@ const dmSub = {
 } as SubscriptionHandler;
 
 const mockDm = dmList
-  .map((ship): Handler[] => {
-    return [
+  .map((ship): Handler[] => [
       {
         action: 'scry' as const,
         path: `/dm/${ship}/writs/newest/100`,
@@ -57,8 +56,7 @@ const mockDm = dmList
           json: req.json.diff,
         }),
       },
-    ];
-  })
+    ])
   .flat();
 
 const mockHandlers: Handler[] = [
