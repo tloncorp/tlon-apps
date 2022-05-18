@@ -1,0 +1,418 @@
+// Vitest Snapshot v1
+
+exports[`ChatMessage > renders as expected 1`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col"
+  >
+    <div
+      class="flex w-full items-center py-4"
+    >
+      <div
+        class="h-[2px] w-8 rounded-sm bg-gray-200"
+      >
+         
+      </div>
+      <span
+        class="whitespace-nowrap px-3 font-semibold text-gray-400"
+      >
+        February 1st
+      </span>
+      <div
+        class="h-[2px] w-full rounded-sm bg-gray-200"
+      >
+         
+      </div>
+    </div>
+    <div
+      class="align-center group flex items-center space-x-3 py-1"
+    >
+      <div
+        class="relative flex-none rounded bg-black w-6 h-6 rounded p-1.5"
+        style="background-color: rgb(0, 0, 0);"
+      >
+        <svg
+          class=""
+          style="display: block; width: 12px; height: 12px;"
+          version="1.1"
+          viewBox="0 0 12 12"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            fill="#000000"
+            height="12px"
+            width="12px"
+            x="0px"
+            y="0px"
+          />
+          <g
+            transform="matrix(0.046875,0,0,0.046875,0,0)"
+          >
+            <g
+              fill="none"
+              transform="matrix(1,0,0,1,0,0)"
+            >
+              <rect
+                dataisgeon="true"
+                fill="white"
+                height="128"
+                stroke="#000000"
+                stroke-linecap="square"
+                stroke-width="0.8px"
+                vector-effect="non-scaling-stroke"
+                width="128"
+              />
+            </g>
+            <g
+              fill="none"
+              transform="matrix(1,0,0,1,128,0)"
+            >
+              <circle
+                cx="64"
+                cy="64"
+                dataisgeon="true"
+                fill="white"
+                r="64"
+                stroke="#000000"
+                stroke-linecap="square"
+                stroke-width="0.8px"
+                vector-effect="non-scaling-stroke"
+              />
+            </g>
+            <g
+              fill="none"
+              transform="matrix(1,0,0,1,0,128)"
+            >
+              <path
+                d="M0.0541 0C70.7217 0.0292317 128 57.3256 128 128C57.3177 128 0.0164917 70.7089 7.62806e-06 0.0305091C7.62851e-06 0.0203397 -4.44317e-10 0.01017 0 0H0.0541Z"
+                dataisgeon="true"
+                fill="white"
+                stroke="#000000"
+                stroke-linecap="square"
+                stroke-width="0.8px"
+                vector-effect="non-scaling-stroke"
+              />
+            </g>
+            <g
+              fill="none"
+              transform="matrix(1,0,0,1,128,128)"
+            >
+              <path
+                d="M64 128H0L5.59506e-06 0L64 5.59506e-06C99.3462 8.68512e-06 128 28.6538 128 64C128 99.3462 99.3462 128 64 128Z"
+                dataisgeon="true"
+                fill="white"
+                stroke="#000000"
+                stroke-linecap="square"
+                stroke-width="0.8px"
+                vector-effect="non-scaling-stroke"
+              />
+            </g>
+          </g>
+        </svg>
+      </div>
+      <span
+        class="text-md font-semibold"
+      >
+        <span
+          aria-hidden="true"
+        >
+          ~
+        </span>
+        <span>
+          finned
+        </span>
+        <span
+          aria-hidden="true"
+        >
+          -
+        </span>
+        <span
+          aria-hidden="false"
+        >
+          palmer
+        </span>
+      </span>
+      <span
+        class="hidden text-sm font-semibold text-gray-500 group-hover:block"
+      >
+        February 1st, 2021 • 13:00
+      </span>
+      <span
+        class="block text-sm font-semibold text-gray-500 group-hover:hidden"
+      >
+        February 1st • 13:00
+      </span>
+    </div>
+    <div
+      class="group-one relative z-0 flex"
+    >
+      <div
+        class="absolute right-2 -top-5 z-10 flex flex space-x-[2px] rounded-md border-[1px] border-gray-100 bg-white p-[2px] align-middle opacity-0 group-one-hover:opacity-100"
+      >
+        <div
+          class="group-two relative cursor-pointer"
+        >
+          <div
+            class="z-2 pointer-events-none absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+          >
+            <div
+              class="hidden w-fit cursor-none rounded bg-gray-400 px-4 py-2 group-two-hover:block"
+            >
+              <label
+                class="whitespace-nowrap font-semibold text-white"
+              >
+                React
+              </label>
+            </div>
+            <div>
+              <svg
+                fill="none"
+                height="8"
+                viewBox="0 0 17 8"
+                width="17"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
+                  fill="#999999"
+                />
+              </svg>
+            </div>
+          </div>
+          <button
+            aria-label="React"
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
+          >
+            <svg
+              class="text-gray-400"
+              fill="none"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                clip-rule="evenodd"
+                d="M5 2h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3Zm10-2H5a5 5 0 0 0-5 5v10a5 5 0 0 0 5 5h10a5 5 0 0 0 5-5V5a5 5 0 0 0-5-5ZM6.5 6A1.5 1.5 0 0 0 5 7.5v1a1.5 1.5 0 1 0 3 0v-1A1.5 1.5 0 0 0 6.5 6ZM12 7.5a1.5 1.5 0 0 1 3 0v1a1.5 1.5 0 0 1-3 0v-1ZM11 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm2 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                fill-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
+        <div
+          class="group-two relative cursor-pointer"
+        >
+          <div
+            class="z-2 pointer-events-none absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+          >
+            <div
+              class="hidden w-fit cursor-none rounded bg-gray-400 px-4 py-2 group-two-hover:block"
+            >
+              <label
+                class="whitespace-nowrap font-semibold text-white"
+              >
+                Reply
+              </label>
+            </div>
+            <div>
+              <svg
+                fill="none"
+                height="8"
+                viewBox="0 0 17 8"
+                width="17"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
+                  fill="#999999"
+                />
+              </svg>
+            </div>
+          </div>
+          <button
+            aria-label="Reply"
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
+          >
+            <svg
+              class="text-gray-400"
+              fill="none"
+              viewBox="0 0 20 20 "
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                d="m1.5 12.966.944-.33-.944.33Zm16.518 1.126-.98.197-.069-.342.159-.31.89.455Zm.834 4.173.98-.197-.98.197Zm-.588.588.196-.98-.196.98Zm-4.173-.835-.455-.89.31-.159.341.069-.196.98Zm-7.056.482.329-.944-.33.944ZM2 10c0 .925.157 1.812.444 2.636l-1.888.659A9.987 9.987 0 0 1 0 10h2Zm8-8a8 8 0 0 0-8 8H0C0 4.477 4.477 0 10 0v2Zm8 8a8 8 0 0 0-8-8V0c5.523 0 10 4.477 10 10h-2Zm-.872 3.637A7.962 7.962 0 0 0 18 10h2a9.962 9.962 0 0 1-1.092 4.548l-1.78-.91Zm1.87.26.835 4.171-1.961.393-.835-4.172L19 13.896Zm.835 4.171a1.5 1.5 0 0 1-1.765 1.765l.392-1.96a.5.5 0 0 0-.588.588l1.96-.393Zm-1.765 1.765L13.895 19l.393-1.961 4.172.834-.392 1.962ZM10 18a7.962 7.962 0 0 0 3.636-.872l.91 1.78A9.961 9.961 0 0 1 10 20v-2Zm-2.636-.444c.824.287 1.71.444 2.636.444v2a9.986 9.986 0 0 1-3.295-.556l.659-1.888Zm-4.92-4.92a8.025 8.025 0 0 0 4.92 4.92l-.659 1.888a10.025 10.025 0 0 1-6.15-6.15l1.89-.658Z"
+              />
+            </svg>
+          </button>
+        </div>
+        <div
+          class="group-two relative cursor-pointer"
+        >
+          <div
+            class="z-2 pointer-events-none absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+          >
+            <div
+              class="hidden w-fit cursor-none rounded bg-gray-400 px-4 py-2 group-two-hover:block"
+            >
+              <label
+                class="whitespace-nowrap font-semibold text-white"
+              >
+                Start Thread
+              </label>
+            </div>
+            <div>
+              <svg
+                fill="none"
+                height="8"
+                viewBox="0 0 17 8"
+                width="17"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
+                  fill="#999999"
+                />
+              </svg>
+            </div>
+          </div>
+          <button
+            aria-label="Start Thread"
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
+          >
+            <svg
+              class="text-gray-400"
+              fill="none"
+              viewBox="0 0 18 18"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                clip-rule="evenodd"
+                d="M6.124.008a1 1 0 0 1 .868 1.116L6.508 5h3.984l.516-4.124a1 1 0 0 1 1.984.248L12.508 5H15a1 1 0 1 1 0 2h-2.742l-.5 4H15a1 1 0 1 1 0 2h-3.492l-.516 4.124a1 1 0 1 1-1.984-.248L9.492 13H5.508l-.516 4.124a1 1 0 1 1-1.984-.248L3.492 13H1a1 1 0 1 1 0-2h2.742l.5-4H1a1 1 0 1 1 0-2h3.492L5.008.876A1 1 0 0 1 6.124.008ZM9.742 11l.5-4H6.258l-.5 4h3.984Z"
+                fill-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
+        <div
+          class="group-two relative cursor-pointer"
+        >
+          <div
+            class="z-2 pointer-events-none absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+          >
+            <div
+              class="hidden w-fit cursor-none rounded bg-gray-400 px-4 py-2 group-two-hover:block"
+            >
+              <label
+                class="whitespace-nowrap font-semibold text-white"
+              >
+                Send to...
+              </label>
+            </div>
+            <div>
+              <svg
+                fill="none"
+                height="8"
+                viewBox="0 0 17 8"
+                width="17"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
+                  fill="#999999"
+                />
+              </svg>
+            </div>
+          </div>
+          <button
+            aria-label="Send to..."
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
+          >
+            <svg
+              class="text-gray-400"
+              fill="none"
+              viewBox="0 0 16 16"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                clip-rule="evenodd"
+                d="M9 3.414V10a1 1 0 1 1-2 0V3.414L4.707 5.707a1 1 0 0 1-1.414-1.414l4-4a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1-1.414 1.414L9 3.414ZM2 10a1 1 0 1 0-2 0v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3a1 1 0 1 0-2 0v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-3Z"
+                fill-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
+        <div
+          class="group-two relative cursor-pointer"
+        >
+          <div
+            class="z-2 pointer-events-none absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+          >
+            <div
+              class="hidden w-fit cursor-none rounded bg-gray-400 px-4 py-2 group-two-hover:block"
+            >
+              <label
+                class="whitespace-nowrap font-semibold text-white"
+              >
+                More...
+              </label>
+            </div>
+            <div>
+              <svg
+                fill="none"
+                height="8"
+                viewBox="0 0 17 8"
+                width="17"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
+                  fill="#999999"
+                />
+              </svg>
+            </div>
+          </div>
+          <button
+            aria-label="More..."
+            class="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
+          >
+            <svg
+              class="text-gray-400"
+              fill="none"
+              viewBox="-8 0 18 18"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                clip-rule="evenodd"
+                d="M4 16a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM2 7a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm0-7a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"
+                fill-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div
+        class="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100"
+      >
+        13:00
+      </div>
+      <div
+        class="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50"
+      >
+        <div
+          class="leading-6"
+        >
+          <strong>
+            A bold test message
+          </strong>
+          <span>
+            with some more text
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;

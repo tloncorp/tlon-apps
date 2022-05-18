@@ -20,24 +20,24 @@ import {
   WritDiff,
 } from '../../types/chat';
 import api from '../../api';
-import { whomIsDm } from '../../utils';
+import { whomIsDm } from '../../logic/utils';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
 
 setAutoFreeze(false);
 
 interface ChatApi {
-  newest: (flag: string, count: number) => Promise<ChatWrit[]>;
-  subscribe: (flag: string, opts: SubscriptionInterface) => Promise<number>;
-  delMessage: (flag: string, time: string) => Promise<number>;
+  newest: (whom: string, count: number) => Promise<ChatWrit[]>;
+  subscribe: (whom: string, opts: SubscriptionInterface) => Promise<number>;
+  delMessage: (whom: string, time: string) => Promise<number>;
 }
 
-function chatAction(flag: string, diff: ChatDiff) {
+function chatAction(whom: string, diff: ChatDiff) {
   return {
     app: 'chat',
     mark: 'chat-action',
     json: {
-      flag,
+      whom,
       update: {
         time: '',
         diff,
@@ -46,8 +46,8 @@ function chatAction(flag: string, diff: ChatDiff) {
   };
 }
 
-function chatWritDiff(flag: string, id: string, delta: WritDelta) {
-  return chatAction(flag, {
+function chatWritDiff(whom: string, id: string, delta: WritDelta) {
+  return chatAction(whom, {
     writs: {
       id,
       delta,
@@ -79,14 +79,14 @@ function dmAction(
 }
 
 const chatApi: ChatApi = {
-  subscribe: (flag, opts) =>
-    api.subscribe({ app: 'chat', path: `/chat/${flag}/ui`, ...opts }),
-  newest: (flag, count) =>
+  subscribe: (whom, opts) =>
+    api.subscribe({ app: 'chat', path: `/chat/${whom}/ui`, ...opts }),
+  newest: (whom, count) =>
     api.scry({
       app: 'chat',
-      path: `/chat/${flag}/writs/newest/${count}`,
+      path: `/chat/${whom}/writs/newest/${count}`,
     }),
-  delMessage: (flag, idx) => api.poke(chatWritDiff(flag, idx, { del: null })),
+  delMessage: (whom, idx) => api.poke(chatWritDiff(whom, idx, { del: null })),
 };
 
 export const useChatState = create<ChatState>((set, get) => ({
@@ -122,17 +122,21 @@ export const useChatState = create<ChatState>((set, get) => ({
           perms: {
             writers: [],
           },
+          draft: {
+            inline: [],
+            block: [],
+          },
         };
         draft.dms[ship] = chat;
       });
     });
   },
   chats: {},
-  joinChat: async (flag) => {
+  joinChat: async (whom) => {
     await api.poke({
       app: 'chat',
-      mark: 'flag',
-      json: flag,
+      mark: 'whom',
+      json: whom,
     });
     await get().fetchFlags();
   },
@@ -163,25 +167,30 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: req,
     });
   },
-  addSects: async (flag, sects) => {
-    await api.poke(chatAction(flag, { 'add-sects': sects }));
+  addSects: async (whom, sects) => {
+    await api.poke(chatAction(whom, { 'add-sects': sects }));
   },
-  initialize: async (flag: string) => {
+  initialize: async (whom: string) => {
     const perms = await api.scry<ChatPerm>({
       app: 'chat',
-      path: `/chat/${flag}/perm`,
+      path: `/chat/${whom}/perm`,
     });
     get().batchSet((draft) => {
-      const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
-      draft.chats[flag] = chat;
+      const chat = {
+        writs: new BigIntOrderedMap<ChatWrit>(),
+        perms,
+        draft: { block: [], inline: [] },
+      };
+      draft.chats[whom] = chat;
     });
     await makeWritsStore(
-      flag,
+      whom,
       get,
-      `/chat/${flag}/writs`,
-      `/chat/${flag}/ui/writs`
+      `/chat/${whom}/writs`,
+      `/chat/${whom}/ui/writs`
     ).initialize();
   },
+  draft: async (whom, draft) => {},
   initializeDm: async (ship: string) => {
     const perms = {
       writers: [],
@@ -209,14 +218,14 @@ const defaultPerms = {
   writers: [],
 };
 
-export function useChatPerms(flag: string) {
+export function useChatPerms(whom: string) {
   return useChatState(
-    useCallback((s) => s.chats[flag]?.perms || defaultPerms, [flag])
+    useCallback((s) => s.chats[whom]?.perms || defaultPerms, [whom])
   );
 }
 
-export function useChatIsJoined(flag: string) {
-  return useChatState(useCallback((s) => s.flags.includes(flag), [flag]));
+export function useChatIsJoined(whom: string) {
+  return useChatState(useCallback((s) => s.flags.includes(whom), [whom]));
 }
 
 const selDmList = (s: ChatState) => Object.keys(s.dms);
@@ -241,8 +250,8 @@ function getPact(pact: Pact, id: string) {
   return pact.writs.get(time);
 }
 
-export function useReplies(flag: string, id: string) {
-  const pact = usePact(flag);
+export function useReplies(whom: string, id: string) {
+  const pact = usePact(whom);
   return useMemo(() => {
     const { writs, index } = pact;
     const time = index[id];
@@ -250,14 +259,13 @@ export function useReplies(flag: string, id: string) {
       return new BigIntOrderedMap<ChatWrit>();
     }
     const message = writs.get(time);
-    const replies = (message?.seal?.replied || [])
-      .map((r) => {
+    const replies = (message?.seal?.replied || ([] as string[]))
+      .map((r: string) => {
         const t = pact.index[r];
         const writ = t && writs.get(t);
         return t && writ ? ([t, writ] as const) : undefined;
       })
-      .filter((r): r is [BigInteger, ChatWrit] => !!r);
-    console.log(replies);
+      .filter((r: unknown): r is [BigInteger, ChatWrit] => !!r);
     return new BigIntOrderedMap<ChatWrit>().gas(replies);
   }, [pact, id]);
 }
@@ -279,4 +287,11 @@ export function useWrit(whom: string, id: string) {
       [whom, id]
     )
   );
+}
+
+export function useChatDraft(whom: string) {
+  return {
+    inline: [],
+    block: [],
+  };
 }

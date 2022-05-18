@@ -3,9 +3,10 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  useLocation,
   Location,
+  useLocation,
 } from 'react-router-dom';
+import { ErrorBoundary } from 'react-error-boundary';
 import Groups from './pages/Groups';
 import Channel from './pages/Channel';
 import { useGroupState } from './state/groups';
@@ -15,7 +16,7 @@ import Members from './pages/Members';
 import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
-import { IS_MOCK } from './api';
+import api, { IS_MOCK } from './api';
 import Dms from './pages/Dms';
 import Dm from './pages/Dm';
 import NewDM from './pages/NewDm';
@@ -23,8 +24,15 @@ import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 
 import Sidebar from './components/Sidebar/Sidebar';
-import { DmThread, GroupChatThread } from './components/ChatThread/ChatThread';
+import { DmThread, GroupChatThread } from './chat/ChatThread/ChatThread';
 import Policy from './pages/Policy';
+import GroupSidebar from './components/GroupSidebar';
+import useMedia from './logic/useMedia';
+import useErrorHandler from './logic/useErrorHandler';
+import { useSettingsState, useTheme } from './state/settings';
+import { useLocalState } from './state/local';
+import useContactState from './state/contact';
+import ErrorAlert from './components/ErrorAlert';
 
 function Divider(props: { title: string }) {
   const { title } = props;
@@ -37,18 +45,50 @@ function Divider(props: { title: string }) {
 }
 
 function App() {
+  const handleError = useErrorHandler();
   const location = useLocation();
+  const isMobile = useMedia('(max-width: 639px)');
+
   useEffect(() => {
-    useGroupState.getState().start();
-    useChatState.getState().fetchFlags();
-    useChatState.getState().fetchDms();
-  }, []);
+    handleError(() => {
+      useGroupState.getState().start();
+      useChatState.getState().fetchFlags();
+      const { initialize: settingsInitialize, fetchAll } =
+        useSettingsState.getState();
+      settingsInitialize(api);
+      fetchAll();
+      useChatState.getState().fetchDms();
+
+      useContactState.getState().initialize(api);
+    })();
+  }, [handleError]);
+
+  const theme = useTheme();
+  const isDarkMode = useMedia('(prefers-color-scheme: dark)');
+
+  useEffect(() => {
+    if ((isDarkMode && theme === 'auto') || theme === 'dark') {
+      document.body.classList.add('dark');
+      useLocalState.setState({ currentTheme: 'dark' });
+    } else {
+      document.body.classList.remove('dark');
+      useLocalState.setState({ currentTheme: 'light' });
+    }
+  }, [isDarkMode, theme]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
   return (
     <div className="flex h-full w-full">
-      <Sidebar />
+      <Routes>
+        <Route path={isMobile ? '/' : '*'} element={<Sidebar />} />
+      </Routes>
+      <Routes>
+        <Route
+          path={isMobile ? '/groups/:ship/:name' : '/groups/:ship/:name/*'}
+          element={<GroupSidebar />}
+        />
+      </Routes>
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm" element={<Dms />}>
           <Route path="new" element={<NewDM />} />
@@ -61,7 +101,7 @@ function App() {
         <Route path="/gangs/:ship/:name" element={<Gang />} />
         <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />
-        <Route path="/groups/:ship/:name" element={<Groups />}>
+        <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="members" element={<Members />} />
           <Route path="roles" element={<Roles />} />
           <Route path="policy" element={<Policy />} />
@@ -90,9 +130,14 @@ function App() {
 
 function RoutedApp() {
   return (
-    <Router basename={IS_MOCK ? '/' : '/apps/homestead'}>
-      <App />
-    </Router>
+    <ErrorBoundary
+      FallbackComponent={ErrorAlert}
+      onReset={() => window.location.reload()}
+    >
+      <Router basename={IS_MOCK ? '/' : '/apps/homestead'}>
+        <App />
+      </Router>
+    </ErrorBoundary>
   );
 }
 

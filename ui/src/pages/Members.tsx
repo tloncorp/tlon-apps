@@ -26,6 +26,10 @@ function Member(props: { ship: string }) {
   };
   const { register, control, handleSubmit } = useForm({ defaultValues });
 
+  if (!group) {
+    return null;
+  }
+
   return (
     <li className="text-mono flex justify-between">
       {ship}
@@ -49,6 +53,10 @@ function Member(props: { ship: string }) {
 export default function Members() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
+
+  if (!group) {
+    return null;
+  }
 
   const ships = Object.keys(group.fleet);
   return (

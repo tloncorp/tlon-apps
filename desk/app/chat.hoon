@@ -313,6 +313,7 @@
     ?+  pole  [~ ~]
       [%writs rest=*]  (peek:ca-pact rest.pole)
       [%perm ~]        ``chat-perm+!>(perm.chat)
+      [%draft ~]       ``chat-draft+!>(draft.chat)
     ==
   ::
   ++  ca-revoke
@@ -477,6 +478,11 @@
         %del-sects
       =*  p  perm.chat
       =.  writers.p  (~(dif in writers.p) p.d)
+      ca-core
+    ::
+        %draft
+      ?>  =(src.bowl p.flag)
+      =.  draft.chat  p.d
       ca-core
     ::
         %create

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { useGroupState } from '../state/groups';
 import MetadataForm from '../components/MetadataForm/MetadataForm';
-import { strToSym } from '../utils';
+import { strToSym } from '../logic/utils';
 
 interface FormSchema {
   title: string;

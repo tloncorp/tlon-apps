@@ -11,7 +11,7 @@ module.exports = {
   ],
   rules: {
     semi: [2, 'always'],
-    'react/require-default-props': [2, { ignoreFunctionalComponents: true }],
+    'react/require-default-props': 'off',
     'react/jsx-filename-extension': [
       1,
       {

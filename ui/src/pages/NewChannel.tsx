@@ -1,9 +1,9 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useChatState } from '../state/chat';
 import { useRouteGroup } from '../state/groups';
-import { strToSym } from '../utils';
+import { strToSym } from '../logic/utils';
 
 interface FormSchema {
   title: string;

@@ -33,7 +33,7 @@ export interface Break {
 }
 
 export interface InlineCode {
-  'inline-code': string;
+  'inline-code': ChatInline;
 }
 
 export interface BlockCode {
@@ -152,6 +152,11 @@ interface WritDeltaDel {
   del: null;
 }
 
+interface ChatDiffDraft {
+  draft: ChatMessage;
+}
+
+
 interface WritDeltaAddFeel {
   'add-feel': {
     time: string;
@@ -171,7 +176,7 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
-export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects;
+export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects | ChatDiffDraft;
 
 export interface ChatUpdate {
   time: Patda;
@@ -185,6 +190,7 @@ export interface ChatPerm {
 export interface Chat {
   perms: ChatPerm;
   // writs: BigIntOrderedMap<ChatWrit>;
+  draft: ChatMessage;
 }
 
 export interface DmAction {

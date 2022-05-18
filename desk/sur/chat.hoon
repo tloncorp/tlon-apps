@@ -22,7 +22,7 @@
 +$  flag  (pair ship term)
 +$  diff
   $%  [%writs p=diff:writs]
-
+      [%draft p=content]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
@@ -77,7 +77,7 @@
       group=flag
   ==
 +$  chat
-  [=net =remark =log =perm =pact]
+  [=net =remark =log =perm =pact draft=content]
 ::
 +$  content
   (pair (list block) (list inline))

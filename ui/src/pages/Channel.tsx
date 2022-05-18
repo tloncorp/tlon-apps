@@ -1,26 +1,30 @@
 import _ from 'lodash';
+import cn from 'classnames';
 import React from 'react';
-import { Outlet, useParams } from 'react-router';
+import { Outlet, useLocation, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
-import ChatInput from '../components/ChatInput/ChatInput';
-import ChatWindow from '../components/ChatWindow';
+import ChatInput from '../chat/ChatInput/ChatInput';
+import ChatWindow from '../chat/ChatWindow';
 import ElipsisIcon from '../components/icons/ElipsisIcon';
-import MenuIcon from '../components/icons/MenuIcon';
 import Layout from '../components/layout/Layout';
+import useMedia from '../logic/useMedia';
 import { useChatIsJoined, useChatPerms, useChatState } from '../state/chat';
 import { useChannel, useRouteGroup, useVessel } from '../state/groups';
-import useSidebars from '../state/sidebars';
-import { channelHref } from '../utils';
+import { channelHref } from '../logic/utils';
+import { useChat } from '../chat/useChatStore';
+import LeftIcon from '../components/icons/LeftIcon';
 
 function Channel() {
   const { chShip, chName } = useParams();
   const flag = `${chShip}/${chName}`;
+  const chat = useChat(flag);
   const groupFlag = useRouteGroup();
   const isJoined = useChatIsJoined(flag);
   const join = () => {
     useChatState.getState().joinChat(flag);
   };
-  const { transition, isMobile } = useSidebars();
+  const location = useLocation();
+  const isMobile = useMedia('(max-width: 639px)');
 
   const perms = useChatPerms(flag);
   const vessel = useVessel(groupFlag, window.our);
@@ -35,16 +39,21 @@ function Channel() {
       aside={<Outlet />}
       header={
         <div className="flex h-full items-center border-b-2 border-gray-50 p-4">
-          <h3 className="text-lg font-bold">{channel.meta.title}</h3>
-          {isMobile ? (
-            <button
-              className="icon-button h-8 w-8"
-              onClick={() => transition('channels-open')}
-              aria-label="Open Channels Menu"
-            >
-              <MenuIcon className="h-8 w-8" />
-            </button>
-          ) : null}
+          <Link
+            to=".."
+            state={{ backgroundLocation: location }}
+            className={cn(
+              isMobile &&
+                '-ml-2 flex items-center rounded-md p-2 hover:bg-gray-50'
+            )}
+            aria-label="Open Channels Menu"
+          >
+            {isMobile ? (
+              <LeftIcon className="mr-1 h-5 w-5 text-gray-500" />
+            ) : null}
+            <h1 className="text-lg font-bold">{channel.meta.title}</h1>
+          </Link>
+
           <Link
             className="icon-button ml-auto h-8 w-8"
             to={`${channelHref(groupFlag, flag)}/settings`}
@@ -54,9 +63,13 @@ function Channel() {
         </div>
       }
       footer={
-        <div className="p-4">
+        <div className="border-t-2 border-black/10 p-4">
           {canWrite ? (
-            <ChatInput whom={flag} />
+            <ChatInput
+              whom={flag}
+              replying={chat?.replying || null}
+              showReply
+            />
           ) : (
             <span>Cannot write to this channel</span>
           )}

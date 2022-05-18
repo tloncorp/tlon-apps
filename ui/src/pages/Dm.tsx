@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
-import ChatInput from '../components/ChatInput/ChatInput';
-import ChatMessages from '../components/ChatMessages';
+import ChatInput from '../chat/ChatInput/ChatInput';
+import ChatMessages from '../chat/ChatMessages';
 import Layout from '../components/layout/Layout';
 import { useChatState, useDmMessages } from '../state/chat';
 

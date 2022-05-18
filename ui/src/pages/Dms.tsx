@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router';
 import { NavLink } from 'react-router-dom';
-import ShipImage from '../components/ChatMessage/ShipImage';
+import Avatar from '../components/Avatar';
 import { useDmList } from '../state/chat';
 
 export default function Dms() {
@@ -17,7 +17,7 @@ export default function Dms() {
                 to={`/dm/${ship}`}
                 className="flex items-center space-x-2 p-2"
               >
-                <ShipImage ship={ship} />
+                <Avatar size="small" ship={ship} />
                 <span className="font-mono">{ship}</span>
               </NavLink>
             </li>
