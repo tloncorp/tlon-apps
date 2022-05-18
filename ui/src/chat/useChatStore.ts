@@ -3,13 +3,13 @@ import _ from 'lodash';
 import { useCallback } from 'react';
 import create from 'zustand';
 
-interface Chat {
+interface ChatInfo {
   replying: string | null;
 }
 
 interface ChatStore {
   chats: {
-    [flag: string]: Chat;
+    [flag: string]: ChatInfo;
   };
   reply: (flag: string, msgId: string | null) => void;
 }
@@ -29,6 +29,6 @@ export const useChatStore = create<ChatStore>((set) => ({
   },
 }));
 
-export function useChat(flag: string): Chat | undefined {
+export function useChatInfo(flag: string): ChatInfo | undefined {
   return useChatStore(useCallback((s) => s.chats[flag], [flag]));
 }

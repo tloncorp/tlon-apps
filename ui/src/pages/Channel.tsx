@@ -11,13 +11,13 @@ import useMedia from '../logic/useMedia';
 import { useChatIsJoined, useChatPerms, useChatState } from '../state/chat';
 import { useChannel, useRouteGroup, useVessel } from '../state/groups';
 import { channelHref } from '../logic/utils';
-import { useChat } from '../chat/useChatStore';
+import { useChatInfo } from '../chat/useChatStore';
 import LeftIcon from '../components/icons/LeftIcon';
 
 function Channel() {
   const { chShip, chName } = useParams();
   const flag = `${chShip}/${chName}`;
-  const chat = useChat(flag);
+  const chatInfo = useChatInfo(flag);
   const groupFlag = useRouteGroup();
   const isJoined = useChatIsJoined(flag);
   const join = () => {
@@ -67,7 +67,7 @@ function Channel() {
           {canWrite ? (
             <ChatInput
               whom={flag}
-              replying={chat?.replying || null}
+              replying={chatInfo?.replying || null}
               showReply
             />
           ) : (

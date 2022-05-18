@@ -1,15 +1,8 @@
-import bigInt from 'big-integer';
-import { udToDec } from '@urbit/api';
 import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useRef } from 'react';
-import {
-  useChatState,
-  useChatDraft,
-  useMessagesForChat,
-  usePact,
-} from '../../state/chat';
+import { useChatState, useChatDraft, useChat, usePact } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatMessage } from '../../types/chat';
 import MessageEditor, {
   useMessageEditor,
@@ -18,7 +11,7 @@ import Avatar from '../../components/Avatar';
 import ShipName from '../../components/ShipName';
 import AddIcon from '../../components/icons/AddIcon';
 import XIcon from '../../components/icons/XIcon';
-import { useChat, useChatStore } from '../useChatStore';
+import { useChatStore } from '../useChatStore';
 
 interface ChatInputProps {
   whom: string;
@@ -311,7 +304,7 @@ export default function ChatInput({
 
   useEffect(() => {
     if (chat) {
-      // useChatState.getState().getDraft(whom);
+      useChatState.getState().getDraft(whom);
     }
   }, [whom, chat]);
 
