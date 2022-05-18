@@ -11,6 +11,7 @@ import {
   ChatBriefUpdate,
   ChatDiff,
   ChatMemo,
+  ChatMessage,
   ChatPerm,
   ChatUpdate,
   ChatWhom,
@@ -39,7 +40,7 @@ function chatAction(whom: string, diff: ChatDiff) {
     app: 'chat',
     mark: 'chat-action',
     json: {
-      whom,
+      flag: whom,
       update: {
         time: '',
         diff,
@@ -213,8 +214,20 @@ export const useChatState = create<ChatState>((set, get) => ({
       `/chat/${whom}/ui/writs`
     ).initialize();
   },
+  getDraft: async (whom) => {
+    const content = await api.scry<ChatMessage>({
+      app: 'chat',
+      path: `/chat/${whom}/draft`,
+    });
+    set((draft) => {
+      const chat = draft.chats[whom];
+      if (chat) {
+        chat.draft = content;
+      }
+    });
+  },
   draft: async (whom, draft) => {
-    console.log(whom, draft);
+    api.poke(chatAction(whom, { draft }));
   },
   initializeDm: async (ship: string) => {
     const perms = {
@@ -319,6 +332,19 @@ export function useWrit(whom: string, id: string) {
   );
 }
 
+export function useChat(whom: string): Chat | undefined {
+  return useChatState(useCallback((s) => s.chats[whom], [whom]));
+}
+
 export function useChatDraft(whom: string) {
-  return undefined;
+  return useChatState(
+    useCallback(
+      (s) =>
+        s.chats[whom]?.draft || {
+          inline: [],
+          block: [],
+        },
+      [whom]
+    )
+  );
 }

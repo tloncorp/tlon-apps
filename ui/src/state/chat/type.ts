@@ -23,6 +23,7 @@ export interface ChatState {
   briefs: ChatBriefs;
   markRead: (whom: string) => Promise<void>;
   start: () => Promise<void>;
+  getDraft: (whom: string) => void;
   draft: (whom: string, content: ChatMemo['content']) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   sendMessage: (whom: string, memo: ChatMemo) => void;
