@@ -4,7 +4,7 @@ import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 
 import ChatMessage, { ChatMessageProps } from './ChatMessage/ChatMessage';
 import { ChatWrit } from '../types/chat';
-import { useChat } from './useChatStore';
+import { useChatInfo } from './useChatStore';
 
 interface ChatMessagesProps
   extends Omit<
@@ -19,7 +19,7 @@ interface ChatMessagesProps
 
 export default function ChatMessages(props: ChatMessagesProps) {
   const { messages, whom, replying = false, ...rest } = props;
-  const chat = useChat(whom);
+  const chatInfo = useChatInfo(whom);
 
   const keys = messages
     .keys()
@@ -54,7 +54,7 @@ export default function ChatMessages(props: ChatMessagesProps) {
             key={writ.seal.id}
             {...rest}
             whom={whom}
-            isReplyOp={chat?.replying === writ.seal.id}
+            isReplyOp={chatInfo?.replying === writ.seal.id}
             writ={writ}
             time={key}
             newAuthor={newAuthor}

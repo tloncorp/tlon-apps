@@ -16,6 +16,7 @@ export interface ChatState {
   flags: string[];
   fetchFlags: () => Promise<void>;
   fetchDms: () => Promise<void>;
+  getDraft: (whom: string) => void;
   draft: (whom: string, content: ChatMemo['content']) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   sendMessage: (whom: string, memo: ChatMemo) => void;
