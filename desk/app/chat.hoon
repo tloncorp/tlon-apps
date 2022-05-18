@@ -11,7 +11,7 @@
   +$  state-0
     $:  %0
         chats=(map flag:c chat:c)
-        dms=(map ship pact:c)
+        dms=(map ship dm:c)
         bad=(set ship)
         inv=(set ship)
     ==
@@ -114,7 +114,10 @@
   ::
       %chat-remark-action
     =+  !<(act=remark-action:c vase)
-    ca-abet:(ca-remark-diff:(ca-abed:ca-core p.act) q.act)
+    ?-  -.p.act
+      %ship  di-abet:(di-remark-diff:(di-abed:di-core p.p.act) q.act)
+      %flag  ca-abet:(ca-remark-diff:(ca-abed:ca-core p.p.act) q.act)
+    ==
   ::
       %dm-action
     =+  !<(=action:dm:c vase)
@@ -146,8 +149,9 @@
   |=  =path
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
-      [%chat ~]  cor
-  ::
+      [%briefs ~]  ?>(from-self cor)
+      [%chat ~]  ?>(from-self cor)
+    ::
       [%chat @ @ *]
     =/  =ship  (slav %p i.t.path)
     =*  name   i.t.t.path
@@ -241,7 +245,25 @@
   ::
       [%x %dm ~]
     ``ships+!>(~(key by dms))
+  ::
+      [%x %briefs ~]
+    =-  ``chat-briefs+!>(-)
+    ^-  briefs:c
+    %-  ~(gas by *briefs:c)
+    %+  welp  
+      %+  turn  ~(tap in ~(key by dms))
+      |=  =ship
+      :-  ship/ship
+      di-brief:(di-abed:di-core ship)
+    %+  turn  ~(tap in ~(key by chats))
+    |=  =flag:c
+    :-  flag/flag
+    ca-brief:(ca-abed:ca-core flag)
   ==
+::
+++  give-brief
+  |=  [=whom:c =brief:briefs:c]
+  (give %fact ~[/briefs] chat-brief-update+!>([whom brief]))
 ::
 ++  from-self  =(our src):bowl
 ::
@@ -306,6 +328,8 @@
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
     ==
+  ::
+  ++  ca-brief  (brief:ca-pact our.bowl last-read.remark.chat)
   ::
   ++  ca-peek
     |=  =(pole knot)
@@ -447,16 +471,20 @@
     ^+  ca-core
     =.  cor
       (give %fact ~[(snoc ca-area %ui)] chat-remark-action+!>([flag diff]))
-    ?-  -.diff
-      %watch    ca-core(watching.remark.chat &)
-      %unwatch  ca-core(watching.remark.chat |)
-      %read-at  ca-core(last-read.remark.chat p.diff)
-    ::
-        %read   !!
-::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
-::    =.  last-read.remark.chat  time
-::    ca-core
-    ==
+    =.  remark.chat
+      ?-  -.diff
+        %watch    remark.chat(watching &)
+        %unwatch  remark.chat(watching |)
+        %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
+      ::
+          %read   remark.chat(last-read now.bowl)
+  ::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
+  ::    =.  last-read.remark.chat  time
+  ::    ca-core
+      ==
+    =.  cor
+      (give-brief flag/flag ca-brief)
+    ca-core
   ::
   ++  ca-update
     |=  [=time d=diff:c]
@@ -491,15 +519,15 @@
     ==
   --
 ++  di-core
-  |_  [=ship =pact:c]
-  +*  di-pact  ~(. pac pact)
+  |_  [=ship =dm:c]
+  +*  di-pact  ~(. pac pact.dm)
   ++  di-core  .
   ++  di-abet 
-    =.  dms  (~(put by dms) ship pact)
+    =.  dms  (~(put by dms) ship dm)
     cor
   ++  di-abed
     |=  s=@p
-    di-core(ship s, pact (~(gut by dms) s *pact:c))
+    di-core(ship s, dm (~(gut by dms) s *dm:c))
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-proxy
     |=  =diff:dm:c
@@ -511,7 +539,10 @@
     |=  =diff:dm:c
     =/  =path  (snoc di-area %ui)
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
-    =.  pact  (reduce:di-pact now.bowl diff)
+    =/  old-brief  di-brief
+    =.  pact.dm  (reduce:di-pact now.bowl diff)
+    =?  cor  !=(old-brief di-brief)
+      (give-brief ship/ship di-brief)
     di-core
     :: di-core(pact (reduce:w ship writs ship now.bowl diff))
   ::
@@ -543,6 +574,23 @@
       [%writs *]  (peek:di-pact t.path)
     ==
   ::
+  ++  di-brief  (brief:di-pact our.bowl last-read.remark.dm)
+  ++  di-remark-diff
+    |=  diff=remark-diff:c
+    ^+  di-core
+    =.  remark.dm
+      ?-  -.diff
+        %watch    remark.dm(watching &)
+        %unwatch  remark.dm(watching |)
+        %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
+      ::
+          %read   remark.dm(last-read now.bowl)
+  ::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
+  ::    =.  last-read.remark.chat  time
+  ::    ca-core
+      ==
+    =.  cor  (give-brief ship/ship di-brief)
+    di-core
   ++  di-pass
     |%
     ++  pass

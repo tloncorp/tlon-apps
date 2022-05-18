@@ -3,6 +3,33 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  whom
+    |=  w=whom:c
+    ?-  -.w
+      %flag  (crip "{(scow %p p.p.w)}/{(trip q.p.w)}")
+      %ship  (scot %p p.w)
+    ==
+  ::
+  ++  briefs
+    |=  bs=briefs:c
+    %-  pairs
+    %+  turn  ~(tap by bs)
+    |=  [w=whom:c b=brief:briefs:c]
+    [(whom w) (brief b)]
+  ::
+  ++  brief-update
+    |=  u=update:briefs:c
+    %-  pairs
+    :~  whom/s/(whom p.u)
+        brief/(brief q.u)
+    ==
+  ::
+  ++  brief
+    |=  b=brief:briefs:c
+    %-  pairs
+    :~  last/(time last.b)
+        count/(numb count.b)
+    ==
   ::
   ++  perm
     |=  p=perm:c
@@ -161,6 +188,25 @@
 ++  dejs
   =,  dejs:format
   |%
+  ++  whom
+    ^-  $-(json whom:c)
+    %-  su
+    ;~  pose
+      (stag %flag flag-rule)
+      (stag %ship ;~(pfix sig fed:ag))
+    ==
+  ++  remark-action
+    %-  ot
+    :~  whom/whom
+        diff/remark-diff
+    ==
+  ::
+  ++  remark-diff
+    %-  of
+    :~  read/ul
+        watch/ul
+        unwatch/ul
+    ==
   ++  create
     ^-  $-(json create:c)
     %-  ot
@@ -172,7 +218,8 @@
     ==
 
   ++  ship  (su ;~(pfix sig fed:ag))
-  ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) sym))
+  ++  flag  (su flag-rule)
+  ++  flag-rule  ;~((glue fas) ;~(pfix sig fed:ag) sym)
   ++  action
     ^-  $-(json action:c)
     %-  ot
