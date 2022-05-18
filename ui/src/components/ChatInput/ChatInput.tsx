@@ -7,7 +7,7 @@ import MessageEditor, { useMessageEditor } from '../MessageEditor';
 import AddIcon from '../icons/AddIcon';
 
 interface ChatInputProps {
-  whom: string;
+  whom: ChatWhom;
   replying?: string;
   className?: string;
 }
@@ -105,7 +105,6 @@ export default function ChatInput(props: ChatInputProps) {
       }
 
       const data = parseTipTapJSON(editor?.getJSON());
-      console.log(replying);
       const memo: ChatMemo = {
         replying,
         author: `~${window.ship || 'zod'}`,

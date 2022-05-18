@@ -9,8 +9,8 @@ import {
 import { decToUd, unixToDa } from '@urbit/api';
 
 import mockGroups, { mockGangs } from '../mocks/groups';
-import chatWrits, { chatKeys, chatPerm } from '../mocks/mockWrits';
-import { ChatDiff } from '../types/chat';
+import chatWrits, { chatKeys, chatPerm, dmList } from '../mocks/mockWrits';
+import { ChatDiff, WritDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
@@ -28,6 +28,38 @@ const groupSubs = ['~zod/tlon'].map(
     path: `/groups/${g}/ui`,
   })
 );
+const dmSub = {
+  action: 'subscribe',
+  app: 'chat',
+  path: `/dm/~hastuc-dibtux/ui`,
+} as SubscriptionHandler;
+
+const mockDm = dmList
+  .map((ship): Handler[] => {
+    return [
+      {
+        action: 'scry' as const,
+        path: `/dm/${ship}/writs/newest/100`,
+        app: 'chat',
+        func: () => chatWrits,
+      },
+      {
+        action: 'poke',
+        app: 'chat',
+        mark: 'dm-action',
+        returnSubscription: dmSub,
+        dataResponder: (
+          req: Message & Poke<{ ship: string; diff: WritDiff }>
+        ) => ({
+          id: req.id!,
+          ok: true,
+          response: 'diff',
+          json: req.json.diff,
+        }),
+      },
+    ];
+  })
+  .flat();
 
 const mockHandlers: Handler[] = [
   {
@@ -71,6 +103,12 @@ const mockHandlers: Handler[] = [
     }),
   },
   {
+    action: 'scry' as const,
+    app: 'chat',
+    path: '/dm',
+    func: () => dmList,
+  },
+  {
     action: 'scry',
     app: 'groups',
     path: '/groups',
@@ -89,6 +127,8 @@ const mockHandlers: Handler[] = [
     func: () => chatKeys,
   } as ScryHandler,
   ...groupSubs,
+  dmSub,
+  ...mockDm,
 ];
 
 export default mockHandlers;

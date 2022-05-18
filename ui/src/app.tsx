@@ -3,8 +3,6 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  NavLink,
-  To,
   useLocation,
   Location,
 } from 'react-router-dom';
@@ -25,7 +23,7 @@ import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 
 import Sidebar from './components/Sidebar/Sidebar';
-import ChatThread, {
+import {
   DmThread,
   GroupChatThread,
 } from './components/ChatThread/ChatThread';

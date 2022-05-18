@@ -17,7 +17,12 @@ export default function NewDM() {
 
   return (
     <div className="flex flex-col">
-      <input type="text" value={ship} onChange={onChange} />
+      <input
+        className="rounded border"
+        type="text"
+        value={ship}
+        onChange={onChange}
+      />
       <Link aria-disabled={!validShip} to={`/dm/${ship}`}>
         New DM
       </Link>

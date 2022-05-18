@@ -2,19 +2,18 @@ import React from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import f from 'lodash/fp';
-import { daToUnix, udToDec } from '@urbit/api';
-import bigInt, { BigInteger } from 'big-integer';
+import { daToUnix } from '@urbit/api';
+import { BigInteger } from 'big-integer';
 import { format } from 'date-fns';
-import { Link, NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
 import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
-import { useMessagesForChat, usePact } from '../../state/chat';
+import { usePact } from '../../state/chat';
 import ShipImage from './ShipImage';
-import { useChannelFlag } from '../../hooks';
 
 export interface ChatMessageProps {
   whom: string;

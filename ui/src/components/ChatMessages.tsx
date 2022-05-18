@@ -29,8 +29,7 @@ export default function ChatMessages(props: ChatMessagesProps) {
       }
       return messages.get(k)!.memo.replying === null;
     });
-  console.log(messages);
-  console.log(keys);
+
   return (
     <>
       {keys.map((key, index) => {
