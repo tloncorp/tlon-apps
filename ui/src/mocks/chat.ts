@@ -1,7 +1,7 @@
 import { decToUd, unixToDa } from '@urbit/api';
 import _ from 'lodash';
 import { addDays, subDays, subMinutes } from 'date-fns';
-import { ChatWrit, ChatMessage, ChatWrits } from '../types/chat';
+import { ChatWrit, ChatMessage, ChatWrits, ChatBriefs } from '../types/chat';
 
 const today = new Date();
 
@@ -212,14 +212,32 @@ export default chatWrits;
 
 export const chatKeys = ['~zod/test'];
 
-export const dmList = [
-  '~fabled-faster',
-  '~nocsyx-lassul',
-  '~fallyn-ballus',
-  '~finned-palmer',
-  '~datder-sonnet',
-  '~hastuc-dibtux',
-];
+export const dmList: ChatBriefs = {
+  '~fabled-faster': {
+    last: 0,
+    count: 2,
+  },
+  '~nocsyx-lassul': {
+    last: 0,
+    count: 2,
+  },
+  '~fallyn-ballus': {
+    last: 0,
+    count: 2,
+  },
+  '~finned-palmer': {
+    last: 0,
+    count: 2,
+  },
+  '~datder-sonnet': {
+    last: 0,
+    count: 2,
+  },
+  '~hastuc-dibtux': {
+    last: 0,
+    count: 2,
+  },
+};
 
 export const chatPerm = {
   writers: [],

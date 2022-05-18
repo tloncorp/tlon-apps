@@ -6,7 +6,8 @@ import Layout from '../components/layout/Layout';
 import { useChatState, useDmMessages } from '../state/chat';
 
 export default function Dm() {
-  const ship = useParams().ship!;
+  const ship = useParams<{ ship: string }>().ship!;
+  console.log(ship);
   useEffect(() => {
     useChatState.getState().initializeDm(ship);
     useChatState.getState().markRead(ship);

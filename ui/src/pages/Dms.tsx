@@ -27,6 +27,7 @@ function DmSidebarItem(props: { ship: string }) {
 
 export default function Dms() {
   const ships = useDmList();
+
   return (
     <div className="flex h-full w-full">
       <div className="flex flex-col space-y-2 border-r">

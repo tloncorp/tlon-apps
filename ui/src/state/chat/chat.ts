@@ -1,26 +1,21 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
-import { Poke, SubscriptionInterface } from '@urbit/http-api';
-import bigInt, { BigInteger } from 'big-integer';
+import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
+import { Poke } from '@urbit/http-api';
+import { BigInteger } from 'big-integer';
 import { useCallback, useMemo } from 'react';
 import {
   Chat,
   ChatBriefs,
   ChatBriefUpdate,
   ChatDiff,
-  ChatMemo,
   ChatMessage,
   ChatPerm,
-  ChatUpdate,
-  ChatWhom,
   ChatWrit,
-  ChatWrits,
   DmAction,
   Pact,
   WritDelta,
-  WritDiff,
 } from '../../types/chat';
 import api from '../../api';
 import { whomIsDm } from '../../logic/utils';
@@ -28,12 +23,6 @@ import makeWritsStore from './writs';
 import { ChatState } from './type';
 
 setAutoFreeze(false);
-
-interface ChatApi {
-  newest: (whom: string, count: number) => Promise<ChatWrit[]>;
-  subscribe: (whom: string, opts: SubscriptionInterface) => Promise<number>;
-  delMessage: (whom: string, time: string) => Promise<number>;
-}
 
 function chatAction(whom: string, diff: ChatDiff) {
   return {
@@ -80,17 +69,6 @@ function dmAction(
     },
   };
 }
-
-const chatApi: ChatApi = {
-  subscribe: (whom, opts) =>
-    api.subscribe({ app: 'chat', path: `/chat/${whom}/ui`, ...opts }),
-  newest: (whom, count) =>
-    api.scry({
-      app: 'chat',
-      path: `/chat/${whom}/writs/newest/${count}`,
-    }),
-  delMessage: (whom, idx) => api.poke(chatWritDiff(whom, idx, { del: null })),
-};
 
 export const useChatState = create<ChatState>((set, get) => ({
   set: (fn) => {
@@ -270,7 +248,7 @@ export function useChatIsJoined(whom: string) {
 
 const selDmList = (s: ChatState) =>
   Object.keys(s.briefs)
-    .filter((d) => d.startsWith('~'))
+    .filter((d) => !d.includes('/'))
     .sort((a, b) => s.briefs[b].last - s.briefs[a].last);
 
 export function useDmList() {

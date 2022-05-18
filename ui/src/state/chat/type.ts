@@ -1,12 +1,4 @@
-import { BigIntOrderedMap } from '@urbit/api';
-import {
-  Chat,
-  ChatWrit,
-  ChatWhom,
-  ChatMemo,
-  Pact,
-  ChatBriefs,
-} from '../../types/chat';
+import { Chat, ChatWhom, ChatMemo, Pact, ChatBriefs } from '../../types/chat';
 
 export interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
