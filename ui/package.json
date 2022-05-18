@@ -25,7 +25,7 @@
   },
   "lint-staged": {
     "**/*.ts?(x)": [
-      "tsc-files --noEmit"
+      "tsc-files --noEmit src/window.ts src/env.d.ts"
     ],
     "*.{js,jsx,ts,tsx,css}": [
       "npm run lint:fix",
