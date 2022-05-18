@@ -1,19 +1,19 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { differenceInDays } from 'date-fns';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 
-import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatWritScroller from './ChatWritScroller';
-import { ChatScrollerProps } from './ChatScrollerProps';
+import { IChatScroller } from './IChatScroller';
+import ChatMessage from '../ChatMessage/ChatMessage';
 
-export default function Groups1Scroller(props: ChatScrollerProps) {
-  const { messages, replying, ...rest } = props;
+export default function Groups1Scroller(props: IChatScroller) {
+  const { chat, messages, replying, ...rest } = props;
 
   const keys = messages
     .keys()
     .reverse()
-    .filter((k) => messages.get(k)!.memo.replying === replying);
+    .filter((k) => messages.get(k)?.memo.replying === replying);
 
   const renderer = React.forwardRef(
     ({ index }: { index: bigInt.BigInteger }, ref) => {
@@ -37,14 +37,15 @@ export default function Groups1Scroller(props: ChatScrollerProps) {
       return (
         <ChatMessage
           key={writ.seal.time}
-          {...rest}
           writ={writ}
           newAuthor={newAuthor}
           newDay={newDay}
+          isReplyOp={chat?.replying === writ.seal.time}
           // TODO: figure out the correct `forwardRef` type
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
           ref={ref}
+          {...rest}
         />
       );
     }
@@ -71,10 +72,6 @@ export default function Groups1Scroller(props: ChatScrollerProps) {
     console.log(`fetch newer messages: ${newer} ...`);
     return true;
   };
-
-  useEffect(() => {
-    console.log(`messages: ${messages.size}`);
-  }, [messages]);
 
   return (
     <div className="h-full flex-1">

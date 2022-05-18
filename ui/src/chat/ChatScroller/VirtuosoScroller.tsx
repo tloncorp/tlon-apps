@@ -2,13 +2,12 @@ import React from 'react';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { differenceInDays } from 'date-fns';
-import { rest } from 'lodash';
 import { Virtuoso } from 'react-virtuoso';
-import ChatMessage from '../../chat/ChatMessage/ChatMessage';
-import { ChatScrollerProps } from './ChatScrollerProps';
+import ChatMessage from '../ChatMessage/ChatMessage';
+import { IChatScroller } from './IChatScroller';
 
-export default function VirtuosoScroller(props: ChatScrollerProps) {
-  const { chat, messages, replying } = props;
+export default function VirtuosoScroller(props: IChatScroller) {
+  const { chat, messages, replying, ...rest } = props;
 
   const endReached = (index: number) => {
     // TODO: load more messages when at the end
@@ -18,7 +17,7 @@ export default function VirtuosoScroller(props: ChatScrollerProps) {
   const keys = messages
     .keys()
     .reverse()
-    .filter((k) => messages.get(k)!.memo.replying === replying);
+    .filter((k) => messages.get(k)?.memo.replying === replying);
 
   const itemContent = (index: number, key: bigInt.BigInteger) => {
     const writ = messages.get(key);
@@ -37,7 +36,7 @@ export default function VirtuosoScroller(props: ChatScrollerProps) {
     return (
       <ChatMessage
         key={writ.seal.time}
-        isReplyOp={writ.memo.replying === writ.seal.time}
+        isReplyOp={chat?.replying === writ.seal.time}
         writ={writ}
         newAuthor={newAuthor}
         newDay={newDay}
@@ -46,18 +45,15 @@ export default function VirtuosoScroller(props: ChatScrollerProps) {
     );
   };
   return (
-    <>
-      <Virtuoso
-        className="h-full"
-        data={keys}
-        endReached={endReached}
-        itemContent={itemContent}
-        alignToBottom={replying ? false : true}
-        followOutput={'auto'}
-        computeItemKey={(_index, key) => key.toString()}
-        overscan={3} // TODO: tune for optimal experience vs performance
-      />
-      ;
-    </>
+    <Virtuoso
+      className="h-full"
+      data={keys}
+      endReached={endReached}
+      itemContent={itemContent}
+      alignToBottom={replying ? false : true}
+      followOutput={'auto'}
+      computeItemKey={(_index, key) => key.toString()}
+      overscan={3} // TODO: tune for optimal experience vs performance
+    />
   );
 }

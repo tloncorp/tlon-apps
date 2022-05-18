@@ -15,7 +15,7 @@ export function LoadingSpinner({
   ...props
 }: LoadingSpinnerProps) {
   return (
-    <svg width="3" height="3" {...props} viewBox={'0 0 16 16'}>
+    <svg width="16" height="16" {...props} viewBox={'0 0 16 16'}>
       <path
         fill={light ? 'scales.white30' : dark ? 'scales.black20' : background}
         fillRule="evenodd"

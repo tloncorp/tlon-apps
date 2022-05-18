@@ -247,10 +247,6 @@ export function useChatDraft(flag: string) {
   );
 }
 
-export function useChat(flag: string): Chat | undefined {
-  return useChatState(useCallback((s) => s.chats[flag], [flag]));
-}
-
 export function useChatIsJoined(flag: string) {
   return useChatState(useCallback((s) => s.flags.includes(flag), [flag]));
 }

@@ -3,7 +3,7 @@ import React from 'react';
 import { ChatWrit } from '../../types/chat';
 import VirtualScroller, {
   VirtualScrollerProps,
-} from '../VirtualScroller/VirtualScroller';
+} from '../../components/VirtualScroller/VirtualScroller';
 
 type ChatWritScrollerProps = Omit<
   VirtualScrollerProps<BigInteger, ChatWrit>,

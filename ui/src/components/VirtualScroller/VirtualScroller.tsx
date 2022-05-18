@@ -2,8 +2,7 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import _ from 'lodash';
-import normalizeWheel from 'normalize-wheel';
-import React, { Component, SyntheticEvent, useCallback } from 'react';
+import React, { Component, useCallback } from 'react';
 import { VirtualContext } from './VirtualContext';
 import clamp from './util';
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner';
@@ -17,7 +16,9 @@ import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner';
  */
 
 function Center(props: React.HTMLProps<HTMLDivElement>) {
-  return <div {...props} className="align-center flex justify-center" />;
+  return (
+    <div {...props} className="align-center flex h-8 w-full justify-center" />
+  );
 }
 
 const ScrollbarLessBox = React.forwardRef<HTMLDivElement>(
@@ -434,17 +435,6 @@ export default class VirtualScroller<K, V> extends Component<
     this.pageDelta = Math.floor(this.pageSize / 4);
     const { origin } = this.props;
     if (origin === 'bottom') {
-      element.addEventListener(
-        'wheel',
-        (event) => {
-          event.preventDefault();
-          const normalized = normalizeWheel(event);
-          element.scrollBy(0, normalized.pixelY * -1);
-          return false;
-        },
-        { passive: false }
-      );
-
       window.addEventListener('keydown', this.invertedKeyHandler, {
         passive: false,
       });
@@ -741,7 +731,7 @@ export default class VirtualScroller<K, V> extends Component<
         >
           <div style={{ width: 'calc(100% - 4px)' }}>
             {(isTop ? !atStart : !atEnd) && (
-              <Center height={5}>
+              <Center>
                 <LoadingSpinner />
               </Center>
             )}
