@@ -1,6 +1,8 @@
 /-  c=chat, g=groups
 /+  default-agent, verb, dbug
 /+  chat-json
+/+  w=chat-writs
+/+  pac=dm
 ^-  agent:gall
 =>
   |%
@@ -9,6 +11,9 @@
   +$  state-0
     $:  %0
         chats=(map flag:c chat:c)
+        dms=(map ship pact:c)
+        bad=(set ship)
+        inv=(set ship)
     ==
   --
 =|  state-0
@@ -110,6 +115,14 @@
       %chat-remark-action
     =+  !<(act=remark-action:c vase)
     ca-abet:(ca-remark-diff:(ca-abed:ca-core p.act) q.act)
+  ::
+      %dm-action
+    =+  !<(=action:dm:c vase)
+    di-abet:(di-proxy:(di-abed:di-core p.action) q.action)
+  ::
+      %dm-diff
+    =+  !<(=diff:dm:c vase)
+    di-abet:(di-ingest-diff:(di-abed:di-core src.bowl) diff)
   ==
   ::
   ++  join
@@ -133,18 +146,25 @@
   |=  =path
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
-    [%chat ~]  cor
+      [%chat ~]  cor
   ::
       [%chat @ @ *]
     =/  =ship  (slav %p i.t.path)
     =*  name   i.t.t.path
     ca-abet:(ca-watch:(ca-abed:ca-core ship name) t.t.t.path)
+  ::
+      [%dm @ *]
+    =/  =ship  (slav %p i.t.path)
+    di-abet:(di-watch:(di-abed:di-core ship) t.t.path)
   ==
 ::
 ++  agent
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
+      [%dm @ *]
+    =/  =ship  (slav %p i.t.wire)
+    di-abet:(di-agent:(di-abed:di-core ship) t.t.wire sign)
       [%chat @ @ *]
     =/  =ship  (slav %p i.t.wire)
     =*  name   i.t.t.wire
@@ -214,12 +234,20 @@
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path
     (ca-peek:(ca-abed:ca-core ship name) t.t.t.t.path)
+  ::
+      [%x %dm @ *]
+    =/  =ship  (slav %p i.t.t.path)
+    (di-peek:(di-abed:di-core ship) t.t.t.path)
+  ::
+      [%x %dm ~]
+    ``ships+!>(~(key by dms))
   ==
 ::
 ++  from-self  =(our src):bowl
 ::
 ++  ca-core
   |_  [=flag:c =chat:c gone=_|]
+  +*  ca-pact  ~(. pac pact.chat)
   ++  ca-core  .
   ::  TODO: archive??
   ++  ca-abet  
@@ -235,8 +263,9 @@
     |=  =path
     ^+  ca-core
     ?+    path  !!
-      [%updates *]  (ca-pub t.path)
-      [%ui ~]       ?>(from-self ca-core)
+      [%updates *]    (ca-pub t.path)
+      [%ui ~]         ?>(from-self ca-core)
+      [%ui %writs ~]       ?>(from-self ca-core)
     ::
     ==
   ++  ca-pass
@@ -281,26 +310,10 @@
   ++  ca-peek
     |=  =(pole knot)
     ^-  (unit (unit cage))
-    ?+    pole  [~ ~]
-    ::
-        [%writs %newest count=@ ~]
-      =/  count  (slav %ud count.pole)
-      ``chat-writs-list+!>((turn (scag count (tap:writs-on:c writs.chat)) tail))
-    ::
-        [%writs %older start=@ count=@ ~]
-      =/  count  (slav %ud count.pole)
-      =/  start  (slav %da start.pole)
-      ``chat-writs+!>((turn (tab:writs-on:c writs.chat `start count) tail))
-    ::
-        [%writs %writ writ=@ ~]
-      =/  writ  (slav %da writ.pole)
-      ``writ+!>((got:writs-on:c writs.chat writ))
-    ::
-        [%perm ~]
-      ``chat-perm+!>(perm.chat)
-    ::
-        [%draft ~]
-      ``chat-draft+!>(draft.chat)
+    ?+  pole  [~ ~]
+      [%writs rest=*]  (peek:ca-pact rest.pole)
+      [%perm ~]        ``chat-perm+!>(perm.chat)
+      [%draft ~]       ``chat-draft+!>(draft.chat)
     ==
   ::
   ++  ca-revoke
@@ -415,14 +428,18 @@
     (~(put in out) [ship path])
   ::
   ++  ca-give-updates
-    |=  =cage
+    |=  [=time d=diff:c]
     ^+  ca-core
     =/  paths=(set path)
       %-  ~(gas in *(set path))
       (turn ~(tap in ca-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc ca-area %ui))
+    =/  cag=cage  chat-update+!>([time d])
     =.  cor
-      (give %fact ~(tap in paths) cage)
+      (give %fact ~(tap in paths) cag)
+    =?  cor  ?=(%writs -.d)
+      =/  =cage  writ-diff+!>(p.d)
+      (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
     ca-core
   ::
   ++  ca-remark-diff
@@ -435,10 +452,10 @@
       %unwatch  ca-core(watching.remark.chat |)
       %read-at  ca-core(last-read.remark.chat p.diff)
     ::
-        %read 
-      =/  [=time =writ:c]  (need (ram:writs-on:c writs.chat))
-      =.  last-read.remark.chat  time
-      ca-core
+        %read   !!
+::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
+::    =.  last-read.remark.chat  time
+::    ca-core
     ==
   ::
   ++  ca-update
@@ -448,8 +465,11 @@
     =.  log.chat
       (put:log-on:c log.chat time d)
     =.  ca-core
-      (ca-give-updates chat-update+!>([time d]))
+      (ca-give-updates time d)
     ?-    -.d
+        %writs
+      ca-core(pact.chat (reduce:ca-pact time p.d))
+    ::
         %add-sects
       =*  p  perm.chat
       =.  writers.p  (~(uni in writers.p) p.d)
@@ -460,53 +480,77 @@
       =.  writers.p  (~(dif in writers.p) p.d)
       ca-core
     ::
-        %add-feel
-      =/  =writ:c  (got:writs-on:c writs.chat p.d)
-      ?>  |(=(p.flag src.bowl) =(src.bowl q.d))
-      =.  feels.writ  (~(put by feels.writ) [q r]:d)
-      =.  writs.chat   (put:writs-on:c writs.chat p.d writ)
-      ca-core
-    ::
-        %del-feel
-      =/  =writ:c  (got:writs-on:c writs.chat p.d)
-      ?>  |(=(p.flag src.bowl) =(src.bowl q.d))
-      =.  feels.writ  (~(del by feels.writ) q.d)
-      =.  writs.chat   (put:writs-on:c writs.chat p.d writ)
-      ca-core
-   ::
-        %add
-      ?>  |(=(src.bowl p.flag) =(src.bowl author.p.d))
-      =.  writs.chat  
-        (put:writs-on:c writs.chat time [time ~ ~] p.d)
-      ?~  replying.p.d  ca-core
-      =*  replying  u.replying.p.d
-      =/  reply=writ:c  (got:writs-on:c writs.chat replying)
-      =.  replied.reply  (~(put in replied.reply) time)
-      =.  writs.chat  (put:writs-on:c writs.chat replying reply)
-      ca-core
-    ::
         %draft
       ?>  =(src.bowl p.flag)
       =.  draft.chat  p.d
-      ca-core
-    ::
-        %del
-      =/  =writ:c
-        (got:writs-on:c writs.chat p.d)
-      =?  ca-core  ?=(^ replying.writ)  
-        =*  replying  u.replying.writ
-        =/  reply=writ:c  (got:writs-on:c writs.chat replying)
-        =.  replied.reply  (~(del in replied.reply) p.d)
-        =.  writs.chat  (put:writs-on:c writs.chat replying reply)
-        ca-core
-      ?>  |(=(src.bowl p.flag) =(src.bowl author.writ))
-      =.  writs.chat
-        +:(del:writs-on:c writs.chat p.d)
       ca-core
     ::
         %create
       =.  perm.chat  p.d
       ca-core
     ==
+  --
+++  di-core
+  |_  [=ship =pact:c]
+  +*  di-pact  ~(. pac pact)
+  ++  di-core  .
+  ++  di-abet 
+    =.  dms  (~(put by dms) ship pact)
+    cor
+  ++  di-abed
+    |=  s=@p
+    di-core(ship s, pact (~(gut by dms) s *pact:c))
+  ++  di-area  `path`/dm/(scot %p ship)
+  ++  di-proxy
+    |=  =diff:dm:c
+    =.  di-core  (di-ingest-diff diff)
+    =.  cor  (emit (proxy:di-pass diff))
+    di-core
+  ::
+  ++  di-ingest-diff
+    |=  =diff:dm:c
+    =/  =path  (snoc di-area %ui)
+    =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
+    =.  pact  (reduce:di-pact now.bowl diff)
+    di-core
+    :: di-core(pact (reduce:w ship writs ship now.bowl diff))
+  ::
+  ++  di-watch
+    |=  =path
+    ^+  di-core
+    ?>  =(src.bowl our.bowl)
+    ?+  path  !!
+      [%ui ~]  di-core
+      [%ui %writs ~]  di-core
+    ==
+  ::
+  ++  di-agent
+    |=  [=wire =sign:agent:gall]
+    ^+  di-core
+    ?+    wire  ~|(bad-dm-take/wire !!)
+        [%proxy ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  di-core
+      ::  TODO: handle?
+      %-  (slog leaf/"Failed to dm {<ship>}" u.p.sign)
+      di-core
+    ==
+  ::
+  ++  di-peek
+    |=  =path
+    ^-  (unit (unit cage))
+    ?+  path  [~ ~]
+      [%writs *]  (peek:di-pact t.path)
+    ==
+  ::
+  ++  di-pass
+    |%
+    ++  pass
+      |=  [=wire =dock =task:agent:gall]
+      ^-  card
+      [%pass (welp di-area wire) %agent dock task]
+    ++  poke-them  |=([=wire =cage] (pass wire [ship dap.bowl] %poke cage))
+    ++  proxy  |=(=diff:dm:c (poke-them /proxy dm-diff+!>(diff)))
+    --
   --
 --

@@ -12,6 +12,9 @@
   ++  ship
     |=  her=@p
     n+(rap 3 '"' (scot %p her) '"' ~)
+  ++  id 
+    |=  =id:c
+    n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
   ::
   ++  update
     |=  =update:c
@@ -19,27 +22,48 @@
     :~  time+s+(scot %ud p.update)
         diff+(diff q.update)
     ==
+  ::
   ++  diff
     |=  =diff:c
     %+  frond  -.diff
     ?+  -.diff  ~
-      %add  (memo p.diff)
-      %del  s+(scot %ud p.diff)
-      %add-feel  (add-feel +.diff)
-      %draft  (content p.diff)
+      %draft    (content p.diff)
+      %writs     (writs-diff p.diff)
+    ==
+  ::
+  ++  writs-diff
+    |=  =diff:writs:c
+    %-  pairs
+    :~  id/(id p.diff)
+        delta/(writs-delta q.diff)
+    ==
+  ::
+  ++  writs-delta
+    |=  =delta:writs:c
+    %+  frond  -.delta
+    ?+  -.delta  ~
+      %add       (memo p.delta)
+      %del       ~
+      %add-feel  (add-feel +.delta)
     ==
   ++  add-feel
-    |=  [tim=@da her=@p =feel:c]
+    |=  [her=@p =feel:c]
     %-  pairs
-    :~  time+s+(scot %ud tim)
-        feel+s+feel
+    :~  feel+s+feel
         ship+(ship her)
+    ==
+  ::
+  ++  dm-action
+    |=  =action:dm:c
+    %-  pairs
+    :~  ship+(ship p.action)
+        diff+(writs-diff q.action)
     ==
   ::
   ++  memo 
     |=  =memo:c
     %-  pairs
-    :~  replying+?~(replying.memo ~ s/(scot %ud u.replying.memo))
+    :~  replying+?~(replying.memo ~ (id u.replying.memo))
         author+(ship author.memo)
         sent+(time sent.memo)
         content+(content content.memo)
@@ -101,7 +125,7 @@
   ++  seal
     |=  =seal:c
     %-  pairs
-    :~  time+s+(scot %ud time.seal)
+    :~  id+(id id.seal)
     ::
         :-  %feels
         %-  pairs
@@ -111,7 +135,7 @@
     ::
         :-  %replied
         :-  %a
-        (turn ~(tap in replied.seal) |=(tim=@da s+(scot %ud tim)))
+        (turn ~(tap in replied.seal) |=(i=id:c (id i)))
     ==
   ++  writ
     |=  =writ:c
@@ -124,6 +148,15 @@
     |=  w=(list writ:c)
     ^-  json
     a+(turn w writ)
+  ::
+  ++  writs
+    |=  =writs:c
+    ^-  json
+    %-  pairs
+    %+  turn  (tap:on:writs:c writs) 
+    |=  [key=@da w=writ:c]
+    [(scot %ud key) (writ w)]
+
   --
 ++  dejs
   =,  dejs:format
@@ -146,6 +179,13 @@
     :~  flag+flag
         update+update
     ==
+  ++  dm-action
+    ^-  $-(json action:dm:c)
+    %-  ot
+    :~  ship/ship
+        diff/writs-diff
+    ==
+  ::
   ++  update
     |=  j=json
     ^-  update:c
@@ -155,26 +195,43 @@
   ++  diff
     ^-  $-(json diff:c)
     %-  of
-    :~  add/memo
-        del/(se %ud)
-        draft/content
-        add-feel/add-feel
+    :~  writs/writs-diff
         add-sects/add-sects
+        draft/content
+    ==
+  ::
+  ++  id  
+    ^-  $-(json id:c)
+    %-  su 
+    %+  cook  |=([p=@p q=@] `id:c`[p `@da`q])
+    ;~((glue fas) ;~(pfix sig fed:ag) dem:ag)
+  ::
+  ++  writs-diff
+    ^-  $-(json diff:writs:c)
+    %-  ot
+    :~  id/id
+        delta/writs-delta
+    ==
+  ++  writs-delta
+    ^-  $-(json delta:writs:c)
+    %-  of
+    :~  add/memo
+        del/ul
+        add-feel/add-feel
     ==
   ::
   ++  add-sects  (as (se %tas))
   ::
   ++  add-feel
     %-  ot
-    :~  time/(se %ud)
-        ship/ship
+    :~  ship/ship
         feel/so
     ==
   ::
   ++  memo
     ^-  $-(json memo:c)
     %-  ot
-    :~  replying/(mu (se %ud))
+    :~  replying/(mu id)
         author/ship
         sent/di
         content/content

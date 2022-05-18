@@ -6,7 +6,7 @@ import ChatInput from './ChatInput';
 describe('ChatInput', () => {
   it('renders as expected', () => {
     const { asFragment } = render(
-      <ChatInput flag="~zod/test" replying={null} />
+      <ChatInput whom="~zod/test" replying={null} />
     );
     expect(asFragment()).toMatchSnapshot();
   });

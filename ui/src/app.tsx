@@ -17,11 +17,14 @@ import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
 import api, { IS_MOCK } from './api';
+import Dms from './pages/Dms';
+import Dm from './pages/Dm';
+import NewDM from './pages/NewDm';
 import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 
 import Sidebar from './components/Sidebar/Sidebar';
-import ChatThread from './chat/ChatThread/ChatThread';
+import { DmThread, GroupChatThread } from './chat/ChatThread/ChatThread';
 import Policy from './pages/Policy';
 import GroupSidebar from './components/GroupSidebar';
 import useMedia from './logic/useMedia';
@@ -30,6 +33,16 @@ import { useSettingsState, useTheme } from './state/settings';
 import { useLocalState } from './state/local';
 import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
+
+function Divider(props: { title: string }) {
+  const { title } = props;
+  return (
+    <div className="flex items-center space-x-2 p-2">
+      <div>{title}</div>
+      <div className="grow border-b border-black" />
+    </div>
+  );
+}
 
 function App() {
   const handleError = useErrorHandler();
@@ -44,6 +57,7 @@ function App() {
         useSettingsState.getState();
       settingsInitialize(api);
       fetchAll();
+      useChatState.getState().fetchDms();
 
       useContactState.getState().initialize(api);
     })();
@@ -76,6 +90,14 @@ function App() {
         />
       </Routes>
       <Routes location={state?.backgroundLocation || location}>
+        <Route path="/dm" element={<Dms />}>
+          <Route path="new" element={<NewDM />} />
+          <Route path=":ship" element={<Dm />}>
+            <Route path="message/:idShip/:idTime" element={<DmThread />} />
+          </Route>
+          <Route index element={<div>Select a DM</div>} />
+        </Route>
+
         <Route path="/gangs/:ship/:name" element={<Gang />} />
         <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />
@@ -83,8 +105,11 @@ function App() {
           <Route path="members" element={<Members />} />
           <Route path="roles" element={<Roles />} />
           <Route path="policy" element={<Policy />} />
-          <Route path="channels/:app/:chShip/:chName/*" element={<Channel />}>
-            <Route path="message/:time" element={<ChatThread />} />
+          <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
+            <Route
+              path="message/:idShip/:idTime"
+              element={<GroupChatThread />}
+            />
           </Route>
           <Route
             path="channels/:app/:chShip/:chName/settings"

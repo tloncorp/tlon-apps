@@ -1,9 +1,8 @@
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { useChannelFlag } from '../../hooks';
 import { useRouteGroup } from '../../state/groups';
 import { useChatState } from '../../state/chat';
-import { ChatWrit } from '../../types/chat';
+import { ChatWhom, ChatWrit } from '../../types/chat';
 import IconButton from '../../components/IconButton';
 import BubbleIcon from '../../components/icons/BubbleIcon';
 import ElipsisIcon from '../../components/icons/ElipsisIcon';
@@ -13,17 +12,19 @@ import ShareIcon from '../../components/icons/ShareIcon';
 import XIcon from '../../components/icons/XIcon';
 import { useChatStore } from '../useChatStore';
 
-export default function ChatMessageOptions(props: { writ: ChatWrit }) {
-  const { writ } = props;
-  const flag = useChannelFlag()!;
+export default function ChatMessageOptions(props: {
+  whom: string;
+  writ: ChatWrit;
+}) {
+  const { whom, writ } = props;
   const groupFlag = useRouteGroup();
   const onDelete = () => {
-    useChatState.getState().delMessage(flag, writ.seal.time);
+    useChatState.getState().delMessage(whom, writ.seal.id);
   };
 
   const reply = useCallback(() => {
-    useChatStore.getState().reply(flag, writ.seal.time);
-  }, [writ, flag]);
+    useChatStore.getState().reply(whom, writ.seal.id);
+  }, [writ, whom]);
 
   const navigate = useNavigate();
   return (
@@ -46,11 +47,7 @@ export default function ChatMessageOptions(props: { writ: ChatWrit }) {
             icon={<HashIcon className="text-gray-400" />}
             label="Start Thread"
             showTooltip
-            action={() =>
-              navigate(
-                `/groups/${groupFlag}/channels/chat/${flag}/message/${writ.seal.time}`
-              )
-            }
+            action={() => navigate(`message/${writ.seal.id}`)}
           />
         </>
       ) : null}

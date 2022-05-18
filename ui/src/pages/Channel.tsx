@@ -66,7 +66,7 @@ function Channel() {
         <div className="border-t-2 border-black/10 p-4">
           {canWrite ? (
             <ChatInput
-              flag={flag}
+              whom={flag}
               replying={chat?.replying || null}
               showReply
             />

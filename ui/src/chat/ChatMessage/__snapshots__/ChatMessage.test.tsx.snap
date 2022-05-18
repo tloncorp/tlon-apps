@@ -135,12 +135,12 @@ exports[`ChatMessage > renders as expected 1`] = `
       <span
         class="hidden text-sm font-semibold text-gray-500 group-hover:block"
       >
-        February 1st, 2021 • 12:55
+        February 1st, 2021 • 13:00
       </span>
       <span
         class="block text-sm font-semibold text-gray-500 group-hover:hidden"
       >
-        February 1st • 12:55
+        February 1st • 13:00
       </span>
     </div>
     <div
@@ -396,7 +396,7 @@ exports[`ChatMessage > renders as expected 1`] = `
       <div
         class="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100"
       >
-        12:55
+        13:00
       </div>
       <div
         class="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50"

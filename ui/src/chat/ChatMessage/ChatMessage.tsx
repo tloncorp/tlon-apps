@@ -2,8 +2,8 @@ import React from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import f from 'lodash/fp';
+import { BigInteger } from 'big-integer';
 import { daToUnix, udToDec } from '@urbit/api';
-import bigInt from 'big-integer';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink } from 'react-router-dom';
 import { ChatWrit } from '../../types/chat';
@@ -12,11 +12,12 @@ import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
 import DateDivider from './DateDivider';
 import ChatMessageOptions from './ChatMessageOptions';
-import { useMessagesForChat } from '../../state/chat';
-import { useChannelFlag } from '../../hooks';
+import { usePact } from '../../state/chat';
 import Avatar from '../../components/Avatar';
 
 export interface ChatMessageProps {
+  whom: string;
+  time: BigInteger;
   writ: ChatWrit;
   isReplyOp?: boolean;
   newAuthor?: boolean;
@@ -25,23 +26,25 @@ export interface ChatMessageProps {
 }
 
 export default function ChatMessage({
+  whom,
+  time,
   writ,
   isReplyOp = false,
   newAuthor = false,
   newDay = false,
   hideReplies = false,
 }: ChatMessageProps) {
-  const flag = useChannelFlag()!;
   const { seal, memo } = writ;
 
-  const time = new Date(daToUnix(bigInt(udToDec(seal.time))));
+  const unix = new Date(daToUnix(time));
 
-  const messages = useMessagesForChat(flag);
+  const pact = usePact(whom);
 
   const numReplies = seal.replied.length;
   const replyAuthors = _.flow(
     f.map((k: string) => {
-      const mess = messages.get(bigInt(udToDec(k)));
+      const t = pact.index[k];
+      const mess = t ? pact.writs.get(t) : undefined;
       if (!mess) {
         return undefined;
       }
@@ -54,12 +57,12 @@ export default function ChatMessage({
 
   return (
     <div className="flex flex-col">
-      {newDay ? <DateDivider date={time} /> : null}
-      {newAuthor ? <Author ship={memo.author} date={time} /> : null}
+      {newDay ? <DateDivider date={unix} /> : null}
+      {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
       <div className="group-one relative z-0 flex">
-        <ChatMessageOptions writ={writ} />
+        <ChatMessageOptions whom={whom} writ={writ} />
         <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
-          {format(time, 'HH:mm')}
+          {format(unix, 'HH:mm')}
         </div>
         <div
           className={cn(
@@ -71,7 +74,7 @@ export default function ChatMessage({
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
           {numReplies > 0 && !hideReplies ? (
             <NavLink
-              to={`message/${seal.time}`}
+              to={`message/${seal.id}`}
               className={({ isActive }) =>
                 cn(
                   'rounded p-2 text-sm font-semibold text-blue',
@@ -89,9 +92,9 @@ export default function ChatMessage({
                 </span>
                 <span className="text-gray-400">
                   Last reply{' '}
-                  {isToday(time)
-                    ? `${formatDistanceToNow(time)} ago`
-                    : formatRelative(time, new Date())}
+                  {isToday(unix)
+                    ? `${formatDistanceToNow(unix)} ago`
+                    : formatRelative(unix, new Date())}
                 </span>
               </div>
             </NavLink>

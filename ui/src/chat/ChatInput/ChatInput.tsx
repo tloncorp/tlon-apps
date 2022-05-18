@@ -8,6 +8,7 @@ import {
   useChatState,
   useChatDraft,
   useMessagesForChat,
+  usePact,
 } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatMessage } from '../../types/chat';
 import MessageEditor, {
@@ -20,8 +21,8 @@ import XIcon from '../../components/icons/XIcon';
 import { useChat, useChatStore } from '../useChatStore';
 
 interface ChatInputProps {
-  flag: string;
-  replying: string | null;
+  whom: string;
+  replying?: string | null;
   showReply?: boolean;
   className?: string;
 }
@@ -257,25 +258,25 @@ function parseChatMessage(message: ChatMessage): JSONContent {
 }
 
 export default function ChatInput({
-  flag,
+  whom,
   replying = null,
   showReply = false,
   className = '',
 }: ChatInputProps) {
-  const chat = useChat(flag);
-  const draft = useChatDraft(flag);
-  const messages = useMessagesForChat(flag);
-  const replyingWrit = replying && messages.get(bigInt(udToDec(replying)));
+  const chat = useChat(whom);
+  const draft = useChatDraft(whom);
+  const pact = usePact(whom);
+  const replyingWrit = replying && pact.writs.get(pact.index[replying]);
   const ship = replyingWrit && replyingWrit.memo.author;
 
   const closeReply = useCallback(() => {
-    useChatStore.getState().reply(flag, null);
-  }, [flag]);
+    useChatStore.getState().reply(whom, null);
+  }, [whom]);
 
   const onUpdate = useRef(
     debounce(({ editor }) => {
       const data = parseTipTapJSON(editor?.getJSON());
-      useChatState.getState().draft(flag, {
+      useChatState.getState().draft(whom, {
         inline: Array.isArray(data) ? data : [data],
         block: [],
       });
@@ -300,19 +301,19 @@ export default function ChatInput({
         },
       };
 
-      useChatState.getState().sendMessage(flag, memo);
-      useChatState.getState().draft(flag, { inline: [], block: [] });
+      useChatState.getState().sendMessage(whom, memo);
+      useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
     },
-    [flag, replying, closeReply]
+    [whom, replying, closeReply]
   );
 
   useEffect(() => {
     if (chat) {
-      useChatState.getState().getDraft(flag);
+      // useChatState.getState().getDraft(whom);
     }
-  }, [flag, chat]);
+  }, [whom, chat]);
 
   const messageEditor = useMessageEditor({
     content: '',
@@ -372,7 +373,7 @@ export default function ChatInput({
             className="absolute mr-2 text-gray-600 hover:text-gray-800"
             aria-label="Add attachment"
             onClick={() => {
-              useChatState.getState().sendMessage(flag, {
+              useChatState.getState().sendMessage(whom, {
                 replying: null,
                 author: `~${window.ship || 'zod'}`,
                 sent: Date.now(),
