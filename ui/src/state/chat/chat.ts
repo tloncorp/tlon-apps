@@ -7,6 +7,8 @@ import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useMemo } from 'react';
 import {
   Chat,
+  ChatBriefs,
+  ChatBriefUpdate,
   ChatDiff,
   ChatMemo,
   ChatPerm,
@@ -100,14 +102,36 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   pacts: {},
   dms: {},
-  flags: [] as string[],
-  fetchFlags: async () => {
-    const flags = await api.scry<string[]>({
+  briefs: {},
+  markRead: async (whom) => {
+    await api.poke({
       app: 'chat',
-      path: '/chat',
+      mark: 'chat-remark-action',
+      json: {
+        whom,
+        diff: { read: null },
+      },
     });
+  },
+  start: async () => {
+    const briefs = await api.scry<ChatBriefs>({
+      app: 'chat',
+      path: '/briefs',
+    });
+    console.log(briefs);
     get().batchSet((draft) => {
-      draft.flags = flags;
+      draft.briefs = briefs;
+    });
+    api.subscribe({
+      app: 'chat',
+      path: '/briefs',
+      event: (event: unknown) => {
+        const { whom, brief } = event as ChatBriefUpdate;
+        console.log(whom);
+        get().batchSet((draft) => {
+          draft.briefs[whom] = brief;
+        });
+      },
     });
   },
   fetchDms: async () => {
@@ -138,7 +162,6 @@ export const useChatState = create<ChatState>((set, get) => ({
       mark: 'whom',
       json: whom,
     });
-    await get().fetchFlags();
   },
   sendMessage: (whom, memo) => {
     const isDM = whomIsDm(whom);
@@ -227,10 +250,15 @@ export function useChatPerms(whom: string) {
 }
 
 export function useChatIsJoined(whom: string) {
-  return useChatState(useCallback((s) => s.flags.includes(whom), [whom]));
+  return useChatState(
+    useCallback((s) => Object.keys(s.briefs).includes(whom), [whom])
+  );
 }
 
-const selDmList = (s: ChatState) => Object.keys(s.dms);
+const selDmList = (s: ChatState) =>
+  Object.keys(s.briefs)
+    .filter((d) => d.startsWith('~'))
+    .sort((a, b) => s.briefs[b].last - s.briefs[a].last);
 
 export function useDmList() {
   return useChatState(selDmList);

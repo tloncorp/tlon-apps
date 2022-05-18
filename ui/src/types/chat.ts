@@ -204,6 +204,19 @@ export interface Pact {
   };
 }
 
+export interface ChatBrief {
+  last: number;
+  count: number;
+}
+
+export interface ChatBriefs {
+  [whom: ChatWhom]: ChatBrief;
+}
+
+export interface ChatBriefUpdate {
+  whom: ChatWhom;
+  brief: ChatBrief;
+}
 /**
  * Either a `@p` or a `$flag` rendered as string
  */

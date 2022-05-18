@@ -1,5 +1,12 @@
 import { BigIntOrderedMap } from '@urbit/api';
-import { Chat, ChatWrit, ChatWhom, ChatMemo, Pact } from '../../types/chat';
+import {
+  Chat,
+  ChatWrit,
+  ChatWhom,
+  ChatMemo,
+  Pact,
+  ChatBriefs,
+} from '../../types/chat';
 
 export interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
@@ -13,9 +20,9 @@ export interface ChatState {
   pacts: {
     [whom: ChatWhom]: Pact;
   };
-  flags: string[];
-  fetchFlags: () => Promise<void>;
-  fetchDms: () => Promise<void>;
+  briefs: ChatBriefs;
+  markRead: (whom: string) => Promise<void>;
+  start: () => Promise<void>;
   draft: (whom: string, content: ChatMemo['content']) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   sendMessage: (whom: string, memo: ChatMemo) => void;

@@ -52,12 +52,11 @@ function App() {
   useEffect(() => {
     handleError(() => {
       useGroupState.getState().start();
-      useChatState.getState().fetchFlags();
+      useChatState.getState().start();
       const { initialize: settingsInitialize, fetchAll } =
         useSettingsState.getState();
       settingsInitialize(api);
       fetchAll();
-      useChatState.getState().fetchDms();
 
       useContactState.getState().initialize(api);
     })();
