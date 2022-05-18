@@ -11,7 +11,7 @@
   @apply bg-gray-50;
 }
 
-a[aria-disabled="true"] {
+a[aria-disabled='true'] {
   opacity: 0.5;
   pointer-events: none;
   cursor: not-allowed;

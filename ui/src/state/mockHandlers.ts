@@ -36,27 +36,27 @@ const dmSub = {
 
 const mockDm = dmList
   .map((ship): Handler[] => [
-      {
-        action: 'scry' as const,
-        path: `/dm/${ship}/writs/newest/100`,
-        app: 'chat',
-        func: () => chatWrits,
-      },
-      {
-        action: 'poke',
-        app: 'chat',
-        mark: 'dm-action',
-        returnSubscription: dmSub,
-        dataResponder: (
-          req: Message & Poke<{ ship: string; diff: WritDiff }>
-        ) => ({
-          id: req.id!,
-          ok: true,
-          response: 'diff',
-          json: req.json.diff,
-        }),
-      },
-    ])
+    {
+      action: 'scry' as const,
+      path: `/dm/${ship}/writs/newest/100`,
+      app: 'chat',
+      func: () => chatWrits,
+    },
+    {
+      action: 'poke',
+      app: 'chat',
+      mark: 'dm-action',
+      returnSubscription: dmSub,
+      dataResponder: (
+        req: Message & Poke<{ ship: string; diff: WritDiff }>
+      ) => ({
+        id: req.id!,
+        ok: true,
+        response: 'diff',
+        json: req.json.diff,
+      }),
+    },
+  ])
   .flat();
 
 const mockHandlers: Handler[] = [
