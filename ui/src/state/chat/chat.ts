@@ -190,7 +190,9 @@ export const useChatState = create<ChatState>((set, get) => ({
       `/chat/${whom}/ui/writs`
     ).initialize();
   },
-  draft: async (whom, draft) => {},
+  draft: async (whom, draft) => {
+    console.log(whom, draft);
+  },
   initializeDm: async (ship: string) => {
     const perms = {
       writers: [],
@@ -290,8 +292,5 @@ export function useWrit(whom: string, id: string) {
 }
 
 export function useChatDraft(whom: string) {
-  return {
-    inline: [],
-    block: [],
-  };
+  return undefined;
 }

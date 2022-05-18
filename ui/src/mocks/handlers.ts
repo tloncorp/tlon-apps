@@ -8,7 +8,7 @@ import {
 } from '@tloncorp/mock-http-api';
 import { decToUd, unixToDa } from '@urbit/api';
 
-import mockGroups, { mockGangs } from '../mocks/groups';
+import mockGroups, { mockGangs } from './groups';
 import chatWrits, { chatKeys, chatPerm, dmList } from './chat';
 import { ChatDiff, WritDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
@@ -18,7 +18,7 @@ const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 const chatSub = {
   action: 'subscribe',
   app: 'chat',
-  path: `/chat/~zod/test/ui`,
+  path: `/chat/~zod/test/ui/writs`,
 } as SubscriptionHandler;
 
 const groupSubs = ['~zod/tlon'].map(
@@ -82,15 +82,14 @@ const mockHandlers: Handler[] = [
       req: Message &
         Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
     ) => {
-      const poke = {
-        id: req.id,
-        ok: true,
-        response: 'diff',
-        json: {
-          ...req.json.update,
-          time: getNowUd(),
-        },
-      };
+      if ('writs' in req.json.update.diff) {
+        return {
+          id: req.id,
+          ok: true,
+          response: 'diff',
+          json: req.json.update.diff.writs,
+        };
+      }
 
       if ('draft' in req.json.update.diff) {
         localStorage.setItem(
@@ -98,8 +97,10 @@ const mockHandlers: Handler[] = [
           JSON.stringify(req.json.update.diff.draft)
         );
       }
-
-      return poke;
+      return {
+        id: req.id,
+        ok: true,
+      };
     },
   } as PokeHandler,
   {
@@ -123,6 +124,15 @@ const mockHandlers: Handler[] = [
     path: '/dm',
     func: () => dmList,
   },
+  {
+    action: 'scry' as const,
+    app: 'chat',
+    path: '/chat/~zod/test/perm',
+    func: () => ({
+      writers: [],
+    }),
+  },
+
   {
     action: 'scry',
     app: 'groups',

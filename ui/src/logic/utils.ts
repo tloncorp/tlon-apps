@@ -1,8 +1,8 @@
 import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
+import _ from 'lodash';
 import { ChatWhom } from '../types/chat';
 import { Rank } from '../types/groups';
-import _ from 'lodash';
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {

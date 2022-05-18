@@ -310,7 +310,7 @@ export default function ChatInput({
 
   useEffect(() => {
     if (chat) {
-      //useChatState.getState().getDraft(whom);
+      // useChatState.getState().getDraft(whom);
     }
   }, [whom, chat]);
 

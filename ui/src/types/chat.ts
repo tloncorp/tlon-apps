@@ -156,7 +156,6 @@ interface ChatDiffDraft {
   draft: ChatMessage;
 }
 
-
 interface WritDeltaAddFeel {
   'add-feel': {
     time: string;
