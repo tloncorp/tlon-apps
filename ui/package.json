@@ -24,10 +24,12 @@
     "build-storybook": "build-storybook"
   },
   "lint-staged": {
+    "**/*.ts?(x)": [
+      "npm run tsc"
+    ],
     "*.{js,jsx,ts,tsx,css}": [
       "npm run lint:fix",
-      "npm run lint:format",
-      "npm run tsc"
+      "npm run lint:format"
     ]
   },
   "dependencies": {
