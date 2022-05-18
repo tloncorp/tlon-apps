@@ -8,6 +8,7 @@ import {
   useChatState,
   useChatDraft,
   useMessagesForChat,
+  usePact,
 } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatMessage } from '../../types/chat';
 import MessageEditor, {
@@ -264,8 +265,8 @@ export default function ChatInput({
 }: ChatInputProps) {
   const chat = useChat(whom);
   const draft = useChatDraft(whom);
-  const messages = useMessagesForChat(whom);
-  const replyingWrit = replying && messages.get(bigInt(udToDec(replying)));
+  const pact = usePact(whom);
+  const replyingWrit = replying && pact.writs.get(pact.index[replying]);
   const ship = replyingWrit && replyingWrit.memo.author;
 
   const closeReply = useCallback(() => {
