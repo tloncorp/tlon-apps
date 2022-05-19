@@ -25,7 +25,6 @@ export default function ChatReaction({ seal, feel }: ChatReactionProps) {
           time: '',
           diff: {
             'add-feel': {
-              time: seal.time,
               feel,
               ship: `~${window.ship}`,
             },

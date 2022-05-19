@@ -14,9 +14,5 @@
 |%
 ++  zod  `agent:gall`agent
 ++  test-setup
-  =/  [cards=(list card) new-zod=agent:gall]
-    (~(on-poke zod bowl) %resource !>(chat-1))
-  =/  [=mark =vase]  
-    (need (need (~(on-peek new-zod bowl) /x/chat/~zod/test)))
-  (expect-eq !>(&) vase)
+  (expect-eq !>(&) !>(&))
 --

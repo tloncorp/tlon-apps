@@ -7,9 +7,10 @@ import {
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
 import { decToUd, unixToDa } from '@urbit/api';
+
 import mockGroups, { mockGangs } from './groups';
-import chatWrits, { chatKeys, chatPerm } from './chat';
-import { ChatDiff } from '../types/chat';
+import chatWrits, { chatKeys, chatPerm, dmList } from './chat';
+import { ChatDiff, ChatWhom, WritDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
@@ -17,7 +18,7 @@ const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 const chatSub = {
   action: 'subscribe',
   app: 'chat',
-  path: `/chat/~zod/test/ui`,
+  path: `/chat/~zod/test/ui/writs`,
 } as SubscriptionHandler;
 
 const groupSubs = ['~zod/tlon'].map(
@@ -28,49 +29,39 @@ const groupSubs = ['~zod/tlon'].map(
   })
 );
 
-const mockHandlers: Handler[] = [
-  {
-    action: 'scry',
-    app: 'chat',
-    path: '/chat/~zod/test/writs/newest/100',
-    func: () => chatWrits,
-  } as ScryHandler,
-  {
-    action: 'scry',
-    app: 'chat',
-    path: '/chat/~zod/test/draft',
-    func: () => JSON.parse(localStorage.getItem('~zod/test') || ''),
-  },
-  chatSub,
-  {
-    action: 'poke',
-    app: 'chat',
-    mark: 'chat-action',
-    returnSubscription: chatSub,
-    dataResponder: (
-      req: Message &
-        Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
-    ) => {
-      const poke = {
-        id: req.id,
-        ok: true,
-        response: 'diff',
-        json: {
-          ...req.json.update,
-          time: getNowUd(),
-        },
-      };
+const groupSub = {
+  action: 'subscribe',
+  app: 'groups',
+  path: '/groups/ui',
+} as SubscriptionHandler;
 
-      if ('draft' in req.json.update.diff) {
-        localStorage.setItem(
-          req.json.flag,
-          JSON.stringify(req.json.update.diff.draft)
-        );
-      }
+const briefsSub = {
+  action: 'subscribe',
+  app: 'chat',
+  path: `/briefs`,
+} as SubscriptionHandler;
 
-      return poke;
-    },
-  } as PokeHandler,
+const settingsSub = {
+  action: 'subscribe',
+  app: 'settings-store',
+  path: '/desk/homestead',
+} as SubscriptionHandler;
+
+const contactSub = {
+  action: 'subscribe',
+  app: 'contact-store',
+  path: '/all',
+} as SubscriptionHandler;
+
+const contactNacksSub = {
+  action: 'subscribe',
+  app: 'contact-pull-hook',
+  path: '/nacks',
+} as SubscriptionHandler;
+
+const groups: Handler[] = [
+  groupSub,
+  ...groupSubs,
   {
     action: 'poke',
     app: 'groups',
@@ -98,6 +89,73 @@ const mockHandlers: Handler[] = [
     path: '/gangs',
     func: () => mockGangs,
   } as ScryHandler,
+];
+
+const chat: Handler[] = [
+  chatSub,
+  briefsSub,
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/chat/~zod/test/writs/newest/100',
+    func: () => chatWrits,
+  } as ScryHandler,
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/chat/~zod/test/draft',
+    func: () => JSON.parse(localStorage.getItem('~zod/test') || ''),
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'chat-action',
+    returnSubscription: chatSub,
+    dataResponder: (
+      req: Message &
+        Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
+    ) => {
+      if ('writs' in req.json.update.diff) {
+        return {
+          id: req.id,
+          ok: true,
+          response: 'diff',
+          json: req.json.update.diff.writs,
+        };
+      }
+
+      if ('draft' in req.json.update.diff) {
+        localStorage.setItem(
+          req.json.flag,
+          JSON.stringify(req.json.update.diff.draft)
+        );
+      }
+      return {
+        id: req.id,
+        ok: true,
+      };
+    },
+  } as PokeHandler,
+  {
+    action: 'scry' as const,
+    app: 'chat',
+    path: '/briefs',
+    func: () => ({
+      ...dmList,
+      '~zod/test': {
+        last: 0,
+        count: 0,
+      },
+    }),
+  },
+  {
+    action: 'scry' as const,
+    app: 'chat',
+    path: '/chat/~zod/test/perm',
+    func: () => ({
+      writers: [],
+    }),
+  },
   {
     action: 'scry',
     app: 'chat',
@@ -105,13 +163,73 @@ const mockHandlers: Handler[] = [
     func: () => chatKeys,
   } as ScryHandler,
   {
-    action: 'scry',
+    action: 'poke',
     app: 'chat',
-    path: '/chat/~zod/test/perm',
-    func: () => chatPerm,
-  } as ScryHandler,
-
-  ...groupSubs,
+    mark: 'chat-remark-action',
+    returnSubscription: chatSub,
+    dataResponder: (
+      req: Message & Poke<{ whom: ChatWhom; diff: { read: null } }>
+    ) => ({
+      id: req.id!,
+      ok: true,
+      response: 'diff',
+      json: req.json,
+    }),
+  },
 ];
+
+const dms: Handler[] = Object.keys(dmList)
+  .map((ship): Handler[] => {
+    const dmSub = {
+      action: 'subscribe',
+      app: 'chat',
+      path: `/dm/${ship}/ui`,
+    } as SubscriptionHandler;
+
+    return [
+      {
+        action: 'scry' as const,
+        path: `/dm/${ship}/writs/newest/100`,
+        app: 'chat',
+        func: () => chatWrits,
+      },
+      dmSub,
+      {
+        action: 'poke',
+        app: 'chat',
+        mark: 'dm-action',
+        returnSubscription: dmSub,
+        dataResponder: (
+          req: Message & Poke<{ ship: string; diff: WritDiff }>
+        ) => ({
+          id: req.id!,
+          ok: true,
+          response: 'diff',
+          json: req.json.diff,
+        }),
+      },
+    ];
+  })
+  .flat();
+
+const mockHandlers: Handler[] = (
+  [
+    settingsSub,
+    contactSub,
+    contactNacksSub,
+    {
+      action: 'scry',
+      app: 'settings-store',
+      path: '/desk/homestead',
+      func: () => ({
+        desk: {
+          display: {
+            theme: 'auto',
+          },
+        },
+      }),
+    },
+  ] as Handler[]
+).concat(groups, chat, dms);
 
 export default mockHandlers;

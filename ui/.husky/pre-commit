@@ -1,6 +1,7 @@
 #!/bin/sh
 cd ui
 
+npm run test -- run
+
 npx lint-staged
 
-npm run test -- run

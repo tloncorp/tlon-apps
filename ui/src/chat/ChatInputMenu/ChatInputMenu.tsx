@@ -159,7 +159,6 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
       <Popover.Content
         side="top"
         sideOffset={8}
-        portalled={false}
         onOpenAutoFocus={(event) => event.preventDefault()}
         onPointerDownOutside={() => setStatus('closed')}
       >

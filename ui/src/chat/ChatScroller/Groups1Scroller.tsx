@@ -1,51 +1,60 @@
 import React from 'react';
 import { differenceInDays } from 'date-fns';
-import { daToUnix, udToDec } from '@urbit/api';
+import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 
 import ChatWritScroller from './ChatWritScroller';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
+import { useChatInfo } from '../useChatStore';
 
 export default function Groups1Scroller(props: IChatScroller) {
-  const { chat, messages, replying, ...rest } = props;
+  const { whom, messages, replying, ...rest } = props;
+  const chatInfo = useChatInfo(whom);
 
   const keys = messages
     .keys()
     .reverse()
-    .filter((k) => messages.get(k)?.memo.replying === replying);
+    .filter((k) => {
+      if (replying) {
+        return true;
+      }
+      return messages.get(k)?.memo.replying === null;
+    });
+  
+  interface RendererProps { index: bigInt.BigInteger }
 
-  const renderer = React.forwardRef(
-    ({ index }: { index: bigInt.BigInteger }, ref) => {
+  const renderer = React.forwardRef<HTMLDivElement, RendererProps>(
+    ({ index }: RendererProps, ref) => {
       const writ = messages.get(index);
-      const graphIdx = keys.findIndex((idx) => idx.eq(index));
-      const prevIdx = keys[graphIdx - 1];
-
-      const lastWrit = prevIdx ? messages.get(prevIdx) : undefined;
+      const keyIdx = keys.findIndex((idx) => idx.eq(index));
+      const lastWritKey = keyIdx > 0 ? keys[keyIdx - 1] : undefined;
+      const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
       const newAuthor = lastWrit
         ? writ.memo.author !== lastWrit.memo.author
         : true;
-      const writDay = new Date(daToUnix(bigInt(udToDec(writ.seal.time))));
-      const lastWritDay = lastWrit
-        ? new Date(daToUnix(bigInt(udToDec(lastWrit.seal.time))))
+      const writDay = new Date(daToUnix(index));
+
+      const lastWritDay = lastWritKey
+        ? new Date(daToUnix(lastWritKey))
         : undefined;
       const newDay =
         lastWrit && lastWritDay
           ? differenceInDays(writDay, lastWritDay) > 0
           : false;
 
+
       return (
         <ChatMessage
-          key={writ.seal.time}
+          key={writ.seal.id}
+          {...rest}
+          whom={whom}
+          isReplyOp={chatInfo?.replying === writ.seal.id}
           writ={writ}
+          time={index}
           newAuthor={newAuthor}
           newDay={newDay}
-          isReplyOp={chat?.replying === writ.seal.time}
-          // TODO: figure out the correct `forwardRef` type
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
           ref={ref}
-          {...rest}
         />
       );
     }

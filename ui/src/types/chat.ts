@@ -1,4 +1,5 @@
 import { BigIntOrderedMap } from '@urbit/api';
+import { BigInteger } from 'big-integer';
 
 export type Patda = string;
 export type Ship = string;
@@ -115,7 +116,7 @@ export interface ChatMessage {
 }
 
 export interface ChatSeal {
-  time: Patda;
+  id: string;
   feels: {
     [ship: Ship]: string;
   };
@@ -134,24 +135,28 @@ export interface ChatWrit {
   memo: ChatMemo;
 }
 
-export type ChatWrits = {
+export interface ChatWrits {
+  [time: string]: ChatWrit;
+}
+
+/* export type ChatWrits = {
   time: Patda;
   writ: ChatWrit;
-}[];
+}[]; */
 
-interface ChatDiffAdd {
+interface WritDeltaAdd {
   add: ChatMemo;
 }
 
-interface ChatDiffDel {
-  del: string;
+interface WritDeltaDel {
+  del: null;
 }
 
 interface ChatDiffDraft {
   draft: ChatMessage;
 }
 
-interface ChatDiffAddFeel {
+interface WritDeltaAddFeel {
   'add-feel': {
     time: string;
     feel: string;
@@ -163,23 +168,56 @@ interface ChatDiffAddSects {
   'add-sects': string[];
 }
 
-export type ChatDiff =
-  | ChatDiffAdd
-  | ChatDiffDel
-  | ChatDiffDraft
-  | ChatDiffAddFeel
-  | ChatDiffAddSects;
+export type WritDelta = WritDeltaAdd | WritDeltaDel | WritDeltaAddFeel;
+
+export interface WritDiff {
+  id: string;
+  delta: WritDelta;
+}
+
+export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects | ChatDiffDraft;
 
 export interface ChatUpdate {
   time: Patda;
-  diff: ChatDiff;
+  diff: WritDelta;
 }
+
 export interface ChatPerm {
   writers: string[];
 }
 
 export interface Chat {
-  writs: BigIntOrderedMap<ChatWrit>;
   perms: ChatPerm;
+  // writs: BigIntOrderedMap<ChatWrit>;
   draft: ChatMessage;
 }
+
+export interface DmAction {
+  ship: string;
+  diff: WritDiff;
+}
+
+export interface Pact {
+  writs: BigIntOrderedMap<ChatWrit>;
+  index: {
+    [id: string]: BigInteger;
+  };
+}
+
+export interface ChatBrief {
+  last: number;
+  count: number;
+}
+
+export interface ChatBriefs {
+  [whom: ChatWhom]: ChatBrief;
+}
+
+export interface ChatBriefUpdate {
+  whom: ChatWhom;
+  brief: ChatBrief;
+}
+/**
+ * Either a `@p` or a `$flag` rendered as string
+ */
+export type ChatWhom = string;

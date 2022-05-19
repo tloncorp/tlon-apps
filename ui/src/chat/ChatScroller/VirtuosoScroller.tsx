@@ -1,13 +1,15 @@
 import React from 'react';
-import { daToUnix, udToDec } from '@urbit/api';
+import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { differenceInDays } from 'date-fns';
 import { Virtuoso } from 'react-virtuoso';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import { IChatScroller } from './IChatScroller';
+import { useChatInfo } from '../useChatStore';
 
 export default function VirtuosoScroller(props: IChatScroller) {
-  const { chat, messages, replying, ...rest } = props;
+  const { whom, messages, replying, ...rest } = props;
+  const chatInfo = useChatInfo(whom);
 
   const endReached = (index: number) => {
     // TODO: load more messages when at the end
@@ -17,31 +19,42 @@ export default function VirtuosoScroller(props: IChatScroller) {
   const keys = messages
     .keys()
     .reverse()
-    .filter((k) => messages.get(k)?.memo.replying === replying);
+    .filter((k) => {
+      if (replying) {
+        return true;
+      }
+      return messages.get(k)?.memo.replying === null;
+    });
 
   const itemContent = (index: number, key: bigInt.BigInteger) => {
     const writ = messages.get(key);
     const lastWrit = index > 0 ? messages.get(keys[index - 1]) : undefined;
+    const lastWritKey = index > 0 ? keys[index - 1] : undefined;
     const newAuthor = lastWrit
       ? writ.memo.author !== lastWrit.memo.author
       : true;
-    const writDay = new Date(daToUnix(bigInt(udToDec(writ.seal.time))));
-    const lastWritDay = lastWrit
-      ? new Date(daToUnix(bigInt(udToDec(lastWrit.seal.time))))
+    const writDay = new Date(daToUnix(key));
+
+    const lastWritDay = lastWritKey
+      ? new Date(daToUnix(lastWritKey))
       : undefined;
+    
     const newDay =
       lastWrit && lastWritDay
         ? differenceInDays(writDay, lastWritDay) > 0
         : false;
+
     return (
       <ChatMessage
-        key={writ.seal.time}
-        isReplyOp={chat?.replying === writ.seal.time}
+        key={writ.seal.id}
+        {...rest}
+        whom={whom}
+        isReplyOp={chatInfo?.replying === writ.seal.id}
         writ={writ}
+        time={key}
         newAuthor={newAuthor}
         newDay={newDay}
-        {...rest}
-      />
+    />
     );
   };
   return (
@@ -52,7 +65,7 @@ export default function VirtuosoScroller(props: IChatScroller) {
       itemContent={itemContent}
       alignToBottom={replying ? false : true}
       followOutput={'auto'}
-      computeItemKey={(_index, key) => key.toString()}
+      computeItemKey={(_index: number, key: bigInt.BigInteger) => key.toString()}
       overscan={3} // TODO: tune for optimal experience vs performance
     />
   );

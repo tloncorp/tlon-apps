@@ -1,16 +1,33 @@
 /-  g=groups
 |%
 +$  writ   [seal memo]
++$  id     (pair ship time)
 +$  feel   @ta
 ::
 +$  seal
-  $:  =time
+  $:  =id
       feels=(map ship feel)
-      replied=(set time)
+      replied=(set id)
   ==
 ::
++$  whom
+  $%  [%flag p=flag]
+      [%ship p=ship]
+  == 
+::
+++  briefs
+  =<  briefs
+  |% 
+  +$  briefs
+    (map whom brief)
+  +$  brief
+    [last=time count=@ud]
+  +$  update
+    (pair whom brief)
+  --
+::
 +$  remark-action
-  (pair flag remark-diff)
+  (pair whom remark-diff)
 ::
 +$  remark-diff
   $%  [%read ~]
@@ -20,10 +37,7 @@
 ::
 +$  flag  (pair ship term)
 +$  diff
-  $%  [%add p=memo]
-      [%del p=time] 
-      [%add-feel p=time q=ship r=feel]
-      [%del-feel p=time q=ship]
+  $%  [%writs p=diff:writs]
       [%draft p=content]
     ::
       [%add-sects p=(set sect:g)]
@@ -31,11 +45,43 @@
     ::
       [%create p=perm]
   ==
+
++$  index   (map id time)
 ::
-+$  writs
-  ((mop time writ) lte)
-++  writs-on
-  ((on time writ) lte)
++$  pact
+  $:  wit=writs
+      dex=index
+  ==
+::
+++  writs
+  =<  writs
+  |%
+  +$  writs
+    ((mop time writ) lte)
+  ++  on
+    ((^on time writ) lte)
+  +$  diff
+    (pair id delta)
+  +$  delta
+    $%  [%add p=memo]
+        [%del ~]
+        [%add-feel p=ship q=feel]
+        [%del-feel p=ship]
+    ==
+  --
+::
+++  dm
+  =<  dm
+  |%
+  +$  dm
+    $:  =pact
+        =remark
+    ==
+  +$  id      (pair ship time)
+  +$  diff    diff:writs
+  +$  action  (pair ship diff)
+  --
+::
 +$  log
   ((mop time diff) lte)
 ++  log-on
@@ -48,7 +94,7 @@
       group=flag
   ==
 +$  chat
-  [=net =remark =log =perm =writs draft=content]
+  [=net =remark =log =perm =pact draft=content]
 ::
 +$  content
   (pair (list block) (list inline))
@@ -72,7 +118,7 @@
   ==
 ::
 +$  memo  
-  $:  replying=(unit time)
+  $:  replying=(unit id)
       author=ship
       sent=time
       =content

@@ -1,6 +1,7 @@
 import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
 import _ from 'lodash';
+import { ChatWhom } from '../types/chat';
 import { Rank } from '../types/groups';
 
 export function renderRank(rank: Rank, plural = false) {
@@ -75,6 +76,10 @@ export function makePrettyDayAndDateAndTime(date: Date) {
     default:
       return `${fullDate} • ${time}`;
   }
+}
+
+export function whomIsDm(whom: ChatWhom): boolean {
+  return !whom.match('/');
 }
 
 export function normalizeUrbitColor(color: string): string {
