@@ -175,7 +175,10 @@ const chat: Handler[] = [
       id: req.id!,
       ok: true,
       response: 'diff',
-      json: { whom: req.json.whom, brief: { last: 0, count: 0 } },
+      json: {
+        whom: req.json.whom,
+        brief: { last: 0, count: 0, 'read-id': null },
+      },
     }),
   },
 ];
@@ -202,6 +205,12 @@ const dmHandlers = Object.keys(dmList)
 
 const dms: Handler[] = [
   ...dmHandlers,
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/dm/invited',
+    func: () => [],
+  },
   {
     action: 'poke',
     app: 'chat',
