@@ -5,12 +5,13 @@ import {
   PokeHandler,
   ScryHandler,
   SubscriptionHandler,
+  SubscriptionRequestInterface,
 } from '@tloncorp/mock-http-api';
 import { decToUd, unixToDa } from '@urbit/api';
 
 import mockGroups, { mockGangs } from './groups';
 import chatWrits, { chatKeys, chatPerm, dmList } from './chat';
-import { ChatDiff, ChatWhom, WritDiff } from '../types/chat';
+import { ChatDiff, ChatWhom, DmAction, WritDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
@@ -178,7 +179,7 @@ const chat: Handler[] = [
   },
 ];
 
-const dms: Handler[] = Object.keys(dmList)
+const dmHandlers = Object.keys(dmList)
   .map((ship): Handler[] => {
     const dmSub = {
       action: 'subscribe',
@@ -194,23 +195,32 @@ const dms: Handler[] = Object.keys(dmList)
         func: () => chatWrits,
       },
       dmSub,
-      {
-        action: 'poke',
-        app: 'chat',
-        mark: 'dm-action',
-        returnSubscription: dmSub,
-        dataResponder: (
-          req: Message & Poke<{ ship: string; diff: WritDiff }>
-        ) => ({
-          id: req.id!,
-          ok: true,
-          response: 'diff',
-          json: req.json.diff,
-        }),
-      },
     ];
   })
   .flat();
+
+const dms: Handler[] = [
+  ...dmHandlers,
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'dm-action',
+    returnSubscription: (req: Message & Poke<DmAction>) =>
+      (dmHandlers.find(
+        (h) => h.action === 'subscribe' && h.path === `/dm/${req.json.ship}/ui`
+      ) || {
+        action: 'subscribe',
+        app: 'chat',
+        path: '/',
+      }) as SubscriptionRequestInterface,
+    dataResponder: (req: Message & Poke<{ ship: string; diff: WritDiff }>) => ({
+      id: req.id!,
+      ok: true,
+      response: 'diff',
+      json: req.json.diff,
+    }),
+  },
+];
 
 const mockHandlers: Handler[] = (
   [
