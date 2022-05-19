@@ -82,6 +82,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   pacts: {},
   dms: {},
+  pendingDms: [],
   briefs: {},
   markRead: async (whom) => {
     await api.poke({
@@ -94,13 +95,20 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
   },
   start: async () => {
+    // TODO: parallelise
     const briefs = await api.scry<ChatBriefs>({
       app: 'chat',
       path: '/briefs',
     });
-    console.log(briefs);
     get().batchSet((draft) => {
       draft.briefs = briefs;
+    });
+    const pendingDms = await api.scry<string[]>({
+      app: 'chat',
+      path: '/dm/invited',
+    });
+    get().batchSet((draft) => {
+      draft.pendingDms = pendingDms;
     });
     api.subscribe({
       app: 'chat',
@@ -141,6 +149,24 @@ export const useChatState = create<ChatState>((set, get) => ({
       app: 'chat',
       mark: 'flag',
       json: flag,
+    });
+  },
+  dmRsvp: async (ship, ok) => {
+    get().batchSet((draft) => {
+      draft.pendingDms = draft.pendingDms.filter((d) => d !== ship);
+      if (!ok) {
+        delete draft.pacts[ship];
+        delete draft.dms[ship];
+      }
+    });
+
+    await api.poke({
+      app: 'chat',
+      mark: 'dm-rsvp',
+      json: {
+        ship,
+        ok,
+      },
     });
   },
   sendMessage: (whom, memo) => {
@@ -249,7 +275,7 @@ export function useChatIsJoined(whom: string) {
 
 const selDmList = (s: ChatState) =>
   Object.keys(s.briefs)
-    .filter((d) => !d.includes('/'))
+    .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))
     .sort((a, b) => s.briefs[b].last - s.briefs[a].last);
 
 export function useDmList() {
@@ -326,4 +352,13 @@ export function useChatDraft(whom: string) {
       [whom]
     )
   );
+}
+
+const selPendingDms = (s: ChatState) => s.pendingDms;
+export function usePendingDms() {
+  return useChatState(selPendingDms);
+}
+
+export function useDmIsPending(ship: string) {
+  return useChatState(useCallback((s) => s.pendingDms.includes(ship), [ship]));
 }
