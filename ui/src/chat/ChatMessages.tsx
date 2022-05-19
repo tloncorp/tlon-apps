@@ -5,6 +5,7 @@ import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import ChatMessage, { ChatMessageProps } from './ChatMessage/ChatMessage';
 import { ChatWrit } from '../types/chat';
 import { useChatInfo } from './useChatStore';
+import ChatNotice from './ChatNotice';
 
 interface ChatMessagesProps
   extends Omit<
@@ -49,6 +50,10 @@ export default function ChatMessages(props: ChatMessagesProps) {
           lastWrit && lastWritDay
             ? differenceInDays(writDay, lastWritDay) > 0
             : false;
+        const isNotice = 'notice' in writ.memo.content;
+        if (isNotice) {
+          return <ChatNotice key={writ.seal.id} writ={writ} />;
+        }
         return (
           <ChatMessage
             key={writ.seal.id}

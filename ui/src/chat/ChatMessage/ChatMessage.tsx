@@ -70,7 +70,9 @@ export default function ChatMessage({
             isReplyOp && 'bg-gray-50'
           )}
         >
-          <ChatContent content={memo.content} />
+          {'story' in memo.content ? (
+            <ChatContent story={memo.content.story} />
+          ) : null}
           {Object.keys(seal.feels).length > 0 && <ChatReactions seal={seal} />}
           {numReplies > 0 && !hideReplies ? (
             <NavLink

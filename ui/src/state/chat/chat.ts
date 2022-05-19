@@ -12,6 +12,7 @@ import {
   ChatDiff,
   ChatMessage,
   ChatPerm,
+  ChatStory,
   ChatWrit,
   DmAction,
   Pact,
@@ -135,11 +136,11 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
   },
   chats: {},
-  joinChat: async (whom) => {
+  joinChat: async (flag) => {
     await api.poke({
       app: 'chat',
-      mark: 'whom',
-      json: whom,
+      mark: 'flag',
+      json: flag,
     });
   },
   sendMessage: (whom, memo) => {
@@ -193,7 +194,7 @@ export const useChatState = create<ChatState>((set, get) => ({
     ).initialize();
   },
   getDraft: async (whom) => {
-    const content = await api.scry<ChatMessage>({
+    const content = await api.scry<ChatStory>({
       app: 'chat',
       path: `/chat/${whom}/draft`,
     });

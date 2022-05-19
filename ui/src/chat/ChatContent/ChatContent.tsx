@@ -11,147 +11,148 @@ import {
   isItalics,
   isLink,
   isStrikethrough,
+  ChatStory,
 } from '../../types/chat';
 import ChatContentImage from './ChatContentImage';
 
 interface ChatContentProps {
-  content: ChatMessage;
+  story: ChatStory;
 }
 
 interface InlineContentProps {
-  content: ChatInline;
+  story: ChatInline;
 }
 
 interface BlockContentProps {
-  content: ChatBlock;
+  story: ChatBlock;
 }
 
-export function InlineContent({ content }: InlineContentProps) {
-  if (typeof content === 'string') {
-    return <span>{content}</span>;
+export function InlineContent({ story }: InlineContentProps) {
+  if (typeof story === 'string') {
+    return <span>{story}</span>;
   }
 
-  if (isBold(content)) {
+  if (isBold(story)) {
     return (
       <strong>
-        {typeof content.bold === 'object' ? (
-          <InlineContent content={content.bold} />
+        {typeof story.bold === 'object' ? (
+          <InlineContent story={story.bold} />
         ) : (
-          content.bold
+          story.bold
         )}
       </strong>
     );
   }
 
-  if (isItalics(content)) {
+  if (isItalics(story)) {
     return (
       <em>
-        {typeof content.italics === 'object' ? (
-          <InlineContent content={content.italics} />
+        {typeof story.italics === 'object' ? (
+          <InlineContent story={story.italics} />
         ) : (
-          content.italics
+          story.italics
         )}
       </em>
     );
   }
 
-  if (isStrikethrough(content)) {
+  if (isStrikethrough(story)) {
     return (
       <span className="line-through">
-        {typeof content.strike === 'object' ? (
-          <InlineContent content={content.strike} />
+        {typeof story.strike === 'object' ? (
+          <InlineContent story={story.strike} />
         ) : (
-          content.strike
+          story.strike
         )}
       </span>
     );
   }
 
-  if (isLink(content)) {
-    const containsProtocol = content.link.href.match(/https?:\/\//);
+  if (isLink(story)) {
+    const containsProtocol = story.link.href.match(/https?:\/\//);
     return (
       <a
         target="_blank"
         rel="noreferrer"
-        href={containsProtocol ? content.link.href : `//${content.link.href}`}
+        href={containsProtocol ? story.link.href : `//${story.link.href}`}
       >
-        {content.link.content || content.link.href}
+        {story.link.content || story.link.href}
       </a>
     );
   }
 
-  if (isBlockquote(content)) {
+  if (isBlockquote(story)) {
     return (
       <blockquote className="leading-6">
-        {Array.isArray(content.blockquote)
-          ? content.blockquote.map((item, index) => (
-              <InlineContent key={item.toString() + index} content={item} />
+        {Array.isArray(story.blockquote)
+          ? story.blockquote.map((item, index) => (
+              <InlineContent key={item.toString() + index} story={item} />
             ))
-          : content.blockquote}
+          : story.blockquote}
       </blockquote>
     );
   }
 
-  if (isInlineCode(content)) {
+  if (isInlineCode(story)) {
     return (
       <code>
-        {typeof content['inline-code'] === 'object' ? (
-          <InlineContent content={content['inline-code']} />
+        {typeof story['inline-code'] === 'object' ? (
+          <InlineContent story={story['inline-code']} />
         ) : (
-          content['inline-code']
+          story['inline-code']
         )}
       </code>
     );
   }
 
-  if (isBreak(content)) {
+  if (isBreak(story)) {
     return <br />;
   }
 
-  throw new Error(`Unhandled message type: ${JSON.stringify(content)}`);
+  throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export function BlockContent({ content }: BlockContentProps) {
-  if (isChatImage(content)) {
+export function BlockContent({ story }: BlockContentProps) {
+  if (isChatImage(story)) {
     return (
       <ChatContentImage
-        src={content.image.src}
-        height={content.image.height}
-        width={content.image.width}
-        altText={content.image.alt}
+        src={story.image.src}
+        height={story.image.height}
+        width={story.image.width}
+        altText={story.image.alt}
       />
     );
   }
 
-  throw new Error(`Unhandled message type: ${JSON.stringify(content)}`);
+  throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export default function ChatContent({ content }: ChatContentProps) {
-  const inlineLength = content.inline.length;
-  const blockLength = content.block.length;
+export default function ChatContent({ story }: ChatContentProps) {
+  const inlineLength = story.inline.length;
+  const blockLength = story.block.length;
 
   return (
     <div className="leading-6">
       {blockLength > 0 ? (
         <>
-          {content.block
+          {story.block
             .filter((a) => !!a)
-            .map((contentItem, index) => (
+            .map((storyItem, index) => (
               <div
-                key={`${contentItem.toString()}-${index}`}
+                key={`${storyItem.toString()}-${index}`}
                 className="flex flex-col"
               >
-                <BlockContent content={contentItem} />
+                <BlockContent story={storyItem} />
               </div>
             ))}
         </>
       ) : null}
       {inlineLength > 0 ? (
         <>
-          {content.inline.map((contentItem, index) => (
+          {story.inline.map((storyItem, index) => (
             <InlineContent
-              key={`${contentItem.toString()}-${index}`}
-              content={contentItem}
+              key={`${storyItem.toString()}-${index}`}
+              story={storyItem}
             />
           ))}
         </>
