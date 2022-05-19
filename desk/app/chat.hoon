@@ -125,11 +125,11 @@
   ::
       %dm-action
     =+  !<(=action:dm:c vase)
-    di-abet:(di-proxy:(di-abed:di-core p.action) q.action)
+    di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
       %dm-diff
     =+  !<(=diff:dm:c vase)
-    di-abet:(di-ingest-diff:(di-abed:di-core src.bowl) diff)
+    di-abet:(di-ingest-diff:(di-abed-soft:di-core src.bowl) diff)
   ==
   ::
   ++  join
@@ -553,10 +553,15 @@
     cor
   ++  di-abed
     |=  s=@p
-    =/  d=dm:c
-      ?^  u-d=(~(get by dms) s)  u.u-d
+    di-core(ship s, dm (~(got by dms) s))
+  ::
+  ++  di-abed-soft
+    |=  s=@p
+    =/  d
+      %+  ~(gut by dms)  s
       [*pact:c *remark:c ?:(=(src our):bowl %inviting %invited)]
-    di-core(ship s, dm (~(gut by dms) s d))
+    di-core(ship s, dm d)
+
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-proxy
     |=  =diff:dm:c
@@ -579,11 +584,13 @@
     |=  ok=?
     =?  cor  =(our src):bowl
       (emit (proxy-rsvp:di-pass ok))
-    ?>  =(src.bowl ship)
+    ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
-    ?.  ok  di-core(gone &)
+    ?.  ok  ~&  gone/ship  di-core(gone &)
     =.  net.dm  %done
-    =.  cor  (give-brief ship/ship di-brief)
+    =.  di-core
+      %+  di-ingest-diff  [our now]:bowl
+      [%add ~ src.bowl now.bowl [%notice '' ' joined the chat']]
     di-core
   ::
   ++  di-watch
