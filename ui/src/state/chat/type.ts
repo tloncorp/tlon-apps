@@ -19,9 +19,11 @@ export interface ChatState {
   pacts: {
     [whom: ChatWhom]: Pact;
   };
+  pendingDms: string[];
   briefs: ChatBriefs;
   markRead: (whom: string) => Promise<void>;
   start: () => Promise<void>;
+  dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
   draft: (whom: string, content: ChatStory) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;

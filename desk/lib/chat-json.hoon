@@ -3,6 +3,12 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  rsvp
+    |=  r=rsvp:dm:c
+    %-  pairs
+    :~  ship/(ship ship.r)
+        ok/b/ok.r
+    ==
   ++  whom
     |=  w=whom:c
     ?-  -.w
@@ -203,6 +209,11 @@
 ++  dejs
   =,  dejs:format
   |%
+  ++  rsvp
+    %-  ot
+    :~  ship/(se %p)
+        ok/bo
+    ==
   ++  whom
     ^-  $-(json whom:c)
     %-  su
