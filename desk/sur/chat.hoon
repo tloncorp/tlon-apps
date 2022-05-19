@@ -94,7 +94,7 @@
       group=flag
   ==
 +$  chat
-  [=net =remark =log =perm =pact draft=content]
+  [=net =remark =log =perm =pact draft=story]
 ::
 +$  notice  [pfix=@t sfix=@t]
 ::
