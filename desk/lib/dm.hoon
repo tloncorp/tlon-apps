@@ -6,11 +6,13 @@
   =/  =time
     ?~  tim=(ram:on:writs:c wit.pac)  *time
     key.u.tim
+  =/  unreads
+    (lot:on:writs:c wit.pac `last-read ~)
+  =/  read-id=(unit id:c)  
+    (bind (pry:on:writs:c unreads) |=([key=@da val=writ:c] id.val))
   =/  count
-    %-  lent
-    %+  skim  ~(tap by (lot:on:writs.c wit.pac `last-read ~))
-    |=([tim=^time =writ:c] !=(author.writ our))
-  [time count]
+    (lent (skim ~(tap by unreads) |=([tim=^time =writ:c] !=(author.writ our))))
+  [time count read-id]
 ::
 ++  get
   |=  =id:c
