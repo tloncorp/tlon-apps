@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BigIntOrderedMap } from '@urbit/api';
 
 import { ChatMessageProps } from './ChatMessage/ChatMessage';

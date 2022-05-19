@@ -6,6 +6,7 @@ import { Virtuoso } from 'react-virtuoso';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import { IChatScroller } from './IChatScroller';
 import { useChatInfo } from '../useChatStore';
+import ChatNotice from '../ChatNotice';
 
 export default function VirtuosoScroller(props: IChatScroller) {
   const { whom, messages, replying, ...rest } = props;
@@ -28,8 +29,8 @@ export default function VirtuosoScroller(props: IChatScroller) {
 
   const itemContent = (index: number, key: bigInt.BigInteger) => {
     const writ = messages.get(key);
-    const lastWrit = index > 0 ? messages.get(keys[index - 1]) : undefined;
     const lastWritKey = index > 0 ? keys[index - 1] : undefined;
+    const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
     const newAuthor = lastWrit
       ? writ.memo.author !== lastWrit.memo.author
       : true;
@@ -38,12 +39,14 @@ export default function VirtuosoScroller(props: IChatScroller) {
     const lastWritDay = lastWritKey
       ? new Date(daToUnix(lastWritKey))
       : undefined;
-    
     const newDay =
       lastWrit && lastWritDay
         ? differenceInDays(writDay, lastWritDay) > 0
         : false;
-
+    const isNotice = 'notice' in writ.memo.content;
+    if (isNotice) {
+      return <ChatNotice key={writ.seal.id} writ={writ} />;
+    }
     return (
       <ChatMessage
         key={writ.seal.id}
@@ -54,9 +57,10 @@ export default function VirtuosoScroller(props: IChatScroller) {
         time={key}
         newAuthor={newAuthor}
         newDay={newDay}
-    />
+      />
     );
   };
+
   return (
     <Virtuoso
       className="h-full"
@@ -65,7 +69,9 @@ export default function VirtuosoScroller(props: IChatScroller) {
       itemContent={itemContent}
       alignToBottom={replying ? false : true}
       followOutput={'auto'}
-      computeItemKey={(_index: number, key: bigInt.BigInteger) => key.toString()}
+      computeItemKey={(_index: number, key: bigInt.BigInteger) =>
+        key.toString()
+      }
       overscan={3} // TODO: tune for optimal experience vs performance
     />
   );

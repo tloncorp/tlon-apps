@@ -1,4 +1,11 @@
-import { Chat, ChatWhom, ChatMemo, Pact, ChatBriefs } from '../../types/chat';
+import {
+  Chat,
+  ChatWhom,
+  ChatMemo,
+  Pact,
+  ChatBriefs,
+  ChatStory,
+} from '../../types/chat';
 
 export interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
@@ -16,7 +23,7 @@ export interface ChatState {
   markRead: (whom: string) => Promise<void>;
   start: () => Promise<void>;
   getDraft: (whom: string) => void;
-  draft: (whom: string, content: ChatMemo['content']) => Promise<void>;
+  draft: (whom: string, content: ChatStory) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   sendMessage: (whom: string, memo: ChatMemo) => void;
   delMessage: (flag: string, time: string) => void;

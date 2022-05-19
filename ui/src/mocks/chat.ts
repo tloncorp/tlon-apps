@@ -1,14 +1,21 @@
 import { decToUd, unixToDa } from '@urbit/api';
 import _ from 'lodash';
 import { addDays, subDays, subMinutes } from 'date-fns';
-import { ChatWrit, ChatMessage, ChatWrits, ChatBriefs } from '../types/chat';
+import {
+  ChatWrit,
+  ChatMessage,
+  ChatWrits,
+  ChatBriefs,
+  ChatStory,
+  ChatNotice,
+} from '../types/chat';
 
 const today = new Date();
 
 export const makeChatWrit = (
   count: number,
   author: string,
-  content: ChatMessage,
+  story: ChatStory,
   feels?: Record<string, string>,
   setTime?: Date
 ): ChatWrit => {
@@ -25,7 +32,30 @@ export const makeChatWrit = (
       replying: null,
       author,
       sent: unix,
-      content,
+      content: { story },
+    },
+  };
+};
+export const makeChatNotice = (
+  count: number,
+  author: string,
+  notice: ChatNotice,
+  setTime?: Date
+): ChatWrit => {
+  const unix = subMinutes(setTime ? setTime : new Date(), count * 5).getTime();
+  const time = unixToDa(unix);
+  const da = decToUd(time.toString());
+  return {
+    seal: {
+      id: `${author}/${da}`,
+      feels: {},
+      replied: [],
+    },
+    memo: {
+      replying: null,
+      author,
+      sent: unix,
+      content: { notice },
     },
   };
 };
@@ -203,6 +233,15 @@ const chatWrits: ChatWrits = _.keyBy(
       },
       undefined,
       subDays(today, 8)
+    ),
+    makeChatNotice(
+      1,
+      '~fabled-faster',
+      {
+        pfix: '',
+        sfix: ' joined the channel',
+      },
+      undefined
     ),
   ],
   (val) => decToUd(unixToDa(val.memo.sent).toString())

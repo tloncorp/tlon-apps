@@ -7,6 +7,7 @@ import ChatWritScroller from './ChatWritScroller';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import { useChatInfo } from '../useChatStore';
+import ChatNotice from '../ChatNotice';
 
 export default function Groups1Scroller(props: IChatScroller) {
   const { whom, messages, replying, ...rest } = props;
@@ -21,8 +22,10 @@ export default function Groups1Scroller(props: IChatScroller) {
       }
       return messages.get(k)?.memo.replying === null;
     });
-  
-  interface RendererProps { index: bigInt.BigInteger }
+
+  interface RendererProps {
+    index: bigInt.BigInteger;
+  }
 
   const renderer = React.forwardRef<HTMLDivElement, RendererProps>(
     ({ index }: RendererProps, ref) => {
@@ -42,8 +45,10 @@ export default function Groups1Scroller(props: IChatScroller) {
         lastWrit && lastWritDay
           ? differenceInDays(writDay, lastWritDay) > 0
           : false;
-
-
+      const isNotice = 'notice' in writ.memo.content;
+      if (isNotice) {
+        return <ChatNotice key={writ.seal.id} writ={writ} />;
+      }
       return (
         <ChatMessage
           key={writ.seal.id}
