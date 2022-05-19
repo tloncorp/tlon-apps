@@ -1,31 +1,14 @@
-import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import ChatInput from '../chat/ChatInput/ChatInput';
-import ChatMessages from '../chat/ChatMessages';
 import Layout from '../components/layout/Layout';
-import {
-  useChat,
-  useChatState,
-  useDmIsPending,
-  useDmMessages,
-} from '../state/chat';
-import { pluralize } from '../logic/utils';
+import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
+import ChatWindow from '../chat/ChatWindow';
 
 export default function Dm() {
   const ship = useParams<{ ship: string }>().ship!;
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState((s) => Object.keys(s.briefs).includes(ship));
-
-  const brief = useChatState((s) => s.briefs[ship]);
-  const date = brief ? new Date(brief.last) : new Date();
-  const since = isToday(date)
-    ? `${format(date, 'HH:mm')} today`
-    : format(date, 'LLLL d');
-
-  const unreadMessage =
-    brief &&
-    `${brief.count} new ${pluralize('message', brief.count)} since ${since}`;
 
   useEffect(() => {
     if (canStart) {
@@ -60,24 +43,7 @@ export default function Dm() {
       }
     >
       {isAccepted ? (
-        <div className="relative h-full">
-          {brief && brief?.count > 0 && (
-            <div className="absolute top-2 left-1/2 z-20 flex -translate-x-1/2 items-center space-x-2">
-              <button className="button bg-blue-soft text-blue">
-                <span className="font-normal">{unreadMessage}</span>
-                &nbsp;&bull;&nbsp;View Unread
-              </button>
-              <button className="button bg-blue-soft text-blue">
-                Mark as Read
-              </button>
-            </div>
-          )}
-          <div className="flex h-full w-full flex-col overflow-auto px-4 pb-4">
-            <div className="mt-auto flex flex-col justify-end">
-              <ChatMessages messages={messages} whom={ship} />
-            </div>
-          </div>
-        </div>
+        <ChatWindow whom={ship} messages={messages} />
       ) : (
         <div className="flex flex-col">
           <div className="flex">

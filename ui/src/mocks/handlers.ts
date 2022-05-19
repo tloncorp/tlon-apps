@@ -144,8 +144,9 @@ const chat: Handler[] = [
     func: () => ({
       ...dmList,
       '~zod/test': {
-        last: 0,
-        count: 0,
+        last: 1652302200000,
+        count: 1,
+        'read-id': null,
       },
     }),
   },

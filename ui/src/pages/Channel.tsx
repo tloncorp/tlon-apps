@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import cn from 'classnames';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useLocation, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '../chat/ChatInput/ChatInput';
@@ -8,7 +8,12 @@ import ChatWindow from '../chat/ChatWindow';
 import ElipsisIcon from '../components/icons/ElipsisIcon';
 import Layout from '../components/layout/Layout';
 import useMedia from '../logic/useMedia';
-import { useChatIsJoined, useChatPerms, useChatState } from '../state/chat';
+import {
+  useChatIsJoined,
+  useChatPerms,
+  useChatState,
+  useMessagesForChat,
+} from '../state/chat';
 import { useChannel, useRouteGroup, useVessel } from '../state/groups';
 import { channelHref } from '../logic/utils';
 import { useChatInfo } from '../chat/useChatStore';
@@ -26,6 +31,11 @@ function Channel() {
   const location = useLocation();
   const isMobile = useMedia('(max-width: 639px)');
 
+  useEffect(() => {
+    useChatState.getState().initialize(flag);
+  }, [flag]);
+
+  const messages = useMessagesForChat(flag);
   const perms = useChatPerms(flag);
   const vessel = useVessel(groupFlag, window.our);
   const canWrite =
@@ -77,7 +87,7 @@ function Channel() {
       }
     >
       {isJoined ? (
-        <ChatWindow flag={flag} />
+        <ChatWindow whom={flag} messages={messages} />
       ) : (
         <div>
           <h1>{flag}</h1>

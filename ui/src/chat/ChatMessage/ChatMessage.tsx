@@ -6,7 +6,7 @@ import { BigInteger } from 'big-integer';
 import { daToUnix, udToDec } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink } from 'react-router-dom';
-import { ChatWrit } from '../../types/chat';
+import { ChatBrief, ChatWrit } from '../../types/chat';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
@@ -22,6 +22,7 @@ export interface ChatMessageProps {
   isReplyOp?: boolean;
   newAuthor?: boolean;
   newDay?: boolean;
+  unread?: ChatBrief;
   hideReplies?: boolean;
 }
 
@@ -32,6 +33,7 @@ export default function ChatMessage({
   isReplyOp = false,
   newAuthor = false,
   newDay = false,
+  unread,
   hideReplies = false,
 }: ChatMessageProps) {
   const { seal, memo } = writ;
@@ -57,7 +59,8 @@ export default function ChatMessage({
 
   return (
     <div className="flex flex-col">
-      {newDay ? <DateDivider date={unix} /> : null}
+      {unread ? <DateDivider date={unix} unreadCount={unread.count} /> : null}
+      {newDay && !unread ? <DateDivider date={unix} /> : null}
       {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
       <div className="group-one relative z-0 flex">
         <ChatMessageOptions whom={whom} writ={writ} />

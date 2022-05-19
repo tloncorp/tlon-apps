@@ -1,18 +1,28 @@
 import React, { useEffect } from 'react';
 import _ from 'lodash';
-import { useChatState, useMessagesForChat } from '../state/chat';
+import { BigIntOrderedMap } from '@urbit/api';
+import { useChatState } from '../state/chat';
 import ChatMessages from './ChatMessages';
+import ChatUnreadAlerts from './ChatUnreadAlerts';
+import { ChatWrit } from '../types/chat';
 
-export default function ChatWindow({ flag }: { flag: string }) {
-  useEffect(() => {
-    useChatState.getState().initialize(flag);
-  }, [flag]);
-  const messages = useMessagesForChat(flag);
+interface ChatWindowProps {
+  whom: string;
+  messages: BigIntOrderedMap<ChatWrit>;
+}
+
+export default function ChatWindow({ whom, messages }: ChatWindowProps) {
+  const brief = useChatState((s) => s.briefs[whom]);
+
+  console.log(whom, brief);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-auto px-4 pb-4">
-      <div className="mt-auto flex flex-col justify-end">
-        <ChatMessages messages={messages} whom={flag} />
+    <div className="relative h-full">
+      <ChatUnreadAlerts brief={brief} whom={whom} />
+      <div className="flex h-full w-full flex-col overflow-auto p-4">
+        <div className="mt-auto flex flex-col justify-end">
+          <ChatMessages messages={messages} whom={whom} />
+        </div>
       </div>
     </div>
   );

@@ -214,6 +214,7 @@ export interface Pact {
 export interface ChatBrief {
   last: number;
   count: number;
+  'read-id': string | null;
 }
 
 export interface ChatBriefs {
