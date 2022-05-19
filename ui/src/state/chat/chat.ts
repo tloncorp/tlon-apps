@@ -136,11 +136,11 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
   },
   chats: {},
-  joinChat: async (whom) => {
+  joinChat: async (flag) => {
     await api.poke({
       app: 'chat',
-      mark: 'whom',
-      json: whom,
+      mark: 'flag',
+      json: flag,
     });
   },
   sendMessage: (whom, memo) => {
