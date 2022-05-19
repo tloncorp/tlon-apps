@@ -96,7 +96,14 @@
 +$  chat
   [=net =remark =log =perm =pact draft=content]
 ::
++$  notice  [pfix=@t sfix=@t]
+::
 +$  content
+  $%  [%story p=story]
+      [%notice p=notice]
+  ==
+::
++$  story
   (pair (list block) (list inline))
 ::
 +$  block

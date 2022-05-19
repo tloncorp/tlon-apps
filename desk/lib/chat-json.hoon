@@ -110,11 +110,26 @@
       ==
     ==
   ::
+  ++  notice
+    |=  n=notice:c
+    %-  pairs
+    :~  pfix/s/pfix.n
+        sfix/s/sfix.n
+    ==
+  ::
   ++  content
     |=  c=content:c
+    %+  frond  -.c
+    ?-  -.c
+      %story   (story p.c)
+      %notice  (notice p.c)
+    ==
+  ::
+  ++  story
+    |=  s=story:c
     %-  pairs
-    :~  block/a/(turn p.c block)
-        inline/a/(turn q.c inline)
+    :~  block/a/(turn p.s block)
+        inline/a/(turn q.s inline)
     ==
   ::
   ++  inline
@@ -285,7 +300,19 @@
     ==
   ::
   ++  content
-    ^-  $-(json content:c)
+    %-  of
+    :~  story/story
+        notice/notice
+    ==
+  ::
+  ++  notice
+    %-  ot
+    :~  pfix/so
+        sfix/so
+    ==
+  ::
+  ++  story
+    ^-  $-(json story:c)
     %-  ot
     :~  block/(ar block)
         inline/(ar inline)
