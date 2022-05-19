@@ -244,17 +244,21 @@
     (di-peek:(di-abed:di-core ship) t.t.t.path)
   ::
       [%x %dm ~]
-    ``ships+!>(~(key by dms))
+    ``ships+!>(~(key by accepted-dms))
+  ::
+      [%x %dm %inviting ~]
+    ``ships+!>(~(key by pending-dms))
   ::
       [%x %briefs ~]
     =-  ``chat-briefs+!>(-)
     ^-  briefs:c
     %-  ~(gas by *briefs:c)
     %+  welp  
-      %+  turn  ~(tap in ~(key by dms))
+      %+  murn  ~(tap in ~(key by dms))
       |=  =ship
-      :-  ship/ship
-      di-brief:(di-abed:di-core ship)
+      =/  di  (di-abed:di-core ship)
+      ?:  =(%invited net.dm.di)  ~
+      `[ship/ship di-brief:di]
     %+  turn  ~(tap in ~(key by chats))
     |=  =flag:c
     :-  flag/flag
@@ -518,6 +522,21 @@
       ca-core
     ==
   --
+::
+++  pending-dms
+  (dms-by-net %invited ~)
+::
+++  accepted-dms
+  (dms-by-net %inviting %done ~)
+::
+++  dms-by-net
+  |=  nets=(list net:dm:c)
+  =/  nets  (~(gas in *(set net:dm:c)) nets)
+  %-  ~(gas by *(map ship dm:c))
+  %+  skim  ~(tap by dms)
+  |=  [=ship =dm:c]
+  (~(has in nets) net.dm)
+::
 ++  di-core
   |_  [=ship =dm:c]
   +*  di-pact  ~(. pac pact.dm)
@@ -527,6 +546,9 @@
     cor
   ++  di-abed
     |=  s=@p
+    =/  d=dm:c
+      ?^  u-d=(~(get by dms) s)  u.u-d
+      [*pact:c *remark:c ?:(=(src our):bowl %inviting %invited)]
     di-core(ship s, dm (~(gut by dms) s *dm:c))
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-proxy
