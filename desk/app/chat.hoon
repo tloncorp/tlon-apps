@@ -95,6 +95,10 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
+      %dm-rsvp
+    =+  !<(=rsvp:dm:c vase)
+    di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
+  ::
       %flag
     =+  !<(=flag:c vase)
     ?<  =(our.bowl p.flag)
@@ -239,15 +243,16 @@
     =*  name   i.t.t.t.path
     (ca-peek:(ca-abed:ca-core ship name) t.t.t.t.path)
   ::
-      [%x %dm @ *]
-    =/  =ship  (slav %p i.t.t.path)
-    (di-peek:(di-abed:di-core ship) t.t.t.path)
-  ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
   ::
-      [%x %dm %inviting ~]
+      [%x %dm %invited ~]
     ``ships+!>(~(key by pending-dms))
+  ::
+      [%x %dm @ *]
+    =/  =ship  (slav %p i.t.t.path)
+    (di-peek:(di-abed:di-core ship) t.t.t.path)
+
   ::
       [%x %briefs ~]
     =-  ``chat-briefs+!>(-)
@@ -538,18 +543,20 @@
   (~(has in nets) net.dm)
 ::
 ++  di-core
-  |_  [=ship =dm:c]
+  |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
   ++  di-core  .
   ++  di-abet 
-    =.  dms  (~(put by dms) ship dm)
+    =.  dms  
+      ?:  gone  (~(del by dms) ship)
+      (~(put by dms) ship dm)
     cor
   ++  di-abed
     |=  s=@p
     =/  d=dm:c
       ?^  u-d=(~(get by dms) s)  u.u-d
       [*pact:c *remark:c ?:(=(src our):bowl %inviting %invited)]
-    di-core(ship s, dm (~(gut by dms) s *dm:c))
+    di-core(ship s, dm (~(gut by dms) s d))
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-proxy
     |=  =diff:dm:c
@@ -563,10 +570,21 @@
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
-    =?  cor  !=(old-brief di-brief)
+    =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
       (give-brief ship/ship di-brief)
     di-core
     :: di-core(pact (reduce:w ship writs ship now.bowl diff))
+  ::
+  ++  di-rsvp
+    |=  ok=?
+    =?  cor  =(our src):bowl
+      (emit (proxy-rsvp:di-pass ok))
+    ?>  =(src.bowl ship)
+    ::  TODO hook into archive
+    ?.  ok  di-core(gone &)
+    =.  net.dm  %done
+    =.  cor  (give-brief ship/ship di-brief)
+    di-core
   ::
   ++  di-watch
     |=  =path
@@ -620,6 +638,7 @@
       ^-  card
       [%pass (welp di-area wire) %agent dock task]
     ++  poke-them  |=([=wire =cage] (pass wire [ship dap.bowl] %poke cage))
+    ++  proxy-rsvp  |=(ok=? (poke-them /proxy dm-rsvp+!>([our.bowl ok])))
     ++  proxy  |=(=diff:dm:c (poke-them /proxy dm-diff+!>(diff)))
     --
   --

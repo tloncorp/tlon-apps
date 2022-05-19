@@ -82,6 +82,7 @@
   +$  id      (pair ship time)
   +$  diff    diff:writs
   +$  action  (pair ship diff)
+  +$  rsvp    [=ship ok=?]
   --
 ::
 +$  log
