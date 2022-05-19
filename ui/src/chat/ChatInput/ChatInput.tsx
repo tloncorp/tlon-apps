@@ -3,7 +3,7 @@ import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useChatState, useChatDraft, useChat, usePact } from '../../state/chat';
-import { ChatInline, ChatMemo, ChatMessage } from '../../types/chat';
+import { ChatInline, ChatMemo, ChatMessage, ChatStory } from '../../types/chat';
 import MessageEditor, {
   useMessageEditor,
 } from '../../components/MessageEditor';
@@ -185,7 +185,7 @@ function wrapParagraphs(content: JSONContent[]) {
 }
 
 /* this parser is still imperfect */
-function parseChatMessage(message: ChatMessage): JSONContent {
+function parseChatMessage(message: ChatStory): JSONContent {
   const parser = (inline: ChatInline): JSONContent => {
     if (typeof inline === 'string') {
       return { type: 'text', text: inline };
@@ -289,8 +289,10 @@ export default function ChatInput({
         author: `~${window.ship || 'zod'}`,
         sent: Date.now(),
         content: {
-          inline: Array.isArray(data) ? data : [data],
-          block: [],
+          story: {
+            inline: Array.isArray(data) ? data : [data],
+            block: [],
+          },
         },
       };
 
@@ -371,17 +373,19 @@ export default function ChatInput({
                 author: `~${window.ship || 'zod'}`,
                 sent: Date.now(),
                 content: {
-                  inline: [],
-                  block: [
-                    {
-                      image: {
-                        src: 'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.3.21..22.06.42-FBqq4mCVkAM8Cs5.jpeg',
-                        width: 750,
-                        height: 599,
-                        alt: '',
+                  story: {
+                    inline: [],
+                    block: [
+                      {
+                        image: {
+                          src: 'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.3.21..22.06.42-FBqq4mCVkAM8Cs5.jpeg',
+                          width: 750,
+                          height: 599,
+                          alt: '',
+                        },
                       },
-                    },
-                  ],
+                    ],
+                  },
                 },
               });
             }}
