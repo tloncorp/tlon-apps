@@ -54,7 +54,7 @@
     |=  =diff:c
     %+  frond  -.diff
     ?+  -.diff  ~
-      %draft    (content p.diff)
+      %draft    (story p.diff)
       %writs     (writs-diff p.diff)
     ==
   ::
@@ -259,7 +259,7 @@
     %-  of
     :~  writs/writs-diff
         add-sects/add-sects
-        draft/content
+        draft/story
     ==
   ::
   ++  id  

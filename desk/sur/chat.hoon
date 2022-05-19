@@ -38,7 +38,7 @@
 +$  flag  (pair ship term)
 +$  diff
   $%  [%writs p=diff:writs]
-      [%draft p=content]
+      [%draft p=story]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
