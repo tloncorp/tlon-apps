@@ -21,7 +21,7 @@
   +$  briefs
     (map whom brief)
   +$  brief
-    [last=time count=@ud]
+    [last=time count=@ud read-id=(unit id)]
   +$  update
     (pair whom brief)
   --
