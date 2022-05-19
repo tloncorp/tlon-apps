@@ -92,6 +92,14 @@ export function normalizeUrbitColor(color: string): string {
   return `#${lengthAdjustedColor}`;
 }
 
+export function pluralize(word: string, count: number): string {
+  if (count === 1) {
+    return word;
+  }
+
+  return `${word}s`;
+}
+
 export function createStorageKey(name: string): string {
   return `~${window.ship}/${window.desk}/${name}`;
 }

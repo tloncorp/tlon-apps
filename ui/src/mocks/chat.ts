@@ -254,15 +254,15 @@ export const chatKeys = ['~zod/test'];
 export const dmList: ChatBriefs = {
   '~fabled-faster': {
     last: 0,
-    count: 2,
+    count: 0,
   },
   '~nocsyx-lassul': {
-    last: 0,
-    count: 2,
+    last: 1652302200000,
+    count: 3,
   },
   '~fallyn-ballus': {
     last: 0,
-    count: 2,
+    count: 0,
   },
   '~finned-palmer': {
     last: 0,
@@ -270,11 +270,15 @@ export const dmList: ChatBriefs = {
   },
   '~datder-sonnet': {
     last: 0,
-    count: 2,
+    count: 1,
   },
   '~hastuc-dibtux': {
     last: 0,
-    count: 2,
+    count: 0,
+  },
+  '~zod/test': {
+    last: 1652302200000,
+    count: 1,
   },
 };
 
