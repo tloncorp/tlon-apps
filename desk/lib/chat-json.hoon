@@ -35,6 +35,7 @@
     %-  pairs
     :~  last/(time last.b)
         count/(numb count.b)
+        read-id/?~(read-id.b ~ (id u.read-id.b))
     ==
   ::
   ++  perm
