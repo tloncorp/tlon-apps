@@ -243,6 +243,96 @@ const chatWrits: ChatWrits = _.keyBy(
       },
       undefined
     ),
+    makeChatWrit(
+      1,
+      '~datder-sonnet',
+      {
+        block: [],
+        inline: ['Welcome to our channel Fabled Faster'],
+      },
+      undefined,
+      addDays(today, 1)
+    ),
+    makeChatWrit(
+      2,
+      '~fabled-faster',
+      {
+        block: [],
+        inline: ['Thanks for the invitation, glad to be here.'],
+      },
+      undefined,
+      addDays(today, 1)
+    ),
+    makeChatWrit(
+      3,
+      '~datder-sonnet',
+      {
+        block: [],
+        inline: ['Spamming the chat to test the virtual scroller...'],
+      },
+      undefined,
+      addDays(today, 1)
+    ),
+    makeChatWrit(
+      4,
+      '~datder-sonnet',
+      {
+        block: [],
+        inline: ['... still spamming'],
+      },
+      undefined,
+      addDays(today, 1)
+    ),
+    makeChatWrit(
+      5,
+      '~datder-sonnet',
+      {
+        block: [],
+        inline: ['okay another one to fill the screen'],
+      },
+      undefined,
+      addDays(today, 1)
+    ),
+    makeChatWrit(
+      6,
+      '~datder-sonnet',
+      {
+        block: [],
+        inline: ['blah blah blah'],
+      },
+      undefined,
+      addDays(today, 1)
+    ),
+    makeChatWrit(
+      7,
+      '~datder-sonnet',
+      {
+        block: [],
+        inline: ['yada yada yada'],
+      },
+      undefined,
+      addDays(today, 1)
+    ),
+    makeChatWrit(
+      8,
+      '~datder-sonnet',
+      {
+        block: [],
+        inline: ['still going ...'],
+      },
+      undefined,
+      addDays(today, 1)
+    ),
+    makeChatWrit(
+      9,
+      '~datder-sonnet',
+      {
+        block: [],
+        inline: ['alright, this should be enough'],
+      },
+      undefined,
+      addDays(today, 1)
+    ),
   ],
   (val) => decToUd(unixToDa(val.memo.sent).toString())
 );

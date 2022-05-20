@@ -10,7 +10,6 @@ import {
   ChatBriefs,
   ChatBriefUpdate,
   ChatDiff,
-  ChatMessage,
   ChatPerm,
   ChatStory,
   ChatWrit,
@@ -123,7 +122,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       },
     });
   },
-  fetchOlder: async (ship, start, count) => {
+  fetchOlder: async (ship: string, start: string, count: string) => {
     await makeWritsStore(ship, get, '', ``).getOlder(start, count);
   },
   fetchDms: async () => {
@@ -292,6 +291,12 @@ export function useDmMessages(ship: string) {
 
 export function usePact(whom: string) {
   return useChatState(useCallback((s) => s.pacts[whom], [whom]));
+}
+
+export function useCurrentPactSize(whom: string) {
+  return useChatState(
+    useCallback((s) => s.pacts[whom]?.writs.size ?? 0, [whom])
+  );
 }
 
 function getPact(pact: Pact, id: string) {
