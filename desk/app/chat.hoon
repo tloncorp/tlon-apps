@@ -130,6 +130,9 @@
       %dm-diff
     =+  !<(=diff:dm:c vase)
     di-abet:(di-ingest-diff:(di-abed-soft:di-core src.bowl) diff)
+  ::
+      %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
+  ::
   ==
   ::
   ++  join
@@ -263,6 +266,7 @@
       |=  =ship
       =/  di  (di-abed:di-core ship)
       ?:  =(%invited net.dm.di)  ~
+      ?:  =([~ ~] pact.dm.di)  ~
       `[ship/ship di-brief:di]
     %+  turn  ~(tap in ~(key by chats))
     |=  =flag:c
@@ -559,7 +563,7 @@
     |=  s=@p
     =/  d
       %+  ~(gut by dms)  s
-      [*pact:c *remark:c ?:(=(src our):bowl %inviting %invited)]
+      [*pact:c *pact:c *remark:c ?:(=(src our):bowl %inviting %invited)]
     di-core(ship s, dm d)
 
   ++  di-area  `path`/dm/(scot %p ship)
@@ -567,6 +571,12 @@
     |=  =diff:dm:c
     =.  di-core  (di-ingest-diff diff)
     =.  cor  (emit (proxy:di-pass diff))
+    di-core
+  ::
+  ++  di-archive
+    =:  pact.dm  *pact
+        archive.dm  pact.dm
+      ==
     di-core
   ::
   ++  di-ingest-diff
@@ -578,7 +588,6 @@
     =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
       (give-brief ship/ship di-brief)
     di-core
-    :: di-core(pact (reduce:w ship writs ship now.bowl diff))
   ::
   ++  di-rsvp
     |=  ok=?

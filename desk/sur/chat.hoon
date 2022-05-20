@@ -75,6 +75,7 @@
   |%
   +$  dm
     $:  =pact
+        archive=pact
         =remark
         =net
     ==
