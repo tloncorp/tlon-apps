@@ -6,6 +6,7 @@ import ChatMessage, { ChatMessageProps } from './ChatMessage/ChatMessage';
 import { ChatWrit } from '../types/chat';
 import { useChatInfo } from './useChatStore';
 import ChatNotice from './ChatNotice';
+import { useChatState } from '../state/chat';
 
 interface ChatMessagesProps
   extends Omit<
@@ -21,6 +22,7 @@ interface ChatMessagesProps
 export default function ChatMessages(props: ChatMessagesProps) {
   const { messages, whom, replying = false, ...rest } = props;
   const chatInfo = useChatInfo(whom);
+  const brief = useChatState((s) => s.briefs[whom]);
 
   const keys = messages
     .keys()
@@ -54,6 +56,7 @@ export default function ChatMessages(props: ChatMessagesProps) {
         if (isNotice) {
           return <ChatNotice key={writ.seal.id} writ={writ} />;
         }
+
         return (
           <ChatMessage
             key={writ.seal.id}
@@ -64,6 +67,9 @@ export default function ChatMessages(props: ChatMessagesProps) {
             time={key}
             newAuthor={newAuthor}
             newDay={newDay}
+            unread={
+              brief && brief['read-id'] === writ.seal.id ? brief : undefined
+            }
           />
         );
       })}

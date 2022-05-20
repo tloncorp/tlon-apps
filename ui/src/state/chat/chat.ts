@@ -100,6 +100,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       app: 'chat',
       path: '/briefs',
     });
+
     get().batchSet((draft) => {
       draft.briefs = briefs;
     });

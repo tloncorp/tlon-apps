@@ -1,23 +1,18 @@
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import ChatInput from '../chat/ChatInput/ChatInput';
-import ChatMessages from '../chat/ChatMessages';
 import Layout from '../components/layout/Layout';
-import {
-  useChat,
-  useChatState,
-  useDmIsPending,
-  useDmMessages,
-} from '../state/chat';
+import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
+import ChatWindow from '../chat/ChatWindow';
 
 export default function Dm() {
   const ship = useParams<{ ship: string }>().ship!;
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState((s) => Object.keys(s.briefs).includes(ship));
+
   useEffect(() => {
     if (canStart) {
       useChatState.getState().initializeDm(ship);
-      useChatState.getState().markRead(ship);
     }
   }, [ship, canStart]);
   const messages = useDmMessages(ship);
@@ -33,22 +28,22 @@ export default function Dm() {
   return (
     <Layout
       className="h-full grow"
-      header={<div className="border-b p-2 font-bold">{ship}</div>}
+      header={
+        <h1 className="flex h-full items-center border-b-2 border-gray-50 p-4 text-lg font-bold">
+          {ship}
+        </h1>
+      }
       aside={<Outlet />}
       footer={
         isAccepted ? (
-          <div className="p-2">
+          <div className="border-t-2 border-gray-50 p-4">
             <ChatInput whom={ship} />
           </div>
         ) : null
       }
     >
       {isAccepted ? (
-        <div className="flex h-full w-full flex-col overflow-auto px-4">
-          <div className="mt-auto flex flex-col justify-end">
-            <ChatMessages messages={messages} whom={ship} />
-          </div>
-        </div>
+        <ChatWindow whom={ship} messages={messages} />
       ) : (
         <div className="flex flex-col">
           <div className="flex">

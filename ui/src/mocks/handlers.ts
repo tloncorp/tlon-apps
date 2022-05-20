@@ -144,8 +144,9 @@ const chat: Handler[] = [
     func: () => ({
       ...dmList,
       '~zod/test': {
-        last: 0,
-        count: 0,
+        last: 1652302200000,
+        count: 1,
+        'read-id': null,
       },
     }),
   },
@@ -167,14 +168,17 @@ const chat: Handler[] = [
     action: 'poke',
     app: 'chat',
     mark: 'chat-remark-action',
-    returnSubscription: chatSub,
+    returnSubscription: briefsSub,
     dataResponder: (
       req: Message & Poke<{ whom: ChatWhom; diff: { read: null } }>
     ) => ({
       id: req.id!,
       ok: true,
       response: 'diff',
-      json: req.json,
+      json: {
+        whom: req.json.whom,
+        brief: { last: 0, count: 0, 'read-id': null },
+      },
     }),
   },
 ];
@@ -201,6 +205,12 @@ const dmHandlers = Object.keys(dmList)
 
 const dms: Handler[] = [
   ...dmHandlers,
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/dm/invited',
+    func: () => [],
+  },
   {
     action: 'poke',
     app: 'chat',

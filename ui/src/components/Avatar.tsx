@@ -22,7 +22,7 @@ interface AvatarMeta {
 
 const sizeMap: Record<AvatarSizes, AvatarMeta> = {
   xs: { classes: 'w-6 h-6 rounded', size: 12 },
-  small: { classes: 'w-8 h-8 rounded-lg', size: 16 },
+  small: { classes: 'w-8 h-8 rounded', size: 16 },
   default: { classes: 'w-12 h-12 rounded-lg', size: 24 },
 };
 
@@ -53,12 +53,12 @@ function themeAdjustColor(color: string, theme: 'light' | 'dark'): string {
   const hsla = parseToHsla(color);
   const lightness = hsla[2];
 
-  if (lightness <= 0.1 && theme === 'dark') {
-    return lighten(color, 0.1 - lightness);
+  if (lightness <= 0.2 && theme === 'dark') {
+    return lighten(color, 0.2 - lightness);
   }
 
-  if (lightness >= 0.9 && theme === 'light') {
-    return darken(color, lightness - 0.9);
+  if (lightness >= 0.8 && theme === 'light') {
+    return darken(color, lightness - 0.8);
   }
 
   return color;

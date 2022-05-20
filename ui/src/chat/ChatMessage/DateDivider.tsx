@@ -1,20 +1,47 @@
 import React from 'react';
-import { makePrettyDay } from '../../logic/utils';
+import cn from 'classnames';
+import { makePrettyDay, pluralize } from '../../logic/utils';
 
 interface DateDividerProps {
   date: Date;
+  unreadCount?: number;
 }
 
-export default function DateDivider({ date }: DateDividerProps) {
+export default function DateDivider({ date, unreadCount }: DateDividerProps) {
   const prettyDay = makePrettyDay(date);
 
   return (
     <div className="flex w-full items-center py-4">
-      <div className="h-[2px] w-8 rounded-sm bg-gray-200">&nbsp;</div>
-      <span className="whitespace-nowrap px-3 font-semibold text-gray-400">
+      <div
+        className={cn(
+          'h-[2px] w-8 rounded-sm',
+          unreadCount ? 'bg-blue' : 'bg-gray-200'
+        )}
+      >
+        &nbsp;
+      </div>
+      <span
+        className={cn(
+          'whitespace-nowrap px-3 font-semibold',
+          unreadCount ? 'text-blue' : 'text-gray-400'
+        )}
+      >
         {prettyDay}
+        {unreadCount ? (
+          <>
+            &nbsp;&bull;&nbsp;
+            {unreadCount} new {pluralize('messsage', unreadCount)} below
+          </>
+        ) : null}
       </span>
-      <div className="h-[2px] w-full rounded-sm bg-gray-200">&nbsp;</div>
+      <div
+        className={cn(
+          'h-[2px] w-full rounded-sm',
+          unreadCount ? 'bg-blue' : 'bg-gray-200'
+        )}
+      >
+        &nbsp;
+      </div>
     </div>
   );
 }
