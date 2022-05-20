@@ -81,8 +81,8 @@
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  start  (slav %da start.pole)
-    ``chat-writs+!>((turn (tab:on:writs:c wit.pac `start count) tail))
+    =/  start  (slav %ud start.pole)
+    ``chat-writs+!>((tab:on:writs:c wit.pac `start count))
   ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
