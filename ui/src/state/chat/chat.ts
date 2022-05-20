@@ -123,6 +123,9 @@ export const useChatState = create<ChatState>((set, get) => ({
       },
     });
   },
+  fetchOlder: async (ship, start, count) => {
+    await makeWritsStore(ship, get, '', ``).getOlder(start, count);
+  },
   fetchDms: async () => {
     const dms = await api.scry<string[]>({
       app: 'chat',

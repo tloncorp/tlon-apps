@@ -6,6 +6,7 @@ import { ChatState } from './type';
 
 interface WritsStore {
   initialize: () => Promise<void>;
+  getOlder: (start: string, count: string) => Promise<void>;
 }
 
 export default function makeWritsStore(
@@ -89,6 +90,24 @@ export default function makeWritsStore(
             draft.pacts[whom] = pact;
           });
         },
+      });
+    },
+    getOlder: async (start: string, count: string) => {
+      // TODO: fix for group chats
+      const writs = await api.scry<ChatWrits>({
+        app: 'chat',
+        path: `/dm/${whom}/writs/older/${start}/${count}`,
+      });
+      const { batchSet, pacts } = get();
+      const pact = pacts[whom];
+      batchSet((draft) => {
+        Object.keys(writs).forEach((key) => {
+          const writ = writs[key];
+          const tim = bigInt(udToDec(key));
+          pact.writs = pact.writs.set(tim, writ);
+          pact.index[writ.seal.id] = tim;
+        });
+        draft.pacts[whom] = pact;
       });
     },
   };

@@ -25,6 +25,7 @@ export interface ChatState {
   start: () => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
+  fetchOlder: (ship: string, start: string, count: string) => Promise<void>;
   draft: (whom: string, content: ChatStory) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   sendMessage: (whom: string, memo: ChatMemo) => void;
