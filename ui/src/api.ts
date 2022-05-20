@@ -18,6 +18,4 @@ const api = IS_MOCK
 api.ship = window.ship;
 api.verbose = true;
 
-console.log(mockHandlers);
-
 export default api;

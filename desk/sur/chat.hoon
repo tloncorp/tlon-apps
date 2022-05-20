@@ -21,7 +21,7 @@
   +$  briefs
     (map whom brief)
   +$  brief
-    [last=time count=@ud]
+    [last=time count=@ud read-id=(unit id)]
   +$  update
     (pair whom brief)
   --
@@ -76,10 +76,13 @@
   +$  dm
     $:  =pact
         =remark
+        =net
     ==
+  +$  net     ?(%inviting %invited %done)
   +$  id      (pair ship time)
   +$  diff    diff:writs
   +$  action  (pair ship diff)
+  +$  rsvp    [=ship ok=?]
   --
 ::
 +$  log

@@ -8,10 +8,13 @@ import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import { useChatInfo } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
+import { ChatState } from '../../state/chat/type';
+import { useChatState } from '../../state/chat/chat';
 
 export default function Groups1Scroller(props: IChatScroller) {
-  const { whom, messages, replying, ...rest } = props;
+  const { whom, messages, replying } = props;
   const chatInfo = useChatInfo(whom);
+  const brief = useChatState((s: ChatState) => s.briefs[whom]);
 
   const keys = messages
     .keys()
@@ -30,7 +33,7 @@ export default function Groups1Scroller(props: IChatScroller) {
   const renderer = React.forwardRef<HTMLDivElement, RendererProps>(
     ({ index }: RendererProps, ref) => {
       const writ = messages.get(index);
-      const keyIdx = keys.findIndex((idx) => idx.eq(index));
+      const keyIdx = keys.findIndex((idx) => idx.eq(keyIdx));
       const lastWritKey = keyIdx > 0 ? keys[keyIdx - 1] : undefined;
       const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
       const newAuthor = lastWrit
@@ -49,10 +52,10 @@ export default function Groups1Scroller(props: IChatScroller) {
       if (isNotice) {
         return <ChatNotice key={writ.seal.id} writ={writ} />;
       }
+
       return (
         <ChatMessage
           key={writ.seal.id}
-          {...rest}
           whom={whom}
           isReplyOp={chatInfo?.replying === writ.seal.id}
           writ={writ}
@@ -60,6 +63,9 @@ export default function Groups1Scroller(props: IChatScroller) {
           newAuthor={newAuthor}
           newDay={newDay}
           ref={ref}
+          unread={
+            brief && brief['read-id'] === writ.seal.id ? brief : undefined
+          }
         />
       );
     }

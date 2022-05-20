@@ -3,13 +3,16 @@ import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { differenceInDays } from 'date-fns';
 import { Virtuoso } from 'react-virtuoso';
-import ChatMessage from '../ChatMessage/ChatMessage';
 import { IChatScroller } from './IChatScroller';
 import { useChatInfo } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
+import { ChatState } from '../../state/chat/type';
+import { useChatState } from '../../state/chat/chat';
+import ChatMessage from '../ChatMessage/ChatMessage';
 
 export default function VirtuosoScroller(props: IChatScroller) {
-  const { whom, messages, replying, ...rest } = props;
+  const { whom, messages, replying } = props;
+  const brief = useChatState((s: ChatState) => s.briefs[whom]);
   const chatInfo = useChatInfo(whom);
 
   const endReached = (index: number) => {
@@ -47,16 +50,17 @@ export default function VirtuosoScroller(props: IChatScroller) {
     if (isNotice) {
       return <ChatNotice key={writ.seal.id} writ={writ} />;
     }
+
     return (
       <ChatMessage
         key={writ.seal.id}
-        {...rest}
         whom={whom}
         isReplyOp={chatInfo?.replying === writ.seal.id}
         writ={writ}
         time={key}
         newAuthor={newAuthor}
         newDay={newDay}
+        unread={brief && brief['read-id'] === writ.seal.id ? brief : undefined}
       />
     );
   };
