@@ -2,7 +2,6 @@ import React, { useCallback } from 'react';
 import { differenceInDays } from 'date-fns';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
-
 import ChatWritScroller from './ChatWritScroller';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
@@ -51,7 +50,7 @@ export default function Groups1Scroller(props: IChatScroller) {
         lastWrit && lastWritDay
           ? differenceInDays(writDay, lastWritDay) > 0
           : false;
-      const isNotice = 'notice' in writ.memo.content;
+      const isNotice = writ ? 'notice' in writ.memo.content : false;
       if (isNotice) {
         return <ChatNotice key={writ.seal.id} writ={writ} />;
       }
@@ -120,8 +119,6 @@ export default function Groups1Scroller(props: IChatScroller) {
         return false;
       }
 
-      // await getOlderSiblings(ship, name, pageSize, `/${index.toString()}`);
-
       await useChatState.getState().fetchOlder(
         window.ship,
         newer
@@ -147,7 +144,7 @@ export default function Groups1Scroller(props: IChatScroller) {
           data={messages}
           size={messages.size}
           pendingSize={0} // TODO
-          averageHeight={48}
+          averageHeight={1}
           renderer={renderer}
           loadRows={fetchMessages}
         />
