@@ -101,7 +101,7 @@ export default function NewDM() {
       className="flex-1"
       footer={
         <div className="border-t-2 border-black/10 p-4">
-          <ChatInput whom={''} showReply />
+          <ChatInput whom={ship ? ship.value : ''} showReply sendDisabled={!validShip} newDm />
         </div>
       }
     >
