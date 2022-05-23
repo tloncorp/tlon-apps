@@ -12,7 +12,7 @@ import { useChatState, useCurrentPactSize } from '../../state/chat/chat';
 import { IS_MOCK } from '../../api';
 import { MESSAGE_FETCH_PAGE_SIZE } from '../../constants';
 
-export default function Groups1Scroller(props: IChatScroller) {
+export default function ChatScroller(props: IChatScroller) {
   const { whom, messages, replying } = props;
   const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
@@ -35,6 +35,12 @@ export default function Groups1Scroller(props: IChatScroller) {
   const renderer = React.forwardRef<HTMLDivElement, RendererProps>(
     ({ index }: RendererProps, ref) => {
       const writ = messages.get(index);
+
+      const isNotice = writ ? 'notice' in writ.memo.content : false;
+      if (isNotice) {
+        return <ChatNotice key={writ.seal.id} writ={writ} />;
+      }
+
       const keyIdx = keys.findIndex((idx) => idx.eq(index));
       const lastWritKey = keyIdx > 0 ? keys[keyIdx - 1] : undefined;
       const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
@@ -42,7 +48,6 @@ export default function Groups1Scroller(props: IChatScroller) {
         ? writ.memo.author !== lastWrit.memo.author
         : true;
       const writDay = new Date(daToUnix(index));
-
       const lastWritDay = lastWritKey
         ? new Date(daToUnix(lastWritKey))
         : undefined;
@@ -50,10 +55,8 @@ export default function Groups1Scroller(props: IChatScroller) {
         lastWrit && lastWritDay
           ? differenceInDays(writDay, lastWritDay) > 0
           : false;
-      const isNotice = writ ? 'notice' in writ.memo.content : false;
-      if (isNotice) {
-        return <ChatNotice key={writ.seal.id} writ={writ} />;
-      }
+      const unreadBrief =
+        brief && brief['read-id'] === writ.seal.id ? brief : undefined;
 
       return (
         <ChatMessage
@@ -65,9 +68,7 @@ export default function Groups1Scroller(props: IChatScroller) {
           newAuthor={newAuthor}
           newDay={newDay}
           ref={ref}
-          unread={
-            brief && brief['read-id'] === writ.seal.id ? brief : undefined
-          }
+          unread={unreadBrief}
         />
       );
     }

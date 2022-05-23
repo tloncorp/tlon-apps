@@ -67,7 +67,6 @@
     "react-hook-form": "^7.30.0",
     "react-router": "^6.3.0",
     "react-router-dom": "^6.3.0",
-    "react-virtuoso": "^2.11.0",
     "tailwindcss-scoped-groups": "^2.0.0",
     "urbit-ob": "^5.0.1",
     "validator": "^13.7.0",

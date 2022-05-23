@@ -22,31 +22,38 @@ function Center(props: React.HTMLProps<HTMLDivElement>) {
 }
 
 const ScrollbarLessBox = React.forwardRef<HTMLDivElement>(
-  ({ children, ...props }, ref) => (
+  ({ children, style, ...props }, ref) => (
     // tsc does not like `!important`
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    <div style={{ scrollbarWidth: 'none !important' }} ref={ref} {...props}>
+    <div
+      style={{ ...style, scrollbarWidth: 'none !important' }}
+      ref={ref}
+      {...props}
+    >
       {children}
     </div>
   )
 );
 
-const Scrollbar = React.forwardRef<HTMLDivElement>((props, ref) => (
-  <div
-    style={{
-      zIndex: 3,
-      width: '4px',
-      borderRadius: '999px',
-      right: 0,
-      height: '50px',
-      position: 'absolute',
-      cursor: 'pointer',
-    }}
-    ref={ref}
-    {...props}
-  />
-));
+const Scrollbar = React.forwardRef<HTMLDivElement>(
+  ({ style, ...props }, ref) => (
+    <div
+      style={{
+        ...style,
+        zIndex: 3,
+        width: '4px',
+        borderRadius: '999px',
+        right: 0,
+        height: '50px',
+        position: 'absolute',
+        cursor: 'pointer',
+      }}
+      ref={ref}
+      {...props}
+    />
+  )
+);
 
 interface RendererProps<K> {
   index: K;
@@ -718,16 +725,23 @@ export default class VirtualScroller<K, V> extends Component<
     return (
       <>
         <Scrollbar
-          top={isTop ? '0' : undefined}
-          bottom={!isTop ? '0' : undefined}
+          style={{
+            top: isTop ? '0' : undefined,
+            bottom: !isTop ? '0' : undefined,
+            backgroundColor: 'lightGray',
+          }}
           ref={this.setScrollRef}
-          backgroundColor="lightGray"
         />
         <ScrollbarLessBox
-          overflowY="scroll"
           ref={this.setWindow}
           onScroll={this.onScroll}
-          style={{ ...style, WebkitOverflowScrolling: 'auto' }}
+          style={{
+            ...style,
+            WebkitOverflowScrolling: 'auto',
+            // overflowY: 'scroll', // TODO: This was in the original
+            // VirtualScroller implementation, however it is drawing an extra
+            // scrollbar
+          }}
         >
           <div style={{ width: 'calc(100% - 4px)' }}>
             {(isTop ? !atStart : !atEnd) && (

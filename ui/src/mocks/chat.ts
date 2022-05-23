@@ -3,7 +3,6 @@ import _ from 'lodash';
 import { addDays, subDays, subMinutes } from 'date-fns';
 import {
   ChatWrit,
-  ChatMessage,
   ChatWrits,
   ChatBriefs,
   ChatStory,
@@ -243,55 +242,48 @@ const chatWrits: ChatWrits = _.keyBy(
       },
       undefined
     ),
+    makeChatWrit(2, '~datder-sonnet', {
+      inline: [],
+      block: [
+        {
+          image: {
+            src: 'https://user-images.githubusercontent.com/16504501/169683398-053fd525-f327-4628-a547-f66ddd28df4d.png',
+            width: 491,
+            height: 137,
+            alt: '',
+          },
+        },
+      ],
+    }),
     makeChatWrit(
-      1,
-      '~datder-sonnet',
-      {
-        block: [],
-        inline: ['Welcome to our channel Fabled Faster'],
-      },
-      undefined,
-      addDays(today, 1)
-    ),
-    makeChatWrit(
-      2,
-      '~fabled-faster',
-      {
-        block: [],
-        inline: ['Thanks for the invitation, glad to be here.'],
-      },
-      undefined,
-      addDays(today, 1)
-    ),
-    makeChatWrit(
-      3,
+      9,
       '~datder-sonnet',
       {
         block: [],
         inline: ['Spamming the chat to test the virtual scroller...'],
       },
       undefined,
-      addDays(today, 1)
+      today
     ),
     makeChatWrit(
-      4,
+      8,
       '~datder-sonnet',
       {
         block: [],
         inline: ['... still spamming'],
       },
       undefined,
-      addDays(today, 1)
+      today
     ),
     makeChatWrit(
-      5,
+      7,
       '~datder-sonnet',
       {
         block: [],
         inline: ['okay another one to fill the screen'],
       },
       undefined,
-      addDays(today, 1)
+      today
     ),
     makeChatWrit(
       6,
@@ -301,37 +293,37 @@ const chatWrits: ChatWrits = _.keyBy(
         inline: ['blah blah blah'],
       },
       undefined,
-      addDays(today, 1)
+      today
     ),
     makeChatWrit(
-      7,
+      5,
       '~datder-sonnet',
       {
         block: [],
         inline: ['yada yada yada'],
       },
       undefined,
-      addDays(today, 1)
+      today
     ),
     makeChatWrit(
-      8,
+      4,
       '~datder-sonnet',
       {
         block: [],
         inline: ['still going ...'],
       },
       undefined,
-      addDays(today, 1)
+      today
     ),
     makeChatWrit(
-      9,
+      3,
       '~datder-sonnet',
       {
         block: [],
         inline: ['alright, this should be enough'],
       },
       undefined,
-      addDays(today, 1)
+      today
     ),
   ],
   (val) => decToUd(unixToDa(val.memo.sent).toString())

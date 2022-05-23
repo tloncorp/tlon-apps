@@ -2,8 +2,7 @@ import React from 'react';
 import { BigIntOrderedMap } from '@urbit/api';
 
 import { ChatWrit } from '../types/chat';
-import VirtuosoScroller from './ChatScroller/VirtuosoScroller';
-import Groups1Scroller from './ChatScroller/Groups1Scroller';
+import ChatScroller from './ChatScroller/ChatScroller';
 
 interface ChatMessagesProps {
   whom: string;
@@ -14,8 +13,5 @@ interface ChatMessagesProps {
 export default function ChatMessages(props: ChatMessagesProps) {
   const { messages, whom, replying = false } = props;
 
-  const Scroller =
-    window.scroller === 'virtuoso' ? VirtuosoScroller : Groups1Scroller;
-
-  return <Scroller {...{ whom, messages, replying }} />;
+  return <ChatScroller {...{ whom, messages, replying }} />;
 }
