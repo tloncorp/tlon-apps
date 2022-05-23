@@ -3,7 +3,13 @@ import { Outlet } from 'react-router';
 import { NavLink } from 'react-router-dom';
 import cn from 'classnames';
 import Avatar from '../components/Avatar';
-import { useChatState, useDmList, usePendingDms } from '../state/chat';
+import {
+  useChatState,
+  useDmArchive,
+  useDmList,
+  usePendingDms,
+} from '../state/chat';
+import { useSearchParam } from '../hooks';
 
 function DmSidebarItem(props: { ship: string; pending?: boolean }) {
   const { ship, pending = false } = props;
@@ -29,21 +35,31 @@ function DmSidebarItem(props: { ship: string; pending?: boolean }) {
 }
 
 export default function Dms() {
+  const [showArchive = false] = useSearchParam<boolean>('archive');
   const ships = useDmList();
   const pending = usePendingDms();
+  const archive = useDmArchive();
 
   return (
     <div className="flex h-full w-full">
       <div className="flex flex-col space-y-2 border-r">
-        <NavLink to="/dm/new">New DM</NavLink>
+        {!showArchive ? <NavLink to="/dm/new">New DM</NavLink> : null}
+        <NavLink to="/dm?archive=true">Archive</NavLink>
+        <NavLink to="/dm">Unarchived</NavLink>
 
         <ul className="flex w-48 flex-col">
-          {pending.map((ship) => (
-            <DmSidebarItem pending key={ship} ship={ship} />
-          ))}
-          {ships.map((ship) => (
-            <DmSidebarItem key={ship} ship={ship} />
-          ))}
+          {!showArchive ? (
+            <>
+              {pending.map((ship) => (
+                <DmSidebarItem pending key={ship} ship={ship} />
+              ))}
+              {ships.map((ship) => (
+                <DmSidebarItem key={ship} ship={ship} />
+              ))}
+            </>
+          ) : (
+            archive.map((ship) => <DmSidebarItem key={ship} ship={ship} />)
+          )}
         </ul>
       </div>
       <Outlet />
