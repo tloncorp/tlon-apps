@@ -59,7 +59,7 @@ function NoShipsMessage() {
 function ShipTagLabel({ data }: { data: Option }) {
   const { value } = data;
   return (
-    <div className="flex items-center">
+    <div className="flex items-center bg-gray-100">
       <span className="p-1 font-semibold">{value}</span>
     </div>
   );
