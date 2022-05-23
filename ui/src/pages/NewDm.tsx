@@ -6,6 +6,7 @@ import Select, {
   ControlProps,
   OptionProps,
   MultiValue,
+  createFilter,
 } from 'react-select';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
@@ -88,6 +89,13 @@ export default function NewDM() {
     }
   };
 
+  // const filterConfig = {
+  // ignoreCase: true,
+  // ignoreAccents: true,
+  // trim: true,
+  // matchFrom: 'any',
+  // };
+
   return (
     <Layout
       className="flex-1"
@@ -119,6 +127,9 @@ export default function NewDM() {
           onChange={onChange}
           onKeyDown={onKeyDown}
           placeholder="Type a name ie; ~sampel-palnet"
+          hideSelectedOptions
+          // TODO: create custom filter for sorting potential DM participants.
+          // filterOption={createFilter(filterConfig)}
           components={{
             Control: MagnifyingGlassControl,
             DropdownIndicator: () => null,
