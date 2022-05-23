@@ -250,6 +250,9 @@
       [%x %dm %invited ~]
     ``ships+!>(~(key by pending-dms))
   ::
+      [%x %dm %archive ~]
+    ``ships+!>(~(key by archived-dms))
+  ::
       [%x %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
     (di-peek:(di-abed:di-core ship) t.t.t.path)
@@ -535,6 +538,9 @@
 ::
 ++  accepted-dms
   (dms-by-net %inviting %done ~)
+::
+++  archived-dms
+  (dms-by-net %archive ~)
 ::
 ++  dms-by-net
   |=  nets=(list net:dm:c)
