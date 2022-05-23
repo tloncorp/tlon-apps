@@ -60,7 +60,6 @@ function ShipTagLabel({ data }: { data: Option }) {
   const { value } = data;
   return (
     <div className="flex items-center space-x-1">
-      <Avatar ship={value} size="xs" />
       <span className="font-semibold">{value}</span>
     </div>
   );
