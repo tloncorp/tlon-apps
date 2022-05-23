@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import Select, {
-  SingleValue,
   components,
   ControlProps,
   OptionProps,
