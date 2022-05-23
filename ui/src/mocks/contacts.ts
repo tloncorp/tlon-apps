@@ -49,6 +49,47 @@ const mockContacts: Rolodex = {
     color: '0x0',
     groups: ['/ship/~dister-datder-sonnet/hodl', '/ship/~batbex/gem-rubyists'],
   },
+  '~fallyn-balfus': {
+    status: '',
+    'last-updated': 1635790731403,
+    avatar: '',
+    cover:
+      'https://fallyn-balfus.sfo2.digitaloceanspaces.com/fallyn-balfus/2021.6.07..21.46.55-Screen%20Shot%202021-06-07%20at%202%2C46%2C32%20PM.png',
+    bio: 'pls no',
+    nickname: 'jyng',
+    color: '0x0',
+    groups: [
+      '/ship/~fabled-faster/wind',
+      '/ship/~wolref-podlex/tea',
+      '/ship/~fabled-faster/interface-testing-facility',
+    ],
+  },
+  '~fabled-faster': {
+    status: 'Build-a-Bear',
+    'last-updated': 1652722355452,
+    avatar: '',
+    cover: '',
+    bio: 'thaumaturge at tlon\n\ned@tlon.io\n\nbc1qa256ysm78ss0k66ul8fd0g68m2zdmg8m3rncy4',
+    nickname: 'éd',
+    color: '0xc4.c5c6',
+    groups: [
+      '/ship/~fabled-faster/wind',
+      '/ship/~fabled-faster/storage',
+      '/ship/~rondev/group-discovery',
+      '/ship/~fabled-faster/structure',
+    ],
+  },
+  '~rilfun-lidlen': {
+    status: '',
+    'last-updated': 1652915627705,
+    avatar: '',
+    cover:
+      'http://inapcache.boston.com/universal/site_graphics/blogs/bigpicture/msh30_05_18/m19_mboe0016.jpg',
+    bio: '',
+    nickname: 'james',
+    color: '0xff.ffff',
+    groups: [],
+  },
 };
 
 export default mockContacts;
