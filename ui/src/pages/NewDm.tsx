@@ -59,8 +59,8 @@ function NoShipsMessage() {
 function ShipTagLabel({ data }: { data: Option }) {
   const { value } = data;
   return (
-    <div className="flex items-center space-x-1">
-      <span className="font-semibold">{value}</span>
+    <div className="flex items-center">
+      <span className="p-1 font-semibold">{value}</span>
     </div>
   );
 }
@@ -100,7 +100,12 @@ export default function NewDM() {
       className="flex-1"
       footer={
         <div className="border-t-2 border-black/10 p-4">
-          <ChatInput whom={ship ? ship.value : ''} showReply sendDisabled={!validShip} newDm />
+          <ChatInput
+            whom={ship ? ship.value : ''}
+            showReply
+            sendDisabled={!validShip}
+            newDm
+          />
         </div>
       }
     >
@@ -113,6 +118,7 @@ export default function NewDM() {
               ...base,
               borderRadius: '8px',
               borderWidth: '2px',
+              maxHeight: '32px',
             }),
             menu: ({ width, ...base }) => ({
               ...base,
