@@ -254,27 +254,33 @@ export const chatKeys = ['~zod/test'];
 export const dmList: ChatBriefs = {
   '~fabled-faster': {
     last: 0,
-    count: 2,
+    count: 0,
+    'read-id': null,
   },
   '~nocsyx-lassul': {
-    last: 0,
-    count: 2,
+    last: 1652302200000,
+    count: 3,
+    'read-id': chatWrits[Object.keys(chatWrits)[0]].seal.id,
   },
   '~fallyn-ballus': {
     last: 0,
-    count: 2,
+    count: 0,
+    'read-id': null,
   },
   '~finned-palmer': {
-    last: 0,
+    last: 1652302200000,
     count: 2,
+    'read-id': chatWrits[Object.keys(chatWrits)[4]].seal.id,
   },
   '~datder-sonnet': {
-    last: 0,
-    count: 2,
+    last: 1652302200000,
+    count: 1,
+    'read-id': chatWrits[Object.keys(chatWrits)[2]].seal.id,
   },
   '~hastuc-dibtux': {
     last: 0,
-    count: 2,
+    count: 0,
+    'read-id': null,
   },
 };
 

@@ -6,11 +6,13 @@
   =/  =time
     ?~  tim=(ram:on:writs:c wit.pac)  *time
     key.u.tim
+  =/  unreads
+    (lot:on:writs:c wit.pac `last-read ~)
+  =/  read-id=(unit id:c)  
+    (bind (pry:on:writs:c unreads) |=([key=@da val=writ:c] id.val))
   =/  count
-    %-  lent
-    %+  skim  ~(tap by (lot:on:writs.c wit.pac `last-read ~))
-    |=([tim=^time =writ:c] !=(author.writ our))
-  [time count]
+    (lent (skim ~(tap by unreads) |=([tim=^time =writ:c] !=(author.writ our))))
+  [time count read-id]
 ::
 ++  get
   |=  =id:c
@@ -79,8 +81,8 @@
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  start  (slav %da start.pole)
-    ``chat-writs+!>((turn (tab:on:writs:c wit.pac `start count) tail))
+    =/  start  (slav %ud start.pole)
+    ``chat-writs+!>((tab:on:writs:c wit.pac `start count))
   ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)

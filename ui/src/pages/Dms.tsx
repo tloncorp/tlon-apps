@@ -10,6 +10,7 @@ import {
   usePendingDms,
 } from '../state/chat';
 import { useSearchParam } from '../hooks';
+import ShipName from '../components/ShipName';
 
 function DmSidebarItem(props: { ship: string; pending?: boolean }) {
   const { ship, pending = false } = props;
@@ -18,16 +19,19 @@ function DmSidebarItem(props: { ship: string; pending?: boolean }) {
     <li>
       <NavLink
         to={`/dm/${ship}`}
-        className={cn('flex items-center justify-between p-2', {
-          'bg-blue-400 text-white': pending,
-        })}
+        className={cn(
+          'flex items-center justify-between rounded-md p-2 text-gray-600',
+          {
+            'bg-blue-400 text-white': pending,
+          }
+        )}
       >
         <div className="flex items-center space-x-2">
-          <Avatar size="small" ship={ship} />
-          <span className="font-mono">{ship}</span>
+          <Avatar size="xs" ship={ship} />
+          <ShipName className="font-semibold" name={ship} />
         </div>
         {(brief?.count ?? 0) > 0 ? (
-          <div className="h-2 w-2 rounded-full border bg-black" />
+          <div className="h-2 w-2 rounded-full border bg-blue" />
         ) : null}
       </NavLink>
     </li>
@@ -46,23 +50,26 @@ export default function Dms() {
         {!showArchive ? <NavLink to="/dm/new">New DM</NavLink> : null}
         <NavLink to="/dm?archive=true">Archive</NavLink>
         <NavLink to="/dm">Unarchived</NavLink>
+        <div className="flex min-w-52 flex-col space-y-2 border-r-2 border-gray-50 p-2">
+          <NavLink to="/dm/new">New DM</NavLink>
 
-        <ul className="flex w-48 flex-col">
-          {!showArchive ? (
-            <>
-              {pending.map((ship) => (
-                <DmSidebarItem pending key={ship} ship={ship} />
-              ))}
-              {ships.map((ship) => (
-                <DmSidebarItem key={ship} ship={ship} />
-              ))}
-            </>
-          ) : (
-            archive.map((ship) => <DmSidebarItem key={ship} ship={ship} />)
-          )}
-        </ul>
+          <ul className="flex w-48 flex-col">
+            {!showArchive ? (
+              <>
+                {pending.map((ship) => (
+                  <DmSidebarItem pending key={ship} ship={ship} />
+                ))}
+                {ships.map((ship) => (
+                  <DmSidebarItem key={ship} ship={ship} />
+                ))}
+              </>
+            ) : (
+              archive.map((ship) => <DmSidebarItem key={ship} ship={ship} />)
+            )}
+          </ul>
+        </div>
+        <Outlet />
       </div>
-      <Outlet />
     </div>
   );
 }

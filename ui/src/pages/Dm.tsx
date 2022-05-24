@@ -1,17 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { DropdownMenuItem } from '@radix-ui/react-dropdown-menu';
+import ChatWindow from '../chat/ChatWindow';
 import ChatInput from '../chat/ChatInput/ChatInput';
-import ChatMessages from '../chat/ChatMessages';
 import Layout from '../components/layout/Layout';
-import {
-  useChat,
-  useChatState,
-  useDmIsPending,
-  useDmMessages,
-} from '../state/chat';
-import Dialog, { DialogContent, DialogTrigger } from '../components/Dialog';
+import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
+import Dialog, { DialogContent } from '../components/Dialog';
 
 function DmOptions(props: { ship: string }) {
   const { ship } = props;
@@ -73,10 +67,10 @@ export default function Dm() {
   const ship = useParams<{ ship: string }>().ship!;
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState((s) => Object.keys(s.briefs).includes(ship));
+
   useEffect(() => {
     if (canStart) {
       useChatState.getState().initializeDm(ship);
-      useChatState.getState().markRead(ship);
     }
   }, [ship, canStart]);
   const messages = useDmMessages(ship);
@@ -93,26 +87,22 @@ export default function Dm() {
     <Layout
       className="h-full grow"
       header={
-        <div className="flex justify-between border-b p-2">
-          <h3 className="font-bold">{ship}</h3>
+        <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-4">
+          <h3 className="text-lg font-bold">{ship}</h3>
           {canStart ? <DmOptions ship={ship} /> : null}
         </div>
       }
       aside={<Outlet />}
       footer={
         isAccepted ? (
-          <div className="p-2">
+          <div className="border-t-2 border-gray-50 p-4">
             <ChatInput whom={ship} />
           </div>
         ) : null
       }
     >
       {isAccepted ? (
-        <div className="flex h-full w-full flex-col overflow-auto px-4">
-          <div className="mt-auto flex flex-col justify-end">
-            <ChatMessages messages={messages} whom={ship} />
-          </div>
-        </div>
+        <ChatWindow whom={ship} messages={messages} />
       ) : (
         <div className="flex flex-col">
           <div className="flex">
