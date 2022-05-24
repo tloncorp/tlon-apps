@@ -9,12 +9,15 @@ import {
 } from '@tloncorp/mock-http-api';
 import { decToUd, unixToDa } from '@urbit/api';
 
+import _ from 'lodash';
 import mockGroups, { mockGangs } from './groups';
-import chatWrits, { chatKeys, chatPerm, dmList } from './chat';
+import chatWrits, { chatKeys, dmList } from './chat';
 import { ChatDiff, ChatWhom, DmAction, WritDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
+
+const archive: string[] = [];
 
 const chatSub = {
   action: 'subscribe',
@@ -141,14 +144,19 @@ const chat: Handler[] = [
     action: 'scry' as const,
     app: 'chat',
     path: '/briefs',
-    func: () => ({
-      ...dmList,
-      '~zod/test': {
-        last: 1652302200000,
-        count: 1,
-        'read-id': null,
-      },
-    }),
+    func: () => {
+      const unarchived = _.fromPairs(
+        Object.entries(dmList).filter(([k]) => !archive.includes(k))
+      );
+      return {
+        ...unarchived,
+        '~zod/test': {
+          last: 1652302200000,
+          count: 1,
+          'read-id': null,
+        },
+      };
+    },
   },
   {
     action: 'scry' as const,
@@ -208,8 +216,20 @@ const dms: Handler[] = [
   {
     action: 'scry',
     app: 'chat',
+    path: '/dm',
+    func: () => Object.keys(dmList).filter((k) => !archive.includes(k)),
+  },
+  {
+    action: 'scry',
+    app: 'chat',
     path: '/dm/invited',
     func: () => [],
+  },
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/dm/archive',
+    func: () => archive,
   },
   {
     action: 'poke',
@@ -229,6 +249,47 @@ const dms: Handler[] = [
       response: 'diff',
       json: req.json.diff,
     }),
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'dm-archive',
+    returnSubscription: {
+      action: 'subscribe',
+      app: 'chat',
+      path: '/',
+    } as SubscriptionRequestInterface,
+    dataResponder: (req: Message & Poke<string>) => {
+      archive.push(req.json);
+
+      return {
+        id: req.id!,
+        ok: true,
+        response: 'diff',
+        json: req.json,
+      };
+    },
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'dm-unarchive',
+    returnSubscription: {
+      action: 'subscribe',
+      app: 'chat',
+      path: '/',
+    } as SubscriptionRequestInterface,
+    dataResponder: (req: Message & Poke<string>) => {
+      const index = archive.indexOf(req.json);
+      archive.splice(index, 1);
+
+      return {
+        id: req.id!,
+        ok: true,
+        response: 'diff',
+        json: req.json,
+      };
+    },
   },
 ];
 

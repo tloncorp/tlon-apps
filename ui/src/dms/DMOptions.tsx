@@ -2,6 +2,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import Dialog, { DialogContent } from '../components/Dialog';
+import EllipsisIcon from '../components/icons/EllipsisIcon';
 import { useChatState } from '../state/chat';
 
 export default function DmOptions(props: { ship: string }) {
@@ -23,22 +24,27 @@ export default function DmOptions(props: { ship: string }) {
   return (
     <>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger>X</DropdownMenu.Trigger>
-        <DropdownMenu.Content className="space-y-2 rounded border bg-white p-2">
-          <DropdownMenu.Item onSelect={onTryArchive} className="p-2">
+        <DropdownMenu.Trigger className="default-focus rounded-lg p-1 text-gray-600">
+          <EllipsisIcon className="h-5 w-5" />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content className="dropdown">
+          <DropdownMenu.Item onSelect={onTryArchive} className="dropdown-item">
             Archive
           </DropdownMenu.Item>
-          <DropdownMenu.Item className="p-2">Mark Read</DropdownMenu.Item>
+          <DropdownMenu.Item className="dropdown-item">
+            Mark Read
+          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent containerClass="max-w-sm" showClose>
-          <div className="flex flex-col space-y-4">
-            <h4 className="font-bold">Archive DM?</h4>
-            <p>
+        <DialogContent containerClass="max-w-md" showClose>
+          <div className="flex flex-col">
+            <h2 className="mb-4 text-lg font-bold">Leave Chat</h2>
+            <p className="mb-7 leading-5">
               Are you sure you want to leave this chat? Leaving will move this
-              chat into your Archive. If you rejoin this channel, you’ll
-              download everything you’ve missed since leaving it.
+              chat into your <strong>Archive</strong>. If you rejoin this
+              channel, you’ll download everything you’ve missed since leaving
+              it.
             </p>
             <div className="flex items-center justify-end space-x-2">
               <button onClick={closeDialog} className="button" type="button">
@@ -47,10 +53,10 @@ export default function DmOptions(props: { ship: string }) {
 
               <button
                 onClick={onArchive}
-                className="button bg-red-500"
+                className="button bg-red text-white"
                 type="button"
               >
-                Archive
+                Leave Chat
               </button>
             </div>
           </div>

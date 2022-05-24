@@ -36,16 +36,6 @@ import ErrorAlert from './components/ErrorAlert';
 import DMSidebar from './dms/DMSidebar';
 import DMHome from './dms/DMHome';
 
-function Divider(props: { title: string }) {
-  const { title } = props;
-  return (
-    <div className="flex items-center space-x-2 p-2">
-      <div>{title}</div>
-      <div className="grow border-b border-black" />
-    </div>
-  );
-}
-
 function App() {
   const handleError = useErrorHandler();
   const location = useLocation();

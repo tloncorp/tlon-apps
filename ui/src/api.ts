@@ -13,7 +13,7 @@ if (IS_MOCK) {
 }
 
 const api = IS_MOCK
-  ? new UrbitMock(mockHandlers, URL, '')
+  ? new UrbitMock(mockHandlers, URL || '', '')
   : new Urbit('', '', window.desk);
 api.ship = window.ship;
 api.verbose = true;

@@ -1,5 +1,5 @@
 .default-focus {
-  @apply ring-gray-200 ring-offset-2 focus:outline-none focus:ring-2;
+  @apply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus:ring-2;
 }
 
 /* Useful for showing selections programmatically */

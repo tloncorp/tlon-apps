@@ -5,7 +5,7 @@ import { Outlet, useLocation, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import ChatWindow from '../chat/ChatWindow';
-import ElipsisIcon from '../components/icons/ElipsisIcon';
+import EllipsisIcon from '../components/icons/EllipsisIcon';
 import Layout from '../components/layout/Layout';
 import useMedia from '../logic/useMedia';
 import {
@@ -68,7 +68,7 @@ function Channel() {
             className="icon-button ml-auto h-8 w-8"
             to={`${channelHref(groupFlag, flag)}/settings`}
           >
-            <ElipsisIcon className="h-5 w-5" />
+            <EllipsisIcon className="h-5 w-5" />
           </Link>
         </div>
       }

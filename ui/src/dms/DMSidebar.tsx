@@ -1,7 +1,7 @@
 import React from 'react';
 import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useDmArchive, useDmList, usePendingDms } from '../state/chat';
 import DmSidebarItem from './DMSidebarItem';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
@@ -26,15 +26,15 @@ export default function DMSidebar() {
       <header className="flex items-center border-b-2 border-gray-50 p-4">
         <Dropdown.Root>
           <Dropdown.Trigger className="default-focus flex items-center rounded-lg font-semibold">
-            All Messages
+            {showArchive ? 'Archive' : 'All Messages'}
             <SmallDownIcon className="ml-1 h-4 w-4" />
           </Dropdown.Trigger>
           <Dropdown.Content className="dropdown">
             <Dropdown.Item asChild className="dropdown-item">
-              <NavLink to="/dm">All Messages</NavLink>
+              <Link to="/dm">All Messages</Link>
             </Dropdown.Item>
             <Dropdown.Item asChild className="dropdown-item">
-              <NavLink to="/dm?archive=true">Archive</NavLink>
+              <Link to="/dm?archive=true">Archive</Link>
             </Dropdown.Item>
           </Dropdown.Content>
         </Dropdown.Root>

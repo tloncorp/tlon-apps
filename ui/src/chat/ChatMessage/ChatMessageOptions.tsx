@@ -1,11 +1,10 @@
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { useRouteGroup } from '../../state/groups';
 import { useChatState } from '../../state/chat';
-import { ChatWhom, ChatWrit } from '../../types/chat';
+import { ChatWrit } from '../../types/chat';
 import IconButton from '../../components/IconButton';
 import BubbleIcon from '../../components/icons/BubbleIcon';
-import ElipsisIcon from '../../components/icons/ElipsisIcon';
+import EllipsisIcon from '../../components/icons/EllipsisIcon';
 import FaceIcon from '../../components/icons/FaceIcon';
 import HashIcon from '../../components/icons/HashIcon';
 import ShareIcon from '../../components/icons/ShareIcon';
@@ -17,7 +16,6 @@ export default function ChatMessageOptions(props: {
   writ: ChatWrit;
 }) {
   const { whom, writ } = props;
-  const groupFlag = useRouteGroup();
   const onDelete = () => {
     useChatState.getState().delMessage(whom, writ.seal.id);
   };
@@ -67,7 +65,7 @@ export default function ChatMessageOptions(props: {
       ) : null}
 
       <IconButton
-        icon={<ElipsisIcon className="text-gray-400" />}
+        icon={<EllipsisIcon className="text-gray-400" />}
         label="More..."
         showTooltip
         action={() => console.log('More...')}
