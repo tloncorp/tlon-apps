@@ -32,7 +32,7 @@ function MagnifyingGlassControl({
   );
 }
 
-function SigOption({ data, ...props }: OptionProps<Option, true>) {
+function ShipName({ data, ...props }: OptionProps<Option, true>) {
   const { value, label } = data;
   return (
     <components.Option data={data} {...props}>
@@ -139,7 +139,7 @@ export default function NewDM() {
             Control: MagnifyingGlassControl,
             DropdownIndicator: () => null,
             IndicatorSeparator: () => null,
-            Option: SigOption,
+            Option: ShipName,
             NoOptionsMessage: NoShipsMessage,
             MultiValueLabel: ShipTagLabel,
           }}
