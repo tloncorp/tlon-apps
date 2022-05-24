@@ -22,22 +22,22 @@ export default function DMSidebar() {
     >
       <header className="flex items-center border-b-2 border-gray-50 p-4">
         <Dropdown.Root>
-          <Dropdown.Trigger className="flex items-center font-semibold">
+          <Dropdown.Trigger className="default-focus flex items-center rounded-lg font-semibold">
             All Messages
             <SmallDownIcon className="ml-1 h-4 w-4" />
           </Dropdown.Trigger>
-          <Dropdown.Content className="flex min-w-40 flex-col rounded-lg bg-white py-2 font-semibold shadow-lg">
-            <Dropdown.Item asChild className="px-2 py-3">
+          <Dropdown.Content className="dropdown">
+            <Dropdown.Item asChild className="dropdown-item">
               <NavLink to="/dm">All Messages</NavLink>
             </Dropdown.Item>
-            <Dropdown.Item asChild className="px-2 py-3">
+            <Dropdown.Item asChild className="dropdown-item">
               <NavLink to="/dm-archive">Archive</NavLink>
             </Dropdown.Item>
           </Dropdown.Content>
         </Dropdown.Root>
         <NavLink
           to="/dm/new"
-          className="ml-auto text-blue"
+          className="default-focus ml-auto rounded-lg text-blue"
           aria-label="Start New Message"
         >
           <NewMessageIcon className="h-6 w-6" />

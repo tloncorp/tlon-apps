@@ -40,3 +40,11 @@
 .dialog-inner-container {
   @apply h-full space-y-8 overflow-y-auto p-4 md:p-8;
 }
+
+.dropdown {
+  @apply flex min-w-40 flex-col rounded-lg bg-white py-2 font-semibold shadow-lg;
+}
+
+.dropdown-item {
+  @apply px-2 py-3;
+}

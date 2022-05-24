@@ -14,7 +14,6 @@ interface ChatWindowProps {
 export default function ChatWindow({ whom, messages }: ChatWindowProps) {
   const brief = useChatState((s) => s.briefs[whom]);
 
-
   return (
     <div className="relative h-full">
       <ChatUnreadAlerts brief={brief} whom={whom} />
