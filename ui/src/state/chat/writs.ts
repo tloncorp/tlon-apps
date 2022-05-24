@@ -1,4 +1,4 @@
-import { BigIntOrderedMap, udToDec, unixToDa } from '@urbit/api';
+import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import api from '../../api';
 import { ChatWrit, ChatWrits, Pact, WritDiff } from '../../types/chat';
@@ -6,7 +6,7 @@ import { ChatState } from './type';
 
 interface WritsStore {
   initialize: () => Promise<void>;
-  getOlder: (start: string, count: string) => Promise<void>;
+  getOlder: (count: string) => Promise<boolean>;
 }
 
 export default function makeWritsStore(
@@ -92,15 +92,30 @@ export default function makeWritsStore(
         },
       });
     },
-    getOlder: async (start: string, count: string) => {
+    getOlder: async (count: string) => {
       // TODO: fix for group chats
+      const { pacts } = get();
+      const pact = pacts[whom];
+
+      const oldMessagesSize = pact.writs.size ?? 0;
+      if (oldMessagesSize === 0) {
+        // already loading the graph
+        return false;
+      }
+
+      const index = pact.writs.peekSmallest()?.[0];
+      if (!index) {
+        return false;
+      }
+
+      const fetchStart = decToUd(pact.writs.peekSmallest()[0].toString());
+
       const writs = await api.scry<ChatWrits>({
         app: 'chat',
-        path: `/dm/${whom}/writs/older/${start}/${count}`,
+        path: `${scryPath}/older/${fetchStart}/${count}`,
       });
-      const { batchSet, pacts } = get();
-      const pact = pacts[whom];
-      batchSet((draft) => {
+
+      get().batchSet((draft) => {
         Object.keys(writs).forEach((key) => {
           const writ = writs[key];
           const tim = bigInt(udToDec(key));
@@ -109,6 +124,9 @@ export default function makeWritsStore(
         });
         draft.pacts[whom] = pact;
       });
+
+      const newMessageSize = get().pacts[whom].writs.size;
+      return newMessageSize === oldMessagesSize;
     },
   };
 }

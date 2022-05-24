@@ -115,15 +115,28 @@ export const useChatState = create<ChatState>((set, get) => ({
       path: '/briefs',
       event: (event: unknown) => {
         const { whom, brief } = event as ChatBriefUpdate;
-        console.log(whom);
         get().batchSet((draft) => {
           draft.briefs[whom] = brief;
         });
       },
     });
   },
-  fetchOlder: async (ship: string, start: string, count: string) => {
-    await makeWritsStore(ship, get, '', ``).getOlder(start, count);
+  fetchOlder: async (whom: string, count: string) => {
+    const isDM = whomIsDm(whom);
+    if (isDM) {
+      return makeWritsStore(
+        whom,
+        get,
+        `/dm/${whom}/writs`,
+        `/dm/${whom}/ui`
+      ).getOlder(count);
+    }
+    return makeWritsStore(
+      whom,
+      get,
+      `/chat/${whom}/writs`,
+      `/chat/${whom}/ui/writs`
+    ).getOlder(count);
   },
   fetchDms: async () => {
     const dms = await api.scry<string[]>({

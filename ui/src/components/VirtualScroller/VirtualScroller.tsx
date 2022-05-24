@@ -735,12 +735,11 @@ export default class VirtualScroller<K, V> extends Component<
         <ScrollbarLessBox
           ref={this.setWindow}
           onScroll={this.onScroll}
+          className="h-100"
           style={{
             ...style,
             WebkitOverflowScrolling: 'auto',
-            // overflowY: 'scroll', // TODO: This was in the original
-            // VirtualScroller implementation, however it is drawing an extra
-            // scrollbar
+            overflowY: 'scroll',
           }}
         >
           <div style={{ width: 'calc(100% - 4px)' }}>
