@@ -54,7 +54,7 @@ function Channel() {
             state={{ backgroundLocation: location }}
             className={cn(
               isMobile &&
-                '-ml-2 flex items-center rounded-md p-2 hover:bg-gray-50'
+                '-ml-2 flex items-center rounded-lg p-2 hover:bg-gray-50'
             )}
             aria-label="Open Channels Menu"
           >

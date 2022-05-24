@@ -280,7 +280,7 @@ export function useChatIsJoined(whom: string) {
 const selDmList = (s: ChatState) =>
   Object.keys(s.briefs)
     .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))
-    .sort((a, b) => s.briefs[b].last - s.briefs[a].last);
+    .sort((a, b) => (s.briefs[b]?.last || 0) - (s.briefs[a]?.last || 0));
 
 export function useDmList() {
   return useChatState(selDmList);

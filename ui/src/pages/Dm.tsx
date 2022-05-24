@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
@@ -6,12 +6,14 @@ import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
 
 export default function Dm() {
-  const ship = useParams<{ ship: string }>().ship!;
+  const ship = useParams<{ ship: string }>().ship || '';
   const isAccepted = !useDmIsPending(ship);
-  const canStart = useChatState((s) => Object.keys(s.briefs).includes(ship));
+  const canStart = useChatState(
+    useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
+  );
 
   useEffect(() => {
-    if (canStart) {
+    if (ship && canStart) {
       useChatState.getState().initializeDm(ship);
     }
   }, [ship, canStart]);

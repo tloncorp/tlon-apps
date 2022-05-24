@@ -28,7 +28,7 @@ export default function ChatMessageOptions(props: {
 
   const navigate = useNavigate();
   return (
-    <div className="absolute right-2 -top-5 z-10 flex flex space-x-[2px] rounded-md border-[1px] border-gray-100 bg-white p-[2px] align-middle opacity-0 group-one-hover:opacity-100">
+    <div className="absolute right-2 -top-5 z-10 flex flex space-x-[2px] rounded-lg border-[1px] border-gray-100 bg-white p-[2px] align-middle opacity-0 group-one-hover:opacity-100">
       <IconButton
         icon={<FaceIcon className="text-gray-400" />}
         label="React"

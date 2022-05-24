@@ -33,6 +33,8 @@ import { useSettingsState, useTheme } from './state/settings';
 import { useLocalState } from './state/local';
 import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
+import DMSidebar from './dms/DMSidebar';
+import DMHome from './dms/DMHome';
 
 function Divider(props: { title: string }) {
   const { title } = props;
@@ -87,14 +89,15 @@ function App() {
           path={isMobile ? '/groups/:ship/:name' : '/groups/:ship/:name/*'}
           element={<GroupSidebar />}
         />
+        <Route path={isMobile ? '/dm' : '/dm/*'} element={<DMSidebar />} />
       </Routes>
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm" element={<Dms />}>
+          <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
           <Route path=":ship" element={<Dm />}>
             <Route path="message/:idShip/:idTime" element={<DmThread />} />
           </Route>
-          <Route index element={<div>Select a DM</div>} />
         </Route>
 
         <Route path="/gangs/:ship/:name" element={<Gang />} />
