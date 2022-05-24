@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import _ from 'lodash';
 import { BigIntOrderedMap } from '@urbit/api';
 import { useChatState } from '../state/chat';
@@ -14,14 +14,11 @@ interface ChatWindowProps {
 export default function ChatWindow({ whom, messages }: ChatWindowProps) {
   const brief = useChatState((s) => s.briefs[whom]);
 
-
   return (
     <div className="relative h-full">
       <ChatUnreadAlerts brief={brief} whom={whom} />
-      <div className="flex h-full w-full flex-col overflow-auto p-4">
-        <div className="mt-auto flex flex-col justify-end">
-          <ChatMessages messages={messages} whom={whom} />
-        </div>
+      <div className="flex h-full w-full flex-col overflow-hidden p-4">
+        <ChatMessages messages={messages} whom={whom} />
       </div>
     </div>
   );
