@@ -2,15 +2,18 @@ import React from 'react';
 import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { NavLink } from 'react-router-dom';
-import { useDmList, usePendingDms } from '../state/chat';
+import { useDmArchive, useDmList, usePendingDms } from '../state/chat';
 import DmSidebarItem from './DMSidebarItem';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
 import SmallDownIcon from '../components/icons/SmallDownIcon';
 import useMedia from '../logic/useMedia';
+import { useSearchParam } from '../hooks';
 
 export default function DMSidebar() {
+  const [showArchive = false] = useSearchParam<boolean>('archive');
   const ships = useDmList();
   const pending = usePendingDms();
+  const archive = useDmArchive();
   const isMobile = useMedia('(max-width: 639px)');
 
   return (
@@ -31,7 +34,7 @@ export default function DMSidebar() {
               <NavLink to="/dm">All Messages</NavLink>
             </Dropdown.Item>
             <Dropdown.Item asChild className="dropdown-item">
-              <NavLink to="/dm-archive">Archive</NavLink>
+              <NavLink to="/dm?archive=true">Archive</NavLink>
             </Dropdown.Item>
           </Dropdown.Content>
         </Dropdown.Root>
@@ -45,12 +48,18 @@ export default function DMSidebar() {
       </header>
 
       <ul className="flex w-full flex-col p-2">
-        {pending.map((ship) => (
-          <DmSidebarItem pending key={ship} ship={ship} />
-        ))}
-        {ships.map((ship) => (
-          <DmSidebarItem key={ship} ship={ship} />
-        ))}
+        {!showArchive ? (
+          <>
+            {pending.map((ship) => (
+              <DmSidebarItem pending key={ship} ship={ship} />
+            ))}
+            {ships.map((ship) => (
+              <DmSidebarItem key={ship} ship={ship} />
+            ))}
+          </>
+        ) : (
+          archive
+        )}
       </ul>
     </nav>
   );

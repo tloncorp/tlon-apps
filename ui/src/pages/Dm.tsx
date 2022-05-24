@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
+import ChatWindow from '../chat/ChatWindow';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
-import ChatWindow from '../chat/ChatWindow';
+import DmOptions from '../dms/DMOptions';
 
 export default function Dm() {
   const ship = useParams<{ ship: string }>().ship || '';
@@ -31,9 +32,10 @@ export default function Dm() {
     <Layout
       className="h-full grow"
       header={
-        <h1 className="flex h-full items-center border-b-2 border-gray-50 p-4 text-lg font-bold">
-          {ship}
-        </h1>
+        <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-4">
+          <h1 className="text-lg font-bold">{ship}</h1>
+          {canStart ? <DmOptions ship={ship} /> : null}
+        </div>
       }
       aside={<Outlet />}
       footer={

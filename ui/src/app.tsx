@@ -55,6 +55,7 @@ function App() {
     handleError(() => {
       useGroupState.getState().start();
       useChatState.getState().start();
+      useChatState.getState().fetchDms();
       const { initialize: settingsInitialize, fetchAll } =
         useSettingsState.getState();
       settingsInitialize(api);
@@ -92,7 +93,7 @@ function App() {
         <Route path={isMobile ? '/dm' : '/dm/*'} element={<DMSidebar />} />
       </Routes>
       <Routes location={state?.backgroundLocation || location}>
-        <Route path="/dm" element={<Dms />}>
+        <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
           <Route path=":ship" element={<Dm />}>
