@@ -7,6 +7,7 @@ import Select, {
   OptionProps,
   MultiValue,
   createFilter,
+  InputProps,
 } from 'react-select';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
@@ -59,7 +60,7 @@ function NoShipsMessage() {
 function ShipTagLabel({ data }: { data: Option }) {
   const { value } = data;
   return (
-    <div className="flex items-center bg-gray-100">
+    <div className="flex items-center rounded bg-gray-100">
       <span className="p-1 font-semibold">{value}</span>
     </div>
   );
@@ -114,16 +115,27 @@ export default function NewDM() {
           autoFocus
           isMulti
           styles={{
-            control: (base) => ({
+            control: (base, state) => ({
               ...base,
               borderRadius: '8px',
               borderWidth: '2px',
               maxHeight: '32px',
+              borderColor: state.isFocused ? '#E5E5E5' : '#F5F5F5',
+              boxShadow: state.isFocused ? '0px 0px 0px 1px #E5E5E5' : '',
+              '&:hover': {
+                borderColor: '#E5E5E5',
+              },
             }),
             menu: ({ width, ...base }) => ({
               ...base,
               borderRadius: '8px',
               borderWidth: '2px',
+              borderColor: '#E5E5E5',
+            }),
+            multiValue: (base) => ({
+              ...base,
+              // borderRadius must be applied here and on the MultiValueLabel component (ShipTagLabel).
+              borderRadius: '4px',
             }),
           }}
           aria-label="Ships"
