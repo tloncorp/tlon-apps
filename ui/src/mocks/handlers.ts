@@ -18,6 +18,7 @@ import {
   dmList,
   messageSequence,
   unixToDaStr,
+  pendindDMs,
 } from './chat';
 import { ChatDiff, ChatWhom, DmAction, WritDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
@@ -285,7 +286,7 @@ const dms: Handler[] = [
     action: 'scry',
     app: 'chat',
     path: '/dm/invited',
-    func: () => [],
+    func: () => pendindDMs,
   },
   {
     action: 'poke',
