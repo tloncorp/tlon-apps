@@ -735,7 +735,7 @@ export default class VirtualScroller<K, V> extends Component<
         <ScrollbarLessBox
           ref={this.setWindow}
           onScroll={this.onScroll}
-          className="h-100"
+          className="hide-scroll h-full"
           style={{
             ...style,
             WebkitOverflowScrolling: 'auto',
