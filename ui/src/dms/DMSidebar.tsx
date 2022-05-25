@@ -9,6 +9,7 @@ import SmallDownIcon from '../components/icons/SmallDownIcon';
 import useMedia from '../logic/useMedia';
 import { useSearchParam } from '../hooks';
 import DMArchiveItem from './DMArchiveItem';
+import CheckIcon from '../components/icons/CheckIcon';
 
 export default function DMSidebar() {
   const [showArchive = false] = useSearchParam<boolean>('archive');
@@ -31,11 +32,27 @@ export default function DMSidebar() {
             <SmallDownIcon className="ml-1 h-4 w-4" />
           </Dropdown.Trigger>
           <Dropdown.Content className="dropdown">
-            <Dropdown.Item asChild className="dropdown-item">
-              <Link to="/dm">All Messages</Link>
+            <Dropdown.Item
+              asChild
+              className="dropdown-item flex items-center justify-between"
+            >
+              <Link to="/dm">
+                All Messages
+                {!showArchive ? (
+                  <CheckIcon className="h-6 w-6 text-blue" />
+                ) : null}
+              </Link>
             </Dropdown.Item>
-            <Dropdown.Item asChild className="dropdown-item">
-              <Link to="/dm?archive=true">Archive</Link>
+            <Dropdown.Item
+              asChild
+              className="dropdown-item flex items-center justify-between"
+            >
+              <Link to="/dm?archive=true">
+                Archive
+                {showArchive ? (
+                  <CheckIcon className="h-6 w-6 text-blue" />
+                ) : null}
+              </Link>
             </Dropdown.Item>
           </Dropdown.Content>
         </Dropdown.Root>
