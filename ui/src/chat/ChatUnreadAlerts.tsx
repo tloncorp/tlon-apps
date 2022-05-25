@@ -33,12 +33,12 @@ export default function ChatUnreadAlerts({
   return (
     <>
       <div className="absolute top-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
-        <button className="button whitespace-nowrap bg-blue-soft text-blue">
+        <button className="button whitespace-nowrap bg-blue-soft text-sm text-blue lg:text-base">
           <span className="whitespace-nowrap font-normal">{unreadMessage}</span>
           &nbsp;&bull;&nbsp;View Unread
         </button>
         <button
-          className="button whitespace-nowrap bg-blue-soft text-blue"
+          className="button whitespace-nowrap bg-blue-soft text-sm text-blue lg:text-base"
           onClick={markRead}
         >
           Mark as Read

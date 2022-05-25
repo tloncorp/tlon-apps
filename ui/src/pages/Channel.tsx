@@ -29,7 +29,7 @@ function Channel() {
     useChatState.getState().joinChat(flag);
   };
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 639px)');
+  const isMobile = useMedia('(max-width: 767px)');
 
   useEffect(() => {
     useChatState.getState().initialize(flag);

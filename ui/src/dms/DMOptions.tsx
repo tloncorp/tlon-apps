@@ -25,7 +25,7 @@ export default function DmOptions(props: { ship: string }) {
   return (
     <>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger className="default-focus rounded-lg p-1 text-gray-600">
+        <DropdownMenu.Trigger className="default-focus rounded-lg p-0.5 text-gray-600">
           <EllipsisIcon className="h-5 w-5" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">

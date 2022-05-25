@@ -31,7 +31,7 @@ export default function Sidebar() {
   const groups = useGroupList();
   const gangs = useGangList();
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 639px)');
+  const isMobile = useMedia('(max-width: 767px)');
   const routeState = location.state as ModalLocationState | null;
 
   return (

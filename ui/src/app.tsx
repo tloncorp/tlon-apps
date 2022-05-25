@@ -39,7 +39,7 @@ import DMHome from './dms/DMHome';
 function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 639px)');
+  const isMobile = useMedia('(max-width: 767px)');
 
   useEffect(() => {
     handleError(() => {

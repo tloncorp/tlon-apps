@@ -10,13 +10,15 @@ import useMedia from '../logic/useMedia';
 import { useSearchParam } from '../hooks';
 import DMArchiveItem from './DMArchiveItem';
 import CheckIcon from '../components/icons/CheckIcon';
+import LeftIcon from '../components/icons/LeftIcon';
+import RetainedStateLink from '../components/RetainedStateLink';
 
 export default function DMSidebar() {
   const [showArchive = false] = useSearchParam<boolean>('archive');
   const ships = useDmList();
   const pending = usePendingDms();
   const archive = useDmArchive();
-  const isMobile = useMedia('(max-width: 639px)');
+  const isMobile = useMedia('(max-width: 767px)');
 
   return (
     <nav
@@ -26,6 +28,15 @@ export default function DMSidebar() {
       )}
     >
       <header className="flex items-center border-b-2 border-gray-50 p-4">
+        {isMobile ? (
+          <RetainedStateLink
+            to="/"
+            className="mr-2 flex items-center"
+            aria-label="Back to Home"
+          >
+            <LeftIcon className="h-5 w-5 text-gray-500" />
+          </RetainedStateLink>
+        ) : null}
         <Dropdown.Root>
           <Dropdown.Trigger className="default-focus flex items-center rounded-lg font-semibold">
             {showArchive ? 'Archive' : 'All Messages'}
