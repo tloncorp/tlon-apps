@@ -38,13 +38,13 @@ export default function DMSidebar() {
             </Dropdown.Item>
           </Dropdown.Content>
         </Dropdown.Root>
-        <NavLink
+        <Link
           to="/dm/new"
           className="default-focus ml-auto rounded-lg text-blue"
           aria-label="Start New Message"
         >
           <NewMessageIcon className="h-6 w-6" />
-        </NavLink>
+        </Link>
       </header>
 
       <ul className="flex w-full flex-col p-2">

@@ -168,7 +168,7 @@ export default function NewDM() {
         </div>
       }
     >
-      <div className="w-full p-4">
+      <div className="w-full py-3 px-4">
         <Select
           autoFocus
           isMulti
