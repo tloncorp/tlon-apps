@@ -9,7 +9,7 @@
   +$  card  card:agent:gall
   ++  def-flag  `flag:c`[~zod %test]
   +$  state-0
-    $:  %0
+    $:  %1
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
@@ -138,6 +138,17 @@
   ::
       %club-invite
     cu-abet:(cu-invite:cu-core !<(=invite:club:c vase))
+  ::
+      %club-rsvp
+    =+  !<(=rsvp:club:c vase)
+    cu-abet:(cu-rsvp:(cu-abed id.rsvp) +.rsvp)
+  ::
+      %club-action
+    =+  !<(=action:club:c vase)
+    =/  cu  (cu-abed p.action)
+    ?:  =(src our):bowl  
+      cu-abet:(cu-proxy:cu q.action)
+    cu-abet:(cu-diff:cu q.action)
   ==
   ::
   ++  join
@@ -299,6 +310,7 @@
   ++  cu-abed
     |=  i=id:club:c
     cu-core(id i, club (~(got by clubs) i))
+  ++  cu-out  (~(del in cu-circle) our.bowl)
   ++  cu-circle
     (~(uni in team.club) hive.club)
   ::
@@ -310,7 +322,7 @@
       |=  =cage
       ^-  (list card)
       =/  =wire  (snoc cu-area %gossip)
-      %+  turn  ~(tap in cu-circle)
+      %+  turn  ~(tap in cu-out)
       |=  =ship
       =/  =dock  [ship dap.bowl]
       [%pass wire %agent dock %poke cage]
@@ -332,14 +344,33 @@
     (cu-init %invited invite)
   ++  cu-rsvp
     |=  [=ship ok=?]
+    ^+  cu-core
     =?  cor  =(our.bowl ship)
       (emil (gossip:cu-pass club-rsvp+!>([id ship ok])))
     ?>  (~(has in cu-circle) src.bowl)
     ?>  =(src.bowl ship)
-    =:  hive.club  (~(del in hive.club) ship)
-        team.club  (~(put in team.club) ship)
-      ==
-    cu-core :: TODO notify of join
+    =.  hive.club  (~(del in hive.club) ship)
+    ?.  ok
+      (cu-post-notice ship '' ' declined the invite')
+    =.  team.club  (~(put in team.club) ship)
+    (cu-post-notice ship '' ' joined the chat')
+  ::
+  ++  cu-post-notice
+    |=  [=ship =notice:c]
+    =/  =id:c
+      [ship now.bowl]
+    (cu-diff id %add ~ ship now.bowl notice/notice)
+  ::
+  ++  cu-proxy
+    |=  =diff:club:c
+    =.  cor  (emil (gossip:cu-pass club-action+!>([id diff])))
+    (cu-diff diff)
+  ::
+  ++  cu-diff
+    |=  =diff:club:c
+    ^+  cu-core
+    =.  pact.club  (reduce:cu-pact now.bowl diff)
+    cu-core
   ::
   ++  cu-agent
     |=  [=wire =sign:agent:gall]

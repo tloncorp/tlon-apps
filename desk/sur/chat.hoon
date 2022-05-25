@@ -70,6 +70,8 @@
     [=id team=(set ship) hive=(set ship)]
   ::
   +$  invite  create
+  +$  diff    diff:writs
+  +$  action  (pair id diff)
   --
 ::
 ++  writs
