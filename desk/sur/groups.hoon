@@ -3,9 +3,6 @@
 ::  $sect: ID for cabal
 ::
 +$  sect  term
-::  $bloc: app-specific $sect
-::
-+$  bloc  (pair dude:gall sect) 
 ++  fleet
   =<  fleet
   |%
@@ -53,6 +50,7 @@
 +$  group
   $:  =fleet
       cabals=(map sect cabal)
+      =bloc
       =channels:channel
       =cordon
       =meta
@@ -103,10 +101,21 @@
         [%swap p=cordon]
     ==
   --
+::  $bloc: superuser sects
+++  bloc
+  =<  bloc
+  |%
+  +$  bloc  (set sect)
+  +$  diff
+    $%  [%add p=(set sect)]
+        [%del p=(set sect)]
+    ==
+  --
 +$  diff
   $%  [%fleet p=ship q=diff:fleet]
       [%cabal p=sect q=diff:cabal]
       [%channel p=flag q=diff:channel]
+      [%bloc p=diff:bloc]
       [%cordon p=diff:cordon]
       [%create p=group]
   ==
