@@ -1,15 +1,17 @@
 /-  c=chat, g=groups
+/-  ha=hark-store
 /+  default-agent, verb, dbug
 /+  chat-json
 /+  w=chat-writs
 /+  pac=dm
+/+  ch=chat-hark
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
   ++  def-flag  `flag:c`[~zod %test]
   +$  state-0
-    $:  %0
+    $:  %1
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         bad=(set ship)
@@ -559,7 +561,9 @@
     |=  s=@p
     =/  d
       %+  ~(gut by dms)  s
-      [*pact:c *remark:c ?:(=(src our):bowl %inviting %invited)]
+      =|  =remark:c
+      =.  watching.remark  &
+      [*pact:c remark ?:(=(src our):bowl %inviting %invited)]
     di-core(ship s, dm d)
 
   ++  di-area  `path`/dm/(scot %p ship)
@@ -569,6 +573,24 @@
     =.  cor  (emit (proxy:di-pass diff))
     di-core
   ::
+  ++  di-notify
+    |=  [=id:c =delta:writs:c]
+    ^+  di-core
+    ?.  watching.remark.dm  di-core
+    ?:  =(our.bowl p.id)  di-core
+    ?:  =(%invited net.dm)  di-core
+    ?+  -.delta  di-core
+        %add
+      ?.  ?=(%story -.content.p.delta)  di-core
+      =/  =bin:ha  [/ [q.byk.bowl /dm/(scot %p ship)]]
+      =/  =cage
+        :-  %hark-action
+        !>  ^-  action:ha
+        [%add-note bin (dm-to-hark:ch ship now.bowl id p.content.p.delta)]
+      =.  cor  (emit (hark:di-pass cage))
+      di-core
+    ==
+  ::
   ++  di-ingest-diff
     |=  =diff:dm:c
     =/  =path  (snoc di-area %ui)
@@ -577,6 +599,8 @@
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
       (give-brief ship/ship di-brief)
+    =.  di-core  
+      (di-notify diff)
     di-core
     :: di-core(pact (reduce:w ship writs ship now.bowl diff))
   ::
@@ -606,6 +630,13 @@
     |=  [=wire =sign:agent:gall]
     ^+  di-core
     ?+    wire  ~|(bad-dm-take/wire !!)
+        [%proxy ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  di-core
+      ::  TODO: handle?
+      %-  (slog leaf/"Failed to notify about dm {<ship>}" u.p.sign)
+      di-core
+    ::
         [%proxy ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
@@ -640,6 +671,9 @@
     di-core
   ++  di-pass
     |%
+    ++  hark
+      |=  =cage
+      (pass /hark [our.bowl %hark-store] %poke cage)
     ++  pass
       |=  [=wire =dock =task:agent:gall]
       ^-  card
