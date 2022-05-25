@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -6,8 +7,12 @@ import EllipsisIcon from '../components/icons/EllipsisIcon';
 import LeaveIcon from '../components/icons/LeaveIcon';
 import { useChatState } from '../state/chat';
 
-export default function DmOptions(props: { ship: string }) {
-  const { ship } = props;
+interface DMOptionsProps {
+  ship: string;
+  className?: string;
+}
+
+export default function DmOptions({ ship, className }: DMOptionsProps) {
   const navigate = useNavigate();
 
   const onArchive = () => {
@@ -23,6 +28,10 @@ export default function DmOptions(props: { ship: string }) {
   const onTryArchive = (e: Event) => {
     setDialog(true);
   };
+  const leaveMessage = () => {
+    navigate('/dm');
+    useChatState.getState().dmRsvp(ship, false);
+  };
   const closeDialog = () => {
     setDialog(false);
   };
@@ -30,17 +39,23 @@ export default function DmOptions(props: { ship: string }) {
   return (
     <>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger className="default-focus rounded-lg p-0.5 text-gray-600">
+        <DropdownMenu.Trigger
+          className={cn(
+            'default-focus rounded-lg p-0.5 text-gray-600',
+            className
+          )}
+          aria-label="Open Message Options"
+        >
           <EllipsisIcon className="h-5 w-5" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
-          {/* <DropdownMenu.Item
-            onSelect={onTryArchive}
+          <DropdownMenu.Item
+            onSelect={leaveMessage}
             className="dropdown-item flex items-center space-x-2 text-red"
           >
             <LeaveIcon className="h-6 w-6 opacity-60" />
             Leave Message
-          </DropdownMenu.Item> */}
+          </DropdownMenu.Item>
           <DropdownMenu.Item className="dropdown-item" onClick={markRead}>
             Mark Read
           </DropdownMenu.Item>

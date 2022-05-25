@@ -201,6 +201,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       if (!ok) {
         delete draft.pacts[ship];
         delete draft.dms[ship];
+        delete draft.briefs[ship];
       }
     });
 

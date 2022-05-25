@@ -13,7 +13,7 @@ import _ from 'lodash';
 import bigInt from 'big-integer';
 import mockGroups, { mockGangs } from './groups';
 import { makeFakeChatWrits, chatKeys, dmList } from './chat';
-import { ChatDiff, ChatWhom, DmAction, WritDiff } from '../types/chat';
+import { ChatDiff, ChatWhom, DmAction, DmRsvp, WritDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
 import mockContacts from './contacts';
 
@@ -323,6 +323,30 @@ const dms: Handler[] = [
       response: 'diff',
       json: req.json.diff,
     }),
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'dm-rsvp',
+    returnSubscription: {
+      action: 'subscribe',
+      app: 'chat',
+      path: '/',
+    } as SubscriptionRequestInterface,
+    dataResponder: (req: Message & Poke<DmRsvp>) => {
+      if (req.json.ok) {
+        archive.splice(archive.indexOf(req.json.ship), 1);
+      } else {
+        archive.push(req.json.ship);
+      }
+
+      return {
+        id: req.id!,
+        ok: true,
+        response: 'diff',
+        json: req.json,
+      };
+    },
   },
   {
     action: 'poke',

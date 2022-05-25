@@ -204,6 +204,11 @@ export interface DmAction {
   diff: WritDiff;
 }
 
+export interface DmRsvp {
+  ship: string;
+  ok: boolean;
+}
+
 export interface Pact {
   writs: BigIntOrderedMap<ChatWrit>;
   index: {
