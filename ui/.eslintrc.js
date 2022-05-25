@@ -11,6 +11,7 @@ module.exports = {
   ],
   rules: {
     semi: [2, 'always'],
+    'react/destructuring-assignment': 'off',
     'react/require-default-props': 'off',
     'react/jsx-filename-extension': [
       1,

@@ -10,7 +10,6 @@ import {
   ChatBriefs,
   ChatBriefUpdate,
   ChatDiff,
-  ChatMessage,
   ChatPerm,
   ChatStory,
   ChatWrit,
@@ -116,15 +115,28 @@ export const useChatState = create<ChatState>((set, get) => ({
       path: '/briefs',
       event: (event: unknown) => {
         const { whom, brief } = event as ChatBriefUpdate;
-        console.log(whom);
         get().batchSet((draft) => {
           draft.briefs[whom] = brief;
         });
       },
     });
   },
-  fetchOlder: async (ship, start, count) => {
-    await makeWritsStore(ship, get, '', ``).getOlder(start, count);
+  fetchOlder: async (whom: string, count: string) => {
+    const isDM = whomIsDm(whom);
+    if (isDM) {
+      return makeWritsStore(
+        whom,
+        get,
+        `/dm/${whom}/writs`,
+        `/dm/${whom}/ui`
+      ).getOlder(count);
+    }
+    return makeWritsStore(
+      whom,
+      get,
+      `/chat/${whom}/writs`,
+      `/chat/${whom}/ui/writs`
+    ).getOlder(count);
   },
   fetchDms: async () => {
     const dms = await api.scry<string[]>({
@@ -320,6 +332,12 @@ export function useDmMessages(ship: string) {
 
 export function usePact(whom: string) {
   return useChatState(useCallback((s) => s.pacts[whom], [whom]));
+}
+
+export function useCurrentPactSize(whom: string) {
+  return useChatState(
+    useCallback((s) => s.pacts[whom]?.writs.size ?? 0, [whom])
+  );
 }
 
 function getPact(pact: Pact, id: string) {

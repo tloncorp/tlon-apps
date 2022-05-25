@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { render } from '@testing-library/react';
 import { unixToDa } from '@urbit/api';
 import ChatMessage from './ChatMessage';
-import { makeChatWrit } from '../../mocks/chat';
+import { makeFakeChatWrit } from '../../mocks/chat';
 
 describe('ChatMessage', () => {
   beforeEach(() => {
@@ -16,7 +16,7 @@ describe('ChatMessage', () => {
   });
   it('renders as expected', () => {
     const date = new Date(2021, 1, 1, 13);
-    const writ = makeChatWrit(
+    const writ = makeFakeChatWrit(
       1,
       '~finned-palmer',
       {

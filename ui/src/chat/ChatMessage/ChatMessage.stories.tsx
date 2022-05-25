@@ -1,6 +1,6 @@
 import { unixToDa } from '@urbit/api';
 import React from 'react';
-import { makeChatWrit } from '../../mocks/chat';
+import { makeFakeChatWrit } from '../../mocks/chat';
 import ChatMessage from './ChatMessage';
 
 export default {
@@ -8,7 +8,7 @@ export default {
   title: 'ChatMessage',
 };
 
-const writ = makeChatWrit(1, '~finned-palmer', {
+const writ = makeFakeChatWrit(1, '~finned-palmer', {
   block: [],
   inline: [{ bold: 'A bold test message' }, 'with some more text'],
 });
