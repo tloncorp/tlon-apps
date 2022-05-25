@@ -12,12 +12,15 @@ import ShipName from '../../components/ShipName';
 import AddIcon from '../../components/icons/AddIcon';
 import XIcon from '../../components/icons/XIcon';
 import { useChatStore } from '../useChatStore';
+import { useNavigate } from 'react-router';
 
 interface ChatInputProps {
   whom: string;
   replying?: string | null;
   showReply?: boolean;
   className?: string;
+  sendDisabled?: boolean;
+  newDm?: boolean;
 }
 
 function convertMarkType(type: string): string {
@@ -255,7 +258,10 @@ export default function ChatInput({
   replying = null,
   showReply = false,
   className = '',
+  sendDisabled = false,
+  newDm = false,
 }: ChatInputProps) {
+  const navigate = useNavigate();
   const chat = useChat(whom);
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
@@ -300,8 +306,11 @@ export default function ChatInput({
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
+      if (newDm) {
+        navigate(`/dm/${whom}`);
+      }
     },
-    [whom, replying, closeReply]
+    [whom, replying, closeReply, navigate, newDm]
   );
 
   useEffect(() => {
@@ -394,7 +403,7 @@ export default function ChatInput({
           </button>
         </div>
       </div>
-      <button className="button" onClick={onClick}>
+      <button className="button" disabled={sendDisabled} onClick={onClick}>
         Send
       </button>
     </div>

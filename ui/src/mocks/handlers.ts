@@ -21,6 +21,7 @@ import {
 } from './chat';
 import { ChatDiff, ChatWhom, DmAction, WritDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
+import mockContacts from './contacts';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 
@@ -81,6 +82,19 @@ const contactSub = {
   action: 'subscribe',
   app: 'contact-store',
   path: '/all',
+  initialResponder: (req) => ({
+    id: req.id!,
+    ok: true,
+    response: 'diff',
+    json: {
+      'contact-update': {
+        initial: {
+          'is-public': false,
+          rolodex: mockContacts,
+        },
+      },
+    },
+  }),
 } as SubscriptionHandler;
 
 const contactNacksSub = {
