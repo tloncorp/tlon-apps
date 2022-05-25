@@ -46,5 +46,5 @@
 }
 
 .dropdown-item {
-  @apply rounded-lg px-2 py-3 ring-gray-200 focus:outline-none focus:ring-2;
+  @apply cursor-pointer rounded-lg px-2 py-3 ring-gray-200 focus:outline-none focus:ring-2;
 }

@@ -8,6 +8,7 @@ import NewMessageIcon from '../components/icons/NewMessageIcon';
 import SmallDownIcon from '../components/icons/SmallDownIcon';
 import useMedia from '../logic/useMedia';
 import { useSearchParam } from '../hooks';
+import DMArchiveItem from './DMArchiveItem';
 
 export default function DMSidebar() {
   const [showArchive = false] = useSearchParam<boolean>('archive');
@@ -58,7 +59,7 @@ export default function DMSidebar() {
             ))}
           </>
         ) : (
-          archive
+          archive.map((ship) => <DMArchiveItem key={ship} ship={ship} />)
         )}
       </ul>
     </nav>

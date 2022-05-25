@@ -5,12 +5,17 @@ import Avatar from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import { useChatState } from '../state/chat';
 
-export default function DmSidebarItem(props: {
+interface DMSidebarItemProps {
   ship: string;
   pending?: boolean;
-}) {
-  const { ship, pending = false } = props;
+}
+
+export default function DmSidebarItem({
+  ship,
+  pending = false,
+}: DMSidebarItemProps) {
   const brief = useChatState((s) => s.briefs[ship]);
+
   return (
     <li>
       <NavLink
