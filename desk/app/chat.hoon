@@ -11,7 +11,7 @@
   +$  card  card:agent:gall
   ++  def-flag  `flag:c`[~zod %test]
   +$  state-0
-    $:  %1
+    $:  %0
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         bad=(set ship)
@@ -39,7 +39,12 @@
     ^-  (quip card _this)
     =/  old=(unit state-0)
       (mole |.(!<(state-0 vase)))  
-    ?^  old  `this(state u.old)
+    ?^  old  
+      =.  dms.u.old
+        %-  ~(run by dms.u.old)
+        |=  =dm:c
+        dm(watching.remark &)
+      `this(state u.old)
     ~&  >>>  "Incompatible load, nuking"
     =^  cards  this  on-init
     :_  this
