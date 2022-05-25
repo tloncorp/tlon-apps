@@ -7,14 +7,44 @@ import {
   SubscriptionHandler,
   SubscriptionRequestInterface,
 } from '@tloncorp/mock-http-api';
-import { decToUd, unixToDa } from '@urbit/api';
+import { decToUd, udToDec, unixToDa } from '@urbit/api';
 
+import _ from 'lodash';
+import bigInt from 'big-integer';
 import mockGroups, { mockGangs } from './groups';
-import chatWrits, { chatKeys, chatPerm, dmList } from './chat';
+import {
+  makeFakeChatWrits,
+  chatKeys,
+  dmList,
+  messageSequence,
+  unixToDaStr,
+} from './chat';
 import { ChatDiff, ChatWhom, DmAction, WritDiff } from '../types/chat';
 import { GroupAction } from '../types/groups';
+import mockContacts from './contacts';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
+
+const sortByUd = (aString: string, bString: string) => {
+  const a = bigInt(udToDec(aString));
+  const b = bigInt(udToDec(bString));
+
+  return a.compare(b);
+};
+
+const chatWritsSet1 = makeFakeChatWrits(0);
+const startIndexSet1 = Object.keys(chatWritsSet1).sort(sortByUd)[0];
+const set1Da = startIndexSet1;
+
+const chatWritsSet2 = makeFakeChatWrits(1);
+const startIndexSet2 = Object.keys(chatWritsSet2).sort(sortByUd)[0];
+const set2Da = startIndexSet2;
+
+const chatWritsSet3 = makeFakeChatWrits(2);
+const startIndexSet3 = Object.keys(chatWritsSet3).sort(sortByUd)[0];
+const set3Da = startIndexSet3;
+
+const chatWritsSet4 = makeFakeChatWrits(3);
 
 const chatSub = {
   action: 'subscribe',
@@ -52,6 +82,19 @@ const contactSub = {
   action: 'subscribe',
   app: 'contact-store',
   path: '/all',
+  initialResponder: (req) => ({
+    id: req.id!,
+    ok: true,
+    response: 'diff',
+    json: {
+      'contact-update': {
+        initial: {
+          'is-public': false,
+          rolodex: mockContacts,
+        },
+      },
+    },
+  }),
 } as SubscriptionHandler;
 
 const contactNacksSub = {
@@ -99,7 +142,7 @@ const chat: Handler[] = [
     action: 'scry',
     app: 'chat',
     path: '/chat/~zod/test/writs/newest/100',
-    func: () => chatWrits,
+    func: () => chatWritsSet1,
   } as ScryHandler,
   {
     action: 'scry',
@@ -183,6 +226,27 @@ const chat: Handler[] = [
   },
 ];
 
+const olderChats: Handler[] = [
+  {
+    action: 'scry' as const,
+    path: `/chat/~zod/test/writs/older/${set1Da}/100`,
+    app: 'chat',
+    func: () => chatWritsSet2,
+  },
+  {
+    action: 'scry' as const,
+    path: `/chat/~zod/test/writs/older/${set2Da}/100`,
+    app: 'chat',
+    func: () => chatWritsSet3,
+  },
+  {
+    action: 'scry' as const,
+    path: `/chat/~zod/test/writs/older/${set3Da}/100`,
+    app: 'chat',
+    func: () => chatWritsSet4,
+  },
+];
+
 const dmHandlers = Object.keys(dmList)
   .map((ship): Handler[] => {
     const dmSub = {
@@ -194,9 +258,21 @@ const dmHandlers = Object.keys(dmList)
     return [
       {
         action: 'scry' as const,
-        path: `/dm/${ship}/writs/newest/100`,
+        path: `/dm/${ship}/writs/older/${set1Da}/100`,
         app: 'chat',
-        func: () => chatWrits,
+        func: () => chatWritsSet1,
+      },
+      {
+        action: 'scry' as const,
+        path: `/dm/${ship}/writs/older/${set2Da}/100`,
+        app: 'chat',
+        func: () => chatWritsSet2,
+      },
+      {
+        action: 'scry' as const,
+        path: `/dm/${ship}/writs/older/${set3Da}/100`,
+        app: 'chat',
+        func: () => chatWritsSet3,
       },
       dmSub,
     ];
@@ -250,6 +326,6 @@ const mockHandlers: Handler[] = (
       }),
     },
   ] as Handler[]
-).concat(groups, chat, dms);
+).concat(groups, chat, dms, olderChats);
 
 export default mockHandlers;

@@ -1,0 +1,18 @@
+name: Deploy
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: "Create and deploy a glob to ~marnec-dozzod-marzod (devstream)"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/deploy
+        with:
+          ship: 'devstream'
+          credentials: ${{ secrets.JANEWAY_SERVICE_KEY }}
+          ssh-sec-key: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
+          ssh-pub-key: ${{ secrets.JANEWAY_SSH_PUB_KEY }}

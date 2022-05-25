@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import cn from 'classnames';
 import Avatar from '../components/Avatar';
 import {
@@ -11,6 +11,7 @@ import {
 } from '../state/chat';
 import { useSearchParam } from '../hooks';
 import ShipName from '../components/ShipName';
+import NewMessageIcon from '../components/icons/NewMessageIcon';
 
 function DmSidebarItem(props: { ship: string; pending?: boolean }) {
   const { ship, pending = false } = props;
@@ -51,8 +52,6 @@ export default function Dms() {
         <NavLink to="/dm?archive=true">Archive</NavLink>
         <NavLink to="/dm">Unarchived</NavLink>
         <div className="flex min-w-52 flex-col space-y-2 border-r-2 border-gray-50 p-2">
-          <NavLink to="/dm/new">New DM</NavLink>
-
           <ul className="flex w-48 flex-col">
             {!showArchive ? (
               <>
@@ -68,8 +67,8 @@ export default function Dms() {
             )}
           </ul>
         </div>
-        <Outlet />
       </div>
+      <Outlet />
     </div>
   );
 }

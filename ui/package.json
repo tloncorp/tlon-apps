@@ -33,6 +33,7 @@
     ]
   },
   "dependencies": {
+    "@faker-js/faker": "^6.3.1",
     "@radix-ui/react-dialog": "^0.1.7",
     "@radix-ui/react-dropdown-menu": "^0.1.6",
     "@radix-ui/react-popover": "^0.1.6",
@@ -68,6 +69,7 @@
     "react-hook-form": "^7.30.0",
     "react-router": "^6.3.0",
     "react-router-dom": "^6.3.0",
+    "react-select": "^5.3.2",
     "tailwindcss-scoped-groups": "^2.0.0",
     "urbit-ob": "^5.0.1",
     "validator": "^13.7.0",

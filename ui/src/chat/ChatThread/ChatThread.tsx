@@ -1,10 +1,8 @@
-import { udToDec } from '@urbit/api';
-import bigInt from 'big-integer';
 import React from 'react';
 import { useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useChannelFlag } from '../../hooks';
-import { useMessagesForChat, useReplies, useWrit } from '../../state/chat';
+import { useReplies, useWrit } from '../../state/chat';
 import { useChannel, useRouteGroup } from '../../state/groups';
 import ChatInput from '../ChatInput/ChatInput';
 import ChatMessage from '../ChatMessage/ChatMessage';
