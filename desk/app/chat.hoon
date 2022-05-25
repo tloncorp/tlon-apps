@@ -552,6 +552,7 @@
 ++  di-core
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
+      di-hark  ~(. hark-dm:ch [now.bowl ship])
   ++  di-core  .
   ++  di-abet 
     =.  dms  
@@ -564,11 +565,14 @@
   ::
   ++  di-abed-soft
     |=  s=@p
+    =/  new=?  (~(has by dms) s)
     =/  d
       %+  ~(gut by dms)  s
       =|  =remark:c
       =.  watching.remark  &
       [*pact:c remark ?:(=(src our):bowl %inviting %invited)]
+    =?  di-core  &(new !=(src our):bowl)
+      di-invited
     di-core(ship s, dm d)
 
   ++  di-area  `path`/dm/(scot %p ship)
@@ -576,6 +580,12 @@
     |=  =diff:dm:c
     =.  di-core  (di-ingest-diff diff)
     =.  cor  (emit (proxy:di-pass diff))
+    di-core
+  ::
+  ++  di-invited
+    ^+  di-core
+    =.  cor
+      (emit (hark:di-pass invited:di-hark))
     di-core
   ::
   ++  di-notify
@@ -587,12 +597,8 @@
     ?+  -.delta  di-core
         %add
       ?.  ?=(%story -.content.p.delta)  di-core
-      =/  =bin:ha  [/ [q.byk.bowl /dm/(scot %p ship)]]
-      =/  =cage
-        :-  %hark-action
-        !>  ^-  action:ha
-        [%add-note bin (dm-to-hark:ch ship now.bowl id p.content.p.delta)]
-      =.  cor  (emit (hark:di-pass cage))
+      =.  cor  
+        (emit (hark:di-pass (story:di-hark id p.content.p.delta)))
       di-core
     ==
   ::
