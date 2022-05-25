@@ -7,7 +7,11 @@ import Select, {
   OptionProps,
   MultiValue,
   createFilter,
+  MenuProps,
+  MenuListProps,
   InputProps,
+  MultiValueRemoveProps,
+  MultiValueGenericProps,
 } from 'react-select';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
@@ -15,18 +19,16 @@ import MagnifyingGlass from '../components/icons/MagnifyingGlass';
 import { useContacts } from '../state/contact';
 import Avatar from '../components/Avatar';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
+import XIcon from '../components/icons/XIcon';
 
 interface Option {
   value: string;
   label: string;
 }
 
-function MagnifyingGlassControl({
-  children,
-  ...props
-}: ControlProps<Option, true>) {
+function Control({ children, ...props }: ControlProps<Option, true>) {
   return (
-    <components.Control {...props}>
+    <components.Control {...props} className="input text-gray-800">
       <MagnifyingGlass className="ml-2 h-3 text-gray-300" />
       {children}
     </components.Control>
@@ -36,7 +38,11 @@ function MagnifyingGlassControl({
 function ShipName({ data, ...props }: OptionProps<Option, true>) {
   const { value, label } = data;
   return (
-    <components.Option data={data} {...props}>
+    <components.Option
+      data={data}
+      className="hover:cursor-pointer hover:bg-gray-50 active:bg-gray-50"
+      {...props}
+    >
       <div className="flex items-center space-x-1">
         <Avatar ship={value} size="xs" />
         <span className="font-semibold">{value}</span>
@@ -57,12 +63,60 @@ function NoShipsMessage() {
   );
 }
 
+function ShipTagLabelContainer({
+  children,
+  ...props
+}: MultiValueGenericProps<Option, true>) {
+  return (
+    <components.MultiValueContainer {...props}>
+      <div className="flex">{children}</div>
+    </components.MultiValueContainer>
+  );
+}
+
 function ShipTagLabel({ data }: { data: Option }) {
   const { value } = data;
   return (
-    <div className="flex items-center rounded bg-gray-100">
+    <div className="flex h-6 items-center rounded-l bg-gray-100">
       <span className="p-1 font-semibold">{value}</span>
     </div>
+  );
+}
+
+function ShipTagRemove(props: MultiValueRemoveProps<Option, true>) {
+  return (
+    <components.MultiValueRemove {...props}>
+      <div className="flex h-full items-center rounded-r bg-gray-100 pr-1">
+        <XIcon className="h-4 text-gray-300" />
+      </div>
+    </components.MultiValueRemove>
+  );
+}
+
+function ShipDropDownMenu({ children, ...props }: MenuProps<Option, true>) {
+  return (
+    <components.Menu className="rounded-lg border-2 border-gray-100" {...props}>
+      {children}
+    </components.Menu>
+  );
+}
+
+function ShipDropDownMenuList({
+  children,
+  ...props
+}: MenuListProps<Option, true>) {
+  return (
+    <components.MenuList className="rounded-md bg-white" {...props}>
+      {children}
+    </components.MenuList>
+  );
+}
+
+function Input({ children, ...props }: InputProps<Option, true>) {
+  return (
+    <components.Input className="h-6 text-gray-800" {...props}>
+      {children}
+    </components.Input>
   );
 }
 
@@ -115,27 +169,49 @@ export default function NewDM() {
           autoFocus
           isMulti
           styles={{
-            control: (base, state) => ({
+            control: (base) => ({
               ...base,
+              backgroundColor: '',
+              borderColor: '',
+              boxShadow: '',
+              outlineColor: '',
               borderRadius: '8px',
               borderWidth: '2px',
-              maxHeight: '32px',
-              borderColor: state.isFocused ? '#E5E5E5' : '#F5F5F5',
-              boxShadow: state.isFocused ? '0px 0px 0px 1px #E5E5E5' : '',
               '&:hover': {
-                borderColor: '#E5E5E5',
+                borderColor: 'inherit',
               },
             }),
-            menu: ({ width, ...base }) => ({
+            menu: ({ width, borderRadius, ...base }) => ({
+              borderWidth: '',
+              borderColor: '',
+              backgroundColor: 'inherit',
               ...base,
-              borderRadius: '8px',
-              borderWidth: '2px',
-              borderColor: '#E5E5E5',
+            }),
+            input: (base) => ({
+              ...base,
+              color: '',
+              paddingTop: '',
+              paddingBottom: '',
             }),
             multiValue: (base) => ({
               ...base,
-              // borderRadius must be applied here and on the MultiValueLabel component (ShipTagLabel).
-              borderRadius: '4px',
+              backgroundColor: '',
+            }),
+            multiValueRemove: (base) => ({
+              ...base,
+              paddingRight: '',
+              paddingLeft: '',
+              '&:hover': {
+                color: 'inherit',
+                backgroundColor: 'inherit',
+              },
+            }),
+            option: (base) => ({
+              ...base,
+              backgroundColor: '',
+              '&:active': {
+                backgroundColor: 'inherit',
+              },
             }),
           }}
           aria-label="Ships"
@@ -148,12 +224,18 @@ export default function NewDM() {
           // TODO: create custom filter for sorting potential DM participants.
           // filterOption={createFilter(filterConfig)}
           components={{
-            Control: MagnifyingGlassControl,
+            Control,
+            Menu: ShipDropDownMenu,
+            MenuList: ShipDropDownMenuList,
+            Input,
             DropdownIndicator: () => null,
             IndicatorSeparator: () => null,
+            ClearIndicator: () => null,
             Option: ShipName,
             NoOptionsMessage: NoShipsMessage,
             MultiValueLabel: ShipTagLabel,
+            MultiValueContainer: ShipTagLabelContainer,
+            MultiValueRemove: ShipTagRemove,
           }}
         />
       </div>
