@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
+import DmInvite from './DmInvite';
 
 export default function Dm() {
   const ship = useParams<{ ship: string }>().ship!;
@@ -16,14 +17,6 @@ export default function Dm() {
     }
   }, [ship, canStart]);
   const messages = useDmMessages(ship);
-  const navigate = useNavigate();
-  const onAccept = () => {
-    useChatState.getState().dmRsvp(ship, true);
-  };
-  const onDecline = () => {
-    navigate(-1);
-    useChatState.getState().dmRsvp(ship, false);
-  };
 
   return (
     <Layout
@@ -45,16 +38,7 @@ export default function Dm() {
       {isAccepted ? (
         <ChatWindow whom={ship} messages={messages} />
       ) : (
-        <div className="flex flex-col">
-          <div className="flex">
-            <button onClick={onDecline} type="button">
-              Decline
-            </button>
-            <button onClick={onAccept} type="button">
-              Accept
-            </button>
-          </div>
-        </div>
+        <DmInvite ship={ship} />
       )}
     </Layout>
   );
