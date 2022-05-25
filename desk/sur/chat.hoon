@@ -53,6 +53,25 @@
       dex=index
   ==
 ::
+++  club
+  =<  club
+  |%
+  +$  id  @uwH
+  +$  net  ?(%archive %invited %done)
+  +$  club
+    $:  team=(set ship)
+        hive=(set ship)
+        =pact
+        =net
+    ==
+  ::
+  +$  rsvp    [=id =ship ok=?]
+  +$  create
+    [=id team=(set ship) hive=(set ship)]
+  ::
+  +$  invite  create
+  --
+::
 ++  writs
   =<  writs
   |%

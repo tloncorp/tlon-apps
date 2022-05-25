@@ -12,6 +12,7 @@
     $:  %0
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
         bad=(set ship)
         inv=(set ship)
     ==
@@ -82,6 +83,7 @@
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
+++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  init
   ^+  cor
@@ -130,6 +132,12 @@
       %dm-diff
     =+  !<(=diff:dm:c vase)
     di-abet:(di-ingest-diff:(di-abed-soft:di-core src.bowl) diff)
+  ::
+      %club-create
+    cu-abet:(cu-create:cu-core !<(=create:club:c vase))
+  ::
+      %club-invite
+    cu-abet:(cu-invite:cu-core !<(=invite:club:c vase))
   ==
   ::
   ++  join
@@ -170,9 +178,15 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
+  ::
       [%dm @ *]
     =/  =ship  (slav %p i.t.wire)
     di-abet:(di-agent:(di-abed:di-core ship) t.t.wire sign)
+  ::
+      [%club @ *]
+    =/  =id:club:c  (slav %uw i.t.wire)
+    cu-abet:(cu-agent:(cu-abed id) t.t.wire sign)
+
       [%chat @ @ *]
     =/  =ship  (slav %p i.t.wire)
     =*  name   i.t.t.wire
@@ -275,6 +289,71 @@
   (give %fact ~[/briefs] chat-brief-update+!>([whom brief]))
 ::
 ++  from-self  =(our src):bowl
+++  cu-abed  cu-abed:cu-core
+::
+++  cu-core
+  |_  [=id:club:c =club:c]
+  +*  cu-pact  ~(. pac pact.club)
+  ++  cu-core  .
+  ++  cu-abet  cor(clubs (~(put by clubs) id club))
+  ++  cu-abed
+    |=  i=id:club:c
+    cu-core(id i, club (~(got by clubs) i))
+  ++  cu-circle
+    (~(uni in team.club) hive.club)
+  ::
+  ++  cu-area  `wire`/club/(scot %uw id)
+  ::
+  ++  cu-pass
+    |%
+    ++  gossip
+      |=  =cage
+      ^-  (list card)
+      =/  =wire  (snoc cu-area %gossip)
+      %+  turn  ~(tap in cu-circle)
+      |=  =ship
+      =/  =dock  [ship dap.bowl]
+      [%pass wire %agent dock %poke cage]
+    --
+  ::
+  ++  cu-init
+    |=  [=net:club:c =create:club:c]
+    cu-core(id id.create, club =,(create [team hive *pact:c net]))
+  ::
+  ++  cu-create  
+    |=  =create:club:c 
+    ~&  id/id.create
+    =.  cu-core  (cu-init %done create)
+    =?  cor  =(our src):bowl
+      (emil (gossip:cu-pass club-invite+!>(create)))
+    cu-core
+  ++  cu-invite  
+    |=  =invite:club:c 
+    (cu-init %invited invite)
+  ++  cu-rsvp
+    |=  [=ship ok=?]
+    =?  cor  =(our.bowl ship)
+      (emil (gossip:cu-pass club-rsvp+!>([id ship ok])))
+    ?>  (~(has in cu-circle) src.bowl)
+    ?>  =(src.bowl ship)
+    =:  hive.club  (~(del in hive.club) ship)
+        team.club  (~(put in team.club) ship)
+      ==
+    cu-core :: TODO notify of join
+  ::
+  ++  cu-agent
+    |=  [=wire =sign:agent:gall]
+    ^+  cu-core
+    ?+    wire  ~|(bad-club-take/wire !!)
+        [%gossip ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  cu-core
+      ::  TODO: handle?
+      %-  (slog leaf/"Failed to gossip {<src.bowl>} {<id>}" u.p.sign)
+      cu-core
+    ==
+  ::
+  --
 ::
 ++  ca-core
   |_  [=flag:c =chat:c gone=_|]
