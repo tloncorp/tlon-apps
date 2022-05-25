@@ -36,9 +36,14 @@
       %fleet    (pairs ship/(ship p.d) diff/(fleet-diff q.d) ~)
       %channel  (pairs flag/s/(flag p.d) diff/(channel-diff q.d) ~)
       %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
+      %bloc     (bloc-diff p.d)
       %cordon   (cordon-diff p.d)
       %create   (group p.d)
     ==
+  ++  bloc-diff
+    |=  d=diff:bloc:g
+    %+  frond  -.d
+    a/(turn ~(tap in p.d) (lead %s))
   ::
   ++  cordon-diff
     |=  d=diff:cordon:g
@@ -128,6 +133,7 @@
     :~  fleet/(fleet fleet.gr)
         cabals/(cabals cabals.gr)
         channels/(channels channels.gr)
+        bloc/a/(turn ~(tap in bloc.gr) (lead %s))
         cordon/(cordon cordon.gr)
         meta/(meta meta.gr)
     ==
