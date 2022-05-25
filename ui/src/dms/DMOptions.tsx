@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 import Dialog, { DialogContent } from '../components/Dialog';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
@@ -14,6 +14,11 @@ export default function DmOptions(props: { ship: string }) {
     navigate(-1);
     useChatState.getState().archiveDm(ship);
   };
+
+  const markRead = useCallback(() => {
+    useChatState.getState().markRead(ship);
+  }, [ship]);
+
   const [dialog, setDialog] = useState(false);
   const onTryArchive = (e: Event) => {
     setDialog(true);
@@ -29,14 +34,14 @@ export default function DmOptions(props: { ship: string }) {
           <EllipsisIcon className="h-5 w-5" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
-          <DropdownMenu.Item
+          {/* <DropdownMenu.Item
             onSelect={onTryArchive}
             className="dropdown-item flex items-center space-x-2 text-red"
           >
             <LeaveIcon className="h-6 w-6 opacity-60" />
             Leave Message
-          </DropdownMenu.Item>
-          <DropdownMenu.Item className="dropdown-item">
+          </DropdownMenu.Item> */}
+          <DropdownMenu.Item className="dropdown-item" onClick={markRead}>
             Mark Read
           </DropdownMenu.Item>
         </DropdownMenu.Content>

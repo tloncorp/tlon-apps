@@ -37,7 +37,8 @@ export default function DMSidebar() {
             <LeftIcon className="h-5 w-5 text-gray-500" />
           </RetainedStateLink>
         ) : null}
-        <Dropdown.Root>
+        <h2 className="font-semibold">All Messages</h2>
+        {/* <Dropdown.Root>
           <Dropdown.Trigger className="default-focus flex items-center rounded-lg font-semibold">
             {showArchive ? 'Archive' : 'All Messages'}
             <SmallDownIcon className="ml-1 h-4 w-4" />
@@ -66,7 +67,7 @@ export default function DMSidebar() {
               </Link>
             </Dropdown.Item>
           </Dropdown.Content>
-        </Dropdown.Root>
+        </Dropdown.Root> */}
         <Link
           to="/dm/new"
           className="default-focus ml-auto rounded-lg text-blue"
