@@ -258,21 +258,27 @@ const dmHandlers = Object.keys(dmList)
     return [
       {
         action: 'scry' as const,
-        path: `/dm/${ship}/writs/older/${set1Da}/100`,
+        path: `/dm/${ship}/writs/newest/100`,
         app: 'chat',
         func: () => chatWritsSet1,
       },
       {
         action: 'scry' as const,
-        path: `/dm/${ship}/writs/older/${set2Da}/100`,
+        path: `/dm/${ship}/writs/older/${set1Da}/100`,
         app: 'chat',
         func: () => chatWritsSet2,
       },
       {
         action: 'scry' as const,
-        path: `/dm/${ship}/writs/older/${set3Da}/100`,
+        path: `/dm/${ship}/writs/older/${set2Da}/100`,
         app: 'chat',
         func: () => chatWritsSet3,
+      },
+      {
+        action: 'scry' as const,
+        path: `/dm/${ship}/writs/older/${set3Da}/100`,
+        app: 'chat',
+        func: () => chatWritsSet4,
       },
       dmSub,
     ];
