@@ -2,6 +2,7 @@ import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router';
 import { useChatState, useChatDraft, useChat, usePact } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatMessage, ChatStory } from '../../types/chat';
 import MessageEditor, {
@@ -12,7 +13,6 @@ import ShipName from '../../components/ShipName';
 import AddIcon from '../../components/icons/AddIcon';
 import XIcon from '../../components/icons/XIcon';
 import { useChatStore } from '../useChatStore';
-import { useNavigate } from 'react-router';
 
 interface ChatInputProps {
   whom: string;
