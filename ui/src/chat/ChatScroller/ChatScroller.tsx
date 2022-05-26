@@ -72,25 +72,6 @@ export default function ChatScroller(props: IChatScroller) {
     }
   );
 
-  const onTopLoaded = () => {
-    // TODO
-    // const { messagesSize, unreadCount } = this.props;
-    // if(graphSize >= unreadCount) {
-    //   this.props.dismissUnread();
-    // }
-    // eslint-disable-next-line no-console
-    console.log('on top...');
-  };
-
-  const onBottomLoaded = () => {
-    // TODO
-    // if(this.state.unreadIndex.eq(bigInt.zero)) {
-    //   this.calculateUnreadIndex();
-    // }
-    // eslint-disable-next-line no-console
-    console.log('on bottom...');
-  };
-
   const fetchMessages = useCallback(
     async (newer: boolean) => {
       if (newer) {
@@ -110,8 +91,6 @@ export default function ChatScroller(props: IChatScroller) {
         <ChatWritScroller
           origin="bottom"
           style={{ height: '100%' }}
-          onBottomLoaded={onBottomLoaded}
-          onTopLoaded={onTopLoaded}
           data={messages}
           size={messages.size}
           pendingSize={0} // TODO
