@@ -6,7 +6,7 @@ import { useDmArchive, useDmList, usePendingDms } from '../state/chat';
 import DmSidebarItem from './DMSidebarItem';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
 import SmallDownIcon from '../components/icons/SmallDownIcon';
-import useMedia from '../logic/useMedia';
+import { useIsMobile } from '../logic/useMedia';
 import { useSearchParam } from '../hooks';
 import DMArchiveItem from './DMArchiveItem';
 import CheckIcon from '../components/icons/CheckIcon';
@@ -18,7 +18,7 @@ export default function DMSidebar() {
   const ships = useDmList();
   const pending = usePendingDms();
   const archive = useDmArchive();
-  const isMobile = useMedia('(max-width: 767px)');
+  const isMobile = useIsMobile();
 
   return (
     <nav

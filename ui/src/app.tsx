@@ -27,7 +27,7 @@ import Sidebar from './components/Sidebar/Sidebar';
 import { DmThread, GroupChatThread } from './chat/ChatThread/ChatThread';
 import Policy from './pages/Policy';
 import GroupSidebar from './components/GroupSidebar';
-import useMedia from './logic/useMedia';
+import useMedia, { useIsMobile } from './logic/useMedia';
 import useErrorHandler from './logic/useErrorHandler';
 import { useSettingsState, useTheme } from './state/settings';
 import { useLocalState } from './state/local';
@@ -39,7 +39,7 @@ import DMHome from './dms/DMHome';
 function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 767px)');
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     handleError(() => {

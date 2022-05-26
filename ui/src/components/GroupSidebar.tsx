@@ -3,7 +3,7 @@ import React from 'react';
 import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
 import { ModalLocationState } from '../logic/routing';
-import useMedia from '../logic/useMedia';
+import { useIsMobile } from '../logic/useMedia';
 import { useGroup, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
 import { channelHref } from '../logic/utils';
@@ -31,7 +31,7 @@ export default function GroupSidebar() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 767px)');
+  const isMobile = useIsMobile();
   const routeState = location.state as ModalLocationState | null;
 
   return (

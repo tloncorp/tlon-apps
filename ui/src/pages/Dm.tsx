@@ -8,12 +8,12 @@ import Layout from '../components/layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
 import DmOptions from '../dms/DMOptions';
 import LeftIcon from '../components/icons/LeftIcon';
-import useMedia from '../logic/useMedia';
+import { useIsMobile } from '../logic/useMedia';
 
 export default function Dm() {
   const ship = useParams<{ ship: string }>().ship || '';
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 767px)');
+  const isMobile = useIsMobile();
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])

@@ -7,7 +7,7 @@ import ChatInput from '../chat/ChatInput/ChatInput';
 import ChatWindow from '../chat/ChatWindow';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import Layout from '../components/layout/Layout';
-import useMedia from '../logic/useMedia';
+import { useIsMobile } from '../logic/useMedia';
 import {
   useChatIsJoined,
   useChatPerms,
@@ -29,7 +29,7 @@ function Channel() {
     useChatState.getState().joinChat(flag);
   };
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 767px)');
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     useChatState.getState().initialize(flag);
