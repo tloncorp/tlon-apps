@@ -17,12 +17,13 @@ export default ({ mode }) => {
   console.log(SHIP_URL);
 
   return defineConfig({
-    base: mode === 'mock' ? undefined : '/apps/homestead/',
+    base:
+      mode === 'mock' || mode === 'staging' ? undefined : '/apps/homestead/',
     build: {
       sourcemap: 'inline',
     },
     plugins:
-      mode === 'mock'
+      mode === 'mock' || mode === 'staging'
         ? [reactRefresh()]
         : [
             urbitPlugin({ base: 'homestead', target: SHIP_URL, secure: false }),
