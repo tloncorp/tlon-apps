@@ -158,4 +158,4 @@ export const chatPerm = {
   writers: [],
 };
 
-export const pendindDMs = ['~fabled-faster'];
+export const pendingDMs = ['~fabled-faster'];
