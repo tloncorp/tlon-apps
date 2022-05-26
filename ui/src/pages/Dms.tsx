@@ -1,10 +1,17 @@
 import React from 'react';
 import { Outlet } from 'react-router';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import cn from 'classnames';
 import Avatar from '../components/Avatar';
-import { useChatState, useDmList, usePendingDms } from '../state/chat';
+import {
+  useChatState,
+  useDmArchive,
+  useDmList,
+  usePendingDms,
+} from '../state/chat';
+import { useSearchParam } from '../hooks';
 import ShipName from '../components/ShipName';
+import NewMessageIcon from '../components/icons/NewMessageIcon';
 
 function DmSidebarItem(props: { ship: string; pending?: boolean }) {
   const { ship, pending = false } = props;
@@ -33,22 +40,33 @@ function DmSidebarItem(props: { ship: string; pending?: boolean }) {
 }
 
 export default function Dms() {
+  const [showArchive = false] = useSearchParam<boolean>('archive');
   const ships = useDmList();
   const pending = usePendingDms();
+  const archive = useDmArchive();
 
   return (
     <div className="flex h-full w-full">
-      <div className="flex min-w-52 flex-col space-y-2 border-r-2 border-gray-50 p-2">
-        <NavLink to="/dm/new">New DM</NavLink>
-
-        <ul className="flex w-48 flex-col">
-          {pending.map((ship) => (
-            <DmSidebarItem pending key={ship} ship={ship} />
-          ))}
-          {ships.map((ship) => (
-            <DmSidebarItem key={ship} ship={ship} />
-          ))}
-        </ul>
+      <div className="flex flex-col space-y-2 border-r">
+        {!showArchive ? <NavLink to="/dm/new">New DM</NavLink> : null}
+        <NavLink to="/dm?archive=true">Archive</NavLink>
+        <NavLink to="/dm">Unarchived</NavLink>
+        <div className="flex min-w-52 flex-col space-y-2 border-r-2 border-gray-50 p-2">
+          <ul className="flex w-48 flex-col">
+            {!showArchive ? (
+              <>
+                {pending.map((ship) => (
+                  <DmSidebarItem pending key={ship} ship={ship} />
+                ))}
+                {ships.map((ship) => (
+                  <DmSidebarItem key={ship} ship={ship} />
+                ))}
+              </>
+            ) : (
+              archive.map((ship) => <DmSidebarItem key={ship} ship={ship} />)
+            )}
+          </ul>
+        </div>
       </div>
       <Outlet />
     </div>
