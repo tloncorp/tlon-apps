@@ -129,9 +129,10 @@
   ::
       %dm-diff
     =+  !<(=diff:dm:c vase)
-    di-abet:(di-ingest-diff:(di-abed-soft:di-core src.bowl) diff)
-  ==
+    di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
+      %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
+  ==
   ++  join
     |=  =flag:c
     ^+  cor
@@ -249,6 +250,9 @@
       [%x %dm %invited ~]
     ``ships+!>(~(key by pending-dms))
   ::
+      [%x %dm %archive ~]
+    ``ships+!>(~(key by archived-dms))
+  ::
       [%x %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
     (di-peek:(di-abed:di-core ship) t.t.t.path)
@@ -262,7 +266,8 @@
       %+  murn  ~(tap in ~(key by dms))
       |=  =ship
       =/  di  (di-abed:di-core ship)
-      ?:  =(%invited net.dm.di)  ~
+      ?:  ?=(?(%invited %archive) net.dm.di)  ~
+      ?:  =([~ ~] pact.dm.di)  ~
       `[ship/ship di-brief:di]
     %+  turn  ~(tap in ~(key by chats))
     |=  =flag:c
@@ -400,7 +405,7 @@
     ?:  =(p.flag src.bowl)  &
     =/  =path
       %+  welp  ca-groups-scry
-      /fleet/(scot %p src.bowl)/vessel
+      /fleet/(scot %p src.bowl)/vessel/noun
     =+  .^(=vessel:fleet:g %gx path)
     ?:  =(~ writers.perm.chat)  &
     !=(~ (~(int in writers.perm.chat) sects.vessel))
@@ -534,6 +539,9 @@
 ++  accepted-dms
   (dms-by-net %inviting %done ~)
 ::
+++  archived-dms
+  (dms-by-net %archive ~)
+::
 ++  dms-by-net
   |=  nets=(list net:dm:c)
   =/  nets  (~(gas in *(set net:dm:c)) nets)
@@ -569,6 +577,10 @@
     =.  cor  (emit (proxy:di-pass diff))
     di-core
   ::
+  ++  di-archive
+    =.  net.dm  %archive
+    (di-post-notice '' ' archived the channel')
+  ::
   ++  di-ingest-diff
     |=  =diff:dm:c
     =/  =path  (snoc di-area %ui)
@@ -578,7 +590,15 @@
     =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
       (give-brief ship/ship di-brief)
     di-core
-    :: di-core(pact (reduce:w ship writs ship now.bowl diff))
+  ::
+  ++  di-take-counter
+    |=  =diff:dm:c
+    ?<  =(%archive net.dm)
+    (di-ingest-diff diff)
+  ::
+  ++  di-post-notice
+    |=  n=notice:c
+    (di-ingest-diff [our now]:bowl %add ~ src.bowl now.bowl %notice n)
   ::
   ++  di-rsvp
     |=  ok=?
@@ -588,10 +608,7 @@
     ::  TODO hook into archive
     ?.  ok  ~&  gone/ship  di-core(gone &)
     =.  net.dm  %done
-    =.  di-core
-      %+  di-ingest-diff  [our now]:bowl
-      [%add ~ src.bowl now.bowl [%notice '' ' joined the chat']]
-    di-core
+    (di-post-notice '' ' joined the chat')
   ::
   ++  di-watch
     |=  =path

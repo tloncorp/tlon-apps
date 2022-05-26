@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render } from '../../../test/utils';
 import ChatInput from './ChatInput';
 
 describe('ChatInput', () => {

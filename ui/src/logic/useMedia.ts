@@ -19,3 +19,7 @@ export default function useMedia(mediaQuery: string) {
 
   return match;
 }
+
+export function useIsMobile() {
+  return useMedia('(max-width: 767px)');
+}

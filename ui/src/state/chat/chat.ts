@@ -158,8 +158,36 @@ export const useChatState = create<ChatState>((set, get) => ({
         draft.dms[ship] = chat;
       });
     });
+    const archive = await api.scry<string[]>({
+      app: 'chat',
+      path: '/dm/archive',
+    });
+    get().batchSet((draft) => {
+      draft.dmArchive = archive;
+    });
   },
+  unarchiveDm: async (ship) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'dm-unarchive',
+      json: ship,
+    });
+  },
+
   chats: {},
+  dmArchive: [],
+  archiveDm: async (ship) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'dm-archive',
+      json: ship,
+    });
+    get().batchSet((draft) => {
+      delete draft.pacts[ship];
+      delete draft.dms[ship];
+      delete draft.briefs[ship];
+    });
+  },
   joinChat: async (flag) => {
     await api.poke({
       app: 'chat',
@@ -173,6 +201,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       if (!ok) {
         delete draft.pacts[ship];
         delete draft.dms[ship];
+        delete draft.briefs[ship];
       }
     });
 
@@ -292,7 +321,7 @@ export function useChatIsJoined(whom: string) {
 const selDmList = (s: ChatState) =>
   Object.keys(s.briefs)
     .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))
-    .sort((a, b) => s.briefs[b].last - s.briefs[a].last);
+    .sort((a, b) => (s.briefs[b]?.last || 0) - (s.briefs[a]?.last || 0));
 
 export function useDmList() {
   return useChatState(selDmList);
@@ -383,4 +412,9 @@ export function usePendingDms() {
 
 export function useDmIsPending(ship: string) {
   return useChatState(useCallback((s) => s.pendingDms.includes(ship), [ship]));
+}
+
+const selDmArchive = (s: ChatState) => s.dmArchive;
+export function useDmArchive() {
+  return useChatState(selDmArchive);
 }
