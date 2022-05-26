@@ -7,12 +7,13 @@ import { useCurrentTheme } from '../state/local';
 import { normalizeUrbitColor } from '../logic/utils';
 import { useContact } from '../state/contact';
 
-export type AvatarSizes = 'xs' | 'small' | 'default';
+export type AvatarSizes = 'xs' | 'small' | 'default' | 'huge';
 
 interface AvatarProps {
   ship: string;
   size: AvatarSizes;
   className?: string;
+  icon?: boolean;
 }
 
 interface AvatarMeta {
@@ -24,6 +25,7 @@ const sizeMap: Record<AvatarSizes, AvatarMeta> = {
   xs: { classes: 'w-6 h-6 rounded', size: 12 },
   small: { classes: 'w-8 h-8 rounded', size: 16 },
   default: { classes: 'w-12 h-12 rounded-lg', size: 24 },
+  huge: { classes: 'w-18 h-18 rounded-lg', size: 72 },
 };
 
 const foregroundFromBackground = (background: string): 'black' | 'white' => {
@@ -64,7 +66,12 @@ function themeAdjustColor(color: string, theme: 'light' | 'dark'): string {
   return color;
 }
 
-export default function Avatar({ ship, size, className }: AvatarProps) {
+export default function Avatar({
+  ship,
+  size,
+  className,
+  icon = true,
+}: AvatarProps) {
   const currentTheme = useCurrentTheme();
   const contact = useContact(ship);
   const { color, avatar } = contact || emptyContact;
@@ -83,10 +90,10 @@ export default function Avatar({ ship, size, className }: AvatarProps) {
       patp: deSig(ship) || 'zod',
       renderer: reactRenderer,
       size: sigilSize,
-      icon: true,
+      icon,
       colors: [adjustedColor, foregroundColor],
     });
-  }, [ship, adjustedColor, foregroundColor, sigilSize]);
+  }, [ship, adjustedColor, foregroundColor, sigilSize, icon]);
 
   if (avatar) {
     return <img className={classNames('', classes)} src={avatar} alt="" />;
@@ -100,6 +107,7 @@ export default function Avatar({ ship, size, className }: AvatarProps) {
         size === 'xs' && 'p-1.5',
         size === 'small' && 'p-2',
         size === 'default' && 'p-3',
+        size === 'huge' && 'p-1',
         className
       )}
       style={{ backgroundColor: adjustedColor }}
