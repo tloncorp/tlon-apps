@@ -5,6 +5,7 @@ import Avatar from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import { useChatState } from '../state/chat';
 import DmOptions from './DMOptions';
+import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 
 interface DMSidebarItemProps {
   ship: string;
@@ -18,21 +19,18 @@ export default function DmSidebarItem({
   const brief = useChatState((s) => s.briefs[ship]);
 
   return (
-    <li
-      className={cn(
-        'group relative flex items-center justify-between rounded-lg p-2 text-gray-600',
-        {
-          'bg-blue text-white': pending,
-        }
-      )}
-    >
+    <li className="group relative flex items-center justify-between rounded-lg p-2 text-gray-600">
       <NavLink
         to={`/dm/${ship}`}
         className="default-focus flex flex-1 items-center rounded-lg"
       >
-        <Avatar size="xs" ship={ship} />
+        {pending ? (
+          <UnknownAvatarIcon className="h-6 text-blue" />
+        ) : (
+          <Avatar size="xs" ship={ship} />
+        )}
         <ShipName className="ml-2 font-semibold" name={ship} />
-        {(brief?.count ?? 0) > 0 ? (
+        {(brief?.count ?? 0) > 0 || pending ? (
           <div
             className="ml-auto h-2 w-2 rounded-full bg-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
             aria-label="Has New Messages"
