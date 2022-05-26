@@ -47,13 +47,17 @@ export default function Dm() {
             {isMobile ? (
               <LeftIcon className="mr-1 h-5 w-5 text-gray-500" />
             ) : null}
-            <div className="flex space-x-3">
+            <div className="flex items-center space-x-3">
               <Avatar size="small" ship={ship} />
               <div className="flex flex-col">
                 {contact?.nickname ? (
-                  <span className="font-semibold">{contact.nickname}</span>
-                ) : null}
-                <span className="text-gray-600">{ship}</span>
+                  <>
+                    <span className="font-semibold">{contact.nickname}</span>
+                    <span className="text-gray-600">{ship}</span>
+                  </>
+                ) : (
+                  <span className="font-semibold">{ship}</span>
+                )}
               </div>
             </div>
           </Link>
