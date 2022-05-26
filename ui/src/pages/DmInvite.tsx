@@ -26,9 +26,13 @@ export default function DmInvite({ ship }: DmInviteProps) {
         <div className="flex flex-col items-center space-y-1">
           <Avatar ship={ship} size="huge" icon={false} />
           {contact?.nickname ? (
-            <span className="font-semibold">{contact.nickname}</span>
-          ) : null}
-          <span className="text-gray-600">{ship}</span>
+            <div className="flex flex-col items-center pt-1">
+              <span className="font-semibold">{contact.nickname}</span>
+              <span className="pt-1 text-gray-600">{ship}</span>
+            </div>
+          ) : (
+            <span className="pt-1 text-gray-600">{ship}</span>
+          )}
           {/*
           TODO: Show mutual groups.
          */}
@@ -52,7 +56,7 @@ export default function DmInvite({ ship }: DmInviteProps) {
       </div>
       {showDeclineModal ? (
         <div className="absolute z-10 flex h-full w-full flex-col items-center justify-center bg-gray-400/[0.16]">
-          <div className="flex min-h-[216px] min-w-[300px] max-w-[500px] flex-col items-center justify-start rounded-xl bg-white p-6 sm:h-1/6 sm:w-2/5">
+          <div className="flex h-[216px] min-w-[300px] max-w-[500px] flex-col items-center justify-start rounded-xl bg-white p-6">
             <div className="flex w-full items-center justify-between">
               <span className="text-lg font-bold">Decline Message</span>
               <button

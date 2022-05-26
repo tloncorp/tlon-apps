@@ -25,7 +25,7 @@ const sizeMap: Record<AvatarSizes, AvatarMeta> = {
   xs: { classes: 'w-6 h-6 rounded', size: 12 },
   small: { classes: 'w-8 h-8 rounded', size: 16 },
   default: { classes: 'w-12 h-12 rounded-lg', size: 24 },
-  huge: { classes: 'w-18 h-18 rounded-lg', size: 72 },
+  huge: { classes: 'w-18 h-18 rounded-lg', size: 48 },
 };
 
 const foregroundFromBackground = (background: string): 'black' | 'white' => {
@@ -114,7 +114,7 @@ export default function Avatar({
         size === 'xs' && 'p-1.5',
         size === 'small' && 'p-2',
         size === 'default' && 'p-3',
-        size === 'huge' && 'p-1',
+        size === 'huge' && 'p-3',
         className
       )}
       style={{ backgroundColor: adjustedColor }}
