@@ -16,6 +16,8 @@ export interface ChatState {
   dms: {
     [ship: string]: Chat;
   };
+  dmArchive: string[];
+  fetchDms: () => Promise<void>;
   pacts: {
     [whom: ChatWhom]: Pact;
   };
@@ -28,6 +30,8 @@ export interface ChatState {
   fetchOlder: (ship: string, count: string) => Promise<boolean>;
   draft: (whom: string, content: ChatStory) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
+  archiveDm: (ship: string) => Promise<void>;
+  unarchiveDm: (ship: string) => Promise<void>;
   sendMessage: (whom: string, memo: ChatMemo) => void;
   delMessage: (flag: string, time: string) => void;
   addSects: (flag: string, writers: string[]) => Promise<void>;

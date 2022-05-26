@@ -53,6 +53,7 @@ function App() {
     handleError(() => {
       useGroupState.getState().start();
       useChatState.getState().start();
+      useChatState.getState().fetchDms();
       const { initialize: settingsInitialize, fetchAll } =
         useSettingsState.getState();
       settingsInitialize(api);
@@ -89,7 +90,7 @@ function App() {
         />
       </Routes>
       <Routes location={state?.backgroundLocation || location}>
-        <Route path="/dm" element={<Dms />}>
+        <Route path="/dm/" element={<Dms />}>
           <Route path="new" element={<NewDM />} />
           <Route path=":ship" element={<Dm />}>
             <Route path="message/:idShip/:idTime" element={<DmThread />} />

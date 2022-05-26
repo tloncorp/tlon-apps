@@ -85,7 +85,7 @@
     =/  =flag:g  [our.bowl name.create]
     =|  =cordon:g
     =/  =group:g
-      [~ ~ ~ cordon title.create description.create image.create] 
+      [~ ~ ~ ~ cordon title.create description.create image.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     go-abet:(go-init:(go-abed:group-core flag) create)
   ::
@@ -162,11 +162,25 @@
     go-core(flag f, group gr, net n)
   ::
   ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
+  ++  go-is-bloc
+    |(=(src.bowl p.flag) (~(has in go-bloc-who) src.bowl))
+  ++  go-bloc-who
+    %+  roll  ~(tap by fleet.group)
+    |=  [[who=ship =vessel:fleet:g] out=(set ship)]
+    ?:  =(~ (~(int in sects.vessel) bloc.group))
+      out
+    (~(put in out) who)
   ::
   ++  go-init  
     |=  =create:g
     =|  our=vessel:fleet:g
+    =.  sects.our  (~(put in sects.our) %admin)
     =.  fleet.group  (~(put by fleet.group) our.bowl our)
+    =.  bloc.group  (silt %admin ~)
+    =.  cabals.group
+      %+  ~(put by cabals.group)  %admin
+      :_  ~
+      ['Admin' 'Admins can add and remove channels and edit metadata' '']
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
   ::
@@ -302,12 +316,24 @@
       %channel  (go-channel-update [p q]:diff)
       %fleet    (go-fleet-update [p q]:diff)
       %cabal    (go-cabal-update [p q]:diff)
+      %bloc     (go-bloc-update p.diff)
       %cordon   (go-cordon-update p.diff)
       %create   go-core(group p.diff)
     ==
+  ++  go-bloc-update
+    |=  =diff:bloc:g
+    ?>  go-is-bloc
+    ^+  go-core
+    =.  bloc.group
+      ?-  -.diff
+        %add  (~(uni in bloc.group) p.diff)
+        %del  (~(dif in bloc.group) p.diff)
+      ==
+    go-core
   ++  go-cordon-update
     |=  =diff:cordon:g
     |^  ^+  go-core
+    ?>  go-is-bloc
     =.  cordon.group  
       ?-  -.diff 
         %open     (open p.diff)
@@ -347,6 +373,7 @@
   ::
   ++  go-cabal-update
     |=  [=sect:g =diff:cabal:g]
+    ?>  go-is-bloc
     ^+  go-core
     ?-    -.diff
         %add
@@ -365,15 +392,23 @@
     ^+  go-core
     ?-    -.diff
         %add
+      =?  joined.vessel.diff  =(p.flag our.bowl)
+        now.bowl
+      ?>  ?|  =(p.flag src.bowl) :: subscription
+              ?&  =(ship src.bowl)  :: user join
+                  =(~ sects.vessel.diff) :: cannot ask for perms
+          ==  ==
       =.  fleet.group  (~(put by fleet.group) ship vessel.diff)
       go-core
     ::
         %del
+      ?>  ?|(=(p.flag src.bowl) =(ship src.bowl))
       =.  fleet.group  (~(del by fleet.group) ship)
       go-core
     ::
         %add-sects
       ~|  strange-sect/sect
+      ?>  go-is-bloc
       ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
       =.  fleet.group  
         %+  ~(jab by fleet.group)  ship
@@ -382,6 +417,7 @@
       go-core
     ::
         %del-sects
+      ?>  go-is-bloc
       =.  fleet.group
         %+  ~(jab by fleet.group)  ship
         |=  vessel:fleet:g
@@ -391,6 +427,7 @@
   ++  go-channel-update
     |=  [ch=flag:g =diff:channel:g]
     ^+  go-core
+    ?>  go-is-bloc
     =*  by-ch  ~(. by channels.group)
     ?-    -.diff
         %add

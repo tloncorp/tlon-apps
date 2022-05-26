@@ -78,7 +78,7 @@
         =remark
         =net
     ==
-  +$  net     ?(%inviting %invited %done)
+  +$  net     ?(%inviting %invited %archive %done)
   +$  id      (pair ship time)
   +$  diff    diff:writs
   +$  action  (pair ship diff)
