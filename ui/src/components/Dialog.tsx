@@ -1,6 +1,7 @@
 import React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import classNames from 'classnames';
+import XIcon from './icons/XIcon';
 
 export default function Dialog({
   children,
@@ -32,15 +33,8 @@ export const DialogContent = React.forwardRef<
         <div className={classNames('dialog', className)}>
           {children}
           {showClose && (
-            <DialogPrimitive.Close className="default-ring absolute top-3 right-3 rounded-full bg-gray-100 p-2">
-              <svg
-                className="h-3.5 w-3.5 stroke-current text-gray-500"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M4 4L20 20" strokeWidth="3" strokeLinecap="round" />
-                <path d="M20 4L4 20" strokeWidth="3" strokeLinecap="round" />
-              </svg>
+            <DialogPrimitive.Close className="default-ring absolute top-6 right-6 rounded-full bg-gray-100 p-1">
+              <XIcon className="h-4 w-4" />
             </DialogPrimitive.Close>
           )}
         </div>

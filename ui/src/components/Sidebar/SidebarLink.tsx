@@ -23,7 +23,7 @@ export default function SidebarLink({
       <TheLink
         className={({ isActive }) =>
           cn(
-            'flex items-center space-x-3 rounded-md p-2 text-base font-semibold text-gray-600 hover:bg-gray-50',
+            'default-focus flex items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50',
             isActive && 'bg-gray-50',
             className
           )

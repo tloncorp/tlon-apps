@@ -12,6 +12,7 @@ import Select, {
   InputProps,
   MultiValueRemoveProps,
   MultiValueGenericProps,
+  ValueContainerProps,
 } from 'react-select';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
@@ -28,8 +29,11 @@ interface Option {
 
 function Control({ children, ...props }: ControlProps<Option, true>) {
   return (
-    <components.Control {...props} className="input text-gray-800">
-      <MagnifyingGlass className="ml-2 h-3 text-gray-300" />
+    <components.Control
+      {...props}
+      className="input cursor-text items-center text-gray-800"
+    >
+      <MagnifyingGlass className="h-6 w-6 text-gray-300" />
       {children}
     </components.Control>
   );
@@ -114,7 +118,7 @@ function ShipDropDownMenuList({
 
 function Input({ children, ...props }: InputProps<Option, true>) {
   return (
-    <components.Input className="h-6 text-gray-800" {...props}>
+    <components.Input className="text-gray-800" {...props}>
       {children}
     </components.Input>
   );
@@ -164,23 +168,12 @@ export default function NewDM() {
         </div>
       }
     >
-      <div className="w-full p-4">
+      <div className="w-full py-3 px-4">
         <Select
           autoFocus
           isMulti
           styles={{
-            control: (base) => ({
-              ...base,
-              backgroundColor: '',
-              borderColor: '',
-              boxShadow: '',
-              outlineColor: '',
-              borderRadius: '8px',
-              borderWidth: '2px',
-              '&:hover': {
-                borderColor: 'inherit',
-              },
-            }),
+            control: (base) => ({}),
             menu: ({ width, borderRadius, ...base }) => ({
               borderWidth: '',
               borderColor: '',
@@ -189,6 +182,7 @@ export default function NewDM() {
             }),
             input: (base) => ({
               ...base,
+              margin: '',
               color: '',
               paddingTop: '',
               paddingBottom: '',
@@ -196,6 +190,7 @@ export default function NewDM() {
             multiValue: (base) => ({
               ...base,
               backgroundColor: '',
+              margin: '0 2px',
             }),
             multiValueRemove: (base) => ({
               ...base,
@@ -212,6 +207,10 @@ export default function NewDM() {
               '&:active': {
                 backgroundColor: 'inherit',
               },
+            }),
+            valueContainer: (base) => ({
+              ...base,
+              padding: '0px 8px',
             }),
           }}
           aria-label="Ships"
