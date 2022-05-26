@@ -19,10 +19,10 @@ export default function DmSidebarItem({
   const brief = useChatState((s) => s.briefs[ship]);
 
   return (
-    <li className="group relative flex items-center justify-between rounded-lg p-2 text-gray-600">
+    <li className="group relative flex items-center justify-between rounded-lg text-gray-600">
       <NavLink
         to={`/dm/${ship}`}
-        className="default-focus flex flex-1 items-center rounded-lg"
+        className="default-focus flex flex-1 items-center rounded-lg p-2"
       >
         {pending ? (
           <UnknownAvatarIcon className="h-6 text-blue" />
