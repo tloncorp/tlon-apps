@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import React, { useMemo } from 'react';
 import { sigil, reactRenderer } from '@tlon/sigil-js';
-import { deSig, Contact } from '@urbit/api';
+import { deSig, Contact, cite } from '@urbit/api';
 import { darken, lighten, parseToHsla } from 'color2k';
 import { useCurrentTheme } from '../state/local';
 import { normalizeUrbitColor } from '../logic/utils';
@@ -75,12 +75,19 @@ export default function Avatar({ ship, size, className }: AvatarProps) {
   );
   const foregroundColor = foregroundFromBackground(adjustedColor);
   const sigilElement = useMemo(() => {
-    if (ship.match(/[_^]/) || ship.length > 14) {
+    const citedShip = cite(ship);
+
+    if (
+      !ship ||
+      ship === 'undefined' ||
+      citedShip.match(/[_^]/) ||
+      citedShip.length > 14
+    ) {
       return null;
     }
 
     return sigil({
-      patp: deSig(ship) || 'zod',
+      patp: deSig(citedShip) || 'zod',
       renderer: reactRenderer,
       size: sigilSize,
       icon: true,

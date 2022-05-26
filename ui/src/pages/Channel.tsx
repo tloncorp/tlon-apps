@@ -5,9 +5,9 @@ import { Outlet, useLocation, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import ChatWindow from '../chat/ChatWindow';
-import ElipsisIcon from '../components/icons/ElipsisIcon';
+import EllipsisIcon from '../components/icons/EllipsisIcon';
 import Layout from '../components/layout/Layout';
-import useMedia from '../logic/useMedia';
+import { useIsMobile } from '../logic/useMedia';
 import {
   useChatIsJoined,
   useChatPerms,
@@ -29,7 +29,7 @@ function Channel() {
     useChatState.getState().joinChat(flag);
   };
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 639px)');
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     useChatState.getState().initialize(flag);
@@ -54,7 +54,7 @@ function Channel() {
             state={{ backgroundLocation: location }}
             className={cn(
               isMobile &&
-                '-ml-2 flex items-center rounded-md p-2 hover:bg-gray-50'
+                '-ml-2 flex items-center rounded-lg p-2 hover:bg-gray-50'
             )}
             aria-label="Open Channels Menu"
           >
@@ -68,7 +68,7 @@ function Channel() {
             className="icon-button ml-auto h-8 w-8"
             to={`${channelHref(groupFlag, flag)}/settings`}
           >
-            <ElipsisIcon className="h-5 w-5" />
+            <EllipsisIcon className="h-5 w-5" />
           </Link>
         </div>
       }

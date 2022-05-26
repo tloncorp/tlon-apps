@@ -1,5 +1,4 @@
 :root {
-  --header-height: 64px;
   --aside-width: 240px;
 }
 
@@ -20,7 +19,6 @@
 
 .header {
   grid-area: header;
-  height: var(--header-height);
 }
 
 .footer {
