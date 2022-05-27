@@ -1,7 +1,8 @@
 import classNames from 'classnames';
 import React, { useMemo } from 'react';
-import { sigil, reactRenderer } from '@tlon/sigil-js';
+import { sigil as sigilRaw, reactRenderer } from '@tlon/sigil-js';
 import { deSig, Contact, cite } from '@urbit/api';
+import _ from 'lodash';
 import { darken, lighten, parseToHsla } from 'color2k';
 import { useCurrentTheme } from '../state/local';
 import { normalizeUrbitColor } from '../logic/utils';
@@ -66,6 +67,58 @@ function themeAdjustColor(color: string, theme: 'light' | 'dark'): string {
   return color;
 }
 
+interface SigilArgs {
+  patp: string;
+  size: number;
+  icon: boolean;
+  bg: string;
+  fg: string;
+}
+
+const DO_MEMOIZE = true;
+const sigil = DO_MEMOIZE
+  ? _.memoize(
+      ({ bg, fg, ...rest }: SigilArgs) =>
+        sigilRaw({
+          ...rest,
+          renderer: reactRenderer,
+          colors: [bg, fg],
+        }),
+      ({ bg, fg, patp, icon, size }) => `${bg}-${fg}-${patp}-${icon}-${size}`
+    )
+  : ({ bg, fg, ...rest }: SigilArgs) =>
+      sigilRaw({
+        ...rest,
+        renderer: reactRenderer,
+        colors: [bg, fg],
+      });
+
+function getSigilElement(
+  ship: string,
+  sigilSize: number,
+  icon: boolean,
+  bg: string,
+  fg: string
+) {
+  const citedShip = cite(ship);
+
+  if (
+    !ship ||
+    ship === 'undefined' ||
+    citedShip.match(/[_^]/) ||
+    citedShip.length > 14
+  ) {
+    return null;
+  }
+  return sigil({
+    patp: deSig(citedShip) || 'zod',
+    size: sigilSize,
+    icon,
+    bg,
+    fg,
+  });
+}
+
 export default function Avatar({
   ship,
   size,
@@ -81,27 +134,13 @@ export default function Avatar({
     currentTheme
   );
   const foregroundColor = foregroundFromBackground(adjustedColor);
-  const sigilElement = useMemo(() => {
-    const citedShip = cite(ship);
-
-    if (
-      !ship ||
-      ship === 'undefined' ||
-      citedShip.match(/[_^]/) ||
-      citedShip.length > 14
-    ) {
-      return null;
-    }
-
-    return sigil({
-      patp: deSig(citedShip) || 'zod',
-      renderer: reactRenderer,
-      size: sigilSize,
-      icon,
-      colors: [adjustedColor, foregroundColor],
-    });
-  }, [ship, adjustedColor, foregroundColor, sigilSize, icon]);
-
+  const sigilElement = getSigilElement(
+    ship,
+    sigilSize,
+    icon,
+    adjustedColor,
+    foregroundColor
+  );
   if (avatar) {
     return <img className={classNames('', classes)} src={avatar} alt="" />;
   }

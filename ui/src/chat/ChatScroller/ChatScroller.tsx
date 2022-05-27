@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { differenceInDays } from 'date-fns';
-import { daToUnix, decToUd, udToDec } from '@urbit/api';
+import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import ChatWritScroller from './ChatWritScroller';
 import { IChatScroller } from './IChatScroller';
@@ -72,27 +72,10 @@ export default function ChatScroller(props: IChatScroller) {
     }
   );
 
-  const onTopLoaded = () => {
-    // TODO
-    // const { messagesSize, unreadCount } = this.props;
-    // if(graphSize >= unreadCount) {
-    //   this.props.dismissUnread();
-    // }
-    console.log('on top...');
-  };
-
-  const onBottomLoaded = () => {
-    // TODO
-    // if(this.state.unreadIndex.eq(bigInt.zero)) {
-    //   this.calculateUnreadIndex();
-    // }
-    console.log('on bottom...');
-  };
-
   const fetchMessages = useCallback(
     async (newer: boolean) => {
       if (newer) {
-        return false;
+        return true;
       }
 
       return useChatState
@@ -106,9 +89,8 @@ export default function ChatScroller(props: IChatScroller) {
     <div className="relative h-full flex-1">
       {messages.size > 0 ? (
         <ChatWritScroller
-          origin="top"
-          onBottomLoaded={onBottomLoaded}
-          onTopLoaded={onTopLoaded}
+          origin="bottom"
+          style={{ height: '100%' }}
           data={messages}
           size={messages.size}
           pendingSize={0} // TODO
