@@ -164,6 +164,7 @@ export default function NewDM() {
             showReply
             sendDisabled={!validShip}
             newDm
+            navigate={navigate}
           />
         </div>
       }

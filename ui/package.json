@@ -8,7 +8,7 @@
   "scripts": {
     "prepare": "cd .. && husky install ui/.husky",
     "build": "tsc && vite build",
-    "build:mock": "tsc && vite build --mode mock",
+    "build:mock": "tsc && vite build --mode staging",
     "coverage": "vitest run --coverage",
     "dev": "vite",
     "lint": "eslint src/",

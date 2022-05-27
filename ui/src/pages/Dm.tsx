@@ -1,18 +1,22 @@
 import React, { useCallback, useEffect } from 'react';
 import cn from 'classnames';
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
+import { Outlet, useParams, useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
-import ChatWindow from '../chat/ChatWindow';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
+import ChatWindow from '../chat/ChatWindow';
+import DmInvite from './DmInvite';
+import Avatar from '../components/Avatar';
 import DmOptions from '../dms/DMOptions';
+import { useContact } from '../state/contact';
 import LeftIcon from '../components/icons/LeftIcon';
 import { useIsMobile } from '../logic/useMedia';
 
 export default function Dm() {
-  const ship = useParams<{ ship: string }>().ship || '';
+  const ship = useParams<{ ship: string }>().ship!;
   const location = useLocation();
+  const contact = useContact(ship);
   const isMobile = useIsMobile();
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState(
@@ -25,14 +29,6 @@ export default function Dm() {
     }
   }, [ship, canStart]);
   const messages = useDmMessages(ship);
-  const navigate = useNavigate();
-  const onAccept = () => {
-    useChatState.getState().dmRsvp(ship, true);
-  };
-  const onDecline = () => {
-    navigate(-1);
-    useChatState.getState().dmRsvp(ship, false);
-  };
 
   return (
     <Layout
@@ -51,7 +47,19 @@ export default function Dm() {
             {isMobile ? (
               <LeftIcon className="mr-1 h-5 w-5 text-gray-500" />
             ) : null}
-            <h1 className="text-lg font-bold">{ship}</h1>
+            <div className="flex items-center space-x-3">
+              <Avatar size="small" ship={ship} />
+              <div className="flex flex-col">
+                {contact?.nickname ? (
+                  <>
+                    <span className="font-semibold">{contact.nickname}</span>
+                    <span className="text-gray-600">{ship}</span>
+                  </>
+                ) : (
+                  <span className="font-semibold">{ship}</span>
+                )}
+              </div>
+            </div>
           </Link>
           {canStart ? <DmOptions ship={ship} /> : null}
         </div>
@@ -68,16 +76,7 @@ export default function Dm() {
       {isAccepted ? (
         <ChatWindow whom={ship} messages={messages} />
       ) : (
-        <div className="flex flex-col">
-          <div className="flex">
-            <button onClick={onDecline} type="button">
-              Decline
-            </button>
-            <button onClick={onAccept} type="button">
-              Accept
-            </button>
-          </div>
-        </div>
+        <DmInvite ship={ship} />
       )}
     </Layout>
   );
