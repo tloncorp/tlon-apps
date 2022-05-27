@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
-import Select, {
+import CreatableSelect from 'react-select/creatable';
+import {
   components,
   ControlProps,
   OptionProps,
-  MultiValue,
   createFilter,
   MenuProps,
   MenuListProps,
   InputProps,
   MultiValueRemoveProps,
   MultiValueGenericProps,
-  ValueContainerProps,
+  MultiValue,
 } from 'react-select';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
@@ -21,6 +21,7 @@ import { useContacts } from '../state/contact';
 import Avatar from '../components/Avatar';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
 import XIcon from '../components/icons/XIcon';
+import { preSig } from '../logic/utils';
 
 interface Option {
   value: string;
@@ -48,8 +49,12 @@ function ShipName({ data, ...props }: OptionProps<Option, true>) {
       {...props}
     >
       <div className="flex items-center space-x-1">
-        <Avatar ship={value} size="xs" />
-        <span className="font-semibold">{value}</span>
+        {ob.isValidPatp(preSig(value)) ? (
+          <Avatar ship={preSig(value)} size="xs" />
+        ) : (
+          <div className="h-6 w-6 rounded bg-white" />
+        )}
+        <span className="font-semibold">{preSig(value)}</span>
         {label ? (
           <span className="font-semibold text-gray-300">{label}</span>
         ) : null}
@@ -65,6 +70,10 @@ function NoShipsMessage() {
       <span className="italic">This name was not found.</span>
     </div>
   );
+}
+
+function AddNonContactShip(value: string) {
+  return ob.isValidPatp(preSig(value)) ? null : <NoShipsMessage />;
 }
 
 function ShipTagLabelContainer({
@@ -147,6 +156,13 @@ export default function NewDM() {
     }
   };
 
+  const onCreateOption = (inputValue: string) => {
+    const siggedInput = preSig(inputValue);
+    if (ob.isValidPatp(siggedInput)) {
+      setShip({ value: siggedInput, label: siggedInput });
+    }
+  };
+
   // const filterConfig = {
   // ignoreCase: true,
   // ignoreAccents: true,
@@ -170,7 +186,8 @@ export default function NewDM() {
       }
     >
       <div className="w-full py-3 px-4">
-        <Select
+        <CreatableSelect
+          formatCreateLabel={AddNonContactShip}
           autoFocus
           isMulti
           styles={{
@@ -218,6 +235,10 @@ export default function NewDM() {
           options={contactOptions}
           value={ship}
           onChange={onChange}
+          onCreateOption={onCreateOption}
+          isValidNewOption={(inputValue) =>
+            inputValue ? ob.isValidPatp(preSig(inputValue)) : false
+          }
           onKeyDown={onKeyDown}
           placeholder="Type a name ie; ~sampel-palnet"
           hideSelectedOptions
