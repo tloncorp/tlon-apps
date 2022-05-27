@@ -246,6 +246,7 @@ export default class VirtualScroller<K, V> extends Component<
       return;
     }
     const { scrollTop, scrollHeight } = this.window;
+    const { origin } = this.props;
 
     // const unloaded = (this.startOffset() / this.pageSize);
     // const totalpages = this.props.size / this.pageSize;
@@ -255,7 +256,7 @@ export default class VirtualScroller<K, V> extends Component<
     /* const result = this.scrollDragging
       ? (loaded * this.window.offsetHeight)
       : ((unloaded + loaded) / totalpages) *this.window.offsetHeight; */
-    this.scrollRef.style[this.props.origin] = `${
+    this.scrollRef.style[origin === 'top' ? 'bottom' : 'top'] = `${
       loaded * this.window.offsetHeight
     }px`;
   }, 50);
