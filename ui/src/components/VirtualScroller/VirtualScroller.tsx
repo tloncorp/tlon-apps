@@ -544,7 +544,7 @@ export default class VirtualScroller<K, V> extends Component<
     // eslint-disable-next-line no-plusplus
     this.saveDepth++;
     const { visibleItems } = this.state;
-    const { keyToString } = this.props;
+    const { keyToString, averageHeight } = this.props;
 
     const { origin } = this.props;
     const { scrollTop } = this.window;
@@ -557,7 +557,7 @@ export default class VirtualScroller<K, V> extends Component<
         return;
       }
       const { offsetTop } = el;
-      if (offsetTop < topSpacing) {
+      if (Math.abs(offsetTop - topSpacing) < 2 * averageHeight) {
         bottomIndex = index;
       }
     });
