@@ -9,5 +9,6 @@
 ++  grab
   |%
   ++  noun  action:club:c
+  ++  json  club-action:dejs:j
   --
 --

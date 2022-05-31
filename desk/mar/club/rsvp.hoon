@@ -9,5 +9,6 @@
 ++  grab
   |%
   ++  noun  rsvp:club:c
+  ++  json  club-rsvp:dejs:j
   --
 --
