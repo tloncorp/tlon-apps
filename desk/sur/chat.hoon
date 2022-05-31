@@ -1,4 +1,5 @@
 /-  g=groups
+/-  meta
 |%
 +$  writ   [seal memo]
 +$  id     (pair ship time)
@@ -13,6 +14,7 @@
 +$  whom
   $%  [%flag p=flag]
       [%ship p=ship]
+      [%club p=id:club]
   == 
 ::
 ++  briefs
@@ -61,6 +63,7 @@
   +$  club
     $:  team=(set ship)
         hive=(set ship)
+        met=data:meta
         =pact
         =net
     ==

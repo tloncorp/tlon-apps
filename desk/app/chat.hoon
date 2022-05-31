@@ -1,4 +1,5 @@
 /-  c=chat, g=groups
+/-  meta
 /+  default-agent, verb, dbug
 /+  chat-json
 /+  w=chat-writs
@@ -9,7 +10,7 @@
   +$  card  card:agent:gall
   ++  def-flag  `flag:c`[~zod %test]
   +$  state-0
-    $:  %1
+    $:  %0
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
@@ -123,6 +124,7 @@
     ?-  -.p.act
       %ship  di-abet:(di-remark-diff:(di-abed:di-core p.p.act) q.act)
       %flag  ca-abet:(ca-remark-diff:(ca-abed:ca-core p.p.act) q.act)
+      %club  cor  :: TODO
     ==
   ::
       %dm-action
@@ -183,6 +185,10 @@
       [%dm @ *]
     =/  =ship  (slav %p i.t.path)
     di-abet:(di-watch:(di-abed:di-core ship) t.t.path)
+  ::
+      [%club @ *]
+    =/  =id:club:c  (slav %uw i.t.path)
+    cu-abet:(cu-watch:(cu-abed id) t.t.path)
   ==
 ::
 ++  agent
@@ -277,12 +283,19 @@
       [%x %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
     (di-peek:(di-abed:di-core ship) t.t.t.path)
-
+  ::
+      [%x %club @ *]
+    (cu-peek:(cu-abed (slav %uw i.t.t.path)) t.t.t.path)
   ::
       [%x %briefs ~]
     =-  ``chat-briefs+!>(-)
     ^-  briefs:c
     %-  ~(gas by *briefs:c)
+    %+  welp
+      %+  turn  ~(tap in ~(key by clubs))
+      |=  =id:club:c
+      =/  cu  (cu-abed id)
+      [club/id cu-brief:cu]
     %+  welp  
       %+  murn  ~(tap in ~(key by dms))
       |=  =ship
@@ -330,7 +343,9 @@
   ::
   ++  cu-init
     |=  [=net:club:c =create:club:c]
-    cu-core(id id.create, club =,(create [team hive *pact:c net]))
+    cu-core(id id.create, club =,(create [team hive *data:meta *pact:c net]))
+  ::
+  ++  cu-brief  (brief:cu-pact [our now]:bowl)
   ::
   ++  cu-create  
     |=  =create:club:c 
@@ -370,7 +385,25 @@
     |=  =diff:club:c
     ^+  cu-core
     =.  pact.club  (reduce:cu-pact now.bowl diff)
+    =.  cor
+      =/  =cage  writ-diff+!>(diff)
+      (emit %give %fact ~[(snoc cu-area %ui)] cage)  
     cu-core
+  ::
+  ++  cu-peek
+    |=  =path
+    ^-  (unit (unit cage))
+    ?+  path  [~ ~]
+      [%writs *]  (peek:cu-pact t.path)
+    ==
+  ::
+  ++  cu-watch
+    |=  =path
+    ^+  cu-core
+    ?>  =(src our):bowl
+    ?+  path  !!
+      [%ui %writs ~]  cu-core
+    ==
   ::
   ++  cu-agent
     |=  [=wire =sign:agent:gall]
