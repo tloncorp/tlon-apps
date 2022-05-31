@@ -40,7 +40,7 @@ export default function ChatThread(
         label={`${replies.size} ${replies.size === 1 ? 'Reply' : 'Replies'}`}
       />
       <div className="flex flex-col">
-        <ChatMessages messages={replies} whom={whom} replying={true} />
+        <ChatMessages messages={replies} whom={whom} replying />
       </div>
       <div className="sticky bottom-0 z-10 bg-white py-4">
         <ChatInput whom={whom} replying={id} />
