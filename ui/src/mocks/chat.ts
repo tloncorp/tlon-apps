@@ -157,3 +157,5 @@ export const dmList: ChatBriefs = {
 export const chatPerm = {
   writers: [],
 };
+
+export const pendingDMs = ['~fabled-faster'];

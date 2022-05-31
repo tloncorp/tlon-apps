@@ -2,6 +2,7 @@ import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useRef } from 'react';
+import { NavigateFunction } from 'react-router';
 import { useChatState, useChatDraft, useChat, usePact } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatMessage, ChatStory } from '../../types/chat';
 import MessageEditor, {
@@ -18,6 +19,9 @@ interface ChatInputProps {
   replying?: string | null;
   showReply?: boolean;
   className?: string;
+  sendDisabled?: boolean;
+  newDm?: boolean;
+  navigate?: NavigateFunction;
 }
 
 function convertMarkType(type: string): string {
@@ -255,6 +259,9 @@ export default function ChatInput({
   replying = null,
   showReply = false,
   className = '',
+  sendDisabled = false,
+  newDm = false,
+  navigate = undefined,
 }: ChatInputProps) {
   const chat = useChat(whom);
   const draft = useChatDraft(whom);
@@ -300,8 +307,11 @@ export default function ChatInput({
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
+      if (newDm && navigate) {
+        navigate(`/dm/${whom}`);
+      }
     },
-    [whom, replying, closeReply]
+    [whom, replying, closeReply, navigate, newDm]
   );
 
   useEffect(() => {
@@ -394,7 +404,7 @@ export default function ChatInput({
           </button>
         </div>
       </div>
-      <button className="button" onClick={onClick}>
+      <button className="button" disabled={sendDisabled} onClick={onClick}>
         Send
       </button>
     </div>
