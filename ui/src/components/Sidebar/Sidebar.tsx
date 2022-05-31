@@ -2,7 +2,7 @@ import classNames from 'classnames';
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ModalLocationState } from '../../logic/routing';
-import useMedia from '../../logic/useMedia';
+import { useIsMobile } from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
@@ -31,7 +31,7 @@ export default function Sidebar() {
   const groups = useGroupList();
   const gangs = useGangList();
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 639px)');
+  const isMobile = useIsMobile();
   const routeState = location.state as ModalLocationState | null;
 
   return (

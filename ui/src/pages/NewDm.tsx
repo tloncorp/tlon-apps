@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
-import Select, {
+import CreatableSelect from 'react-select/creatable';
+import {
   components,
   ControlProps,
   OptionProps,
-  MultiValue,
   createFilter,
   MenuProps,
   MenuListProps,
   InputProps,
   MultiValueRemoveProps,
   MultiValueGenericProps,
+  MultiValue,
 } from 'react-select';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
@@ -20,6 +21,7 @@ import { useContacts } from '../state/contact';
 import Avatar from '../components/Avatar';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
 import XIcon from '../components/icons/XIcon';
+import { preSig } from '../logic/utils';
 
 interface Option {
   value: string;
@@ -28,8 +30,11 @@ interface Option {
 
 function Control({ children, ...props }: ControlProps<Option, true>) {
   return (
-    <components.Control {...props} className="input text-gray-800">
-      <MagnifyingGlass className="ml-2 h-3 text-gray-300" />
+    <components.Control
+      {...props}
+      className="input cursor-text items-center text-gray-800"
+    >
+      <MagnifyingGlass className="h-6 w-6 text-gray-300" />
       {children}
     </components.Control>
   );
@@ -44,8 +49,12 @@ function ShipName({ data, ...props }: OptionProps<Option, true>) {
       {...props}
     >
       <div className="flex items-center space-x-1">
-        <Avatar ship={value} size="xs" />
-        <span className="font-semibold">{value}</span>
+        {ob.isValidPatp(preSig(value)) ? (
+          <Avatar ship={preSig(value)} size="xs" />
+        ) : (
+          <div className="h-6 w-6 rounded bg-white" />
+        )}
+        <span className="font-semibold">{preSig(value)}</span>
         {label ? (
           <span className="font-semibold text-gray-300">{label}</span>
         ) : null}
@@ -61,6 +70,10 @@ function NoShipsMessage() {
       <span className="italic">This name was not found.</span>
     </div>
   );
+}
+
+function AddNonContactShip(value: string) {
+  return ob.isValidPatp(preSig(value)) ? null : <NoShipsMessage />;
 }
 
 function ShipTagLabelContainer({
@@ -114,7 +127,7 @@ function ShipDropDownMenuList({
 
 function Input({ children, ...props }: InputProps<Option, true>) {
   return (
-    <components.Input className="h-6 text-gray-800" {...props}>
+    <components.Input className="text-gray-800" {...props}>
       {children}
     </components.Input>
   );
@@ -143,6 +156,13 @@ export default function NewDM() {
     }
   };
 
+  const onCreateOption = (inputValue: string) => {
+    const siggedInput = preSig(inputValue);
+    if (ob.isValidPatp(siggedInput)) {
+      setShip({ value: siggedInput, label: siggedInput });
+    }
+  };
+
   // const filterConfig = {
   // ignoreCase: true,
   // ignoreAccents: true,
@@ -160,27 +180,18 @@ export default function NewDM() {
             showReply
             sendDisabled={!validShip}
             newDm
+            navigate={navigate}
           />
         </div>
       }
     >
-      <div className="w-full p-4">
-        <Select
+      <div className="w-full py-3 px-4">
+        <CreatableSelect
+          formatCreateLabel={AddNonContactShip}
           autoFocus
           isMulti
           styles={{
-            control: (base) => ({
-              ...base,
-              backgroundColor: '',
-              borderColor: '',
-              boxShadow: '',
-              outlineColor: '',
-              borderRadius: '8px',
-              borderWidth: '2px',
-              '&:hover': {
-                borderColor: 'inherit',
-              },
-            }),
+            control: (base) => ({}),
             menu: ({ width, borderRadius, ...base }) => ({
               borderWidth: '',
               borderColor: '',
@@ -189,6 +200,7 @@ export default function NewDM() {
             }),
             input: (base) => ({
               ...base,
+              margin: '',
               color: '',
               paddingTop: '',
               paddingBottom: '',
@@ -196,6 +208,7 @@ export default function NewDM() {
             multiValue: (base) => ({
               ...base,
               backgroundColor: '',
+              margin: '0 2px',
             }),
             multiValueRemove: (base) => ({
               ...base,
@@ -213,11 +226,19 @@ export default function NewDM() {
                 backgroundColor: 'inherit',
               },
             }),
+            valueContainer: (base) => ({
+              ...base,
+              padding: '0px 8px',
+            }),
           }}
           aria-label="Ships"
           options={contactOptions}
           value={ship}
           onChange={onChange}
+          onCreateOption={onCreateOption}
+          isValidNewOption={(inputValue) =>
+            inputValue ? ob.isValidPatp(preSig(inputValue)) : false
+          }
           onKeyDown={onKeyDown}
           placeholder="Type a name ie; ~sampel-palnet"
           hideSelectedOptions

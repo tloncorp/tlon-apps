@@ -135,7 +135,7 @@ export interface VirtualScrollerProps<K, V> {
    * @deprecated
    */
   // offset: number;
-  style?: any;
+  style?: React.CSSPropertie;
   /*
    * Callback to execute when finished loading from start
    */
@@ -175,6 +175,7 @@ const logLevel =
 
 const log = (level: LogLevel, message: string) => {
   if (logLevel.includes(level)) {
+    // eslint-disable-next-line no-console
     console.log(`[${level}]: ${message}`);
   }
 };
@@ -245,6 +246,7 @@ export default class VirtualScroller<K, V> extends Component<
       return;
     }
     const { scrollTop, scrollHeight } = this.window;
+    const { origin } = this.props;
 
     // const unloaded = (this.startOffset() / this.pageSize);
     // const totalpages = this.props.size / this.pageSize;
@@ -254,7 +256,7 @@ export default class VirtualScroller<K, V> extends Component<
     /* const result = this.scrollDragging
       ? (loaded * this.window.offsetHeight)
       : ((unloaded + loaded) / totalpages) *this.window.offsetHeight; */
-    this.scrollRef.style[this.props.origin] = `${
+    this.scrollRef.style[origin === 'top' ? 'bottom' : 'top'] = `${
       loaded * this.window.offsetHeight
     }px`;
   }, 50);
@@ -285,7 +287,6 @@ export default class VirtualScroller<K, V> extends Component<
 
     this.updateVisible = this.updateVisible.bind(this);
 
-    this.invertedKeyHandler = this.invertedKeyHandler.bind(this);
     this.onScroll = this.onScroll.bind(this);
     this.scrollKeyMap = this.scrollKeyMap.bind(this);
     this.setWindow = this.setWindow.bind(this);
@@ -294,7 +295,8 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   componentDidMount() {
-    this.updateVisible(0);
+    const { origin, size } = this.props;
+    this.updateVisible(origin === 'top' ? 0 : size - this.pageSize);
     this.loadTop();
     this.loadBottom();
     this.cleanupRefInterval = setInterval(this.cleanupRefs, 5000);
@@ -304,19 +306,27 @@ export default class VirtualScroller<K, V> extends Component<
     prevProps: VirtualScrollerProps<K, V>,
     _prevState: VirtualScrollerState<K>
   ) {
-    const { size, pendingSize } = this.props;
+    const { size, pendingSize, origin } = this.props;
 
     if (size !== prevProps.size || pendingSize !== prevProps.pendingSize) {
-      if ((this.window?.scrollTop ?? 0) < ZONE_SIZE) {
+      if (!this.window) {
+        return;
+      }
+      const scrollTop =
+        origin === 'top'
+          ? this.window.scrollTop
+          : this.window.scrollHeight -
+            this.window.scrollTop -
+            this.window.offsetHeight;
+      if ((scrollTop ?? 0) < ZONE_SIZE) {
         this.scrollLocked = true;
-        this.updateVisible(0);
+        this.updateVisible(origin === 'top' ? 0 : size - this.pageSize);
         this.resetScroll();
       }
     }
   }
 
   componentWillUnmount() {
-    window.removeEventListener('keydown', this.invertedKeyHandler);
     if (this.cleanupRefInterval) {
       clearInterval(this.cleanupRefInterval);
     }
@@ -425,13 +435,11 @@ export default class VirtualScroller<K, V> extends Component<
 
   setWindow(element) {
     if (!element) return;
-    this.save();
 
     if (this.window) {
       if (this.window.isSameNode(element)) {
         return;
       }
-      window.removeEventListener('keydown', this.invertedKeyHandler);
     }
     const { averageHeight } = this.props;
 
@@ -440,13 +448,11 @@ export default class VirtualScroller<K, V> extends Component<
       element.offsetHeight / Math.floor(averageHeight / 2)
     );
     this.pageDelta = Math.floor(this.pageSize / 4);
-    const { origin } = this.props;
-    if (origin === 'bottom') {
-      window.addEventListener('keydown', this.invertedKeyHandler, {
-        passive: false,
-      });
-    }
-    this.restore();
+    const { size, origin } = this.props;
+    this.updateVisible(origin === 'top' ? 0 : size - this.pageSize);
+    requestAnimationFrame(() => {
+      this.resetScroll();
+    });
   }
 
   cleanupRefs = () => {
@@ -538,11 +544,11 @@ export default class VirtualScroller<K, V> extends Component<
     // eslint-disable-next-line no-plusplus
     this.saveDepth++;
     const { visibleItems } = this.state;
-    const { keyToString } = this.props;
+    const { keyToString, averageHeight } = this.props;
 
     const { origin } = this.props;
-    const { scrollTop, scrollHeight } = this.window;
-    const topSpacing = origin === 'top' ? scrollTop : scrollHeight - scrollTop;
+    const { scrollTop } = this.window;
+    const topSpacing = scrollTop;
     const items = origin === 'top' ? visibleItems : [...visibleItems].reverse();
     let bottomIndex = items[0];
     items.forEach((index) => {
@@ -551,7 +557,7 @@ export default class VirtualScroller<K, V> extends Component<
         return;
       }
       const { offsetTop } = el;
-      if (offsetTop < topSpacing) {
+      if (Math.abs(offsetTop - topSpacing) < 2 * averageHeight) {
         bottomIndex = index;
       }
     });
@@ -577,7 +583,7 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   restore() {
-    const { keyToString, origin } = this.props;
+    const { keyToString } = this.props;
     if (!this.window || !this.savedIndex) {
       return;
     }
@@ -600,10 +606,7 @@ export default class VirtualScroller<K, V> extends Component<
       return;
     }
 
-    const newScrollTop =
-      origin === 'top'
-        ? this.savedDistance + ref.offsetTop
-        : this.window.scrollHeight - ref.offsetTop - this.savedDistance;
+    const newScrollTop = this.savedDistance + ref.offsetTop;
 
     this.window.scrollTo(0, newScrollTop);
     requestAnimationFrame(() => {
@@ -613,29 +616,16 @@ export default class VirtualScroller<K, V> extends Component<
     });
   }
 
-  invertedKeyHandler(event): void | boolean {
-    const map = this.scrollKeyMap();
-    if (
-      map.has(event.code) &&
-      document.body.isSameNode(document.activeElement)
-    ) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      let distance = map.get(event.code)!;
-      if (event.code === 'Space' && event.shiftKey) {
-        distance *= -1;
-      }
-      this.window!.scrollBy(0, distance);
-      return false;
-    }
-    return true;
-  }
-
   resetScroll() {
     if (!this.window) {
       return;
     }
-    this.window.scrollTop = 0;
+
+    const { origin } = this.props;
+    this.window.scrollTop =
+      origin === 'top'
+        ? 0
+        : this.window.scrollHeight - this.window.offsetHeight;
     this.savedIndex = null;
     this.savedDistance = 0;
     this.saveDepth = 0;
@@ -655,13 +645,14 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   startOffset() {
-    const { data, keyEq } = this.props;
+    const { data, keyEq, origin } = this.props;
     const { visibleItems } = this.state;
     const startIndex = visibleItems?.[0];
     if (!startIndex) {
       return 0;
     }
-    const dataList = Array.from(data);
+    const dataList =
+      origin === 'top' ? Array.from(data) : Array.from(data).reverse();
     const offset = dataList.findIndex(([i]) => keyEq(i, startIndex));
     if (offset === -1) {
       // TODO: revisit when we remove nodes for any other reason than
@@ -681,10 +672,9 @@ export default class VirtualScroller<K, V> extends Component<
     }
     log('reflow', `from: ${this.startOffset()} to: ${newOffset}`);
 
-    const { data } = this.props;
-    const visibleItems = data
-      .keys()
-      .slice(newOffset, newOffset + this.pageSize);
+    const { data, origin } = this.props;
+    const keys = origin === 'top' ? data.keys() : data.keys().reverse();
+    const visibleItems = keys.slice(newOffset, newOffset + this.pageSize);
 
     this.save();
 
@@ -711,7 +701,7 @@ export default class VirtualScroller<K, V> extends Component<
 
     const isTop = origin === 'top';
 
-    const children = isTop ? visibleItems : [...visibleItems].reverse();
+    const children = visibleItems;
 
     const atStart = keyEq(
       data.peekLargest()?.[0] ?? keyBunt,
@@ -735,7 +725,7 @@ export default class VirtualScroller<K, V> extends Component<
         <ScrollbarLessBox
           ref={this.setWindow}
           onScroll={this.onScroll}
-          className="h-100"
+          className="hide-scroll h-full"
           style={{
             ...style,
             WebkitOverflowScrolling: 'auto',

@@ -2,7 +2,7 @@ import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { NavigateFunction } from 'react-router';
 import { useChatState, useChatDraft, useChat, usePact } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatMessage, ChatStory } from '../../types/chat';
 import MessageEditor, {
@@ -21,6 +21,7 @@ interface ChatInputProps {
   className?: string;
   sendDisabled?: boolean;
   newDm?: boolean;
+  navigate?: NavigateFunction;
 }
 
 function convertMarkType(type: string): string {
@@ -260,8 +261,8 @@ export default function ChatInput({
   className = '',
   sendDisabled = false,
   newDm = false,
+  navigate = undefined,
 }: ChatInputProps) {
-  const navigate = useNavigate();
   const chat = useChat(whom);
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
@@ -306,7 +307,7 @@ export default function ChatInput({
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
-      if (newDm) {
+      if (newDm && navigate) {
         navigate(`/dm/${whom}`);
       }
     },

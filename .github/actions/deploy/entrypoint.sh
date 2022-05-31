@@ -20,6 +20,5 @@ SHORTHASH=$(git rev-parse --short HEAD)
 
 janeway release ota homestead "$1" \
     --credentials service-account \
-    --ssh-key id_ssh \
     --ci \
   | bash
