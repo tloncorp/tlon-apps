@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
-import Avatar from '../components/Avatar';
 import XIcon from '../components/icons/XIcon';
+import DMHero from '../dms/DMHero';
 import { useChatState } from '../state/chat';
 import { useContact } from '../state/contact';
 
@@ -22,21 +22,8 @@ export default function DmInvite({ ship }: DmInviteProps) {
   };
   return (
     <div className="relative flex h-full w-full">
-      <div className="flex h-full w-full flex-col flex-col items-center space-y-4 pt-8">
-        <div className="flex flex-col items-center space-y-1">
-          <Avatar ship={ship} size="huge" icon={false} />
-          {contact?.nickname ? (
-            <div className="flex flex-col items-center pt-1">
-              <span className="font-semibold">{contact.nickname}</span>
-              <span className="pt-1 text-gray-600">{ship}</span>
-            </div>
-          ) : (
-            <span className="pt-1 text-gray-600">{ship}</span>
-          )}
-          {/*
-          TODO: Show mutual groups.
-         */}
-        </div>
+      <div className="flex h-full w-full flex-col items-center space-y-4 pt-8">
+        <DMHero ship={ship} contact={contact} />
         <span className="font-semibold">
           {contact?.nickname ? contact.nickname : ship} is sending you a new
           message
