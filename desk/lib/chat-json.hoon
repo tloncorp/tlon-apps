@@ -275,6 +275,14 @@
         update+update
     ==
   ::
+  ++  club-create
+    ^-  $-(json create:club:c)
+    %-  ot
+    :~  id/(se %uw)
+        team/(as (se %p))
+        hive/(as (se %p))
+    ==
+  ::
   ++  club-action
     ^-  $-(json action:club:c)
     %-  ot

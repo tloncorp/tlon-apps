@@ -9,5 +9,6 @@
 ++  grab
   |%
   ++  noun  create:club:c
+  ++  json  club-create:dejs:j
   --
 --
