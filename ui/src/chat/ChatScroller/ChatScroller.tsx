@@ -89,6 +89,7 @@ export default function ChatScroller(props: IChatScroller) {
     <div className="relative h-full flex-1">
       {messages.size > 0 ? (
         <ChatWritScroller
+          key={whom}
           origin="bottom"
           style={{ height: '100%' }}
           data={messages}
