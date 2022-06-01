@@ -18,6 +18,7 @@ janeway \
     --verbose \
     --ci \
     --credentials /service-account \
+    --ssh-key /id_ssh \
     release ota --no-commit \
     homestead "$1" \
   | bash
