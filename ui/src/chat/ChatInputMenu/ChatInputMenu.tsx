@@ -21,6 +21,7 @@ import CodeIcon from '../../components/icons/CodeIcon';
 import ItalicIcon from '../../components/icons/ItalicIcon';
 import LinkIcon from '../../components/icons/LinkIcon';
 import StrikeIcon from '../../components/icons/StrikeIcon';
+import XIcon from '../../components/icons/XIcon';
 import ChatInputMenuButton from './ChatInputMenuButton';
 
 interface ChatInputMenuProps {
@@ -252,6 +253,15 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
                 pressedLabel="Remove Code"
               >
                 <CodeIcon className="h-6 w-6" />
+              </ChatInputMenuButton>
+              <ChatInputMenuButton
+              isActive={false}
+              isSelected={false}
+              onClick={() => editor.chain().unsetAllMarks().clearNodes().run()}
+              unpressedLabel="Remove All Formatting"
+              pressedLabel="Remove All Formatting"
+              >
+                <XIcon className="h-5 w-5" />
               </ChatInputMenuButton>
             </div>
           )}
