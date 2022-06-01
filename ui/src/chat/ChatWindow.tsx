@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react';
+import React, { ReactNode } from 'react';
 import _ from 'lodash';
 import { BigIntOrderedMap } from '@urbit/api';
 import { useChatState } from '../state/chat';
@@ -9,7 +9,7 @@ import ChatScroller from './ChatScroller/ChatScroller';
 interface ChatWindowProps {
   whom: string;
   messages: BigIntOrderedMap<ChatWrit>;
-  prefixedElement?: ReactElement;
+  prefixedElement?: ReactNode;
 }
 
 export default function ChatWindow({

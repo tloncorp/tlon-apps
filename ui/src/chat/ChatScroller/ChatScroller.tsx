@@ -1,4 +1,4 @@
-import React, { ReactElement, useCallback } from 'react';
+import React, { ReactNode, useCallback } from 'react';
 import { differenceInDays } from 'date-fns';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -39,7 +39,7 @@ export default function ChatScroller({
     index: bigInt.BigInteger;
   }
 
-  const renderPrefix = (index: bigInt.BigInteger, child: ReactElement) => (
+  const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
     <>
       {index.eq(messages.peekSmallest()[0]) ? prefixedElement : null}
       {child}
