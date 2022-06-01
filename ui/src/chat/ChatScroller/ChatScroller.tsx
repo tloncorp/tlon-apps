@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { differenceInDays } from 'date-fns';
-import { daToUnix } from '@urbit/api';
+import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import ChatWritScroller from './ChatWritScroller';
 import { IChatScroller } from './IChatScroller';
@@ -10,6 +10,7 @@ import ChatNotice from '../ChatNotice';
 import { ChatState } from '../../state/chat/type';
 import { useChatState } from '../../state/chat/chat';
 import { MESSAGE_FETCH_PAGE_SIZE } from '../../constants';
+import { ChatWrit } from '../../types/chat';
 
 export default function ChatScroller(props: IChatScroller) {
   const { whom, messages, replying } = props;
@@ -25,6 +26,10 @@ export default function ChatScroller(props: IChatScroller) {
       }
       return messages.get(k)?.memo.replying === null;
     });
+  const mess = keys.reduce(
+    (acc, val) => acc.set(val, messages.get(val)),
+    new BigIntOrderedMap<ChatWrit>()
+  );
 
   interface RendererProps {
     index: bigInt.BigInteger;
@@ -43,7 +48,8 @@ export default function ChatScroller(props: IChatScroller) {
       const lastWritKey = keyIdx > 0 ? keys[keyIdx - 1] : undefined;
       const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
       const newAuthor = lastWrit
-        ? writ.memo.author !== lastWrit.memo.author
+        ? writ.memo.author !== lastWrit.memo.author ||
+          'notice' in lastWrit.memo.content
         : true;
       const writDay = new Date(daToUnix(index));
       const lastWritDay = lastWritKey
@@ -89,10 +95,11 @@ export default function ChatScroller(props: IChatScroller) {
     <div className="relative h-full flex-1">
       {messages.size > 0 ? (
         <ChatWritScroller
+          key={whom}
           origin="bottom"
           style={{ height: '100%' }}
-          data={messages}
-          size={messages.size}
+          data={mess}
+          size={mess.size}
           pendingSize={0} // TODO
           averageHeight={48}
           renderer={renderer}
