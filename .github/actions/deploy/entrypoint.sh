@@ -14,9 +14,10 @@ chmod 600 /id_ssh.pub
 #     --ci \
 #   | bash
 
-janeway release ota homestead "$1" \
+janeway \
     --verbose \
-    --no-commit \
-    --credentials /service-account \
     --ci \
+    --credentials /service-account \
+    release ota --no-commit \
+    homestead "$1" \
   | bash
