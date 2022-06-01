@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { ReactNode, useCallback } from 'react';
 import { differenceInDays } from 'date-fns';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -12,8 +12,12 @@ import { useChatState } from '../../state/chat/chat';
 import { MESSAGE_FETCH_PAGE_SIZE } from '../../constants';
 import { ChatWrit } from '../../types/chat';
 
-export default function ChatScroller(props: IChatScroller) {
-  const { whom, messages, replying } = props;
+export default function ChatScroller({
+  whom,
+  messages,
+  replying = false,
+  prefixedElement,
+}: IChatScroller) {
   const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
 
@@ -35,13 +39,23 @@ export default function ChatScroller(props: IChatScroller) {
     index: bigInt.BigInteger;
   }
 
+  const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
+    <>
+      {index.eq(messages.peekSmallest()[0]) ? prefixedElement : null}
+      {child}
+    </>
+  );
+
   const renderer = React.forwardRef<HTMLDivElement, RendererProps>(
     ({ index }: RendererProps, ref) => {
       const writ = messages.get(index);
 
       const isNotice = writ ? 'notice' in writ.memo.content : false;
       if (isNotice) {
-        return <ChatNotice key={writ.seal.id} writ={writ} />;
+        return renderPrefix(
+          index,
+          <ChatNotice key={writ.seal.id} writ={writ} />
+        );
       }
 
       const keyIdx = keys.findIndex((idx) => idx.eq(index));
@@ -62,7 +76,8 @@ export default function ChatScroller(props: IChatScroller) {
       const unreadBrief =
         brief && brief['read-id'] === writ.seal.id ? brief : undefined;
 
-      return (
+      return renderPrefix(
+        index,
         <ChatMessage
           key={writ.seal.id}
           whom={whom}

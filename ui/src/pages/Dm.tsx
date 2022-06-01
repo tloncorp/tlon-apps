@@ -12,6 +12,7 @@ import DmOptions from '../dms/DMOptions';
 import { useContact } from '../state/contact';
 import LeftIcon from '../components/icons/LeftIcon';
 import { useIsMobile } from '../logic/useMedia';
+import DMHero from '../dms/DMHero';
 
 export default function Dm() {
   const ship = useParams<{ ship: string }>().ship!;
@@ -74,7 +75,15 @@ export default function Dm() {
       }
     >
       {isAccepted ? (
-        <ChatWindow whom={ship} messages={messages} />
+        <ChatWindow
+          whom={ship}
+          messages={messages}
+          prefixedElement={
+            <div className="pt-4 pb-12">
+              <DMHero ship={ship} contact={contact} />
+            </div>
+          }
+        />
       ) : (
         <DmInvite ship={ship} />
       )}
