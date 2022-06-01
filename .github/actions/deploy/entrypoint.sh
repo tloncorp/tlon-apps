@@ -13,7 +13,7 @@ janeway \
     --ci \
     --credentials /service-account \
     --ssh-key /id_ssh \
-    release glob --no-upload \
+    release glob \
     homestead \
   | bash
 
@@ -22,6 +22,6 @@ janeway \
     --ci \
     --credentials /service-account \
     --ssh-key /id_ssh \
-    release ota --no-commit \
+    release ota \
     homestead "$1" \
   | bash
