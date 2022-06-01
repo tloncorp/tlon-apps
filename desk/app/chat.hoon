@@ -1,4 +1,5 @@
 /-  c=chat, g=groups
+/-  meta
 /-  ha=hark-store
 /+  default-agent, verb, dbug
 /+  chat-json
@@ -14,6 +15,7 @@
     $:  %0
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
         bad=(set ship)
         inv=(set ship)
     ==
@@ -89,6 +91,7 @@
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
+++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  init
   ^+  cor
@@ -128,6 +131,7 @@
     ?-  -.p.act
       %ship  di-abet:(di-remark-diff:(di-abed:di-core p.p.act) q.act)
       %flag  ca-abet:(ca-remark-diff:(ca-abed:ca-core p.p.act) q.act)
+      %club  cor  :: TODO
     ==
   ::
       %dm-action
@@ -137,6 +141,23 @@
       %dm-diff
     =+  !<(=diff:dm:c vase)
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
+  ::
+      %club-create
+    cu-abet:(cu-create:cu-core !<(=create:club:c vase))
+  ::
+      %club-invite
+    cu-abet:(cu-invite:cu-core !<(=invite:club:c vase))
+  ::
+      %club-rsvp
+    =+  !<(=rsvp:club:c vase)
+    cu-abet:(cu-rsvp:(cu-abed id.rsvp) +.rsvp)
+  ::
+      %club-action
+    =+  !<(=action:club:c vase)
+    =/  cu  (cu-abed p.action)
+    ?:  =(src our):bowl  
+      cu-abet:(cu-proxy:cu q.action)
+    cu-abet:(cu-diff:cu q.action)
   ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
@@ -172,15 +193,25 @@
       [%dm @ *]
     =/  =ship  (slav %p i.t.path)
     di-abet:(di-watch:(di-abed:di-core ship) t.t.path)
+  ::
+      [%club @ *]
+    =/  =id:club:c  (slav %uw i.t.path)
+    cu-abet:(cu-watch:(cu-abed id) t.t.path)
   ==
 ::
 ++  agent
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
+  ::
       [%dm @ *]
     =/  =ship  (slav %p i.t.wire)
     di-abet:(di-agent:(di-abed:di-core ship) t.t.wire sign)
+  ::
+      [%club @ *]
+    =/  =id:club:c  (slav %uw i.t.wire)
+    cu-abet:(cu-agent:(cu-abed id) t.t.wire sign)
+
       [%chat @ @ *]
     =/  =ship  (slav %p i.t.wire)
     =*  name   i.t.t.wire
@@ -263,12 +294,19 @@
       [%x %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
     (di-peek:(di-abed:di-core ship) t.t.t.path)
-
+  ::
+      [%x %club @ *]
+    (cu-peek:(cu-abed (slav %uw i.t.t.path)) t.t.t.path)
   ::
       [%x %briefs ~]
     =-  ``chat-briefs+!>(-)
     ^-  briefs:c
     %-  ~(gas by *briefs:c)
+    %+  welp
+      %+  turn  ~(tap in ~(key by clubs))
+      |=  =id:club:c
+      =/  cu  (cu-abed id)
+      [club/id cu-brief:cu]
     %+  welp  
       %+  murn  ~(tap in ~(key by dms))
       |=  =ship
@@ -287,6 +325,111 @@
   (give %fact ~[/briefs] chat-brief-update+!>([whom brief]))
 ::
 ++  from-self  =(our src):bowl
+++  cu-abed  cu-abed:cu-core
+::
+++  cu-core
+  |_  [=id:club:c =club:c]
+  +*  cu-pact  ~(. pac pact.club)
+  ++  cu-core  .
+  ++  cu-abet  cor(clubs (~(put by clubs) id club))
+  ++  cu-abed
+    |=  i=id:club:c
+    cu-core(id i, club (~(got by clubs) i))
+  ++  cu-out  (~(del in cu-circle) our.bowl)
+  ++  cu-circle
+    (~(uni in team.club) hive.club)
+  ::
+  ++  cu-area  `wire`/club/(scot %uw id)
+  ::
+  ++  cu-pass
+    |%
+    ++  gossip
+      |=  =cage
+      ^-  (list card)
+      =/  =wire  (snoc cu-area %gossip)
+      %+  turn  ~(tap in cu-out)
+      |=  =ship
+      =/  =dock  [ship dap.bowl]
+      [%pass wire %agent dock %poke cage]
+    --
+  ::
+  ++  cu-init
+    |=  [=net:club:c =create:club:c]
+    cu-core(id id.create, club =,(create [team hive *data:meta *pact:c net]))
+  ::
+  ++  cu-brief  (brief:cu-pact [our now]:bowl)
+  ::
+  ++  cu-create  
+    |=  =create:club:c 
+    ~&  id/id.create
+    =.  cu-core  (cu-init %done create)
+    =?  cor  =(our src):bowl
+      (emil (gossip:cu-pass club-invite+!>(create)))
+    cu-core
+  ++  cu-invite  
+    |=  =invite:club:c 
+    (cu-init %invited invite)
+  ++  cu-rsvp
+    |=  [=ship ok=?]
+    ^+  cu-core
+    =?  cor  =(our.bowl ship)
+      (emil (gossip:cu-pass club-rsvp+!>([id ship ok])))
+    ?>  (~(has in cu-circle) src.bowl)
+    ?>  =(src.bowl ship)
+    =.  hive.club  (~(del in hive.club) ship)
+    ?.  ok
+      (cu-post-notice ship '' ' declined the invite')
+    =.  team.club  (~(put in team.club) ship)
+    (cu-post-notice ship '' ' joined the chat')
+  ::
+  ++  cu-post-notice
+    |=  [=ship =notice:c]
+    =/  =id:c
+      [ship now.bowl]
+    (cu-diff id %add ~ ship now.bowl notice/notice)
+  ::
+  ++  cu-proxy
+    |=  =diff:club:c
+    =.  cor  (emil (gossip:cu-pass club-action+!>([id diff])))
+    (cu-diff diff)
+  ::
+  ++  cu-diff
+    |=  =diff:club:c
+    ^+  cu-core
+    =.  pact.club  (reduce:cu-pact now.bowl diff)
+    =.  cor
+      =/  =cage  writ-diff+!>(diff)
+      (emit %give %fact ~[(snoc cu-area %ui)] cage)  
+    cu-core
+  ::
+  ++  cu-peek
+    |=  =path
+    ^-  (unit (unit cage))
+    ?+  path  [~ ~]
+      [%writs *]  (peek:cu-pact t.path)
+    ==
+  ::
+  ++  cu-watch
+    |=  =path
+    ^+  cu-core
+    ?>  =(src our):bowl
+    ?+  path  !!
+      [%ui %writs ~]  cu-core
+    ==
+  ::
+  ++  cu-agent
+    |=  [=wire =sign:agent:gall]
+    ^+  cu-core
+    ?+    wire  ~|(bad-club-take/wire !!)
+        [%gossip ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  cu-core
+      ::  TODO: handle?
+      %-  (slog leaf/"Failed to gossip {<src.bowl>} {<id>}" u.p.sign)
+      cu-core
+    ==
+  ::
+  --
 ::
 ++  ca-core
   |_  [=flag:c =chat:c gone=_|]

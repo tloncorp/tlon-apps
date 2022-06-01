@@ -1,4 +1,5 @@
 /-  g=groups
+/-  meta
 |%
 +$  writ   [seal memo]
 +$  id     (pair ship time)
@@ -13,6 +14,7 @@
 +$  whom
   $%  [%flag p=flag]
       [%ship p=ship]
+      [%club p=id:club]
   == 
 ::
 ++  briefs
@@ -52,6 +54,28 @@
   $:  wit=writs
       dex=index
   ==
+::
+++  club
+  =<  club
+  |%
+  +$  id  @uwH
+  +$  net  ?(%archive %invited %done)
+  +$  club
+    $:  team=(set ship)
+        hive=(set ship)
+        met=data:meta
+        =pact
+        =net
+    ==
+  ::
+  +$  rsvp    [=id =ship ok=?]
+  +$  create
+    [=id team=(set ship) hive=(set ship)]
+  ::
+  +$  invite  create
+  +$  diff    diff:writs
+  +$  action  (pair id diff)
+  --
 ::
 ++  writs
   =<  writs
