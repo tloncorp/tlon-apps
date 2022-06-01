@@ -9,8 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     name: "Create and deploy a glob to ~marnec-dozzod-marzod (devstream)"
     steps:
-      - name: work around permission issue
-        run: git config --global --add safe.directory /__w/homestead/homestead
       - uses: actions/checkout@v3
       - uses: ./.github/actions/deploy
         with:
