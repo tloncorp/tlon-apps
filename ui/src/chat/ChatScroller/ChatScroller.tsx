@@ -41,7 +41,7 @@ export default function ChatScroller({
 
   const renderPrefix = (index: bigInt.BigInteger, child: ReactElement) => (
     <>
-      {messages.peekSmallest()[0] === index ? prefixedElement : null}
+      {index.eq(messages.peekSmallest()[0]) ? prefixedElement : null}
       {child}
     </>
   );
