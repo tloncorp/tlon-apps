@@ -6,9 +6,9 @@ import { useReplies, useWrit } from '../../state/chat';
 import { useChannel, useRouteGroup } from '../../state/groups';
 import ChatInput from '../ChatInput/ChatInput';
 import ChatMessage from '../ChatMessage/ChatMessage';
-import ChatMessages from '../ChatMessages';
 import RowDivider from '../../components/RowDivider';
 import XIcon from '../../components/icons/XIcon';
+import ChatScroller from '../ChatScroller/ChatScroller';
 
 export default function ChatThread(
   props: React.PropsWithChildren<{ whom: string }>
@@ -40,7 +40,7 @@ export default function ChatThread(
         label={`${replies.size} ${replies.size === 1 ? 'Reply' : 'Replies'}`}
       />
       <div className="flex flex-col">
-        <ChatMessages messages={replies} whom={whom} replying={true} />
+        <ChatScroller messages={replies} whom={whom} replying />
       </div>
       <div className="sticky bottom-0 z-10 bg-white py-4">
         <ChatInput whom={whom} replying={id} />

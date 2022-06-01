@@ -1,9 +1,11 @@
 /-  c=chat, g=groups
 /-  meta
+/-  ha=hark-store
 /+  default-agent, verb, dbug
 /+  chat-json
 /+  w=chat-writs
 /+  pac=dm
+/+  ch=chat-hark
 ^-  agent:gall
 =>
   |%
@@ -39,7 +41,12 @@
     ^-  (quip card _this)
     =/  old=(unit state-0)
       (mole |.(!<(state-0 vase)))  
-    ?^  old  `this(state u.old)
+    ?^  old  
+      =.  dms.u.old
+        %-  ~(run by dms.u.old)
+        |=  =dm:c
+        dm(watching.remark &)
+      `this(state u.old)
     ~&  >>>  "Incompatible load, nuking"
     =^  cards  this  on-init
     :_  this
@@ -696,6 +703,7 @@
 ++  di-core
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
+      di-hark  ~(. hark-dm:ch [now.bowl ship])
   ++  di-core  .
   ++  di-abet 
     =.  dms  
@@ -708,9 +716,14 @@
   ::
   ++  di-abed-soft
     |=  s=@p
+    =/  new=?  (~(has by dms) s)
     =/  d
       %+  ~(gut by dms)  s
-      [*pact:c *remark:c ?:(=(src our):bowl %inviting %invited)]
+      =|  =remark:c
+      =.  watching.remark  &
+      [*pact:c remark ?:(=(src our):bowl %inviting %invited)]
+    =?  di-core  &(new !=(src our):bowl)
+      di-invited
     di-core(ship s, dm d)
 
   ++  di-area  `path`/dm/(scot %p ship)
@@ -720,6 +733,25 @@
     =.  cor  (emit (proxy:di-pass diff))
     di-core
   ::
+  ++  di-invited
+    ^+  di-core
+    =.  cor
+      (emit (hark:di-pass invited:di-hark))
+    di-core
+  ::
+  ++  di-notify
+    |=  [=id:c =delta:writs:c]
+    ^+  di-core
+    ?.  watching.remark.dm  di-core
+    ?:  =(our.bowl p.id)  di-core
+    ?:  =(%invited net.dm)  di-core
+    ?+  -.delta  di-core
+        %add
+      ?.  ?=(%story -.content.p.delta)  di-core
+      =.  cor  
+        (emit (hark:di-pass (story:di-hark id p.content.p.delta)))
+      di-core
+    ==
   ++  di-archive
     =.  net.dm  %archive
     (di-post-notice '' ' archived the channel')
@@ -732,6 +764,8 @@
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
       (give-brief ship/ship di-brief)
+    =.  di-core  
+      (di-notify diff)
     di-core
   ::
   ++  di-take-counter
@@ -770,6 +804,13 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
       ::  TODO: handle?
+      %-  (slog leaf/"Failed to notify about dm {<ship>}" u.p.sign)
+      di-core
+    ::
+        [%proxy ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  di-core
+      ::  TODO: handle?
       %-  (slog leaf/"Failed to dm {<ship>}" u.p.sign)
       di-core
     ==
@@ -800,6 +841,9 @@
     di-core
   ++  di-pass
     |%
+    ++  hark
+      |=  =cage
+      (pass /hark [our.bowl %hark-store] %poke cage)
     ++  pass
       |=  [=wire =dock =task:agent:gall]
       ^-  card
