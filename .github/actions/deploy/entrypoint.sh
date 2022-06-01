@@ -9,7 +9,6 @@ chmod 600 /id_ssh
 chmod 600 /id_ssh.pub
 
 janeway \
-    --verbose \
     --ci \
     --credentials /service-account \
     --ssh-key /id_ssh \
@@ -18,7 +17,6 @@ janeway \
   | bash
 
 janeway \
-    --verbose \
     --ci \
     --credentials /service-account \
     --ssh-key /id_ssh \
