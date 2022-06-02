@@ -33,7 +33,7 @@ export default function ChatInputMenuButton({
       className={classNames(
         'icon-toggle default-focus',
         isActive && 'icon-toggle-active',
-        textButton && 'w-auto'
+        textButton && 'w-auto px-1'
       )}
       onClick={onClick}
       tabIndex={-1}
