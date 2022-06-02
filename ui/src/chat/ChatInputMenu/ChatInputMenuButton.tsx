@@ -4,6 +4,7 @@ import React, { PropsWithChildren, useEffect, useRef } from 'react';
 type ChatInputMenuButtonProps = PropsWithChildren<{
   isActive?: boolean;
   isSelected?: boolean;
+  textButton?: boolean;
   unpressedLabel: string;
   pressedLabel: string;
   onClick: () => void;
@@ -12,6 +13,7 @@ type ChatInputMenuButtonProps = PropsWithChildren<{
 export default function ChatInputMenuButton({
   isActive = false,
   isSelected = false,
+  textButton = false,
   unpressedLabel,
   pressedLabel,
   onClick,
@@ -30,7 +32,8 @@ export default function ChatInputMenuButton({
       ref={ref}
       className={classNames(
         'icon-toggle default-focus',
-        isActive && 'icon-toggle-active'
+        isActive && 'icon-toggle-active',
+        textButton && 'w-auto'
       )}
       onClick={onClick}
       tabIndex={-1}
