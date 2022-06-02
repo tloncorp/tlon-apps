@@ -120,6 +120,15 @@ export const useChatState = create<ChatState>((set, get) => ({
         });
       },
     });
+    api.subscribe({
+      app: 'chat',
+      path: '/dm/invited',
+      event: (event: unknown) => {
+        get().batchSet((draft) => {
+          draft.pendingDms = event as string[];
+        });
+      },
+    });
   },
   fetchOlder: async (whom: string, count: string) => {
     const isDM = whomIsDm(whom);
