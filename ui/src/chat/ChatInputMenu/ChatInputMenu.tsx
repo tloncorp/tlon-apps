@@ -21,7 +21,6 @@ import CodeIcon from '../../components/icons/CodeIcon';
 import ItalicIcon from '../../components/icons/ItalicIcon';
 import LinkIcon from '../../components/icons/LinkIcon';
 import StrikeIcon from '../../components/icons/StrikeIcon';
-import XIcon from '../../components/icons/XIcon';
 import ChatInputMenuButton from './ChatInputMenuButton';
 
 interface ChatInputMenuProps {
