@@ -255,13 +255,15 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
                 <CodeIcon className="h-6 w-6" />
               </ChatInputMenuButton>
               <ChatInputMenuButton
-              isActive={false}
-              isSelected={false}
               onClick={() => editor.chain().unsetAllMarks().clearNodes().run()}
               unpressedLabel="Remove All Formatting"
               pressedLabel="Remove All Formatting"
               >
-                <XIcon className="h-5 w-5" />
+                <div
+                className="button ml-1 bg-transparent py-0.5 px-1.5 text-sm font-medium leading-4 text-gray-800 hover:bg-transparent hover:ring-2 disabled:bg-transparent disabled:text-gray-400"
+                >
+                  Clear
+                </div>
               </ChatInputMenuButton>
             </div>
           )}

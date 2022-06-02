@@ -2,16 +2,16 @@ import classNames from 'classnames';
 import React, { PropsWithChildren, useEffect, useRef } from 'react';
 
 type ChatInputMenuButtonProps = PropsWithChildren<{
-  isActive: boolean;
-  isSelected: boolean;
+  isActive?: boolean;
+  isSelected?: boolean;
   unpressedLabel: string;
   pressedLabel: string;
   onClick: () => void;
 }>;
 
 export default function ChatInputMenuButton({
-  isActive,
-  isSelected,
+  isActive = false,
+  isSelected = false,
   unpressedLabel,
   pressedLabel,
   onClick,
