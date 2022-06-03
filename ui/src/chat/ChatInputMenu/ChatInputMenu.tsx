@@ -22,6 +22,7 @@ import CodeIcon from '../../components/icons/CodeIcon';
 import ItalicIcon from '../../components/icons/ItalicIcon';
 import LinkIcon from '../../components/icons/LinkIcon';
 import StrikeIcon from '../../components/icons/StrikeIcon';
+import XIcon from '../../components/icons/XIcon';
 import ChatInputMenuButton from './ChatInputMenuButton';
 
 interface ChatInputMenuProps {
@@ -32,6 +33,7 @@ interface ChatInputMenuToolbarProps {
   editor: CoreEditor;
   toolbarRef: React.RefObject<HTMLDivElement>;
   status: MenuState;
+  setStatus: React.Dispatch<React.SetStateAction<MenuState>>;
   setLink: ({ url }: LinkEditorForm) => void;
   onNavigation: (event: KeyboardEvent<HTMLDivElement>) => void;
   isSelected: (key: string) => boolean;
@@ -50,6 +52,7 @@ function ChatInputMenuToolbar({
   editor,
   toolbarRef,
   status,
+  setStatus,
   setLink,
   onNavigation,
   isSelected,
@@ -61,8 +64,8 @@ function ChatInputMenuToolbar({
   const isMobile = useIsMobile();
 
   const toolbarClassNames = isMobile
-    ? 'mt-2 overflow-x-auto'
-    : 'default-focus rounded-lg bg-white shadow-lg dark:border dark:border-black/10';
+    ? 'mt-2'
+    : 'default-focus rounded-lg bg-white shadow-lg dark:border dark:border-black/10 w-full';
 
   return (
     <div
@@ -74,8 +77,9 @@ function ChatInputMenuToolbar({
       onKeyDown={onNavigation}
     >
       {status === 'editing-link' ? (
+        <div className="flex items-center">
         <form
-          className="input flex min-w-80 items-center p-0 leading-4"
+          className="input flex grow items-center p-0 leading-4"
           onSubmit={handleSubmit(setLink)}
         >
           <label htmlFor="url" className="sr-only">
@@ -99,12 +103,22 @@ function ChatInputMenuToolbar({
             Done
           </button>
         </form>
+        {
+          isMobile && 
+          <button
+            className="icon-button ml-2 h-8 w-8"
+            onClick={() => setStatus('open')}
+          >
+            <XIcon className="h-6 w-6" />
+          </button>
+        }
+        </div>
       ) : (
-        <div className="flex items-center space-x-1 p-1">
+        <div className={`flex items center space-x-1 p-1 ${isMobile ? "justify-between" : ""}`}>
           <ChatInputMenuButton
             isActive={editor.isActive('bold')}
             isSelected={isSelected('bold')}
-            onClick={() => editor.chain().toggleBold().run()}
+            onClick={() => editor.chain().focus().toggleBold().run()}
             unpressedLabel="Apply Bold"
             pressedLabel="Remove Bold"
           >
@@ -113,7 +127,7 @@ function ChatInputMenuToolbar({
           <ChatInputMenuButton
             isActive={editor.isActive('italic')}
             isSelected={isSelected('italic')}
-            onClick={() => editor.chain().toggleItalic().run()}
+            onClick={() => editor.chain().focus().toggleItalic().run()}
             unpressedLabel={'Apply Italic'}
             pressedLabel={'Remove Italic'}
           >
@@ -122,7 +136,7 @@ function ChatInputMenuToolbar({
           <ChatInputMenuButton
             isActive={editor.isActive('strike')}
             isSelected={isSelected('strike')}
-            onClick={() => editor.chain().toggleStrike().run()}
+            onClick={() => editor.chain().focus().toggleStrike().run()}
             unpressedLabel="Apply Strikethrough"
             pressedLabel="Remove Strikethrough"
           >
@@ -141,7 +155,7 @@ function ChatInputMenuToolbar({
           <ChatInputMenuButton
             isActive={editor.isActive('blockquote')}
             isSelected={isSelected('blockquote')}
-            onClick={() => editor.chain().toggleBlockquote().run()}
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
             unpressedLabel="Apply Blockquote"
             pressedLabel="Remove Blockquote"
           >
@@ -150,7 +164,7 @@ function ChatInputMenuToolbar({
           <ChatInputMenuButton
             isActive={editor.isActive('code')}
             isSelected={isSelected('code')}
-            onClick={() => editor.chain().toggleCode().run()}
+            onClick={() => editor.chain().focus().toggleCode().run()}
             unpressedLabel="Apply Code"
             pressedLabel="Remove Code"
           >
@@ -158,7 +172,7 @@ function ChatInputMenuToolbar({
           </ChatInputMenuButton>
           <ChatInputMenuButton
               textButton
-              onClick={() => editor.chain().unsetAllMarks().clearNodes().run()}
+              onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
               unpressedLabel="Remove All Formatting"
               pressedLabel="Remove All Formatting"
               >
@@ -284,6 +298,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         editor={editor}
         toolbarRef={toolbarRef}
         status={status}
+        setStatus={setStatus}
         setLink={setLink}
         onNavigation={onNavigation}
         isSelected={isSelected}
@@ -312,6 +327,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
           editor={editor}
           toolbarRef={toolbarRef}
           status={status}
+          setStatus={setStatus}
           setLink={setLink}
           onNavigation={onNavigation}
           isSelected={isSelected}
