@@ -16,6 +16,7 @@ export interface ChatState {
   dms: {
     [ship: string]: Chat;
   };
+  dmSubs: string[];
   dmArchive: string[];
   fetchDms: () => Promise<void>;
   pacts: {

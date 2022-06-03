@@ -81,6 +81,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   pacts: {},
   dms: {},
+  dmSubs: [],
   pendingDms: [],
   briefs: {},
   markRead: async (whom) => {
@@ -254,6 +255,10 @@ export const useChatState = create<ChatState>((set, get) => ({
     await api.poke(chatAction(whom, { 'add-sects': sects }));
   },
   initialize: async (whom: string) => {
+    if (whom in get().chats) {
+      return;
+    }
+
     const perms = await api.scry<ChatPerm>({
       app: 'chat',
       path: `/chat/${whom}/perm`,
@@ -266,6 +271,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       };
       draft.chats[whom] = chat;
     });
+
     await makeWritsStore(
       whom,
       get,
@@ -289,11 +295,16 @@ export const useChatState = create<ChatState>((set, get) => ({
     api.poke(chatAction(whom, { draft }));
   },
   initializeDm: async (ship: string) => {
-    const perms = {
-      writers: [],
-    };
+    if (get().dmSubs.includes(ship)) {
+      return;
+    }
+
+    // const perms = {
+    //   writers: [],
+    // };
     get().batchSet((draft) => {
-      const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
+      // const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
+      draft.dmSubs.push(ship);
     });
     await makeWritsStore(
       ship,
