@@ -184,6 +184,7 @@
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
       [%chat ~]  ?>(from-self cor)
+      [%dm %invited ~]  ?>(from-self cor)
     ::
       [%chat @ @ *]
     =/  =ship  (slav %p i.t.path)
@@ -700,6 +701,13 @@
   |=  [=ship =dm:c]
   (~(has in nets) net.dm)
 ::
+++  give-invites
+  |=  =ship
+  =/  invites
+  ?:  (~(has by dms) ship)   ~(key by pending-dms)
+  (~(put in ~(key by pending-dms)) ship)
+  (give %fact ~[/dm/invited] ships+!>(invites))
+::
 ++  di-core
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
@@ -764,6 +772,8 @@
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
       (give-brief ship/ship di-brief)
+    =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
+      (give-invites ship)
     =.  di-core  
       (di-notify diff)
     di-core
