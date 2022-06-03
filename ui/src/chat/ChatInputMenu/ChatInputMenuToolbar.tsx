@@ -95,7 +95,7 @@ export default function ChatInputMenuToolbar({
         }
         </div>
       ) : (
-        <div className={`flex items center space-x-1 p-1 ${isMobile ? "justify-between" : ""}`}>
+        <div className={`flex items center space-x-1  ${isMobile ? "justify-between px-0 py-1" : "p-1"}`}>
           <ChatInputMenuButton
             isActive={editor.isActive('bold')}
             isSelected={isSelected('bold')}
