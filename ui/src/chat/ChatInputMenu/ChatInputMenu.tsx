@@ -156,6 +156,14 @@ function ChatInputMenuToolbar({
           >
             <CodeIcon className="h-6 w-6" />
           </ChatInputMenuButton>
+          <ChatInputMenuButton
+              textButton
+              onClick={() => editor.chain().unsetAllMarks().clearNodes().run()}
+              unpressedLabel="Remove All Formatting"
+              pressedLabel="Remove All Formatting"
+              >
+                Clear
+          </ChatInputMenuButton>
         </div>
       )}
     </div>
