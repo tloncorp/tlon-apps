@@ -298,10 +298,6 @@ export const useChatState = create<ChatState>((set, get) => ({
     if (get().dmSubs.includes(ship)) {
       return;
     }
-
-    // const perms = {
-    //   writers: [],
-    // };
     get().batchSet((draft) => {
       // const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
       draft.dmSubs.push(ship);
