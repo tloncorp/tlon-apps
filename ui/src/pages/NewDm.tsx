@@ -22,6 +22,10 @@ import Avatar from '../components/Avatar';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
 import XIcon from '../components/icons/XIcon';
 import { preSig } from '../logic/utils';
+import { LoadingSpinner } from '../components/LoadingSpinner/LoadingSpinner';
+import { randInt } from '../lib';
+import bigInt from 'big-integer';
+import { formatUw } from '@urbit/aura';
 
 interface Option {
   value: string;
@@ -134,7 +138,7 @@ function Input({ children, ...props }: InputProps<Option, true>) {
 }
 
 export default function NewDM() {
-  const [ship, setShip] = useState<Option | undefined>();
+  const [ships, setShips] = useState<Option[]>([]);
   const contacts = useContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
@@ -142,24 +146,39 @@ export default function NewDM() {
     label: contacts[contact].nickname,
   }));
   const navigate = useNavigate();
-  const validShip = ship ? ob.isValidPatp(ship.value) : false;
+  const validShips = ships.every(({ value }) => ob.isValidPatp(value));
   const onChange = (inputValue: MultiValue<Option>) => {
     if (inputValue) {
       // We can only set one ship for the time being.
       // For now we'll just take the first ship.
-      setShip(inputValue[0]);
+      console.log(inputValue);
+      setShips([...inputValue]);
     }
   };
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' && !!ship && validShip) {
-      navigate(`/dm/${ship.value}`);
+    if (event.key === 'Enter') {
+      if (!validShips) {
+        return;
+      }
+      if (ships.length === 1) {
+        navigate(`/dm/${ships[0].value}`);
+      } else {
+        const bytes = new Array(16);
+
+        const uuid = bigInt.fromArray(
+          bytes.map((x) => randInt(0, 256).toString()),
+          16
+        );
+        //navigate('/club/
+        //console.log('create DM');
+      }
     }
   };
 
   const onCreateOption = (inputValue: string) => {
     const siggedInput = preSig(inputValue);
     if (ob.isValidPatp(siggedInput)) {
-      setShip({ value: siggedInput, label: siggedInput });
+      setShips((s) => [...s, { value: siggedInput, label: siggedInput }]);
     }
   };
 
@@ -176,16 +195,16 @@ export default function NewDM() {
       footer={
         <div className="border-t-2 border-black/10 p-4">
           <ChatInput
-            whom={ship ? ship.value : ''}
+            whom={''}
             showReply
-            sendDisabled={!validShip}
+            sendDisabled={!validShips}
             newDm
             navigate={navigate}
           />
         </div>
       }
     >
-      <div className="w-full py-3 px-4">
+      <div className="flex w-full items-center justify-between py-3 px-4">
         <CreatableSelect
           formatCreateLabel={AddNonContactShip}
           autoFocus
@@ -233,9 +252,10 @@ export default function NewDM() {
           }}
           aria-label="Ships"
           options={contactOptions}
-          value={ship}
+          value={ships}
           onChange={onChange}
           onCreateOption={onCreateOption}
+          tabSelectsValue
           isValidNewOption={(inputValue) =>
             inputValue ? ob.isValidPatp(preSig(inputValue)) : false
           }

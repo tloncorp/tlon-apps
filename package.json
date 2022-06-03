@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@urbit/aura": "^0.1.0"
+  }
+}

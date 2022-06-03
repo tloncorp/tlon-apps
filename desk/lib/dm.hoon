@@ -26,7 +26,8 @@
 ++  jab
   |=  [=id:c fun=$-(writ:c writ:c)]
   ^+  pac
-  =/  [=time =writ:c]  (got id)
+  =/  [=time =writ:c]  
+  ?~  val=(get id)  pac
   =.  wit.pac  (put:on:writs:c wit.pac time (fun writ))
   pac
 ::
@@ -53,7 +54,7 @@
     =^  wit=(unit writ:c)  wit.pac
       (del:on:writs:c wit.pac time)
     =.  dex.pac  (~(del by dex.pac) id)
-    ?~  wit  !!
+    ?~  wit  pac
     ?~  replying.u.wit  pac
     (jab u.replying.u.wit |=(writ:c +<(replied (~(del in replied) ^id))))
   ::
