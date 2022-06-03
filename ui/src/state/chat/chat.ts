@@ -299,7 +299,6 @@ export const useChatState = create<ChatState>((set, get) => ({
       return;
     }
     get().batchSet((draft) => {
-      // const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
       draft.dmSubs.push(ship);
     });
     await makeWritsStore(
