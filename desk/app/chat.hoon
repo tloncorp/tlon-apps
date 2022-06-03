@@ -702,7 +702,11 @@
   (~(has in nets) net.dm)
 ::
 ++  give-invites
-  (give %fact ~[/dm/invited] ships+!>(pending-dms))
+  |=  =ship
+  =/  invites
+  ?:  (~(has by dms) ship)   ~(key by pending-dms)
+  (~(put in ~(key by pending-dms)) ship)
+  (give %fact ~[/dm/invited] ships+!>(invites))
 ::
 ++  di-core
   |_  [=ship =dm:c gone=_|]
@@ -766,14 +770,10 @@
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
-    ~&  ship
-    ~&  last-read.remark.dm
-    ~&  net.dm
     =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
       (give-brief ship/ship di-brief)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
-      ~&  'giving invites'
-      give-invites
+      (give-invites ship)
     =.  di-core  
       (di-notify diff)
     di-core
