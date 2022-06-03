@@ -295,8 +295,9 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   componentDidMount() {
-    const { origin, size } = this.props;
-    this.updateVisible(origin === 'top' ? 0 : size - this.pageSize);
+    const { origin } = this.props;
+    this.updateVisible(origin === 'top' ? 0 : this.lastOffset);
+
     this.loadTop();
     this.loadBottom();
     this.cleanupRefInterval = setInterval(this.cleanupRefs, 5000);
@@ -320,7 +321,7 @@ export default class VirtualScroller<K, V> extends Component<
             this.window.offsetHeight;
       if ((scrollTop ?? 0) < ZONE_SIZE) {
         this.scrollLocked = true;
-        this.updateVisible(origin === 'top' ? 0 : size - this.pageSize);
+        this.updateVisible(origin === 'top' ? 0 : this.lastOffset);
         this.resetScroll();
       }
     }
@@ -403,6 +404,7 @@ export default class VirtualScroller<K, V> extends Component<
         0,
         this.props.data.size - this.pageSize
       );
+
       if (onEndReached && startOffset === 0) {
         onEndReached();
       }
@@ -417,6 +419,11 @@ export default class VirtualScroller<K, V> extends Component<
     } else {
       this.scrollLocked = false;
     }
+  }
+
+  get lastOffset() {
+    const { size } = this.props;
+    return Math.min(size - this.pageSize, size);
   }
 
   setScrollRef = (el: HTMLDivElement | null) => {
