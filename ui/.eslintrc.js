@@ -30,6 +30,10 @@ module.exports = {
       { props: true, ignorePropertyModificationsFor: ['draft'] },
     ],
     'no-use-before-define': 'off',
+    '@typescript-eslint/no-unused-vars': [
+      'warn',
+      { argsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' },
+    ],
     '@typescript-eslint/no-use-before-define': [
       'error',
       {
