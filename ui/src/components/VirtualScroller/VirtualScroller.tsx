@@ -1,8 +1,5 @@
-// TODO: fix TS types
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import _ from 'lodash';
-import React, { Component, useCallback } from 'react';
+import React, { Component, CSSProperties, ReactNode, useCallback } from 'react';
 import { VirtualContext } from './VirtualContext';
 import clamp from './util';
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner';
@@ -21,22 +18,34 @@ function Center(props: React.HTMLProps<HTMLDivElement>) {
   );
 }
 
-const ScrollbarLessBox = React.forwardRef<HTMLDivElement>(
-  ({ children, style, ...props }, ref) => (
+interface ScrollbarLessBoxProps {
+  children: ReactNode;
+  style: CSSProperties;
+  onScroll: () => void;
+  className: string;
+}
+
+const ScrollbarLessBox = React.forwardRef<
+  HTMLDivElement,
+  ScrollbarLessBoxProps
+>(({ children, style, ...props }, ref) => (
+  <div
     // tsc does not like `!important`
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    <div
-      style={{ ...style, scrollbarWidth: 'none !important' }}
-      ref={ref}
-      {...props}
-    >
-      {children}
-    </div>
-  )
-);
+    style={{ ...style, scrollbarWidth: 'none !important' }}
+    ref={ref}
+    {...props}
+  >
+    {children}
+  </div>
+));
 
-const Scrollbar = React.forwardRef<HTMLDivElement>(
+interface ScrollbarProps {
+  style: CSSProperties;
+}
+
+const Scrollbar = React.forwardRef<HTMLDivElement, ScrollbarProps>(
   ({ style, ...props }, ref) => (
     <div
       style={{
@@ -135,7 +144,7 @@ export interface VirtualScrollerProps<K, V> {
    * @deprecated
    */
   // offset: number;
-  style?: React.CSSPropertie;
+  style?: CSSProperties;
   /*
    * Callback to execute when finished loading from start
    */
@@ -333,7 +342,7 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   onMove = (e: MouseEvent) => {
-    if (!this.scrollDragging) {
+    if (!this.scrollDragging || !this.window) {
       return;
     }
     const { origin } = this.props;
@@ -344,12 +353,18 @@ export default class VirtualScroller<K, V> extends Component<
   };
 
   onDown = (e: PointerEvent) => {
+    if (!this.scrollRef) {
+      return;
+    }
     this.scrollRef.setPointerCapture(e.pointerId);
     document.documentElement.style.setProperty('--user-select', 'none');
     this.scrollDragging = true;
   };
 
   onUp = (e: PointerEvent) => {
+    if (!this.scrollRef) {
+      return;
+    }
     this.scrollRef.releasePointerCapture(e.pointerId);
     document.documentElement.style.removeProperty('--user-select');
     this.scrollDragging = false;
@@ -425,9 +440,11 @@ export default class VirtualScroller<K, V> extends Component<
 
   setScrollRef = (el: HTMLDivElement | null) => {
     if (!el) {
-      this.scrollRef.removeEventListener('pointerdown', this.onDown);
-      this.scrollRef.removeEventListener('mousemove', this.onMove);
-      this.scrollRef.removeEventListener('pointerup', this.onUp);
+      if (this.scrollRef) {
+        this.scrollRef.removeEventListener('pointerdown', this.onDown);
+        this.scrollRef.removeEventListener('mousemove', this.onMove);
+        this.scrollRef.removeEventListener('pointerup', this.onUp);
+      }
       this.scrollRef = null;
       return;
     }
@@ -437,7 +454,7 @@ export default class VirtualScroller<K, V> extends Component<
     this.scrollRef.addEventListener('pointerup', this.onUp);
   };
 
-  setWindow(element) {
+  setWindow(element: HTMLDivElement | null) {
     if (!element) return;
 
     if (this.window) {
