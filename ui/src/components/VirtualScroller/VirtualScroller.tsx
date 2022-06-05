@@ -725,11 +725,11 @@ export default class VirtualScroller<K, V> extends Component<
     const children = visibleItems;
 
     const atStart = keyEq(
-      data.peekLargest()?.[0] ?? keyBunt,
+      data.peekSmallest()?.[0] ?? keyBunt,
       visibleItems?.[0] || keyBunt
     );
     const atEnd = keyEq(
-      data.peekSmallest()?.[0] ?? keyBunt,
+      data.peekLargest()?.[0] ?? keyBunt,
       visibleItems?.[visibleItems.length - 1] || keyBunt
     );
 
@@ -754,7 +754,7 @@ export default class VirtualScroller<K, V> extends Component<
           }}
         >
           <div style={{ width: 'calc(100% - 4px)' }}>
-            {(isTop ? !atStart : !atEnd) && (
+            {(isTop ? !atEnd : !atStart) && (
               <Center>
                 <LoadingSpinner />
               </Center>
@@ -770,7 +770,7 @@ export default class VirtualScroller<K, V> extends Component<
                 />
               ))}
             </VirtualContext.Provider>
-            {(!isTop ? !atStart : !atEnd) && (
+            {(!isTop ? !atEnd : !atStart) && (
               <Center height={5}>
                 <LoadingSpinner />
               </Center>
