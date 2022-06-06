@@ -20,6 +20,7 @@ import Text from '@tiptap/extension-text';
 import History from '@tiptap/extension-history';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
+import { useIsMobile } from '../logic/useMedia';
 import ChatInputMenu from '../chat/ChatInputMenu/ChatInputMenu';
 
 EditorView.prototype.updateState = function updateState(state) {
@@ -109,11 +110,12 @@ export default function MessageEditor({
   editor,
   className,
 }: MessageEditorProps) {
+  const isMobile = useIsMobile();
   return (
     <div className={classNames('input block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
       <EditorContent className="w-full" editor={editor} />
-      <ChatInputMenu editor={editor} />
+      {!isMobile ? <ChatInputMenu editor={editor} /> : null}
     </div>
   );
 }
