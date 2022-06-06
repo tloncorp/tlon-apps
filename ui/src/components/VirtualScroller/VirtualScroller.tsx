@@ -1,8 +1,5 @@
-// TODO: fix TS types
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import _ from 'lodash';
-import React, { Component, useCallback } from 'react';
+import React, { Component, CSSProperties, ReactNode, useCallback } from 'react';
 import { VirtualContext } from './VirtualContext';
 import clamp from './util';
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner';
@@ -21,22 +18,34 @@ function Center(props: React.HTMLProps<HTMLDivElement>) {
   );
 }
 
-const ScrollbarLessBox = React.forwardRef<HTMLDivElement>(
-  ({ children, style, ...props }, ref) => (
+interface ScrollbarLessBoxProps {
+  children: ReactNode;
+  style: CSSProperties;
+  onScroll: () => void;
+  className: string;
+}
+
+const ScrollbarLessBox = React.forwardRef<
+  HTMLDivElement,
+  ScrollbarLessBoxProps
+>(({ children, style, ...props }, ref) => (
+  <div
     // tsc does not like `!important`
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    <div
-      style={{ ...style, scrollbarWidth: 'none !important' }}
-      ref={ref}
-      {...props}
-    >
-      {children}
-    </div>
-  )
-);
+    style={{ ...style, scrollbarWidth: 'none !important' }}
+    ref={ref}
+    {...props}
+  >
+    {children}
+  </div>
+));
 
-const Scrollbar = React.forwardRef<HTMLDivElement>(
+interface ScrollbarProps {
+  style: CSSProperties;
+}
+
+const Scrollbar = React.forwardRef<HTMLDivElement, ScrollbarProps>(
   ({ style, ...props }, ref) => (
     <div
       style={{
@@ -135,7 +144,7 @@ export interface VirtualScrollerProps<K, V> {
    * @deprecated
    */
   // offset: number;
-  style?: React.CSSPropertie;
+  style?: CSSProperties;
   /*
    * Callback to execute when finished loading from start
    */
@@ -245,20 +254,17 @@ export default class VirtualScroller<K, V> extends Component<
     if (!this.window || !this.scrollRef) {
       return;
     }
-    const { scrollTop, scrollHeight } = this.window;
-    const { origin } = this.props;
+    const { scrollTop, scrollHeight, offsetHeight } = this.window;
 
     // const unloaded = (this.startOffset() / this.pageSize);
     // const totalpages = this.props.size / this.pageSize;
 
-    const loaded = scrollTop / scrollHeight;
+    const loaded = scrollTop / (scrollHeight - offsetHeight);
     //  unused, maybe useful
     /* const result = this.scrollDragging
       ? (loaded * this.window.offsetHeight)
       : ((unloaded + loaded) / totalpages) *this.window.offsetHeight; */
-    this.scrollRef.style[origin === 'top' ? 'bottom' : 'top'] = `${
-      loaded * this.window.offsetHeight
-    }px`;
+    this.scrollRef.style.top = `${loaded * (offsetHeight - 50)}px`;
   }, 50);
 
   loadTop = _.throttle(() => this.loadRows(false), 100);
@@ -295,8 +301,9 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   componentDidMount() {
-    const { origin, size } = this.props;
-    this.updateVisible(origin === 'top' ? 0 : size - this.pageSize);
+    const { origin } = this.props;
+    this.updateVisible(origin === 'top' ? 0 : this.lastOffset);
+
     this.loadTop();
     this.loadBottom();
     this.cleanupRefInterval = setInterval(this.cleanupRefs, 5000);
@@ -320,7 +327,7 @@ export default class VirtualScroller<K, V> extends Component<
             this.window.offsetHeight;
       if ((scrollTop ?? 0) < ZONE_SIZE) {
         this.scrollLocked = true;
-        this.updateVisible(origin === 'top' ? 0 : size - this.pageSize);
+        this.updateVisible(origin === 'top' ? 0 : this.lastOffset);
         this.resetScroll();
       }
     }
@@ -335,7 +342,7 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   onMove = (e: MouseEvent) => {
-    if (!this.scrollDragging) {
+    if (!this.scrollDragging || !this.window) {
       return;
     }
     const { origin } = this.props;
@@ -346,12 +353,18 @@ export default class VirtualScroller<K, V> extends Component<
   };
 
   onDown = (e: PointerEvent) => {
+    if (!this.scrollRef) {
+      return;
+    }
     this.scrollRef.setPointerCapture(e.pointerId);
     document.documentElement.style.setProperty('--user-select', 'none');
     this.scrollDragging = true;
   };
 
   onUp = (e: PointerEvent) => {
+    if (!this.scrollRef) {
+      return;
+    }
     this.scrollRef.releasePointerCapture(e.pointerId);
     document.documentElement.style.removeProperty('--user-select');
     this.scrollDragging = false;
@@ -403,6 +416,7 @@ export default class VirtualScroller<K, V> extends Component<
         0,
         this.props.data.size - this.pageSize
       );
+
       if (onEndReached && startOffset === 0) {
         onEndReached();
       }
@@ -419,11 +433,18 @@ export default class VirtualScroller<K, V> extends Component<
     }
   }
 
+  get lastOffset() {
+    const { size } = this.props;
+    return Math.min(size - this.pageSize, size);
+  }
+
   setScrollRef = (el: HTMLDivElement | null) => {
     if (!el) {
-      this.scrollRef.removeEventListener('pointerdown', this.onDown);
-      this.scrollRef.removeEventListener('mousemove', this.onMove);
-      this.scrollRef.removeEventListener('pointerup', this.onUp);
+      if (this.scrollRef) {
+        this.scrollRef.removeEventListener('pointerdown', this.onDown);
+        this.scrollRef.removeEventListener('mousemove', this.onMove);
+        this.scrollRef.removeEventListener('pointerup', this.onUp);
+      }
       this.scrollRef = null;
       return;
     }
@@ -433,7 +454,7 @@ export default class VirtualScroller<K, V> extends Component<
     this.scrollRef.addEventListener('pointerup', this.onUp);
   };
 
-  setWindow(element) {
+  setWindow(element: HTMLDivElement | null) {
     if (!element) return;
 
     if (this.window) {
@@ -704,11 +725,11 @@ export default class VirtualScroller<K, V> extends Component<
     const children = visibleItems;
 
     const atStart = keyEq(
-      data.peekLargest()?.[0] ?? keyBunt,
+      data.peekSmallest()?.[0] ?? keyBunt,
       visibleItems?.[0] || keyBunt
     );
     const atEnd = keyEq(
-      data.peekSmallest()?.[0] ?? keyBunt,
+      data.peekLargest()?.[0] ?? keyBunt,
       visibleItems?.[visibleItems.length - 1] || keyBunt
     );
 
@@ -733,7 +754,7 @@ export default class VirtualScroller<K, V> extends Component<
           }}
         >
           <div style={{ width: 'calc(100% - 4px)' }}>
-            {(isTop ? !atStart : !atEnd) && (
+            {(isTop ? !atEnd : !atStart) && (
               <Center>
                 <LoadingSpinner />
               </Center>
@@ -749,7 +770,7 @@ export default class VirtualScroller<K, V> extends Component<
                 />
               ))}
             </VirtualContext.Provider>
-            {(!isTop ? !atStart : !atEnd) && (
+            {(!isTop ? !atEnd : !atStart) && (
               <Center height={5}>
                 <LoadingSpinner />
               </Center>
