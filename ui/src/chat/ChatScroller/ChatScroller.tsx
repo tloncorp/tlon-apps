@@ -1,6 +1,6 @@
-import React, { useCallback } from 'react';
+import React, { ReactNode, useCallback } from 'react';
 import { differenceInDays } from 'date-fns';
-import { daToUnix, decToUd, udToDec } from '@urbit/api';
+import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import ChatWritScroller from './ChatWritScroller';
 import { IChatScroller } from './IChatScroller';
@@ -10,9 +10,14 @@ import ChatNotice from '../ChatNotice';
 import { ChatState } from '../../state/chat/type';
 import { useChatState } from '../../state/chat/chat';
 import { MESSAGE_FETCH_PAGE_SIZE } from '../../constants';
+import { ChatWrit } from '../../types/chat';
 
-export default function ChatScroller(props: IChatScroller) {
-  const { whom, messages, replying } = props;
+export default function ChatScroller({
+  whom,
+  messages,
+  replying = false,
+  prefixedElement,
+}: IChatScroller) {
   const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
 
@@ -25,10 +30,21 @@ export default function ChatScroller(props: IChatScroller) {
       }
       return messages.get(k)?.memo.replying === null;
     });
+  const mess = keys.reduce(
+    (acc, val) => acc.set(val, messages.get(val)),
+    new BigIntOrderedMap<ChatWrit>()
+  );
 
   interface RendererProps {
     index: bigInt.BigInteger;
   }
+
+  const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
+    <>
+      {index.eq(messages.peekSmallest()[0]) ? prefixedElement : null}
+      {child}
+    </>
+  );
 
   const renderer = React.forwardRef<HTMLDivElement, RendererProps>(
     ({ index }: RendererProps, ref) => {
@@ -36,14 +52,18 @@ export default function ChatScroller(props: IChatScroller) {
 
       const isNotice = writ ? 'notice' in writ.memo.content : false;
       if (isNotice) {
-        return <ChatNotice key={writ.seal.id} writ={writ} />;
+        return renderPrefix(
+          index,
+          <ChatNotice key={writ.seal.id} writ={writ} />
+        );
       }
 
       const keyIdx = keys.findIndex((idx) => idx.eq(index));
       const lastWritKey = keyIdx > 0 ? keys[keyIdx - 1] : undefined;
       const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
       const newAuthor = lastWrit
-        ? writ.memo.author !== lastWrit.memo.author
+        ? writ.memo.author !== lastWrit.memo.author ||
+          'notice' in lastWrit.memo.content
         : true;
       const writDay = new Date(daToUnix(index));
       const lastWritDay = lastWritKey
@@ -56,7 +76,8 @@ export default function ChatScroller(props: IChatScroller) {
       const unreadBrief =
         brief && brief['read-id'] === writ.seal.id ? brief : undefined;
 
-      return (
+      return renderPrefix(
+        index,
         <ChatMessage
           key={writ.seal.id}
           whom={whom}
@@ -72,27 +93,10 @@ export default function ChatScroller(props: IChatScroller) {
     }
   );
 
-  const onTopLoaded = () => {
-    // TODO
-    // const { messagesSize, unreadCount } = this.props;
-    // if(graphSize >= unreadCount) {
-    //   this.props.dismissUnread();
-    // }
-    console.log('on top...');
-  };
-
-  const onBottomLoaded = () => {
-    // TODO
-    // if(this.state.unreadIndex.eq(bigInt.zero)) {
-    //   this.calculateUnreadIndex();
-    // }
-    console.log('on bottom...');
-  };
-
   const fetchMessages = useCallback(
     async (newer: boolean) => {
       if (newer) {
-        return false;
+        return true;
       }
 
       return useChatState
@@ -103,15 +107,14 @@ export default function ChatScroller(props: IChatScroller) {
   );
 
   return (
-    <div className="h-full flex-1">
+    <div className="relative h-full flex-1">
       {messages.size > 0 ? (
         <ChatWritScroller
-          origin="top"
+          key={whom}
+          origin="bottom"
           style={{ height: '100%' }}
-          onBottomLoaded={onBottomLoaded}
-          onTopLoaded={onTopLoaded}
-          data={messages}
-          size={messages.size}
+          data={mess}
+          size={mess.size}
           pendingSize={0} // TODO
           averageHeight={48}
           renderer={renderer}

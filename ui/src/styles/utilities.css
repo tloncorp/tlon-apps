@@ -1,5 +1,5 @@
 .default-focus {
-  @apply ring-gray-200 ring-offset-2 focus:outline-none focus:ring-2;
+  @apply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus:ring-2;
 }
 
 /* Useful for showing selections programmatically */
@@ -15,4 +15,12 @@ a[aria-disabled='true'] {
   opacity: 0.5;
   pointer-events: none;
   cursor: not-allowed;
+}
+
+.hide-scroll {
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+  &::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+  }
 }

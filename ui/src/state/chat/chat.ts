@@ -81,6 +81,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   pacts: {},
   dms: {},
+  dmSubs: [],
   pendingDms: [],
   briefs: {},
   markRead: async (whom) => {
@@ -117,6 +118,15 @@ export const useChatState = create<ChatState>((set, get) => ({
         const { whom, brief } = event as ChatBriefUpdate;
         get().batchSet((draft) => {
           draft.briefs[whom] = brief;
+        });
+      },
+    });
+    api.subscribe({
+      app: 'chat',
+      path: '/dm/invited',
+      event: (event: unknown) => {
+        get().batchSet((draft) => {
+          draft.pendingDms = event as string[];
         });
       },
     });
@@ -201,6 +211,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       if (!ok) {
         delete draft.pacts[ship];
         delete draft.dms[ship];
+        delete draft.briefs[ship];
       }
     });
 
@@ -244,6 +255,10 @@ export const useChatState = create<ChatState>((set, get) => ({
     await api.poke(chatAction(whom, { 'add-sects': sects }));
   },
   initialize: async (whom: string) => {
+    if (whom in get().chats) {
+      return;
+    }
+
     const perms = await api.scry<ChatPerm>({
       app: 'chat',
       path: `/chat/${whom}/perm`,
@@ -256,6 +271,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       };
       draft.chats[whom] = chat;
     });
+
     await makeWritsStore(
       whom,
       get,
@@ -279,11 +295,11 @@ export const useChatState = create<ChatState>((set, get) => ({
     api.poke(chatAction(whom, { draft }));
   },
   initializeDm: async (ship: string) => {
-    const perms = {
-      writers: [],
-    };
+    if (get().dmSubs.includes(ship)) {
+      return;
+    }
     get().batchSet((draft) => {
-      const chat = { writs: new BigIntOrderedMap<ChatWrit>(), perms };
+      draft.dmSubs.push(ship);
     });
     await makeWritsStore(
       ship,
@@ -320,7 +336,7 @@ export function useChatIsJoined(whom: string) {
 const selDmList = (s: ChatState) =>
   Object.keys(s.briefs)
     .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))
-    .sort((a, b) => s.briefs[b].last - s.briefs[a].last);
+    .sort((a, b) => (s.briefs[b]?.last || 0) - (s.briefs[a]?.last || 0));
 
 export function useDmList() {
   return useChatState(selDmList);

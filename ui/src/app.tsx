@@ -27,27 +27,19 @@ import Sidebar from './components/Sidebar/Sidebar';
 import { DmThread, GroupChatThread } from './chat/ChatThread/ChatThread';
 import Policy from './pages/Policy';
 import GroupSidebar from './components/GroupSidebar';
-import useMedia from './logic/useMedia';
+import useMedia, { useIsMobile } from './logic/useMedia';
 import useErrorHandler from './logic/useErrorHandler';
 import { useSettingsState, useTheme } from './state/settings';
 import { useLocalState } from './state/local';
 import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
-
-function Divider(props: { title: string }) {
-  const { title } = props;
-  return (
-    <div className="flex items-center space-x-2 p-2">
-      <div>{title}</div>
-      <div className="grow border-b border-black" />
-    </div>
-  );
-}
+import DMSidebar from './dms/DMSidebar';
+import DMHome from './dms/DMHome';
 
 function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
-  const isMobile = useMedia('(max-width: 639px)');
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     handleError(() => {
@@ -88,14 +80,15 @@ function App() {
           path={isMobile ? '/groups/:ship/:name' : '/groups/:ship/:name/*'}
           element={<GroupSidebar />}
         />
+        <Route path={isMobile ? '/dm' : '/dm/*'} element={<DMSidebar />} />
       </Routes>
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm/" element={<Dms />}>
+          <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
           <Route path=":ship" element={<Dm />}>
             <Route path="message/:idShip/:idTime" element={<DmThread />} />
           </Route>
-          <Route index element={<div>Select a DM</div>} />
         </Route>
 
         <Route path="/gangs/:ship/:name" element={<Gang />} />

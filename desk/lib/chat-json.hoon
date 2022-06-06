@@ -3,6 +3,14 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  club-rsvp
+    |=  r=rsvp:club:c
+    %-  pairs
+    :~  id/s/(scot %uw id.r)
+        ship/s/(scot %p ship.r)
+        ok/b/ok.r
+    ==
+  ::
   ++  rsvp
     |=  r=rsvp:dm:c
     %-  pairs
@@ -14,6 +22,7 @@
     ?-  -.w
       %flag  (crip "{(scow %p p.p.w)}/{(trip q.p.w)}")
       %ship  (scot %p p.w)
+      %club  (scot %uw p.w)
     ==
   ::
   ++  briefs
@@ -215,12 +224,21 @@
     :~  ship/(se %p)
         ok/bo
     ==
+  ::
+  ++  club-rsvp
+    %-  ot
+    :~  id/(se %uw)
+        ship/(se %p)
+        ok/bo
+    ==
+
   ++  whom
     ^-  $-(json whom:c)
     %-  su
     ;~  pose
       (stag %flag flag-rule)
       (stag %ship ;~(pfix sig fed:ag))
+      (stag %club club-id-rule)
     ==
   ++  remark-action
     %-  ot
@@ -247,12 +265,31 @@
   ++  ship  (su ;~(pfix sig fed:ag))
   ++  flag  (su flag-rule)
   ++  flag-rule  ;~((glue fas) ;~(pfix sig fed:ag) sym)
+  ++  club-id-rule
+    (cook |=(@ `@uw`+<) ;~(pfix (jest '0w') wiz:ag))
+  ++  club-id  (su club-id-rule)
   ++  action
     ^-  $-(json action:c)
     %-  ot
     :~  flag+flag
         update+update
     ==
+  ::
+  ++  club-create
+    ^-  $-(json create:club:c)
+    %-  ot
+    :~  id/(se %uw)
+        team/(as (se %p))
+        hive/(as (se %p))
+    ==
+  ::
+  ++  club-action
+    ^-  $-(json action:club:c)
+    %-  ot
+    :~  id/(se %uw)
+        diff/writs-diff
+    ==
+  ::
   ++  dm-action
     ^-  $-(json action:dm:c)
     %-  ot

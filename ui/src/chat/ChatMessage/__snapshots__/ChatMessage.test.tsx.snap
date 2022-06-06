@@ -147,7 +147,7 @@ exports[`ChatMessage > renders as expected 1`] = `
       class="group-one relative z-0 flex"
     >
       <div
-        class="absolute right-2 -top-5 z-10 flex flex space-x-[2px] rounded-md border-[1px] border-gray-100 bg-white p-[2px] align-middle opacity-0 group-one-hover:opacity-100"
+        class="absolute right-2 -top-5 z-10 flex flex space-x-[2px] rounded-lg border-[1px] border-gray-100 bg-white p-[2px] align-middle opacity-0 group-one-hover:opacity-100"
       >
         <div
           class="group-two relative cursor-pointer"

@@ -2,7 +2,7 @@ import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { NavigateFunction } from 'react-router';
 import { useChatState, useChatDraft, useChat, usePact } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatMessage, ChatStory } from '../../types/chat';
 import MessageEditor, {
@@ -13,6 +13,8 @@ import ShipName from '../../components/ShipName';
 import AddIcon from '../../components/icons/AddIcon';
 import XIcon from '../../components/icons/XIcon';
 import { useChatStore } from '../useChatStore';
+import ChatInputMenu from '../ChatInputMenu/ChatInputMenu';
+import { useIsMobile } from '../../logic/useMedia';
 
 interface ChatInputProps {
   whom: string;
@@ -21,6 +23,7 @@ interface ChatInputProps {
   className?: string;
   sendDisabled?: boolean;
   newDm?: boolean;
+  navigate?: NavigateFunction;
 }
 
 function convertMarkType(type: string): string {
@@ -260,13 +263,14 @@ export default function ChatInput({
   className = '',
   sendDisabled = false,
   newDm = false,
+  navigate = undefined,
 }: ChatInputProps) {
-  const navigate = useNavigate();
   const chat = useChat(whom);
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
   const replyingWrit = replying && pact.writs.get(pact.index[replying]);
   const ship = replyingWrit && replyingWrit.memo.author;
+  const isMobile = useIsMobile();
 
   const closeReply = useCallback(() => {
     useChatStore.getState().reply(whom, null);
@@ -306,7 +310,7 @@ export default function ChatInput({
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
-      if (newDm) {
+      if (newDm && navigate) {
         navigate(`/dm/${whom}`);
       }
     },
@@ -358,54 +362,57 @@ export default function ChatInput({
   }
 
   return (
-    <div className={cn('flex w-full items-end space-x-2', className)}>
-      <div className="flex-1">
-        {showReply && ship && replying ? (
-          <div className="mb-4 flex items-center justify-start font-semibold">
-            <span className="text-gray-600">Replying to</span>
-            <Avatar size="xs" ship={ship} className="ml-2" />
-            <ShipName name={ship} className="ml-2" />
-            <button className="icon-button ml-auto" onClick={closeReply}>
-              <XIcon className="h-4 w-4" />
+    <>
+      <div className={cn('flex w-full items-end space-x-2', className)}>
+        <div className="flex-1">
+          {showReply && ship && replying ? (
+            <div className="mb-4 flex items-center justify-start font-semibold">
+              <span className="text-gray-600">Replying to</span>
+              <Avatar size="xs" ship={ship} className="ml-2" />
+              <ShipName name={ship} className="ml-2" />
+              <button className="icon-button ml-auto" onClick={closeReply}>
+                <XIcon className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+          <div className="flex items-center justify-end">
+            <MessageEditor editor={messageEditor} className="w-full" />
+            <button
+              // this is not contained by relative because of a bug in radix popovers
+              className="absolute mr-2 text-gray-600 hover:text-gray-800"
+              aria-label="Add attachment"
+              onClick={() => {
+                useChatState.getState().sendMessage(whom, {
+                  replying: null,
+                  author: `~${window.ship || 'zod'}`,
+                  sent: Date.now(),
+                  content: {
+                    story: {
+                      inline: [],
+                      block: [
+                        {
+                          image: {
+                            src: 'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.3.21..22.06.42-FBqq4mCVkAM8Cs5.jpeg',
+                            width: 750,
+                            height: 599,
+                            alt: '',
+                          },
+                        },
+                      ],
+                    },
+                  },
+                });
+              }}
+            >
+              <AddIcon className="h-6 w-4" />
             </button>
           </div>
-        ) : null}
-        <div className="flex items-center justify-end">
-          <MessageEditor editor={messageEditor} className="w-full" />
-          <button
-            // this is not contained by relative because of a bug in radix popovers
-            className="absolute mr-2 text-gray-600 hover:text-gray-800"
-            aria-label="Add attachment"
-            onClick={() => {
-              useChatState.getState().sendMessage(whom, {
-                replying: null,
-                author: `~${window.ship || 'zod'}`,
-                sent: Date.now(),
-                content: {
-                  story: {
-                    inline: [],
-                    block: [
-                      {
-                        image: {
-                          src: 'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.3.21..22.06.42-FBqq4mCVkAM8Cs5.jpeg',
-                          width: 750,
-                          height: 599,
-                          alt: '',
-                        },
-                      },
-                    ],
-                  },
-                },
-              });
-            }}
-          >
-            <AddIcon className="h-6 w-4" />
-          </button>
         </div>
+        <button className="button" disabled={sendDisabled} onClick={onClick}>
+          Send
+        </button>
       </div>
-      <button className="button" disabled={sendDisabled} onClick={onClick}>
-        Send
-      </button>
-    </div>
+      {isMobile ? <ChatInputMenu editor={messageEditor} /> : null}
+    </>
   );
 }
