@@ -23,6 +23,7 @@ export default ({ mode }: { mode: string }) => {
       case 'mock':
       case 'staging':
       case 'chatmock':
+      case 'chatstaging':
         return '';
       case 'chat':
         return '/apps/chatstead/';
@@ -36,6 +37,7 @@ export default ({ mode }: { mode: string }) => {
       case 'mock':
       case 'staging':
       case 'chatmock':
+      case 'chatstaging':
         return [reactRefresh()];
       case 'chat':
         return [

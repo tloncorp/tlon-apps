@@ -10,6 +10,7 @@
     "build": "tsc && vite build",
     "build:mock": "tsc && vite build --mode staging",
     "build:profile": "tsc && vite build --mode profile",
+    "build:chatmock": "tsc && vite build --mode chatstaging",
     "build:chat": "tsc && vite build --mode chat",
     "coverage": "vitest run --coverage",
     "dev": "vite",
