@@ -16,7 +16,7 @@ import Members from './pages/Members';
 import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
-import api, { IS_MOCK } from './api';
+import api from './api';
 import Dms from './pages/Dms';
 import Dm from './pages/Dm';
 import NewDM from './pages/NewDm';
@@ -122,12 +122,24 @@ function App() {
 }
 
 function RoutedApp() {
+  const mode = import.meta.env.MODE;
+  const basename = (modeName: string) => {
+    switch (modeName) {
+      case 'mock':
+      case 'chatmock':
+        return '/';
+      case 'chat':
+        return '/apps/chatstead';
+      default:
+        return '/apps/homestead';
+    }
+  };
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
       onReset={() => window.location.reload()}
     >
-      <Router basename={IS_MOCK ? '/' : '/apps/homestead'}>
+      <Router basename={basename(mode)}>
         <App />
       </Router>
     </ErrorBoundary>

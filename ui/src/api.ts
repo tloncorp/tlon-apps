@@ -7,7 +7,9 @@ import Urbit, {
 } from '@urbit/http-api';
 
 export const IS_MOCK =
-  import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
+  import.meta.env.MODE === 'mock' ||
+  import.meta.env.MODE === 'staging' ||
+  import.meta.env.MODE === 'chatmock';
 const URL = (import.meta.env.VITE_MOCK_URL ||
   import.meta.env.VITE_VERCEL_URL) as string;
 
