@@ -1,7 +1,7 @@
 import React from 'react';
 import { render } from 'react-dom';
 import App from './app';
-import { IS_MOCK } from './api';
+import _api, { IS_MOCK } from './api';
 
 import './assets/Inter-roman.var.woff2';
 import './assets/Inter-italic.var.woff2';

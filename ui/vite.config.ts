@@ -2,6 +2,8 @@
 import packageJson from './package.json';
 import { loadEnv, defineConfig } from 'vite';
 import reactRefresh from '@vitejs/plugin-react-refresh';
+import analyze from 'rollup-plugin-analyzer';
+import { visualizer } from 'rollup-plugin-visualizer';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 
 // https://vitejs.dev/config/
@@ -19,9 +21,19 @@ export default ({ mode }) => {
   return defineConfig({
     base:
       mode === 'mock' || mode === 'staging' ? undefined : '/apps/homestead/',
-    build: {
-      sourcemap: 'inline',
-    },
+    build:
+      mode !== 'profile'
+        ? {}
+        : {
+            rollupOptions: {
+              plugins: [
+                analyze({
+                  limit: 20,
+                }),
+                visualizer(),
+              ],
+            },
+          },
     plugins:
       mode === 'mock' || mode === 'staging'
         ? [reactRefresh()]
