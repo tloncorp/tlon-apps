@@ -13,9 +13,7 @@ import {
   pokeOptimisticallyN,
   reduceStateN,
 } from './base';
-import apiContainer from '../api';
-
-const { api } = apiContainer;
+import api from '../api';
 
 interface BaseSettingsState {
   display: {

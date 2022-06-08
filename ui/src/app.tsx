@@ -16,7 +16,7 @@ import Members from './pages/Members';
 import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
-import apiContainer, { IS_MOCK } from './api';
+import api, { IS_MOCK } from './api';
 import Dms from './pages/Dms';
 import Dm from './pages/Dm';
 import NewDM from './pages/NewDm';
@@ -35,8 +35,6 @@ import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
 import DMSidebar from './dms/DMSidebar';
 import DMHome from './dms/DMHome';
-
-const { api } = apiContainer;
 
 function App() {
   const handleError = useErrorHandler();

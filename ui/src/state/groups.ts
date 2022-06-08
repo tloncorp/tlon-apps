@@ -13,9 +13,7 @@ import {
   GroupAction,
   Rank,
 } from '../types/groups';
-import apiContainer from '../api';
-
-const { api } = apiContainer;
+import api from '../api';
 
 function groupAction(flag: string, diff: GroupDiff) {
   return {

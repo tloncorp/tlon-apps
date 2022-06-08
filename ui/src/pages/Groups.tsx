@@ -1,9 +1,7 @@
 import React, { useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
-import apiContainer from '../api';
-
-const { api } = apiContainer;
+import api from '../api';
 
 function Groups() {
   const flag = useRouteGroup();

@@ -1,10 +1,8 @@
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
-import apiContainer from '../../api';
+import api from '../../api';
 import { ChatWrit, ChatWrits, Pact, WritDiff } from '../../types/chat';
 import { ChatState } from './type';
-
-const { api } = apiContainer;
 interface WritsStore {
   initialize: () => Promise<void>;
   getOlder: (count: string) => Promise<boolean>;
