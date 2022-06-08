@@ -1,3 +1,4 @@
+import type UrbitMock from '@tloncorp/mock-http-api';
 import Urbit from '@urbit/http-api';
 
 export const IS_MOCK =
@@ -5,14 +6,14 @@ export const IS_MOCK =
 const URL = (import.meta.env.VITE_MOCK_URL ||
   import.meta.env.VITE_VERCEL_URL) as string;
 
-let mockApi: any;
+let mockApi = {} as UrbitMock;
 if (IS_MOCK) {
   window.ship = '~zod';
   window.our = '~zod';
   window.desk = 'homestead';
-  const UrbitMock = (await import('@tloncorp/mock-http-api')).default;
+  const MockUrbit = (await import('@tloncorp/mock-http-api')).default;
   const mockHandlers = (await import('./mocks/handlers')).default;
-  mockApi = new UrbitMock(mockHandlers, URL || '', '');
+  mockApi = new MockUrbit(mockHandlers, URL || '', '');
 }
 
 const api = IS_MOCK ? mockApi : new Urbit('', '', window.desk);
