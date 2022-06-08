@@ -10,7 +10,7 @@
     "build": "tsc && vite build",
     "build:mock": "tsc && vite build --mode staging",
     "build:profile": "tsc && vite build --mode profile",
-    "build:chat": "tsc && vite built --mode chat",
+    "build:chat": "tsc && vite build --mode chat",
     "coverage": "vitest run --coverage",
     "dev": "vite",
     "lint": "eslint src/",
