@@ -75,7 +75,8 @@ export const makeFakeChatNotice = (
   };
 };
 
-const randInt = (max: number, min = 1) => faker.datatype.number({ max, min });
+export const randInt = (max: number, min = 1) =>
+  faker.datatype.number({ max, min });
 
 const generateMessage = (time: Date) => {
   const body = faker.lorem.sentences(randInt(5));

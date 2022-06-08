@@ -6,7 +6,11 @@ import { useIsMobile } from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
+import AddIcon from '../icons/AddIcon';
+import AsteriskIcon from '../icons/AsteriskIcon';
+import MagnifyingGlass from '../icons/MagnifyingGlass';
 import XIcon from '../icons/XIcon';
+import NotificationLink from './NotificationLink';
 import SidebarLink from './SidebarLink';
 
 function GroupItem({ flag }: { flag: string }) {
@@ -57,11 +61,27 @@ export default function Sidebar() {
           </header>
         ) : null}
         <ul className="p-2">
-          <SidebarLink to="/">Groups</SidebarLink>
-          <SidebarLink to="/profile">Profile</SidebarLink>
-          <SidebarLink to="/groups/new">New Group</SidebarLink>
-          <SidebarLink to="/groups/join">Join Group</SidebarLink>
-          <SidebarLink to="/dm">Direct Messages</SidebarLink>
+          <NotificationLink />
+          <SidebarLink
+            icon={<MagnifyingGlass className="h-6 w-6" />}
+            to="/search"
+          >
+            Search My Groups
+          </SidebarLink>
+          <SidebarLink
+            color="text-blue"
+            icon={<AsteriskIcon className="h-6 w-6 p-1" />}
+            to="/groups/join"
+          >
+            Join Group
+          </SidebarLink>
+          <SidebarLink
+            color="text-green"
+            icon={<AddIcon className="h-6 w-6 p-0.5" />}
+            to="/groups/new"
+          >
+            Create Group
+          </SidebarLink>
           <Divider>All Groups</Divider>
           {groups.map((flag) => (
             <GroupItem key={flag} flag={flag} />
