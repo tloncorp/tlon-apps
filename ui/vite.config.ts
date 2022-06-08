@@ -23,7 +23,7 @@ export default ({ mode }) => {
       mode === 'mock' || mode === 'staging' ? undefined : '/apps/homestead/',
     build:
       mode !== 'profile'
-        ? { sourcemap: 'inline' }
+        ? { sourcemap: 'inline', target: 'ES2022' }
         : {
             rollupOptions: {
               plugins: [
