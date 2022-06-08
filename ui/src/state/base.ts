@@ -16,12 +16,14 @@ import Urbit, {
 } from '@urbit/http-api';
 import UrbitMock from '@tloncorp/mock-http-api';
 import { Poke } from '@urbit/api';
-import api from '../api';
+import apiContainer from '../api';
 import {
   clearStorageMigration,
   createStorageKey,
   storageVersion,
 } from '../logic/utils';
+
+const { api } = apiContainer;
 
 setAutoFreeze(false);
 enablePatches();

@@ -17,12 +17,14 @@ import {
   Pact,
   WritDelta,
 } from '../../types/chat';
-import api from '../../api';
+import apiContainer from '../../api';
 import { whomIsDm } from '../../logic/utils';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
 
 setAutoFreeze(false);
+
+const { api } = apiContainer;
 
 function chatAction(whom: string, diff: ChatDiff) {
   return {

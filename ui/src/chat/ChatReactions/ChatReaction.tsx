@@ -2,7 +2,9 @@ import React from 'react';
 import _ from 'lodash';
 import f from 'lodash/fp';
 import { ChatSeal } from '../../types/chat';
-import api from '../../api';
+import apiContainer from '../../api';
+
+const { api } = apiContainer;
 
 interface ChatReactionProps {
   seal: ChatSeal;
