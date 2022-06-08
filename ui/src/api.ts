@@ -14,9 +14,11 @@ if (IS_MOCK) {
   const MockUrbit = (await import('@tloncorp/mock-http-api')).default;
   const mockHandlers = (await import('./mocks/handlers')).default;
   mockApi = new MockUrbit(mockHandlers, URL || '', '');
+  console.log('mockapi', mockApi);
 }
 
 const api = IS_MOCK ? mockApi : new Urbit('', '', window.desk);
+console.log('api', api);
 api.ship = window.ship;
 api.verbose = true;
 
