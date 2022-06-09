@@ -5,7 +5,6 @@ import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import Sidebar from './Sidebar';
 
-
 describe('Sidebar', () => {
   it('renders as expected', () => {
     const { asFragment } = render(

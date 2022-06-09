@@ -1,6 +1,7 @@
 import classNames from 'classnames';
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ModalLocationState } from '../../logic/routing';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
@@ -12,6 +13,8 @@ import MagnifyingGlass from '../icons/MagnifyingGlass';
 import XIcon from '../icons/XIcon';
 import NotificationLink from './NotificationLink';
 import SidebarLink from './SidebarLink';
+import useSidebarSort from './useSidebarSort';
+import CaretDownIcon from '../icons/CaretDownIcon';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
@@ -32,11 +35,12 @@ function GangItem(props: { flag: string }) {
 }
 
 export default function Sidebar() {
-  const groups = useGroupList();
+  const flags = useGroupList();
   const gangs = useGangList();
   const location = useLocation();
   const isMobile = useIsMobile();
   const routeState = location.state as ModalLocationState | null;
+  const { sortFn, setSortFn, sortOptions } = useSidebarSort();
 
   return (
     <nav className="h-full">
@@ -70,20 +74,52 @@ export default function Sidebar() {
           </SidebarLink>
           <SidebarLink
             color="text-blue"
-            icon={<AsteriskIcon className="h-6 w-6 p-1" />}
+            icon={<AsteriskIcon className="h-6 w-6 p-1.5" />}
             to="/groups/join"
           >
             Join Group
           </SidebarLink>
           <SidebarLink
             color="text-green"
-            icon={<AddIcon className="h-6 w-6 p-0.5" />}
+            icon={<AddIcon className="h-6 w-6 p-1" />}
             to="/groups/new"
           >
             Create Group
           </SidebarLink>
-          <Divider>All Groups</Divider>
-          {groups.map((flag) => (
+
+          <li>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger
+                className={'default-focus rounded-lg p-0.5 text-gray-600'}
+                aria-label="Groups Sort Options"
+              >
+                <div className="default-focus flex items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
+                  {`All Groups: ${sortFn}`}
+                  <span className="px-2">
+                    <CaretDownIcon className="" />
+                  </span>
+                </div>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content className="dropdown">
+                <DropdownMenu.Item
+                  disabled
+                  className="dropdown-item flex items-center space-x-2 text-gray-300"
+                >
+                  Group Ordering
+                </DropdownMenu.Item>
+                {Object.keys(sortOptions).map((k) => (
+                  <DropdownMenu.Item
+                    onSelect={() => setSortFn(k)}
+                    className="dropdown-item flex items-center space-x-2"
+                  >
+                    {k}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+          </li>
+
+          {flags.sort(sortOptions[sortFn]).map((flag) => (
             <GroupItem key={flag} flag={flag} />
           ))}
           {gangs.length > 0 ? <Divider>Pending</Divider> : null}

@@ -4,7 +4,7 @@ import cn from 'classnames';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { NavigateFunction } from 'react-router';
 import { useChatState, useChatDraft, useChat, usePact } from '../../state/chat';
-import { ChatInline, ChatMemo, ChatMessage, ChatStory } from '../../types/chat';
+import { ChatInline, ChatMemo, ChatStory } from '../../types/chat';
 import MessageEditor, {
   useMessageEditor,
 } from '../../components/MessageEditor';
