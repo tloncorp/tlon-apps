@@ -7,7 +7,7 @@ import { visualizer } from 'rollup-plugin-visualizer';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 
 // https://vitejs.dev/config/
-export default ({ mode }) => {
+export default ({ mode }: { mode: string }) => {
   process.env.VITE_STORAGE_VERSION =
     mode === 'dev' ? Date.now().toString() : packageJson.version;
 
@@ -18,9 +18,42 @@ export default ({ mode }) => {
     'http://localhost:8080';
   console.log(SHIP_URL);
 
+  const base = (mode: string) => {
+    switch (mode) {
+      case 'mock':
+      case 'staging':
+      case 'chatmock':
+      case 'chatstaging':
+        return '';
+      case 'chat':
+        return '/apps/chatstead/';
+      default:
+        return '/apps/homestead/';
+    }
+  };
+
+  const plugins = (mode: string) => {
+    switch (mode) {
+      case 'mock':
+      case 'staging':
+      case 'chatmock':
+      case 'chatstaging':
+        return [reactRefresh()];
+      case 'chat':
+        return [
+          urbitPlugin({ base: 'chatstead', target: SHIP_URL, secure: false }),
+          reactRefresh(),
+        ];
+      default:
+        return [
+          urbitPlugin({ base: 'homestead', target: SHIP_URL, secure: false }),
+          reactRefresh(),
+        ];
+    }
+  };
+
   return defineConfig({
-    base:
-      mode === 'mock' || mode === 'staging' ? undefined : '/apps/homestead/',
+    base: base(mode),
     build:
       mode !== 'profile'
         ? {}
@@ -34,13 +67,7 @@ export default ({ mode }) => {
               ],
             },
           },
-    plugins:
-      mode === 'mock' || mode === 'staging'
-        ? [reactRefresh()]
-        : [
-            urbitPlugin({ base: 'homestead', target: SHIP_URL, secure: false }),
-            reactRefresh(),
-          ],
+    plugins: plugins(mode),
     test: {
       globals: true,
       environment: 'jsdom',
