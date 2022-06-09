@@ -433,3 +433,7 @@ const selDmArchive = (s: ChatState) => s.dmArchive;
 export function useDmArchive() {
   return useChatState(selDmArchive);
 }
+
+export function useBriefs() {
+  return useChatState(useCallback((s: ChatState) => s.briefs, []));
+}

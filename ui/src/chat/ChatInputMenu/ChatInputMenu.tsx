@@ -13,8 +13,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import ChatInputMenuToolbar, { 
-  MenuState, LinkEditorForm 
+import ChatInputMenuToolbar, {
+  MenuState,
+  LinkEditorForm,
 } from './ChatInputMenuToolbar';
 import { useIsMobile } from '../../logic/useMedia';
 
@@ -22,10 +23,7 @@ interface ChatInputMenuProps {
   editor: Editor;
 }
 
-
 const options = ['bold', 'italic', 'strike', 'link', 'blockquote', 'code'];
-
-
 
 export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);

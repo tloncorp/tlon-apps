@@ -1,8 +1,8 @@
-import React, {KeyboardEvent} from "react";
+import React, { KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import isURL from 'validator/es/lib/isURL';
 import { Editor as CoreEditor } from '@tiptap/core';
-import { useIsMobile } from "../../logic/useMedia";
+import { useIsMobile } from '../../logic/useMedia';
 import BlockquoteIcon from '../../components/icons/BlockquoteIcon';
 import BoldIcon from '../../components/icons/BoldIcon';
 import CodeIcon from '../../components/icons/CodeIcon';
@@ -59,43 +59,46 @@ export default function ChatInputMenuToolbar({
     >
       {status === 'editing-link' ? (
         <div className="flex items-center">
-        <form
-          className="input flex grow items-center p-0 leading-4"
-          onSubmit={handleSubmit(setLink)}
-        >
-          <label htmlFor="url" className="sr-only">
-            Enter a url
-          </label>
-          <input
-            type="text"
-            {...register('url', {
-              validate: (value) => value === '' || isURL(value),
-            })}
-            defaultValue={editor.getAttributes('link').href || ''}
-            autoFocus
-            placeholder="Enter URL"
-            className="input-inner flex-1 focus:outline-none"
-          />
-          <button
-            type="submit"
-            className="button ml-1 bg-transparent py-0.5 px-1.5 text-sm font-medium leading-4 text-gray-800 hover:bg-transparent hover:ring-2 disabled:bg-transparent disabled:text-gray-400"
-            disabled={!formState.isValid}
+          <form
+            className="input flex grow items-center p-0 leading-4"
+            onSubmit={handleSubmit(setLink)}
           >
-            Done
-          </button>
-        </form>
-        {
-          isMobile && 
-          <button
-            className="icon-button ml-2 h-8 w-8"
-            onClick={() => setStatus('open')}
-          >
-            <XIcon className="h-6 w-6" />
-          </button>
-        }
+            <label htmlFor="url" className="sr-only">
+              Enter a url
+            </label>
+            <input
+              type="text"
+              {...register('url', {
+                validate: (value) => value === '' || isURL(value),
+              })}
+              defaultValue={editor.getAttributes('link').href || ''}
+              autoFocus
+              placeholder="Enter URL"
+              className="input-inner flex-1 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="button ml-1 bg-transparent py-0.5 px-1.5 text-sm font-medium leading-4 text-gray-800 hover:bg-transparent hover:ring-2 disabled:bg-transparent disabled:text-gray-400"
+              disabled={!formState.isValid}
+            >
+              Done
+            </button>
+          </form>
+          {isMobile && (
+            <button
+              className="icon-button ml-2 h-8 w-8"
+              onClick={() => setStatus('open')}
+            >
+              <XIcon className="h-6 w-6" />
+            </button>
+          )}
         </div>
       ) : (
-        <div className={`flex items center space-x-1  ${isMobile ? "justify-between px-0 py-1" : "p-1"}`}>
+        <div
+          className={`items center flex space-x-1  ${
+            isMobile ? 'justify-between px-0 py-1' : 'p-1'
+          }`}
+        >
           <ChatInputMenuButton
             isActive={editor.isActive('bold')}
             isSelected={isSelected('bold')}
@@ -152,12 +155,14 @@ export default function ChatInputMenuToolbar({
             <CodeIcon className="h-6 w-6" />
           </ChatInputMenuButton>
           <ChatInputMenuButton
-              textButton
-              onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
-              unpressedLabel="Remove All Formatting"
-              pressedLabel="Remove All Formatting"
-              >
-                Clear
+            textButton
+            onClick={() =>
+              editor.chain().focus().unsetAllMarks().clearNodes().run()
+            }
+            unpressedLabel="Remove All Formatting"
+            pressedLabel="Remove All Formatting"
+          >
+            Clear
           </ChatInputMenuButton>
         </div>
       )}

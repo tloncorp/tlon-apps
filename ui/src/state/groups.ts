@@ -256,7 +256,7 @@ export function useRouteGroup() {
 }
 
 const selList = (s: GroupState) => Object.keys(s.groups);
-export function useGroupList() {
+export function useGroupList(): string[] {
   return useGroupState(selList);
 }
 
