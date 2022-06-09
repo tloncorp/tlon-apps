@@ -3,6 +3,7 @@ import bigInt from 'big-integer';
 import api from '../../api';
 import { ChatWrit, ChatWrits, Pact, WritDiff } from '../../types/chat';
 import { ChatState } from './type';
+
 interface WritsStore {
   initialize: () => Promise<void>;
   getOlder: (count: string) => Promise<boolean>;

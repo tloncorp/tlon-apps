@@ -3,6 +3,7 @@ import _ from 'lodash';
 import f from 'lodash/fp';
 import { ChatSeal } from '../../types/chat';
 import api from '../../api';
+
 interface ChatReactionProps {
   seal: ChatSeal;
   feel: string;

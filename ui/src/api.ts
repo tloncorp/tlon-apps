@@ -11,7 +11,7 @@ export const IS_MOCK =
 const URL = (import.meta.env.VITE_MOCK_URL ||
   import.meta.env.VITE_VERCEL_URL) as string;
 
-let _api = undefined as unknown as Urbit | UrbitMock;
+let client = undefined as unknown as Urbit | UrbitMock;
 
 async function setupAPI() {
   if (IS_MOCK) {
@@ -21,60 +21,59 @@ async function setupAPI() {
     const MockUrbit = (await import('@tloncorp/mock-http-api')).default;
     const mockHandlers = (await import('./mocks/handlers')).default;
 
-    if (!_api) {
+    if (!client) {
       const api = new MockUrbit(mockHandlers, URL || '', '');
       api.ship = window.ship;
       api.verbose = true;
-      _api = api;
+      client = api;
     }
 
     return;
   }
 
-  if (!_api) {
+  if (!client) {
     const api = new Urbit('', '', window.desk);
     api.ship = window.ship;
     api.verbose = true;
-    _api = api;
+    client = api;
   }
 }
 
 const api = {
-  scry: async function <T>(params: Scry) {
-    debugger;
-    if (!_api) {
+  async scry<T>(params: Scry) {
+    if (!client) {
       await setupAPI();
     }
 
-    return _api.scry<T>(params);
+    return client.scry<T>(params);
   },
-  poke: async function <T>(params: PokeInterface<T>) {
-    if (!_api) {
+  async poke<T>(params: PokeInterface<T>) {
+    if (!client) {
       await setupAPI();
     }
 
-    return _api.poke<T>(params);
+    return client.poke<T>(params);
   },
-  subscribe: async function (params: SubscriptionRequestInterface) {
-    if (!_api) {
+  async subscribe(params: SubscriptionRequestInterface) {
+    if (!client) {
       await setupAPI();
     }
 
-    return _api.subscribe(params);
+    return client.subscribe(params);
   },
-  thread: async function <Return, T>(params: Thread<T>) {
-    if (!_api) {
+  async thread<Return, T>(params: Thread<T>) {
+    if (!client) {
       await setupAPI();
     }
 
-    return _api.thread<Return, T>(params);
+    return client.thread<Return, T>(params);
   },
-  unsubscribe: async function (id: number) {
-    if (!_api) {
+  async unsubscribe(id: number) {
+    if (!client) {
       await setupAPI();
     }
 
-    return _api.unsubscribe(id);
+    return client.unsubscribe(id);
   },
 } as Urbit | UrbitMock;
 
