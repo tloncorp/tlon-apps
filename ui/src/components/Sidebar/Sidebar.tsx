@@ -7,7 +7,6 @@ import { useIsMobile } from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
-import AddIcon from '../icons/AddIcon';
 import AsteriskIcon from '../icons/AsteriskIcon';
 import MagnifyingGlass from '../icons/MagnifyingGlass';
 import XIcon from '../icons/XIcon';
@@ -15,6 +14,7 @@ import NotificationLink from './NotificationLink';
 import SidebarLink from './SidebarLink';
 import useSidebarSort from './useSidebarSort';
 import CaretDownIcon from '../icons/CaretDownIcon';
+import AddIcon16 from '../icons/AddIcon16';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
@@ -81,7 +81,7 @@ export default function Sidebar() {
           </SidebarLink>
           <SidebarLink
             color="text-green"
-            icon={<AddIcon className="h-6 w-6 p-1" />}
+            icon={<AddIcon16 className="h-6 w-6 p-1.5" />}
             to="/groups/new"
           >
             Create Group
@@ -93,7 +93,7 @@ export default function Sidebar() {
                 className={'default-focus rounded-lg p-0.5 text-gray-600'}
                 aria-label="Groups Sort Options"
               >
-                <div className="default-focus flex items-center space-x-2 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
+                <div className="default-focus flex items-center space-x-2 rounded-lg bg-gray-50 p-2 text-base font-semibold">
                   <span className="pl-1">{`All Groups: ${sortFn}`}</span>
                   <CaretDownIcon className="w-4 text-gray-400" />
                 </div>

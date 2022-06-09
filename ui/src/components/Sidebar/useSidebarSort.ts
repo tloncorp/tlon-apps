@@ -9,7 +9,6 @@ export default function useSidebarSort() {
   const briefs = useBriefs();
   const sortRecent = useCallback(
     (a: ChatWhom, b: ChatWhom) => {
-      // TODO: how should we handle briefs without any activity?
       const aLast = briefs[a]?.last ?? Number.NEGATIVE_INFINITY;
       const bLast = briefs[b]?.last ?? Number.NEGATIVE_INFINITY;
       if (aLast < bLast) {
@@ -23,15 +22,7 @@ export default function useSidebarSort() {
     [briefs]
   );
 
-  const sortAlphabetical = (a: ChatWhom, b: ChatWhom) => {
-    if (a < b) {
-      return -1;
-    }
-    if (a > b) {
-      return 1;
-    }
-    return 0;
-  };
+  const sortAlphabetical = (a: ChatWhom, b: ChatWhom) => a.localeCompare(b);
 
   const [sortFn, setSortFn] = useState<string>(ALPHABETICAL);
   const sortOptions: Record<
@@ -43,8 +34,8 @@ export default function useSidebarSort() {
   };
 
   return {
-    sortFn,
     setSortFn,
+    sortFn,
     sortOptions,
   };
 }

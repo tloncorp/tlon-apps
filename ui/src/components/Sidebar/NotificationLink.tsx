@@ -13,7 +13,7 @@ export default function NotificationLink() {
       {notificationCount === 0 ? (
         <BulletIcon className="h-6 w-6 bg-gray-50 p-2" />
       ) : (
-        <div className="flex h-6 w-6 items-center justify-center bg-gray-50">
+        <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-50">
           {notificationCount > 99 ? '99+' : notificationCount}
         </div>
       )}

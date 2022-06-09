@@ -88,14 +88,14 @@ exports[`Sidebar > renders as expected 1`] = `
             href="/groups/new"
           >
             <svg
-              class="h-6 w-6 p-1"
+              class="h-6 w-6 p-1.5"
               fill="none"
-              viewBox="0 0 24 24"
+              viewBox="0 0 12 12"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 class="stroke-current"
-                d="M4 12h16m-8-8v16"
+                d="M1 6H11M6 1V11"
                 stroke-linecap="round"
                 stroke-width="2"
               />
@@ -115,7 +115,7 @@ exports[`Sidebar > renders as expected 1`] = `
             type="button"
           >
             <div
-              class="default-focus flex items-center space-x-2 rounded-lg p-2 text-base font-semibold hover:bg-gray-50"
+              class="default-focus flex items-center space-x-2 rounded-lg bg-gray-50 p-2 text-base font-semibold"
             >
               <span
                 class="pl-1"
