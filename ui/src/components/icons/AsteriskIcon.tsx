@@ -13,7 +13,7 @@ export default function AsteriskIcon({ className }: IconProps) {
     >
       <path
         d="M6 6L10 2M6 6L2 2M6 6L2 10M6 6L10 10M6 6H11M6 6V1M6 6H1M6 6V11"
-        stroke="#008EFF"
+        className="stroke-current"
         strokeWidth="2"
         strokeLinecap="round"
       />
