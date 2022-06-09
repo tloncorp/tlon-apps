@@ -5,15 +5,13 @@ export default function CaretDownIcon({ className }: IconProps) {
   return (
     <svg
       className={className}
-      width="10"
-      height="6"
-      viewBox="0 0 10 6"
+      viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        d="M1 1L5 5L9 1"
-        stroke="#999999"
+        d="m4 6 4 4 4-4"
+        className="stroke-current"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"

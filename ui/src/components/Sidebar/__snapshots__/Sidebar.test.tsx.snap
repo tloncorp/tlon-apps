@@ -20,9 +20,7 @@ exports[`Sidebar > renders as expected 1`] = `
               <svg
                 class="h-6 w-6 bg-gray-50 p-2"
                 fill="none"
-                height="8"
                 viewBox="0 0 8 8"
-                width="8"
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <rect
@@ -69,14 +67,12 @@ exports[`Sidebar > renders as expected 1`] = `
             <svg
               class="h-6 w-6 p-1.5"
               fill="none"
-              height="12"
               viewBox="0 0 12 12"
-              width="12"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
+                class="stroke-current"
                 d="M6 6L10 2M6 6L2 2M6 6L2 10M6 6L10 10M6 6H11M6 6V1M6 6H1M6 6V11"
-                stroke="#008EFF"
                 stroke-linecap="round"
                 stroke-width="2"
               />
@@ -128,14 +124,12 @@ exports[`Sidebar > renders as expected 1`] = `
                 <svg
                   class=""
                   fill="none"
-                  height="6"
-                  viewBox="0 0 10 6"
-                  width="10"
+                  viewBox="0 0 16 16"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
-                    d="M1 1L5 5L9 1"
-                    stroke="#999999"
+                    class="stroke-current"
+                    d="m4 6 4 4 4-4"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     stroke-width="2"
