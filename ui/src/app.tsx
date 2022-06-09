@@ -150,7 +150,9 @@ function App() {
   const location = useLocation();
   const isMobile = useIsMobile();
   const IS_CHAT =
-    import.meta.env.MODE === 'chat' || import.meta.env.MODE === 'chatmock';
+    import.meta.env.MODE === 'chat' ||
+    import.meta.env.MODE === 'chatmock' ||
+    import.meta.env.MODE === 'chatstaging';
 
   useEffect(() => {
     handleError(() => {
@@ -198,6 +200,8 @@ function RoutedApp() {
     switch (modeName) {
       case 'mock':
       case 'chatmock':
+      case 'chatstaging':
+      case 'staging':
         return '/';
       case 'chat':
         return '/apps/chatstead';
