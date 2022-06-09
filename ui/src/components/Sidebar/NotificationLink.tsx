@@ -1,28 +1,34 @@
-import React, { useMemo } from 'react';
-import { randInt } from '../../mocks/chat';
+import React from 'react';
+import { To } from 'react-router-dom';
 import BulletIcon from '../icons/BulletIcon';
 import SidebarLink from './SidebarLink';
 
-export default function NotificationLink() {
-  // TODO: get notification count from hark store
-  // const notificationCount = useMemo(() => randInt(100, 0), []);
-  const notificationCount = 0;
+interface NotificationLinkProps {
+  count: number;
+  title: string;
+  to: To;
+}
 
+export default function NotificationLink({
+  count,
+  title,
+  to,
+}: NotificationLinkProps) {
   const notificationIcon = (
     <div>
-      {notificationCount === 0 ? (
+      {count === 0 ? (
         <BulletIcon className="h-6 w-6 bg-gray-50 p-2" />
       ) : (
         <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-50">
-          {notificationCount > 99 ? '99+' : notificationCount}
+          {count > 99 ? '99+' : count}
         </div>
       )}
     </div>
   );
 
   return (
-    <SidebarLink icon={notificationIcon} to="/notifications">
-      Notifications
+    <SidebarLink icon={notificationIcon} to={to}>
+      {title}
     </SidebarLink>
   );
 }
