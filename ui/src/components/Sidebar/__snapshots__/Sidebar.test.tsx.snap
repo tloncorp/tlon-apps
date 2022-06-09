@@ -115,27 +115,27 @@ exports[`Sidebar > renders as expected 1`] = `
             type="button"
           >
             <div
-              class="default-focus flex items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50"
+              class="default-focus flex items-center space-x-2 rounded-lg p-2 text-base font-semibold hover:bg-gray-50"
             >
-              All Groups: A → Z
               <span
-                class="px-2"
+                class="pl-1"
               >
-                <svg
-                  class=""
-                  fill="none"
-                  viewBox="0 0 16 16"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    class="stroke-current"
-                    d="m4 6 4 4 4-4"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                  />
-                </svg>
+                All Groups: A → Z
               </span>
+              <svg
+                class="w-4 text-gray-400"
+                fill="none"
+                viewBox="0 0 16 16"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  class="stroke-current"
+                  d="m4 6 4 4 4-4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                />
+              </svg>
             </div>
           </button>
         </li>

@@ -93,11 +93,9 @@ export default function Sidebar() {
                 className={'default-focus rounded-lg p-0.5 text-gray-600'}
                 aria-label="Groups Sort Options"
               >
-                <div className="default-focus flex items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
-                  {`All Groups: ${sortFn}`}
-                  <span className="px-2">
-                    <CaretDownIcon className="" />
-                  </span>
+                <div className="default-focus flex items-center space-x-2 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
+                  <span className="pl-1">{`All Groups: ${sortFn}`}</span>
+                  <CaretDownIcon className="w-4 text-gray-400" />
                 </div>
               </DropdownMenu.Trigger>
               <DropdownMenu.Content className="dropdown">
