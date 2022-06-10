@@ -95,7 +95,7 @@ export default function GroupSidebar() {
       <div className="h-full overflow-y-auto p-2">
         <ul>
           <SidebarLink
-            icon={<CaretLeft16 className="h-6 w-6 p-1.5" />}
+            icon={<CaretLeft16 className="h-6 w-6" />}
             to={`/groups`}
           >
             All Groups
@@ -113,7 +113,7 @@ export default function GroupSidebar() {
             Find in Group
           </SidebarLink>
           <SidebarLink
-            icon={<HashIcon16 className="h-6 w-6 p-1.5" />}
+            icon={<HashIcon16 className="h-6 w-6" />}
             to={`/groups/${flag}/all`}
           >
             All Channels
