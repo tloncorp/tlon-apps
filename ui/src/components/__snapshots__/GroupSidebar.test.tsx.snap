@@ -108,7 +108,9 @@ exports[`GroupSidebar > renders as expected 1`] = `
             </h3>
           </a>
         </li>
-        <li>
+        <li
+          class="my-1"
+        >
           <button
             aria-haspopup="menu"
             aria-label="Channels Sort Options"
