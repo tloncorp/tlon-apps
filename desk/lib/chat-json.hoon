@@ -291,7 +291,6 @@
     ^-  $-(json create:club:c)
     %-  ot
     :~  id/(se %uw)
-        team/(as (se %p))
         hive/(as (se %p))
     ==
   ::
@@ -299,7 +298,33 @@
     ^-  $-(json action:club:c)
     %-  ot
     :~  id/(se %uw)
-        diff/writs-diff
+        diff/club-diff
+    ==
+  ::
+  ++  club-diff
+    ^-  $-(json diff:club:c)
+    %-  ot
+    :~  id/ni
+        delta/club-delta
+    ==
+  ::
+  ++  club-delta
+    %-  of
+    :~  
+      writ/writs-diff
+    ::
+      :-  %team
+      %-  ot
+      :~  ship/(se %p)
+          ok/bo
+      ==
+    ::
+      :-  %hive
+      %-  ot
+      :~  by/(se %p)
+          for/(se %p)
+          add/bo
+      ==
     ==
   ::
   ++  dm-action

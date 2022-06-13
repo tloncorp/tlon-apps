@@ -70,10 +70,19 @@
   ::
   +$  rsvp    [=id =ship ok=?]
   +$  create
-    [=id team=(set ship) hive=(set ship)]
+    [=id hive=(set ship)]
   ::
   +$  invite  create
-  +$  diff    diff:writs
+  +$  echo    @ud  :: number of times diff has been echoed
+  +$  diff    (pair echo delta)
+  ::
+  +$  delta    
+    $%  [%writ =diff:writs]
+        [%team =ship ok=?]
+        [%hive by=ship for=ship add=?]
+        [%init team=(set ship) hive=(set ship) met=data:meta]
+    ==
+  ::
   +$  action  (pair id diff)
   --
 ::

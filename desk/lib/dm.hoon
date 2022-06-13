@@ -41,6 +41,8 @@
   ?-  -.del
       %add
     =/  =seal:c  [id ~ ~]
+    ?:  (~(has by dex.pac) id)
+      pac
     =.  wit.pac
       (put:on:writs:c wit.pac now seal p.del)
     =.  dex.pac  (~(put by dex.pac) id now)

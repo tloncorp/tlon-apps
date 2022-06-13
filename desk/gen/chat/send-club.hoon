@@ -8,6 +8,6 @@
     ==
 =*  our  p.beak
 =/  =story:c  [~ mess]
-=/  =diff:club:c    [[p.beak now] %add ~ our now story/story]
-=/  =action:club:c  [id diff]
+=/  =diff:writs:c    [[p.beak now] %add ~ our now story/story]
+=/  =action:club:c  [id 0 %writ diff]
 club-action+action
