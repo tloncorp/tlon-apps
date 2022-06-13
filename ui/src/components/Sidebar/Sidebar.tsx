@@ -12,9 +12,9 @@ import MagnifyingGlass from '../icons/MagnifyingGlass';
 import XIcon from '../icons/XIcon';
 import NotificationLink from './NotificationLink';
 import SidebarLink from './SidebarLink';
-import useSidebarSort from './useSidebarSort';
 import CaretDownIcon from '../icons/CaretDownIcon';
 import AddIcon16 from '../icons/AddIcon16';
+import useSidebarSort from '../../logic/useSidebarSort';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
@@ -41,6 +41,8 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const routeState = location.state as ModalLocationState | null;
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
+  // TODO: get notification count from hark store
+  const notificationCount = 0;
 
   return (
     <nav className="h-full">
@@ -65,7 +67,11 @@ export default function Sidebar() {
           </header>
         ) : null}
         <ul className="p-2">
-          <NotificationLink />
+          <NotificationLink
+            count={notificationCount}
+            title={'Notifications'}
+            to={'/notifications'}
+          />
           <SidebarLink
             icon={<MagnifyingGlass className="h-6 w-6" />}
             to="/search"
@@ -107,6 +113,7 @@ export default function Sidebar() {
                 </DropdownMenu.Item>
                 {Object.keys(sortOptions).map((k) => (
                   <DropdownMenu.Item
+                    key={k}
                     onSelect={() => setSortFn(k)}
                     className="dropdown-item flex items-center space-x-2"
                   >

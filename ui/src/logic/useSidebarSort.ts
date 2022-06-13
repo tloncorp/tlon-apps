@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { useBriefs } from '../../state/chat';
-import { ChatWhom } from '../../types/chat';
+import { useBriefs } from '../state/chat';
+import { ChatWhom } from '../types/chat';
 
 export const ALPHABETICAL = 'A → Z';
 export const RECENT = 'Recent';
