@@ -93,7 +93,7 @@ export default function Sidebar() {
             Create Group
           </SidebarLink>
 
-          <li>
+          <li className="my-1">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger
                 className={'default-focus rounded-lg p-0.5 text-gray-600'}

@@ -49,10 +49,6 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
           />
         ) : null}
       </NavLink>
-      {/* <DmOptions
-        ship={whom}
-        className="group-two absolute right-0 opacity-0 transition-opacity hover:opacity-100 focus:opacity-100 group-hover:opacity-100"
-      /> */}
     </li>
   );
 }
@@ -79,7 +75,7 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
       </NavLink>
       <DmOptions
         ship={whom}
-        className="group-two absolute right-0 opacity-0 transition-opacity hover:opacity-100 focus:opacity-100 group-hover:opacity-100"
+        className="group-two absolute right-0 opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100"
       />
     </li>
   );
