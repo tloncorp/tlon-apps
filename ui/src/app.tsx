@@ -54,8 +54,8 @@ function ChatRoutes({ state, location }: RoutesProps) {
         />
         <Route path={isMobile ? '/dm' : '/dm/*'} element={<DMSidebar />} />
       </Routes> */}
-      <Routes location={state?.backgroundLocation || location}>
       <Nav />
+      <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
@@ -97,7 +97,7 @@ function ChatRoutes({ state, location }: RoutesProps) {
 function GroupsRoutes({ state, location }: RoutesProps) {
   return (
     <>
-      <Route path='/' element={<Nav />} />
+      <Nav />
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
