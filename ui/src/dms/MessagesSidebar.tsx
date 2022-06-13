@@ -11,7 +11,7 @@ import NewMessageIcon from '../components/icons/NewMessageIcon';
 import { useIsMobile } from '../logic/useMedia';
 import SidebarLink from '../components/Sidebar/SidebarLink';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass';
-import useSidebarSort, { RECENT } from '../components/Sidebar/useSidebarSort';
+import useSidebarSort, { RECENT } from '../logic/useSidebarSort';
 import CaretDownIcon from '../components/icons/CaretDownIcon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
 import PersonSmallIcon from '../components/icons/PersonSmallIcon';
