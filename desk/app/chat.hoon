@@ -335,6 +335,7 @@
   ++  cu-abet  cor(clubs (~(put by clubs) id club))
   ++  cu-abed
     |=  i=id:club:c
+    ~|  no-club/i
     cu-core(id i, club (~(got by clubs) i))
   ++  cu-out  (~(del in cu-circle) our.bowl)
   ++  cu-circle

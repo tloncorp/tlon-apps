@@ -16,7 +16,7 @@
 ::
 ++  get
   |=  =id:c
-  ^-  (unit [time writ:c])
+  ^-  (unit [=time =writ:c])
   ?~  tim=(~(get by dex.pac) id)
     ~
   ?~  wit=(get:on:writs:c wit.pac u.tim)
@@ -26,9 +26,8 @@
 ++  jab
   |=  [=id:c fun=$-(writ:c writ:c)]
   ^+  pac
-  =/  [=time =writ:c]  
-  ?~  val=(get id)  pac
-  =.  wit.pac  (put:on:writs:c wit.pac time (fun writ))
+  ?~  v=(get id)  pac
+  =.  wit.pac  (put:on:writs:c wit.pac time.u.v (fun writ.u.v))
   pac
 ::
 ++  got

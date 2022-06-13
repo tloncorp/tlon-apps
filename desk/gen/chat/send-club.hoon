@@ -7,8 +7,7 @@
         
     ==
 =*  our  p.beak
-=/  =id:club:c  (end 7 eny)
 =/  =story:c  [~ mess]
-=/  =diff:club:c    [%add ~ our now story/story]
+=/  =diff:club:c    [[p.beak now] %add ~ our now story/story]
 =/  =action:club:c  [id diff]
 club-action+action
