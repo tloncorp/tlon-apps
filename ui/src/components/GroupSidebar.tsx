@@ -1,17 +1,11 @@
 import classNames from 'classnames';
 import React from 'react';
-import { useLocation } from 'react-router';
-import { Link } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ModalLocationState } from '../logic/routing';
 import { useIsMobile } from '../logic/useMedia';
 import { useGroup } from '../state/groups';
 import { Group, GroupMeta } from '../types/groups';
 import { channelHref } from '../logic/utils';
 import useNavStore from './Nav/useNavStore';
-import LeftIcon from './icons/LeftIcon';
-import XIcon from './icons/XIcon';
-import RetainedStateLink from './RetainedStateLink';
 import SidebarLink from './Sidebar/SidebarLink';
 import SidebarButton from './Sidebar/SidebarButton';
 import CaretLeft16 from './icons/CaretLeft16';

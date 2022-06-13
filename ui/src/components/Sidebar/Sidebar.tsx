@@ -1,8 +1,6 @@
 import classNames from 'classnames';
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ModalLocationState } from '../../logic/routing';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
 import useNavStore from '../Nav/useNavStore';
@@ -10,7 +8,6 @@ import Divider from '../Divider';
 import GangName from '../GangName/GangName';
 import AsteriskIcon from '../icons/AsteriskIcon';
 import MagnifyingGlass from '../icons/MagnifyingGlass';
-import XIcon from '../icons/XIcon';
 import NotificationLink from './NotificationLink';
 import SidebarButton from './SidebarButton';
 import SidebarLink from './SidebarLink';
