@@ -76,7 +76,10 @@ export default function GroupSidebar() {
         isMobile && 'fixed top-0 left-0 z-40 w-full'
       )}
     >
-      <div className="h-full overflow-y-auto p-2">
+      <div className={classNames(
+        "h-full w-full overflow-y-auto p-2",
+        !isMobile && 'w-64'
+      )}>
         <ul>
           <SidebarButton
             icon={<CaretLeft16 className="h-6 w-6" />}

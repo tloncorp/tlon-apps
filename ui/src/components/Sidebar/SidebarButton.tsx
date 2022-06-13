@@ -13,7 +13,6 @@ export default function SidebarButton({
   ...rest
 }: SidebarProps) {
   return (
-    <li>
       <button
         className={cn(
           'default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50',
@@ -28,6 +27,5 @@ export default function SidebarButton({
         )}
         {typeof children === 'string' ? <h3>{children}</h3> : children}
       </button>
-    </li>
   );
 }
