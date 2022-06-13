@@ -53,9 +53,6 @@ function ChatRoutes({ state, location }: RoutesProps) {
           </Route>
         </Route>
 
-        <Route path="/gangs/:ship/:name" element={<Gang />} />
-        <Route path="/groups/new" element={<NewGroup />} />
-        <Route path="/groups/join" element={<JoinGroup />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="members" element={<Members />} />
           <Route path="roles" element={<Roles />} />
@@ -70,15 +67,8 @@ function ChatRoutes({ state, location }: RoutesProps) {
             path="channels/:app/:chShip/:chName/settings"
             element={<ChannelSettings />}
           />
-          <Route path="channels/new" element={<NewChannel />} />
         </Route>
       </Routes>
-      {state?.backgroundLocation ? (
-        <Routes>
-          <Route path="/groups/join" element={<JoinGroupModal />} />
-          <Route path="/gangs/:ship/:name" element={<GangModal />} />
-        </Routes>
-      ) : null}
     </>
   );
 }
@@ -88,14 +78,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
-        <Route path="/dm/" element={<Dms />}>
-          <Route index element={<DMHome />} />
-          <Route path="new" element={<NewDM />} />
-          <Route path=":ship" element={<Dm />}>
-            <Route path="message/:idShip/:idTime" element={<DmThread />} />
-          </Route>
-        </Route>
-
         <Route path="/gangs/:ship/:name" element={<Gang />} />
         <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />

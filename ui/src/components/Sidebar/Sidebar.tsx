@@ -41,11 +41,8 @@ function GangItem(props: { flag: string }) {
 export default function Sidebar() {
   const flags = useGroupList();
   const gangs = useGangList();
-  const location = useLocation();
   const isMobile = useIsMobile();
-  const routeState = location.state as ModalLocationState | null;
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
-  const setNavDM = useNavStore((state) => state.setLocationDM);
   // TODO: get notification count from hark store
   const notificationCount = 0;
 
@@ -57,20 +54,6 @@ export default function Sidebar() {
           isMobile && 'fixed top-0 left-0 z-50 w-full'
         )}
       >
-        {isMobile ? (
-          <header className="flex items-center border-b-2 border-gray-50 p-4">
-            <h1 className="text-lg font-bold">Groups</h1>
-            {routeState?.backgroundLocation ? (
-              <Link
-                to={routeState.backgroundLocation}
-                className="icon-button ml-auto h-8 w-8"
-                aria-label="Close Main Menu"
-              >
-                <XIcon className="h-6 w-6" />
-              </Link>
-            ) : null}
-          </header>
-        ) : null}
         <ul className="p-2">
           <NotificationLink
             count={notificationCount}
