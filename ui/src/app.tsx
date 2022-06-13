@@ -43,17 +43,6 @@ interface RoutesProps {
 function ChatRoutes({ state, location }: RoutesProps) {
   return (
     <>
-    
-      {/* <Routes>
-        <Route path={isMobile ? '/' : '*'} element={<Sidebar />} />
-      </Routes>
-      <Routes>
-        <Route
-          path={isMobile ? '/groups/:ship/:name' : '/groups/:ship/:name/*'}
-          element={<GroupSidebar />}
-        />
-        <Route path={isMobile ? '/dm' : '/dm/*'} element={<DMSidebar />} />
-      </Routes> */}
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm/" element={<Dms />}>

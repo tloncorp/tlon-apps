@@ -5,7 +5,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ModalLocationState } from '../../logic/routing';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
-import  useNavStore from '../Nav/useNavStore';
+import useNavStore from '../Nav/useNavStore';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
 import AsteriskIcon from '../icons/AsteriskIcon';
@@ -14,13 +14,13 @@ import XIcon from '../icons/XIcon';
 import NotificationLink from './NotificationLink';
 import SidebarButton from './SidebarButton';
 import SidebarLink from './SidebarLink';
-import useSidebarSort from './useSidebarSort';
 import CaretDownIcon from '../icons/CaretDownIcon';
 import AddIcon16 from '../icons/AddIcon16';
+import useSidebarSort from '../../logic/useSidebarSort';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
-  const setNavGroups = useNavStore(state => state.setLocationGroups);
+  const setNavGroups = useNavStore((state) => state.setLocationGroups);
   return (
     <SidebarButton onClick={() => setNavGroups(flag)}>
       {group?.meta.title}
@@ -45,9 +45,10 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const routeState = location.state as ModalLocationState | null;
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
-  const setNavDM = useNavStore(state => state.setLocationDM);
+  const setNavDM = useNavStore((state) => state.setLocationDM);
+  // TODO: get notification count from hark store
+  const notificationCount = 0;
 
-  
   return (
     <nav className="h-full">
       <div
@@ -71,7 +72,11 @@ export default function Sidebar() {
           </header>
         ) : null}
         <ul className="p-2">
-          <NotificationLink />
+          <NotificationLink
+            count={notificationCount}
+            title={'Notifications'}
+            to={'/notifications'}
+          />
           <SidebarLink
             icon={<MagnifyingGlass className="h-6 w-6" />}
             to="/search"
@@ -113,6 +118,7 @@ export default function Sidebar() {
                 </DropdownMenu.Item>
                 {Object.keys(sortOptions).map((k) => (
                   <DropdownMenu.Item
+                    key={k}
                     onSelect={() => setSortFn(k)}
                     className="dropdown-item flex items-center space-x-2"
                   >

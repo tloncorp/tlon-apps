@@ -1,9 +1,7 @@
 import cn from 'classnames';
-import React, { PropsWithChildren } from 'react';
-import { NavLink, NavLinkProps } from 'react-router-dom';
-import RetainedStateLink from '../RetainedStateLink';
+import React from 'react';
 
-interface SidebarProps extends React.ComponentPropsWithoutRef<"button"> {
+interface SidebarProps extends React.ComponentPropsWithoutRef<'button'> {
   className?: string;
   icon?: React.ReactNode;
 }
@@ -17,12 +15,13 @@ export default function SidebarButton({
   return (
     <li>
       <button
-        className={
-            'default-focus flex items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50 w-full'
-        }
+        className={cn(
+          'default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50',
+          className
+        )}
         {...rest}
       >
-        {(icon) ? (
+        {icon ? (
           icon
         ) : (
           <div className="h-6 w-6 rounded border-2 border-gray-100" />
