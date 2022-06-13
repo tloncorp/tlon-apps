@@ -5,12 +5,14 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ModalLocationState } from '../../logic/routing';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
+import  useNavStore from '../Nav/useNavStore';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
 import AsteriskIcon from '../icons/AsteriskIcon';
 import MagnifyingGlass from '../icons/MagnifyingGlass';
 import XIcon from '../icons/XIcon';
 import NotificationLink from './NotificationLink';
+import SidebarButton from './SidebarButton';
 import SidebarLink from './SidebarLink';
 import useSidebarSort from './useSidebarSort';
 import CaretDownIcon from '../icons/CaretDownIcon';
@@ -18,13 +20,15 @@ import AddIcon16 from '../icons/AddIcon16';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
+  const setNavGroups = useNavStore(state => state.setLocationGroups);
   return (
-    <SidebarLink to={`/groups/${flag}`} retainState>
+    <SidebarButton onClick={() => setNavGroups(flag)}>
       {group?.meta.title}
-    </SidebarLink>
+    </SidebarButton>
   );
 }
 
+// Gang is a pending group invite
 function GangItem(props: { flag: string }) {
   const { flag } = props;
   return (
@@ -41,7 +45,9 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const routeState = location.state as ModalLocationState | null;
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
+  const setNavDM = useNavStore(state => state.setLocationDM);
 
+  
   return (
     <nav className="h-full">
       <div

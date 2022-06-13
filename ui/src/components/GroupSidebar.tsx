@@ -7,11 +7,13 @@ import { useIsMobile } from '../logic/useMedia';
 import { useGroup, useRouteGroup } from '../state/groups';
 import { Group } from '../types/groups';
 import { channelHref } from '../logic/utils';
+import useNavStore from './Nav/useNavStore';
 import Divider from './Divider';
 import LeftIcon from './icons/LeftIcon';
 import XIcon from './icons/XIcon';
 import RetainedStateLink from './RetainedStateLink';
 import SidebarLink from './Sidebar/SidebarLink';
+import SidebarButton from './Sidebar/SidebarButton';
 
 function ChannelList({ group, flag }: { group: Group; flag: string }) {
   return (
@@ -28,10 +30,11 @@ function ChannelList({ group, flag }: { group: Group; flag: string }) {
 }
 
 export default function GroupSidebar() {
-  const flag = useRouteGroup();
+  const flag = useNavStore(state => state.flag);
   const group = useGroup(flag);
   const location = useLocation();
   const isMobile = useIsMobile();
+  const navSetMain = useNavStore(state => state.setLocationMain);
   const routeState = location.state as ModalLocationState | null;
 
   return (
@@ -65,6 +68,9 @@ export default function GroupSidebar() {
           <p>{group?.meta.description}</p>
         </div>
         <ul>
+          <SidebarButton onClick={navSetMain} icon={<LeftIcon className='h-6 w-6' />}>
+            Back
+          </SidebarButton>
           <SidebarLink to={`/groups/${flag}/channels/new`}>
             New Channel
           </SidebarLink>

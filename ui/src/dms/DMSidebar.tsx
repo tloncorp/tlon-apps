@@ -7,8 +7,10 @@ import DmSidebarItem from './DMSidebarItem';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
 import SmallDownIcon from '../components/icons/SmallDownIcon';
 import { useIsMobile } from '../logic/useMedia';
+import useNavStore from '../components/Nav/useNavStore';
 import { useSearchParam } from '../hooks';
 import DMArchiveItem from './DMArchiveItem';
+import SidebarButton from '../components/Sidebar/SidebarButton';
 import CheckIcon from '../components/icons/CheckIcon';
 import LeftIcon from '../components/icons/LeftIcon';
 import RetainedStateLink from '../components/RetainedStateLink';
@@ -18,6 +20,7 @@ export default function DMSidebar() {
   const ships = useDmList();
   const pending = usePendingDms();
   const archive = useDmArchive();
+  const navSetMain = useNavStore(state => state.setLocationMain);
   const isMobile = useIsMobile();
 
   return (
@@ -78,6 +81,9 @@ export default function DMSidebar() {
       </header>
 
       <ul className="flex w-full flex-col p-2">
+        <SidebarButton onClick={navSetMain} icon={<LeftIcon className='h-6 w-6' />}>
+          Back
+        </SidebarButton>
         {!showArchive ? (
           <>
             {pending.map((ship) => (

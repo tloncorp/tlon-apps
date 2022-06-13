@@ -22,18 +22,17 @@ import Dm from './pages/Dm';
 import NewDM from './pages/NewDm';
 import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
-import Sidebar from './components/Sidebar/Sidebar';
 import { DmThread, GroupChatThread } from './chat/ChatThread/ChatThread';
 import Policy from './pages/Policy';
-import GroupSidebar from './components/GroupSidebar';
 import useMedia, { useIsMobile } from './logic/useMedia';
+import useIsChat from './logic/useIsChat';
 import useErrorHandler from './logic/useErrorHandler';
 import { useSettingsState, useTheme } from './state/settings';
 import { useLocalState } from './state/local';
 import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
-import DMSidebar from './dms/DMSidebar';
 import DMHome from './dms/DMHome';
+import Nav from './components/Nav/Nav';
 
 interface RoutesProps {
   isMobile: boolean;
@@ -41,10 +40,11 @@ interface RoutesProps {
   location: Location;
 }
 
-function ChatRoutes({ isMobile, state, location }: RoutesProps) {
+function ChatRoutes({ state, location }: RoutesProps) {
   return (
     <>
-      <Routes>
+    
+      {/* <Routes>
         <Route path={isMobile ? '/' : '*'} element={<Sidebar />} />
       </Routes>
       <Routes>
@@ -53,8 +53,9 @@ function ChatRoutes({ isMobile, state, location }: RoutesProps) {
           element={<GroupSidebar />}
         />
         <Route path={isMobile ? '/dm' : '/dm/*'} element={<DMSidebar />} />
-      </Routes>
+      </Routes> */}
       <Routes location={state?.backgroundLocation || location}>
+      <Nav />
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
@@ -93,19 +94,10 @@ function ChatRoutes({ isMobile, state, location }: RoutesProps) {
   );
 }
 
-function GroupsRoutes({ isMobile, state, location }: RoutesProps) {
+function GroupsRoutes({ state, location }: RoutesProps) {
   return (
     <>
-      <Routes>
-        <Route path={isMobile ? '/' : '*'} element={<Sidebar />} />
-      </Routes>
-      <Routes>
-        <Route
-          path={isMobile ? '/groups/:ship/:name' : '/groups/:ship/:name/*'}
-          element={<GroupSidebar />}
-        />
-        <Route path={isMobile ? '/dm' : '/dm/*'} element={<DMSidebar />} />
-      </Routes>
+      <Route path='/' element={<Nav />} />
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
@@ -149,10 +141,7 @@ function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
   const isMobile = useIsMobile();
-  const IS_CHAT =
-    import.meta.env.MODE === 'chat' ||
-    import.meta.env.MODE === 'chatmock' ||
-    import.meta.env.MODE === 'chatstaging';
+  const isChat = useIsChat();
 
   useEffect(() => {
     handleError(() => {
@@ -185,7 +174,7 @@ function App() {
 
   return (
     <div className="flex h-full w-full">
-      {IS_CHAT ? (
+      {isChat ? (
         <ChatRoutes isMobile={isMobile} state={state} location={location} />
       ) : (
         <GroupsRoutes isMobile={isMobile} state={state} location={location} />
