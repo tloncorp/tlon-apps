@@ -54,7 +54,8 @@ export default function MessagesSidebar() {
   return (
     <nav
       className={cn(
-        'flex h-full min-w-56 flex-col border-r-2 border-gray-50 bg-white',
+        'flex h-full flex-col border-r-2 border-gray-50 bg-white',
+        !isMobile && 'w-64',
         isMobile && 'fixed top-0 left-0 z-40 w-full'
       )}
     >
