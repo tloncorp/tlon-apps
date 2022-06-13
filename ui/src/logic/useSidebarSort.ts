@@ -2,10 +2,12 @@ import { useCallback, useState } from 'react';
 import { useBriefs } from '../state/chat';
 import { ChatWhom } from '../types/chat';
 
-const ALPHABETICAL = 'A → Z';
-const RECENT = 'Recent';
+export const ALPHABETICAL = 'A → Z';
+export const RECENT = 'Recent';
 
-export default function useSidebarSort() {
+export default function useSidebarSort(
+  defaultSort?: typeof ALPHABETICAL | typeof RECENT
+) {
   const briefs = useBriefs();
   const sortRecent = useCallback(
     (a: ChatWhom, b: ChatWhom) => {
@@ -24,7 +26,7 @@ export default function useSidebarSort() {
 
   const sortAlphabetical = (a: ChatWhom, b: ChatWhom) => a.localeCompare(b);
 
-  const [sortFn, setSortFn] = useState<string>(ALPHABETICAL);
+  const [sortFn, setSortFn] = useState<string>(defaultSort || ALPHABETICAL);
   const sortOptions: Record<
     string,
     typeof sortRecent | typeof sortAlphabetical

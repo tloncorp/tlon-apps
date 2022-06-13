@@ -434,6 +434,14 @@ export function useDmArchive() {
   return useChatState(selDmArchive);
 }
 
+export function isDMBrief(brief: string) {
+  return !brief.includes('/');
+}
+
+export function isGroupBrief(brief: string) {
+  return brief.includes('/');
+}
+
 export function useBriefs() {
   return useChatState(useCallback((s: ChatState) => s.briefs, []));
 }

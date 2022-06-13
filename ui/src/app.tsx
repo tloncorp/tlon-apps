@@ -32,7 +32,7 @@ import { useSettingsState, useTheme } from './state/settings';
 import { useLocalState } from './state/local';
 import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
-import DMSidebar from './dms/DMSidebar';
+import MessagesSidebar from './dms/MessagesSidebar';
 import DMHome from './dms/DMHome';
 
 interface RoutesProps {
@@ -52,7 +52,10 @@ function ChatRoutes({ isMobile, state, location }: RoutesProps) {
           path={isMobile ? '/groups/:ship/:name' : '/groups/:ship/:name/*'}
           element={<GroupSidebar />}
         />
-        <Route path={isMobile ? '/dm' : '/dm/*'} element={<DMSidebar />} />
+        <Route
+          path={isMobile ? '/dm' : '/dm/:filter/*'}
+          element={<MessagesSidebar />}
+        />
       </Routes>
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm/" element={<Dms />}>
@@ -104,7 +107,10 @@ function GroupsRoutes({ isMobile, state, location }: RoutesProps) {
           path={isMobile ? '/groups/:ship/:name' : '/groups/:ship/:name/*'}
           element={<GroupSidebar />}
         />
-        <Route path={isMobile ? '/dm' : '/dm/*'} element={<DMSidebar />} />
+        <Route
+          path={isMobile ? '/dm' : '/dm/*'}
+          element={<MessagesSidebar />}
+        />
       </Routes>
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/dm/" element={<Dms />}>
