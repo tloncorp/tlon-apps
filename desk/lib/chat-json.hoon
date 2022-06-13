@@ -3,6 +3,13 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  draft
+    |=  d=draft:c
+    %-  pairs
+    :~  whom/s/(whom p.d)
+        story/(story q.d)
+    ==
+  ::
   ++  club-rsvp
     |=  r=rsvp:club:c
     %-  pairs
@@ -219,6 +226,11 @@
 ++  dejs
   =,  dejs:format
   |%
+  ++  draft
+    %-  ot
+    :~  whom/whom
+        story/story
+    ==
   ++  rsvp
     %-  ot
     :~  ship/(se %p)

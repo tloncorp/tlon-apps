@@ -10,12 +10,8 @@
 ++  grab
   |%
   ++  noun  draft:c
-  ::
   ++  json
-
     |=  jon=^json
-    ~&  jon
-    =-  ~&(- -)
     (draft:dejs:j jon)
   --
 --

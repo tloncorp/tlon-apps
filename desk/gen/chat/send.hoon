@@ -6,12 +6,12 @@
         [[[her=ship name=term] mess=(list inline:c)] ~]
     ==
 ::
-=/  =content:c
+=/  =story:c
   [~ mess]
 =/  =memo:c
-  [~ p.beak now content]
+  [~ p.beak now story/story]
 :-  %chat-action
 ^-  action:c
 :-  [her name]
 :-  now
-[%add memo]
+[%writs [p.beak now] %add memo]

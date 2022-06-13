@@ -130,6 +130,9 @@
       [%notice p=notice]
   ==
 ::
++$  draft
+  (pair whom story)
+::
 +$  story
   (pair (list block) (list inline))
 ::
