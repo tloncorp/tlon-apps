@@ -59,10 +59,7 @@ export default function MessagesSidebar() {
         isMobile && 'fixed top-0 left-0 z-40 w-full'
       )}
     >
-      <ul className={cn(
-        "flex w-full flex-col p-2",
-        !isMobile && 'w-64'
-        )}>
+      <ul className={cn('flex w-full flex-col p-2', !isMobile && 'w-64')}>
         <SidebarLink
           icon={<MagnifyingGlass className="h-6 w-6" />}
           to="/dm/search"

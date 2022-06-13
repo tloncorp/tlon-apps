@@ -6,15 +6,14 @@ interface NavStore {
   setLocationMain: () => void;
   setLocationGroups: (flag: string) => void;
   setLocationDM: (flag?: string) => void;
-} 
+}
 
 const useNavStore = create<NavStore>((set) => ({
   location: 'main',
   flag: '',
-  setLocationMain: () => set({location: 'main'}),
-  setLocationGroups: (flag) => set({location: 'group', flag}),
-  setLocationDM: () => set({location: 'dm'}),
+  setLocationMain: () => set({ location: 'main' }),
+  setLocationGroups: (flag) => set({ location: 'group', flag }),
+  setLocationDM: () => set({ location: 'dm' }),
 }));
 
 export default useNavStore;
-

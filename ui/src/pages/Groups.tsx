@@ -9,7 +9,6 @@ function Groups() {
   const group = useGroup(flag);
   useNavStore.getState().setLocationGroups(flag);
 
-  
   useEffect(() => {
     let id = null as number | null;
     useGroupState

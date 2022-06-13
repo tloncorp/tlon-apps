@@ -6,34 +6,32 @@ exports[`GroupSidebar > renders as expected 1`] = `
     class="h-full border-r-2 border-gray-50 bg-white w-64"
   >
     <div
-      class="h-full overflow-y-auto p-2"
+      class="h-full w-full overflow-y-auto p-2 w-64"
     >
       <ul>
-        <li>
-          <button
-            class="default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
+        <button
+          class="default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
+        >
+          <svg
+            class="h-6 w-6"
+            fill="none"
+            height="24"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <svg
-              class="h-6 w-6"
-              fill="none"
-              height="24"
-              viewBox="0 0 24 24"
-              width="24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                class="stroke-current"
-                d="M13 16L9 12L13 8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-              />
-            </svg>
-            <h3>
-              All Groups
-            </h3>
-          </button>
-        </li>
+            <path
+              class="stroke-current"
+              d="M13 16L9 12L13 8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+            />
+          </svg>
+          <h3>
+            All Groups
+          </h3>
+        </button>
         <li>
           <a
             class="default-focus flex items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50 text-gray-600"
