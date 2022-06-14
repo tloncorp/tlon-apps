@@ -23,6 +23,28 @@
     format('woff2');
 }
 
+/* Works on Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--colors-gray-200)) transparent;
+}
+
+/* Works on Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border: solid 2px rgb(var(--colors-white));
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--colors-gray-200));
+  border: solid 2px rgb(var(--colors-white));
+  border-radius: 20px;
+}
+
 html,
 body,
 #app {

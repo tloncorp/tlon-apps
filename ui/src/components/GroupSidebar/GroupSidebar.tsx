@@ -39,7 +39,7 @@ export default function GroupSidebar() {
   }
 
   return (
-    <nav className="h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white sm:p-2">
+    <nav className="flex h-full w-64 flex-none flex-col overflow-hidden border-r-2 border-gray-50 bg-white sm:p-2">
       <header className="flex-none px-2 py-1 sm:p-0">
         <button
           className="default-focus flex w-full items-center rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
@@ -49,8 +49,8 @@ export default function GroupSidebar() {
           All Groups
         </button>
       </header>
-      <div className="flex-1 overflow-y-auto p-2 sm:p-0">
-        <ul>
+      <div className="flex min-h-0 flex-1 flex-col p-2 sm:p-0">
+        <ul className="flex-none">
           <GroupHeader meta={group?.meta} />
           <SidebarLink
             icon={<ActivityIndicator count={activityCount} />}
@@ -71,7 +71,9 @@ export default function GroupSidebar() {
             All Channels
           </SidebarLink>
         </ul>
-        <ChannelList flag={flag} />
+        <div className="flex-1 overflow-y-auto">
+          <ChannelList flag={flag} className="" />
+        </div>
       </div>
     </nav>
   );

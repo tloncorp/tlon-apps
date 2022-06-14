@@ -36,9 +36,7 @@ export default function MobileSidebar() {
       </header>
       <nav className="h-full flex-1 overflow-y-auto">
         {secondary === 'main' ? (
-          <ul className="h-full p-2">
-            <GroupList />
-          </ul>
+          <GroupList />
         ) : secondary === 'notifications' ? (
           <div />
         ) : secondary === 'search' ? (

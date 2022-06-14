@@ -11,7 +11,12 @@ import CaretDownIcon from '../icons/CaretDownIcon';
 import ChannelSortOptions from './ChannelSortOptions';
 import useSidebarSort from '../../logic/useSidebarSort';
 
-export default function ChannelList({ flag }: { flag: string }) {
+interface ChannelListProps {
+  flag: string;
+  className?: string;
+}
+
+export default function ChannelList({ flag, className }: ChannelListProps) {
   const isMobile = useIsMobile();
   const group = useGroup(flag);
   const { sortFn, sortOptions, setSortFn } = useSidebarSort();
@@ -42,7 +47,7 @@ export default function ChannelList({ flag }: { flag: string }) {
     );
 
   return (
-    <div>
+    <div className={className}>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
           className="default-focus mt-2 mb-3 rounded-lg p-2 text-gray-600 sm:m-0"

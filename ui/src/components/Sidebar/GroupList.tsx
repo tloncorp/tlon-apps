@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import React from 'react';
 import useSidebarSort from '../../logic/useSidebarSort';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
@@ -36,13 +37,17 @@ function GangItem(props: { flag: string }) {
   );
 }
 
-export default function GroupList() {
+interface GroupListProps {
+  className?: string;
+}
+
+export default function GroupList({ className }: GroupListProps) {
   const flags = useGroupList();
   const gangs = useGangList();
   const { sortFn, sortOptions } = useSidebarSort();
 
   return (
-    <>
+    <ul className={cn('h-full p-2', className)}>
       {flags.sort(sortOptions[sortFn]).map((flag) => (
         <GroupItem key={flag} flag={flag} />
       ))}
@@ -50,6 +55,6 @@ export default function GroupList() {
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />
       ))}
-    </>
+    </ul>
   );
 }

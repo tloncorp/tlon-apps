@@ -21,8 +21,8 @@ export default function Sidebar() {
   }
 
   return (
-    <nav className="h-full w-64 flex-none border-r-2 border-gray-50 bg-white">
-      <ul className="p-2">
+    <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
+      <ul className="flex-none p-2">
         <SidebarLink
           icon={<ActivityIndicator count={notificationCount} />}
           to={`/notifications`}
@@ -57,8 +57,8 @@ export default function Sidebar() {
             isMobile={isMobile}
           />
         </li>
-        <GroupList />
       </ul>
+      <GroupList className="flex-1 overflow-y-auto" />
     </nav>
   );
 }
