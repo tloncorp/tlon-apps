@@ -8,6 +8,7 @@ import { channelHref } from '../logic/utils';
 import useNavStore from './Nav/useNavStore';
 import SidebarLink from './Sidebar/SidebarLink';
 import SidebarButton from './Sidebar/SidebarButton';
+import GroupInfoModal from './GroupInfoModal/GroupInfoModal';
 import CaretLeft16 from './icons/CaretLeft16';
 import MagnifyingGlass from './icons/MagnifyingGlass';
 import HashIcon16 from './icons/HashIcon16';
@@ -37,19 +38,32 @@ function GroupHeader({ meta }: { meta?: GroupMeta }) {
   if (!meta) {
     return null;
   }
+  console.log(meta);
 
   return (
-    <li className="flex items-center space-x-3 rounded-lg p-2 text-base font-semibold">
-      {(meta?.image || '').length > 0 ? (
-        <img
-          className="h-6 w-6 rounded border-2 border-transparent"
-          src={meta?.image}
-        />
-      ) : (
-        <div className="h-6 w-6 rounded border-2 border-gray-100" />
-      )}
-      <h3>{meta?.title}</h3>
-    </li>
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger className="w-full">
+        <li className=" flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
+          {(meta?.image || '').length > 0 ? (
+            <img
+              className="h-6 w-6 rounded border-2 border-transparent"
+              src={meta?.image}
+            />
+          ) : (
+            <div className="h-6 w-6 rounded border-2 border-gray-100" />
+          )}
+          <h3>{meta?.title}</h3>
+        </li>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content className="dropdown">
+        <DropdownMenu.Item
+          onSelect={(e) => e.preventDefault()}
+          className="dropdown-item flex items-center space-x-2 hover:bg-gray-50"
+        >
+          <GroupInfoModal meta={meta} />
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
   );
 }
 
