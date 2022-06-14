@@ -27,10 +27,12 @@ function GroupItem({ flag }: { flag: string }) {
 // Gang is a pending group invite
 function GangItem(props: { flag: string }) {
   const { flag } = props;
+  const hideNav = useNavStore((state) => state.setLocationHidden);
   return (
     <SidebarLink
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" />}
       to={`/gangs/${flag}`}
+      onClick={hideNav}
     >
       <GangName flag={flag} />
     </SidebarLink>

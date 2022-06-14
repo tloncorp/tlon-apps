@@ -46,7 +46,7 @@ export default function DmOptions({ ship, className }: DMOptionsProps) {
           )}
           aria-label="Open Message Options"
         >
-          <EllipsisIcon className="h-5 w-5" />
+          <EllipsisIcon className="h-6 w-6" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
           <DropdownMenu.Item

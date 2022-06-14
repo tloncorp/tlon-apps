@@ -15,7 +15,7 @@ export default function Nav() {
   );
 
   useEffect(() => {
-    if (isChat && navLocation !== 'dm') {
+    if (isChat && (navLocation === 'group' || navLocation === 'main')) {
       useNavStore.getState().setLocationDM();
     }
   }, [isChat, navLocation]);

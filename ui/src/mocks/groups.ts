@@ -1,3 +1,4 @@
+import faker from '@faker-js/faker';
 import { Group, Vessel, Gangs } from '../types/groups';
 
 const emptyVessel = (): Vessel => ({
@@ -59,19 +60,21 @@ const mockGroups: { [flag: string]: Group } = {
   '~zod/remco': mockGroupTwo,
 };
 
-const emptyChannel = {
-  meta: {
-    title: 'Watercooler',
-    description: 'Do some chatting',
-    image: '',
-  },
-};
+function createChannel(title: string) {
+  return {
+    meta: {
+      title,
+      description: 'Do some chatting',
+      image: '',
+    },
+  };
+}
 
 for (let i = 0; i < 20; i += 1) {
-  const group = createMockGroup(`Tlon Corporation ${i}`);
+  const group = createMockGroup(faker.company.companyName());
 
   for (let j = 0; j < 20; j += 1) {
-    group.channels[`~zod/tlon${i}${j}`] = emptyChannel;
+    group.channels[`~zod/tlon${i}${j}`] = createChannel(faker.company.bs());
   }
 
   mockGroups[`~zod/tlon${i}`] = group;

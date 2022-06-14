@@ -13,16 +13,23 @@ import { useContact } from '../state/contact';
 import CaretLeftIcon from '../components/icons/CaretLeftIcon';
 import { useIsMobile } from '../logic/useMedia';
 import DMHero from '../dms/DMHero';
+import useNavStore from '../components/Nav/useNavStore';
 
 export default function Dm() {
   const ship = useParams<{ ship: string }>().ship!;
-  const location = useLocation();
   const contact = useContact(ship);
   const isMobile = useIsMobile();
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
+  const navigateMessages = useNavStore((state) => state.setLocationDM);
+
+  useEffect(() => {
+    if (isMobile) {
+      useNavStore.getState().setLocationHidden();
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     if (ship && canStart) {
@@ -36,13 +43,12 @@ export default function Dm() {
       className="h-full grow"
       header={
         <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
-          <Link
-            to=".."
-            state={{ backgroundLocation: location }}
+          <button
             className={cn(
               'p-2',
               isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
             )}
+            onClick={() => isMobile && navigateMessages()}
             aria-label="Open Messages Menu"
           >
             {isMobile ? (
@@ -61,7 +67,7 @@ export default function Dm() {
                 )}
               </div>
             </div>
-          </Link>
+          </button>
           {canStart ? <DmOptions ship={ship} /> : null}
         </div>
       }
