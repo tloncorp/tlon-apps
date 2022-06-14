@@ -7,7 +7,10 @@ import api from '../api';
 function Groups() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
-  useNavStore.getState().setLocationGroups(flag);
+
+  useEffect(() => {
+    useNavStore.getState().setLocationGroups(flag);
+  }, [flag]);
 
   useEffect(() => {
     let id = null as number | null;

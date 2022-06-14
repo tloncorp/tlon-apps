@@ -5,7 +5,7 @@ interface NavStore {
   flag: string;
   setLocationMain: () => void;
   setLocationGroups: (flag: string) => void;
-  setLocationDM: (flag?: string) => void;
+  setLocationDM: () => void;
 }
 
 const useNavStore = create<NavStore>((set) => ({
