@@ -26,7 +26,7 @@ const filters: Record<string, SidebarFilter> = {
   groups: 'Group Talk Channels',
 };
 
-export default function DMSidebar() {
+export default function MessagesSidebar() {
   const pending = usePendingDms();
   const isMobile = useIsMobile();
   const { sortOptions } = useSidebarSort(RECENT);
@@ -54,11 +54,12 @@ export default function DMSidebar() {
   return (
     <nav
       className={cn(
-        'flex h-full min-w-56 flex-col border-r-2 border-gray-50 bg-white',
+        'flex h-full flex-col border-r-2 border-gray-50 bg-white',
+        !isMobile && 'w-64',
         isMobile && 'fixed top-0 left-0 z-40 w-full'
       )}
     >
-      <ul className="flex w-full flex-col p-2">
+      <ul className={cn('flex w-full flex-col p-2', !isMobile && 'w-64')}>
         <SidebarLink
           icon={<MagnifyingGlass className="h-6 w-6" />}
           to="/dm/search"

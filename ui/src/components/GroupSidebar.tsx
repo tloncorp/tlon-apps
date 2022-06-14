@@ -1,17 +1,13 @@
 import classNames from 'classnames';
 import React from 'react';
-import { useLocation } from 'react-router';
-import { Link } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ModalLocationState } from '../logic/routing';
 import { useIsMobile } from '../logic/useMedia';
-import { useGroup, useRouteGroup } from '../state/groups';
+import { useGroup } from '../state/groups';
 import { Group, GroupMeta } from '../types/groups';
 import { channelHref } from '../logic/utils';
-import LeftIcon from './icons/LeftIcon';
-import XIcon from './icons/XIcon';
-import RetainedStateLink from './RetainedStateLink';
+import useNavStore from './Nav/useNavStore';
 import SidebarLink from './Sidebar/SidebarLink';
+import SidebarButton from './Sidebar/SidebarButton';
 import CaretLeft16 from './icons/CaretLeft16';
 import MagnifyingGlass from './icons/MagnifyingGlass';
 import HashIcon16 from './icons/HashIcon16';
@@ -58,11 +54,10 @@ function GroupHeader({ meta }: { meta?: GroupMeta }) {
 }
 
 export default function GroupSidebar() {
-  const flag = useRouteGroup();
+  const flag = useNavStore((state) => state.flag);
   const group = useGroup(flag);
-  const location = useLocation();
   const isMobile = useIsMobile();
-  const routeState = location.state as ModalLocationState | null;
+  const navSetMain = useNavStore((state) => state.setLocationMain);
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get activity count from hark store
   const activityCount = 0;
@@ -75,31 +70,19 @@ export default function GroupSidebar() {
         isMobile && 'fixed top-0 left-0 z-40 w-full'
       )}
     >
-      {isMobile ? (
-        <header className="flex items-center border-b-2 border-gray-50 p-4">
-          <RetainedStateLink to="/" className="flex items-center">
-            <LeftIcon className="h-5 w-5 text-gray-500" />
-            <h1 className="text-lg font-bold">{group?.meta.title}</h1>
-          </RetainedStateLink>
-          {routeState?.backgroundLocation ? (
-            <Link
-              to={routeState.backgroundLocation}
-              className="icon-button ml-auto h-8 w-8"
-              aria-label="Close Channels Menu"
-            >
-              <XIcon className="h-6 w-6" />
-            </Link>
-          ) : null}
-        </header>
-      ) : null}
-      <div className="h-full overflow-y-auto p-2">
+      <div
+        className={classNames(
+          'h-full w-full overflow-y-auto p-2',
+          !isMobile && 'w-64'
+        )}
+      >
         <ul>
-          <SidebarLink
+          <SidebarButton
             icon={<CaretLeft16 className="h-6 w-6" />}
-            to={`/groups`}
+            onClick={navSetMain}
           >
             All Groups
-          </SidebarLink>
+          </SidebarButton>
           <GroupHeader meta={group?.meta} />
           <NotificationLink
             count={activityCount}

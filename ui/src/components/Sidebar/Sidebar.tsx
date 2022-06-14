@@ -1,16 +1,15 @@
 import classNames from 'classnames';
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ModalLocationState } from '../../logic/routing';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
+import useNavStore from '../Nav/useNavStore';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
 import AsteriskIcon from '../icons/AsteriskIcon';
 import MagnifyingGlass from '../icons/MagnifyingGlass';
-import XIcon from '../icons/XIcon';
 import NotificationLink from './NotificationLink';
+import SidebarButton from './SidebarButton';
 import SidebarLink from './SidebarLink';
 import CaretDownIcon from '../icons/CaretDownIcon';
 import AddIcon16 from '../icons/AddIcon16';
@@ -18,13 +17,15 @@ import useSidebarSort from '../../logic/useSidebarSort';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
+  const setNavGroups = useNavStore((state) => state.setLocationGroups);
   return (
-    <SidebarLink to={`/groups/${flag}`} retainState>
+    <SidebarButton onClick={() => setNavGroups(flag)}>
       {group?.meta.title}
-    </SidebarLink>
+    </SidebarButton>
   );
 }
 
+// Gang is a pending group invite
 function GangItem(props: { flag: string }) {
   const { flag } = props;
   return (
@@ -37,9 +38,7 @@ function GangItem(props: { flag: string }) {
 export default function Sidebar() {
   const flags = useGroupList();
   const gangs = useGangList();
-  const location = useLocation();
   const isMobile = useIsMobile();
-  const routeState = location.state as ModalLocationState | null;
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get notification count from hark store
   const notificationCount = 0;
@@ -48,24 +47,11 @@ export default function Sidebar() {
     <nav className="h-full">
       <div
         className={classNames(
-          'h-full min-w-56 border-r-2 border-gray-50 bg-white',
-          isMobile && 'fixed top-0 left-0 z-50 w-full'
+          'h-full border-r-2 border-gray-50 bg-white',
+          !isMobile && 'w-64',
+          isMobile && 'fixed top-0 left-0 z-40 w-full'
         )}
       >
-        {isMobile ? (
-          <header className="flex items-center border-b-2 border-gray-50 p-4">
-            <h1 className="text-lg font-bold">Groups</h1>
-            {routeState?.backgroundLocation ? (
-              <Link
-                to={routeState.backgroundLocation}
-                className="icon-button ml-auto h-8 w-8"
-                aria-label="Close Main Menu"
-              >
-                <XIcon className="h-6 w-6" />
-              </Link>
-            ) : null}
-          </header>
-        ) : null}
         <ul className="p-2">
           <NotificationLink
             count={notificationCount}

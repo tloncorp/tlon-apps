@@ -6,7 +6,7 @@ exports[`Sidebar > renders as expected 1`] = `
     class="h-full"
   >
     <div
-      class="h-full min-w-56 border-r-2 border-gray-50 bg-white"
+      class="h-full border-r-2 border-gray-50 bg-white w-64"
     >
       <ul
         class="p-2"
@@ -18,7 +18,7 @@ exports[`Sidebar > renders as expected 1`] = `
           >
             <div>
               <svg
-                class="h-6 w-6 bg-gray-50 p-2"
+                class="h-6 w-6 rounded bg-gray-50 p-2"
                 fill="none"
                 viewBox="0 0 8 8"
                 xmlns="http://www.w3.org/2000/svg"
