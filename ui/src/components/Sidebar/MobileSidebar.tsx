@@ -15,7 +15,7 @@ export default function MobileSidebar() {
   const notificationCount = 0;
 
   return (
-    <section className="fixed top-0 left-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
+    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
       <header className="flex-none px-2 py-1">
         {secondary === 'main' ? (
           <SidebarSorter
@@ -34,9 +34,9 @@ export default function MobileSidebar() {
           </h1>
         )}
       </header>
-      <nav className="flex-1">
+      <nav className="h-full flex-1 overflow-y-auto">
         {secondary === 'main' ? (
-          <ul className="h-full overflow-y-auto p-2">
+          <ul className="h-full p-2">
             <GroupList />
           </ul>
         ) : secondary === 'notifications' ? (
