@@ -41,6 +41,10 @@ export default function MessagesSidebar() {
         return false;
       }
 
+      if (pinned.includes(b)) {
+        return false;
+      }
+
       if (filter === filters.groups && isDMBrief(b)) {
         return false;
       }

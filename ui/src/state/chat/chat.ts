@@ -84,6 +84,26 @@ export const useChatState = create<ChatState>((set, get) => ({
   pendingDms: [],
   pinnedDms: [],
   briefs: {},
+  pinDm: async (whom) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'chat-remark-action',
+      json: {
+        whom,
+        diff: { pinned: true },
+      },
+    });
+  },
+  unpinDm: async (whom) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'chat-remark-action',
+      json: {
+        whom,
+        diff: { pinned: false },
+      },
+    });
+  },
   markRead: async (whom) => {
     await api.poke({
       app: 'chat',
