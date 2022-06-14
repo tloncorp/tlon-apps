@@ -10,7 +10,7 @@ interface NavStore {
   setLocationMain: () => void;
   setLocationHidden: () => void;
   setLocationGroups: (flag: string) => void;
-  setLocationDM: (flag?: string) => void;
+  setLocationDM: () => void;
   navigateSecondary: (loc: NavSecondaryLocation) => void;
 }
 

@@ -80,7 +80,7 @@ export default function GroupSidebar() {
           >
             All Channels
           </SidebarLink>
-          <li>
+          <li className="my-1">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger
                 className={cn(

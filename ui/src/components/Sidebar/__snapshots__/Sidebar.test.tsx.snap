@@ -6,7 +6,7 @@ exports[`Sidebar > renders as expected 1`] = `
     class="h-full"
   >
     <div
-      class="h-full min-w-56 border-r-2 border-gray-50 bg-white"
+      class="h-full border-r-2 border-gray-50 bg-white w-64"
     >
       <ul
         class="p-2"
@@ -105,7 +105,9 @@ exports[`Sidebar > renders as expected 1`] = `
             </h3>
           </a>
         </li>
-        <li>
+        <li
+          class="my-1"
+        >
           <button
             aria-haspopup="menu"
             aria-label="Groups Sort Options"

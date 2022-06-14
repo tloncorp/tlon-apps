@@ -142,45 +142,6 @@ exports[`GroupSidebar > renders as expected 1`] = `
           </button>
         </li>
       </ul>
-      <section
-        class="fixed inset-0 z-40 flex h-full w-full flex-col overflow-x-hidden border-r-2 border-gray-50 bg-white"
-      >
-        <header
-          class="px-2 py-1"
-        >
-          <button
-            class="default-focus inline-flex items-center rounded-lg p-2 text-xl font-medium text-gray-800 hover:bg-gray-50"
-          >
-            <svg
-              class="mr-4 h-6 w-6 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                class="stroke-current"
-                d="m15 18-6-6 6-6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-              />
-            </svg>
-            Channels
-          </button>
-        </header>
-        <div
-          class="h-full w-full overflow-y-auto p-2"
-        />
-        <footer
-          class="mt-auto border-t-2 border-gray-50"
-        >
-          <nav>
-            <ul>
-              <li />
-            </ul>
-          </nav>
-        </footer>
-      </section>
     </div>
   </nav>
 </DocumentFragment>

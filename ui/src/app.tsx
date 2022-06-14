@@ -24,7 +24,7 @@ import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
 import { DmThread, GroupChatThread } from './chat/ChatThread/ChatThread';
 import Policy from './pages/Policy';
-import useMedia, { useIsMobile } from './logic/useMedia';
+import useMedia from './logic/useMedia';
 import useIsChat from './logic/useIsChat';
 import useErrorHandler from './logic/useErrorHandler';
 import { useSettingsState, useTheme } from './state/settings';

@@ -46,8 +46,9 @@ export default function Sidebar() {
     <nav className="h-full">
       <div
         className={classNames(
-          'h-full min-w-56 border-r-2 border-gray-50 bg-white',
-          isMobile && 'fixed top-0 left-0 z-50 w-full'
+          'h-full border-r-2 border-gray-50 bg-white',
+          !isMobile && 'w-64',
+          isMobile && 'fixed top-0 left-0 z-40 w-full'
         )}
       >
         {isMobile ? (
@@ -88,7 +89,7 @@ export default function Sidebar() {
           </SidebarLink>
 
           {!isMobile ? (
-            <li>
+            <li className="my-1">
               <SidebarSorter
                 sortFn={sortFn}
                 setSortFn={setSortFn}
