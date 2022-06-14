@@ -14,12 +14,16 @@ import SidebarLink from './SidebarLink';
 import CaretDownIcon from '../icons/CaretDownIcon';
 import AddIcon16 from '../icons/AddIcon16';
 import useSidebarSort from '../../logic/useSidebarSort';
+import GroupActions from './GroupActions';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
   const setNavGroups = useNavStore((state) => state.setLocationGroups);
   return (
-    <SidebarButton onClick={() => setNavGroups(flag)}>
+    <SidebarButton onClick={() => setNavGroups(flag)}
+      className="group justify-between"
+      actions={<GroupActions flag={flag} />}
+    >
       {group?.meta.title}
     </SidebarButton>
   );
