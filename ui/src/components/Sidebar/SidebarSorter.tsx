@@ -27,7 +27,7 @@ export default function SidebarSorter({
         </DropdownMenu.Trigger>
       ) : (
         <DropdownMenu.Trigger
-          className="default-focus flex items-center rounded-lg bg-gray-50 p-2.5 text-base font-semibold"
+          className="default-focus flex items-center rounded-lg bg-gray-50 py-2 px-4 text-base font-semibold"
           aria-label="Groups Sort Options"
         >
           <span className="mr-2 pl-1">{`All Groups: ${sortFn}`}</span>

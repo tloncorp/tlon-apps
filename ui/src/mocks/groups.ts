@@ -32,7 +32,8 @@ const mockGroupOne: Group = {
     title: 'Tlon Corporation',
     description:
       'We build infrastructre that is technically excellent, architecturally sound, and aesthetically beautiful',
-    image: '',
+    image:
+      'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.6.14..18.37.11-Icon Box.png',
   },
 };
 

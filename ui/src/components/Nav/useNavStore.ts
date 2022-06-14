@@ -1,7 +1,11 @@
 import create from 'zustand';
 
-type NavPrimaryLocation = 'main' | 'dm' | 'group' | 'hidden';
-type NavSecondaryLocation = 'main' | 'notifications' | 'search' | 'all' | '';
+export type NavPrimaryLocation = 'main' | 'dm' | 'group' | 'hidden';
+export type NavSecondaryLocation =
+  | 'main'
+  | 'notifications'
+  | 'search'
+  | 'group';
 
 interface NavStore {
   primary: NavPrimaryLocation;

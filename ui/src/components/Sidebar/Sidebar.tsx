@@ -5,20 +5,24 @@ import { useGangList, useGroup, useGroupList } from '../../state/groups';
 import useNavStore from '../Nav/useNavStore';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
-import AsteriskIcon from '../icons/AsteriskIcon';
-import MagnifyingGlass from '../icons/MagnifyingGlass';
-import NotificationLink from './NotificationLink';
+import AsteriskIcon from '../icons/Asterisk16Icon';
+import MagnifyingGlass from '../icons/MagnifyingGlass16Icon';
 import SidebarButton from './SidebarButton';
 import SidebarLink from './SidebarLink';
-import AddIcon16 from '../icons/AddIcon16';
+import AddIcon16 from '../icons/Add16Icon';
 import useSidebarSort from '../../logic/useSidebarSort';
 import SidebarSorter from './SidebarSorter';
+import ActivityIndicator from './ActivityIndicator';
+import GroupAvatar from '../GroupAvatar';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
   const setNavGroups = useNavStore((state) => state.setLocationGroups);
   return (
-    <SidebarButton onClick={() => setNavGroups(flag)}>
+    <SidebarButton
+      icon={<GroupAvatar img={group?.meta.image} />}
+      onClick={() => setNavGroups(flag)}
+    >
       {group?.meta.title}
     </SidebarButton>
   );
@@ -28,7 +32,7 @@ function GroupItem({ flag }: { flag: string }) {
 function GangItem(props: { flag: string }) {
   const { flag } = props;
   return (
-    <SidebarLink to={`/gangs/${flag}`}>
+    <SidebarLink icon={<GroupAvatar />} to={`/gangs/${flag}`}>
       <GangName flag={flag} />
     </SidebarLink>
   );
@@ -62,34 +66,35 @@ export default function Sidebar() {
           </header>
         ) : null}
         <ul className="p-2">
-          <NotificationLink
-            count={notificationCount}
-            title={'Notifications'}
-            to={'/notifications'}
-          />
           <SidebarLink
-            icon={<MagnifyingGlass className="h-6 w-6" />}
+            icon={<ActivityIndicator count={notificationCount} />}
+            to={`/notifications`}
+          >
+            Notifications
+          </SidebarLink>
+          <SidebarLink
+            icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
             to="/search"
           >
             Search My Groups
           </SidebarLink>
           <SidebarLink
             color="text-blue"
-            icon={<AsteriskIcon className="h-6 w-6 p-1.5" />}
+            icon={<AsteriskIcon className="m-1 h-4 w-4" />}
             to="/groups/join"
           >
             Join Group
           </SidebarLink>
           <SidebarLink
             color="text-green"
-            icon={<AddIcon16 className="h-6 w-6 p-1.5" />}
+            icon={<AddIcon16 className="m-1 h-4 w-4" />}
             to="/groups/new"
           >
             Create Group
           </SidebarLink>
 
           {!isMobile ? (
-            <li className="my-1">
+            <li className="p-2">
               <SidebarSorter
                 sortFn={sortFn}
                 setSortFn={setSortFn}

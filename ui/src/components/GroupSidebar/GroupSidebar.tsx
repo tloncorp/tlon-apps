@@ -6,11 +6,11 @@ import { GroupMeta } from '../../types/groups';
 import useNavStore from '../Nav/useNavStore';
 import SidebarLink from '../Sidebar/SidebarLink';
 import CaretLeft16Icon from '../icons/CaretLeft16Icon';
-import MagnifyingGlass from '../icons/MagnifyingGlass';
+import MagnifyingGlass from '../icons/MagnifyingGlass16Icon';
 import HashIcon16 from '../icons/HashIcon16';
-import NotificationLink from '../Sidebar/NotificationLink';
 import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
+import ActivityIndicator from '../Sidebar/ActivityIndicator';
 
 function GroupHeader({ meta }: { meta?: GroupMeta }) {
   if (!meta) {
@@ -45,32 +45,33 @@ export default function GroupSidebar() {
   }
 
   return (
-    <nav className="h-full w-64 flex-none border-r-2 border-gray-50 bg-white">
-      <header className="px-2 py-1">
+    <nav className="h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white sm:p-2">
+      <header className="flex-none px-2 py-1 sm:p-0">
         <button
           className="default-focus flex w-full items-center rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
           onClick={navSetMain}
         >
-          <CaretLeft16Icon className="h-6 w-6 text-gray-400" />
+          <CaretLeft16Icon className="m-1 mr-4 h-4 w-4 text-gray-400" />
           All Groups
         </button>
       </header>
-      <div className="h-full overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-2 sm:p-0">
         <ul>
           <GroupHeader meta={group?.meta} />
-          <NotificationLink
-            count={activityCount}
-            title={'Activity'}
-            to={`/groups/${flag}/activity`}
-          />
           <SidebarLink
-            icon={<MagnifyingGlass className="h-6 w-6" />}
+            icon={<ActivityIndicator count={activityCount} />}
+            to={`/groups/${flag}/activity`}
+          >
+            Activity
+          </SidebarLink>
+          <SidebarLink
+            icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
             to={`/groups/${flag}/search`}
           >
             Find in Group
           </SidebarLink>
           <SidebarLink
-            icon={<HashIcon16 className="h-6 w-6" />}
+            icon={<HashIcon16 className="m-1 h-4 w-4" />}
             to={`/groups/${flag}/all`}
           >
             All Channels

@@ -1,20 +1,12 @@
 import React from 'react';
-import { To } from 'react-router-dom';
 import BulletIcon from '../icons/BulletIcon';
-import SidebarLink from './SidebarLink';
 
-interface NotificationLinkProps {
+interface ActivityIndicatorProps {
   count: number;
-  title: string;
-  to: To;
 }
 
-export default function NotificationLink({
-  count,
-  title,
-  to,
-}: NotificationLinkProps) {
-  const notificationIcon = (
+export default function ActivityIndicator({ count }: ActivityIndicatorProps) {
+  return (
     <div>
       {count === 0 ? (
         <BulletIcon className="h-6 w-6 rounded bg-gray-50 p-2" />
@@ -24,11 +16,5 @@ export default function NotificationLink({
         </div>
       )}
     </div>
-  );
-
-  return (
-    <SidebarLink icon={notificationIcon} to={to}>
-      {title}
-    </SidebarLink>
   );
 }

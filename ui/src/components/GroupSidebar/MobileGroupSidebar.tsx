@@ -1,16 +1,24 @@
+import cn from 'classnames';
 import React from 'react';
+import { useGroup } from '../../state/groups';
+import GroupAvatar from '../GroupAvatar';
 import CaretLeftIcon from '../icons/CaretLeftIcon';
 import HashIcon from '../icons/HashIcon';
+import MagnifyingGlass from '../icons/MagnifyingGlassIcon';
 import useNavStore from '../Nav/useNavStore';
+import NavTab from '../NavTab';
+import ActivityIndicator from '../Sidebar/ActivityIndicator';
 import ChannelList from './ChannelList';
 
 export default function MobileGroupSidebar() {
-  const { navSetMain, navigate, flag, secondary } = useNavStore((state) => ({
+  const { navSetMain, flag, secondary } = useNavStore((state) => ({
     navSetMain: state.setLocationMain,
-    navigate: state.navigateSecondary,
     flag: state.flag,
     secondary: state.secondary,
   }));
+  const group = useGroup(flag);
+  // TODO: get activity count from hark store
+  const activityCount = 0;
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col overflow-x-hidden border-r-2 border-gray-50 bg-white">
@@ -26,8 +34,8 @@ export default function MobileGroupSidebar() {
             ? 'Notifications'
             : secondary === 'search'
             ? 'Search Channels'
-            : secondary === 'all'
-            ? 'All Channels'
+            : secondary === 'group'
+            ? 'Group'
             : null}
         </button>
       </header>
@@ -38,22 +46,32 @@ export default function MobileGroupSidebar() {
           <div />
         ) : secondary === 'search' ? (
           <div />
-        ) : secondary === 'all' ? (
+        ) : secondary === 'group' ? (
           <div />
         ) : null}
       </div>
       <footer className="mt-auto border-t-2 border-gray-50">
         <nav>
           <ul className="flex items-center">
-            <li className="flex-1 text-xs font-semibold text-gray-400">
-              <button
-                className="flex flex-col items-center p-2"
-                onClick={() => navigate('main')}
-              >
-                <HashIcon className="h-6 w-6" />
-                Channels
-              </button>
-            </li>
+            <NavTab loc="main" current={secondary}>
+              <HashIcon className="h-6 w-6" />
+              Channels
+            </NavTab>
+            <NavTab loc="group" current={secondary}>
+              <GroupAvatar
+                img={group?.meta.image}
+                className={cn(secondary !== 'group' && 'opacity-50')}
+              />
+              Group
+            </NavTab>
+            <NavTab loc="notifications" current={secondary}>
+              <ActivityIndicator count={activityCount} />
+              Activity
+            </NavTab>
+            <NavTab loc="search" current={secondary}>
+              <MagnifyingGlass className="h-6 w-6" />
+              Find
+            </NavTab>
           </ul>
         </nav>
       </footer>
