@@ -3,7 +3,7 @@
 exports[`GroupSidebar > renders as expected 1`] = `
 <DocumentFragment>
   <nav
-    class="h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white sm:p-2"
+    class="flex h-full w-64 flex-none flex-col overflow-hidden border-r-2 border-gray-50 bg-white sm:p-2"
   >
     <header
       class="flex-none px-2 py-1 sm:p-0"
@@ -29,9 +29,11 @@ exports[`GroupSidebar > renders as expected 1`] = `
       </button>
     </header>
     <div
-      class="flex-1 overflow-y-auto p-2 sm:p-0"
+      class="flex min-h-0 flex-1 flex-col p-2 sm:p-0"
     >
-      <ul>
+      <ul
+        class="flex-none"
+      >
         <li>
           <a
             class="default-focus flex items-center space-x-3 rounded-lg p-2 text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
@@ -108,6 +110,9 @@ exports[`GroupSidebar > renders as expected 1`] = `
           </a>
         </li>
       </ul>
+      <div
+        class="flex-1 overflow-y-auto"
+      />
     </div>
   </nav>
 </DocumentFragment>

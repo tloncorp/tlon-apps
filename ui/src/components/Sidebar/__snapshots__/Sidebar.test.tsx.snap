@@ -3,10 +3,10 @@
 exports[`Sidebar > renders as expected 1`] = `
 <DocumentFragment>
   <nav
-    class="h-full w-64 flex-none border-r-2 border-gray-50 bg-white"
+    class="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white"
   >
     <ul
-      class="p-2"
+      class="flex-none p-2"
     >
       <li>
         <a
@@ -139,6 +139,9 @@ exports[`Sidebar > renders as expected 1`] = `
         </button>
       </li>
     </ul>
+    <ul
+      class="h-full p-2 flex-1 overflow-y-auto"
+    />
   </nav>
 </DocumentFragment>
 `;
