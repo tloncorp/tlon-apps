@@ -92,7 +92,7 @@ export default function MessagesSidebar() {
               className={'default-focus rounded-lg p-0.5 text-gray-600'}
               aria-label="Groups Filter Options"
             >
-              <div className="default-focus flex items-center space-x-2 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
+              <div className="default-focus flex items-center space-x-2 rounded-lg py-2 text-base font-semibold hover:bg-gray-50">
                 <span className="pl-1">{filter}</span>
                 <CaretDownIcon className="w-4 text-gray-400" />
               </div>
