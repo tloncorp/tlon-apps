@@ -35,7 +35,6 @@ import DMHome from './dms/DMHome';
 import Nav from './components/Nav/Nav';
 
 interface RoutesProps {
-  isMobile: boolean;
   state: { backgroundLocation?: Location } | null;
   location: Location;
 }
@@ -111,7 +110,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
 function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
-  const isMobile = useIsMobile();
   const isChat = useIsChat();
 
   useEffect(() => {
@@ -146,9 +144,9 @@ function App() {
   return (
     <div className="flex h-full w-full">
       {isChat ? (
-        <ChatRoutes isMobile={isMobile} state={state} location={location} />
+        <ChatRoutes state={state} location={location} />
       ) : (
-        <GroupsRoutes isMobile={isMobile} state={state} location={location} />
+        <GroupsRoutes state={state} location={location} />
       )}
     </div>
   );

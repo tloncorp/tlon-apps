@@ -1,8 +1,5 @@
 import classNames from 'classnames';
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ModalLocationState } from '../../logic/routing';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
 import useNavStore from '../Nav/useNavStore';
@@ -10,13 +7,12 @@ import Divider from '../Divider';
 import GangName from '../GangName/GangName';
 import AsteriskIcon from '../icons/AsteriskIcon';
 import MagnifyingGlass from '../icons/MagnifyingGlass';
-import XIcon from '../icons/XIcon';
 import NotificationLink from './NotificationLink';
 import SidebarButton from './SidebarButton';
 import SidebarLink from './SidebarLink';
-import CaretDownIcon from '../icons/CaretDownIcon';
 import AddIcon16 from '../icons/AddIcon16';
 import useSidebarSort from '../../logic/useSidebarSort';
+import SidebarSorter from './SidebarSorter';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
@@ -54,6 +50,16 @@ export default function Sidebar() {
           isMobile && 'fixed top-0 left-0 z-50 w-full'
         )}
       >
+        {isMobile ? (
+          <header className="px-2 py-1">
+            <SidebarSorter
+              sortFn={sortFn}
+              setSortFn={setSortFn}
+              sortOptions={sortOptions}
+              isMobile={isMobile}
+            />
+          </header>
+        ) : null}
         <ul className="p-2">
           <NotificationLink
             count={notificationCount}
@@ -81,36 +87,16 @@ export default function Sidebar() {
             Create Group
           </SidebarLink>
 
-          <li>
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger
-                className={'default-focus rounded-lg p-0.5 text-gray-600'}
-                aria-label="Groups Sort Options"
-              >
-                <div className="default-focus flex items-center space-x-2 rounded-lg bg-gray-50 p-2 text-base font-semibold">
-                  <span className="pl-1">{`All Groups: ${sortFn}`}</span>
-                  <CaretDownIcon className="w-4 text-gray-400" />
-                </div>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content className="dropdown">
-                <DropdownMenu.Item
-                  disabled
-                  className="dropdown-item flex items-center space-x-2 text-gray-300"
-                >
-                  Group Ordering
-                </DropdownMenu.Item>
-                {Object.keys(sortOptions).map((k) => (
-                  <DropdownMenu.Item
-                    key={k}
-                    onSelect={() => setSortFn(k)}
-                    className="dropdown-item flex items-center space-x-2"
-                  >
-                    {k}
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          </li>
+          {!isMobile ? (
+            <li>
+              <SidebarSorter
+                sortFn={sortFn}
+                setSortFn={setSortFn}
+                sortOptions={sortOptions}
+                isMobile={isMobile}
+              />
+            </li>
+          ) : null}
 
           {flags.sort(sortOptions[sortFn]).map((flag) => (
             <GroupItem key={flag} flag={flag} />

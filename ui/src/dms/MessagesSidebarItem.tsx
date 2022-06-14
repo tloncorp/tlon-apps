@@ -8,6 +8,8 @@ import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 import { ChatBrief } from '../types/chat';
 import { isDMBrief } from '../state/chat';
 import { useChannel, useGroupState } from '../state/groups';
+import { useIsMobile } from '../logic/useMedia';
+import useNavStore from '../components/Nav/useNavStore';
 
 interface MessagesSidebarItemProps {
   whom: string;
@@ -16,6 +18,8 @@ interface MessagesSidebarItemProps {
 }
 
 function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
+  const isMobile = useIsMobile();
+  const hideNav = useNavStore((state) => state.setLocationHidden);
   const groups = useGroupState((s) => s.groups);
   const groupFlag = Object.entries(groups).find(
     ([k, v]) => whom in v.channels
@@ -32,6 +36,7 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
       <NavLink
         to={`/groups/${groupFlag}/channels/chat/${whom}`}
         className="default-focus flex flex-1 items-center rounded-lg p-2"
+        onClick={() => isMobile && hideNav()}
       >
         {(img || '').length > 0 ? (
           <img
@@ -49,20 +54,20 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
           />
         ) : null}
       </NavLink>
-      {/* <DmOptions
-        ship={whom}
-        className="group-two absolute right-0 opacity-0 transition-opacity hover:opacity-100 focus:opacity-100 group-hover:opacity-100"
-      /> */}
     </li>
   );
 }
 
 function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
+  const isMobile = useIsMobile();
+  const hideNav = useNavStore((state) => state.setLocationHidden);
+
   return (
     <li className="group relative flex items-center justify-between rounded-lg text-gray-600">
       <NavLink
         to={`/dm/${whom}`}
         className="default-focus flex flex-1 items-center rounded-lg p-2"
+        onClick={() => isMobile && hideNav()}
       >
         {pending ? (
           <UnknownAvatarIcon className="h-6 text-blue" />

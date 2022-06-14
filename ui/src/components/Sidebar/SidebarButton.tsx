@@ -3,12 +3,14 @@ import React from 'react';
 
 interface SidebarProps extends React.ComponentPropsWithoutRef<'button'> {
   className?: string;
+  color?: string;
   icon?: React.ReactNode;
 }
 
 export default function SidebarButton({
   children,
   className,
+  color = 'text-gray-600',
   icon,
   ...rest
 }: SidebarProps) {
@@ -16,7 +18,8 @@ export default function SidebarButton({
     <li>
       <button
         className={cn(
-          'default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50',
+          'default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50',
+          color,
           className
         )}
         {...rest}

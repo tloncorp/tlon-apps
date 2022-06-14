@@ -12,7 +12,7 @@ import { useIsMobile } from '../logic/useMedia';
 import SidebarLink from '../components/Sidebar/SidebarLink';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass';
 import useSidebarSort, { RECENT } from '../logic/useSidebarSort';
-import CaretDownIcon from '../components/icons/CaretDownIcon';
+import CaretDown16Icon from '../components/icons/CaretDown16Icon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
 import PersonSmallIcon from '../components/icons/PersonSmallIcon';
 import CmdSmallIcon from '../components/icons/CmdSmallIcon';
@@ -80,7 +80,7 @@ export default function MessagesSidebar() {
             >
               <div className="default-focus flex items-center space-x-2 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
                 <span className="pl-1">{filter}</span>
-                <CaretDownIcon className="w-4 text-gray-400" />
+                <CaretDown16Icon className="w-4 text-gray-400" />
               </div>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content className="dropdown text-gray-600">
