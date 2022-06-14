@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import cn from 'classnames';
 import EllipsisIcon from '../icons/EllipsisIcon';
 import InviteIcon16 from '../icons/InviteIcon16';
 import LinkIcon16 from '../icons/LinkIcon16';
@@ -10,6 +11,7 @@ import GroupInviteDialog from './GroupInviteDialog';
 export default function GroupActions({ flag }: { flag: string }) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const onCloseInviteDialog = useCallback(
     (
@@ -51,8 +53,13 @@ export default function GroupActions({ flag }: { flag: string }) {
 
   return (
     <div className="justify-self-end">
-      <div className="opacity-0 group-hover:opacity-100">
-        <DropdownMenu.Root>
+      <div
+        className={cn(
+          'group-hover:opacity-100',
+          isOpen ? 'opacity:100' : 'opacity-0'
+        )}
+      >
+        <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)}>
           <DropdownMenu.Trigger
             className={'default-focus rounded-lg p-0.5 text-gray-600'}
             aria-label="Open Message Options"
