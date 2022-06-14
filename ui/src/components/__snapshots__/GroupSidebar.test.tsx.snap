@@ -10,30 +10,35 @@ exports[`GroupSidebar > renders as expected 1`] = `
     >
       <ul>
         <button
-          class="default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
+          class="default-focus flex w-full items-center justify-between space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
         >
-          <svg
-            class="h-6 w-6"
-            fill="none"
-            height="24"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              class="stroke-current"
-              d="M13 16L9 12L13 8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-            />
-          </svg>
           <div
-            class="text-light-gray-600 max-w-[128px] overflow-hidden text-ellipsis whitespace-nowrap"
-            title="All Groups"
+            class="flex items-center"
           >
-            All Groups
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              height="24"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="stroke-current"
+                d="M13 16L9 12L13 8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+              />
+            </svg>
+            <div
+              class="text-light-gray-600 mx-3 max-w-[128px] overflow-hidden text-ellipsis whitespace-nowrap"
+              title="All Groups"
+            >
+              All Groups
+            </div>
           </div>
+          <div />
         </button>
         <li>
           <a

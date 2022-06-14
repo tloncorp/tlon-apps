@@ -20,8 +20,9 @@ function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
   const setNavGroups = useNavStore((state) => state.setLocationGroups);
   return (
-    <SidebarButton onClick={() => setNavGroups(flag)}
-      className="group justify-between"
+    <SidebarButton
+      onClick={() => setNavGroups(flag)}
+      className="group"
       actions={<GroupActions flag={flag} />}
     >
       {group?.meta.title}

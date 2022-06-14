@@ -10,11 +10,22 @@ import GroupInviteDialog from './GroupInviteDialog';
 export default function GroupActions({ flag }: { flag: string }) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
-  const closeInviteDialog = useCallback(() => setShowInviteDialog(false), []);
+
+  const onCloseInviteDialog = useCallback(
+    (
+      e:
+        | React.MouseEvent<HTMLDivElement, MouseEvent>
+        | React.MouseEvent<HTMLButtonElement, MouseEvent>
+    ) => {
+      e.stopPropagation();
+      setShowInviteDialog(false);
+    },
+    []
+  );
 
   const onInviteClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-      e.stopPropagation(); // Only show invite modal (suppress navigation)
+      e.stopPropagation();
       setShowInviteDialog(true);
     },
     []
@@ -22,7 +33,7 @@ export default function GroupActions({ flag }: { flag: string }) {
 
   const onCopyClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-      e.stopPropagation(); // Only copy invite link (suppress navigation)
+      e.stopPropagation();
       doCopy(flag);
     },
     [doCopy, flag]
@@ -30,7 +41,7 @@ export default function GroupActions({ flag }: { flag: string }) {
 
   const onPinClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-      e.stopPropagation(); // Only pin group (suppress navigation)
+      e.stopPropagation();
       // TODO
       // eslint-disable-next-line no-console
       console.log('pin');
@@ -39,7 +50,7 @@ export default function GroupActions({ flag }: { flag: string }) {
   );
 
   return (
-    <>
+    <div className="justify-self-end">
       <div className="opacity-0 group-hover:opacity-100">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger
@@ -80,9 +91,9 @@ export default function GroupActions({ flag }: { flag: string }) {
       <GroupInviteDialog
         flag={flag}
         open={showInviteDialog}
-        onClose={closeInviteDialog}
+        onClose={onCloseInviteDialog}
         onOpenChange={setShowInviteDialog}
       />
-    </>
+    </div>
   );
 }

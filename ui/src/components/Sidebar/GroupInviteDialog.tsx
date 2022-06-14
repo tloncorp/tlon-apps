@@ -3,7 +3,11 @@ import Dialog, { DialogContent } from '../Dialog';
 
 interface GroupInviteDialogProps {
   flag: string;
-  onClose: () => void;
+  onClose: (
+    e:
+      | React.MouseEvent<HTMLDivElement, MouseEvent>
+      | React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }
@@ -14,7 +18,10 @@ export default function GroupInviteDialog({
   onOpenChange,
   open,
 }: GroupInviteDialogProps) {
-  const onInvite = useCallback(() => onClose(), [onClose]); // TODO: invite poke
+  const onInvite = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => onClose(e),
+    [onClose]
+  ); // TODO: invite poke
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
