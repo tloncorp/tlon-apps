@@ -30,7 +30,7 @@ export default function ChannelList({ flag }: { flag: string }) {
     <div>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          className="default-focus mt-2 mb-3 rounded-lg p-2 text-gray-600"
+          className="default-focus mt-2 mb-3 rounded-lg p-2 text-gray-600 sm:m-0"
           aria-label="Channels Sort Options"
         >
           <div className="default-focus flex items-center space-x-2 rounded-lg bg-gray-50 p-2 text-base font-semibold">
