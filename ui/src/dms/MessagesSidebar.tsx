@@ -73,6 +73,10 @@ export default function MessagesSidebar() {
         >
           New Message
         </SidebarLink>
+        <li className="flex items-center space-x-2 px-2 py-3">
+          <span className="text-xs font-semibold text-gray-400">Pinned</span>
+          <div className="grow border-b-2 border-gray-100" />
+        </li>
         <li>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger
