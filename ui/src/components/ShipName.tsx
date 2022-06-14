@@ -1,11 +1,13 @@
 import { cite } from '@urbit/api';
 import React, { HTMLAttributes } from 'react';
+import { useContact } from '../state/contact';
 
 type ShipNameProps = {
   name: string;
 } & HTMLAttributes<HTMLSpanElement>;
 
 export default function ShipName({ name, ...props }: ShipNameProps) {
+  const contact = useContact(name);
   const separator = /([_^-])/;
   const citedName = cite(name);
 
@@ -18,15 +20,24 @@ export default function ShipName({ name, ...props }: ShipNameProps) {
 
   return (
     <span {...props}>
-      <span aria-hidden>~</span>
-      <span>{first}</span>
-      {parts.length > 1 && (
+      {contact?.nickname ? (
+        <span>{contact.nickname}</span>
+      ) : (
         <>
-          {parts.map((piece, index) => (
-            <span key={`${piece}-${index}`} aria-hidden={separator.test(piece)}>
-              {piece}
-            </span>
-          ))}
+          <span aria-hidden>~</span>
+          <span>{first}</span>
+          {parts.length > 1 && (
+            <>
+              {parts.map((piece, index) => (
+                <span
+                  key={`${piece}-${index}`}
+                  aria-hidden={separator.test(piece)}
+                >
+                  {piece}
+                </span>
+              ))}
+            </>
+          )}
         </>
       )}
     </span>
