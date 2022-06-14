@@ -5,7 +5,7 @@ import RetainedStateLink from '../RetainedStateLink';
 
 type SidebarProps = PropsWithChildren<{
   className?: string;
-  icon: React.ReactNode;
+  icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   retainState?: boolean;
 }> &
   NavLinkProps;
@@ -24,7 +24,7 @@ export default function SidebarLink({
       <TheLink
         className={({ isActive }) =>
           cn(
-            'default-focus flex items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50',
+            'default-focus flex items-center space-x-3 rounded-lg p-2 text-lg font-semibold hover:bg-gray-50 sm:text-base',
             isActive && 'bg-gray-50',
             color ?? 'text-gray-600',
             className
@@ -32,8 +32,12 @@ export default function SidebarLink({
         }
         {...rest}
       >
-        {icon}
-        {typeof children === 'string' ? <h3>{children}</h3> : children}
+        {({ isActive }) => (
+          <>
+            {typeof icon === 'function' ? icon(isActive) : icon}
+            {typeof children === 'string' ? <h3>{children}</h3> : children}
+          </>
+        )}
       </TheLink>
     </li>
   );

@@ -22,7 +22,7 @@ export default function MobileGroupSidebar() {
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col overflow-x-hidden border-r-2 border-gray-50 bg-white">
-      <header className="px-2 py-1">
+      <header className="flex-none px-2 py-1">
         <button
           className="default-focus inline-flex items-center rounded-lg p-2 text-xl font-medium text-gray-800 hover:bg-gray-50"
           onClick={navSetMain}
@@ -39,7 +39,7 @@ export default function MobileGroupSidebar() {
             : null}
         </button>
       </header>
-      <div className="h-full w-full overflow-y-auto p-2">
+      <div className="h-full w-full flex-1 overflow-y-auto p-2">
         {secondary === 'main' ? (
           <ChannelList flag={flag} />
         ) : secondary === 'notifications' ? (
@@ -50,26 +50,26 @@ export default function MobileGroupSidebar() {
           <div />
         ) : null}
       </div>
-      <footer className="mt-auto border-t-2 border-gray-50">
+      <footer className="mt-auto flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex items-center">
-            <NavTab loc="main" current={secondary}>
-              <HashIcon className="h-6 w-6" />
+            <NavTab loc="main">
+              <HashIcon className="mb-0.5 h-6 w-6" />
               Channels
             </NavTab>
-            <NavTab loc="group" current={secondary}>
+            <NavTab loc="group">
               <GroupAvatar
                 img={group?.meta.image}
-                className={cn(secondary !== 'group' && 'opacity-50')}
+                className={cn('mb-0.5', secondary !== 'group' && 'opacity-50')}
               />
               Group
             </NavTab>
-            <NavTab loc="notifications" current={secondary}>
-              <ActivityIndicator count={activityCount} />
+            <NavTab loc="notifications">
+              <ActivityIndicator count={activityCount} className="mb-0.5" />
               Activity
             </NavTab>
-            <NavTab loc="search" current={secondary}>
-              <MagnifyingGlass className="h-6 w-6" />
+            <NavTab loc="search">
+              <MagnifyingGlass className="mb-0.5 h-6 w-6" />
               Find
             </NavTab>
           </ul>

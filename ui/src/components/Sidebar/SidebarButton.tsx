@@ -18,7 +18,7 @@ export default function SidebarButton({
     <li>
       <button
         className={cn(
-          'default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50',
+          'default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-lg font-semibold hover:bg-gray-50 sm:text-base',
           color,
           className
         )}

@@ -13,6 +13,8 @@ function Groups() {
   useEffect(() => {
     if (!isMobile) {
       useNavStore.getState().setLocationGroups(flag);
+    } else {
+      useNavStore.getState().setLocationHidden();
     }
   }, [flag, isMobile]);
 

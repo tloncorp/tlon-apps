@@ -4,17 +4,14 @@ import useNavStore, { NavSecondaryLocation } from './Nav/useNavStore';
 
 type NavTabProps = PropsWithChildren<{
   loc: NavSecondaryLocation;
-  current: NavSecondaryLocation;
   className?: string;
 }>;
 
-export default function NavTab({
-  loc,
-  current,
-  children,
-  className,
-}: NavTabProps) {
-  const navigate = useNavStore((state) => state.navigateSecondary);
+export default function NavTab({ loc, children, className }: NavTabProps) {
+  const { navigate, current } = useNavStore((state) => ({
+    navigate: state.navigateSecondary,
+    current: state.secondary,
+  }));
 
   return (
     <li

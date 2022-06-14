@@ -11,6 +11,7 @@ import HashIcon16 from '../icons/HashIcon16';
 import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
 import ActivityIndicator from '../Sidebar/ActivityIndicator';
+import GroupAvatar from '../GroupAvatar';
 
 function GroupHeader({ meta }: { meta?: GroupMeta }) {
   if (!meta) {
@@ -19,14 +20,7 @@ function GroupHeader({ meta }: { meta?: GroupMeta }) {
 
   return (
     <li className="flex items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600">
-      {(meta?.image || '').length > 0 ? (
-        <img
-          className="h-6 w-6 rounded border-2 border-transparent"
-          src={meta?.image}
-        />
-      ) : (
-        <div className="h-6 w-6 rounded border-2 border-gray-100" />
-      )}
+      <GroupAvatar img={meta?.image} />
       <h3>{meta?.title}</h3>
     </li>
   );

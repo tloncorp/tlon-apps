@@ -26,6 +26,21 @@ export default function ChannelList({ flag }: { flag: string }) {
     return null;
   }
 
+  const icon = (active: boolean) =>
+    isMobile ? (
+      <span
+        className={cn(
+          'flex h-12 w-12 items-center justify-center rounded-md',
+          !active && 'bg-gray-50',
+          active && 'bg-white'
+        )}
+      >
+        <BubbleIcon className="h-6 w-6" />
+      </span>
+    ) : (
+      <BubbleIcon className="h-6 w-6" />
+    );
+
   return (
     <div>
       <DropdownMenu.Root>
@@ -44,7 +59,7 @@ export default function ChannelList({ flag }: { flag: string }) {
         {Object.entries(group.channels).map(([key, channel]) => (
           <SidebarLink
             key={key}
-            icon={<BubbleIcon className="h-6 w-6" />}
+            icon={icon}
             to={channelHref(flag, key)}
             onClick={hide}
           >

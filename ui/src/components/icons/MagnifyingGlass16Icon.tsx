@@ -1,7 +1,7 @@
 import React from 'react';
 import { IconProps } from './icon';
 
-export default function MagnifyingGlass({ className }: IconProps) {
+export default function MagnifyingGlass16Icon({ className }: IconProps) {
   return (
     <svg
       className={className}
