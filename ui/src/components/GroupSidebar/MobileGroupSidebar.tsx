@@ -1,11 +1,13 @@
 import React from 'react';
 import CaretLeftIcon from '../icons/CaretLeftIcon';
+import HashIcon from '../icons/HashIcon';
 import useNavStore from '../Nav/useNavStore';
 import ChannelList from './ChannelList';
 
 export default function MobileGroupSidebar() {
-  const { navSetMain, flag, secondary } = useNavStore((state) => ({
+  const { navSetMain, navigate, flag, secondary } = useNavStore((state) => ({
     navSetMain: state.setLocationMain,
+    navigate: state.navigateSecondary,
     flag: state.flag,
     secondary: state.secondary,
   }));
@@ -42,8 +44,16 @@ export default function MobileGroupSidebar() {
       </div>
       <footer className="mt-auto border-t-2 border-gray-50">
         <nav>
-          <ul>
-            <li />
+          <ul className="flex items-center">
+            <li className="flex-1 text-xs font-semibold text-gray-400">
+              <button
+                className="flex flex-col items-center p-2"
+                onClick={() => navigate('main')}
+              >
+                <HashIcon className="h-6 w-6" />
+                Channels
+              </button>
+            </li>
           </ul>
         </nav>
       </footer>

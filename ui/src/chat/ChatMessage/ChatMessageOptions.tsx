@@ -26,9 +26,9 @@ export default function ChatMessageOptions(props: {
 
   const navigate = useNavigate();
   return (
-    <div className="absolute right-2 -top-5 z-10 flex flex space-x-[2px] rounded-lg border-[1px] border-gray-100 bg-white p-[2px] align-middle opacity-0 group-one-hover:opacity-100">
+    <div className="absolute right-2 -top-5 z-10 flex flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle opacity-0 group-one-hover:opacity-100">
       <IconButton
-        icon={<FaceIcon className="text-gray-400" />}
+        icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
         label="React"
         showTooltip
         action={() => console.log('react')}
@@ -36,13 +36,13 @@ export default function ChatMessageOptions(props: {
       {!writ.memo.replying ? (
         <>
           <IconButton
-            icon={<BubbleIcon className="text-gray-400" />}
+            icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
             label="Reply"
             showTooltip
             action={reply}
           />
           <IconButton
-            icon={<HashIcon className="text-gray-400" />}
+            icon={<HashIcon className="h-6 w-6 text-gray-400" />}
             label="Start Thread"
             showTooltip
             action={() => navigate(`message/${writ.seal.id}`)}
@@ -50,7 +50,7 @@ export default function ChatMessageOptions(props: {
         </>
       ) : null}
       <IconButton
-        icon={<ShareIcon className="text-gray-400" />}
+        icon={<ShareIcon className="h-6 w-6 text-gray-400" />}
         label="Send to..."
         showTooltip
         action={() => console.log('send to..')}
@@ -65,7 +65,7 @@ export default function ChatMessageOptions(props: {
       ) : null}
 
       <IconButton
-        icon={<EllipsisIcon className="text-gray-400" />}
+        icon={<EllipsisIcon className="h-6 w-6 text-gray-400" />}
         label="More..."
         showTooltip
         action={() => console.log('More...')}

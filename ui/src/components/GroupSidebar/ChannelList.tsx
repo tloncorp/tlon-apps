@@ -44,7 +44,7 @@ export default function ChannelList({ flag }: { flag: string }) {
         {Object.entries(group.channels).map(([key, channel]) => (
           <SidebarLink
             key={key}
-            icon={<BubbleIcon className="h-6 w-6 p-1" />}
+            icon={<BubbleIcon className="h-6 w-6" />}
             to={channelHref(flag, key)}
             onClick={hide}
           >
