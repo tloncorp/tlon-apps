@@ -160,3 +160,5 @@ export const chatPerm = {
 };
 
 export const pendingDMs = ['~fabled-faster'];
+
+export const pinnedDMs = ['~nocsyx-lassul'];

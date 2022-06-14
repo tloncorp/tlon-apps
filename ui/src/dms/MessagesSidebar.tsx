@@ -6,6 +6,7 @@ import {
   isGroupBrief,
   useBriefs,
   usePendingDms,
+  usePinnedChats,
 } from '../state/chat';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
 import { useIsMobile } from '../logic/useMedia';
@@ -32,10 +33,15 @@ export default function MessagesSidebar() {
   const { sortOptions } = useSidebarSort(RECENT);
   const [filter, setFilter] = useState<SidebarFilter>(filters.dms);
   const briefs = useBriefs();
+  const pinned = usePinnedChats();
 
   const organizedBriefs = Object.keys(briefs)
     .filter((b) => {
       if (pending.includes(b)) {
+        return false;
+      }
+
+      if (pinned.includes(b)) {
         return false;
       }
 
@@ -73,13 +79,20 @@ export default function MessagesSidebar() {
         >
           New Message
         </SidebarLink>
+        <li className="flex items-center space-x-2 px-2 py-3">
+          <span className="text-xs font-semibold text-gray-400">Pinned</span>
+          <div className="grow border-b-2 border-gray-100" />
+        </li>
+        {pinned.map((ship: string) => (
+          <MessagesSidebarItem key={ship} whom={ship} brief={briefs[ship]} />
+        ))}
         <li>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger
               className={'default-focus rounded-lg p-0.5 text-gray-600'}
               aria-label="Groups Filter Options"
             >
-              <div className="default-focus flex items-center space-x-2 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
+              <div className="default-focus flex items-center space-x-2 rounded-lg bg-gray-50 p-2 text-base font-semibold hover:bg-gray-50">
                 <span className="pl-1">{filter}</span>
                 <CaretDownIcon className="w-4 text-gray-400" />
               </div>

@@ -16,7 +16,7 @@
 
 .input {
   @apply flex rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 text-lg leading-5 transition-colors focus-within:border-gray-100 focus-within:bg-white
-  focus-visible:border-gray-100 focus-visible:bg-white focus:outline-none sm:text-base sm:leading-5;
+  focus:outline-none focus-visible:border-gray-100 focus-visible:bg-white sm:text-base sm:leading-5;
 }
 
 .input-inner {

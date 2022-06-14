@@ -65,7 +65,7 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
         ) : (
           <Avatar size="xs" ship={whom} />
         )}
-        <ShipName className="ml-2 font-semibold" name={whom} />
+        <ShipName className="ml-2 font-semibold" name={whom} showAlias />
         {(brief?.count ?? 0) > 0 || pending ? (
           <div
             className="ml-auto h-2 w-2 rounded-full bg-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
