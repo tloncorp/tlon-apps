@@ -56,7 +56,6 @@ function dmAction(
   delta: WritDelta,
   id = makeId()
 ): Poke<DmAction> {
-  console.log(ship, id, delta);
   return {
     app: 'chat',
     mark: 'dm-action',
@@ -83,6 +82,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   dms: {},
   dmSubs: [],
   pendingDms: [],
+  pinnedDms: [],
   briefs: {},
   markRead: async (whom) => {
     await api.poke({
@@ -110,6 +110,13 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
     get().batchSet((draft) => {
       draft.pendingDms = pendingDms;
+    });
+    const pinnedDms = await api.scry<string[]>({
+      app: 'chat',
+      path: '/dm/pinned',
+    });
+    get().batchSet((draft) => {
+      draft.pinnedDms = pinnedDms;
     });
     api.subscribe({
       app: 'chat',
@@ -444,4 +451,8 @@ export function isGroupBrief(brief: string) {
 
 export function useBriefs() {
   return useChatState(useCallback((s: ChatState) => s.briefs, []));
+}
+
+export function usePinnedChats() {
+  return useChatState(useCallback((s: ChatState) => s.pinnedDms, []));
 }

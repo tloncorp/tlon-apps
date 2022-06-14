@@ -6,6 +6,7 @@ import {
   isGroupBrief,
   useBriefs,
   usePendingDms,
+  usePinnedChats,
 } from '../state/chat';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
 import { useIsMobile } from '../logic/useMedia';
@@ -32,6 +33,7 @@ export default function MessagesSidebar() {
   const { sortOptions } = useSidebarSort(RECENT);
   const [filter, setFilter] = useState<SidebarFilter>(filters.dms);
   const briefs = useBriefs();
+  const pinned = usePinnedChats();
 
   const organizedBriefs = Object.keys(briefs)
     .filter((b) => {
@@ -77,6 +79,9 @@ export default function MessagesSidebar() {
           <span className="text-xs font-semibold text-gray-400">Pinned</span>
           <div className="grow border-b-2 border-gray-100" />
         </li>
+        {pinned.map((ship: string) => (
+          <MessagesSidebarItem key={ship} whom={ship} brief={briefs[ship]} />
+        ))}
         <li>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger

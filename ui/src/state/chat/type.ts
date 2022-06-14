@@ -18,6 +18,7 @@ export interface ChatState {
   };
   dmSubs: string[];
   dmArchive: string[];
+  pinnedDms: string[];
   fetchDms: () => Promise<void>;
   pacts: {
     [whom: ChatWhom]: Pact;
