@@ -1,6 +1,5 @@
 import React from 'react';
 import cn from 'classnames';
-import { NavLink } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
@@ -8,6 +7,10 @@ import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 import { ChatBrief } from '../types/chat';
 import { isDMBrief } from '../state/chat';
 import { useChannel, useGroupState } from '../state/groups';
+import { useIsMobile } from '../logic/useMedia';
+import useNavStore from '../components/Nav/useNavStore';
+import GroupAvatar from '../components/GroupAvatar';
+import SidebarItem from '../components/Sidebar/SidebarItem';
 
 interface MessagesSidebarItemProps {
   whom: string;
@@ -16,6 +19,8 @@ interface MessagesSidebarItemProps {
 }
 
 function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
+  const isMobile = useIsMobile();
+  const hideNav = useNavStore((state) => state.setLocationHidden);
   const groups = useGroupState((s) => s.groups);
   const groupFlag = Object.entries(groups).find(
     ([k, v]) => whom in v.channels
@@ -28,56 +33,41 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
 
   const img = channel.meta.image;
   return (
-    <li className="group relative flex items-center justify-between rounded-lg font-semibold text-gray-600">
-      <NavLink
-        to={`/groups/${groupFlag}/channels/chat/${whom}`}
-        className="default-focus flex flex-1 items-center rounded-lg p-2"
-      >
-        {(img || '').length > 0 ? (
-          <img
-            className="h-6 w-6 rounded border-2 border-transparent"
-            src={img}
-          />
-        ) : (
-          <div className="h-6 w-6 rounded border-2 border-gray-100" />
-        )}
-        <h3 className="ml-3">{channel.meta.title}</h3>
-        {(brief?.count ?? 0) > 0 ? (
-          <div
-            className="ml-auto h-2 w-2 rounded-full bg-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-            aria-label="Has New Messages"
-          />
-        ) : null}
-      </NavLink>
-    </li>
+    <SidebarItem
+      to={`/groups/${groupFlag}/channels/chat/${whom}`}
+      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={img} />}
+      hasActivity={(brief?.count ?? 0) > 0}
+      onClick={() => isMobile && hideNav()}
+    >
+      {channel.meta.title}
+    </SidebarItem>
   );
 }
 
 function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
+  const isMobile = useIsMobile();
+  const hideNav = useNavStore((state) => state.setLocationHidden);
+
   return (
-    <li className="group relative flex items-center justify-between rounded-lg text-gray-600">
-      <NavLink
-        to={`/dm/${whom}`}
-        className="default-focus flex flex-1 items-center rounded-lg p-2"
-      >
-        {pending ? (
-          <UnknownAvatarIcon className="h-6 text-blue" />
+    <SidebarItem
+      to={`/dm/${whom}`}
+      icon={
+        pending ? (
+          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue sm:h-6 sm:w-6" />
         ) : (
-          <Avatar size="xs" ship={whom} />
-        )}
-        <ShipName className="ml-2 font-semibold" name={whom} showAlias />
-        {(brief?.count ?? 0) > 0 || pending ? (
-          <div
-            className="ml-auto h-2 w-2 rounded-full bg-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-            aria-label="Has New Messages"
-          />
-        ) : null}
-      </NavLink>
-      <DmOptions
-        ship={whom}
-        className="group-two absolute right-0 opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100"
+          <Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />
+        )
+      }
+      actions={<DmOptions ship={whom} />}
+      hasActivity={(brief?.count ?? 0) > 0 || pending}
+      onClick={() => isMobile && hideNav()}
+    >
+      <ShipName
+        className="w-full truncate font-semibold"
+        name={whom}
+        showAlias
       />
-    </li>
+    </SidebarItem>
   );
 }
 

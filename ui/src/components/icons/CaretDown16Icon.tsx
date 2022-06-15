@@ -1,17 +1,17 @@
 import React from 'react';
 import { IconProps } from './icon';
 
-export default function LeftIcon({ className }: IconProps) {
+export default function CaretDown16Icon({ className }: IconProps) {
   return (
     <svg
       className={className}
+      viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
     >
       <path
+        d="m4 6 4 4 4-4"
         className="stroke-current"
-        d="m15 18-6-6 6-6"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"

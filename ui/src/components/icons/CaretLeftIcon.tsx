@@ -1,19 +1,20 @@
 import React from 'react';
 import { IconProps } from './icon';
 
-export default function AddIcon16({ className }: IconProps) {
+export default function CaretLeftIcon({ className }: IconProps) {
   return (
     <svg
       className={className}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 12 12"
+      viewBox="0 0 24 24"
     >
       <path
         className="stroke-current"
-        d="M1 6H11M6 1V11"
+        d="m15 18-6-6 6-6"
         strokeWidth="2"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

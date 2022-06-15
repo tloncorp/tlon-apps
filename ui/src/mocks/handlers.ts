@@ -19,7 +19,14 @@ import {
   pendingDMs,
   pinnedDMs,
 } from './chat';
-import { ChatDiff, ChatWhom, DmAction, DmRsvp, WritDiff } from '../types/chat';
+import {
+  ChatBriefs,
+  ChatDiff,
+  ChatWhom,
+  DmAction,
+  DmRsvp,
+  WritDiff,
+} from '../types/chat';
 import { GroupAction } from '../types/groups';
 import mockContacts from './contacts';
 
@@ -47,19 +54,15 @@ const set3Da = startIndexSet3;
 
 const chatWritsSet4 = makeFakeChatWrits(3);
 
-const chatSub = {
-  action: 'subscribe',
-  app: 'chat',
-  path: `/chat/~zod/test/ui/writs`,
-} as SubscriptionHandler;
-
-const groupSubs = ['~zod/tlon'].map(
-  (g): SubscriptionHandler => ({
-    action: 'subscribe',
-    app: 'groups',
-    path: `/groups/${g}/ui`,
-  })
-);
+const groupSubs = ['~zod/tlon']
+  .concat(Object.entries(mockGroups).map(([k]) => k))
+  .map(
+    (g): SubscriptionHandler => ({
+      action: 'subscribe',
+      app: 'groups',
+      path: `/groups/${g}/ui`,
+    })
+  );
 
 const groupSub = {
   action: 'subscribe',
@@ -136,51 +139,77 @@ const groups: Handler[] = [
   } as ScryHandler,
 ];
 
-const chat: Handler[] = [
-  chatSub,
-  briefsSub,
-  {
-    action: 'scry',
-    app: 'chat',
-    path: '/chat/~zod/test/writs/newest/100',
-    func: () => chatWritsSet1,
-  } as ScryHandler,
-  {
-    action: 'scry',
-    app: 'chat',
-    path: '/chat/~zod/test/draft',
-    func: () => JSON.parse(localStorage.getItem('~zod/test') || ''),
-  },
-  {
-    action: 'poke',
-    app: 'chat',
-    mark: 'chat-action',
-    returnSubscription: chatSub,
-    dataResponder: (
-      req: Message &
-        Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
-    ) => {
-      if ('writs' in req.json.update.diff) {
-        return {
-          id: req.id,
-          ok: true,
-          response: 'diff',
-          json: req.json.update.diff.writs,
-        };
-      }
+const chatHandlers = Object.values(mockGroups)
+  .map((group): Handler[] =>
+    Object.entries(group.channels)
+      .map(([k]): Handler[] => {
+        const chatSub = {
+          action: 'subscribe',
+          app: 'chat',
+          path: `/chat/${k}/ui/writs`,
+        } as SubscriptionHandler;
 
-      if ('draft' in req.json.update.diff) {
-        localStorage.setItem(
-          req.json.flag,
-          JSON.stringify(req.json.update.diff.draft)
-        );
-      }
-      return {
-        id: req.id,
-        ok: true,
-      };
-    },
-  } as PokeHandler,
+        return [
+          chatSub,
+          {
+            action: 'scry',
+            app: 'chat',
+            path: `/chat/${k}/writs/newest/100`,
+            func: () => chatWritsSet1,
+          } as ScryHandler,
+          {
+            action: 'scry',
+            app: 'chat',
+            path: `/chat/${k}/draft`,
+            func: () => JSON.parse(localStorage.getItem(k) || ''),
+          },
+          {
+            action: 'scry' as const,
+            app: 'chat',
+            path: `/chat/${k}/perm`,
+            func: () => ({
+              writers: [],
+            }),
+          },
+          {
+            action: 'poke',
+            app: 'chat',
+            mark: 'chat-action',
+            returnSubscription: chatSub,
+            dataResponder: (
+              req: Message &
+                Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
+            ) => {
+              if ('writs' in req.json.update.diff) {
+                return {
+                  id: req.id,
+                  ok: true,
+                  response: 'diff',
+                  json: req.json.update.diff.writs,
+                };
+              }
+
+              if ('draft' in req.json.update.diff) {
+                localStorage.setItem(
+                  req.json.flag,
+                  JSON.stringify(req.json.update.diff.draft)
+                );
+              }
+              return {
+                id: req.id,
+                ok: true,
+              };
+            },
+          } as PokeHandler,
+        ];
+      })
+      .flat()
+  )
+  .flat();
+
+const chat: Handler[] = [
+  ...chatHandlers,
+  briefsSub,
   {
     action: 'scry' as const,
     app: 'chat',
@@ -189,8 +218,21 @@ const chat: Handler[] = [
       const unarchived = _.fromPairs(
         Object.entries(dmList).filter(([k]) => !archive.includes(k))
       );
+
+      const briefs: ChatBriefs = {};
+      Object.values(mockGroups).forEach((group) =>
+        Object.entries(group.channels).forEach(([k]) => {
+          briefs[k] = {
+            last: 1652302200000,
+            count: 1,
+            'read-id': null,
+          };
+        })
+      );
+
       return {
         ...unarchived,
+        ...briefs,
         '~zod/test': {
           last: 1652302200000,
           count: 1,
@@ -198,14 +240,6 @@ const chat: Handler[] = [
         },
       };
     },
-  },
-  {
-    action: 'scry' as const,
-    app: 'chat',
-    path: '/chat/~zod/test/perm',
-    func: () => ({
-      writers: [],
-    }),
   },
   {
     action: 'scry',
@@ -304,6 +338,11 @@ const dms: Handler[] = [
     app: 'chat',
     path: '/dm/invited',
     func: () => pendingDMs,
+  },
+  {
+    action: 'subscribe',
+    app: 'chat',
+    path: '/dm/invited',
   },
   {
     action: 'scry',
