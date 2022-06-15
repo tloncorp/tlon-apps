@@ -38,7 +38,7 @@ export default function SidebarItem({
   children,
   ...rest
 }: SidebarProps) {
-  const matches = useMatch(to || '');
+  const matches = useMatch(to || 'DONT_MATCH');
   const active = !!matches;
 
   return (
@@ -52,7 +52,7 @@ export default function SidebarItem({
       <Action
         to={to}
         className={cn(
-          'default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2',
+          'default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold',
           !hasActivity && 'pr-4',
           hasActivity && 'pr-0',
           className

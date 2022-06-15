@@ -58,7 +58,7 @@ export default function Sidebar() {
           />
         </li>
       </ul>
-      <GroupList className="flex-1 overflow-y-auto" />
+      <GroupList className="flex-1 overflow-y-scroll pr-0" />
     </nav>
   );
 }

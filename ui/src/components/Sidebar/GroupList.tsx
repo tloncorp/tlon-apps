@@ -35,7 +35,7 @@ function GangItem(props: { flag: string }) {
       to={`/gangs/${flag}`}
       onClick={hideNav}
     >
-      <GangName flag={flag} />
+      <GangName flag={flag} className="inline-block w-full truncate" />
     </SidebarItem>
   );
 }

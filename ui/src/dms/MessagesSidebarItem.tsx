@@ -39,7 +39,7 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
       hasActivity={(brief?.count ?? 0) > 0}
       onClick={() => isMobile && hideNav()}
     >
-      <h3 className="ml-3">{channel.meta.title}</h3>
+      {channel.meta.title}
     </SidebarItem>
   );
 }
@@ -62,7 +62,11 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
       hasActivity={(brief?.count ?? 0) > 0 || pending}
       onClick={() => isMobile && hideNav()}
     >
-      <ShipName className="ml-2 font-semibold" name={whom} showAlias />
+      <ShipName
+        className="w-full truncate font-semibold"
+        name={whom}
+        showAlias
+      />
     </SidebarItem>
   );
 }

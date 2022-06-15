@@ -39,7 +39,7 @@ export default function MobileGroupSidebar() {
             : null}
         </button>
       </header>
-      <div className="h-full w-full flex-1 overflow-y-auto p-2">
+      <div className="h-full w-full flex-1 overflow-y-scroll p-2 pr-0">
         {secondary === 'main' ? (
           <ChannelList flag={flag} />
         ) : secondary === 'notifications' ? (

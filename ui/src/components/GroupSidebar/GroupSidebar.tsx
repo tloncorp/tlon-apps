@@ -72,7 +72,7 @@ export default function GroupSidebar() {
           </SidebarItem>
         </ul>
         <div className="flex-1 overflow-y-auto">
-          <ChannelList flag={flag} className="" />
+          <ChannelList flag={flag} />
         </div>
       </div>
     </nav>

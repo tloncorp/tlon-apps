@@ -3,7 +3,6 @@ import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
 import { useIsMobile } from '../logic/useMedia';
-import SidebarLink from '../components/Sidebar/SidebarLink';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import CaretDown16Icon from '../components/icons/CaretDown16Icon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
