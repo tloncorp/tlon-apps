@@ -12,6 +12,7 @@ export default function GroupActions({ flag }: { flag: string }) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [copyItemText, setCopyItemText] = useState('Copy Group Link');
 
   const onCloseInviteDialog = useCallback(
     (
@@ -41,6 +42,15 @@ export default function GroupActions({ flag }: { flag: string }) {
     [doCopy, flag]
   );
 
+  const onCopySelect = useCallback((e: Event) => {
+    e.preventDefault();
+    setCopyItemText('Copied!');
+    setTimeout(() => {
+      setCopyItemText('Copy Group Link');
+      setIsOpen(false);
+    }, 1000);
+  }, []);
+
   const onPinClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
@@ -59,14 +69,17 @@ export default function GroupActions({ flag }: { flag: string }) {
           isOpen ? 'opacity:100' : 'opacity-0'
         )}
       >
-        <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)}>
+        <DropdownMenu.Root
+          onOpenChange={(open) => setIsOpen(open)}
+          open={isOpen}
+        >
           <DropdownMenu.Trigger
             className={'default-focus rounded-lg p-0.5 text-gray-600'}
             aria-label="Open Message Options"
           >
             <EllipsisIcon className="h-5 w-5" />
           </DropdownMenu.Trigger>
-          <DropdownMenu.Content className="dropdown">
+          <DropdownMenu.Content className="dropdown w-[172px]">
             <DropdownMenu.Item
               className={
                 'dropdown-item flex items-center space-x-2 rounded-none text-blue'
@@ -81,9 +94,10 @@ export default function GroupActions({ flag }: { flag: string }) {
                 'dropdown-item flex items-center space-x-2 rounded-none text-blue'
               }
               onClick={onCopyClick}
+              onSelect={onCopySelect}
             >
               <LinkIcon16 className="h-6 w-6" />
-              <span className="pr-2">Copy Group Link</span>
+              <span className="pr-2">{copyItemText}</span>
             </DropdownMenu.Item>
             <DropdownMenu.Item
               className="dropdown-item flex items-center space-x-2 rounded-none"
