@@ -4,6 +4,7 @@ import { NavLink, NavLinkProps } from 'react-router-dom';
 import RetainedStateLink from '../RetainedStateLink';
 
 type SidebarProps = PropsWithChildren<{
+  actions?: React.ReactNode;
   className?: string;
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   retainState?: boolean;
@@ -11,10 +12,11 @@ type SidebarProps = PropsWithChildren<{
   NavLinkProps;
 
 export default function SidebarLink({
-  icon,
+  actions,
   children,
   className,
   color,
+  icon,
   retainState = false,
   ...rest
 }: SidebarProps) {
@@ -35,7 +37,17 @@ export default function SidebarLink({
         {({ isActive }) => (
           <>
             {typeof icon === 'function' ? icon(isActive) : icon}
-            {typeof children === 'string' ? <h3>{children}</h3> : children}
+            {typeof children === 'string' ? (
+              <div
+                title={children}
+                className="text-light-gray-600 max-w-[128px] overflow-hidden text-ellipsis whitespace-nowrap"
+              >
+                {children}
+              </div>
+            ) : (
+              children
+            )}
+            {actions}
           </>
         )}
       </TheLink>

@@ -58,9 +58,12 @@ exports[`GroupSidebar > renders as expected 1`] = `
                 />
               </svg>
             </div>
-            <h3>
+            <div
+              class="text-light-gray-600 max-w-[128px] overflow-hidden text-ellipsis whitespace-nowrap"
+              title="Activity"
+            >
               Activity
-            </h3>
+            </div>
           </a>
         </li>
         <li>
@@ -81,9 +84,12 @@ exports[`GroupSidebar > renders as expected 1`] = `
                 fill-rule="evenodd"
               />
             </svg>
-            <h3>
+            <div
+              class="text-light-gray-600 max-w-[128px] overflow-hidden text-ellipsis whitespace-nowrap"
+              title="Find in Group"
+            >
               Find in Group
-            </h3>
+            </div>
           </a>
         </li>
         <li>
@@ -104,9 +110,12 @@ exports[`GroupSidebar > renders as expected 1`] = `
                 fill-rule="evenodd"
               />
             </svg>
-            <h3>
+            <div
+              class="text-light-gray-600 max-w-[128px] overflow-hidden text-ellipsis whitespace-nowrap"
+              title="All Channels"
+            >
               All Channels
-            </h3>
+            </div>
           </a>
         </li>
       </ul>

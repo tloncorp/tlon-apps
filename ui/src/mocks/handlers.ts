@@ -12,7 +12,13 @@ import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import _ from 'lodash';
 import bigInt from 'big-integer';
 import mockGroups, { mockGangs } from './groups';
-import { makeFakeChatWrits, chatKeys, dmList, pendingDMs } from './chat';
+import {
+  makeFakeChatWrits,
+  chatKeys,
+  dmList,
+  pendingDMs,
+  pinnedDMs,
+} from './chat';
 import {
   ChatBriefs,
   ChatDiff,
@@ -337,6 +343,12 @@ const dms: Handler[] = [
     action: 'subscribe',
     app: 'chat',
     path: '/dm/invited',
+  },
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/dm/pinned',
+    func: () => pinnedDMs,
   },
   {
     action: 'scry',

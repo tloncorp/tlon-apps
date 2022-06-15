@@ -12,10 +12,14 @@ import CmdSmallIcon from '../components/icons/CmdSmallIcon';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
+import { useBriefs, usePinnedChats } from '../state/chat';
+import MessagesSidebarItem from './MessagesSidebarItem';
 
 export default function MessagesSidebar() {
   const isMobile = useIsMobile();
   const { filter, setFilter } = useMessagesFilter();
+  const briefs = useBriefs();
+  const pinned = usePinnedChats();
 
   if (isMobile) {
     return <MobileMessagesSidebar />;
@@ -82,6 +86,23 @@ export default function MessagesSidebar() {
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </li>
+        {pinned && pinned.length > 0 ? (
+          <>
+            <li className="flex items-center space-x-2 px-2 py-3">
+              <span className="text-xs font-semibold text-gray-400">
+                Pinned
+              </span>
+              <div className="grow border-b-2 border-gray-100" />
+            </li>
+            {pinned.map((ship: string) => (
+              <MessagesSidebarItem
+                key={ship}
+                whom={ship}
+                brief={briefs[ship]}
+              />
+            ))}
+          </>
+        ) : null}
       </ul>
       <MessagesList filter={filter} />
     </nav>

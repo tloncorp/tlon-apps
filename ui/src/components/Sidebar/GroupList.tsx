@@ -6,6 +6,7 @@ import Divider from '../Divider';
 import GangName from '../GangName/GangName';
 import GroupAvatar from '../GroupAvatar';
 import useNavStore from '../Nav/useNavStore';
+import GroupActions from './GroupActions';
 import SidebarButton from './SidebarButton';
 import SidebarLink from './SidebarLink';
 
@@ -17,6 +18,7 @@ function GroupItem({ flag }: { flag: string }) {
       icon={
         <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={group?.meta.image} />
       }
+      actions={<GroupActions flag={flag} />}
       onClick={() => setNavGroups(flag)}
     >
       {group?.meta.title}
