@@ -74,7 +74,7 @@ export default function GroupActions({ flag }: { flag: string }) {
               onClick={onInviteClick}
             >
               <InviteIcon16 className="h-6 w-6" />
-              Invite People
+              <span className="pr-2">Invite People</span>
             </DropdownMenu.Item>
             <DropdownMenu.Item
               className={
@@ -82,15 +82,15 @@ export default function GroupActions({ flag }: { flag: string }) {
               }
               onClick={onCopyClick}
             >
-              <LinkIcon16 className="h-4 w-4" />
-              Copy Group Link
+              <LinkIcon16 className="h-6 w-6" />
+              <span className="pr-2">Copy Group Link</span>
             </DropdownMenu.Item>
             <DropdownMenu.Item
               className="dropdown-item flex items-center space-x-2 rounded-none"
               onClick={onPinClick}
             >
-              <PinIcon16 className="mr-2 h-4 w-4" />
-              Pin
+              <PinIcon16 className="h-6 w-6 text-gray-600" />
+              <span className="pr-2">Pin</span>
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
