@@ -22,6 +22,7 @@ const AUTHORS = [
   '~riprud-tidmel',
   '~wicdev-wisryt',
   '~rovnys-ricfer',
+  '~mister-dister-dozzod-dozzod',
 ];
 
 export const makeFakeChatWrit = (
@@ -149,6 +150,11 @@ export const dmList: ChatBriefs = {
     'read-id': null,
   },
   '~hastuc-dibtux': {
+    last: 0,
+    count: 0,
+    'read-id': null,
+  },
+  '~mister-dister-dozzod-dozzod': {
     last: 0,
     count: 0,
     'read-id': null,
