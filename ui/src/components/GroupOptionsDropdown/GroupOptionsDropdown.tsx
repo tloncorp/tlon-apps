@@ -1,4 +1,4 @@
-import React, { Children, useState } from 'react';
+import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import XIcon from '../icons/XIcon';
