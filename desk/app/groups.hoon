@@ -85,7 +85,7 @@
     =/  =flag:g  [our.bowl name.create]
     =|  =cordon:g
     =/  =group:g
-      [~ ~ ~ ~ cordon title.create description.create image.create] 
+      [~ ~ ~ ~ ~ cordon title.create description.create image.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     go-abet:(go-init:(go-abed:group-core flag) create)
   ::
@@ -319,6 +319,22 @@
       %bloc     (go-bloc-update p.diff)
       %cordon   (go-cordon-update p.diff)
       %create   go-core(group p.diff)
+      %zone     (go-zone-update +.diff)
+    ==
+  ::
+  ++  go-zone-update
+    |=  [=zone:g =delta:zone:g]
+    ^+  go-core
+    ?-    -.delta
+        %add
+      =.  zones.group  
+        (~(put by zones.group) zone meta.delta)
+      go-core
+    ::
+        %del
+      =.  zones.group  
+        (~(del by zones.group) zone)
+      go-core
     ==
   ++  go-bloc-update
     |=  =diff:bloc:g
@@ -450,6 +466,19 @@
       =.  channels.group  (put:by-ch ch channel)
       ::  TODO: revoke?
       go-core
+    ::
+        %add-zone
+      =/  =channel:g  (got:by-ch ch)
+      =.  zon.channel   `zone.diff
+      =.  channels.group  (put:by-ch ch channel)
+      go-core
+    ::
+        %del-zone
+      =/  =channel:g  (got:by-ch ch)
+      =.  zon.channel   ~
+      =.  channels.group  (put:by-ch ch channel)
+      go-core
+
     ==
   --
 ++  gang-core
