@@ -1,6 +1,5 @@
 import React from 'react';
 import cn from 'classnames';
-import { NavLink } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
@@ -11,6 +10,7 @@ import { useChannel, useGroupState } from '../state/groups';
 import { useIsMobile } from '../logic/useMedia';
 import useNavStore from '../components/Nav/useNavStore';
 import GroupAvatar from '../components/GroupAvatar';
+import SidebarItem from '../components/Sidebar/SidebarItem';
 
 interface MessagesSidebarItemProps {
   whom: string;
@@ -33,22 +33,14 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
 
   const img = channel.meta.image;
   return (
-    <li className="group relative flex items-center justify-between rounded-lg font-semibold text-gray-600">
-      <NavLink
-        to={`/groups/${groupFlag}/channels/chat/${whom}`}
-        className="default-focus flex flex-1 items-center rounded-lg p-2"
-        onClick={() => isMobile && hideNav()}
-      >
-        <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={img} />
-        <h3 className="ml-3">{channel.meta.title}</h3>
-        {(brief?.count ?? 0) > 0 ? (
-          <div
-            className="ml-auto h-2 w-2 rounded-full bg-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-            aria-label="Has New Messages"
-          />
-        ) : null}
-      </NavLink>
-    </li>
+    <SidebarItem
+      to={`/groups/${groupFlag}/channels/chat/${whom}`}
+      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={img} />}
+      hasActivity={(brief?.count ?? 0) > 0}
+      onClick={() => isMobile && hideNav()}
+    >
+      <h3 className="ml-3">{channel.meta.title}</h3>
+    </SidebarItem>
   );
 }
 
@@ -57,30 +49,21 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
   const hideNav = useNavStore((state) => state.setLocationHidden);
 
   return (
-    <li className="group relative flex items-center justify-between rounded-lg text-gray-600">
-      <NavLink
-        to={`/dm/${whom}`}
-        className="default-focus flex flex-1 items-center rounded-lg p-2 text-lg sm:text-base"
-        onClick={() => isMobile && hideNav()}
-      >
-        {pending ? (
+    <SidebarItem
+      to={`/dm/${whom}`}
+      icon={
+        pending ? (
           <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue sm:h-6 sm:w-6" />
         ) : (
           <Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />
-        )}
-        <ShipName className="ml-2 font-semibold" name={whom} showAlias />
-        {(brief?.count ?? 0) > 0 || pending ? (
-          <div
-            className="ml-auto h-2 w-2 rounded-full bg-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-            aria-label="Has New Messages"
-          />
-        ) : null}
-      </NavLink>
-      <DmOptions
-        ship={whom}
-        className="group-two absolute right-0 opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100"
-      />
-    </li>
+        )
+      }
+      actions={<DmOptions ship={whom} />}
+      hasActivity={(brief?.count ?? 0) > 0 || pending}
+      onClick={() => isMobile && hideNav()}
+    >
+      <ShipName className="ml-2 font-semibold" name={whom} showAlias />
+    </SidebarItem>
   );
 }
 

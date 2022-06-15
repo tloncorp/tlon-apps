@@ -4,7 +4,6 @@ import { useIsMobile } from '../../logic/useMedia';
 import { useGroup } from '../../state/groups';
 import { GroupMeta } from '../../types/groups';
 import useNavStore from '../Nav/useNavStore';
-import SidebarLink from '../Sidebar/SidebarLink';
 import CaretLeft16Icon from '../icons/CaretLeft16Icon';
 import MagnifyingGlass from '../icons/MagnifyingGlass16Icon';
 import HashIcon16 from '../icons/HashIcon16';
@@ -12,6 +11,7 @@ import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
 import ActivityIndicator from '../Sidebar/ActivityIndicator';
 import GroupAvatar from '../GroupAvatar';
+import SidebarItem from '../Sidebar/SidebarItem';
 
 function GroupHeader({ meta }: { meta?: GroupMeta }) {
   if (!meta) {
@@ -52,24 +52,24 @@ export default function GroupSidebar() {
       <div className="flex min-h-0 flex-1 flex-col p-2 sm:p-0">
         <ul className="flex-none">
           <GroupHeader meta={group?.meta} />
-          <SidebarLink
+          <SidebarItem
             icon={<ActivityIndicator count={activityCount} />}
             to={`/groups/${flag}/activity`}
           >
             Activity
-          </SidebarLink>
-          <SidebarLink
+          </SidebarItem>
+          <SidebarItem
             icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
             to={`/groups/${flag}/search`}
           >
             Find in Group
-          </SidebarLink>
-          <SidebarLink
+          </SidebarItem>
+          <SidebarItem
             icon={<HashIcon16 className="m-1 h-4 w-4" />}
             to={`/groups/${flag}/all`}
           >
             All Channels
-          </SidebarLink>
+          </SidebarItem>
         </ul>
         <div className="flex-1 overflow-y-auto">
           <ChannelList flag={flag} className="" />

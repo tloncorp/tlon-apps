@@ -6,10 +6,10 @@ import { channelHref } from '../../logic/utils';
 import { useGroup } from '../../state/groups';
 import BubbleIcon from '../icons/BubbleIcon';
 import useNavStore from '../Nav/useNavStore';
-import SidebarLink from '../Sidebar/SidebarLink';
 import CaretDownIcon from '../icons/CaretDownIcon';
 import ChannelSortOptions from './ChannelSortOptions';
 import useSidebarSort from '../../logic/useSidebarSort';
+import SidebarItem from '../Sidebar/SidebarItem';
 
 interface ChannelListProps {
   flag: string;
@@ -62,14 +62,14 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
       </DropdownMenu.Root>
       <ul className={cn(isMobile && 'space-y-3')}>
         {Object.entries(group.channels).map(([key, channel]) => (
-          <SidebarLink
+          <SidebarItem
             key={key}
             icon={icon}
             to={channelHref(flag, key)}
             onClick={hide}
           >
             {channel.meta.title || key}
-          </SidebarLink>
+          </SidebarItem>
         ))}
       </ul>
     </div>

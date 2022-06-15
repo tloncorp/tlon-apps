@@ -2,7 +2,7 @@ import React from 'react';
 import { useIsMobile } from '../../logic/useMedia';
 import AsteriskIcon from '../icons/Asterisk16Icon';
 import MagnifyingGlass from '../icons/MagnifyingGlass16Icon';
-import SidebarLink from './SidebarLink';
+import SidebarItem from './SidebarItem';
 import AddIcon16 from '../icons/Add16Icon';
 import useSidebarSort from '../../logic/useSidebarSort';
 import SidebarSorter from './SidebarSorter';
@@ -23,32 +23,32 @@ export default function Sidebar() {
   return (
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex-none p-2">
-        <SidebarLink
+        <SidebarItem
           icon={<ActivityIndicator count={notificationCount} />}
           to={`/notifications`}
         >
           Notifications
-        </SidebarLink>
-        <SidebarLink
+        </SidebarItem>
+        <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
           to="/search"
         >
           Search My Groups
-        </SidebarLink>
-        <SidebarLink
+        </SidebarItem>
+        <SidebarItem
           color="text-blue"
           icon={<AsteriskIcon className="m-1 h-4 w-4" />}
           to="/groups/join"
         >
           Join Group
-        </SidebarLink>
-        <SidebarLink
+        </SidebarItem>
+        <SidebarItem
           color="text-green"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
           to="/groups/new"
         >
           Create Group
-        </SidebarLink>
+        </SidebarItem>
         <li className="p-2">
           <SidebarSorter
             sortFn={sortFn}

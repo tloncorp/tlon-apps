@@ -7,14 +7,13 @@ import GangName from '../GangName/GangName';
 import GroupAvatar from '../GroupAvatar';
 import useNavStore from '../Nav/useNavStore';
 import GroupActions from './GroupActions';
-import SidebarButton from './SidebarButton';
-import SidebarLink from './SidebarLink';
+import SidebarItem from './SidebarItem';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
   const setNavGroups = useNavStore((state) => state.setLocationGroups);
   return (
-    <SidebarButton
+    <SidebarItem
       icon={
         <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={group?.meta.image} />
       }
@@ -22,7 +21,7 @@ function GroupItem({ flag }: { flag: string }) {
       onClick={() => setNavGroups(flag)}
     >
       {group?.meta.title}
-    </SidebarButton>
+    </SidebarItem>
   );
 }
 
@@ -31,13 +30,13 @@ function GangItem(props: { flag: string }) {
   const { flag } = props;
   const hideNav = useNavStore((state) => state.setLocationHidden);
   return (
-    <SidebarLink
+    <SidebarItem
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" />}
       to={`/gangs/${flag}`}
       onClick={hideNav}
     >
       <GangName flag={flag} />
-    </SidebarLink>
+    </SidebarItem>
   );
 }
 

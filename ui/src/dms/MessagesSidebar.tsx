@@ -14,6 +14,7 @@ import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
 import { useBriefs, usePinnedChats } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
+import SidebarItem from '../components/Sidebar/SidebarItem';
 
 export default function MessagesSidebar() {
   const isMobile = useIsMobile();
@@ -28,19 +29,36 @@ export default function MessagesSidebar() {
   return (
     <nav className="flex h-full w-64 flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex w-64 flex-col p-2">
-        <SidebarLink
+        <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
           to="/dm/search"
         >
           Search Messages
-        </SidebarLink>
-        <SidebarLink
+        </SidebarItem>
+        <SidebarItem
           to="/dm/new"
           color="text-blue"
           icon={<NewMessageIcon className="h-6 w-6" />}
         >
           New Message
-        </SidebarLink>
+        </SidebarItem>
+        {pinned && pinned.length > 0 ? (
+          <>
+            <li className="flex items-center space-x-2 px-2 py-3">
+              <span className="text-xs font-semibold text-gray-400">
+                Pinned
+              </span>
+              <div className="grow border-b-2 border-gray-100" />
+            </li>
+            {pinned.map((ship: string) => (
+              <MessagesSidebarItem
+                key={ship}
+                whom={ship}
+                brief={briefs[ship]}
+              />
+            ))}
+          </>
+        ) : null}
         <li className="p-2">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger
@@ -86,23 +104,6 @@ export default function MessagesSidebar() {
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </li>
-        {pinned && pinned.length > 0 ? (
-          <>
-            <li className="flex items-center space-x-2 px-2 py-3">
-              <span className="text-xs font-semibold text-gray-400">
-                Pinned
-              </span>
-              <div className="grow border-b-2 border-gray-100" />
-            </li>
-            {pinned.map((ship: string) => (
-              <MessagesSidebarItem
-                key={ship}
-                whom={ship}
-                brief={briefs[ship]}
-              />
-            ))}
-          </>
-        ) : null}
       </ul>
       <MessagesList filter={filter} />
     </nav>

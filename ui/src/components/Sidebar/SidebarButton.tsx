@@ -20,7 +20,7 @@ export default function SidebarButton({
     <li>
       <button
         className={cn(
-          'default-focus flex w-full items-center space-x-3 rounded-lg p-2 text-lg font-semibold hover:bg-gray-50 sm:text-base',
+          'default-focus group flex w-full items-center space-x-3 rounded-lg p-2 text-lg font-semibold hover:bg-gray-50 sm:text-base',
           color,
           className
         )}
@@ -43,7 +43,7 @@ export default function SidebarButton({
             children
           )}
         </div>
-        <div>{actions}</div>
+        {actions}
       </button>
     </li>
   );
