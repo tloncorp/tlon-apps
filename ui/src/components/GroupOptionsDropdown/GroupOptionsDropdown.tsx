@@ -1,18 +1,46 @@
-import React from 'react';
+import React, { Children, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import AsteriskIcon from '../icons/AsteriskIcon';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import XIcon from '../icons/XIcon';
+import AsteriskIcon from '../icons/AsteriskIcon';
+
 import { GroupMeta } from '../../types/groups';
 
-export default function GroupInfoModal({ meta }: { meta: GroupMeta }) {
+export default function GroupHeader({ meta }: { meta?: GroupMeta }) {
+  if (!meta) {
+    return null;
+  }
+
   return (
-    <Dialog.Root modal>
-      <Dialog.Trigger asChild>
-        <button className="dropdown-item flex items-center space-x-4 px-4 font-semibold hover:bg-gray-50 sm:w-60">
-          <AsteriskIcon className="h-3 w-3" />
-          <div>Group Information</div>
-        </button>
-      </Dialog.Trigger>
+    <Dialog.Root>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger className="w-full">
+          <li className=" flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
+            {(meta?.image || '').length > 0 ? (
+              <img
+                className="h-6 w-6 rounded border-2 border-transparent"
+                src={meta?.image}
+              />
+            ) : (
+              <div className="h-6 w-6 rounded border-2 border-gray-100" />
+            )}
+            <h3>{meta?.title}</h3>
+          </li>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content
+          portalled={false}
+          className="dropdown z-30 w-full"
+        >
+          <Dialog.Trigger asChild>
+            <DropdownMenu.Item onSelect={(e) => e.preventDefault} asChild>
+              <button className="dropdown-item flex items-center space-x-4 px-4 font-semibold hover:bg-gray-50 sm:w-60">
+                <AsteriskIcon className="h-3 w-3" />
+                <div>Group Information</div>
+              </button>
+            </DropdownMenu.Item>
+          </Dialog.Trigger>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 h-full w-full bg-neutral-400 opacity-20" />
         <Dialog.Content className="absolute top-8 left-1/2 z-40 h-fit w-full -translate-x-1/2 sm:max-w-lg">
@@ -28,7 +56,7 @@ export default function GroupInfoModal({ meta }: { meta: GroupMeta }) {
               </Dialog.Close>
             </header>
             <div className="mt-6">
-              <Dialog.Description className="flex flex-col items-center">
+              <div className="flex flex-col items-center">
                 {(meta?.image || '').length > 0 ? (
                   <img
                     className="h-20 w-20 rounded-lg border-2 border-transparent"
@@ -43,7 +71,7 @@ export default function GroupInfoModal({ meta }: { meta: GroupMeta }) {
                   <h3 className="text-base text-gray-600">Private Group</h3>
                 </div>
                 <p className="w-full leading-5">{meta?.description}</p>
-              </Dialog.Description>
+              </div>
             </div>
             <footer className="mt-8 flex items-center">
               <Dialog.Close asChild>
