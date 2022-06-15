@@ -3,6 +3,31 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  club-delta
+    |=  d=delta:club:c
+    %+  frond  -.d
+    ?-  -.d 
+        %writ  (writs-diff diff.d)
+    ::
+        %team
+      %-  pairs
+      :~  ship/(ship ship.d)
+          ok/b/ok.d
+      ==
+    ::
+         %hive
+      %-  pairs
+      :~  by/(ship by.d)
+          for/(ship for.d)
+          add/b/add.d
+      ==
+    ::
+        %init
+      %-  pairs
+      :~  team/a/(turn ~(tap in team.d) ship)
+          hive/a/(turn ~(tap in hive.d) ship)
+      ==
+    ==
   ++  draft
     |=  d=draft:c
     %-  pairs
