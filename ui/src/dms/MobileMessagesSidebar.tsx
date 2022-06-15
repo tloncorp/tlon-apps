@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
@@ -6,12 +6,13 @@ import CaretDown16Icon from '../components/icons/CaretDown16Icon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
 import PersonSmallIcon from '../components/icons/PersonSmallIcon';
 import CmdSmallIcon from '../components/icons/CmdSmallIcon';
-import MessagesList, { filters, SidebarFilter } from './MessagesList';
+import MessagesList from './MessagesList';
 import useNavStore from '../components/Nav/useNavStore';
 import AddIcon from '../components/icons/AddIcon';
+import useMessagesFilter, { filters } from './useMessagesFilter';
 
 export default function MobileMessagesSidebar() {
-  const [filter, setFilter] = useState<SidebarFilter>(filters.dms);
+  const { filter, setFilter } = useMessagesFilter();
   const hideNav = useNavStore((state) => state.setLocationHidden);
 
   return (

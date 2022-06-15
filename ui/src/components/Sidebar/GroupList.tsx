@@ -49,7 +49,7 @@ export default function GroupList({ className }: GroupListProps) {
   const { sortFn, sortOptions } = useSidebarSort();
 
   return (
-    <ul className={cn('h-full p-2', className)}>
+    <ul className={cn('h-full space-y-3 p-2 sm:space-y-0', className)}>
       {flags.sort(sortOptions[sortFn]).map((flag) => (
         <GroupItem key={flag} flag={flag} />
       ))}

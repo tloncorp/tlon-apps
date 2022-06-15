@@ -8,17 +8,7 @@ import {
   isGroupBrief,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
-
-export type SidebarFilter =
-  | 'Direct Messages'
-  | 'All Messages'
-  | 'Group Talk Channels';
-
-export const filters: Record<string, SidebarFilter> = {
-  dms: 'Direct Messages',
-  all: 'All Messages',
-  groups: 'Group Talk Channels',
-};
+import { filters, SidebarFilter } from './useMessagesFilter';
 
 interface MessagesListProps {
   filter: SidebarFilter;
@@ -48,7 +38,11 @@ export default function MessagesList({ filter }: MessagesListProps) {
     .sort(sortOptions[RECENT]);
 
   return (
-    <ul className={cn('flex w-full flex-col p-2')}>
+    <ul
+      className={cn(
+        'flex w-full flex-col space-y-3 overflow-y-auto p-2 sm:space-y-0'
+      )}
+    >
       {pending &&
         filter !== filters.groups &&
         pending.map((ship) => (

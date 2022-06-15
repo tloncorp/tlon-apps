@@ -137,7 +137,6 @@ const chatHandlers = Object.values(mockGroups)
   .map((group): Handler[] =>
     Object.entries(group.channels)
       .map(([k]): Handler[] => {
-        console.log('channel:', k);
         const chatSub = {
           action: 'subscribe',
           app: 'chat',

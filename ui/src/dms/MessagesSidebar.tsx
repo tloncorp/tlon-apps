@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
@@ -10,11 +10,12 @@ import ChatSmallIcon from '../components/icons/ChatSmallIcon';
 import PersonSmallIcon from '../components/icons/PersonSmallIcon';
 import CmdSmallIcon from '../components/icons/CmdSmallIcon';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
-import MessagesList, { filters, SidebarFilter } from './MessagesList';
+import MessagesList from './MessagesList';
+import useMessagesFilter, { filters } from './useMessagesFilter';
 
 export default function MessagesSidebar() {
   const isMobile = useIsMobile();
-  const [filter, setFilter] = useState<SidebarFilter>(filters.dms);
+  const { filter, setFilter } = useMessagesFilter();
 
   if (isMobile) {
     return <MobileMessagesSidebar />;

@@ -10,6 +10,7 @@ import { isDMBrief } from '../state/chat';
 import { useChannel, useGroupState } from '../state/groups';
 import { useIsMobile } from '../logic/useMedia';
 import useNavStore from '../components/Nav/useNavStore';
+import GroupAvatar from '../components/GroupAvatar';
 
 interface MessagesSidebarItemProps {
   whom: string;
@@ -38,14 +39,7 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
         className="default-focus flex flex-1 items-center rounded-lg p-2"
         onClick={() => isMobile && hideNav()}
       >
-        {(img || '').length > 0 ? (
-          <img
-            className="h-6 w-6 rounded border-2 border-transparent"
-            src={img}
-          />
-        ) : (
-          <div className="h-6 w-6 rounded border-2 border-gray-100" />
-        )}
+        <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={img} />
         <h3 className="ml-3">{channel.meta.title}</h3>
         {(brief?.count ?? 0) > 0 ? (
           <div
@@ -66,13 +60,13 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
     <li className="group relative flex items-center justify-between rounded-lg text-gray-600">
       <NavLink
         to={`/dm/${whom}`}
-        className="default-focus flex flex-1 items-center rounded-lg p-2"
+        className="default-focus flex flex-1 items-center rounded-lg p-2 text-lg sm:text-base"
         onClick={() => isMobile && hideNav()}
       >
         {pending ? (
-          <UnknownAvatarIcon className="h-6 text-blue" />
+          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue sm:h-6 sm:w-6" />
         ) : (
-          <Avatar size="xs" ship={whom} />
+          <Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />
         )}
         <ShipName className="ml-2 font-semibold" name={whom} />
         {(brief?.count ?? 0) > 0 || pending ? (
