@@ -15,8 +15,8 @@ export default function GroupInfoModal({ meta }: { meta: GroupMeta }) {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 h-full w-full bg-neutral-400 opacity-20" />
-        <Dialog.Content className="sm:min-w-lg absolute top-8 left-1/2 z-40 h-fit -translate-x-1/2">
-          <div className="overflow-auto rounded-xl bg-white p-6">
+        <Dialog.Content className="absolute top-8 left-1/2 z-40 h-fit w-full -translate-x-1/2 sm:max-w-lg">
+          <div className="w-full overflow-auto rounded-xl bg-white p-6">
             <header className="flex items-center ">
               <Dialog.Title className="text-lg font-bold">
                 Group Info
@@ -42,7 +42,7 @@ export default function GroupInfoModal({ meta }: { meta: GroupMeta }) {
                   {/* Current group meta object doesn't contain public/private info  */}
                   <h3 className="text-base text-gray-600">Private Group</h3>
                 </div>
-                <p className="leading-5">{meta?.description}</p>
+                <p className="w-full leading-5">{meta?.description}</p>
               </Dialog.Description>
             </div>
             <footer className="mt-8 flex items-center">
