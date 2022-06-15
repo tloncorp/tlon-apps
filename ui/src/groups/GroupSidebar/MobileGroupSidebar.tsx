@@ -2,12 +2,12 @@ import cn from 'classnames';
 import React from 'react';
 import { useGroup } from '../../state/groups';
 import GroupAvatar from '../GroupAvatar';
-import CaretLeftIcon from '../icons/CaretLeftIcon';
-import HashIcon from '../icons/HashIcon';
-import MagnifyingGlass from '../icons/MagnifyingGlassIcon';
-import useNavStore from '../Nav/useNavStore';
-import NavTab from '../NavTab';
-import ActivityIndicator from '../Sidebar/ActivityIndicator';
+import CaretLeftIcon from '../../components/icons/CaretLeftIcon';
+import HashIcon from '../../components/icons/HashIcon';
+import MagnifyingGlass from '../../components/icons/MagnifyingGlassIcon';
+import useNavStore from '../../components/Nav/useNavStore';
+import NavTab from '../../components/NavTab';
+import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
 import ChannelList from './ChannelList';
 
 export default function MobileGroupSidebar() {

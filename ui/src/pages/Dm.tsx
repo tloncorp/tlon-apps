@@ -3,7 +3,7 @@ import cn from 'classnames';
 import { Outlet, useParams, useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '../chat/ChatInput/ChatInput';
-import Layout from '../components/layout/Layout';
+import Layout from '../components/Layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
 import DmInvite from './DmInvite';

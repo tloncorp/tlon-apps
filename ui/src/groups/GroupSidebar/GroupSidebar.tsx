@@ -3,15 +3,15 @@ import React from 'react';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGroup } from '../../state/groups';
 import { GroupMeta } from '../../types/groups';
-import useNavStore from '../Nav/useNavStore';
-import CaretLeft16Icon from '../icons/CaretLeft16Icon';
-import MagnifyingGlass from '../icons/MagnifyingGlass16Icon';
-import HashIcon16 from '../icons/HashIcon16';
+import useNavStore from '../../components/Nav/useNavStore';
+import CaretLeft16Icon from '../../components/icons/CaretLeft16Icon';
+import MagnifyingGlass from '../../components/icons/MagnifyingGlass16Icon';
+import HashIcon16 from '../../components/icons/HashIcon16';
 import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
-import ActivityIndicator from '../Sidebar/ActivityIndicator';
+import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
 import GroupAvatar from '../GroupAvatar';
-import SidebarItem from '../Sidebar/SidebarItem';
+import SidebarItem from '../../components/Sidebar/SidebarItem';
 
 function GroupHeader({ meta }: { meta?: GroupMeta }) {
   if (!meta) {

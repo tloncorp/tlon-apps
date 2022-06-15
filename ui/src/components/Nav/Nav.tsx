@@ -1,6 +1,6 @@
 import React, { ReactElement, useEffect } from 'react';
 import Sidebar from '../Sidebar/Sidebar';
-import GroupSidebar from '../GroupSidebar/GroupSidebar';
+import GroupSidebar from '../../groups/GroupSidebar/GroupSidebar';
 import MessagesSidebar from '../../dms/MessagesSidebar';
 import useNavStore from './useNavStore';
 import useIsChat from '../../logic/useIsChat';

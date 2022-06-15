@@ -9,7 +9,7 @@ import { isDMBrief } from '../state/chat';
 import { useChannel, useGroupState } from '../state/groups';
 import { useIsMobile } from '../logic/useMedia';
 import useNavStore from '../components/Nav/useNavStore';
-import GroupAvatar from '../components/GroupAvatar';
+import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 
 interface MessagesSidebarItemProps {
