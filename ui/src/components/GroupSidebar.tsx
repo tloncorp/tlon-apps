@@ -38,7 +38,6 @@ function GroupHeader({ meta }: { meta?: GroupMeta }) {
   if (!meta) {
     return null;
   }
-  console.log(meta);
 
   return (
     <DropdownMenu.Root>

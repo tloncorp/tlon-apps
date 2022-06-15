@@ -8,14 +8,14 @@ export default function GroupInfoModal({ meta }: { meta: GroupMeta }) {
   return (
     <Dialog.Root modal>
       <Dialog.Trigger asChild>
-        <button className="dropdown-item flex w-60 items-center space-x-4 px-4 font-semibold hover:bg-gray-50">
+        <button className="dropdown-item flex items-center space-x-4 px-4 font-semibold hover:bg-gray-50 sm:w-60">
           <AsteriskIcon className="h-3 w-3" />
           <div>Group Information</div>
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 h-full w-full bg-neutral-400 opacity-20" />
-        <Dialog.Content className="dialog-container top-1/3 max-w-sm p-6">
+        <Dialog.Content className="dialog-container w-full p-6 sm:top-1/3 sm:max-w-sm">
           <div className="dialog">
             <header className="flex items-center ">
               <Dialog.Title className="text-lg font-bold">
