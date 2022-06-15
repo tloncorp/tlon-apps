@@ -55,11 +55,8 @@ function GroupHeader({ meta }: { meta?: GroupMeta }) {
           <h3>{meta?.title}</h3>
         </li>
       </DropdownMenu.Trigger>
-      <DropdownMenu.Content className="dropdown">
-        <DropdownMenu.Item
-          onSelect={(e) => e.preventDefault()}
-          className="dropdown-item flex items-center space-x-2 hover:bg-gray-50"
-        >
+      <DropdownMenu.Content portalled={false} className="dropdown z-30 w-full">
+        <DropdownMenu.Item asChild>
           <GroupInfoModal meta={meta} />
         </DropdownMenu.Item>
       </DropdownMenu.Content>
