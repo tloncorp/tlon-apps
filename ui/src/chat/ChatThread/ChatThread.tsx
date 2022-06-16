@@ -7,7 +7,7 @@ import { useChannel, useRouteGroup } from '../../state/groups';
 import ChatInput from '../ChatInput/ChatInput';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import RowDivider from '../../components/RowDivider';
-import XIcon from '../../components/icons/XIcon';
+import X16Icon from '../../components/icons/X16Icon';
 import ChatScroller from '../ChatScroller/ChatScroller';
 
 export default function ChatThread(
@@ -31,7 +31,7 @@ export default function ChatThread(
       <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
         {children}
         <Link to="..">
-          <XIcon className="h-4 w-4 text-gray-400" />
+          <X16Icon className="h-4 w-4 text-gray-400" />
         </Link>
       </div>
       <ChatMessage whom={whom} time={time} writ={writ} newAuthor hideReplies />
