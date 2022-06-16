@@ -24,7 +24,3 @@ a[aria-disabled='true'] {
     display: none; /* Safari and Chrome */
   }
 }
-
-_::-webkit-full-page-media, _:future, :root .safari_only, body.dark ::selection {
-  @apply bg-gray-800;
-}
