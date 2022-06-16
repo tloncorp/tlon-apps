@@ -35,6 +35,28 @@ exports[`GroupSidebar > renders as expected 1`] = `
         class="flex-none"
       >
         <li
+          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold text-gray-600 hover:bg-gray-50 sm:text-base"
+        >
+          <div
+            class="flex-1"
+          >
+            <button
+              aria-haspopup="menu"
+              class="default-focus flex w-full items-center space-x-3 rounded-lg p-2 pr-4 font-semibold"
+              data-state="closed"
+              id="radix-0"
+              type="button"
+            >
+              <div
+                class="rounded border-2 border-gray-100 h-6 w-6"
+              />
+              <div
+                class="max-w-full flex-1 truncate text-left"
+              />
+            </button>
+          </div>
+        </li>
+        <li
           class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
         >
           <a

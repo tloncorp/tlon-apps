@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import React, { ButtonHTMLAttributes, PropsWithChildren } from 'react';
-import { Link, useMatch } from 'react-router-dom';
+import { Link, LinkProps, useMatch } from 'react-router-dom';
 import BulletIcon from '../icons/BulletIcon';
 
 type SidebarProps = PropsWithChildren<{
@@ -10,7 +10,8 @@ type SidebarProps = PropsWithChildren<{
   actions?: React.ReactNode;
   color?: string;
 }> &
-  ButtonHTMLAttributes<HTMLButtonElement>;
+  ButtonHTMLAttributes<HTMLButtonElement> &
+  Omit<LinkProps, 'to'>;
 
 function Action({
   to,

@@ -33,6 +33,8 @@ import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
 import DMHome from './dms/DMHome';
 import Nav from './components/Nav/Nav';
+import GroupInfoDialog from './groups/GroupInfoDialog';
+import GroupInviteDialog from './groups/GroupInviteDialog';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -100,6 +102,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/groups/join" element={<JoinGroupModal />} />
+          <Route path="/groups/:ship/:name">
+            <Route path="info" element={<GroupInfoDialog />} />
+            <Route path="invite" element={<GroupInviteDialog />} />
+          </Route>
           <Route path="/gangs/:ship/:name" element={<GangModal />} />
         </Routes>
       ) : null}

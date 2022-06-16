@@ -1,10 +1,10 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import InviteIcon from '../components/icons/InviteIcon';
 import LinkIcon from '../components/icons/LinkIcon';
 import PersonIcon from '../components/icons/PersonIcon';
 import SlidersIcon from '../components/icons/SlidersIcon';
 import { useGroupActions } from '../components/Sidebar/GroupActions';
-import GroupInviteDialog from '../components/Sidebar/GroupInviteDialog';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 
 interface MobileGroupActionsProps {
@@ -12,25 +12,21 @@ interface MobileGroupActionsProps {
 }
 
 export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
-  const {
-    showInviteDialog,
-    setShowInviteDialog,
-    onCloseInviteDialog,
-    onInviteClick,
-    onCopyClick,
-  } = useGroupActions(flag);
+  const location = useLocation();
+  const { onCopyClick } = useGroupActions(flag);
 
   return (
     <nav>
       <ul className="space-y-3">
         <SidebarItem
+          to={`/groups/${flag}/invite`}
+          state={{ backgroundLocation: location }}
           color="text-blue"
           icon={
             <div className="flex h-12 w-12 items-center justify-center rounded-md bg-blue-soft">
               <InviteIcon className="h-6 w-6" />
             </div>
           }
-          onClick={onInviteClick}
         >
           Invite People
         </SidebarItem>
@@ -64,12 +60,6 @@ export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
           Group Preferences
         </SidebarItem>
       </ul>
-      <GroupInviteDialog
-        flag={flag}
-        open={showInviteDialog}
-        onClose={onCloseInviteDialog}
-        onOpenChange={setShowInviteDialog}
-      />
     </nav>
   );
 }
