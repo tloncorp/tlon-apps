@@ -6,7 +6,7 @@ import { useIsMobile } from '../logic/useMedia';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import CaretDown16Icon from '../components/icons/CaretDown16Icon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
-import PersonSmallIcon from '../components/icons/PersonSmallIcon';
+import PersonSmallIcon from '../components/icons/Person16Icon';
 import CmdSmallIcon from '../components/icons/CmdSmallIcon';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';

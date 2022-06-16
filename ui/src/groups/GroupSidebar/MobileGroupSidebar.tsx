@@ -9,6 +9,7 @@ import useNavStore from '../../components/Nav/useNavStore';
 import NavTab from '../../components/NavTab';
 import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
 import ChannelList from './ChannelList';
+import MobileGroupActions from '../MobileGroupActions';
 
 export default function MobileGroupSidebar() {
   const { navSetMain, flag, secondary } = useNavStore((state) => ({
@@ -35,7 +36,7 @@ export default function MobileGroupSidebar() {
             : secondary === 'search'
             ? 'Search Channels'
             : secondary === 'group'
-            ? 'Group'
+            ? 'Group Options'
             : null}
         </button>
       </header>
@@ -47,7 +48,7 @@ export default function MobileGroupSidebar() {
         ) : secondary === 'search' ? (
           <div />
         ) : secondary === 'group' ? (
-          <div />
+          <MobileGroupActions flag={flag} />
         ) : null}
       </div>
       <footer className="mt-auto flex-none border-t-2 border-gray-50">

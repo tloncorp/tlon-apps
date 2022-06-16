@@ -8,17 +8,12 @@ import PinIcon16 from '../icons/PinIcon16';
 import useCopyToClipboard from '../../logic/useCopyToClipboard';
 import GroupInviteDialog from './GroupInviteDialog';
 
-export default function GroupActions({ flag }: { flag: string }) {
+export function useGroupActions(flag: string) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
 
   const onCloseInviteDialog = useCallback(
-    (
-      e:
-        | React.MouseEvent<HTMLDivElement, MouseEvent>
-        | React.MouseEvent<HTMLButtonElement, MouseEvent>
-    ) => {
+    (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
       e.stopPropagation();
       setShowInviteDialog(false);
     },
@@ -26,7 +21,7 @@ export default function GroupActions({ flag }: { flag: string }) {
   );
 
   const onInviteClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
       e.stopPropagation();
       setShowInviteDialog(true);
     },
@@ -34,7 +29,7 @@ export default function GroupActions({ flag }: { flag: string }) {
   );
 
   const onCopyClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
       e.stopPropagation();
       doCopy(flag);
     },
@@ -42,7 +37,7 @@ export default function GroupActions({ flag }: { flag: string }) {
   );
 
   const onPinClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
       e.stopPropagation();
       // TODO
       // eslint-disable-next-line no-console
@@ -51,50 +46,63 @@ export default function GroupActions({ flag }: { flag: string }) {
     []
   );
 
+  return {
+    showInviteDialog,
+    setShowInviteDialog,
+    onCloseInviteDialog,
+    onInviteClick,
+    onCopyClick,
+    onPinClick,
+  };
+}
+
+export default function GroupActions({ flag }: { flag: string }) {
+  const {
+    showInviteDialog,
+    setShowInviteDialog,
+    onCloseInviteDialog,
+    onInviteClick,
+    onCopyClick,
+    onPinClick,
+  } = useGroupActions(flag);
+
   return (
-    <div className="justify-self-end">
-      <div
-        className={cn(
-          'group-hover:opacity-100',
-          isOpen ? 'opacity:100' : 'opacity-0'
-        )}
-      >
-        <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)}>
-          <DropdownMenu.Trigger
-            className={'default-focus rounded-lg p-0.5 text-gray-600'}
-            aria-label="Open Message Options"
+    <div>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger
+          className={'default-focus rounded-lg p-0.5 text-gray-600'}
+          aria-label="Open Message Options"
+        >
+          <EllipsisIcon className="h-5 w-5" />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content className="dropdown">
+          <DropdownMenu.Item
+            className={
+              'dropdown-item flex items-center space-x-2 rounded-none text-blue'
+            }
+            onClick={onInviteClick}
           >
-            <EllipsisIcon className="h-5 w-5" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content className="dropdown">
-            <DropdownMenu.Item
-              className={
-                'dropdown-item flex items-center space-x-2 rounded-none text-blue'
-              }
-              onClick={onInviteClick}
-            >
-              <InviteIcon16 className="h-6 w-6" />
-              <span className="pr-2">Invite People</span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className={
-                'dropdown-item flex items-center space-x-2 rounded-none text-blue'
-              }
-              onClick={onCopyClick}
-            >
-              <LinkIcon16 className="h-6 w-6" />
-              <span className="pr-2">Copy Group Link</span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className="dropdown-item flex items-center space-x-2 rounded-none"
-              onClick={onPinClick}
-            >
-              <PinIcon16 className="h-6 w-6 text-gray-600" />
-              <span className="pr-2">Pin</span>
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      </div>
+            <InviteIcon16 className="h-6 w-6" />
+            <span className="pr-2">Invite People</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className={
+              'dropdown-item flex items-center space-x-2 rounded-none text-blue'
+            }
+            onClick={onCopyClick}
+          >
+            <LinkIcon16 className="h-6 w-6" />
+            <span className="pr-2">Copy Group Link</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className="dropdown-item flex items-center space-x-2 rounded-none"
+            onClick={onPinClick}
+          >
+            <PinIcon16 className="h-6 w-6 text-gray-600" />
+            <span className="pr-2">Pin</span>
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
       <GroupInviteDialog
         flag={flag}
         open={showInviteDialog}

@@ -4,7 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
 import CaretDown16Icon from '../components/icons/CaretDown16Icon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
-import PersonSmallIcon from '../components/icons/PersonSmallIcon';
+import PersonSmallIcon from '../components/icons/Person16Icon';
 import CmdSmallIcon from '../components/icons/CmdSmallIcon';
 import MessagesList from './MessagesList';
 import useNavStore from '../components/Nav/useNavStore';
