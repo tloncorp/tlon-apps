@@ -2,7 +2,12 @@ import cn from 'classnames';
 import React from 'react';
 import useSidebarSort from '../../logic/useSidebarSort';
 import { useBriefs } from '../../state/chat';
-import { useGangList, useGroup, useGroupList } from '../../state/groups';
+import {
+  useGangList,
+  useGroup,
+  useGroupList,
+  usePinnedGroups,
+} from '../../state/groups';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
 import GroupAvatar from '../GroupAvatar';
@@ -46,18 +51,36 @@ function GangItem(props: { flag: string }) {
 
 interface GroupListProps {
   className?: string;
+  pinned?: boolean;
 }
 
-export default function GroupList({ className }: GroupListProps) {
+export default function GroupList({
+  className,
+  pinned = false,
+}: GroupListProps) {
   const flags = useGroupList();
+  const pinnedFlags = usePinnedGroups();
   const gangs = useGangList();
   const { sortFn, sortOptions } = useSidebarSort();
 
-  return (
-    <ul className={cn('h-full space-y-3 p-2 sm:space-y-0', className)}>
-      {flags.sort(sortOptions[sortFn]).map((flag) => (
+  return pinned ? (
+    <>
+      <li className="flex items-center space-x-2 px-2 py-3">
+        <span className="text-xs font-semibold text-gray-400">Pinned</span>
+        <div className="grow border-b-2 border-gray-100" />
+      </li>
+      {pinnedFlags.sort(sortOptions[sortFn]).map((flag) => (
         <GroupItem key={flag} flag={flag} />
       ))}
+    </>
+  ) : (
+    <ul className={cn('h-full space-y-3 p-2 sm:space-y-0', className)}>
+      {flags
+        .filter((flag) => !pinnedFlags.includes(flag))
+        .sort(sortOptions[sortFn])
+        .map((flag) => (
+          <GroupItem key={flag} flag={flag} />
+        ))}
       {gangs.length > 0 ? <Divider>Pending</Divider> : null}
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />

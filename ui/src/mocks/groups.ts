@@ -109,6 +109,6 @@ export const mockGangs: Gangs = {
   },
 };
 
-export const pinnedGroups = ['~/zod/remco'];
+export const pinnedGroups = ['~zod/remco'];
 
 export default mockGroups;
