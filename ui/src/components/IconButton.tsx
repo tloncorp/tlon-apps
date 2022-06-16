@@ -39,7 +39,7 @@ export default function IconButton({
         </div>
       ) : null}
       <button
-        className="align-center flex h-8 w-8 rounded p-2 group-two-hover:bg-gray-50"
+        className="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50"
         onClick={action}
         aria-label={label}
       >

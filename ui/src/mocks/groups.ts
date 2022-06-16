@@ -1,3 +1,4 @@
+import faker from '@faker-js/faker';
 import { Group, Vessel, Gangs } from '../types/groups';
 
 const emptyVessel = (): Vessel => ({
@@ -5,36 +6,30 @@ const emptyVessel = (): Vessel => ({
   joined: Date.now(),
 });
 
-const mockGroupOne: Group = {
-  fleet: {
-    '~hastuc-dibtux': emptyVessel(),
-    '~finned-palmer': emptyVessel(),
-    '~zod': emptyVessel(),
-  },
-  cabals: {},
-  channels: {
-    '~zod/test': {
-      meta: {
-        title: 'Watercooler',
-        description:
-          'General chat for the entire fleet.  Please keep it civil.',
-        image: '',
+function createMockGroup(title: string): Group {
+  return {
+    fleet: {
+      '~hastuc-dibtux': emptyVessel(),
+      '~finned-palmer': emptyVessel(),
+      '~zod': emptyVessel(),
+    },
+    cabals: {},
+    channels: {},
+    cordon: {
+      open: {
+        ranks: ['czar'],
+        ships: ['~bus'],
       },
     },
-  },
-  cordon: {
-    open: {
-      ranks: ['czar'],
-      ships: ['~bus'],
+    meta: {
+      title,
+      description:
+        'We build infrastructre that is technically excellent, architecturally sound, and aesthetically beautiful',
+      image:
+        'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.6.14..18.37.11-Icon Box.png',
     },
-  },
-  meta: {
-    title: 'Tlon Corporation',
-    description:
-      'We build infrastructre that is technically excellent, architecturally sound, and aesthetically beautiful',
-    image: '',
-  },
-};
+  };
+}
 
 const mockGroupTwo: Group = {
   fleet: {},
@@ -60,10 +55,30 @@ const mockGroupTwo: Group = {
     image: '',
   },
 };
-const mockGroups = {
-  '~zod/tlon': mockGroupOne,
+
+const mockGroups: { [flag: string]: Group } = {
   '~zod/remco': mockGroupTwo,
 };
+
+function createChannel(title: string) {
+  return {
+    meta: {
+      title,
+      description: 'Do some chatting',
+      image: '',
+    },
+  };
+}
+
+for (let i = 0; i < 20; i += 1) {
+  const group = createMockGroup(faker.company.companyName());
+
+  for (let j = 0; j < 20; j += 1) {
+    group.channels[`~zod/tlon${i}${j}`] = createChannel(faker.company.bs());
+  }
+
+  mockGroups[`~zod/tlon${i}`] = group;
+}
 
 export const mockGangs: Gangs = {
   '~zod/structure': {

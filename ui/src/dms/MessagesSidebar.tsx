@@ -1,88 +1,73 @@
-import React, { useState } from 'react';
+import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import {
-  isDMBrief,
-  isGroupBrief,
-  useBriefs,
-  usePendingDms,
-} from '../state/chat';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
 import { useIsMobile } from '../logic/useMedia';
-import SidebarLink from '../components/Sidebar/SidebarLink';
-import MagnifyingGlass from '../components/icons/MagnifyingGlass';
-import useSidebarSort, { RECENT } from '../logic/useSidebarSort';
-import CaretDownIcon from '../components/icons/CaretDownIcon';
+import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
+import CaretDown16Icon from '../components/icons/CaretDown16Icon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
 import PersonSmallIcon from '../components/icons/PersonSmallIcon';
 import CmdSmallIcon from '../components/icons/CmdSmallIcon';
+import MobileMessagesSidebar from './MobileMessagesSidebar';
+import MessagesList from './MessagesList';
+import useMessagesFilter, { filters } from './useMessagesFilter';
+import { useBriefs, usePinnedChats } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
-
-type SidebarFilter = 'Direct Messages' | 'All Messages' | 'Group Talk Channels';
-
-const filters: Record<string, SidebarFilter> = {
-  dms: 'Direct Messages',
-  all: 'All Messages',
-  groups: 'Group Talk Channels',
-};
+import SidebarItem from '../components/Sidebar/SidebarItem';
 
 export default function MessagesSidebar() {
-  const pending = usePendingDms();
   const isMobile = useIsMobile();
-  const { sortOptions } = useSidebarSort(RECENT);
-  const [filter, setFilter] = useState<SidebarFilter>(filters.dms);
+  const { filter, setFilter } = useMessagesFilter();
   const briefs = useBriefs();
+  const pinned = usePinnedChats();
 
-  const organizedBriefs = Object.keys(briefs)
-    .filter((b) => {
-      if (pending.includes(b)) {
-        return false;
-      }
-
-      if (filter === filters.groups && isDMBrief(b)) {
-        return false;
-      }
-
-      if (filter === filters.dms && isGroupBrief(b)) {
-        return false;
-      }
-
-      return true; // is all
-    })
-    .sort(sortOptions[RECENT]);
+  if (isMobile) {
+    return <MobileMessagesSidebar />;
+  }
 
   return (
-    <nav
-      className={cn(
-        'flex h-full flex-col border-r-2 border-gray-50 bg-white',
-        !isMobile && 'w-64',
-        isMobile && 'fixed top-0 left-0 z-40 w-full'
-      )}
-    >
-      <ul className={cn('flex w-full flex-col p-2', !isMobile && 'w-64')}>
-        <SidebarLink
-          icon={<MagnifyingGlass className="h-6 w-6" />}
+    <nav className="flex h-full w-64 flex-col border-r-2 border-gray-50 bg-white">
+      <ul className="flex w-64 flex-col p-2">
+        <SidebarItem
+          icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
           to="/dm/search"
         >
           Search Messages
-        </SidebarLink>
-        <SidebarLink
+        </SidebarItem>
+        <SidebarItem
           to="/dm/new"
           color="text-blue"
           icon={<NewMessageIcon className="h-6 w-6" />}
         >
           New Message
-        </SidebarLink>
-        <li>
+        </SidebarItem>
+        {pinned && pinned.length > 0 ? (
+          <>
+            <li className="flex items-center space-x-2 px-2 py-3">
+              <span className="text-xs font-semibold text-gray-400">
+                Pinned
+              </span>
+              <div className="grow border-b-2 border-gray-100" />
+            </li>
+            {pinned.map((ship: string) => (
+              <MessagesSidebarItem
+                key={ship}
+                whom={ship}
+                brief={briefs[ship]}
+              />
+            ))}
+          </>
+        ) : null}
+        <li className="p-2">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger
-              className={'default-focus rounded-lg p-0.5 text-gray-600'}
+              className={
+                'default-focus flex items-center space-x-2 rounded-lg bg-gray-50 p-2 text-base font-semibold'
+              }
               aria-label="Groups Filter Options"
             >
-              <div className="default-focus flex items-center space-x-2 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
-                <span className="pl-1">{filter}</span>
-                <CaretDownIcon className="w-4 text-gray-400" />
-              </div>
+              <span className="pl-1">{filter}</span>
+              <CaretDown16Icon className="w-4 text-gray-400" />
             </DropdownMenu.Trigger>
             <DropdownMenu.Content className="dropdown text-gray-600">
               <DropdownMenu.Item
@@ -118,20 +103,8 @@ export default function MessagesSidebar() {
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </li>
-        {pending &&
-          filter !== filters.groups &&
-          pending.map((ship) => (
-            <MessagesSidebarItem
-              pending
-              key={ship}
-              whom={ship}
-              brief={briefs[ship]}
-            />
-          ))}
-        {organizedBriefs.map((ship) => (
-          <MessagesSidebarItem key={ship} whom={ship} brief={briefs[ship]} />
-        ))}
       </ul>
+      <MessagesList filter={filter} />
     </nav>
   );
 }

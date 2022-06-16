@@ -18,12 +18,15 @@ export interface ChatState {
   };
   dmSubs: string[];
   dmArchive: string[];
+  pinnedDms: string[];
   fetchDms: () => Promise<void>;
   pacts: {
     [whom: ChatWhom]: Pact;
   };
   pendingDms: string[];
   briefs: ChatBriefs;
+  pinDm: (whom: string) => Promise<void>;
+  unpinDm: (whom: string) => Promise<void>;
   markRead: (whom: string) => Promise<void>;
   start: () => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;

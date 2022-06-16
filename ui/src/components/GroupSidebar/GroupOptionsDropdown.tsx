@@ -2,11 +2,10 @@ import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import XIcon from '../icons/XIcon';
-import AsteriskIcon from '../icons/AsteriskIcon';
-
+import AsteriskIcon from '../icons/Asterisk16Icon';
 import { GroupMeta } from '../../types/groups';
 
-export default function GroupHeader({ meta }: { meta?: GroupMeta }) {
+export default function GroupOptionsDropdown({ meta }: { meta?: GroupMeta }) {
   if (!meta) {
     return null;
   }
@@ -15,7 +14,7 @@ export default function GroupHeader({ meta }: { meta?: GroupMeta }) {
     <Dialog.Root>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger className="w-full">
-          <li className=" flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
+          <li className="flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
             {(meta?.image || '').length > 0 ? (
               <img
                 className="h-6 w-6 rounded border-2 border-transparent"
@@ -27,10 +26,7 @@ export default function GroupHeader({ meta }: { meta?: GroupMeta }) {
             <h3>{meta?.title}</h3>
           </li>
         </DropdownMenu.Trigger>
-        <DropdownMenu.Content
-          portalled={false}
-          className="dropdown z-30 w-full"
-        >
+        <DropdownMenu.Content className="dropdown w-full">
           <Dialog.Trigger asChild>
             <DropdownMenu.Item onSelect={(e) => e.preventDefault} asChild>
               <button className="dropdown-item flex items-center space-x-4 px-4 font-semibold hover:bg-gray-50 sm:w-60">

@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import cn from 'classnames';
 import React, { useEffect } from 'react';
-import { Outlet, useLocation, useParams } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import ChatWindow from '../chat/ChatWindow';
@@ -17,7 +17,8 @@ import {
 import { useChannel, useRouteGroup, useVessel } from '../state/groups';
 import { channelHref } from '../logic/utils';
 import { useChatInfo } from '../chat/useChatStore';
-import LeftIcon from '../components/icons/LeftIcon';
+import CaretLeftIcon from '../components/icons/CaretLeftIcon';
+import useNavStore from '../components/Nav/useNavStore';
 
 function Channel() {
   const { chShip, chName } = useParams();
@@ -28,8 +29,8 @@ function Channel() {
   const join = () => {
     useChatState.getState().joinChat(flag);
   };
-  const location = useLocation();
   const isMobile = useIsMobile();
+  const navigateChannels = useNavStore((state) => state.setLocationGroups);
 
   useEffect(() => {
     useChatState.getState().initialize(flag);
@@ -48,27 +49,31 @@ function Channel() {
       className="flex-1"
       aside={<Outlet />}
       header={
-        <div className="flex h-full items-center border-b-2 border-gray-50 p-4">
-          <Link
-            to=".."
-            state={{ backgroundLocation: location }}
+        <div
+          className={cn(
+            'flex w-full items-center',
+            isMobile && 'px-2 py-1',
+            !isMobile && 'border-b-2 border-gray-50 p-4'
+          )}
+        >
+          <button
             className={cn(
-              isMobile &&
-                '-ml-2 flex items-center rounded-lg p-2 hover:bg-gray-50'
+              isMobile && 'flex items-center rounded-lg p-2 hover:bg-gray-50'
             )}
             aria-label="Open Channels Menu"
+            onClick={() => isMobile && navigateChannels(groupFlag)}
           >
             {isMobile ? (
-              <LeftIcon className="mr-1 h-5 w-5 text-gray-500" />
+              <CaretLeftIcon className="mr-4 h-6 w-6 text-gray-400" />
             ) : null}
-            <h1 className="text-lg font-bold">{channel.meta.title}</h1>
-          </Link>
+            <h1 className="text-xl font-medium">{channel.meta.title}</h1>
+          </button>
 
           <Link
-            className="icon-button ml-auto h-8 w-8"
+            className="icon-button ml-auto h-8 w-8 bg-transparent"
             to={`${channelHref(groupFlag, flag)}/settings`}
           >
-            <EllipsisIcon className="h-5 w-5" />
+            <EllipsisIcon className="h-6 w-6" />
           </Link>
         </div>
       }

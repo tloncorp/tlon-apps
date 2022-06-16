@@ -1,17 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { ReactElement, useEffect } from 'react';
 import Sidebar from '../Sidebar/Sidebar';
-import GroupSidebar from '../GroupSidebar';
+import GroupSidebar from '../GroupSidebar/GroupSidebar';
 import MessagesSidebar from '../../dms/MessagesSidebar';
 import useNavStore from './useNavStore';
 import useIsChat from '../../logic/useIsChat';
 
 export default function Nav() {
-  const navLocation = useNavStore((s) => s.location);
+  const navLocation = useNavStore((s) => s.primary);
   const isChat = useIsChat();
-  let selectedSidebar = isChat ? <MessagesSidebar /> : <Sidebar />;
+  let selectedSidebar: ReactElement | null = isChat ? (
+    <MessagesSidebar />
+  ) : (
+    <Sidebar />
+  );
 
   useEffect(() => {
-    if (isChat && navLocation !== 'dm') {
+    if (isChat && (navLocation === 'group' || navLocation === 'main')) {
       useNavStore.getState().setLocationDM();
     }
   }, [isChat, navLocation]);
@@ -22,6 +26,8 @@ export default function Nav() {
     selectedSidebar = <MessagesSidebar />;
   } else if (navLocation === 'group') {
     selectedSidebar = <GroupSidebar />;
+  } else {
+    selectedSidebar = null;
   }
 
   return selectedSidebar;

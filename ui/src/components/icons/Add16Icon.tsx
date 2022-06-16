@@ -1,7 +1,7 @@
 import React from 'react';
 import { IconProps } from './icon';
 
-export default function SmallDownIcon({ className }: IconProps) {
+export default function AddIcon16({ className }: IconProps) {
   return (
     <svg
       className={className}
@@ -11,10 +11,9 @@ export default function SmallDownIcon({ className }: IconProps) {
     >
       <path
         className="stroke-current"
-        d="m4 7 4 4 4-4"
+        d="M3 8h10M8 3v10"
         strokeWidth="2"
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </svg>
   );
