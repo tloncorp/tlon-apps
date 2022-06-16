@@ -74,7 +74,7 @@ export default function GroupActions({ flag }: { flag: string }) {
           open={isOpen}
         >
           <DropdownMenu.Trigger
-            className={'default-focus rounded-lg p-0.5 text-gray-600'}
+            className={'default-focus rounded-lg p-0.5'}
             aria-label="Open Message Options"
           >
             <EllipsisIcon className="h-5 w-5" />
