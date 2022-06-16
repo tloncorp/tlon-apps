@@ -158,7 +158,9 @@ export default function Avatar({
       )}
       style={{ backgroundColor: adjustedColor }}
     >
-      {sigilElement}
+      {sigilElement || (
+        <div style={{ width: `${sigilSize}px`, height: `${sigilSize}px` }} />
+      )}
     </div>
   );
 }
