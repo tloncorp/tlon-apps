@@ -16,6 +16,7 @@ interface DMOptionsProps {
 export default function DmOptions({ ship, className }: DMOptionsProps) {
   const navigate = useNavigate();
   const pinned = usePinnedChats();
+  const [isOpen, setIsOpen] = useState(false);
 
   const onArchive = () => {
     navigate(-1);
@@ -48,13 +49,15 @@ export default function DmOptions({ ship, className }: DMOptionsProps) {
   };
 
   return (
-    <>
-      <DropdownMenu.Root>
+    <div
+      className={cn(
+        'group-hover:opacity-100',
+        isOpen ? 'opacity:100' : 'opacity-0'
+      )}
+    >
+      <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
         <DropdownMenu.Trigger
-          className={cn(
-            'default-focus rounded-lg p-0.5 text-gray-600',
-            className
-          )}
+          className={cn('default-focus rounded-lg p-0.5', className)}
           aria-label="Open Message Options"
         >
           <EllipsisIcon className="h-6 w-6" />
@@ -105,6 +108,6 @@ export default function DmOptions({ ship, className }: DMOptionsProps) {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

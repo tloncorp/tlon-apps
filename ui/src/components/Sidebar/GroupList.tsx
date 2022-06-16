@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import React from 'react';
 import useSidebarSort from '../../logic/useSidebarSort';
+import { useBriefs } from '../../state/chat';
 import { useGangList, useGroup, useGroupList } from '../../state/groups';
 import Divider from '../Divider';
 import GangName from '../GangName/GangName';
@@ -11,6 +12,7 @@ import SidebarItem from './SidebarItem';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
+  const briefs = useBriefs();
   const setNavGroups = useNavStore((state) => state.setLocationGroups);
   return (
     <SidebarItem
@@ -19,6 +21,7 @@ function GroupItem({ flag }: { flag: string }) {
       }
       actions={<GroupActions flag={flag} />}
       onClick={() => setNavGroups(flag)}
+      hasActivity={(briefs[flag]?.count ?? 0) > 0}
     >
       {group?.meta.title}
     </SidebarItem>
@@ -34,6 +37,7 @@ function GangItem(props: { flag: string }) {
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" />}
       to={`/gangs/${flag}`}
       onClick={hideNav}
+      hasActivity
     >
       <GangName flag={flag} className="inline-block w-full truncate" />
     </SidebarItem>

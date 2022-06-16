@@ -74,7 +74,12 @@ export default function SidebarItem({
         ) : null}
       </Action>
       {actions ? (
-        <div className="group-two absolute right-0 opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100">
+        <div
+          className={cn(
+            'group absolute right-0 transition-opacity focus-visible:opacity-100',
+            hasActivity && 'text-blue'
+          )}
+        >
           {actions}
         </div>
       ) : null}
