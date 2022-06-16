@@ -7,12 +7,14 @@ import LinkIcon16 from '../icons/LinkIcon16';
 import PinIcon16 from '../icons/PinIcon16';
 import useCopyToClipboard from '../../logic/useCopyToClipboard';
 import GroupInviteDialog from './GroupInviteDialog';
+import { useGroupState, usePinnedGroups } from '../../state/groups';
 
 export default function GroupActions({ flag }: { flag: string }) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
+  const pinned = usePinnedGroups();
 
   const onCloseInviteDialog = useCallback(
     (
@@ -54,11 +56,14 @@ export default function GroupActions({ flag }: { flag: string }) {
   const onPinClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
-      // TODO
-      // eslint-disable-next-line no-console
-      console.log('pin');
+      const isPinned = pinned.includes(flag);
+      if (isPinned) {
+        useGroupState.getState().unpinGroup(flag);
+      } else {
+        useGroupState.getState().pinGroup(flag);
+      }
     },
-    []
+    [flag, pinned]
   );
 
   return (
