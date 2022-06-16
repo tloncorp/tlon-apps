@@ -2,7 +2,6 @@ import cn from 'classnames';
 import React from 'react';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGroup } from '../../state/groups';
-import { GroupMeta } from '../../types/groups';
 import useNavStore from '../../components/Nav/useNavStore';
 import CaretLeft16Icon from '../../components/icons/CaretLeft16Icon';
 import MagnifyingGlass from '../../components/icons/MagnifyingGlass16Icon';
@@ -10,21 +9,8 @@ import HashIcon16 from '../../components/icons/HashIcon16';
 import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
 import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
-import GroupAvatar from '../GroupAvatar';
 import SidebarItem from '../../components/Sidebar/SidebarItem';
-
-function GroupHeader({ meta }: { meta?: GroupMeta }) {
-  if (!meta) {
-    return null;
-  }
-
-  return (
-    <li className="flex items-center space-x-3 rounded-lg p-2 text-base font-semibold text-gray-600">
-      <GroupAvatar img={meta?.image} />
-      <h3>{meta?.title}</h3>
-    </li>
-  );
-}
+import GroupOptionsDropdown from '../GroupOptionsDropdown';
 
 export default function GroupSidebar() {
   const flag = useNavStore((state) => state.flag);
@@ -51,7 +37,7 @@ export default function GroupSidebar() {
       </header>
       <div className="flex min-h-0 flex-1 flex-col p-2 sm:p-0">
         <ul className="flex-none">
-          <GroupHeader meta={group?.meta} />
+          <GroupOptionsDropdown meta={group?.meta} />
           <SidebarItem
             icon={<ActivityIndicator count={activityCount} />}
             to={`/groups/${flag}/activity`}
