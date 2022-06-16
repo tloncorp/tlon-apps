@@ -7,7 +7,7 @@
     ==
 ::
 =/  =content:c
-  [~ mess]
+  story/[~ mess]
 =/  =memo:c
   [~ p.beak now content]
 =/  =diff:dm:c

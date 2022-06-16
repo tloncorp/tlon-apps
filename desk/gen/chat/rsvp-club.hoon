@@ -6,4 +6,4 @@
         [[=id:club:c ok=? ~] ~]
     ==
 =*  our  p.beak
-club-rsvp+[id p.beak ok]
+club-action+`action:club:c`[id 0 %team p.beak ok]

@@ -3,11 +3,11 @@
 /-  c=chat
 :-  %say
 |=  $:  [now=@da eny=@uvJ =beak]
-        [[[her=ship name=term] =time =term ~] ~]
+        [[[her=ship name=term] =id:c =term ~] ~]
     ==
 ::
 :-  %chat-action
 ^-  action:c
 :-  [her name]
 :-  now
-[%add-feel time term]
+[%writs id %add-feel p.beak term]
