@@ -20,12 +20,12 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const isMobile = useIsMobile();
   const group = useGroup(flag);
   const { sortFn, sortOptions, setSortFn } = useSidebarSort();
-  const hideNav = useNavStore((state) => state.setLocationHidden);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
   const hide = useCallback(() => {
     if (isMobile) {
-      hideNav();
+      navPrimary('hidden');
     }
-  }, [hideNav, isMobile]);
+  }, [navPrimary, isMobile]);
 
   if (!group) {
     return null;

@@ -20,7 +20,7 @@ interface MessagesSidebarItemProps {
 
 function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
   const isMobile = useIsMobile();
-  const hideNav = useNavStore((state) => state.setLocationHidden);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
   const groups = useGroupState((s) => s.groups);
   const groupFlag = Object.entries(groups).find(
     ([k, v]) => whom in v.channels
@@ -37,7 +37,7 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
       to={`/groups/${groupFlag}/channels/chat/${whom}`}
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={img} />}
       hasActivity={(brief?.count ?? 0) > 0}
-      onClick={() => isMobile && hideNav()}
+      onClick={() => isMobile && navPrimary('hidden')}
     >
       {channel.meta.title}
     </SidebarItem>
@@ -46,7 +46,7 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
 
 function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
   const isMobile = useIsMobile();
-  const hideNav = useNavStore((state) => state.setLocationHidden);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   return (
     <SidebarItem
@@ -60,7 +60,7 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
       }
       actions={<DmOptions ship={whom} />}
       hasActivity={(brief?.count ?? 0) > 0 || pending}
-      onClick={() => isMobile && hideNav()}
+      onClick={() => isMobile && navPrimary('hidden')}
     >
       <ShipName
         className="w-full truncate font-semibold"

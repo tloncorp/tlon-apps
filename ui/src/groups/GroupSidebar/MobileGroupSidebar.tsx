@@ -12,8 +12,8 @@ import ChannelList from './ChannelList';
 import MobileGroupActions from '../MobileGroupActions';
 
 export default function MobileGroupSidebar() {
-  const { navSetMain, flag, secondary } = useNavStore((state) => ({
-    navSetMain: state.setLocationMain,
+  const { navPrimary, flag, secondary } = useNavStore((state) => ({
+    navPrimary: state.navigatePrimary,
     flag: state.flag,
     secondary: state.secondary,
   }));
@@ -26,7 +26,7 @@ export default function MobileGroupSidebar() {
       <header className="flex-none px-2 py-1">
         <button
           className="default-focus inline-flex items-center rounded-lg p-2 text-xl font-medium text-gray-800 hover:bg-gray-50"
-          onClick={navSetMain}
+          onClick={() => navPrimary('main')}
         >
           <CaretLeftIcon className="mr-4 h-6 w-6 text-gray-400" />
           {secondary === 'main'

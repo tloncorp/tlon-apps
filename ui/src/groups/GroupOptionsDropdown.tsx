@@ -4,6 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import XIcon from '../components/icons/XIcon';
 import AsteriskIcon from '../components/icons/Asterisk16Icon';
 import { GroupMeta } from '../types/groups';
+import GroupAvatar from './GroupAvatar';
 
 export default function GroupOptionsDropdown({ meta }: { meta?: GroupMeta }) {
   if (!meta) {
@@ -15,14 +16,7 @@ export default function GroupOptionsDropdown({ meta }: { meta?: GroupMeta }) {
       <DropdownMenu.Root>
         <DropdownMenu.Trigger className="w-full">
           <li className="flex w-full items-center space-x-3 rounded-lg p-2 text-base font-semibold hover:bg-gray-50">
-            {(meta?.image || '').length > 0 ? (
-              <img
-                className="h-6 w-6 rounded border-2 border-transparent"
-                src={meta?.image}
-              />
-            ) : (
-              <div className="h-6 w-6 rounded border-2 border-gray-100" />
-            )}
+            <GroupAvatar img={meta?.image} />
             <h3>{meta?.title}</h3>
           </li>
         </DropdownMenu.Trigger>

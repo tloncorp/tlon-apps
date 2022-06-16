@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect } from 'react';
 import cn from 'classnames';
-import { Outlet, useParams, useLocation } from 'react-router';
-import { Link } from 'react-router-dom';
+import { Outlet, useParams } from 'react-router';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
@@ -23,13 +22,13 @@ export default function Dm() {
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
-  const navigateMessages = useNavStore((state) => state.setLocationDM);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   useEffect(() => {
     if (isMobile) {
-      useNavStore.getState().setLocationHidden();
+      navPrimary('hidden');
     }
-  }, [isMobile]);
+  }, [navPrimary, isMobile]);
 
   useEffect(() => {
     if (ship && canStart) {
@@ -48,7 +47,7 @@ export default function Dm() {
               'p-2',
               isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
             )}
-            onClick={() => isMobile && navigateMessages()}
+            onClick={() => isMobile && navPrimary('dm')}
             aria-label="Open Messages Menu"
           >
             {isMobile ? (

@@ -11,14 +11,14 @@ import SidebarItem from './SidebarItem';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
-  const setNavGroups = useNavStore((state) => state.setLocationGroups);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
   return (
     <SidebarItem
       icon={
         <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={group?.meta.image} />
       }
       actions={<GroupActions flag={flag} />}
-      onClick={() => setNavGroups(flag)}
+      onClick={() => navPrimary('group', flag)}
     >
       {group?.meta.title}
     </SidebarItem>
@@ -28,12 +28,12 @@ function GroupItem({ flag }: { flag: string }) {
 // Gang is a pending group invite
 function GangItem(props: { flag: string }) {
   const { flag } = props;
-  const hideNav = useNavStore((state) => state.setLocationHidden);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
   return (
     <SidebarItem
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" />}
       to={`/gangs/${flag}`}
-      onClick={hideNav}
+      onClick={() => navPrimary('hidden')}
     >
       <GangName flag={flag} className="inline-block w-full truncate" />
     </SidebarItem>

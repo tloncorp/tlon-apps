@@ -30,7 +30,7 @@ function Channel() {
     useChatState.getState().joinChat(flag);
   };
   const isMobile = useIsMobile();
-  const navigateChannels = useNavStore((state) => state.setLocationGroups);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   useEffect(() => {
     useChatState.getState().initialize(flag);
@@ -61,7 +61,7 @@ function Channel() {
               isMobile && 'flex items-center rounded-lg p-2 hover:bg-gray-50'
             )}
             aria-label="Open Channels Menu"
-            onClick={() => isMobile && navigateChannels(groupFlag)}
+            onClick={() => isMobile && navPrimary('group', groupFlag)}
           >
             {isMobile ? (
               <CaretLeftIcon className="mr-4 h-6 w-6 text-gray-400" />

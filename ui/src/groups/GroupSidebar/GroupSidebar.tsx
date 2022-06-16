@@ -16,7 +16,7 @@ export default function GroupSidebar() {
   const flag = useNavStore((state) => state.flag);
   const group = useGroup(flag);
   const isMobile = useIsMobile();
-  const navSetMain = useNavStore((state) => state.setLocationMain);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
   // TODO: get activity count from hark store
   const activityCount = 0;
 
@@ -29,7 +29,7 @@ export default function GroupSidebar() {
       <header className="flex-none px-2 py-1 sm:p-0">
         <button
           className="default-focus flex w-full items-center rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
-          onClick={navSetMain}
+          onClick={() => navPrimary('main')}
         >
           <CaretLeft16Icon className="m-1 mr-4 h-4 w-4 text-gray-400" />
           All Groups
