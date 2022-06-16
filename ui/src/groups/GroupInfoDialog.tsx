@@ -26,7 +26,7 @@ export default function GroupInfoDialog() {
 
   return (
     <Dialog defaultOpen onOpenChange={onOpenChange}>
-      <DialogContent className="w-full sm:max-w-lg">
+      <DialogContent containerClass="w-full sm:max-w-lg">
         <header className="flex items-center">
           <DialogTitle className="text-lg font-bold">Group Info</DialogTitle>
         </header>

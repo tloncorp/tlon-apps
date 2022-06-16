@@ -42,6 +42,8 @@ export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
           Copy Group Link
         </SidebarItem>
         <SidebarItem
+          to={`/groups/${flag}/info`}
+          state={{ backgroundLocation: location }}
           icon={
             <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
               <PersonIcon className="h-6 w-6" />
