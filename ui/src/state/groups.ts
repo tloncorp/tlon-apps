@@ -283,6 +283,6 @@ export function useGangList() {
 
 export function useChannel(flag: string, channel: string): Channel | undefined {
   return useGroupState(
-    useCallback((s) => s.groups[flag].channels[channel], [flag, channel])
+    useCallback((s) => s.groups[flag]?.channels[channel], [flag, channel])
   );
 }

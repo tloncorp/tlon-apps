@@ -1,4 +1,5 @@
 /-  g=groups
+/-  meta
 |%
 ++  enjs
   =,  enjs:format
@@ -39,7 +40,24 @@
       %bloc     (bloc-diff p.d)
       %cordon   (cordon-diff p.d)
       %create   (group p.d)
+      %zone     (zone-diff p.d)
     ==
+  ::
+  ++  zone-diff
+    |=  d=diff:zone:g
+    %-  pairs
+    :~  zone/s/p.d
+        delta/(zone-delta q.d)
+    ==
+  ::
+  ++  zone-delta
+    |=  d=delta:zone:g
+    %+  frond  -.d
+    ?-  -.d
+      %del  ~
+      %add  (meta meta.d)
+    ==
+  ::
   ++  bloc-diff
     |=  d=diff:bloc:g
     %+  frond  -.d
@@ -71,9 +89,11 @@
     |=  d=diff:channel:g
     %+  frond  -.d
     ?-  -.d
-      %add  (channel channel.d)
-      %del  ~
+      %add                      (channel channel.d)
+      %del                      ~
       ?(%add-sects %del-sects)  a/(turn ~(tap in sects.d) (lead %s))
+      %add-zone                 s/zone.d
+      %del-zone                 ~
     ==
   ::
   ++  cabal-diff
@@ -127,11 +147,20 @@
     |=  i=invite:g
     `json`~
   ::
+  ++  zones
+    |=  zons=(map zone:g data:^meta)
+    %-  pairs
+    %+  turn  ~(tap by zons)
+    |=  [=zone:g m=data:^meta]
+    ^-  [@t json]
+    [zone (meta m)]
+  ::
   ++  group
     |=  gr=group:g
     %-  pairs
     :~  fleet/(fleet fleet.gr)
         cabals/(cabals cabals.gr)
+        zones/(zones zones.gr)
         channels/(channels channels.gr)
         bloc/a/(turn ~(tap in bloc.gr) (lead %s))
         cordon/(cordon cordon.gr)
@@ -181,6 +210,7 @@
     %-  pairs
     :~  meta/(meta meta.ch)
         added/(time added.ch)
+        zone/?~(zon.ch ~ s/u.zon.ch)
     ==
   ::
   ++  cordon
@@ -208,7 +238,7 @@
     ==
   ::
   ++  meta
-    |=  m=meta:g
+    |=  m=data:^meta
     %-  pairs
     :~  title/s/title.m
         description/s/description.m
@@ -255,6 +285,15 @@
     :~  cabal/(ot sect/sym diff/cabal-diff ~)
         fleet/(ot ship/ship diff/fleet-diff ~)
         cordon/cordon-diff
+        channel/(ot flag/flag diff/channel-diff ~)
+    ==
+  ::
+  ++  channel-diff
+    %-  of
+    :~  add-sects/(as sym)
+        del-sects/(as sym)
+        add-zone/sym
+        del-zone/ul
     ==
   ::
   ++  cordon

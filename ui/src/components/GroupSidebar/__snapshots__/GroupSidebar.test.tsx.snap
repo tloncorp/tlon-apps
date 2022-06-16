@@ -1,0 +1,134 @@
+// Vitest Snapshot v1
+
+exports[`GroupSidebar > renders as expected 1`] = `
+<DocumentFragment>
+  <nav
+    class="flex h-full w-64 flex-none flex-col overflow-hidden border-r-2 border-gray-50 bg-white sm:p-2"
+  >
+    <header
+      class="flex-none px-2 py-1 sm:p-0"
+    >
+      <button
+        class="default-focus flex w-full items-center rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
+      >
+        <svg
+          class="m-1 mr-4 h-4 w-4 text-gray-400"
+          fill="none"
+          viewBox="0 0 16 16"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            class="stroke-current"
+            d="M9 12 5 8l4-4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+          />
+        </svg>
+        All Groups
+      </button>
+    </header>
+    <div
+      class="flex min-h-0 flex-1 flex-col p-2 sm:p-0"
+    >
+      <ul
+        class="flex-none"
+      >
+        <li
+          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
+        >
+          <a
+            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold pr-4"
+            href="/groups//activity"
+          >
+            <div
+              class="flex h-6 w-6 items-center justify-center rounded text-sm font-semibold bg-gray-100"
+            >
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect
+                  class="fill-current"
+                  height="8"
+                  rx="4"
+                  width="8"
+                  x="8"
+                  y="8"
+                />
+              </svg>
+            </div>
+            <div
+              class="max-w-full flex-1 truncate text-left"
+              title="Activity"
+            >
+              Activity
+            </div>
+          </a>
+        </li>
+        <li
+          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
+        >
+          <a
+            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold pr-4"
+            href="/groups//search"
+          >
+            <svg
+              class="m-1 h-4 w-4"
+              fill="none"
+              viewBox="0 0 16 16"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                clip-rule="evenodd"
+                d="M6.00003 7c0-1.65685 1.34314-3 3-3C10.6569 4 12 5.34315 12 7s-1.3431 3-2.99997 3c-1.65686 0-3-1.34315-3-3Zm3-5c-2.76142 0-5 2.23858-5 5 0 1.01907.30487 1.96694.82838 2.75737l-.53552.53553-2 2c-.39052.3905-.39052 1.0237 0 1.4142.39053.3905 1.02369.3905 1.41422 0l2-2 .53551-.5355c.79044.5235 1.73832.8284 2.75741.8284C11.7615 12 14 9.76142 14 7s-2.2385-5-4.99997-5Z"
+                fill-rule="evenodd"
+              />
+            </svg>
+            <div
+              class="max-w-full flex-1 truncate text-left"
+              title="Find in Group"
+            >
+              Find in Group
+            </div>
+          </a>
+        </li>
+        <li
+          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
+        >
+          <a
+            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold pr-4"
+            href="/groups//all"
+          >
+            <svg
+              class="m-1 h-4 w-4"
+              fill="none"
+              viewBox="0 0 16 16"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                clip-rule="evenodd"
+                d="M7.1644 1.01361c.54477.09079.91279.60602.82199 1.15079L7.51379 5h1.97242l.52739-3.1644c.0908-.54477.606-.912786 1.1508-.82199.5448.09079.9128.60602.822 1.15079L11.5138 5H13c.5523 0 1 .44772 1 1 0 .55229-.4477 1-1 1h-1.8195l-.3334 2H13c.5523 0 1 .44772 1 1 0 .5523-.4477 1-1 1h-2.4862l-.52741 3.1644c-.09079.5448-.60602.9128-1.15079.822-.54477-.0908-.91279-.606-.82199-1.1508L8.48621 11H6.51379l-.5274 3.1644c-.09079.5448-.60602.9128-1.15079.822-.54477-.0908-.91279-.606-.82199-1.1508L4.48621 11H3c-.55228 0-1-.4477-1-1 0-.55228.44772-1 1-1h1.81954l.33333-2H3c-.55228 0-1-.44771-1-1 0-.55228.44772-1 1-1h2.48621l.5274-3.1644c.09079-.54477.60602-.912786 1.15079-.82199ZM8.81954 9l.33333-2H7.18046l-.33333 2h1.97241Z"
+                fill-rule="evenodd"
+              />
+            </svg>
+            <div
+              class="max-w-full flex-1 truncate text-left"
+              title="All Channels"
+            >
+              All Channels
+            </div>
+          </a>
+        </li>
+      </ul>
+      <div
+        class="flex-1 overflow-y-auto"
+      />
+    </div>
+  </nav>
+</DocumentFragment>
+`;

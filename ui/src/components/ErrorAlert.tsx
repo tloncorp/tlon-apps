@@ -15,7 +15,7 @@ function SubmitIssue({ error }: { error: Error }) {
   return (
     <a
       className="button"
-      href={`https://github.com/urbit/landscape/issues/new?assignees=&labels=bug&title=${title}&body=${body}`}
+      href={`https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=${title}&body=${body}`}
       target="_blank"
       rel="noreferrer"
     >

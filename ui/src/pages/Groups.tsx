@@ -1,11 +1,22 @@
 import React, { useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
+import useNavStore from '../components/Nav/useNavStore';
 import api from '../api';
+import { useIsMobile } from '../logic/useMedia';
 
 function Groups() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (!isMobile) {
+      useNavStore.getState().setLocationGroups(flag);
+    } else {
+      useNavStore.getState().setLocationHidden();
+    }
+  }, [flag, isMobile]);
 
   useEffect(() => {
     let id = null as number | null;

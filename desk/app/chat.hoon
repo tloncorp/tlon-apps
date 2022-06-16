@@ -501,7 +501,7 @@
       |=  req=create:c
       =/  =dock      [p.group.req %groups]
       =/  =channel:g  
-        =,(req [[title description ''] now.bowl readers])
+        =,(req [[title description ''] now.bowl ~ readers])
       =/  =action:g  [group.req now.bowl %channel flag %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc ca-area %create)

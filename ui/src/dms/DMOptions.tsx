@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router';
 import Dialog, { DialogContent } from '../components/Dialog';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import LeaveIcon from '../components/icons/LeaveIcon';
-import { useChatState } from '../state/chat';
+import { useChatState, usePinnedChats } from '../state/chat';
+import PinIcon from '../components/icons/PinIcon';
 
 interface DMOptionsProps {
   ship: string;
@@ -14,6 +15,7 @@ interface DMOptionsProps {
 
 export default function DmOptions({ ship, className }: DMOptionsProps) {
   const navigate = useNavigate();
+  const pinned = usePinnedChats();
 
   const onArchive = () => {
     navigate(-1);
@@ -36,6 +38,15 @@ export default function DmOptions({ ship, className }: DMOptionsProps) {
     setDialog(false);
   };
 
+  const handlePin = () => {
+    const isPinned = pinned.includes(ship);
+    if (isPinned) {
+      useChatState.getState().unpinDm(ship);
+    } else {
+      useChatState.getState().pinDm(ship);
+    }
+  };
+
   return (
     <>
       <DropdownMenu.Root>
@@ -46,9 +57,16 @@ export default function DmOptions({ ship, className }: DMOptionsProps) {
           )}
           aria-label="Open Message Options"
         >
-          <EllipsisIcon className="h-5 w-5" />
+          <EllipsisIcon className="h-6 w-6" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
+          <DropdownMenu.Item
+            className="dropdown-item flex items-center space-x-3"
+            onClick={handlePin}
+          >
+            <PinIcon className="h-4 w-4" />
+            <span>{pinned.includes(ship) ? 'Unpin' : 'Pin'}</span>
+          </DropdownMenu.Item>
           <DropdownMenu.Item
             onSelect={leaveMessage}
             className="dropdown-item flex items-center space-x-2 text-red"

@@ -6,7 +6,6 @@ import {
   components,
   ControlProps,
   OptionProps,
-  createFilter,
   MenuProps,
   MenuListProps,
   InputProps,
@@ -16,7 +15,7 @@ import {
 } from 'react-select';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/layout/Layout';
-import MagnifyingGlass from '../components/icons/MagnifyingGlass';
+import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import { useContacts } from '../state/contact';
 import Avatar from '../components/Avatar';
 import ExclamationPoint from '../components/icons/ExclamationPoint';

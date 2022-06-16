@@ -22,6 +22,7 @@ const AUTHORS = [
   '~riprud-tidmel',
   '~wicdev-wisryt',
   '~rovnys-ricfer',
+  '~mister-dister-dozzod-dozzod',
 ];
 
 export const makeFakeChatWrit = (
@@ -153,6 +154,11 @@ export const dmList: ChatBriefs = {
     count: 0,
     'read-id': null,
   },
+  '~mister-dister-dozzod-dozzod': {
+    last: 0,
+    count: 0,
+    'read-id': null,
+  },
 };
 
 export const chatPerm = {
@@ -160,3 +166,5 @@ export const chatPerm = {
 };
 
 export const pendingDMs = ['~fabled-faster'];
+
+export const pinnedDMs = ['~nocsyx-lassul'];
