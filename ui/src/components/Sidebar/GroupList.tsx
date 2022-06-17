@@ -8,26 +8,17 @@ import GroupAvatar from '../../groups/GroupAvatar';
 import useNavStore from '../Nav/useNavStore';
 import GroupActions from './GroupActions';
 import SidebarItem from './SidebarItem';
-import EllipsisIcon from '../icons/EllipsisIcon';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
   const navPrimary = useNavStore((state) => state.navigatePrimary);
+
   return (
     <SidebarItem
       icon={
         <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={group?.meta.image} />
       }
-      actions={
-        <GroupActions flag={flag}>
-          <button
-            className={'default-focus rounded-lg p-0.5 text-gray-600'}
-            aria-label="Open Message Options"
-          >
-            <EllipsisIcon className="h-5 w-5" />
-          </button>
-        </GroupActions>
-      }
+      actions={<GroupActions flag={flag} />}
       onClick={() => navPrimary('group', flag)}
     >
       {group?.meta.title}

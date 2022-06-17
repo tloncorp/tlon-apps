@@ -1,8 +1,22 @@
+/-  meta
 |%
 +$  flag  (pair ship term)
 ::  $sect: ID for cabal
 ::
 +$  sect  term
+::  $zone: channel group
+::  
+++  zone
+  =<  zone
+  |%
+  +$  zone  @tas
+  +$  diff  (pair zone delta)
+  +$  delta
+    $%  [%add meta=data:meta]
+        [%del ~]
+    ==
+  --
+::
 ++  fleet
   =<  fleet
   |%
@@ -19,23 +33,14 @@
     ==
   --
 ::
-++  meta
-  =<  meta
-  |%
-  +$  meta
-    $:  title=cord
-        description=cord
-        image=cord
-    ==
-  --
-::
 ++  channel
   =<  channel
   |%
   +$  channels  (map flag channel)
   +$  channel
-    $:  =meta
+    $:  meta=data:meta
         added=time
+        zon=(unit zone)
         readers=(set sect)
     ==
   +$  diff
@@ -44,26 +49,30 @@
       ::
         [%add-sects sects=(set sect)]
         [%del-sects sects=(set sect)]
+      ::
+        [%add-zone =zone]
+        [%del-zone ~]
     ==
   --
 ::
 +$  group
   $:  =fleet
       cabals=(map sect cabal)
+      zones=(map zone data:meta)
       =bloc
       =channels:channel
       =cordon
-      =meta
+      meta=data:meta
   ==
 ++  cabal
   =<  cabal
   |%
   ::
   +$  cabal
-    [=meta ~]
+    [meta=data:meta ~]
   ::
   +$  diff
-    $%  [%add =meta]
+    $%  [%add meta=data:meta]
         [%del ~]
     ==
   --
@@ -117,6 +126,7 @@
       [%channel p=flag q=diff:channel]
       [%bloc p=diff:bloc]
       [%cordon p=diff:cordon]
+      [%zone p=diff:zone]
       [%create p=group]
   ==
 +$  action
@@ -161,7 +171,7 @@
   ==
 ::  TODO: finish
 +$  preview  
-  $:  =meta
+  $:  meta=data:meta
       =cordon
       =time
   ==

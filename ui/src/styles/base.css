@@ -64,3 +64,11 @@ a:not([class]) {
 ::selection {
   @apply bg-gray-100;
 }
+
+/* Ensures text selection is visible on dark mode desktop safari */
+_::-webkit-full-page-media,
+_:future,
+:root .safari_only,
+body.dark ::selection {
+  @apply bg-gray-800;
+}

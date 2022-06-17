@@ -8,5 +8,5 @@
     ==
 =/  =id:club:c  (end 7 eny)
 =/  =create:club:c
-  [id (silt p.beak ~) (silt ships)]
+  [id (silt ships)]
 club-create+create

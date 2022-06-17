@@ -3,6 +3,38 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  club-delta
+    |=  d=delta:club:c
+    %+  frond  -.d
+    ?-  -.d 
+        %writ  (writs-diff diff.d)
+    ::
+        %team
+      %-  pairs
+      :~  ship/(ship ship.d)
+          ok/b/ok.d
+      ==
+    ::
+         %hive
+      %-  pairs
+      :~  by/(ship by.d)
+          for/(ship for.d)
+          add/b/add.d
+      ==
+    ::
+        %init
+      %-  pairs
+      :~  team/a/(turn ~(tap in team.d) ship)
+          hive/a/(turn ~(tap in hive.d) ship)
+      ==
+    ==
+  ++  draft
+    |=  d=draft:c
+    %-  pairs
+    :~  whom/s/(whom p.d)
+        story/(story q.d)
+    ==
+  ::
   ++  club-rsvp
     |=  r=rsvp:club:c
     %-  pairs
@@ -219,6 +251,11 @@
 ++  dejs
   =,  dejs:format
   |%
+  ++  draft
+    %-  ot
+    :~  whom/whom
+        story/story
+    ==
   ++  rsvp
     %-  ot
     :~  ship/(se %p)
@@ -279,7 +316,6 @@
     ^-  $-(json create:club:c)
     %-  ot
     :~  id/(se %uw)
-        team/(as (se %p))
         hive/(as (se %p))
     ==
   ::
@@ -287,7 +323,33 @@
     ^-  $-(json action:club:c)
     %-  ot
     :~  id/(se %uw)
-        diff/writs-diff
+        diff/club-diff
+    ==
+  ::
+  ++  club-diff
+    ^-  $-(json diff:club:c)
+    %-  ot
+    :~  id/ni
+        delta/club-delta
+    ==
+  ::
+  ++  club-delta
+    %-  of
+    :~  
+      writ/writs-diff
+    ::
+      :-  %team
+      %-  ot
+      :~  ship/(se %p)
+          ok/bo
+      ==
+    ::
+      :-  %hive
+      %-  ot
+      :~  by/(se %p)
+          for/(se %p)
+          add/bo
+      ==
     ==
   ::
   ++  dm-action

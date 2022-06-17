@@ -11,6 +11,7 @@
   |%
   +$  card  card:agent:gall
   ++  def-flag  `flag:c`[~zod %test]
+  ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  state-0
     $:  %0
         chats=(map flag:c chat:c)
@@ -93,6 +94,7 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  now-id   `id:c`[our now]:bowl
 ++  init
   ^+  cor
   watch-groups
@@ -145,18 +147,9 @@
       %club-create
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
-      %club-invite
-    cu-abet:(cu-invite:cu-core !<(=invite:club:c vase))
-  ::
-      %club-rsvp
-    =+  !<(=rsvp:club:c vase)
-    cu-abet:(cu-rsvp:(cu-abed id.rsvp) +.rsvp)
-  ::
       %club-action
     =+  !<(=action:club:c vase)
     =/  cu  (cu-abed p.action)
-    ?:  =(src our):bowl  
-      cu-abet:(cu-proxy:cu q.action)
     cu-abet:(cu-diff:cu q.action)
   ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
@@ -335,7 +328,8 @@
   ++  cu-abet  cor(clubs (~(put by clubs) id club))
   ++  cu-abed
     |=  i=id:club:c
-    cu-core(id i, club (~(got by clubs) i))
+    ~|  no-club/i
+    cu-core(id i, club (~(gut by clubs) i *club:c))
   ++  cu-out  (~(del in cu-circle) our.bowl)
   ++  cu-circle
     (~(uni in team.club) hive.club)
@@ -344,19 +338,27 @@
   ::
   ++  cu-pass
     |%
-    ++  gossip
-      |=  =cage
-      ^-  (list card)
+    ++  act
+      |=  [=ship =diff:club:c]
+      ^-  card
       =/  =wire  (snoc cu-area %gossip)
+      =/  =dock  [ship dap.bowl]
+      =/  =cage  club-action+!>(`action:club:c`[id diff])
+      [%pass wire %agent dock %poke cage]
+    ::
+    ++  gossip
+      |=  =diff:club:c
+      ^-  (list card)
       %+  turn  ~(tap in cu-out)
       |=  =ship
-      =/  =dock  [ship dap.bowl]
-      [%pass wire %agent dock %poke cage]
+      (act ship diff)
     --
   ::
   ++  cu-init
     |=  [=net:club:c =create:club:c]
-    cu-core(id id.create, club =,(create [team hive *data:meta *pact:c net]))
+    =/  clab=club:c
+      [(silt our.bowl ~) hive.create *data:meta *pact:c net]
+    cu-core(id id.create, club clab)
   ::
   ++  cu-brief  (brief:cu-pact [our now]:bowl)
   ::
@@ -364,44 +366,82 @@
     |=  =create:club:c 
     ~&  id/id.create
     =.  cu-core  (cu-init %done create)
-    =?  cor  =(our src):bowl
-      (emil (gossip:cu-pass club-invite+!>(create)))
+    =.  cu-core  (cu-diff 0 [%init team hive met]:club)
+    =/  =notice:c
+      :-  ''
+      (rap 3 ' started a group chat with ' (scot %ud ~(wyt in hive.create)) ' other members' ~)
+    =.  cu-core
+      (cu-diff 0 [%writ now-id %add ~ our.bowl now.bowl notice/notice])
     cu-core
+  ::
   ++  cu-invite  
     |=  =invite:club:c 
     (cu-init %invited invite)
-  ++  cu-rsvp
-    |=  [=ship ok=?]
-    ^+  cu-core
-    =?  cor  =(our.bowl ship)
-      (emil (gossip:cu-pass club-rsvp+!>([id ship ok])))
-    ?>  (~(has in cu-circle) src.bowl)
-    ?>  =(src.bowl ship)
-    =.  hive.club  (~(del in hive.club) ship)
-    ?.  ok
-      (cu-post-notice ship '' ' declined the invite')
-    =.  team.club  (~(put in team.club) ship)
-    (cu-post-notice ship '' ' joined the chat')
   ::
+  ::  NB: need to be careful not to forward automatically generated
+  ::  messages like this, each node should generate its own notice
+  ::  messages, and never forward. XX: defend against?
   ++  cu-post-notice
     |=  [=ship =notice:c]
     =/  =id:c
       [ship now.bowl]
-    (cu-diff id %add ~ ship now.bowl notice/notice)
+    =/  w-d=diff:writs:c  [id %add ~ ship now.bowl notice/notice]
+    =/  del=delta:club:c
+      [%writ w-d] 
+    =.  pact.club  (reduce:cu-pact now.bowl w-d)
+    (cu-give-delta del)
   ::
-  ++  cu-proxy
-    |=  =diff:club:c
-    =.  cor  (emil (gossip:cu-pass club-action+!>([id diff])))
-    (cu-diff diff)
+  ++  cu-give-delta
+    |=  =delta:club:c
+    =.  cor
+      =/  =cage  club-delta+!>(delta)
+      (emit %give %fact ~[(snoc cu-area %ui)] cage)
+    cu-core
   ::
   ++  cu-diff
-    |=  =diff:club:c
-    ^+  cu-core
-    =.  pact.club  (reduce:cu-pact now.bowl diff)
-    =.  cor
-      =/  =cage  writ-diff+!>(diff)
-      (emit %give %fact ~[(snoc cu-area %ui)] cage)  
-    cu-core
+    |=  [=echo:club:c =delta:club:c]
+    ::  ?>  (~(has in cu-circle) src.bowl)  :: TODO: signatures?? probably overkill
+    =?  cor  (lth echo club-eq)
+      (emil (gossip:cu-pass +(echo) delta))
+    =.  cu-core  (cu-give-delta delta)
+    ?-    -.delta
+    ::
+        %init
+      =:  hive.club  hive.delta
+          team.club  team.delta
+          met.club   met.delta
+        ==
+      cu-core
+    ::
+        %writ
+      =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
+      cu-core
+    ::
+        %team
+      =*  ship  ship.delta
+      ?.  (~(has in hive.club) ship)
+        cu-core
+      =.  hive.club  (~(del in hive.club) ship)
+      ?.  ok.delta
+        (cu-post-notice ship '' ' declined the invite')
+      =.  team.club  (~(put in team.club) ship)
+      (cu-post-notice ship '' ' joined the chat')
+    ::
+        %hive
+      ?:  add.delta
+        ?:  (~(has in hive.club) for.delta)
+          cu-core
+        =.  hive.club   (~(put in hive.club) for.delta)
+        =.  cor
+          (emit (act:cu-pass for.delta club-eq %init [team hive met]:club))
+        :: TODO include inviter's name in message? requires rework of
+        :: notice messages though :(
+        (cu-post-notice for.delta '' ' was invited to the chat') 
+      ?.  (~(has in hive.club) for.delta)
+        cu-core
+      =.  hive.club  (~(del in hive.club) for.delta)
+      (cu-post-notice for.delta '' ' was uninvited from the chat') 
+    ==
   ::
   ++  cu-peek
     |=  =path
@@ -461,7 +501,7 @@
       |=  req=create:c
       =/  =dock      [p.group.req %groups]
       =/  =channel:g  
-        =,(req [[title description ''] now.bowl readers])
+        =,(req [[title description ''] now.bowl ~ readers])
       =/  =action:g  [group.req now.bowl %channel flag %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc ca-area %create)
