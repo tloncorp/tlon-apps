@@ -1,4 +1,4 @@
-import {
+import UrbitMock, {
   createResponse,
   Handler,
   Message,
@@ -30,7 +30,6 @@ import {
 } from '../types/chat';
 import { GroupAction } from '../types/groups';
 import mockContacts from './contacts';
-import UrbitMock from '@tloncorp/mock-http-api';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 
@@ -333,17 +332,16 @@ const dms: Handler[] = [
       req: Message & Poke<{ ship: string; diff: WritDiff }>,
       api: UrbitMock
     ) => {
-      if (!Object.keys(dmList).includes(req.ship)) {
+      if (!Object.keys(dmList).includes(req.json.ship)) {
         const brief = {
           last: 1652302200000,
           count: 1,
           'read-id': null,
         };
-        dmList[req.ship] = brief;
+        dmList[req.json.ship] = brief;
 
-        console.log('updating brief', req.ship);
         api.publishUpdate(briefsSub, {
-          whom: req.ship,
+          whom: req.json.ship,
           brief,
         });
       }
