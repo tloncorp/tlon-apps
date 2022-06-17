@@ -1,4 +1,5 @@
 /-  c=chat
+/-  meta
 |%
 ++  enjs
   =,  enjs:format
@@ -9,13 +10,15 @@
     ?-  -.d 
         %writ  (writs-diff diff.d)
     ::
+        %meta  (meta meta.d)
+    ::
         %team
       %-  pairs
       :~  ship/(ship ship.d)
           ok/b/ok.d
       ==
     ::
-         %hive
+        %hive
       %-  pairs
       :~  by/(ship by.d)
           for/(ship for.d)
@@ -28,6 +31,15 @@
           hive/a/(turn ~(tap in hive.d) ship)
       ==
     ==
+  ::
+  ++  meta
+    |=  m=data:^meta
+    %-  pairs
+    :~  title/s/title.m
+        description/s/description.m
+        image/s/image.m
+    ==
+
   ++  draft
     |=  d=draft:c
     %-  pairs
@@ -333,10 +345,18 @@
         delta/club-delta
     ==
   ::
+  ++  meta
+    %-  ot
+    :~  title/so
+        description/so
+        image/so
+    ==
+  ::
   ++  club-delta
     %-  of
     :~  
       writ/writs-diff
+      meta/meta
     ::
       :-  %team
       %-  ot
