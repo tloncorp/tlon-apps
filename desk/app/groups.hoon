@@ -478,6 +478,13 @@
       =.  zon.channel   ~
       =.  channels.group  (put:by-ch ch channel)
       go-core
+    ::
+        %join
+      =/  =channel:g  (got:by-ch ch)
+      =.  join.channel  join.diff
+      =.  channels.group  (put:by-ch ch channel)
+      go-core
+    ::
 
     ==
   --
