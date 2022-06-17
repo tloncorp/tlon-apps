@@ -60,7 +60,7 @@ exports[`GroupSidebar > renders as expected 1`] = `
           class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
         >
           <a
-            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold pr-4"
+            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
             href="/groups//activity"
           >
             <div
@@ -94,7 +94,7 @@ exports[`GroupSidebar > renders as expected 1`] = `
           class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
         >
           <a
-            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold pr-4"
+            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
             href="/groups//search"
           >
             <svg
@@ -122,7 +122,7 @@ exports[`GroupSidebar > renders as expected 1`] = `
           class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
         >
           <a
-            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold pr-4"
+            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
             href="/groups//all"
           >
             <svg
