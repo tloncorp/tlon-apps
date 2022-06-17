@@ -11,14 +11,19 @@ import BulletIcon from '../components/icons/BulletIcon';
 
 interface DMOptionsProps {
   ship: string;
+  pending: boolean;
   className?: string;
 }
 
-export default function DmOptions({ ship, className }: DMOptionsProps) {
+export default function DmOptions({
+  ship,
+  pending,
+  className,
+}: DMOptionsProps) {
   const navigate = useNavigate();
   const pinned = usePinnedChats();
   const briefs = useBriefs();
-  const hasActivity = (briefs[ship]?.count ?? 0) > 0;
+  const hasActivity = (briefs[ship]?.count ?? 0) > 0 || pending;
   const [isOpen, setIsOpen] = useState(false);
 
   const onArchive = () => {

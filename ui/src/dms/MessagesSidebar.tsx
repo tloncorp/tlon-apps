@@ -27,7 +27,7 @@ export default function MessagesSidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-col border-r-2 border-gray-50 bg-white">
-      <ul className="flex w-64 flex-col p-2">
+      <ul className="flex w-full flex-col p-2">
         <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
           to="/dm/search"

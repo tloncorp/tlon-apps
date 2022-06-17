@@ -11,6 +11,7 @@ import { useIsMobile } from '../logic/useMedia';
 import useNavStore from '../components/Nav/useNavStore';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
+import BulletIcon from '../components/icons/BulletIcon';
 
 interface MessagesSidebarItemProps {
   whom: string;
@@ -36,7 +37,14 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
     <SidebarItem
       to={`/groups/${groupFlag}/channels/chat/${whom}`}
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={img} />}
-      hasActivity={(brief?.count ?? 0) > 0}
+      actions={
+        (brief?.count ?? 0) > 0 ? (
+          <BulletIcon
+            className="h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+            aria-label="Has Activity"
+          />
+        ) : null
+      }
       onClick={() => isMobile && navPrimary('hidden')}
     >
       {channel.meta.title}
@@ -58,8 +66,7 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
           <Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />
         )
       }
-      actions={<DmOptions ship={whom} />}
-      hasActivity={(brief?.count ?? 0) > 0 || pending}
+      actions={<DmOptions ship={whom} pending={!!pending} />}
       onClick={() => isMobile && navPrimary('hidden')}
     >
       <ShipName

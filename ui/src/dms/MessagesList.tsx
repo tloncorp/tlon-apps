@@ -40,7 +40,7 @@ export default function MessagesList({ filter }: MessagesListProps) {
   return (
     <ul
       className={cn(
-        'flex w-full flex-col space-y-3 overflow-y-scroll p-2 pr-0 sm:space-y-0'
+        'flex w-full flex-col space-y-3 overflow-x-hidden overflow-y-scroll p-2 pr-0 sm:space-y-0'
       )}
     >
       {pending &&
