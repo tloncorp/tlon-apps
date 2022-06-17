@@ -5,8 +5,9 @@ import { useNavigate } from 'react-router';
 import Dialog, { DialogContent } from '../components/Dialog';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import LeaveIcon from '../components/icons/LeaveIcon';
-import { useChatState, usePinnedChats } from '../state/chat';
+import { useBriefs, useChatState, usePinnedChats } from '../state/chat';
 import PinIcon from '../components/icons/PinIcon';
+import BulletIcon from '../components/icons/BulletIcon';
 
 interface DMOptionsProps {
   ship: string;
@@ -16,6 +17,8 @@ interface DMOptionsProps {
 export default function DmOptions({ ship, className }: DMOptionsProps) {
   const navigate = useNavigate();
   const pinned = usePinnedChats();
+  const briefs = useBriefs();
+  const hasActivity = (briefs[ship]?.count ?? 0) > 0;
   const [isOpen, setIsOpen] = useState(false);
 
   const onArchive = () => {
@@ -49,18 +52,27 @@ export default function DmOptions({ ship, className }: DMOptionsProps) {
   };
 
   return (
-    <div
-      className={cn(
-        'group-hover:opacity-100',
-        isOpen ? 'opacity:100' : 'opacity-0'
-      )}
-    >
+    <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
-        <DropdownMenu.Trigger
-          className={cn('default-focus rounded-lg p-0.5', className)}
-          aria-label="Open Message Options"
-        >
-          <EllipsisIcon className="h-6 w-6" />
+        <DropdownMenu.Trigger asChild>
+          <div className="relative h-6 w-6">
+            {!isOpen && hasActivity ? (
+              <BulletIcon
+                className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+                aria-label="Has Activity"
+              />
+            ) : null}
+            <button
+              className={cn(
+                'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+                hasActivity && 'text-blue',
+                isOpen ? 'opacity:100' : 'opacity-0'
+              )}
+              aria-label="Open Message Options"
+            >
+              <EllipsisIcon className="h-6 w-6" />
+            </button>
+          </div>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
           <DropdownMenu.Item
@@ -108,6 +120,6 @@ export default function DmOptions({ ship, className }: DMOptionsProps) {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
