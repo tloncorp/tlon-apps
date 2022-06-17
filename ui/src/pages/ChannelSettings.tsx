@@ -1,7 +1,7 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router';
-import RoleInput from '../components/RoleInput/RoleInput';
+import RoleInput from '../groups/RoleInput/RoleInput';
 import { useChatPerms, useChatState } from '../state/chat';
 import { useGroup, useRouteGroup } from '../state/groups';
 

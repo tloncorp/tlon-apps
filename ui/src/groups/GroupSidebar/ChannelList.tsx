@@ -4,12 +4,12 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useIsMobile } from '../../logic/useMedia';
 import { channelHref } from '../../logic/utils';
 import { useGroup } from '../../state/groups';
-import BubbleIcon from '../icons/BubbleIcon';
-import useNavStore from '../Nav/useNavStore';
-import CaretDownIcon from '../icons/CaretDownIcon';
+import BubbleIcon from '../../components/icons/BubbleIcon';
+import useNavStore from '../../components/Nav/useNavStore';
+import CaretDownIcon from '../../components/icons/CaretDownIcon';
 import ChannelSortOptions from './ChannelSortOptions';
 import useSidebarSort from '../../logic/useSidebarSort';
-import SidebarItem from '../Sidebar/SidebarItem';
+import SidebarItem from '../../components/Sidebar/SidebarItem';
 
 interface ChannelListProps {
   flag: string;
@@ -20,12 +20,12 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const isMobile = useIsMobile();
   const group = useGroup(flag);
   const { sortFn, sortOptions, setSortFn } = useSidebarSort();
-  const hideNav = useNavStore((state) => state.setLocationHidden);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
   const hide = useCallback(() => {
     if (isMobile) {
-      hideNav();
+      navPrimary('hidden');
     }
-  }, [hideNav, isMobile]);
+  }, [navPrimary, isMobile]);
 
   if (!group) {
     return null;

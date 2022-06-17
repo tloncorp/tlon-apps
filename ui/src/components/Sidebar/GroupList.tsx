@@ -1,7 +1,6 @@
 import cn from 'classnames';
 import React from 'react';
 import useSidebarSort from '../../logic/useSidebarSort';
-import { useBriefs } from '../../state/chat';
 import {
   useGangList,
   useGroup,
@@ -9,24 +8,23 @@ import {
   usePinnedGroups,
 } from '../../state/groups';
 import Divider from '../Divider';
-import GangName from '../GangName/GangName';
-import GroupAvatar from '../GroupAvatar';
+import GangName from '../../groups/GangName/GangName';
+import GroupAvatar from '../../groups/GroupAvatar';
 import useNavStore from '../Nav/useNavStore';
 import GroupActions from './GroupActions';
 import SidebarItem from './SidebarItem';
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
-  const briefs = useBriefs();
-  const setNavGroups = useNavStore((state) => state.setLocationGroups);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
+
   return (
     <SidebarItem
       icon={
         <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={group?.meta.image} />
       }
       actions={<GroupActions flag={flag} />}
-      onClick={() => setNavGroups(flag)}
-      hasActivity={(briefs[flag]?.count ?? 0) > 0}
+      onClick={() => navPrimary('group', flag)}
     >
       {group?.meta.title}
     </SidebarItem>
@@ -36,13 +34,12 @@ function GroupItem({ flag }: { flag: string }) {
 // Gang is a pending group invite
 function GangItem(props: { flag: string }) {
   const { flag } = props;
-  const hideNav = useNavStore((state) => state.setLocationHidden);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
   return (
     <SidebarItem
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" />}
       to={`/gangs/${flag}`}
-      onClick={hideNav}
-      hasActivity
+      onClick={() => navPrimary('hidden')}
     >
       <GangName flag={flag} className="inline-block w-full truncate" />
     </SidebarItem>
