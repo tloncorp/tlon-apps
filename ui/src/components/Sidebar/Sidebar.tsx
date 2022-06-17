@@ -9,9 +9,11 @@ import SidebarSorter from './SidebarSorter';
 import ActivityIndicator from './ActivityIndicator';
 import MobileSidebar from './MobileSidebar';
 import GroupList from './GroupList';
+import { usePinnedGroups } from '../../state/groups';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
+  const pinned = usePinnedGroups();
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get notification count from hark store
   const notificationCount = 0;
@@ -49,6 +51,9 @@ export default function Sidebar() {
         >
           Create Group
         </SidebarItem>
+        {pinned.length > 0 ? (
+          <GroupList className="flex-1 overflow-y-scroll pr-0" pinned />
+        ) : null}
         <li className="p-2">
           <SidebarSorter
             sortFn={sortFn}

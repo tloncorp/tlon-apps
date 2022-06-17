@@ -10,11 +10,14 @@ import Person16Icon from '../icons/Person16Icon';
 import EllipsisIcon from '../icons/EllipsisIcon';
 import BulletIcon from '../icons/BulletIcon';
 import { useBriefs } from '../../state/chat';
+import { useGroupState, usePinnedGroups } from '../../state/groups';
 
 export function useGroupActions(flag: string) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [isOpen, setIsOpen] = useState(false);
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
+  const pinned = usePinnedGroups();
+  const isPinned = pinned.includes(flag);
 
   const onCopyClick = useCallback(
     // eslint-disable-next-line prefer-arrow-callback
@@ -38,11 +41,13 @@ export function useGroupActions(flag: string) {
     // eslint-disable-next-line prefer-arrow-callback
     function <T>(e: React.MouseEvent<T>) {
       e.stopPropagation();
-      // TODO
-      // eslint-disable-next-line no-console
-      console.log('pin');
+      if (isPinned) {
+        useGroupState.getState().unpinGroup(flag);
+      } else {
+        useGroupState.getState().pinGroup(flag);
+      }
     },
-    []
+    [flag, isPinned]
   );
 
   return {

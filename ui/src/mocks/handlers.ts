@@ -11,7 +11,7 @@ import { decToUd, udToDec, unixToDa } from '@urbit/api';
 
 import _ from 'lodash';
 import bigInt from 'big-integer';
-import mockGroups, { mockGangs } from './groups';
+import mockGroups, { mockGangs, pinnedGroups } from './groups';
 import {
   makeFakeChatWrits,
   chatKeys,
@@ -124,6 +124,12 @@ const groups: Handler[] = [
         time: getNowUd(),
       },
     }),
+  },
+  {
+    action: 'scry',
+    app: 'groups',
+    path: '/groups/pinned',
+    func: () => pinnedGroups,
   },
   {
     action: 'scry',

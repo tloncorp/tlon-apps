@@ -1,6 +1,9 @@
 name: 'deploy'
 description: 'Create a glob and deploy it to a moon'
 inputs:
+  app:
+    description: "App to deploy"
+    required: true
   ship:
     description: "Ship to deploy to"
     required: true
@@ -18,6 +21,7 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   args:
+    - ${{ inputs.app }}
     - ${{ inputs.ship }}
     - ${{ inputs.credentials }}
     - ${{ inputs.ssh-sec-key }}
