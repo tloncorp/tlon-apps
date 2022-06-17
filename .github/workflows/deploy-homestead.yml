@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy Homestead
 on:
   workflow_dispatch:
   push:
@@ -13,13 +13,6 @@ jobs:
       - uses: ./.github/actions/deploy
         with:
           app: 'homestead'
-          ship: 'devstream'
-          credentials: ${{ secrets.JANEWAY_SERVICE_KEY }}
-          ssh-sec-key: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
-          ssh-pub-key: ${{ secrets.JANEWAY_SSH_PUB_KEY }}
-      - uses: ./.github/actions/deploy
-        with:
-          app: 'chatstead'
           ship: 'devstream'
           credentials: ${{ secrets.JANEWAY_SERVICE_KEY }}
           ssh-sec-key: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
