@@ -39,14 +39,18 @@ export default function DmOptions({ ship, className }: DMOptionsProps) {
     setDialog(false);
   };
 
-  const handlePin = () => {
-    const isPinned = pinned.includes(ship);
-    if (isPinned) {
-      useChatState.getState().unpinDm(ship);
-    } else {
-      useChatState.getState().pinDm(ship);
-    }
-  };
+  const handlePin = useCallback(
+    (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+      e.stopPropagation();
+      const isPinned = pinned.includes(ship);
+      if (isPinned) {
+        useChatState.getState().unpinDm(ship);
+      } else {
+        useChatState.getState().pinDm(ship);
+      }
+    },
+    [ship, pinned]
+  );
 
   return (
     <div

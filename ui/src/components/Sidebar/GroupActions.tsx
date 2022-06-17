@@ -7,12 +7,15 @@ import LinkIcon16 from '../icons/LinkIcon16';
 import PinIcon16 from '../icons/PinIcon16';
 import useCopyToClipboard from '../../logic/useCopyToClipboard';
 import GroupInviteDialog from './GroupInviteDialog';
+import { useGroupState, usePinnedGroups } from '../../state/groups';
 
 export default function GroupActions({ flag }: { flag: string }) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
+  const pinned = usePinnedGroups();
+  const isPinned = pinned.includes(flag);
 
   const onCloseInviteDialog = useCallback(
     (
@@ -54,11 +57,13 @@ export default function GroupActions({ flag }: { flag: string }) {
   const onPinClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
-      // TODO
-      // eslint-disable-next-line no-console
-      console.log('pin');
+      if (isPinned) {
+        useGroupState.getState().unpinGroup(flag);
+      } else {
+        useGroupState.getState().pinGroup(flag);
+      }
     },
-    []
+    [flag, isPinned]
   );
 
   return (
@@ -104,7 +109,7 @@ export default function GroupActions({ flag }: { flag: string }) {
               onClick={onPinClick}
             >
               <PinIcon16 className="h-6 w-6 text-gray-600" />
-              <span className="pr-2">Pin</span>
+              <span className="pr-2">{isPinned ? 'Unpin' : 'Pin'}</span>
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
