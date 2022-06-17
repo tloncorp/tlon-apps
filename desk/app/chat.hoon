@@ -413,6 +413,10 @@
         ==
       cu-core
     ::
+        %meta
+      =.  met.club  meta.delta
+      cu-core
+    ::
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       cu-core
