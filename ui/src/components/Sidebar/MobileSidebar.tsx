@@ -7,9 +7,11 @@ import GroupIcon from '../icons/GroupIcon';
 import ActivityIndicator from './ActivityIndicator';
 import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
 import GroupList from './GroupList';
+import { usePinnedGroups } from '../../state/groups';
 
 export default function MobileSidebar() {
   const secondary = useNavStore((state) => state.secondary);
+  const pinned = usePinnedGroups();
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get notification count from hark store
   const notificationCount = 0;
@@ -17,6 +19,11 @@ export default function MobileSidebar() {
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
       <header className="flex-none px-2 py-1">
+        {pinned ? (
+          <ul>
+            <GroupList pinned />
+          </ul>
+        ) : null}
         {secondary === 'main' ? (
           <SidebarSorter
             sortFn={sortFn}
