@@ -32,6 +32,7 @@ import { useLocalState } from './state/local';
 import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
 import DMHome from './dms/DMHome';
+import MultiDMEditModal from './dms/MultiDMEditModal';
 import Nav from './components/Nav/Nav';
 
 interface RoutesProps {
@@ -67,6 +68,9 @@ function ChatRoutes({ state, location }: RoutesProps) {
             element={<ChannelSettings />}
           />
         </Route>
+      </Routes>
+      <Routes>
+          <Route path="/*" element={<MultiDMEditModal />} />
       </Routes>
     </>
   );
