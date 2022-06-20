@@ -183,13 +183,19 @@ export const useGroupState = create<GroupState>((set, get) => ({
         path: '/gangs',
       }),
     ]);
-    const pinnedGroups = await api.scry<string[]>({
-      app: 'groups',
-      path: '/groups/pinned',
-    });
-    get().batchSet((draft) => {
-      draft.pinnedGroups = pinnedGroups;
-    });
+
+    try {
+      const pinnedGroups = await api.scry<string[]>({
+        app: 'groups',
+        path: '/groups/pinned',
+      });
+      get().batchSet((draft) => {
+        draft.pinnedGroups = pinnedGroups;
+      });
+    } catch (error) {
+      console.log(error);
+    }
+
     set((s) => ({
       ...s,
       groups,
