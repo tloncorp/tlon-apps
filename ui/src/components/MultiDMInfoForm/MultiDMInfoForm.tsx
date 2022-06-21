@@ -1,11 +1,8 @@
 import React from 'react';
 import { UseFormRegister } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
+import ColorPicker, {MultiDMInfoSchema} from './ColorPicker';
 
-interface MultiDMInfoSchema {
-  name: string;
-  color: string;
-}
 
 export default function MultiDMInfoForm(props: {
   register: UseFormRegister<MultiDMInfoSchema>;
@@ -17,7 +14,7 @@ export default function MultiDMInfoForm(props: {
   <div className="mb-4 flex flex-col">
   <div className="py-4">
     <label htmlFor="title" className='w-full font-bold'>Color</label>
-    <input {...register('color')} className="input mt-4 block w-full p-1" type="text" />
+    <ColorPicker register={register}/>
   </div>
   <div className="py-4">
     <label htmlFor="description" className=' w-full font-bold'>DM Name</label>
