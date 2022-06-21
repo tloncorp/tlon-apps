@@ -327,6 +327,19 @@ export const useChatState = create<ChatState>((set, get) => ({
       })
     );
   },
+  sendMultiDm: async (id, chatId, author, replying, content, echo = 0) => {
+    await api.poke(
+      multiDmAction(id, {
+        echo,
+        delta: {
+          writ: {
+            id: chatId,
+            delta: { add: { author, content, replying, sent: Date.now() } },
+          },
+        },
+      })
+    );
+  },
   addSects: async (whom, sects) => {
     await api.poke(chatAction(whom, { 'add-sects': sects }));
   },

@@ -5,6 +5,7 @@ import {
   Pact,
   ChatBriefs,
   ChatStory,
+  ChatMessage,
 } from '../../types/chat';
 
 export interface ChatState {
@@ -68,6 +69,14 @@ export interface ChatState {
     id: string, // `@uw`
     by: string, // the sending ship
     target: string, // the removed ship, labeled as `for` in the poke,
+    echo: number // initially 0, increments as gossip happens
+  ) => Promise<void>;
+  sendMultiDm: (
+    id: string, // `@uw` - the club ID
+    chatId: string, // a whom
+    author: string, // the sending ship
+    replying: string | null, // the removed ship, labeled as `for` in the poke,
+    content: ChatMessage,
     echo: number // initially 0, increments as gossip happens
   ) => Promise<void>;
   initialize: (flag: string) => Promise<void>;

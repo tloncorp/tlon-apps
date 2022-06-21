@@ -146,11 +146,6 @@ export interface ChatWrits {
   [time: string]: ChatWrit;
 }
 
-/* export type ChatWrits = {
-  time: Patda;
-  writ: ChatWrit;
-}[]; */
-
 interface WritDeltaAdd {
   add: ChatMemo;
 }
@@ -195,7 +190,6 @@ export interface ChatPerm {
 
 export interface Chat {
   perms: ChatPerm;
-  // writs: BigIntOrderedMap<ChatWrit>;
   draft: ChatStory;
 }
 
@@ -260,7 +254,20 @@ interface ClubDeltaRemoveHive {
   };
 }
 
-type ClubDelta = ClubDeltaEditMetadata | ClubDeltaAddHive | ClubDeltaRemoveHive;
+interface ClubDeltaSend {
+  writ: {
+    id: string; // note this is the Chat ID, *not* the Club ID
+    delta: {
+      add: ChatMemo;
+    };
+  };
+}
+
+type ClubDelta =
+  | ClubDeltaEditMetadata
+  | ClubDeltaAddHive
+  | ClubDeltaRemoveHive
+  | ClubDeltaSend;
 
 export type ClubDiff = {
   echo: number;
