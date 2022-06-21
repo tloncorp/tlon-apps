@@ -14,12 +14,12 @@ import {
   MultiValue,
 } from 'react-select';
 import ChatInput from '../chat/ChatInput/ChatInput';
-import Layout from '../components/layout/Layout';
+import Layout from '../components/Layout/Layout';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import { useContacts } from '../state/contact';
 import Avatar from '../components/Avatar';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
-import XIcon from '../components/icons/XIcon';
+import X16Icon from '../components/icons/X16Icon';
 import { preSig } from '../logic/utils';
 
 interface Option {
@@ -99,7 +99,7 @@ function ShipTagRemove(props: MultiValueRemoveProps<Option, true>) {
   return (
     <components.MultiValueRemove {...props}>
       <div className="flex h-full items-center rounded-r bg-gray-100 pr-1">
-        <XIcon className="h-4 text-gray-300" />
+        <X16Icon className="h-4 text-gray-300" />
       </div>
     </components.MultiValueRemove>
   );

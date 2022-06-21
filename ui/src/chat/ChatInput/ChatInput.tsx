@@ -11,7 +11,7 @@ import MessageEditor, {
 import Avatar from '../../components/Avatar';
 import ShipName from '../../components/ShipName';
 import AddIcon from '../../components/icons/AddIcon';
-import XIcon from '../../components/icons/XIcon';
+import X16Icon from '../../components/icons/X16Icon';
 import { useChatStore } from '../useChatStore';
 import ChatInputMenu from '../ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '../../logic/useMedia';
@@ -371,7 +371,7 @@ export default function ChatInput({
               <Avatar size="xs" ship={ship} className="ml-2" />
               <ShipName name={ship} className="ml-2" />
               <button className="icon-button ml-auto" onClick={closeReply}>
-                <XIcon className="h-4 w-4" />
+                <X16Icon className="h-4 w-4" />
               </button>
             </div>
           ) : null}

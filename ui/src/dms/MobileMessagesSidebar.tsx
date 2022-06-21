@@ -4,7 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
 import CaretDown16Icon from '../components/icons/CaretDown16Icon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
-import PersonSmallIcon from '../components/icons/PersonSmallIcon';
+import PersonSmallIcon from '../components/icons/Person16Icon';
 import CmdSmallIcon from '../components/icons/CmdSmallIcon';
 import MessagesList from './MessagesList';
 import useNavStore from '../components/Nav/useNavStore';
@@ -13,7 +13,7 @@ import useMessagesFilter, { filters } from './useMessagesFilter';
 
 export default function MobileMessagesSidebar() {
   const { filter, setFilter } = useMessagesFilter();
-  const hideNav = useNavStore((state) => state.setLocationHidden);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   return (
     <nav
@@ -65,7 +65,11 @@ export default function MobileMessagesSidebar() {
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
-        <Link to="/dm/new" onClick={hideNav} aria-label="New Direct Message">
+        <Link
+          to="/dm/new"
+          onClick={() => navPrimary('hidden')}
+          aria-label="New Direct Message"
+        >
           <AddIcon className="h-6 w-6 text-gray-600" />
         </Link>
       </header>

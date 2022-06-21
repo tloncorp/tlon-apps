@@ -2,21 +2,23 @@ import cn from 'classnames';
 import React from 'react';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGroup } from '../../state/groups';
-import useNavStore from '../Nav/useNavStore';
-import CaretLeft16Icon from '../icons/CaretLeft16Icon';
-import MagnifyingGlass from '../icons/MagnifyingGlass16Icon';
-import HashIcon16 from '../icons/HashIcon16';
-import GroupOptionsDropdown from './GroupOptionsDropdown';
+import useNavStore from '../../components/Nav/useNavStore';
+import CaretLeft16Icon from '../../components/icons/CaretLeft16Icon';
+import MagnifyingGlass from '../../components/icons/MagnifyingGlass16Icon';
+import HashIcon16 from '../../components/icons/HashIcon16';
 import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
-import ActivityIndicator from '../Sidebar/ActivityIndicator';
-import SidebarItem from '../Sidebar/SidebarItem';
+import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
+import SidebarItem from '../../components/Sidebar/SidebarItem';
+import GroupOptionsDropdown from '../GroupInfoDialog';
+import GroupAvatar from '../GroupAvatar';
+import GroupActions from '../../components/Sidebar/GroupActions';
 
 export default function GroupSidebar() {
   const flag = useNavStore((state) => state.flag);
   const group = useGroup(flag);
   const isMobile = useIsMobile();
-  const navSetMain = useNavStore((state) => state.setLocationMain);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
   // TODO: get activity count from hark store
   const activityCount = 0;
 
@@ -29,7 +31,7 @@ export default function GroupSidebar() {
       <header className="flex-none px-2 py-1 sm:p-0">
         <button
           className="default-focus flex w-full items-center rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
-          onClick={navSetMain}
+          onClick={() => navPrimary('main')}
         >
           <CaretLeft16Icon className="m-1 mr-4 h-4 w-4 text-gray-400" />
           All Groups
@@ -37,7 +39,19 @@ export default function GroupSidebar() {
       </header>
       <div className="flex min-h-0 flex-1 flex-col p-2 sm:p-0">
         <ul className="flex-none">
-          <GroupOptionsDropdown meta={group?.meta} />
+          <li className="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold text-gray-600 hover:bg-gray-50 sm:text-base">
+            <GroupActions flag={flag} className="flex-1">
+              <button className="default-focus flex w-full items-center space-x-3 rounded-lg p-2 pr-4 font-semibold">
+                <GroupAvatar img={group?.meta.image} />
+                <div
+                  title={group?.meta.title}
+                  className="max-w-full flex-1 truncate text-left"
+                >
+                  {group?.meta.title}
+                </div>
+              </button>
+            </GroupActions>
+          </li>
           <SidebarItem
             icon={<ActivityIndicator count={activityCount} />}
             to={`/groups/${flag}/activity`}

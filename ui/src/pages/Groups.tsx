@@ -12,9 +12,9 @@ function Groups() {
 
   useEffect(() => {
     if (!isMobile) {
-      useNavStore.getState().setLocationGroups(flag);
+      useNavStore.getState().navigatePrimary('group', flag);
     } else {
-      useNavStore.getState().setLocationHidden();
+      useNavStore.getState().navigatePrimary('hidden');
     }
   }, [flag, isMobile]);
 

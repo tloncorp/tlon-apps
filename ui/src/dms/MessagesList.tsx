@@ -6,6 +6,7 @@ import {
   useBriefs,
   isDMBrief,
   isGroupBrief,
+  usePinnedChats,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { filters, SidebarFilter } from './useMessagesFilter';
@@ -16,11 +17,16 @@ interface MessagesListProps {
 
 export default function MessagesList({ filter }: MessagesListProps) {
   const pending = usePendingDms();
+  const pinned = usePinnedChats();
   const { sortOptions } = useSidebarSort(RECENT);
   const briefs = useBriefs();
 
   const organizedBriefs = Object.keys(briefs)
     .filter((b) => {
+      if (pinned.includes(b)) {
+        return false;
+      }
+
       if (pending.includes(b)) {
         return false;
       }
@@ -40,7 +46,7 @@ export default function MessagesList({ filter }: MessagesListProps) {
   return (
     <ul
       className={cn(
-        'flex w-full flex-col space-y-3 overflow-y-scroll p-2 pr-0 sm:space-y-0'
+        'flex w-full flex-col space-y-3 overflow-x-hidden overflow-y-scroll p-2 pr-0 sm:space-y-0'
       )}
     >
       {pending &&

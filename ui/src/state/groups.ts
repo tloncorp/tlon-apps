@@ -35,6 +35,9 @@ interface GroupState {
   groups: {
     [flag: string]: Group;
   };
+  pinnedGroups: string[];
+  pinGroup: (flag: string) => Promise<void>;
+  unpinGroup: (flag: string) => Promise<void>;
   gangs: Gangs;
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
@@ -60,7 +63,28 @@ interface GroupState {
 }
 export const useGroupState = create<GroupState>((set, get) => ({
   groups: {},
+  pinnedGroups: [],
   gangs: {},
+  pinGroup: async (flag) => {
+    await api.poke({
+      app: 'groups',
+      mark: 'group-remark-action',
+      json: {
+        flag,
+        diff: { pinned: true },
+      },
+    });
+  },
+  unpinGroup: async (flag) => {
+    await api.poke({
+      app: 'groups',
+      mark: 'group-remark-action',
+      json: {
+        flag,
+        diff: { pinned: false },
+      },
+    });
+  },
   banRanks: async (flag, ranks) => {
     await api.poke(
       groupAction(flag, {
@@ -159,6 +183,19 @@ export const useGroupState = create<GroupState>((set, get) => ({
         path: '/gangs',
       }),
     ]);
+
+    try {
+      const pinnedGroups = await api.scry<string[]>({
+        app: 'groups',
+        path: '/groups/pinned',
+      });
+      get().batchSet((draft) => {
+        draft.pinnedGroups = pinnedGroups;
+      });
+    } catch (error) {
+      console.log(error);
+    }
+
     set((s) => ({
       ...s,
       groups,
@@ -285,4 +322,8 @@ export function useChannel(flag: string, channel: string): Channel | undefined {
   return useGroupState(
     useCallback((s) => s.groups[flag]?.channels[channel], [flag, channel])
   );
+}
+
+export function usePinnedGroups() {
+  return useGroupState(useCallback((s: GroupState) => s.pinnedGroups, []));
 }
