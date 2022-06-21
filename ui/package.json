@@ -63,7 +63,7 @@
     "@types/prosemirror-view": "^1.23.3",
     "@urbit/api": "^2.1.1",
     "@urbit/aura": "^0.2.0",
-    "@urbit/http-api": "^2.1.1",
+    "@urbit/http-api": "^2.1.2",
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.51",
     "classnames": "^2.3.1",
