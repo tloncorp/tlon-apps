@@ -234,3 +234,40 @@ export interface ChatBriefUpdate {
  * Either a `@p` or a `$flag` rendered as string
  */
 export type ChatWhom = string;
+
+// Clubs, AKA MultiDMs
+interface ClubDeltaEditMetadata {
+  meta: {
+    title: string;
+    description: string;
+    image: string;
+  };
+}
+
+interface ClubDeltaAddHive {
+  hive: {
+    by: string;
+    for: string;
+    add: true;
+  };
+}
+
+interface ClubDeltaRemoveHive {
+  hive: {
+    by: string;
+    for: string;
+    add: false;
+  };
+}
+
+type ClubDelta = ClubDeltaEditMetadata | ClubDeltaAddHive | ClubDeltaRemoveHive;
+
+export type ClubDiff = {
+  echo: number;
+  delta: ClubDelta;
+};
+
+export interface ClubAction {
+  id: string;
+  diff: ClubDiff;
+}

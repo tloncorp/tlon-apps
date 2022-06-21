@@ -46,6 +46,30 @@ export interface ChatState {
     description: string;
     readers: string[];
   }) => Promise<void>;
+  createMultiDm: (
+    hive: string[] // array of ships
+  ) => Promise<void>;
+  editMultiDm: (
+    id: string, // `@uw`
+    meta: {
+      title: string;
+      description: string;
+      image: string;
+    },
+    echo: number
+  ) => Promise<void>;
+  inviteToMultiDm: (
+    id: string, // `@uw`
+    by: string, // the sending ship
+    target: string, // the invited ship, labeled as `for` in the poke,
+    echo: number // initially 0, increments as gossip happens
+  ) => Promise<void>;
+  removeFromMultiDm: (
+    id: string, // `@uw`
+    by: string, // the sending ship
+    target: string, // the removed ship, labeled as `for` in the poke,
+    echo: number // initially 0, increments as gossip happens
+  ) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;
 }

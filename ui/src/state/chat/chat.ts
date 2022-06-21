@@ -13,6 +13,8 @@ import {
   ChatPerm,
   ChatStory,
   ChatWrit,
+  ClubAction,
+  ClubDiff,
   DmAction,
   Pact,
   WritDelta,
@@ -65,6 +67,17 @@ function dmAction(
         id,
         delta,
       },
+    },
+  };
+}
+
+function multiDmAction(id: string, diff: ClubDiff): Poke<ClubAction> {
+  return {
+    app: 'chat',
+    mark: 'club-action',
+    json: {
+      id,
+      diff,
     },
   };
 }
@@ -284,6 +297,35 @@ export const useChatState = create<ChatState>((set, get) => ({
       mark: 'chat-create',
       json: req,
     });
+  },
+  createMultiDm: async (hives) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'club-create',
+      json: {
+        id: makeId(),
+        hives,
+      },
+    });
+  },
+  editMultiDm: async (id, meta, echo = 0) => {
+    await api.poke(multiDmAction(id, { echo, delta: { meta } }));
+  },
+  inviteToMultiDm: async (id, by, target, echo = 0) => {
+    await api.poke(
+      multiDmAction(id, {
+        echo,
+        delta: { hive: { by, for: target, add: true } },
+      })
+    );
+  },
+  removeFromMultiDm: async (id, by, target, echo = 0) => {
+    await api.poke(
+      multiDmAction(id, {
+        echo,
+        delta: { hive: { by, for: target, add: false } },
+      })
+    );
   },
   addSects: async (whom, sects) => {
     await api.poke(chatAction(whom, { 'add-sects': sects }));
