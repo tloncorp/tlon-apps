@@ -5,8 +5,10 @@ import {
   Pact,
   ChatBriefs,
   ChatStory,
-  ChatMessage,
+  Club,
+  Hive,
 } from '../../types/chat';
+import { GroupMeta } from '../../types/groups';
 
 export interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
@@ -19,6 +21,9 @@ export interface ChatState {
   };
   dmSubs: string[];
   dmArchive: string[];
+  multiDms: {
+    [id: string]: Club; // id is `@uw`
+  };
   pinnedDms: string[];
   fetchDms: () => Promise<void>;
   pacts: {
@@ -52,33 +57,27 @@ export interface ChatState {
   ) => Promise<void>;
   editMultiDm: (
     id: string, // `@uw`
-    meta: {
-      title: string;
-      description: string;
-      image: string;
-    },
+    meta: GroupMeta,
     echo: number
   ) => Promise<void>;
   inviteToMultiDm: (
     id: string, // `@uw`
-    by: string, // the sending ship
-    target: string, // the invited ship, labeled as `for` in the poke,
+    hive: Omit<Hive, 'add'>, // by is the sending ship, for is the invited ship
     echo: number // initially 0, increments as gossip happens
   ) => Promise<void>;
   removeFromMultiDm: (
     id: string, // `@uw`
-    by: string, // the sending ship
-    target: string, // the removed ship, labeled as `for` in the poke,
+    hive: Omit<Hive, 'add'>, // by is the removing ship, for is the removed ship
     echo: number // initially 0, increments as gossip happens
   ) => Promise<void>;
   sendMultiDm: (
     id: string, // `@uw` - the club ID
     chatId: string, // a whom
-    author: string, // the sending ship
-    replying: string | null, // the removed ship, labeled as `for` in the poke,
-    content: ChatMessage,
+    memo: Omit<ChatMemo, 'sent'>,
     echo: number // initially 0, increments as gossip happens
   ) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;
 }
+
+// hives and meta types

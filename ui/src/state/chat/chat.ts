@@ -94,6 +94,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   pacts: {},
   dms: {},
   dmSubs: [],
+  multiDms: {},
   pendingDms: [],
   pinnedDms: [],
   briefs: {},
@@ -298,43 +299,43 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: req,
     });
   },
-  createMultiDm: async (hives) => {
+  createMultiDm: async (hive) => {
     await api.poke({
       app: 'chat',
       mark: 'club-create',
       json: {
         id: makeId(),
-        hives,
+        hive,
       },
     });
   },
   editMultiDm: async (id, meta, echo = 0) => {
     await api.poke(multiDmAction(id, { echo, delta: { meta } }));
   },
-  inviteToMultiDm: async (id, by, target, echo = 0) => {
+  inviteToMultiDm: async (id, hive, echo = 0) => {
     await api.poke(
       multiDmAction(id, {
         echo,
-        delta: { hive: { by, for: target, add: true } },
+        delta: { hive: { ...hive, add: true } },
       })
     );
   },
-  removeFromMultiDm: async (id, by, target, echo = 0) => {
+  removeFromMultiDm: async (id, hive, echo = 0) => {
     await api.poke(
       multiDmAction(id, {
         echo,
-        delta: { hive: { by, for: target, add: false } },
+        delta: { hive: { ...hive, add: false } },
       })
     );
   },
-  sendMultiDm: async (id, chatId, author, replying, content, echo = 0) => {
+  sendMultiDm: async (id, chatId, memo, echo = 0) => {
     await api.poke(
       multiDmAction(id, {
         echo,
         delta: {
           writ: {
             id: chatId,
-            delta: { add: { author, content, replying, sent: Date.now() } },
+            delta: { add: { ...memo, sent: Date.now() } },
           },
         },
       })

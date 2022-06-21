@@ -1,5 +1,6 @@
 import { BigIntOrderedMap } from '@urbit/api';
 import { BigInteger } from 'big-integer';
+import { GroupMeta } from './groups';
 
 export type Patda = string;
 export type Ship = string;
@@ -193,6 +194,15 @@ export interface Chat {
   draft: ChatStory;
 }
 
+/**
+ * A Club is the backend terminology for Multi DMs
+ */
+export interface Club {
+  hive: string[];
+  team: string[];
+  meta: GroupMeta;
+}
+
 export interface DmAction {
   ship: string;
   diff: WritDiff;
@@ -230,28 +240,22 @@ export interface ChatBriefUpdate {
 export type ChatWhom = string;
 
 // Clubs, AKA MultiDMs
+export interface Hive {
+  by: string;
+  for: string;
+  add: boolean;
+}
+
 interface ClubDeltaEditMetadata {
-  meta: {
-    title: string;
-    description: string;
-    image: string;
-  };
+  meta: GroupMeta;
 }
 
 interface ClubDeltaAddHive {
-  hive: {
-    by: string;
-    for: string;
-    add: true;
-  };
+  hive: Hive & { add: true };
 }
 
 interface ClubDeltaRemoveHive {
-  hive: {
-    by: string;
-    for: string;
-    add: false;
-  };
+  hive: Hive & { add: false };
 }
 
 interface ClubDeltaSend {
