@@ -57,24 +57,20 @@ export interface ChatState {
   ) => Promise<void>;
   editMultiDm: (
     id: string, // `@uw`
-    meta: GroupMeta,
-    echo: number
+    meta: GroupMeta
   ) => Promise<void>;
   inviteToMultiDm: (
     id: string, // `@uw`
-    hive: Omit<Hive, 'add'>, // by is the sending ship, for is the invited ship
-    echo: number // initially 0, increments as gossip happens
+    hive: Omit<Hive, 'add'> // by is the sending ship, for is the invited ship
   ) => Promise<void>;
   removeFromMultiDm: (
     id: string, // `@uw`
-    hive: Omit<Hive, 'add'>, // by is the removing ship, for is the removed ship
-    echo: number // initially 0, increments as gossip happens
+    hive: Omit<Hive, 'add'> // by is the removing ship, for is the removed ship
   ) => Promise<void>;
   sendMultiDm: (
     id: string, // `@uw` - the club ID
     chatId: string, // a whom
-    memo: Omit<ChatMemo, 'sent'>,
-    echo: number // initially 0, increments as gossip happens
+    memo: Omit<ChatMemo, 'sent'>
   ) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;

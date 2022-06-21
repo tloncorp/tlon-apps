@@ -267,7 +267,7 @@ interface ClubDeltaSend {
   };
 }
 
-type ClubDelta =
+export type ClubDelta =
   | ClubDeltaEditMetadata
   | ClubDeltaAddHive
   | ClubDeltaRemoveHive
