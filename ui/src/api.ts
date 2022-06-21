@@ -18,8 +18,8 @@ let client = undefined as unknown as Urbit | UrbitMock;
 
 async function setupAPI() {
   if (IS_MOCK) {
-    window.ship = 'zod';
-    window.our = '~zod';
+    window.ship = 'finned-palmer';
+    window.our = '~finned-palmer';
     window.desk = 'homestead';
     const MockUrbit = (await import('@tloncorp/mock-http-api')).default;
     const mockHandlers = (await import('./mocks/handlers')).default;

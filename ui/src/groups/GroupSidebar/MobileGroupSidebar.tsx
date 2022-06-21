@@ -2,17 +2,18 @@ import cn from 'classnames';
 import React from 'react';
 import { useGroup } from '../../state/groups';
 import GroupAvatar from '../GroupAvatar';
-import CaretLeftIcon from '../icons/CaretLeftIcon';
-import HashIcon from '../icons/HashIcon';
-import MagnifyingGlass from '../icons/MagnifyingGlassIcon';
-import useNavStore from '../Nav/useNavStore';
-import NavTab from '../NavTab';
-import ActivityIndicator from '../Sidebar/ActivityIndicator';
+import CaretLeftIcon from '../../components/icons/CaretLeftIcon';
+import HashIcon from '../../components/icons/HashIcon';
+import MagnifyingGlass from '../../components/icons/MagnifyingGlassIcon';
+import useNavStore from '../../components/Nav/useNavStore';
+import NavTab from '../../components/NavTab';
+import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
 import ChannelList from './ChannelList';
+import MobileGroupActions from '../MobileGroupActions';
 
 export default function MobileGroupSidebar() {
-  const { navSetMain, flag, secondary } = useNavStore((state) => ({
-    navSetMain: state.setLocationMain,
+  const { navPrimary, flag, secondary } = useNavStore((state) => ({
+    navPrimary: state.navigatePrimary,
     flag: state.flag,
     secondary: state.secondary,
   }));
@@ -25,7 +26,7 @@ export default function MobileGroupSidebar() {
       <header className="flex-none px-2 py-1">
         <button
           className="default-focus inline-flex items-center rounded-lg p-2 text-xl font-medium text-gray-800 hover:bg-gray-50"
-          onClick={navSetMain}
+          onClick={() => navPrimary('main')}
         >
           <CaretLeftIcon className="mr-4 h-6 w-6 text-gray-400" />
           {secondary === 'main'
@@ -35,7 +36,7 @@ export default function MobileGroupSidebar() {
             : secondary === 'search'
             ? 'Search Channels'
             : secondary === 'group'
-            ? 'Group'
+            ? 'Group Options'
             : null}
         </button>
       </header>
@@ -47,7 +48,7 @@ export default function MobileGroupSidebar() {
         ) : secondary === 'search' ? (
           <div />
         ) : secondary === 'group' ? (
-          <div />
+          <MobileGroupActions flag={flag} />
         ) : null}
       </div>
       <footer className="mt-auto flex-none border-t-2 border-gray-50">

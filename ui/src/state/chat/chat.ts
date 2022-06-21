@@ -124,6 +124,7 @@ export const useChatState = create<ChatState>((set, get) => ({
     get().batchSet((draft) => {
       draft.briefs = briefs;
     });
+
     const pendingDms = await api.scry<string[]>({
       app: 'chat',
       path: '/dm/invited',
@@ -131,13 +132,19 @@ export const useChatState = create<ChatState>((set, get) => ({
     get().batchSet((draft) => {
       draft.pendingDms = pendingDms;
     });
-    const pinnedDms = await api.scry<string[]>({
-      app: 'chat',
-      path: '/dm/pinned',
-    });
-    get().batchSet((draft) => {
-      draft.pinnedDms = pinnedDms;
-    });
+
+    try {
+      const pinnedDms = await api.scry<string[]>({
+        app: 'chat',
+        path: '/dm/pinned',
+      });
+      get().batchSet((draft) => {
+        draft.pinnedDms = pinnedDms;
+      });
+    } catch (error) {
+      console.log(error);
+    }
+
     api.subscribe({
       app: 'chat',
       path: '/briefs',
