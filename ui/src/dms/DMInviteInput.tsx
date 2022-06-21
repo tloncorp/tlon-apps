@@ -27,7 +27,8 @@ export interface Option {
 
 interface DmInviteInputProps {
   ships: Option[] | undefined;
-  setShips: (ship: Option[] | undefined) => void;
+  setShips: (ships: Option[] | undefined) => void;
+  fromMulti?: boolean;
 }
 
 function Control({ children, ...props }: ControlProps<Option, true>) {
@@ -135,7 +136,11 @@ function Input({ children, ...props }: InputProps<Option, true>) {
   );
 }
 
-export default function DMInviteInput({ ships, setShips }: DmInviteInputProps) {
+export default function DMInviteInput({
+  ships,
+  setShips,
+  fromMulti = false,
+}: DmInviteInputProps) {
   const contacts = useContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
@@ -154,10 +159,11 @@ export default function DMInviteInput({ ships, setShips }: DmInviteInputProps) {
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' && !!ships && validShips) {
-      if (ships.length > 1) {
+    if (event.key === 'Enter' && ships && ships.length > 0 && validShips) {
+      if (ships.length > 1 || fromMulti) {
         // TODO: how do we navigate to a multi-party DM?
         console.log({ ships });
+        console.log('pressed enter key');
       } else {
         navigate(`/dm/${ships[0].value}`);
       }
