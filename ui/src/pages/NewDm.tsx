@@ -6,9 +6,11 @@ import Layout from '../components/Layout/Layout';
 import DMInviteInput, { Option } from '../dms/DMInviteInput';
 
 export default function NewDM() {
-  const [ship, setShip] = useState<Option | undefined>();
+  const [ships, setShips] = useState<Option[] | undefined>();
   const navigate = useNavigate();
-  const validShip = ship ? ob.isValidPatp(ship.value) : false;
+  const validShips = ships
+    ? ships.every((ship) => ob.isValidPatp(ship.value))
+    : false;
 
   return (
     <Layout
@@ -16,9 +18,9 @@ export default function NewDM() {
       footer={
         <div className="border-t-2 border-black/10 p-4">
           <ChatInput
-            whom={ship ? ship.value : ''}
+            whom={ships && ships.length > 0 ? ships[0].value : ''}
             showReply
-            sendDisabled={!validShip}
+            sendDisabled={!validShips}
             newDm
             navigate={navigate}
           />
@@ -26,7 +28,7 @@ export default function NewDM() {
       }
     >
       <div className="w-full py-3 px-4">
-        <DMInviteInput ship={ship} setShip={setShip} />
+        <DMInviteInput ships={ships} setShips={setShips} />
       </div>
     </Layout>
   );

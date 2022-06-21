@@ -26,8 +26,8 @@ export interface Option {
 }
 
 interface DmInviteInputProps {
-  ship: Option | undefined;
-  setShip: (ship: Option | undefined) => void;
+  ships: Option[] | undefined;
+  setShips: (ship: Option[] | undefined) => void;
 }
 
 function Control({ children, ...props }: ControlProps<Option, true>) {
@@ -135,7 +135,7 @@ function Input({ children, ...props }: InputProps<Option, true>) {
   );
 }
 
-export default function DMInviteInput({ ship, setShip }: DmInviteInputProps) {
+export default function DMInviteInput({ ships, setShips }: DmInviteInputProps) {
   const contacts = useContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
@@ -143,24 +143,31 @@ export default function DMInviteInput({ ship, setShip }: DmInviteInputProps) {
     label: contacts[contact].nickname,
   }));
   const navigate = useNavigate();
-  const validShip = ship ? ob.isValidPatp(ship.value) : false;
+  const validShips = ships
+    ? ships.every((ship) => ob.isValidPatp(ship.value))
+    : false;
+
   const onChange = (inputValue: MultiValue<Option>) => {
     if (inputValue) {
-      // We can only set one ship for the time being.
-      // For now we'll just take the first ship.
-      setShip(inputValue[0]);
+      setShips([...inputValue]);
     }
   };
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' && !!ship && validShip) {
-      navigate(`/dm/${ship.value}`);
+    if (event.key === 'Enter' && !!ships && validShips) {
+      if (ships.length > 1) {
+        // TODO: how do we navigate to a multi-party DM?
+        console.log({ ships });
+      } else {
+        navigate(`/dm/${ships[0].value}`);
+      }
     }
   };
 
   const onCreateOption = (inputValue: string) => {
     const siggedInput = preSig(inputValue);
     if (ob.isValidPatp(siggedInput)) {
-      setShip({ value: siggedInput, label: siggedInput });
+      setShips([{ value: siggedInput, label: siggedInput }]);
     }
   };
 
@@ -170,6 +177,7 @@ export default function DMInviteInput({ ship, setShip }: DmInviteInputProps) {
   // trim: true,
   // matchFrom: 'any',
   // };
+
   return (
     <CreatableSelect
       formatCreateLabel={AddNonContactShip}
@@ -219,7 +227,7 @@ export default function DMInviteInput({ ship, setShip }: DmInviteInputProps) {
       }}
       aria-label="Ships"
       options={contactOptions}
-      value={ship}
+      value={ships}
       onChange={onChange}
       onCreateOption={onCreateOption}
       isValidNewOption={(inputValue) =>
