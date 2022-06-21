@@ -212,6 +212,7 @@
     :~  meta/(meta meta.ch)
         added/(time added.ch)
         zone/?~(zon.ch ~ s/u.zon.ch)
+        join/b/join.ch
     ==
   ::
   ++  cordon

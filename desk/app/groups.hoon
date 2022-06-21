@@ -75,6 +75,7 @@
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
+++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  poke
   |=  [=mark =vase]
@@ -171,6 +172,19 @@
       out
     (~(put in out) who)
   ::
+  ++  go-pass
+    |%
+    ++  join-pinned
+      ^-  (list card)
+      %+  turn  ~(tap by channels.group)
+      |=  [ch=flag:g =channel:g]
+      ^-  card
+      =/  =dock  [our.bowl %chat] :: TODO: generally remove chat hard-coding j
+      =/  =cage  channel-join+!>(ch)
+      =/  =wire  (snoc go-area %join-pinned)
+      [%pass wire %agent dock %poke cage]
+    --
+  ::
   ++  go-init  
     |=  =create:g
     =|  our=vessel:fleet:g
@@ -183,13 +197,22 @@
       ['Admin' 'Admins can add and remove channels and edit metadata' '']
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
+  ++  go-start-sub
+    ^+  go-core
+    =/  base=wire  (snoc go-area %updates)
+    =/  =path      (snoc base %init)
+    =/  =card
+      [%pass base %agent [p.flag dap.bowl] %watch path]
+    =.  cor  (emit card)
+    go-core
   ::
   ++  go-sub
+    |=  init=_|
     ^+  go-core
     =/  =time
       ?.(?=(%sub -.net) *time p.net)
     =/  base=wire  (snoc go-area %updates)
-    =/  =path      (snoc base (scot %da time))
+    =/  =path      (snoc base ?:(init %init (scot %da time)))
     =/  =card
       [%pass base %agent [p.flag dap.bowl] %watch path]
     =.  cor  (emit card)
@@ -235,14 +258,21 @@
     |=  [=wire =sign:agent:gall]
     ^+  go-core
     ?+  wire  !!
-      [%updates ~]  (go-take-update sign)
+        [%updates ~]  (go-take-update sign)
+    ::
+        [%join-pinned ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign
+        go-core
+      %-  (slog leaf/"Failed to autojoin channel" u.p.sign)
+      go-core
     ==
   ::
   ++  go-take-update
     |=  =sign:agent:gall
     ^+  go-core
-    ?+    -.sign  go-sub
-      %kick  go-sub
+    ?+    -.sign  (go-sub |)
+      %kick  (go-sub |)
     ::
         %watch-ack
       =?  cor  (~(has by xeno) flag)
@@ -256,6 +286,7 @@
       ?+  p.cage  go-core
         %group-log     (go-apply-log !<(log:g q.cage))
         %group-update  (go-update !<(update:g q.cage))
+        %group-init    (go-fact-init !<(init:g q.cage))
       ==
     ==
   ::
@@ -263,13 +294,17 @@
     |=  =path
     ^+  go-core
     ?>  ?=(%pub -.net)
+    =;  =cage
+      =.  cor  (give %fact ~ cage)
+      go-core
+    ?:  ?=([%init ~] path)  
+      =/  [=time *]  (need (ram:log-on:g p.net))
+      group-init+!>([time group])
+    ?>  ?=([@ ~] path)
+    =/  =time  (slav %da i.path)
     =/  =log:g
-      ?~  path  p.net
-      =/  =time  (slav %da i.path)
       (lot:log-on:g p.net `time ~)
-    =/  =cage  group-log+!>(log)
-    =.  cor  (give %fact ~ cage)
-    go-core
+    group-log+!>(log)
   ::
   ++  go-apply-log
     |=  =log:g
@@ -278,6 +313,14 @@
     %+  roll  updates
     |=  [=update:g go=_go-core]
     (go-update:go update)
+  ::
+  ++  go-fact-init
+    |=  [=time gr=group:g]
+    =.  group  gr
+    =.  net  [%sub time]
+    =.  cor
+      (emil join-pinned:go-pass)
+    go-core
   ::
   ++  go-give-update
     |=  [=time =diff:g]
@@ -485,7 +528,6 @@
       =.  channels.group  (put:by-ch ch channel)
       go-core
     ::
-
     ==
   --
 ++  gang-core
@@ -570,8 +612,9 @@
       =/  =net:g  [%load ~]
       =|  =group:g
       =.  groups  (~(put by groups) flag net group)
+      ::
       =.  cor
-        go-abet:go-sub:(go-abed:group-core flag)
+        go-abet:(go-sub:(go-abed:group-core flag) &)
       ga-core
     ==
   ::

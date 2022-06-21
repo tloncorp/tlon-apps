@@ -111,7 +111,7 @@
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
   ::
-      %flag
+      ?(%flag %channel-join)
     =+  !<(=flag:c vase)
     ?<  =(our.bowl p.flag)
     (join flag)

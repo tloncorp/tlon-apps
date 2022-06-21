@@ -144,6 +144,8 @@
       image=cord
   ==
 ::
++$  init  [=time =group]
+::
 +$  groups
   (map flag group)
 ::
