@@ -1,4 +1,5 @@
-import {
+import UrbitMock, {
+  createResponse,
   Handler,
   Message,
   Poke,
@@ -11,7 +12,7 @@ import { decToUd, udToDec, unixToDa } from '@urbit/api';
 
 import _ from 'lodash';
 import bigInt from 'big-integer';
-import mockGroups, { mockGangs } from './groups';
+import mockGroups, { mockGangs, pinnedGroups } from './groups';
 import {
   makeFakeChatWrits,
   chatKeys,
@@ -54,20 +55,16 @@ const set3Da = startIndexSet3;
 
 const chatWritsSet4 = makeFakeChatWrits(3);
 
-const groupSubs = ['~zod/tlon']
-  .concat(Object.entries(mockGroups).map(([k]) => k))
-  .map(
-    (g): SubscriptionHandler => ({
-      action: 'subscribe',
-      app: 'groups',
-      path: `/groups/${g}/ui`,
-    })
-  );
-
 const groupSub = {
   action: 'subscribe',
   app: 'groups',
   path: '/groups/ui',
+} as SubscriptionHandler;
+
+const specificGroupSub = {
+  action: 'subscribe',
+  app: 'groups',
+  path: '/groups/:ship/name/ui',
 } as SubscriptionHandler;
 
 const briefsSub = {
@@ -86,19 +83,15 @@ const contactSub = {
   action: 'subscribe',
   app: 'contact-store',
   path: '/all',
-  initialResponder: (req) => ({
-    id: req.id!,
-    ok: true,
-    response: 'diff',
-    json: {
+  initialResponder: (req) =>
+    createResponse(req, 'diff', {
       'contact-update': {
         initial: {
           'is-public': false,
           rolodex: mockContacts,
         },
       },
-    },
-  }),
+    }),
 } as SubscriptionHandler;
 
 const contactNacksSub = {
@@ -109,21 +102,23 @@ const contactNacksSub = {
 
 const groups: Handler[] = [
   groupSub,
-  ...groupSubs,
+  specificGroupSub,
   {
     action: 'poke',
     app: 'groups',
     mark: 'group-action',
-    returnSubscription: groupSubs[0],
-    dataResponder: (req: Message & Poke<GroupAction>) => ({
-      id: req.id!,
-      ok: true,
-      response: 'diff',
-      json: {
+    returnSubscription: specificGroupSub,
+    dataResponder: (req: Message & Poke<GroupAction>) =>
+      createResponse(req, 'diff', {
         ...req.json.update,
         time: getNowUd(),
-      },
-    }),
+      }),
+  },
+  {
+    action: 'scry',
+    app: 'groups',
+    path: '/groups/pinned',
+    func: () => pinnedGroups,
   },
   {
     action: 'scry',
@@ -139,76 +134,66 @@ const groups: Handler[] = [
   } as ScryHandler,
 ];
 
-const chatHandlers = Object.values(mockGroups)
-  .map((group): Handler[] =>
-    Object.entries(group.channels)
-      .map(([k]): Handler[] => {
-        const chatSub = {
-          action: 'subscribe',
-          app: 'chat',
-          path: `/chat/${k}/ui/writs`,
-        } as SubscriptionHandler;
-
-        return [
-          chatSub,
-          {
-            action: 'scry',
-            app: 'chat',
-            path: `/chat/${k}/writs/newest/100`,
-            func: () => chatWritsSet1,
-          } as ScryHandler,
-          {
-            action: 'scry',
-            app: 'chat',
-            path: `/chat/${k}/draft`,
-            func: () => JSON.parse(localStorage.getItem(k) || ''),
-          },
-          {
-            action: 'scry' as const,
-            app: 'chat',
-            path: `/chat/${k}/perm`,
-            func: () => ({
-              writers: [],
-            }),
-          },
-          {
-            action: 'poke',
-            app: 'chat',
-            mark: 'chat-action',
-            returnSubscription: chatSub,
-            dataResponder: (
-              req: Message &
-                Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
-            ) => {
-              if ('writs' in req.json.update.diff) {
-                return {
-                  id: req.id,
-                  ok: true,
-                  response: 'diff',
-                  json: req.json.update.diff.writs,
-                };
-              }
-
-              if ('draft' in req.json.update.diff) {
-                localStorage.setItem(
-                  req.json.flag,
-                  JSON.stringify(req.json.update.diff.draft)
-                );
-              }
-              return {
-                id: req.id,
-                ok: true,
-              };
-            },
-          } as PokeHandler,
-        ];
-      })
-      .flat()
-  )
-  .flat();
+const chatSub = {
+  action: 'subscribe',
+  app: 'chat',
+  path: `/chat/:ship/:name/ui/writs`,
+} as SubscriptionHandler;
 
 const chat: Handler[] = [
-  ...chatHandlers,
+  {
+    action: 'scry',
+    app: 'chat',
+    path: `/chat/:ship/:name/writs/newest/100`,
+    func: () => chatWritsSet1,
+  } as ScryHandler,
+  {
+    action: 'scry',
+    app: 'chat',
+    path: `/chat/:ship/:name/draft`,
+    func: (p, api, params) => {
+      if (!params) {
+        return '';
+      }
+
+      return JSON.parse(
+        localStorage.getItem(`${params.ship}/${params.name}`) || ''
+      );
+    },
+  },
+  {
+    action: 'scry' as const,
+    app: 'chat',
+    path: `/chat/:ship/:name/perm`,
+    func: () => ({
+      writers: [],
+    }),
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'chat-action',
+    returnSubscription: chatSub,
+    dataResponder: (
+      req: Message &
+        Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
+    ) => {
+      if ('writs' in req.json.update.diff) {
+        return createResponse(req, 'diff', req.json.update.diff.writs);
+      }
+
+      if ('draft' in req.json.update.diff) {
+        localStorage.setItem(
+          req.json.flag,
+          JSON.stringify(req.json.update.diff.draft)
+        );
+      }
+      return {
+        id: req.id,
+        ok: true,
+      };
+    },
+  } as PokeHandler,
   briefsSub,
   {
     action: 'scry' as const,
@@ -254,79 +239,67 @@ const chat: Handler[] = [
     returnSubscription: briefsSub,
     dataResponder: (
       req: Message & Poke<{ whom: ChatWhom; diff: { read: null } }>
-    ) => ({
-      id: req.id!,
-      ok: true,
-      response: 'diff',
-      json: {
+    ) =>
+      createResponse(req, 'diff', {
         whom: req.json.whom,
         brief: { last: 0, count: 0, 'read-id': null },
-      },
-    }),
+      }),
   },
 ];
 
 const olderChats: Handler[] = [
   {
     action: 'scry' as const,
-    path: `/chat/~zod/test/writs/older/${set1Da}/100`,
+    path: `/chat/:ship/:name/writs/older/${set1Da}/100`,
     app: 'chat',
     func: () => chatWritsSet2,
   },
   {
     action: 'scry' as const,
-    path: `/chat/~zod/test/writs/older/${set2Da}/100`,
+    path: `/chat/:ship/:name/writs/older/${set2Da}/100`,
     app: 'chat',
     func: () => chatWritsSet3,
   },
   {
     action: 'scry' as const,
-    path: `/chat/~zod/test/writs/older/${set3Da}/100`,
+    path: `/chat/:ship/:name/writs/older/${set3Da}/100`,
     app: 'chat',
     func: () => chatWritsSet4,
   },
 ];
 
-const dmHandlers = Object.keys(dmList)
-  .map((ship): Handler[] => {
-    const dmSub = {
-      action: 'subscribe',
-      app: 'chat',
-      path: `/dm/${ship}/ui`,
-    } as SubscriptionHandler;
-
-    return [
-      {
-        action: 'scry' as const,
-        path: `/dm/${ship}/writs/newest/100`,
-        app: 'chat',
-        func: () => chatWritsSet1,
-      },
-      {
-        action: 'scry' as const,
-        path: `/dm/${ship}/writs/older/${set1Da}/100`,
-        app: 'chat',
-        func: () => chatWritsSet2,
-      },
-      {
-        action: 'scry' as const,
-        path: `/dm/${ship}/writs/older/${set2Da}/100`,
-        app: 'chat',
-        func: () => chatWritsSet3,
-      },
-      {
-        action: 'scry' as const,
-        path: `/dm/${ship}/writs/older/${set3Da}/100`,
-        app: 'chat',
-        func: () => chatWritsSet4,
-      },
-      dmSub,
-    ];
-  })
-  .flat();
+const dmSub = {
+  action: 'subscribe',
+  app: 'chat',
+  path: `/dm/:ship/ui`,
+} as SubscriptionHandler;
 
 const dms: Handler[] = [
-  ...dmHandlers,
+  dmSub,
+  {
+    action: 'scry' as const,
+    path: `/dm/:ship/writs/newest/100`,
+    app: 'chat',
+    func: () => chatWritsSet1,
+  },
+  {
+    action: 'scry' as const,
+    path: `/dm/:ship/writs/older/${set1Da}/100`,
+    app: 'chat',
+    func: () => chatWritsSet2,
+  },
+  {
+    action: 'scry' as const,
+    path: `/dm/:ship/writs/older/${set2Da}/100`,
+    app: 'chat',
+    func: () => chatWritsSet3,
+  },
+  {
+    action: 'scry' as const,
+    path: `/dm/:ship/writs/older/${set3Da}/100`,
+    app: 'chat',
+    func: () => chatWritsSet4,
+  },
   {
     action: 'scry',
     app: 'chat',
@@ -360,20 +333,29 @@ const dms: Handler[] = [
     action: 'poke',
     app: 'chat',
     mark: 'dm-action',
-    returnSubscription: (req: Message & Poke<DmAction>) =>
-      (dmHandlers.find(
-        (h) => h.action === 'subscribe' && h.path === `/dm/${req.json.ship}/ui`
-      ) || {
-        action: 'subscribe',
-        app: 'chat',
-        path: '/',
-      }) as SubscriptionRequestInterface,
-    dataResponder: (req: Message & Poke<{ ship: string; diff: WritDiff }>) => ({
-      id: req.id!,
-      ok: true,
-      response: 'diff',
-      json: req.json.diff,
-    }),
+    returnSubscription: dmSub,
+    initialResponder: (
+      req: Message & Poke<{ ship: string; diff: WritDiff }>,
+      api: UrbitMock
+    ) => {
+      if (!Object.keys(dmList).includes(req.json.ship)) {
+        const brief = {
+          last: 1652302200000,
+          count: 1,
+          'read-id': null,
+        };
+        dmList[req.json.ship] = brief;
+
+        api.publishUpdate(briefsSub, {
+          whom: req.json.ship,
+          brief,
+        });
+      }
+
+      return createResponse(req);
+    },
+    dataResponder: (req: Message & Poke<{ ship: string; diff: WritDiff }>) =>
+      createResponse(req, 'diff', req.json.diff),
   },
   {
     action: 'poke',
@@ -391,12 +373,7 @@ const dms: Handler[] = [
         archive.push(req.json.ship);
       }
 
-      return {
-        id: req.id!,
-        ok: true,
-        response: 'diff',
-        json: req.json,
-      };
+      return createResponse(req, 'diff');
     },
   },
   {
@@ -411,12 +388,7 @@ const dms: Handler[] = [
     dataResponder: (req: Message & Poke<string>) => {
       archive.push(req.json);
 
-      return {
-        id: req.id!,
-        ok: true,
-        response: 'diff',
-        json: req.json,
-      };
+      return createResponse(req, 'diff');
     },
   },
   {
@@ -432,12 +404,7 @@ const dms: Handler[] = [
       const index = archive.indexOf(req.json);
       archive.splice(index, 1);
 
-      return {
-        id: req.id!,
-        ok: true,
-        response: 'diff',
-        json: req.json,
-      };
+      return createResponse(req, 'diff');
     },
   },
 ];

@@ -112,7 +112,7 @@ export default function ChatScroller({
         <ChatWritScroller
           key={whom}
           origin="bottom"
-          style={{ height: '100%' }}
+          style={{ height: '100%', padding: '0.5rem' }}
           data={mess}
           size={mess.size}
           pendingSize={0} // TODO

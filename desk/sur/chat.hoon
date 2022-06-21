@@ -78,6 +78,7 @@
   ::
   +$  delta    
     $%  [%writ =diff:writs]
+        [%meta meta=data:meta]
         [%team =ship ok=?]
         [%hive by=ship for=ship add=?]
         [%init team=(set ship) hive=(set ship) met=data:meta]

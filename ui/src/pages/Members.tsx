@@ -1,6 +1,6 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import RoleInput from '../components/RoleInput/RoleInput';
+import RoleInput from '../groups/RoleInput/RoleInput';
 import {
   useGroup,
   useGroupState,

@@ -5,7 +5,10 @@ import {
   Pact,
   ChatBriefs,
   ChatStory,
+  Club,
+  Hive,
 } from '../../types/chat';
+import { GroupMeta } from '../../types/groups';
 
 export interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
@@ -18,6 +21,9 @@ export interface ChatState {
   };
   dmSubs: string[];
   dmArchive: string[];
+  multiDms: {
+    [id: string]: Club; // id is `@uw`
+  };
   pinnedDms: string[];
   fetchDms: () => Promise<void>;
   pacts: {
@@ -46,6 +52,28 @@ export interface ChatState {
     description: string;
     readers: string[];
   }) => Promise<void>;
+  createMultiDm: (
+    hive: string[] // array of ships
+  ) => Promise<void>;
+  editMultiDm: (
+    id: string, // `@uw`
+    meta: GroupMeta
+  ) => Promise<void>;
+  inviteToMultiDm: (
+    id: string, // `@uw`
+    hive: Omit<Hive, 'add'> // by is the sending ship, for is the invited ship
+  ) => Promise<void>;
+  removeFromMultiDm: (
+    id: string, // `@uw`
+    hive: Omit<Hive, 'add'> // by is the removing ship, for is the removed ship
+  ) => Promise<void>;
+  sendMultiDm: (
+    id: string, // `@uw` - the club ID
+    chatId: string, // a whom
+    memo: Omit<ChatMemo, 'sent'>
+  ) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;
 }
+
+// hives and meta types

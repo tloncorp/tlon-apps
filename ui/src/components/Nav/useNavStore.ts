@@ -11,10 +11,7 @@ interface NavStore {
   primary: NavPrimaryLocation;
   secondary: NavSecondaryLocation;
   flag: string;
-  setLocationMain: () => void;
-  setLocationHidden: () => void;
-  setLocationGroups: (flag: string) => void;
-  setLocationDM: () => void;
+  navigatePrimary: (loc: NavPrimaryLocation, flag?: string) => void;
   navigateSecondary: (loc: NavSecondaryLocation) => void;
 }
 
@@ -22,11 +19,9 @@ const useNavStore = create<NavStore>((set) => ({
   primary: 'main',
   secondary: 'main',
   flag: '',
-  setLocationMain: () => set({ primary: 'main' }),
-  setLocationGroups: (flag) => set({ primary: 'group', flag }),
-  setLocationDM: () => set({ primary: 'dm' }),
-  setLocationHidden: () => set({ primary: 'hidden' }),
-  navigateSecondary: (loc: NavSecondaryLocation) => set({ secondary: loc }),
+  navigatePrimary: (loc, flag = '') =>
+    set({ primary: loc, secondary: 'main', flag }),
+  navigateSecondary: (loc) => set({ secondary: loc }),
 }));
 
 export default useNavStore;
