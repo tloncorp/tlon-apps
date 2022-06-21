@@ -8,7 +8,7 @@ import EllipsisIcon from '../../components/icons/EllipsisIcon';
 import FaceIcon from '../../components/icons/FaceIcon';
 import HashIcon from '../../components/icons/HashIcon';
 import ShareIcon from '../../components/icons/ShareIcon';
-import X16Icon from '../../components/icons/X16Icon';
+import XIcon from '../../components/icons/XIcon';
 import { useChatStore } from '../useChatStore';
 
 export default function ChatMessageOptions(props: {
@@ -57,7 +57,7 @@ export default function ChatMessageOptions(props: {
       />
       {window.our === writ.memo.author ? (
         <IconButton
-          icon={<X16Icon className="text-red" />}
+          icon={<XIcon className="h-6 w-6 text-red" />}
           label="Delete"
           showTooltip
           action={onDelete}
