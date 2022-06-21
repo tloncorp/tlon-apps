@@ -180,6 +180,7 @@ export default function DMInviteInput({ ship, setShip }: DmInviteInputProps) {
         menu: ({ width, borderRadius, ...base }) => ({
           borderWidth: '',
           borderColor: '',
+          zIndex: 50,
           backgroundColor: 'inherit',
           ...base,
         }),

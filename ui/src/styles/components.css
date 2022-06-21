@@ -34,7 +34,7 @@
 }
 
 .dialog {
-  @apply relative max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] overflow-auto rounded-xl bg-white p-6;
+  @apply relative max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] rounded-xl bg-white p-6;
 }
 
 .dialog-inner-container {
