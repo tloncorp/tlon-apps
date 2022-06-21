@@ -50,6 +50,10 @@ export default function ChatScroller({
     ({ index }: RendererProps, ref) => {
       const writ = messages.get(index);
 
+      if (!writ) {
+        return null;
+      }
+
       const isNotice = writ ? 'notice' in writ.memo.content : false;
       if (isNotice) {
         return renderPrefix(
