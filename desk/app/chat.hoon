@@ -837,7 +837,11 @@
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
-    ?.  ok  ~&  gone/ship  di-core(gone &)
+    ?.  ok  
+      ~&  gone/ship
+      ?:  =(src.bowl ship)
+        di-core
+      di-core(gone &)
     =.  net.dm  %done
     (di-post-notice '' ' joined the chat')
   ::
