@@ -117,7 +117,7 @@
     ?<  =(our.bowl p.flag)
     (join flag)
   ::
-      %draft
+      %chat-draft
     =+  !<(=draft:c vase)
     ?>  =(src.bowl our.bowl)
     %_  cor

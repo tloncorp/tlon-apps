@@ -10,6 +10,7 @@ import {
   ChatBriefs,
   ChatBriefUpdate,
   ChatDiff,
+  ChatDraft,
   ChatPerm,
   ChatStory,
   ChatWrit,
@@ -360,18 +361,18 @@ export const useChatState = create<ChatState>((set, get) => ({
     ).initialize();
   },
   getDraft: async (whom) => {
-    const content = await api.scry<ChatStory>({
+    const chatDraft = await api.scry<ChatDraft>({
       app: 'chat',
       path: `/draft/${whom}`,
     });
     set((draft) => {
-      draft.drafts[whom] = content;
+      draft.drafts[whom] = chatDraft.story;
     });
   },
   draft: async (whom, story) => {
     api.poke({
       app: 'chat',
-      mark: 'draft',
+      mark: 'chat-draft',
       json: {
         whom,
         story,
@@ -495,7 +496,7 @@ export function useChatDraft(whom: string) {
   return useChatState(
     useCallback(
       (s) =>
-        s.chats[whom]?.draft || {
+        s.drafts[whom] || {
           inline: [],
           block: [],
         },

@@ -155,10 +155,6 @@ interface WritDeltaDel {
   del: null;
 }
 
-interface ChatDiffDraft {
-  draft: ChatStory;
-}
-
 interface WritDeltaAddFeel {
   'add-feel': {
     time: string;
@@ -178,7 +174,7 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
-export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects | ChatDiffDraft;
+export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects;
 
 export interface ChatUpdate {
   time: Patda;
@@ -218,6 +214,11 @@ export interface Pact {
   index: {
     [id: string]: BigInteger;
   };
+}
+
+export interface ChatDraft {
+  whom: string;
+  story: ChatStory;
 }
 
 export interface ChatBrief {

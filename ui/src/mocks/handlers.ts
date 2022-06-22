@@ -23,6 +23,7 @@ import {
 import {
   ChatBriefs,
   ChatDiff,
+  ChatStory,
   ChatWhom,
   DmAction,
   DmRsvp,
@@ -148,20 +149,6 @@ const chat: Handler[] = [
     func: () => chatWritsSet1,
   } as ScryHandler,
   {
-    action: 'scry',
-    app: 'chat',
-    path: `/chat/:ship/:name/draft`,
-    func: (p, api, params) => {
-      if (!params) {
-        return '';
-      }
-
-      return JSON.parse(
-        localStorage.getItem(`${params.ship}/${params.name}`) || ''
-      );
-    },
-  },
-  {
     action: 'scry' as const,
     app: 'chat',
     path: `/chat/:ship/:name/perm`,
@@ -182,12 +169,6 @@ const chat: Handler[] = [
         return createResponse(req, 'diff', req.json.update.diff.writs);
       }
 
-      if ('draft' in req.json.update.diff) {
-        localStorage.setItem(
-          req.json.flag,
-          JSON.stringify(req.json.update.diff.draft)
-        );
-      }
       return {
         id: req.id,
         ok: true,
@@ -223,6 +204,44 @@ const chat: Handler[] = [
           count: 1,
           'read-id': null,
         },
+      };
+    },
+  },
+  {
+    action: 'scry',
+    app: 'chat',
+    path: `/draft/:ship/:name`,
+    func: (p, api, params) => {
+      if (!params) {
+        return '';
+      }
+
+      const key = params.name
+        ? `draft-${params.ship}/${params.name}`
+        : `draft-${params.ship}`;
+
+      return JSON.parse(localStorage.getItem(key) || '');
+    },
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'chat-draft',
+    returnSubscription: {
+      action: 'subscribe',
+      app: 'chat',
+      path: '/',
+    } as SubscriptionRequestInterface,
+    dataResponder: (
+      req: Message & Poke<{ whom: ChatWhom; story: ChatStory }>
+    ) => {
+      localStorage.setItem(`draft-${req.json.whom}`, JSON.stringify(req.json));
+
+      return {
+        id: req.id!,
+        ok: true,
+        response: 'diff',
+        json: req.json,
       };
     },
   },
