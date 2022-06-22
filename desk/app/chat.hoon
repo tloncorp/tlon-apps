@@ -840,7 +840,7 @@
     ?.  ok  
       ~&  gone/ship
       ?:  =(src.bowl ship)
-        (di-post-notice '' ' left the chat')
+        di-core
       di-core(gone &)
     =.  net.dm  %done
     (di-post-notice '' ' joined the chat')
