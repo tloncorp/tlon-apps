@@ -1,5 +1,7 @@
 import React, {useState} from "react";
 import { UseFormRegister } from 'react-hook-form';
+import { HexColorPicker, HexColorInput } from "react-colorful";
+import * as Popover from '@radix-ui/react-popover';
 
 export interface MultiDMInfoSchema {
   name: string;
@@ -12,20 +14,23 @@ interface ColorPickerProps {
 }
 
 export default function ColorPicker({register, defaultColor}: ColorPickerProps) {
-  const initialColor = defaultColor ? defaultColor : "#3e6b38";
+  const initialColor = defaultColor ? defaultColor : "#b3b3b3";
   const [color, setColor] = useState(initialColor);
   return (
-    <div className="flex">
-      <input {...register('color')} 
-      className="input mt-4 w-full rounded-l-lg rounded-r-none p-1" 
+    <div className="mt-4 flex items-center">
+      <HexColorInput prefixed
+      {...register('color')} 
+      className="input w-full rounded-l-lg rounded-r-none p-1" 
       type="text" 
-      value={color} 
-      onChange={e => setColor(e.target.value)} />
-      <input
-      className="mt-4 w-full rounded-r-lg rounded-l-none border-0 p-0" 
-      type="color" 
-      value={color} 
-      onChange={e => setColor(e.target.value)} />
+      color={color} 
+      onChange={setColor} />
+      <Popover.Root>
+        <Popover.Trigger style={{backgroundColor: color}} className="h-8 w-8 rounded-r-lg rounded-l-none"/>
+        <Popover.Content>
+          <HexColorPicker color={color} onChange={setColor} />
+          <Popover.Arrow className="fill-gray-300"/>
+        </Popover.Content>
+      </Popover.Root>
     </div>
 
   );
