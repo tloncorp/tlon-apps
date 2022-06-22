@@ -3,12 +3,7 @@ import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
-import {
-  useChatState,
-  useDmIsPending,
-  useDmMessages,
-  useMultiDmMessages,
-} from '../state/chat';
+import { useChatState, useMultiDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
 import DmInvite from './DmInvite';
 import Avatar from '../components/Avatar';
@@ -18,16 +13,18 @@ import CaretLeftIcon from '../components/icons/CaretLeftIcon';
 import { useIsMobile } from '../logic/useMedia';
 import DMHero from '../dms/DMHero';
 import useNavStore from '../components/Nav/useNavStore';
+import GroupIcon from '../components/icons/GroupIcon';
 
 export default function MultiDm() {
   const clubId = useParams<{ ship: string }>().ship!;
   const contacts = useContacts();
+  // TODO: Where is the club membership stored?
   const contactNames = Object.keys(contacts);
 
   const contact = useContact(clubId);
   const isMobile = useIsMobile();
 
-  // TODO
+  // TODO: when is a Multi DM "accepted"? when one member joins? when all? or always?
   // const isAccepted = !useDmIsPending(clubId);
   const isAccepted = false;
 
@@ -69,16 +66,11 @@ export default function MultiDm() {
               <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
             ) : null}
             <div className="flex items-center space-x-3">
-              <Avatar size="small" ship={clubId} />
+              <GroupIcon />
               <div className="flex flex-col">
-                {contact?.nickname ? (
-                  <>
-                    <span className="font-semibold">{contact.nickname}</span>
-                    <span className="text-gray-600">{clubId}</span>
-                  </>
-                ) : (
-                  <span className="font-semibold">{clubId}</span>
-                )}
+                {/* TODO: prefer title, otherwise show list of patps, get # members */}
+                <span className="font-semibold">{clubId}</span>
+                <span className="text-gray-600">4 Members</span>
               </div>
             </div>
           </button>
