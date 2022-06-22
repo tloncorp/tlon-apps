@@ -13,6 +13,7 @@ import {
   ChatPerm,
   ChatStory,
   ChatWrit,
+  Club,
   ClubAction,
   ClubDelta,
   DmAction,
@@ -302,6 +303,20 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: req,
     });
   },
+  initializeMultiDm: async (id) => {
+    if (get().dmSubs.includes(id)) {
+      return;
+    }
+    get().batchSet((draft) => {
+      draft.dmSubs.push(id);
+    });
+    await makeWritsStore(
+      id,
+      get,
+      `/club/${id}/writs`,
+      `/club/${id}/ui/writs`
+    ).initialize();
+  },
   createMultiDm: async (hive) => {
     await api.poke({
       app: 'chat',
@@ -320,6 +335,9 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   removeFromMultiDm: async (id, hive) => {
     await api.poke(multiDmAction(id, { hive: { ...hive, add: false } }));
+  },
+  multiDmRsvp: async (id, ok) => {
+    await api.poke(multiDmAction(id, { team: { ship: window.our, ok } }));
   },
   sendMultiDm: async (id, chatId, memo) => {
     await api.poke(
@@ -507,6 +525,30 @@ export function usePendingDms() {
 
 export function useDmIsPending(ship: string) {
   return useChatState(useCallback((s) => s.pendingDms.includes(ship), [ship]));
+}
+
+export function useMultiDm(id: string): Club | undefined {
+  return useChatState(useCallback((s) => s.multiDms[id], [id]));
+}
+
+export function useMultiDmIsPending(id: string): boolean {
+  return useChatState(
+    useCallback(
+      (s) => {
+        const chat = s.multiDms[id];
+        if (!chat) {
+          return false;
+        }
+
+        return chat.hive.includes(window.our);
+      },
+      [id]
+    )
+  );
+}
+
+export function useMultiDmMessages(id: string) {
+  return useMessagesForChat(id);
 }
 
 const selDmArchive = (s: ChatState) => s.dmArchive;

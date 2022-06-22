@@ -52,6 +52,7 @@ export interface ChatState {
     description: string;
     readers: string[];
   }) => Promise<void>;
+  initializeMultiDm: (id: string) => Promise<void>;
   createMultiDm: (
     hive: string[] // array of ships
   ) => Promise<void>;
@@ -71,6 +72,10 @@ export interface ChatState {
     id: string, // `@uw` - the club ID
     chatId: string, // a whom
     memo: Omit<ChatMemo, 'sent'>
+  ) => Promise<void>;
+  multiDmRsvp: (
+    id: string, // `@uw` - the club ID
+    ok: boolean // whether the invite was accepted/rejected
   ) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;

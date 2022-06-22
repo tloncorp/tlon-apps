@@ -35,6 +35,7 @@ import DMHome from './dms/DMHome';
 import Nav from './components/Nav/Nav';
 import GroupInfoDialog from './groups/GroupInfoDialog';
 import GroupInviteDialog from './groups/GroupInviteDialog';
+import Message from './dms/Message';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -49,7 +50,7 @@ function ChatRoutes({ state, location }: RoutesProps) {
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
-          <Route path=":ship" element={<Dm />}>
+          <Route path=":ship" element={<Message />}>
             <Route path="message/:idShip/:idTime" element={<DmThread />} />
           </Route>
         </Route>
