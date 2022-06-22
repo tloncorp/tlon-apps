@@ -111,6 +111,7 @@
     $:  =pact
         =remark
         =net
+        pin=_|
     ==
   +$  net     ?(%inviting %invited %archive %done)
   +$  id      (pair ship time)

@@ -110,6 +110,9 @@
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
+      %dm-pin
+    =+  !<([=ship pin=?] vase)
+    di-abet:(di-pin:(di-abed:di-core ship) pin)
   ::
       %flag
     =+  !<(=flag:c vase)
@@ -281,6 +284,15 @@
   ::
       [%x %dm %invited ~]
     ``ships+!>(~(key by pending-dms))
+  ::
+      [%x %dm %pinned ~]
+    =-  ``ships+!>(-)
+    ^-  (set ship)
+    %-  silt
+    %+  murn  ~(tap by dms)
+    |=  [=ship =dm:c]
+    ?.  pin.dm  ~
+    `ship
   ::
       [%x %dm %archive ~]
     ``ships+!>(~(key by archived-dms))
@@ -773,7 +785,7 @@
       %+  ~(gut by dms)  s
       =|  =remark:c
       =.  watching.remark  &
-      [*pact:c remark ?:(=(src our):bowl %inviting %invited)]
+      [*pact:c remark ?:(=(src our):bowl %inviting %invited) |]
     =?  di-core  &(new !=(src our):bowl)
       di-invited
     di-core(ship s, dm d)
@@ -790,6 +802,11 @@
     =.  cor
       (emit (hark:di-pass invited:di-hark))
     di-core
+  ::
+  ++  di-pin
+    |=  pin=?
+    ^+  di-core
+    di-core(pin.dm pin)
   ::
   ++  di-notify
     |=  [=id:c =delta:writs:c]
