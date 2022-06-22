@@ -733,6 +733,10 @@ export default class VirtualScroller<K, V> extends Component<
       visibleItems?.[visibleItems.length - 1] || keyBunt
     );
 
+    const scrollBoxMargin = isTop ? 
+    { width: 'calc(100% - 4px)', marginBottom: 'auto' } : 
+    { width: 'calc(100% - 4px)', marginTop: 'auto' };
+
     return (
       <>
         <Scrollbar
@@ -753,7 +757,7 @@ export default class VirtualScroller<K, V> extends Component<
             overflowY: 'scroll',
           }}
         >
-          <div style={{ width: 'calc(100% - 4px)', marginTop: 'auto' }}>
+          <div style={scrollBoxMargin}>
             {(isTop ? !atEnd : !atStart) && (
               <Center>
                 <LoadingSpinner />
