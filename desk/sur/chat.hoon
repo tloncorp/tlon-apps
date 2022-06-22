@@ -40,7 +40,6 @@
 +$  flag  (pair ship term)
 +$  diff
   $%  [%writs p=diff:writs]
-      [%draft p=story]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
@@ -131,7 +130,7 @@
       group=flag
   ==
 +$  chat
-  [=net =remark =log =perm =pact draft=story]
+  [=net =remark =log =perm =pact]
 ::
 +$  notice  [pfix=@t sfix=@t]
 ::

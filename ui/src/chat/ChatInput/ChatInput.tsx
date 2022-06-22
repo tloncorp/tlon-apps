@@ -265,7 +265,6 @@ export default function ChatInput({
   newDm = false,
   navigate = undefined,
 }: ChatInputProps) {
-  const chat = useChat(whom);
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
   const replyingWrit = replying && pact.writs.get(pact.index[replying]);
@@ -318,10 +317,8 @@ export default function ChatInput({
   );
 
   useEffect(() => {
-    if (chat) {
-      useChatState.getState().getDraft(whom);
-    }
-  }, [whom, chat]);
+    useChatState.getState().getDraft(whom);
+  }, [whom]);
 
   const messageEditor = useMessageEditor({
     content: '',

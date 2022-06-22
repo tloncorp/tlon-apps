@@ -78,8 +78,11 @@ export const useChatState = create<ChatState>((set, get) => ({
       get().set(fn);
     });
   },
+  chats: {},
+  dmArchive: [],
   pacts: {},
   dms: {},
+  drafts: {},
   dmSubs: [],
   pendingDms: [],
   pinnedDms: [],
@@ -217,9 +220,6 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: ship,
     });
   },
-
-  chats: {},
-  dmArchive: [],
   archiveDm: async (ship) => {
     await api.poke({
       app: 'chat',
@@ -316,17 +316,21 @@ export const useChatState = create<ChatState>((set, get) => ({
   getDraft: async (whom) => {
     const content = await api.scry<ChatStory>({
       app: 'chat',
-      path: `/chat/${whom}/draft`,
+      path: `/draft/${whom}`,
     });
     set((draft) => {
-      const chat = draft.chats[whom];
-      if (chat) {
-        chat.draft = content;
-      }
+      draft.drafts[whom] = content;
     });
   },
-  draft: async (whom, draft) => {
-    api.poke(chatAction(whom, { draft }));
+  draft: async (whom, story) => {
+    api.poke({
+      app: 'chat',
+      mark: 'draft',
+      json: {
+        whom,
+        story,
+      },
+    });
   },
   initializeDm: async (ship: string) => {
     if (get().dmSubs.includes(ship)) {
