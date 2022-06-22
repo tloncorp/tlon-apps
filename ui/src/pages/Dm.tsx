@@ -2,7 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
 import ChatInput from '../chat/ChatInput/ChatInput';
-import Layout from '../components/Layout/Layout';
+import Layout from '../components/layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
 import DmInvite from './DmInvite';

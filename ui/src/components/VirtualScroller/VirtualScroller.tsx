@@ -746,14 +746,14 @@ export default class VirtualScroller<K, V> extends Component<
         <ScrollbarLessBox
           ref={this.setWindow}
           onScroll={this.onScroll}
-          className="hide-scroll h-full"
+          className="hide-scroll flex h-full flex-col"
           style={{
             ...style,
             WebkitOverflowScrolling: 'auto',
             overflowY: 'scroll',
           }}
         >
-          <div style={{ width: 'calc(100% - 4px)' }}>
+          <div style={{ width: 'calc(100% - 4px)', marginTop: 'auto' }}>
             {(isTop ? !atEnd : !atStart) && (
               <Center>
                 <LoadingSpinner />
