@@ -27,6 +27,7 @@ export interface ChatState {
   multiDms: {
     [id: string]: Club; // id is `@uw`
   };
+  multiDmSubs: string[];
   pinnedDms: string[];
   fetchDms: () => Promise<void>;
   pacts: {
@@ -77,6 +78,5 @@ export interface ChatState {
   ) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;
+  initializeMultiDm: (id: string) => Promise<void>; // id is `@uw`, the Club ID
 }
-
-// hives and meta types

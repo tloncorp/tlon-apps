@@ -5,6 +5,7 @@ import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import { BigInteger } from 'big-integer';
 import { useCallback, useMemo } from 'react';
+import { formatUw } from '@urbit/aura';
 import {
   Chat,
   ChatBriefs,
@@ -102,6 +103,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   drafts: {},
   dmSubs: [],
   multiDms: {},
+  multiDmSubs: [],
   pendingDms: [],
   pinnedDms: [],
   briefs: {},
@@ -314,7 +316,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       app: 'chat',
       mark: 'club-create',
       json: {
-        id: makeId(),
+        id: formatUw(unixToDa(Date.now())),
         hive,
       },
     });
@@ -399,6 +401,20 @@ export const useChatState = create<ChatState>((set, get) => ({
       `/dm/${ship}/ui`
     ).initialize();
   },
+  initializeMultiDm: async (id: string) => {
+    if (get().multiDmSubs.includes(id)) {
+      return;
+    }
+    get().batchSet((draft) => {
+      draft.multiDmSubs.push(id);
+    });
+    await makeWritsStore(
+      id,
+      get,
+      `/dm/${id}/writs`,
+      `/dm/${id}/ui`
+    ).initialize();
+  },
 }));
 
 export function useMessagesForChat(whom: string) {
@@ -435,6 +451,10 @@ export function useDmList() {
 
 export function useDmMessages(ship: string) {
   return useMessagesForChat(ship);
+}
+
+export function useMultiDmMessages(id: string) {
+  return useMessagesForChat(id);
 }
 
 export function usePact(whom: string) {
