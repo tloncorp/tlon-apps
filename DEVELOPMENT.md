@@ -2,14 +2,13 @@
 
 ## Install on Fakezod
 
-0. Clone or pull latest homestead and urbit repos if you haven't , making sure you've run `git lfs install && git lfs checkout` in the urbit repo for pills
-1. Boot a fake ship if you haven't making sure to use: 
-	`urbit -F zod -B /path/to/urbit-repo/bin/solid.pill`
-2. Create new desks
-	1. `|merge %garden our %base`
-	2. `|mount %garden`
-	3. `|merge %homestead our %base`
-	4. `|mount %homestead`
+0. Clone or pull latest homestead and urbit repos if you haven't
+1. Boot a fake ship if you haven't making sure to use:
+	`urbit -F zod`
+2. Mount or create appropriate desks
+	1. `|mount %garden`
+	2. `|merge %homestead our %base`
+	3. `|mount %homestead`
 3. From the urbit repo:
 	1. `rsync -avL --delete pkg/base-dev/* ~/zod/garden/` we delete here to clear the directory
 	2. `rsync -avL pkg/garden/* ~/zod/garden/`
