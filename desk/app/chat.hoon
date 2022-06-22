@@ -17,6 +17,7 @@
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
+        drafts=(map whom:c story:c)
         bad=(set ship)
         inv=(set ship)
     ==
@@ -115,6 +116,14 @@
     =+  !<(=flag:c vase)
     ?<  =(our.bowl p.flag)
     (join flag)
+  ::
+      %chat-draft
+    =+  !<(=draft:c vase)
+    ?>  =(src.bowl our.bowl)
+    %_  cor
+        drafts
+       (~(put by drafts) p.draft q.draft)
+    ==
   ::
       %chat-create
     =+  !<(req=create:c vase)
@@ -291,6 +300,19 @@
   ::
       [%x %club @ *]
     (cu-peek:(cu-abed (slav %uw i.t.t.path)) t.t.t.path)
+  ::
+      [%x %draft @ $@(~ [@ ~])]
+    =/  =whom:c
+      ?^  t.t.t.path
+        flag+[(slav %p i.t.t.path) i.t.t.t.path]
+      %+  rash
+      i.t.t.path
+    ;~  pose
+      (stag %ship ;~(pfix sig fed:ag))
+      (stag %club club-id-rule:dejs:chat-json)
+    ==
+    =-  ``chat-draft+!>(-)
+    `draft:c`[whom (~(gut by drafts) whom *story:c)]
   ::
       [%x %briefs ~]
     =-  ``chat-briefs+!>(-)
@@ -546,7 +568,6 @@
     ?+  pole  [~ ~]
       [%writs rest=*]  (peek:ca-pact rest.pole)
       [%perm ~]        ``chat-perm+!>(perm.chat)
-      [%draft ~]       ``chat-draft+!>(draft.chat)
     ==
   ::
   ++  ca-revoke
@@ -715,11 +736,6 @@
         %del-sects
       =*  p  perm.chat
       =.  writers.p  (~(dif in writers.p) p.d)
-      ca-core
-    ::
-        %draft
-      ?>  =(src.bowl p.flag)
-      =.  draft.chat  p.d
       ca-core
     ::
         %create

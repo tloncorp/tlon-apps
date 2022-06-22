@@ -10,6 +10,7 @@ import {
   ChatBriefs,
   ChatBriefUpdate,
   ChatDiff,
+  ChatDraft,
   ChatPerm,
   ChatStory,
   ChatWrit,
@@ -94,8 +95,11 @@ export const useChatState = create<ChatState>((set, get) => ({
       get().set(fn);
     });
   },
+  chats: {},
+  dmArchive: [],
   pacts: {},
   dms: {},
+  drafts: {},
   dmSubs: [],
   multiDms: {},
   pendingDms: [],
@@ -234,9 +238,6 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: ship,
     });
   },
-
-  chats: {},
-  dmArchive: [],
   archiveDm: async (ship) => {
     await api.poke({
       app: 'chat',
@@ -360,19 +361,23 @@ export const useChatState = create<ChatState>((set, get) => ({
     ).initialize();
   },
   getDraft: async (whom) => {
-    const content = await api.scry<ChatStory>({
+    const chatDraft = await api.scry<ChatDraft>({
       app: 'chat',
-      path: `/chat/${whom}/draft`,
+      path: `/draft/${whom}`,
     });
     set((draft) => {
-      const chat = draft.chats[whom];
-      if (chat) {
-        chat.draft = content;
-      }
+      draft.drafts[whom] = chatDraft.story;
     });
   },
-  draft: async (whom, draft) => {
-    api.poke(chatAction(whom, { draft }));
+  draft: async (whom, story) => {
+    api.poke({
+      app: 'chat',
+      mark: 'chat-draft',
+      json: {
+        whom,
+        story,
+      },
+    });
   },
   initializeDm: async (ship: string) => {
     if (get().dmSubs.includes(ship)) {
@@ -491,7 +496,7 @@ export function useChatDraft(whom: string) {
   return useChatState(
     useCallback(
       (s) =>
-        s.chats[whom]?.draft || {
+        s.drafts[whom] || {
           inline: [],
           block: [],
         },
