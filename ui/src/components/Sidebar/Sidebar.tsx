@@ -45,7 +45,7 @@ export default function Sidebar() {
           Join Group
         </SidebarItem>
         <SidebarItem
-          color="text-green"
+          color="text-green bg-green-soft dark:bg-green-900 hover:bg-green-100 dark:hover:bg-green-800"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
           to="/groups/new"
         >
