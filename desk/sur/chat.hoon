@@ -59,13 +59,15 @@
   |%
   +$  id  @uwH
   +$  net  ?(%archive %invited %done)
-  +$  club
+  +$  club  [=pact crew]
+  ::
+  +$  crew
     $:  team=(set ship)
         hive=(set ship)
         met=data:meta
-        =pact
         =net
     ==
+
   ::
   +$  rsvp    [=id =ship ok=?]
   +$  create

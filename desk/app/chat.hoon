@@ -379,7 +379,7 @@
   ++  cu-init
     |=  [=net:club:c =create:club:c]
     =/  clab=club:c
-      [(silt our.bowl ~) hive.create *data:meta *pact:c net]
+      [*pact:c (silt our.bowl ~) hive.create *data:meta net]
     cu-core(id id.create, club clab)
   ::
   ++  cu-brief  (brief:cu-pact [our now]:bowl)
@@ -474,6 +474,7 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
       [%writs *]  (peek:cu-pact t.path)
+      [%crew ~]   ``club-crew+!>(+.club)
     ==
   ::
   ++  cu-watch
