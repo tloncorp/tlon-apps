@@ -301,18 +301,18 @@
       [%x %club @ *]
     (cu-peek:(cu-abed (slav %uw i.t.t.path)) t.t.t.path)
   ::
-      [%x %draft @ ~]
-    =/  whom=(unit whom:c)
-      %+  rush
+      [%x %draft @ $@(~ [@ ~])]
+    =/  =whom:c
+      ?^  t.t.t.path
+        flag+[(slav %p i.t.t.path) i.t.t.t.path]
+      %+  rash
       i.t.t.path
     ;~  pose
-      (stag %flag flag-rule:dejs:chat-json)
       (stag %ship ;~(pfix sig fed:ag))
       (stag %club club-id-rule:dejs:chat-json)
     ==
-    =/  content=story:c  (~(gut by drafts) (need whom) *story:c)
-    ?~  whom  ``chat-draft+!>(~)
-    ``chat-draft+!>(`draft:c`[(need whom) content])
+    =-  ``chat-draft+!>(-)
+    `draft:c`[whom (~(gut by drafts) whom *story:c)]
   ::
       [%x %briefs ~]
     =-  ``chat-briefs+!>(-)
