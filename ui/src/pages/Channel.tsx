@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import ChatWindow from '../chat/ChatWindow';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
-import Layout from '../components/layout/Layout';
+import Layout from '../components/Layout/Layout';
 import { useIsMobile } from '../logic/useMedia';
 import {
   useChatIsJoined,
