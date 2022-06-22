@@ -169,6 +169,14 @@
           alt+s+alt.b
       ==
     ==
+  ++  crew
+    |=  cr=crew:club:c
+    %-  pairs
+    :~  team/a/(turn ~(tap in team.cr) ship)
+        hive/a/(turn ~(tap in hive.cr) ship)
+        meta/(meta met.cr)
+        net/s/net.cr
+    ==
   ::
   ++  notice
     |=  n=notice:c
