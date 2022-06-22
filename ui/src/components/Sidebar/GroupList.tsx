@@ -1,5 +1,6 @@
 import cn from 'classnames';
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, useEffect } from 'react';
+import { uniq, without } from 'lodash';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
@@ -17,10 +18,16 @@ import useNavStore from '../Nav/useNavStore';
 import GroupActions from './GroupActions';
 import SidebarItem from './SidebarItem';
 import { useIsMobile } from '../../logic/useMedia';
+import { SettingsState, useSettingsState } from '../../state/settings';
 
 const dragTypes = {
   GROUP: 'group',
 };
+
+const selOrderedPins = (s: SettingsState) => ({
+  order: s.groups.orderedGroupPins,
+  loaded: s.loaded,
+});
 
 function DraggableGroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
@@ -28,14 +35,20 @@ function DraggableGroupItem({ flag }: { flag: string }) {
 
   const [{ isDragging }, drag] = useDrag(() => ({
     type: dragTypes.GROUP,
-    item: { group },
+    item: { flag },
     collect: (monitor) => ({
       isDragging: !!monitor.isDragging(),
     }),
   }));
 
   return (
-    <div ref={drag} className={cn(isDragging ? 'opacity-0' : 'opacity-100')}>
+    <div
+      ref={drag}
+      className={cn(
+        'absolute w-full',
+        isDragging ? 'opacity-0' : 'opacity-100'
+      )}
+    >
       <SidebarItem
         icon={
           <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={group?.meta.image} />
@@ -70,18 +83,36 @@ function GroupItemContainer({
   flag,
   children,
 }: PropsWithChildren<{ flag: string }>) {
+  const { order } = useSettingsState(selOrderedPins);
   const [{ isOver }, drop] = useDrop<
-    { group: string },
+    { flag: string },
     undefined,
     { isOver: boolean }
   >(
     () => ({
       accept: dragTypes.GROUP,
-      drop: ({ group }) => {
-        if (!group || group === flag) {
+      drop: ({ flag: itemFlag }) => {
+        if (!itemFlag || itemFlag === flag) {
           return undefined;
         }
-        console.log({ group });
+        // [1, 2, 3, 4] 1 -> 3
+        // [2, 3, 4]
+        const beforeSlot = order.indexOf(itemFlag) < order.indexOf(flag);
+        const orderWithoutOriginal = without(order, itemFlag);
+        const slicePoint = orderWithoutOriginal.indexOf(flag);
+        // [2, 3] [4]
+        const left = orderWithoutOriginal.slice(
+          0,
+          beforeSlot ? slicePoint + 1 : slicePoint
+        );
+        const right = orderWithoutOriginal.slice(slicePoint);
+        // concat([2, 3], [1], [4])
+        const newOrder = uniq(left.concat([itemFlag], right));
+        // [2, 3, 1, 4]
+        useSettingsState
+          .getState()
+          .putEntry('groups', 'orderedGroupPins', newOrder);
+
         return undefined;
       },
       collect: (monitor) => ({
@@ -91,7 +122,18 @@ function GroupItemContainer({
     [flag]
   );
 
-  return <div ref={drop}>{children}</div>;
+  return (
+    <div
+      ref={drop}
+      className={cn(
+        'relative flex h-10 w-full ring-4',
+        isOver && 'ring-blue-500',
+        !isOver && 'ring-transparent'
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 // Gang is a pending group invite
@@ -123,6 +165,37 @@ export default function GroupList({
   const pinnedFlags = usePinnedGroups();
   const gangs = useGangList();
   const { sortFn, sortOptions } = useSidebarSort();
+  const { order, loaded } = useSettingsState(selOrderedPins);
+
+  useEffect(() => {
+    const hasKeys = order && !!order.length;
+    const pinnedKeys = Object.keys(pinnedFlags);
+    const hasPinnedKeys = pinnedKeys.length > 0;
+
+    if (!loaded) {
+      return;
+    }
+
+    // Correct order state, fill if none, remove duplicates, and remove
+    // old uninstalled app keys
+    if (!hasKeys && hasPinnedKeys) {
+      useSettingsState
+        .getState()
+        .putEntry('groups', 'orderedGroupPins', pinnedKeys);
+    } else if (order.length < pinnedKeys.length) {
+      useSettingsState
+        .getState()
+        .putEntry('groups', 'orderedGroupPins', uniq(order.concat(pinnedKeys)));
+    } else if (order.length > pinnedKeys.length && hasPinnedKeys) {
+      useSettingsState
+        .getState()
+        .putEntry(
+          'groups',
+          'orderedGroupPins',
+          uniq(order.filter((key) => key in pinnedFlags).concat(pinnedKeys))
+        );
+    }
+  }, [pinnedFlags, order, loaded]);
 
   return pinned ? (
     <DndProvider
@@ -146,8 +219,8 @@ export default function GroupList({
         <div className="grow border-b-2 border-gray-100" />
       </li>
       {pinnedFlags.sort(sortOptions[sortFn]).map((flag) => (
-        <GroupItemContainer flag={flag}>
-          <DraggableGroupItem key={flag} flag={flag} />
+        <GroupItemContainer flag={flag} key={flag}>
+          <DraggableGroupItem flag={flag} />
         </GroupItemContainer>
       ))}
     </DndProvider>
