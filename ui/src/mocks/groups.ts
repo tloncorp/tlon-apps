@@ -30,6 +30,30 @@ function createMockGroup(title: string): Group {
     },
   };
 }
+const mockGroupOne: Group = {
+  fleet: {},
+  cabals: {},
+  channels: {
+    '~dev/test': {
+      meta: {
+        title: 'Watercooler',
+        description: 'watering hole',
+        image: '',
+      },
+    },
+  },
+  cordon: {
+    open: {
+      ranks: ['czar'],
+      ships: ['~bus'],
+    },
+  },
+  meta: {
+    title: 'tlon',
+    description: 'the tlon corporation',
+    image: '',
+  },
+};
 
 const mockGroupTwo: Group = {
   fleet: {},
@@ -58,6 +82,7 @@ const mockGroupTwo: Group = {
 
 const mockGroups: { [flag: string]: Group } = {
   '~zod/remco': mockGroupTwo,
+  '~dev/tlon': mockGroupOne,
 };
 
 function createChannel(title: string) {
@@ -109,6 +134,6 @@ export const mockGangs: Gangs = {
   },
 };
 
-export const pinnedGroups = ['~zod/remco'];
+export const pinnedGroups = ['~zod/remco', '~dev/tlon'];
 
 export default mockGroups;
