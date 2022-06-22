@@ -17,7 +17,7 @@ interface MessagesFilter {
 }
 
 const useMessagesFilter = create<MessagesFilter>((set) => ({
-  filter: filters.all,
+  filter: filters.dms,
   setFilter: (filter: SidebarFilter) => {
     set({ filter });
   },
