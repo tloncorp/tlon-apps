@@ -10,10 +10,14 @@ import MessagesList from './MessagesList';
 import useNavStore from '../components/Nav/useNavStore';
 import AddIcon from '../components/icons/AddIcon';
 import useMessagesFilter, { filters } from './useMessagesFilter';
+import MessagesSidebarItem from './MessagesSidebarItem';
+import { useBriefs, usePinnedChats } from '../state/chat';
 
 export default function MobileMessagesSidebar() {
   const { filter, setFilter } = useMessagesFilter();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
+  const briefs = useBriefs();
+  const pinned = usePinnedChats();
 
   return (
     <nav
@@ -73,6 +77,27 @@ export default function MobileMessagesSidebar() {
           <AddIcon className="h-6 w-6 text-gray-600" />
         </Link>
       </header>
+      {pinned && pinned.length > 0 ? (
+        <>
+          <div className="mb-1 flex items-center space-x-2 px-4 pt-2">
+            <span className="text-sm font-semibold text-gray-400">Pinned</span>
+            <div className="grow border-b-2 border-gray-100" />
+          </div>
+          <div className="flex flex-col space-y-2 px-2 pb-2">
+            {pinned.map((ship: string) => (
+              <MessagesSidebarItem
+                key={ship}
+                whom={ship}
+                brief={briefs[ship]}
+              />
+            ))}
+          </div>
+          <div
+            className="border-b-2 border-gray-100 px-2"
+            style={{ width: 'calc(100% - 2rem)', margin: '0 auto 0.5rem' }}
+          />
+        </>
+      ) : null}
       <MessagesList filter={filter} />
     </nav>
   );
