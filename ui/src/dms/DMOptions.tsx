@@ -8,6 +8,8 @@ import LeaveIcon from '../components/icons/LeaveIcon';
 import { useBriefs, useChatState, usePinnedChats } from '../state/chat';
 import PinIcon from '../components/icons/PinIcon';
 import BulletIcon from '../components/icons/BulletIcon';
+import InviteIcon16 from '../components/icons/InviteIcon16';
+import DmInviteDialog from './DmInviteDialog';
 
 interface DMOptionsProps {
   ship: string;
@@ -25,6 +27,7 @@ export default function DmOptions({
   const briefs = useBriefs();
   const hasActivity = (briefs[ship]?.count ?? 0) > 0 || pending;
   const [isOpen, setIsOpen] = useState(false);
+  const [inviteIsOpen, setInviteIsOpen] = useState(false);
 
   const onArchive = () => {
     navigate(-1);
@@ -60,6 +63,10 @@ export default function DmOptions({
     [ship, pinned]
   );
 
+  const handleInvite = () => {
+    setInviteIsOpen(true);
+  };
+
   return (
     <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
@@ -92,11 +99,18 @@ export default function DmOptions({
             <span>{pinned.includes(ship) ? 'Unpin' : 'Pin'}</span>
           </DropdownMenu.Item>
           <DropdownMenu.Item
+            className="dropdown-item flex items-center space-x-2"
+            onClick={handleInvite}
+          >
+            <InviteIcon16 className="h-6 w-6" />
+            <span>Invite</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
             onSelect={leaveMessage}
             className="dropdown-item flex items-center space-x-2 text-red"
           >
             <LeaveIcon className="h-6 w-6 opacity-60" />
-            Leave Message
+            <span>Leave Message</span>
           </DropdownMenu.Item>
           <DropdownMenu.Item className="dropdown-item" onClick={markRead}>
             Mark Read
@@ -129,6 +143,10 @@ export default function DmOptions({
           </div>
         </DialogContent>
       </Dialog>
+      <DmInviteDialog
+        inviteIsOpen={inviteIsOpen}
+        setInviteIsOpen={setInviteIsOpen}
+      />
     </>
   );
 }

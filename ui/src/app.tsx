@@ -18,7 +18,7 @@ import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
 import api from './api';
 import Dms from './pages/Dms';
-import Dm from './pages/Dm';
+import Search from './pages/Search';
 import NewDM from './pages/NewDm';
 import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
@@ -36,6 +36,7 @@ import MultiDMEditModal from './dms/MultiDMEditModal';
 import Nav from './components/Nav/Nav';
 import GroupInfoDialog from './groups/GroupInfoDialog';
 import GroupInviteDialog from './groups/GroupInviteDialog';
+import Message from './pages/Message';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -50,7 +51,8 @@ function ChatRoutes({ state, location }: RoutesProps) {
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
-          <Route path=":ship" element={<Dm />}>
+          <Route path=":ship" element={<Message />}>
+            <Route path="search" element={<Search />} />
             <Route path="message/:idShip/:idTime" element={<DmThread />} />
           </Route>
         </Route>
@@ -72,7 +74,7 @@ function ChatRoutes({ state, location }: RoutesProps) {
         </Route>
       </Routes>
       <Routes>
-          <Route path="/*" element={<MultiDMEditModal />} />
+        <Route path="/*" element={<MultiDMEditModal />} />
       </Routes>
     </>
   );

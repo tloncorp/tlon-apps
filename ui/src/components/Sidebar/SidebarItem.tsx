@@ -7,6 +7,8 @@ type SidebarProps = PropsWithChildren<{
   to?: string;
   actions?: React.ReactNode;
   color?: string;
+  div?: boolean;
+  highlight?: string;
 }> &
   ButtonHTMLAttributes<HTMLButtonElement> &
   Omit<LinkProps, 'to'>;
@@ -31,20 +33,23 @@ export default function SidebarItem({
   icon,
   to,
   color = 'text-gray-600',
+  highlight = 'bg-gray-50',
   actions,
   className,
   children,
+  div = false,
   ...rest
 }: SidebarProps) {
   const matches = useMatch(to || 'DONT_MATCH');
   const active = !!matches;
+  const Wrapper = div ? 'div' : 'li';
 
   return (
-    <li
+    <Wrapper
       className={cn(
         'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base',
         color,
-        active && 'bg-gray-50'
+        active && highlight
       )}
     >
       <Action
@@ -67,6 +72,6 @@ export default function SidebarItem({
         </div>
       </Action>
       {actions ? <div className={cn('absolute right-0')}>{actions}</div> : null}
-    </li>
+    </Wrapper>
   );
 }
