@@ -10,14 +10,13 @@ import {
   ChatBriefs,
   ChatBriefUpdate,
   ChatDiff,
+  ChatDraft,
   ChatPerm,
-  ChatStory,
   ChatWrit,
   Club,
   ClubAction,
   ClubDelta,
   DmAction,
-  Pact,
   WritDelta,
 } from '../../types/chat';
 import api from '../../api';
@@ -95,31 +94,41 @@ export const useChatState = create<ChatState>((set, get) => ({
       get().set(fn);
     });
   },
+  chats: {},
+  dmArchive: [],
   pacts: {},
   dms: {},
+  drafts: {},
   dmSubs: [],
   multiDms: {},
+  multiDmSubs: [],
   pendingDms: [],
   pinnedDms: [],
   briefs: {},
-  pinDm: async (whom) => {
+  pinDm: async (ship) => {
     await api.poke({
       app: 'chat',
-      mark: 'chat-remark-action',
+      mark: 'dm-pin',
       json: {
-        whom,
-        diff: { pinned: true },
+        ship,
+        pin: true,
       },
     });
+    get().set((draft) => {
+      draft.pinnedDms = [...draft.pinnedDms, ship];
+    });
   },
-  unpinDm: async (whom) => {
+  unpinDm: async (ship) => {
     await api.poke({
       app: 'chat',
-      mark: 'chat-remark-action',
+      mark: 'dm-pin',
       json: {
-        whom,
-        diff: { pinned: false },
+        ship,
+        pin: false,
       },
+    });
+    get().set((draft) => {
+      draft.pinnedDms = draft.pinnedDms.filter((s) => s !== ship);
     });
   },
   markRead: async (whom) => {
@@ -235,9 +244,6 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: ship,
     });
   },
-
-  chats: {},
-  dmArchive: [],
   archiveDm: async (ship) => {
     await api.poke({
       app: 'chat',
@@ -304,11 +310,11 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
   },
   initializeMultiDm: async (id) => {
-    if (get().dmSubs.includes(id)) {
+    if (get().multiDmSubs.includes(id)) {
       return;
     }
     get().batchSet((draft) => {
-      draft.dmSubs.push(id);
+      draft.multiDmSubs.push(id);
     });
     await makeWritsStore(
       id,
@@ -317,14 +323,25 @@ export const useChatState = create<ChatState>((set, get) => ({
       `/club/${id}/ui/writs`
     ).initialize();
   },
-  createMultiDm: async (hive) => {
+  createMultiDm: async (id, hive) => {
     await api.poke({
       app: 'chat',
       mark: 'club-create',
       json: {
-        id: makeId(),
+        id,
         hive,
       },
+    });
+    get().batchSet((draft) => {
+      draft.multiDms[id] = {
+        hive,
+        team: [],
+        meta: {
+          title: hive.sort().join(', '),
+          description: '',
+          image: '',
+        },
+      };
     });
   },
   editMultiDm: async (id, meta) => {
@@ -378,19 +395,23 @@ export const useChatState = create<ChatState>((set, get) => ({
     ).initialize();
   },
   getDraft: async (whom) => {
-    const content = await api.scry<ChatStory>({
+    const chatDraft = await api.scry<ChatDraft>({
       app: 'chat',
-      path: `/chat/${whom}/draft`,
+      path: `/draft/${whom}`,
     });
     set((draft) => {
-      const chat = draft.chats[whom];
-      if (chat) {
-        chat.draft = content;
-      }
+      draft.drafts[whom] = chatDraft.story;
     });
   },
-  draft: async (whom, draft) => {
-    api.poke(chatAction(whom, { draft }));
+  draft: async (whom, story) => {
+    api.poke({
+      app: 'chat',
+      mark: 'chat-draft',
+      json: {
+        whom,
+        story,
+      },
+    });
   },
   initializeDm: async (ship: string) => {
     if (get().dmSubs.includes(ship)) {
@@ -454,14 +475,6 @@ export function useCurrentPactSize(whom: string) {
   );
 }
 
-function getPact(pact: Pact, id: string) {
-  const time = pact.index[id];
-  if (!time) {
-    return undefined;
-  }
-  return pact.writs.get(time);
-}
-
 export function useReplies(whom: string, id: string) {
   const pact = usePact(whom);
   return useMemo(() => {
@@ -509,7 +522,7 @@ export function useChatDraft(whom: string) {
   return useChatState(
     useCallback(
       (s) =>
-        s.chats[whom]?.draft || {
+        s.drafts[whom] || {
           inline: [],
           block: [],
         },
@@ -570,4 +583,9 @@ export function useBriefs() {
 
 export function usePinnedChats() {
   return useChatState(useCallback((s: ChatState) => s.pinnedDms, []));
+}
+
+const selMultiDms = (s: ChatState) => s.multiDms;
+export function useMultiDms() {
+  return useChatState(selMultiDms);
 }

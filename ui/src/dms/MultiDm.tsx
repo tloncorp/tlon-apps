@@ -18,14 +18,18 @@ import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
 import { pluralize } from '../logic/utils';
+import useSendMultiDm from '../state/chat/useSendMultiDm';
 
 export default function MultiDm() {
-  const id = useParams<{ ship: string }>().ship!;
+  const clubId = useParams<{ ship: string }>().ship!;
   const isMobile = useIsMobile();
-  const isAccepted = !useMultiDmIsPending(id);
-  const club = useMultiDm(id);
+  const isAccepted = !useMultiDmIsPending(clubId);
+  const club = useMultiDm(clubId);
   const canStart = useChatState(
-    useCallback((s) => id && Object.keys(s.briefs).includes(id), [id])
+    useCallback(
+      (s) => clubId && Object.keys(s.briefs).includes(clubId),
+      [clubId]
+    )
   );
   const navPrimary = useNavStore((state) => state.navigatePrimary);
 
@@ -36,11 +40,13 @@ export default function MultiDm() {
   }, [navPrimary, isMobile]);
 
   useEffect(() => {
-    if (id && canStart) {
-      useChatState.getState().initializeMultiDm(id);
+    if (clubId && canStart) {
+      useChatState.getState().initializeMultiDm(clubId);
     }
-  }, [id, canStart]);
-  const messages = useMultiDmMessages(id);
+  }, [clubId, canStart]);
+
+  const sendMessage = useSendMultiDm(clubId);
+  const messages = useMultiDmMessages(clubId);
 
   if (!club) {
     return null;
@@ -76,21 +82,21 @@ export default function MultiDm() {
               </div>
             </div>
           </button>
-          {canStart ? <DmOptions ship={id} pending={false} /> : null}
+          {canStart ? <DmOptions ship={clubId} pending={false} /> : null}
         </div>
       }
       aside={<Outlet />}
       footer={
         isAccepted ? (
           <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput whom={id} />
+            <ChatInput whom={clubId} sendMessage={sendMessage} />
           </div>
         ) : null
       }
     >
       {isAccepted ? (
         <ChatWindow
-          whom={id}
+          whom={clubId}
           messages={messages}
           prefixedElement={
             <div className="pt-4 pb-12">
@@ -99,7 +105,7 @@ export default function MultiDm() {
           }
         />
       ) : (
-        <MultiDmInvite id={id} />
+        <MultiDmInvite id={clubId} />
       )}
     </Layout>
   );

@@ -18,7 +18,7 @@ import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
 import api from './api';
 import Dms from './pages/Dms';
-import Dm from './pages/Dm';
+import Search from './pages/Search';
 import NewDM from './pages/NewDm';
 import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
@@ -51,6 +51,7 @@ function ChatRoutes({ state, location }: RoutesProps) {
           <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
           <Route path=":ship" element={<Message />}>
+            <Route path="search" element={<Search />} />
             <Route path="message/:idShip/:idTime" element={<DmThread />} />
           </Route>
         </Route>

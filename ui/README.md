@@ -1,5 +1,12 @@
 # homestead/ui
 
+## Install the Nightly Build
+
+```
+|install ~marnec-dozzod-marzod %homestead
+|install ~marnec-dozzod-marzod %chatstead
+```
+
 ## Preview
 
 https://tlon-homestead.vercel.app/

@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useChannelFlag } from '../../hooks';
-import { useReplies, useWrit } from '../../state/chat';
+import { useChatState, useReplies, useWrit } from '../../state/chat';
 import { useChannel, useRouteGroup } from '../../state/groups';
 import ChatInput from '../ChatInput/ChatInput';
 import ChatMessage from '../ChatMessage/ChatMessage';
@@ -15,6 +15,7 @@ export default function ChatThread(
 ) {
   const { whom, children } = props;
   const { idTime, idShip } = useParams<{ idShip: string; idTime: string }>();
+  const { sendMessage } = useChatState.getState();
 
   const id = `${idShip!}/${idTime!}`;
   const maybeWrit = useWrit(whom, id);
@@ -43,7 +44,7 @@ export default function ChatThread(
         <ChatScroller messages={replies} whom={whom} replying />
       </div>
       <div className="sticky bottom-0 z-10 bg-white py-4">
-        <ChatInput whom={whom} replying={id} />
+        <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import { unixToDa } from '@urbit/api';
+import { formatUw } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
 import _ from 'lodash';
@@ -79,7 +81,15 @@ export function makePrettyDayAndDateAndTime(date: Date) {
 }
 
 export function whomIsDm(whom: ChatWhom): boolean {
-  return !whom.match('/');
+  return !whom.match('/'); // TODO: this works for flags... what about Multi Dm ids?
+}
+
+export function whomIsFlag(whom: ChatWhom): boolean {
+  return whom.startsWith('~') && whom.includes('/');
+}
+
+export function whomIsMultiDm(whom: ChatWhom): boolean {
+  return !(whomIsDm(whom) || whomIsFlag(whom)); // TODO: what is the best way? check for `0w` prefix?
 }
 
 export function normalizeUrbitColor(color: string): string {
@@ -124,4 +134,8 @@ export function preSig(ship: string): string {
   }
 
   return '~'.concat(ship.trim());
+}
+
+export function newUw(seed = Date.now()) {
+  return formatUw(unixToDa(seed));
 }

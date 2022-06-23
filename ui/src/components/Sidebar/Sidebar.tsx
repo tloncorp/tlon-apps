@@ -38,14 +38,16 @@ export default function Sidebar() {
           Search My Groups
         </SidebarItem>
         <SidebarItem
-          color="text-blue"
+          color="text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
+          highlight="bg-blue-soft dark:bg-blue-900"
           icon={<AsteriskIcon className="m-1 h-4 w-4" />}
           to="/groups/join"
         >
           Join Group
         </SidebarItem>
         <SidebarItem
-          color="text-green"
+          color="text-green hover:bg-green-soft hover:dark:bg-green-900"
+          highlight="bg-green-soft dark:bg-green-900"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
           to="/groups/new"
         >
