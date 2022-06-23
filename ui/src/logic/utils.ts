@@ -85,7 +85,7 @@ export function whomIsDm(whom: ChatWhom): boolean {
 }
 
 export function whomIsFlag(whom: ChatWhom): boolean {
-  return whom.startsWith('~');
+  return whom.startsWith('~') && whom.includes('/');
 }
 
 export function whomIsMultiDm(whom: ChatWhom): boolean {
