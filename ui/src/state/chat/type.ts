@@ -58,7 +58,7 @@ export interface ChatState {
   }) => Promise<void>;
   createMultiDm: (
     hive: string[] // array of ships
-  ) => Promise<void>;
+  ) => Promise<string>; // returns the newly created club ID
   editMultiDm: (
     id: string, // `@uw`
     meta: GroupMeta

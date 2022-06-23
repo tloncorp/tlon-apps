@@ -6,7 +6,13 @@ import ChatInput from './ChatInput';
 describe('ChatInput', () => {
   it('renders as expected', () => {
     const { asFragment } = render(
-      <ChatInput whom="~zod/test" replying={null} />
+      <ChatInput
+        whom="~zod/test"
+        replying={null}
+        sendMessage={() => {
+          // placeholder;
+        }}
+      />
     );
     expect(asFragment()).toMatchSnapshot();
   });

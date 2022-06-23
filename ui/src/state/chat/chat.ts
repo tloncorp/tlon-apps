@@ -312,14 +312,28 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
   },
   createMultiDm: async (hive) => {
+    const newClubId = formatUw(unixToDa(Date.now()));
     await api.poke({
       app: 'chat',
       mark: 'club-create',
       json: {
-        id: formatUw(unixToDa(Date.now())),
+        id: newClubId,
         hive,
       },
     });
+    // TODO: update the state here? or elsewhere?
+    get().batchSet((draft) => {
+      draft.multiDms[newClubId] = {
+        hive,
+        team: [],
+        meta: {
+          title: hive.sort().join(', '),
+          description: '',
+          image: '',
+        },
+      };
+    });
+    return newClubId;
   },
   editMultiDm: async (id, meta) => {
     await api.poke(multiDmAction(id, { meta }));
@@ -411,7 +425,7 @@ export const useChatState = create<ChatState>((set, get) => ({
     await makeWritsStore(
       id,
       get,
-      `/dm/${id}/writs`,
+      `/dm/${id}/writs`, // TODO: is this the correct endpoint?
       `/dm/${id}/ui`
     ).initialize();
   },

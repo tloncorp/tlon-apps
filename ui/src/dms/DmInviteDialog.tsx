@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import Dialog, { DialogContent } from '../components/Dialog';
+import { useChatState } from '../state/chat';
 import DMInviteInput, { Option } from './DMInviteInput';
 
 interface DmInviteDialogProps {
@@ -12,16 +14,27 @@ export default function DmInviteDialog({
   inviteIsOpen,
   setInviteIsOpen,
 }: DmInviteDialogProps) {
-  const [ships, setShips] = useState<Option[] | undefined>();
+  const navigate = useNavigate();
+  const [ships, setShips] = useState<Option[]>([]);
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
+  const isMulti = ships.length > 1;
 
-  const submitHandler = () => {
+  const createClub = useCallback(
+    async () =>
+      useChatState.getState().createMultiDm(ships.map((s) => s.value)),
+    [ships]
+  );
+
+  const submitHandler = async () => {
     if (validShips) {
-      // TODO: how do we navigate to a multi-party DM?
-      console.log({ ships });
-      console.log('clicked add button');
+      if (isMulti) {
+        const clubId = await createClub();
+        navigate(`/dm/${clubId}`);
+      } else {
+        navigate(`/dm/${ships[0].value}`);
+      }
     }
   };
 

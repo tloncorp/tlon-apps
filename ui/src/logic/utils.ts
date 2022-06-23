@@ -79,7 +79,7 @@ export function makePrettyDayAndDateAndTime(date: Date) {
 }
 
 export function whomIsDm(whom: ChatWhom): boolean {
-  return !whom.match('/');
+  return !whom.match('/'); // TODO: this works for flags... what about Multi Dm ids?
 }
 
 export function normalizeUrbitColor(color: string): string {

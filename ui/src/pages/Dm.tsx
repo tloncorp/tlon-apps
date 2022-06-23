@@ -16,6 +16,7 @@ import useNavStore from '../components/Nav/useNavStore';
 
 export default function Dm() {
   const ship = useParams<{ ship: string }>().ship!;
+  const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
   const isMobile = useIsMobile();
   const isAccepted = !useDmIsPending(ship);
@@ -74,7 +75,7 @@ export default function Dm() {
       footer={
         isAccepted ? (
           <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput whom={ship} />
+            <ChatInput whom={ship} sendMessage={sendMessage} />
           </div>
         ) : null
       }

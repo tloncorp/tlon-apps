@@ -6,20 +6,20 @@ import Layout from '../components/Layout/Layout';
 import { useChatState, useMultiDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
 import DmInvite from './DmInvite';
-import Avatar from '../components/Avatar';
 import DmOptions from '../dms/DMOptions';
-import { useContact, useContacts } from '../state/contact';
+import { useContact } from '../state/contact';
 import CaretLeftIcon from '../components/icons/CaretLeftIcon';
 import { useIsMobile } from '../logic/useMedia';
 import DMHero from '../dms/DMHero';
 import useNavStore from '../components/Nav/useNavStore';
 import GroupIcon from '../components/icons/GroupIcon';
+import useSendMultiDm from '../state/chat/useSendMultiDm';
 
 export default function MultiDm() {
   const clubId = useParams<{ ship: string }>().ship!;
-  const contacts = useContacts();
-  // TODO: Where is the club membership stored?
-  const contactNames = Object.keys(contacts);
+  // TODO: Get membership / contacts from new endpoint
+  // const contacts = useContacts();
+  // const contactNames = Object.keys(contacts);
 
   const contact = useContact(clubId);
   const isMobile = useIsMobile();
@@ -44,10 +44,12 @@ export default function MultiDm() {
 
   useEffect(() => {
     if (clubId && canStart) {
+      console.log('initialzing multi dm...');
       useChatState.getState().initializeMultiDm(clubId);
     }
   }, [clubId, canStart]);
   const messages = useMultiDmMessages(clubId);
+  const sendMessage = useSendMultiDm(clubId);
 
   return (
     <Layout
@@ -68,7 +70,7 @@ export default function MultiDm() {
             <div className="flex items-center space-x-3">
               <GroupIcon />
               <div className="flex flex-col">
-                {/* TODO: prefer title, otherwise show list of patps, get # members */}
+                {/* TODO: prefer title from metadata, otherwise show list of patps, get # members */}
                 <span className="font-semibold">{clubId}</span>
                 <span className="text-gray-600">4 Members</span>
               </div>
@@ -81,7 +83,7 @@ export default function MultiDm() {
       footer={
         isAccepted ? (
           <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput whom={clubId} />
+            <ChatInput whom={clubId} sendMessage={sendMessage} />
           </div>
         ) : null
       }

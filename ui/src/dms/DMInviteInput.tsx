@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import {
@@ -11,6 +11,7 @@ import {
   MultiValueRemoveProps,
   MultiValueGenericProps,
   MultiValue,
+  ActionMeta,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
@@ -19,6 +20,7 @@ import X16Icon from '../components/icons/X16Icon';
 import { preSig } from '../logic/utils';
 import Avatar from '../components/Avatar';
 import { useContacts } from '../state/contact';
+import { useChatState } from '../state/chat';
 
 export interface Option {
   value: string;
@@ -26,8 +28,8 @@ export interface Option {
 }
 
 interface DmInviteInputProps {
-  ships: Option[] | undefined;
-  setShips: (ships: Option[] | undefined) => void;
+  ships: Option[];
+  setShips: React.Dispatch<React.SetStateAction<Option[]>>;
   fromMulti?: boolean;
 }
 
@@ -152,37 +154,35 @@ export default function DMInviteInput({
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
 
-  const onChange = (inputValue: MultiValue<Option>) => {
-    if (inputValue) {
-      setShips([...inputValue]);
-    }
-  };
+  const isMulti = ships.length > 1;
+  const createClub = useCallback(
+    async () =>
+      useChatState.getState().createMultiDm(ships.map((s) => s.value)),
+    [ships]
+  );
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' && ships && ships.length > 0 && validShips) {
-      if (ships.length > 1 || fromMulti) {
-        // TODO: how do we navigate to a multi-party DM?
-        console.log({ ships });
-        console.log('pressed enter key');
+      if (isMulti || fromMulti) {
+        const clubId = await createClub();
+        navigate(`/dm/${clubId}`);
       } else {
         navigate(`/dm/${ships[0].value}`);
       }
     }
   };
 
-  const onCreateOption = (inputValue: string) => {
-    const siggedInput = preSig(inputValue);
-    if (ob.isValidPatp(siggedInput)) {
-      setShips([{ value: siggedInput, label: siggedInput }]);
+  const onChange = (
+    newValue: MultiValue<Option>,
+    actionMeta: ActionMeta<Option>
+  ) => {
+    if (['create-option', 'remove-value'].includes(actionMeta.action)) {
+      const validPatps = newValue.filter((o) =>
+        ob.isValidPatp(preSig(o.value))
+      );
+      setShips(validPatps);
     }
   };
-
-  // const filterConfig = {
-  // ignoreCase: true,
-  // ignoreAccents: true,
-  // trim: true,
-  // matchFrom: 'any',
-  // };
 
   return (
     <CreatableSelect
@@ -235,7 +235,6 @@ export default function DMInviteInput({
       options={contactOptions}
       value={ships}
       onChange={onChange}
-      onCreateOption={onCreateOption}
       isValidNewOption={(inputValue) =>
         inputValue ? ob.isValidPatp(preSig(inputValue)) : false
       }
