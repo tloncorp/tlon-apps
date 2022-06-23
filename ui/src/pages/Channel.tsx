@@ -43,6 +43,7 @@ function Channel() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const channel = useChannel(groupFlag, flag)!;
+  const { sendMessage } = useChatState.getState();
 
   return (
     <Layout
@@ -83,6 +84,7 @@ function Channel() {
             <ChatInput
               whom={flag}
               replying={chatInfo?.replying || null}
+              sendMessage={sendMessage}
               showReply
             />
           ) : (

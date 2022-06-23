@@ -12,12 +12,10 @@ import {
   ChatDiff,
   ChatDraft,
   ChatPerm,
-  ChatStory,
   ChatWrit,
   ClubAction,
   ClubDelta,
   DmAction,
-  Pact,
   WritDelta,
 } from '../../types/chat';
 import api from '../../api';
@@ -102,6 +100,7 @@ export const useChatState = create<ChatState>((set, get) => ({
   drafts: {},
   dmSubs: [],
   multiDms: {},
+  multiDmSubs: [],
   pendingDms: [],
   pinnedDms: [],
   briefs: {},
@@ -309,14 +308,25 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: req,
     });
   },
-  createMultiDm: async (hive) => {
+  createMultiDm: async (id, hive) => {
     await api.poke({
       app: 'chat',
       mark: 'club-create',
       json: {
-        id: makeId(),
+        id,
         hive,
       },
+    });
+    get().batchSet((draft) => {
+      draft.multiDms[id] = {
+        hive,
+        team: [],
+        meta: {
+          title: hive.sort().join(', '),
+          description: '',
+          image: '',
+        },
+      };
     });
   },
   editMultiDm: async (id, meta) => {
@@ -399,6 +409,20 @@ export const useChatState = create<ChatState>((set, get) => ({
       `/dm/${ship}/ui`
     ).initialize();
   },
+  initializeMultiDm: async (id: string) => {
+    if (get().multiDmSubs.includes(id)) {
+      return;
+    }
+    get().batchSet((draft) => {
+      draft.multiDmSubs.push(id);
+    });
+    await makeWritsStore(
+      id,
+      get,
+      `/dm/${id}/writs`, // TODO: is this the correct endpoint?
+      `/dm/${id}/ui`
+    ).initialize();
+  },
 }));
 
 export function useMessagesForChat(whom: string) {
@@ -437,6 +461,10 @@ export function useDmMessages(ship: string) {
   return useMessagesForChat(ship);
 }
 
+export function useMultiDmMessages(id: string) {
+  return useMessagesForChat(id);
+}
+
 export function usePact(whom: string) {
   return useChatState(useCallback((s) => s.pacts[whom], [whom]));
 }
@@ -445,14 +473,6 @@ export function useCurrentPactSize(whom: string) {
   return useChatState(
     useCallback((s) => s.pacts[whom]?.writs.size ?? 0, [whom])
   );
-}
-
-function getPact(pact: Pact, id: string) {
-  const time = pact.index[id];
-  if (!time) {
-    return undefined;
-  }
-  return pact.writs.get(time);
 }
 
 export function useReplies(whom: string, id: string) {
@@ -539,4 +559,9 @@ export function useBriefs() {
 
 export function usePinnedChats() {
   return useChatState(useCallback((s: ChatState) => s.pinnedDms, []));
+}
+
+const selMultiDms = (s: ChatState) => s.multiDms;
+export function useMultiDms() {
+  return useChatState(selMultiDms);
 }
