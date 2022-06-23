@@ -7,6 +7,7 @@ type SidebarProps = PropsWithChildren<{
   to?: string;
   actions?: React.ReactNode;
   color?: string;
+  div?: boolean;
   highlight?: string;
 }> &
   ButtonHTMLAttributes<HTMLButtonElement> &
@@ -36,13 +37,15 @@ export default function SidebarItem({
   actions,
   className,
   children,
+  div = false,
   ...rest
 }: SidebarProps) {
   const matches = useMatch(to || 'DONT_MATCH');
   const active = !!matches;
+  const Wrapper = div ? 'div' : 'li';
 
   return (
-    <li
+    <Wrapper
       className={cn(
         'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base',
         color,
@@ -69,6 +72,6 @@ export default function SidebarItem({
         </div>
       </Action>
       {actions ? <div className={cn('absolute right-0')}>{actions}</div> : null}
-    </li>
+    </Wrapper>
   );
 }

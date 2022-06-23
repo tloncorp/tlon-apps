@@ -19,6 +19,9 @@ interface BaseSettingsState {
   display: {
     theme: 'light' | 'dark' | 'auto';
   };
+  groups: {
+    orderedGroupPins: string[];
+  };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
   fetchAll: () => Promise<void>;
@@ -69,6 +72,9 @@ export const useSettingsState = createState<BaseSettingsState>(
   (set, get) => ({
     display: {
       theme: 'auto',
+    },
+    groups: {
+      orderedGroupPins: [],
     },
     loaded: false,
     putEntry: async (bucket, key, val) => {
