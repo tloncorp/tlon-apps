@@ -38,6 +38,7 @@
     :~  title/s/title.m
         description/s/description.m
         image/s/image.m
+        color/s/color.m
     ==
 
   ++  draft
@@ -357,6 +358,7 @@
     :~  title/so
         description/so
         image/so
+        color/so
     ==
   ::
   ++  club-delta

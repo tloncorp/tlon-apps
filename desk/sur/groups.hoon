@@ -138,7 +138,8 @@
   $:  name=term
       title=cord
       description=cord
-      image=cord
+      image=cord  
+      color=cord
   ==
 ::
 +$  groups

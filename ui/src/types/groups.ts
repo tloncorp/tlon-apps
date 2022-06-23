@@ -5,6 +5,7 @@ export interface GroupMeta {
   title: string;
   description: string;
   image: string;
+  color: string;
 }
 
 export interface Cabal {
