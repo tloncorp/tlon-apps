@@ -321,7 +321,6 @@ export const useChatState = create<ChatState>((set, get) => ({
         hive,
       },
     });
-    // TODO: update the state here? or elsewhere?
     get().batchSet((draft) => {
       draft.multiDms[newClubId] = {
         hive,
@@ -481,14 +480,6 @@ export function useCurrentPactSize(whom: string) {
   );
 }
 
-function getPact(pact: Pact, id: string) {
-  const time = pact.index[id];
-  if (!time) {
-    return undefined;
-  }
-  return pact.writs.get(time);
-}
-
 export function useReplies(whom: string, id: string) {
   const pact = usePact(whom);
   return useMemo(() => {
@@ -573,4 +564,9 @@ export function useBriefs() {
 
 export function usePinnedChats() {
   return useChatState(useCallback((s: ChatState) => s.pinnedDms, []));
+}
+
+const selMultiDms = (s: ChatState) => s.multiDms;
+export function useMultiDms() {
+  return useChatState(selMultiDms);
 }

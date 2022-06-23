@@ -3,7 +3,12 @@ import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
-import { useChatState, useMultiDmMessages } from '../state/chat';
+import {
+  useChatState,
+  useDmIsPending,
+  useMultiDmMessages,
+  useMultiDms,
+} from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
 import DmInvite from './DmInvite';
 import DmOptions from '../dms/DMOptions';
@@ -17,7 +22,11 @@ import useSendMultiDm from '../state/chat/useSendMultiDm';
 
 export default function MultiDm() {
   const clubId = useParams<{ ship: string }>().ship!;
-  // TODO: Get membership / contacts from new endpoint
+  // TODO: Get club data from endpoint (currently only loaded from clientside)
+  const clubs = useMultiDms();
+  const club = clubs[clubId];
+
+  // TODO: Use contacts for rendering custom names when available?
   // const contacts = useContacts();
   // const contactNames = Object.keys(contacts);
 
@@ -25,8 +34,7 @@ export default function MultiDm() {
   const isMobile = useIsMobile();
 
   // TODO: when is a Multi DM "accepted"? when one member joins? when all? or always?
-  // const isAccepted = !useDmIsPending(clubId);
-  const isAccepted = false;
+  const isAccepted = !useDmIsPending(clubId);
 
   const canStart = useChatState(
     useCallback(
@@ -44,7 +52,6 @@ export default function MultiDm() {
 
   useEffect(() => {
     if (clubId && canStart) {
-      console.log('initialzing multi dm...');
       useChatState.getState().initializeMultiDm(clubId);
     }
   }, [clubId, canStart]);
@@ -71,8 +78,12 @@ export default function MultiDm() {
               <GroupIcon />
               <div className="flex flex-col">
                 {/* TODO: prefer title from metadata, otherwise show list of patps, get # members */}
-                <span className="font-semibold">{clubId}</span>
-                <span className="text-gray-600">4 Members</span>
+                <span className="font-semibold">
+                  {club ? club.meta.title : clubId}
+                </span>
+                <span className="text-gray-600">{`${
+                  club ? club.hive.length : 4
+                } Members`}</span>
               </div>
             </div>
           </button>
