@@ -24,7 +24,13 @@ export default function NewDM() {
       footer={
         <div className="border-t-2 border-black/10 p-4">
           <ChatInput
-            whom={ships && ships.length > 0 ? ships[0].value : ''}
+            whom={
+              ships && ships.length > 0
+                ? ships.length > 1
+                  ? newClubId
+                  : ships[0].value
+                : ''
+            }
             showReply
             sendDisabled={!validShips}
             newDm
