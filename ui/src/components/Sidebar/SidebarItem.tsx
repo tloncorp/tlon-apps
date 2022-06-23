@@ -7,6 +7,7 @@ type SidebarProps = PropsWithChildren<{
   to?: string;
   actions?: React.ReactNode;
   color?: string;
+  div?: boolean;
 }> &
   ButtonHTMLAttributes<HTMLButtonElement> &
   Omit<LinkProps, 'to'>;
@@ -27,10 +28,9 @@ function Action({
   return <button {...rest}>{children}</button>;
 }
 
-export default function SidebarItem({
+function SidebarItemChild({
   icon,
   to,
-  color = 'text-gray-600',
   actions,
   className,
   children,
@@ -40,13 +40,7 @@ export default function SidebarItem({
   const active = !!matches;
 
   return (
-    <li
-      className={cn(
-        'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base',
-        color,
-        active && 'bg-gray-50'
-      )}
-    >
+    <>
       <Action
         to={to}
         className={cn(
@@ -67,6 +61,58 @@ export default function SidebarItem({
         </div>
       </Action>
       {actions ? <div className={cn('absolute right-0')}>{actions}</div> : null}
+    </>
+  );
+}
+
+export default function SidebarItem({
+  icon,
+  to,
+  color = 'text-gray-600',
+  actions,
+  className,
+  children,
+  div = false,
+  ...rest
+}: SidebarProps) {
+  const matches = useMatch(to || 'DONT_MATCH');
+  const active = !!matches;
+
+  return div ? (
+    <div
+      className={cn(
+        'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base',
+        color,
+        active && 'bg-gray-50'
+      )}
+    >
+      <SidebarItemChild
+        icon={icon}
+        to={to}
+        actions={actions}
+        className={className}
+        {...rest}
+      >
+        {children}
+      </SidebarItemChild>
+    </div>
+  ) : (
+    <li
+      className={cn(
+        'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base',
+        color,
+        active && 'bg-gray-50'
+      )}
+    >
+      <SidebarItemChild
+        icon={icon}
+        to={to}
+        actions={actions}
+        className={className}
+        {...rest}
+      >
+        {children}
+      </SidebarItemChild>
     </li>
   );
 }

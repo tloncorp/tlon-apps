@@ -50,6 +50,7 @@ function DraggableGroupItem({ flag }: { flag: string }) {
       )}
     >
       <SidebarItem
+        div
         icon={
           <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={group?.meta.image} />
         }
@@ -123,7 +124,7 @@ function GroupItemContainer({
   );
 
   return (
-    <div
+    <li
       ref={drop}
       className={cn(
         'relative flex h-10 w-full ring-4',
@@ -132,7 +133,7 @@ function GroupItemContainer({
       )}
     >
       {children}
-    </div>
+    </li>
   );
 }
 
