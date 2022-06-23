@@ -8,6 +8,7 @@ type SidebarProps = PropsWithChildren<{
   actions?: React.ReactNode;
   color?: string;
   div?: boolean;
+  highlight?: string;
 }> &
   ButtonHTMLAttributes<HTMLButtonElement> &
   Omit<LinkProps, 'to'>;
@@ -69,6 +70,7 @@ export default function SidebarItem({
   icon,
   to,
   color = 'text-gray-600',
+  highlight = 'bg-gray-50',
   actions,
   className,
   children,
@@ -83,7 +85,7 @@ export default function SidebarItem({
       className={cn(
         'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base',
         color,
-        active && 'bg-gray-50'
+        active && highlight
       )}
     >
       <SidebarItemChild
@@ -101,7 +103,7 @@ export default function SidebarItem({
       className={cn(
         'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base',
         color,
-        active && 'bg-gray-50'
+        active && highlight
       )}
     >
       <SidebarItemChild

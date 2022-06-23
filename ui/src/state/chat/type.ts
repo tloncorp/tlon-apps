@@ -19,6 +19,9 @@ export interface ChatState {
   dms: {
     [ship: string]: Chat;
   };
+  drafts: {
+    [whom: string]: ChatStory;
+  };
   dmSubs: string[];
   dmArchive: string[];
   multiDms: {
@@ -38,7 +41,7 @@ export interface ChatState {
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
   fetchOlder: (ship: string, count: string) => Promise<boolean>;
-  draft: (whom: string, content: ChatStory) => Promise<void>;
+  draft: (whom: string, story: ChatStory) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   archiveDm: (ship: string) => Promise<void>;
   unarchiveDm: (ship: string) => Promise<void>;

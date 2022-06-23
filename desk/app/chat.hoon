@@ -17,6 +17,7 @@
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
+        drafts=(map whom:c story:c)
         bad=(set ship)
         inv=(set ship)
     ==
@@ -110,11 +111,22 @@
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
+      %dm-pin
+    =+  !<([=ship pin=?] vase)
+    di-abet:(di-pin:(di-abed:di-core ship) pin)
   ::
       %flag
     =+  !<(=flag:c vase)
     ?<  =(our.bowl p.flag)
     (join flag)
+  ::
+      %chat-draft
+    =+  !<(=draft:c vase)
+    ?>  =(src.bowl our.bowl)
+    %_  cor
+        drafts
+       (~(put by drafts) p.draft q.draft)
+    ==
   ::
       %chat-create
     =+  !<(req=create:c vase)
@@ -282,6 +294,15 @@
       [%x %dm %invited ~]
     ``ships+!>(~(key by pending-dms))
   ::
+      [%x %dm %pinned ~]
+    =-  ``ships+!>(-)
+    ^-  (set ship)
+    %-  silt
+    %+  murn  ~(tap by dms)
+    |=  [=ship =dm:c]
+    ?.  pin.dm  ~
+    `ship
+  ::
       [%x %dm %archive ~]
     ``ships+!>(~(key by archived-dms))
   ::
@@ -291,6 +312,19 @@
   ::
       [%x %club @ *]
     (cu-peek:(cu-abed (slav %uw i.t.t.path)) t.t.t.path)
+  ::
+      [%x %draft @ $@(~ [@ ~])]
+    =/  =whom:c
+      ?^  t.t.t.path
+        flag+[(slav %p i.t.t.path) i.t.t.t.path]
+      %+  rash
+      i.t.t.path
+    ;~  pose
+      (stag %ship ;~(pfix sig fed:ag))
+      (stag %club club-id-rule:dejs:chat-json)
+    ==
+    =-  ``chat-draft+!>(-)
+    `draft:c`[whom (~(gut by drafts) whom *story:c)]
   ::
       [%x %briefs ~]
     =-  ``chat-briefs+!>(-)
@@ -357,7 +391,7 @@
   ++  cu-init
     |=  [=net:club:c =create:club:c]
     =/  clab=club:c
-      [(silt our.bowl ~) hive.create *data:meta *pact:c net]
+      [*pact:c (silt our.bowl ~) hive.create *data:meta net]
     cu-core(id id.create, club clab)
   ::
   ++  cu-brief  (brief:cu-pact [our now]:bowl)
@@ -452,6 +486,7 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
       [%writs *]  (peek:cu-pact t.path)
+      [%crew ~]   ``club-crew+!>(+.club)
     ==
   ::
   ++  cu-watch
@@ -546,7 +581,6 @@
     ?+  pole  [~ ~]
       [%writs rest=*]  (peek:ca-pact rest.pole)
       [%perm ~]        ``chat-perm+!>(perm.chat)
-      [%draft ~]       ``chat-draft+!>(draft.chat)
     ==
   ::
   ++  ca-revoke
@@ -717,11 +751,6 @@
       =.  writers.p  (~(dif in writers.p) p.d)
       ca-core
     ::
-        %draft
-      ?>  =(src.bowl p.flag)
-      =.  draft.chat  p.d
-      ca-core
-    ::
         %create
       =.  perm.chat  p.d
       ca-core
@@ -773,7 +802,7 @@
       %+  ~(gut by dms)  s
       =|  =remark:c
       =.  watching.remark  &
-      [*pact:c remark ?:(=(src our):bowl %inviting %invited)]
+      [*pact:c remark ?:(=(src our):bowl %inviting %invited) |]
     =?  di-core  &(new !=(src our):bowl)
       di-invited
     di-core(ship s, dm d)
@@ -790,6 +819,11 @@
     =.  cor
       (emit (hark:di-pass invited:di-hark))
     di-core
+  ::
+  ++  di-pin
+    |=  pin=?
+    ^+  di-core
+    di-core(pin.dm pin)
   ::
   ++  di-notify
     |=  [=id:c =delta:writs:c]
@@ -837,7 +871,11 @@
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
-    ?.  ok  ~&  gone/ship  di-core(gone &)
+    ?.  ok  
+      ~&  gone/ship
+      ?:  =(src.bowl ship)
+        di-core
+      di-core(gone &)
     =.  net.dm  %done
     (di-post-notice '' ' joined the chat')
   ::
