@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import {
@@ -17,7 +17,7 @@ import CreatableSelect from 'react-select/creatable';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
 import X16Icon from '../components/icons/X16Icon';
-import { preSig } from '../logic/utils';
+import { newUw, preSig } from '../logic/utils';
 import Avatar from '../components/Avatar';
 import { useContacts } from '../state/contact';
 import { useChatState } from '../state/chat';
@@ -31,6 +31,7 @@ interface DmInviteInputProps {
   ships: Option[];
   setShips: React.Dispatch<React.SetStateAction<Option[]>>;
   fromMulti?: boolean;
+  clubId?: string;
 }
 
 function Control({ children, ...props }: ControlProps<Option, true>) {
@@ -142,6 +143,7 @@ export default function DMInviteInput({
   ships,
   setShips,
   fromMulti = false,
+  clubId,
 }: DmInviteInputProps) {
   const contacts = useContacts();
   const contactNames = Object.keys(contacts);
@@ -155,16 +157,26 @@ export default function DMInviteInput({
     : false;
 
   const isMulti = ships.length > 1;
+  const newClubId = useMemo(() => clubId || newUw(), [clubId]);
   const createClub = useCallback(
     async () =>
-      useChatState.getState().createMultiDm(ships.map((s) => s.value)),
-    [ships]
+      useChatState.getState().createMultiDm(
+        newClubId,
+        ships.map((s) => s.value)
+      ),
+    [newClubId, ships]
   );
 
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
+    // TODO: handle case when adding another ship in follow-up PR
+    // specifically, it would be nice UX to type in a patp, have enter add it to
+    // to the list of chiclets, instead of having to click the dropdown
     if (event.key === 'Enter' && ships && ships.length > 0 && validShips) {
-      if (isMulti || fromMulti) {
-        const clubId = await createClub();
+      if (isMulti) {
+        await createClub();
+        navigate(`/dm/${newClubId}`);
+      } else if (fromMulti) {
+        // club already created, inviting new user to existing club
         navigate(`/dm/${clubId}`);
       } else {
         navigate(`/dm/${ships[0].value}`);

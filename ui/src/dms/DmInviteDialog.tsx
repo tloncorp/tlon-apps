@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import ob from 'urbit-ob';
 import Dialog, { DialogContent } from '../components/Dialog';
+import { whomIsMultiDm } from '../logic/utils';
 import { useChatState } from '../state/chat';
 import DMInviteInput, { Option } from './DMInviteInput';
 
@@ -14,28 +15,25 @@ export default function DmInviteDialog({
   inviteIsOpen,
   setInviteIsOpen,
 }: DmInviteDialogProps) {
+  // TODO: out of scope for #259; a sketch for #260
+  // requires passing singular ship into DMInviteInput, instead of multiple,
+  // since inviteToMultiDm expects a single `for`
+
   const navigate = useNavigate();
+  const whom = useParams<{ ship: string }>().ship;
+  const fromMulti = whom ? whomIsMultiDm(whom) : false;
+  const clubId = fromMulti ? whom : undefined;
   const [ships, setShips] = useState<Option[]>([]);
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
-  const isMulti = ships.length > 1;
-
-  const createClub = useCallback(
-    async () =>
-      useChatState.getState().createMultiDm(ships.map((s) => s.value)),
-    [ships]
-  );
 
   const submitHandler = async () => {
-    if (validShips) {
-      if (isMulti) {
-        const clubId = await createClub();
-        navigate(`/dm/${clubId}`);
-      } else {
-        navigate(`/dm/${ships[0].value}`);
-      }
-    }
+    // if (clubId && validShips) {
+    //   await useChatState.getState().inviteToMultiDm(clubId,
+    //     { by: window.our, for: ship, ships.map((s) => s.value))
+    //   navigate(`/dm/${clubId}`);
+    // }
   };
 
   return (
@@ -45,7 +43,12 @@ export default function DmInviteDialog({
           <div className="flex flex-col">
             <h2 className="mb-4 text-lg font-bold">Invite to Chat</h2>
             <div className="w-full py-3 px-4">
-              <DMInviteInput ships={ships} setShips={setShips} fromMulti />
+              <DMInviteInput
+                ships={ships}
+                setShips={setShips}
+                clubId={clubId}
+                fromMulti={fromMulti}
+              />
             </div>
           </div>
           <div className="flex justify-end space-x-2">

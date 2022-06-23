@@ -5,7 +5,6 @@ import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import { BigInteger } from 'big-integer';
 import { useCallback, useMemo } from 'react';
-import { formatUw } from '@urbit/aura';
 import {
   Chat,
   ChatBriefs,
@@ -13,12 +12,10 @@ import {
   ChatDiff,
   ChatDraft,
   ChatPerm,
-  ChatStory,
   ChatWrit,
   ClubAction,
   ClubDelta,
   DmAction,
-  Pact,
   WritDelta,
 } from '../../types/chat';
 import api from '../../api';
@@ -311,18 +308,17 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: req,
     });
   },
-  createMultiDm: async (hive) => {
-    const newClubId = formatUw(unixToDa(Date.now()));
+  createMultiDm: async (id, hive) => {
     await api.poke({
       app: 'chat',
       mark: 'club-create',
       json: {
-        id: newClubId,
+        id,
         hive,
       },
     });
     get().batchSet((draft) => {
-      draft.multiDms[newClubId] = {
+      draft.multiDms[id] = {
         hive,
         team: [],
         meta: {
@@ -332,7 +328,6 @@ export const useChatState = create<ChatState>((set, get) => ({
         },
       };
     });
-    return newClubId;
   },
   editMultiDm: async (id, meta) => {
     await api.poke(multiDmAction(id, { meta }));
