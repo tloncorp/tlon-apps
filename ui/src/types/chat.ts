@@ -241,6 +241,11 @@ export interface ChatBriefUpdate {
 export type ChatWhom = string;
 
 // Clubs, AKA MultiDMs
+
+export interface ClubCreate {
+  id: string;
+  hive: Ship[];
+}
 export interface Hive {
   by: string;
   for: string;

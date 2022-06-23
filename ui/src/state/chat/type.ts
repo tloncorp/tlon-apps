@@ -30,6 +30,7 @@ export interface ChatState {
   multiDmSubs: string[];
   pinnedDms: string[];
   fetchDms: () => Promise<void>;
+  fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
   pacts: {
     [whom: ChatWhom]: Pact;
   };

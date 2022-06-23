@@ -10,24 +10,31 @@ interface MultiDMHeroProps {
 
 export default function MultiDmHero({ club }: MultiDMHeroProps) {
   const count = club.team.length;
+  const pendingCount = club.hive.length;
+  const hasPending = pendingCount > 0;
+
   return (
-    <div className="flex flex-col items-center space-y-1">
-      <MultiDmAvatar img={club.meta.image} />
+    <div className="flex flex-col items-center">
+      <MultiDmAvatar img={club.meta.image} size="huge" className="mb-2" />
       {club.meta.title ? (
-        <h2 className="text-lg font-semibold">{club.meta.title}</h2>
+        <h2 className="mb-1 text-lg font-semibold">{club.meta.title}</h2>
       ) : null}
       <div
         className={cn(
-          'max-w-md font-semibold',
+          'mb-1 max-w-md font-semibold',
           club.meta.title && 'text-gray-600'
         )}
       >
-        {club.team.join(', ')}
+        {club.team.concat(club.hive).join(', ')}
       </div>
-      <div className="text-gray-600">{`${count} ${pluralize(
-        'Member',
-        count
-      )}`}</div>
+      <div className="text-gray-600">
+        <span>{`${count} ${pluralize('Member', count)}${
+          hasPending ? ',' : ''
+        }`}</span>
+        {hasPending ? (
+          <span className="text-blue"> {pendingCount} Pending</span>
+        ) : null}
+      </div>
     </div>
   );
 }
