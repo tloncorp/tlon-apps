@@ -3,36 +3,33 @@ import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useChatState } from '../../state/chat';
-import ColorPicker, { MultiDMInfoSchema } from './ColorPicker';
+import { GroupMeta } from '../../types/groups';
+import ColorPicker from './ColorPicker';
 
-export interface MultiDMInfoFormProps {
-  setEditIsOpen: (open: boolean) => void;
-}
 
-export default function MultiDMInfoForm({
-  setEditIsOpen,
-}: MultiDMInfoFormProps) {
+export default function MultiDMInfoForm() {
   const clubId = useParams<{ ship: string }>().ship!;
-  const defaultValues: MultiDMInfoSchema = {
+  const defaultValues: GroupMeta = {
     title: '',
     color: '#b3b3b3',
     image: '',
     description: '',
   };
-  const clubMeta = useChatState
-    .getState()
-    .fetchMultiDm(clubId)
-    .then((result) => {
-      defaultValues.title = result.meta.title;
-    });
 
-  const { handleSubmit, register } = useForm<MultiDMInfoSchema>({
+  useChatState
+  .getState()
+  .fetchMultiDm(clubId)
+  .then((result) => {
+    defaultValues.title = result.meta.title;
+    defaultValues.color = result.meta.color;
+  });
+
+  const { handleSubmit, register } = useForm<GroupMeta>({
     defaultValues,
   });
 
-  const onSubmit = async (values: MultiDMInfoSchema) => {
+  const onSubmit = async (values: GroupMeta) => {
     await useChatState.getState().editMultiDm(clubId, values);
-    setEditIsOpen(false);
   };
 
   return (
@@ -59,9 +56,11 @@ export default function MultiDMInfoForm({
         <DialogPrimitive.Close asChild>
           <button className="button ml-auto">Cancel</button>
         </DialogPrimitive.Close>
-        <button type="submit" className="button">
-          Done
-        </button>
+        <DialogPrimitive.Close asChild>
+          <button type="submit" className="button">
+            Done
+          </button>
+        </DialogPrimitive.Close>
       </footer>
     </form>
   );

@@ -32,7 +32,6 @@ import { useLocalState } from './state/local';
 import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
 import DMHome from './dms/DMHome';
-import MultiDMEditModal from './dms/MultiDMEditModal';
 import Nav from './components/Nav/Nav';
 import GroupInfoDialog from './groups/GroupInfoDialog';
 import GroupInviteDialog from './groups/GroupInviteDialog';

@@ -13,13 +13,13 @@ export default function MultiDMEditModal({
 }: MultiDMEditModalProps) {
   return (
     <Dialog open={editIsOpen} onOpenChange={setEditIsOpen}>
-      <DialogContent showClose className="sm:max-w-lg">
+      <DialogContent showClose containerClass="max-w-lg">
         <div className="sm:w-96">
           <header className="flex items-center ">
-            <div className="text-xl font-bold">Edit Chat Info</div>
+            <h2 className="text-xl font-bold">Edit Chat Info</h2>
           </header>
         </div>
-        <MultiDMInfoForm setEditIsOpen={setEditIsOpen} />
+        <MultiDMInfoForm />
       </DialogContent>
     </Dialog>
   );

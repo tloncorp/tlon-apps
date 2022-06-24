@@ -2,16 +2,10 @@ import React, { useState } from 'react';
 import { UseFormRegister } from 'react-hook-form';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import * as Popover from '@radix-ui/react-popover';
-
-export interface MultiDMInfoSchema {
-  title: string;
-  description: string;
-  color: string;
-  image: string;
-}
+import { GroupMeta } from '../../types/groups';
 
 interface ColorPickerProps {
-  register: UseFormRegister<MultiDMInfoSchema>;
+  register: UseFormRegister<GroupMeta>;
   defaultColor?: string;
 }
 
