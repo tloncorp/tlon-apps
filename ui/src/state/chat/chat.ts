@@ -23,6 +23,7 @@ import api from '../../api';
 import { whomIsDm } from '../../logic/utils';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
+import clubReducer from './clubReducer';
 
 setAutoFreeze(false);
 
@@ -358,28 +359,7 @@ export const useChatState = create<ChatState>((set, get) => ({
       app: 'chat',
       path: `/club/${id}/ui`,
       event: (event: ClubAction) => {
-        const { id: clubId, diff } = event;
-        const { delta } = diff;
-
-        get().batchSet((draft) => {
-          const club = draft.multiDms[clubId];
-          if (!club) {
-            return;
-          }
-
-          if ('team' in delta) {
-            const { ok, ship } = delta.team;
-
-            if (ok) {
-              club.hive.splice(club.hive.indexOf(ship), 1);
-              club.team.push(ship);
-            } else if (club.hive.includes(ship)) {
-              club.hive.splice(club.hive.indexOf(ship), 1);
-            } else if (club.team.includes(ship)) {
-              club.team.splice(club.team.indexOf(ship), 1);
-            }
-          }
-        });
+        get().batchSet(clubReducer(event));
       },
     });
   },
