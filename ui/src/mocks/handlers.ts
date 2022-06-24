@@ -447,6 +447,7 @@ const clubs: { [id: string]: Club } = {
       title: 'Pain Gang',
       description: '',
       image: '',
+      color: '',
     },
   },
 };
@@ -509,6 +510,7 @@ const clubHandlers: Handler[] = [
           title: '',
           description: '',
           image: '',
+          color: '',
         },
       };
 
