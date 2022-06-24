@@ -2,10 +2,9 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { useChatState } from '../../state/chat';
+import { useChatState, useMultiDm } from '../../state/chat';
 import { GroupMeta } from '../../types/groups';
 import ColorPicker from './ColorPicker';
-
 
 export default function MultiDMInfoForm() {
   const clubId = useParams<{ ship: string }>().ship!;
@@ -16,13 +15,9 @@ export default function MultiDMInfoForm() {
     description: '',
   };
 
-  useChatState
-  .getState()
-  .fetchMultiDm(clubId)
-  .then((result) => {
-    defaultValues.title = result.meta.title;
-    defaultValues.color = result.meta.color;
-  });
+  const club = useMultiDm(clubId);
+  defaultValues.title = club?.meta.title || '';
+  defaultValues.color = club?.meta.color || '';
 
   const { handleSubmit, register } = useForm<GroupMeta>({
     defaultValues,

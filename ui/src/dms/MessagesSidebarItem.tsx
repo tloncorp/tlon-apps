@@ -105,7 +105,7 @@ export function MultiDMSidebarItem({
           <MultiDmAvatar size={isMobile ? 'default' : 'xs'} />
         )
       }
-      actions={<DmOptions ship={whom} pending={!!pending} />}
+      actions={<DmOptions ship={whom} pending={!!pending} isMulti />}
       onClick={() => isMobile && navPrimary('hidden')}
     >
       {groupName}

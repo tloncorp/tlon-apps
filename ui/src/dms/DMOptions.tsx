@@ -19,17 +19,18 @@ interface DMOptionsProps {
   ship: string;
   pending: boolean;
   className?: string;
+  isMulti?: boolean;
 }
 
 export default function DmOptions({
   ship,
   pending,
+  isMulti = false,
   className,
 }: DMOptionsProps) {
   const navigate = useNavigate();
   const pinned = usePinnedChats();
   const briefs = useBriefs();
-  const isDm = whomIsDm(ship);
   const hasActivity = (briefs[ship]?.count ?? 0) > 0 || pending;
   const [isOpen, setIsOpen] = useState(false);
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
@@ -101,7 +102,7 @@ export default function DmOptions({
           </div>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
-          {isDm ? null : (
+          {isMulti ? null : (
             <>
               <DropdownMenu.Item
                 className="dropdown-item flex items-center space-x-2"
