@@ -447,7 +447,7 @@ const clubs: { [id: string]: Club } = {
       title: 'Pain Gang',
       description: '',
       image: '',
-      color: '#b3b3b3',
+      color: '',
     },
   },
 };

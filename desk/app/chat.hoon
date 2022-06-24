@@ -404,6 +404,7 @@
     =/  =notice:c
       :-  ''
       (rap 3 ' started a group chat with ' (scot %ud ~(wyt in hive.create)) ' other members' ~)
+    =.  cor  (give-brief club/id cu-brief)
     =.  cu-core
       (cu-diff 0 [%writ now-id %add ~ our.bowl now.bowl notice/notice])
     cu-core
@@ -494,6 +495,7 @@
     ^+  cu-core
     ?>  =(src our):bowl
     ?+  path  !!
+      [%ui ~]  cu-core
       [%ui %writs ~]  cu-core
     ==
   ::
