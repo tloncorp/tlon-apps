@@ -88,10 +88,10 @@ export function MultiDMSidebarItem({
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const club = useMultiDm(whom);
-  const groupName =
-    club?.meta.title || club?.team.concat(club.hive).join(', ') || whom;
+  const allMembers = club?.team.concat(club.hive);
+  const groupName = club?.meta.title || allMembers?.join(', ') || whom;
 
-  if (club && !club.hive.includes(window.our)) {
+  if (club && !allMembers?.includes(window.our)) {
     return null;
   }
 
