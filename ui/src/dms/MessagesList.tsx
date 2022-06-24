@@ -1,12 +1,13 @@
 import cn from 'classnames';
 import React from 'react';
 import useSidebarSort, { RECENT } from '../logic/useSidebarSort';
+import { whomIsDm } from '../logic/utils';
 import {
   usePendingDms,
   useBriefs,
-  isDMBrief,
   isGroupBrief,
   usePinnedChats,
+  usePendingMultiDms,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { filters, SidebarFilter } from './useMessagesFilter';
@@ -17,9 +18,12 @@ interface MessagesListProps {
 
 export default function MessagesList({ filter }: MessagesListProps) {
   const pending = usePendingDms();
+  const pendingMultis = usePendingMultiDms();
   const pinned = usePinnedChats();
   const { sortOptions } = useSidebarSort(RECENT);
   const briefs = useBriefs();
+
+  const allPending = pending.concat(pendingMultis);
 
   const organizedBriefs = Object.keys(briefs)
     .filter((b) => {
@@ -27,11 +31,11 @@ export default function MessagesList({ filter }: MessagesListProps) {
         return false;
       }
 
-      if (pending.includes(b)) {
+      if (allPending.includes(b)) {
         return false;
       }
 
-      if (filter === filters.groups && isDMBrief(b)) {
+      if (filter === filters.groups && whomIsDm(b)) {
         return false;
       }
 
@@ -49,14 +53,14 @@ export default function MessagesList({ filter }: MessagesListProps) {
         'flex w-full flex-col space-y-3 overflow-x-hidden overflow-y-scroll px-2 pr-0 sm:space-y-0'
       )}
     >
-      {pending &&
+      {allPending &&
         filter !== filters.groups &&
-        pending.map((ship) => (
+        allPending.map((whom) => (
           <MessagesSidebarItem
             pending
-            key={ship}
-            whom={ship}
-            brief={briefs[ship]}
+            key={whom}
+            whom={whom}
+            brief={briefs[whom]}
           />
         ))}
       {organizedBriefs.map((ship) => (

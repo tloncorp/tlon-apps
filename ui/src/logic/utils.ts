@@ -81,7 +81,7 @@ export function makePrettyDayAndDateAndTime(date: Date) {
 }
 
 export function whomIsDm(whom: ChatWhom): boolean {
-  return !whom.match('/'); // TODO: this works for flags... what about Multi Dm ids?
+  return whom.startsWith('~') && !whom.match('/');
 }
 
 export function whomIsFlag(whom: ChatWhom): boolean {
@@ -89,7 +89,7 @@ export function whomIsFlag(whom: ChatWhom): boolean {
 }
 
 export function whomIsMultiDm(whom: ChatWhom): boolean {
-  return !(whomIsDm(whom) || whomIsFlag(whom)); // TODO: what is the best way? check for `0w` prefix?
+  return whom.startsWith(`0w`);
 }
 
 export function normalizeUrbitColor(color: string): string {
