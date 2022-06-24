@@ -10,6 +10,7 @@ import PinIcon from '../components/icons/PinIcon';
 import BulletIcon from '../components/icons/BulletIcon';
 import InviteIcon16 from '../components/icons/InviteIcon16';
 import DmInviteDialog from './DmInviteDialog';
+import { whomIsMultiDm } from '../logic/utils';
 
 interface DMOptionsProps {
   ship: string;
@@ -44,7 +45,11 @@ export default function DmOptions({
   };
   const leaveMessage = () => {
     navigate('/dm');
-    useChatState.getState().dmRsvp(ship, false);
+    if (whomIsMultiDm(ship)) {
+      useChatState.getState().multiDmRsvp(ship, false);
+    } else {
+      useChatState.getState().dmRsvp(ship, false);
+    }
   };
   const closeDialog = () => {
     setDialog(false);

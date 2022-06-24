@@ -356,10 +356,15 @@
 ++  cu-abed  cu-abed:cu-core
 ::
 ++  cu-core
-  |_  [=id:club:c =club:c]
+  |_  [=id:club:c =club:c gone=_|]
   +*  cu-pact  ~(. pac pact.club)
   ++  cu-core  .
-  ++  cu-abet  cor(clubs (~(put by clubs) id club))
+  ++  cu-abet  
+  =.  clubs
+    ?:  gone
+      (~(del by clubs) id)
+    (~(put by clubs) id club)
+  cor
   ++  cu-abed
     |=  i=id:club:c
     ~|  no-club/i
@@ -458,6 +463,10 @@
     ::
         %team
       =*  ship  ship.delta
+      ?:  &(!ok.delta (~(has in team.club) ship))
+        ?.  =(our src):bowl
+          cu-core
+        cu-core(gone &)
       ?.  (~(has in hive.club) ship)
         cu-core
       =.  hive.club  (~(del in hive.club) ship)
