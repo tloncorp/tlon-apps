@@ -40,6 +40,7 @@ const mockGroupOne: Group = {
         title: 'Watercooler',
         description: 'watering hole',
         image: '',
+        color: '',
       },
     },
   },
@@ -53,6 +54,7 @@ const mockGroupOne: Group = {
     title: 'tlon',
     description: 'the tlon corporation',
     image: '',
+    color: '',
   },
 };
 
