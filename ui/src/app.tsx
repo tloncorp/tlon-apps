@@ -36,7 +36,7 @@ import MultiDMEditModal from './dms/MultiDMEditModal';
 import Nav from './components/Nav/Nav';
 import GroupInfoDialog from './groups/GroupInfoDialog';
 import GroupInviteDialog from './groups/GroupInviteDialog';
-import Message from './pages/Message';
+import Message from './dms/Message';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;

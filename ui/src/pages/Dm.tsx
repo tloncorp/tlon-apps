@@ -5,7 +5,7 @@ import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
-import DmInvite from './DmInvite';
+import DmInvite from '../dms/DmInvite';
 import Avatar from '../components/Avatar';
 import DmOptions from '../dms/DMOptions';
 import { useContact } from '../state/contact';

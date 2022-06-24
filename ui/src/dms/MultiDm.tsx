@@ -5,37 +5,26 @@ import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
 import {
   useChatState,
-  useDmIsPending,
+  useMultiDm,
+  useMultiDmIsPending,
   useMultiDmMessages,
-  useMultiDms,
 } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
-import DmInvite from './DmInvite';
-import DmOptions from '../dms/DMOptions';
-import { useContact } from '../state/contact';
+import DmOptions from './DMOptions';
 import CaretLeftIcon from '../components/icons/CaretLeftIcon';
 import { useIsMobile } from '../logic/useMedia';
-import DMHero from '../dms/DMHero';
 import useNavStore from '../components/Nav/useNavStore';
-import GroupIcon from '../components/icons/GroupIcon';
+import MultiDmInvite from './MultiDmInvite';
+import MultiDmAvatar from './MultiDmAvatar';
+import MultiDmHero from './MultiDmHero';
+import { pluralize } from '../logic/utils';
 import useSendMultiDm from '../state/chat/useSendMultiDm';
 
 export default function MultiDm() {
   const clubId = useParams<{ ship: string }>().ship!;
-  // TODO: Get club data from endpoint (currently only loaded from clientside)
-  const clubs = useMultiDms();
-  const club = clubs[clubId];
-
-  // TODO: Use contacts for rendering custom names when available?
-  // const contacts = useContacts();
-  // const contactNames = Object.keys(contacts);
-
-  const contact = useContact(clubId);
   const isMobile = useIsMobile();
-
-  // TODO: when is a Multi DM "accepted"? when one member joins? when all? or always?
-  const isAccepted = !useDmIsPending(clubId);
-
+  const isAccepted = !useMultiDmIsPending(clubId);
+  const club = useMultiDm(clubId);
   const canStart = useChatState(
     useCallback(
       (s) => clubId && Object.keys(s.briefs).includes(clubId),
@@ -55,8 +44,18 @@ export default function MultiDm() {
       useChatState.getState().initializeMultiDm(clubId);
     }
   }, [clubId, canStart]);
-  const messages = useMultiDmMessages(clubId);
+
   const sendMessage = useSendMultiDm(clubId);
+  const messages = useMultiDmMessages(clubId);
+
+  if (!club) {
+    return null;
+  }
+
+  const count = club.team.length;
+  const pendingCount = club.hive.length;
+  const hasPending = pendingCount > 0;
+  const groupName = club.meta.title || club.team.concat(club.hive).join(', ');
 
   return (
     <Layout
@@ -75,15 +74,17 @@ export default function MultiDm() {
               <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
             ) : null}
             <div className="flex items-center space-x-3">
-              <GroupIcon />
-              <div className="flex flex-col">
-                {/* TODO: prefer title from metadata, otherwise show list of patps, get # members */}
-                <span className="font-semibold">
-                  {club ? club.meta.title : clubId}
-                </span>
-                <span className="text-gray-600">{`${
-                  club ? club.hive.length : 4
-                } Members`}</span>
+              <MultiDmAvatar img={club.meta.image} size="small" />
+              <div className="flex flex-col items-start text-left">
+                <div className="w-full truncate font-semibold">{groupName}</div>
+                <div className="text-gray-600">
+                  <span>{`${count} ${pluralize('Member', count)}${
+                    hasPending ? ',' : ''
+                  }`}</span>
+                  {hasPending ? (
+                    <span className="text-blue"> {pendingCount} Pending</span>
+                  ) : null}
+                </div>
               </div>
             </div>
           </button>
@@ -105,12 +106,12 @@ export default function MultiDm() {
           messages={messages}
           prefixedElement={
             <div className="pt-4 pb-12">
-              <DMHero ship={clubId} contact={contact} />
+              <MultiDmHero club={club} />
             </div>
           }
         />
       ) : (
-        <DmInvite ship={clubId} />
+        <MultiDmInvite id={clubId} />
       )}
     </Layout>
   );

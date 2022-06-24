@@ -30,6 +30,7 @@ export interface ChatState {
   multiDmSubs: string[];
   pinnedDms: string[];
   fetchDms: () => Promise<void>;
+  fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
   pacts: {
     [whom: ChatWhom]: Pact;
   };
@@ -76,6 +77,10 @@ export interface ChatState {
     id: string, // `@uw` - the club ID
     chatId: string, // a whom
     memo: Omit<ChatMemo, 'sent'>
+  ) => Promise<void>;
+  multiDmRsvp: (
+    id: string, // `@uw` - the club ID
+    ok: boolean // whether the invite was accepted/rejected
   ) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;
