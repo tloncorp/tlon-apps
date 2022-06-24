@@ -9,6 +9,7 @@ interface FormSchema {
   title: string;
   description: string;
   image: string;
+  color: string;
 }
 export default function NewGroup() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function NewGroup() {
     title: '',
     description: '',
     image: '',
+    color: '',
   };
   const { handleSubmit, register } = useForm<FormSchema>({ defaultValues });
   const onSubmit = async (values: FormSchema) => {

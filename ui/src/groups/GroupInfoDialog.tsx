@@ -32,7 +32,7 @@ export default function GroupInfoDialog() {
         </header>
         <div className="mt-6">
           <div className="flex flex-col items-center">
-            <GroupAvatar img={meta.image} size="h-20 w-20" />
+            <GroupAvatar {...meta} size="h-20 w-20" />
             <div className="my-4 text-center">
               <h2 className="center mb-2 font-semibold">{meta.title}</h2>
               {/* Current group meta object doesn't contain public/private info  */}

@@ -85,7 +85,7 @@
     =/  =flag:g  [our.bowl name.create]
     =|  =cordon:g
     =/  =group:g
-      [~ ~ ~ ~ ~ cordon title.create description.create image.create] 
+      [~ ~ ~ ~ ~ cordon title.create description.create image.create color.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     go-abet:(go-init:(go-abed:group-core flag) create)
   ::
@@ -180,7 +180,7 @@
     =.  cabals.group
       %+  ~(put by cabals.group)  %admin
       :_  ~
-      ['Admin' 'Admins can add and remove channels and edit metadata' '']
+      ['Admin' 'Admins can add and remove channels and edit metadata' '' '']
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
   ::
