@@ -229,6 +229,7 @@ export const useChatState = create<ChatState>((set, get) => ({
           title: '',
           description: '',
           image: '',
+          color: '',
         },
       };
     }
@@ -370,7 +371,7 @@ export const useChatState = create<ChatState>((set, get) => ({
           title: '',
           description: '',
           image: '',
-          // color: '#b3b3b3'
+          color: '',
         },
       };
     });

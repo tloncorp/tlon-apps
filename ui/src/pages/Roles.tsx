@@ -24,6 +24,7 @@ interface FormSchema {
   title: string;
   description: string;
   image: string;
+  color: string;
 }
 
 export function AddRole() {
@@ -32,6 +33,7 @@ export function AddRole() {
     title: '',
     description: '',
     image: '',
+    color: '',
   };
   const onSubmit = (values: FormSchema) => {
     useGroupState.getState().addRole(flag, values.title, values);
