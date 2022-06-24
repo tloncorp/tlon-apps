@@ -319,7 +319,9 @@ export default function ChatInput({
   );
 
   useEffect(() => {
-    useChatState.getState().getDraft(whom);
+    if (whom) {
+      useChatState.getState().getDraft(whom);
+    }
   }, [whom]);
 
   const messageEditor = useMessageEditor({

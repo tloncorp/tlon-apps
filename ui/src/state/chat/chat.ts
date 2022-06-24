@@ -353,6 +353,35 @@ export const useChatState = create<ChatState>((set, get) => ({
       `/club/${id}/writs`,
       `/club/${id}/ui/writs`
     ).initialize();
+
+    api.subscribe({
+      app: 'chat',
+      path: `/club/${id}/ui`,
+      event: (event: ClubAction) => {
+        const { id: clubId, diff } = event;
+        const { delta } = diff;
+
+        get().batchSet((draft) => {
+          const club = draft.multiDms[clubId];
+          if (!club) {
+            return;
+          }
+
+          if ('team' in delta) {
+            const { ok, ship } = delta.team;
+
+            if (ok) {
+              club.hive.splice(club.hive.indexOf(ship), 1);
+              club.team.push(ship);
+            } else if (club.hive.includes(ship)) {
+              club.hive.splice(club.hive.indexOf(ship), 1);
+            } else if (club.team.includes(ship)) {
+              club.team.splice(club.team.indexOf(ship), 1);
+            }
+          }
+        });
+      },
+    });
   },
   createMultiDm: async (id, hive) => {
     await api.poke({
