@@ -6,20 +6,26 @@ import Dialog, { DialogContent } from '../components/Dialog';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import LeaveIcon from '../components/icons/LeaveIcon';
 import { useBriefs, useChatState, usePinnedChats } from '../state/chat';
+import { whomIsDm } from '../logic/utils';
 import PinIcon from '../components/icons/PinIcon';
 import BulletIcon from '../components/icons/BulletIcon';
 import InviteIcon16 from '../components/icons/InviteIcon16';
 import DmInviteDialog from './DmInviteDialog';
+import MultiDMEditModal from './MultiDMEditModal';
+import SlidersIcon from '../components/icons/SlidersIcon';
+import PeopleIcon from '../components/icons/PeopleIcon';
 
 interface DMOptionsProps {
   ship: string;
   pending: boolean;
   className?: string;
+  isMulti?: boolean;
 }
 
 export default function DmOptions({
   ship,
   pending,
+  isMulti = false,
   className,
 }: DMOptionsProps) {
   const navigate = useNavigate();
@@ -28,6 +34,7 @@ export default function DmOptions({
   const hasActivity = (briefs[ship]?.count ?? 0) > 0 || pending;
   const [isOpen, setIsOpen] = useState(false);
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
+  const [editIsOpen, setEditIsOpen] = useState(false);
 
   const onArchive = () => {
     navigate(-1);
@@ -67,6 +74,10 @@ export default function DmOptions({
     setInviteIsOpen(true);
   };
 
+  const handleEdit = () => {
+    setEditIsOpen(true);
+  };
+
   return (
     <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
@@ -91,6 +102,24 @@ export default function DmOptions({
           </div>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
+          {isMulti ? null : (
+            <>
+              <DropdownMenu.Item
+                className="dropdown-item flex items-center space-x-2"
+                onClick={(e) => e.preventDefault}
+              >
+                <PeopleIcon className="h-6 w-6" />
+                <span>Info</span>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                className="dropdown-item flex items-center space-x-2"
+                onClick={handleEdit}
+              >
+                <SlidersIcon className="h-6 w-6" />
+                <span>Edit Chat Info</span>
+              </DropdownMenu.Item>
+            </>
+          )}
           <DropdownMenu.Item
             className="dropdown-item flex items-center space-x-3"
             onClick={handlePin}
@@ -147,6 +176,7 @@ export default function DmOptions({
         inviteIsOpen={inviteIsOpen}
         setInviteIsOpen={setInviteIsOpen}
       />
+      <MultiDMEditModal editIsOpen={editIsOpen} setEditIsOpen={setEditIsOpen} />
     </>
   );
 }
