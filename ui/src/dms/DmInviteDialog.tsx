@@ -51,7 +51,12 @@ export default function DmInviteDialog({
             </div>
           </div>
           <div className="flex justify-end space-x-2">
-            <button className="secondary-button">Cancel</button>
+            <button
+              className="secondary-button"
+              onClick={() => setInviteIsOpen(false)}
+            >
+              Cancel
+            </button>
             <button
               disabled={!validShips}
               className="button"
