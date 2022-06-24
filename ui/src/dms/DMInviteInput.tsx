@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import {
@@ -12,8 +12,10 @@ import {
   MultiValueGenericProps,
   MultiValue,
   ActionMeta,
+  GroupBase,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
+import Select from 'react-select/dist/declarations/src/Select';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
 import X16Icon from '../components/icons/X16Icon';
@@ -141,6 +143,9 @@ export default function DMInviteInput({
   fromMulti = false,
   clubId,
 }: DmInviteInputProps) {
+  const selectRef = useRef<Select<Option, true, GroupBase<Option>> | null>(
+    null
+  );
   const contacts = useContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
@@ -164,18 +169,22 @@ export default function DMInviteInput({
   );
 
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
-    // TODO: handle case when adding another ship in follow-up PR
-    // specifically, it would be nice UX to type in a patp, have enter add it to
-    // to the list of chiclets, instead of having to click the dropdown
-    if (event.key === 'Enter' && ships && ships.length > 0 && validShips) {
-      if (isMulti) {
-        await createClub();
-        navigate(`/dm/${newClubId}`);
-      } else if (fromMulti) {
-        // club already created, inviting new user to existing club
-        navigate(`/dm/${clubId}`);
-      } else {
-        navigate(`/dm/${ships[0].value}`);
+    if (event.key === 'Enter') {
+      // case when user is typing another patp: do nothing so react-select can
+      // can add to the list of patps
+      if (selectRef.current && selectRef.current.inputRef?.value) {
+        return;
+      }
+      if (ships && ships.length > 0 && validShips) {
+        if (isMulti) {
+          await createClub();
+          navigate(`/dm/${newClubId}`);
+        } else if (fromMulti) {
+          // club already created, inviting new user to existing club
+          navigate(`/dm/${clubId}`);
+        } else {
+          navigate(`/dm/${ships[0].value}`);
+        }
       }
     }
   };
@@ -194,6 +203,7 @@ export default function DMInviteInput({
 
   return (
     <CreatableSelect
+      ref={selectRef}
       formatCreateLabel={AddNonContactShip}
       autoFocus
       isMulti
