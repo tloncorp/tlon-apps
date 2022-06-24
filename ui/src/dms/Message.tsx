@@ -7,7 +7,6 @@ import MultiDm from './MultiDm';
 export default function Message() {
   const whom = useParams<{ ship: string }>().ship!;
   const isDm = whomIsDm(whom);
-  console.log(isDm);
 
   return isDm ? <Dm /> : <MultiDm />;
 }

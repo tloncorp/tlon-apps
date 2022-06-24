@@ -73,9 +73,6 @@ function ChatRoutes({ state, location }: RoutesProps) {
           />
         </Route>
       </Routes>
-      <Routes>
-        <Route path="/*" element={<MultiDMEditModal />} />
-      </Routes>
     </>
   );
 }
