@@ -216,7 +216,9 @@ export default function NewDM() {
             }),
             option: (base, state) => ({
               ...base,
-              backgroundColor: state.isFocused ? '#f5f5f5' : '',
+              backgroundColor: state.isFocused
+                ? 'rgb(var(--colors-gray-50))'
+                : '',
             }),
             valueContainer: (base) => ({
               ...base,
