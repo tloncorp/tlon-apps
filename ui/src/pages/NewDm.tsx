@@ -42,11 +42,7 @@ function Control({ children, ...props }: ControlProps<Option, true>) {
 function ShipName({ data, ...props }: OptionProps<Option, true>) {
   const { value, label } = data;
   return (
-    <components.Option
-      data={data}
-      className="hover:cursor-pointer hover:bg-gray-50 active:bg-gray-50"
-      {...props}
-    >
+    <components.Option data={data} className="hover:cursor-pointer" {...props}>
       <div className="flex items-center space-x-1">
         {ob.isValidPatp(preSig(value)) ? (
           <Avatar ship={preSig(value)} size="xs" />
