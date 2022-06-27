@@ -320,7 +320,6 @@ export const useChatState = create<ChatState>((set, get) => ({
       api.poke(dmAction(whom, { add: memo }));
     } else {
       const id = makeId();
-      console.log(id, memo);
       api.poke(chatWritDiff(whom, id, diff));
     }
   },
@@ -365,6 +364,17 @@ export const useChatState = create<ChatState>((set, get) => ({
           const club = draft.multiDms[clubId];
           if (!club) {
             return;
+          }
+
+          if ('hive' in delta) {
+            const { add } = delta.hive;
+            const ship = delta.hive.for;
+
+            if (add && !club.hive.includes(ship)) {
+              club.hive.push(ship);
+            } else if (!add && club.hive.includes(ship)) {
+              club.hive.splice(club.hive.indexOf(ship), 1);
+            }
           }
 
           if ('team' in delta) {
