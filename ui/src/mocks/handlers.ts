@@ -26,10 +26,7 @@ import {
   ChatStory,
   ChatWhom,
   Club,
-  ClubAction,
   ClubCreate,
-  ClubDelta,
-  DmAction,
   DmRsvp,
   WritDiff,
 } from '../types/chat';
@@ -463,6 +460,17 @@ const clubHandlers: Handler[] = [
   {
     action: 'scry',
     app: 'chat',
+    path: '/club/:id/writs/newest/:count',
+    func: () => ({}),
+  },
+  {
+    action: 'subscribe',
+    app: 'chat',
+    path: '/club/:id/ui/writs',
+  },
+  {
+    action: 'scry',
+    app: 'chat',
     path: '/club/:id/crew',
     func: (req, api, params) => {
       if (!params || !(params.id in clubs)) {
@@ -477,24 +485,6 @@ const clubHandlers: Handler[] = [
     app: 'chat',
     mark: 'club-action',
     returnSubscription: clubSub,
-    initialResponder: (req: Message & Poke<ClubAction>) => {
-      const { delta } = req.json.diff;
-      const club = clubs[req.json.id];
-      if ('team' in delta && club) {
-        const { ok, ship } = delta.team;
-
-        if (ok) {
-          club.hive.splice(club.hive.indexOf(ship), 1);
-          club.team.push(ship);
-        } else if (club.hive.includes(ship)) {
-          club.hive.splice(club.hive.indexOf(ship), 1);
-        } else if (club.team.includes(ship)) {
-          club.team.splice(club.team.indexOf(ship), 1);
-        }
-      }
-
-      return createResponse(req);
-    },
     dataResponder: (req) => createResponse(req, 'diff', req.json),
   },
   {

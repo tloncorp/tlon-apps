@@ -1,39 +1,37 @@
 import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import Dialog, { DialogContent } from '../components/Dialog';
-import { whomIsMultiDm } from '../logic/utils';
 import { useChatState } from '../state/chat';
 import DMInviteInput, { Option } from './DMInviteInput';
 
 interface DmInviteDialogProps {
   inviteIsOpen: boolean;
   setInviteIsOpen: (open: boolean) => void;
+  whom: string;
 }
 
 export default function DmInviteDialog({
   inviteIsOpen,
   setInviteIsOpen,
+  whom,
 }: DmInviteDialogProps) {
-  // TODO: out of scope for #259; a sketch for #260
-  // requires passing singular ship into DMInviteInput, instead of multiple,
-  // since inviteToMultiDm expects a single `for`
-
   const navigate = useNavigate();
-  const whom = useParams<{ ship: string }>().ship;
-  const fromMulti = whom ? whomIsMultiDm(whom) : false;
-  const clubId = fromMulti ? whom : undefined;
   const [ships, setShips] = useState<Option[]>([]);
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
 
   const submitHandler = async () => {
-    // if (clubId && validShips) {
-    //   await useChatState.getState().inviteToMultiDm(clubId,
-    //     { by: window.our, for: ship, ships.map((s) => s.value))
-    //   navigate(`/dm/${clubId}`);
-    // }
+    if (whom && validShips) {
+      ships.map(async (ship) => {
+        await useChatState.getState().inviteToMultiDm(whom, {
+          by: window.our,
+          for: ship.value,
+        });
+      });
+      setInviteIsOpen(false);
+    }
   };
 
   return (
@@ -46,13 +44,18 @@ export default function DmInviteDialog({
               <DMInviteInput
                 ships={ships}
                 setShips={setShips}
-                clubId={clubId}
-                fromMulti={fromMulti}
+                clubId={whom}
+                fromMulti
               />
             </div>
           </div>
           <div className="flex justify-end space-x-2">
-            <button className="secondary-button">Cancel</button>
+            <button
+              className="secondary-button"
+              onClick={() => setInviteIsOpen(false)}
+            >
+              Cancel
+            </button>
             <button
               disabled={!validShips}
               className="button"
