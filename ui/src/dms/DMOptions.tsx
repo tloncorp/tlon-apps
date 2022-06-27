@@ -81,7 +81,7 @@ export default function DmOptions({
   return (
     <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
-        <DropdownMenu.Trigger asChild>
+        <DropdownMenu.Trigger disabled={pending} asChild>
           <div className="relative h-6 w-6">
             {!isOpen && hasActivity ? (
               <BulletIcon
@@ -89,16 +89,18 @@ export default function DmOptions({
                 aria-label="Has Activity"
               />
             ) : null}
-            <button
-              className={cn(
-                'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                hasActivity && 'text-blue',
-                isOpen ? 'opacity:100' : 'opacity-0'
-              )}
-              aria-label="Open Message Options"
-            >
-              <EllipsisIcon className="h-6 w-6" />
-            </button>
+            {!pending ? (
+              <button
+                className={cn(
+                  'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+                  hasActivity && 'text-blue',
+                  isOpen ? 'opacity:100' : 'opacity-0'
+                )}
+                aria-label="Open Message Options"
+              >
+                <EllipsisIcon className="h-6 w-6" />
+              </button>
+            ) : null}
           </div>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
