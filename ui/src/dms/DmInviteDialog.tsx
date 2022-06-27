@@ -24,14 +24,13 @@ export default function DmInviteDialog({
 
   const submitHandler = async () => {
     if (whom && validShips) {
-      Promise.all(
-        ships.map(async (ship) => {
-          await useChatState.getState().inviteToMultiDm(whom, {
-            by: window.our,
-            for: ship.value,
-          });
-        })
-      ).then(() => navigate(`/dm/${whom}`));
+      ships.map(async (ship) => {
+        await useChatState.getState().inviteToMultiDm(whom, {
+          by: window.our,
+          for: ship.value,
+        });
+      });
+      setInviteIsOpen(false);
     }
   };
 
