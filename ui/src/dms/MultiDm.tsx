@@ -89,7 +89,7 @@ export default function MultiDm() {
             </div>
           </button>
           {canStart ? (
-            <DmOptions ship={clubId} pending={false} isMulti />
+            <DmOptions ship={clubId} pending={!isAccepted} isMulti />
           ) : null}
         </div>
       }
