@@ -57,7 +57,7 @@ export default function ChatMessageOptions(props: {
       />
       {window.our === writ.memo.author ? (
         <IconButton
-          icon={<XIcon className="text-red" />}
+          icon={<XIcon className="h-6 w-6 text-red" />}
           label="Delete"
           showTooltip
           action={onDelete}

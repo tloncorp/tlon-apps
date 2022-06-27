@@ -9,7 +9,7 @@ import CodeIcon from '../../components/icons/CodeIcon';
 import ItalicIcon from '../../components/icons/ItalicIcon';
 import LinkIcon from '../../components/icons/LinkIcon';
 import StrikeIcon from '../../components/icons/StrikeIcon';
-import XIcon from '../../components/icons/XIcon';
+import X16Icon from '../../components/icons/X16Icon';
 import ChatInputMenuButton from './ChatInputMenuButton';
 
 export type MenuState = 'closed' | 'open' | 'editing-link' | 'link-hover';
@@ -89,7 +89,7 @@ export default function ChatInputMenuToolbar({
               className="icon-button ml-2 h-8 w-8"
               onClick={() => setStatus('open')}
             >
-              <XIcon className="h-6 w-6" />
+              <X16Icon className="h-6 w-6" />
             </button>
           )}
         </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
-import XIcon from '../components/icons/XIcon';
-import DMHero from '../dms/DMHero';
+import X16Icon from '../components/icons/X16Icon';
+import DMHero from './DMHero';
 import { useChatState } from '../state/chat';
 import { useContact } from '../state/contact';
 
@@ -50,7 +50,7 @@ export default function DmInvite({ ship }: DmInviteProps) {
                 onClick={() => setShowDeclineModal(false)}
                 className="flex h-6 w-6 items-center justify-center rounded-xl bg-gray-50"
               >
-                <XIcon className="h-3 w-3 text-gray-400" />
+                <X16Icon className="h-3 w-3 text-gray-400" />
               </button>
             </div>
             <span className="pt-4 leading-5">

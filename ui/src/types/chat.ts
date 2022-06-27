@@ -1,5 +1,6 @@
 import { BigIntOrderedMap } from '@urbit/api';
 import { BigInteger } from 'big-integer';
+import { GroupMeta } from './groups';
 
 export type Patda = string;
 export type Ship = string;
@@ -146,21 +147,12 @@ export interface ChatWrits {
   [time: string]: ChatWrit;
 }
 
-/* export type ChatWrits = {
-  time: Patda;
-  writ: ChatWrit;
-}[]; */
-
 interface WritDeltaAdd {
   add: ChatMemo;
 }
 
 interface WritDeltaDel {
   del: null;
-}
-
-interface ChatDiffDraft {
-  draft: ChatStory;
 }
 
 interface WritDeltaAddFeel {
@@ -182,7 +174,7 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
-export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects | ChatDiffDraft;
+export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects;
 
 export interface ChatUpdate {
   time: Patda;
@@ -195,8 +187,16 @@ export interface ChatPerm {
 
 export interface Chat {
   perms: ChatPerm;
-  // writs: BigIntOrderedMap<ChatWrit>;
   draft: ChatStory;
+}
+
+/**
+ * A Club is the backend terminology for Multi DMs
+ */
+export interface Club {
+  hive: string[];
+  team: string[];
+  meta: GroupMeta;
 }
 
 export interface DmAction {
@@ -214,6 +214,11 @@ export interface Pact {
   index: {
     [id: string]: BigInteger;
   };
+}
+
+export interface ChatDraft {
+  whom: string;
+  story: ChatStory;
 }
 
 export interface ChatBrief {
@@ -234,3 +239,60 @@ export interface ChatBriefUpdate {
  * Either a `@p` or a `$flag` rendered as string
  */
 export type ChatWhom = string;
+
+// Clubs, AKA MultiDMs
+
+export interface ClubCreate {
+  id: string;
+  hive: Ship[];
+}
+export interface Hive {
+  by: string;
+  for: string;
+  add: boolean;
+}
+
+interface ClubDeltaEditMetadata {
+  meta: GroupMeta;
+}
+
+interface ClubDeltaAddHive {
+  hive: Hive & { add: true };
+}
+
+interface ClubDeltaRemoveHive {
+  hive: Hive & { add: false };
+}
+
+interface ClubDeltaRsvp {
+  team: {
+    ship: Ship;
+    ok: boolean;
+  };
+}
+
+interface ClubDeltaSend {
+  writ: {
+    id: string; // note this is the Chat ID, *not* the Club ID
+    delta: {
+      add: ChatMemo;
+    };
+  };
+}
+
+export type ClubDelta =
+  | ClubDeltaEditMetadata
+  | ClubDeltaAddHive
+  | ClubDeltaRemoveHive
+  | ClubDeltaRsvp
+  | ClubDeltaSend;
+
+export type ClubDiff = {
+  echo: number;
+  delta: ClubDelta;
+};
+
+export interface ClubAction {
+  id: string;
+  diff: ClubDiff;
+}

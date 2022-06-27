@@ -6,7 +6,7 @@ import { useIsMobile } from '../logic/useMedia';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import CaretDown16Icon from '../components/icons/CaretDown16Icon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
-import PersonSmallIcon from '../components/icons/PersonSmallIcon';
+import PersonSmallIcon from '../components/icons/Person16Icon';
 import CmdSmallIcon from '../components/icons/CmdSmallIcon';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
@@ -27,7 +27,7 @@ export default function MessagesSidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-col border-r-2 border-gray-50 bg-white">
-      <ul className="flex w-64 flex-col p-2">
+      <ul className="flex w-full flex-col px-2 pt-2">
         <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
           to="/dm/search"
@@ -43,7 +43,7 @@ export default function MessagesSidebar() {
         </SidebarItem>
         {pinned && pinned.length > 0 ? (
           <>
-            <li className="flex items-center space-x-2 px-2 py-3">
+            <li className="flex items-center space-x-2 p-2">
               <span className="text-xs font-semibold text-gray-400">
                 Pinned
               </span>

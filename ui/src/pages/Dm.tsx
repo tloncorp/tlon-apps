@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect } from 'react';
 import cn from 'classnames';
-import { Outlet, useParams, useLocation } from 'react-router';
-import { Link } from 'react-router-dom';
+import { Outlet, useParams } from 'react-router';
 import ChatInput from '../chat/ChatInput/ChatInput';
-import Layout from '../components/layout/Layout';
+import Layout from '../components/Layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
-import DmInvite from './DmInvite';
+import DmInvite from '../dms/DmInvite';
 import Avatar from '../components/Avatar';
 import DmOptions from '../dms/DMOptions';
 import { useContact } from '../state/contact';
@@ -17,19 +16,20 @@ import useNavStore from '../components/Nav/useNavStore';
 
 export default function Dm() {
   const ship = useParams<{ ship: string }>().ship!;
+  const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
   const isMobile = useIsMobile();
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
-  const navigateMessages = useNavStore((state) => state.setLocationDM);
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   useEffect(() => {
     if (isMobile) {
-      useNavStore.getState().setLocationHidden();
+      navPrimary('hidden');
     }
-  }, [isMobile]);
+  }, [navPrimary, isMobile]);
 
   useEffect(() => {
     if (ship && canStart) {
@@ -48,7 +48,7 @@ export default function Dm() {
               'p-2',
               isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
             )}
-            onClick={() => isMobile && navigateMessages()}
+            onClick={() => isMobile && navPrimary('dm')}
             aria-label="Open Messages Menu"
           >
             {isMobile ? (
@@ -68,14 +68,14 @@ export default function Dm() {
               </div>
             </div>
           </button>
-          {canStart ? <DmOptions ship={ship} /> : null}
+          {canStart ? <DmOptions ship={ship} pending={false} /> : null}
         </div>
       }
       aside={<Outlet />}
       footer={
         isAccepted ? (
           <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput whom={ship} />
+            <ChatInput whom={ship} sendMessage={sendMessage} />
           </div>
         ) : null
       }

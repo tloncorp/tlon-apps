@@ -1,16 +1,17 @@
 import cn from 'classnames';
 import React, { ButtonHTMLAttributes, PropsWithChildren } from 'react';
-import { Link, useMatch } from 'react-router-dom';
-import BulletIcon from '../icons/BulletIcon';
+import { Link, LinkProps, useMatch } from 'react-router-dom';
 
 type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   to?: string;
-  hasActivity?: boolean;
   actions?: React.ReactNode;
   color?: string;
+  div?: boolean;
+  highlight?: string;
 }> &
-  ButtonHTMLAttributes<HTMLButtonElement>;
+  ButtonHTMLAttributes<HTMLButtonElement> &
+  Omit<LinkProps, 'to'>;
 
 function Action({
   to,
@@ -32,29 +33,29 @@ export default function SidebarItem({
   icon,
   to,
   color = 'text-gray-600',
-  hasActivity = false,
+  highlight = 'bg-gray-50',
   actions,
   className,
   children,
+  div = false,
   ...rest
 }: SidebarProps) {
   const matches = useMatch(to || 'DONT_MATCH');
   const active = !!matches;
+  const Wrapper = div ? 'div' : 'li';
 
   return (
-    <li
+    <Wrapper
       className={cn(
         'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base',
         color,
-        active && 'bg-gray-50'
+        active && highlight
       )}
     >
       <Action
         to={to}
         className={cn(
           'default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold',
-          !hasActivity && 'pr-4',
-          hasActivity && 'pr-0',
           className
         )}
         {...rest}
@@ -62,27 +63,15 @@ export default function SidebarItem({
         {typeof icon === 'function' ? icon(active) : icon}
         <div
           title={typeof children === 'string' ? children : undefined}
-          className="max-w-full flex-1 truncate text-left"
+          className={cn(
+            'max-w-full flex-1 truncate text-left',
+            actions && 'pr-4'
+          )}
         >
           {children}
         </div>
-        {hasActivity ? (
-          <BulletIcon
-            className="ml-auto h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-            aria-label="Has Activity"
-          />
-        ) : null}
       </Action>
-      {actions ? (
-        <div
-          className={cn(
-            'group absolute right-0 transition-opacity focus-visible:opacity-100',
-            hasActivity && 'text-blue'
-          )}
-        >
-          {actions}
-        </div>
-      ) : null}
-    </li>
+      {actions ? <div className={cn('absolute right-0')}>{actions}</div> : null}
+    </Wrapper>
   );
 }

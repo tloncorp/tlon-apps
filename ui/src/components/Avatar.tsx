@@ -26,7 +26,7 @@ const sizeMap: Record<AvatarSizes, AvatarMeta> = {
   xs: { classes: 'w-6 h-6 rounded', size: 12 },
   small: { classes: 'w-8 h-8 rounded', size: 16 },
   default: { classes: 'w-12 h-12 rounded-lg', size: 24 },
-  huge: { classes: 'w-18 h-18 rounded-lg', size: 48 },
+  huge: { classes: 'w-20 h-20 rounded-xl', size: 48 },
 };
 
 const foregroundFromBackground = (background: string): 'black' | 'white' => {

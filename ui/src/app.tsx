@@ -18,7 +18,7 @@ import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
 import api from './api';
 import Dms from './pages/Dms';
-import Dm from './pages/Dm';
+import Search from './pages/Search';
 import NewDM from './pages/NewDm';
 import Gang, { GangModal } from './pages/Gang';
 import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
@@ -33,6 +33,9 @@ import useContactState from './state/contact';
 import ErrorAlert from './components/ErrorAlert';
 import DMHome from './dms/DMHome';
 import Nav from './components/Nav/Nav';
+import GroupInfoDialog from './groups/GroupInfoDialog';
+import GroupInviteDialog from './groups/GroupInviteDialog';
+import Message from './dms/Message';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -47,7 +50,8 @@ function ChatRoutes({ state, location }: RoutesProps) {
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
-          <Route path=":ship" element={<Dm />}>
+          <Route path=":ship" element={<Message />}>
+            <Route path="search" element={<Search />} />
             <Route path="message/:idShip/:idTime" element={<DmThread />} />
           </Route>
         </Route>
@@ -100,6 +104,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/groups/join" element={<JoinGroupModal />} />
+          <Route path="/groups/:ship/:name">
+            <Route path="info" element={<GroupInfoDialog />} />
+            <Route path="invite" element={<GroupInviteDialog />} />
+          </Route>
           <Route path="/gangs/:ship/:name" element={<GangModal />} />
         </Routes>
       ) : null}

@@ -5,7 +5,10 @@ import {
   Pact,
   ChatBriefs,
   ChatStory,
+  Club,
+  Hive,
 } from '../../types/chat';
+import { GroupMeta } from '../../types/groups';
 
 export interface ChatState {
   set: (fn: (sta: ChatState) => void) => void;
@@ -16,10 +19,18 @@ export interface ChatState {
   dms: {
     [ship: string]: Chat;
   };
+  drafts: {
+    [whom: string]: ChatStory;
+  };
   dmSubs: string[];
   dmArchive: string[];
+  multiDms: {
+    [id: string]: Club; // id is `@uw`
+  };
+  multiDmSubs: string[];
   pinnedDms: string[];
   fetchDms: () => Promise<void>;
+  fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
   pacts: {
     [whom: ChatWhom]: Pact;
   };
@@ -32,7 +43,7 @@ export interface ChatState {
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
   fetchOlder: (ship: string, count: string) => Promise<boolean>;
-  draft: (whom: string, content: ChatStory) => Promise<void>;
+  draft: (whom: string, story: ChatStory) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
   archiveDm: (ship: string) => Promise<void>;
   unarchiveDm: (ship: string) => Promise<void>;
@@ -46,6 +57,32 @@ export interface ChatState {
     description: string;
     readers: string[];
   }) => Promise<void>;
+  createMultiDm: (
+    id: string,
+    hive: string[] // array of ships
+  ) => Promise<void>; // returns the newly created club ID
+  editMultiDm: (
+    id: string, // `@uw`
+    meta: GroupMeta
+  ) => Promise<void>;
+  inviteToMultiDm: (
+    id: string, // `@uw`
+    hive: Omit<Hive, 'add'> // by is the sending ship, for is the invited ship
+  ) => Promise<void>;
+  removeFromMultiDm: (
+    id: string, // `@uw`
+    hive: Omit<Hive, 'add'> // by is the removing ship, for is the removed ship
+  ) => Promise<void>;
+  sendMultiDm: (
+    id: string, // `@uw` - the club ID
+    chatId: string, // a whom
+    memo: Omit<ChatMemo, 'sent'>
+  ) => Promise<void>;
+  multiDmRsvp: (
+    id: string, // `@uw` - the club ID
+    ok: boolean // whether the invite was accepted/rejected
+  ) => Promise<void>;
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;
+  initializeMultiDm: (id: string) => Promise<void>; // id is `@uw`, the Club ID
 }

@@ -1,4 +1,5 @@
 /-  c=chat
+/-  meta
 |%
 ++  enjs
   =,  enjs:format
@@ -9,13 +10,15 @@
     ?-  -.d 
         %writ  (writs-diff diff.d)
     ::
+        %meta  (meta meta.d)
+    ::
         %team
       %-  pairs
       :~  ship/(ship ship.d)
           ok/b/ok.d
       ==
     ::
-         %hive
+        %hive
       %-  pairs
       :~  by/(ship by.d)
           for/(ship for.d)
@@ -28,6 +31,16 @@
           hive/a/(turn ~(tap in hive.d) ship)
       ==
     ==
+  ::
+  ++  meta
+    |=  m=data:^meta
+    %-  pairs
+    :~  title/s/title.m
+        description/s/description.m
+        image/s/image.m
+        color/s/color.m
+    ==
+
   ++  draft
     |=  d=draft:c
     %-  pairs
@@ -102,7 +115,6 @@
     |=  =diff:c
     %+  frond  -.diff
     ?+  -.diff  ~
-      %draft    (story p.diff)
       %writs     (writs-diff p.diff)
     ==
   ::
@@ -156,6 +168,14 @@
           width+(numb width.b)
           alt+s+alt.b
       ==
+    ==
+  ++  crew
+    |=  cr=crew:club:c
+    %-  pairs
+    :~  team/a/(turn ~(tap in team.cr) ship)
+        hive/a/(turn ~(tap in hive.cr) ship)
+        meta/(meta met.cr)
+        net/s/net.cr
     ==
   ::
   ++  notice
@@ -333,10 +353,19 @@
         delta/club-delta
     ==
   ::
+  ++  meta
+    %-  ot
+    :~  title/so
+        description/so
+        image/so
+        color/so
+    ==
+  ::
   ++  club-delta
     %-  of
     :~  
       writ/writs-diff
+      meta/meta
     ::
       :-  %team
       %-  ot
@@ -370,7 +399,6 @@
     %-  of
     :~  writs/writs-diff
         add-sects/add-sects
-        draft/story
     ==
   ::
   ++  id  

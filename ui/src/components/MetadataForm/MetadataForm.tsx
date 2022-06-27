@@ -5,6 +5,7 @@ interface MetadataSchema {
   title: string;
   description: string;
   image: string;
+  color: string;
 }
 
 export default function MetadataForm(props: {
@@ -27,8 +28,12 @@ export default function MetadataForm(props: {
         />
       </div>
       <div className="p-2">
-        <label htmlFor="description">Image</label>
+        <label htmlFor="image">Image</label>
         <input {...register('image')} className="rounded border" type="url" />
+      </div>
+      <div className="p-2">
+        <label htmlFor="color">Color</label>
+        <input {...register('color')} className="rounded border" type="text" />
       </div>
     </div>
   );

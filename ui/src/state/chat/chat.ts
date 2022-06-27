@@ -4,23 +4,26 @@ import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import { BigInteger } from 'big-integer';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   Chat,
   ChatBriefs,
   ChatBriefUpdate,
   ChatDiff,
+  ChatDraft,
   ChatPerm,
-  ChatStory,
   ChatWrit,
+  Club,
+  ClubAction,
+  ClubDelta,
   DmAction,
-  Pact,
   WritDelta,
 } from '../../types/chat';
 import api from '../../api';
 import { whomIsDm } from '../../logic/utils';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
+import clubReducer from './clubReducer';
 
 setAutoFreeze(false);
 
@@ -69,6 +72,20 @@ function dmAction(
   };
 }
 
+function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
+  return {
+    app: 'chat',
+    mark: 'club-action',
+    json: {
+      id,
+      diff: {
+        echo: 0,
+        delta,
+      },
+    },
+  };
+}
+
 export const useChatState = create<ChatState>((set, get) => ({
   set: (fn) => {
     set(produce(get(), fn));
@@ -78,30 +95,41 @@ export const useChatState = create<ChatState>((set, get) => ({
       get().set(fn);
     });
   },
+  chats: {},
+  dmArchive: [],
   pacts: {},
   dms: {},
+  drafts: {},
   dmSubs: [],
+  multiDms: {},
+  multiDmSubs: [],
   pendingDms: [],
   pinnedDms: [],
   briefs: {},
-  pinDm: async (whom) => {
+  pinDm: async (ship) => {
     await api.poke({
       app: 'chat',
-      mark: 'chat-remark-action',
+      mark: 'dm-pin',
       json: {
-        whom,
-        diff: { pinned: true },
+        ship,
+        pin: true,
       },
     });
+    get().set((draft) => {
+      draft.pinnedDms = [...draft.pinnedDms, ship];
+    });
   },
-  unpinDm: async (whom) => {
+  unpinDm: async (ship) => {
     await api.poke({
       app: 'chat',
-      mark: 'chat-remark-action',
+      mark: 'dm-pin',
       json: {
-        whom,
-        diff: { pinned: false },
+        ship,
+        pin: false,
       },
+    });
+    get().set((draft) => {
+      draft.pinnedDms = draft.pinnedDms.filter((s) => s !== ship);
     });
   },
   markRead: async (whom) => {
@@ -124,6 +152,7 @@ export const useChatState = create<ChatState>((set, get) => ({
     get().batchSet((draft) => {
       draft.briefs = briefs;
     });
+
     const pendingDms = await api.scry<string[]>({
       app: 'chat',
       path: '/dm/invited',
@@ -131,13 +160,19 @@ export const useChatState = create<ChatState>((set, get) => ({
     get().batchSet((draft) => {
       draft.pendingDms = pendingDms;
     });
-    const pinnedDms = await api.scry<string[]>({
-      app: 'chat',
-      path: '/dm/pinned',
-    });
-    get().batchSet((draft) => {
-      draft.pinnedDms = pinnedDms;
-    });
+
+    try {
+      const pinnedDms = await api.scry<string[]>({
+        app: 'chat',
+        path: '/dm/pinned',
+      });
+      get().batchSet((draft) => {
+        draft.pinnedDms = pinnedDms;
+      });
+    } catch (error) {
+      console.log(error);
+    }
+
     api.subscribe({
       app: 'chat',
       path: '/briefs',
@@ -175,6 +210,37 @@ export const useChatState = create<ChatState>((set, get) => ({
       `/chat/${whom}/ui/writs`
     ).getOlder(count);
   },
+  fetchMultiDm: async (id, force) => {
+    const { multiDms } = get();
+
+    if (multiDms[id] && !force) {
+      return multiDms[id];
+    }
+
+    const dm = await api.scry<Club>({
+      app: 'chat',
+      path: `/club/${id}/crew`,
+    });
+
+    if (!dm) {
+      return {
+        hive: [],
+        team: [],
+        meta: {
+          title: '',
+          description: '',
+          image: '',
+          color: '',
+        },
+      };
+    }
+
+    set((draft) => {
+      draft.multiDms[id] = dm;
+    });
+
+    return dm;
+  },
   fetchDms: async () => {
     const dms = await api.scry<string[]>({
       app: 'chat',
@@ -210,9 +276,6 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: ship,
     });
   },
-
-  chats: {},
-  dmArchive: [],
   archiveDm: async (ship) => {
     await api.poke({
       app: 'chat',
@@ -278,6 +341,73 @@ export const useChatState = create<ChatState>((set, get) => ({
       json: req,
     });
   },
+  initializeMultiDm: async (id) => {
+    if (get().multiDmSubs.includes(id)) {
+      return;
+    }
+    get().batchSet((draft) => {
+      draft.multiDmSubs.push(id);
+    });
+    await makeWritsStore(
+      id,
+      get,
+      `/club/${id}/writs`,
+      `/club/${id}/ui/writs`
+    ).initialize();
+
+    api.subscribe({
+      app: 'chat',
+      path: `/club/${id}/ui`,
+      event: (event: ClubAction) => {
+        get().batchSet(clubReducer(event));
+      },
+    });
+  },
+  createMultiDm: async (id, hive) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'club-create',
+      json: {
+        id,
+        hive,
+      },
+    });
+    get().batchSet((draft) => {
+      draft.multiDms[id] = {
+        hive,
+        team: [window.our],
+        meta: {
+          title: '',
+          description: '',
+          image: '',
+          color: '',
+        },
+      };
+    });
+  },
+  editMultiDm: async (id, meta) => {
+    await api.poke(multiDmAction(id, { meta }));
+  },
+  inviteToMultiDm: async (id, hive) => {
+    await api.poke(multiDmAction(id, { hive: { ...hive, add: true } }));
+  },
+  removeFromMultiDm: async (id, hive) => {
+    await api.poke(multiDmAction(id, { hive: { ...hive, add: false } }));
+  },
+  multiDmRsvp: async (id, ok) => {
+    await api.poke(multiDmAction(id, { team: { ship: window.our, ok } }));
+    await get().fetchMultiDm(id, true);
+  },
+  sendMultiDm: async (id, chatId, memo) => {
+    await api.poke(
+      multiDmAction(id, {
+        writ: {
+          id: chatId,
+          delta: { add: { ...memo, sent: Date.now() } },
+        },
+      })
+    );
+  },
   addSects: async (whom, sects) => {
     await api.poke(chatAction(whom, { 'add-sects': sects }));
   },
@@ -307,19 +437,23 @@ export const useChatState = create<ChatState>((set, get) => ({
     ).initialize();
   },
   getDraft: async (whom) => {
-    const content = await api.scry<ChatStory>({
+    const chatDraft = await api.scry<ChatDraft>({
       app: 'chat',
-      path: `/chat/${whom}/draft`,
+      path: `/draft/${whom}`,
     });
     set((draft) => {
-      const chat = draft.chats[whom];
-      if (chat) {
-        chat.draft = content;
-      }
+      draft.drafts[whom] = chatDraft.story;
     });
   },
-  draft: async (whom, draft) => {
-    api.poke(chatAction(whom, { draft }));
+  draft: async (whom, story) => {
+    api.poke({
+      app: 'chat',
+      mark: 'chat-draft',
+      json: {
+        whom,
+        story,
+      },
+    });
   },
   initializeDm: async (ship: string) => {
     if (get().dmSubs.includes(ship)) {
@@ -383,14 +517,6 @@ export function useCurrentPactSize(whom: string) {
   );
 }
 
-function getPact(pact: Pact, id: string) {
-  const time = pact.index[id];
-  if (!time) {
-    return undefined;
-  }
-  return pact.writs.get(time);
-}
-
 export function useReplies(whom: string, id: string) {
   const pact = usePact(whom);
   return useMemo(() => {
@@ -438,7 +564,7 @@ export function useChatDraft(whom: string) {
   return useChatState(
     useCallback(
       (s) =>
-        s.chats[whom]?.draft || {
+        s.drafts[whom] || {
           inline: [],
           block: [],
         },
@@ -456,13 +582,52 @@ export function useDmIsPending(ship: string) {
   return useChatState(useCallback((s) => s.pendingDms.includes(ship), [ship]));
 }
 
+const selMultiDms = (s: ChatState) => s.multiDms;
+export function useMultiDms() {
+  return useChatState(selMultiDms);
+}
+
+export function useMultiDm(id: string): Club | undefined {
+  const multiDm = useChatState(useCallback((s) => s.multiDms[id], [id]));
+
+  useEffect(() => {
+    useChatState.getState().fetchMultiDm(id);
+  }, [id]);
+
+  return multiDm;
+}
+
+export function usePendingMultiDms() {
+  const multiDms = useChatState(selMultiDms);
+
+  return Object.entries(multiDms)
+    .filter(([, value]) => value.hive.includes(window.our))
+    .map(([key]) => key);
+}
+
+export function useMultiDmIsPending(id: string): boolean {
+  return useChatState(
+    useCallback(
+      (s) => {
+        const chat = s.multiDms[id];
+        if (!chat) {
+          return false;
+        }
+
+        return chat.hive.includes(window.our);
+      },
+      [id]
+    )
+  );
+}
+
+export function useMultiDmMessages(id: string) {
+  return useMessagesForChat(id);
+}
+
 const selDmArchive = (s: ChatState) => s.dmArchive;
 export function useDmArchive() {
   return useChatState(selDmArchive);
-}
-
-export function isDMBrief(brief: string) {
-  return !brief.includes('/');
 }
 
 export function isGroupBrief(brief: string) {

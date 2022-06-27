@@ -7,11 +7,11 @@ export default function XIcon({ className }: IconProps) {
       className={className}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 16 16"
+      viewBox="0 0 24 24"
     >
       <path
         className="stroke-current"
-        d="m8 8 4-4M8 8 4 4m4 4-4 4m4-4 4 4"
+        d="m12 12 6-6m-6 6L6 6m6 6-6 6m6-6 6 6"
         strokeWidth="2"
         strokeLinecap="round"
       />

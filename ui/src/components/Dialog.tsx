@@ -1,7 +1,7 @@
 import React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import classNames from 'classnames';
-import XIcon from './icons/XIcon';
+import X16Icon from './icons/X16Icon';
 
 export default function Dialog({
   children,
@@ -33,8 +33,8 @@ export const DialogContent = React.forwardRef<
         <div className={classNames('dialog', className)}>
           {children}
           {showClose && (
-            <DialogPrimitive.Close className="default-ring absolute top-6 right-6 rounded-full bg-gray-100 p-1">
-              <XIcon className="h-4 w-4" />
+            <DialogPrimitive.Close className="icon-button absolute top-6 right-6">
+              <X16Icon className="h-4 w-4" />
             </DialogPrimitive.Close>
           )}
         </div>
@@ -45,3 +45,5 @@ export const DialogContent = React.forwardRef<
 
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
+export const DialogTitle = DialogPrimitive.Title;
+export const DialogDescription = DialogPrimitive.Description;

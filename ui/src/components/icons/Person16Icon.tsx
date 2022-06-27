@@ -1,7 +1,7 @@
 import React from 'react';
 import { IconProps } from './icon';
 
-export default function PersonSmallIcon({ className }: IconProps) {
+export default function Person16Icon({ className }: IconProps) {
   return (
     <svg
       className={className}

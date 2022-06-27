@@ -40,7 +40,6 @@
 +$  flag  (pair ship term)
 +$  diff
   $%  [%writs p=diff:writs]
-      [%draft p=story]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
@@ -60,13 +59,15 @@
   |%
   +$  id  @uwH
   +$  net  ?(%archive %invited %done)
-  +$  club
+  +$  club  [=pact crew]
+  ::
+  +$  crew
     $:  team=(set ship)
         hive=(set ship)
         met=data:meta
-        =pact
         =net
     ==
+
   ::
   +$  rsvp    [=id =ship ok=?]
   +$  create
@@ -78,6 +79,7 @@
   ::
   +$  delta    
     $%  [%writ =diff:writs]
+        [%meta meta=data:meta]
         [%team =ship ok=?]
         [%hive by=ship for=ship add=?]
         [%init team=(set ship) hive=(set ship) met=data:meta]
@@ -110,6 +112,7 @@
     $:  =pact
         =remark
         =net
+        pin=_|
     ==
   +$  net     ?(%inviting %invited %archive %done)
   +$  id      (pair ship time)
@@ -130,7 +133,7 @@
       group=flag
   ==
 +$  chat
-  [=net =remark =log =perm =pact draft=story]
+  [=net =remark =log =perm =pact]
 ::
 +$  notice  [pfix=@t sfix=@t]
 ::
