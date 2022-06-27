@@ -218,12 +218,9 @@ export default function NewDM() {
                 backgroundColor: 'inherit',
               },
             }),
-            option: (base) => ({
+            option: (base, state) => ({
               ...base,
-              backgroundColor: '',
-              '&:active': {
-                backgroundColor: 'inherit',
-              },
+              backgroundColor: state.isFocused ? '#f5f5f5' : '',
             }),
             valueContainer: (base) => ({
               ...base,
