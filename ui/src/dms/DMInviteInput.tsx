@@ -17,7 +17,7 @@ import CreatableSelect from 'react-select/creatable';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
 import X16Icon from '../components/icons/X16Icon';
-import { newUw, preSig } from '../logic/utils';
+import { newUv, preSig } from '../logic/utils';
 import Avatar from '../components/Avatar';
 import { useContacts } from '../state/contact';
 import { useChatState } from '../state/chat';
@@ -153,7 +153,7 @@ export default function DMInviteInput({
     : false;
 
   const isMulti = ships.length > 1;
-  const newClubId = useMemo(() => clubId || newUw(), [clubId]);
+  const newClubId = useMemo(() => clubId || newUv(), [clubId]);
   const createClub = useCallback(
     async () =>
       useChatState.getState().createMultiDm(

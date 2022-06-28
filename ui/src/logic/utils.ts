@@ -1,5 +1,5 @@
 import { unixToDa } from '@urbit/api';
-import { formatUw } from '@urbit/aura';
+import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
 import _ from 'lodash';
@@ -136,6 +136,6 @@ export function preSig(ship: string): string {
   return '~'.concat(ship.trim());
 }
 
-export function newUw(seed = Date.now()) {
-  return formatUw(unixToDa(seed));
+export function newUv(seed = Date.now()) {
+  return formatUv(unixToDa(seed));
 }

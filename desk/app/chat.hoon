@@ -201,7 +201,7 @@
     di-abet:(di-watch:(di-abed:di-core ship) t.t.path)
   ::
       [%club @ *]
-    =/  =id:club:c  (slav %uw i.t.path)
+    =/  =id:club:c  (slav %uv i.t.path)
     cu-abet:(cu-watch:(cu-abed id) t.t.path)
   ==
 ::
@@ -215,7 +215,7 @@
     di-abet:(di-agent:(di-abed:di-core ship) t.t.wire sign)
   ::
       [%club @ *]
-    =/  =id:club:c  (slav %uw i.t.wire)
+    =/  =id:club:c  (slav %uv i.t.wire)
     cu-abet:(cu-agent:(cu-abed id) t.t.wire sign)
 
       [%chat @ @ *]
@@ -311,7 +311,7 @@
     (di-peek:(di-abed:di-core ship) t.t.t.path)
   ::
       [%x %club @ *]
-    (cu-peek:(cu-abed (slav %uw i.t.t.path)) t.t.t.path)
+    (cu-peek:(cu-abed (slav %uv i.t.t.path)) t.t.t.path)
   ::
       [%x %draft @ $@(~ [@ ~])]
     =/  =whom:c
@@ -373,7 +373,7 @@
   ++  cu-circle
     (~(uni in team.club) hive.club)
   ::
-  ++  cu-area  `wire`/club/(scot %uw id)
+  ++  cu-area  `wire`/club/(scot %uv id)
   ::
   ++  cu-pass
     |%
