@@ -209,7 +209,11 @@ export default function DMInviteInput({
     newValue: MultiValue<Option>,
     actionMeta: ActionMeta<Option>
   ) => {
-    if (['create-option', 'remove-value'].includes(actionMeta.action)) {
+    if (
+      ['create-option', 'remove-value', 'select-option'].includes(
+        actionMeta.action
+      )
+    ) {
       const validPatps = newValue.filter((o) =>
         ob.isValidPatp(preSig(o.value))
       );
