@@ -1,3 +1,4 @@
+import cookies from 'browser-cookies';
 import React, { useEffect } from 'react';
 import {
   BrowserRouter as Router,
@@ -115,6 +116,21 @@ function GroupsRoutes({ state, location }: RoutesProps) {
   );
 }
 
+function authRedirect() {
+  document.location = `${document.location.protocol}//${document.location.host}`;
+}
+
+function checkIfLoggedIn() {
+  if (!('ship' in window)) {
+    authRedirect();
+  }
+
+  const session = cookies.get(`urbauth-~${window.ship}`);
+  if (!session) {
+    authRedirect();
+  }
+}
+
 function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
@@ -122,6 +138,7 @@ function App() {
 
   useEffect(() => {
     handleError(() => {
+      checkIfLoggedIn();
       useGroupState.getState().start();
       useChatState.getState().start();
       useChatState.getState().fetchDms();
