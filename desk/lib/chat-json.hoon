@@ -349,7 +349,7 @@
   ++  club-diff
     ^-  $-(json diff:club:c)
     %-  ot
-    :~  id/ni
+    :~  echo/ni
         delta/club-delta
     ==
   ::

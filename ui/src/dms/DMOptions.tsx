@@ -6,11 +6,11 @@ import Dialog, { DialogContent } from '../components/Dialog';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import LeaveIcon from '../components/icons/LeaveIcon';
 import { useBriefs, useChatState, usePinnedChats } from '../state/chat';
-import { whomIsDm } from '../logic/utils';
 import PinIcon from '../components/icons/PinIcon';
 import BulletIcon from '../components/icons/BulletIcon';
 import InviteIcon16 from '../components/icons/InviteIcon16';
 import DmInviteDialog from './DmInviteDialog';
+import { whomIsMultiDm } from '../logic/utils';
 import MultiDMEditModal from './MultiDMEditModal';
 import SlidersIcon from '../components/icons/SlidersIcon';
 import PeopleIcon from '../components/icons/PeopleIcon';
@@ -51,7 +51,11 @@ export default function DmOptions({
   };
   const leaveMessage = () => {
     navigate('/dm');
-    useChatState.getState().dmRsvp(ship, false);
+    if (whomIsMultiDm(ship)) {
+      useChatState.getState().multiDmRsvp(ship, false);
+    } else {
+      useChatState.getState().dmRsvp(ship, false);
+    }
   };
   const closeDialog = () => {
     setDialog(false);
