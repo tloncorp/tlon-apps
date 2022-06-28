@@ -4,7 +4,7 @@ import InviteIcon from '../components/icons/InviteIcon';
 import LinkIcon from '../components/icons/LinkIcon';
 import PersonIcon from '../components/icons/PersonIcon';
 import SlidersIcon from '../components/icons/SlidersIcon';
-import { useGroupActions } from '../components/Sidebar/GroupActions';
+import { useGroupActions } from './GroupActions';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 
 interface MobileGroupActionsProps {
