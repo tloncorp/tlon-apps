@@ -78,10 +78,26 @@ export default function DmOptions({
     setEditIsOpen(true);
   };
 
+  const handleAccept = () => {
+    useChatState.getState().dmRsvp(ship, true);
+  };
+  const handleDecline = () => {
+    navigate(-1);
+    useChatState.getState().dmRsvp(ship, false);
+  };
+
+  const handleMultiAccept = () => {
+    useChatState.getState().multiDmRsvp(ship, true);
+  };
+
+  const handleMultiDecline = () => {
+    useChatState.getState().multiDmRsvp(ship, false);
+  };
+
   return (
     <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
-        <DropdownMenu.Trigger disabled={pending} asChild>
+        <DropdownMenu.Trigger asChild>
           <div className="relative h-6 w-6">
             {!isOpen && hasActivity ? (
               <BulletIcon
@@ -89,63 +105,82 @@ export default function DmOptions({
                 aria-label="Has Activity"
               />
             ) : null}
-            {!pending ? (
-              <button
-                className={cn(
-                  'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                  hasActivity && 'text-blue',
-                  isOpen ? 'opacity:100' : 'opacity-0'
-                )}
-                aria-label="Open Message Options"
-              >
-                <EllipsisIcon className="h-6 w-6" />
-              </button>
-            ) : null}
+            <button
+              className={cn(
+                'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+                hasActivity && 'text-blue',
+                isOpen ? 'opacity:100' : 'opacity-0'
+              )}
+              aria-label="Open Message Options"
+            >
+              <EllipsisIcon className="h-6 w-6" />
+            </button>
           </div>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
-          {isMulti ? null : (
+          {pending ? (
             <>
               <DropdownMenu.Item
                 className="dropdown-item flex items-center space-x-2"
-                onClick={(e) => e.preventDefault}
+                onClick={isMulti ? handleMultiAccept : handleAccept}
               >
                 <PeopleIcon className="h-6 w-6" />
-                <span>Info</span>
+                <span>Accept</span>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 className="dropdown-item flex items-center space-x-2"
-                onClick={handleEdit}
+                onClick={isMulti ? handleMultiDecline : handleDecline}
               >
-                <SlidersIcon className="h-6 w-6" />
-                <span>Edit Chat Info</span>
+                <PeopleIcon className="h-6 w-6" />
+                <span>Decline</span>
+              </DropdownMenu.Item>
+            </>
+          ) : (
+            <>
+              {isMulti ? null : (
+                <>
+                  <DropdownMenu.Item
+                    className="dropdown-item flex items-center space-x-2"
+                    onClick={(e) => e.preventDefault}
+                  >
+                    <PeopleIcon className="h-6 w-6" />
+                    <span>Info</span>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    className="dropdown-item flex items-center space-x-2"
+                    onClick={handleEdit}
+                  >
+                    <SlidersIcon className="h-6 w-6" />
+                    <span>Edit Chat Info</span>
+                  </DropdownMenu.Item>
+                </>
+              )}
+              <DropdownMenu.Item
+                className="dropdown-item flex items-center space-x-3"
+                onClick={handlePin}
+              >
+                <PinIcon className="h-4 w-4" />
+                <span>{pinned.includes(ship) ? 'Unpin' : 'Pin'}</span>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                className="dropdown-item flex items-center space-x-2"
+                onClick={handleInvite}
+              >
+                <InviteIcon16 className="h-6 w-6" />
+                <span>Invite</span>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={leaveMessage}
+                className="dropdown-item flex items-center space-x-2 text-red"
+              >
+                <LeaveIcon className="h-6 w-6 opacity-60" />
+                <span>Leave Message</span>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item className="dropdown-item" onClick={markRead}>
+                Mark Read
               </DropdownMenu.Item>
             </>
           )}
-          <DropdownMenu.Item
-            className="dropdown-item flex items-center space-x-3"
-            onClick={handlePin}
-          >
-            <PinIcon className="h-4 w-4" />
-            <span>{pinned.includes(ship) ? 'Unpin' : 'Pin'}</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className="dropdown-item flex items-center space-x-2"
-            onClick={handleInvite}
-          >
-            <InviteIcon16 className="h-6 w-6" />
-            <span>Invite</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            onSelect={leaveMessage}
-            className="dropdown-item flex items-center space-x-2 text-red"
-          >
-            <LeaveIcon className="h-6 w-6 opacity-60" />
-            <span>Leave Message</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item className="dropdown-item" onClick={markRead}>
-            Mark Read
-          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
       <Dialog open={dialog} onOpenChange={setDialog}>
