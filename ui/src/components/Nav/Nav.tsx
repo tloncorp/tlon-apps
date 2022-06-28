@@ -5,13 +5,17 @@ import MessagesSidebar from '../../dms/MessagesSidebar';
 import useNavStore from './useNavStore';
 import useIsChat from '../../logic/useIsChat';
 
-export default function Nav() {
+interface NavProps {
+  setNewGroupDialogOpen?: () => void;
+}
+
+export default function Nav({ setNewGroupDialogOpen = undefined }: NavProps) {
   const navLocation = useNavStore((s) => s.primary);
   const isChat = useIsChat();
   let selectedSidebar: ReactElement | null = isChat ? (
     <MessagesSidebar />
   ) : (
-    <Sidebar />
+    <Sidebar setNewGroupDialogOpen={setNewGroupDialogOpen} />
   );
 
   useEffect(() => {
@@ -21,7 +25,7 @@ export default function Nav() {
   }, [isChat, navLocation]);
 
   if (navLocation === 'main') {
-    selectedSidebar = <Sidebar />;
+    selectedSidebar = <Sidebar setNewGroupDialogOpen={setNewGroupDialogOpen} />;
   } else if (navLocation === 'dm') {
     selectedSidebar = <MessagesSidebar />;
   } else if (navLocation === 'group') {

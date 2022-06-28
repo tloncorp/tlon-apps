@@ -11,7 +11,11 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import useSidebarSort from '@/logic/useSidebarSort';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 
-export default function Sidebar() {
+interface SidebarProps {
+  setNewGroupDialogOpen?: () => void;
+}
+
+export default function Sidebar({ setNewGroupDialogOpen }: SidebarProps) {
   const isMobile = useIsMobile();
   const pinned = usePinnedGroups();
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
@@ -49,7 +53,7 @@ export default function Sidebar() {
           color="text-green hover:bg-green-soft hover:dark:bg-green-900"
           highlight="bg-green-soft dark:bg-green-900"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
-          to="/groups/new"
+          onClick={setNewGroupDialogOpen}
         >
           Create Group
         </SidebarItem>

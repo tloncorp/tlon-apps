@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -40,6 +40,7 @@ import Message from './dms/Message';
 import GroupAdmin from './groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from './groups/GroupAdmin/GroupMemberManager';
 import GroupInfo from './groups/GroupAdmin/GroupInfo';
+import Dialog, { DialogContent } from './components/Dialog';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -81,12 +82,19 @@ function ChatRoutes({ state, location }: RoutesProps) {
 }
 
 function GroupsRoutes({ state, location }: RoutesProps) {
+  const [newGroupDialogOpen, setNewGroupDialogOpen] = useState(false);
+
   return (
     <>
-      <Nav />
+      <Nav
+        // For now we propdrill this down to Sidebar.
+        // It's also tightly coupled to this use case.
+        // TODO: setup a generic/dry way to toggle different
+        // types of universal modals from the Nav.
+        setNewGroupDialogOpen={() => setNewGroupDialogOpen(!newGroupDialogOpen)}
+      />
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/gangs/:ship/:name" element={<Gang />} />
-        <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="info" element={<GroupAdmin />}>
@@ -117,6 +125,11 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="/gangs/:ship/:name" element={<GangModal />} />
         </Routes>
       ) : null}
+      <Dialog open={newGroupDialogOpen} onOpenChange={setNewGroupDialogOpen}>
+        <DialogContent>
+          <NewGroup />
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
