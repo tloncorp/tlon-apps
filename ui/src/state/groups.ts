@@ -12,6 +12,7 @@ import {
   GroupUpdate,
   GroupAction,
   Rank,
+  GroupPreview,
 } from '../types/groups';
 import api from '../api';
 
@@ -27,6 +28,16 @@ function groupAction(flag: string, diff: GroupDiff) {
       },
     },
   };
+}
+
+function subscribeOnce<T>(app: string, path: string) {
+  return new Promise<T>((resolve) => {
+    api.subscribe({
+      app,
+      path,
+      event: resolve,
+    });
+  });
 }
 
 interface GroupState {
@@ -109,7 +120,10 @@ export const useGroupState = create<GroupState>((set, get) => ({
   },
   search: async (flag) => {
     try {
-      const res = await api.subscribeOnce('groups', `/gangs/${flag}/preview`);
+      const res = await subscribeOnce<GroupPreview>(
+        'groups',
+        `/gangs/${flag}/preview`
+      );
       get().batchSet((draft) => {
         const gang = draft.gangs[flag] || {
           preview: null,
