@@ -86,7 +86,7 @@ export default function GroupActions({
   return (
     <div className={className}>
       <DropdownMenu.Root open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenu.Trigger asChild>
+        <DropdownMenu.Trigger asChild className="appearance-none">
           {children || (
             <div className="relative h-6 w-6">
               {!isOpen && hasActivity ? (

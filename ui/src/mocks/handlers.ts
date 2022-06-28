@@ -72,7 +72,7 @@ const groupSub = {
 const specificGroupSub = {
   action: 'subscribe',
   app: 'groups',
-  path: '/groups/:ship/name/ui',
+  path: '/groups/:ship/:name/ui',
 } as SubscriptionHandler;
 
 const briefsSub = {

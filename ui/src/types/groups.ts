@@ -12,6 +12,10 @@ export interface Cabal {
   meta: GroupMeta;
 }
 
+export interface Cabals {
+  [sect: string]: Cabal;
+}
+
 export interface Channel {
   meta: GroupMeta;
 }
@@ -46,9 +50,7 @@ export interface Group {
   fleet: {
     [ship: string]: Vessel;
   };
-  cabals: {
-    [sect: string]: Cabal;
-  };
+  cabals: Cabals;
   channels: {
     [flag: string]: Channel;
   };

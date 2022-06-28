@@ -4,7 +4,7 @@ import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
 import _ from 'lodash';
 import { ChatWhom } from '../types/chat';
-import { Rank } from '../types/groups';
+import { Cabal, Cabals, Rank } from '../types/groups';
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
@@ -138,4 +138,8 @@ export function preSig(ship: string): string {
 
 export function newUv(seed = Date.now()) {
   return formatUv(unixToDa(seed));
+}
+
+export function getSectTitle(cabals: Cabals, sect: string) {
+  return cabals[sect]?.meta.title || sect;
 }

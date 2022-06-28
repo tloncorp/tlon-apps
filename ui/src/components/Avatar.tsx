@@ -12,7 +12,7 @@ export type AvatarSizes = 'xs' | 'small' | 'default' | 'huge';
 
 interface AvatarProps {
   ship: string;
-  size: AvatarSizes;
+  size?: AvatarSizes;
   className?: string;
   icon?: boolean;
 }
@@ -121,7 +121,7 @@ function getSigilElement(
 
 export default function Avatar({
   ship,
-  size,
+  size = 'default',
   className,
   icon = true,
 }: AvatarProps) {
@@ -142,7 +142,9 @@ export default function Avatar({
     foregroundColor
   );
   if (avatar) {
-    return <img className={classNames('', classes)} src={avatar} alt="" />;
+    return (
+      <img className={classNames(className, classes)} src={avatar} alt="" />
+    );
   }
 
   return (

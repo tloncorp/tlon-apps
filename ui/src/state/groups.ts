@@ -12,6 +12,7 @@ import {
   GroupUpdate,
   GroupAction,
   Rank,
+  Vessel,
 } from '../types/groups';
 import api from '../api';
 
@@ -43,9 +44,14 @@ interface GroupState {
   gangs: Gangs;
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
+  banShips: (flag: string, ships: string[]) => Promise<void>;
+  unbanShips: (flag: string, ships: string[]) => Promise<void>;
   banRanks: (flag: string, ranks: Rank[]) => Promise<void>;
   unbanRanks: (flag: string, ranks: Rank[]) => Promise<void>;
+  addMember: (flag: string, ship: string, vessel: Vessel) => Promise<void>;
+  delMember: (flag: string, ship: string) => Promise<void>;
   addSects: (flag: string, ship: string, sects: string[]) => Promise<void>;
+  delSects: (flag: string, ship: string, sects: string[]) => Promise<void>;
   addRole: (
     flag: string,
     sect: string,
@@ -86,6 +92,28 @@ export const useGroupState = create<GroupState>((set, get) => ({
         diff: { pinned: false },
       },
     });
+  },
+  banShips: async (flag, ships) => {
+    await api.poke(
+      groupAction(flag, {
+        cordon: {
+          open: {
+            'add-ships': ships,
+          },
+        },
+      })
+    );
+  },
+  unbanShips: async (flag, ships) => {
+    await api.poke(
+      groupAction(flag, {
+        cordon: {
+          open: {
+            'del-ships': ships,
+          },
+        },
+      })
+    );
   },
   banRanks: async (flag, ranks) => {
     await api.poke(
@@ -143,12 +171,46 @@ export const useGroupState = create<GroupState>((set, get) => ({
       },
     });
   },
+  // addMember: async
   addSects: async (flag, ship, sects) => {
     const diff = {
       fleet: {
         ship,
         diff: {
           'add-sects': sects,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  delSects: async (flag, ship, sects) => {
+    const diff = {
+      fleet: {
+        ship,
+        diff: {
+          'del-sects': sects,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  addMember: async (flag, ship, vessel) => {
+    const diff = {
+      fleet: {
+        ship,
+        diff: {
+          add: vessel,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  delMember: async (flag, ship) => {
+    const diff = {
+      fleet: {
+        ship,
+        diff: {
+          del: null,
         },
       },
     };
