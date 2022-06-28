@@ -38,6 +38,7 @@
     :~  title/s/title.m
         description/s/description.m
         image/s/image.m
+        color/s/color.m
     ==
 
   ++  draft
@@ -114,7 +115,6 @@
     |=  =diff:c
     %+  frond  -.diff
     ?+  -.diff  ~
-      %draft    (story p.diff)
       %writs     (writs-diff p.diff)
     ==
   ::
@@ -168,6 +168,14 @@
           width+(numb width.b)
           alt+s+alt.b
       ==
+    ==
+  ++  crew
+    |=  cr=crew:club:c
+    %-  pairs
+    :~  team/a/(turn ~(tap in team.cr) ship)
+        hive/a/(turn ~(tap in hive.cr) ship)
+        meta/(meta met.cr)
+        net/s/net.cr
     ==
   ::
   ++  notice
@@ -350,6 +358,7 @@
     :~  title/so
         description/so
         image/so
+        color/so
     ==
   ::
   ++  club-delta
@@ -390,7 +399,6 @@
     %-  of
     :~  writs/writs-diff
         add-sects/add-sects
-        draft/story
     ==
   ::
   ++  id  

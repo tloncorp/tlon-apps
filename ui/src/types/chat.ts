@@ -155,10 +155,6 @@ interface WritDeltaDel {
   del: null;
 }
 
-interface ChatDiffDraft {
-  draft: ChatStory;
-}
-
 interface WritDeltaAddFeel {
   'add-feel': {
     time: string;
@@ -178,7 +174,7 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
-export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects | ChatDiffDraft;
+export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects;
 
 export interface ChatUpdate {
   time: Patda;
@@ -220,6 +216,11 @@ export interface Pact {
   };
 }
 
+export interface ChatDraft {
+  whom: string;
+  story: ChatStory;
+}
+
 export interface ChatBrief {
   last: number;
   count: number;
@@ -240,6 +241,11 @@ export interface ChatBriefUpdate {
 export type ChatWhom = string;
 
 // Clubs, AKA MultiDMs
+
+export interface ClubCreate {
+  id: string;
+  hive: Ship[];
+}
 export interface Hive {
   by: string;
   for: string;
@@ -258,6 +264,13 @@ interface ClubDeltaRemoveHive {
   hive: Hive & { add: false };
 }
 
+interface ClubDeltaRsvp {
+  team: {
+    ship: Ship;
+    ok: boolean;
+  };
+}
+
 interface ClubDeltaSend {
   writ: {
     id: string; // note this is the Chat ID, *not* the Club ID
@@ -271,6 +284,7 @@ export type ClubDelta =
   | ClubDeltaEditMetadata
   | ClubDeltaAddHive
   | ClubDeltaRemoveHive
+  | ClubDeltaRsvp
   | ClubDeltaSend;
 
 export type ClubDiff = {

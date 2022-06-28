@@ -23,8 +23,10 @@ import {
 import {
   ChatBriefs,
   ChatDiff,
+  ChatStory,
   ChatWhom,
-  DmAction,
+  Club,
+  ClubCreate,
   DmRsvp,
   WritDiff,
 } from '../types/chat';
@@ -54,6 +56,12 @@ const startIndexSet3 = Object.keys(chatWritsSet3).sort(sortByUd)[0];
 const set3Da = startIndexSet3;
 
 const chatWritsSet4 = makeFakeChatWrits(3);
+
+const fakeDefaultSub = {
+  action: 'subscribe',
+  app: 'chat',
+  path: '/',
+} as SubscriptionRequestInterface;
 
 const groupSub = {
   action: 'subscribe',
@@ -148,20 +156,6 @@ const chat: Handler[] = [
     func: () => chatWritsSet1,
   } as ScryHandler,
   {
-    action: 'scry',
-    app: 'chat',
-    path: `/chat/:ship/:name/draft`,
-    func: (p, api, params) => {
-      if (!params) {
-        return '';
-      }
-
-      return JSON.parse(
-        localStorage.getItem(`${params.ship}/${params.name}`) || ''
-      );
-    },
-  },
-  {
     action: 'scry' as const,
     app: 'chat',
     path: `/chat/:ship/:name/perm`,
@@ -182,12 +176,6 @@ const chat: Handler[] = [
         return createResponse(req, 'diff', req.json.update.diff.writs);
       }
 
-      if ('draft' in req.json.update.diff) {
-        localStorage.setItem(
-          req.json.flag,
-          JSON.stringify(req.json.update.diff.draft)
-        );
-      }
       return {
         id: req.id,
         ok: true,
@@ -218,11 +206,54 @@ const chat: Handler[] = [
       return {
         ...unarchived,
         ...briefs,
+        '0w20.000dc.lbOWD.veShq.7aM8c': {
+          last: 1652302200000,
+          count: 1,
+          'read-id': null,
+        },
         '~zod/test': {
           last: 1652302200000,
           count: 1,
           'read-id': null,
         },
+      };
+    },
+  },
+  {
+    action: 'scry',
+    app: 'chat',
+    path: `/draft/:ship/:name`,
+    func: (p, api, params) => {
+      if (!params) {
+        return '';
+      }
+
+      const key = params.name
+        ? `draft-${params.ship}/${params.name}`
+        : `draft-${params.ship}`;
+
+      return JSON.parse(localStorage.getItem(key) || '');
+    },
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'chat-draft',
+    returnSubscription: {
+      action: 'subscribe',
+      app: 'chat',
+      path: '/',
+    } as SubscriptionRequestInterface,
+    dataResponder: (
+      req: Message & Poke<{ whom: ChatWhom; story: ChatStory }>
+    ) => {
+      localStorage.setItem(`draft-${req.json.whom}`, JSON.stringify(req.json));
+
+      return {
+        id: req.id!,
+        ok: true,
+        response: 'diff',
+        json: req.json,
       };
     },
   },
@@ -395,14 +426,83 @@ const dms: Handler[] = [
     action: 'poke',
     app: 'chat',
     mark: 'dm-unarchive',
-    returnSubscription: {
-      action: 'subscribe',
-      app: 'chat',
-      path: '/',
-    } as SubscriptionRequestInterface,
+    returnSubscription: fakeDefaultSub,
     dataResponder: (req: Message & Poke<string>) => {
       const index = archive.indexOf(req.json);
       archive.splice(index, 1);
+
+      return createResponse(req, 'diff');
+    },
+  },
+];
+
+const clubs: { [id: string]: Club } = {
+  '0w20.000dc.lbOWD.veShq.7aM8c': {
+    team: ['~nocsyx-lassul', '~datder-sonnet'],
+    hive: ['~rilfun-lidlen', '~finned-palmer'],
+    meta: {
+      title: 'Pain Gang',
+      description: '',
+      image: '',
+      color: '',
+    },
+  },
+};
+
+const clubSub = {
+  action: 'subscribe',
+  app: 'chat',
+  path: '/club/:id/ui',
+} as SubscriptionHandler;
+
+const clubHandlers: Handler[] = [
+  clubSub,
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/club/:id/writs/newest/:count',
+    func: () => ({}),
+  },
+  {
+    action: 'subscribe',
+    app: 'chat',
+    path: '/club/:id/ui/writs',
+  },
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/club/:id/crew',
+    func: (req, api, params) => {
+      if (!params || !(params.id in clubs)) {
+        return null;
+      }
+
+      return clubs[params.id];
+    },
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'club-action',
+    returnSubscription: clubSub,
+    dataResponder: (req) => createResponse(req, 'diff', req.json),
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'club-create',
+    returnSubscription: fakeDefaultSub,
+    dataResponder: (req: Message & Poke<ClubCreate>) => {
+      clubs[req.json.id] = {
+        team: [window.our],
+        hive: req.json.hive,
+        meta: {
+          title: '',
+          description: '',
+          image: '',
+          color: '',
+        },
+      };
 
       return createResponse(req, 'diff');
     },
@@ -427,6 +527,6 @@ const mockHandlers: Handler[] = (
       }),
     },
   ] as Handler[]
-).concat(groups, chat, dms, olderChats);
+).concat(groups, chat, dms, olderChats, clubHandlers);
 
 export default mockHandlers;

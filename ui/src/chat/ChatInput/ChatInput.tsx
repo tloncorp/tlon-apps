@@ -24,6 +24,7 @@ interface ChatInputProps {
   sendDisabled?: boolean;
   newDm?: boolean;
   navigate?: NavigateFunction;
+  sendMessage: (whom: string, memo: ChatMemo) => void;
 }
 
 function convertMarkType(type: string): string {
@@ -264,8 +265,8 @@ export default function ChatInput({
   sendDisabled = false,
   newDm = false,
   navigate = undefined,
+  sendMessage,
 }: ChatInputProps) {
-  const chat = useChat(whom);
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
   const replyingWrit = replying && pact.writs.get(pact.index[replying]);
@@ -306,7 +307,7 @@ export default function ChatInput({
         },
       };
 
-      useChatState.getState().sendMessage(whom, memo);
+      sendMessage(whom, memo);
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
@@ -314,14 +315,14 @@ export default function ChatInput({
         navigate(`/dm/${whom}`);
       }
     },
-    [whom, replying, closeReply, navigate, newDm]
+    [replying, sendMessage, whom, newDm, navigate, closeReply]
   );
 
   useEffect(() => {
-    if (chat) {
+    if (whom) {
       useChatState.getState().getDraft(whom);
     }
-  }, [whom, chat]);
+  }, [whom]);
 
   const messageEditor = useMessageEditor({
     content: '',
@@ -382,7 +383,7 @@ export default function ChatInput({
               className="absolute mr-2 text-gray-600 hover:text-gray-800"
               aria-label="Add attachment"
               onClick={() => {
-                useChatState.getState().sendMessage(whom, {
+                sendMessage(whom, {
                   replying: null,
                   author: `~${window.ship || 'zod'}`,
                   sent: Date.now(),

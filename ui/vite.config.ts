@@ -5,6 +5,7 @@ import reactRefresh from '@vitejs/plugin-react-refresh';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
+import pluginRewriteAll from 'vite-plugin-rewrite-all';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -38,7 +39,7 @@ export default ({ mode }: { mode: string }) => {
       case 'staging':
       case 'chatmock':
       case 'chatstaging':
-        return [reactRefresh()];
+        return [reactRefresh(), pluginRewriteAll()];
       case 'chat':
         return [
           urbitPlugin({ base: 'chatstead', target: SHIP_URL, secure: false }),

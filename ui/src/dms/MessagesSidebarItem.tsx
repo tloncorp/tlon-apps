@@ -5,13 +5,15 @@ import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
 import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 import { ChatBrief } from '../types/chat';
-import { isDMBrief } from '../state/chat';
+import { useMultiDm } from '../state/chat';
 import { useChannel, useGroupState } from '../state/groups';
 import { useIsMobile } from '../logic/useMedia';
 import useNavStore from '../components/Nav/useNavStore';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 import BulletIcon from '../components/icons/BulletIcon';
+import MultiDmAvatar from './MultiDmAvatar';
+import { whomIsDm, whomIsMultiDm } from '../logic/utils';
 
 interface MessagesSidebarItemProps {
   whom: string;
@@ -78,14 +80,50 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
   );
 }
 
+export function MultiDMSidebarItem({
+  whom,
+  brief,
+  pending,
+}: MessagesSidebarItemProps) {
+  const isMobile = useIsMobile();
+  const navPrimary = useNavStore((state) => state.navigatePrimary);
+  const club = useMultiDm(whom);
+  const allMembers = club?.team.concat(club.hive);
+  const groupName = club?.meta.title || allMembers?.join(', ') || whom;
+
+  if (club && !allMembers?.includes(window.our)) {
+    return null;
+  }
+
+  return (
+    <SidebarItem
+      to={`/dm/${whom}`}
+      icon={
+        pending ? (
+          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue sm:h-6 sm:w-6" />
+        ) : (
+          <MultiDmAvatar size={isMobile ? 'default' : 'xs'} />
+        )
+      }
+      actions={<DmOptions ship={whom} pending={!!pending} isMulti />}
+      onClick={() => isMobile && navPrimary('hidden')}
+    >
+      {groupName}
+    </SidebarItem>
+  );
+}
+
 export default function MessagesSidebarItem({
   whom,
   brief,
   pending,
 }: MessagesSidebarItemProps) {
-  const isDM = isDMBrief(whom);
-  if (isDM) {
+  if (whomIsDm(whom)) {
     return <DMSidebarItem pending={pending} whom={whom} brief={brief} />;
+  }
+
+  if (whomIsMultiDm(whom)) {
+    return <MultiDMSidebarItem whom={whom} brief={brief} pending={pending} />;
   }
 
   return <ChannelSidebarItem whom={whom} brief={brief} />;

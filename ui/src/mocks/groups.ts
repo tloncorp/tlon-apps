@@ -27,9 +27,36 @@ function createMockGroup(title: string): Group {
         'We build infrastructre that is technically excellent, architecturally sound, and aesthetically beautiful',
       image:
         'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.6.14..18.37.11-Icon Box.png',
+      color: '',
     },
   };
 }
+const mockGroupOne: Group = {
+  fleet: {},
+  cabals: {},
+  channels: {
+    '~dev/test': {
+      meta: {
+        title: 'Watercooler',
+        description: 'watering hole',
+        image: '',
+        color: '',
+      },
+    },
+  },
+  cordon: {
+    open: {
+      ranks: ['czar'],
+      ships: ['~bus'],
+    },
+  },
+  meta: {
+    title: 'tlon',
+    description: 'the tlon corporation',
+    image: '',
+    color: '',
+  },
+};
 
 const mockGroupTwo: Group = {
   fleet: {},
@@ -40,6 +67,7 @@ const mockGroupTwo: Group = {
         title: 'Milady',
         description: 'Milady maker chatroom',
         image: '',
+        color: '',
       },
     },
   },
@@ -53,11 +81,13 @@ const mockGroupTwo: Group = {
     title: 'remco',
     description: 'The urbit group for remilia, a digital art collective',
     image: '',
+    color: '',
   },
 };
 
 const mockGroups: { [flag: string]: Group } = {
   '~zod/remco': mockGroupTwo,
+  '~dev/tlon': mockGroupOne,
 };
 
 function createChannel(title: string) {
@@ -66,6 +96,7 @@ function createChannel(title: string) {
       title,
       description: 'Do some chatting',
       image: '',
+      color: '',
     },
   };
 }
@@ -104,11 +135,12 @@ export const mockGangs: Gangs = {
           'Urbit Structural Design and Engineering Group. Always Thinking About Mechanics.',
         image:
           'https://fabled-faster.nyc3.digitaloceanspaces.com/fabled-faster/2022.1.27..17.59.43-image.png',
+        color: '',
       },
     },
   },
 };
 
-export const pinnedGroups = ['~zod/remco'];
+export const pinnedGroups = ['~zod/remco', '~dev/tlon'];
 
 export default mockGroups;

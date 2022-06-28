@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import X16Icon from '../components/icons/X16Icon';
-import DMHero from '../dms/DMHero';
+import DMHero from './DMHero';
 import { useChatState } from '../state/chat';
 import { useContact } from '../state/contact';
 
