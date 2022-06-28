@@ -15,6 +15,8 @@ import {
 } from '../types/groups';
 import api from '../api';
 
+export const GROUP_ADMIN = 'admin';
+
 function groupAction(flag: string, diff: GroupDiff) {
   return {
     app: 'groups',
@@ -326,4 +328,10 @@ export function useChannel(flag: string, channel: string): Channel | undefined {
 
 export function usePinnedGroups() {
   return useGroupState(useCallback((s: GroupState) => s.pinnedGroups, []));
+}
+
+export function useAmAdmin(flag: string) {
+  const group = useGroup(flag);
+  const vessel = group?.fleet[window.our];
+  return vessel && vessel.sects.includes(GROUP_ADMIN);
 }

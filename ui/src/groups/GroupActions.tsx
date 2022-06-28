@@ -2,15 +2,15 @@ import cn from 'classnames';
 import React, { PropsWithChildren, useCallback, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link, useLocation } from 'react-router-dom';
-import InviteIcon16 from '../icons/InviteIcon16';
-import LinkIcon16 from '../icons/LinkIcon16';
-import PinIcon16 from '../icons/PinIcon16';
-import useCopyToClipboard from '../../logic/useCopyToClipboard';
-import Person16Icon from '../icons/Person16Icon';
-import EllipsisIcon from '../icons/EllipsisIcon';
-import BulletIcon from '../icons/BulletIcon';
-import { useBriefs } from '../../state/chat';
-import { useGroupState, usePinnedGroups } from '../../state/groups';
+import InviteIcon16 from '../components/icons/InviteIcon16';
+import LinkIcon16 from '../components/icons/LinkIcon16';
+import PinIcon16 from '../components/icons/PinIcon16';
+import useCopyToClipboard from '../logic/useCopyToClipboard';
+import Person16Icon from '../components/icons/Person16Icon';
+import EllipsisIcon from '../components/icons/EllipsisIcon';
+import BulletIcon from '../components/icons/BulletIcon';
+import { useBriefs } from '../state/chat';
+import { useGroupState, usePinnedGroups } from '../state/groups';
 
 export function useGroupActions(flag: string) {
   const [_copied, doCopy] = useCopyToClipboard();
@@ -142,7 +142,7 @@ export default function GroupActions({
           <DropdownMenu.Item asChild className="dropdown-item rounded-none">
             <Link
               to={`/groups/${flag}/info`}
-              state={{ backgroundLocation: location }}
+              // state={{ backgroundLocation: location }}
               className="flex items-center space-x-2"
             >
               <Person16Icon className="m-1 h-4 w-4 text-gray-600" />

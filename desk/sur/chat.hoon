@@ -57,7 +57,7 @@
 ++  club
   =<  club
   |%
-  +$  id  @uwH
+  +$  id  @uvH
   +$  net  ?(%archive %invited %done)
   +$  club  [=pact crew]
   ::

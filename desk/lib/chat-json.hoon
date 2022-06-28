@@ -51,7 +51,7 @@
   ++  club-rsvp
     |=  r=rsvp:club:c
     %-  pairs
-    :~  id/s/(scot %uw id.r)
+    :~  id/s/(scot %uv id.r)
         ship/s/(scot %p ship.r)
         ok/b/ok.r
     ==
@@ -67,7 +67,7 @@
     ?-  -.w
       %flag  (crip "{(scow %p p.p.w)}/{(trip q.p.w)}")
       %ship  (scot %p p.w)
-      %club  (scot %uw p.w)
+      %club  (scot %uv p.w)
     ==
   ::
   ++  briefs
@@ -284,7 +284,7 @@
   ::
   ++  club-rsvp
     %-  ot
-    :~  id/(se %uw)
+    :~  id/(se %uv)
         ship/(se %p)
         ok/bo
     ==
@@ -323,7 +323,7 @@
   ++  flag  (su flag-rule)
   ++  flag-rule  ;~((glue fas) ;~(pfix sig fed:ag) sym)
   ++  club-id-rule
-    (cook |=(@ `@uw`+<) ;~(pfix (jest '0w') wiz:ag))
+    (cook |=(@ `@uv`+<) ;~(pfix (jest '0v') viz:ag))
   ++  club-id  (su club-id-rule)
   ++  action
     ^-  $-(json action:c)
@@ -335,21 +335,21 @@
   ++  club-create
     ^-  $-(json create:club:c)
     %-  ot
-    :~  id/(se %uw)
+    :~  id/(se %uv)
         hive/(as (se %p))
     ==
   ::
   ++  club-action
     ^-  $-(json action:club:c)
     %-  ot
-    :~  id/(se %uw)
+    :~  id/(se %uv)
         diff/club-diff
     ==
   ::
   ++  club-diff
     ^-  $-(json diff:club:c)
     %-  ot
-    :~  id/ni
+    :~  echo/ni
         delta/club-delta
     ==
   ::
