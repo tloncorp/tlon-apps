@@ -169,23 +169,44 @@ export default function DMInviteInput({
   );
 
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter') {
-      // case when user is typing another patp: do nothing so react-select can
-      // can add to the list of patps
-      if (selectRef.current && selectRef.current.inputRef?.value) {
-        return;
-      }
-      if (ships && ships.length > 0 && validShips) {
-        if (isMulti) {
-          await createClub();
-          navigate(`/dm/${newClubId}`);
-        } else if (fromMulti) {
-          // club already created, inviting new user to existing club
-          navigate(`/dm/${clubId}`);
-        } else {
-          navigate(`/dm/${ships[0].value}`);
+    const isInputting = !!(
+      selectRef.current && selectRef.current.inputRef?.value
+    );
+
+    switch (event.key) {
+      case 'Backspace': {
+        // case when user's in the midst of entering annother patp;
+        // Do nothing so the user can remove one of the entered characters
+        if (isInputting) {
+          return;
         }
+        // otherwise, remove the previously entered patp
+        const newShips = ships.slice();
+        newShips.pop();
+        setShips([...newShips]);
+        break;
       }
+      case 'Enter': {
+        // case when user is typing another patp: do nothing so react-select can
+        // can add to the list of patps
+        if (isInputting) {
+          return;
+        }
+        if (ships && ships.length > 0 && validShips) {
+          if (isMulti) {
+            await createClub();
+            navigate(`/dm/${newClubId}`);
+          } else if (fromMulti) {
+            // club already created, inviting new user to existing club
+            navigate(`/dm/${clubId}`);
+          } else {
+            navigate(`/dm/${ships[0].value}`);
+          }
+        }
+        break;
+      }
+      default:
+        break;
     }
   };
 
