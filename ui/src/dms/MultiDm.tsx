@@ -88,7 +88,9 @@ export default function MultiDm() {
               </div>
             </div>
           </button>
-          {canStart ? <DmOptions ship={clubId} pending={false} /> : null}
+          {canStart ? (
+            <DmOptions ship={clubId} pending={false} isMulti />
+          ) : null}
         </div>
       }
       aside={<Outlet />}
