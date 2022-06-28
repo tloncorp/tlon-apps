@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import {
@@ -22,7 +22,7 @@ import X16Icon from '../components/icons/X16Icon';
 import { newUw, preSig } from '../logic/utils';
 import Avatar from '../components/Avatar';
 import { useContacts } from '../state/contact';
-import { useChatState } from '../state/chat';
+import createClub from '../state/chat/createClub';
 
 export interface Option {
   value: string;
@@ -159,14 +159,6 @@ export default function DMInviteInput({
 
   const isMulti = ships.length > 1;
   const newClubId = useMemo(() => clubId || newUw(), [clubId]);
-  const createClub = useCallback(
-    async () =>
-      useChatState.getState().createMultiDm(
-        newClubId,
-        ships.map((s) => s.value)
-      ),
-    [newClubId, ships]
-  );
 
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
     const isInputting = !!(
@@ -194,7 +186,10 @@ export default function DMInviteInput({
         }
         if (ships && ships.length > 0 && validShips) {
           if (isMulti) {
-            await createClub();
+            await createClub(
+              newClubId,
+              ships.map((s) => s.value)
+            );
             navigate(`/dm/${newClubId}`);
           } else if (fromMulti) {
             // club already created, inviting new user to existing club
