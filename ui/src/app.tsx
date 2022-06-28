@@ -17,7 +17,7 @@ import Members from './pages/Members';
 import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
-import api from './api';
+import api, { IS_MOCK } from './api';
 import Dms from './pages/Dms';
 import Search from './pages/Search';
 import NewDM from './pages/NewDm';
@@ -121,6 +121,10 @@ function authRedirect() {
 }
 
 function checkIfLoggedIn() {
+  if (IS_MOCK) {
+    return;
+  }
+
   if (!('ship' in window)) {
     authRedirect();
   }
