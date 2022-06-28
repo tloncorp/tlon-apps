@@ -15,7 +15,7 @@ import Divider from '../Divider';
 import GangName from '../../groups/GangName/GangName';
 import GroupAvatar from '../../groups/GroupAvatar';
 import useNavStore from '../Nav/useNavStore';
-import GroupActions from './GroupActions';
+import GroupActions from '../../groups/GroupActions';
 import SidebarItem from './SidebarItem';
 import { useIsMobile } from '../../logic/useMedia';
 import { SettingsState, useSettingsState } from '../../state/settings';

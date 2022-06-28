@@ -6,6 +6,11 @@ const emptyVessel = (): Vessel => ({
   joined: Date.now(),
 });
 
+const adminVessel = (): Vessel => ({
+  sects: ['admin'],
+  joined: Date.now(),
+});
+
 function createMockGroup(title: string): Group {
   return {
     fleet: {
@@ -32,7 +37,9 @@ function createMockGroup(title: string): Group {
   };
 }
 const mockGroupOne: Group = {
-  fleet: {},
+  fleet: {
+    '~finned-palmer': adminVessel(),
+  },
   cabals: {},
   channels: {
     '~dev/test': {
@@ -59,7 +66,9 @@ const mockGroupOne: Group = {
 };
 
 const mockGroupTwo: Group = {
-  fleet: {},
+  fleet: {
+    '~finned-palmer': adminVessel(),
+  },
   cabals: {},
   channels: {
     '~zod/test': {

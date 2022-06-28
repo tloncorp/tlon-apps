@@ -52,3 +52,7 @@
 .dropdown-item {
   @apply cursor-pointer rounded-lg px-2 py-3 ring-gray-200 focus:outline-none focus-visible:ring-2;
 }
+
+.card {
+  @apply w-full rounded-xl bg-white p-6;
+}

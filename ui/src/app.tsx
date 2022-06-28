@@ -8,7 +8,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
-import Groups from './pages/Groups';
+import Groups from './groups/Groups';
 import Channel from './pages/Channel';
 import { useGroupState } from './state/groups';
 import NewGroup from './pages/NewGroup';
@@ -37,6 +37,9 @@ import Nav from './components/Nav/Nav';
 import GroupInfoDialog from './groups/GroupInfoDialog';
 import GroupInviteDialog from './groups/GroupInviteDialog';
 import Message from './dms/Message';
+import GroupAdmin from './groups/GroupAdmin/GroupAdmin';
+import GroupMemberManager from './groups/GroupAdmin/GroupMemberManager';
+import GroupInfo from './groups/GroupAdmin/GroupInfo';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -86,9 +89,11 @@ function GroupsRoutes({ state, location }: RoutesProps) {
         <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
-          <Route path="members" element={<Members />} />
-          <Route path="roles" element={<Roles />} />
-          <Route path="policy" element={<Policy />} />
+          <Route path="info" element={<GroupAdmin />}>
+            <Route index element={<GroupInfo />} />
+            <Route path="members" element={<GroupMemberManager />} />
+            <Route path="applets" element={<div />} />
+          </Route>
           <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
             <Route
               path="message/:idShip/:idTime"

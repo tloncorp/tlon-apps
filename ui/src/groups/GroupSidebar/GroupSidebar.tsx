@@ -10,9 +10,8 @@ import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
 import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
 import SidebarItem from '../../components/Sidebar/SidebarItem';
-import GroupOptionsDropdown from '../GroupInfoDialog';
 import GroupAvatar from '../GroupAvatar';
-import GroupActions from '../../components/Sidebar/GroupActions';
+import GroupActions from '../GroupActions';
 
 export default function GroupSidebar() {
   const flag = useNavStore((state) => state.flag);
