@@ -321,7 +321,6 @@ export const useChatState = create<ChatState>((set, get) => ({
       api.poke(dmAction(whom, { add: memo }));
     } else {
       const id = makeId();
-      console.log(id, memo);
       api.poke(chatWritDiff(whom, id, diff));
     }
   },

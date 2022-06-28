@@ -209,11 +209,14 @@ export default function DmOptions({
           </div>
         </DialogContent>
       </Dialog>
-      <DmInviteDialog
-        inviteIsOpen={inviteIsOpen}
-        setInviteIsOpen={setInviteIsOpen}
-      />
       <MultiDMEditModal editIsOpen={editIsOpen} setEditIsOpen={setEditIsOpen} />
+      {isMulti ? (
+        <DmInviteDialog
+          inviteIsOpen={inviteIsOpen}
+          setInviteIsOpen={setInviteIsOpen}
+          whom={ship}
+        />
+      ) : null}
     </>
   );
 }

@@ -1,3 +1,4 @@
+import cookies from 'browser-cookies';
 import React, { useEffect } from 'react';
 import {
   BrowserRouter as Router,
@@ -16,7 +17,7 @@ import Members from './pages/Members';
 import Roles from './pages/Roles';
 import { useChatState } from './state/chat';
 import ChannelSettings from './pages/ChannelSettings';
-import api from './api';
+import api, { IS_MOCK } from './api';
 import Dms from './pages/Dms';
 import Search from './pages/Search';
 import NewDM from './pages/NewDm';
@@ -115,6 +116,25 @@ function GroupsRoutes({ state, location }: RoutesProps) {
   );
 }
 
+function authRedirect() {
+  document.location = `${document.location.protocol}//${document.location.host}`;
+}
+
+function checkIfLoggedIn() {
+  if (IS_MOCK) {
+    return;
+  }
+
+  if (!('ship' in window)) {
+    authRedirect();
+  }
+
+  const session = cookies.get(`urbauth-~${window.ship}`);
+  if (!session) {
+    authRedirect();
+  }
+}
+
 function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
@@ -122,6 +142,7 @@ function App() {
 
   useEffect(() => {
     handleError(() => {
+      checkIfLoggedIn();
       useGroupState.getState().start();
       useChatState.getState().start();
       useChatState.getState().fetchDms();
