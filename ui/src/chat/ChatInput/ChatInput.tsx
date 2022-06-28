@@ -3,7 +3,7 @@ import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { NavigateFunction } from 'react-router';
-import { useChatState, useChatDraft, useChat, usePact } from '../../state/chat';
+import { useChatState, useChatDraft, usePact } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatStory } from '../../types/chat';
 import MessageEditor, {
   useMessageEditor,
@@ -15,6 +15,8 @@ import X16Icon from '../../components/icons/X16Icon';
 import { useChatStore } from '../useChatStore';
 import ChatInputMenu from '../ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '../../logic/useMedia';
+import { whomIsMultiDm } from '../../logic/utils';
+import createClub from '../../state/chat/createClub';
 
 interface ChatInputProps {
   whom: string;
@@ -25,6 +27,7 @@ interface ChatInputProps {
   newDm?: boolean;
   navigate?: NavigateFunction;
   sendMessage: (whom: string, memo: ChatMemo) => void;
+  ships?: string[];
 }
 
 function convertMarkType(type: string): string {
@@ -266,6 +269,7 @@ export default function ChatInput({
   newDm = false,
   navigate = undefined,
   sendMessage,
+  ships,
 }: ChatInputProps) {
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
@@ -288,7 +292,7 @@ export default function ChatInput({
   );
 
   const onSubmit = useCallback(
-    (editor: Editor) => {
+    async (editor: Editor) => {
       if (!editor.getText()) {
         return;
       }
@@ -307,6 +311,9 @@ export default function ChatInput({
         },
       };
 
+      if (newDm && whomIsMultiDm(whom) && ships) {
+        await createClub(whom, ships);
+      }
       sendMessage(whom, memo);
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
@@ -315,7 +322,7 @@ export default function ChatInput({
         navigate(`/dm/${whom}`);
       }
     },
-    [replying, sendMessage, whom, newDm, navigate, closeReply]
+    [replying, newDm, whom, ships, sendMessage, navigate, closeReply]
   );
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import {
@@ -12,15 +12,17 @@ import {
   MultiValueGenericProps,
   MultiValue,
   ActionMeta,
+  GroupBase,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
+import Select from 'react-select/dist/declarations/src/Select';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
 import X16Icon from '../components/icons/X16Icon';
 import { newUv, preSig } from '../logic/utils';
 import Avatar from '../components/Avatar';
 import { useContacts } from '../state/contact';
-import { useChatState } from '../state/chat';
+import createClub from '../state/chat/createClub';
 
 export interface Option {
   value: string;
@@ -141,6 +143,9 @@ export default function DMInviteInput({
   fromMulti = false,
   clubId,
 }: DmInviteInputProps) {
+  const selectRef = useRef<Select<Option, true, GroupBase<Option>> | null>(
+    null
+  );
   const contacts = useContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
@@ -154,29 +159,49 @@ export default function DMInviteInput({
 
   const isMulti = ships.length > 1;
   const newClubId = useMemo(() => clubId || newUv(), [clubId]);
-  const createClub = useCallback(
-    async () =>
-      useChatState.getState().createMultiDm(
-        newClubId,
-        ships.map((s) => s.value)
-      ),
-    [newClubId, ships]
-  );
 
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
-    // TODO: handle case when adding another ship in follow-up PR
-    // specifically, it would be nice UX to type in a patp, have enter add it to
-    // to the list of chiclets, instead of having to click the dropdown
-    if (event.key === 'Enter' && ships && ships.length > 0 && validShips) {
-      if (isMulti) {
-        await createClub();
-        navigate(`/dm/${newClubId}`);
-      } else if (fromMulti) {
-        // club already created, inviting new user to existing club
-        navigate(`/dm/${clubId}`);
-      } else {
-        navigate(`/dm/${ships[0].value}`);
+    const isInputting = !!(
+      selectRef.current && selectRef.current.inputRef?.value
+    );
+
+    switch (event.key) {
+      case 'Backspace': {
+        // case when user's in the midst of entering annother patp;
+        // Do nothing so the user can remove one of the entered characters
+        if (isInputting) {
+          return;
+        }
+        // otherwise, remove the previously entered patp
+        const newShips = ships.slice();
+        newShips.pop();
+        setShips([...newShips]);
+        break;
       }
+      case 'Enter': {
+        // case when user is typing another patp: do nothing so react-select can
+        // can add to the list of patps
+        if (isInputting) {
+          return;
+        }
+        if (ships && ships.length > 0 && validShips) {
+          if (isMulti) {
+            await createClub(
+              newClubId,
+              ships.map((s) => s.value)
+            );
+            navigate(`/dm/${newClubId}`);
+          } else if (fromMulti) {
+            // club already created, inviting new user to existing club
+            navigate(`/dm/${clubId}`);
+          } else {
+            navigate(`/dm/${ships[0].value}`);
+          }
+        }
+        break;
+      }
+      default:
+        break;
     }
   };
 
@@ -184,7 +209,11 @@ export default function DMInviteInput({
     newValue: MultiValue<Option>,
     actionMeta: ActionMeta<Option>
   ) => {
-    if (['create-option', 'remove-value'].includes(actionMeta.action)) {
+    if (
+      ['create-option', 'remove-value', 'select-option'].includes(
+        actionMeta.action
+      )
+    ) {
       const validPatps = newValue.filter((o) =>
         ob.isValidPatp(preSig(o.value))
       );
@@ -194,6 +223,7 @@ export default function DMInviteInput({
 
   return (
     <CreatableSelect
+      ref={selectRef}
       formatCreateLabel={AddNonContactShip}
       autoFocus
       isMulti

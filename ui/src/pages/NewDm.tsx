@@ -36,6 +36,7 @@ export default function NewDM() {
             newDm
             navigate={navigate}
             sendMessage={sendMessage}
+            ships={ships.map((o) => o.value)}
           />
         </div>
       }
