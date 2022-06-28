@@ -4,7 +4,7 @@ import ob from 'urbit-ob';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
 import DMInviteInput, { Option } from '../dms/DMInviteInput';
-import { newUw } from '../logic/utils';
+import { newUv } from '../logic/utils';
 import { useChatState } from '../state/chat';
 import useSendMultiDm from '../state/chat/useSendMultiDm';
 
@@ -13,7 +13,7 @@ export default function NewDM() {
   const isMultiDm = ships.length > 1;
   const navigate = useNavigate();
   const validShips = ships.every((ship) => ob.isValidPatp(ship.value));
-  const newClubId = useMemo(() => newUw(), []);
+  const newClubId = useMemo(() => newUv(), []);
   const { sendMessage: sendChat } = useChatState.getState();
   const sendMultiDm = useSendMultiDm(newClubId);
   const sendMessage = isMultiDm ? sendMultiDm : sendChat;
