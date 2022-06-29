@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
@@ -10,13 +10,12 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import useSidebarSort from '@/logic/useSidebarSort';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
+import Dialog, { DialogContent } from '@/components/Dialog';
+import NewGroup from '@/pages/NewGroup';
 
-interface SidebarProps {
-  setNewGroupDialogOpen?: () => void;
-}
-
-export default function Sidebar({ setNewGroupDialogOpen }: SidebarProps) {
+export default function Sidebar() {
   const isMobile = useIsMobile();
+  const [newGroupDialogOpen, setNewGroupDialogOpen] = useState(false);
   const pinned = usePinnedGroups();
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get notification count from hark store
@@ -53,7 +52,7 @@ export default function Sidebar({ setNewGroupDialogOpen }: SidebarProps) {
           color="text-green hover:bg-green-soft hover:dark:bg-green-900"
           highlight="bg-green-soft dark:bg-green-900"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
-          onClick={setNewGroupDialogOpen}
+          onClick={() => setNewGroupDialogOpen(!newGroupDialogOpen)}
         >
           Create Group
         </SidebarItem>
@@ -70,6 +69,11 @@ export default function Sidebar({ setNewGroupDialogOpen }: SidebarProps) {
         </li>
       </ul>
       <GroupList className="flex-1 overflow-x-hidden overflow-y-scroll pr-0" />
+      <Dialog open={newGroupDialogOpen} onOpenChange={setNewGroupDialogOpen}>
+        <DialogContent>
+          <NewGroup />
+        </DialogContent>
+      </Dialog>
     </nav>
   );
 }

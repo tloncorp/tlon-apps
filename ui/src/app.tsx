@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -11,7 +11,6 @@ import { ErrorBoundary } from 'react-error-boundary';
 import Groups from './groups/Groups';
 import Channel from './pages/Channel';
 import { useGroupState } from './state/groups';
-import NewGroup from './pages/NewGroup';
 import NewChannel from './pages/NewChannel';
 import Members from './pages/Members';
 import Roles from './pages/Roles';
@@ -40,7 +39,6 @@ import Message from './dms/Message';
 import GroupAdmin from './groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from './groups/GroupAdmin/GroupMemberManager';
 import GroupInfo from './groups/GroupAdmin/GroupInfo';
-import Dialog, { DialogContent } from './components/Dialog';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -82,17 +80,9 @@ function ChatRoutes({ state, location }: RoutesProps) {
 }
 
 function GroupsRoutes({ state, location }: RoutesProps) {
-  const [newGroupDialogOpen, setNewGroupDialogOpen] = useState(false);
-
   return (
     <>
-      <Nav
-        // For now we propdrill this down to Sidebar.
-        // It's also tightly coupled to this use case.
-        // TODO: setup a generic/dry way to toggle different
-        // types of universal modals from the Nav.
-        setNewGroupDialogOpen={() => setNewGroupDialogOpen(!newGroupDialogOpen)}
-      />
+      <Nav />
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/gangs/:ship/:name" element={<Gang />} />
         <Route path="/groups/join" element={<JoinGroup />} />
@@ -125,11 +115,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="/gangs/:ship/:name" element={<GangModal />} />
         </Routes>
       ) : null}
-      <Dialog open={newGroupDialogOpen} onOpenChange={setNewGroupDialogOpen}>
-        <DialogContent>
-          <NewGroup />
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
