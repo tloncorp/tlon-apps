@@ -2,16 +2,16 @@ import React, { ReactElement } from 'react';
 import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { useGroupState } from '../../state/groups';
-import MetadataForm from '../../components/MetadataForm/MetadataForm';
 import { strToSym } from '../../logic/utils';
 import useStep from '../../logic/useStep';
 import TemplateOrScratch from './TemplateOrScratch';
+import NewGroupForm from './NewGroupForm';
 
 interface NewGroupProps {
   close: () => void;
 }
 
-interface FormSchema {
+interface NewGroupFormSchema {
   title: string;
   description: string;
   image: string;
@@ -21,14 +21,16 @@ interface FormSchema {
 export default function NewGroup({ close }: NewGroupProps) {
   const navigate = useNavigate();
   const [currentStep, { goToNextStep, goToPrevStep }] = useStep(4);
-  const defaultValues: FormSchema = {
+  const defaultValues: NewGroupFormSchema = {
     title: '',
     description: '',
     image: '',
     color: '',
   };
-  const { handleSubmit, register } = useForm<FormSchema>({ defaultValues });
-  const onSubmit = async (values: FormSchema) => {
+  const { handleSubmit, register } = useForm<NewGroupFormSchema>({
+    defaultValues,
+  });
+  const onSubmit = async (values: NewGroupFormSchema) => {
     const name = strToSym(values.title);
     await useGroupState.getState().create({ ...values, name });
     const flag = `${window.our}/${name}`;
@@ -47,7 +49,7 @@ export default function NewGroup({ close }: NewGroupProps) {
       currentStepComponent = <TemplateOrScratch next={nextWithTemplate} />;
       break;
     case 2:
-      currentStepComponent = <span>Second</span>;
+      currentStepComponent = <NewGroupForm register={register} />;
       break;
     case 3:
       currentStepComponent = <span>Third</span>;
@@ -82,11 +84,4 @@ export default function NewGroup({ close }: NewGroupProps) {
       </div>
     </div>
   );
-
-  // return (
-  // <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
-  // <MetadataForm register={register} />
-  // <button type="submit">Submit</button>
-  // </form>
-  // );
 }
