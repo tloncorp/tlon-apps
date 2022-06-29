@@ -34,7 +34,7 @@
     |=  d=diff:g
     %+  frond  -.d
     ?-    -.d
-      %fleet    (pairs ship/(ship p.d) diff/(fleet-diff q.d) ~)
+      %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
       %channel  (pairs flag/s/(flag p.d) diff/(channel-diff q.d) ~)
       %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
       %bloc     (bloc-diff p.d)
@@ -285,7 +285,7 @@
   ++  diff
     %-  of
     :~  cabal/(ot sect/sym diff/cabal-diff ~)
-        fleet/(ot ship/ship diff/fleet-diff ~)
+        fleet/(ot ships/(as ship) diff/fleet-diff ~)
         cordon/cordon-diff
         channel/(ot flag/flag diff/channel-diff ~)
     ==

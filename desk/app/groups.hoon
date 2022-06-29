@@ -365,12 +365,30 @@
       ?>  ?=(%open -.cordon) 
       ?-  -.diff
       ::
-          %add-ships  
+          %add-ships
+        =.  fleet.group
+        %-  malt
+          %+  skip 
+            ~(tap by fleet.group)
+          |=  [=ship =vessel]
+          (~(has in p.diff) ship)
+        %+  go-give-update
+          now.bowl
+        [%fleet [p.diff [%del ~]]]
         cordon(ships.ban (~(uni in ships.ban.cordon) p.diff))
       ::
           %del-ships 
         cordon(ships.ban (~(dif in ships.ban.cordon) p.diff))
           %add-ranks
+        =/  ships
+          %+  skip 
+            ~(tap by fleet.group)
+          |=  [=ship =vessel]
+          (~(has in p.diff) (clan:title ship))
+        =.  fleet.group  (malt ships)
+        %+  go-give-update
+          now.bowl
+        [%fleet [(turn ships |=([=ship =vessel] ship)) [%del ~]]]
         cordon(ranks.ban (~(uni in ranks.ban.cordon) p.diff))
           %del-ranks
         cordon(ranks.ban (~(dif in ranks.ban.cordon) p.diff))
@@ -404,22 +422,32 @@
     ==
   ::
   ++  go-fleet-update
-    |=  [=ship =diff:fleet:g]
+    |=  [ships=(set ship) =diff:fleet:g]
     ^+  go-core
     ?-    -.diff
         %add
-      =?  joined.vessel.diff  =(p.flag our.bowl)
-        now.bowl
-      ?>  ?|  =(p.flag src.bowl) :: subscription
-              ?&  =(ship src.bowl)  :: user join
-                  =(~ sects.vessel.diff) :: cannot ask for perms
-          ==  ==
-      =.  fleet.group  (~(put by fleet.group) ship vessel.diff)
+      =.  fleet.group
+      %-  ~(uni by fleet.group)
+        %-  ~(run in ships)
+        |=  =ship
+        ?>  ?|  =(p.flag our.bowl) :: self
+                =(p.flag src.bowl) :: subscription
+                =(ship src.bowl)  :: user join
+            ==
+        [ship [sects=~ joined=now.bowl]]
       go-core
     ::
         %del
+      %-  ~(run in ships)
+      |=  =ship
       ?>  ?|(=(p.flag src.bowl) =(ship src.bowl))
-      =.  fleet.group  (~(del by fleet.group) ship)
+      ship
+      =.  fleet.group
+      %-  malt
+        %+  skip 
+          ~(tap by fleet.group)
+        |=  [=ship =vessel]
+        (~(has in ships) ship)
       go-core
     ::
         %add-sects
