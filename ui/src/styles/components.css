@@ -7,7 +7,7 @@
 }
 
 .small-button {
-  @apply inline-flex h-6 items-center justify-center rounded-md bg-gray-800 py-1 px-2 text-sm font-semibold leading-4 text-white ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:text-base;
+  @apply inline-flex h-6 items-center justify-center rounded-md bg-gray-800 py-1 px-2 text-sm font-semibold leading-4 text-white ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400;
 }
 
 .icon-button {
