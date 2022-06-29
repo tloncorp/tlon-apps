@@ -31,6 +31,7 @@ export default function NewGroup({ close }: NewGroupProps) {
     handleSubmit,
     register,
     formState: { errors, isValid },
+    watch,
   } = useForm<NewGroupFormSchema>({
     defaultValues,
     mode: 'onBlur',
@@ -55,7 +56,12 @@ export default function NewGroup({ close }: NewGroupProps) {
       break;
     case 2:
       currentStepComponent = (
-        <NewGroupForm register={register} errors={errors} />
+        <NewGroupForm
+          register={register}
+          errors={errors}
+          watch={watch}
+          isValid={isValid}
+        />
       );
       break;
     case 3:
