@@ -27,8 +27,13 @@ export default function NewGroup({ close }: NewGroupProps) {
     image: '',
     color: '',
   };
-  const { handleSubmit, register } = useForm<NewGroupFormSchema>({
+  const {
+    handleSubmit,
+    register,
+    formState: { errors, isValid },
+  } = useForm<NewGroupFormSchema>({
     defaultValues,
+    mode: 'onBlur',
   });
   const onSubmit = async (values: NewGroupFormSchema) => {
     const name = strToSym(values.title);
@@ -49,7 +54,9 @@ export default function NewGroup({ close }: NewGroupProps) {
       currentStepComponent = <TemplateOrScratch next={nextWithTemplate} />;
       break;
     case 2:
-      currentStepComponent = <NewGroupForm register={register} />;
+      currentStepComponent = (
+        <NewGroupForm register={register} errors={errors} />
+      );
       break;
     case 3:
       currentStepComponent = <span>Third</span>;
@@ -63,25 +70,29 @@ export default function NewGroup({ close }: NewGroupProps) {
   }
 
   return (
-    <div className="flex flex-col">
+    <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
       <div>{currentStepComponent}</div>
-      <div>
+      <div className="flex justify-end space-x-2 pt-4">
         {currentStep !== 1 ? (
           <button className="secondary-button" onClick={goToPrevStep}>
             Back
           </button>
         ) : null}
         {currentStep !== 4 && currentStep !== 1 ? (
-          <button className="button" onClick={goToNextStep}>
+          <button
+            disabled={currentStep === 2 && !isValid}
+            className="button"
+            onClick={goToNextStep}
+          >
             Next
           </button>
         ) : null}
         {currentStep === 4 ? (
-          <button className="button" onClick={close}>
+          <button className="button" type="submit" onClick={close}>
             Done
           </button>
         ) : null}
       </div>
-    </div>
+    </form>
   );
 }

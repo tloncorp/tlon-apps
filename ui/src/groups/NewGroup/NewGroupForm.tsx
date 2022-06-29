@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UseFormRegister } from 'react-hook-form';
+import { FieldError, UseFormRegister } from 'react-hook-form';
 
 interface NewGroupFormSchema {
   title: string;
@@ -10,8 +10,10 @@ interface NewGroupFormSchema {
 
 export default function NewGroupForm({
   register,
+  errors,
 }: {
   register: UseFormRegister<NewGroupFormSchema>;
+  errors: Record<string, FieldError>;
 }) {
   const [iconType, setIconType] = useState<'image' | 'color'>();
 
@@ -45,7 +47,11 @@ export default function NewGroupForm({
           ) : null}
           {iconType === 'image' ? (
             <>
-              <input className="input" {...register('image')} type="url" />
+              <input
+                className="input"
+                {...register('image', { required: true })}
+                type="url"
+              />
               <button
                 className="secondary-button"
                 onClick={() => setIconType(undefined)}
@@ -56,7 +62,17 @@ export default function NewGroupForm({
           ) : null}
           {iconType === 'color' ? (
             <>
-              <input className="input" {...register('color')} type="text" />
+              <input
+                className="input"
+                {...register('color', {
+                  required: true,
+                  pattern: {
+                    value: /^#[0-9a-f]{3,6}$/i,
+                    message: 'Please use a valid hex color code.',
+                  },
+                })}
+                type="text"
+              />
               <button
                 className="secondary-button"
                 onClick={() => setIconType(undefined)}
@@ -65,6 +81,9 @@ export default function NewGroupForm({
               </button>
             </>
           ) : null}
+          {errors.color ? (
+            <span className="text-sm">{errors.color.message}</span>
+          ) : null}
         </div>
       </div>
       <div className="flex flex-col">
@@ -72,7 +91,8 @@ export default function NewGroupForm({
           Group Name *
         </label>
         <input
-          {...register('title')}
+          // TODO: set sane maxLength
+          {...register('title', { required: true, maxLength: 180 })}
           className="input"
           type="text"
           placeholder="Title"
@@ -82,7 +102,11 @@ export default function NewGroupForm({
         <label htmlFor="description" className="pb-2 font-bold">
           Group Description (optional)
         </label>
-        <input {...register('description')} className="input" type="textarea" />
+        <textarea
+          // TODO: set sane maxLength
+          {...register('description', { maxLength: 300 })}
+          className="input"
+        />
       </div>
     </div>
   );
