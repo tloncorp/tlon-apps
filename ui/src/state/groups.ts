@@ -13,6 +13,7 @@ import {
   GroupAction,
   Rank,
   Vessel,
+  Fleet,
 } from '../types/groups';
 import api from '../api';
 
@@ -175,7 +176,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
   addSects: async (flag, ship, sects) => {
     const diff = {
       fleet: {
-        ship,
+        ships: [ship],
         diff: {
           'add-sects': sects,
         },
@@ -186,7 +187,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
   delSects: async (flag, ship, sects) => {
     const diff = {
       fleet: {
-        ship,
+        ships: [ship],
         diff: {
           'del-sects': sects,
         },
@@ -194,12 +195,12 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  addMember: async (flag, ship, vessel) => {
+  addMember: async (flag, ship) => {
     const diff = {
       fleet: {
-        ship,
+        ships: [ship],
         diff: {
-          add: vessel,
+          add: null,
         },
       },
     };
@@ -208,7 +209,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
   delMember: async (flag, ship) => {
     const diff = {
       fleet: {
-        ship,
+        ships: [ship],
         diff: {
           del: null,
         },
@@ -297,26 +298,42 @@ export const useGroupState = create<GroupState>((set, get) => ({
             });
           }
         } else if ('fleet' in diff) {
-          const { ship, diff: d } = diff.fleet;
+          const { ships, diff: d } = diff.fleet;
           if ('add' in d) {
             get().batchSet((draft) => {
-              draft.groups[flag].fleet[ship] = d.add;
+              draft.groups[flag].fleet = {
+                ...draft.groups[flag].fleet,
+                ...ships.reduce((fleet, ship) => {
+                  // eslint-disable-next-line no-param-reassign
+                  fleet[ship] = {
+                    joined: Date.now(),
+                    sects: [],
+                  };
+                  return fleet;
+                }, {} as Fleet),
+              };
             });
           } else if ('del' in d) {
             get().batchSet((draft) => {
-              delete draft.groups[flag].fleet[ship];
+              ships.forEach((ship) => {
+                delete draft.groups[flag].fleet[ship];
+              });
             });
           } else if ('add-sects' in d) {
             get().batchSet((draft) => {
-              const vessel = draft.groups[flag].fleet[ship];
-              vessel.sects = [...vessel.sects, ...d['add-sects']];
+              ships.forEach((ship) => {
+                const vessel = draft.groups[flag].fleet[ship];
+                vessel.sects = [...vessel.sects, ...d['add-sects']];
+              });
             });
           } else if ('del-sects' in d) {
             get().batchSet((draft) => {
-              const vessel = draft.groups[flag].fleet[ship];
-              vessel.sects = vessel.sects.filter(
-                (s) => !d['del-sects'].includes(s)
-              );
+              ships.forEach((ship) => {
+                const vessel = draft.groups[flag].fleet[ship];
+                vessel.sects = vessel.sects.filter(
+                  (s) => !d['del-sects'].includes(s)
+                );
+              });
             });
           }
         } else if ('cabal' in diff) {

@@ -47,9 +47,7 @@ export interface AfarCordon {
 export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 
 export interface Group {
-  fleet: {
-    [ship: string]: Vessel;
-  };
+  fleet: Fleet;
   cabals: Cabals;
   channels: {
     [flag: string]: Channel;
@@ -58,8 +56,12 @@ export interface Group {
   meta: GroupMeta;
 }
 
+export interface Fleet {
+  [ship: string]: Vessel;
+}
+
 interface FleetDiffAdd {
-  add: Vessel;
+  add: null;
 }
 interface FleetDiffDel {
   del: null;
@@ -75,7 +77,7 @@ interface FleetDiffDelSects {
 
 interface FleetDiff {
   fleet: {
-    ship: string;
+    ships: string[];
     diff: FleetDiffAdd | FleetDiffDel | FleetDiffAddSects | FleetDiffDelSects;
   };
 }
