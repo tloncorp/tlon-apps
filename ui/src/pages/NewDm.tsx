@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
-import DMInviteInput, { Option } from '../dms/DMInviteInput';
+import DMInviteInput from '../dms/DMInviteInput';
+import ShipOption from '../dms/DMInviteInput/ShipOption';
 import { newUv } from '../logic/utils';
 import { useChatState } from '../state/chat';
 import useSendMultiDm from '../state/chat/useSendMultiDm';
 
 export default function NewDM() {
-  const [ships, setShips] = useState<Option[]>([]);
+  const [ships, setShips] = useState<ShipOption[]>([]);
   const isMultiDm = ships.length > 1;
   const navigate = useNavigate();
   const validShips = ships.every((ship) => ob.isValidPatp(ship.value));

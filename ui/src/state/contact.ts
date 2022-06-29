@@ -134,8 +134,10 @@ const useContactState = createState<BaseContactState>(
   ]
 );
 
+const selContacts = (s: BaseContactState) => s.contacts;
 export function useContacts() {
-  return useContactState(useCallback((s) => s.contacts, []));
+  console.log('useContacts');
+  return useContactState(selContacts);
 }
 
 export function useContact(ship: string) {

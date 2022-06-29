@@ -4,7 +4,6 @@ import ob from 'urbit-ob';
 import {
   components,
   ControlProps,
-  OptionProps,
   MenuProps,
   MenuListProps,
   InputProps,
@@ -20,23 +19,23 @@ import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
 import X16Icon from '../components/icons/X16Icon';
 import { newUv, preSig } from '../logic/utils';
-import Avatar from '../components/Avatar';
 import { useContacts } from '../state/contact';
 import createClub from '../state/chat/createClub';
-
-export interface Option {
-  value: string;
-  label: string;
-}
+import { DM_INPUT_CONTACTS_LIMIT } from '../constants';
+import mockContacts from '../mocks/contacts';
+import ShipMenuOption from './DMInviteInput/ShipMenuOption';
+import ShipOption from './DMInviteInput/ShipOption';
+import ShipOptionScroller from './ShipNameScroller/ShipOptionScroller';
+import { IShipOptionRenderer } from './ShipNameScroller/IShipOptionRender';
 
 interface DmInviteInputProps {
-  ships: Option[];
-  setShips: React.Dispatch<React.SetStateAction<Option[]>>;
+  ships: ShipOption[];
+  setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
   fromMulti?: boolean;
   clubId?: string;
 }
 
-function Control({ children, ...props }: ControlProps<Option, true>) {
+function Control({ children, ...props }: ControlProps<ShipOption, true>) {
   return (
     <components.Control
       {...props}
@@ -45,25 +44,6 @@ function Control({ children, ...props }: ControlProps<Option, true>) {
       <MagnifyingGlass className="h-6 w-6 text-gray-300" />
       {children}
     </components.Control>
-  );
-}
-
-function ShipName({ data, ...props }: OptionProps<Option, true>) {
-  const { value, label } = data;
-  return (
-    <components.Option data={data} className="hover:cursor-pointer" {...props}>
-      <div className="flex items-center space-x-1">
-        {ob.isValidPatp(preSig(value)) ? (
-          <Avatar ship={preSig(value)} size="xs" />
-        ) : (
-          <div className="h-6 w-6 rounded bg-white" />
-        )}
-        <span className="font-semibold">{preSig(value)}</span>
-        {label ? (
-          <span className="font-semibold text-gray-300">{label}</span>
-        ) : null}
-      </div>
-    </components.Option>
   );
 }
 
@@ -83,7 +63,7 @@ function AddNonContactShip(value: string) {
 function ShipTagLabelContainer({
   children,
   ...props
-}: MultiValueGenericProps<Option, true>) {
+}: MultiValueGenericProps<ShipOption, true>) {
   return (
     <components.MultiValueContainer {...props}>
       <div className="flex">{children}</div>
@@ -91,7 +71,7 @@ function ShipTagLabelContainer({
   );
 }
 
-function ShipTagLabel({ data }: { data: Option }) {
+function ShipTagLabel({ data }: { data: ShipOption }) {
   const { value } = data;
   return (
     <div className="flex h-6 items-center rounded-l bg-gray-100">
@@ -100,7 +80,7 @@ function ShipTagLabel({ data }: { data: Option }) {
   );
 }
 
-function ShipTagRemove(props: MultiValueRemoveProps<Option, true>) {
+function ShipTagRemove(props: MultiValueRemoveProps<ShipOption, true>) {
   return (
     <components.MultiValueRemove {...props}>
       <div className="flex h-full items-center rounded-r bg-gray-100 pr-1">
@@ -110,7 +90,7 @@ function ShipTagRemove(props: MultiValueRemoveProps<Option, true>) {
   );
 }
 
-function ShipDropDownMenu({ children, ...props }: MenuProps<Option, true>) {
+function ShipDropDownMenu({ children, ...props }: MenuProps<ShipOption, true>) {
   return (
     <components.Menu className="rounded-lg border-2 border-gray-100" {...props}>
       {children}
@@ -121,15 +101,49 @@ function ShipDropDownMenu({ children, ...props }: MenuProps<Option, true>) {
 function ShipDropDownMenuList({
   children,
   ...props
-}: MenuListProps<Option, true>) {
+}: MenuListProps<ShipOption, true>) {
   return (
     <components.MenuList className="rounded-md bg-white" {...props}>
-      {children}
+      {
+        Array.isArray(children)
+          ? children.slice(0, DM_INPUT_CONTACTS_LIMIT) /* Options */
+          : children /* NoOptionsLabel */
+      }
     </components.MenuList>
   );
 }
 
-function Input({ children, ...props }: InputProps<Option, true>) {
+function VirtualizedShipDropDownMenuList({
+  children,
+  ...props
+}: MenuListProps<ShipOption, true>) {
+  return (
+    // TODO: menu height
+    <components.MenuList className="h-[400px] rounded-md bg-white" {...props}>
+      {
+        Array.isArray(children) /* Options */ ? (
+          <ShipOptionScroller
+            options={children}
+            renderer={React.forwardRef<
+              typeof ShipMenuOption,
+              IShipOptionRenderer
+            >(
+              // TODO: do we still need the ref?
+              ({ index }: IShipOptionRenderer, ref) => {
+                const node = children[index.toJSNumber()];
+                return node ?? null;
+              }
+            )}
+          />
+        ) : (
+          children
+        ) /* NoOptionsLabel */
+      }
+    </components.MenuList>
+  );
+}
+
+function Input({ children, ...props }: InputProps<ShipOption, true>) {
   return (
     <components.Input className="text-gray-800" {...props}>
       {children}
@@ -143,10 +157,18 @@ export default function DMInviteInput({
   fromMulti = false,
   clubId,
 }: DmInviteInputProps) {
-  const selectRef = useRef<Select<Option, true, GroupBase<Option>> | null>(
-    null
-  );
-  const contacts = useContacts();
+  const selectRef = useRef<Select<
+    ShipOption,
+    true,
+    GroupBase<ShipOption>
+  > | null>(null);
+  // TODO: restore contacts
+  const loadContacts = () => {
+    console.log('loading contacts...');
+    return mockContacts;
+  };
+  const contacts = loadContacts();
+  // const contacts = useContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
     value: contact,
@@ -206,8 +228,8 @@ export default function DMInviteInput({
   };
 
   const onChange = (
-    newValue: MultiValue<Option>,
-    actionMeta: ActionMeta<Option>
+    newValue: MultiValue<ShipOption>,
+    actionMeta: ActionMeta<ShipOption>
   ) => {
     if (
       ['create-option', 'remove-value', 'select-option'].includes(
@@ -281,12 +303,13 @@ export default function DMInviteInput({
       components={{
         Control,
         Menu: ShipDropDownMenu,
-        MenuList: ShipDropDownMenuList,
+        // MenuList: ShipDropDownMenuList,
+        MenuList: VirtualizedShipDropDownMenuList,
         Input,
         DropdownIndicator: () => null,
         IndicatorSeparator: () => null,
         ClearIndicator: () => null,
-        Option: ShipName,
+        Option: ShipMenuOption,
         NoOptionsMessage: NoShipsMessage,
         MultiValueLabel: ShipTagLabel,
         MultiValueContainer: ShipTagLabelContainer,
