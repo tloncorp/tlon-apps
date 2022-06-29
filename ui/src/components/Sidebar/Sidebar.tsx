@@ -11,7 +11,7 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import useSidebarSort from '@/logic/useSidebarSort';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import Dialog, { DialogContent } from '@/components/Dialog';
-import NewGroup from '@/pages/NewGroup';
+import NewGroup from '@/groups/NewGroup/NewGroup';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
@@ -70,8 +70,8 @@ export default function Sidebar() {
       </ul>
       <GroupList className="flex-1 overflow-x-hidden overflow-y-scroll pr-0" />
       <Dialog open={newGroupDialogOpen} onOpenChange={setNewGroupDialogOpen}>
-        <DialogContent>
-          <NewGroup />
+        <DialogContent containerClass="w-full sm:max-w-lg">
+          <NewGroup close={() => setNewGroupDialogOpen(false)} />
         </DialogContent>
       </Dialog>
     </nav>
