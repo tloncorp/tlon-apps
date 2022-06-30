@@ -1,18 +1,18 @@
 import React from 'react';
 import { BigIntOrderedMap } from '@urbit/api';
 import bigInt from 'big-integer';
-import SelectOptionScroller from './SelectOptionScroller';
 import { ISelectOptionScroller } from './ISelectOptionScroller';
+import NodeScroller from './NodeScroller';
 
-// options is a list of JSX nodes to render in the VScroller
-const optionsToGraph = (options: React.ReactNode[]) => {
+// nodes is a list of JSX nodes to render in the VScroller
+const nodesToGraph = (nodes: React.ReactNode[]) => {
   let graph = new BigIntOrderedMap<React.ReactNode>();
 
-  if (options.length === 0) {
+  if (nodes.length === 0) {
     return graph;
   }
 
-  options.forEach((o, i) => {
+  nodes.forEach((o, i) => {
     graph = graph.set(bigInt(i), o);
   });
 
@@ -23,12 +23,12 @@ export default function ShipOptionScroller({
   options,
   renderer,
 }: ISelectOptionScroller) {
-  const optionsGraph = optionsToGraph(options);
+  const optionsGraph = nodesToGraph(options);
 
   return (
     <div className="relative h-full flex-1">
       {optionsGraph.size > 0 ? (
-        <SelectOptionScroller
+        <NodeScroller
           origin="top"
           data={optionsGraph}
           size={optionsGraph.size}

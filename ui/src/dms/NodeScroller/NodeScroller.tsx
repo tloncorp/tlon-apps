@@ -4,7 +4,7 @@ import VirtualScroller, {
   VirtualScrollerProps,
 } from '../../components/VirtualScroller/VirtualScroller';
 
-type SelectOptionScrollerProps = Omit<
+type NodeScrollerProps = Omit<
   VirtualScrollerProps<BigInteger, React.ReactNode>,
   'keyEq' | 'keyToString' | 'keyBunt'
 >;
@@ -12,9 +12,9 @@ type SelectOptionScrollerProps = Omit<
 const keyEq = (a: BigInteger, b: BigInteger) => a.eq(b);
 const keyToString = (a: BigInteger) => a.toString();
 
-const SelectOptionScroller = React.forwardRef<
+const NodeScroller = React.forwardRef<
   VirtualScroller<BigInteger, React.ReactNode>,
-  SelectOptionScrollerProps
+  NodeScrollerProps
 >((props, ref) => (
   <VirtualScroller
     ref={ref}
@@ -25,4 +25,4 @@ const SelectOptionScroller = React.forwardRef<
   />
 ));
 
-export default SelectOptionScroller;
+export default NodeScroller;

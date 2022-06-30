@@ -25,8 +25,8 @@ import { DM_INPUT_CONTACTS_LIMIT } from '../constants';
 import mockContacts from '../mocks/contacts';
 import ShipMenuOption from './DMInviteInput/ShipMenuOption';
 import ShipOption from './DMInviteInput/ShipOption';
-import ShipOptionScroller from './ShipNameScroller/ShipOptionScroller';
-import { IShipOptionRenderer } from './ShipNameScroller/IShipOptionRender';
+import { IShipOptionRenderer } from './NodeScroller/IShipOptionRender';
+import ShipOptionScroller from './NodeScroller/ShipOptionScroller';
 
 interface DmInviteInputProps {
   ships: ShipOption[];
@@ -117,9 +117,19 @@ function VirtualizedShipDropDownMenuList({
   children,
   ...props
 }: MenuListProps<ShipOption, true>) {
+  const height = Array.isArray(children)
+    ? children.length < 5
+      ? children.length * 40
+      : 200
+    : 40;
+
   return (
     // TODO: menu height
-    <components.MenuList className="h-[400px] rounded-md bg-white" {...props}>
+
+    <components.MenuList
+      className={`h-[${height}px] rounded-md bg-white`}
+      {...props}
+    >
       {
         Array.isArray(children) /* Options */ ? (
           <ShipOptionScroller
@@ -300,6 +310,7 @@ export default function DMInviteInput({
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
       // filterOption={createFilter(filterConfig)}
+      maxMenuHeight={300}
       components={{
         Control,
         Menu: ShipDropDownMenu,
