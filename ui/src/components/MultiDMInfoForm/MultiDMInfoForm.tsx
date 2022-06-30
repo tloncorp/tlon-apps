@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useChatState, useMultiDm } from '../../state/chat';
 import { GroupMeta } from '../../types/groups';
-import ColorPicker from './ColorPicker';
+import ColorPicker from '../ColorPicker';
 
 export default function MultiDMInfoForm() {
   const clubId = useParams<{ ship: string }>().ship!;
@@ -34,7 +34,7 @@ export default function MultiDMInfoForm() {
           <label htmlFor="title" className="w-full font-bold">
             Color
           </label>
-          <ColorPicker register={register} />
+          <ColorPicker className="mt-2" register={register} />
         </div>
         <div className="py-4">
           <label htmlFor="description" className=" w-full font-bold">

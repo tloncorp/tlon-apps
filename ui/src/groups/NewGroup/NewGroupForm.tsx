@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FieldError, UseFormRegister } from 'react-hook-form';
 import ColorBoxIcon from '../../components/icons/ColorBoxIcon';
 import EmptyIconBox from '../../components/icons/EmptyIconBox';
+import ColorPicker from '../../components/ColorPicker';
 
 interface NewGroupFormSchema {
   title: string;
@@ -72,6 +73,7 @@ export default function NewGroupForm({
               <>
                 <input
                   className="input"
+                  placeholder="Paste Image URL"
                   {...register('image', { required: true })}
                   type="url"
                 />
@@ -84,25 +86,15 @@ export default function NewGroupForm({
               </>
             ) : null}
             {iconType === 'color' ? (
-              <>
-                <input
-                  className="input"
-                  {...register('color', {
-                    required: true,
-                    pattern: {
-                      value: /^#[0-9a-f]{3,6}$/i,
-                      message: 'Please use a valid hex color code.',
-                    },
-                  })}
-                  type="text"
-                />
+              <div className="flex items-center space-x-2">
+                <ColorPicker register={register} defaultColor="#000000" />
                 <button
                   className="secondary-button"
                   onClick={() => setIconType(undefined)}
                 >
                   Cancel
                 </button>
-              </>
+              </div>
             ) : null}
             {errors.color ? (
               <span className="text-sm">{errors.color.message}</span>

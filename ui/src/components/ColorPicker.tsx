@@ -2,21 +2,24 @@ import React, { useState } from 'react';
 import { UseFormRegister } from 'react-hook-form';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import * as Popover from '@radix-ui/react-popover';
-import { GroupMeta } from '../../types/groups';
+import classNames from 'classnames';
+import { GroupMeta } from '../types/groups';
 
 interface ColorPickerProps {
   register: UseFormRegister<GroupMeta>;
   defaultColor?: string;
+  className?: string;
 }
 
 export default function ColorPicker({
   register,
   defaultColor,
+  className,
 }: ColorPickerProps) {
   const initialColor = defaultColor ? defaultColor : '#b3b3b3';
   const [color, setColor] = useState(initialColor);
   return (
-    <div className="mt-2 flex items-center">
+    <div className={classNames('flex items-center', className)}>
       <HexColorInput
         prefixed
         {...register('color')}
