@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import Dialog, { DialogContent } from '../components/Dialog';
 import { useChatState } from '../state/chat';
-import DMInviteInput, { Option } from './DMInviteInput';
+import DMInviteInput, { ShipOption } from './DMInviteInput';
 
 interface DmInviteDialogProps {
   inviteIsOpen: boolean;
@@ -17,7 +17,7 @@ export default function DmInviteDialog({
   whom,
 }: DmInviteDialogProps) {
   const navigate = useNavigate();
-  const [ships, setShips] = useState<Option[]>([]);
+  const [ships, setShips] = useState<ShipOption[]>([]);
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;

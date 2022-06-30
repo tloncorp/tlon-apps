@@ -24,19 +24,19 @@ import Avatar from '../components/Avatar';
 import { useContacts } from '../state/contact';
 import createClub from '../state/chat/createClub';
 
-export interface Option {
+export interface ShipOption {
   value: string;
   label: string;
 }
 
 interface DmInviteInputProps {
-  ships: Option[];
-  setShips: React.Dispatch<React.SetStateAction<Option[]>>;
+  ships: ShipOption[];
+  setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
   fromMulti?: boolean;
   clubId?: string;
 }
 
-function Control({ children, ...props }: ControlProps<Option, true>) {
+function Control({ children, ...props }: ControlProps<ShipOption, true>) {
   return (
     <components.Control
       {...props}
@@ -48,7 +48,7 @@ function Control({ children, ...props }: ControlProps<Option, true>) {
   );
 }
 
-function ShipName({ data, ...props }: OptionProps<Option, true>) {
+function ShipName({ data, ...props }: OptionProps<ShipOption, true>) {
   const { value, label } = data;
   return (
     <components.Option data={data} className="hover:cursor-pointer" {...props}>
@@ -83,7 +83,7 @@ function AddNonContactShip(value: string) {
 function ShipTagLabelContainer({
   children,
   ...props
-}: MultiValueGenericProps<Option, true>) {
+}: MultiValueGenericProps<ShipOption, true>) {
   return (
     <components.MultiValueContainer {...props}>
       <div className="flex">{children}</div>
@@ -91,7 +91,7 @@ function ShipTagLabelContainer({
   );
 }
 
-function ShipTagLabel({ data }: { data: Option }) {
+function ShipTagLabel({ data }: { data: ShipOption }) {
   const { value } = data;
   return (
     <div className="flex h-6 items-center rounded-l bg-gray-100">
@@ -100,7 +100,7 @@ function ShipTagLabel({ data }: { data: Option }) {
   );
 }
 
-function ShipTagRemove(props: MultiValueRemoveProps<Option, true>) {
+function ShipTagRemove(props: MultiValueRemoveProps<ShipOption, true>) {
   return (
     <components.MultiValueRemove {...props}>
       <div className="flex h-full items-center rounded-r bg-gray-100 pr-1">
@@ -110,7 +110,7 @@ function ShipTagRemove(props: MultiValueRemoveProps<Option, true>) {
   );
 }
 
-function ShipDropDownMenu({ children, ...props }: MenuProps<Option, true>) {
+function ShipDropDownMenu({ children, ...props }: MenuProps<ShipOption, true>) {
   return (
     <components.Menu className="rounded-lg border-2 border-gray-100" {...props}>
       {children}
@@ -121,7 +121,7 @@ function ShipDropDownMenu({ children, ...props }: MenuProps<Option, true>) {
 function ShipDropDownMenuList({
   children,
   ...props
-}: MenuListProps<Option, true>) {
+}: MenuListProps<ShipOption, true>) {
   return (
     <components.MenuList className="rounded-md bg-white" {...props}>
       {children}
@@ -129,7 +129,7 @@ function ShipDropDownMenuList({
   );
 }
 
-function Input({ children, ...props }: InputProps<Option, true>) {
+function Input({ children, ...props }: InputProps<ShipOption, true>) {
   return (
     <components.Input className="text-gray-800" {...props}>
       {children}
@@ -143,9 +143,11 @@ export default function DMInviteInput({
   fromMulti = false,
   clubId,
 }: DmInviteInputProps) {
-  const selectRef = useRef<Select<Option, true, GroupBase<Option>> | null>(
-    null
-  );
+  const selectRef = useRef<Select<
+    ShipOption,
+    true,
+    GroupBase<ShipOption>
+  > | null>(null);
   const contacts = useContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
@@ -206,8 +208,8 @@ export default function DMInviteInput({
   };
 
   const onChange = (
-    newValue: MultiValue<Option>,
-    actionMeta: ActionMeta<Option>
+    newValue: MultiValue<ShipOption>,
+    actionMeta: ActionMeta<ShipOption>
   ) => {
     if (
       ['create-option', 'remove-value', 'select-option'].includes(
