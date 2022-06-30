@@ -39,6 +39,7 @@ import GroupInviteDialog from './groups/GroupInviteDialog';
 import Message from './dms/Message';
 import GroupAdmin from './groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from './groups/GroupAdmin/GroupMemberManager';
+import GroupChannelManager from './groups/GroupAdmin/GroupChannelManager';
 import GroupInfo from './groups/GroupAdmin/GroupInfo';
 
 interface RoutesProps {
@@ -92,7 +93,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="info" element={<GroupAdmin />}>
             <Route index element={<GroupInfo />} />
             <Route path="members" element={<GroupMemberManager />} />
-            <Route path="applets" element={<div />} />
+            <Route path="channels" element={<GroupChannelManager />} />
           </Route>
           <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
             <Route

@@ -141,7 +141,7 @@ export default function DmOptions({
             </>
           ) : (
             <>
-              {isMulti ? null : (
+              {!isMulti ? null : (
                 <>
                   <DropdownMenu.Item
                     className="dropdown-item flex items-center space-x-2"

@@ -43,7 +43,7 @@ export default function GroupAdmin() {
               </li>
               <li>
                 <NavLink
-                  to="applets"
+                  to="channels"
                   className={({ isActive }) =>
                     cn(
                       'default-focus inline-block rounded-md p-2 hover:bg-gray-50',
@@ -51,7 +51,7 @@ export default function GroupAdmin() {
                     )
                   }
                 >
-                  Applets
+                  Channel Settings
                 </NavLink>
               </li>
             </ul>
