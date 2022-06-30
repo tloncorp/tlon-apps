@@ -19,10 +19,11 @@ export default function MultiDMInfoForm() {
   defaultValues.title = club?.meta.title || '';
   defaultValues.color = club?.meta.color || '';
 
-  const { handleSubmit, register } = useForm<GroupMeta>({
+  const { handleSubmit, register, setValue, watch } = useForm<GroupMeta>({
     defaultValues,
   });
 
+  const watchColor = watch('color');
   const onSubmit = async (values: GroupMeta) => {
     await useChatState.getState().editMultiDm(clubId, values);
   };
@@ -34,7 +35,12 @@ export default function MultiDMInfoForm() {
           <label htmlFor="title" className="w-full font-bold">
             Color
           </label>
-          <ColorPicker className="mt-2" register={register} />
+          <ColorPicker
+            className="mt-2"
+            register={register}
+            setColor={(newColor: string) => setValue('color', newColor)}
+            color={watchColor as string}
+          />
         </div>
         <div className="py-4">
           <label htmlFor="description" className=" w-full font-bold">
