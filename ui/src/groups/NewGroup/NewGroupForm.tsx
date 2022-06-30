@@ -3,6 +3,8 @@ import { FieldError, UseFormRegister, UseFormSetValue } from 'react-hook-form';
 import ColorBoxIcon from '../../components/icons/ColorBoxIcon';
 import EmptyIconBox from '../../components/icons/EmptyIconBox';
 import ColorPicker from '../../components/ColorPicker';
+import GroupAvatar from '../GroupAvatar';
+import { isValidUrl } from '../../logic/utils';
 
 interface NewGroupFormSchema {
   title: string;
@@ -25,7 +27,9 @@ export default function NewGroupForm({
   const [iconType, setIconType] = useState<'image' | 'color'>();
   const [iconColor, setIconColor] = useState<string>();
   const [iconLetter, setIconLetter] = useState<string>();
+  const [iconUrl, setIconUrl] = useState<string>();
   const watchIconColor = watch('color');
+  const watchIconImage = watch('image');
   const watchTitle = watch('title');
 
   useEffect(() => {
@@ -40,12 +44,25 @@ export default function NewGroupForm({
     }
   }, [iconType, watchTitle]);
 
+  useEffect(() => {
+    if (iconType === 'image' && watchIconImage !== '') {
+      setIconUrl(watchIconImage as string);
+    }
+  }, [iconType, watchIconImage]);
+
   const handleCancelColorIcon = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setIconType(undefined);
     setIconColor(undefined);
     setIconLetter(undefined);
     setValue('color', '');
+  };
+
+  const handleCancelImageIcon = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setIconType(undefined);
+    setIconUrl(undefined);
+    setValue('image', '');
   };
 
   return (
@@ -82,12 +99,15 @@ export default function NewGroupForm({
                 <input
                   className="input"
                   placeholder="Paste Image URL"
-                  {...register('image', { required: true })}
+                  {...register('image', {
+                    required: true,
+                    validate: (value) => isValidUrl(value),
+                  })}
                   type="url"
                 />
                 <button
                   className="secondary-button"
-                  onClick={() => setIconType(undefined)}
+                  onClick={handleCancelImageIcon}
                 >
                   Cancel
                 </button>
@@ -123,9 +143,13 @@ export default function NewGroupForm({
             color={iconColor ? iconColor : '#000000'}
             letter={iconLetter ? iconLetter : 'T'}
           />
-        ) : (
+        ) : null}
+        {iconType === 'image' && isValidUrl(iconUrl) ? (
+          <GroupAvatar size="h-14 w-14" img={iconUrl} />
+        ) : null}
+        {iconType === undefined ? (
           <EmptyIconBox className="h-14 w-14 text-gray-300" />
-        )}
+        ) : null}
       </div>
       <div className="flex flex-col">
         <label htmlFor="title" className="pb-2 font-bold">
