@@ -10,7 +10,7 @@ import Person16Icon from '../components/icons/Person16Icon';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import BulletIcon from '../components/icons/BulletIcon';
 import { useBriefs } from '../state/chat';
-import { useGroupState, usePinnedGroups } from '../state/groups';
+import { useGroupState, usePinnedGroups } from '../state/groups/groups';
 
 export function useGroupActions(flag: string) {
   const [_copied, doCopy] = useCopyToClipboard();

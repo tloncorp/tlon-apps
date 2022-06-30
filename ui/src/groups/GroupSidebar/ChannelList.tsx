@@ -3,7 +3,7 @@ import React, { useCallback } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useIsMobile } from '../../logic/useMedia';
 import { channelHref } from '../../logic/utils';
-import { useGroup } from '../../state/groups';
+import { useGroup } from '../../state/groups/groups';
 import BubbleIcon from '../../components/icons/BubbleIcon';
 import useNavStore from '../../components/Nav/useNavStore';
 import CaretDownIcon from '../../components/icons/CaretDownIcon';

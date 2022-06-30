@@ -9,7 +9,7 @@ import SidebarSorter from './SidebarSorter';
 import ActivityIndicator from './ActivityIndicator';
 import MobileSidebar from './MobileSidebar';
 import GroupList from './GroupList';
-import { usePinnedGroups } from '../../state/groups';
+import { usePinnedGroups } from '../../state/groups/groups';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
-import { useGroupState } from '../state/groups';
+import { useGroupState } from '../state/groups/groups';
 import MetadataForm from '../components/MetadataForm/MetadataForm';
 import { strToSym } from '../logic/utils';
 

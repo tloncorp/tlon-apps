@@ -10,7 +10,7 @@ import {
 import { ErrorBoundary } from 'react-error-boundary';
 import Groups from './groups/Groups';
 import Channel from './pages/Channel';
-import { useGroupState } from './state/groups';
+import { useGroupState } from './state/groups/groups';
 import NewGroup from './pages/NewGroup';
 import NewChannel from './pages/NewChannel';
 import Members from './pages/Members';

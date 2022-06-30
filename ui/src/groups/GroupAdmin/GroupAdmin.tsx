@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { useAmAdmin, useRouteGroup } from '../../state/groups';
+import { useAmAdmin, useRouteGroup } from '../../state/groups/groups';
 
 export default function GroupAdmin() {
   const flag = useRouteGroup();

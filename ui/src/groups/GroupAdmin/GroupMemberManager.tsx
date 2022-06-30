@@ -9,10 +9,9 @@ import {
   useGroup,
   useGroupState,
   useRouteGroup,
-} from '../../state/groups';
+} from '../../state/groups/groups';
 import ElipsisCircleIcon from '../../components/icons/EllipsisCircleIcon';
 import LeaveIcon from '../../components/icons/LeaveIcon';
-import ArchiveIcon from '../../components/icons/ArchiveIcon';
 import CheckIcon from '../../components/icons/CheckIcon';
 import CaretDown16Icon from '../../components/icons/CaretDown16Icon';
 import { getSectTitle } from '../../logic/utils';
@@ -23,6 +22,8 @@ export default function GroupMemberManager() {
   const group = useGroup(flag);
   const isAdmin = useAmAdmin(flag);
   const contacts = useContacts();
+
+  console.log(group);
 
   const toggleSect = useCallback(
     (ship: string, sect: string, vessel: Vessel) => (event: Event) => {

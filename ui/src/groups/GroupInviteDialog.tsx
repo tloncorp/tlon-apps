@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import Dialog, { DialogClose, DialogContent } from '../components/Dialog';
 import { useDismissNavigate } from '../logic/routing';
-import { useRouteGroup } from '../state/groups';
+import { useRouteGroup } from '../state/groups/groups';
 
 export default function GroupInviteDialog() {
   const dismiss = useDismissNavigate();

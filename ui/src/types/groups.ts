@@ -75,7 +75,7 @@ interface FleetDiffDelSects {
   'del-sects': string[];
 }
 
-interface FleetDiff {
+export interface FleetDiff {
   fleet: {
     ships: string[];
     diff: FleetDiffAdd | FleetDiffDel | FleetDiffAddSects | FleetDiffDelSects;
@@ -146,7 +146,7 @@ interface CordonDiffShut {
   shut: CordonDiffShutAddShips | CordonDiffShutDelShips;
 }
 
-interface CordonDiff {
+export interface CordonDiff {
   cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };
 }
 

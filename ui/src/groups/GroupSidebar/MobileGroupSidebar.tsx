@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import React from 'react';
-import { useGroup } from '../../state/groups';
+import { useGroup } from '../../state/groups/groups';
 import GroupAvatar from '../GroupAvatar';
 import CaretLeftIcon from '../../components/icons/CaretLeftIcon';
 import HashIcon from '../../components/icons/HashIcon';
