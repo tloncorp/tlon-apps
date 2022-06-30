@@ -150,7 +150,7 @@ export default function Avatar({
   return (
     <div
       className={classNames(
-        'relative flex-none rounded bg-black',
+        'relative flex flex-none items-center justify-center rounded bg-black',
         classes,
         size === 'xs' && 'p-1.5',
         size === 'small' && 'p-2',

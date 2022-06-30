@@ -427,9 +427,9 @@
     ==
   ::
   ++  go-fleet-update
-    |=  [ships=(set ship) =delta:fleet:g]
+    |=  [ships=(set ship) =diff:fleet:g]
     ^+  go-core
-    ?-    -.delta
+    ?-    -.diff
         %add
       ?>  ?|  =(p.flag our.bowl) :: self
               =(p.flag src.bowl) :: subscription
@@ -458,12 +458,12 @@
         %add-sects
       ~|  strange-sect/sect
       ?>  go-is-bloc
-      ?>  =(~ (~(dif in sects.delta) ~(key by cabals.group)))
+      ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
       =.  fleet.group  
         %-  ~(rut by fleet.group)
         |=  [=ship =vessel:fleet:g]
         ?.  (~(has in ships) ship)  vessel
-        vessel(sects (~(uni in sects.vessel) sects.delta))
+        vessel(sects (~(uni in sects.vessel) sects.diff))
       go-core
     ::
         %del-sects
@@ -472,7 +472,7 @@
         %-  ~(rut by fleet.group)
         |=  [=ship =vessel:fleet:g]
         ?.  (~(has in ships) ship)  vessel
-        vessel(sects (~(dif in sects.vessel) sects.delta))
+        vessel(sects (~(dif in sects.vessel) sects.diff))
       go-core
     ==
   ++  go-channel-update

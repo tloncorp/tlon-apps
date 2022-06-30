@@ -71,7 +71,6 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
   return (draft: GroupState) => {
     const { diff } = data;
     const group = draft.groups[flag];
-    debugger;
 
     if ('channel' in diff) {
       const { flag: f, diff: d } = diff.channel;
