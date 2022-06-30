@@ -1,7 +1,7 @@
 import ob from 'urbit-ob';
 import React, { useCallback, useState } from 'react';
 import Dialog, { DialogClose, DialogContent } from '../components/Dialog';
-import ShipSelector, { Option } from '../dms/ShipSelector';
+import ShipSelector, { Option } from '../components/ShipSelector';
 import { useDismissNavigate } from '../logic/routing';
 import { useGroupState, useRouteGroup } from '../state/groups/groups';
 

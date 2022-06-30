@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import Dialog, { DialogContent } from '../components/Dialog';
 import { useChatState } from '../state/chat';
-import ShipSelector, { Option } from './ShipSelector';
+import ShipSelector, { Option } from '../components/ShipSelector';
 
 interface DmInviteDialogProps {
   inviteIsOpen: boolean;

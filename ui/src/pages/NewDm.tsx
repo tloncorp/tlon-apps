@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
-import ShipSelector, { Option } from '../dms/ShipSelector';
+import ShipSelector, { Option } from '../components/ShipSelector';
 import { newUv } from '../logic/utils';
 import { useChatState } from '../state/chat';
 import createClub from '../state/chat/createClub';

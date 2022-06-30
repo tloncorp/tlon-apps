@@ -15,11 +15,11 @@ import {
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
-import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
-import ExclamationPoint from '../components/icons/ExclamationPoint';
-import X16Icon from '../components/icons/X16Icon';
+import MagnifyingGlass from './icons/MagnifyingGlass16Icon';
+import ExclamationPoint from './icons/ExclamationPoint';
+import X16Icon from './icons/X16Icon';
 import { preSig } from '../logic/utils';
-import Avatar from '../components/Avatar';
+import Avatar from './Avatar';
 import { useContacts } from '../state/contact';
 
 export interface Option {
