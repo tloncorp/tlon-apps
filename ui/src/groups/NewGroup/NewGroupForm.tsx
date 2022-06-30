@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FieldError, UseFormRegister } from 'react-hook-form';
+import { FieldError, UseFormRegister, UseFormSetValue } from 'react-hook-form';
 import ColorBoxIcon from '../../components/icons/ColorBoxIcon';
 import EmptyIconBox from '../../components/icons/EmptyIconBox';
 import ColorPicker from '../../components/ColorPicker';
@@ -15,12 +15,12 @@ export default function NewGroupForm({
   register,
   errors,
   watch,
-  isValid,
+  setValue,
 }: {
   register: UseFormRegister<NewGroupFormSchema>;
   errors: Record<string, FieldError>;
   watch: (names?: string) => unknown;
-  isValid: boolean;
+  setValue: UseFormSetValue<NewGroupFormSchema>;
 }) {
   const [iconType, setIconType] = useState<'image' | 'color'>();
   const [iconColor, setIconColor] = useState<string>();
@@ -29,16 +29,16 @@ export default function NewGroupForm({
   const watchTitle = watch('title');
 
   useEffect(() => {
-    if (
-      iconType === 'color' &&
-      isValid &&
-      watchIconColor !== '' &&
-      watchTitle !== ''
-    ) {
+    if (iconType === 'color' && watchIconColor !== '') {
       setIconColor(watchIconColor as string);
+    }
+  }, [iconType, watchIconColor]);
+
+  useEffect(() => {
+    if (iconType === 'color' && watchTitle !== '') {
       setIconLetter((watchTitle as string).slice(0, 1));
     }
-  }, [iconType, watchIconColor, isValid, watchTitle]);
+  }, [iconType, watchTitle]);
 
   return (
     <div className="flex flex-col space-y-4">
@@ -87,7 +87,15 @@ export default function NewGroupForm({
             ) : null}
             {iconType === 'color' ? (
               <div className="flex items-center space-x-2">
-                <ColorPicker register={register} defaultColor="#000000" />
+                <ColorPicker
+                  color={
+                    (watchIconColor as string) === ''
+                      ? '#000000'
+                      : (watchIconColor as string)
+                  }
+                  register={register}
+                  setColor={(newColor: string) => setValue('color', newColor)}
+                />
                 <button
                   className="secondary-button"
                   onClick={() => setIconType(undefined)}
@@ -101,11 +109,11 @@ export default function NewGroupForm({
             ) : null}
           </div>
         </div>
-        {iconColor && iconLetter ? (
+        {iconType === 'color' ? (
           <ColorBoxIcon
             className="h-12 w-12 text-xl"
-            color={iconColor}
-            letter={iconLetter}
+            color={iconColor ? iconColor : '#000000'}
+            letter={iconLetter ? iconLetter : 'T'}
           />
         ) : (
           <EmptyIconBox className="h-14 w-14 text-gray-300" />

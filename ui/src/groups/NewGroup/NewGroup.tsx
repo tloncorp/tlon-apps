@@ -31,6 +31,7 @@ export default function NewGroup({ close }: NewGroupProps) {
     handleSubmit,
     register,
     formState: { errors, isValid },
+    setValue,
     watch,
   } = useForm<NewGroupFormSchema>({
     defaultValues,
@@ -60,7 +61,7 @@ export default function NewGroup({ close }: NewGroupProps) {
           register={register}
           errors={errors}
           watch={watch}
-          isValid={isValid}
+          setValue={setValue}
         />
       );
       break;
