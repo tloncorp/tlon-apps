@@ -40,6 +40,14 @@ export default function NewGroupForm({
     }
   }, [iconType, watchTitle]);
 
+  const handleCancelColorIcon = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setIconType(undefined);
+    setIconColor(undefined);
+    setIconLetter(undefined);
+    setValue('color', '');
+  };
+
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex flex-col">
@@ -98,7 +106,7 @@ export default function NewGroupForm({
                 />
                 <button
                   className="secondary-button"
-                  onClick={() => setIconType(undefined)}
+                  onClick={handleCancelColorIcon}
                 >
                   Cancel
                 </button>
