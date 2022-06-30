@@ -333,7 +333,10 @@
   ::
   ++  fleet-diff
     %-  of
-    :~  [%add-sects (as sym)]
+    :~  [%add ul]
+        [%del ul]
+        [%add-sects (as sym)]
+        [%del-sects (as sym)]
     ==
   ::
   ++  cabal-diff

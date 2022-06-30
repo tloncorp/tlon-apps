@@ -1,5 +1,15 @@
+import { debounce } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback } from 'react';
+import { deSig } from '@urbit/api';
+import React, {
+  ChangeEvent,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import fuzzy from 'fuzzy';
+import { Link, useLocation } from 'react-router-dom';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import Avatar from '../../components/Avatar';
 import ShipName from '../../components/ShipName';
@@ -18,12 +28,48 @@ import { getSectTitle } from '../../logic/utils';
 import { Vessel } from '../../types/groups';
 
 export default function GroupMemberManager() {
+  const location = useLocation();
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const isAdmin = useAmAdmin(flag);
   const contacts = useContacts();
+  const [rawInput, setRawInput] = useState('');
+  const [search, setSearch] = useState('');
+  const members = useMemo(
+    () => (group && Object.keys(group.fleet)) || [],
+    [group]
+  );
 
-  console.log(group);
+  const results = useMemo(
+    () =>
+      fuzzy
+        .filter(search, members)
+        .sort((a, b) => {
+          const filter = deSig(search) || '';
+          const left = deSig(a.string)?.startsWith(filter)
+            ? a.score + 1
+            : a.score;
+          const right = deSig(b.string)?.startsWith(filter)
+            ? b.score + 1
+            : b.score;
+
+          return right - left;
+        })
+        .map((result) => members[result.index]),
+    [search, members]
+  );
+
+  const onUpdate = useRef(
+    debounce((value: string) => {
+      setSearch(value);
+    }, 150)
+  );
+
+  const onChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const { value } = event.target;
+    setRawInput(value);
+    onUpdate.current(value);
+  }, []);
 
   const toggleSect = useCallback(
     (ship: string, sect: string, vessel: Vessel) => (event: Event) => {
@@ -41,7 +87,7 @@ export default function GroupMemberManager() {
 
   const kick = useCallback(
     (ship: string) => () => {
-      useGroupState.getState().delMember(flag, ship);
+      useGroupState.getState().delMembers(flag, [ship]);
     },
     [flag]
   );
@@ -58,7 +104,6 @@ export default function GroupMemberManager() {
   }
 
   const sects = Object.keys(group.cabals);
-  const members = Object.keys(group.fleet);
 
   return (
     <div className="card">
@@ -66,8 +111,24 @@ export default function GroupMemberManager() {
       <p className="mb-4 text-sm font-semibold text-gray-400">
         {members.length} total
       </p>
+      <div className="mb-4 flex items-center">
+        <input
+          value={rawInput}
+          onChange={onChange}
+          className="input flex-1 font-semibold"
+          placeholder="Search Members"
+          aria-label="Search Members"
+        />
+        <Link
+          to={`/groups/${flag}/invite`}
+          state={{ backgroundLocation: location }}
+          className="button ml-2 bg-blue dark:text-black"
+        >
+          Invite
+        </Link>
+      </div>
       <ul className="space-y-6 py-2">
-        {members.map((m) => {
+        {results.map((m) => {
           const vessel = group.fleet[m];
           return (
             <li key={m} className="flex items-center font-semibold">

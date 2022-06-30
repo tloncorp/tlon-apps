@@ -156,10 +156,10 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  addMember: async (flag, ship) => {
+  addMembers: async (flag, ships) => {
     const diff = {
       fleet: {
-        ships: [ship],
+        ships,
         diff: {
           add: null,
         },
@@ -167,10 +167,10 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  delMember: async (flag, ship) => {
+  delMembers: async (flag, ships) => {
     const diff = {
       fleet: {
-        ships: [ship],
+        ships,
         diff: {
           del: null,
         },

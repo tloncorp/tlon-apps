@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import Dialog, { DialogContent } from '../components/Dialog';
 import { useChatState } from '../state/chat';
-import DMInviteInput, { Option } from './DMInviteInput';
+import ShipSelector, { Option } from './ShipSelector';
 
 interface DmInviteDialogProps {
   inviteIsOpen: boolean;
@@ -22,7 +22,11 @@ export default function DmInviteDialog({
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
 
-  const submitHandler = async () => {
+  const onEnter = useCallback(async () => {
+    navigate(`/dm/${whom}`);
+  }, [navigate, whom]);
+
+  const submitHandler = useCallback(async () => {
     if (whom && validShips) {
       ships.map(async (ship) => {
         await useChatState.getState().inviteToMultiDm(whom, {
@@ -32,7 +36,7 @@ export default function DmInviteDialog({
       });
       setInviteIsOpen(false);
     }
-  };
+  }, [whom, validShips, ships, setInviteIsOpen]);
 
   return (
     <Dialog open={inviteIsOpen} onOpenChange={setInviteIsOpen}>
@@ -41,11 +45,10 @@ export default function DmInviteDialog({
           <div className="flex flex-col">
             <h2 className="mb-4 text-lg font-bold">Invite to Chat</h2>
             <div className="w-full py-3 px-4">
-              <DMInviteInput
+              <ShipSelector
                 ships={ships}
                 setShips={setShips}
-                clubId={whom}
-                fromMulti
+                onEnter={onEnter}
               />
             </div>
           </div>

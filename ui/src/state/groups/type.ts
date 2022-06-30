@@ -1,4 +1,4 @@
-import { Gangs, Group, Rank, Vessel } from '../../types/groups';
+import { Gangs, Group, Rank } from '../../types/groups';
 
 export interface GroupState {
   set: (fn: (sta: GroupState) => void) => void;
@@ -16,8 +16,8 @@ export interface GroupState {
   unbanShips: (flag: string, ships: string[]) => Promise<void>;
   banRanks: (flag: string, ranks: Rank[]) => Promise<void>;
   unbanRanks: (flag: string, ranks: Rank[]) => Promise<void>;
-  addMember: (flag: string, ship: string, vessel: Vessel) => Promise<void>;
-  delMember: (flag: string, ship: string) => Promise<void>;
+  addMembers: (flag: string, ships: string[]) => Promise<void>;
+  delMembers: (flag: string, ships: string[]) => Promise<void>;
   addSects: (flag: string, ship: string, sects: string[]) => Promise<void>;
   delSects: (flag: string, ship: string, sects: string[]) => Promise<void>;
   addRole: (
