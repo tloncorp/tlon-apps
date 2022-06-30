@@ -350,17 +350,15 @@
     |=  =diff:cordon:g
     |^  ^+  go-core
     ?>  go-is-bloc
-    =.  cordon.group  
-      ?-  -.diff 
-        %open     (open p.diff)
-        %shut     (shut p.diff)
-        %swap     p.diff
-      ==
-    go-core
+    ?-  -.diff 
+      %open     (open p.diff)
+      %shut     (shut p.diff)
+      %swap     =.(cordon.group p.diff go-core)
+    ==
     ::
     ++  open
       |=  =diff:open:cordon:g
-      ^-  cordon:g
+      ^+  go-core
       =*  cordon  cordon.group
       ?>  ?=(%open -.cordon) 
       ?-  -.diff
@@ -370,39 +368,46 @@
         %-  malt
           %+  skip 
             ~(tap by fleet.group)
-          |=  [=ship =vessel]
-          (~(has in p.diff) ship)
+          |=  [=ship =vessel:fleet:g]
+          (~(has in p.diff) ship)          
+        =.  ships.ban.cordon  (~(uni in ships.ban.cordon) p.diff)
         %+  go-give-update
           now.bowl
-        [%fleet [p.diff [%del ~]]]
-        cordon(ships.ban (~(uni in ships.ban.cordon) p.diff))
+        [%fleet p.diff [%del ~]]
       ::
           %del-ships 
-        cordon(ships.ban (~(dif in ships.ban.cordon) p.diff))
+        =.  ships.ban.cordon  (~(dif in ships.ban.cordon) p.diff)
+        go-core
+      ::
           %add-ranks
-        =/  ships
-          %+  skip 
+        =/  foes
+          %-  malt
+          %+  skim 
             ~(tap by fleet.group)
-          |=  [=ship =vessel]
+          |=  [=ship =vessel:fleet:g]
           (~(has in p.diff) (clan:title ship))
-        =.  fleet.group  (malt ships)
+        =.  fleet.group  (~(dif by fleet.group) foes)
+        =.  ranks.ban.cordon  (~(uni in ranks.ban.cordon) p.diff)
         %+  go-give-update
           now.bowl
-        [%fleet [(turn ships |=([=ship =vessel] ship)) [%del ~]]]
-        cordon(ranks.ban (~(uni in ranks.ban.cordon) p.diff))
+        [%fleet ~(key by foes) [%del ~]]
+      ::
           %del-ranks
-        cordon(ranks.ban (~(dif in ranks.ban.cordon) p.diff))
+        =.  ranks.ban.cordon  (~(dif in ranks.ban.cordon) p.diff)
+        go-core
       ==
     ::
     ++  shut
       |=  =diff:shut:cordon:g
-      ^-  cordon:g
+      ^+  go-core
       =*  cordon  cordon.group
       ?>  ?=(%shut -.cordon)
-      ?-  -.diff
-        %add-ships  cordon(pending (~(uni in pending.cordon) p.diff))
-        %del-ships  cordon(pending (~(dif in pending.cordon) p.diff))
-      ==
+      =.  cordon.group
+        ?-  -.diff
+          %add-ships  cordon(pending (~(uni in pending.cordon) p.diff))
+          %del-ships  cordon(pending (~(dif in pending.cordon) p.diff))
+        ==
+      go-core
     --
   ::
   ++  go-cabal-update
@@ -422,50 +427,52 @@
     ==
   ::
   ++  go-fleet-update
-    |=  [ships=(set ship) =diff:fleet:g]
+    |=  [ships=(set ship) =delta:fleet:g]
     ^+  go-core
-    ?-    -.diff
+    ?-    -.delta
         %add
+      ?>  ?|  =(p.flag our.bowl) :: self
+              =(p.flag src.bowl) :: subscription
+              (~(has in ships) src.bowl)  :: user join
+          ==
       =.  fleet.group
       %-  ~(uni by fleet.group)
-        %-  ~(run in ships)
+        %-  malt
+        ^-  (list [ship vessel:fleet:g])
+        %+  turn
+          ~(tap in ships)
         |=  =ship
-        ?>  ?|  =(p.flag our.bowl) :: self
-                =(p.flag src.bowl) :: subscription
-                =(ship src.bowl)  :: user join
-            ==
         [ship [sects=~ joined=now.bowl]]
       go-core
     ::
         %del
-      %-  ~(run in ships)
-      |=  =ship
-      ?>  ?|(=(p.flag src.bowl) =(ship src.bowl))
-      ship
+      ?>  ?|(=(p.flag src.bowl) (~(has in ships) src.bowl))
       =.  fleet.group
       %-  malt
         %+  skip 
           ~(tap by fleet.group)
-        |=  [=ship =vessel]
+        |=  [=ship =vessel:fleet:g]
         (~(has in ships) ship)
       go-core
     ::
         %add-sects
       ~|  strange-sect/sect
       ?>  go-is-bloc
-      ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
+      ?>  =(~ (~(dif in sects.delta) ~(key by cabals.group)))
       =.  fleet.group  
-        %+  ~(jab by fleet.group)  ship
-        |=  vessel:fleet:g
-        +<(sects (~(uni in sects) sects.diff))
+        %-  ~(rut by fleet.group)
+        |=  [=ship =vessel:fleet:g]
+        ?.  (~(has in ships) ship)  vessel
+        vessel(sects (~(uni in sects.vessel) sects.delta))
       go-core
     ::
         %del-sects
       ?>  go-is-bloc
       =.  fleet.group
-        %+  ~(jab by fleet.group)  ship
-        |=  vessel:fleet:g
-        +<(sects (~(dif in sects) sects.diff))
+        %-  ~(rut by fleet.group)
+        |=  [=ship =vessel:fleet:g]
+        ?.  (~(has in ships) ship)  vessel
+        vessel(sects (~(dif in sects.vessel) sects.delta))
       go-core
     ==
   ++  go-channel-update
@@ -535,7 +542,7 @@
       [%pass (welp ga-area wire) %agent [p.flag dap.bowl] task]
     ++  add-self
       =/  =vessel:fleet:g  [~ now.bowl]
-      =/  =action:g  [flag now.bowl %fleet our.bowl %add vessel]
+      =/  =action:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
       (poke-host /join/add group-action+!>(action))
     ::
     ++  get-preview
