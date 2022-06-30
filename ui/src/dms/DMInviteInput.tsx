@@ -21,7 +21,7 @@ import ExclamationPoint from '../components/icons/ExclamationPoint';
 import X16Icon from '../components/icons/X16Icon';
 import { newUv, preSig } from '../logic/utils';
 import Avatar from '../components/Avatar';
-import { useContacts } from '../state/contact';
+import { useMemoizedContacts } from '../state/contact';
 import createClub from '../state/chat/createClub';
 
 export interface ShipOption {
@@ -148,7 +148,7 @@ export default function DMInviteInput({
     true,
     GroupBase<ShipOption>
   > | null>(null);
-  const contacts = useContacts();
+  const contacts = useMemoizedContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
     value: contact,
