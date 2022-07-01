@@ -6,27 +6,30 @@ import { useChatState, useMultiDm } from '@/state/chat';
 import { GroupMeta } from '@/types/groups';
 import ColorPicker from '@/components/ColorPicker';
 
-export default function MultiDMInfoForm() {
+interface MultiDMInfoFormProps {
+  setOpen: (open: boolean) => void;
+}
+
+export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
   const clubId = useParams<{ ship: string }>().ship!;
+  const club = useMultiDm(clubId);
   const defaultValues: GroupMeta = {
-    title: '',
-    color: '#b3b3b3',
+    title: club?.meta.title || '',
+    color: club?.meta.color || '#b3b3b3',
     image: '',
     description: '',
   };
-
-  const club = useMultiDm(clubId);
-  defaultValues.title = club?.meta.title || '';
-  defaultValues.color = club?.meta.color || '';
 
   const { handleSubmit, register, setValue, watch } = useForm<GroupMeta>({
     defaultValues,
   });
 
-  const watchColor = watch('color');
   const onSubmit = async (values: GroupMeta) => {
     await useChatState.getState().editMultiDm(clubId, values);
+    setOpen(false);
   };
+
+  const watchColor = watch('color');
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
@@ -57,11 +60,9 @@ export default function MultiDMInfoForm() {
         <DialogPrimitive.Close asChild>
           <button className="button ml-auto">Cancel</button>
         </DialogPrimitive.Close>
-        <DialogPrimitive.Close asChild>
-          <button type="submit" className="button">
-            Done
-          </button>
-        </DialogPrimitive.Close>
+        <button type="submit" className="button">
+          Done
+        </button>
       </footer>
     </form>
   );

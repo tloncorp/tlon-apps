@@ -75,7 +75,6 @@ export interface ChatState {
   ) => Promise<void>;
   sendMultiDm: (
     id: string, // `@uw` - the club ID
-    chatId: string, // a whom
     memo: Omit<ChatMemo, 'sent'>
   ) => Promise<void>;
   multiDmRsvp: (

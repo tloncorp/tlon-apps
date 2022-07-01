@@ -1,10 +1,7 @@
-import { ClubAction } from '../../types/chat';
+import { ClubDelta } from '../../types/chat';
 import { ChatState } from './type';
 
-export default function clubReducer(event: ClubAction) {
-  const { id: clubId, diff } = event;
-  const { delta } = diff;
-
+export default function clubReducer(clubId: string, delta: ClubDelta) {
   return (draft: ChatState) => {
     const club = draft.multiDms[clubId];
     if (!club) {

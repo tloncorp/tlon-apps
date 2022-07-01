@@ -197,3 +197,10 @@ export interface Gang {
 export interface Gangs {
   [flag: string]: Gang;
 }
+
+export interface NewGroupFormSchema {
+  title: string;
+  description: string;
+  image: string;
+  color: string;
+}

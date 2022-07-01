@@ -6,13 +6,7 @@ import ColorPicker from '@/components/ColorPicker';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { isValidUrl } from '@/logic/utils';
 import useMedia from '@/logic/useMedia';
-
-interface NewGroupFormSchema {
-  title: string;
-  description: string;
-  image: string;
-  color: string;
-}
+import { NewGroupFormSchema } from '@/types/groups';
 
 interface NewGroupFormProps {
   register: UseFormRegister<NewGroupFormSchema>;

@@ -438,31 +438,43 @@
       (emit %give %fact ~[(snoc cu-area %ui)] cage)
     cu-core
   ::
+  ++  cu-give-writs-diff
+    |=  =diff:writs:c
+    =.  cor
+      =/  =cage  writ-diff+!>(diff)
+      ~&  diff
+      ~&  cu-area
+      (emit %give %fact ~[(welp cu-area /ui/writs)] cage)
+    cu-core
+  ::
   ++  cu-diff
     |=  [=echo:club:c =delta:club:c]
     ::  ?>  (~(has in cu-circle) src.bowl)  :: TODO: signatures?? probably overkill
     =?  cor  (lth echo club-eq)
       (emil (gossip:cu-pass +(echo) delta))
-    =.  cu-core  (cu-give-delta delta)
     ?-    -.delta
     ::
         %init
       =:  hive.club  hive.delta
           team.club  team.delta
           met.club   met.delta
-        ==
+      ==
+      =.  cu-core  (cu-give-delta delta)
       cu-core
     ::
         %meta
       =.  met.club  meta.delta
+      =.  cu-core  (cu-give-delta delta)
       cu-core
     ::
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
+      =.  cu-core  (cu-give-writs-diff diff.delta)
       cu-core
     ::
         %team
       =*  ship  ship.delta
+      =.  cu-core  (cu-give-delta delta)
       ?:  &(!ok.delta (~(has in team.club) ship))
         ?.  =(our src):bowl
           cu-core
@@ -476,6 +488,7 @@
       (cu-post-notice ship '' ' joined the chat')
     ::
         %hive
+      =.  cu-core  (cu-give-delta delta)
       ?:  add.delta
         ?:  (~(has in hive.club) for.delta)
           cu-core
