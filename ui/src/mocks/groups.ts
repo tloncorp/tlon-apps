@@ -15,7 +15,7 @@ function createMockGroup(title: string): Group {
   return {
     fleet: {
       '~hastuc-dibtux': emptyVessel(),
-      '~finned-palmer': emptyVessel(),
+      '~finned-palmer': adminVessel(),
       '~zod': emptyVessel(),
     },
     cabals: {},
@@ -114,7 +114,7 @@ for (let i = 0; i < 20; i += 1) {
   const group = createMockGroup(faker.company.companyName());
 
   for (let j = 0; j < 20; j += 1) {
-    group.channels[`~zod/tlon${i}${j}`] = createChannel(faker.company.bs());
+    group.channels[`~zod/tlon${i}${j}`] = createChannel(j.toString());
   }
 
   mockGroups[`~zod/tlon${i}`] = group;

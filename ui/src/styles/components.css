@@ -58,17 +58,17 @@
 }
 
 .switch {
-  @apply relative ml-2 h-4 w-6 space-x-2 rounded-full bg-gray-200 px-0.5 transition-colors duration-100
+  @apply relative ml-2 h-4 w-6 space-x-2 rounded-full bg-gray-200 px-0.5 transition-colors duration-100;
 }
 
-.switch[data-state="checked"] {
-  @apply bg-black
+.switch[data-state='checked'] {
+  @apply bg-black;
 }
 
 .switch-thumb {
-  @apply block h-3 w-3 rounded-full bg-white transition-transform
+  @apply block h-3 w-3 rounded-full bg-white transition-transform;
 }
 
-.switch-thumb[data-state="checked"] {
-  @apply translate-x-2
+.switch-thumb[data-state='checked'] {
+  @apply translate-x-2;
 }

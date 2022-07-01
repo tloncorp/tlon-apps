@@ -13,6 +13,7 @@ import {
   GroupAction,
   Rank,
   GroupPreview,
+  GroupMeta,
 } from '../types/groups';
 import api from '../api';
 
@@ -73,7 +74,12 @@ interface GroupState {
   start: () => Promise<void>;
   search: (flag: string) => Promise<void>;
   join: (flag: string, joinAll: boolean) => Promise<void>;
+  createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
+  deleteZone: (flag: string, zone: string) => Promise<void>;
+  addChannelToZone: (zone: string, groupFlag:string, channelFlag: string) => Promise<void>;
+  removeChannelFromZone: (zone: string, groupFlag: string, channelFlag: string) => Promise<void>
 }
+
 export const useGroupState = create<GroupState>((set, get) => ({
   groups: {},
   pinnedGroups: [],
@@ -188,6 +194,50 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
+  createZone: async (flag, zone, meta) => {
+    const diff = {
+      zone: {
+        zone,
+        delta: {
+          add: meta
+        }
+      }
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  deleteZone: async (flag, zone) => {
+    const diff = {
+      zone: {
+        zone,
+        delta: {
+          del: null
+        }
+      }
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  addChannelToZone: async (zone, channelFlag) => {
+    const diff = {
+      channel: {
+        flag: channelFlag,
+        delta: {
+          "add-zone": zone
+        }     
+      }
+    };
+    await api.poke(groupAction(channelFlag, diff));
+  },
+  removeChannelFromZone: async (zone, channelFlag) => {
+    const diff = {
+      channel: {
+        flag: channelFlag,
+        delta: {
+          "del-zone": null,
+        }
+      }
+    };
+    await api.poke(groupAction(channelFlag, diff));
+  },
   start: async () => {
     const [groups, gangs] = await Promise.all([
       api.scry<Groups>({
@@ -199,7 +249,6 @@ export const useGroupState = create<GroupState>((set, get) => ({
         path: '/gangs',
       }),
     ]);
-
     try {
       const pinnedGroups = await api.scry<string[]>({
         app: 'groups',

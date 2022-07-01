@@ -73,6 +73,9 @@ body.dark ::selection {
   @apply bg-gray-800;
 }
 
-button, [type='button'], [type='reset'], [type='submit'] {
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
   -webkit-appearance: initial;
 }
