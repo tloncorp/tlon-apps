@@ -6,7 +6,9 @@ exports[`Sidebar > renders as expected 1`] = `
     class="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white"
   >
     <ul
+      aria-hidden="true"
       class="flex-none p-2"
+      data-aria-hidden="true"
     >
       <li
         class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
@@ -159,8 +161,198 @@ exports[`Sidebar > renders as expected 1`] = `
       </li>
     </ul>
     <ul
+      aria-hidden="true"
       class="h-full space-y-3 p-2 sm:space-y-0 flex-1 overflow-x-hidden overflow-y-scroll pr-0"
+      data-aria-hidden="true"
     />
+    <div
+      aria-hidden="true"
+      class="fixed inset-0 z-30 transform-gpu bg-black opacity-30"
+      data-aria-hidden="true"
+      data-state="open"
+      style="pointer-events: auto;"
+    />
+    <section
+      aria-describedby="radix-4"
+      aria-labelledby="radix-3"
+      class="dialog-container w-full sm:max-w-lg"
+      data-state="open"
+      id="radix-1"
+      role="dialog"
+      style="pointer-events: auto;"
+      tabindex="-1"
+    >
+      <div
+        class="dialog"
+      >
+        <form
+          class="flex flex-col"
+        >
+          <div>
+            <div
+              class="-mx-6 -mt-6 flex flex-col space-y-4 rounded-t-xl bg-gray-50 p-6"
+            >
+              <div>
+                <span
+                  class="text-lg font-bold"
+                >
+                  Create Group
+                </span>
+              </div>
+              <div>
+                <button
+                  class="button"
+                >
+                  Create Group from scratch
+                </button>
+              </div>
+            </div>
+            <div
+              class="flex flex-col pt-6"
+            >
+              <span
+                class="text-lg font-bold text-gray-600"
+              >
+                or use a Template
+              </span>
+              <div
+                class="flex flex-col"
+              >
+                <div
+                  class="flex items-center justify-between p-2"
+                >
+                  <div
+                    class="flex items-center space-x-2"
+                  >
+                    <div
+                      class="h-12 w-12 text-xl flex items-center justify-center rounded-md"
+                      style="background-color: rgb(42, 213, 70);"
+                    >
+                      <span
+                        class="text-white"
+                      >
+                        Aa
+                      </span>
+                    </div>
+                    <div
+                      class="flex flex-col"
+                    >
+                      <span
+                        class="font-semibold"
+                      >
+                        Small
+                      </span>
+                      <span
+                        class="font-semibold text-gray-400"
+                      >
+                        Collaboration, 1-10
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    class="small-button bg-blue"
+                  >
+                    Create
+                  </button>
+                </div>
+                <div
+                  class="flex items-center justify-between p-2"
+                >
+                  <div
+                    class="flex items-center space-x-2"
+                  >
+                    <div
+                      class="h-12 w-12 text-xl flex items-center justify-center rounded-md"
+                      style="background-color: rgb(102, 102, 102);"
+                    >
+                      <span
+                        class="text-white"
+                      >
+                        Aa
+                      </span>
+                    </div>
+                    <div
+                      class="flex flex-col"
+                    >
+                      <span
+                        class="font-semibold"
+                      >
+                        Medium
+                      </span>
+                      <span
+                        class="font-semibold text-gray-400"
+                      >
+                        Collective, 10-30
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    class="small-button bg-blue"
+                  >
+                    Create
+                  </button>
+                </div>
+                <div
+                  class="flex items-center justify-between p-2"
+                >
+                  <div
+                    class="flex items-center space-x-2"
+                  >
+                    <div
+                      class="h-12 w-12 text-xl flex items-center justify-center rounded-md"
+                      style="background-color: rgb(250, 222, 122);"
+                    >
+                      <span
+                        class="text-white"
+                      >
+                        Aa
+                      </span>
+                    </div>
+                    <div
+                      class="flex flex-col"
+                    >
+                      <span
+                        class="font-semibold"
+                      >
+                        Large
+                      </span>
+                      <span
+                        class="font-semibold text-gray-400"
+                      >
+                        Organization, 30+
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    class="small-button bg-blue"
+                  >
+                    Create
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+        <button
+          class="icon-button absolute top-6 right-6"
+          type="button"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 16 16"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              class="stroke-current"
+              d="m8 8 4-4M8 8 4 4m4 4-4 4m4-4 4 4"
+              stroke-linecap="round"
+              stroke-width="2"
+            />
+          </svg>
+        </button>
+      </div>
+    </section>
   </nav>
 </DocumentFragment>
 `;

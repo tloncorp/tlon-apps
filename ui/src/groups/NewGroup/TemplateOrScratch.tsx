@@ -1,6 +1,10 @@
 import React from 'react';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 
+interface TemplateOrScratchProps {
+  next: (templateType?: string) => void;
+}
+
 const TEMPLATE_TYPE: Record<
   string,
   {
@@ -30,13 +34,9 @@ const TEMPLATE_TYPE: Record<
   },
 };
 
-export default function TemplateOrScratch({
-  next,
-}: {
-  next: (templateType?: string) => void;
-}) {
+export default function TemplateOrScratch({ next }: TemplateOrScratchProps) {
   return (
-    <>
+    <div>
       <div className="-mx-6 -mt-6 flex flex-col space-y-4 rounded-t-xl bg-gray-50 p-6">
         <div>
           <span className="text-lg font-bold">Create Group</span>
@@ -47,7 +47,7 @@ export default function TemplateOrScratch({
           </button>
         </div>
       </div>
-      <div className="flex flex-col py-6">
+      <div className="flex flex-col pt-6">
         <span className="text-lg font-bold text-gray-600">
           or use a Template
         </span>
@@ -83,6 +83,6 @@ export default function TemplateOrScratch({
           ))}
         </div>
       </div>
-    </>
+    </div>
   );
 }
