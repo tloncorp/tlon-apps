@@ -3,9 +3,10 @@ import { UseFormRegister, FieldValues } from 'react-hook-form';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import * as Popover from '@radix-ui/react-popover';
 import classNames from 'classnames';
+import { GroupMeta, NewGroupFormSchema } from '@/types/groups';
 
 interface ColorPickerProps {
-  register: UseFormRegister<FieldValues>;
+  register: UseFormRegister<GroupMeta | NewGroupFormSchema>;
   defaultColor?: string;
   color: string;
   className?: string;
