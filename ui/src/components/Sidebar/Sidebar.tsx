@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
@@ -10,11 +10,9 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import useSidebarSort from '@/logic/useSidebarSort';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
-import NewGroup from '@/groups/NewGroup/NewGroup';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
-  const [newGroupDialogOpen, setNewGroupDialogOpen] = useState(false);
   const pinned = usePinnedGroups();
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get notification count from hark store
@@ -51,7 +49,7 @@ export default function Sidebar() {
           color="text-green hover:bg-green-soft hover:dark:bg-green-900"
           highlight="bg-green-soft dark:bg-green-900"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
-          onClick={() => setNewGroupDialogOpen(!newGroupDialogOpen)}
+          to="/groups/new"
         >
           Create Group
         </SidebarItem>
@@ -68,10 +66,6 @@ export default function Sidebar() {
         </li>
       </ul>
       <GroupList className="flex-1 overflow-x-hidden overflow-y-scroll pr-0" />
-      <NewGroup
-        open={newGroupDialogOpen}
-        onOpenChange={setNewGroupDialogOpen}
-      />
     </nav>
   );
 }

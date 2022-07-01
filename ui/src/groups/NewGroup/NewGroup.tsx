@@ -8,11 +8,7 @@ import TemplateOrScratch from '@/groups/NewGroup/TemplateOrScratch';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
-
-interface NewGroupProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+import { useDismissNavigate } from '@/logic/routing';
 
 interface NewGroupFormSchema {
   title: string;
@@ -21,16 +17,26 @@ interface NewGroupFormSchema {
   color: string;
 }
 
-export default function NewGroup({ open, onOpenChange }: NewGroupProps) {
+export default function NewGroup() {
   const navigate = useNavigate();
+  const dismiss = useDismissNavigate();
+
+  const onOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      dismiss();
+    }
+  };
+
   const [currentStep, { goToNextStep, goToPrevStep, setStep, maxStep }] =
     useStep(4);
+
   const defaultValues: NewGroupFormSchema = {
     title: '',
     description: '',
     image: '',
     color: '',
   };
+
   const {
     handleSubmit,
     register,
@@ -41,6 +47,7 @@ export default function NewGroup({ open, onOpenChange }: NewGroupProps) {
     defaultValues,
     mode: 'onBlur',
   });
+
   const onSubmit = async (values: NewGroupFormSchema) => {
     const name = strToSym(values.title);
     await useGroupState.getState().create({ ...values, name });
@@ -84,7 +91,7 @@ export default function NewGroup({ open, onOpenChange }: NewGroupProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog defaultOpen onOpenChange={onOpenChange}>
       <DialogContent containerClass="w-full sm:max-w-lg">
         <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
           {currentStepComponent}

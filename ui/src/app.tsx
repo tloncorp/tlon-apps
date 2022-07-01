@@ -39,6 +39,7 @@ import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
+import NewGroup from '@/groups/NewGroup/NewGroup';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -85,6 +86,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/gangs/:ship/:name" element={<Gang />} />
+        <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="info" element={<GroupAdmin />}>
