@@ -2,9 +2,9 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { useChatState, useMultiDm } from '../../state/chat';
-import { GroupMeta } from '../../types/groups';
-import ColorPicker from './ColorPicker';
+import { useChatState, useMultiDm } from '@/state/chat';
+import { GroupMeta } from '@/types/groups';
+import ColorPicker from '@/components/ColorPicker';
 
 interface MultiDMInfoFormProps {
   setOpen: (open: boolean) => void;

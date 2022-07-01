@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
-import DMInviteInput, { Option } from '../dms/DMInviteInput';
+import DMInviteInput, { ShipOption } from '../dms/DMInviteInput';
 import { newUv } from '../logic/utils';
 import { useChatState } from '../state/chat';
 import useSendMultiDm from '../state/chat/useSendMultiDm';
 import { ChatMemo } from '../types/chat';
 
 export default function NewDM() {
-  const [ships, setShips] = useState<Option[]>([]);
+  const [ships, setShips] = useState<ShipOption[]>([]);
   const isMultiDm = ships.length > 1;
   const navigate = useNavigate();
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);

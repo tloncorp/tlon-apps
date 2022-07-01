@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { UseFormRegister } from 'react-hook-form';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import * as Popover from '@radix-ui/react-popover';

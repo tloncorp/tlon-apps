@@ -20,8 +20,8 @@ import Text from '@tiptap/extension-text';
 import History from '@tiptap/extension-history';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
-import { useIsMobile } from '../logic/useMedia';
-import ChatInputMenu from '../chat/ChatInputMenu/ChatInputMenu';
+import { useIsMobile } from '@/logic/useMedia';
+import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 
 EditorView.prototype.updateState = function updateState(state) {
   if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
