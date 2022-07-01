@@ -2,9 +2,9 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { useChatState, useMultiDm } from '../../state/chat';
-import { GroupMeta } from '../../types/groups';
-import ColorPicker from './ColorPicker';
+import { useChatState, useMultiDm } from '@/state/chat';
+import { GroupMeta } from '@/types/groups';
+import ColorPicker from '@/components/ColorPicker';
 
 export default function MultiDMInfoForm() {
   const clubId = useParams<{ ship: string }>().ship!;
@@ -19,10 +19,11 @@ export default function MultiDMInfoForm() {
   defaultValues.title = club?.meta.title || '';
   defaultValues.color = club?.meta.color || '';
 
-  const { handleSubmit, register } = useForm<GroupMeta>({
+  const { handleSubmit, register, setValue, watch } = useForm<GroupMeta>({
     defaultValues,
   });
 
+  const watchColor = watch('color');
   const onSubmit = async (values: GroupMeta) => {
     await useChatState.getState().editMultiDm(clubId, values);
   };
@@ -34,7 +35,12 @@ export default function MultiDMInfoForm() {
           <label htmlFor="title" className="w-full font-bold">
             Color
           </label>
-          <ColorPicker register={register} />
+          <ColorPicker
+            className="mt-2"
+            register={register}
+            setColor={(newColor: string) => setValue('color', newColor)}
+            color={watchColor as string}
+          />
         </div>
         <div className="py-4">
           <label htmlFor="description" className=" w-full font-bold">
