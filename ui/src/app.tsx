@@ -86,7 +86,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/gangs/:ship/:name" element={<Gang />} />
-        <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="info" element={<GroupAdmin />}>
@@ -109,6 +108,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
+          <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/join" element={<JoinGroupModal />} />
           <Route path="/groups/:ship/:name">
             <Route path="info" element={<GroupInfoDialog />} />

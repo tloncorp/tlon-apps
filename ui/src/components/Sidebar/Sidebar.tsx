@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
@@ -13,6 +14,7 @@ import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
+  const location = useLocation();
   const pinned = usePinnedGroups();
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get notification count from hark store
@@ -50,6 +52,7 @@ export default function Sidebar() {
           highlight="bg-green-soft dark:bg-green-900"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
           to="/groups/new"
+          state={{ backgroundLocation: location }}
         >
           Create Group
         </SidebarItem>
