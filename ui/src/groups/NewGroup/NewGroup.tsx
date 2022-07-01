@@ -6,9 +6,11 @@ import { strToSym } from '@/logic/utils';
 import useStep from '@/logic/useStep';
 import TemplateOrScratch from '@/groups/NewGroup/TemplateOrScratch';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
+import Dialog, { DialogContent } from '@/components/Dialog';
 
 interface NewGroupProps {
-  close: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 interface NewGroupFormSchema {
@@ -18,7 +20,7 @@ interface NewGroupFormSchema {
   color: string;
 }
 
-export default function NewGroup({ close }: NewGroupProps) {
+export default function NewGroup({ open, onOpenChange }: NewGroupProps) {
   const navigate = useNavigate();
   const [currentStep, { goToNextStep, goToPrevStep }] = useStep(4);
   const defaultValues: NewGroupFormSchema = {
@@ -77,29 +79,37 @@ export default function NewGroup({ close }: NewGroupProps) {
   }
 
   return (
-    <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
-      <div>{currentStepComponent}</div>
-      <div className="flex justify-end space-x-2 pt-4">
-        {currentStep !== 1 ? (
-          <button className="secondary-button" onClick={goToPrevStep}>
-            Back
-          </button>
-        ) : null}
-        {currentStep !== 4 && currentStep !== 1 ? (
-          <button
-            disabled={currentStep === 2 && !isValid}
-            className="button"
-            onClick={goToNextStep}
-          >
-            Next
-          </button>
-        ) : null}
-        {currentStep === 4 ? (
-          <button className="button" type="submit" onClick={close}>
-            Done
-          </button>
-        ) : null}
-      </div>
-    </form>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent containerClass="w-full sm:max-w-lg">
+        <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
+          <div>{currentStepComponent}</div>
+          <div className="flex justify-end space-x-2 pt-4">
+            {currentStep !== 1 ? (
+              <button className="secondary-button" onClick={goToPrevStep}>
+                Back
+              </button>
+            ) : null}
+            {currentStep !== 4 && currentStep !== 1 ? (
+              <button
+                disabled={currentStep === 2 && !isValid}
+                className="button"
+                onClick={goToNextStep}
+              >
+                Next
+              </button>
+            ) : null}
+            {currentStep === 4 ? (
+              <button
+                className="button"
+                type="submit"
+                onClick={() => onOpenChange(false)}
+              >
+                Done
+              </button>
+            ) : null}
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
