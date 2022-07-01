@@ -7,6 +7,7 @@ import useStep from '@/logic/useStep';
 import TemplateOrScratch from '@/groups/NewGroup/TemplateOrScratch';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import Dialog, { DialogContent } from '@/components/Dialog';
+import NavigationDots from '@/components/NavigationDots';
 
 interface NewGroupProps {
   open: boolean;
@@ -22,7 +23,8 @@ interface NewGroupFormSchema {
 
 export default function NewGroup({ open, onOpenChange }: NewGroupProps) {
   const navigate = useNavigate();
-  const [currentStep, { goToNextStep, goToPrevStep }] = useStep(4);
+  const [currentStep, { goToNextStep, goToPrevStep, setStep, maxStep }] =
+    useStep(4);
   const defaultValues: NewGroupFormSchema = {
     title: '',
     description: '',
@@ -87,6 +89,15 @@ export default function NewGroup({ open, onOpenChange }: NewGroupProps) {
         <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
           {currentStepComponent}
         </form>
+        <div className="flex flex-col items-center">
+          {currentStep !== 1 ? (
+            <NavigationDots
+              maxStep={maxStep - 1}
+              currentStep={currentStep - 1}
+              setStep={(step) => setStep(step + 1)}
+            />
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   );

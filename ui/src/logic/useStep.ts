@@ -13,6 +13,7 @@ interface Helpers {
   canGoToNextStep: boolean;
   canGoToPrevStep: boolean;
   setStep: Dispatch<SetStateAction<number>>;
+  maxStep: number;
 }
 
 function useStep(maxStep: number): [number, Helpers] {
@@ -64,6 +65,7 @@ function useStep(maxStep: number): [number, Helpers] {
       canGoToNextStep,
       canGoToPrevStep,
       setStep,
+      maxStep,
       reset,
     },
   ];
