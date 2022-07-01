@@ -19,14 +19,13 @@ import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '../components/icons/ExclamationPoint';
 import X16Icon from '../components/icons/X16Icon';
 import { newUv, preSig } from '../logic/utils';
-import { useContacts } from '../state/contact';
 import createClub from '../state/chat/createClub';
 import { DM_INPUT_CONTACTS_LIMIT } from '../constants';
-import mockContacts from '../mocks/contacts';
 import ShipMenuOption from './DMInviteInput/ShipMenuOption';
-import ShipOption from './DMInviteInput/ShipOption';
 import { IShipOptionRenderer } from './NodeScroller/IShipOptionRender';
 import ShipOptionScroller from './NodeScroller/ShipOptionScroller';
+import { useMemoizedContacts } from '../state/contact';
+import ShipOption from './DMInviteInput/ShipOption';
 
 interface DmInviteInputProps {
   ships: ShipOption[];
@@ -172,13 +171,7 @@ export default function DMInviteInput({
     true,
     GroupBase<ShipOption>
   > | null>(null);
-  // TODO: restore contacts
-  const loadContacts = () => {
-    console.log('loading contacts...');
-    return mockContacts;
-  };
-  const contacts = loadContacts();
-  // const contacts = useContacts();
+  const contacts = useMemoizedContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
     value: contact,

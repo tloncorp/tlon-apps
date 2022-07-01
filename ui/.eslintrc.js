@@ -45,5 +45,13 @@ module.exports = {
     tailwindcss: {
       officialSorting: true,
     },
+    'import/resolver': {
+      'eslint-import-resolver-custom-alias': {
+        alias: {
+          '@': './src',
+        },
+        extensions: ['.ts', '.tsx'],
+      },
+    },
   },
 };
