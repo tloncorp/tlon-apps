@@ -89,7 +89,7 @@ export function whomIsFlag(whom: ChatWhom): boolean {
 }
 
 export function whomIsMultiDm(whom: ChatWhom): boolean {
-  return whom.startsWith(`0w`);
+  return whom.startsWith(`0v`);
 }
 
 export function normalizeUrbitColor(color: string): string {

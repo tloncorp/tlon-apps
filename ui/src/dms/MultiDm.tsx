@@ -45,7 +45,7 @@ export default function MultiDm() {
     }
   }, [clubId, canStart]);
 
-  const sendMessage = useSendMultiDm(clubId);
+  const sendMessage = useSendMultiDm();
   const messages = useMultiDmMessages(clubId);
 
   if (!club) {
