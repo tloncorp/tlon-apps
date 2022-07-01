@@ -5,6 +5,7 @@ import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import ColorPicker from '@/components/ColorPicker';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { isValidUrl } from '@/logic/utils';
+import useMedia from '@/logic/useMedia';
 
 interface NewGroupFormSchema {
   title: string;
@@ -39,6 +40,8 @@ export default function NewGroupForm({
   const watchIconColor = watch('color');
   const watchIconImage = watch('image');
   const watchTitle = watch('title');
+  const dark = useMedia('(prefers-color-scheme: dark)');
+  const defaultColor = dark ? '#FFFFFF' : '#000000';
 
   useEffect(() => {
     if (iconType === 'color' && watchIconColor !== '') {
@@ -126,7 +129,7 @@ export default function NewGroupForm({
                 <ColorPicker
                   color={
                     (watchIconColor as string) === ''
-                      ? '#000000'
+                      ? defaultColor
                       : (watchIconColor as string)
                   }
                   register={register}
