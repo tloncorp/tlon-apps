@@ -1,15 +1,15 @@
 import React from 'react';
-import { useIsMobile } from '../../logic/useMedia';
-import AsteriskIcon from '../icons/Asterisk16Icon';
-import MagnifyingGlass from '../icons/MagnifyingGlass16Icon';
-import SidebarItem from './SidebarItem';
-import AddIcon16 from '../icons/Add16Icon';
-import useSidebarSort from '../../logic/useSidebarSort';
-import SidebarSorter from './SidebarSorter';
-import ActivityIndicator from './ActivityIndicator';
-import MobileSidebar from './MobileSidebar';
-import GroupList from './GroupList';
-import { usePinnedGroups } from '../../state/groups';
+import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
+import MobileSidebar from '@/components/Sidebar/MobileSidebar';
+import GroupList from '@/components/Sidebar/GroupList';
+import { usePinnedGroups } from '@/state/groups';
+import { useIsMobile } from '@/logic/useMedia';
+import AsteriskIcon from '@/components/icons/Asterisk16Icon';
+import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
+import SidebarItem from '@/components/Sidebar/SidebarItem';
+import AddIcon16 from '@/components/icons/Add16Icon';
+import useSidebarSort from '@/logic/useSidebarSort';
+import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
