@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconProps } from './icon';
+import { IconProps } from '@/components/icons/icon';
 
 export default function EmptyIconBox({ className }: IconProps) {
   return (

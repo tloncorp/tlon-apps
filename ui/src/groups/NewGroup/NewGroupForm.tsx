@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { FieldError, UseFormRegister, UseFormSetValue } from 'react-hook-form';
-import ColorBoxIcon from '../../components/icons/ColorBoxIcon';
-import EmptyIconBox from '../../components/icons/EmptyIconBox';
-import ColorPicker from '../../components/ColorPicker';
-import GroupAvatar from '../GroupAvatar';
-import { isValidUrl } from '../../logic/utils';
+import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
+import EmptyIconBox from '@/components/icons/EmptyIconBox';
+import ColorPicker from '@/components/ColorPicker';
+import GroupAvatar from '@/groups/GroupAvatar';
+import { isValidUrl } from '@/logic/utils';
 
 interface NewGroupFormSchema {
   title: string;

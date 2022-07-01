@@ -1,5 +1,5 @@
 import React from 'react';
-import ColorBoxIcon from '../../components/icons/ColorBoxIcon';
+import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 
 const TEMPLATE_TYPE: Record<
   string,

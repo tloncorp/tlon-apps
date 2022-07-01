@@ -1,11 +1,11 @@
 import React, { ReactElement } from 'react';
 import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
-import { useGroupState } from '../../state/groups';
-import { strToSym } from '../../logic/utils';
-import useStep from '../../logic/useStep';
-import TemplateOrScratch from './TemplateOrScratch';
-import NewGroupForm from './NewGroupForm';
+import { useGroupState } from '@/state/groups';
+import { strToSym } from '@/logic/utils';
+import useStep from '@/logic/useStep';
+import TemplateOrScratch from '@/groups/NewGroup/TemplateOrScratch';
+import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 
 interface NewGroupProps {
   close: () => void;

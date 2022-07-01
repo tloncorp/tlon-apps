@@ -1,6 +1,6 @@
 import React from 'react';
 import classNames from 'classnames';
-import { IconProps } from './icon';
+import { IconProps } from '@/components/icons/icon';
 
 interface ColorBoxIconProps extends IconProps {
   color: string;
