@@ -13,17 +13,25 @@ interface NewGroupFormSchema {
   color: string;
 }
 
+interface NewGroupFormProps {
+  register: UseFormRegister<NewGroupFormSchema>;
+  errors: Record<string, FieldError>;
+  watch: (names?: string) => unknown;
+  setValue: UseFormSetValue<NewGroupFormSchema>;
+  isValid: boolean;
+  goToPrevStep: () => void;
+  goToNextStep: () => void;
+}
+
 export default function NewGroupForm({
   register,
   errors,
   watch,
   setValue,
-}: {
-  register: UseFormRegister<NewGroupFormSchema>;
-  errors: Record<string, FieldError>;
-  watch: (names?: string) => unknown;
-  setValue: UseFormSetValue<NewGroupFormSchema>;
-}) {
+  isValid,
+  goToPrevStep,
+  goToNextStep,
+}: NewGroupFormProps) {
   const [iconType, setIconType] = useState<'image' | 'color'>();
   const [iconColor, setIconColor] = useState<string>();
   const [iconLetter, setIconLetter] = useState<string>();
@@ -172,6 +180,14 @@ export default function NewGroupForm({
           {...register('description', { maxLength: 300 })}
           className="input"
         />
+      </div>
+      <div className="flex justify-end space-x-2 pt-4">
+        <button className="secondary-button" onClick={goToPrevStep}>
+          Back
+        </button>
+        <button disabled={!isValid} className="button" onClick={goToNextStep}>
+          Next
+        </button>
       </div>
     </div>
   );

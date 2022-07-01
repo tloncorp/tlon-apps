@@ -64,6 +64,9 @@ export default function NewGroup({ open, onOpenChange }: NewGroupProps) {
           errors={errors}
           watch={watch}
           setValue={setValue}
+          isValid={isValid}
+          goToPrevStep={goToPrevStep}
+          goToNextStep={goToNextStep}
         />
       );
       break;
@@ -82,32 +85,7 @@ export default function NewGroup({ open, onOpenChange }: NewGroupProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent containerClass="w-full sm:max-w-lg">
         <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
-          <div>{currentStepComponent}</div>
-          <div className="flex justify-end space-x-2 pt-4">
-            {currentStep !== 1 ? (
-              <button className="secondary-button" onClick={goToPrevStep}>
-                Back
-              </button>
-            ) : null}
-            {currentStep !== 4 && currentStep !== 1 ? (
-              <button
-                disabled={currentStep === 2 && !isValid}
-                className="button"
-                onClick={goToNextStep}
-              >
-                Next
-              </button>
-            ) : null}
-            {currentStep === 4 ? (
-              <button
-                className="button"
-                type="submit"
-                onClick={() => onOpenChange(false)}
-              >
-                Done
-              </button>
-            ) : null}
-          </div>
+          {currentStepComponent}
         </form>
       </DialogContent>
     </Dialog>
