@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import ob from 'urbit-ob';
+import fuzzy from 'fuzzy';
 import {
   components,
   ControlProps,
@@ -21,6 +22,8 @@ import X16Icon from '@/components/icons/X16Icon';
 import { preSig } from '@/logic/utils';
 import Avatar from '@/components/Avatar';
 import { useMemoizedContacts } from '@/state/contact';
+import { MAX_DISPLAYED_OPTIONS } from '@/constants';
+import { deSig } from '@urbit/api';
 
 export interface ShipOption {
   value: string;
@@ -154,6 +157,42 @@ export default function ShipSelector({
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
 
+  // There is a known issue with react-select's performance for large lists of
+  // of options, so filter the list of contact options to improve performance
+  // See: https://github.com/JedWatson/react-select/issues/4516
+  //      https://github.com/JedWatson/react-select/issues/3128
+  const [inputValue, setInputValue] = useState('');
+  const filteredOptions = useMemo(() => {
+    if (!inputValue) {
+      return contactOptions;
+    }
+
+    const fuzzyNames = fuzzy
+      .filter(inputValue, contactNames)
+      .sort((a, b) => {
+        const filter = deSig(inputValue) || '';
+        const left = deSig(a.string)?.startsWith(filter)
+          ? a.score + 1
+          : a.score;
+        const right = deSig(b.string)?.startsWith(filter)
+          ? b.score + 1
+          : b.score;
+
+        return right - left;
+      })
+      .map((result) => contactNames[result.index]);
+
+    return fuzzyNames.map((contact) => ({
+      value: contact,
+      label: contacts[contact].nickname,
+    }));
+  }, [contactNames, contactOptions, contacts, inputValue]);
+
+  const slicedOptions = useMemo(
+    () => filteredOptions.slice(0, MAX_DISPLAYED_OPTIONS),
+    [filteredOptions]
+  );
+
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
     const isInputting = !!(
       selectRef.current && selectRef.current.inputRef?.value
@@ -250,17 +289,16 @@ export default function ShipSelector({
         }),
       }}
       aria-label="Ships"
-      options={contactOptions}
+      options={slicedOptions}
       value={ships}
       onChange={onChange}
-      isValidNewOption={(inputValue) =>
-        inputValue ? ob.isValidPatp(preSig(inputValue)) : false
-      }
+      onInputChange={(val) => setInputValue(val)}
+      isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
       onKeyDown={onKeyDown}
       placeholder="Type a name ie; ~sampel-palnet"
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
-      // filterOption={createFilter(filterConfig)}
+      filterOption={() => true} // disable the default filter
       components={{
         Control,
         Menu: ShipDropDownMenu,
