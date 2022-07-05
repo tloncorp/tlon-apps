@@ -106,9 +106,7 @@ export default function NewGroup() {
   return (
     <Dialog defaultOpen onOpenChange={onOpenChange}>
       <DialogContent containerClass="w-full sm:max-w-lg">
-        <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
-          {currentStepComponent}
-        </form>
+        <div className="flex flex-col">{currentStepComponent}</div>
         <div className="flex flex-col items-center">
           {currentStep !== 1 ? (
             <NavigationDots
