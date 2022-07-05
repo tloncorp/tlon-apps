@@ -182,7 +182,11 @@ export default function NewGroupForm({
         <button className="secondary-button" onClick={goToPrevStep}>
           Back
         </button>
-        <button disabled={!isValid} className="button" onClick={goToNextStep}>
+        <button
+          disabled={iconType === undefined || !isValid}
+          className="button"
+          onClick={goToNextStep}
+        >
           Next
         </button>
       </div>
