@@ -8,37 +8,37 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
-import Groups from './groups/Groups';
-import Channel from './pages/Channel';
-import { useGroupState } from './state/groups/groups';
-import NewGroup from './pages/NewGroup';
-import NewChannel from './pages/NewChannel';
-import Members from './pages/Members';
-import Roles from './pages/Roles';
-import { useChatState } from './state/chat';
-import ChannelSettings from './pages/ChannelSettings';
-import api, { IS_MOCK } from './api';
-import Dms from './pages/Dms';
-import Search from './pages/Search';
-import NewDM from './pages/NewDm';
-import Gang, { GangModal } from './pages/Gang';
-import JoinGroup, { JoinGroupModal } from './pages/JoinGroup';
-import { DmThread, GroupChatThread } from './chat/ChatThread/ChatThread';
-import Policy from './pages/Policy';
-import useMedia from './logic/useMedia';
-import useIsChat from './logic/useIsChat';
-import useErrorHandler from './logic/useErrorHandler';
-import { useSettingsState, useTheme } from './state/settings';
-import { useLocalState } from './state/local';
-import useContactState from './state/contact';
-import ErrorAlert from './components/ErrorAlert';
-import DMHome from './dms/DMHome';
-import Nav from './components/Nav/Nav';
-import GroupInviteDialog from './groups/GroupInviteDialog';
-import Message from './dms/Message';
-import GroupAdmin from './groups/GroupAdmin/GroupAdmin';
-import GroupMemberManager from './groups/GroupAdmin/GroupMemberManager';
-import GroupInfo from './groups/GroupAdmin/GroupInfo';
+import Groups from '@/groups/Groups';
+import Channel from '@/pages/Channel';
+import { useGroupState } from '@/state/groups';
+import NewChannel from '@/pages/NewChannel';
+import Members from '@/pages/Members';
+import Roles from '@/pages/Roles';
+import { useChatState } from '@/state/chat';
+import ChannelSettings from '@/pages/ChannelSettings';
+import api, { IS_MOCK } from '@/api';
+import Dms from '@/pages/Dms';
+import Search from '@/pages/Search';
+import NewDM from '@/pages/NewDm';
+import Gang, { GangModal } from '@/pages/Gang';
+import JoinGroup, { JoinGroupModal } from '@/pages/JoinGroup';
+import { DmThread, GroupChatThread } from '@/chat/ChatThread/ChatThread';
+import Policy from '@/pages/Policy';
+import useMedia from '@/logic/useMedia';
+import useIsChat from '@/logic/useIsChat';
+import useErrorHandler from '@/logic/useErrorHandler';
+import { useSettingsState, useTheme } from '@/state/settings';
+import { useLocalState } from '@/state/local';
+import useContactState from '@/state/contact';
+import ErrorAlert from '@/components/ErrorAlert';
+import DMHome from '@/dms/DMHome';
+import Nav from '@/components/Nav/Nav';
+import GroupInviteDialog from '@/groups/GroupInviteDialog';
+import Message from '@/dms/Message';
+import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
+import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
+import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
+import NewGroup from '@/groups/NewGroup/NewGroup';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -85,7 +85,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
         <Route path="/gangs/:ship/:name" element={<Gang />} />
-        <Route path="/groups/new" element={<NewGroup />} />
         <Route path="/groups/join" element={<JoinGroup />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="info" element={<GroupAdmin />}>
@@ -108,6 +107,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
+          <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/join" element={<JoinGroupModal />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />

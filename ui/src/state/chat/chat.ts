@@ -357,8 +357,8 @@ export const useChatState = create<ChatState>((set, get) => ({
     api.subscribe({
       app: 'chat',
       path: `/club/${id}/ui`,
-      event: (event: ClubAction) => {
-        get().batchSet(clubReducer(event));
+      event: (event: ClubDelta) => {
+        get().batchSet(clubReducer(id, event));
       },
     });
   },
@@ -397,11 +397,11 @@ export const useChatState = create<ChatState>((set, get) => ({
     await api.poke(multiDmAction(id, { team: { ship: window.our, ok } }));
     await get().fetchMultiDm(id, true);
   },
-  sendMultiDm: async (id, chatId, memo) => {
+  sendMultiDm: async (id, memo) => {
     await api.poke(
       multiDmAction(id, {
         writ: {
-          id: chatId,
+          id: makeId(),
           delta: { add: { ...memo, sent: Date.now() } },
         },
       })

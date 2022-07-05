@@ -1,14 +1,14 @@
 import ob from 'urbit-ob';
 import React, { useCallback, useState } from 'react';
 import Dialog, { DialogClose, DialogContent } from '../components/Dialog';
-import ShipSelector, { Option } from '../components/ShipSelector';
+import ShipSelector, { ShipOption } from '../components/ShipSelector';
 import { useDismissNavigate } from '../logic/routing';
 import { useGroupState, useRouteGroup } from '../state/groups/groups';
 
 export default function GroupInviteDialog() {
   const dismiss = useDismissNavigate();
   const flag = useRouteGroup();
-  const [ships, setShips] = useState<Option[]>([]);
+  const [ships, setShips] = useState<ShipOption[]>([]);
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;

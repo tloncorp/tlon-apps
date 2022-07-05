@@ -2,7 +2,6 @@ import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useRef } from 'react';
-import { NavigateFunction } from 'react-router';
 import { useChatState, useChatDraft, usePact } from '../../state/chat';
 import { ChatInline, ChatMemo, ChatStory } from '../../types/chat';
 import MessageEditor, {
@@ -15,8 +14,6 @@ import X16Icon from '../../components/icons/X16Icon';
 import { useChatStore } from '../useChatStore';
 import ChatInputMenu from '../ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '../../logic/useMedia';
-import { whomIsMultiDm } from '../../logic/utils';
-import createClub from '../../state/chat/createClub';
 
 interface ChatInputProps {
   whom: string;
@@ -24,10 +21,7 @@ interface ChatInputProps {
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
-  newDm?: boolean;
-  navigate?: NavigateFunction;
   sendMessage: (whom: string, memo: ChatMemo) => void;
-  ships?: string[];
 }
 
 function convertMarkType(type: string): string {
@@ -266,10 +260,7 @@ export default function ChatInput({
   showReply = false,
   className = '',
   sendDisabled = false,
-  newDm = false,
-  navigate = undefined,
   sendMessage,
-  ships,
 }: ChatInputProps) {
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
@@ -282,13 +273,19 @@ export default function ChatInput({
   }, [whom]);
 
   const onUpdate = useRef(
-    debounce(({ editor }) => {
-      const data = parseTipTapJSON(editor?.getJSON());
-      useChatState.getState().draft(whom, {
-        inline: Array.isArray(data) ? data : [data],
-        block: [],
-      });
-    }, 5000)
+    debounce(
+      useCallback(
+        ({ editor }) => {
+          const data = parseTipTapJSON(editor?.getJSON());
+          useChatState.getState().draft(whom, {
+            inline: Array.isArray(data) ? data : [data],
+            block: [],
+          });
+        },
+        [whom]
+      ),
+      5000
+    )
   );
 
   const onSubmit = useCallback(
@@ -311,18 +308,12 @@ export default function ChatInput({
         },
       };
 
-      if (newDm && whomIsMultiDm(whom) && ships) {
-        await createClub(whom, ships);
-      }
       sendMessage(whom, memo);
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
-      if (newDm && navigate) {
-        navigate(`/dm/${whom}`);
-      }
     },
-    [replying, newDm, whom, ships, sendMessage, navigate, closeReply]
+    [replying, whom, sendMessage, closeReply]
   );
 
   useEffect(() => {

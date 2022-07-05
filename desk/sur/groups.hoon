@@ -41,6 +41,7 @@
     $:  meta=data:meta
         added=time
         zon=(unit zone)
+        join=?
         readers=(set sect)
     ==
   +$  diff
@@ -52,6 +53,8 @@
       ::
         [%add-zone =zone]
         [%del-zone ~]
+      ::
+        [%join join=_|]
     ==
   --
 ::
@@ -141,6 +144,8 @@
       image=cord  
       color=cord
   ==
+::
++$  init  [=time =group]
 ::
 +$  groups
   (map flag group)

@@ -6,6 +6,10 @@
   @apply inline-flex items-center justify-center rounded-lg bg-gray-50 py-2 px-4 text-lg font-semibold leading-4 text-gray-800 ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:text-base;
 }
 
+.small-button {
+  @apply inline-flex h-6 items-center justify-center rounded-md bg-gray-800 py-1 px-2 text-sm font-semibold leading-4 text-white ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400;
+}
+
 .icon-button {
   @apply inline-flex h-6 w-6 items-center justify-center rounded-lg bg-gray-100 p-0 text-sm font-bold leading-4 text-gray-600 ring-gray-200 ring-offset-2 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 disabled:text-gray-300 sm:text-base;
 }

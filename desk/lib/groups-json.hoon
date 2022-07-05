@@ -94,6 +94,7 @@
       ?(%add-sects %del-sects)  a/(turn ~(tap in sects.d) (lead %s))
       %add-zone                 s/zone.d
       %del-zone                 ~
+      %join                     b/join.d
     ==
   ::
   ++  cabal-diff
@@ -211,6 +212,7 @@
     :~  meta/(meta meta.ch)
         added/(time added.ch)
         zone/?~(zon.ch ~ s/u.zon.ch)
+        join/b/join.ch
     ==
   ::
   ++  cordon
@@ -296,6 +298,7 @@
         del-sects/(as sym)
         add-zone/sym
         del-zone/ul
+        join/bo
     ==
   ::
   ++  cordon

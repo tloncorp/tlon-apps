@@ -141,7 +141,7 @@ export default function DmOptions({
             </>
           ) : (
             <>
-              {isMulti ? null : (
+              {isMulti ? (
                 <>
                   <DropdownMenu.Item
                     className="dropdown-item flex items-center space-x-2"
@@ -158,7 +158,7 @@ export default function DmOptions({
                     <span>Edit Chat Info</span>
                   </DropdownMenu.Item>
                 </>
-              )}
+              ) : null}
               <DropdownMenu.Item
                 className="dropdown-item flex items-center space-x-3"
                 onClick={handlePin}

@@ -1,26 +1,35 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
-import ChatInput from '../chat/ChatInput/ChatInput';
-import Layout from '../components/Layout/Layout';
-import ShipSelector, { Option } from '../components/ShipSelector';
-import { newUv } from '../logic/utils';
-import { useChatState } from '../state/chat';
-import createClub from '../state/chat/createClub';
-import useSendMultiDm from '../state/chat/useSendMultiDm';
+import ChatInput from '@/chat/ChatInput/ChatInput';
+import Layout from '@/components/Layout/Layout';
+import ShipSelector, { ShipOption } from '@/components/ShipSelector';
+import { newUv } from '@/logic/utils';
+import { useChatState } from '@/state/chat';
+import createClub from '@/state/chat/createClub';
+import useSendMultiDm from '@/state/chat/useSendMultiDm';
+import { ChatMemo } from '@/types/chat';
 
 export default function NewDM() {
-  const [ships, setShips] = useState<Option[]>([]);
+  const [ships, setShips] = useState<ShipOption[]>([]);
   const isMultiDm = ships.length > 1;
   const navigate = useNavigate();
-  const validShips = ships.every((ship) => ob.isValidPatp(ship.value));
+  const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
+  const validShips = shipValues.every((ship) => ob.isValidPatp(ship));
   const newClubId = useMemo(() => newUv(), []);
   const { sendMessage: sendChat } = useChatState.getState();
-  const sendMultiDm = useSendMultiDm(newClubId);
-  const sendMessage = isMultiDm ? sendMultiDm : sendChat;
+  const sendMultiDm = useSendMultiDm(true, shipValues);
+  const sendDm = useCallback(
+    (whom: string, memo: ChatMemo) => {
+      sendChat(whom, memo);
+
+      navigate(`/dm/${whom}`);
+    },
+    [navigate, sendChat]
+  );
 
   const onEnter = useCallback(
-    async (invites: Option[]) => {
+    async (invites: ShipOption[]) => {
       if (isMultiDm) {
         await createClub(
           newClubId,
@@ -49,10 +58,7 @@ export default function NewDM() {
             }
             showReply
             sendDisabled={!validShips}
-            newDm
-            navigate={navigate}
-            sendMessage={sendMessage}
-            ships={ships.map((o) => o.value)}
+            sendMessage={isMultiDm ? sendMultiDm : sendDm}
           />
         </div>
       }
