@@ -211,6 +211,7 @@
     %-  pairs
     :~  meta/(meta meta.ch)
         added/(time added.ch)
+        readers/a/(turn ~(tap in readers.ch) (lead %s))
         zone/?~(zon.ch ~ s/u.zon.ch)
         join/b/join.ch
     ==
