@@ -476,7 +476,7 @@
         %add
       ?>  ?|  =(p.flag our.bowl) :: self
               =(p.flag src.bowl) :: subscription
-             &((~(has in ships) src.bowl) =(1 ~(wyt in ships))  :: user join
+             &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
           ==
       =.  fleet.group
         %-  ~(uni by fleet.group)
