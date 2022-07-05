@@ -29,7 +29,17 @@
       %-  pairs
       :~  team/a/(turn ~(tap in team.d) ship)
           hive/a/(turn ~(tap in hive.d) ship)
+          meta/(meta met.d)
       ==
+    ==
+  ::
+  ++  club-invite
+    |=  i=invite:club:c
+    %-  pairs
+    :~  id/s/(scot %uv id.i)
+        team/a/(turn ~(tap in team.i) ship)
+        hive/a/(turn ~(tap in hive.i) ship)
+        meta/(meta met.i)
     ==
   ::
   ++  meta

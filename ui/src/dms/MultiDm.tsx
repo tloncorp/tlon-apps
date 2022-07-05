@@ -25,12 +25,6 @@ export default function MultiDm() {
   const isMobile = useIsMobile();
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
-  const canStart = useChatState(
-    useCallback(
-      (s) => clubId && Object.keys(s.briefs).includes(clubId),
-      [clubId]
-    )
-  );
   const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   useEffect(() => {
@@ -40,10 +34,10 @@ export default function MultiDm() {
   }, [navPrimary, isMobile]);
 
   useEffect(() => {
-    if (clubId && canStart) {
+    if (clubId) {
       useChatState.getState().initializeMultiDm(clubId);
     }
-  }, [clubId, canStart]);
+  }, [clubId]);
 
   const sendMessage = useSendMultiDm();
   const messages = useMultiDmMessages(clubId);
@@ -88,9 +82,7 @@ export default function MultiDm() {
               </div>
             </div>
           </button>
-          {canStart ? (
-            <DmOptions ship={clubId} pending={!isAccepted} isMulti />
-          ) : null}
+          <DmOptions ship={clubId} pending={!isAccepted} isMulti />
         </div>
       }
       aside={<Outlet />}

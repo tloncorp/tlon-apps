@@ -41,7 +41,7 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
           <ColorPicker
             className="mt-2"
             register={register}
-            setColor={(newColor: string) => setValue('color', newColor)}
+            setColor={(newColor: string) => setValue('color', newColor || '')}
             color={watchColor as string}
           />
         </div>

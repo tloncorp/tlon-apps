@@ -16,6 +16,7 @@ import {
   Club,
   ClubAction,
   ClubDelta,
+  ClubInvite,
   DmAction,
   WritDelta,
 } from '../../types/chat';
@@ -189,6 +190,19 @@ export const useChatState = create<ChatState>((set, get) => ({
       event: (event: unknown) => {
         get().batchSet((draft) => {
           draft.pendingDms = event as string[];
+        });
+      },
+    });
+    api.subscribe({
+      app: 'chat',
+      path: '/club/new',
+      event: (event: ClubInvite) => {
+        get().batchSet((draft) => {
+          const { id, ...crew } = event;
+          const club = draft.multiDms[id];
+          if (!club) {
+            draft.multiDms[id] = crew;
+          }
         });
       },
     });

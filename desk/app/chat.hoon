@@ -187,6 +187,7 @@
   |=  =path
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
+      [%club %new ~]  ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
       [%chat ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
@@ -198,7 +199,7 @@
   ::
       [%dm @ *]
     =/  =ship  (slav %p i.t.path)
-    di-abet:(di-watch:(di-abed:di-core ship) t.t.path)
+    di-abet:(di-watch:(di-abed:di-core ship) t.t.path)      
   ::
       [%club @ *]
     =/  =id:club:c  (slav %uv i.t.path)
@@ -418,10 +419,6 @@
       (cu-diff 0 [%writ now-id %add ~ our.bowl now.bowl notice/notice])
     cu-core
   ::
-  ++  cu-invite  
-    |=  =invite:club:c 
-    (cu-init %invited invite)
-  ::
   ::  NB: need to be careful not to forward automatically generated
   ::  messages like this, each node should generate its own notice
   ::  messages, and never forward. XX: defend against?
@@ -430,10 +427,8 @@
     =/  =id:c
       [ship now.bowl]
     =/  w-d=diff:writs:c  [id %add ~ ship now.bowl notice/notice]
-    =/  del=delta:club:c
-      [%writ w-d] 
     =.  pact.club  (reduce:cu-pact now.bowl w-d)
-    (cu-give-delta del)
+    (cu-give-writs-diff w-d)
   ::
   ++  cu-give-delta
     |=  =delta:club:c
@@ -463,7 +458,8 @@
           team.club  team.delta
           met.club   met.delta
       ==
-      =.  cu-core  (cu-give-delta delta)
+      =/  cage  club-invite+!>([id (tail delta)])
+      =.  cor  (emit %give %fact ~[`wire`/club/new] cage)
       cu-core
     ::
         %meta
