@@ -34,6 +34,7 @@ function createMockGroup(title: string): Group {
         'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.6.14..18.37.11-Icon Box.png',
       color: '',
     },
+    zones: {},
   };
 }
 const mockGroupOne: Group = {

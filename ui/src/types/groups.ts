@@ -14,10 +14,12 @@ export interface Cabal {
 
 export interface Channel {
   meta: GroupMeta;
-  zone: Zone;
+  zone: Zone | null;
+  readers: string[];
+  join: boolean;
 }
 
-export type Zone = string
+export type Zone = string;
 
 export interface Zones {
   [key:Zone]: GroupMeta
@@ -110,17 +112,29 @@ interface ChannelDiffDel {
 }
 
 interface ChannelDiffAddZone {
-  "add-zone": {zone: Zone}
+  "add-zone": string
 }
 
 interface ChannelDiffDelZone {
   "del-zone": null
 }
 
+interface ChannelDiffAddSects {
+  "add-sects": string[];
+}
+
+interface ChannelDiffDelSects {
+  "del-sects": string[];
+}
+
+interface ChannelDiffJoin {
+  "join": boolean;
+}
+
 interface ChannelDiff {
   channel: {
     flag: string;
-    diff: ChannelDiffAdd | ChannelDiffDel | ChannelDiffAddZone | ChannelDiffDelZone;
+    diff: ChannelDiffAdd | ChannelDiffDel | ChannelDiffAddZone | ChannelDiffDelZone | ChannelDiffAddSects | ChannelDiffDelSects | ChannelDiffJoin;
   };
 }
 

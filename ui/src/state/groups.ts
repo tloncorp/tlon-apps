@@ -1,6 +1,6 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
-import produce from 'immer';
+import produce, { current } from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
 import {
@@ -78,6 +78,8 @@ interface GroupState {
   deleteZone: (flag: string, zone: string) => Promise<void>;
   addChannelToZone: (zone: string, groupFlag:string, channelFlag: string) => Promise<void>;
   removeChannelFromZone: (zone: string, groupFlag: string, channelFlag: string) => Promise<void>
+  setChannelPerm: (flag: string, channelFlag: string, sects: string[]) => Promise<void>;
+  setChannelJoin: (flag: string, channelFlag: string, join: boolean) => Promise<void>;
 }
 
 export const useGroupState = create<GroupState>((set, get) => ({
@@ -216,27 +218,59 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  addChannelToZone: async (zone, channelFlag) => {
+  addChannelToZone: async (zone, groupFlag, channelFlag) => {
     const diff = {
       channel: {
         flag: channelFlag,
-        delta: {
+        diff: {
           "add-zone": zone
         }     
       }
     };
-    await api.poke(groupAction(channelFlag, diff));
+    await api.poke(groupAction(groupFlag, diff));
   },
-  removeChannelFromZone: async (zone, channelFlag) => {
+  removeChannelFromZone: async (zone, groupFlag, channelFlag) => {
     const diff = {
       channel: {
         flag: channelFlag,
-        delta: {
+        diff: {
           "del-zone": null,
         }
       }
     };
-    await api.poke(groupAction(channelFlag, diff));
+    await api.poke(groupAction(groupFlag, diff));
+  },
+  setChannelPerm: async (flag, channelFlag, sects) => {
+    const currentReaders = get().groups[flag].channels[channelFlag]?.readers || [];
+    const addDiff = {
+      channel: {
+        flag: channelFlag,
+        diff: {
+          "add-sects": sects.filter(s => !currentReaders.includes(s))
+        }
+      }
+    };
+    const removeDiff = {
+      channel: {
+        flag: channelFlag,
+        diff: {
+          "del-sects": currentReaders.filter(s => sects.includes(s))
+        }
+      }
+    };
+    await api.poke(groupAction(flag, addDiff));
+    await api.poke(groupAction(flag, removeDiff));
+  },
+  setChannelJoin: async (flag, channelFlag, join) => {
+    const diff = {
+      channel: {
+        flag: channelFlag,
+        diff: {
+          join
+        }
+      }
+    };
+    await api.poke(groupAction(flag, diff));
   },
   start: async () => {
     const [groups, gangs] = await Promise.all([
@@ -295,6 +329,26 @@ export const useGroupState = create<GroupState>((set, get) => ({
           } else if ('del' in d) {
             get().batchSet((draft) => {
               delete draft.groups[flag].channels[f];
+            });
+          } else if ('add-zone' in d) {
+            get().batchSet((draft) => {
+              draft.groups[flag].channels[f].zone = d["add-zone"];
+            });
+          } else if ("del-zone" in d) {
+            get().batchSet((draft) => {
+              draft.groups[flag].channels[f].zone = null;
+            });
+          } else if ("add-sects" in d) {
+            get().batchSet((draft) => {
+              draft.groups[flag].channels[f].readers = [...draft.groups[flag].channels[f].readers, ...d['add-sects']];
+            });
+          } else if ("del-sects" in d) {
+            get().batchSet((draft) => {
+              draft.groups[flag].channels[f].readers = draft.groups[flag].channels[f].readers.filter((s) => !d['del-sects'].includes(s));
+            });
+          } else if ("join" in d) {
+            get().batchSet((draft) => {
+              draft.groups[flag].channels[f].join = d.join;
             });
           }
         } else if ('fleet' in diff) {
