@@ -476,7 +476,11 @@
         %add
       ?>  ?|  =(p.flag our.bowl) :: self
               =(p.flag src.bowl) :: subscription
+<<<<<<< HEAD
               &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
+=======
+             &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
+>>>>>>> origin/master
           ==
       =.  fleet.group
         %-  ~(uni by fleet.group)
