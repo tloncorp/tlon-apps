@@ -476,16 +476,16 @@
         %add
       ?>  ?|  =(p.flag our.bowl) :: self
               =(p.flag src.bowl) :: subscription
-              (~(has in ships) src.bowl)  :: user join
+             &((~(has in ships) src.bowl) =(1 ~(wyt in ships))  :: user join
           ==
       =.  fleet.group
-      %-  ~(uni by fleet.group)
-        %-  malt
-        ^-  (list [ship vessel:fleet:g])
-        %+  turn
-          ~(tap in ships)
-        |=  =ship
-        [ship [sects=~ joined=now.bowl]]
+        %-  ~(uni by fleet.group)
+          %-  malt
+          ^-  (list [ship vessel:fleet:g])
+          %+  turn
+            ~(tap in ships)
+          |=  =ship
+          [ship [sects=~ joined=now.bowl]]
       go-core
     ::
         %del
