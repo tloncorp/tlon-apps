@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react';
+import React, { ReactElement, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { useGroupState } from '@/state/groups';
@@ -18,9 +18,12 @@ interface NewGroupFormSchema {
   color: string;
 }
 
+type PrivacyTypes = 'public' | 'private' | 'secret';
+
 export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
+  const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyTypes>();
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -87,6 +90,8 @@ export default function NewGroup() {
           groupName={getValues('title')}
           goToPrevStep={goToPrevStep}
           goToNextStep={goToNextStep}
+          selectedPrivacy={selectedPrivacy}
+          setSelectedPrivacy={setSelectedPrivacy}
         />
       );
       break;
