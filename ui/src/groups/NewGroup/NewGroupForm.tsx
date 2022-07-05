@@ -178,7 +178,7 @@ export default function NewGroupForm({
           className="input"
         />
       </div>
-      <div className="flex justify-end space-x-2 pt-4">
+      <div className="flex justify-end space-x-2 py-4">
         <button className="secondary-button" onClick={goToPrevStep}>
           Back
         </button>

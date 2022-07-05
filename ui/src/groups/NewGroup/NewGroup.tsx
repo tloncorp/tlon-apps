@@ -6,6 +6,7 @@ import { strToSym } from '@/logic/utils';
 import useStep from '@/logic/useStep';
 import TemplateOrScratch from '@/groups/NewGroup/TemplateOrScratch';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
+import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
@@ -42,6 +43,7 @@ export default function NewGroup() {
     register,
     formState: { errors, isValid },
     setValue,
+    getValues,
     watch,
   } = useForm<NewGroupFormSchema>({
     defaultValues,
@@ -80,7 +82,13 @@ export default function NewGroup() {
       );
       break;
     case 3:
-      currentStepComponent = <span>Third</span>;
+      currentStepComponent = (
+        <NewGroupPrivacy
+          groupName={getValues('title')}
+          goToPrevStep={goToPrevStep}
+          goToNextStep={goToNextStep}
+        />
+      );
       break;
     case 4:
       currentStepComponent = <span>Fourth</span>;
