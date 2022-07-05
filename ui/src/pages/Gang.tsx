@@ -1,6 +1,6 @@
 import React from 'react';
 import cn from 'classnames';
-import { useGang, useGroupState, useRouteGroup } from '../state/groups';
+import { useGang, useGroupState, useRouteGroup } from '../state/groups/groups';
 import { JoinProgress } from '../types/groups';
 import GangName from '../groups/GangName/GangName';
 import GangPreview from '../groups/GangPreview/GangPreview';

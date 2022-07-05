@@ -1,5 +1,4 @@
-import React, { useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useRef } from 'react';
 import ob from 'urbit-ob';
 import {
   components,
@@ -16,24 +15,22 @@ import {
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
-import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
-import ExclamationPoint from '../components/icons/ExclamationPoint';
-import X16Icon from '../components/icons/X16Icon';
-import { newUv, preSig } from '../logic/utils';
-import Avatar from '../components/Avatar';
-import { useMemoizedContacts } from '../state/contact';
-import createClub from '../state/chat/createClub';
+import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import X16Icon from '@/components/icons/X16Icon';
+import { preSig } from '@/logic/utils';
+import Avatar from '@/components/Avatar';
+import { useMemoizedContacts } from '@/state/contact';
 
 export interface ShipOption {
   value: string;
   label: string;
 }
 
-interface DmInviteInputProps {
+interface ShipSelectorProps {
   ships: ShipOption[];
   setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
-  fromMulti?: boolean;
-  clubId?: string;
+  onEnter?: (ships: ShipOption[]) => void;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -137,12 +134,11 @@ function Input({ children, ...props }: InputProps<ShipOption, true>) {
   );
 }
 
-export default function DMInviteInput({
+export default function ShipSelector({
   ships,
   setShips,
-  fromMulti = false,
-  clubId,
-}: DmInviteInputProps) {
+  onEnter,
+}: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
     true,
@@ -154,13 +150,9 @@ export default function DMInviteInput({
     value: contact,
     label: contacts[contact].nickname,
   }));
-  const navigate = useNavigate();
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
-
-  const isMulti = ships.length > 1;
-  const newClubId = useMemo(() => clubId || newUv(), [clubId]);
 
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
     const isInputting = !!(
@@ -186,19 +178,8 @@ export default function DMInviteInput({
         if (isInputting) {
           return;
         }
-        if (ships && ships.length > 0 && validShips) {
-          if (isMulti) {
-            await createClub(
-              newClubId,
-              ships.map((s) => s.value)
-            );
-            navigate(`/dm/${newClubId}`);
-          } else if (fromMulti) {
-            // club already created, inviting new user to existing club
-            navigate(`/dm/${clubId}`);
-          } else {
-            navigate(`/dm/${ships[0].value}`);
-          }
+        if (ships && ships.length > 0 && validShips && onEnter) {
+          onEnter(ships);
         }
         break;
       }

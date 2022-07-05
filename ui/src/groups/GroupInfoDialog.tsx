@@ -1,6 +1,6 @@
 import React from 'react';
 import GroupAvatar from './GroupAvatar';
-import { useGroup, useRouteGroup } from '../state/groups';
+import { useGroup, useRouteGroup } from '../state/groups/groups';
 import { useDismissNavigate } from '../logic/routing';
 import Dialog, {
   DialogClose,

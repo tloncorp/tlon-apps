@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import React from 'react';
-import { useGroup } from '../../state/groups';
+import { Routes, Route } from 'react-router';
+import { useGroup } from '../../state/groups/groups';
 import GroupAvatar from '../GroupAvatar';
 import CaretLeftIcon from '../../components/icons/CaretLeftIcon';
 import HashIcon from '../../components/icons/HashIcon';
@@ -10,6 +11,7 @@ import NavTab from '../../components/NavTab';
 import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
 import ChannelList from './ChannelList';
 import MobileGroupActions from '../MobileGroupActions';
+import GroupAdmin from '../GroupAdmin/GroupAdmin';
 
 export default function MobileGroupSidebar() {
   const { navPrimary, flag, secondary } = useNavStore((state) => ({

@@ -6,15 +6,15 @@ export default function ElipsisCircleIcon({ className }: IconProps) {
   return (
     <svg
       className={className}
-      viewBox="0 0 18 18"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
     >
       <path
+        className="fill-current"
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M9 18A9 9 0 1 1 9 0a9 9 0 0 1 0 18ZM6 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm4 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
-        className="fill-current"
+        d="M12 21c-4.97056 0-9-4.0294-9-9 0-4.97056 4.02944-9 9-9 4.9706 0 9 4.02944 9 9 0 4.9706-4.0294 9-9 9Zm-3-9c0 .5523-.44772 1-1 1s-1-.4477-1-1 .44772-1 1-1 1 .4477 1 1Zm3 1c.5523 0 1-.4477 1-1s-.4477-1-1-1-1 .4477-1 1 .4477 1 1 1Zm4 0c.5523 0 1-.4477 1-1s-.4477-1-1-1-1 .4477-1 1 .4477 1 1 1Z"
       />
     </svg>
   );

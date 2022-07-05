@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet } from 'react-router';
-import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
+import { useGroup, useGroupState, useRouteGroup } from '../state/groups/groups';
 import useNavStore from '../components/Nav/useNavStore';
 import api from '../api';
 import { useIsMobile } from '../logic/useMedia';

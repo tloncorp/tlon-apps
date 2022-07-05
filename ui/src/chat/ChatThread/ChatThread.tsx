@@ -3,7 +3,7 @@ import { useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useChannelFlag } from '../../hooks';
 import { useChatState, useReplies, useWrit } from '../../state/chat';
-import { useChannel, useRouteGroup } from '../../state/groups';
+import { useChannel, useRouteGroup } from '../../state/groups/groups';
 import ChatInput from '../ChatInput/ChatInput';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import RowDivider from '../../components/RowDivider';

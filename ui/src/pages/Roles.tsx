@@ -1,7 +1,7 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import MetadataForm from '../components/MetadataForm/MetadataForm';
-import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
+import { useGroup, useGroupState, useRouteGroup } from '../state/groups/groups';
 import { Cabal } from '../types/groups';
 
 function Role(props: { sect: string; cabal: Cabal }) {

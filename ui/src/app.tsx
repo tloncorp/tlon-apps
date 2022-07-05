@@ -33,7 +33,6 @@ import useContactState from '@/state/contact';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import Nav from '@/components/Nav/Nav';
-import GroupInfoDialog from '@/groups/GroupInfoDialog';
 import GroupInviteDialog from '@/groups/GroupInviteDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
@@ -111,7 +110,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/join" element={<JoinGroupModal />} />
           <Route path="/groups/:ship/:name">
-            <Route path="info" element={<GroupInfoDialog />} />
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
           <Route path="/gangs/:ship/:name" element={<GangModal />} />
