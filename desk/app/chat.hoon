@@ -249,14 +249,18 @@
     ?.  =(p.action group.perm.chat)  ~
     `flag
   ?+    q.q.action  cor
-      [%fleet @ %del ~]
+      [%fleet * %del ~]
     ~&  'revoke perms for'
     %+  roll  affected
     |=  [=flag:c co=_cor]
-    =/  ca  (ca-abed:ca-core:co flag)
-    ca-abet:(ca-revoke:ca p.q.q.action)
+    ^+  cor
+    %+  roll  ~(tap in p.q.q.action)
+    |=  [=ship ci=_cor]
+    ^+  cor
+    =/  ca  (ca-abed:ca-core:ci flag)
+    ca-abet:(ca-revoke:ca ship)
   ::
-      [%fleet @ %del-sects *]
+      [%fleet * %del-sects *]
     ~&  'recheck permissions'
     %+  roll  affected
     |=  [=flag:c co=_cor]

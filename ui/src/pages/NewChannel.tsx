@@ -2,7 +2,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { useChatState } from '../state/chat';
-import { useRouteGroup } from '../state/groups';
+import { useRouteGroup } from '../state/groups/groups';
 import { strToSym } from '../logic/utils';
 
 interface FormSchema {

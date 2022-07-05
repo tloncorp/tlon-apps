@@ -1,5 +1,5 @@
 import React from 'react';
-import { useRouteGroup, useGroup, useAmAdmin } from '../../state/groups';
+import { useRouteGroup, useGroup, useAmAdmin } from '../../state/groups/groups';
 import GroupAvatar from '../GroupAvatar';
 import GroupInfoEditor from './GroupInfoEditor';
 import GroupMemberManager from './GroupMemberManager';

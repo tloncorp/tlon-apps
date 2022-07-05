@@ -7,7 +7,7 @@ import GroupIcon from '../icons/GroupIcon';
 import ActivityIndicator from './ActivityIndicator';
 import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
 import GroupList from './GroupList';
-import { usePinnedGroups } from '../../state/groups';
+import { usePinnedGroups } from '../../state/groups/groups';
 
 export default function MobileSidebar() {
   const secondary = useNavStore((state) => state.secondary);

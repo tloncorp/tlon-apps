@@ -14,7 +14,7 @@ import {
   useChatState,
   useMessagesForChat,
 } from '../state/chat';
-import { useChannel, useRouteGroup, useVessel } from '../state/groups';
+import { useChannel, useRouteGroup, useVessel } from '../state/groups/groups';
 import { channelHref } from '../logic/utils';
 import { useChatInfo } from '../chat/useChatStore';
 import CaretLeftIcon from '../components/icons/CaretLeftIcon';

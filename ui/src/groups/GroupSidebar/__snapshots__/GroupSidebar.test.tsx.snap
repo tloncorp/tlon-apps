@@ -42,7 +42,7 @@ exports[`GroupSidebar > renders as expected 1`] = `
           >
             <button
               aria-haspopup="menu"
-              class="default-focus flex w-full items-center space-x-3 rounded-lg p-2 pr-4 font-semibold"
+              class="appearance-none default-focus flex w-full items-center space-x-3 rounded-lg p-2 pr-4 font-semibold"
               data-state="closed"
               id="radix-0"
               type="button"

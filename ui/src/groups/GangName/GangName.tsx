@@ -1,6 +1,6 @@
 import React from 'react';
 import cn from 'classnames';
-import { useGang } from '../../state/groups';
+import { useGang } from '../../state/groups/groups';
 
 export default function GangName(props: { flag: string; className?: string }) {
   const { flag, className } = props;
