@@ -47,17 +47,17 @@ function PrivacySettingRow({
   onClick,
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & PrivacySetting) {
   return (
-    <div
+    <button
       className={cn(
         'flex cursor-pointer items-center justify-between rounded-lg border-2 p-2',
         selected ? 'border-gray-200 bg-gray-50' : 'border-gray-100 bg-white'
       )}
       onClick={onClick}
     >
-      <div className="flex flex-col">
+      <div className="flex w-full flex-col">
         <div className="flex flex-row items-center space-x-2">
           <div className="rounded bg-gray-100 p-2">{icon}</div>
-          <div className="flex flex-col justify-start">
+          <div className="flex w-full flex-col justify-start text-left">
             <span className="font-semibold">{title}</span>
             <span className="text-sm font-medium text-gray-600">
               {description}
@@ -72,7 +72,7 @@ function PrivacySettingRow({
           <div className="h-4 w-4 rounded-xl border-2 border-gray-200" />
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
