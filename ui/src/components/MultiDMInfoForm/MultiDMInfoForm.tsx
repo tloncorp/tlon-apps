@@ -19,7 +19,6 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
     image: '',
     description: '',
   };
-  console.log(defaultValues.color);
 
   const { handleSubmit, register, setValue, watch } = useForm<GroupMeta>({
     defaultValues,
@@ -31,7 +30,6 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
   };
 
   const watchColor = watch('color');
-  console.log(watchColor);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
