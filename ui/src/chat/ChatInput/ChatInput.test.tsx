@@ -8,7 +8,6 @@ describe('ChatInput', () => {
     const { asFragment } = render(
       <ChatInput
         whom="~zod/test"
-        replying={null}
         sendMessage={() => {
           // placeholder;
         }}

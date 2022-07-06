@@ -21,7 +21,6 @@ export default function Dm() {
   const contact = useContact(ship);
   const isMobile = useIsMobile();
   const isAccepted = !useDmIsPending(ship);
-  const chatInfo = useChatInfo(ship);
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
@@ -77,12 +76,7 @@ export default function Dm() {
       footer={
         isAccepted ? (
           <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput
-              whom={ship}
-              replying={chatInfo?.replying || null}
-              sendMessage={sendMessage}
-              showReply
-            />
+            <ChatInput whom={ship} sendMessage={sendMessage} showReply />
           </div>
         ) : null
       }
