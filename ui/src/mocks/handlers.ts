@@ -26,6 +26,7 @@ import {
   ChatStory,
   ChatWhom,
   Club,
+  ClubAction,
   ClubCreate,
   DmRsvp,
   WritDiff,
@@ -72,7 +73,7 @@ const groupSub = {
 const specificGroupSub = {
   action: 'subscribe',
   app: 'groups',
-  path: '/groups/:ship/name/ui',
+  path: '/groups/:ship/:name/ui',
 } as SubscriptionHandler;
 
 const briefsSub = {
@@ -206,7 +207,7 @@ const chat: Handler[] = [
       return {
         ...unarchived,
         ...briefs,
-        '0w20.000dc.lbOWD.veShq.7aM8c': {
+        '0v4.00000.qcas9.qndoa.7loa7.loa7l': {
           last: 1652302200000,
           count: 1,
           'read-id': null,
@@ -437,7 +438,7 @@ const dms: Handler[] = [
 ];
 
 const clubs: { [id: string]: Club } = {
-  '0w20.000dc.lbOWD.veShq.7aM8c': {
+  '0v4.00000.qcas9.qndoa.7loa7.loa7l': {
     team: ['~nocsyx-lassul', '~datder-sonnet'],
     hive: ['~rilfun-lidlen', '~finned-palmer'],
     meta: {
@@ -455,18 +456,20 @@ const clubSub = {
   path: '/club/:id/ui',
 } as SubscriptionHandler;
 
+const clubWritsSub = {
+  action: 'subscribe',
+  app: 'chat',
+  path: '/club/:id/ui/writs',
+} as SubscriptionHandler;
+
 const clubHandlers: Handler[] = [
   clubSub,
+  clubWritsSub,
   {
     action: 'scry',
     app: 'chat',
     path: '/club/:id/writs/newest/:count',
     func: () => ({}),
-  },
-  {
-    action: 'subscribe',
-    app: 'chat',
-    path: '/club/:id/ui/writs',
   },
   {
     action: 'scry',
@@ -484,8 +487,16 @@ const clubHandlers: Handler[] = [
     action: 'poke',
     app: 'chat',
     mark: 'club-action',
-    returnSubscription: clubSub,
-    dataResponder: (req) => createResponse(req, 'diff', req.json),
+    returnSubscription: (req: Message & Poke<ClubAction>) =>
+      'writ' in req.json.diff.delta ? clubWritsSub : clubSub,
+    dataResponder: (req: Message & Poke<ClubAction>) =>
+      createResponse(
+        req,
+        'diff',
+        'writ' in req.json.diff.delta
+          ? req.json.diff.delta.writ
+          : req.json.diff.delta
+      ),
   },
   {
     action: 'poke',

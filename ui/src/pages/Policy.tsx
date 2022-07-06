@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useGroup, useGroupState, useRouteGroup } from '../state/groups';
+import { useGroup, useGroupState, useRouteGroup } from '../state/groups/groups';
 import { allRanks, OpenCordon, Rank } from '../types/groups';
 import { renderRank } from '../logic/utils';
 

@@ -101,7 +101,7 @@ export default function DmOptions({
   return (
     <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
-        <DropdownMenu.Trigger asChild>
+        <DropdownMenu.Trigger asChild className="appearance-none">
           <div className="relative h-6 w-6">
             {!isOpen && hasActivity ? (
               <BulletIcon
@@ -141,7 +141,7 @@ export default function DmOptions({
             </>
           ) : (
             <>
-              {!isMulti ? null : (
+              {isMulti ? (
                 <>
                   <DropdownMenu.Item
                     className="dropdown-item flex items-center space-x-2"
@@ -158,7 +158,7 @@ export default function DmOptions({
                     <span>Edit Chat Info</span>
                   </DropdownMenu.Item>
                 </>
-              )}
+              ) : null}
               <DropdownMenu.Item
                 className="dropdown-item flex items-center space-x-3"
                 onClick={handlePin}

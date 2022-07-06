@@ -18,7 +18,24 @@ function createMockGroup(title: string): Group {
       '~finned-palmer': adminVessel(),
       '~zod': emptyVessel(),
     },
-    cabals: {},
+    cabals: {
+      admin: {
+        meta: {
+          title: 'Admin',
+          description: '',
+          image: '',
+          color: '',
+        },
+      },
+      member: {
+        meta: {
+          title: 'Member',
+          description: '',
+          image: '',
+          color: '',
+        },
+      },
+    },
     channels: {},
     cordon: {
       open: {
@@ -41,7 +58,24 @@ const mockGroupOne: Group = {
   fleet: {
     '~finned-palmer': adminVessel(),
   },
-  cabals: {},
+  cabals: {
+    admin: {
+      meta: {
+        title: 'Admin',
+        description: '',
+        image: '',
+        color: '',
+      },
+    },
+    member: {
+      meta: {
+        title: 'Member',
+        description: '',
+        image: '',
+        color: '',
+      },
+    },
+  },
   channels: {
     '~dev/test': {
       meta: {
@@ -70,7 +104,24 @@ const mockGroupTwo: Group = {
   fleet: {
     '~finned-palmer': adminVessel(),
   },
-  cabals: {},
+  cabals: {
+    admin: {
+      meta: {
+        title: 'Admin',
+        description: '',
+        image: '',
+        color: '',
+      },
+    },
+    member: {
+      meta: {
+        title: 'Member',
+        description: '',
+        image: '',
+        color: '',
+      },
+    },
+  },
   channels: {
     '~zod/test': {
       meta: {

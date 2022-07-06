@@ -73,7 +73,7 @@
   +$  create
     [=id hive=(set ship)]
   ::
-  +$  invite  create
+  +$  invite  [=id team=(set ship) hive=(set ship) met=data:meta]
   +$  echo    @ud  :: number of times diff has been echoed
   +$  diff    (pair echo delta)
   ::

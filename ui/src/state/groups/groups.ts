@@ -9,13 +9,13 @@ import {
   Group,
   GroupDiff,
   Groups,
-  GroupUpdate,
   GroupAction,
-  Rank,
   GroupPreview,
-  GroupMeta,
-} from '../types/groups';
-import api from '../api';
+  GroupMeta
+} from '../../types/groups';
+import api from '../../api';
+import groupsReducer from './groupsReducer';
+import { GroupState } from './type';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -43,45 +43,6 @@ function subscribeOnce<T>(app: string, path: string) {
   });
 }
 
-interface GroupState {
-  set: (fn: (sta: GroupState) => void) => void;
-  batchSet: (fn: (sta: GroupState) => void) => void;
-  groups: {
-    [flag: string]: Group;
-  };
-  pinnedGroups: string[];
-  pinGroup: (flag: string) => Promise<void>;
-  unpinGroup: (flag: string) => Promise<void>;
-  gangs: Gangs;
-  initialize: (flag: string) => Promise<number>;
-  delRole: (flag: string, sect: string) => Promise<void>;
-  banRanks: (flag: string, ranks: Rank[]) => Promise<void>;
-  unbanRanks: (flag: string, ranks: Rank[]) => Promise<void>;
-  addSects: (flag: string, ship: string, sects: string[]) => Promise<void>;
-  addRole: (
-    flag: string,
-    sect: string,
-    values: {
-      title: string;
-      description: string;
-    }
-  ) => Promise<void>;
-  create: (req: {
-    name: string;
-    title: string;
-    description: string;
-  }) => Promise<void>;
-  start: () => Promise<void>;
-  search: (flag: string) => Promise<void>;
-  join: (flag: string, joinAll: boolean) => Promise<void>;
-  createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
-  deleteZone: (flag: string, zone: string) => Promise<void>;
-  addChannelToZone: (zone: string, groupFlag:string, channelFlag: string) => Promise<void>;
-  removeChannelFromZone: (zone: string, groupFlag: string, channelFlag: string) => Promise<void>
-  setChannelPerm: (flag: string, channelFlag: string, sects: string[]) => Promise<void>;
-  setChannelJoin: (flag: string, channelFlag: string, join: boolean) => Promise<void>;
-}
-
 export const useGroupState = create<GroupState>((set, get) => ({
   groups: {},
   pinnedGroups: [],
@@ -105,6 +66,28 @@ export const useGroupState = create<GroupState>((set, get) => ({
         diff: { pinned: false },
       },
     });
+  },
+  banShips: async (flag, ships) => {
+    await api.poke(
+      groupAction(flag, {
+        cordon: {
+          open: {
+            'add-ships': ships,
+          },
+        },
+      })
+    );
+  },
+  unbanShips: async (flag, ships) => {
+    await api.poke(
+      groupAction(flag, {
+        cordon: {
+          open: {
+            'del-ships': ships,
+          },
+        },
+      })
+    );
   },
   banRanks: async (flag, ranks) => {
     await api.poke(
@@ -165,12 +148,46 @@ export const useGroupState = create<GroupState>((set, get) => ({
       },
     });
   },
+  // addMember: async
   addSects: async (flag, ship, sects) => {
     const diff = {
       fleet: {
-        ship,
+        ships: [ship],
         diff: {
           'add-sects': sects,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  delSects: async (flag, ship, sects) => {
+    const diff = {
+      fleet: {
+        ships: [ship],
+        diff: {
+          'del-sects': sects,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  addMembers: async (flag, ships) => {
+    const diff = {
+      fleet: {
+        ships,
+        diff: {
+          add: null,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  delMembers: async (flag, ships) => {
+    const diff = {
+      fleet: {
+        ships,
+        diff: {
+          del: null,
         },
       },
     };
@@ -318,79 +335,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
     api.subscribe({
       app: 'groups',
       path: `/groups/${flag}/ui`,
-      event: (data: unknown) => {
-        const { diff } = data as GroupUpdate;
-        if ('channel' in diff) {
-          const { flag: f, diff: d } = diff.channel;
-          if ('add' in d) {
-            get().batchSet((draft) => {
-              draft.groups[flag].channels[f] = d.add;
-            });
-          } else if ('del' in d) {
-            get().batchSet((draft) => {
-              delete draft.groups[flag].channels[f];
-            });
-          } else if ('add-zone' in d) {
-            get().batchSet((draft) => {
-              draft.groups[flag].channels[f].zone = d["add-zone"];
-            });
-          } else if ("del-zone" in d) {
-            get().batchSet((draft) => {
-              draft.groups[flag].channels[f].zone = null;
-            });
-          } else if ("add-sects" in d) {
-            get().batchSet((draft) => {
-              draft.groups[flag].channels[f].readers = [...draft.groups[flag].channels[f].readers, ...d['add-sects']];
-            });
-          } else if ("del-sects" in d) {
-            get().batchSet((draft) => {
-              draft.groups[flag].channels[f].readers = draft.groups[flag].channels[f].readers.filter((s) => !d['del-sects'].includes(s));
-            });
-          } else if ("join" in d) {
-            get().batchSet((draft) => {
-              draft.groups[flag].channels[f].join = d.join;
-            });
-          }
-        } else if ('fleet' in diff) {
-          const { ship, diff: d } = diff.fleet;
-          if ('add' in d) {
-            get().batchSet((draft) => {
-              draft.groups[flag].fleet[ship] = d.add;
-            });
-          } else if ('del' in d) {
-            get().batchSet((draft) => {
-              delete draft.groups[flag].fleet[ship];
-            });
-          } else if ('add-sects' in d) {
-            get().batchSet((draft) => {
-              const vessel = draft.groups[flag].fleet[ship];
-              vessel.sects = [...vessel.sects, ...d['add-sects']];
-            });
-          } else if ('del-sects' in d) {
-            get().batchSet((draft) => {
-              const vessel = draft.groups[flag].fleet[ship];
-              vessel.sects = vessel.sects.filter(
-                (s) => !d['del-sects'].includes(s)
-              );
-            });
-          }
-        } else if ('cabal' in diff) {
-          const { diff: d, sect } = diff.cabal;
-          if ('add' in d) {
-            get().batchSet((draft) => {
-              draft.groups[flag].cabals[sect] = { meta: d.add };
-            });
-          } else if ('del' in d) {
-            get().batchSet((draft) => {
-              delete draft.groups[flag].cabals[sect];
-            });
-          }
-        } else if ('cordon' in diff) {
-          // console.log('todo');
-        } else {
-          // console.log('unreachable');
-        }
-      },
+      event: (data) => get().batchSet(groupsReducer(flag, data)),
     }),
   set: (fn) => {
     set(produce(get(), fn));

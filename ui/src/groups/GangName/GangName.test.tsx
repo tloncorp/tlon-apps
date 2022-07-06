@@ -3,7 +3,7 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import GangName from './GangName';
 import { mockGangs } from '../../mocks/groups';
-import { useGroupState } from '../../state/groups';
+import { useGroupState } from '../../state/groups/groups';
 
 describe('ChatInput', () => {
   it('renders default', () => {

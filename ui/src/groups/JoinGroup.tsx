@@ -1,5 +1,5 @@
 import React from 'react';
-import { useGang, useGroupState } from '../state/groups';
+import { useGang, useGroupState } from '../state/groups/groups';
 
 export default function JoinGroup(props: { flag: string }) {
   const { flag } = props;

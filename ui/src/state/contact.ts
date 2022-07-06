@@ -7,7 +7,7 @@ import {
   Patp,
   Rolodex,
 } from '@urbit/api';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import _ from 'lodash';
 import {
   BaseState,
@@ -134,8 +134,13 @@ const useContactState = createState<BaseContactState>(
   ]
 );
 
+const selContacts = (s: ContactState) => s.contacts;
 export function useContacts() {
-  return useContactState(useCallback((s) => s.contacts, []));
+  return useContactState(selContacts);
+}
+
+export function useMemoizedContacts() {
+  return useMemo(() => useContactState.getState().contacts, []);
 }
 
 export function useContact(ship: string) {

@@ -10,7 +10,7 @@ import {
   useGroup,
   useGroupList,
   usePinnedGroups,
-} from '../../state/groups';
+} from '../../state/groups/groups';
 import Divider from '../Divider';
 import GangName from '../../groups/GangName/GangName';
 import GroupAvatar from '../../groups/GroupAvatar';

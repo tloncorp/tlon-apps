@@ -4,7 +4,7 @@ import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
 import _ from 'lodash';
 import { ChatWhom } from '../types/chat';
-import { Rank } from '../types/groups';
+import { Cabal, Cabals, Rank } from '../types/groups';
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
@@ -89,7 +89,7 @@ export function whomIsFlag(whom: ChatWhom): boolean {
 }
 
 export function whomIsMultiDm(whom: ChatWhom): boolean {
-  return whom.startsWith(`0w`);
+  return whom.startsWith(`0v`);
 }
 
 export function normalizeUrbitColor(color: string): string {
@@ -138,4 +138,21 @@ export function preSig(ship: string): string {
 
 export function newUv(seed = Date.now()) {
   return formatUv(unixToDa(seed));
+}
+
+export function getSectTitle(cabals: Cabals, sect: string) {
+  return cabals[sect]?.meta.title || sect;
+}
+
+export function isValidUrl(str?: string): boolean {
+  const pattern = new RegExp(
+    '^(https?:\\/\\/)?' + // protocol
+      '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+      '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+      '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+      '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+      '(\\#[-a-z\\d_]*)?$',
+    'i'
+  ); // fragment locator
+  return str ? !!pattern.test(str) : false;
 }

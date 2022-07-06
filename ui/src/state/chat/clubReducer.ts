@@ -1,10 +1,7 @@
-import { ClubAction } from '../../types/chat';
+import { ClubDelta } from '../../types/chat';
 import { ChatState } from './type';
 
-export default function clubReducer(event: ClubAction) {
-  const { id: clubId, diff } = event;
-  const { delta } = diff;
-
+export default function clubReducer(clubId: string, delta: ClubDelta) {
   return (draft: ChatState) => {
     const club = draft.multiDms[clubId];
     if (!club) {
@@ -14,12 +11,12 @@ export default function clubReducer(event: ClubAction) {
     if ('team' in delta) {
       const { ok, ship } = delta.team;
 
-      if (ok) {
+      if (ok && club.hive.includes(ship)) {
         club.hive.splice(club.hive.indexOf(ship), 1);
         club.team.push(ship);
-      } else if (club.hive.includes(ship)) {
+      } else if (!ok && club.hive.includes(ship)) {
         club.hive.splice(club.hive.indexOf(ship), 1);
-      } else if (club.team.includes(ship)) {
+      } else if (!ok && club.team.includes(ship)) {
         club.team.splice(club.team.indexOf(ship), 1);
       }
     }

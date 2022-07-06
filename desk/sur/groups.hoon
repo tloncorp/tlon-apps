@@ -26,7 +26,7 @@
         joined=time
     ==
   +$  diff
-    $%  [%add =vessel]
+    $%  [%add ~]
         [%del ~]
         [%add-sects sects=(set sect)]
         [%del-sects sects=(set sect)]
@@ -124,7 +124,7 @@
     ==
   --
 +$  diff
-  $%  [%fleet p=ship q=diff:fleet]
+  $%  [%fleet p=(set ship) q=diff:fleet]
       [%cabal p=sect q=diff:cabal]
       [%channel p=flag q=diff:channel]
       [%bloc p=diff:bloc]

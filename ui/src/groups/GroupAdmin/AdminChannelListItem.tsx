@@ -96,7 +96,6 @@ export default function AdminChannelListItem({
                 <div onClick={() => setEditIsOpen(!editIsOpen)}>
                   <PencilIcon  className="mx-3 h-3 w-3 cursor-pointer fill-gray-500" />
                 </div>
-                
               </div>
               <div className="text-sm font-semibold text-gray-400">Chat</div>
             </div>

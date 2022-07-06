@@ -46,9 +46,9 @@ export default function makeWritsStore(
           const s = get();
           s.batchSet((draft) => {
             const pact = draft.pacts[whom];
-            if ('add' in delta) {
+            if ('add' in delta && !pact.index[id]) {
               const time = bigInt(unixToDa(Date.now()));
-              draft.pacts[whom].index[id] = time;
+              pact.index[id] = time;
               const seal = { id, feels: {}, replied: [] };
               const writ = { seal, memo: delta.add };
               pact.writs = pact.writs.set(time, writ);
@@ -60,7 +60,7 @@ export default function makeWritsStore(
                   pact.writs.set(replyTime, ancestor);
                 }
               }
-            } else if ('del' in delta) {
+            } else if ('del' in delta && pact.index[id]) {
               const time = pact.index[id];
               const old = pact.writs.get(time);
               pact.writs = pact.writs.delete(time);

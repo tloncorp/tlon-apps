@@ -1,6 +1,6 @@
-import React, { useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useMemo, useRef, useState } from 'react';
 import ob from 'urbit-ob';
+import fuzzy from 'fuzzy';
 import {
   components,
   ControlProps,
@@ -16,27 +16,27 @@ import {
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
-import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
-import ExclamationPoint from '../components/icons/ExclamationPoint';
-import X16Icon from '../components/icons/X16Icon';
-import { newUv, preSig } from '../logic/utils';
-import Avatar from '../components/Avatar';
-import { useContacts } from '../state/contact';
-import createClub from '../state/chat/createClub';
+import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import X16Icon from '@/components/icons/X16Icon';
+import { preSig } from '@/logic/utils';
+import Avatar from '@/components/Avatar';
+import { useMemoizedContacts } from '@/state/contact';
+import { MAX_DISPLAYED_OPTIONS } from '@/constants';
+import { deSig } from '@urbit/api';
 
-export interface Option {
+export interface ShipOption {
   value: string;
   label: string;
 }
 
-interface DmInviteInputProps {
-  ships: Option[];
-  setShips: React.Dispatch<React.SetStateAction<Option[]>>;
-  fromMulti?: boolean;
-  clubId?: string;
+interface ShipSelectorProps {
+  ships: ShipOption[];
+  setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
+  onEnter?: (ships: ShipOption[]) => void;
 }
 
-function Control({ children, ...props }: ControlProps<Option, true>) {
+function Control({ children, ...props }: ControlProps<ShipOption, true>) {
   return (
     <components.Control
       {...props}
@@ -48,7 +48,7 @@ function Control({ children, ...props }: ControlProps<Option, true>) {
   );
 }
 
-function ShipName({ data, ...props }: OptionProps<Option, true>) {
+function ShipName({ data, ...props }: OptionProps<ShipOption, true>) {
   const { value, label } = data;
   return (
     <components.Option data={data} className="hover:cursor-pointer" {...props}>
@@ -83,7 +83,7 @@ function AddNonContactShip(value: string) {
 function ShipTagLabelContainer({
   children,
   ...props
-}: MultiValueGenericProps<Option, true>) {
+}: MultiValueGenericProps<ShipOption, true>) {
   return (
     <components.MultiValueContainer {...props}>
       <div className="flex">{children}</div>
@@ -91,7 +91,7 @@ function ShipTagLabelContainer({
   );
 }
 
-function ShipTagLabel({ data }: { data: Option }) {
+function ShipTagLabel({ data }: { data: ShipOption }) {
   const { value } = data;
   return (
     <div className="flex h-6 items-center rounded-l bg-gray-100">
@@ -100,7 +100,7 @@ function ShipTagLabel({ data }: { data: Option }) {
   );
 }
 
-function ShipTagRemove(props: MultiValueRemoveProps<Option, true>) {
+function ShipTagRemove(props: MultiValueRemoveProps<ShipOption, true>) {
   return (
     <components.MultiValueRemove {...props}>
       <div className="flex h-full items-center rounded-r bg-gray-100 pr-1">
@@ -110,7 +110,7 @@ function ShipTagRemove(props: MultiValueRemoveProps<Option, true>) {
   );
 }
 
-function ShipDropDownMenu({ children, ...props }: MenuProps<Option, true>) {
+function ShipDropDownMenu({ children, ...props }: MenuProps<ShipOption, true>) {
   return (
     <components.Menu className="rounded-lg border-2 border-gray-100" {...props}>
       {children}
@@ -121,7 +121,7 @@ function ShipDropDownMenu({ children, ...props }: MenuProps<Option, true>) {
 function ShipDropDownMenuList({
   children,
   ...props
-}: MenuListProps<Option, true>) {
+}: MenuListProps<ShipOption, true>) {
   return (
     <components.MenuList className="rounded-md bg-white" {...props}>
       {children}
@@ -129,7 +129,7 @@ function ShipDropDownMenuList({
   );
 }
 
-function Input({ children, ...props }: InputProps<Option, true>) {
+function Input({ children, ...props }: InputProps<ShipOption, true>) {
   return (
     <components.Input className="text-gray-800" {...props}>
       {children}
@@ -137,28 +137,61 @@ function Input({ children, ...props }: InputProps<Option, true>) {
   );
 }
 
-export default function DMInviteInput({
+export default function ShipSelector({
   ships,
   setShips,
-  fromMulti = false,
-  clubId,
-}: DmInviteInputProps) {
-  const selectRef = useRef<Select<Option, true, GroupBase<Option>> | null>(
-    null
-  );
-  const contacts = useContacts();
+  onEnter,
+}: ShipSelectorProps) {
+  const selectRef = useRef<Select<
+    ShipOption,
+    true,
+    GroupBase<ShipOption>
+  > | null>(null);
+  const contacts = useMemoizedContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
     value: contact,
     label: contacts[contact].nickname,
   }));
-  const navigate = useNavigate();
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
 
-  const isMulti = ships.length > 1;
-  const newClubId = useMemo(() => clubId || newUv(), [clubId]);
+  // There is a known issue with react-select's performance for large lists of
+  // of options, so filter the list of contact options to improve performance
+  // See: https://github.com/JedWatson/react-select/issues/4516
+  //      https://github.com/JedWatson/react-select/issues/3128
+  const [inputValue, setInputValue] = useState('');
+  const filteredOptions = useMemo(() => {
+    if (!inputValue) {
+      return contactOptions;
+    }
+
+    const fuzzyNames = fuzzy
+      .filter(inputValue, contactNames)
+      .sort((a, b) => {
+        const filter = deSig(inputValue) || '';
+        const left = deSig(a.string)?.startsWith(filter)
+          ? a.score + 1
+          : a.score;
+        const right = deSig(b.string)?.startsWith(filter)
+          ? b.score + 1
+          : b.score;
+
+        return right - left;
+      })
+      .map((result) => contactNames[result.index]);
+
+    return fuzzyNames.map((contact) => ({
+      value: contact,
+      label: contacts[contact].nickname,
+    }));
+  }, [contactNames, contactOptions, contacts, inputValue]);
+
+  const slicedOptions = useMemo(
+    () => filteredOptions.slice(0, MAX_DISPLAYED_OPTIONS),
+    [filteredOptions]
+  );
 
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
     const isInputting = !!(
@@ -184,19 +217,8 @@ export default function DMInviteInput({
         if (isInputting) {
           return;
         }
-        if (ships && ships.length > 0 && validShips) {
-          if (isMulti) {
-            await createClub(
-              newClubId,
-              ships.map((s) => s.value)
-            );
-            navigate(`/dm/${newClubId}`);
-          } else if (fromMulti) {
-            // club already created, inviting new user to existing club
-            navigate(`/dm/${clubId}`);
-          } else {
-            navigate(`/dm/${ships[0].value}`);
-          }
+        if (ships && ships.length > 0 && validShips && onEnter) {
+          onEnter(ships);
         }
         break;
       }
@@ -206,8 +228,8 @@ export default function DMInviteInput({
   };
 
   const onChange = (
-    newValue: MultiValue<Option>,
-    actionMeta: ActionMeta<Option>
+    newValue: MultiValue<ShipOption>,
+    actionMeta: ActionMeta<ShipOption>
   ) => {
     if (
       ['create-option', 'remove-value', 'select-option'].includes(
@@ -267,17 +289,16 @@ export default function DMInviteInput({
         }),
       }}
       aria-label="Ships"
-      options={contactOptions}
+      options={slicedOptions}
       value={ships}
       onChange={onChange}
-      isValidNewOption={(inputValue) =>
-        inputValue ? ob.isValidPatp(preSig(inputValue)) : false
-      }
+      onInputChange={(val) => setInputValue(val)}
+      isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
       onKeyDown={onKeyDown}
       placeholder="Type a name ie; ~sampel-palnet"
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
-      // filterOption={createFilter(filterConfig)}
+      filterOption={() => true} // disable the default filter
       components={{
         Control,
         Menu: ShipDropDownMenu,

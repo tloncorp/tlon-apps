@@ -19,7 +19,7 @@ export default function MultiDMEditModal({
             <h2 className="text-xl font-bold">Edit Chat Info</h2>
           </header>
         </div>
-        <MultiDMInfoForm />
+        <MultiDMInfoForm setOpen={setEditIsOpen} />
       </DialogContent>
     </Dialog>
   );

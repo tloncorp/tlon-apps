@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router';
 import RoleInput from '../groups/RoleInput/RoleInput';
 import { useChatPerms, useChatState } from '../state/chat';
-import { useGroup, useRouteGroup } from '../state/groups';
+import { useGroup, useRouteGroup } from '../state/groups/groups';
 
 interface FormSchema {
   roles: { value: string }[];

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useModalNavigate } from '../logic/routing';
-import { useGroupState } from '../state/groups';
+import { useGroupState } from '../state/groups/groups';
 
 interface FormSchema {
   flag: string;

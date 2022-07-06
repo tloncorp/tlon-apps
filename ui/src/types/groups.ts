@@ -12,6 +12,10 @@ export interface Cabal {
   meta: GroupMeta;
 }
 
+export interface Cabals {
+  [sect: string]: Cabal;
+}
+
 export interface Channel {
   meta: GroupMeta;
   zone: Zone | null;
@@ -52,12 +56,8 @@ export interface AfarCordon {
 export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 
 export interface Group {
-  fleet: {
-    [ship: string]: Vessel;
-  };
-  cabals: {
-    [sect: string]: Cabal;
-  };
+  fleet: Fleet;
+  cabals: Cabals;
   channels: {
     [flag: string]: Channel;
   };
@@ -66,8 +66,12 @@ export interface Group {
   zones: Zones;
 }
 
+export interface Fleet {
+  [ship: string]: Vessel;
+}
+
 interface FleetDiffAdd {
-  add: Vessel;
+  add: null;
 }
 interface FleetDiffDel {
   del: null;
@@ -81,9 +85,9 @@ interface FleetDiffDelSects {
   'del-sects': string[];
 }
 
-interface FleetDiff {
+export interface FleetDiff {
   fleet: {
-    ship: string;
+    ships: string[];
     diff: FleetDiffAdd | FleetDiffDel | FleetDiffAddSects | FleetDiffDelSects;
   };
 }
@@ -173,7 +177,7 @@ interface CordonDiffShut {
   shut: CordonDiffShutAddShips | CordonDiffShutDelShips;
 }
 
-interface CordonDiff {
+export interface CordonDiff {
   cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };
 }
 
@@ -242,4 +246,11 @@ export interface Gang {
 
 export interface Gangs {
   [flag: string]: Gang;
+}
+
+export interface NewGroupFormSchema {
+  title: string;
+  description: string;
+  image: string;
+  color: string;
 }

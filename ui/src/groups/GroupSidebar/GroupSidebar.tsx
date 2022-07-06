@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import React from 'react';
 import { useIsMobile } from '../../logic/useMedia';
-import { useGroup } from '../../state/groups';
+import { useGroup } from '../../state/groups/groups';
 import useNavStore from '../../components/Nav/useNavStore';
 import CaretLeft16Icon from '../../components/icons/CaretLeft16Icon';
 import MagnifyingGlass from '../../components/icons/MagnifyingGlass16Icon';

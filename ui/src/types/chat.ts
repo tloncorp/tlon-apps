@@ -246,6 +246,11 @@ export interface ClubCreate {
   id: string;
   hive: Ship[];
 }
+
+export interface ClubInvite extends Club {
+  id: string;
+}
+
 export interface Hive {
   by: string;
   for: string;
