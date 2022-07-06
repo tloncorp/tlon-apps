@@ -38,8 +38,24 @@ export interface GroupState {
   join: (flag: string, joinAll: boolean) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   deleteZone: (flag: string, zone: string) => Promise<void>;
-  addChannelToZone: (zone: string, groupFlag:string, channelFlag: string) => Promise<void>;
-  removeChannelFromZone: (zone: string, groupFlag: string, channelFlag: string) => Promise<void>
-  setChannelPerm: (flag: string, channelFlag: string, sects: string[]) => Promise<void>;
-  setChannelJoin: (flag: string, channelFlag: string, join: boolean) => Promise<void>;
+  addChannelToZone: (
+    zone: string,
+    groupFlag: string,
+    channelFlag: string
+  ) => Promise<void>;
+  removeChannelFromZone: (
+    zone: string,
+    groupFlag: string,
+    channelFlag: string
+  ) => Promise<void>;
+  setChannelPerm: (
+    flag: string,
+    channelFlag: string,
+    sects: string[]
+  ) => Promise<void>;
+  setChannelJoin: (
+    flag: string,
+    channelFlag: string,
+    join: boolean
+  ) => Promise<void>;
 }

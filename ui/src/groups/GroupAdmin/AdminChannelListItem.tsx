@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
-import {useDrag, useDrop, XYCoord} from 'react-dnd';
+import { useDrag, useDrop, XYCoord } from 'react-dnd';
 import * as Switch from '@radix-ui/react-switch';
-import { Channel } from '../../types/groups';
-import EditChannelNameModal from './EditChannelNameModal';
-import PencilIcon from '../../components/icons/PencilIcon';
+import { Channel } from '@/types/groups';
+import EditChannelNameModal from '@/groups/GroupAdmin/EditChannelNameModal';
+import PencilIcon from '@/components/icons/PencilIcon';
 import AdminChannelListDropdown from './AdminChannelListDropdown';
 import SixDotIcon from '../../components/icons/SixDotIcon';
 
@@ -23,21 +23,24 @@ const ItemTypes = {
   CHANNEL: 'channel',
 };
 
-
 export default function AdminChannelListItem({
   channel,
   index,
-  moveChannel
+  moveChannel,
 }: AdminChannelListItemProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { meta } = channel;
   const [editIsOpen, setEditIsOpen] = useState(false);
 
-  const [{handlerId}, drop] = useDrop<DragItem, void, {handlerId: any | null}>({
+  const [{ handlerId }, drop] = useDrop<
+    DragItem,
+    void,
+    { handlerId: any | null }
+  >({
     accept: ItemTypes.CHANNEL,
     collect(monitor) {
       return {
-        handlerId: monitor.getHandlerId()
+        handlerId: monitor.getHandlerId(),
       };
     },
     hover(item: DragItem, monitor) {
@@ -53,13 +56,15 @@ export default function AdminChannelListItem({
 
       const hoverBoundingRect = ref.current?.getBoundingClientRect();
 
-      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const hoverMiddleY =
+        (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
 
       const clientOffset = monitor.getClientOffset();
 
-      const hoverClientY = (clientOffset as unknown as XYCoord).y - hoverBoundingRect.top;
+      const hoverClientY =
+        (clientOffset as unknown as XYCoord).y - hoverBoundingRect.top;
 
-      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY ) {
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) {
         return;
       }
 
@@ -71,15 +76,15 @@ export default function AdminChannelListItem({
 
       // eslint-disable-next-line no-param-reassign
       item.index = hoverIndex;
-    }
+    },
   });
 
-  const [{isDragging}, drag] = useDrag({
+  const [{ isDragging }, drag] = useDrag({
     type: ItemTypes.CHANNEL,
-    item: () => ({channel, index}),
+    item: () => ({ channel, index }),
     collect: (monitor: any) => ({
       isDragging: monitor.isDragging(),
-    })
+    }),
   });
 
   drag(drop(ref));
@@ -87,14 +92,18 @@ export default function AdminChannelListItem({
   return (
     <>
       <div ref={ref}>
-        <div className={"my-5 flex items-center justify-between"} style={{opacity: isDragging ? 0 : 1}} data-handler-id={handlerId}>
+        <div
+          className={'my-5 flex items-center justify-between'}
+          style={{ opacity: isDragging ? 0 : 1 }}
+          data-handler-id={handlerId}
+        >
           <div className="flex items-center">
             <SixDotIcon className="mr-3 h-5 w-5 fill-gray-600" />
             <div>
               <div className="flex items-center">
                 <h2 className="font-semibold">{meta.title}</h2>
                 <div onClick={() => setEditIsOpen(!editIsOpen)}>
-                  <PencilIcon  className="mx-3 h-3 w-3 cursor-pointer fill-gray-500" />
+                  <PencilIcon className="mx-3 h-3 w-3 cursor-pointer fill-gray-500" />
                 </div>
               </div>
               <div className="text-sm font-semibold text-gray-400">Chat</div>
@@ -109,7 +118,10 @@ export default function AdminChannelListItem({
           </div>
         </div>
       </div>
-      <EditChannelNameModal editIsOpen={editIsOpen} setEditIsOpen={setEditIsOpen} />
+      <EditChannelNameModal
+        editIsOpen={editIsOpen}
+        setEditIsOpen={setEditIsOpen}
+      />
     </>
   );
 }

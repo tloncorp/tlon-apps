@@ -79,15 +79,20 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       } else if ('del' in d) {
         delete group.channels[f];
       } else if ('add-zone' in d) {
-          group.channels[f].zone = d["add-zone"];
-      } else if ("del-zone" in d) {
-          group.channels[f].zone = null;
-      } else if ("add-sects" in d) {
-          group.channels[f].readers = [...group.channels[f].readers, ...d['add-sects']];
-      } else if ("del-sects" in d) {
-          group.channels[f].readers = group.channels[f].readers.filter((s) => !d['del-sects'].includes(s));
-      } else if ("join" in d) {
-          group.channels[f].join = d.join;
+        group.channels[f].zone = d['add-zone'];
+      } else if ('del-zone' in d) {
+        group.channels[f].zone = null;
+      } else if ('add-sects' in d) {
+        group.channels[f].readers = [
+          ...group.channels[f].readers,
+          ...d['add-sects'],
+        ];
+      } else if ('del-sects' in d) {
+        group.channels[f].readers = group.channels[f].readers.filter(
+          (s) => !d['del-sects'].includes(s)
+        );
+      } else if ('join' in d) {
+        group.channels[f].join = d.join;
       }
     } else if ('fleet' in diff) {
       reduceFleet(group, diff);

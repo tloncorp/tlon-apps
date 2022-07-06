@@ -25,21 +25,21 @@ export default function AdminChannelListDropdown() {
             </Dropdown.ItemIndicator>
           </Dropdown.RadioItem>
           <Dropdown.RadioItem
-            value="Admin Only"
-            className="dropdown-item flex items-center justify-between space-x-2"
-          >
-            Admin Only
-            <Dropdown.ItemIndicator>
-              <CheckIcon className="h-5 w-5" />
-            </Dropdown.ItemIndicator>
-          </Dropdown.RadioItem>
-          <Dropdown.RadioItem
             value="Member Can View"
             className="dropdown-item flex items-center justify-between space-x-2"
           >
             Member Can View
             <Dropdown.ItemIndicator>
               <CheckIcon className="h-5 w-5 fill-gray-600" />
+            </Dropdown.ItemIndicator>
+          </Dropdown.RadioItem>
+          <Dropdown.RadioItem
+            value="Admin Only"
+            className="dropdown-item flex items-center justify-between space-x-2"
+          >
+            Admin Only
+            <Dropdown.ItemIndicator>
+              <CheckIcon className="h-5 w-5" />
             </Dropdown.ItemIndicator>
           </Dropdown.RadioItem>
         </Dropdown.RadioGroup>
