@@ -84,6 +84,9 @@ const mockGroupOne: Group = {
         image: '',
         color: '',
       },
+      zone: '',
+      readers: [''],
+      join: false,
     },
   },
   cordon: {
@@ -98,6 +101,7 @@ const mockGroupOne: Group = {
     image: '',
     color: '',
   },
+  zones: {},
 };
 
 const mockGroupTwo: Group = {
@@ -130,6 +134,9 @@ const mockGroupTwo: Group = {
         image: '',
         color: '',
       },
+      zone: '',
+      readers: [''],
+      join: false,
     },
   },
   cordon: {
@@ -144,6 +151,7 @@ const mockGroupTwo: Group = {
     image: '',
     color: '',
   },
+  zones: {},
 };
 
 const mockGroups: { [flag: string]: Group } = {
@@ -159,6 +167,9 @@ function createChannel(title: string) {
       image: '',
       color: '',
     },
+    zone: '',
+    readers: [''],
+    join: false,
   };
 }
 
