@@ -19,11 +19,13 @@ interface NewGroupFormSchema {
 }
 
 type PrivacyTypes = 'public' | 'private' | 'secret';
+type TemplateTypes = 'none' | 'small' | 'medium' | 'large';
 
 export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyTypes>();
+  const [templateType, setTemplateType] = useState<TemplateTypes>('none');
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -54,14 +56,15 @@ export default function NewGroup() {
   });
 
   const onSubmit = async (values: NewGroupFormSchema) => {
+    // TODO: Add channels based on template type (if any).
     const name = strToSym(values.title);
     await useGroupState.getState().create({ ...values, name });
     const flag = `${window.our}/${name}`;
     navigate(`/groups/${flag}`);
   };
 
-  const nextWithTemplate = (templateType?: string) => {
-    // TODO: handle different templates
+  const nextWithTemplate = (template?: string) => {
+    setTemplateType(template ? (template as TemplateTypes) : 'none');
     goToNextStep();
   };
 
