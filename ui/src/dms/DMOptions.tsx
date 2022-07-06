@@ -101,7 +101,7 @@ export default function DmOptions({
   return (
     <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
-        <DropdownMenu.Trigger asChild>
+        <DropdownMenu.Trigger asChild className="appearance-none">
           <div className="relative h-6 w-6">
             {!isOpen && hasActivity ? (
               <BulletIcon

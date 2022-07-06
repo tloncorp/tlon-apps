@@ -6,7 +6,7 @@ import {
   useGroupState,
   useRouteGroup,
   useVessel,
-} from '../state/groups';
+} from '../state/groups/groups';
 
 interface FormSchema {
   roles: { value: string }[];

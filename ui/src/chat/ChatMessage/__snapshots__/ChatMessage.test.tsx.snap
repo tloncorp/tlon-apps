@@ -28,7 +28,7 @@ exports[`ChatMessage > renders as expected 1`] = `
       class="align-center group flex items-center space-x-3 py-1"
     >
       <div
-        class="relative flex-none rounded bg-black w-6 h-6 rounded p-1.5"
+        class="relative flex flex-none items-center justify-center rounded bg-black w-6 h-6 rounded p-1.5"
         style="background-color: rgb(0, 0, 0);"
       >
         <svg

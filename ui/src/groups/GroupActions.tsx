@@ -10,7 +10,7 @@ import Person16Icon from '../components/icons/Person16Icon';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import BulletIcon from '../components/icons/BulletIcon';
 import { useBriefs } from '../state/chat';
-import { useGroupState, usePinnedGroups } from '../state/groups';
+import { useGroupState, usePinnedGroups } from '../state/groups/groups';
 
 export function useGroupActions(flag: string) {
   const [_copied, doCopy] = useCopyToClipboard();
@@ -19,23 +19,14 @@ export function useGroupActions(flag: string) {
   const pinned = usePinnedGroups();
   const isPinned = pinned.includes(flag);
 
-  const onCopyClick = useCallback(
-    // eslint-disable-next-line prefer-arrow-callback
-    function <T>(e: React.MouseEvent<T>) {
-      e.stopPropagation();
-      doCopy(flag);
-    },
-    [doCopy, flag]
-  );
-
-  const onCopySelect = useCallback((e: Event) => {
-    e.preventDefault();
+  const onCopy = useCallback(() => {
+    doCopy(flag);
     setCopyItemText('Copied!');
     setTimeout(() => {
       setCopyItemText('Copy Group Link');
       setIsOpen(false);
     }, 1000);
-  }, []);
+  }, [doCopy, flag]);
 
   const onPinClick = useCallback(
     // eslint-disable-next-line prefer-arrow-callback
@@ -54,8 +45,7 @@ export function useGroupActions(flag: string) {
     isOpen,
     setIsOpen,
     copyItemText,
-    onCopySelect,
-    onCopyClick,
+    onCopy,
     onPinClick,
   };
 }
@@ -74,19 +64,21 @@ export default function GroupActions({
   const briefs = useBriefs();
   const hasActivity = (briefs[flag]?.count ?? 0) > 0;
 
-  const {
-    isOpen,
-    setIsOpen,
-    copyItemText,
-    onCopySelect,
-    onCopyClick,
-    onPinClick,
-  } = useGroupActions(flag);
+  const { isOpen, setIsOpen, copyItemText, onCopy, onPinClick } =
+    useGroupActions(flag);
+
+  const onCopySelect = useCallback(
+    (event: Event) => {
+      event.preventDefault();
+      onCopy();
+    },
+    [onCopy]
+  );
 
   return (
     <div className={className}>
       <DropdownMenu.Root open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenu.Trigger asChild>
+        <DropdownMenu.Trigger asChild className="appearance-none">
           {children || (
             <div className="relative h-6 w-6">
               {!isOpen && hasActivity ? (
@@ -126,7 +118,6 @@ export default function GroupActions({
             className={
               'dropdown-item flex items-center space-x-2 rounded-none text-blue'
             }
-            onClick={onCopyClick}
             onSelect={onCopySelect}
           >
             <LinkIcon16 className="h-6 w-6 opacity-60" />
