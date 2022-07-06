@@ -2,6 +2,7 @@ import React from 'react';
 import cn from 'classnames';
 import GlobeIcon from '@/components/icons/GlobeIcon';
 import LockIcon from '@/components/icons/LockIcon';
+import PrivateIcon from '@/components/icons/PrivateIcon';
 
 type PrivacyTypes = 'public' | 'private' | 'secret';
 
@@ -23,17 +24,17 @@ interface PrivacySetting {
 
 const PRIVACY_TYPE: Record<PrivacyTypes, PrivacySetting> = {
   public: {
-    icon: <GlobeIcon className="h-4 w-4 text-gray-600" />,
+    icon: <GlobeIcon className="h-6 w-6 text-gray-600" />,
     title: 'Public',
     description: 'Anyone can find and join',
   },
   private: {
-    icon: <LockIcon className="h-4 w-4 text-gray-600" />,
+    icon: <LockIcon className="h-6 w-6 text-gray-600" />,
     title: 'Private',
     description: 'Anyone can find, approval needed to join',
   },
   secret: {
-    icon: <GlobeIcon className="h-4 w-4 text-gray-600" />,
+    icon: <PrivateIcon className="h-6 w-6 text-gray-600" />,
     title: 'Secret',
     description: 'Anyone can find, approval needed to join',
   },
@@ -56,7 +57,7 @@ function PrivacySettingRow({
     >
       <div className="flex w-full flex-col">
         <div className="flex flex-row items-center space-x-2">
-          <div className="rounded bg-gray-100 p-2">{icon}</div>
+          <div className="p-2">{icon}</div>
           <div className="flex w-full flex-col justify-start text-left">
             <span className="font-semibold">{title}</span>
             <span className="text-sm font-medium text-gray-600">

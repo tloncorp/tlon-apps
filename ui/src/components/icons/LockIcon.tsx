@@ -4,15 +4,15 @@ import { IconProps } from '@/components/icons/icon';
 export default function LockIcon({ className }: IconProps) {
   return (
     <svg
-      className={className}
-      viewBox="0 0 12 14"
       fill="none"
+      className={className}
+      viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M4 4.333C4 2.943 4.992 2 6 2s2 .943 2 2.333V6H4V4.333ZM10 6V4.333C10 2.042 8.306 0 6 0S2 2.042 2 4.333V6a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Zm-8 6V8h8v4H2Z"
+        d="M10 9.333C10 7.943 10.992 7 12 7s2 .943 2 2.333V11h-4V9.333ZM16 11V9.333C16 7.042 14.306 5 12 5S8 7.042 8 9.333V11a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2Zm-8 6v-4h8v4H8Z"
         className="fill-current"
       />
     </svg>
