@@ -3,7 +3,7 @@
 exports[`GroupSidebar > renders as expected 1`] = `
 <DocumentFragment>
   <nav
-    class="flex h-full w-64 flex-none flex-col overflow-hidden border-r-2 border-gray-50 bg-white sm:p-2"
+    class="slide-in flex h-full w-64 flex-none flex-col overflow-hidden border-r-2 border-gray-50 bg-white sm:p-2"
   >
     <header
       class="flex-none px-2 py-1 sm:p-0"

@@ -3,7 +3,7 @@ import PersonIcon from '../components/icons/PersonIcon';
 import ShipName from '../components/ShipName';
 import { ChatWrit } from '../types/chat';
 
-const nbsp = '\u00A0';
+const sp = '\u0020';
 export default function ChatNotice(props: { writ: ChatWrit }) {
   const { writ } = props;
 
@@ -15,21 +15,21 @@ export default function ChatNotice(props: { writ: ChatWrit }) {
   return (
     <div className="flex items-center space-x-3 py-2">
       <PersonIcon className="h-6 w-6" />
-      <div className="flex italic">
+      <p className="italic">
         {notice.pfix.length > 0 ? (
           <>
             {notice.pfix}
-            {nbsp}
+            {sp}
           </>
         ) : null}
-        <ShipName name={writ.memo.author} />
+        <ShipName name={writ.memo.author} showAlias />
         {notice.sfix.length > 0 ? (
           <>
-            {nbsp}
+            {sp}
             {notice.sfix}
           </>
         ) : null}
-      </div>
+      </p>
     </div>
   );
 }

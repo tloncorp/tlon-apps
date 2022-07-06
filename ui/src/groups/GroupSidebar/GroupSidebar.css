@@ -1,0 +1,20 @@
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translate(-2rem, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0);
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.125s ease-in-out;
+}
+
+@media (prefers-reduced-motion) {
+  .slide-in {
+    animation: none;
+  }
+}

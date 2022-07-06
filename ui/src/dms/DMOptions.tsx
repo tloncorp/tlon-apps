@@ -141,6 +141,15 @@ export default function DmOptions({
             </>
           ) : (
             <>
+              {hasActivity ? (
+                <DropdownMenu.Item
+                  className="dropdown-item flex items-center space-x-2 text-blue"
+                  onClick={markRead}
+                >
+                  <BulletIcon className="h-6 w-6" />
+                  <span>Mark Read</span>
+                </DropdownMenu.Item>
+              ) : null}
               {isMulti ? (
                 <>
                   <DropdownMenu.Item
@@ -166,22 +175,21 @@ export default function DmOptions({
                 <PinIcon className="h-4 w-4" />
                 <span>{pinned.includes(ship) ? 'Unpin' : 'Pin'}</span>
               </DropdownMenu.Item>
-              <DropdownMenu.Item
-                className="dropdown-item flex items-center space-x-2"
-                onClick={handleInvite}
-              >
-                <InviteIcon16 className="h-6 w-6" />
-                <span>Invite</span>
-              </DropdownMenu.Item>
+              {isMulti ? (
+                <DropdownMenu.Item
+                  className="dropdown-item flex items-center space-x-2"
+                  onClick={handleInvite}
+                >
+                  <InviteIcon16 className="h-6 w-6" />
+                  <span>Invite</span>
+                </DropdownMenu.Item>
+              ) : null}
               <DropdownMenu.Item
                 onSelect={leaveMessage}
                 className="dropdown-item flex items-center space-x-2 text-red"
               >
                 <LeaveIcon className="h-6 w-6 opacity-60" />
                 <span>Leave Message</span>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item className="dropdown-item" onClick={markRead}>
-                Mark Read
               </DropdownMenu.Item>
             </>
           )}

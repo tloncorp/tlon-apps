@@ -90,6 +90,16 @@ const mockContacts: Rolodex = {
     color: '0xff.ffff',
     groups: [],
   },
+  '~riprud-tidmel': {
+    status: '',
+    'last-updated': 1652722355452,
+    avatar: '',
+    cover: '',
+    bio: '',
+    nickname: 'marisa',
+    color: '0x00.0000',
+    groups: [],
+  },
 };
 
 export default mockContacts;

@@ -5,6 +5,7 @@ import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
+import { useChatInfo } from '../chat/useChatStore';
 import DmInvite from '../dms/DmInvite';
 import Avatar from '../components/Avatar';
 import DmOptions from '../dms/DMOptions';
@@ -20,6 +21,7 @@ export default function Dm() {
   const contact = useContact(ship);
   const isMobile = useIsMobile();
   const isAccepted = !useDmIsPending(ship);
+  const chatInfo = useChatInfo(ship);
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
@@ -45,7 +47,7 @@ export default function Dm() {
         <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
           <button
             className={cn(
-              'p-2',
+              'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
               isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
             )}
             onClick={() => isMobile && navPrimary('dm')}
@@ -56,7 +58,7 @@ export default function Dm() {
             ) : null}
             <div className="flex items-center space-x-3">
               <Avatar size="small" ship={ship} />
-              <div className="flex flex-col">
+              <div className="flex flex-col items-start">
                 {contact?.nickname ? (
                   <>
                     <span className="font-semibold">{contact.nickname}</span>
@@ -75,7 +77,12 @@ export default function Dm() {
       footer={
         isAccepted ? (
           <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput whom={ship} sendMessage={sendMessage} />
+            <ChatInput
+              whom={ship}
+              replying={chatInfo?.replying || null}
+              sendMessage={sendMessage}
+              showReply
+            />
           </div>
         ) : null
       }
