@@ -484,6 +484,7 @@
       =.  hive.club  (~(del in hive.club) ship)
       ?.  ok.delta
         (cu-post-notice ship '' ' declined the invite')
+      =.  cor  (give-brief club/id cu-brief)
       =.  team.club  (~(put in team.club) ship)
       (cu-post-notice ship '' ' joined the chat')
     ::
