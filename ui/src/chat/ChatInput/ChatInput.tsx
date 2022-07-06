@@ -368,7 +368,7 @@ export default function ChatInput({
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="text-gray-600">Replying to</span>
               <Avatar size="xs" ship={ship} className="ml-2" />
-              <ShipName name={ship} className="ml-2" />
+              <ShipName name={ship} showAlias className="ml-2" />
               <button className="icon-button ml-auto" onClick={closeReply}>
                 <X16Icon className="h-4 w-4" />
               </button>

@@ -22,7 +22,7 @@ export default function ChatNotice(props: { writ: ChatWrit }) {
             {nbsp}
           </>
         ) : null}
-        <ShipName name={writ.memo.author} />
+        <ShipName name={writ.memo.author} showAlias />
         {notice.sfix.length > 0 ? (
           <>
             {nbsp}
