@@ -5,6 +5,7 @@ import ChatInput from '../chat/ChatInput/ChatInput';
 import Layout from '../components/Layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '../state/chat';
 import ChatWindow from '../chat/ChatWindow';
+import { useChatInfo } from '../chat/useChatStore';
 import DmInvite from '../dms/DmInvite';
 import Avatar from '../components/Avatar';
 import DmOptions from '../dms/DMOptions';
@@ -20,6 +21,7 @@ export default function Dm() {
   const contact = useContact(ship);
   const isMobile = useIsMobile();
   const isAccepted = !useDmIsPending(ship);
+  const chatInfo = useChatInfo(ship);
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
@@ -76,7 +78,12 @@ export default function Dm() {
       footer={
         isAccepted ? (
           <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput whom={ship} sendMessage={sendMessage} />
+            <ChatInput
+              whom={ship}
+              replying={chatInfo?.replying || null}
+              sendMessage={sendMessage}
+              showReply
+            />
           </div>
         ) : null
       }
