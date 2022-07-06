@@ -58,8 +58,9 @@ export default function MultiDm() {
         <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
           <button
             className={cn(
-              'p-2',
-              isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
+              'cursor-text select-text p-2',
+              isMobile &&
+                '-ml-2 flex cursor-pointer select-none items-center rounded-lg hover:bg-gray-50'
             )}
             onClick={() => isMobile && navPrimary('dm')}
             aria-label="Open Messages Menu"
