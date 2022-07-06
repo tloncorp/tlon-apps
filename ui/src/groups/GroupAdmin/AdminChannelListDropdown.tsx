@@ -1,43 +1,64 @@
 import React from 'react';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
+import { useRouteGroup, useGroupState } from '@/state/groups';
 import CaretDown16Icon from '../../components/icons/CaretDown16Icon';
 import CheckIcon from '../../components/icons/CheckIcon';
 
-export default function AdminChannelListDropdown() {
-  const [permission, setPermission] = React.useState('Open To All');
+interface AdminChannelListDropdownProps {
+  channelFlag: string;
+}
+
+export default function AdminChannelListDropdown({channelFlag}: AdminChannelListDropdownProps) {
+  const groupFlag = useRouteGroup();
+  const dropdownValues = {
+    "all": "Open To All",
+    "read-only": "Member Can View",
+    "admin-only": "Admin Only"
+  };
+  const [permission, setPermission] = React.useState('all');
+
+  const updatePerms = (value: string) => {
+    const newSects = [];
+    if (value === "admin-only") {
+      newSects.push('admin');
+    }
+    useGroupState.getState().setChannelPerm(groupFlag, channelFlag, newSects);
+    setPermission(value);
+  };
+
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
         <div className="default-focus flex cursor-pointer items-center rounded-lg p-2 hover:bg-gray-50">
-          {permission}
+          {dropdownValues[permission]}
           <CaretDown16Icon className="ml-2 h-4 w-4" />
         </div>
       </Dropdown.Trigger>
       <Dropdown.Content className="dropdown">
-        <Dropdown.RadioGroup value={permission} onValueChange={setPermission}>
+        <Dropdown.RadioGroup value={permission} onValueChange={updatePerms}>
           <Dropdown.RadioItem
-            value="Open To All"
+            value="all"
             className="dropdown-item flex items-center justify-between space-x-2"
           >
-            Open To All
+            {dropdownValues.all}
             <Dropdown.ItemIndicator>
               <CheckIcon className="h-5 w-5" />
             </Dropdown.ItemIndicator>
           </Dropdown.RadioItem>
           <Dropdown.RadioItem
-            value="Member Can View"
+            value="read-only"
             className="dropdown-item flex items-center justify-between space-x-2"
           >
-            Member Can View
+            {dropdownValues['read-only']}
             <Dropdown.ItemIndicator>
               <CheckIcon className="h-5 w-5 fill-gray-600" />
             </Dropdown.ItemIndicator>
           </Dropdown.RadioItem>
           <Dropdown.RadioItem
-            value="Admin Only"
+            value="admin-only"
             className="dropdown-item flex items-center justify-between space-x-2"
           >
-            Admin Only
+            {dropdownValues['admin-only']}
             <Dropdown.ItemIndicator>
               <CheckIcon className="h-5 w-5" />
             </Dropdown.ItemIndicator>
