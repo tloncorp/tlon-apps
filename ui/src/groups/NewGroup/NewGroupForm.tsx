@@ -55,6 +55,10 @@ export default function NewGroupForm({
     }
   }, [iconType, watchIconImage]);
 
+  useEffect(() => {
+    register('color');
+  }, []); // eslint-disable-line
+
   const handleCancelColorIcon = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setIconType(undefined);
@@ -126,8 +130,9 @@ export default function NewGroupForm({
                       ? defaultColor
                       : (watchIconColor as string)
                   }
-                  register={register}
-                  setColor={(newColor: string) => setValue('color', newColor)}
+                  setColor={(newColor: string) =>
+                    setValue('color', newColor || '')
+                  }
                 />
                 <button
                   className="secondary-button"

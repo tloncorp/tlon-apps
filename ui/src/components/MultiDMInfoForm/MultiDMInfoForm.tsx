@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -20,16 +20,25 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
     description: '',
   };
 
-  const { handleSubmit, register, setValue, watch } = useForm<GroupMeta>({
-    defaultValues,
-  });
+  const { handleSubmit, register, setValue, watch, getValues } =
+    useForm<GroupMeta>({
+      defaultValues,
+    });
 
-  const onSubmit = async (values: GroupMeta) => {
-    await useChatState.getState().editMultiDm(clubId, values);
-    setOpen(false);
-  };
+  useEffect(() => {
+    register('color');
+  }, []); // eslint-disable-line
+
+  const onSubmit = useCallback(
+    async (values: GroupMeta) => {
+      await useChatState.getState().editMultiDm(clubId, values);
+      setOpen(false);
+    },
+    [clubId, setOpen]
+  );
 
   const watchColor = watch('color');
+  console.log(watchColor, getValues());
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
@@ -40,9 +49,8 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
           </label>
           <ColorPicker
             className="mt-2"
-            register={register}
             setColor={(newColor: string) => setValue('color', newColor || '')}
-            color={watchColor as string}
+            color={watchColor}
           />
         </div>
         <div className="py-4">
