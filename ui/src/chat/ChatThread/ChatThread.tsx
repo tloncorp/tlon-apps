@@ -28,7 +28,7 @@ export default function ChatThread(
   const [time, writ] = maybeWrit;
 
   return (
-    <div className="flex h-full min-w-72 flex-col space-y-2 overflow-y-auto border-l px-4 pt-4 xl:min-w-96">
+    <div className="flex h-full w-72 flex-col space-y-2 overflow-y-auto border-l px-4 pt-4 xl:w-96">
       <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
         {children}
         <Link to="..">

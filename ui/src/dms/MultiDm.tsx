@@ -1,24 +1,24 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
-import ChatInput from '../chat/ChatInput/ChatInput';
-import Layout from '../components/Layout/Layout';
+import ChatInput from '@/chat/ChatInput/ChatInput';
+import Layout from '@/components/Layout/Layout';
 import {
   useChatState,
   useMultiDm,
   useMultiDmIsPending,
   useMultiDmMessages,
-} from '../state/chat';
-import ChatWindow from '../chat/ChatWindow';
-import DmOptions from './DMOptions';
-import CaretLeftIcon from '../components/icons/CaretLeftIcon';
-import { useIsMobile } from '../logic/useMedia';
-import useNavStore from '../components/Nav/useNavStore';
+} from '@/state/chat';
+import ChatWindow from '@/chat/ChatWindow';
+import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import { useIsMobile } from '@/logic/useMedia';
+import useNavStore from '@/components/Nav/useNavStore';
+import { pluralize } from '@/logic/utils';
+import useSendMultiDm from '@/state/chat/useSendMultiDm';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
-import { pluralize } from '../logic/utils';
-import useSendMultiDm from '../state/chat/useSendMultiDm';
+import DmOptions from './DMOptions';
 
 export default function MultiDm() {
   const clubId = useParams<{ ship: string }>().ship!;
@@ -89,7 +89,7 @@ export default function MultiDm() {
       footer={
         isAccepted ? (
           <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput whom={clubId} sendMessage={sendMessage} />
+            <ChatInput whom={clubId} sendMessage={sendMessage} showReply />
           </div>
         ) : null
       }
