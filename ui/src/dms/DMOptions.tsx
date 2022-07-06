@@ -141,6 +141,15 @@ export default function DmOptions({
             </>
           ) : (
             <>
+              {hasActivity ? (
+                <DropdownMenu.Item
+                  className="dropdown-item flex items-center space-x-2 text-blue"
+                  onClick={markRead}
+                >
+                  <BulletIcon className="h-6 w-6" />
+                  <span>Mark Read</span>
+                </DropdownMenu.Item>
+              ) : null}
               {isMulti ? (
                 <>
                   <DropdownMenu.Item
@@ -182,11 +191,6 @@ export default function DmOptions({
                 <LeaveIcon className="h-6 w-6 opacity-60" />
                 <span>Leave Message</span>
               </DropdownMenu.Item>
-              {hasActivity ? (
-                <DropdownMenu.Item className="dropdown-item" onClick={markRead}>
-                  Mark Read
-                </DropdownMenu.Item>
-              ) : null}
             </>
           )}
         </DropdownMenu.Content>
