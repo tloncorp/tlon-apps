@@ -47,6 +47,7 @@ function AdminChannelListContents({
         key={key}
         index={index}
         channel={channel}
+        channelFlag={key}
         moveChannel={moveChannel}
       />
     ),

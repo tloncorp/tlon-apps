@@ -4,12 +4,14 @@ import * as Switch from '@radix-ui/react-switch';
 import { Channel } from '@/types/groups';
 import EditChannelNameModal from '@/groups/GroupAdmin/EditChannelNameModal';
 import PencilIcon from '@/components/icons/PencilIcon';
+import { useGroupState, useRouteGroup } from '@/state/groups';
 import AdminChannelListDropdown from './AdminChannelListDropdown';
 import SixDotIcon from '../../components/icons/SixDotIcon';
 
 interface AdminChannelListItemProps {
   channel: Channel;
   index: number;
+  channelFlag: string;
   moveChannel: (dragIndex: number, hoverIndex: number) => void;
 }
 
@@ -27,10 +29,15 @@ export default function AdminChannelListItem({
   channel,
   index,
   moveChannel,
+  channelFlag,
 }: AdminChannelListItemProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const flag = useRouteGroup();
   const { meta } = channel;
   const [editIsOpen, setEditIsOpen] = useState(false);
+  const [defaultIsChecked, setDefaultIsChecked] = useState(
+    channel?.join || false
+  );
 
   const [{ handlerId }, drop] = useDrop<
     DragItem,
@@ -89,6 +96,13 @@ export default function AdminChannelListItem({
 
   drag(drop(ref));
 
+  const onDefaultCheckedChange = () => {
+    useGroupState
+      .getState()
+      .setChannelJoin(flag, channelFlag, !defaultIsChecked);
+    setDefaultIsChecked(!defaultIsChecked);
+  };
+
   return (
     <>
       <div ref={ref}>
@@ -112,7 +126,11 @@ export default function AdminChannelListItem({
           <AdminChannelListDropdown />
           <div className="flex items-center text-gray-800">
             Default
-            <Switch.Root className="switch">
+            <Switch.Root
+              checked={defaultIsChecked}
+              onCheckedChange={onDefaultCheckedChange}
+              className="switch"
+            >
               <Switch.Thumb className="switch-thumb" />
             </Switch.Root>
           </div>
@@ -121,6 +139,7 @@ export default function AdminChannelListItem({
       <EditChannelNameModal
         editIsOpen={editIsOpen}
         setEditIsOpen={setEditIsOpen}
+        channel={channel}
       />
     </>
   );
