@@ -8,18 +8,22 @@ interface AdminChannelListDropdownProps {
   channelFlag: string;
 }
 
-export default function AdminChannelListDropdown({channelFlag}: AdminChannelListDropdownProps) {
+type DropdownOptions = { [key: string]: string };
+
+export default function AdminChannelListDropdown({
+  channelFlag,
+}: AdminChannelListDropdownProps) {
   const groupFlag = useRouteGroup();
-  const dropdownValues = {
-    "all": "Open To All",
-    "read-only": "Member Can View",
-    "admin-only": "Admin Only"
+  const dropdownValues: DropdownOptions = {
+    all: 'Open To All',
+    'read-only': 'Member Can View',
+    'admin-only': 'Admin Only',
   };
   const [permission, setPermission] = React.useState('all');
 
   const updatePerms = (value: string) => {
     const newSects = [];
-    if (value === "admin-only") {
+    if (value === 'admin-only') {
       newSects.push('admin');
     }
     useGroupState.getState().setChannelPerm(groupFlag, channelFlag, newSects);
