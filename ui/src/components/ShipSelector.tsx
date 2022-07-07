@@ -12,6 +12,8 @@ import {
   MultiValue,
   ActionMeta,
   GroupBase,
+  SingleValue,
+  ValueContainerProps,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
@@ -31,6 +33,7 @@ interface ShipSelectorProps {
   ships: ShipOption[];
   setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
   onEnter?: (ships: ShipOption[]) => void;
+  isMulti?: boolean;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -88,6 +91,17 @@ function ShipTagLabelContainer({
   );
 }
 
+function SingleValueShipTagLabelContainer({
+  children,
+  ...props
+}: ValueContainerProps<ShipOption, true>) {
+  return (
+    <components.ValueContainer {...props}>
+      <div className="flex">{children}</div>
+    </components.ValueContainer>
+  );
+}
+
 function ShipTagLabel({ data }: { data: ShipOption }) {
   const { value } = data;
   return (
@@ -138,6 +152,7 @@ export default function ShipSelector({
   ships,
   setShips,
   onEnter,
+  isMulti = true,
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -180,6 +195,9 @@ export default function ShipSelector({
         }
         if (ships && ships.length > 0 && validShips && onEnter) {
           onEnter(ships);
+          if (!isMulti) {
+            setShips([]);
+          }
         }
         break;
       }
@@ -204,12 +222,29 @@ export default function ShipSelector({
     }
   };
 
+  const singleOnChange = (
+    newValue: SingleValue<ShipOption>,
+    actionMeta: ActionMeta<ShipOption>
+  ) => {
+    if (
+      ['create-option', 'remove-value', 'select-option'].includes(
+        actionMeta.action
+      ) &&
+      newValue !== null
+    ) {
+      const validPatp = ob.isValidPatp(preSig(newValue.value));
+      if (validPatp) {
+        setShips([newValue]);
+      }
+    }
+  };
+
   return (
     <CreatableSelect
       ref={selectRef}
       formatCreateLabel={AddNonContactShip}
       autoFocus
-      isMulti
+      isMulti={isMulti ? isMulti : undefined}
       styles={{
         control: (base) => ({}),
         menu: ({ width, borderRadius, ...base }) => ({
@@ -252,7 +287,8 @@ export default function ShipSelector({
       aria-label="Ships"
       options={contactOptions}
       value={ships}
-      onChange={onChange}
+      // @ts-expect-error this error is irrelevant
+      onChange={isMulti ? onChange : singleOnChange}
       isValidNewOption={(inputValue) =>
         inputValue ? ob.isValidPatp(preSig(inputValue)) : false
       }
@@ -274,6 +310,8 @@ export default function ShipSelector({
         MultiValueLabel: ShipTagLabel,
         MultiValueContainer: ShipTagLabelContainer,
         MultiValueRemove: ShipTagRemove,
+        SingleValue: ShipTagLabel,
+        ValueContainer: SingleValueShipTagLabelContainer,
       }}
     />
   );
