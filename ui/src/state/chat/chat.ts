@@ -21,7 +21,7 @@ import {
   WritDelta,
 } from '../../types/chat';
 import api from '../../api';
-import { whomIsDm } from '../../logic/utils';
+import { whomIsDm, whomIsMultiDm } from '../../logic/utils';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
@@ -330,9 +330,19 @@ export const useChatState = create<ChatState>((set, get) => ({
   },
   sendMessage: (whom, memo) => {
     const isDM = whomIsDm(whom);
+    const isMultiDm = whomIsMultiDm(whom);
     const diff = { add: memo };
     if (isDM) {
       api.poke(dmAction(whom, { add: memo }));
+    } else if (isMultiDm) {
+      api.poke(
+        multiDmAction(whom, {
+          writ: {
+            id: makeId(),
+            delta: { add: { ...memo, sent: Date.now() } },
+          },
+        })
+      );
     } else {
       const id = makeId();
       api.poke(chatWritDiff(whom, id, diff));
@@ -410,16 +420,6 @@ export const useChatState = create<ChatState>((set, get) => ({
   multiDmRsvp: async (id, ok) => {
     await api.poke(multiDmAction(id, { team: { ship: window.our, ok } }));
     await get().fetchMultiDm(id, true);
-  },
-  sendMultiDm: async (id, memo) => {
-    await api.poke(
-      multiDmAction(id, {
-        writ: {
-          id: makeId(),
-          delta: { add: { ...memo, sent: Date.now() } },
-        },
-      })
-    );
   },
   addSects: async (whom, sects) => {
     await api.poke(chatAction(whom, { 'add-sects': sects }));

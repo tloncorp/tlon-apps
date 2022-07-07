@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
 import { useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useChannelFlag } from '../../hooks';
@@ -10,10 +10,11 @@ import RowDivider from '../../components/RowDivider';
 import X16Icon from '../../components/icons/X16Icon';
 import ChatScroller from '../ChatScroller/ChatScroller';
 
-export default function ChatThread(
-  props: React.PropsWithChildren<{ whom: string }>
-) {
-  const { whom, children } = props;
+type ChatThreadProps = PropsWithChildren<{
+  whom: string;
+}>;
+
+export default function ChatThread({ whom, children }: ChatThreadProps) {
   const { idTime, idShip } = useParams<{ idShip: string; idTime: string }>();
   const { sendMessage } = useChatState.getState();
 

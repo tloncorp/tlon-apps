@@ -5,12 +5,12 @@ import createClub from './createClub';
 
 // `ChatInput` expects `sendMessage(whom, memo)`, so wrap it within a closure
 export default function useSendMultiDm(newDm?: boolean, ships?: string[]) {
-  const { sendMultiDm } = useChatState.getState();
+  const { sendMessage } = useChatState.getState();
   const makeSender = () => async (whom: string, memo: ChatMemo) => {
     if (newDm && whomIsMultiDm(whom) && ships) {
       await createClub(whom, ships);
     }
-    sendMultiDm(whom, memo);
+    sendMessage(whom, memo);
   };
   return makeSender();
 }
