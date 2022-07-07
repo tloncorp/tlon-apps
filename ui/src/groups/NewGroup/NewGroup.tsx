@@ -7,9 +7,11 @@ import useStep from '@/logic/useStep';
 import TemplateOrScratch from '@/groups/NewGroup/TemplateOrScratch';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
+import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
+import { ShipOption } from '@/components/ShipSelector';
 
 interface NewGroupFormSchema {
   title: string;
@@ -20,10 +22,17 @@ interface NewGroupFormSchema {
 
 type PrivacyTypes = 'public' | 'private' | 'secret';
 
+interface ShipWithRole {
+  patp: string;
+  role: string;
+}
+
 export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyTypes>();
+  const [shipsToInvite, setShipsToInvite] = useState<ShipOption[]>([]);
+  const [shipsWithRoles, setShipsWithRoles] = useState<ShipWithRole[]>([]);
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -53,10 +62,32 @@ export default function NewGroup() {
     mode: 'onBlur',
   });
 
-  const onSubmit = async (values: NewGroupFormSchema) => {
+  const setGroupPrivacy = async () => {
+    setTimeout(
+      () =>
+        new Promise(() => {
+          console.log('TODO: setGroupPrivacy', { selectedPrivacy });
+        }),
+      2
+    );
+  };
+
+  const setGroupMembers = async () => {
+    setTimeout(
+      () =>
+        new Promise(() => {
+          console.log('TODO: setGroupMembers', { shipsWithRoles });
+        })
+    );
+  };
+
+  const onComplete = async () => {
+    const values = getValues();
     const name = strToSym(values.title);
     await useGroupState.getState().create({ ...values, name });
     const flag = `${window.our}/${name}`;
+    await setGroupPrivacy();
+    await setGroupMembers();
     navigate(`/groups/${flag}`);
   };
 
@@ -96,7 +127,17 @@ export default function NewGroup() {
       );
       break;
     case 4:
-      currentStepComponent = <span>Fourth</span>;
+      currentStepComponent = (
+        <NewGroupInvite
+          groupName={getValues('title')}
+          goToPrevStep={goToPrevStep}
+          goToNextStep={onComplete}
+          shipsToInvite={shipsToInvite}
+          setShipsToInvite={setShipsToInvite}
+          shipsWithRoles={shipsWithRoles}
+          setShipsWithRoles={setShipsWithRoles}
+        />
+      );
       break;
     default:
       currentStepComponent = <span>An error occurred</span>;
