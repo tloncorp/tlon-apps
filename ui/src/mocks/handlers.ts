@@ -466,6 +466,11 @@ const clubHandlers: Handler[] = [
   clubSub,
   clubWritsSub,
   {
+    action: 'subscribe',
+    app: 'chat',
+    path: '/club/new',
+  },
+  {
     action: 'scry',
     app: 'chat',
     path: '/club/:id/writs/newest/:count',
