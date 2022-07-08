@@ -11,7 +11,6 @@ import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
-import { ShipOption } from '@/components/ShipSelector';
 
 interface NewGroupFormSchema {
   title: string;
@@ -21,18 +20,18 @@ interface NewGroupFormSchema {
 }
 
 type PrivacyTypes = 'public' | 'private' | 'secret';
+type Role = 'Member' | 'Moderator' | 'Admin';
 
 interface ShipWithRole {
   patp: string;
-  role: string;
+  role: Role;
 }
 
 export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyTypes>();
-  const [shipsToInvite, setShipsToInvite] = useState<ShipOption[]>([]);
-  const [shipsWithRoles, setShipsWithRoles] = useState<ShipWithRole[]>([]);
+  const [shipsToInvite, setShipsToInvite] = useState<ShipWithRole[]>([]);
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -76,7 +75,7 @@ export default function NewGroup() {
     setTimeout(
       () =>
         new Promise(() => {
-          console.log('TODO: setGroupMembers', { shipsWithRoles });
+          console.log('TODO: setGroupMembers', { shipsToInvite });
         })
     );
   };
@@ -134,8 +133,6 @@ export default function NewGroup() {
           goToNextStep={onComplete}
           shipsToInvite={shipsToInvite}
           setShipsToInvite={setShipsToInvite}
-          shipsWithRoles={shipsWithRoles}
-          setShipsWithRoles={setShipsWithRoles}
         />
       );
       break;

@@ -1,53 +1,99 @@
+import React, { useState } from 'react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import cn from 'classnames';
 import Avatar from '@/components/Avatar';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
-import React, { useState } from 'react';
+import ShipName from '@/components/ShipName';
+import CaretDownIcon from '@/components/icons/CaretDownIcon';
 
 interface NewGroupInviteProps {
   groupName: string;
   goToPrevStep: () => void;
   goToNextStep: () => void;
-  shipsToInvite: ShipOption[];
-  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipOption[]>>;
-  shipsWithRoles: ShipWithRole[];
-  setShipsWithRoles: React.Dispatch<React.SetStateAction<ShipWithRole[]>>;
+  shipsToInvite: ShipWithRole[];
+  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRole[]>>;
 }
+
+type Role = 'Member' | 'Moderator' | 'Admin';
 
 interface ShipWithRole {
   patp: string;
-  role: string;
+  role: Role;
+}
+
+const roles: Role[] = ['Member', 'Admin', 'Moderator'];
+
+interface MemberRoleDropDownMenuProps {
+  ship: ShipWithRole;
+  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRole[]>>;
+}
+
+function MemberRoleDropDownMenu({
+  ship,
+  setShipsToInvite,
+}: MemberRoleDropDownMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div>
+      <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
+        <DropdownMenu.Trigger asChild className="appearance-none">
+          <button
+            className={cn(
+              'default-focus flex items-center rounded-lg p-0.5 text-gray-600 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100'
+            )}
+            aria-label="Open Member Role Options"
+          >
+            {ship.role}
+            <CaretDownIcon className="h-4 w-4" />
+          </button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content className="dropdown">
+          {roles.map((role) => (
+            <DropdownMenu.Item
+              key={role}
+              className="dropdown-item flex items-center space-x-2"
+              onClick={() =>
+                setShipsToInvite((prevState) => [
+                  ...prevState.filter(
+                    (prevShip) => prevShip.patp !== ship.patp
+                  ),
+                  { patp: ship.patp, role },
+                ])
+              }
+            >
+              {role}
+            </DropdownMenu.Item>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+    </div>
+  );
 }
 
 interface GroupMemberRoleListProps {
-  shipsToInvite: ShipOption[];
-  shipsWithRoles: ShipWithRole[];
-  setShipsWithRoles: (ships: ShipWithRole[]) => void;
+  shipsToInvite: ShipWithRole[];
+  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRole[]>>;
 }
 
 function GroupMemberRoleList({
   shipsToInvite,
-  shipsWithRoles,
-  setShipsWithRoles,
+  setShipsToInvite,
 }: GroupMemberRoleListProps) {
   return (
     <div className="flex h-[132px] flex-col space-y-2 overflow-auto rounded-lg border-2 border-gray-100 p-2">
-      {shipsToInvite.map((ship: ShipOption) => (
+      {shipsToInvite.map((ship: ShipWithRole) => (
         <div
           className="flex w-full items-center justify-between"
-          key={ship.value}
+          key={ship.patp}
         >
           <div className="flex items-center space-x-2">
-            <Avatar ship={ship.value} size="xs" />
-            <span className="font-semibold">{ship.value}</span>
+            <Avatar ship={ship.patp} size="xs" />
+            <ShipName name={ship.patp} showAlias />
           </div>
-          <span>
-            {shipsWithRoles.find(
-              (shipWithRole) => shipWithRole.patp === ship.value
-            )?.role
-              ? shipsWithRoles.find(
-                  (shipWithRole) => shipWithRole.patp === ship.value
-                )?.role
-              : 'Member'}
-          </span>
+          <MemberRoleDropDownMenu
+            ship={ship}
+            setShipsToInvite={setShipsToInvite}
+          />
         </div>
       ))}
     </div>
@@ -60,17 +106,21 @@ export default function NewGroupInvite({
   goToPrevStep,
   shipsToInvite,
   setShipsToInvite,
-  shipsWithRoles,
-  setShipsWithRoles,
 }: NewGroupInviteProps) {
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
 
   const handleEnter = (ships: ShipOption[]) => {
     setShipsToInvite((prevState) => [
       ...prevState,
-      ...ships.filter(
-        (ship) => !prevState.find((prevShip) => prevShip.value === ship.value)
-      ),
+      ...ships
+        .filter(
+          (ship) => !prevState.find((prevShip) => prevShip.patp === ship.value)
+        )
+        .map((ship) => ({
+          patp: ship.value,
+          alias: ship.label,
+          role: 'Member' as Role,
+        })),
     ]);
   };
 
@@ -91,8 +141,7 @@ export default function NewGroupInvite({
         />
         <GroupMemberRoleList
           shipsToInvite={shipsToInvite}
-          shipsWithRoles={shipsWithRoles}
-          setShipsWithRoles={setShipsWithRoles}
+          setShipsToInvite={setShipsToInvite}
         />
       </div>
       <div className="flex justify-between">
