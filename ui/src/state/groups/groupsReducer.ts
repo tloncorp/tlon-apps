@@ -90,6 +90,8 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       }
     } else if ('cordon' in diff) {
       reduceCordon(group, diff);
+    } else if ('meta' in diff) {
+      group.meta = diff.meta;
     } else {
       // console.log('unreachable');
     }

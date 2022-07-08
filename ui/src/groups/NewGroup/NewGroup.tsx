@@ -1,6 +1,6 @@
 import React, { ReactElement } from 'react';
 import { useNavigate } from 'react-router';
-import { useForm } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { useGroupState } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import useStep from '@/logic/useStep';
@@ -37,13 +37,7 @@ export default function NewGroup() {
     color: '',
   };
 
-  const {
-    handleSubmit,
-    register,
-    formState: { errors, isValid },
-    setValue,
-    watch,
-  } = useForm<NewGroupFormSchema>({
+  const form = useForm<NewGroupFormSchema>({
     defaultValues,
     mode: 'onBlur',
   });
@@ -69,11 +63,7 @@ export default function NewGroup() {
     case 2:
       currentStepComponent = (
         <NewGroupForm
-          register={register}
-          errors={errors}
-          watch={watch}
-          setValue={setValue}
-          isValid={isValid}
+          isValid={form.formState.isValid}
           goToPrevStep={goToPrevStep}
           goToNextStep={goToNextStep}
         />
@@ -93,9 +83,14 @@ export default function NewGroup() {
   return (
     <Dialog defaultOpen onOpenChange={onOpenChange}>
       <DialogContent containerClass="w-full sm:max-w-lg">
-        <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
-          {currentStepComponent}
-        </form>
+        <FormProvider {...form}>
+          <form
+            className="flex flex-col"
+            onSubmit={form.handleSubmit(onSubmit)}
+          >
+            {currentStepComponent}
+          </form>
+        </FormProvider>
         <div className="flex flex-col items-center">
           {currentStep !== 1 ? (
             <NavigationDots

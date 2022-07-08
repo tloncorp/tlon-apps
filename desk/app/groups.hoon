@@ -1,4 +1,5 @@
 /-  g=groups
+/-  meta
 /+  default-agent, verb, dbug
 /+  groups-json  :: unused, nice for perf
 ^-  agent:gall
@@ -363,8 +364,13 @@
       %cordon   (go-cordon-update p.diff)
       %create   go-core(group p.diff)
       %zone     (go-zone-update +.diff)
+      %meta     (go-meta-update p.diff)
     ==
   ::
+  ++  go-meta-update
+    |= meta=data:meta
+    =.  meta.group  meta
+    go-core
   ++  go-zone-update
     |=  [=zone:g =delta:zone:g]
     ^+  go-core

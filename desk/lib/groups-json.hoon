@@ -41,6 +41,7 @@
       %cordon   (cordon-diff p.d)
       %create   (group p.d)
       %zone     (zone-diff p.d)
+      %meta     (meta p.d)
     ==
   ::
   ++  zone-diff
@@ -291,6 +292,7 @@
         fleet/(ot ships/(as ship) diff/fleet-diff ~)
         cordon/cordon-diff
         channel/(ot flag/flag diff/channel-diff ~)
+        meta/(ot meta/meta)
     ==
   ::
   ++  channel-diff

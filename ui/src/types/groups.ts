@@ -150,12 +150,17 @@ export interface CordonDiff {
   cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };
 }
 
+export interface MetaDiff {
+  meta: GroupMeta;
+}
+
 export interface GroupCreateDiff {
   create: Group;
 }
 // TODO: elaborate
 export type GroupDiff =
   | GroupCreateDiff
+  | MetaDiff
   | FleetDiff
   | CabalDiff
   | ChannelDiff
