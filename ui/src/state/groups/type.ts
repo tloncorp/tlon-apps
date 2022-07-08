@@ -32,6 +32,8 @@ export interface GroupState {
     name: string;
     title: string;
     description: string;
+    members: Record<string, string[]>;
+    cordon: Record<string, any>;
   }) => Promise<void>;
   start: () => Promise<void>;
   search: (flag: string) => Promise<void>;
