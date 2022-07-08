@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { DraggableProvided } from 'react-beautiful-dnd';
+import React, { useState, useCallback } from 'react';
+import { DraggableProvided, Draggable, Droppable } from 'react-beautiful-dnd';
 import { Channel } from '@/types/groups';
+import AdminChannelListItem from './AdminChannelListItem';
 import SixDotIcon from '../../components/icons/SixDotIcon';
 
 interface ChannelListItem {
@@ -16,6 +17,24 @@ interface SectionProps {
 }
 
 export default function Section({channels, title, provided}: SectionProps) {
+
+  const renderChannelListItem = useCallback(
+    ({ channel, key }: ChannelListItem, index: number) => (
+      <Draggable key={key} draggableId={key} index={index}>
+        {(channelProvided, snapshot) => (
+          <AdminChannelListItem
+            provided={channelProvided}
+            key={key}
+            index={index}
+            channel={channel}
+            channelFlag={key}
+          />
+        )}
+      </Draggable>
+    ),
+    []
+  );
+
   return(
     <div ref={provided.innerRef} {...provided.draggableProps}>
       <div className="card p-0">
@@ -27,6 +46,17 @@ export default function Section({channels, title, provided}: SectionProps) {
           </div>
           <h2 className='text-lg font-semibold'>{title}</h2>
         </header>
+        <Droppable droppableId={title}>
+          {(sectionDroppableProvided, snapshot) => (
+            <div
+            ref={sectionDroppableProvided.innerRef}
+            {...sectionDroppableProvided.droppableProps}
+            >
+              {channels.map((channel, index) => channel !== undefined ? renderChannelListItem(channel, index) : null )}
+              {sectionDroppableProvided.placeholder}
+            </div>
+          )}
+        </Droppable>
       </div>
     </div>
     

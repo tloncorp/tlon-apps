@@ -50,6 +50,7 @@ export default function AdminChannelListDropContext({
       droppableSource, 
       droppableDestination
     ) => {
+      // debugger;
       const sourceClone = Array.from(source);
       const destinationClone = Array.from(destination);
       const [removed] = sourceClone.splice(droppableSource.index, 1);
@@ -69,18 +70,28 @@ export default function AdminChannelListDropContext({
         return;
       }
 
-      const sourceIndex = +source.droppableId;
-      const destinationIndex = +destination.droppableId;
+      const isDragSectionIntoOtherSection = source.droppableId === 'sections' && destination.droppableId !== 'sections';
+      const isDragChannelOutsideSection = source.droppableId !== 'sections' && destination.droppableId === 'sections';
 
-      if (sourceIndex === destinationIndex) {
-        const items = reorder(sections[sourceIndex].channels, source.index, destination.index);
+      const sourceId =  sections.findIndex(section => section.title === source.droppableId);
+      const destinationId =  sections.findIndex(section => section.title === destination.droppableId);
+      // debugger;
+
+      if (isDragSectionIntoOtherSection || isDragChannelOutsideSection) {
+        return;
+      }
+
+      if (sourceId === destinationId) {
+        const items = reorder(sections[sourceId].channels, source.index, destination.index);
         const newSections = [...sections];
-        newSections[sourceIndex].channels = items;
+        newSections[sourceId].channels = items;
+        setSections(newSections);
       } else {
-        const reorderedSections = move(sections[sourceIndex], sections[destinationIndex], source, destination);
+        // debugger;
+        const reorderedSections = move(sections[sourceId], sections[destinationId], source, destination);
         const newSections = [...sections];
-        newSections[sourceIndex] = reorderedSections[sourceIndex];
-        newSections[destinationIndex] = reorderedSections[destinationIndex];
+        newSections[sourceId] = reorderedSections[sourceId];
+        newSections[destinationId] = reorderedSections[destinationId];
         setSections(newSections.filter(section => section.channels.length));
       }
     },

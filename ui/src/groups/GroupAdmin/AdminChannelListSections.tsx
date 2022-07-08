@@ -63,7 +63,6 @@ export default function AdminChannelListSections({sectionList}: AdminChannelList
           {(provided, snapshot) => (
             <div
               ref={provided.innerRef}
-              className=""
               {...provided.droppableProps}
             >
               {sections.map((section, index) =>
