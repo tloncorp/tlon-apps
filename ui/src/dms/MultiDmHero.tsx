@@ -15,7 +15,7 @@ export default function MultiDmHero({ club }: MultiDMHeroProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <MultiDmAvatar img={club.meta.image} size="huge" className="mb-2" />
+      <MultiDmAvatar {...club.meta} size="huge" className="mb-2" />
       {club.meta.title ? (
         <h2 className="mb-1 text-lg font-semibold">{club.meta.title}</h2>
       ) : null}

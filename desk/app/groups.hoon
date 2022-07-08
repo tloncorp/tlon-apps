@@ -85,9 +85,14 @@
       %group-create
     =+  !<(=create:g vase)
     =/  =flag:g  [our.bowl name.create]
-    =|  =cordon:g
+    ~!  members.create
+    =/  =fleet:g
+      %-  ~(run by members.create)
+      |=  sects=(set sect:g)
+      ^-  vessel:fleet:g
+      [sects now.bowl]
     =/  =group:g
-      [~ ~ ~ ~ ~ cordon title.create description.create image.create color.create] 
+      [fleet ~ ~ ~ ~ cordon.create title.create description.create image.create color.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     go-abet:(go-init:(go-abed:group-core flag) create)
   ::

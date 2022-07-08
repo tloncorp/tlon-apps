@@ -69,7 +69,9 @@ export default function Dm() {
               </div>
             </div>
           </button>
-          {canStart ? <DmOptions ship={ship} pending={!isAccepted} /> : null}
+          {canStart ? (
+            <DmOptions whom={ship} pending={!isAccepted} alwaysShowEllipsis />
+          ) : null}
         </div>
       }
       aside={<Outlet />}

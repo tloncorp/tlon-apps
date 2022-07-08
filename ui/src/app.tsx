@@ -39,6 +39,7 @@ import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
+import MultiDMEditModal from './dms/MultiDMEditModal';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -75,6 +76,11 @@ function ChatRoutes({ state, location }: RoutesProps) {
           />
         </Route>
       </Routes>
+      {state?.backgroundLocation ? (
+        <Routes>
+          <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
+        </Routes>
+      ) : null}
     </>
   );
 }

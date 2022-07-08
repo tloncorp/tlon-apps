@@ -5,7 +5,8 @@ import PeopleIcon from '../components/icons/PeopleIcon';
 type MultiDmAvatarSize = 'xs' | 'small' | 'default' | 'huge';
 
 interface MultiDmAvatarProps {
-  img?: string;
+  image?: string;
+  color?: string;
   size?: MultiDmAvatarSize;
   className?: string;
 }
@@ -30,12 +31,13 @@ const sizeMap = {
 };
 
 export default function MultiDmAvatar({
-  img,
+  image,
+  color,
   size = 'default',
   className,
 }: MultiDmAvatarProps) {
-  if (img) {
-    return <img className={cn(sizeMap[size].size, className)} src={img} />;
+  if (image) {
+    return <img className={cn(sizeMap[size].size, className)} src={image} />;
   }
 
   return (
@@ -45,8 +47,13 @@ export default function MultiDmAvatar({
         sizeMap[size].size,
         className
       )}
+      style={{
+        backgroundColor: color,
+      }}
     >
-      <PeopleIcon className={sizeMap[size].iconSize} />
+      <PeopleIcon
+        className={cn(color && 'mix-blend-multiply', sizeMap[size].iconSize)}
+      />
     </div>
   );
 }

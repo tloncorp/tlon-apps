@@ -435,7 +435,7 @@ export default class VirtualScroller<K, V> extends Component<
 
   get lastOffset() {
     const { size } = this.props;
-    return Math.min(size - this.pageSize, size);
+    return Math.min(Math.max(size - this.pageSize, 0), size);
   }
 
   setScrollRef = (el: HTMLDivElement | null) => {

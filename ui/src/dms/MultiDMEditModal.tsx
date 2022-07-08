@@ -1,25 +1,20 @@
 import React from 'react';
+import { useDismissNavigate } from '@/logic/routing';
 import Dialog, { DialogContent } from '../components/Dialog';
 import MultiDMInfoForm from '../components/MultiDMInfoForm/MultiDMInfoForm';
 
-interface MultiDMEditModalProps {
-  editIsOpen: boolean;
-  setEditIsOpen: (open: boolean) => void;
-}
+export default function MultiDMEditModal() {
+  const dismiss = useDismissNavigate();
 
-export default function MultiDMEditModal({
-  editIsOpen,
-  setEditIsOpen,
-}: MultiDMEditModalProps) {
   return (
-    <Dialog open={editIsOpen} onOpenChange={setEditIsOpen}>
+    <Dialog defaultOpen onOpenChange={(open) => open && dismiss()}>
       <DialogContent showClose containerClass="max-w-lg">
         <div className="sm:w-96">
           <header className="flex items-center ">
             <h2 className="text-xl font-bold">Edit Chat Info</h2>
           </header>
         </div>
-        <MultiDMInfoForm setOpen={setEditIsOpen} />
+        <MultiDMInfoForm setOpen={() => dismiss()} />
       </DialogContent>
     </Dialog>
   );
