@@ -265,6 +265,8 @@
         description+so
         image+so
         color+so
+        cordon+cordon
+        members+(op ;~(pfix sig fed:ag) (as sym))
     ==
   ::
   ++  join
