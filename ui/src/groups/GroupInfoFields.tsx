@@ -74,8 +74,6 @@ export default function GroupInfoFields() {
     unregister('image');
   };
 
-  console.log(watchIconImage, iconUrl, isValidUrl(iconUrl));
-
   return (
     <>
       <div className="flex justify-between">
