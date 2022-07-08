@@ -58,10 +58,14 @@ function ShipName({ data, ...props }: OptionProps<ShipOption, true>) {
         ) : (
           <div className="h-6 w-6 rounded bg-white" />
         )}
-        <span className="font-semibold">{preSig(value)}</span>
         {label ? (
-          <span className="font-semibold text-gray-300">{label}</span>
-        ) : null}
+          <>
+            <span className="font-semibold">{label}</span>
+            <span className="font-semibold text-gray-300">{preSig(value)}</span>
+          </>
+        ) : (
+          <span className="font-semibold">{preSig(value)}</span>
+        )}
       </div>
     </components.Option>
   );
@@ -92,10 +96,10 @@ function ShipTagLabelContainer({
 }
 
 function ShipTagLabel({ data }: { data: ShipOption }) {
-  const { value } = data;
+  const { value, label } = data;
   return (
     <div className="flex h-6 items-center rounded-l bg-gray-100">
-      <span className="p-1 font-semibold">{value}</span>
+      <span className="p-1 font-semibold">{label || value}</span>
     </div>
   );
 }
