@@ -11,7 +11,7 @@ interface MultiDMInfoFormProps {
 }
 
 export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
-  const clubId = useParams<{ ship: string }>().ship!;
+  const clubId = useParams<{ id: string }>().id!;
   const club = useMultiDm(clubId);
   const defaultValues: GroupMeta = {
     title: club?.meta.title || '',
@@ -29,9 +29,9 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
   }, []); // eslint-disable-line
 
   const onSubmit = useCallback(
-    async (values: GroupMeta) => {
-      await useChatState.getState().editMultiDm(clubId, values);
+    (values: GroupMeta) => {
       setOpen(false);
+      useChatState.getState().editMultiDm(clubId, values);
     },
     [clubId, setOpen]
   );

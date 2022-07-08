@@ -68,7 +68,7 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
           <Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />
         )
       }
-      actions={<DmOptions ship={whom} pending={!!pending} />}
+      actions={<DmOptions whom={whom} pending={!!pending} />}
       onClick={() => isMobile && navPrimary('hidden')}
     >
       <ShipName
@@ -105,7 +105,7 @@ export function MultiDMSidebarItem({
           <MultiDmAvatar size={isMobile ? 'default' : 'xs'} />
         )
       }
-      actions={<DmOptions ship={whom} pending={!!pending} isMulti />}
+      actions={<DmOptions whom={whom} pending={!!pending} isMulti />}
       onClick={() => isMobile && navPrimary('hidden')}
     >
       {groupName}
