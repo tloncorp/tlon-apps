@@ -89,7 +89,7 @@ function GroupMemberRoleList({
         >
           <div className="flex items-center space-x-2">
             <Avatar ship={ship.patp} size="xs" />
-            <ShipName name={ship.patp} showAlias />
+            <ShipName className="font-semibold" name={ship.patp} showAlias />
           </div>
           <MemberRoleDropDownMenu
             ship={ship}
