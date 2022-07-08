@@ -154,9 +154,13 @@
   ^+  cor
   !!
 ++  group-core
-  |_  [=flag:g =net:g =group:g]
+  |_  [=flag:g =net:g =group:g gone=_|]
   ++  go-core  .
-  ++  go-abet  cor(groups (~(put by groups) flag net group))
+  ++  go-abet
+    =.  groups 
+      ?:  gone  (~(del by groups) flag)
+      (~(put by groups) flag net group)
+    cor
   ++  go-abed
     |=  f=flag:g
     ^+  go-core
@@ -365,10 +369,11 @@
       %create   go-core(group p.diff)
       %zone     (go-zone-update +.diff)
       %meta     (go-meta-update p.diff)
+      %del      go-core(gone &)
     ==
   ::
   ++  go-meta-update
-    |= meta=data:meta
+    |=  meta=data:meta
     =.  meta.group  meta
     go-core
   ++  go-zone-update

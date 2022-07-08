@@ -92,6 +92,8 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       reduceCordon(group, diff);
     } else if ('meta' in diff) {
       group.meta = diff.meta;
+    } else if ('del' in diff) {
+      delete draft.groups[flag];
     } else {
       // console.log('unreachable');
     }

@@ -27,6 +27,16 @@ export default function GroupInfoFields() {
   const defaultColor = dark ? '#FFFFFF' : '#000000';
 
   useEffect(() => {
+    if (watchIconImage) {
+      setIconType('image');
+    } else if (watchIconColor) {
+      setIconType('color');
+    } else {
+      setIconType(undefined);
+    }
+  }, [watchIconColor, watchIconImage]);
+
+  useEffect(() => {
     if (iconType === 'color' && watchIconColor !== '') {
       setIconColor(watchIconColor as string);
     }
@@ -144,7 +154,7 @@ export default function GroupInfoFields() {
           />
         ) : null}
         {iconType === 'image' && isValidUrl(iconUrl) ? (
-          <GroupAvatar size="h-14 w-14" img={iconUrl} />
+          <GroupAvatar size="h-14 w-14" image={iconUrl} />
         ) : null}
         {iconType === undefined ? (
           <EmptyIconBox className="h-14 w-14 text-gray-300" />

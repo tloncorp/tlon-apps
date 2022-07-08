@@ -157,8 +157,14 @@ export interface MetaDiff {
 export interface GroupCreateDiff {
   create: Group;
 }
+
+export interface GroupDelDiff {
+  del: null;
+}
+
 // TODO: elaborate
 export type GroupDiff =
+  | GroupDelDiff
   | GroupCreateDiff
   | MetaDiff
   | FleetDiff

@@ -42,7 +42,7 @@ export default function GroupSidebar() {
           <li className="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold text-gray-600 hover:bg-gray-50 sm:text-base">
             <GroupActions flag={flag} className="flex-1">
               <button className="default-focus flex w-full items-center space-x-3 rounded-lg p-2 pr-4 font-semibold">
-                <GroupAvatar img={group?.meta.image} />
+                <GroupAvatar {...group?.meta} />
                 <div
                   title={group?.meta.title}
                   className="max-w-full flex-1 truncate text-left"

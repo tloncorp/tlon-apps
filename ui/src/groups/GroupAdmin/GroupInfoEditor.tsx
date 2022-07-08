@@ -7,6 +7,8 @@ import Dialog, {
 } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
 import { GroupMeta } from '@/types/groups';
+import { useNavigate } from 'react-router';
+import useNavStore from '@/components/Nav/useNavStore';
 import GroupInfoFields from '../GroupInfoFields';
 
 const emptyMeta = {
@@ -21,6 +23,7 @@ function eqGroupName(a: string, b: string) {
 }
 
 export default function GroupInfoEditor() {
+  const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const [deleteField, setDeleteField] = useState('');
@@ -47,6 +50,12 @@ export default function GroupInfoEditor() {
     [setDeleteField]
   );
 
+  const onDelete = useCallback(() => {
+    useGroupState.getState().delete(groupFlag);
+    navigate('/');
+    useNavStore.getState().navigatePrimary('main');
+  }, [groupFlag, navigate]);
+
   const onSubmit = useCallback(
     (values: GroupMeta) => {
       useGroupState.getState().edit(groupFlag, values);
@@ -72,7 +81,11 @@ export default function GroupInfoEditor() {
             >
               Reset
             </button>
-            <button type="submit" className="button">
+            <button
+              type="submit"
+              className="button"
+              disabled={!form.formState.isDirty}
+            >
               Save
             </button>
           </footer>
@@ -103,6 +116,7 @@ export default function GroupInfoEditor() {
               <DialogClose
                 className="button bg-red text-white dark:text-black"
                 disabled={!eqGroupName(deleteField, group?.meta.title || '')}
+                onClick={onDelete}
               >
                 Delete
               </DialogClose>

@@ -73,7 +73,11 @@ export default function NewGroup() {
       currentStepComponent = <span>Third</span>;
       break;
     case 4:
-      currentStepComponent = <span>Fourth</span>;
+      currentStepComponent = (
+        <button type="submit" className="button">
+          Done
+        </button>
+      );
       break;
     default:
       currentStepComponent = <span>An error occurred</span>;

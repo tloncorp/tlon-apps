@@ -140,6 +140,9 @@ export const useGroupState = create<GroupState>((set, get) => ({
       json: req,
     });
   },
+  delete: async (flag) => {
+    await api.poke(groupAction(flag, { del: null }));
+  },
   join: async (flag, joinAll) => {
     api.poke({
       app: 'groups',
