@@ -171,8 +171,14 @@ export default function ShipSelector({
       return contactOptions;
     }
 
+    // fuzzy search both nicknames and patps; fuzzy#filter only supports
+    // string comparision, so concat nickname + patp
+    const searchSpace = Object.entries(contacts).map(
+      (entry) => `${entry[1].nickname}${entry[0]}`
+    );
+
     const fuzzyNames = fuzzy
-      .filter(inputValue, contactNames)
+      .filter(inputValue, searchSpace)
       .sort((a, b) => {
         const filter = deSig(inputValue) || '';
         const left = deSig(a.string)?.startsWith(filter)
