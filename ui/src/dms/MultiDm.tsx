@@ -68,7 +68,7 @@ export default function MultiDm() {
               <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
             ) : null}
             <div className="flex items-center space-x-3">
-              <MultiDmAvatar img={club.meta.image} size="small" />
+              <MultiDmAvatar {...club.meta} size="small" />
               <div className="flex flex-col items-start text-left">
                 <div className="w-full truncate font-semibold">{groupName}</div>
                 <div className="text-gray-600">
