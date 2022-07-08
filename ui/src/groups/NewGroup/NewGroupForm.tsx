@@ -183,11 +183,15 @@ export default function NewGroupForm({
           className="input"
         />
       </div>
-      <div className="flex justify-end space-x-2 pt-4">
+      <div className="flex justify-end space-x-2 py-4">
         <button className="secondary-button" onClick={goToPrevStep}>
           Back
         </button>
-        <button disabled={!isValid} className="button" onClick={goToNextStep}>
+        <button
+          disabled={iconType === undefined || !isValid}
+          className="button"
+          onClick={goToNextStep}
+        >
           Next
         </button>
       </div>
