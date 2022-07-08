@@ -23,9 +23,9 @@ type PrivacyTypes = 'public' | 'private' | 'secret';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
-interface ShipWithRole {
+interface ShipWithRoles {
   patp: string;
-  role: Role;
+  roles: Role[];
 }
 
 type TemplateTypes = 'none' | 'small' | 'medium' | 'large';
@@ -34,9 +34,8 @@ export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyTypes>();
-  const [shipsToInvite, setShipsToInvite] = useState<ShipWithRole[]>([]);
+  const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
   const [templateType, setTemplateType] = useState<TemplateTypes>('none');
-
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -55,7 +54,6 @@ export default function NewGroup() {
   };
 
   const {
-    handleSubmit,
     register,
     formState: { errors, isValid },
     setValue,
@@ -66,32 +64,27 @@ export default function NewGroup() {
     mode: 'onBlur',
   });
 
-  const setGroupPrivacy = async () => {
-    setTimeout(
-      () =>
-        new Promise(() => {
-          console.log('TODO: setGroupPrivacy', { selectedPrivacy });
-        }),
-      2
-    );
-  };
-
-  const setGroupMembers = async () => {
-    setTimeout(
-      () =>
-        new Promise(() => {
-          console.log('TODO: setGroupMembers', { shipsToInvite });
-        })
-    );
-  };
-
   const onComplete = async () => {
     const values = getValues();
     const name = strToSym(values.title);
-    await useGroupState.getState().create({ ...values, name });
+    const members = shipsToInvite.reduce(
+      (obj, ship) => ({ ...obj, [ship.patp]: ship.roles }),
+      {}
+    );
+    const cordon =
+      selectedPrivacy === 'public'
+        ? {
+            open: {
+              ships: [],
+              ranks: [],
+            },
+          }
+        : {
+            shut: [],
+          };
+
+    await useGroupState.getState().create({ ...values, name, members, cordon });
     const flag = `${window.our}/${name}`;
-    await setGroupPrivacy();
-    await setGroupMembers();
     navigate(`/groups/${flag}`);
   };
 

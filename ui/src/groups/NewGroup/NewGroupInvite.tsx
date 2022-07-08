@@ -11,22 +11,22 @@ interface NewGroupInviteProps {
   groupName: string;
   goToPrevStep: () => void;
   goToNextStep: () => void;
-  shipsToInvite: ShipWithRole[];
-  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRole[]>>;
+  shipsToInvite: ShipWithRoles[];
+  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRoles[]>>;
 }
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
-interface ShipWithRole {
+interface ShipWithRoles {
   patp: string;
-  role: Role;
+  roles: Role[];
 }
 
 const roles: Role[] = ['Member', 'Admin', 'Moderator'];
 
 interface MemberRoleDropDownMenuProps {
-  ship: ShipWithRole;
-  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRole[]>>;
+  ship: ShipWithRoles;
+  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRoles[]>>;
 }
 
 function MemberRoleDropDownMenu({
@@ -44,7 +44,15 @@ function MemberRoleDropDownMenu({
             )}
             aria-label="Open Member Role Options"
           >
-            {ship.role}
+            {ship.roles.map((role, index) => {
+              if (ship.roles.length === 1) {
+                return <span key={`${role}+{${index}}`}>{role}</span>;
+              }
+              if (ship.roles.length === index + 1) {
+                return <span key={`${role}+{${index}}`}>{role}</span>;
+              }
+              return <span key={`${role}+{${index}}`}>{role}, &nbsp; </span>;
+            })}
             <CaretDownIcon className="h-4 w-4" />
           </button>
         </DropdownMenu.Trigger>
@@ -54,12 +62,38 @@ function MemberRoleDropDownMenu({
               key={role}
               className="dropdown-item flex items-center space-x-2"
               onClick={() =>
-                setShipsToInvite((prevState) => [
-                  ...prevState.filter(
-                    (prevShip) => prevShip.patp !== ship.patp
-                  ),
-                  { patp: ship.patp, role },
-                ])
+                setShipsToInvite((prevState) => {
+                  const currentRoles =
+                    prevState.find((prevShip) => prevShip.patp === ship.patp)
+                      ?.roles ?? [];
+                  const currentIncludesThisRole =
+                    currentRoles.find((currentRole) => currentRole === role) &&
+                    role !== 'Member';
+
+                  if (currentIncludesThisRole) {
+                    return [
+                      ...prevState.filter(
+                        (prevShip) => prevShip.patp !== ship.patp
+                      ),
+                      {
+                        patp: ship.patp,
+                        roles: ship.roles.filter(
+                          (prevRole) => prevRole !== role
+                        ),
+                      },
+                    ];
+                  }
+
+                  return [
+                    ...prevState.filter(
+                      (prevShip) => prevShip.patp !== ship.patp
+                    ),
+                    {
+                      patp: ship.patp,
+                      roles: _.uniq([...currentRoles, role]),
+                    },
+                  ];
+                })
               }
             >
               {role}
@@ -72,8 +106,8 @@ function MemberRoleDropDownMenu({
 }
 
 interface GroupMemberRoleListProps {
-  shipsToInvite: ShipWithRole[];
-  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRole[]>>;
+  shipsToInvite: ShipWithRoles[];
+  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRoles[]>>;
 }
 
 function GroupMemberRoleList({
@@ -82,7 +116,7 @@ function GroupMemberRoleList({
 }: GroupMemberRoleListProps) {
   return (
     <div className="flex h-[132px] flex-col space-y-2 overflow-auto rounded-lg border-2 border-gray-100 p-2">
-      {_.sortBy(shipsToInvite, 'patp').map((ship: ShipWithRole) => (
+      {_.sortBy(shipsToInvite, 'patp').map((ship: ShipWithRoles) => (
         <div
           className="flex w-full items-center justify-between"
           key={ship.patp}
@@ -120,7 +154,7 @@ export default function NewGroupInvite({
         .map((ship) => ({
           patp: ship.value,
           alias: ship.label,
-          role: 'Member' as Role,
+          roles: ['Member' as Role],
         })),
     ]);
   };
