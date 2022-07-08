@@ -96,9 +96,29 @@ function SingleValueShipTagLabelContainer({
   ...props
 }: ValueContainerProps<ShipOption, true>) {
   return (
-    <components.ValueContainer {...props}>
-      <div className="flex">{children}</div>
+    <components.ValueContainer {...props} className="flex">
+      <div className="flex justify-between">
+        {children}
+        {props.hasValue ? (
+          <button
+            className="font-semibold text-gray-400"
+            // @ts-expect-error we passed an extra prop to selectProps
+            onClick={props.selectProps.handleEnter}
+          >
+            Enter
+          </button>
+        ) : null}
+      </div>
     </components.ValueContainer>
+  );
+}
+
+function SingleShipLabel({ data }: { data: ShipOption }) {
+  const { value } = data;
+  return (
+    <div className="flex h-6 items-center rounded bg-gray-100">
+      <span className="py-1 px-2 font-semibold">{value}</span>
+    </div>
   );
 }
 
@@ -169,6 +189,24 @@ export default function ShipSelector({
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
 
+  const handleEnter = () => {
+    const isInputting = !!(
+      selectRef.current && selectRef.current.inputRef?.value
+    );
+
+    // case when user is typing another patp: do nothing so react-select can
+    // can add to the list of patps
+    if (isInputting) {
+      return;
+    }
+    if (ships && ships.length > 0 && validShips && onEnter) {
+      onEnter(ships);
+      if (!isMulti) {
+        setShips([]);
+      }
+    }
+  };
+
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
     const isInputting = !!(
       selectRef.current && selectRef.current.inputRef?.value
@@ -190,15 +228,7 @@ export default function ShipSelector({
       case 'Enter': {
         // case when user is typing another patp: do nothing so react-select can
         // can add to the list of patps
-        if (isInputting) {
-          return;
-        }
-        if (ships && ships.length > 0 && validShips && onEnter) {
-          onEnter(ships);
-          if (!isMulti) {
-            setShips([]);
-          }
-        }
+        handleEnter();
         break;
       }
       default:
@@ -241,6 +271,7 @@ export default function ShipSelector({
 
   return (
     <CreatableSelect
+      handleEnter={handleEnter}
       ref={selectRef}
       formatCreateLabel={AddNonContactShip}
       autoFocus
@@ -293,7 +324,7 @@ export default function ShipSelector({
         inputValue ? ob.isValidPatp(preSig(inputValue)) : false
       }
       onKeyDown={onKeyDown}
-      placeholder="Type a name ie; ~sampel-palnet"
+      placeholder={isMulti ? 'Type a name ie; ~sampel-palnet' : ''}
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
       // filterOption={createFilter(filterConfig)}
@@ -307,11 +338,11 @@ export default function ShipSelector({
         ClearIndicator: () => null,
         Option: ShipName,
         NoOptionsMessage: NoShipsMessage,
-        MultiValueLabel: ShipTagLabel,
-        MultiValueContainer: ShipTagLabelContainer,
+        MultiValueLabel: isMulti ? ShipTagLabel : undefined,
+        MultiValueContainer: isMulti ? ShipTagLabelContainer : undefined,
         MultiValueRemove: ShipTagRemove,
-        SingleValue: ShipTagLabel,
-        ValueContainer: SingleValueShipTagLabelContainer,
+        SingleValue: !isMulti ? SingleShipLabel : undefined,
+        ValueContainer: !isMulti ? SingleValueShipTagLabelContainer : undefined,
       }}
     />
   );
