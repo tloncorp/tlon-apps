@@ -82,7 +82,12 @@ export default function MultiDm() {
               </div>
             </div>
           </button>
-          <DmOptions ship={clubId} pending={!isAccepted} isMulti />
+          <DmOptions
+            whom={clubId}
+            pending={!isAccepted}
+            isMulti
+            alwaysShowEllipsis
+          />
         </div>
       }
       aside={<Outlet />}
