@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import _ from 'lodash';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import cn from 'classnames';
 import Avatar from '@/components/Avatar';
@@ -81,7 +82,7 @@ function GroupMemberRoleList({
 }: GroupMemberRoleListProps) {
   return (
     <div className="flex h-[132px] flex-col space-y-2 overflow-auto rounded-lg border-2 border-gray-100 p-2">
-      {shipsToInvite.map((ship: ShipWithRole) => (
+      {_.sortBy(shipsToInvite, 'patp').map((ship: ShipWithRole) => (
         <div
           className="flex w-full items-center justify-between"
           key={ship.patp}
