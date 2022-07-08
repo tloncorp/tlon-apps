@@ -42,8 +42,8 @@ export default function makeWritsStore(
       api.subscribe({
         app: 'chat',
         path: subPath,
-        event: (data: unknown) => {
-          const { id, delta } = data as WritDiff;
+        event: (data: WritDiff) => {
+          const { id, delta } = data;
           const s = get();
           s.batchSet((draft) => {
             const pact = draft.pacts[whom];
