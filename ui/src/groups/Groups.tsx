@@ -38,7 +38,7 @@ function Groups() {
   }
 
   return (
-    <div className="flex grow bg-gray-50">
+    <div className="flex grow overflow-y-scroll bg-gray-50">
       <Outlet />
     </div>
   );

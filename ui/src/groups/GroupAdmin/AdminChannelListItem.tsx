@@ -40,7 +40,7 @@ export default function AdminChannelListItem({
       <div ref={provided.innerRef} {...provided.draggableProps}>
         <div
           className={
-            ' flex items-center justify-between rounded-lg bg-white py-5'
+            'flex items-center justify-between rounded-lg bg-white py-5 px-6'
           }
         >
           <div className="flex items-center">
