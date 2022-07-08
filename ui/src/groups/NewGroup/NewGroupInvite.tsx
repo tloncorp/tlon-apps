@@ -130,7 +130,7 @@ export default function NewGroupInvite({
       <div className="flex flex-col">
         <span className="text-lg font-bold">Group Members</span>
         <span className="pt-1 font-bold text-gray-600">
-          Invite members to {groupName}
+          Invite members to <span className="text-black">{groupName}</span>
         </span>
       </div>
       <div className="flex flex-col space-y-2">
@@ -158,7 +158,7 @@ export default function NewGroupInvite({
             className="button"
             onClick={goToNextStep}
           >
-            Next
+            Invite
           </button>
         </div>
       </div>
