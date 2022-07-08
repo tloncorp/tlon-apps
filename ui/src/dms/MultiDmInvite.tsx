@@ -8,7 +8,7 @@ interface MultiDmInviteProps {
   id: string;
 }
 
-export default function DmInvite({ id }: MultiDmInviteProps) {
+export default function MultiDmInvite({ id }: MultiDmInviteProps) {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const navigate = useNavigate();
   const multiDm = useMultiDm(id);

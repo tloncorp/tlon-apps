@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
 import { useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useChannelFlag } from '../../hooks';
@@ -10,10 +10,11 @@ import RowDivider from '../../components/RowDivider';
 import X16Icon from '../../components/icons/X16Icon';
 import ChatScroller from '../ChatScroller/ChatScroller';
 
-export default function ChatThread(
-  props: React.PropsWithChildren<{ whom: string }>
-) {
-  const { whom, children } = props;
+type ChatThreadProps = PropsWithChildren<{
+  whom: string;
+}>;
+
+export default function ChatThread({ whom, children }: ChatThreadProps) {
   const { idTime, idShip } = useParams<{ idShip: string; idTime: string }>();
   const { sendMessage } = useChatState.getState();
 
@@ -28,7 +29,7 @@ export default function ChatThread(
   const [time, writ] = maybeWrit;
 
   return (
-    <div className="flex h-full min-w-72 flex-col space-y-2 overflow-y-auto border-l px-4 pt-4 xl:min-w-96">
+    <div className="flex h-full w-72 flex-col space-y-2 overflow-y-auto border-l px-4 pt-4 xl:w-96">
       <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
         {children}
         <Link to="..">

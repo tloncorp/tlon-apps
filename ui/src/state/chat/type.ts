@@ -73,10 +73,6 @@ export interface ChatState {
     id: string, // `@uw`
     hive: Omit<Hive, 'add'> // by is the removing ship, for is the removed ship
   ) => Promise<void>;
-  sendMultiDm: (
-    id: string, // `@uw` - the club ID
-    memo: Omit<ChatMemo, 'sent'>
-  ) => Promise<void>;
   multiDmRsvp: (
     id: string, // `@uw` - the club ID
     ok: boolean // whether the invite was accepted/rejected

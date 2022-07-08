@@ -20,6 +20,7 @@ interface NewGroupFormSchema {
 }
 
 type PrivacyTypes = 'public' | 'private' | 'secret';
+
 type Role = 'Member' | 'Moderator' | 'Admin';
 
 interface ShipWithRole {
@@ -27,11 +28,15 @@ interface ShipWithRole {
   role: Role;
 }
 
+type TemplateTypes = 'none' | 'small' | 'medium' | 'large';
+
 export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyTypes>();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRole[]>([]);
+  const [templateType, setTemplateType] = useState<TemplateTypes>('none');
+
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -90,8 +95,8 @@ export default function NewGroup() {
     navigate(`/groups/${flag}`);
   };
 
-  const nextWithTemplate = (templateType?: string) => {
-    // TODO: handle different templates
+  const nextWithTemplate = (template?: string) => {
+    setTemplateType(template ? (template as TemplateTypes) : 'none');
     goToNextStep();
   };
 

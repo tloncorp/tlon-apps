@@ -214,9 +214,7 @@ export default function GroupList({
       }
     >
       <li className="flex items-center space-x-2 px-2 py-3">
-        <span className="text-lg font-bold text-gray-400 lg:text-xs lg:font-semibold">
-          Pinned
-        </span>
+        <Divider>Pinned</Divider>
         <div className="grow border-b-2 border-gray-100" />
       </li>
       {pinnedFlags.sort(sortOptions[sortFn]).map((flag) => (

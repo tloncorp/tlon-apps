@@ -134,7 +134,7 @@ export const dmList: ChatBriefs = {
     count: 3,
     'read-id': null,
   },
-  '~fallyn-ballus': {
+  '~fallyn-balfus': {
     last: 0,
     count: 0,
     'read-id': null,
@@ -153,6 +153,11 @@ export const dmList: ChatBriefs = {
     last: 0,
     count: 0,
     'read-id': null,
+  },
+  '~rilfun-lidlen': {
+    last: 0,
+    count: 0,
+    'read-id': 'null',
   },
   '~mister-dister-dozzod-dozzod': {
     last: 0,

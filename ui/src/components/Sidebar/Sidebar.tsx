@@ -25,8 +25,8 @@ export default function Sidebar() {
   }
 
   return (
-    <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
-      <ul className="flex-none p-2">
+    <nav className="flex h-full w-64 flex-col border-r-2 border-gray-50 bg-white">
+      <ul className="flex w-full flex-col px-2 pt-2">
         <SidebarItem
           icon={<ActivityIndicator count={notificationCount} />}
           to={`/notifications`}
@@ -68,7 +68,7 @@ export default function Sidebar() {
           />
         </li>
       </ul>
-      <GroupList className="flex-1 overflow-x-hidden overflow-y-scroll pr-0" />
+      <GroupList className="flex-1 overflow-x-hidden overflow-y-scroll pr-0 pt-0" />
     </nav>
   );
 }

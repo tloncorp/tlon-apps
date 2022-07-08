@@ -11,12 +11,12 @@ export default function clubReducer(clubId: string, delta: ClubDelta) {
     if ('team' in delta) {
       const { ok, ship } = delta.team;
 
-      if (ok) {
+      if (ok && club.hive.includes(ship)) {
         club.hive.splice(club.hive.indexOf(ship), 1);
         club.team.push(ship);
-      } else if (club.hive.includes(ship)) {
+      } else if (!ok && club.hive.includes(ship)) {
         club.hive.splice(club.hive.indexOf(ship), 1);
-      } else if (club.team.includes(ship)) {
+      } else if (!ok && club.team.includes(ship)) {
         club.team.splice(club.team.indexOf(ship), 1);
       }
     }

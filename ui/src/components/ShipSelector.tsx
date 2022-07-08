@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import ob from 'urbit-ob';
+import fuzzy from 'fuzzy';
 import {
   components,
   ControlProps,
@@ -23,6 +24,8 @@ import X16Icon from '@/components/icons/X16Icon';
 import { preSig } from '@/logic/utils';
 import Avatar from '@/components/Avatar';
 import { useMemoizedContacts } from '@/state/contact';
+import { MAX_DISPLAYED_OPTIONS } from '@/constants';
+import { deSig } from '@urbit/api';
 
 export interface ShipOption {
   value: string;
@@ -58,10 +61,14 @@ function ShipName({ data, ...props }: OptionProps<ShipOption, true>) {
         ) : (
           <div className="h-6 w-6 rounded bg-white" />
         )}
-        <span className="font-semibold">{preSig(value)}</span>
         {label ? (
-          <span className="font-semibold text-gray-300">{label}</span>
-        ) : null}
+          <>
+            <span className="font-semibold">{label}</span>
+            <span className="font-semibold text-gray-300">{preSig(value)}</span>
+          </>
+        ) : (
+          <span className="font-semibold">{preSig(value)}</span>
+        )}
       </div>
     </components.Option>
   );
@@ -123,10 +130,10 @@ function SingleShipLabel({ data }: { data: ShipOption }) {
 }
 
 function ShipTagLabel({ data }: { data: ShipOption }) {
-  const { value } = data;
+  const { value, label } = data;
   return (
     <div className="flex h-6 items-center rounded-l bg-gray-100">
-      <span className="p-1 font-semibold">{value}</span>
+      <span className="p-1 font-semibold">{label || value}</span>
     </div>
   );
 }
@@ -206,6 +213,48 @@ export default function ShipSelector({
       }
     }
   };
+
+  // There is a known issue with react-select's performance for large lists of
+  // of options, so filter the list of contact options to improve performance
+  // See: https://github.com/JedWatson/react-select/issues/4516
+  //      https://github.com/JedWatson/react-select/issues/3128
+  const [inputValue, setInputValue] = useState('');
+  const filteredOptions = useMemo(() => {
+    if (!inputValue) {
+      return contactOptions;
+    }
+
+    // fuzzy search both nicknames and patps; fuzzy#filter only supports
+    // string comparision, so concat nickname + patp
+    const searchSpace = Object.entries(contacts).map(
+      (entry) => `${entry[1].nickname}${entry[0]}`
+    );
+
+    const fuzzyNames = fuzzy
+      .filter(inputValue, searchSpace)
+      .sort((a, b) => {
+        const filter = deSig(inputValue) || '';
+        const left = deSig(a.string)?.startsWith(filter)
+          ? a.score + 1
+          : a.score;
+        const right = deSig(b.string)?.startsWith(filter)
+          ? b.score + 1
+          : b.score;
+
+        return right - left;
+      })
+      .map((result) => contactNames[result.index]);
+
+    return fuzzyNames.map((contact) => ({
+      value: contact,
+      label: contacts[contact].nickname,
+    }));
+  }, [contactNames, contactOptions, contacts, inputValue]);
+
+  const slicedOptions = useMemo(
+    () => filteredOptions.slice(0, MAX_DISPLAYED_OPTIONS),
+    [filteredOptions]
+  );
 
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
     const isInputting = !!(
@@ -316,18 +365,17 @@ export default function ShipSelector({
         }),
       }}
       aria-label="Ships"
-      options={contactOptions}
+      options={slicedOptions}
       value={ships}
       // @ts-expect-error this error is irrelevant
       onChange={isMulti ? onChange : singleOnChange}
-      isValidNewOption={(inputValue) =>
-        inputValue ? ob.isValidPatp(preSig(inputValue)) : false
-      }
+      onInputChange={(val) => setInputValue(val)}
+      isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
       onKeyDown={onKeyDown}
       placeholder={isMulti ? 'Type a name ie; ~sampel-palnet' : ''}
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
-      // filterOption={createFilter(filterConfig)}
+      filterOption={() => true} // disable the default filter
       components={{
         Control,
         Menu: ShipDropDownMenu,
