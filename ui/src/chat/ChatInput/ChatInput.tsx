@@ -264,7 +264,6 @@ export default function ChatInput({
   const pact = usePact(whom);
   const chatInfo = useChatInfo(whom);
   const reply = replying || chatInfo?.replying || null;
-  console.log(reply);
   const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
