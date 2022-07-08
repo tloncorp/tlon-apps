@@ -143,6 +143,8 @@
       description=cord
       image=cord  
       color=cord
+      =cordon
+      members=(jug ship sect)
   ==
 ::
 +$  init  [=time =group]
