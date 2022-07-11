@@ -387,14 +387,6 @@ export const useChatState = create<ChatState>((set, get) => ({
     });
   },
   createMultiDm: async (id, hive) => {
-    await api.poke({
-      app: 'chat',
-      mark: 'club-create',
-      json: {
-        id,
-        hive,
-      },
-    });
     get().batchSet((draft) => {
       draft.multiDms[id] = {
         hive,
@@ -406,6 +398,15 @@ export const useChatState = create<ChatState>((set, get) => ({
           color: '',
         },
       };
+    });
+
+    await api.poke({
+      app: 'chat',
+      mark: 'club-create',
+      json: {
+        id,
+        hive,
+      },
     });
   },
   editMultiDm: async (id, meta) => {
