@@ -35,7 +35,7 @@ exports[`GroupSidebar > renders as expected 1`] = `
         class="flex-none"
       >
         <li
-          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold text-gray-600 sm:text-base hover:bg-gray-50"
+          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold text-gray-600 hover:bg-gray-50 sm:text-base"
         >
           <div
             class="flex-1"
