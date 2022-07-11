@@ -318,13 +318,89 @@ export default function ShipSelector({
     }
   };
 
+  if (!isMulti) {
+    return (
+      <CreatableSelect
+        handleEnter={handleEnter}
+        ref={selectRef}
+        formatCreateLabel={AddNonContactShip}
+        autoFocus
+        styles={{
+          control: (base) => ({}),
+          menu: ({ width, borderRadius, ...base }) => ({
+            borderWidth: '',
+            borderColor: '',
+            zIndex: 50,
+            backgroundColor: 'inherit',
+            ...base,
+          }),
+          input: (base) => ({
+            ...base,
+            margin: '',
+            color: '',
+            paddingTop: '',
+            paddingBottom: '',
+          }),
+          multiValue: (base) => ({
+            ...base,
+            backgroundColor: '',
+            margin: '0 2px',
+          }),
+          multiValueRemove: (base) => ({
+            ...base,
+            paddingRight: '',
+            paddingLeft: '',
+            '&:hover': {
+              color: 'inherit',
+              backgroundColor: 'inherit',
+            },
+          }),
+          option: (base, state) => ({
+            ...base,
+            backgroundColor: state.isFocused
+              ? 'rgb(var(--colors-gray-50))'
+              : '',
+          }),
+          valueContainer: (base) => ({
+            ...base,
+            padding: '0px 8px',
+          }),
+        }}
+        aria-label="Ships"
+        options={slicedOptions}
+        value={ships}
+        // @ts-expect-error this error is irrelevant
+        onChange={singleOnChange}
+        onInputChange={(val) => setInputValue(val)}
+        isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
+        onKeyDown={onKeyDown}
+        placeholder=""
+        hideSelectedOptions
+        // TODO: create custom filter for sorting potential DM participants.
+        filterOption={() => true} // disable the default filter
+        components={{
+          Control,
+          Menu: ShipDropDownMenu,
+          MenuList: ShipDropDownMenuList,
+          Input,
+          DropdownIndicator: () => null,
+          IndicatorSeparator: () => null,
+          ClearIndicator: () => null,
+          Option: ShipName,
+          NoOptionsMessage: NoShipsMessage,
+          SingleValue: SingleShipLabel,
+          ValueContainer: SingleValueShipTagLabelContainer,
+        }}
+      />
+    );
+  }
+
   return (
     <CreatableSelect
-      handleEnter={handleEnter}
       ref={selectRef}
       formatCreateLabel={AddNonContactShip}
       autoFocus
-      isMulti={isMulti ? isMulti : undefined}
+      isMulti
       styles={{
         control: (base) => ({}),
         menu: ({ width, borderRadius, ...base }) => ({
@@ -367,12 +443,11 @@ export default function ShipSelector({
       aria-label="Ships"
       options={slicedOptions}
       value={ships}
-      // @ts-expect-error this error is irrelevant
-      onChange={isMulti ? onChange : singleOnChange}
+      onChange={onChange}
       onInputChange={(val) => setInputValue(val)}
       isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
       onKeyDown={onKeyDown}
-      placeholder={isMulti ? 'Type a name ie; ~sampel-palnet' : ''}
+      placeholder="Type a name ie; ~sampel-palnet"
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
       filterOption={() => true} // disable the default filter
@@ -386,11 +461,9 @@ export default function ShipSelector({
         ClearIndicator: () => null,
         Option: ShipName,
         NoOptionsMessage: NoShipsMessage,
-        MultiValueLabel: isMulti ? ShipTagLabel : undefined,
-        MultiValueContainer: isMulti ? ShipTagLabelContainer : undefined,
+        MultiValueLabel: ShipTagLabel,
+        MultiValueContainer: ShipTagLabelContainer,
         MultiValueRemove: ShipTagRemove,
-        SingleValue: !isMulti ? SingleShipLabel : undefined,
-        ValueContainer: !isMulti ? SingleValueShipTagLabelContainer : undefined,
       }}
     />
   );
