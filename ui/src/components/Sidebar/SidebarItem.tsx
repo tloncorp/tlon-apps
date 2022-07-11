@@ -44,7 +44,7 @@ export default function SidebarItem({
   const active = !!matches;
   const Wrapper = div ? 'div' : 'li';
 
-  const hasHovers = highlight.search(/hover:/) >= 1;
+  const hasHovers = highlight.search(/hover:/) !== -1;
   const hovers = (hl: string) =>
     hl.split(' ').filter((c) => c.startsWith('hover:'));
 
