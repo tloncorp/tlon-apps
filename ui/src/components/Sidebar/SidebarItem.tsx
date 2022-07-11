@@ -44,11 +44,16 @@ export default function SidebarItem({
   const active = !!matches;
   const Wrapper = div ? 'div' : 'li';
 
+  const hasHovers = highlight.search(/hover:/) !== -1;
+  const hovers = (hl: string) =>
+    hl.split(' ').filter((c) => c.startsWith('hover:'));
+
   return (
     <Wrapper
       className={cn(
-        'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base',
+        'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base',
         color,
+        hasHovers ? hovers(highlight) : `hover:${highlight}`,
         active && highlight
       )}
     >
