@@ -1,4 +1,4 @@
-import { Gangs, Group, Rank } from '../../types/groups';
+import { Gangs, Group, GroupMeta, Rank } from '../../types/groups';
 
 export interface GroupState {
   set: (fn: (sta: GroupState) => void) => void;
@@ -35,6 +35,8 @@ export interface GroupState {
     members: Record<string, string[]>;
     cordon: Record<string, any>;
   }) => Promise<void>;
+  edit: (flag: string, metadata: GroupMeta) => Promise<void>;
+  delete: (flag: string) => Promise<void>;
   start: () => Promise<void>;
   search: (flag: string) => Promise<void>;
   join: (flag: string, joinAll: boolean) => Promise<void>;

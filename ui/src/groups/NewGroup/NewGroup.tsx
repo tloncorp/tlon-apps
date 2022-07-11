@@ -1,6 +1,6 @@
-import React, { ReactElement, useState } from 'react';
+import React, { ReactElement, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { useForm } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { useGroupState } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import useStep from '@/logic/useStep';
@@ -11,15 +11,7 @@ import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
-
-interface NewGroupFormSchema {
-  title: string;
-  description: string;
-  image: string;
-  color: string;
-}
-
-type PrivacyTypes = 'public' | 'private' | 'secret';
+import { GroupFormSchema } from '@/types/groups';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
@@ -33,7 +25,6 @@ type TemplateTypes = 'none' | 'small' | 'medium' | 'large';
 export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
-  const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyTypes>();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
   const [templateType, setTemplateType] = useState<TemplateTypes>('none');
 
@@ -46,33 +37,28 @@ export default function NewGroup() {
   const [currentStep, { goToNextStep, goToPrevStep, setStep, maxStep }] =
     useStep(4);
 
-  const defaultValues: NewGroupFormSchema = {
+  const defaultValues: GroupFormSchema = {
     title: '',
     description: '',
     image: '',
     color: '',
+    privacy: 'public',
   };
 
-  const {
-    register,
-    formState: { errors, isValid },
-    setValue,
-    getValues,
-    watch,
-  } = useForm<NewGroupFormSchema>({
+  const form = useForm<GroupFormSchema>({
     defaultValues,
     mode: 'onBlur',
   });
 
-  const onComplete = async () => {
-    const values = getValues();
+  const onComplete = useCallback(async () => {
+    const values = form.getValues();
     const name = strToSym(values.title);
     const members = shipsToInvite.reduce(
       (obj, ship) => ({ ...obj, [ship.patp]: ship.roles }),
       {}
     );
     const cordon =
-      selectedPrivacy === 'public'
+      values.privacy === 'public'
         ? {
             open: {
               ships: [],
@@ -86,7 +72,7 @@ export default function NewGroup() {
     await useGroupState.getState().create({ ...values, name, members, cordon });
     const flag = `${window.our}/${name}`;
     navigate(`/groups/${flag}`);
-  };
+  }, [shipsToInvite, navigate, form]);
 
   const nextWithTemplate = (template?: string) => {
     setTemplateType(template ? (template as TemplateTypes) : 'none');
@@ -102,11 +88,7 @@ export default function NewGroup() {
     case 2:
       currentStepComponent = (
         <NewGroupForm
-          register={register}
-          errors={errors}
-          watch={watch}
-          setValue={setValue}
-          isValid={isValid}
+          isValid={form.formState.isValid}
           goToPrevStep={goToPrevStep}
           goToNextStep={goToNextStep}
         />
@@ -115,18 +97,16 @@ export default function NewGroup() {
     case 3:
       currentStepComponent = (
         <NewGroupPrivacy
-          groupName={getValues('title')}
+          groupName={form.getValues('title')}
           goToPrevStep={goToPrevStep}
           goToNextStep={goToNextStep}
-          selectedPrivacy={selectedPrivacy}
-          setSelectedPrivacy={setSelectedPrivacy}
         />
       );
       break;
     case 4:
       currentStepComponent = (
         <NewGroupInvite
-          groupName={getValues('title')}
+          groupName={form.getValues('title')}
           goToPrevStep={goToPrevStep}
           goToNextStep={onComplete}
           shipsToInvite={shipsToInvite}
@@ -142,7 +122,9 @@ export default function NewGroup() {
   return (
     <Dialog defaultOpen onOpenChange={onOpenChange}>
       <DialogContent containerClass="w-full sm:max-w-lg">
-        <div className="flex flex-col">{currentStepComponent}</div>
+        <FormProvider {...form}>
+          <div className="flex flex-col">{currentStepComponent}</div>
+        </FormProvider>
         <div className="flex flex-col items-center">
           {currentStep !== 1 ? (
             <NavigationDots

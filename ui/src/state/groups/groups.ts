@@ -130,12 +130,18 @@ export const useGroupState = create<GroupState>((set, get) => ({
       console.error(e);
     }
   },
+  edit: async (flag, metadata) => {
+    await api.poke(groupAction(flag, { meta: metadata }));
+  },
   create: async (req) => {
     await api.poke({
       app: 'groups',
       mark: 'group-create',
       json: req,
     });
+  },
+  delete: async (flag) => {
+    await api.poke(groupAction(flag, { del: null }));
   },
   join: async (flag, joinAll) => {
     api.poke({

@@ -43,7 +43,7 @@ export default function GroupAdmin() {
                       )
                     }
                   >
-                    Info
+                    Group Info
                   </NavLink>
                 </li>
                 <li>
