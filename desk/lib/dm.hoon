@@ -73,18 +73,27 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
+  =*  on   on:writs:c
   ?+    pole  [~ ~]
   ::
   ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  ls    (scag count (tap:on:writs:c wit.pac))
-    ``chat-writs+!>((gas:on:writs:c *writs:c ls))
+    =/  ls    (scag count (tap:on wit.pac))
+    ``chat-writs+!>((gas:on *writs:c ls))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``chat-writs+!>((tab:on:writs:c wit.pac `start count))
+    ``chat-writs+!>((tab:on wit.pac `start count))
+  ::
+      [%newer start=@ count=@ ~]
+    =/  count  (slav %ud count.pole)
+    =/  start  (slav %ud start.pole)
+    =-  ``chat-writs+!>(-)
+    %+  gas:on  *writs:c
+    (scag count (tap:on (lot:on wit.pac `start ~)))
+
   ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
