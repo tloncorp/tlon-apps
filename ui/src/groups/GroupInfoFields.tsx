@@ -78,7 +78,7 @@ export default function GroupInfoFields() {
     <>
       <div className="flex justify-between">
         <div className="flex flex-col">
-          <span className="pb-2 font-bold">Group Icon *</span>
+          <span className="pb-2 font-bold">Group Icon*</span>
           <div className="flex items-center space-x-2">
             {iconType === undefined ? (
               <>
@@ -160,7 +160,7 @@ export default function GroupInfoFields() {
       </div>
       <div className="flex flex-col">
         <label htmlFor="title" className="pb-2 font-bold">
-          Group Name *
+          Group Name*
         </label>
         <input
           // TODO: set sane maxLength

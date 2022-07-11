@@ -6,16 +6,18 @@ import Dialog, {
   DialogTrigger,
 } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
-import { GroupMeta } from '@/types/groups';
+import { GroupFormSchema, GroupMeta, PrivacyType } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import useNavStore from '@/components/Nav/useNavStore';
 import GroupInfoFields from '../GroupInfoFields';
+import PrivacySelector from '../PrivacySelector';
 
 const emptyMeta = {
   title: '',
   description: '',
   image: '',
   color: '',
+  privacy: 'public' as PrivacyType,
 };
 
 function eqGroupName(a: string, b: string) {
@@ -28,10 +30,11 @@ export default function GroupInfoEditor() {
   const group = useGroup(groupFlag);
   const [deleteField, setDeleteField] = useState('');
 
-  const form = useForm({
+  const form = useForm<GroupFormSchema>({
     defaultValues: {
       ...emptyMeta,
       ...group?.meta,
+      // TODO:  grab group privacy setting from ?
     },
   });
 
@@ -72,6 +75,10 @@ export default function GroupInfoEditor() {
         >
           <h2 className="text-lg font-bold">Group Info</h2>
           <GroupInfoFields />
+          <div>
+            <h2 className="mb-2 font-semibold">Set Privacy*</h2>
+            <PrivacySelector />
+          </div>
           <footer className="flex items-center justify-end space-x-2">
             <button
               type="button"

@@ -213,9 +213,8 @@ export interface Gangs {
   [flag: string]: Gang;
 }
 
-export interface NewGroupFormSchema {
-  title: string;
-  description: string;
-  image: string;
-  color: string;
+export type PrivacyType = 'public' | 'private' | 'secret';
+
+export interface GroupFormSchema extends GroupMeta {
+  privacy: PrivacyType;
 }

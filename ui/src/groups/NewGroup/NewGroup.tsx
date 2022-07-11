@@ -11,15 +11,7 @@ import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
-
-interface NewGroupFormSchema {
-  title: string;
-  description: string;
-  image: string;
-  color: string;
-}
-
-type PrivacyTypes = 'public' | 'private' | 'secret';
+import { GroupFormSchema } from '@/types/groups';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
@@ -33,7 +25,6 @@ type TemplateTypes = 'none' | 'small' | 'medium' | 'large';
 export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
-  const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyTypes>();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
   const [templateType, setTemplateType] = useState<TemplateTypes>('none');
 
@@ -46,14 +37,15 @@ export default function NewGroup() {
   const [currentStep, { goToNextStep, goToPrevStep, setStep, maxStep }] =
     useStep(4);
 
-  const defaultValues: NewGroupFormSchema = {
+  const defaultValues: GroupFormSchema = {
     title: '',
     description: '',
     image: '',
     color: '',
+    privacy: 'public',
   };
 
-  const form = useForm<NewGroupFormSchema>({
+  const form = useForm<GroupFormSchema>({
     defaultValues,
     mode: 'onBlur',
   });
@@ -66,7 +58,7 @@ export default function NewGroup() {
       {}
     );
     const cordon =
-      selectedPrivacy === 'public'
+      values.privacy === 'public'
         ? {
             open: {
               ships: [],
@@ -80,7 +72,7 @@ export default function NewGroup() {
     await useGroupState.getState().create({ ...values, name, members, cordon });
     const flag = `${window.our}/${name}`;
     navigate(`/groups/${flag}`);
-  }, [shipsToInvite, form, navigate, selectedPrivacy]);
+  }, [shipsToInvite, navigate, form]);
 
   const nextWithTemplate = (template?: string) => {
     setTemplateType(template ? (template as TemplateTypes) : 'none');
@@ -108,8 +100,6 @@ export default function NewGroup() {
           groupName={form.getValues('title')}
           goToPrevStep={goToPrevStep}
           goToNextStep={goToNextStep}
-          selectedPrivacy={selectedPrivacy}
-          setSelectedPrivacy={setSelectedPrivacy}
         />
       );
       break;
