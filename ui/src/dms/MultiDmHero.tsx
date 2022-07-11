@@ -3,6 +3,7 @@ import React from 'react';
 import { pluralize } from '../logic/utils';
 import { Club } from '../types/chat';
 import MultiDmAvatar from './MultiDmAvatar';
+import ShipName from '../components/ShipName';
 
 interface MultiDMHeroProps {
   club: Club;
@@ -12,6 +13,20 @@ export default function MultiDmHero({ club }: MultiDMHeroProps) {
   const count = club.team.length;
   const pendingCount = club.hive.length;
   const hasPending = pendingCount > 0;
+
+  const shipList = (ships: Array<string>) =>
+    ships.map((member: string, i: number) => {
+      let sep;
+      if (i !== ships.length - 1) {
+        sep = ', ';
+      }
+      return (
+        <>
+          <ShipName name={member} showAlias />
+          {sep ? <span>{sep}</span> : null}
+        </>
+      );
+    });
 
   return (
     <div className="flex flex-col items-center">
@@ -25,7 +40,7 @@ export default function MultiDmHero({ club }: MultiDMHeroProps) {
           club.meta.title && 'text-gray-600'
         )}
       >
-        {club.team.concat(club.hive).join(', ')}
+        {shipList(club.team.concat(club.hive))}
       </div>
       <div className="text-gray-600">
         <span>{`${count} ${pluralize('Member', count)}${
