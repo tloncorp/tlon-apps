@@ -447,6 +447,7 @@ const clubs: { [id: string]: Club } = {
       image: '',
       color: '',
     },
+    pin: false,
   },
 };
 
@@ -518,6 +519,7 @@ const clubHandlers: Handler[] = [
           image: '',
           color: '',
         },
+        pin: false,
       };
 
       return createResponse(req, 'diff');

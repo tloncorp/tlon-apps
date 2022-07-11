@@ -1,12 +1,19 @@
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import Dialog, { DialogContent } from '../components/Dialog';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import LeaveIcon from '../components/icons/LeaveIcon';
-import { useBriefs, useChatState, usePinnedChats } from '../state/chat';
+import {
+  useBriefs,
+  useChatState,
+  useMultiDms,
+  usePinned,
+  usePinnedChats,
+  usePinnedClubs,
+} from '../state/chat';
 import PinIcon from '../components/icons/PinIcon';
 import BulletIcon from '../components/icons/BulletIcon';
 import InviteIcon16 from '../components/icons/InviteIcon16';
@@ -32,7 +39,7 @@ export default function DmOptions({
 }: DMOptionsProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const pinned = usePinnedChats();
+  const pinned = usePinned();
   const briefs = useBriefs();
   const hasActivity = (briefs[whom]?.count ?? 0) > 0 || pending;
   const [isOpen, setIsOpen] = useState(false);
@@ -67,13 +74,13 @@ export default function DmOptions({
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
       const isPinned = pinned.includes(whom);
-      if (isPinned) {
-        useChatState.getState().unpinDm(whom);
+      if (isMulti) {
+        useChatState.getState().toggleMultiDmPin(whom, !isPinned);
       } else {
-        useChatState.getState().pinDm(whom);
+        useChatState.getState().toggleDmPin(whom, !isPinned);
       }
     },
-    [whom, pinned]
+    [whom, pinned, isMulti]
   );
 
   const handleInvite = () => {

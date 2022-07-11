@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
@@ -11,13 +11,18 @@ import useNavStore from '../components/Nav/useNavStore';
 import AddIcon from '../components/icons/AddIcon';
 import useMessagesFilter, { filters } from './useMessagesFilter';
 import MessagesSidebarItem from './MessagesSidebarItem';
-import { useBriefs, usePinnedChats } from '../state/chat';
+import {
+  useBriefs,
+  usePinned,
+  usePinnedChats,
+  usePinnedClubs,
+} from '../state/chat';
 
 export default function MobileMessagesSidebar() {
   const { filter, setFilter } = useMessagesFilter();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const briefs = useBriefs();
-  const pinned = usePinnedChats();
+  const pinned = usePinned();
 
   return (
     <nav

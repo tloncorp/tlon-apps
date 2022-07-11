@@ -8,6 +8,7 @@ import {
   isGroupBrief,
   usePinnedChats,
   usePendingMultiDms,
+  usePinned,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { filters, SidebarFilter } from './useMessagesFilter';
@@ -19,7 +20,7 @@ interface MessagesListProps {
 export default function MessagesList({ filter }: MessagesListProps) {
   const pending = usePendingDms();
   const pendingMultis = usePendingMultiDms();
-  const pinned = usePinnedChats();
+  const pinned = usePinned();
   const { sortOptions } = useSidebarSort(RECENT);
   const briefs = useBriefs();
 

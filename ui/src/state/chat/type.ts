@@ -36,8 +36,8 @@ export interface ChatState {
   };
   pendingDms: string[];
   briefs: ChatBriefs;
-  pinDm: (whom: string) => Promise<void>;
-  unpinDm: (whom: string) => Promise<void>;
+  toggleDmPin: (whom: string, pin: boolean) => Promise<void>;
+  toggleMultiDmPin: (whom: string, pin: boolean) => Promise<void>;
   markRead: (whom: string) => Promise<void>;
   start: () => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;

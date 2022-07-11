@@ -186,6 +186,7 @@
         hive/a/(turn ~(tap in hive.cr) ship)
         meta/(meta met.cr)
         net/s/net.cr
+        pin/b/pin.cr
     ==
   ::
   ++  notice

@@ -66,6 +66,7 @@
         hive=(set ship)
         met=data:meta
         =net
+        pin=_|
     ==
 
   ::
