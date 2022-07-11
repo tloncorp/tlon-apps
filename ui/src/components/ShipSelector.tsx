@@ -13,6 +13,8 @@ import {
   MultiValue,
   ActionMeta,
   GroupBase,
+  SingleValue,
+  ValueContainerProps,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
@@ -34,6 +36,7 @@ interface ShipSelectorProps {
   ships: ShipOption[];
   setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
   onEnter?: (ships: ShipOption[]) => void;
+  isMulti?: boolean;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -95,6 +98,37 @@ function ShipTagLabelContainer({
   );
 }
 
+function SingleValueShipTagLabelContainer({
+  children,
+  ...props
+}: ValueContainerProps<ShipOption, true>) {
+  return (
+    <components.ValueContainer {...props} className="flex">
+      <div className="flex justify-between">
+        {children}
+        {props.hasValue ? (
+          <button
+            className="font-semibold text-gray-400"
+            // @ts-expect-error we passed an extra prop to selectProps
+            onClick={props.selectProps.handleEnter}
+          >
+            Enter
+          </button>
+        ) : null}
+      </div>
+    </components.ValueContainer>
+  );
+}
+
+function SingleShipLabel({ data }: { data: ShipOption }) {
+  const { value } = data;
+  return (
+    <div className="flex h-6 items-center rounded bg-gray-100">
+      <span className="py-1 px-2 font-semibold">{value}</span>
+    </div>
+  );
+}
+
 function ShipTagLabel({ data }: { data: ShipOption }) {
   const { value, label } = data;
   return (
@@ -145,6 +179,7 @@ export default function ShipSelector({
   ships,
   setShips,
   onEnter,
+  isMulti = true,
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -160,6 +195,24 @@ export default function ShipSelector({
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
+
+  const handleEnter = () => {
+    const isInputting = !!(
+      selectRef.current && selectRef.current.inputRef?.value
+    );
+
+    // case when user is typing another patp: do nothing so react-select can
+    // can add to the list of patps
+    if (isInputting) {
+      return;
+    }
+    if (ships && ships.length > 0 && validShips && onEnter) {
+      onEnter(ships);
+      if (!isMulti) {
+        setShips([]);
+      }
+    }
+  };
 
   // There is a known issue with react-select's performance for large lists of
   // of options, so filter the list of contact options to improve performance
@@ -224,12 +277,7 @@ export default function ShipSelector({
       case 'Enter': {
         // case when user is typing another patp: do nothing so react-select can
         // can add to the list of patps
-        if (isInputting) {
-          return;
-        }
-        if (ships && ships.length > 0 && validShips && onEnter) {
-          onEnter(ships);
-        }
+        handleEnter();
         break;
       }
       default:
@@ -252,6 +300,100 @@ export default function ShipSelector({
       setShips(validPatps);
     }
   };
+
+  const singleOnChange = (
+    newValue: SingleValue<ShipOption>,
+    actionMeta: ActionMeta<ShipOption>
+  ) => {
+    if (
+      ['create-option', 'remove-value', 'select-option'].includes(
+        actionMeta.action
+      ) &&
+      newValue !== null
+    ) {
+      const validPatp = ob.isValidPatp(preSig(newValue.value));
+      if (validPatp) {
+        setShips([newValue]);
+      }
+    }
+  };
+
+  if (!isMulti) {
+    return (
+      <CreatableSelect
+        handleEnter={handleEnter}
+        ref={selectRef}
+        formatCreateLabel={AddNonContactShip}
+        autoFocus
+        styles={{
+          control: (base) => ({}),
+          menu: ({ width, borderRadius, ...base }) => ({
+            borderWidth: '',
+            borderColor: '',
+            zIndex: 50,
+            backgroundColor: 'inherit',
+            ...base,
+          }),
+          input: (base) => ({
+            ...base,
+            margin: '',
+            color: '',
+            paddingTop: '',
+            paddingBottom: '',
+          }),
+          multiValue: (base) => ({
+            ...base,
+            backgroundColor: '',
+            margin: '0 2px',
+          }),
+          multiValueRemove: (base) => ({
+            ...base,
+            paddingRight: '',
+            paddingLeft: '',
+            '&:hover': {
+              color: 'inherit',
+              backgroundColor: 'inherit',
+            },
+          }),
+          option: (base, state) => ({
+            ...base,
+            backgroundColor: state.isFocused
+              ? 'rgb(var(--colors-gray-50))'
+              : '',
+          }),
+          valueContainer: (base) => ({
+            ...base,
+            padding: '0px 8px',
+          }),
+        }}
+        aria-label="Ships"
+        options={slicedOptions}
+        value={ships}
+        // @ts-expect-error this error is irrelevant
+        onChange={singleOnChange}
+        onInputChange={(val) => setInputValue(val)}
+        isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
+        onKeyDown={onKeyDown}
+        placeholder=""
+        hideSelectedOptions
+        // TODO: create custom filter for sorting potential DM participants.
+        filterOption={() => true} // disable the default filter
+        components={{
+          Control,
+          Menu: ShipDropDownMenu,
+          MenuList: ShipDropDownMenuList,
+          Input,
+          DropdownIndicator: () => null,
+          IndicatorSeparator: () => null,
+          ClearIndicator: () => null,
+          Option: ShipName,
+          NoOptionsMessage: NoShipsMessage,
+          SingleValue: SingleShipLabel,
+          ValueContainer: SingleValueShipTagLabelContainer,
+        }}
+      />
+    );
+  }
 
   return (
     <CreatableSelect
