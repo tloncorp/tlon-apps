@@ -150,12 +150,23 @@ export interface CordonDiff {
   cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };
 }
 
+export interface MetaDiff {
+  meta: GroupMeta;
+}
+
 export interface GroupCreateDiff {
   create: Group;
 }
+
+export interface GroupDelDiff {
+  del: null;
+}
+
 // TODO: elaborate
 export type GroupDiff =
+  | GroupDelDiff
   | GroupCreateDiff
+  | MetaDiff
   | FleetDiff
   | CabalDiff
   | ChannelDiff
@@ -202,9 +213,8 @@ export interface Gangs {
   [flag: string]: Gang;
 }
 
-export interface NewGroupFormSchema {
-  title: string;
-  description: string;
-  image: string;
-  color: string;
+export type PrivacyType = 'public' | 'private' | 'secret';
+
+export interface GroupFormSchema extends GroupMeta {
+  privacy: PrivacyType;
 }

@@ -130,7 +130,9 @@
       [%bloc p=diff:bloc]
       [%cordon p=diff:cordon]
       [%zone p=diff:zone]
+      [%meta p=data:meta]
       [%create p=group]
+      [%del ~]
   ==
 +$  action
   (pair flag update)

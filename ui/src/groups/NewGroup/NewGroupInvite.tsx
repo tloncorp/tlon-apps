@@ -190,7 +190,7 @@ export default function NewGroupInvite({
           <button
             disabled={shipsToInvite.length === 0}
             className="button"
-            onClick={goToNextStep}
+            type="submit"
           >
             Invite
           </button>

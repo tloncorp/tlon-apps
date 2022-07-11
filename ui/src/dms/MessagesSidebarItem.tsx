@@ -38,7 +38,7 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
   return (
     <SidebarItem
       to={`/groups/${groupFlag}/channels/chat/${whom}`}
-      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={img} />}
+      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...channel.meta} />}
       actions={
         (brief?.count ?? 0) > 0 ? (
           <BulletIcon
