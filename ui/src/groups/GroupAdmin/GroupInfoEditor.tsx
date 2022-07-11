@@ -9,6 +9,7 @@ import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
 import { GroupFormSchema, GroupMeta, PrivacyType } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import useNavStore from '@/components/Nav/useNavStore';
+import { getGroupPrivacy } from '@/logic/utils';
 import GroupInfoFields from '../GroupInfoFields';
 import PrivacySelector from '../PrivacySelector';
 
@@ -17,7 +18,6 @@ const emptyMeta = {
   description: '',
   image: '',
   color: '',
-  privacy: 'public' as PrivacyType,
 };
 
 function eqGroupName(a: string, b: string) {
@@ -34,7 +34,7 @@ export default function GroupInfoEditor() {
     defaultValues: {
       ...emptyMeta,
       ...group?.meta,
-      // TODO:  grab group privacy setting from ?
+      privacy: (group && getGroupPrivacy(group)) || 'public',
     },
   });
 

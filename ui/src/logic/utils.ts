@@ -4,7 +4,7 @@ import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
 import _ from 'lodash';
 import { ChatWhom } from '../types/chat';
-import { Cabal, Cabals, Rank } from '../types/groups';
+import { Cabal, Cabals, Group, PrivacyType, Rank } from '../types/groups';
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
@@ -155,4 +155,12 @@ export function isValidUrl(str?: string): boolean {
     'i'
   ); // fragment locator
   return str ? !!pattern.test(str) : false;
+}
+
+export function getGroupPrivacy(group: Group): PrivacyType {
+  if ('open' in group.cordon) {
+    return 'public';
+  }
+
+  return 'private';
 }
