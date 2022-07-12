@@ -505,6 +505,7 @@ export const useChatState = create<ChatState>(
       migrate: clearStorageMigration,
       partialize: (state) => ({
         multiDms: state.multiDms,
+        pinnedDms: state.pinnedDms,
       }),
     }
   )
