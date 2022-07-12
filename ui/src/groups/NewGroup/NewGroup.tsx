@@ -51,14 +51,17 @@ export default function NewGroup() {
   });
 
   const onComplete = useCallback(async () => {
-    const values = form.getValues();
+    const { privacy, ...values } = form.getValues();
     const name = strToSym(values.title);
     const members = shipsToInvite.reduce(
-      (obj, ship) => ({ ...obj, [ship.patp]: ship.roles }),
+      (obj, ship) => ({
+        ...obj,
+        [ship.patp]: ship.roles.map((r) => strToSym(r)),
+      }),
       {}
     );
     const cordon =
-      values.privacy === 'public'
+      privacy === 'public'
         ? {
             open: {
               ships: [],
