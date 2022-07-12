@@ -128,10 +128,11 @@ exports[`Sidebar > renders as expected 1`] = `
       </li>
       <a
         class="no-underline"
-        href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"
-        target="_blank"
+        href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=groups:"
         rel="noreferrer"
-        ><li
+        target="_blank"
+      >
+        <li
           class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-yellow-600 dark:text-yellow-500 hover:bg-yellow-soft hover:dark:bg-yellow-800"
         >
           <button
@@ -140,17 +141,20 @@ exports[`Sidebar > renders as expected 1`] = `
             <svg
               class="m-1 h-4 w-4"
               fill="none"
-              xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 16 16"
+              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 class="stroke-current"
                 d="m8 8 4-4M8 8 4 4m4 4-4 4m4-4 4 4M8 8h5M8 8V3m0 5H3m5 0v5"
-                stroke-width="2"
                 stroke-linecap="round"
-              ></path>
+                stroke-width="2"
+              />
             </svg>
-            <div title="Submit Issue" class="max-w-full flex-1 truncate text-left">
+            <div
+              class="max-w-full flex-1 truncate text-left"
+              title="Submit Issue"
+            >
               Submit Issue
             </div>
           </button>
