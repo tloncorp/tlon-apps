@@ -125,7 +125,6 @@ export const useChatState = create<ChatState>(
             draft.pinnedDms = draft.pinnedDms.filter((s) => s !== ship);
           }
         });
-
         await api.poke({
           app: 'chat',
           mark: 'dm-pin',
@@ -221,6 +220,23 @@ export const useChatState = create<ChatState>(
             });
           },
         });
+      },
+      fetchNewer: async (whom: string, count: string) => {
+        const isDM = whomIsDm(whom);
+        if (isDM) {
+          return makeWritsStore(
+            whom,
+            get,
+            `/dm/${whom}/writs`,
+            `/dm/${whom}/ui`
+          ).getNewer(count);
+        }
+        return makeWritsStore(
+          whom,
+          get,
+          `/chat/${whom}/writs`,
+          `/chat/${whom}/ui/writs`
+        ).getNewer(count);
       },
       fetchOlder: async (whom: string, count: string) => {
         const isDM = whomIsDm(whom);
