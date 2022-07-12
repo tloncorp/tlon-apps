@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
@@ -11,7 +11,12 @@ import CmdSmallIcon from '../components/icons/CmdSmallIcon';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
-import { useBriefs, usePinnedChats } from '../state/chat';
+import {
+  useBriefs,
+  usePinned,
+  usePinnedChats,
+  usePinnedClubs,
+} from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 
@@ -19,14 +24,14 @@ export default function MessagesSidebar() {
   const isMobile = useIsMobile();
   const { filter, setFilter } = useMessagesFilter();
   const briefs = useBriefs();
-  const pinned = usePinnedChats();
+  const pinned = usePinned();
 
   if (isMobile) {
     return <MobileMessagesSidebar />;
   }
 
   return (
-    <nav className="flex h-full w-64 flex-col border-r-2 border-gray-50 bg-white">
+    <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex w-full flex-col px-2 pt-2">
         <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}

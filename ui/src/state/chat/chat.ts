@@ -18,6 +18,7 @@ import {
   ClubAction,
   ClubDelta,
   ClubInvite,
+  ClubPin,
   DmAction,
   WritDelta,
 } from '../../types/chat';
@@ -116,30 +117,35 @@ export const useChatState = create<ChatState>(
       pendingDms: [],
       pinnedDms: [],
       briefs: {},
-      pinDm: async (ship) => {
+      toggleDmPin: async (ship, pin) => {
+        get().set((draft) => {
+          if (pin) {
+            draft.pinnedDms = [...draft.pinnedDms, ship];
+          } else {
+            draft.pinnedDms = draft.pinnedDms.filter((s) => s !== ship);
+          }
+        });
+
         await api.poke({
           app: 'chat',
           mark: 'dm-pin',
           json: {
             ship,
-            pin: true,
+            pin,
           },
-        });
-        get().set((draft) => {
-          draft.pinnedDms = [...draft.pinnedDms, ship];
         });
       },
-      unpinDm: async (ship) => {
-        await api.poke({
-          app: 'chat',
-          mark: 'dm-pin',
-          json: {
-            ship,
-            pin: false,
-          },
-        });
+      toggleMultiDmPin: async (whom, pin) => {
         get().set((draft) => {
-          draft.pinnedDms = draft.pinnedDms.filter((s) => s !== ship);
+          draft.multiDms[whom].pin = pin;
+        });
+        await api.poke<ClubPin>({
+          app: 'chat',
+          mark: 'club-pin',
+          json: {
+            id: whom,
+            pin,
+          },
         });
       },
       markRead: async (whom) => {
@@ -255,6 +261,7 @@ export const useChatState = create<ChatState>(
               image: '',
               color: '',
             },
+            pin: false,
           };
         }
 
@@ -327,7 +334,6 @@ export const useChatState = create<ChatState>(
             delete draft.briefs[ship];
           }
         });
-
         await api.poke({
           app: 'chat',
           mark: 'dm-rsvp',
@@ -406,6 +412,7 @@ export const useChatState = create<ChatState>(
               image: '',
               color: '',
             },
+            pin: false,
           };
         });
         await api.poke({
@@ -498,6 +505,7 @@ export const useChatState = create<ChatState>(
       migrate: clearStorageMigration,
       partialize: (state) => ({
         multiDms: state.multiDms,
+        pinnedDms: state.pinnedDms,
       }),
     }
   )
@@ -672,4 +680,20 @@ export function useBriefs() {
 
 export function usePinnedChats() {
   return useChatState(useCallback((s: ChatState) => s.pinnedDms, []));
+}
+
+export function usePinnedClubs() {
+  const multiDms = useMultiDms();
+  return Object.entries(multiDms)
+    .filter(([, v]) => v.pin)
+    .map(([k]) => k);
+}
+
+export function usePinned() {
+  const pinnedDms = usePinnedChats();
+  const pinnedMultiDms = usePinnedClubs();
+  return useMemo(
+    () => [...pinnedDms, ...pinnedMultiDms],
+    [pinnedDms, pinnedMultiDms]
+  );
 }

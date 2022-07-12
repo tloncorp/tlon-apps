@@ -164,6 +164,10 @@
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
   ::
+      %club-pin
+    =+  !<([=id:club:c pin=?] vase)
+    cu-abet:(cu-pin:(cu-abed:cu-core id) pin)
+  ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
   ++  join
@@ -401,7 +405,7 @@
   ++  cu-init
     |=  [=net:club:c =create:club:c]
     =/  clab=club:c
-      [*pact:c (silt our.bowl ~) hive.create *data:meta net]
+      [*pact:c (silt our.bowl ~) hive.create *data:meta net |]
     cu-core(id id.create, club clab)
   ::
   ++  cu-brief  (brief:cu-pact [our now]:bowl)
@@ -504,6 +508,11 @@
       =.  hive.club  (~(del in hive.club) for.delta)
       (cu-post-notice for.delta '' ' was uninvited from the chat') 
     ==
+  ::
+  ++  cu-pin
+    |=  pin=?
+    ^+  cu-core
+    cu-core(pin.club pin)
   ::
   ++  cu-peek
     |=  =path
