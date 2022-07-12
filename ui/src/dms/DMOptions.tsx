@@ -141,7 +141,7 @@ export default function DmOptions({
             <>
               {hasActivity ? (
                 <DropdownMenu.Item
-                  className="dropdown-item flex items-center space-x-2 text-blue"
+                  className="dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
                   onClick={markRead}
                 >
                   <BulletIcon className="h-6 w-6" />
@@ -189,7 +189,7 @@ export default function DmOptions({
               ) : null}
               <DropdownMenu.Item
                 onSelect={leaveMessage}
-                className="dropdown-item flex items-center space-x-2 text-red"
+                className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
               >
                 <LeaveIcon className="h-6 w-6 opacity-60" />
                 <span>Leave Message</span>
