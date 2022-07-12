@@ -3,7 +3,7 @@ import React, { PropsWithChildren } from 'react';
 import useNavStore, { NavSecondaryLocation } from './Nav/useNavStore';
 
 type NavTabProps = PropsWithChildren<{
-  loc: NavSecondaryLocation;
+  loc?: NavSecondaryLocation;
   className?: string;
 }>;
 
@@ -24,7 +24,7 @@ export default function NavTab({ loc, children, className }: NavTabProps) {
     >
       <button
         className="flex h-full w-full flex-col items-center justify-center p-2"
-        onClick={() => navigate(loc)}
+        onClick={() => loc && navigate(loc)}
       >
         {children}
       </button>

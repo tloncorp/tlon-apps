@@ -5,6 +5,7 @@ import { useGroup } from '../../state/groups/groups';
 import useNavStore from '../../components/Nav/useNavStore';
 import CaretLeft16Icon from '../../components/icons/CaretLeft16Icon';
 import MagnifyingGlass from '../../components/icons/MagnifyingGlass16Icon';
+import AsteriskIcon from '../../components/icons/Asterisk16Icon';
 import HashIcon16 from '../../components/icons/HashIcon16';
 import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
@@ -70,6 +71,20 @@ export default function GroupSidebar() {
           >
             All Channels
           </SidebarItem>
+          <a
+            className="no-underline"
+            href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=groups:"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <SidebarItem
+              color="text-yellow-600 dark:text-yellow-500"
+              highlight="bg-yellow-soft hover:bg-yellow-soft hover:dark:bg-yellow-800"
+              icon={<AsteriskIcon className="m-1 h-4 w-4" />}
+            >
+              Submit Issue
+            </SidebarItem>
+          </a>
         </ul>
         <div className="flex-1 overflow-y-auto">
           <ChannelList flag={flag} />

@@ -126,6 +126,40 @@ exports[`Sidebar > renders as expected 1`] = `
           </div>
         </a>
       </li>
+      <a
+        class="no-underline"
+        href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=groups:"
+        rel="noreferrer"
+        target="_blank"
+      >
+        <li
+          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-yellow-600 dark:text-yellow-500 hover:bg-yellow-soft hover:dark:bg-yellow-800"
+        >
+          <button
+            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          >
+            <svg
+              class="m-1 h-4 w-4"
+              fill="none"
+              viewBox="0 0 16 16"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="stroke-current"
+                d="m8 8 4-4M8 8 4 4m4 4-4 4m4-4 4 4M8 8h5M8 8V3m0 5H3m5 0v5"
+                stroke-linecap="round"
+                stroke-width="2"
+              />
+            </svg>
+            <div
+              class="max-w-full flex-1 truncate text-left"
+              title="Submit Issue"
+            >
+              Submit Issue
+            </div>
+          </button>
+        </li>
+      </a>
       <li
         class="p-2"
       >
