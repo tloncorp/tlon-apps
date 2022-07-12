@@ -10,14 +10,12 @@ import SixDotIcon from '../../components/icons/SixDotIcon';
 
 interface AdminChannelListItemProps {
   channel: Channel;
-  index: number;
   channelFlag: string;
   provided: DraggableProvided;
 }
 
 export default function AdminChannelListItem({
   channel,
-  index,
   channelFlag,
   provided,
 }: AdminChannelListItemProps) {

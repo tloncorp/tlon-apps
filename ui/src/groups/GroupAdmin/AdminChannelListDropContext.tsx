@@ -1,19 +1,29 @@
 import React, { useCallback, useState } from 'react';
-import { DragDropContext, Draggable, DragUpdate } from 'react-beautiful-dnd';
+import {
+  DragDropContext,
+  Draggable,
+  DragUpdate,
+  DraggableLocation,
+} from 'react-beautiful-dnd';
+import bigInt from 'big-integer';
+import { formatUv } from '@urbit/aura';
 import { useGroup, useRouteGroup } from '../../state/groups';
 import { Channel } from '../../types/groups';
 import AdminChannelListItem from './AdminChannelListItem';
 import AdminChannelListSections from './AdminChannelListSections';
 import ChannelManagerHeader from './ChannelManagerHeader';
 
+interface AdminChannelListContentsProps {
+  sectionedChannels: SectionMap;
+}
+
+type SectionMap = {
+  [key: string]: SectionListItem;
+};
 
 interface ChannelListItem {
   key: string;
   channel: Channel;
-}
-
-interface AdminChannelListContentsProps {
-  sectionedChannels: SectionList;
 }
 
 interface SectionListItem {
@@ -21,20 +31,36 @@ interface SectionListItem {
   channels: ChannelListItem[];
 }
 
-type SectionList = SectionListItem[];
-
 export default function AdminChannelListDropContext({
   sectionedChannels,
 }: AdminChannelListContentsProps) {
-  const sectionList = sectionedChannels;
-  const [sections, setSections] = useState<SectionList>(sectionList);
+  const initialChannels = sectionedChannels;
+  const [sections, setSections] = useState<SectionMap>(initialChannels);
+  const [orderedSections, setOrderedSections] = useState(
+    Object.keys(initialChannels)
+  );
+
+  const addSection = () => {
+    const nextSection = {
+      title: '',
+      channels: [],
+    };
+
+    const nextSectionId = formatUv(bigInt(Date.now()));
+    const nextSections = {
+      ...sections,
+      [nextSectionId]: nextSection,
+    };
+
+    const nextOrderedSections = orderedSections;
+
+    nextOrderedSections.splice(1, 0, nextSectionId);
+    setSections(nextSections);
+    setOrderedSections(nextOrderedSections);
+  };
 
   const reorder = useCallback(
-    (
-      array: any[],
-      sourceIndex: number,
-      destinationIndex: number
-    ) => {
+    (array: any[], sourceIndex: number, destinationIndex: number) => {
       const result = Array.from(array);
       const [removed] = result.splice(sourceIndex, 1);
       result.splice(destinationIndex, 0, removed);
@@ -43,66 +69,88 @@ export default function AdminChannelListDropContext({
     []
   );
 
-  const move = useCallback(
+  const reorderSectionMap = useCallback(
     (
-      source, 
-      destination, 
-      droppableSource, 
-      droppableDestination
+      sectionMap: SectionMap,
+      source: DraggableLocation,
+      destination: DraggableLocation
     ) => {
-      // debugger;
-      const sourceClone = Array.from(source);
-      const destinationClone = Array.from(destination);
-      const [removed] = sourceClone.splice(droppableSource.index, 1);
-      destinationClone.splice(droppableDestination.index, 0, removed);
-      const result = {};
-      result[droppableSource.droppableId] = sourceClone;
-      result[droppableDestination.droppableId] = destinationClone;
+      const current = [...sectionMap[source.droppableId].channels];
+      const next = [...sectionMap[destination.droppableId].channels];
+      const target = current[source.index];
+
+      // move to same list
+      if (source.droppableId === destination.droppableId) {
+        const reordered = reorder(current, source.index, destination.index);
+        const result: SectionMap = {
+          ...sectionMap,
+          [source.droppableId]: {
+            title: sectionMap[source.droppableId].title,
+            channels: reordered,
+          },
+        };
+        return result;
+      }
+
+      // move to different list
+      current.splice(source.index, 1);
+      next.splice(destination.index, 0, target);
+      const result: SectionMap = {
+        ...sectionMap,
+        [source.droppableId]: {
+          title: sectionMap[source.droppableId].title,
+          channels: current,
+        },
+        [destination.droppableId]: {
+          title: sectionMap[destination.droppableId].title,
+          channels: next,
+        },
+      };
+
       return result;
     },
-    []
+    [reorder]
   );
 
   const onDragEnd = useCallback(
     (result) => {
       const { source, destination } = result;
+
       if (!destination) {
         return;
       }
 
-      const isDragSectionIntoOtherSection = source.droppableId === 'sections' && destination.droppableId !== 'sections';
-      const isDragChannelOutsideSection = source.droppableId !== 'sections' && destination.droppableId === 'sections';
-
-      const sourceId =  sections.findIndex(section => section.title === source.droppableId);
-      const destinationId =  sections.findIndex(section => section.title === destination.droppableId);
-      // debugger;
-
-      if (isDragSectionIntoOtherSection || isDragChannelOutsideSection) {
+      if (
+        source.droppableId === destination.droppableId &&
+        source.index === destination.index
+      ) {
         return;
       }
 
-      if (sourceId === destinationId) {
-        const items = reorder(sections[sourceId].channels, source.index, destination.index);
-        const newSections = [...sections];
-        newSections[sourceId].channels = items;
-        setSections(newSections);
-      } else {
-        // debugger;
-        const reorderedSections = move(sections[sourceId], sections[destinationId], source, destination);
-        const newSections = [...sections];
-        newSections[sourceId] = reorderedSections[sourceId];
-        newSections[destinationId] = reorderedSections[destinationId];
-        setSections(newSections.filter(section => section.channels.length));
+      if (result.type === 'SECTIONS') {
+        const newOrder = reorder(
+          orderedSections,
+          source.index,
+          destination.index
+        );
+        setOrderedSections(newOrder);
+        return;
       }
+
+      const nextMap = reorderSectionMap(sections, source, destination);
+
+      setSections(nextMap);
     },
-    [reorder, sections, move]
+    [orderedSections, reorder, reorderSectionMap, sections]
   );
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-        <ChannelManagerHeader />
-        <AdminChannelListSections sectionList={sections} />
+      <ChannelManagerHeader addSection={addSection} />
+      <AdminChannelListSections
+        sections={sections}
+        orderedSections={orderedSections}
+      />
     </DragDropContext>
   );
 }
-
