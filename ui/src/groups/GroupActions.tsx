@@ -103,7 +103,7 @@ export default function GroupActions({
         <DropdownMenu.Content className="dropdown min-w-52 text-gray-800">
           <DropdownMenu.Item
             asChild
-            className="dropdown-item rounded-none text-blue"
+            className="dropdown-item text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
           >
             <Link
               to={`/groups/${flag}/invite`}
@@ -116,7 +116,7 @@ export default function GroupActions({
           </DropdownMenu.Item>
           <DropdownMenu.Item
             className={
-              'dropdown-item flex items-center space-x-2 rounded-none text-blue'
+              'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900'
             }
             onSelect={onCopySelect}
           >
@@ -124,13 +124,13 @@ export default function GroupActions({
             <span className="pr-2">{copyItemText}</span>
           </DropdownMenu.Item>
           <DropdownMenu.Item
-            className="dropdown-item flex items-center space-x-2 rounded-none"
+            className="dropdown-item flex items-center space-x-2"
             onClick={onPinClick}
           >
             <PinIcon16 className="h-6 w-6 text-gray-600" />
             <span className="pr-2">Pin</span>
           </DropdownMenu.Item>
-          <DropdownMenu.Item asChild className="dropdown-item rounded-none">
+          <DropdownMenu.Item asChild className="dropdown-item">
             <Link
               to={`/groups/${flag}/info`}
               // state={{ backgroundLocation: location }}
