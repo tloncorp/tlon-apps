@@ -5,6 +5,7 @@ import SidebarSorter from './SidebarSorter';
 import NavTab from '../NavTab';
 import GroupIcon from '../icons/GroupIcon';
 import ActivityIndicator from './ActivityIndicator';
+import AsteriskIcon from '../icons/Asterisk16Icon';
 import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
 import GroupList from './GroupList';
 import { usePinnedGroups } from '../../state/groups/groups';
@@ -65,6 +66,17 @@ export default function MobileSidebar() {
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
               Search
             </NavTab>
+            <a
+              className="no-underline"
+              href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <NavTab>
+                <AsteriskIcon className="mb-0.5 h-6 w-6" />
+                Submit Issue
+              </NavTab>
+            </a>
           </ul>
         </nav>
       </footer>

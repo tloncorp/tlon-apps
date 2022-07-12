@@ -6,6 +6,7 @@ import GroupAvatar from '../GroupAvatar';
 import CaretLeftIcon from '../../components/icons/CaretLeftIcon';
 import HashIcon from '../../components/icons/HashIcon';
 import MagnifyingGlass from '../../components/icons/MagnifyingGlassIcon';
+import AsteriskIcon from '../../components/icons/Asterisk16Icon';
 import useNavStore from '../../components/Nav/useNavStore';
 import NavTab from '../../components/NavTab';
 import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
@@ -71,10 +72,21 @@ export default function MobileGroupSidebar() {
               <ActivityIndicator count={activityCount} className="mb-0.5" />
               Activity
             </NavTab>
-            <NavTab loc="search">
+            {/* <NavTab loc="search">
               <MagnifyingGlass className="mb-0.5 h-6 w-6" />
               Find
-            </NavTab>
+            </NavTab> */}
+            <a
+              className="no-underline"
+              href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <NavTab>
+                <AsteriskIcon className="mb-0.5 h-6 w-6" />
+                Submit Issue
+              </NavTab>
+            </a>
           </ul>
         </nav>
       </footer>
