@@ -1,5 +1,6 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
+import { persist } from 'zustand/middleware';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
@@ -21,7 +22,13 @@ import {
   WritDelta,
 } from '../../types/chat';
 import api from '../../api';
-import { whomIsDm, whomIsMultiDm } from '../../logic/utils';
+import {
+  createStorageKey,
+  clearStorageMigration,
+  storageVersion,
+  whomIsDm,
+  whomIsMultiDm,
+} from '../../logic/utils';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
@@ -87,403 +94,414 @@ function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   };
 }
 
-export const useChatState = create<ChatState>((set, get) => ({
-  set: (fn) => {
-    set(produce(get(), fn));
-  },
-  batchSet: (fn) => {
-    batchUpdates(() => {
-      get().set(fn);
-    });
-  },
-  chats: {},
-  dmArchive: [],
-  pacts: {},
-  dms: {},
-  drafts: {},
-  dmSubs: [],
-  multiDms: {},
-  multiDmSubs: [],
-  pendingDms: [],
-  pinnedDms: [],
-  briefs: {},
-  pinDm: async (ship) => {
-    await api.poke({
-      app: 'chat',
-      mark: 'dm-pin',
-      json: {
-        ship,
-        pin: true,
+export const useChatState = create<ChatState>(
+  persist<ChatState>(
+    (set, get) => ({
+      set: (fn) => {
+        set(produce(get(), fn));
       },
-    });
-    get().set((draft) => {
-      draft.pinnedDms = [...draft.pinnedDms, ship];
-    });
-  },
-  unpinDm: async (ship) => {
-    await api.poke({
-      app: 'chat',
-      mark: 'dm-pin',
-      json: {
-        ship,
-        pin: false,
-      },
-    });
-    get().set((draft) => {
-      draft.pinnedDms = draft.pinnedDms.filter((s) => s !== ship);
-    });
-  },
-  markRead: async (whom) => {
-    await api.poke({
-      app: 'chat',
-      mark: 'chat-remark-action',
-      json: {
-        whom,
-        diff: { read: null },
-      },
-    });
-  },
-  start: async () => {
-    // TODO: parallelise
-    const briefs = await api.scry<ChatBriefs>({
-      app: 'chat',
-      path: '/briefs',
-    });
-
-    get().batchSet((draft) => {
-      draft.briefs = briefs;
-    });
-
-    const pendingDms = await api.scry<string[]>({
-      app: 'chat',
-      path: '/dm/invited',
-    });
-    get().batchSet((draft) => {
-      draft.pendingDms = pendingDms;
-    });
-
-    try {
-      const pinnedDms = await api.scry<string[]>({
-        app: 'chat',
-        path: '/dm/pinned',
-      });
-      get().batchSet((draft) => {
-        draft.pinnedDms = pinnedDms;
-      });
-    } catch (error) {
-      console.log(error);
-    }
-
-    api.subscribe({
-      app: 'chat',
-      path: '/briefs',
-      event: (event: unknown) => {
-        const { whom, brief } = event as ChatBriefUpdate;
-        get().batchSet((draft) => {
-          draft.briefs[whom] = brief;
+      batchSet: (fn) => {
+        batchUpdates(() => {
+          get().set(fn);
         });
       },
-    });
-    api.subscribe({
-      app: 'chat',
-      path: '/dm/invited',
-      event: (event: unknown) => {
-        get().batchSet((draft) => {
-          draft.pendingDms = event as string[];
+      chats: {},
+      dmArchive: [],
+      pacts: {},
+      dms: {},
+      drafts: {},
+      dmSubs: [],
+      multiDms: {},
+      multiDmSubs: [],
+      pendingDms: [],
+      pinnedDms: [],
+      briefs: {},
+      pinDm: async (ship) => {
+        await api.poke({
+          app: 'chat',
+          mark: 'dm-pin',
+          json: {
+            ship,
+            pin: true,
+          },
+        });
+        get().set((draft) => {
+          draft.pinnedDms = [...draft.pinnedDms, ship];
         });
       },
-    });
-    api.subscribe({
-      app: 'chat',
-      path: '/club/new',
-      event: (event: ClubInvite) => {
+      unpinDm: async (ship) => {
+        await api.poke({
+          app: 'chat',
+          mark: 'dm-pin',
+          json: {
+            ship,
+            pin: false,
+          },
+        });
+        get().set((draft) => {
+          draft.pinnedDms = draft.pinnedDms.filter((s) => s !== ship);
+        });
+      },
+      markRead: async (whom) => {
+        await api.poke({
+          app: 'chat',
+          mark: 'chat-remark-action',
+          json: {
+            whom,
+            diff: { read: null },
+          },
+        });
+      },
+      start: async () => {
+        // TODO: parallelise
+        const briefs = await api.scry<ChatBriefs>({
+          app: 'chat',
+          path: '/briefs',
+        });
+
         get().batchSet((draft) => {
-          const { id, ...crew } = event;
-          const club = draft.multiDms[id];
-          if (!club) {
-            draft.multiDms[id] = crew;
+          draft.briefs = briefs;
+        });
+
+        const pendingDms = await api.scry<string[]>({
+          app: 'chat',
+          path: '/dm/invited',
+        });
+        get().batchSet((draft) => {
+          draft.pendingDms = pendingDms;
+        });
+
+        try {
+          const pinnedDms = await api.scry<string[]>({
+            app: 'chat',
+            path: '/dm/pinned',
+          });
+          get().batchSet((draft) => {
+            draft.pinnedDms = pinnedDms;
+          });
+        } catch (error) {
+          console.log(error);
+        }
+
+        api.subscribe({
+          app: 'chat',
+          path: '/briefs',
+          event: (event: unknown) => {
+            const { whom, brief } = event as ChatBriefUpdate;
+            get().batchSet((draft) => {
+              draft.briefs[whom] = brief;
+            });
+          },
+        });
+        api.subscribe({
+          app: 'chat',
+          path: '/dm/invited',
+          event: (event: unknown) => {
+            get().batchSet((draft) => {
+              draft.pendingDms = event as string[];
+            });
+          },
+        });
+        api.subscribe({
+          app: 'chat',
+          path: '/club/new',
+          event: (event: ClubInvite) => {
+            get().batchSet((draft) => {
+              const { id, ...crew } = event;
+              const club = draft.multiDms[id];
+              if (!club) {
+                draft.multiDms[id] = crew;
+              }
+            });
+          },
+        });
+      },
+      fetchOlder: async (whom: string, count: string) => {
+        const isDM = whomIsDm(whom);
+        if (isDM) {
+          return makeWritsStore(
+            whom,
+            get,
+            `/dm/${whom}/writs`,
+            `/dm/${whom}/ui`
+          ).getOlder(count);
+        }
+        return makeWritsStore(
+          whom,
+          get,
+          `/chat/${whom}/writs`,
+          `/chat/${whom}/ui/writs`
+        ).getOlder(count);
+      },
+      fetchMultiDm: async (id, force) => {
+        const { multiDms } = get();
+
+        if (multiDms[id] && !force) {
+          return multiDms[id];
+        }
+
+        const dm = await api.scry<Club>({
+          app: 'chat',
+          path: `/club/${id}/crew`,
+        });
+
+        if (!dm) {
+          return {
+            hive: [],
+            team: [],
+            meta: {
+              title: '',
+              description: '',
+              image: '',
+              color: '',
+            },
+          };
+        }
+
+        set((draft) => {
+          draft.multiDms[id] = dm;
+        });
+
+        return dm;
+      },
+      fetchDms: async () => {
+        const dms = await api.scry<string[]>({
+          app: 'chat',
+          path: '/dm',
+        });
+        get().batchSet((draft) => {
+          dms.forEach((ship) => {
+            const chat = {
+              writs: new BigIntOrderedMap<ChatWrit>(),
+              perms: {
+                writers: [],
+              },
+              draft: {
+                inline: [],
+                block: [],
+              },
+            };
+            draft.dms[ship] = chat;
+          });
+        });
+        const archive = await api.scry<string[]>({
+          app: 'chat',
+          path: '/dm/archive',
+        });
+        get().batchSet((draft) => {
+          draft.dmArchive = archive;
+        });
+      },
+      unarchiveDm: async (ship) => {
+        await api.poke({
+          app: 'chat',
+          mark: 'dm-unarchive',
+          json: ship,
+        });
+      },
+      archiveDm: async (ship) => {
+        await api.poke({
+          app: 'chat',
+          mark: 'dm-archive',
+          json: ship,
+        });
+        get().batchSet((draft) => {
+          delete draft.pacts[ship];
+          delete draft.dms[ship];
+          delete draft.briefs[ship];
+        });
+      },
+      joinChat: async (flag) => {
+        await api.poke({
+          app: 'chat',
+          mark: 'flag',
+          json: flag,
+        });
+      },
+      dmRsvp: async (ship, ok) => {
+        get().batchSet((draft) => {
+          draft.pendingDms = draft.pendingDms.filter((d) => d !== ship);
+          if (!ok) {
+            delete draft.pacts[ship];
+            delete draft.dms[ship];
+            delete draft.briefs[ship];
           }
         });
-      },
-    });
-  },
-  fetchOlder: async (whom: string, count: string) => {
-    const isDM = whomIsDm(whom);
-    if (isDM) {
-      return makeWritsStore(
-        whom,
-        get,
-        `/dm/${whom}/writs`,
-        `/dm/${whom}/ui`
-      ).getOlder(count);
-    }
-    return makeWritsStore(
-      whom,
-      get,
-      `/chat/${whom}/writs`,
-      `/chat/${whom}/ui/writs`
-    ).getOlder(count);
-  },
-  fetchMultiDm: async (id, force) => {
-    const { multiDms } = get();
 
-    if (multiDms[id] && !force) {
-      return multiDms[id];
-    }
-
-    const dm = await api.scry<Club>({
-      app: 'chat',
-      path: `/club/${id}/crew`,
-    });
-
-    if (!dm) {
-      return {
-        hive: [],
-        team: [],
-        meta: {
-          title: '',
-          description: '',
-          image: '',
-          color: '',
-        },
-      };
-    }
-
-    set((draft) => {
-      draft.multiDms[id] = dm;
-    });
-
-    return dm;
-  },
-  fetchDms: async () => {
-    const dms = await api.scry<string[]>({
-      app: 'chat',
-      path: '/dm',
-    });
-    get().batchSet((draft) => {
-      dms.forEach((ship) => {
-        const chat = {
-          writs: new BigIntOrderedMap<ChatWrit>(),
-          perms: {
-            writers: [],
+        await api.poke({
+          app: 'chat',
+          mark: 'dm-rsvp',
+          json: {
+            ship,
+            ok,
           },
-          draft: {
-            inline: [],
-            block: [],
+        });
+      },
+      sendMessage: (whom, memo) => {
+        const isDM = whomIsDm(whom);
+        const isMultiDm = whomIsMultiDm(whom);
+        const diff = { add: memo };
+        if (isDM) {
+          api.poke(dmAction(whom, { add: memo }));
+        } else if (isMultiDm) {
+          api.poke(
+            multiDmAction(whom, {
+              writ: {
+                id: makeId(),
+                delta: { add: { ...memo, sent: Date.now() } },
+              },
+            })
+          );
+        } else {
+          const id = makeId();
+          api.poke(chatWritDiff(whom, id, diff));
+        }
+      },
+      delMessage: (whom, id) => {
+        const isDM = whomIsDm(whom);
+        const diff = { del: null };
+        if (isDM) {
+          api.poke(dmAction(whom, diff, id));
+        } else {
+          api.poke(chatWritDiff(whom, id, diff));
+        }
+      },
+      create: async (req) => {
+        await api.poke({
+          app: 'chat',
+          mark: 'chat-create',
+          json: req,
+        });
+      },
+      initializeMultiDm: async (id) => {
+        if (get().multiDmSubs.includes(id)) {
+          return;
+        }
+        get().batchSet((draft) => {
+          draft.multiDmSubs.push(id);
+        });
+        await makeWritsStore(
+          id,
+          get,
+          `/club/${id}/writs`,
+          `/club/${id}/ui/writs`
+        ).initialize();
+
+        api.subscribe({
+          app: 'chat',
+          path: `/club/${id}/ui`,
+          event: (event: ClubDelta) => {
+            get().batchSet(clubReducer(id, event));
           },
-        };
-        draft.dms[ship] = chat;
-      });
-    });
-    const archive = await api.scry<string[]>({
-      app: 'chat',
-      path: '/dm/archive',
-    });
-    get().batchSet((draft) => {
-      draft.dmArchive = archive;
-    });
-  },
-  unarchiveDm: async (ship) => {
-    await api.poke({
-      app: 'chat',
-      mark: 'dm-unarchive',
-      json: ship,
-    });
-  },
-  archiveDm: async (ship) => {
-    await api.poke({
-      app: 'chat',
-      mark: 'dm-archive',
-      json: ship,
-    });
-    get().batchSet((draft) => {
-      delete draft.pacts[ship];
-      delete draft.dms[ship];
-      delete draft.briefs[ship];
-    });
-  },
-  joinChat: async (flag) => {
-    await api.poke({
-      app: 'chat',
-      mark: 'flag',
-      json: flag,
-    });
-  },
-  dmRsvp: async (ship, ok) => {
-    get().batchSet((draft) => {
-      draft.pendingDms = draft.pendingDms.filter((d) => d !== ship);
-      if (!ok) {
-        delete draft.pacts[ship];
-        delete draft.dms[ship];
-        delete draft.briefs[ship];
-      }
-    });
-
-    await api.poke({
-      app: 'chat',
-      mark: 'dm-rsvp',
-      json: {
-        ship,
-        ok,
+        });
       },
-    });
-  },
-  sendMessage: (whom, memo) => {
-    const isDM = whomIsDm(whom);
-    const isMultiDm = whomIsMultiDm(whom);
-    const diff = { add: memo };
-    if (isDM) {
-      api.poke(dmAction(whom, { add: memo }));
-    } else if (isMultiDm) {
-      api.poke(
-        multiDmAction(whom, {
-          writ: {
-            id: makeId(),
-            delta: { add: { ...memo, sent: Date.now() } },
+      createMultiDm: async (id, hive) => {
+        get().batchSet((draft) => {
+          draft.multiDms[id] = {
+            hive,
+            team: [window.our],
+            meta: {
+              title: '',
+              description: '',
+              image: '',
+              color: '',
+            },
+          };
+        });
+        await api.poke({
+          app: 'chat',
+          mark: 'club-create',
+          json: {
+            id,
+            hive,
           },
-        })
-      );
-    } else {
-      const id = makeId();
-      api.poke(chatWritDiff(whom, id, diff));
-    }
-  },
-  delMessage: (whom, id) => {
-    const isDM = whomIsDm(whom);
-    const diff = { del: null };
-    if (isDM) {
-      api.poke(dmAction(whom, diff, id));
-    } else {
-      api.poke(chatWritDiff(whom, id, diff));
-    }
-  },
-  create: async (req) => {
-    await api.poke({
-      app: 'chat',
-      mark: 'chat-create',
-      json: req,
-    });
-  },
-  initializeMultiDm: async (id) => {
-    if (get().multiDmSubs.includes(id)) {
-      return;
-    }
-    get().batchSet((draft) => {
-      draft.multiDmSubs.push(id);
-    });
-    await makeWritsStore(
-      id,
-      get,
-      `/club/${id}/writs`,
-      `/club/${id}/ui/writs`
-    ).initialize();
-
-    api.subscribe({
-      app: 'chat',
-      path: `/club/${id}/ui`,
-      event: (event: ClubDelta) => {
-        get().batchSet(clubReducer(id, event));
+        });
       },
-    });
-  },
-  createMultiDm: async (id, hive) => {
-    get().batchSet((draft) => {
-      draft.multiDms[id] = {
-        hive,
-        team: [window.our],
-        meta: {
-          title: '',
-          description: '',
-          image: '',
-          color: '',
-        },
-      };
-    });
-
-    await api.poke({
-      app: 'chat',
-      mark: 'club-create',
-      json: {
-        id,
-        hive,
+      editMultiDm: async (id, meta) => {
+        await api.poke(multiDmAction(id, { meta }));
       },
-    });
-  },
-  editMultiDm: async (id, meta) => {
-    await api.poke(multiDmAction(id, { meta }));
-  },
-  inviteToMultiDm: async (id, hive) => {
-    await api.poke(multiDmAction(id, { hive: { ...hive, add: true } }));
-  },
-  removeFromMultiDm: async (id, hive) => {
-    await api.poke(multiDmAction(id, { hive: { ...hive, add: false } }));
-  },
-  multiDmRsvp: async (id, ok) => {
-    await api.poke(multiDmAction(id, { team: { ship: window.our, ok } }));
-    await get().fetchMultiDm(id, true);
-  },
-  addSects: async (whom, sects) => {
-    await api.poke(chatAction(whom, { 'add-sects': sects }));
-  },
-  initialize: async (whom: string) => {
-    if (whom in get().chats) {
-      return;
-    }
-
-    const perms = await api.scry<ChatPerm>({
-      app: 'chat',
-      path: `/chat/${whom}/perm`,
-    });
-    get().batchSet((draft) => {
-      const chat = {
-        writs: new BigIntOrderedMap<ChatWrit>(),
-        perms,
-        draft: { block: [], inline: [] },
-      };
-      draft.chats[whom] = chat;
-    });
-
-    await makeWritsStore(
-      whom,
-      get,
-      `/chat/${whom}/writs`,
-      `/chat/${whom}/ui/writs`
-    ).initialize();
-  },
-  getDraft: async (whom) => {
-    const chatDraft = await api.scry<ChatDraft>({
-      app: 'chat',
-      path: `/draft/${whom}`,
-    });
-    set((draft) => {
-      draft.drafts[whom] = chatDraft.story;
-    });
-  },
-  draft: async (whom, story) => {
-    api.poke({
-      app: 'chat',
-      mark: 'chat-draft',
-      json: {
-        whom,
-        story,
+      inviteToMultiDm: async (id, hive) => {
+        await api.poke(multiDmAction(id, { hive: { ...hive, add: true } }));
       },
-    });
-  },
-  initializeDm: async (ship: string) => {
-    if (get().dmSubs.includes(ship)) {
-      return;
+      removeFromMultiDm: async (id, hive) => {
+        await api.poke(multiDmAction(id, { hive: { ...hive, add: false } }));
+      },
+      multiDmRsvp: async (id, ok) => {
+        await api.poke(multiDmAction(id, { team: { ship: window.our, ok } }));
+        await get().fetchMultiDm(id, true);
+      },
+      addSects: async (whom, sects) => {
+        await api.poke(chatAction(whom, { 'add-sects': sects }));
+      },
+      initialize: async (whom: string) => {
+        if (whom in get().chats) {
+          return;
+        }
+
+        const perms = await api.scry<ChatPerm>({
+          app: 'chat',
+          path: `/chat/${whom}/perm`,
+        });
+        get().batchSet((draft) => {
+          const chat = {
+            writs: new BigIntOrderedMap<ChatWrit>(),
+            perms,
+            draft: { block: [], inline: [] },
+          };
+          draft.chats[whom] = chat;
+        });
+
+        await makeWritsStore(
+          whom,
+          get,
+          `/chat/${whom}/writs`,
+          `/chat/${whom}/ui/writs`
+        ).initialize();
+      },
+      getDraft: async (whom) => {
+        const chatDraft = await api.scry<ChatDraft>({
+          app: 'chat',
+          path: `/draft/${whom}`,
+        });
+        set((draft) => {
+          draft.drafts[whom] = chatDraft.story;
+        });
+      },
+      draft: async (whom, story) => {
+        api.poke({
+          app: 'chat',
+          mark: 'chat-draft',
+          json: {
+            whom,
+            story,
+          },
+        });
+      },
+      initializeDm: async (ship: string) => {
+        if (get().dmSubs.includes(ship)) {
+          return;
+        }
+        get().batchSet((draft) => {
+          draft.dmSubs.push(ship);
+        });
+        await makeWritsStore(
+          ship,
+          get,
+          `/dm/${ship}/writs`,
+          `/dm/${ship}/ui`
+        ).initialize();
+      },
+    }),
+    {
+      name: createStorageKey('chat'),
+      version: storageVersion,
+      migrate: clearStorageMigration,
+      partialize: (state) => ({
+        multiDms: state.multiDms,
+      }),
     }
-    get().batchSet((draft) => {
-      draft.dmSubs.push(ship);
-    });
-    await makeWritsStore(
-      ship,
-      get,
-      `/dm/${ship}/writs`,
-      `/dm/${ship}/ui`
-    ).initialize();
-  },
-}));
+  )
+);
 
 export function useMessagesForChat(whom: string) {
   const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);

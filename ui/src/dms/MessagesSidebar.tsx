@@ -37,6 +37,7 @@ export default function MessagesSidebar() {
         <SidebarItem
           to="/dm/new"
           color="text-blue"
+          highlight="bg-blue-soft dark:bg-blue-900 hover:bg-blue-soft hover:dark:bg-blue-900"
           icon={<NewMessageIcon className="h-6 w-6" />}
         >
           New Message

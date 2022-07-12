@@ -9,7 +9,7 @@ exports[`Sidebar > renders as expected 1`] = `
       class="flex w-full flex-col px-2 pt-2"
     >
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
+        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
@@ -43,7 +43,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </li>
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-gray-600"
+        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
@@ -71,7 +71,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </li>
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
+        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
@@ -99,7 +99,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </li>
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold hover:bg-gray-50 sm:text-base text-green hover:bg-green-soft hover:dark:bg-green-900"
+        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-green hover:bg-green-soft hover:dark:bg-green-900"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
