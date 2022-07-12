@@ -1,6 +1,7 @@
 import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import AsteriskIcon from '../components/icons/Asterisk16Icon';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
 import { useIsMobile } from '../logic/useMedia';
 import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
@@ -42,6 +43,20 @@ export default function MessagesSidebar() {
         >
           New Message
         </SidebarItem>
+        <a
+          className="no-underline"
+          href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=chat:"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <SidebarItem
+            color="text-yellow-600 dark:text-yellow-500"
+            highlight="bg-yellow-soft hover:bg-yellow-soft hover:dark:bg-yellow-800"
+            icon={<AsteriskIcon className="m-1 h-4 w-4" />}
+          >
+            Submit Issue
+          </SidebarItem>
+        </a>
         {pinned && pinned.length > 0 ? (
           <>
             <li className="flex items-center space-x-2 p-2">
