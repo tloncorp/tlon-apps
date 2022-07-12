@@ -50,11 +50,11 @@
 }
 
 .dropdown {
-  @apply flex min-w-40 flex-col rounded-lg bg-white py-2 font-semibold shadow-lg dark:border dark:border-gray-50;
+  @apply flex min-w-40 flex-col rounded-lg bg-white py-0 font-semibold shadow-lg dark:border dark:border-gray-50;
 }
 
 .dropdown-item {
-  @apply cursor-pointer rounded-lg px-2 py-3 ring-gray-200 focus:outline-none focus-visible:ring-2;
+  @apply cursor-pointer rounded-lg px-2 py-3 ring-gray-200 focus:outline-none hover:bg-gray-50;
 }
 
 .card {
