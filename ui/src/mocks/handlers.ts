@@ -44,19 +44,31 @@ const sortByUd = (aString: string, bString: string) => {
   return a.compare(b);
 };
 
+const emptyChatWritsSet = {};
+
 const chatWritsSet1 = makeFakeChatWrits(0);
-const startIndexSet1 = Object.keys(chatWritsSet1).sort(sortByUd)[0];
-const set1Da = startIndexSet1;
+const chatWritsSet1Keys = Object.keys(chatWritsSet1).sort(sortByUd);
+const startIndexSet1 = chatWritsSet1Keys[0];
+const set1StartDa = startIndexSet1;
+const set1EndDa = chatWritsSet1Keys[chatWritsSet1Keys.length - 1];
 
 const chatWritsSet2 = makeFakeChatWrits(1);
-const startIndexSet2 = Object.keys(chatWritsSet2).sort(sortByUd)[0];
-const set2Da = startIndexSet2;
+const chatWritsSet2Keys = Object.keys(chatWritsSet2).sort(sortByUd);
+const startIndexSet2 = chatWritsSet2Keys[0];
+const set2StartDa = startIndexSet2;
+const set2EndDa = chatWritsSet2Keys[chatWritsSet2Keys.length - 1];
 
 const chatWritsSet3 = makeFakeChatWrits(2);
-const startIndexSet3 = Object.keys(chatWritsSet3).sort(sortByUd)[0];
-const set3Da = startIndexSet3;
+const chatWritsSet3Keys = Object.keys(chatWritsSet3).sort(sortByUd);
+const startIndexSet3 = chatWritsSet3Keys[0];
+const set3StartDa = startIndexSet3;
+const set3EndDa = chatWritsSet3Keys[chatWritsSet3Keys.length - 1];
 
 const chatWritsSet4 = makeFakeChatWrits(3);
+const chatWritsSet4Keys = Object.keys(chatWritsSet4).sort(sortByUd);
+const startIndexSet4 = chatWritsSet4Keys[0];
+const set4StartDa = startIndexSet4;
+const set4EndDa = chatWritsSet4Keys[chatWritsSet4Keys.length - 1];
 
 const fakeDefaultSub = {
   action: 'subscribe',
@@ -279,24 +291,57 @@ const chat: Handler[] = [
   },
 ];
 
-const olderChats: Handler[] = [
+const newerChats: ScryHandler[] = [
   {
     action: 'scry' as const,
-    path: `/chat/:ship/:name/writs/older/${set1Da}/100`,
+    path: `/chat/:ship/:name/writs/newer/${set1EndDa}/100`,
+    app: 'chat',
+    func: () => emptyChatWritsSet,
+  },
+  {
+    action: 'scry' as const,
+    path: `/chat/:ship/:name/writs/newer/${set2EndDa}/100`,
+    app: 'chat',
+    func: () => chatWritsSet1,
+  },
+  {
+    action: 'scry' as const,
+    path: `/chat/:ship/:name/writs/newer/${set3EndDa}/100`,
     app: 'chat',
     func: () => chatWritsSet2,
   },
   {
     action: 'scry' as const,
-    path: `/chat/:ship/:name/writs/older/${set2Da}/100`,
+    path: `/chat/:ship/:name/writs/newer/${set4EndDa}/100`,
+    app: 'chat',
+    func: () => chatWritsSet3,
+  },
+];
+
+const olderChats: ScryHandler[] = [
+  {
+    action: 'scry' as const,
+    path: `/chat/:ship/:name/writs/older/${set1StartDa}/100`,
+    app: 'chat',
+    func: () => chatWritsSet2,
+  },
+  {
+    action: 'scry' as const,
+    path: `/chat/:ship/:name/writs/older/${set2StartDa}/100`,
     app: 'chat',
     func: () => chatWritsSet3,
   },
   {
     action: 'scry' as const,
-    path: `/chat/:ship/:name/writs/older/${set3Da}/100`,
+    path: `/chat/:ship/:name/writs/older/${set3StartDa}/100`,
     app: 'chat',
     func: () => chatWritsSet4,
+  },
+  {
+    action: 'scry' as const,
+    path: `/chat/:ship/:name/writs/older/${set4StartDa}/100`,
+    app: 'chat',
+    func: () => emptyChatWritsSet,
   },
 ];
 
@@ -314,23 +359,55 @@ const dms: Handler[] = [
     app: 'chat',
     func: () => chatWritsSet1,
   },
+  // newer
   {
     action: 'scry' as const,
-    path: `/dm/:ship/writs/older/${set1Da}/100`,
+    path: `/dm/:ship/writs/newer/${set1EndDa}/100`,
+    app: 'chat',
+    func: () => emptyChatWritsSet,
+  },
+  {
+    action: 'scry' as const,
+    path: `/dm/:ship/writs/newer/${set2EndDa}/100`,
+    app: 'chat',
+    func: () => chatWritsSet1,
+  },
+  {
+    action: 'scry' as const,
+    path: `/dm/:ship/writs/newer/${set3EndDa}/100`,
     app: 'chat',
     func: () => chatWritsSet2,
   },
   {
     action: 'scry' as const,
-    path: `/dm/:ship/writs/older/${set2Da}/100`,
+    path: `/dm/:ship/writs/newer/${set4EndDa}/100`,
+    app: 'chat',
+    func: () => chatWritsSet3,
+  },
+  // older
+  {
+    action: 'scry' as const,
+    path: `/dm/:ship/writs/older/${set1StartDa}/100`,
+    app: 'chat',
+    func: () => chatWritsSet2,
+  },
+  {
+    action: 'scry' as const,
+    path: `/dm/:ship/writs/older/${set2StartDa}/100`,
     app: 'chat',
     func: () => chatWritsSet3,
   },
   {
     action: 'scry' as const,
-    path: `/dm/:ship/writs/older/${set3Da}/100`,
+    path: `/dm/:ship/writs/older/${set3StartDa}/100`,
     app: 'chat',
     func: () => chatWritsSet4,
+  },
+  {
+    action: 'scry' as const,
+    path: `/dm/:ship/writs/older/${set4StartDa}/100`,
+    app: 'chat',
+    func: () => emptyChatWritsSet,
   },
   {
     action: 'scry',
@@ -545,6 +622,6 @@ const mockHandlers: Handler[] = (
       }),
     },
   ] as Handler[]
-).concat(groups, chat, dms, olderChats, clubHandlers);
+).concat(groups, chat, dms, newerChats, olderChats, clubHandlers);
 
 export default mockHandlers;

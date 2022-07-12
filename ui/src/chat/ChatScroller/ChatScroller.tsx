@@ -100,7 +100,9 @@ export default function ChatScroller({
   const fetchMessages = useCallback(
     async (newer: boolean) => {
       if (newer) {
-        return true;
+        return useChatState
+          .getState()
+          .fetchNewer(whom, MESSAGE_FETCH_PAGE_SIZE.toString());
       }
 
       return useChatState
