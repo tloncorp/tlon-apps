@@ -95,7 +95,7 @@ function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
 }
 
 export const useChatState = create<ChatState>(
-  persist(
+  persist<ChatState>(
     (set, get) => ({
       set: (fn) => {
         set(produce(get(), fn));
@@ -396,14 +396,6 @@ export const useChatState = create<ChatState>(
         });
       },
       createMultiDm: async (id, hive) => {
-        await api.poke({
-          app: 'chat',
-          mark: 'club-create',
-          json: {
-            id,
-            hive,
-          },
-        });
         get().batchSet((draft) => {
           draft.multiDms[id] = {
             hive,
@@ -415,6 +407,14 @@ export const useChatState = create<ChatState>(
               color: '',
             },
           };
+        });
+        await api.poke({
+          app: 'chat',
+          mark: 'club-create',
+          json: {
+            id,
+            hive,
+          },
         });
       },
       editMultiDm: async (id, meta) => {

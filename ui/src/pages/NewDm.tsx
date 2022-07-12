@@ -17,15 +17,24 @@ export default function NewDM() {
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const validShips = shipValues.every((ship) => ob.isValidPatp(ship));
   const newClubId = useMemo(() => newUv(), []);
-  const { sendMessage: sendChat } = useChatState.getState();
   const sendMultiDm = useSendMultiDm(true, shipValues);
   const sendDm = useCallback(
     (whom: string, memo: ChatMemo) => {
-      sendChat(whom, memo);
+      const { initializeDm, initializeMultiDm, sendMessage } =
+        useChatState.getState();
+
+      // initialize subs before we send the message so it appears in our log
+      if (isMultiDm) {
+        initializeMultiDm(whom);
+        sendMultiDm(whom, memo);
+      } else {
+        initializeDm(whom);
+        sendMessage(whom, memo);
+      }
 
       navigate(`/dm/${whom}`);
     },
-    [navigate, sendChat]
+    [navigate, sendMultiDm, isMultiDm]
   );
 
   const onEnter = useCallback(
@@ -58,7 +67,7 @@ export default function NewDM() {
             }
             showReply
             sendDisabled={!validShips}
-            sendMessage={isMultiDm ? sendMultiDm : sendDm}
+            sendMessage={sendDm}
           />
         </div>
       }
