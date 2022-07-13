@@ -77,7 +77,7 @@ export default function MobileGroupSidebar() {
               Find
             </NavTab> */}
             <a
-              className="no-underline"
+              className="flex-1 no-underline"
               href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"
               target="_blank"
               rel="noreferrer"

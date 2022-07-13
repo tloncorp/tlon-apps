@@ -6,7 +6,7 @@ import NavTab from '../NavTab';
 import GroupIcon from '../icons/GroupIcon';
 import ActivityIndicator from './ActivityIndicator';
 import AsteriskIcon from '../icons/Asterisk16Icon';
-import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
+// import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
 import GroupList from './GroupList';
 import { usePinnedGroups } from '../../state/groups/groups';
 
@@ -53,7 +53,7 @@ export default function MobileSidebar() {
       </nav>
       <footer className="flex-none border-t-2 border-gray-50">
         <nav>
-          <ul className="flex items-center">
+          <ul className="flex justify-items-stretch">
             <NavTab loc="main">
               <GroupIcon className="mb-0.5 h-6 w-6" />
               Groups
@@ -62,12 +62,12 @@ export default function MobileSidebar() {
               <ActivityIndicator count={notificationCount} className="mb-0.5" />
               Notifications
             </NavTab>
-            <NavTab loc="search">
+            {/* <NavTab loc="search">
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
               Search
-            </NavTab>
+            </NavTab> */}
             <a
-              className="no-underline"
+              className="flex-1 no-underline"
               href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"
               target="_blank"
               rel="noreferrer"

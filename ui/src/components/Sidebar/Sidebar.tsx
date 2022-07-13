@@ -6,7 +6,7 @@ import GroupList from '@/components/Sidebar/GroupList';
 import { usePinnedGroups } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
-import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
+// import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import useSidebarSort from '@/logic/useSidebarSort';
@@ -33,12 +33,12 @@ export default function Sidebar() {
         >
           Notifications
         </SidebarItem>
-        <SidebarItem
+        {/* <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
           to="/search"
         >
           Search My Groups
-        </SidebarItem>
+        </SidebarItem> */}
         <SidebarItem
           color="text-blue"
           highlight="bg-blue-soft dark:bg-blue-900 hover:bg-blue-soft hover:dark:bg-blue-900"
