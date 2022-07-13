@@ -21,10 +21,10 @@ export default function MultiDmHero({ club }: MultiDMHeroProps) {
         sep = ', ';
       }
       return (
-        <>
+        <span key={member}>
           <ShipName name={member} showAlias />
           {sep ? <span>{sep}</span> : null}
-        </>
+        </span>
       );
     });
 

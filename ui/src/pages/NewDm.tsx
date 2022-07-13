@@ -19,17 +19,11 @@ export default function NewDM() {
   const newClubId = useMemo(() => newUv(), []);
   const sendMultiDm = useSendMultiDm(true, shipValues);
   const sendDm = useCallback(
-    (whom: string, memo: ChatMemo) => {
-      const { initializeDm, initializeMultiDm, sendMessage } =
-        useChatState.getState();
-
-      // initialize subs before we send the message so it appears in our log
+    async (whom: string, memo: ChatMemo) => {
       if (isMultiDm) {
-        initializeMultiDm(whom);
-        sendMultiDm(whom, memo);
+        await sendMultiDm(whom, memo);
       } else {
-        initializeDm(whom);
-        sendMessage(whom, memo);
+        await useChatState.getState().sendMessage(whom, memo);
       }
 
       navigate(`/dm/${whom}`);
