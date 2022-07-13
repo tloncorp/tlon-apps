@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 import { Channel } from '@/types/groups';
 import AdminChannelListItem from './AdminChannelListItem';
-import EmptySectionTools from './EmptySectionTools';
+import EmptySectionTools from '../EmptySectionTools';
 
 interface ChannelListItem {
   key: string;
@@ -14,8 +14,6 @@ interface ChannelsProps {
 }
 
 export default function Channels({ channels, listId }: ChannelsProps) {
-  // debugger;
-
   return (
     <Droppable droppableId={listId} type="CHANNELS">
       {(provided, snapshot) => (

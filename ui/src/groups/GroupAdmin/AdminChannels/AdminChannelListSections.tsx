@@ -1,7 +1,6 @@
-import React, { useCallback, useState } from 'react';
-import { Droppable, Draggable } from 'react-beautiful-dnd';
+import React from 'react';
+import { Droppable } from 'react-beautiful-dnd';
 import { Channel } from '@/types/groups';
-import AdminChannelListItem from '@/groups/GroupAdmin/AdminChannelListItem';
 import Section from './Section';
 
 interface ChannelListItem {

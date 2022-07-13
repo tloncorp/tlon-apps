@@ -1,8 +1,8 @@
 import React from 'react';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { useRouteGroup, useGroupState } from '@/state/groups';
-import CaretDown16Icon from '../../components/icons/CaretDown16Icon';
-import CheckIcon from '../../components/icons/CheckIcon';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import CheckIcon from '@/components/icons/CheckIcon';
 
 interface AdminChannelListDropdownProps {
   channelFlag: string;

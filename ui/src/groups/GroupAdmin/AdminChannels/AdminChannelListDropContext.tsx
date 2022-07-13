@@ -1,15 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import {
-  DragDropContext,
-  Draggable,
-  DragUpdate,
-  DraggableLocation,
-} from 'react-beautiful-dnd';
+import { DragDropContext, DraggableLocation } from 'react-beautiful-dnd';
 import bigInt from 'big-integer';
 import { formatUv } from '@urbit/aura';
-import { useGroup, useRouteGroup } from '../../state/groups';
-import { Channel } from '../../types/groups';
-import AdminChannelListItem from './AdminChannelListItem';
+import { Channel } from '@/types/groups';
 import AdminChannelListSections from './AdminChannelListSections';
 import ChannelManagerHeader from './ChannelManagerHeader';
 
@@ -128,6 +121,10 @@ export default function AdminChannelListDropContext({
       }
 
       if (result.type === 'SECTIONS') {
+        if (destination.index === 0) {
+          return;
+        }
+
         const newOrder = reorder(
           orderedSections,
           source.index,

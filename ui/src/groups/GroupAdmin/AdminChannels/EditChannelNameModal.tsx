@@ -1,11 +1,8 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { useParams } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import { Channel, GroupMeta } from '@/types/groups';
-import { useChannelFlag } from '@/hooks';
 
 interface EditChannelNameModalProps {
   editIsOpen: boolean;

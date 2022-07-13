@@ -1,8 +1,6 @@
 import React from 'react';
 import { Channel } from '@/types/groups';
-import bigInt from 'big-integer';
-import { formatUv } from '@urbit/aura';
-import { useGroup, useRouteGroup } from '../../state/groups';
+import { useGroup, useRouteGroup } from '@/state/groups';
 import AdminChannelListDropContext from './AdminChannelListDropContext';
 
 interface SectionMap {
