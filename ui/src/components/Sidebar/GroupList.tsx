@@ -123,7 +123,7 @@ function GroupItemContainer({
     <li
       ref={drop}
       className={cn(
-        'relative flex h-10 w-full ring-4',
+        'relative flex h-16 w-full ring-4 sm:h-10',
         isOver && 'ring-blue-500',
         !isOver && 'ring-transparent'
       )}
@@ -209,7 +209,7 @@ export default function GroupList({
           : undefined
       }
     >
-      <li className="flex items-center space-x-2 px-2 py-3">
+      <li className="-mb-2 flex items-center sm:m-0 md:pr-2">
         <Divider>Pinned</Divider>
         <div className="grow border-b-2 border-gray-100" />
       </li>
