@@ -21,7 +21,7 @@ export default function MobileSidebar() {
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
       <header className="flex-none px-2 py-1">
         {pinned ? (
-          <ul>
+          <ul className="mb-3 space-y-2 sm:mb-2 sm:space-y-0 md:mb-0">
             <GroupList pinned />
           </ul>
         ) : null}

@@ -63,7 +63,7 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
       to={`/dm/${whom}`}
       icon={
         pending ? (
-          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue sm:h-6 sm:w-6" />
+          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue md:h-6 md:w-6" />
         ) : (
           <Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />
         )
@@ -100,7 +100,7 @@ export function MultiDMSidebarItem({
       to={`/dm/${whom}`}
       icon={
         pending ? (
-          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue sm:h-6 sm:w-6" />
+          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue md:h-6 md:w-6" />
         ) : (
           <MultiDmAvatar {...club?.meta} size={isMobile ? 'default' : 'xs'} />
         )
