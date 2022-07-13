@@ -119,6 +119,34 @@ exports[`GroupSidebar > renders as expected 1`] = `
             </div>
           </a>
         </li>
+        <li
+          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-green hover:bg-green-soft hover:dark:bg-green-900"
+        >
+          <a
+            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+            href="/groups//channels/new"
+          >
+            <svg
+              class="m-1 h-4 w-4"
+              fill="none"
+              viewBox="0 0 16 16"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="stroke-current"
+                d="M3 8h10M8 3v10"
+                stroke-linecap="round"
+                stroke-width="2"
+              />
+            </svg>
+            <div
+              class="max-w-full flex-1 truncate text-left"
+              title="Create Channel"
+            >
+              Create Channel
+            </div>
+          </a>
+        </li>
         <a
           class="no-underline"
           href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=groups:"

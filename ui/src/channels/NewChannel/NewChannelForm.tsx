@@ -1,18 +1,19 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
-import { useChatState } from '../state/chat';
-import { useRouteGroup } from '../state/groups/groups';
-import { strToSym } from '../logic/utils';
+import { useChatState } from '../../state/chat';
+import { useRouteGroup } from '../../state/groups/groups';
+import { channelHref, strToSym } from '../../logic/utils';
 
 interface FormSchema {
   title: string;
   description: string;
 }
 
-export default function NewChannel() {
+export default function NewChannelForm() {
   const group = useRouteGroup();
   const navigate = useNavigate();
+  const flag = useRouteGroup();
   const defaultValues: FormSchema = {
     title: '',
     description: '',
@@ -23,7 +24,7 @@ export default function NewChannel() {
     await useChatState
       .getState()
       .create({ ...values, name, group, readers: [] });
-    navigate(`../channels/chat/${window.our}/${name}`);
+    navigate(channelHref(flag, name));
   };
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
