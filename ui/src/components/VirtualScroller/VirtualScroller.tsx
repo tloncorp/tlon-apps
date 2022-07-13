@@ -301,6 +301,8 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   componentDidMount() {
+    console.log('componentDidMount');
+
     const { origin } = this.props;
     this.updateVisible(origin === 'top' ? 0 : this.lastOffset);
 
@@ -313,6 +315,8 @@ export default class VirtualScroller<K, V> extends Component<
     prevProps: VirtualScrollerProps<K, V>,
     _prevState: VirtualScrollerState<K>
   ) {
+    console.log('componentDidUpdate');
+
     const { size, pendingSize, origin } = this.props;
 
     if (size !== prevProps.size || pendingSize !== prevProps.pendingSize) {
@@ -326,6 +330,7 @@ export default class VirtualScroller<K, V> extends Component<
             this.window.scrollTop -
             this.window.offsetHeight;
       if ((scrollTop ?? 0) < ZONE_SIZE) {
+        console.log(`updating visible and resetting in componentDidUpdate using lastOffset: ${this.lastOffset}`);
         this.scrollLocked = true;
         this.updateVisible(origin === 'top' ? 0 : this.lastOffset);
         this.resetScroll();
@@ -373,6 +378,7 @@ export default class VirtualScroller<K, V> extends Component<
   };
 
   onScroll() {
+    console.log('onScroll');
     this.updateScroll();
     if (!this.window) {
       // bail if we're going to adjust scroll anyway
@@ -428,6 +434,7 @@ export default class VirtualScroller<K, V> extends Component<
       }
 
       if (newOffset !== startOffset) {
+        console.log('updating visible in onScroll');
         this.updateVisible(newOffset);
       }
     } else {
@@ -436,6 +443,7 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   get lastOffset() {
+    console.log('lastOffset');
     const { size } = this.props;
     return Math.min(Math.max(size - this.pageSize, 0), size);
   }
@@ -554,6 +562,7 @@ export default class VirtualScroller<K, V> extends Component<
   };
 
   save() {
+    console.log('save');
     if (!this.window || this.savedIndex) {
       return;
     }
@@ -581,6 +590,8 @@ export default class VirtualScroller<K, V> extends Component<
       }
       const { offsetTop } = el;
       if (Math.abs(offsetTop - topSpacing) < 2 * averageHeight) {
+        console.log(`new bottom index: ${index}`);
+        // console.log(el.innerText);
         bottomIndex = index;
       }
     });
@@ -601,19 +612,30 @@ export default class VirtualScroller<K, V> extends Component<
       log('bail', 'missing ref');
       return;
     }
+    
     const { offsetTop } = ref;
+    
+    console.log(`bottom ref: ${ref.innerText}`);
+    console.log(`topSpacing: ${topSpacing}`);
+    console.log(`offsetTop: ${offsetTop}`);
+
     this.savedDistance = topSpacing - offsetTop;
+    console.log(`saved distance: ${this.savedDistance}`);
   }
 
   restore() {
+    console.log('restore');
     const { keyToString } = this.props;
+    console.log('restore:windowAndSavedIndex');
     if (!this.window || !this.savedIndex) {
       return;
     }
+    console.log('restore:deepRestore?');
     if (this.saveDepth !== 1) {
       log('bail', 'Deep restore');
       return;
     }
+    console.log('restore:scrollLocked?');
     if (this.scrollLocked) {
       this.resetScroll();
       requestAnimationFrame(() => {
@@ -625,11 +647,15 @@ export default class VirtualScroller<K, V> extends Component<
     }
 
     const ref = this.childRefs.get(keyToString(this.savedIndex));
+    console.log('restore:hasChildRef?');
     if (!ref) {
       return;
     }
 
     const newScrollTop = this.savedDistance + ref.offsetTop;
+    console.log(`restore:offsetTop: ${ref.offsetTop}`);
+    console.log(`restore:savedDistance: ${this.savedDistance}`);
+    console.log(`restore:newScrollTop: ${newScrollTop}`);
 
     this.window.scrollTo(0, newScrollTop);
     requestAnimationFrame(() => {
@@ -640,6 +666,7 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   resetScroll() {
+    console.log('resetScroll');
     if (!this.window) {
       return;
     }
@@ -671,12 +698,14 @@ export default class VirtualScroller<K, V> extends Component<
     const { data, keyEq, origin } = this.props;
     const { visibleItems } = this.state;
     const startIndex = visibleItems?.[0];
+    console.log(`startOffset:startIndex ${startIndex}`);
     if (!startIndex) {
       return 0;
     }
     const dataList =
       origin === 'top' ? Array.from(data) : Array.from(data).reverse();
     const offset = dataList.findIndex(([i]) => keyEq(i, startIndex));
+    console.log(`startOffset: ${offset}`);
     if (offset === -1) {
       // TODO: revisit when we remove nodes for any other reason than
       // pending indices being removed
@@ -690,6 +719,7 @@ export default class VirtualScroller<K, V> extends Component<
    *  Saves the scroll positions before repainting and restores it afterwards
    */
   updateVisible(newOffset: number) {
+    console.log(`updateVisible with newOffset: ${newOffset}`);
     if (!this.window) {
       return;
     }
@@ -698,6 +728,8 @@ export default class VirtualScroller<K, V> extends Component<
     const { data, origin } = this.props;
     const keys = origin === 'top' ? data.keys() : data.keys().reverse();
     const visibleItems = keys.slice(newOffset, newOffset + this.pageSize);
+
+    console.log('reflow', `last visible item: ${visibleItems[visibleItems.length - 1]}`);
 
     this.save();
 

@@ -122,7 +122,7 @@ export default function ChatScroller({
           data={mess}
           size={mess.size}
           pendingSize={0} // TODO
-          averageHeight={48}
+          averageHeight={32}
           renderer={renderer}
           loadRows={fetchMessages}
         />
