@@ -1,10 +1,9 @@
-import cn from 'classnames';
 import React from 'react';
 import { useIsMobile } from '../../logic/useMedia';
 import { useGroup } from '../../state/groups/groups';
 import useNavStore from '../../components/Nav/useNavStore';
 import CaretLeft16Icon from '../../components/icons/CaretLeft16Icon';
-import MagnifyingGlass from '../../components/icons/MagnifyingGlass16Icon';
+// import MagnifyingGlass from '../../components/icons/MagnifyingGlass16Icon';
 import AsteriskIcon from '../../components/icons/Asterisk16Icon';
 import HashIcon16 from '../../components/icons/HashIcon16';
 import MobileGroupSidebar from './MobileGroupSidebar';
@@ -59,12 +58,12 @@ export default function GroupSidebar() {
           >
             Activity
           </SidebarItem>
-          <SidebarItem
+          {/* <SidebarItem
             icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
             to={`/groups/${flag}/search`}
           >
             Find in Group
-          </SidebarItem>
+          </SidebarItem> */}
           <SidebarItem
             icon={<HashIcon16 className="m-1 h-4 w-4" />}
             to={`/groups/${flag}/all`}
