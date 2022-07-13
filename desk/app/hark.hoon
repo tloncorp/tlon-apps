@@ -1,77 +1,14 @@
-/-  c=chat
+/-  c=chat, h=hark
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
 ::
-+$  rope
-  $:  gop=(unit flag)                 :: originating group
-      can=(unit flag)                 :: originating channel
-      des=desk                        :: originating desk
-  ==
-::
-+$  cable  ?(%group %all)                       :: index 
-+$  weave
-  $:  sen=?                           :: seen?
-      cab=(set cable)                 :: relevant indices
-  ==
-::
-+$  thread
-  [yarns=(set id) sen=?]
-::
-+$  yarn  note
-::
-+$  id   @uwH
-::
-+$  note
-  $:  =id
-      rop=rope
-      ted=path                        :: threading identifier
-      tim=time
-      con=(list content)             :: content of notification
-      rig=origin                     :: originating path (should be list?)
-      but=(unit button)              :: action, if any
-  ==
-::
-+$  button
-  $:  title=cord
-      handler=path
-  ==
-::  $origin: originating path
-+$  origin  path 
-+$  flag  (pair ship term)
-::
-+$  content
-  $%  [%ship p=ship]
-      [%text p=cord]
-      [%emph p=cord]
-  ==
-::
-+$  action
-  $%  ::
-      [%add-note inbox=? =note]
-      [%saw-note =id]
-      ::
-      [%saw-rope =rope]
-  ==
-::
-++  quilt
-  =<  quilt
-  |%
-  +$  thread
-    [yarns=(set id) sen=?]
-  +$  quilt  ((mop time thread) lte)
-  ++  on  ((^on time thread) lte)
-  --
-::
 +$  state-0
   $:  %0
-      yarns=(map id yarn)
-      groups=(map flag quilt)
-      desks=(map desk quilt)
+      yarns=(map id:h yarn:h)
+      groups=(map flag:h quilt:h)
+      desks=(map desk quilt:h)
   ==
-::
-+$  bin  path
-+$  lid  path
 --
 =|  state-0
 =*  state  -
@@ -124,10 +61,12 @@
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
       %hark-action
-    =+  !<(act=action vase)
-    ?+    -.act   !!
+    =+  !<(act=action:h vase)
+    ?-    -.act
+        %saw-seam  se-abet:se-saw:(se-abed seam.act)
+    ::
         %add-note
-      =/  yar=yarn  note.act
+      =/  yar=yarn:h  note.act
       =.  yarns     (~(put by yarns) id.yar yar)
       no-abet:(no-init:(no-abed yar) inbox.act)
     ==
@@ -144,27 +83,51 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   cor
+++  se-abed  se-abed:se-core
+++  se-core
+  |_  =seam:h
+  ++  se-core  .
+  ++  se-abet  cor
+  ++  se-abed  |=(s=seam:h se-core(seam s))
+  ++  se-saw
+    =/  fun  
+      |=(=quilt:h (run:on:quilt:h quilt |=(thread:h +<(sen &))))
+    =.  .
+      ?-  -.seam
+        %group  .(groups (~(jab by groups) flag.seam fun))
+        %desk    .(desks (~(jab by desks) desk.seam fun))
+      ==
+    se-core
+  --
+++  qu-core
+  |_  =quilt:h
+  ++  qu-core  .
+  ++  qu-abed
+    |=  q=quilt:h
+    qu-core(quilt q)
+  ++  qu-abet  cor
+  --
 ++  no-abed   no-abed:no-core
 ++  no-core
-  |_  =note
+  |_  =note:h
   ++  no-core  .
   ++  no-abed  
-    |=  n=^note
+    |=  n=note:h
     no-core(note n)
   ++  no-abet  cor
   ++  no-thread-groups-quilt
     ?~  gop.rop.note  no-core
     =*  group  u.gop.rop.note
-    =/  =thread  [(silt id.note ~) |]
-    =/  qul=quilt   (~(gut by groups) group ~)
-    =.  qul  (put:on:quilt qul now.bowl thread)
+    =/  =thread:h  [(silt id.note ~) |]
+    =/  qul=quilt:h   (~(gut by groups) group ~)
+    =.  qul  (put:on:quilt:h qul now.bowl thread)
     =.  groups  (~(put by groups) group qul)
     no-core
   ++  no-thread-desk-quilt
     =*  desk  des.rop.note
-    =/  =thread  [(silt id.note ~) |]
-    =/  qul=quilt   (~(gut by desks) desk ~)
-    =.  qul  (put:on:quilt qul now.bowl thread)
+    =/  =thread:h  [(silt id.note ~) |]
+    =/  qul=quilt:h   (~(gut by desks) desk ~)
+    =.  qul  (put:on:quilt:h qul now.bowl thread)
     =.  desks  (~(put by desks) desk qul)
     no-core
   ++  no-init
