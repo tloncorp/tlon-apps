@@ -2,6 +2,7 @@
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
+++  yarns-per-update  3
 ::
 +$  state-0
   $:  %0
@@ -35,10 +36,7 @@
     =^  cards  state
       abet:(watch:cor path)
     [cards this]
-  ++  on-peek
-    |=  =path
-    ^-  (unit (unit cage))
-    [~ ~]
+  ++  on-peek  peek:cor
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
     =^  cards  state
@@ -71,6 +69,25 @@
       no-abet:(no-init:(no-abed yar) inbox.act)
     ==
   ==
+++  peek
+  |=  =(pole knot)
+  ^-  (unit (unit cage))
+  ?+  pole  [~ ~]
+  ::
+      [%x %group ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    =/  =flag:h  [ship name.pole]
+    =/  =quilt:h  (~(got by groups) flag)
+    ?+  rest.pole  [~ ~]
+    ::
+        [%latest ~]
+      =-  ``hark-update+!>(-)
+      %+  threads-to-update  [%group flag]
+      %-  ~(gas by *(map time thread:h))
+      %+  scag  20
+      (bap:on:quilt:h quilt)
+    ==
+  ==
 ++  watch
   |=  =path
   ^+  cor
@@ -83,6 +100,21 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   cor
+++  threads-to-update
+  |=  [=seam:h teds=(map time thread:h)]
+  ^-  update:h
+  =-  [- seam teds]
+  ^-  (map id:h yarn:h)
+  %-  ~(gas by *(map id:h yarn:h))
+  %-  zing
+  %+  turn  ~(tap by teds)
+  |=  [=time =thread:h]
+  %+  scag  yarns-per-update
+  %+  murn  ~(tap in yarns.thread)
+  |=  =id:h
+  ^-  (unit [id:h yarn:h])
+  ?~  yar=(~(get by yarns) id)  ~
+  `[id u.yar]
 ++  se-abed  se-abed:se-core
 ++  se-core
   |_  =seam:h

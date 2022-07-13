@@ -48,10 +48,19 @@
       [%add-note inbox=? =note]
       [%saw-seam =seam]
   ==
+::
++$  update
+  $:  yarns=(map id yarn)
+      =seam
+      threads=(map time thread)
+  ==
+::
 +$  seam
   $%  [%group =flag]
       [%desk =desk]
   ==
++$  fibre
+  [=seam =time]
 ::
 ++  quilt
   =<  quilt
