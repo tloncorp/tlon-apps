@@ -276,6 +276,10 @@ export default function ChatInput({
     debounce(
       useCallback(
         ({ editor }) => {
+          if (!whom) {
+            return;
+          }
+
           const data = parseTipTapJSON(editor?.getJSON());
           useChatState.getState().draft(whom, {
             inline: Array.isArray(data) ? data : [data],
