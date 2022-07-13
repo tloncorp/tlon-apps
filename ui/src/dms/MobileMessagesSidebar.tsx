@@ -8,7 +8,7 @@ import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
 import useNavStore from '@/components/Nav/useNavStore';
-import AddIcon from '@/components/icons/AddIcon';
+import NewMessageIcon from '@/components/icons/NewMessageIcon';
 import {
   useBriefs,
   usePinned,
@@ -96,8 +96,9 @@ export default function MobileMessagesSidebar() {
           to="/dm/new"
           onClick={() => navPrimary('hidden')}
           aria-label="New Direct Message"
+          className="mr-2"
         >
-          <AddIcon className="h-6 w-6 text-gray-600" />
+          <NewMessageIcon className="h-6 w-6 text-blue" />
         </Link>
       </header>
       <MessagesList filter={filter} />
