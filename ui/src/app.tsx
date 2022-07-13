@@ -11,7 +11,6 @@ import { ErrorBoundary } from 'react-error-boundary';
 import Groups from '@/groups/Groups';
 import Channel from '@/pages/Channel';
 import { useGroupState } from '@/state/groups';
-import NewChannel from '@/pages/NewChannel';
 import Members from '@/pages/Members';
 import Roles from '@/pages/Roles';
 import { useChatState } from '@/state/chat';
@@ -40,6 +39,7 @@ import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
 import MultiDMEditModal from './dms/MultiDMEditModal';
+import NewChannel from './channels/NewChannel/NewChannel';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -108,7 +108,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="channels/:app/:chShip/:chName/settings"
             element={<ChannelSettings />}
           />
-          <Route path="channels/new" element={<NewChannel />} />
         </Route>
       </Routes>
       {state?.backgroundLocation ? (
@@ -119,6 +118,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
           <Route path="/gangs/:ship/:name" element={<GangModal />} />
+          <Route
+            path="/groups/:ship/:name/channels/new"
+            element={<NewChannel />}
+          />
         </Routes>
       ) : null}
     </>
