@@ -61,14 +61,16 @@
   ==
 +$  fibre
   [=seam =time]
++$  rug
+  [new=(map bin thread) qul=quilt]
 ::
 ++  quilt
   =<  quilt
   |%
   +$  thread
     [yarns=(set id) sen=?]
-  +$  quilt  ((mop time thread) lte)
-  ++  on  ((^on time thread) lte)
+  +$  quilt  ((mop @ud thread) lte)
+  ++  on  ((^on @ud thread) lte)
   --
 +$  bin  path
 +$  lid  path

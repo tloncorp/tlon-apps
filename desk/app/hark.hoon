@@ -3,12 +3,26 @@
 |%
 +$  card  card:agent:gall
 ++  yarns-per-update  3
+::  TODO: move to stdlib
+++  zip
+  |*  [a=(list) b=(list)]
+  ^-  (list _?>(?=(^ a) ?>(?=(^ b) [i.a i.b])))
+  ?~  a  ~
+  ?~  b  ~
+  :-  [i.a i.b] 
+  $(a t.a, b t.b)
+::
+++  quilt-idx
+  |=  =quilt:h
+  ?~  tal=(pry:on:quilt:h quilt)
+    0
+  +(key.u.tal)
 ::
 +$  state-0
   $:  %0
       yarns=(map id:h yarn:h)
-      groups=(map flag:h quilt:h)
-      desks=(map desk quilt:h)
+      groups=(map flag:h rug:h)
+      desks=(map desk rug:h)
   ==
 --
 =|  state-0
@@ -77,15 +91,15 @@
       [%x %group ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     =/  =flag:h  [ship name.pole]
-    =/  =quilt:h  (~(got by groups) flag)
+    =/  =rug:h  (~(got by groups) flag)
     ?+  rest.pole  [~ ~]
     ::
         [%latest ~]
       =-  ``hark-update+!>(-)
       %+  threads-to-update  [%group flag]
-      %-  ~(gas by *(map time thread:h))
+      %-  ~(gas by *(map @ud thread:h))
       %+  scag  20
-      (bap:on:quilt:h quilt)
+      (bap:on:quilt:h qul.rug)
     ==
   ==
 ++  watch
@@ -101,7 +115,7 @@
   ^+  cor
   cor
 ++  threads-to-update
-  |=  [=seam:h teds=(map time thread:h)]
+  |=  [=seam:h teds=(map @ thread:h)]
   ^-  update:h
   =-  [- seam teds]
   ^-  (map id:h yarn:h)
@@ -123,7 +137,13 @@
   ++  se-abed  |=(s=seam:h se-core(seam s))
   ++  se-saw
     =/  fun  
-      |=(=quilt:h (run:on:quilt:h quilt |=(thread:h +<(sen &))))
+      |=  =rug:h
+      =/  start  (quilt-idx qul.rug)
+      =/  new  ~(val by new.rug)
+      %_  rug
+        new  ~
+        qul  (gas:on:quilt:h qul.rug (zip (gulf start (lent new)) new))
+      ==
     =.  .
       ?-  -.seam
         %group  .(groups (~(jab by groups) flag.seam fun))
@@ -151,16 +171,18 @@
     ?~  gop.rop.note  no-core
     =*  group  u.gop.rop.note
     =/  =thread:h  [(silt id.note ~) |]
-    =/  qul=quilt:h   (~(gut by groups) group ~)
-    =.  qul  (put:on:quilt:h qul now.bowl thread)
-    =.  groups  (~(put by groups) group qul)
+    =/  =rug:h   (~(gut by groups) group [~ ~])
+    =/  idx=@ud  (quilt-idx qul.rug)
+    =.  qul.rug  (put:on:quilt:h qul.rug idx thread)
+    =.  groups  (~(put by groups) group rug)
     no-core
   ++  no-thread-desk-quilt
     =*  desk  des.rop.note
     =/  =thread:h  [(silt id.note ~) |]
-    =/  qul=quilt:h   (~(gut by desks) desk ~)
-    =.  qul  (put:on:quilt:h qul now.bowl thread)
-    =.  desks  (~(put by desks) desk qul)
+    =/  =rug:h   (~(gut by desks) desk [~ ~])
+    =/  idx=@ud  (quilt-idx qul.rug)
+    =.  qul.rug  (put:on:quilt:h qul.rug idx thread)
+    =.  desks  (~(put by desks) desk rug)
     no-core
   ++  no-init
     |=  inbox=?
