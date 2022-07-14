@@ -23,7 +23,6 @@ export default function AdminChannelListDropContext({
     currentSectionKey: string,
     nextSectionTitle: string
   ) => {
-    // debugger;
     const nextSections = sections;
 
     // if zone with same title exists, exit

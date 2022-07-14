@@ -49,6 +49,7 @@ export default function SectionNameEditInput({
       <input
         {...register('zone')}
         type="text"
+        placeholder="Section Name"
         className="input w-full border-gray-200 bg-transparent text-lg font-semibold focus:bg-transparent"
       />
     </form>
