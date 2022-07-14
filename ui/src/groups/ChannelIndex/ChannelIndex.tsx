@@ -7,13 +7,13 @@ import { Channel } from '@/types/groups';
 import { groupBy } from 'lodash';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import { channelHref, pluralize } from '@/logic/utils';
-import CaretDownIcon from '@/components/icons/CaretDownIcon';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useBriefs, useChatState } from '@/state/chat';
 import { LoadingSpinner } from '@/components/LoadingSpinner/LoadingSpinner';
 import { Link } from 'react-router-dom';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 
 const UNZONED = '';
 const READY = 'READY';
@@ -109,9 +109,9 @@ function Channel({ channel }: { channel: Channel }) {
         {joined ? (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild className="appearance-none">
-              <button className="flex flex-row items-center rounded-md bg-green-soft py-2 px-4 font-semibold text-green">
+              <button className="button bg-green-soft text-green">
                 <span className="mr-1">Joined</span>{' '}
-                <CaretDownIcon className="h-6 w-6" />
+                <CaretDown16Icon className="h-4 w-4" />
               </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content className="dropdown">
@@ -135,7 +135,7 @@ function Channel({ channel }: { channel: Channel }) {
           <button
             disabled={joinState === PENDING}
             onClick={joinChannel}
-            className={cn('rounded-md py-2 px-4 font-semibold', {
+            className={cn('button disabled:bg-gray-50', {
               'bg-gray-50': [READY, PENDING].includes(joinState),
               'bg-red-soft': joinState === FAILED,
               'text-gray-800': joinState === READY,
@@ -228,15 +228,15 @@ export default function ChannelIndex() {
           </button>
         ) : null}
       </div>
-      <div className="w-full rounded-xl bg-white px-4 py-1">
-        {zones.map((zone) => (
+      {zones.map((zone) => (
+        <div className="mb-2 w-full rounded-xl bg-white px-4 py-1">
           <ChannelSection
             key={zone}
             channels={sectionedChannels[zone]}
             zone={zone}
           />
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
