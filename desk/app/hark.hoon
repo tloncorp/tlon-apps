@@ -14,7 +14,7 @@
 ::
 ++  quilt-idx
   |=  =quilt:h
-  ?~  tal=(pry:on:quilt:h quilt)
+  ?~  tal=(ram:on:quilt:h quilt)
     0
   +(key.u.tal)
 ::
@@ -141,8 +141,11 @@
       =/  start  (quilt-idx qul.rug)
       =/  new  ~(val by new.rug)
       %_  rug
-        new  ~
-        qul  (gas:on:quilt:h qul.rug (zip (gulf start (lent new)) new))
+          new  ~
+      ::
+          qul  
+        %+  gas:on:quilt:h  qul.rug
+        (zip (gulf start (add start (lent new))) new)
       ==
     =.  .
       ?-  -.seam
@@ -170,19 +173,20 @@
   ++  no-thread-groups-quilt
     ?~  gop.rop.note  no-core
     =*  group  u.gop.rop.note
-    =/  =thread:h  [(silt id.note ~) |]
     =/  =rug:h   (~(gut by groups) group [~ ~])
-    =/  idx=@ud  (quilt-idx qul.rug)
-    =.  qul.rug  (put:on:quilt:h qul.rug idx thread)
-    =.  groups  (~(put by groups) group rug)
+    =/  =thread:h   (~(gut by new.rug) ted.note [~ |])
+    =.  yarns.thread   (~(put in yarns.thread) id.note)
+    =.  new.rug  (~(put by new.rug) ted.note thread)
+    =.  groups   (~(put by groups) group rug)
     no-core
   ++  no-thread-desk-quilt
     =*  desk  des.rop.note
     =/  =thread:h  [(silt id.note ~) |]
     =/  =rug:h   (~(gut by desks) desk [~ ~])
-    =/  idx=@ud  (quilt-idx qul.rug)
-    =.  qul.rug  (put:on:quilt:h qul.rug idx thread)
-    =.  desks  (~(put by desks) desk rug)
+    =/  =thread:h   (~(gut by new.rug) ted.note [~ |])
+    =.  yarns.thread   (~(put in yarns.thread) id.note)
+    =.  new.rug  (~(put by new.rug) ted.note thread)
+    =.  desks    (~(put by desks) desk rug)
     no-core
   ++  no-init
     |=  inbox=?
