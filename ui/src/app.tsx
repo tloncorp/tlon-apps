@@ -41,7 +41,6 @@ import NewGroup from '@/groups/NewGroup/NewGroup';
 import MultiDMEditModal from './dms/MultiDMEditModal';
 import NewChannel from './channels/NewChannel/NewChannel';
 import ChannelIndex from './groups/ChannelIndex/ChannelIndex';
-import GroupChannelManager from './groups/GroupAdmin/GroupChannelManager';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -99,7 +98,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             <Route index element={<GroupInfo />} />
             <Route path="members" element={<GroupMemberManager />} />
             <Route path="applets" element={<div />} />
-            <Route path="channel-settings" element={<GroupChannelManager />} />
+            <Route path="channel-settings" element={<div />} />
           </Route>
           <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
             <Route
