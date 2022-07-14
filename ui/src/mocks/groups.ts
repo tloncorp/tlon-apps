@@ -83,6 +83,10 @@ const mockGroupOne: Group = {
         image: '',
         color: '',
       },
+      added: 1657774188151,
+      join: false,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -129,6 +133,10 @@ const mockGroupTwo: Group = {
         image: '',
         color: '',
       },
+      added: 1657774188151,
+      join: true,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -158,6 +166,10 @@ function createChannel(title: string) {
       image: '',
       color: '',
     },
+    added: 1657774188151,
+    join: false,
+    readers: [],
+    zone: null,
   };
 }
 
