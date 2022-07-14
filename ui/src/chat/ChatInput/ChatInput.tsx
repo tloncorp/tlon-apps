@@ -1,7 +1,7 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
 import { ChatInline, ChatMemo, ChatStory } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
@@ -272,25 +272,23 @@ export default function ChatInput({
     useChatStore.getState().reply(whom, null);
   }, [whom]);
 
-  const onUpdate = useRef(
-    debounce(
-      useCallback(
-        ({ editor }) => {
-          if (!whom) {
-            return;
-          }
+  const onUpdate = useMemo(
+    () =>
+      debounce(({ editor }) => {
+        if (!whom) {
+          return;
+        }
 
-          const data = parseTipTapJSON(editor?.getJSON());
-          useChatState.getState().draft(whom, {
-            inline: Array.isArray(data) ? data : [data],
-            block: [],
-          });
-        },
-        [whom]
-      ),
-      5000
-    )
+        const data = parseTipTapJSON(editor?.getJSON());
+        useChatState.getState().draft(whom, {
+          inline: Array.isArray(data) ? data : [data],
+          block: [],
+        });
+      }, 1000),
+    [whom]
   );
+
+  useEffect(() => () => onUpdate.cancel(), [onUpdate]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -320,12 +318,6 @@ export default function ChatInput({
     [reply, whom, sendMessage, closeReply]
   );
 
-  useEffect(() => {
-    if (whom) {
-      useChatState.getState().getDraft(whom);
-    }
-  }, [whom]);
-
   const messageEditor = useMessageEditor({
     content: '',
     placeholder: 'Message',
@@ -336,8 +328,15 @@ export default function ChatInput({
       },
       [onSubmit]
     ),
-    onUpdate: onUpdate.current,
+    onUpdate,
   });
+
+  useEffect(() => {
+    if (whom) {
+      messageEditor?.commands.setContent('');
+      useChatState.getState().getDraft(whom);
+    }
+  }, [whom, messageEditor]);
 
   useEffect(() => {
     if (reply) {
