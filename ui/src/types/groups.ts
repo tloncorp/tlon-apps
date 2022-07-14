@@ -19,9 +19,15 @@ export interface Cabals {
 export interface Channel {
   added: number;
   meta: GroupMeta;
-  join: boolean;
+  zone: Zone | null;
   readers: string[];
-  zone: string | null;
+  join: boolean;
+}
+
+export type Zone = string;
+
+export interface Zones {
+  [key: Zone]: GroupMeta;
 }
 
 export interface Vessel {
@@ -58,6 +64,7 @@ export interface Group {
   };
   cordon: Cordon;
   meta: GroupMeta;
+  zones: Zones;
 }
 
 export interface Fleet {
@@ -104,14 +111,42 @@ interface CabalDiff {
 interface ChannelDiffAdd {
   add: Channel;
 }
+
 interface ChannelDiffDel {
   del: null;
+}
+
+interface ChannelDiffAddZone {
+  'add-zone': string;
+}
+
+interface ChannelDiffDelZone {
+  'del-zone': null;
+}
+
+interface ChannelDiffAddSects {
+  'add-sects': string[];
+}
+
+interface ChannelDiffDelSects {
+  'del-sects': string[];
+}
+
+interface ChannelDiffJoin {
+  join: boolean;
 }
 
 interface ChannelDiff {
   channel: {
     flag: string;
-    diff: ChannelDiffAdd | ChannelDiffDel;
+    diff:
+      | ChannelDiffAdd
+      | ChannelDiffDel
+      | ChannelDiffAddZone
+      | ChannelDiffDelZone
+      | ChannelDiffAddSects
+      | ChannelDiffDelSects
+      | ChannelDiffJoin;
   };
 }
 
@@ -154,6 +189,20 @@ export interface CordonDiff {
   cordon: CordonDiffShut | CordonDiffOpen | { swap: Cordon };
 }
 
+interface ZoneAdd {
+  zone: Zone;
+  delta: { add: GroupMeta };
+}
+
+interface ZoneDelete {
+  zone: Zone;
+  delta: { del: null };
+}
+
+interface ZoneDiff {
+  zone: ZoneAdd | ZoneDelete;
+}
+
 export interface MetaDiff {
   meta: GroupMeta;
 }
@@ -174,7 +223,8 @@ export type GroupDiff =
   | FleetDiff
   | CabalDiff
   | ChannelDiff
-  | CordonDiff;
+  | CordonDiff
+  | ZoneDiff;
 
 export interface GroupUpdate {
   time: string;

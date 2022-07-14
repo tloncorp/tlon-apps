@@ -36,6 +36,7 @@ import GroupInviteDialog from '@/groups/GroupInviteDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
+import GroupChannelManager from '@/groups/GroupAdmin/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
 import MultiDMEditModal from './dms/MultiDMEditModal';
@@ -97,7 +98,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="info" element={<GroupAdmin />}>
             <Route index element={<GroupInfo />} />
             <Route path="members" element={<GroupMemberManager />} />
-            <Route path="applets" element={<div />} />
+            <Route path="channels" element={<GroupChannelManager />} />
             <Route path="channel-settings" element={<div />} />
           </Route>
           <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
