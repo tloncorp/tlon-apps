@@ -18,6 +18,7 @@ import {
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
+import { deSig } from '@urbit/api';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import X16Icon from '@/components/icons/X16Icon';
@@ -25,7 +26,7 @@ import { preSig } from '@/logic/utils';
 import Avatar from '@/components/Avatar';
 import { useMemoizedContacts } from '@/state/contact';
 import { MAX_DISPLAYED_OPTIONS } from '@/constants';
-import { deSig } from '@urbit/api';
+import ShipName from './ShipName';
 
 export interface ShipOption {
   value: string;
@@ -51,23 +52,24 @@ function Control({ children, ...props }: ControlProps<ShipOption, true>) {
   );
 }
 
-function ShipName({ data, ...props }: OptionProps<ShipOption, true>) {
-  const { value, label } = data;
+function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
+  const { value: rawValue, label } = data;
+  const value = preSig(rawValue);
   return (
     <components.Option data={data} className="hover:cursor-pointer" {...props}>
       <div className="flex items-center space-x-1">
-        {ob.isValidPatp(preSig(value)) ? (
-          <Avatar ship={preSig(value)} size="xs" />
+        {ob.isValidPatp(value) ? (
+          <Avatar ship={value} size="xs" />
         ) : (
           <div className="h-6 w-6 rounded bg-white" />
         )}
         {label ? (
           <>
             <span className="font-semibold">{label}</span>
-            <span className="font-semibold text-gray-300">{preSig(value)}</span>
+            <ShipName name={value} className="font-semibold text-gray-300" />
           </>
         ) : (
-          <span className="font-semibold">{preSig(value)}</span>
+          <ShipName name={value} showAlias className="font-semibold" />
         )}
       </div>
     </components.Option>
@@ -124,16 +126,16 @@ function SingleShipLabel({ data }: { data: ShipOption }) {
   const { value } = data;
   return (
     <div className="flex h-6 items-center rounded bg-gray-100">
-      <span className="py-1 px-2 font-semibold">{value}</span>
+      <ShipName name={value} showAlias className="py-1 px-2 font-semibold" />
     </div>
   );
 }
 
 function ShipTagLabel({ data }: { data: ShipOption }) {
-  const { value, label } = data;
+  const { value } = data;
   return (
     <div className="flex h-6 items-center rounded-l bg-gray-100">
-      <span className="p-1 font-semibold">{label || value}</span>
+      <ShipName name={value} showAlias className="p-1 font-semibold" />
     </div>
   );
 }
@@ -386,7 +388,7 @@ export default function ShipSelector({
           DropdownIndicator: () => null,
           IndicatorSeparator: () => null,
           ClearIndicator: () => null,
-          Option: ShipName,
+          Option: ShipItem,
           NoOptionsMessage: NoShipsMessage,
           SingleValue: SingleShipLabel,
           ValueContainer: SingleValueShipTagLabelContainer,
@@ -459,7 +461,7 @@ export default function ShipSelector({
         DropdownIndicator: () => null,
         IndicatorSeparator: () => null,
         ClearIndicator: () => null,
-        Option: ShipName,
+        Option: ShipItem,
         NoOptionsMessage: NoShipsMessage,
         MultiValueLabel: ShipTagLabel,
         MultiValueContainer: ShipTagLabelContainer,
