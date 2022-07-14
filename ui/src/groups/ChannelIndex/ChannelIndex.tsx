@@ -1,16 +1,65 @@
-import React from 'react';
+/* eslint-disable no-console */
+import React, { useCallback, useState } from 'react';
+import cn from 'classnames';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { useNavigate } from 'react-router';
 import { Channel } from '@/types/groups';
 import { groupBy } from 'lodash';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import { pluralize } from '@/logic/utils';
+import CaretDownIcon from '@/components/icons/CaretDownIcon';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import LeaveIcon from '@/components/icons/LeaveIcon';
+import BulletIcon from '@/components/icons/BulletIcon';
+import { useChatState } from '@/state/chat';
+import { LoadingSpinner } from '@/components/LoadingSpinner/LoadingSpinner';
 
 const UNZONED = '';
+const READY = 'READY';
+const PENDING = 'PENDING';
+const FAILED = 'FAILED';
+type JoinState = typeof READY | typeof PENDING | typeof FAILED;
 
 function Channel({ channel }: { channel: Channel }) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const [joinState, setJoinState] = useState<JoinState>(READY);
+
+  const joinChannel = useCallback(async () => {
+    try {
+      if (timer) {
+        clearTimeout(timer);
+        setTimer(null);
+      }
+      setJoinState(PENDING);
+      await useChatState.getState().joinChat(flag);
+      setJoinState(READY);
+    } catch (error) {
+      if (error) {
+        console.error(`[ChannelIndex:JoinError] ${error}`);
+      }
+      setJoinState(FAILED);
+      setTimer(
+        setTimeout(() => {
+          setJoinState(READY);
+          setTimer(null);
+        }, 10 * 1000)
+      );
+    }
+  }, [flag, timer]);
+
+  const leaveChannel = useCallback(() => {
+    // TODO: what happens on Leave?
+    console.log('leave ...');
+  }, []);
+
+  const muteChannel = useCallback(() => {
+    // TODO: what happens on Mute?
+    console.log('mute ...');
+  }, []);
 
   if (!group) {
     return null;
@@ -39,10 +88,52 @@ function Channel({ channel }: { channel: Channel }) {
       {/* action and options */}
       <div>
         {channel.join ? (
-          <button>Joined</button>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild className="appearance-none">
+              <button className="flex flex-row items-center rounded-md bg-green-soft py-2 px-4 font-semibold text-green">
+                <span className="mr-1">Joined</span>{' '}
+                <CaretDownIcon className="h-6 w-6" />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content className="dropdown">
+              <DropdownMenu.Item
+                onSelect={muteChannel}
+                className="dropdown-item flex items-center space-x-2"
+              >
+                <BulletIcon className="h-6 w-6 text-gray-400" />
+                <span className="text-gray-800">Mute Channel</span>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={leaveChannel}
+                className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+              >
+                <LeaveIcon className="h-6 w-6" />
+                <span>Leave Channel</span>
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
         ) : (
-          <button className="rounded-md bg-gray-50 py-2 px-4 font-semibold text-gray-800">
-            Join
+          <button
+            disabled={joinState === PENDING}
+            onClick={joinChannel}
+            className={cn('rounded-md py-2 px-4 font-semibold', {
+              'bg-gray-50': [READY, PENDING].includes(joinState),
+              'bg-red-soft': joinState === FAILED,
+              'text-gray-800': joinState === READY,
+              'text-gray-400': joinState === PENDING,
+              'text-red': joinState === FAILED,
+            })}
+          >
+            {joinState === PENDING ? (
+              <span className="center-items flex">
+                <LoadingSpinner />
+                <span className="ml-2">Joining...</span>
+              </span>
+            ) : joinState === FAILED ? (
+              'Retry'
+            ) : (
+              'Join'
+            )}
           </button>
         )}
       </div>
@@ -66,7 +157,7 @@ function ChannelSection({
         <div className="py-4 font-semibold text-gray-400">{zone}</div>
       ) : null}
       {sortedChannels.map((channel) => (
-        <Channel channel={channel} />
+        <Channel channel={channel} key={channel.added} />
       ))}
     </div>
   );
@@ -95,14 +186,14 @@ export default function ChannelIndex() {
   const zones = Object.keys(sectionedChannels);
   // TODO: respect the sorted order set by the user?
   zones.sort((a, b) => {
-    if (a === UNZONED || a < b) {
+    if (a === UNZONED) {
       return -1;
     }
-    if (b === UNZONED || a > b) {
+    if (b === UNZONED) {
       return 1;
     }
 
-    return 0;
+    return a.localeCompare(b);
   });
 
   return (
@@ -120,7 +211,11 @@ export default function ChannelIndex() {
       </div>
       <div className="w-full rounded-xl bg-white px-4 py-1">
         {zones.map((zone) => (
-          <ChannelSection channels={sectionedChannels[zone]} zone={zone} />
+          <ChannelSection
+            key={zone}
+            channels={sectionedChannels[zone]}
+            zone={zone}
+          />
         ))}
       </div>
     </div>
