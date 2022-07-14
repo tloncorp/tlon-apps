@@ -11,7 +11,7 @@ import CaretDownIcon from '@/components/icons/CaretDownIcon';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
-import { useChatState } from '@/state/chat';
+import { useBriefs, useChatState } from '@/state/chat';
 import { LoadingSpinner } from '@/components/LoadingSpinner/LoadingSpinner';
 import { Link } from 'react-router-dom';
 
@@ -24,6 +24,8 @@ type JoinState = typeof READY | typeof PENDING | typeof FAILED;
 function Channel({ channel }: { channel: Channel }) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const briefs = useBriefs();
+
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -70,6 +72,9 @@ function Channel({ channel }: { channel: Channel }) {
     (entry) => entry[1] === channel
   )?.[0];
 
+  // A Channel is considered Joined if a Brief exists
+  const joined = channelFlag && channelFlag in briefs;
+
   // TODO: figure out Channel participant count
   const participantCount = Object.keys(group.fleet).length;
 
@@ -82,7 +87,7 @@ function Channel({ channel }: { channel: Channel }) {
           <BubbleIcon className="h-6 w-6 text-gray-400" />
         </div>
         <div className="flex flex-col justify-evenly">
-          {channel.join && channelFlag ? (
+          {joined && channelFlag ? (
             <Link
               className="font-semibold text-gray-800"
               to={channelHref(flag, channelFlag)}
@@ -101,7 +106,7 @@ function Channel({ channel }: { channel: Channel }) {
       </div>
       {/* action and options */}
       <div>
-        {channel.join ? (
+        {joined ? (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild className="appearance-none">
               <button className="flex flex-row items-center rounded-md bg-green-soft py-2 px-4 font-semibold text-green">
