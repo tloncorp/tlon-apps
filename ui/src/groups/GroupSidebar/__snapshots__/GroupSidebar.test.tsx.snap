@@ -96,7 +96,7 @@ exports[`GroupSidebar > renders as expected 1`] = `
         >
           <a
             class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
-            href="/groups//all"
+            href="/groups//channels"
           >
             <svg
               class="m-1 h-4 w-4"

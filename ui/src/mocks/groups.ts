@@ -11,7 +11,7 @@ const adminVessel = (): Vessel => ({
   joined: Date.now(),
 });
 
-function createMockGroup(title: string): Group {
+export function createMockGroup(title: string): Group {
   return {
     fleet: {
       '~hastuc-dibtux': emptyVessel(),
@@ -83,6 +83,10 @@ const mockGroupOne: Group = {
         image: '',
         color: '',
       },
+      added: 1657774188151,
+      join: false,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -129,6 +133,10 @@ const mockGroupTwo: Group = {
         image: '',
         color: '',
       },
+      added: 1657774188151,
+      join: true,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -150,7 +158,7 @@ const mockGroups: { [flag: string]: Group } = {
   '~dev/tlon': mockGroupOne,
 };
 
-function createChannel(title: string) {
+export function createChannel(title: string) {
   return {
     meta: {
       title,
@@ -158,6 +166,10 @@ function createChannel(title: string) {
       image: '',
       color: '',
     },
+    added: 1657774188151,
+    join: false,
+    readers: [],
+    zone: null,
   };
 }
 

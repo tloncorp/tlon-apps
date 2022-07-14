@@ -17,7 +17,11 @@ export interface Cabals {
 }
 
 export interface Channel {
+  added: number;
   meta: GroupMeta;
+  join: boolean;
+  readers: string[];
+  zone: string | null;
 }
 
 export interface Vessel {
