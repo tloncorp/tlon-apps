@@ -44,7 +44,6 @@ export interface GroupState {
     channelFlag: string
   ) => Promise<void>;
   removeChannelFromZone: (
-    zone: string,
     groupFlag: string,
     channelFlag: string
   ) => Promise<void>;

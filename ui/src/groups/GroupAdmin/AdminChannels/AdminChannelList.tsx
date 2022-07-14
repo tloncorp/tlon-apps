@@ -1,21 +1,7 @@
 import React from 'react';
-import { Channel } from '@/types/groups';
 import { useGroup, useRouteGroup } from '@/state/groups';
+import { SectionMap } from './types';
 import AdminChannelListDropContext from './AdminChannelListDropContext';
-
-interface SectionMap {
-  [key: string]: SectionListItem;
-}
-
-interface ChannelListItem {
-  key: string;
-  channel: Channel;
-}
-
-interface SectionListItem {
-  title: string;
-  channels: ChannelListItem[];
-}
 
 export default function AdminChannelList() {
   const flag = useRouteGroup();

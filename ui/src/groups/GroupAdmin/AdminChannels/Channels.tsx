@@ -1,13 +1,9 @@
 import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
-import { Channel } from '@/types/groups';
+import { ChannelListItem } from './types';
 import AdminChannelListItem from './AdminChannelListItem';
 import EmptySectionTools from '../EmptySectionTools';
 
-interface ChannelListItem {
-  key: string;
-  channel: Channel;
-}
 interface ChannelsProps {
   listId: string;
   channels: ChannelListItem[];

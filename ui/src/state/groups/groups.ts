@@ -246,7 +246,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(groupFlag, diff));
   },
-  removeChannelFromZone: async (zone, groupFlag, channelFlag) => {
+  removeChannelFromZone: async (groupFlag, channelFlag) => {
     const diff = {
       channel: {
         flag: channelFlag,

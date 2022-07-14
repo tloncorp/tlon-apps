@@ -1,32 +1,23 @@
 import React from 'react';
 import { Droppable } from 'react-beautiful-dnd';
-import { Channel } from '@/types/groups';
+import { SectionMap } from './types';
 import Section from './Section';
-
-interface ChannelListItem {
-  key: string;
-  channel: Channel;
-}
 
 interface AdminChannelListSectionsProps {
   sections: SectionMap;
   orderedSections: string[];
+  onSectionEditNameSubmit: (
+    currentSectionKey: string,
+    nextSectionTitle: string
+  ) => void;
+  onSectionDelete: (currentSectionKey: string) => void;
 }
-
-type SectionMap = {
-  [key: string]: SectionListItem;
-};
-
-interface SectionListItem {
-  title: string;
-  channels: ChannelListItem[];
-}
-
-type SectionList = SectionListItem[];
 
 export default function AdminChannelListSections({
   sections,
   orderedSections,
+  onSectionEditNameSubmit,
+  onSectionDelete,
 }: AdminChannelListSectionsProps) {
   return (
     <Droppable droppableId="sections" type="SECTIONS">
@@ -37,6 +28,8 @@ export default function AdminChannelListSections({
               sectionKey={key}
               key={key}
               index={index}
+              onSectionEditNameSubmit={onSectionEditNameSubmit}
+              onSectionDelete={onSectionDelete}
               sectionData={sections[key]}
             />
           ))}

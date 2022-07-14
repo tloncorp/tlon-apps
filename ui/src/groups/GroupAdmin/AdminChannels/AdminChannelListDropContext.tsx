@@ -2,26 +2,12 @@ import React, { useCallback, useState } from 'react';
 import { DragDropContext, DraggableLocation } from 'react-beautiful-dnd';
 import bigInt from 'big-integer';
 import { formatUv } from '@urbit/aura';
-import { Channel } from '@/types/groups';
+import { SectionMap } from './types';
 import AdminChannelListSections from './AdminChannelListSections';
 import ChannelManagerHeader from './ChannelManagerHeader';
 
 interface AdminChannelListContentsProps {
   sectionedChannels: SectionMap;
-}
-
-type SectionMap = {
-  [key: string]: SectionListItem;
-};
-
-interface ChannelListItem {
-  key: string;
-  channel: Channel;
-}
-
-interface SectionListItem {
-  title: string;
-  channels: ChannelListItem[];
 }
 
 export default function AdminChannelListDropContext({
@@ -32,6 +18,40 @@ export default function AdminChannelListDropContext({
   const [orderedSections, setOrderedSections] = useState(
     Object.keys(initialChannels)
   );
+
+  const onSectionEditNameSubmit = (
+    currentSectionKey: string,
+    nextSectionTitle: string
+  ) => {
+    // debugger;
+    const nextSections = sections;
+
+    // if zone with same title exists, exit
+    if (
+      Object.prototype.hasOwnProperty.call(nextSections, nextSectionTitle) ||
+      !nextSectionTitle.length
+    ) {
+      return;
+    }
+
+    nextSections[currentSectionKey].title = nextSectionTitle;
+    setSections(sections);
+  };
+
+  const onSectionDelete = (currentSectionKey: string) => {
+    const nextSections = sections;
+    const nextOrderedSections = orderedSections;
+    const orderedSectionsIndex = orderedSections.indexOf(currentSectionKey);
+
+    nextSections.sectionless.channels.concat(
+      sections[currentSectionKey].channels
+    );
+    delete nextSections[currentSectionKey];
+    nextOrderedSections.splice(orderedSectionsIndex, 1);
+
+    setSections(nextSections);
+    setOrderedSections(nextOrderedSections);
+  };
 
   const addSection = () => {
     const nextSection = {
@@ -147,6 +167,8 @@ export default function AdminChannelListDropContext({
       <AdminChannelListSections
         sections={sections}
         orderedSections={orderedSections}
+        onSectionEditNameSubmit={onSectionEditNameSubmit}
+        onSectionDelete={onSectionDelete}
       />
     </DragDropContext>
   );
