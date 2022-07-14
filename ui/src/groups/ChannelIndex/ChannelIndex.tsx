@@ -6,13 +6,14 @@ import { useNavigate } from 'react-router';
 import { Channel } from '@/types/groups';
 import { groupBy } from 'lodash';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import { pluralize } from '@/logic/utils';
+import { channelHref, pluralize } from '@/logic/utils';
 import CaretDownIcon from '@/components/icons/CaretDownIcon';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useChatState } from '@/state/chat';
 import { LoadingSpinner } from '@/components/LoadingSpinner/LoadingSpinner';
+import { Link } from 'react-router-dom';
 
 const UNZONED = '';
 const READY = 'READY';
@@ -65,6 +66,10 @@ function Channel({ channel }: { channel: Channel }) {
     return null;
   }
 
+  const channelFlag = Object.entries(group.channels).find(
+    (entry) => entry[1] === channel
+  )?.[0];
+
   // TODO: figure out Channel participant count
   const participantCount = Object.keys(group.fleet).length;
 
@@ -77,9 +82,18 @@ function Channel({ channel }: { channel: Channel }) {
           <BubbleIcon className="h-6 w-6 text-gray-400" />
         </div>
         <div className="flex flex-col justify-evenly">
-          <div className="font-semibold text-gray-800">
-            {channel.meta.title}
-          </div>
+          {channel.join && channelFlag ? (
+            <Link
+              className="font-semibold text-gray-800"
+              to={channelHref(flag, channelFlag)}
+            >
+              {channel.meta.title}
+            </Link>
+          ) : (
+            <div className="font-semibold text-gray-800">
+              {channel.meta.title}
+            </div>
+          )}
           <div className="font-semibold text-gray-400">
             {participantCount} {pluralize('member', participantCount)}
           </div>
