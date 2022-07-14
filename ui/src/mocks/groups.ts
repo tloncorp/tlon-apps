@@ -11,7 +11,7 @@ const adminVessel = (): Vessel => ({
   joined: Date.now(),
 });
 
-function createMockGroup(title: string): Group {
+export function createMockGroup(title: string): Group {
   return {
     fleet: {
       '~hastuc-dibtux': emptyVessel(),
@@ -84,9 +84,10 @@ const mockGroupOne: Group = {
         image: '',
         color: '',
       },
-      zone: '',
-      readers: [''],
+      added: 1657774188151,
       join: false,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -134,9 +135,10 @@ const mockGroupTwo: Group = {
         image: '',
         color: '',
       },
-      zone: '',
-      readers: [''],
-      join: false,
+      added: 1657774188151,
+      join: true,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -159,7 +161,7 @@ const mockGroups: { [flag: string]: Group } = {
   '~dev/tlon': mockGroupOne,
 };
 
-function createChannel(title: string) {
+export function createChannel(title: string) {
   return {
     meta: {
       title,
@@ -167,9 +169,10 @@ function createChannel(title: string) {
       image: '',
       color: '',
     },
-    zone: '',
-    readers: [''],
+    added: 1657774188151,
     join: false,
+    readers: [],
+    zone: null,
   };
 }
 
@@ -177,7 +180,7 @@ for (let i = 0; i < 20; i += 1) {
   const group = createMockGroup(faker.company.companyName());
 
   for (let j = 0; j < 20; j += 1) {
-    group.channels[`~zod/tlon${i}${j}`] = createChannel(j.toString());
+    group.channels[`~zod/tlon${i}${j}`] = createChannel(faker.company.bs());
   }
 
   mockGroups[`~zod/tlon${i}`] = group;

@@ -1,25 +1,32 @@
-import React, { ReactElement } from 'react';
+import React, { ReactElement, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { useForm } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { useGroupState } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import useStep from '@/logic/useStep';
 import TemplateOrScratch from '@/groups/NewGroup/TemplateOrScratch';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
+import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
+import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
+import { GroupFormSchema } from '@/types/groups';
 
-interface NewGroupFormSchema {
-  title: string;
-  description: string;
-  image: string;
-  color: string;
+type Role = 'Member' | 'Moderator' | 'Admin';
+
+interface ShipWithRoles {
+  patp: string;
+  roles: Role[];
 }
+
+type TemplateTypes = 'none' | 'small' | 'medium' | 'large';
 
 export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
+  const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
+  const [templateType, setTemplateType] = useState<TemplateTypes>('none');
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -30,33 +37,48 @@ export default function NewGroup() {
   const [currentStep, { goToNextStep, goToPrevStep, setStep, maxStep }] =
     useStep(4);
 
-  const defaultValues: NewGroupFormSchema = {
+  const defaultValues: GroupFormSchema = {
     title: '',
     description: '',
     image: '',
     color: '',
+    privacy: 'public',
   };
 
-  const {
-    handleSubmit,
-    register,
-    formState: { errors, isValid },
-    setValue,
-    watch,
-  } = useForm<NewGroupFormSchema>({
+  const form = useForm<GroupFormSchema>({
     defaultValues,
     mode: 'onBlur',
   });
 
-  const onSubmit = async (values: NewGroupFormSchema) => {
+  const onComplete = useCallback(async () => {
+    const { privacy, ...values } = form.getValues();
     const name = strToSym(values.title);
-    await useGroupState.getState().create({ ...values, name });
+    const members = shipsToInvite.reduce(
+      (obj, ship) => ({
+        ...obj,
+        [ship.patp]: ship.roles.map((r) => strToSym(r)),
+      }),
+      {}
+    );
+    const cordon =
+      privacy === 'public'
+        ? {
+            open: {
+              ships: [],
+              ranks: [],
+            },
+          }
+        : {
+            shut: [],
+          };
+
+    await useGroupState.getState().create({ ...values, name, members, cordon });
     const flag = `${window.our}/${name}`;
     navigate(`/groups/${flag}`);
-  };
+  }, [shipsToInvite, navigate, form]);
 
-  const nextWithTemplate = (templateType?: string) => {
-    // TODO: handle different templates
+  const nextWithTemplate = (template?: string) => {
+    setTemplateType(template ? (template as TemplateTypes) : 'none');
     goToNextStep();
   };
 
@@ -69,21 +91,31 @@ export default function NewGroup() {
     case 2:
       currentStepComponent = (
         <NewGroupForm
-          register={register}
-          errors={errors}
-          watch={watch}
-          setValue={setValue}
-          isValid={isValid}
+          isValid={form.formState.isValid}
           goToPrevStep={goToPrevStep}
           goToNextStep={goToNextStep}
         />
       );
       break;
     case 3:
-      currentStepComponent = <span>Third</span>;
+      currentStepComponent = (
+        <NewGroupPrivacy
+          groupName={form.getValues('title')}
+          goToPrevStep={goToPrevStep}
+          goToNextStep={goToNextStep}
+        />
+      );
       break;
     case 4:
-      currentStepComponent = <span>Fourth</span>;
+      currentStepComponent = (
+        <NewGroupInvite
+          groupName={form.getValues('title')}
+          goToPrevStep={goToPrevStep}
+          goToNextStep={onComplete}
+          shipsToInvite={shipsToInvite}
+          setShipsToInvite={setShipsToInvite}
+        />
+      );
       break;
     default:
       currentStepComponent = <span>An error occurred</span>;
@@ -93,9 +125,9 @@ export default function NewGroup() {
   return (
     <Dialog defaultOpen onOpenChange={onOpenChange}>
       <DialogContent containerClass="w-full sm:max-w-lg">
-        <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
-          {currentStepComponent}
-        </form>
+        <FormProvider {...form}>
+          <div className="flex flex-col">{currentStepComponent}</div>
+        </FormProvider>
         <div className="flex flex-col items-center">
           {currentStep !== 1 ? (
             <NavigationDots

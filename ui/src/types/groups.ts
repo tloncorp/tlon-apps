@@ -17,6 +17,7 @@ export interface Cabals {
 }
 
 export interface Channel {
+  added: number;
   meta: GroupMeta;
   zone: Zone | null;
   readers: string[];
@@ -202,12 +203,23 @@ interface ZoneDiff {
   zone: ZoneAdd | ZoneDelete;
 }
 
+export interface MetaDiff {
+  meta: GroupMeta;
+}
+
 export interface GroupCreateDiff {
   create: Group;
 }
+
+export interface GroupDelDiff {
+  del: null;
+}
+
 // TODO: elaborate
 export type GroupDiff =
+  | GroupDelDiff
   | GroupCreateDiff
+  | MetaDiff
   | FleetDiff
   | CabalDiff
   | ChannelDiff
@@ -255,9 +267,8 @@ export interface Gangs {
   [flag: string]: Gang;
 }
 
-export interface NewGroupFormSchema {
-  title: string;
-  description: string;
-  image: string;
-  color: string;
+export type PrivacyType = 'public' | 'private' | 'secret';
+
+export interface GroupFormSchema extends GroupMeta {
+  privacy: PrivacyType;
 }

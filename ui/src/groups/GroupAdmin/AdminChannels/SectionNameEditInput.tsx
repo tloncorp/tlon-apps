@@ -1,5 +1,4 @@
 import React from 'react';
-import { Channel } from '@/types/groups';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import { useForm } from 'react-hook-form';
 import { ChannelListItem } from './types';

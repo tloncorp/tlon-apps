@@ -66,6 +66,7 @@
         hive=(set ship)
         met=data:meta
         =net
+        pin=_|
     ==
 
   ::
@@ -194,4 +195,6 @@
       description=cord
       readers=(set sect:g)
   ==
+::
++$  leave  flag
 --

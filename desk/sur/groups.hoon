@@ -130,7 +130,9 @@
       [%bloc p=diff:bloc]
       [%cordon p=diff:cordon]
       [%zone p=diff:zone]
+      [%meta p=data:meta]
       [%create p=group]
+      [%del ~]
   ==
 +$  action
   (pair flag update)
@@ -143,6 +145,8 @@
       description=cord
       image=cord  
       color=cord
+      =cordon
+      members=(jug ship sect)
   ==
 ::
 +$  init  [=time =group]

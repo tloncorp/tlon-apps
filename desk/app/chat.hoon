@@ -120,6 +120,11 @@
     ?<  =(our.bowl p.flag)
     (join flag)
   ::
+      %chat-leave
+    =+  !<(=leave:c vase)
+    ?<  =(our.bowl p.leave)  :: cannot leave chat we host
+    ca-abet:ca-leave:(ca-abed:ca-core leave)
+  ::
       %chat-draft
     =+  !<(=draft:c vase)
     ?>  =(src.bowl our.bowl)
@@ -163,6 +168,10 @@
     =+  !<(=action:club:c vase)
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
+  ::
+      %club-pin
+    =+  !<([=id:club:c pin=?] vase)
+    cu-abet:(cu-pin:(cu-abed:cu-core id) pin)
   ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
@@ -401,7 +410,7 @@
   ++  cu-init
     |=  [=net:club:c =create:club:c]
     =/  clab=club:c
-      [*pact:c (silt our.bowl ~) hive.create *data:meta net]
+      [*pact:c (silt our.bowl ~) hive.create *data:meta net |]
     cu-core(id id.create, club clab)
   ::
   ++  cu-brief  (brief:cu-pact [our now]:bowl)
@@ -484,6 +493,7 @@
       =.  hive.club  (~(del in hive.club) ship)
       ?.  ok.delta
         (cu-post-notice ship '' ' declined the invite')
+      =.  cor  (give-brief club/id cu-brief)
       =.  team.club  (~(put in team.club) ship)
       (cu-post-notice ship '' ' joined the chat')
     ::
@@ -503,6 +513,11 @@
       =.  hive.club  (~(del in hive.club) for.delta)
       (cu-post-notice for.delta '' ' was uninvited from the chat') 
     ==
+  ::
+  ++  cu-pin
+    |=  pin=?
+    ^+  cu-core
+    cu-core(pin.club pin)
   ::
   ++  cu-peek
     |=  =path
@@ -701,6 +716,13 @@
     =.  chats  (~(put by chats) f *chat:c)
     =.  ca-core  (ca-abed f)
     ca-sub
+  ::
+  ++  ca-leave
+    =/  =dock  [p.flag dap.bowl]
+    =/  =wire  (snoc ca-area %updates)
+    =.  cor  (emit %pass wire %agent dock %leave ~)
+    =.  gone  &
+    ca-core
   ::
   ++  ca-apply-logs
     |=  =logs:c

@@ -13,9 +13,12 @@ import {
   MultiValue,
   ActionMeta,
   GroupBase,
+  SingleValue,
+  ValueContainerProps,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
+import { deSig } from '@urbit/api';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import X16Icon from '@/components/icons/X16Icon';
@@ -23,7 +26,7 @@ import { preSig } from '@/logic/utils';
 import Avatar from '@/components/Avatar';
 import { useMemoizedContacts } from '@/state/contact';
 import { MAX_DISPLAYED_OPTIONS } from '@/constants';
-import { deSig } from '@urbit/api';
+import ShipName from './ShipName';
 
 export interface ShipOption {
   value: string;
@@ -34,6 +37,7 @@ interface ShipSelectorProps {
   ships: ShipOption[];
   setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
   onEnter?: (ships: ShipOption[]) => void;
+  isMulti?: boolean;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -48,20 +52,25 @@ function Control({ children, ...props }: ControlProps<ShipOption, true>) {
   );
 }
 
-function ShipName({ data, ...props }: OptionProps<ShipOption, true>) {
-  const { value, label } = data;
+function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
+  const { value: rawValue, label } = data;
+  const value = preSig(rawValue);
   return (
     <components.Option data={data} className="hover:cursor-pointer" {...props}>
       <div className="flex items-center space-x-1">
-        {ob.isValidPatp(preSig(value)) ? (
-          <Avatar ship={preSig(value)} size="xs" />
+        {ob.isValidPatp(value) ? (
+          <Avatar ship={value} size="xs" />
         ) : (
           <div className="h-6 w-6 rounded bg-white" />
         )}
-        <span className="font-semibold">{preSig(value)}</span>
         {label ? (
-          <span className="font-semibold text-gray-300">{label}</span>
-        ) : null}
+          <>
+            <span className="font-semibold">{label}</span>
+            <ShipName name={value} className="font-semibold text-gray-300" />
+          </>
+        ) : (
+          <ShipName name={value} showAlias className="font-semibold" />
+        )}
       </div>
     </components.Option>
   );
@@ -91,11 +100,42 @@ function ShipTagLabelContainer({
   );
 }
 
+function SingleValueShipTagLabelContainer({
+  children,
+  ...props
+}: ValueContainerProps<ShipOption, true>) {
+  return (
+    <components.ValueContainer {...props} className="flex">
+      <div className="flex justify-between">
+        {children}
+        {props.hasValue ? (
+          <button
+            className="font-semibold text-gray-400"
+            // @ts-expect-error we passed an extra prop to selectProps
+            onClick={props.selectProps.handleEnter}
+          >
+            Enter
+          </button>
+        ) : null}
+      </div>
+    </components.ValueContainer>
+  );
+}
+
+function SingleShipLabel({ data }: { data: ShipOption }) {
+  const { value } = data;
+  return (
+    <div className="flex h-6 items-center rounded bg-gray-100">
+      <ShipName name={value} showAlias className="py-1 px-2 font-semibold" />
+    </div>
+  );
+}
+
 function ShipTagLabel({ data }: { data: ShipOption }) {
   const { value } = data;
   return (
     <div className="flex h-6 items-center rounded-l bg-gray-100">
-      <span className="p-1 font-semibold">{value}</span>
+      <ShipName name={value} showAlias className="p-1 font-semibold" />
     </div>
   );
 }
@@ -141,6 +181,7 @@ export default function ShipSelector({
   ships,
   setShips,
   onEnter,
+  isMulti = true,
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -157,6 +198,24 @@ export default function ShipSelector({
     ? ships.every((ship) => ob.isValidPatp(ship.value))
     : false;
 
+  const handleEnter = () => {
+    const isInputting = !!(
+      selectRef.current && selectRef.current.inputRef?.value
+    );
+
+    // case when user is typing another patp: do nothing so react-select can
+    // can add to the list of patps
+    if (isInputting) {
+      return;
+    }
+    if (ships && ships.length > 0 && validShips && onEnter) {
+      onEnter(ships);
+      if (!isMulti) {
+        setShips([]);
+      }
+    }
+  };
+
   // There is a known issue with react-select's performance for large lists of
   // of options, so filter the list of contact options to improve performance
   // See: https://github.com/JedWatson/react-select/issues/4516
@@ -167,8 +226,14 @@ export default function ShipSelector({
       return contactOptions;
     }
 
+    // fuzzy search both nicknames and patps; fuzzy#filter only supports
+    // string comparision, so concat nickname + patp
+    const searchSpace = Object.entries(contacts).map(
+      (entry) => `${entry[1].nickname}${entry[0]}`
+    );
+
     const fuzzyNames = fuzzy
-      .filter(inputValue, contactNames)
+      .filter(inputValue, searchSpace)
       .sort((a, b) => {
         const filter = deSig(inputValue) || '';
         const left = deSig(a.string)?.startsWith(filter)
@@ -214,12 +279,7 @@ export default function ShipSelector({
       case 'Enter': {
         // case when user is typing another patp: do nothing so react-select can
         // can add to the list of patps
-        if (isInputting) {
-          return;
-        }
-        if (ships && ships.length > 0 && validShips && onEnter) {
-          onEnter(ships);
-        }
+        handleEnter();
         break;
       }
       default:
@@ -242,6 +302,100 @@ export default function ShipSelector({
       setShips(validPatps);
     }
   };
+
+  const singleOnChange = (
+    newValue: SingleValue<ShipOption>,
+    actionMeta: ActionMeta<ShipOption>
+  ) => {
+    if (
+      ['create-option', 'remove-value', 'select-option'].includes(
+        actionMeta.action
+      ) &&
+      newValue !== null
+    ) {
+      const validPatp = ob.isValidPatp(preSig(newValue.value));
+      if (validPatp) {
+        setShips([newValue]);
+      }
+    }
+  };
+
+  if (!isMulti) {
+    return (
+      <CreatableSelect
+        handleEnter={handleEnter}
+        ref={selectRef}
+        formatCreateLabel={AddNonContactShip}
+        autoFocus
+        styles={{
+          control: (base) => ({}),
+          menu: ({ width, borderRadius, ...base }) => ({
+            borderWidth: '',
+            borderColor: '',
+            zIndex: 50,
+            backgroundColor: 'inherit',
+            ...base,
+          }),
+          input: (base) => ({
+            ...base,
+            margin: '',
+            color: '',
+            paddingTop: '',
+            paddingBottom: '',
+          }),
+          multiValue: (base) => ({
+            ...base,
+            backgroundColor: '',
+            margin: '0 2px',
+          }),
+          multiValueRemove: (base) => ({
+            ...base,
+            paddingRight: '',
+            paddingLeft: '',
+            '&:hover': {
+              color: 'inherit',
+              backgroundColor: 'inherit',
+            },
+          }),
+          option: (base, state) => ({
+            ...base,
+            backgroundColor: state.isFocused
+              ? 'rgb(var(--colors-gray-50))'
+              : '',
+          }),
+          valueContainer: (base) => ({
+            ...base,
+            padding: '0px 8px',
+          }),
+        }}
+        aria-label="Ships"
+        options={slicedOptions}
+        value={ships}
+        // @ts-expect-error this error is irrelevant
+        onChange={singleOnChange}
+        onInputChange={(val) => setInputValue(val)}
+        isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
+        onKeyDown={onKeyDown}
+        placeholder=""
+        hideSelectedOptions
+        // TODO: create custom filter for sorting potential DM participants.
+        filterOption={() => true} // disable the default filter
+        components={{
+          Control,
+          Menu: ShipDropDownMenu,
+          MenuList: ShipDropDownMenuList,
+          Input,
+          DropdownIndicator: () => null,
+          IndicatorSeparator: () => null,
+          ClearIndicator: () => null,
+          Option: ShipItem,
+          NoOptionsMessage: NoShipsMessage,
+          SingleValue: SingleShipLabel,
+          ValueContainer: SingleValueShipTagLabelContainer,
+        }}
+      />
+    );
+  }
 
   return (
     <CreatableSelect
@@ -307,7 +461,7 @@ export default function ShipSelector({
         DropdownIndicator: () => null,
         IndicatorSeparator: () => null,
         ClearIndicator: () => null,
-        Option: ShipName,
+        Option: ShipItem,
         NoOptionsMessage: NoShipsMessage,
         MultiValueLabel: ShipTagLabel,
         MultiValueContainer: ShipTagLabelContainer,

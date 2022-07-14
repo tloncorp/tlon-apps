@@ -32,7 +32,11 @@ export interface GroupState {
     name: string;
     title: string;
     description: string;
+    members: Record<string, string[]>;
+    cordon: Record<string, any>;
   }) => Promise<void>;
+  edit: (flag: string, metadata: GroupMeta) => Promise<void>;
+  delete: (flag: string) => Promise<void>;
   start: () => Promise<void>;
   search: (flag: string) => Promise<void>;
   join: (flag: string, joinAll: boolean) => Promise<void>;

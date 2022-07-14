@@ -435,7 +435,7 @@ export default class VirtualScroller<K, V> extends Component<
 
   get lastOffset() {
     const { size } = this.props;
-    return Math.min(size - this.pageSize, size);
+    return Math.min(Math.max(size - this.pageSize, 0), size);
   }
 
   setScrollRef = (el: HTMLDivElement | null) => {
@@ -469,8 +469,8 @@ export default class VirtualScroller<K, V> extends Component<
       element.offsetHeight / Math.floor(averageHeight / 2)
     );
     this.pageDelta = Math.floor(this.pageSize / 4);
-    const { size, origin } = this.props;
-    this.updateVisible(origin === 'top' ? 0 : size - this.pageSize);
+    const { origin } = this.props;
+    this.updateVisible(origin === 'top' ? 0 : this.lastOffset);
     requestAnimationFrame(() => {
       this.resetScroll();
     });

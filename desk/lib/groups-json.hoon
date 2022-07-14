@@ -41,6 +41,8 @@
       %cordon   (cordon-diff p.d)
       %create   (group p.d)
       %zone     (zone-diff p.d)
+      %meta     (meta p.d)
+      %del      ~
     ==
   ::
   ++  zone-diff
@@ -265,6 +267,8 @@
         description+so
         image+so
         color+so
+        cordon+cordon
+        members+(op ;~(pfix sig fed:ag) (as sym))
     ==
   ::
   ++  join
@@ -291,6 +295,8 @@
         fleet/(ot ships/(as ship) diff/fleet-diff ~)
         cordon/cordon-diff
         channel/(ot flag/flag diff/channel-diff ~)
+        meta/meta
+        del/ul
     ==
   ::
   ++  channel-diff

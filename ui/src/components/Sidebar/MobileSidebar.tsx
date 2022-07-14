@@ -5,7 +5,8 @@ import SidebarSorter from './SidebarSorter';
 import NavTab from '../NavTab';
 import GroupIcon from '../icons/GroupIcon';
 import ActivityIndicator from './ActivityIndicator';
-import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
+import AsteriskIcon from '../icons/Asterisk16Icon';
+// import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
 import GroupList from './GroupList';
 import { usePinnedGroups } from '../../state/groups/groups';
 
@@ -20,7 +21,7 @@ export default function MobileSidebar() {
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
       <header className="flex-none px-2 py-1">
         {pinned ? (
-          <ul>
+          <ul className="mb-3 space-y-2 sm:mb-2 sm:space-y-0 md:mb-0">
             <GroupList pinned />
           </ul>
         ) : null}
@@ -52,7 +53,7 @@ export default function MobileSidebar() {
       </nav>
       <footer className="flex-none border-t-2 border-gray-50">
         <nav>
-          <ul className="flex items-center">
+          <ul className="flex justify-items-stretch">
             <NavTab loc="main">
               <GroupIcon className="mb-0.5 h-6 w-6" />
               Groups
@@ -61,10 +62,21 @@ export default function MobileSidebar() {
               <ActivityIndicator count={notificationCount} className="mb-0.5" />
               Notifications
             </NavTab>
-            <NavTab loc="search">
+            {/* <NavTab loc="search">
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
               Search
-            </NavTab>
+            </NavTab> */}
+            <a
+              className="flex-1 no-underline"
+              href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <NavTab>
+                <AsteriskIcon className="mb-0.5 h-6 w-6" />
+                Submit Issue
+              </NavTab>
+            </a>
           </ul>
         </nav>
       </footer>

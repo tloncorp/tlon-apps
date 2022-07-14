@@ -51,9 +51,7 @@ function DraggableGroupItem({ flag }: { flag: string }) {
     >
       <SidebarItem
         div
-        icon={
-          <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={group?.meta.image} />
-        }
+        icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
         actions={<GroupActions flag={flag} />}
         onClick={() => navPrimary('group', flag)}
       >
@@ -69,9 +67,7 @@ function GroupItem({ flag }: { flag: string }) {
 
   return (
     <SidebarItem
-      icon={
-        <GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={group?.meta.image} />
-      }
+      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
       actions={<GroupActions flag={flag} />}
       onClick={() => navPrimary('group', flag)}
     >
@@ -127,7 +123,7 @@ function GroupItemContainer({
     <li
       ref={drop}
       className={cn(
-        'relative flex h-10 w-full ring-4',
+        'relative flex h-16 w-full ring-4 sm:h-10',
         isOver && 'ring-blue-500',
         !isOver && 'ring-transparent'
       )}
@@ -213,10 +209,8 @@ export default function GroupList({
           : undefined
       }
     >
-      <li className="flex items-center space-x-2 px-2 py-3">
-        <span className="text-lg font-bold text-gray-400 lg:text-xs lg:font-semibold">
-          Pinned
-        </span>
+      <li className="-mb-2 flex items-center sm:m-0 md:pr-2">
+        <Divider>Pinned</Divider>
         <div className="grow border-b-2 border-gray-100" />
       </li>
       {pinnedFlags.sort(sortOptions[sortFn]).map((flag) => (

@@ -55,8 +55,12 @@ export default function Gang() {
           <div className="flex items-center space-x-2">
             <Avatar ship={invite.ship} size="xs" />
             <p>
-              <ShipName name={invite.ship} className="font-semibold" /> invited
-              you to <GangName flag={flag} />
+              <ShipName
+                name={invite.ship}
+                showAlias
+                className="font-semibold"
+              />{' '}
+              invited you to <GangName flag={flag} />
             </p>
           </div>
           <p className="rounded bg-gray-100 p-2">{invite.text}</p>

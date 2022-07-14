@@ -1,23 +1,21 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useRef } from 'react';
-import { useChatState, useChatDraft, usePact } from '../../state/chat';
-import { ChatInline, ChatMemo, ChatStory } from '../../types/chat';
-import MessageEditor, {
-  useMessageEditor,
-} from '../../components/MessageEditor';
-import Avatar from '../../components/Avatar';
-import ShipName from '../../components/ShipName';
-import AddIcon from '../../components/icons/AddIcon';
-import X16Icon from '../../components/icons/X16Icon';
-import { useChatStore } from '../useChatStore';
-import ChatInputMenu from '../ChatInputMenu/ChatInputMenu';
-import { useIsMobile } from '../../logic/useMedia';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useChatState, useChatDraft, usePact } from '@/state/chat';
+import { ChatInline, ChatMemo, ChatStory } from '@/types/chat';
+import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
+import Avatar from '@/components/Avatar';
+import ShipName from '@/components/ShipName';
+import AddIcon from '@/components/icons/AddIcon';
+import X16Icon from '@/components/icons/X16Icon';
+import { useChatInfo, useChatStore } from '@/chat/useChatStore';
+import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
+import { useIsMobile } from '@/logic/useMedia';
 
 interface ChatInputProps {
   whom: string;
-  replying?: string | null;
+  replying?: string;
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
@@ -256,15 +254,17 @@ function parseChatMessage(message: ChatStory): JSONContent {
 
 export default function ChatInput({
   whom,
-  replying = null,
   showReply = false,
+  replying,
   className = '',
   sendDisabled = false,
   sendMessage,
 }: ChatInputProps) {
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
-  const replyingWrit = replying && pact.writs.get(pact.index[replying]);
+  const chatInfo = useChatInfo(whom);
+  const reply = replying || chatInfo?.replying || null;
+  const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
 
@@ -272,21 +272,23 @@ export default function ChatInput({
     useChatStore.getState().reply(whom, null);
   }, [whom]);
 
-  const onUpdate = useRef(
-    debounce(
-      useCallback(
-        ({ editor }) => {
-          const data = parseTipTapJSON(editor?.getJSON());
-          useChatState.getState().draft(whom, {
-            inline: Array.isArray(data) ? data : [data],
-            block: [],
-          });
-        },
-        [whom]
-      ),
-      5000
-    )
+  const onUpdate = useMemo(
+    () =>
+      debounce(({ editor }) => {
+        if (!whom) {
+          return;
+        }
+
+        const data = parseTipTapJSON(editor?.getJSON());
+        useChatState.getState().draft(whom, {
+          inline: Array.isArray(data) ? data : [data],
+          block: [],
+        });
+      }, 1000),
+    [whom]
   );
+
+  useEffect(() => () => onUpdate.cancel(), [onUpdate]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -297,7 +299,7 @@ export default function ChatInput({
       const data = parseTipTapJSON(editor?.getJSON());
       console.log(editor.getJSON());
       const memo: ChatMemo = {
-        replying,
+        replying: reply,
         author: `~${window.ship || 'zod'}`,
         sent: Date.now(),
         content: {
@@ -313,14 +315,8 @@ export default function ChatInput({
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
     },
-    [replying, whom, sendMessage, closeReply]
+    [reply, whom, sendMessage, closeReply]
   );
-
-  useEffect(() => {
-    if (whom) {
-      useChatState.getState().getDraft(whom);
-    }
-  }, [whom]);
 
   const messageEditor = useMessageEditor({
     content: '',
@@ -332,14 +328,21 @@ export default function ChatInput({
       },
       [onSubmit]
     ),
-    onUpdate: onUpdate.current,
+    onUpdate,
   });
 
   useEffect(() => {
-    if (replying) {
+    if (whom) {
+      messageEditor?.commands.setContent('');
+      useChatState.getState().getDraft(whom);
+    }
+  }, [whom, messageEditor]);
+
+  useEffect(() => {
+    if (reply) {
       messageEditor?.commands.focus();
     }
-  }, [replying, messageEditor]);
+  }, [reply, messageEditor]);
 
   useEffect(() => {
     if (draft && messageEditor) {
@@ -364,11 +367,11 @@ export default function ChatInput({
     <>
       <div className={cn('flex w-full items-end space-x-2', className)}>
         <div className="flex-1">
-          {showReply && ship && replying ? (
+          {showReply && ship && reply ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="text-gray-600">Replying to</span>
               <Avatar size="xs" ship={ship} className="ml-2" />
-              <ShipName name={ship} className="ml-2" />
+              <ShipName name={ship} showAlias className="ml-2" />
               <button className="icon-button ml-auto" onClick={closeReply}>
                 <X16Icon className="h-4 w-4" />
               </button>

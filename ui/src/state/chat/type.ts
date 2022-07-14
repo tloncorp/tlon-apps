@@ -36,12 +36,13 @@ export interface ChatState {
   };
   pendingDms: string[];
   briefs: ChatBriefs;
-  pinDm: (whom: string) => Promise<void>;
-  unpinDm: (whom: string) => Promise<void>;
+  toggleDmPin: (whom: string, pin: boolean) => Promise<void>;
+  toggleMultiDmPin: (whom: string, pin: boolean) => Promise<void>;
   markRead: (whom: string) => Promise<void>;
   start: () => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
+  fetchNewer: (ship: string, count: string) => Promise<boolean>;
   fetchOlder: (ship: string, count: string) => Promise<boolean>;
   draft: (whom: string, story: ChatStory) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
@@ -72,10 +73,6 @@ export interface ChatState {
   removeFromMultiDm: (
     id: string, // `@uw`
     hive: Omit<Hive, 'add'> // by is the removing ship, for is the removed ship
-  ) => Promise<void>;
-  sendMultiDm: (
-    id: string, // `@uw` - the club ID
-    memo: Omit<ChatMemo, 'sent'>
   ) => Promise<void>;
   multiDmRsvp: (
     id: string, // `@uw` - the club ID
