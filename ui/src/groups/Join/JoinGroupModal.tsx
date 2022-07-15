@@ -23,8 +23,15 @@ export default function JoinGroupModal() {
     }
   }, [group, flag, navigate]);
 
-  const join = useCallback(() => {
-    useGroupState.getState().join(flag, true);
+  const join = useCallback(async () => {
+    await useGroupState.getState().join(flag, true);
+    dismiss();
+  }, [flag]);
+
+  const reject = useCallback(() => {
+    // TODO: show the Reject Confirm modal
+    // TODO: Liam is working on implementing the Reject Gang endpoint
+    console.log('reject ...');
   }, [flag]);
 
   return (
@@ -35,8 +42,18 @@ export default function JoinGroupModal() {
           <GroupSummary flag={flag} {...gang.preview} />
           <p>{gang.preview?.meta.description}</p>
           <div className="flex items-center justify-end space-x-2">
+            {
+              gang.invite ?
+                <button
+                  className="button bg-red-soft text-red"
+                  onClick={reject}
+                >
+                  Reject Invite
+                </button>
+                : null
+            }
             <button
-              className="button bg-blue text-white dark:text-black"
+              className="button bg-blue-soft text-blue ml-2"
               onClick={join}
             >
               Join

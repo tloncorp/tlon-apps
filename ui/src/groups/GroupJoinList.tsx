@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
-import { useNavigate } from 'react-router';
-import { useGang, useGroup, useGroupState } from '@/state/groups';
+import { useGang } from '@/state/groups';
+import { useLocation, useNavigate } from 'react-router';
 import GroupSummary, { GroupSummarySize } from './GroupSummary';
 
 interface GroupJoinItemProps {
@@ -8,28 +8,37 @@ interface GroupJoinItemProps {
   size?: GroupSummarySize;
 }
 
-function GroupJoinItem({ flag, size }: GroupJoinItemProps) {
+function GroupJoinItem({ flag }: GroupJoinItemProps) {
+  const location = useLocation();
   const navigate = useNavigate();
   const gang = useGang(flag);
-  const group = useGroup(flag);
 
   const join = useCallback(() => {
-    if (group) {
-      return navigate(`/groups/${flag}`);
-    }
+    navigate(`/gangs/${flag}`, { state: { backgroundLocation: location } });
+  }, [flag]);
 
-    return useGroupState.getState().join(flag, true);
-  }, [flag, group, navigate]);
+  const reject = useCallback(() => {
+    // TODO: Liam is working on implementing the Reject Gang endpoint
+    console.log('reject ...');
+  }, [flag]);
 
   return (
-    <li className="flex items-center p-2">
-      <GroupSummary flag={flag} {...gang.preview} size={size} />
-      <button
-        className="button ml-auto bg-blue-soft text-blue dark:bg-blue-900"
-        onClick={join}
-      >
-        {group ? 'Open' : 'Join'}
-      </button>
+    <li className="flex items-center p-2 justify-between">
+      <GroupSummary flag={flag} {...gang.preview} size={'small'} />
+      <div className='flex flex-row'>
+        <button
+          className="button bg-red-soft text-red"
+          onClick={reject}
+        >
+          Reject
+        </button>
+        <button
+          className="button bg-blue-soft text-blue ml-2"
+          onClick={join}
+        >
+          Join
+        </button>
+      </div>
     </li>
   );
 }
@@ -38,11 +47,15 @@ interface GroupJoinListProps {
   size?: GroupSummarySize;
 }
 
-export default function GroupJoinList({ gangs, size }: GroupJoinListProps) {
+interface GroupJoinListProps {
+  gangs: string[];
+}
+
+export default function GroupJoinList({ gangs }: GroupJoinListProps) {
   return (
     <ul>
       {gangs.map((g) => (
-        <GroupJoinItem key={g} flag={g} size={size} />
+        <GroupJoinItem key={g} flag={g} size={'small'} />
       ))}
     </ul>
   );

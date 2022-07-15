@@ -161,7 +161,6 @@ export const useGroupState = create<GroupState>((set, get) => ({
       },
     });
   },
-  // addMember: async
   addSects: async (flag, ship, sects) => {
     const diff = {
       fleet: {

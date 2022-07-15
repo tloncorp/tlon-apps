@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
-import { useGroupList, useGroupState } from '@/state/groups';
+import { useGangList, useGroupList, useGroupState } from '@/state/groups';
 import { whomIsFlag } from '@/logic/utils';
 import GroupJoinList from './GroupJoinList';
 
@@ -18,6 +18,9 @@ export default function FindGroups() {
   const query = ship && ship + (name ? `/${name}` : '');
   const [gangs, setGangs] = useState<string[]>([]);
   const [rawInput, setRawInput] = useState(query || '');
+
+  // TODO: replace with Hunter's changes
+  const gangs = useGangList();
 
   useEffect(() => {
     if (!query) {
@@ -54,7 +57,7 @@ export default function FindGroups() {
   return (
     <div className="flex grow bg-gray-50">
       <div className="w-full max-w-3xl p-4">
-        <section className="card space-y-8 p-8">
+        <section className="card space-y-8 p-8 mb-4">
           <h1 className="text-lg font-bold">Find Groups</h1>
           <div>
             <label htmlFor="flag" className="mb-1.5 block font-semibold">
@@ -71,7 +74,10 @@ export default function FindGroups() {
               />
             </div>
           </div>
-          <GroupJoinList size="small" gangs={gangs} />
+        </section>
+        <section className="card space-y-8 p-8 mb-2">
+          <h1 className="text-lg font-bold">Pending Invites</h1>
+          <GroupJoinList gangs={gangs} />
         </section>
       </div>
     </div>
