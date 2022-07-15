@@ -341,6 +341,13 @@ export const useChatState = create<ChatState>(
           json: flag,
         });
       },
+      leaveChat: async (flag) => {
+        await api.poke({
+          app: 'chat',
+          mark: 'chat-leave',
+          json: flag,
+        });
+      },
       dmRsvp: async (ship, ok) => {
         get().batchSet((draft) => {
           draft.pendingDms = draft.pendingDms.filter((d) => d !== ship);

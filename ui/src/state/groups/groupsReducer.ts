@@ -74,6 +74,7 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
 
     if ('channel' in diff) {
       const { flag: f, diff: d } = diff.channel;
+      // TODO: add state update for 'leave' case
       if ('add' in d) {
         group.channels[f] = d.add;
       } else if ('del' in d) {
@@ -93,6 +94,11 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
         );
       } else if ('join' in d) {
         group.channels[f].join = d.join;
+      } else if ('leave' in d) {
+        if (d.leave) {
+          // TODO: what should we do on leave? delete the brief?
+          delete group.channels[f];
+        }
       }
     } else if ('fleet' in diff) {
       reduceFleet(group, diff);
