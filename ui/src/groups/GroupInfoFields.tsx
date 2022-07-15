@@ -3,6 +3,7 @@ import { useFormContext } from 'react-hook-form';
 import ColorPicker from '@/components/ColorPicker';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import EmptyIconBox from '@/components/icons/EmptyIconBox';
+import XIcon from '@/components/icons/XIcon';
 import useMedia from '@/logic/useMedia';
 import { isValidUrl } from '@/logic/utils';
 import { GroupMeta } from '@/types/groups';
@@ -76,45 +77,43 @@ export default function GroupInfoFields() {
 
   return (
     <>
-      <div className="flex justify-between">
-        <div className="flex flex-col">
+      <div className="flex">
+        <div className="flex grow flex-col">
           <span className="pb-2 font-bold">Group Icon*</span>
           <div className="flex items-center space-x-2">
-            {iconType === undefined ? (
-              <>
-                <button
-                  className="secondary-button"
-                  onClick={() => setIconType('image')}
-                >
-                  Image URL
-                </button>
-                <span className="text-sm font-semibold">or</span>
-                <button
-                  className="secondary-button"
-                  onClick={() => setIconType('color')}
-                >
-                  Fill Color
-                </button>
-              </>
-            ) : null}
-            {iconType === 'image' ? (
-              <>
+            {iconType === undefined || iconType === 'image' ? (
+              <div className="relative flex w-full items-baseline space-x-2">
                 <input
-                  className="input"
-                  placeholder="Paste Image URL"
+                  className="input w-full"
+                  onFocus={() => setIconType('image')}
                   {...register('image', {
                     required: true,
                     validate: (value) => isValidUrl(value),
                   })}
-                  type="url"
                 />
-                <button
-                  className="secondary-button"
-                  onClick={handleCancelImageIcon}
-                >
-                  Cancel
-                </button>
-              </>
+                {iconType === undefined ? (
+                  <div className="pointer-events-none absolute top-2 cursor-pointer">
+                    <span className="pointer-events-none">
+                      Paste an image URL
+                    </span>
+                    <span
+                      className="pointer-events-auto text-blue"
+                      onClick={() => setIconType('color')}
+                    >
+                      {' '}
+                      or choose fill color
+                    </span>
+                  </div>
+                ) : null}
+                {iconType === 'image' ? (
+                  <button
+                    className="absolute right-2 top-2"
+                    onClick={handleCancelImageIcon}
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
             ) : null}
             {iconType === 'color' ? (
               <div className="flex items-center space-x-2">
@@ -132,10 +131,10 @@ export default function GroupInfoFields() {
                   }
                 />
                 <button
-                  className="secondary-button"
+                  className="secondary-button px-2"
                   onClick={handleCancelColorIcon}
                 >
-                  Cancel
+                  <XIcon className="h-4 w-4" />
                 </button>
               </div>
             ) : null}
@@ -146,16 +145,16 @@ export default function GroupInfoFields() {
         </div>
         {iconType === 'color' ? (
           <ColorBoxIcon
-            className="h-12 w-12 text-xl"
+            className="ml-2 h-12 w-12 text-xl"
             color={iconColor ? iconColor : '#000000'}
             letter={iconLetter ? iconLetter : 'T'}
           />
         ) : null}
         {iconType === 'image' && isValidUrl(iconUrl) ? (
-          <GroupAvatar size="h-14 w-14" image={iconUrl} />
+          <GroupAvatar size="ml-2 h-14 w-14" image={iconUrl} />
         ) : null}
         {iconType === undefined ? (
-          <EmptyIconBox className="h-14 w-14 text-gray-300" />
+          <EmptyIconBox className="ml-2 h-14 w-14 text-gray-300" />
         ) : null}
       </div>
       <div className="flex flex-col">
