@@ -46,10 +46,8 @@ module.exports = {
       officialSorting: true,
     },
     'import/resolver': {
-      'eslint-import-resolver-custom-alias': {
-        alias: {
-          '@': './src',
-        },
+      alias: {
+        map: [['@', './src']],
         extensions: ['.ts', '.tsx'],
       },
     },

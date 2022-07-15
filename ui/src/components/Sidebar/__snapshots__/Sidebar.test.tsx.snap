@@ -43,11 +43,11 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </li>
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
+        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
-          href="/groups/join"
+          href="/groups/find"
         >
           <svg
             class="m-1 h-4 w-4"
@@ -56,22 +56,22 @@ exports[`Sidebar > renders as expected 1`] = `
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
-              class="stroke-current"
-              d="m8 8 4-4M8 8 4 4m4 4-4 4m4-4 4 4M8 8h5M8 8V3m0 5H3m5 0v5"
-              stroke-linecap="round"
-              stroke-width="2"
+              class="fill-current"
+              clip-rule="evenodd"
+              d="M6.00003 7c0-1.65685 1.34314-3 3-3C10.6569 4 12 5.34315 12 7s-1.3431 3-2.99997 3c-1.65686 0-3-1.34315-3-3Zm3-5c-2.76142 0-5 2.23858-5 5 0 1.01907.30487 1.96694.82838 2.75737l-.53552.53553-2 2c-.39052.3905-.39052 1.0237 0 1.4142.39053.3905 1.02369.3905 1.41422 0l2-2 .53551-.5355c.79044.5235 1.73832.8284 2.75741.8284C11.7615 12 14 9.76142 14 7s-2.2385-5-4.99997-5Z"
+              fill-rule="evenodd"
             />
           </svg>
           <div
             class="max-w-full flex-1 truncate text-left"
-            title="Join Group"
+            title="Find Groups"
           >
-            Join Group
+            Find Groups
           </div>
         </a>
       </li>
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-green hover:bg-green-soft hover:dark:bg-green-900"
+        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"

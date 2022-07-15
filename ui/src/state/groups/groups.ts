@@ -144,6 +144,13 @@ export const useGroupState = create<GroupState>((set, get) => ({
     await api.poke(groupAction(flag, { del: null }));
   },
   join: async (flag, joinAll) => {
+    get().batchSet((draft) => {
+      draft.gangs[flag].claim = {
+        progress: 'adding',
+        'join-all': joinAll,
+      };
+    });
+
     api.poke({
       app: 'groups',
       mark: 'group-join',
