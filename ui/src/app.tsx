@@ -42,6 +42,7 @@ import NewChannel from './channels/NewChannel/NewChannel';
 import FindGroups from './groups/FindGroups';
 import JoinGroupModal from './groups/Join/JoinGroupModal';
 import ChannelIndex from './groups/ChannelIndex/ChannelIndex';
+import RejectConfirmModal from './groups/Join/RejectConfirmModal';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -121,6 +122,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
+          <Route path="/gangs/:ship/:name/reject" element={<RejectConfirmModal />} />
           <Route
             path="/groups/:ship/:name/channels/new"
             element={<NewChannel />}

@@ -2,24 +2,29 @@ import React, { useCallback } from 'react';
 import { useGang } from '@/state/groups';
 import { useLocation, useNavigate } from 'react-router';
 import GroupSummary, { GroupSummarySize } from './GroupSummary';
+import { getGroupPrivacy } from '@/logic/utils';
 
 interface GroupJoinItemProps {
   flag: string;
-  size?: GroupSummarySize;
 }
 
 function GroupJoinItem({ flag }: GroupJoinItemProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const gang = useGang(flag);
+  const privacy = gang.preview?.cordon ? getGroupPrivacy(gang.preview?.cordon) : 'public';
 
   const join = useCallback(() => {
     navigate(`/gangs/${flag}`, { state: { backgroundLocation: location } });
   }, [flag]);
 
   const reject = useCallback(() => {
-    // TODO: Liam is working on implementing the Reject Gang endpoint
-    console.log('reject ...');
+    if(privacy === 'public') {
+      // TODO: Liam is working on implementing the Reject Gang endpoint
+      return;
+    }
+
+    navigate(`/gangs/${flag}/reject`, { state: { backgroundLocation: location } });    
   }, [flag]);
 
   return (
@@ -55,7 +60,7 @@ export default function GroupJoinList({ gangs }: GroupJoinListProps) {
   return (
     <ul>
       {gangs.map((g) => (
-        <GroupJoinItem key={g} flag={g} size={'small'} />
+        <GroupJoinItem key={g} flag={g} />
       ))}
     </ul>
   );

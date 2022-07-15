@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router';
 import Dialog, { DialogContent } from '@/components/Dialog';
-import { useDismissNavigate } from '@/logic/routing';
+import { useDismissNavigate, useModalNavigate } from '@/logic/routing';
 import {
   useGang,
   useGroup,
@@ -9,13 +8,15 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import GroupSummary from '../GroupSummary';
+import { getGroupPrivacy } from '@/logic/utils';
 
 export default function JoinGroupModal() {
-  const navigate = useNavigate();
+  const navigate = useModalNavigate();
   const flag = useRouteGroup();
   const gang = useGang(flag);
   const group = useGroup(flag);
   const dismiss = useDismissNavigate();
+  const privacy = gang.preview?.cordon ? getGroupPrivacy(gang.preview?.cordon) : 'public';
 
   useEffect(() => {
     if (group) {
@@ -29,9 +30,13 @@ export default function JoinGroupModal() {
   }, [flag]);
 
   const reject = useCallback(() => {
-    // TODO: show the Reject Confirm modal
-    // TODO: Liam is working on implementing the Reject Gang endpoint
-    console.log('reject ...');
+    if(privacy === 'public') {
+      // TODO: Liam is working on implementing the Reject Gang endpoint
+      dismiss();
+      return;
+    }
+
+    navigate(`/gangs/${flag}/reject`, { state: { backgroundLocation: location } });    
   }, [flag]);
 
   return (
