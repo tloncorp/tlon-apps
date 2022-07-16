@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DraggableProvided } from 'react-beautiful-dnd';
 import * as Switch from '@radix-ui/react-switch';
 import { Channel } from '@/types/groups';
-import EditChannelNameModal from '@/groups/GroupAdmin/AdminChannels/EditChannelNameModal';
+import EditChannelModal from '@/groups/GroupAdmin/AdminChannels/EditChannelModal';
 import PencilIcon from '@/components/icons/PencilIcon';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
@@ -68,10 +68,11 @@ export default function AdminChannelListItem({
           </div>
         </div>
       </div>
-      <EditChannelNameModal
+      <EditChannelModal
         editIsOpen={editIsOpen}
         setEditIsOpen={setEditIsOpen}
         channel={channel}
+        newChannel={true}
       />
     </>
   );

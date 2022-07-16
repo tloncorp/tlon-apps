@@ -15,7 +15,7 @@ export default function NewChannel() {
   return (
     <Dialog defaultOpen onOpenChange={onOpenChange}>
       <DialogContent containerClass="w-full sm:max-w-lg">
-        <NewChannelForm />
+        <NewChannelForm newChannel={false} />
       </DialogContent>
     </Dialog>
   );

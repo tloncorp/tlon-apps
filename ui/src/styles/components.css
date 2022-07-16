@@ -3,11 +3,19 @@
 }
 
 .secondary-button {
-  @apply inline-flex items-center justify-center rounded-lg bg-gray-50 py-2 px-4 text-lg font-semibold leading-4 text-gray-800 ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:text-base;
+  @apply inline-flex items-center justify-center rounded-lg bg-gray-50 mix-blend-multiply dark:mix-blend-screen py-2 px-4 text-lg font-semibold leading-4 text-gray-800 ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:text-base;
 }
 
 .small-button {
   @apply inline-flex h-6 items-center justify-center rounded-md bg-gray-800 py-1 px-2 text-sm font-semibold leading-4 text-white ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400;
+}
+
+.small-secondary-button {
+  @apply inline-flex h-6 items-center justify-center rounded-md mix-blend-multiply dark:mix-blend-screen bg-gray-50 py-1 px-2 text-sm font-semibold leading-4 text-gray-800 ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400;
+}
+
+.red-text-button {
+  @apply inline-flex items-center justify-center rounded-lg py-2 px-4 text-lg font-semibold leading-4 text-red ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:text-base;
 }
 
 .icon-button {
