@@ -455,10 +455,14 @@ const dms: Handler[] = [
         };
         dmList[req.json.ship] = brief;
 
-        api.publishUpdate(briefsSub, {
-          whom: req.json.ship,
-          brief,
-        });
+        api.publishUpdate(
+          briefsSub,
+          {
+            whom: req.json.ship,
+            brief,
+          },
+          req.mark
+        );
       }
 
       return createResponse(req);

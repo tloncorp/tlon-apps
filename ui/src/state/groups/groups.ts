@@ -257,7 +257,13 @@ export const useGroupState = create<GroupState>((set, get) => ({
     await api.subscribe({
       app: 'groups',
       path: '/groups/ui',
-      event: (data) => {
+      event: (data, mark) => {
+        if (mark === 'gang-gone') {
+          get().batchSet((draft) => {
+            delete draft.gangs[data];
+          });
+        }
+
         const { flag, update } = data as GroupAction;
         if ('create' in update.diff) {
           const group = update.diff.create;

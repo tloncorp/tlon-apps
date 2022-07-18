@@ -327,7 +327,12 @@
   ++  go-fact-init
     |=  [=time gr=group:g]
     =.  group  gr
-    =.  net  [%sub time]
+    =.  net  [%sub time] 
+    =/  create=diff:g  [%create group]
+    =.  cor  
+      (give %fact ~[/groups/ui] group-action+!>(`action:g`[flag now.bowl create]))
+    =.  cor
+      (give %fact ~[/groups/ui] gang-gone+!>(flag))
     =.  cor
       (emil join-pinned:go-pass)
     go-core
@@ -342,7 +347,6 @@
         out
       (~(put in out) path)
     =.  paths  (~(put in paths) (snoc go-area %ui))
-    =.  paths  (~(put in paths) /groups/ui)
     =.  cor
       (give %fact ~(tap in paths) group-update+!>(`update:g`[time diff]))
     =.  cor

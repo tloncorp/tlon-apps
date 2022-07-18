@@ -7,26 +7,35 @@ import { getFlagParts, getGroupPrivacy } from '@/logic/utils';
 import { GroupPreview } from '@/types/groups';
 import GroupAvatar from './GroupAvatar';
 
+export type GroupSummarySize = 'default' | 'small';
+
 interface GroupSummaryProps extends Partial<GroupPreview> {
   flag: string;
+  size?: GroupSummarySize;
 }
 
 export default function GroupSummary({
   flag,
   cordon,
   meta,
+  size = 'default',
 }: GroupSummaryProps) {
   const { ship } = getFlagParts(flag);
   const privacy = cordon && getGroupPrivacy(cordon);
 
   return (
     <div className="flex items-center space-x-3 font-semibold">
-      <GroupAvatar {...meta} size="h-[72px] w-[72px]" />
+      <GroupAvatar
+        {...meta}
+        size={size === 'default' ? 'h-[72px] w-[72px]' : 'h-12 w-12'}
+      />
       <div className="space-y-2">
         <h3>{meta?.title || flag}</h3>
-        <p className="text-gray-400">
-          Hosted by <ShipName name={ship} />
-        </p>
+        {size === 'default' ? (
+          <p className="text-gray-400">
+            Hosted by <ShipName name={ship} />
+          </p>
+        ) : null}
         <div className="flex items-center space-x-2 text-gray-600">
           {privacy ? (
             <span className="inline-flex items-center space-x-1 capitalize">

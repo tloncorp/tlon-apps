@@ -15,8 +15,8 @@ import GroupJoinList from './GroupJoinList';
 export default function FindGroups() {
   const { ship, name } = useParams<{ ship: string; name: string }>();
   const navigate = useNavigate();
-  const groups = useGroupList();
   const query = ship && ship + (name ? `/${name}` : '');
+  const [gangs, setGangs] = useState<string[]>([]);
   const [rawInput, setRawInput] = useState(query || '');
 
   useEffect(() => {
@@ -26,13 +26,9 @@ export default function FindGroups() {
 
     const isFlag = whomIsFlag(query);
 
-    if (isFlag && groups.includes(query)) {
-      return navigate(`/groups/${query}`);
-    }
-
     if (isFlag) {
       useGroupState.getState().search(query);
-      return;
+      setGangs([query]);
     }
   }, [query]);
 
@@ -75,7 +71,7 @@ export default function FindGroups() {
               />
             </div>
           </div>
-          <GroupJoinList />
+          <GroupJoinList size="small" gangs={gangs} />
         </section>
       </div>
     </div>
