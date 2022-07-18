@@ -2,8 +2,8 @@
 
 exports[`ChannelIndex > renders as expected 1`] = `
 <DocumentFragment>
-  <div
-    class="w-full p-4"
+  <section
+    class="w-full max-w-3xl p-4"
   >
     <div
       class="mb-4 flex flex-row justify-between"
@@ -69,6 +69,6 @@ exports[`ChannelIndex > renders as expected 1`] = `
         </div>
       </div>
     </div>
-  </div>
+  </section>
 </DocumentFragment>
 `;

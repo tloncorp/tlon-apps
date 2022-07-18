@@ -2,7 +2,7 @@ import _ from 'lodash';
 import React, { Component, CSSProperties, ReactNode, useCallback } from 'react';
 import { VirtualContext } from './VirtualContext';
 import clamp from './util';
-import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner';
+import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 
 /**
  * This VirtualScroller is based on the implementation from Groups 1 by the
