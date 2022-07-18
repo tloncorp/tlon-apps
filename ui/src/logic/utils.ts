@@ -4,7 +4,14 @@ import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
 import _ from 'lodash';
 import { ChatWhom } from '../types/chat';
-import { Cabal, Cabals, Group, PrivacyType, Rank } from '../types/groups';
+import {
+  Cabal,
+  Cabals,
+  Cordon,
+  Group,
+  PrivacyType,
+  Rank,
+} from '../types/groups';
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
@@ -144,6 +151,15 @@ export function getSectTitle(cabals: Cabals, sect: string) {
   return cabals[sect]?.meta.title || sect;
 }
 
+export function getFlagParts(flag: string) {
+  const parts = flag.split('/');
+
+  return {
+    ship: parts[0],
+    name: parts[1],
+  };
+}
+
 export function isValidUrl(str?: string): boolean {
   const pattern = new RegExp(
     '^(https?:\\/\\/)?' + // protocol
@@ -157,8 +173,8 @@ export function isValidUrl(str?: string): boolean {
   return str ? !!pattern.test(str) : false;
 }
 
-export function getGroupPrivacy(group: Group): PrivacyType {
-  if ('open' in group.cordon) {
+export function getGroupPrivacy(cordon: Cordon): PrivacyType {
+  if ('open' in cordon) {
     return 'public';
   }
 

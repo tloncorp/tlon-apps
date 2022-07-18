@@ -5,7 +5,7 @@
 ++  grow
   |%
   ++  noun  flag
-  ++  json  (flag:enjs:j flag)
+  ++  json  s/(flag:enjs:j flag)
   --
 ++  grab
   |%

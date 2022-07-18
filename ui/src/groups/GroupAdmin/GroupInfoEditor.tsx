@@ -34,7 +34,7 @@ export default function GroupInfoEditor() {
     defaultValues: {
       ...emptyMeta,
       ...group?.meta,
-      privacy: (group && getGroupPrivacy(group)) || 'public',
+      privacy: (group && getGroupPrivacy(group.cordon)) || 'public',
     },
   });
 
