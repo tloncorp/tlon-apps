@@ -1,3 +1,4 @@
+import ob from 'urbit-ob';
 import { unixToDa } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
@@ -91,8 +92,12 @@ export function whomIsDm(whom: ChatWhom): boolean {
   return whom.startsWith('~') && !whom.match('/');
 }
 
+// ship + term, term being a @tas: lower-case letters, numbers, and hyphens
 export function whomIsFlag(whom: ChatWhom): boolean {
-  return whom.startsWith('~') && whom.includes('/');
+  return (
+    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
+    ob.isValidPatp(whom.split('/')[0])
+  );
 }
 
 export function whomIsMultiDm(whom: ChatWhom): boolean {
