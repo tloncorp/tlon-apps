@@ -7,16 +7,20 @@ import {
   useGroupState,
   useRouteGroup,
 } from '@/state/groups';
-import GroupSummary from '../GroupSummary';
 import { getGroupPrivacy } from '@/logic/utils';
+import { useLocation } from 'react-router';
+import GroupSummary from '../GroupSummary';
 
 export default function JoinGroupModal() {
+  const location = useLocation();
   const navigate = useModalNavigate();
   const flag = useRouteGroup();
   const gang = useGang(flag);
   const group = useGroup(flag);
   const dismiss = useDismissNavigate();
-  const privacy = gang.preview?.cordon ? getGroupPrivacy(gang.preview?.cordon) : 'public';
+  const privacy = gang.preview?.cordon
+    ? getGroupPrivacy(gang.preview?.cordon)
+    : 'public';
 
   useEffect(() => {
     if (group) {
@@ -27,17 +31,19 @@ export default function JoinGroupModal() {
   const join = useCallback(async () => {
     await useGroupState.getState().join(flag, true);
     dismiss();
-  }, [flag]);
+  }, [dismiss, flag]);
 
   const reject = useCallback(() => {
-    if(privacy === 'public') {
+    if (privacy === 'public') {
       // TODO: Liam is working on implementing the Reject Gang endpoint
       dismiss();
       return;
     }
 
-    navigate(`/gangs/${flag}/reject`, { state: { backgroundLocation: location } });    
-  }, [flag]);
+    navigate(`/gangs/${flag}/reject`, {
+      state: { backgroundLocation: location },
+    });
+  }, [dismiss, flag, location, navigate, privacy]);
 
   return (
     <Dialog defaultOpen onOpenChange={() => dismiss()}>
@@ -47,18 +53,13 @@ export default function JoinGroupModal() {
           <GroupSummary flag={flag} {...gang.preview} />
           <p>{gang.preview?.meta.description}</p>
           <div className="flex items-center justify-end space-x-2">
-            {
-              gang.invite ?
-                <button
-                  className="button bg-red-soft text-red"
-                  onClick={reject}
-                >
-                  Reject Invite
-                </button>
-                : null
-            }
+            {gang.invite ? (
+              <button className="button bg-red-soft text-red" onClick={reject}>
+                Reject Invite
+              </button>
+            ) : null}
             <button
-              className="button bg-blue-soft text-blue ml-2"
+              className="button ml-2 bg-blue-soft text-blue"
               onClick={join}
             >
               Join

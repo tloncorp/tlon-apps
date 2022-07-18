@@ -6,21 +6,20 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
-import { useGangList, useGroupList, useGroupState } from '@/state/groups';
+import { useGangList, useGroupState } from '@/state/groups';
 import { whomIsFlag } from '@/logic/utils';
 import GroupJoinList from './GroupJoinList';
 
 export default function FindGroups() {
   const { ship, name } = useParams<{ ship: string; name: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const query = ship && ship + (name ? `/${name}` : '');
-  const [gangs, setGangs] = useState<string[]>([]);
+  const [foundGangs, setFoundGangs] = useState<string[]>([]);
   const [rawInput, setRawInput] = useState(query || '');
-
-  // TODO: replace with Hunter's changes
-  const gangs = useGangList();
+  const pendingGangs = useGangList();
 
   useEffect(() => {
     if (!query) {
@@ -31,7 +30,7 @@ export default function FindGroups() {
 
     if (isFlag) {
       useGroupState.getState().search(query);
-      setGangs([query]);
+      setFoundGangs([query]);
     }
   }, [query]);
 
@@ -57,7 +56,7 @@ export default function FindGroups() {
   return (
     <div className="flex grow bg-gray-50">
       <div className="w-full max-w-3xl p-4">
-        <section className="card space-y-8 p-8 mb-4">
+        <section className="card mb-4 space-y-8 p-8">
           <h1 className="text-lg font-bold">Find Groups</h1>
           <div>
             <label htmlFor="flag" className="mb-1.5 block font-semibold">
@@ -75,10 +74,18 @@ export default function FindGroups() {
             </div>
           </div>
         </section>
-        <section className="card space-y-8 p-8 mb-2">
-          <h1 className="text-lg font-bold">Pending Invites</h1>
-          <GroupJoinList gangs={gangs} />
-        </section>
+        {foundGangs.length > 0 ? (
+          <section className="card mb-4 space-y-8 p-8">
+            <h1 className="text-lg font-bold">Results</h1>
+            <GroupJoinList gangs={foundGangs} />
+          </section>
+        ) : null}
+        {pendingGangs.length > 0 ? (
+          <section className="card mb-4 space-y-8 p-8">
+            <h1 className="text-lg font-bold">Pending Invites</h1>
+            <GroupJoinList gangs={pendingGangs} />
+          </section>
+        ) : null}
       </div>
     </div>
   );
