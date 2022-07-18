@@ -1,18 +1,18 @@
 /* eslint-disable no-console */
+import { groupBy } from 'lodash';
 import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
-import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { useNavigate } from 'react-router';
+import { Link } from 'react-router-dom';
+import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { Channel } from '@/types/groups';
-import { groupBy } from 'lodash';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import { channelHref, pluralize } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useBriefs, useChatState } from '@/state/chat';
-import { LoadingSpinner } from '@/components/LoadingSpinner/LoadingSpinner';
-import { Link } from 'react-router-dom';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 
 const UNZONED = '';
@@ -21,9 +21,9 @@ const PENDING = 'PENDING';
 const FAILED = 'FAILED';
 type JoinState = typeof READY | typeof PENDING | typeof FAILED;
 
-function Channel({ channel }: { channel: Channel }) {
-  const flag = useRouteGroup();
-  const group = useGroup(flag);
+function Channel({ channel, flag }: { flag: string; channel: Channel }) {
+  const groupFlag = useRouteGroup();
+  const group = useGroup(groupFlag);
   const briefs = useBriefs();
 
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
@@ -90,7 +90,7 @@ function Channel({ channel }: { channel: Channel }) {
           {joined && channelFlag ? (
             <Link
               className="font-semibold text-gray-800"
-              to={channelHref(flag, channelFlag)}
+              to={channelHref(groupFlag, channelFlag)}
             >
               {channel.meta.title}
             </Link>
@@ -164,19 +164,21 @@ function ChannelSection({
   channels,
   zone,
 }: {
-  channels: Channel[];
+  channels: [string, Channel][];
   zone: string | null;
 }) {
   const sortedChannels = channels.slice();
-  sortedChannels.sort((a, b) => a.meta.title.localeCompare(b.meta.title));
+  sortedChannels.sort(([, a], [, b]) =>
+    a.meta.title.localeCompare(b.meta.title)
+  );
 
   return (
     <div>
       {zone !== UNZONED ? (
         <div className="py-4 font-semibold text-gray-400">{zone}</div>
       ) : null}
-      {sortedChannels.map((channel) => (
-        <Channel channel={channel} key={channel.added} />
+      {sortedChannels.map(([flag, channel]) => (
+        <Channel flag={flag} channel={channel} key={channel.added} />
       ))}
     </div>
   );
@@ -193,8 +195,8 @@ export default function ChannelIndex() {
   }
 
   const sectionedChannels = groupBy(
-    Object.entries(group.channels).map((e) => e[1]),
-    (ch) => ch.zone
+    Object.entries(group.channels),
+    ([, ch]) => ch.zone
   );
   // unsectioned channels have zone 'null' after groupBy; replace with empty str
   if ('null' in sectionedChannels) {
@@ -216,7 +218,7 @@ export default function ChannelIndex() {
   });
 
   return (
-    <div className="w-full p-4">
+    <section className="w-full max-w-3xl p-4">
       <div className="mb-4 flex flex-row justify-between">
         <h1 className="text-lg font-bold">All Channels</h1>
         {isAdmin ? (
@@ -229,14 +231,10 @@ export default function ChannelIndex() {
         ) : null}
       </div>
       {zones.map((zone) => (
-        <div className="mb-2 w-full rounded-xl bg-white px-4 py-1">
-          <ChannelSection
-            key={zone}
-            channels={sectionedChannels[zone]}
-            zone={zone}
-          />
+        <div key={zone} className="mb-2 w-full rounded-xl bg-white px-4 py-1">
+          <ChannelSection channels={sectionedChannels[zone]} zone={zone} />
         </div>
       ))}
-    </div>
+    </section>
   );
 }

@@ -252,6 +252,10 @@
     ^-  (unit (unit cage))
     :-  ~
     ?+    pole  ~
+        [%fleet ship=@ %vessel ~]
+      =/  src  (slav %p ship.pole)
+      `noun+!>((~(got by fleet.group) src))
+      ::
         [%channel ship=@ name=@ rest=*]
       =/  fog=flag:g  [(slav %p ship.pole) name.pole]
       =/  =channel:g  (~(got by channels.group) fog)
