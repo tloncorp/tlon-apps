@@ -70,7 +70,7 @@ function Channel() {
 
           <Link
             className="icon-button ml-auto h-8 w-8 bg-transparent"
-            to={`${channelHref(groupFlag, flag)}/settings`}
+            to={`/groups/${groupFlag}/info/channels`}
           >
             <EllipsisIcon className="h-6 w-6" />
           </Link>

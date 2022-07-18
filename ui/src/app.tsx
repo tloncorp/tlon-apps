@@ -99,7 +99,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             <Route index element={<GroupInfo />} />
             <Route path="members" element={<GroupMemberManager />} />
             <Route path="channels" element={<GroupChannelManager />} />
-            <Route path="channel-settings" element={<div />} />
           </Route>
           <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
             <Route

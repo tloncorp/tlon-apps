@@ -24,7 +24,8 @@ export default function NewChannelForm() {
     await useChatState
       .getState()
       .create({ ...values, name, group, readers: [] });
-    navigate(channelHref(flag, name));
+
+    navigate(channelHref(flag, `${window.our}/${name}`));
   };
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
