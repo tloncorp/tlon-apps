@@ -11,11 +11,11 @@ const adminVessel = (): Vessel => ({
   joined: Date.now(),
 });
 
-function createMockGroup(title: string): Group {
+export function createMockGroup(title: string): Group {
   return {
     fleet: {
       '~hastuc-dibtux': emptyVessel(),
-      '~finned-palmer': emptyVessel(),
+      '~finned-palmer': adminVessel(),
       '~zod': emptyVessel(),
     },
     cabals: {
@@ -51,6 +51,7 @@ function createMockGroup(title: string): Group {
         'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.6.14..18.37.11-Icon Box.png',
       color: '',
     },
+    zones: {},
   };
 }
 const mockGroupOne: Group = {
@@ -83,6 +84,10 @@ const mockGroupOne: Group = {
         image: '',
         color: '',
       },
+      added: 1657774188151,
+      join: false,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -97,6 +102,7 @@ const mockGroupOne: Group = {
     image: '',
     color: '',
   },
+  zones: {},
 };
 
 const mockGroupTwo: Group = {
@@ -129,6 +135,10 @@ const mockGroupTwo: Group = {
         image: '',
         color: '',
       },
+      added: 1657774188151,
+      join: true,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -143,6 +153,7 @@ const mockGroupTwo: Group = {
     image: '',
     color: '',
   },
+  zones: {},
 };
 
 const mockGroups: { [flag: string]: Group } = {
@@ -150,7 +161,7 @@ const mockGroups: { [flag: string]: Group } = {
   '~dev/tlon': mockGroupOne,
 };
 
-function createChannel(title: string) {
+export function createChannel(title: string) {
   return {
     meta: {
       title,
@@ -158,6 +169,10 @@ function createChannel(title: string) {
       image: '',
       color: '',
     },
+    added: 1657774188151,
+    join: false,
+    readers: [],
+    zone: null,
   };
 }
 

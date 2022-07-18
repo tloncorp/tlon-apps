@@ -68,7 +68,7 @@ export default function GroupSidebar() {
           </SidebarItem> */}
           <SidebarItem
             icon={<HashIcon16 className="m-1 h-4 w-4" />}
-            to={`/groups/${flag}/all`}
+            to={`/groups/${flag}/channels`}
           >
             All Channels
           </SidebarItem>

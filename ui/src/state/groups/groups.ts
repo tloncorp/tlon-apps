@@ -1,6 +1,6 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
-import produce from 'immer';
+import produce, { current } from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
 import {
@@ -11,6 +11,7 @@ import {
   Groups,
   GroupAction,
   GroupPreview,
+  GroupMeta,
 } from '../../types/groups';
 import api from '../../api';
 import groupsReducer from './groupsReducer';
@@ -225,6 +226,83 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
+  createZone: async (flag, zone, meta) => {
+    const diff = {
+      zone: {
+        zone,
+        delta: {
+          add: meta,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  deleteZone: async (flag, zone) => {
+    const diff = {
+      zone: {
+        zone,
+        delta: {
+          del: null,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  addChannelToZone: async (zone, groupFlag, channelFlag) => {
+    const diff = {
+      channel: {
+        flag: channelFlag,
+        diff: {
+          'add-zone': zone,
+        },
+      },
+    };
+    await api.poke(groupAction(groupFlag, diff));
+  },
+  removeChannelFromZone: async (groupFlag, channelFlag) => {
+    const diff = {
+      channel: {
+        flag: channelFlag,
+        diff: {
+          'del-zone': null,
+        },
+      },
+    };
+    await api.poke(groupAction(groupFlag, diff));
+  },
+  setChannelPerm: async (flag, channelFlag, sects) => {
+    const currentReaders =
+      get().groups[flag].channels[channelFlag]?.readers || [];
+    const addDiff = {
+      channel: {
+        flag: channelFlag,
+        diff: {
+          'add-sects': sects.filter((s) => !currentReaders.includes(s)),
+        },
+      },
+    };
+    const removeDiff = {
+      channel: {
+        flag: channelFlag,
+        diff: {
+          'del-sects': currentReaders.filter((s) => sects.includes(s)),
+        },
+      },
+    };
+    await api.poke(groupAction(flag, addDiff));
+    await api.poke(groupAction(flag, removeDiff));
+  },
+  setChannelJoin: async (flag, channelFlag, join) => {
+    const diff = {
+      channel: {
+        flag: channelFlag,
+        diff: {
+          join,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
   start: async () => {
     const [groups, gangs] = await Promise.all([
       api.scry<Groups>({
@@ -236,7 +314,6 @@ export const useGroupState = create<GroupState>((set, get) => ({
         path: '/gangs',
       }),
     ]);
-
     try {
       const pinnedGroups = await api.scry<string[]>({
         app: 'groups',

@@ -120,6 +120,11 @@
     ?<  =(our.bowl p.flag)
     (join flag)
   ::
+      %chat-leave
+    =+  !<(=leave:c vase)
+    ?<  =(our.bowl p.leave)  :: cannot leave chat we host
+    ca-abet:ca-leave:(ca-abed:ca-core leave)
+  ::
       %chat-draft
     =+  !<(=draft:c vase)
     ?>  =(src.bowl our.bowl)
@@ -711,6 +716,13 @@
     =.  chats  (~(put by chats) f *chat:c)
     =.  ca-core  (ca-abed f)
     ca-sub
+  ::
+  ++  ca-leave
+    =/  =dock  [p.flag dap.bowl]
+    =/  =wire  (snoc ca-area %updates)
+    =.  cor  (emit %pass wire %agent dock %leave ~)
+    =.  gone  &
+    ca-core
   ::
   ++  ca-apply-logs
     |=  =logs:c

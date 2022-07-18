@@ -34,12 +34,14 @@ import GroupInviteDialog from '@/groups/GroupInviteDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
+import GroupChannelManager from '@/groups/GroupAdmin/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
 import MultiDMEditModal from './dms/MultiDMEditModal';
 import NewChannel from './channels/NewChannel/NewChannel';
 import FindGroups from './groups/FindGroups';
 import JoinGroupModal from './groups/Join/JoinGroupModal';
+import ChannelIndex from './groups/ChannelIndex/ChannelIndex';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -96,7 +98,8 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="info" element={<GroupAdmin />}>
             <Route index element={<GroupInfo />} />
             <Route path="members" element={<GroupMemberManager />} />
-            <Route path="applets" element={<div />} />
+            <Route path="channels" element={<GroupChannelManager />} />
+            <Route path="channel-settings" element={<div />} />
           </Route>
           <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
             <Route
@@ -108,6 +111,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="channels/:app/:chShip/:chName/settings"
             element={<ChannelSettings />}
           />
+          <Route path="channels" element={<ChannelIndex />} />
         </Route>
       </Routes>
       {state?.backgroundLocation ? (

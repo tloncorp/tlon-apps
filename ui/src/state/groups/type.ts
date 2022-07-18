@@ -1,4 +1,4 @@
-import { Gangs, Group, GroupMeta, Rank } from '../../types/groups';
+import { Gangs, Group, Rank, GroupMeta } from '../../types/groups';
 
 export interface GroupState {
   set: (fn: (sta: GroupState) => void) => void;
@@ -40,4 +40,25 @@ export interface GroupState {
   start: () => Promise<void>;
   search: (flag: string) => Promise<void>;
   join: (flag: string, joinAll: boolean) => Promise<void>;
+  createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
+  deleteZone: (flag: string, zone: string) => Promise<void>;
+  addChannelToZone: (
+    zone: string,
+    groupFlag: string,
+    channelFlag: string
+  ) => Promise<void>;
+  removeChannelFromZone: (
+    groupFlag: string,
+    channelFlag: string
+  ) => Promise<void>;
+  setChannelPerm: (
+    flag: string,
+    channelFlag: string,
+    sects: string[]
+  ) => Promise<void>;
+  setChannelJoin: (
+    flag: string,
+    channelFlag: string,
+    join: boolean
+  ) => Promise<void>;
 }
