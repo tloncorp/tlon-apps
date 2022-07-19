@@ -724,6 +724,7 @@
     =/  =dock  [p.flag dap.bowl]
     =/  =wire  (snoc ca-area %updates)
     =.  cor  (emit %pass wire %agent dock %leave ~)
+    =.  cor  (emit %give %fact ~[/briefs] chat-leave+!>(flag))
     =.  gone  &
     ca-core
   ::
