@@ -2,6 +2,7 @@ import cn from 'classnames';
 import React, { PropsWithChildren, useCallback, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link, useLocation } from 'react-router-dom';
+import { useCopyToClipboard } from 'usehooks-ts';
 import InviteIcon16 from '../components/icons/InviteIcon16';
 import LinkIcon16 from '../components/icons/LinkIcon16';
 import PinIcon16 from '../components/icons/PinIcon16';
@@ -10,7 +11,6 @@ import EllipsisIcon from '../components/icons/EllipsisIcon';
 import BulletIcon from '../components/icons/BulletIcon';
 import { useBriefs } from '../state/chat';
 import { useGroupState, usePinnedGroups } from '../state/groups/groups';
-import { useCopyToClipboard } from 'usehooks-ts';
 
 export function useGroupActions(flag: string) {
   const [_copied, doCopy] = useCopyToClipboard();

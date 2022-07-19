@@ -191,6 +191,11 @@ export function getGroupPrivacy(cordon: Cordon): PrivacyType {
 }
 
 export function toTitleCase(s: string): string {
-  if(!s) { return '' };
-  return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  if (!s) {
+    return '';
+  }
+  return s
+    .split(' ')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }

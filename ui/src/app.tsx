@@ -121,7 +121,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
-          <Route path="/gangs/:ship/:name/reject" element={<RejectConfirmModal />} />
+          <Route
+            path="/gangs/:ship/:name/reject"
+            element={<RejectConfirmModal />}
+          />
           <Route
             path="/groups/:ship/:name/channels/new"
             element={<NewChannel />}
