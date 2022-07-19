@@ -328,7 +328,9 @@ export default class VirtualScroller<K, V> extends Component<
       if ((scrollTop ?? 0) < ZONE_SIZE) {
         this.scrollLocked = true;
         this.updateVisible(origin === 'top' ? 0 : this.lastOffset);
-        this.resetScroll();
+        requestAnimationFrame(() => {
+          this.resetScroll();
+        });
       }
     }
   }
