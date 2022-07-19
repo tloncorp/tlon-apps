@@ -40,7 +40,7 @@ exports[`ChatInput > renders as expected 1`] = `
         </div>
         <button
           aria-label="Add attachment"
-          class="absolute mr-2 text-gray-600 hover:text-gray-800"
+          class="absolute mr-2 hidden text-gray-600 hover:text-gray-800"
         >
           <svg
             class="h-6 w-4"
