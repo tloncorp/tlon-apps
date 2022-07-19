@@ -12,6 +12,8 @@ import X16Icon from '@/components/icons/X16Icon';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
+import { randomElement } from '@/logic/utils';
+import { Image, PLACEHOLDER_IMAGES } from '@/constants';
 
 interface ChatInputProps {
   whom: string;
@@ -393,12 +395,7 @@ export default function ChatInput({
                       inline: [],
                       block: [
                         {
-                          image: {
-                            src: 'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.3.21..22.06.42-FBqq4mCVkAM8Cs5.jpeg',
-                            width: 750,
-                            height: 599,
-                            alt: '',
-                          },
+                          image: randomElement<Image>(PLACEHOLDER_IMAGES),
                         },
                       ],
                     },
