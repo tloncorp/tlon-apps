@@ -381,7 +381,7 @@ export default function ChatInput({
             <MessageEditor editor={messageEditor} className="w-full" />
             <button
               // this is not contained by relative because of a bug in radix popovers
-              className="absolute mr-2 text-gray-600 hover:text-gray-800"
+              className="absolute mr-2 hidden text-gray-600 hover:text-gray-800"
               aria-label="Add attachment"
               onClick={() => {
                 sendMessage(whom, {
