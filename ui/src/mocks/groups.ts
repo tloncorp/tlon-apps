@@ -189,6 +189,7 @@ for (let i = 0; i < 20; i += 1) {
 export const mockGangs: Gangs = {
   '~zod/structure': {
     invite: {
+      flag: '~zod/structure',
       text: 'Come join the group',
       ship: '~fabled-faster',
     },
