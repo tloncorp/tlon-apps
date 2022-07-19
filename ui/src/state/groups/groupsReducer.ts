@@ -74,7 +74,6 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
 
     if ('channel' in diff) {
       const { flag: f, diff: d } = diff.channel;
-      // TODO: add state update for 'leave' case
       if ('add' in d) {
         group.channels[f] = d.add;
       } else if ('del' in d) {
