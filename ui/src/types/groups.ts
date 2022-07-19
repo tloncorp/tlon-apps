@@ -247,7 +247,6 @@ export interface GroupPreview {
 
 export interface Invite {
   flag: string;
-  text: string;
   ship: string;
 }
 

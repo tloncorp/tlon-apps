@@ -190,7 +190,6 @@ export const mockGangs: Gangs = {
   '~zod/structure': {
     invite: {
       flag: '~zod/structure',
-      text: 'Come join the group',
       ship: '~fabled-faster',
     },
     claim: {
