@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useGroupState } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
-import useStep from '@/logic/useStep';
 import TemplateOrScratch from '@/groups/NewGroup/TemplateOrScratch';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
@@ -12,6 +11,7 @@ import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { GroupFormSchema } from '@/types/groups';
+import { useStep } from 'usehooks-ts';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
@@ -34,8 +34,9 @@ export default function NewGroup() {
     }
   };
 
-  const [currentStep, { goToNextStep, goToPrevStep, setStep, maxStep }] =
-    useStep(4);
+  const maxStep = 4;
+  const [currentStep, { goToNextStep, goToPrevStep, setStep }] =
+    useStep(maxStep);
 
   const defaultValues: GroupFormSchema = {
     title: '',

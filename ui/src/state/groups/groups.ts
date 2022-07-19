@@ -1,6 +1,6 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
-import produce, { current } from 'immer';
+import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
 import {
@@ -11,7 +11,6 @@ import {
   Groups,
   GroupAction,
   GroupPreview,
-  GroupMeta,
 } from '../../types/groups';
 import api from '../../api';
 import groupsReducer from './groupsReducer';
@@ -117,15 +116,17 @@ export const useGroupState = create<GroupState>((set, get) => ({
         'groups',
         `/gangs/${flag}/preview`
       );
-      get().batchSet((draft) => {
-        const gang = draft.gangs[flag] || {
-          preview: null,
-          invite: null,
-          claim: null,
-        };
-        gang.preview = res;
-        draft.gangs[flag] = gang;
-      });
+      if (res) {
+        get().batchSet((draft) => {
+          const gang = draft.gangs[flag] || {
+            preview: null,
+            invite: null,
+            claim: null,
+          };
+          gang.preview = res;
+          draft.gangs[flag] = gang;
+        });
+      }
     } catch (e) {
       // TODO: fix error handling
       console.error(e);
@@ -161,7 +162,6 @@ export const useGroupState = create<GroupState>((set, get) => ({
       },
     });
   },
-  // addMember: async
   addSects: async (flag, ship, sects) => {
     const diff = {
       fleet: {
@@ -395,6 +395,11 @@ const defGang = {
 
 export function useGang(flag: string) {
   return useGroupState(useCallback((s) => s.gangs[flag] || defGang, [flag]));
+}
+
+const selGangs = (s: GroupState) => s.gangs;
+export function useGangs() {
+  return useGroupState(selGangs);
 }
 
 const selGangList = (s: GroupState) => Object.keys(s.gangs);

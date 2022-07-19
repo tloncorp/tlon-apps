@@ -90,6 +90,7 @@
     "react-select": "^5.3.2",
     "tailwindcss-scoped-groups": "^2.0.0",
     "urbit-ob": "^5.0.1",
+    "usehooks-ts": "^2.6.0",
     "validator": "^13.7.0",
     "zustand": "^3.7.2"
   },

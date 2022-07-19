@@ -1,48 +1,65 @@
 import React, { useCallback } from 'react';
-import { useNavigate } from 'react-router';
-import { useGang, useGroup, useGroupState } from '@/state/groups';
+import { useGang } from '@/state/groups';
+import { useLocation, useNavigate } from 'react-router';
+import { getGroupPrivacy } from '@/logic/utils';
 import GroupSummary, { GroupSummarySize } from './GroupSummary';
 
 interface GroupJoinItemProps {
   flag: string;
-  size?: GroupSummarySize;
 }
 
-function GroupJoinItem({ flag, size }: GroupJoinItemProps) {
+function GroupJoinItem({ flag }: GroupJoinItemProps) {
+  const location = useLocation();
   const navigate = useNavigate();
   const gang = useGang(flag);
-  const group = useGroup(flag);
+  const privacy = gang.preview?.cordon
+    ? getGroupPrivacy(gang.preview?.cordon)
+    : 'public';
 
   const join = useCallback(() => {
-    if (group) {
-      return navigate(`/groups/${flag}`);
+    navigate(`/gangs/${flag}`, { state: { backgroundLocation: location } });
+  }, [flag, location, navigate]);
+
+  const reject = useCallback(() => {
+    if (privacy === 'public') {
+      // TODO: Liam is working on implementing the Reject Gang endpoint
+      return;
     }
 
-    return useGroupState.getState().join(flag, true);
-  }, [flag, group, navigate]);
+    navigate(`/gangs/${flag}/reject`, {
+      state: { backgroundLocation: location },
+    });
+  }, [flag, location, navigate, privacy]);
 
   return (
-    <li className="flex items-center p-2">
-      <GroupSummary flag={flag} {...gang.preview} size={size} />
-      <button
-        className="button ml-auto bg-blue-soft text-blue dark:bg-blue-900"
-        onClick={join}
-      >
-        {group ? 'Open' : 'Join'}
-      </button>
+    <li className="flex items-center justify-between p-2">
+      <GroupSummary flag={flag} {...gang.preview} size={'small'} />
+      <div className="flex flex-row">
+        {gang.invite ? (
+          <button className="button bg-red-soft text-red" onClick={reject}>
+            Reject
+          </button>
+        ) : null}
+        <button className="button ml-2 bg-blue-soft text-blue" onClick={join}>
+          Join
+        </button>
+      </div>
     </li>
   );
 }
 interface GroupJoinListProps {
   gangs: string[];
-  size?: GroupSummarySize;
 }
 
-export default function GroupJoinList({ gangs, size }: GroupJoinListProps) {
+interface GroupJoinListProps {
+  gangs: string[];
+}
+
+export default function GroupJoinList({ gangs }: GroupJoinListProps) {
   return (
     <ul>
       {gangs.map((g) => (
-        <GroupJoinItem key={g} flag={g} size={size} />
+        <GroupJoinItem key={g} flag={g} />
       ))}
     </ul>
   );

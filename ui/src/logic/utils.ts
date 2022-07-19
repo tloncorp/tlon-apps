@@ -183,5 +183,19 @@ export function getGroupPrivacy(cordon: Cordon): PrivacyType {
     return 'public';
   }
 
-  return 'private';
+  if ('shut' in cordon) {
+    return 'private';
+  }
+
+  return 'secret';
+}
+
+export function toTitleCase(s: string): string {
+  if (!s) {
+    return '';
+  }
+  return s
+    .split(' ')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }

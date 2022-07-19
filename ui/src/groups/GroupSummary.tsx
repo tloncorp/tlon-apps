@@ -2,9 +2,11 @@ import React from 'react';
 import Lock16Icon from '@/components/icons/Lock16Icon';
 import Globe16Icon from '@/components/icons/Globe16Icon';
 import Private16Icon from '@/components/icons/Private16Icon';
-import ShipName from '@/components/ShipName';
 import { getFlagParts, getGroupPrivacy } from '@/logic/utils';
 import { GroupPreview } from '@/types/groups';
+import { useGroup } from '@/state/groups';
+import Person16Icon from '@/components/icons/Person16Icon';
+import ShipName from '@/components/ShipName';
 import GroupAvatar from './GroupAvatar';
 
 export type GroupSummarySize = 'default' | 'small';
@@ -20,8 +22,10 @@ export default function GroupSummary({
   meta,
   size = 'default',
 }: GroupSummaryProps) {
-  const { ship } = getFlagParts(flag);
   const privacy = cordon && getGroupPrivacy(cordon);
+  const group = useGroup(flag);
+  const { ship } = getFlagParts(flag);
+  const memberCount = Object.keys(group?.fleet ?? {}).length;
 
   return (
     <div className="flex items-center space-x-3 font-semibold">
@@ -49,6 +53,10 @@ export default function GroupSummary({
               <span>{privacy}</span>
             </span>
           ) : null}
+          <span className="inline-flex items-center space-x-1 capitalize text-gray-400">
+            <Person16Icon className="h-4 w-4" />
+            <span>{memberCount} members</span>
+          </span>
         </div>
       </div>
     </div>
