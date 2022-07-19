@@ -136,11 +136,6 @@ interface ChannelDiffJoin {
   join: boolean;
 }
 
-// TODO: update once backend support is implemented
-interface ChannelDiffLeave {
-  leave: boolean;
-}
-
 interface ChannelDiff {
   channel: {
     flag: string;
@@ -151,8 +146,7 @@ interface ChannelDiff {
       | ChannelDiffDelZone
       | ChannelDiffAddSects
       | ChannelDiffDelSects
-      | ChannelDiffJoin
-      | ChannelDiffLeave;
+      | ChannelDiffJoin;
   };
 }
 
