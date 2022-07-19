@@ -4,6 +4,11 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  flag
+    |=  f=flag:c
+    ^-  json
+    s/(rap 3 (scot %p p.f) '/' q.f ~)
+  ::
   ++  club-delta
     |=  d=delta:club:c
     %+  frond  -.d
@@ -331,7 +336,7 @@
     ==
 
   ++  ship  (su ;~(pfix sig fed:ag))
-  ++  flag  (su flag-rule)
+  ++  flag  `$-(json flag:c)`(su flag-rule)
   ++  flag-rule  ;~((glue fas) ;~(pfix sig fed:ag) sym)
   ++  club-id-rule
     (cook |=(@ `@uv`+<) ;~(pfix (jest '0v') viz:ag))
