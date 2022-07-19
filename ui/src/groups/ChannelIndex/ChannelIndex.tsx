@@ -14,6 +14,7 @@ import BulletIcon from '@/components/icons/BulletIcon';
 import { useBriefs, useChatState } from '@/state/chat';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import PencilIcon from '@/components/icons/PencilIcon';
 
 const UNZONED = '';
 const READY = 'READY';
@@ -25,11 +26,17 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useBriefs();
+  const isAdmin = useAmAdmin(flag);
+  const navigate = useNavigate();
 
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
   const [joinState, setJoinState] = useState<JoinState>(READY);
+
+  const editChannel = useCallback(() => {
+    navigate(`/groups/${flag}/info/channels`);
+  }, [flag, navigate]);
 
   const joinChannel = useCallback(async () => {
     try {
@@ -54,10 +61,15 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
     }
   }, [flag, timer]);
 
-  const leaveChannel = useCallback(() => {
-    // TODO: what happens on Leave?
-    console.log('leave ...');
-  }, []);
+  const leaveChannel = useCallback(async () => {
+    try {
+      await useChatState.getState().leaveChat(flag);
+    } catch (error) {
+      if (error) {
+        console.error(`[ChannelIndex:LeaveError] ${error}`);
+      }
+    }
+  }, [flag]);
 
   const muteChannel = useCallback(() => {
     // TODO: what happens on Mute?
@@ -72,8 +84,13 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
     (entry) => entry[1] === channel
   )?.[0];
 
-  // A Channel is considered Joined if a Brief exists
-  const joined = channelFlag && channelFlag in briefs;
+  // If the current user is the Channel host, they are automatically joined,
+  // and cannot leave the group
+  const isChannelHost = window.our === channelFlag?.split('/')[0];
+
+  // A Channel is considered Joined if hosted by current user, or if a Brief
+  // exists
+  const joined = isChannelHost || (channelFlag && channelFlag in briefs);
 
   // TODO: figure out Channel participant count
   const participantCount = Object.keys(group.fleet).length;
@@ -122,13 +139,24 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
                 <BulletIcon className="h-6 w-6 text-gray-400" />
                 <span className="text-gray-800">Mute Channel</span>
               </DropdownMenu.Item>
-              <DropdownMenu.Item
-                onSelect={leaveChannel}
-                className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
-              >
-                <LeaveIcon className="h-6 w-6" />
-                <span>Leave Channel</span>
-              </DropdownMenu.Item>
+              {isAdmin ? (
+                <DropdownMenu.Item
+                  onSelect={editChannel}
+                  className="dropdown-item flex items-center space-x-2"
+                >
+                  <PencilIcon className="m-1.5 h-3 w-3 fill-gray-500" />
+                  <span>Edit Channel</span>
+                </DropdownMenu.Item>
+              ) : null}
+              {!isChannelHost ? (
+                <DropdownMenu.Item
+                  onSelect={leaveChannel}
+                  className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+                >
+                  <LeaveIcon className="h-6 w-6" />
+                  <span>Leave Channel</span>
+                </DropdownMenu.Item>
+              ) : null}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         ) : (
@@ -223,7 +251,7 @@ export default function ChannelIndex() {
         <h1 className="text-lg font-bold">All Channels</h1>
         {isAdmin ? (
           <button
-            onClick={() => navigate(`/groups/${flag}/info/channel-settings`)}
+            onClick={() => navigate(`/groups/${flag}/info/channels`)}
             className="rounded-md bg-gray-800 py-1 px-2 text-[12px] font-semibold leading-4 text-white"
           >
             Channel Settings

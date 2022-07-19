@@ -191,7 +191,14 @@ export const useChatState = create<ChatState>(
         api.subscribe({
           app: 'chat',
           path: '/briefs',
-          event: (event: unknown) => {
+          event: (event: unknown, mark: string) => {
+            if (mark === 'chat-leave') {
+              get().batchSet((draft) => {
+                delete draft.briefs[event as string];
+              });
+              return;
+            }
+
             const { whom, brief } = event as ChatBriefUpdate;
             get().batchSet((draft) => {
               draft.briefs[whom] = brief;
@@ -338,6 +345,13 @@ export const useChatState = create<ChatState>(
         await api.poke({
           app: 'chat',
           mark: 'flag',
+          json: flag,
+        });
+      },
+      leaveChat: async (flag) => {
+        await api.poke({
+          app: 'chat',
+          mark: 'chat-leave',
           json: flag,
         });
       },
