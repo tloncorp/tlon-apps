@@ -40,7 +40,7 @@
   +$  channel
     $:  meta=data:meta
         added=time
-        zon=(unit zone)
+        zone=(unit zone)
         join=?
         readers=(set sect)
     ==

@@ -11,6 +11,7 @@ interface AdminChannelListSectionsProps {
     nextSectionTitle: string
   ) => void;
   onSectionDelete: (currentSectionKey: string) => void;
+  onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
 export default function AdminChannelListSections({
@@ -18,10 +19,11 @@ export default function AdminChannelListSections({
   orderedSections,
   onSectionEditNameSubmit,
   onSectionDelete,
+  onChannelDelete,
 }: AdminChannelListSectionsProps) {
   return (
     <Droppable droppableId="sections" type="SECTIONS">
-      {(provided, snapshot) => (
+      {(provided) => (
         <div ref={provided.innerRef} {...provided.droppableProps}>
           {orderedSections.map((key: string, index: number) => (
             <Section
@@ -30,6 +32,7 @@ export default function AdminChannelListSections({
               index={index}
               onSectionEditNameSubmit={onSectionEditNameSubmit}
               onSectionDelete={onSectionDelete}
+              onChannelDelete={onChannelDelete}
               sectionData={sections[key]}
             />
           ))}

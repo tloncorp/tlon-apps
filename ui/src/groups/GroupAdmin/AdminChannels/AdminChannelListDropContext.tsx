@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { DragDropContext, DraggableLocation } from 'react-beautiful-dnd';
 import bigInt from 'big-integer';
 import { formatUv } from '@urbit/aura';
+import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
 import { SectionMap } from './types';
 import AdminChannelListSections from './AdminChannelListSections';
 import ChannelManagerHeader from './ChannelManagerHeader';
@@ -13,6 +14,7 @@ interface AdminChannelListContentsProps {
 export default function AdminChannelListDropContext({
   sectionedChannels,
 }: AdminChannelListContentsProps) {
+  const group = useRouteGroup();
   const initialChannels = sectionedChannels;
   const [sections, setSections] = useState<SectionMap>(initialChannels);
   const [orderedSections, setOrderedSections] = useState(
@@ -37,19 +39,32 @@ export default function AdminChannelListDropContext({
     setSections(sections);
   };
 
-  const onSectionDelete = (currentSectionKey: string) => {
+  const onSectionDelete = useCallback(
+    (currentSectionKey: string) => {
+      const nextSections = sections;
+      const nextOrderedSections = orderedSections;
+      const orderedSectionsIndex = orderedSections.indexOf(currentSectionKey);
+
+      nextSections.sectionless.channels =
+        nextSections.sectionless.channels.concat(
+          sections[currentSectionKey].channels
+        );
+
+      nextOrderedSections.splice(orderedSectionsIndex, 1);
+      delete nextSections[currentSectionKey];
+
+      setSections(nextSections);
+      setOrderedSections(nextOrderedSections);
+    },
+    [orderedSections, sections]
+  );
+
+  const onChannelDelete = (channelFlag: string, sectionKey: string) => {
     const nextSections = sections;
-    const nextOrderedSections = orderedSections;
-    const orderedSectionsIndex = orderedSections.indexOf(currentSectionKey);
-
-    nextSections.sectionless.channels.concat(
-      sections[currentSectionKey].channels
-    );
-    delete nextSections[currentSectionKey];
-    nextOrderedSections.splice(orderedSectionsIndex, 1);
-
+    nextSections[sectionKey].channels = nextSections[
+      sectionKey
+    ].channels.filter((channel) => channel.key !== channelFlag);
     setSections(nextSections);
-    setOrderedSections(nextOrderedSections);
   };
 
   const addSection = () => {
@@ -80,6 +95,22 @@ export default function AdminChannelListDropContext({
     },
     []
   );
+
+  const setChannelZone = async (
+    channelFlag: string,
+    zoneFlag: string,
+    groupFlag: string
+  ) => {
+    if (zoneFlag === 'Sectionless' || zoneFlag === '') {
+      await useGroupState
+        .getState()
+        .removeChannelFromZone(groupFlag, channelFlag);
+    } else {
+      await useGroupState
+        .getState()
+        .addChannelToZone(zoneFlag, groupFlag, channelFlag);
+    }
+  };
 
   const reorderSectionMap = useCallback(
     (
@@ -118,10 +149,14 @@ export default function AdminChannelListDropContext({
           channels: next,
         },
       };
-
+      setChannelZone(
+        target.key,
+        sectionMap[destination.droppableId].title,
+        group
+      );
       return result;
     },
-    [reorder]
+    [reorder, group]
   );
 
   const onDragEnd = useCallback(
@@ -168,6 +203,7 @@ export default function AdminChannelListDropContext({
         orderedSections={orderedSections}
         onSectionEditNameSubmit={onSectionEditNameSubmit}
         onSectionDelete={onSectionDelete}
+        onChannelDelete={onChannelDelete}
       />
     </DragDropContext>
   );
