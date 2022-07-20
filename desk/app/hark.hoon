@@ -3,6 +3,7 @@
 |%
 +$  card  card:agent:gall
 ++  yarns-per-update  3
+++  rug-trim-size  10  :: number of
 ::  TODO: move to stdlib
 ++  zip
   |*  [a=(list) b=(list)]
@@ -23,12 +24,13 @@
       yarns=(map id:h yarn:h)
       groups=(map flag:h rug:h)
       desks=(map desk rug:h)
+      all=rug:h
   ==
 --
-=|  state-0
-=*  state  -
 %-  agent:dbug
 %+  verb  &
+=|  state-0
+=*  state  -
 =<
   |_  =bowl:gall
   +*  this  .
@@ -38,8 +40,10 @@
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
-    =+  !<(old=state-0 vase)
-    `this(state old)
+    =/  old=(unit state-0)
+      (mole |.(!<(state-0 vase)))  
+    ?~  old  `this
+    `this(state u.old)
   ++  on-poke
     |=  [=mark =vase]
     =^  cards  state
@@ -75,12 +79,14 @@
       %hark-action
     =+  !<(act=action:h vase)
     ?-    -.act
+    ::
+        %saw-rope  (saw-rope rope.act)
         %saw-seam  se-abet:se-saw:(se-abed seam.act)
     ::
         %add-note
-      =/  yar=yarn:h  note.act
+      =/  yar=yarn:h  `note.act
       =.  yarns     (~(put by yarns) id.yar yar)
-      no-abet:(no-init:(no-abed yar) inbox.act)
+      no-abet:(no-init:(no-abed yar) [all desk]:act)
     ==
   ==
 ++  peek
@@ -129,6 +135,85 @@
   ^-  (unit [id:h yarn:h])
   ?~  yar=(~(get by yarns) id)  ~
   `[id u.yar]
+::  TODO: namespacing conflicts?
+++  saw-thread
+  |=  =rope:h
+  |=  =rug:h
+  ?~  ted=(~(get by new.rug) rope)  rug
+  =.  new.rug    (~(del by new.rug) rope)
+  =/  start  (quilt-idx qul.rug)
+  =.  qul.rug  (put:on:quilt:h qul.rug start u.ted)
+  rug
+::
+++  saw-rope
+  |=  =rope:h
+  =/  saw  (saw-thread rope)
+  =.  all  (saw all)
+  =.  desks
+    (~(jab by desks) des.rope saw)
+  =?  groups  ?=(^ gop.rope)
+    (~(jab by groups) u.gop.rope saw)
+  cor
+++  trim-rug
+  |=  =rug:h
+  =*  on  on:quilt:h
+  ^+  rug
+  ?~  hed=(pry:on qul.rug)
+    rug
+  =+  siz=(lent (tap:on qul.rug))
+  ?:  (lte siz 50)  
+    rug  :: bail if not much there
+  =/  dip  (dip:on ,count=@ud)
+  =.  qul.rug
+    =<  +
+    %^  dip  qul.rug  0
+    |=  [count=@ud key=@ud =thread:h]
+    ^-  [(unit thread:h) stop=? count=@ud]
+    =-  [~ - +(count)]
+    (gte count rug-trim-size) 
+  rug
+++  ids-for-rug
+  |=  =rug:h
+  %-  ~(gas in *(set id:h))
+  ^-  (list id:h)
+  %+  welp
+    ^-  (list id:h)
+    %-  zing
+    %+  turn  ~(val by new.rug)
+    |=  =thread:h
+    ~(tap in yarns.thread)
+  ^-  (list id:h)
+  %-  zing
+  %+  turn  (tap:on:quilt:h qul.rug)
+  |=  [idx=@ud =thread:h]
+  ~(tap in yarns.thread)
+::
+++  ids-for-desks
+  =/  des   ~(tap in ~(key by desks))
+  =|  ids=(set id:h)
+  |-  ^+  ids
+  ?~  des  ids
+  =/  =rug:h  (~(got by desks) i.des)
+  $(ids (~(uni in ids) (ids-for-rug rug)), des t.des)
+::
+++  ids-for-groups
+  =/  gop  ~(tap in ~(key by groups))
+  =|  ids=(set id:h)
+  |-  ^+  ids
+  ?~  gop  ids
+  =/  =rug:h  (~(got by groups) i.gop)
+  $(ids (~(uni in ids) (ids-for-rug rug)), gop t.gop)
+::
+++  gc-yarn
+  =/  ids  ~(key by yarns)
+  =.  ids  (~(dif in ids) (ids-for-rug all))
+  =.  ids  (~(dif in ids) ids-for-groups)
+  =.  ids  (~(dif in ids) ids-for-desks)
+  =/  ids  ~(tap in ids)
+  |-
+  ?~  ids  cor
+  $(yarns (~(del by yarns) i.ids), ids t.ids)
+::
 ++  se-abed  se-abed:se-core
 ++  se-core
   |_  =seam:h
@@ -151,6 +236,7 @@
       ?-  -.seam
         %group  .(groups (~(jab by groups) flag.seam fun))
         %desk    .(desks (~(jab by desks) desk.seam fun))
+        %all     .(all (fun all))
       ==
     se-core
   --
@@ -164,34 +250,48 @@
   --
 ++  no-abed   no-abed:no-core
 ++  no-core
-  |_  =note:h
+  |_  =yarn:h
   ++  no-core  .
   ++  no-abed  
-    |=  n=note:h
-    no-core(note n)
-  ++  no-abet  cor
+    |=  y=yarn:h
+    no-core(yarn y)
+  ++  no-abet  
+    =.  yarns  (~(put by yarns) id.yarn yarn)
+    cor
+  ::
   ++  no-thread-groups-quilt
-    ?~  gop.rop.note  no-core
-    =*  group  u.gop.rop.note
+    ?~  gop.rop.yarn  no-core
+    =*  group  u.gop.rop.yarn
     =/  =rug:h   (~(gut by groups) group [~ ~])
-    =/  =thread:h   (~(gut by new.rug) ted.note [~ |])
-    =.  yarns.thread   (~(put in yarns.thread) id.note)
-    =.  new.rug  (~(put by new.rug) ted.note thread)
-    =.  groups   (~(put by groups) group rug)
+    =/  =thread:h   (~(gut by new.rug) rop.yarn [~ |])
+    =.  yarns.thread   (~(put in yarns.thread) id.yarn)
+    =.  sem.yarn  (~(put in sem.yarn) group/group)
+    =.  new.rug   (~(put by new.rug) rop.yarn thread)
+    =.  groups    (~(put by groups) group rug)
     no-core
   ++  no-thread-desk-quilt
-    =*  desk  des.rop.note
-    =/  =thread:h  [(silt id.note ~) |]
+    =*  desk  des.rop.yarn
+    =/  =thread:h  [(silt id.yarn ~) |]
     =/  =rug:h   (~(gut by desks) desk [~ ~])
-    =/  =thread:h   (~(gut by new.rug) ted.note [~ |])
-    =.  yarns.thread   (~(put in yarns.thread) id.note)
-    =.  new.rug  (~(put by new.rug) ted.note thread)
-    =.  desks    (~(put by desks) desk rug)
+    =/  =thread:h   (~(gut by new.rug) rop.yarn [~ |])
+    =.  yarns.thread   (~(put in yarns.thread) id.yarn)
+    =.  sem.yarn  (~(put in sem.yarn) desk/desk)
+    =.  new.rug   (~(put by new.rug) rop.yarn thread)
+    =.  desks     (~(put by desks) desk rug)
     no-core
+  ::
+  ++  no-thread-all-quilt
+    =/  =thread:h   (~(gut by new.all) rop.yarn [~ |])
+    =.  yarns.thread   (~(put in yarns.thread) id.yarn)
+    =.  new.all   (~(put by new.all) rop.yarn thread)
+    =.  sem.yarn  (~(put in sem.yarn) all/~)
+    no-core
+  ::
   ++  no-init
-    |=  inbox=?
+    |=  [all=? desk=?]
     =.  no-core  no-thread-groups-quilt
-    =?  no-core  inbox  no-thread-desk-quilt
+    =?  no-core  desk  no-thread-desk-quilt
+    =?  no-core  all   no-thread-all-quilt
     no-core
   --
 --

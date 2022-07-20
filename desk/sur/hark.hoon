@@ -4,25 +4,27 @@
   $:  gop=(unit flag)                 :: originating group
       can=(unit flag)                 :: originating channel
       des=desk                        :: originating desk
+      ted=path
   ==
 ::
-+$  cable  ?(%group %all)                       :: index 
 +$  weave
-  $:  sen=?                           :: seen?
-      cab=(set cable)                 :: relevant indices
+  $:  saw=?                           :: seen?
+      sem=(set seam)                 :: relevant indices
   ==
 ::
 +$  thread
   [yarns=(set id) sen=?]
 ::
-+$  yarn  note
++$  yarn  
+  $:  sem=(set seam)
+      note  
+  ==
 ::
 +$  id   @uvH
 ::
 +$  note
   $:  =id
       rop=rope
-      ted=path                        :: threading identifier
       tim=time
       con=(list content)             :: content of notification
       rig=origin                     :: originating path (should be list?)
@@ -45,8 +47,9 @@
 ::
 +$  action
   $%  ::
-      [%add-note inbox=? =note]
+      [%add-note all=? desk=? =note]
       [%saw-seam =seam]
+      [%saw-rope =rope]
   ==
 ::
 +$  update
@@ -58,11 +61,13 @@
 +$  seam
   $%  [%group =flag]
       [%desk =desk]
+      [%all ~]
   ==
 +$  fibre
   [=seam =time]
+::
 +$  rug
-  [new=(map bin thread) qul=quilt]
+  [new=(map rope thread) qul=quilt]
 ::
 ++  quilt
   =<  quilt

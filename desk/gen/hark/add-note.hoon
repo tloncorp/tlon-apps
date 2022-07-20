@@ -3,14 +3,14 @@
 /-  h=hark
 :-  %say
 |=  $:  [now=@da eny=@uvJ =beak]
-        [[inbox=? =desk con=(list content:h)] [group=(unit flag:h) thread=path ~]]
+        [[all=? des=? =desk con=(list content:h)] [group=(unit flag:h) thread=path ~]]
     ==
 =/  =id:h  (end [7 1] eny)
 =/  =rope:h
-  [group ~ desk] 
+  [group ~ desk thread] 
 =/  =note:h
-  [id rope thread now con ~ ~]
+  [id rope now con ~ ~]
 ~&  >  adding/id
 :-  %hark-action
 ^-  action:h
-[%add-note inbox note]
+[%add-note all des note]
