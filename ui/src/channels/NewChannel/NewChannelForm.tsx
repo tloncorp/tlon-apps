@@ -1,103 +1,29 @@
 import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import Dialog, { DialogContent } from '@/components/Dialog';
-import { Channel, ChannelFormSchema, GroupMeta } from '@/types/groups';
+import { Channel, ChannelFormSchema } from '@/types/groups';
+import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';
-import { useChatState } from '@/state/chat';
-import { strToSym } from '@/logic/utils';
+import { strToSym, channelHref } from '@/logic/utils';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
 
-// import React from 'react';
-// import { useForm } from 'react-hook-form';
-// import { useNavigate } from 'react-router';
-// import { useChatState } from '../../state/chat';
-// import { useRouteGroup } from '../../state/groups/groups';
-// import { channelHref, strToSym } from '../../logic/utils';
-
-// interface FormSchema {
-//   title: string;
-//   description: string;
-// }
-
-// export default function NewChannelForm() {
-//   const group = useRouteGroup();
-//   const navigate = useNavigate();
-//   const flag = useRouteGroup();
-//   const defaultValues: FormSchema = {
-//     title: '',
-//     description: '',
-//   };
-//   const { handleSubmit, register } = useForm<FormSchema>({ defaultValues });
-//   const onSubmit = async (values: FormSchema) => {
-//     const name = strToSym(values.title);
-//     await useChatState
-//       .getState()
-//       .create({ ...values, name, group, readers: [] });
-//     navigate(channelHref(flag, name));
-//   };
-//   return (
-//     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
-//       <div className="p-2">
-//         <label htmlFor="title">Title</label>
-//         <input
-//           {...register('title')}
-//           className="rounded border"
-//           type="text"
-//           name="title"
-//         />
-//       </div>
-//       <div className="p-2">
-//         <label htmlFor="description">Description</label>
-//         <input
-//           {...register('description')}
-//           className="rounded border"
-//           type="text"
-//           name="description"
-//         />
-//       </div>
-//       <button type="submit">Submit</button>
-//     </form>
-//   );
-// }
-
-// import React, { useCallback } from 'react';
-// import { FormProvider, useForm } from 'react-hook-form';
-// import * as DialogPrimitive from '@radix-ui/react-dialog';
-// import Dialog, { DialogContent } from '@/components/Dialog';
-// import { Channel, ChannelFormSchema, GroupMeta } from '@/types/groups';
-// import {  useRouteGroup } from '@/state/groups';
-// import { useChatState } from '@/state/chat'
-// import {strToSym} from '@/logic/utils';
-// import ChannelPermsSelector from './ChannelPermsSelector';
-// import ChannelJoinSelector from './ChannelJoinSelector';
-
-// interface EditChannelModalProps {
-//   editIsOpen: boolean;
-//   setEditIsOpen: (open: boolean) => void;
-//   channel?: Channel;
-//   newChannel: boolean
-// }
-
-interface EditChannelModalProps {
-  // editIsOpen: boolean;
-  // setEditIsOpen: (open: boolean) => void;
+interface NewChannelFormProps {
   channel?: Channel;
   newChannel: boolean;
+  redirect?: boolean;
+  setEditIsOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 }
-export default function EditChannelModal({
-  channel,
-  newChannel,
-}: EditChannelModalProps) {
-  const dismiss = useDismissNavigate();
 
-  const onOpenChange = (isOpen: boolean) => {
-    if (!isOpen) {
-      dismiss();
-    }
-  };
+export default function NewChannelForm({
+  channel,
+  newChannel = true,
+  redirect = true,
+  setEditIsOpen,
+}: NewChannelFormProps) {
+  const dismiss = useDismissNavigate();
+  const navigate = useNavigate();
 
   const group = useRouteGroup();
   const flag = useRouteGroup();
@@ -121,21 +47,26 @@ export default function EditChannelModal({
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
-      if (newChannel === true) {
-        const name = strToSym(values.meta.title);
-        await useChatState
-          .getState()
-          .create({ ...values.meta, name, group, readers: [] });
-        await useGroupState.getState().setChannelJoin(flag, '', values.join);
+      const nextChannel = values;
+      const name = strToSym(values.meta.title);
+
+      if (nextChannel.privacy === 'secret') {
+        nextChannel.readers.push('admin');
       }
-      dismiss();
+
+      await useGroupState.getState().addOrEditChannel(group, name, nextChannel);
+      if (newChannel === false && setEditIsOpen) {
+        setEditIsOpen(false);
+      } else if (redirect === true) {
+        navigate(channelHref(flag, `${window.our}/${name}`));
+      } else {
+        dismiss();
+      }
     },
-    [group, newChannel, dismiss, flag]
+    [group, dismiss, flag, navigate, redirect, newChannel, setEditIsOpen]
   );
 
   return (
-    // <Dialog onOpenChange={onOpenChange}>
-    //   <DialogContent showClose containerClass="max-w-lg">
     <FormProvider {...form}>
       <div className="sm:w-96">
         <header className="mb-3 flex items-center">
@@ -143,7 +74,7 @@ export default function EditChannelModal({
         </header>
       </div>
       <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>
-        <label className="font-semibold">
+        <label className="mb-3 font-semibold">
           Channel Name
           <input
             {...form.register('meta.title')}
@@ -151,7 +82,7 @@ export default function EditChannelModal({
             type="text"
           />
         </label>
-        <label className="font-semibold">
+        <label className="mb-3 font-semibold">
           Channel Permissions
           <ChannelPermsSelector />
         </label>
@@ -176,7 +107,5 @@ export default function EditChannelModal({
         </footer>
       </form>
     </FormProvider>
-    //   </DialogContent>
-    // </Dialog>
   );
 }

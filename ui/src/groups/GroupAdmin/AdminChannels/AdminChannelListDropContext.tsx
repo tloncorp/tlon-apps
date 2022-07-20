@@ -42,14 +42,24 @@ export default function AdminChannelListDropContext({
     const nextOrderedSections = orderedSections;
     const orderedSectionsIndex = orderedSections.indexOf(currentSectionKey);
 
-    nextSections.sectionless.channels.concat(
-      sections[currentSectionKey].channels
-    );
-    delete nextSections[currentSectionKey];
+    nextSections.sectionless.channels =
+      nextSections.sectionless.channels.concat(
+        sections[currentSectionKey].channels
+      );
+
     nextOrderedSections.splice(orderedSectionsIndex, 1);
+    delete nextSections[currentSectionKey];
 
     setSections(nextSections);
     setOrderedSections(nextOrderedSections);
+  };
+
+  const onChannelDelete = (channelFlag: string, sectionKey: string) => {
+    const nextSections = sections;
+    nextSections[sectionKey].channels = nextSections[
+      sectionKey
+    ].channels.filter((channel) => channel.key !== channelFlag);
+    setSections(nextSections);
   };
 
   const addSection = () => {
@@ -168,6 +178,7 @@ export default function AdminChannelListDropContext({
         orderedSections={orderedSections}
         onSectionEditNameSubmit={onSectionEditNameSubmit}
         onSectionDelete={onSectionDelete}
+        onChannelDelete={onChannelDelete}
       />
     </DragDropContext>
   );

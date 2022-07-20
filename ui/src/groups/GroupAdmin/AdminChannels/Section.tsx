@@ -16,6 +16,7 @@ interface SectionProps {
     nextSectionTitle: string
   ) => void;
   onSectionDelete: (currentSectionKey: string) => void;
+  onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
 export default function Section({
@@ -24,6 +25,7 @@ export default function Section({
   index,
   onSectionEditNameSubmit,
   onSectionDelete,
+  onChannelDelete,
 }: SectionProps) {
   const groupFlag = useRouteGroup();
   const [isEditing, setIsEditing] = useState(false);
@@ -74,7 +76,11 @@ export default function Section({
                 />
               )}
             </header>
-            <Channels listId={sectionKey} channels={sectionData.channels} />
+            <Channels
+              listId={sectionKey}
+              channels={sectionData.channels}
+              onChannelDelete={onChannelDelete}
+            />
           </div>
         </div>
       )}

@@ -7,9 +7,14 @@ import EmptySectionTools from '../EmptySectionTools';
 interface ChannelsProps {
   listId: string;
   channels: ChannelListItem[];
+  onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
-export default function Channels({ channels, listId }: ChannelsProps) {
+export default function Channels({
+  channels,
+  listId,
+  onChannelDelete,
+}: ChannelsProps) {
   return (
     <Droppable droppableId={listId} type="CHANNELS">
       {(provided, snapshot) => (
@@ -24,6 +29,8 @@ export default function Channels({ channels, listId }: ChannelsProps) {
                 >
                   {(dragProvided, dragSnapshot) => (
                     <AdminChannelListItem
+                      sectionKey={listId}
+                      onChannelDelete={onChannelDelete}
                       channelFlag={channel.key}
                       channel={channel.channel}
                       provided={dragProvided}
