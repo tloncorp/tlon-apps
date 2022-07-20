@@ -190,7 +190,9 @@
     =.  groups 
       ?:  gone  (~(del by groups) flag)
       (~(put by groups) flag net group)
-    cor
+    ?.  gone  cor
+    =/  =action:g  [flag now.bowl %del ~]
+    (give %fact ~[/groups/ui] group-action+!>(action))
   ++  go-abed
     |=  f=flag:g
     ^+  go-core
@@ -483,6 +485,7 @@
       ?-  -.diff
       ::
           %add-ships
+        ?<  &((~(has in p.diff) our.bowl) =(p.flag our.bowl))
         =.  fleet.group
         %-  malt
           %+  skip 
@@ -570,6 +573,7 @@
       go-core
     ::
         %del
+      ?<  &((~(has in ships) our.bowl) =(p.flag our.bowl))
       ?>  ?|(=(p.flag src.bowl) (~(has in ships) src.bowl))
       =.  fleet.group
       %-  malt
@@ -577,6 +581,9 @@
           ~(tap by fleet.group)
         |=  [=ship =vessel:fleet:g]
         (~(has in ships) ship)
+      ~&  ships
+      ?:  (~(has in ships) our.bowl)
+        go-core(gone &)
       go-core
     ::
         %add-sects

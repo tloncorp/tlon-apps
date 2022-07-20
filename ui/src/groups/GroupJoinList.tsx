@@ -1,7 +1,8 @@
 import React, { useCallback } from 'react';
-import { useGang, useGroup } from '@/state/groups';
+import { useGang, useGroup, useGroupState } from '@/state/groups';
 import { useLocation, useNavigate } from 'react-router';
 import { getGroupPrivacy } from '@/logic/utils';
+import { Link } from 'react-router-dom';
 import GroupSummary, { GroupSummarySize } from './GroupSummary';
 
 interface GroupJoinItemProps {
@@ -17,7 +18,7 @@ function GroupJoinItem({ flag }: GroupJoinItemProps) {
     ? getGroupPrivacy(gang.preview?.cordon)
     : 'public';
 
-  const join = useCallback(() => {
+  const open = useCallback(() => {
     if (group) {
       return navigate(`/groups/${flag}`);
     }
@@ -38,16 +39,29 @@ function GroupJoinItem({ flag }: GroupJoinItemProps) {
     });
   }, [flag, location, navigate, privacy]);
 
+  const join = useCallback(async () => {
+    await useGroupState.getState().join(flag, true);
+    navigate(`/groups/${flag}`);
+  }, [flag, navigate]);
+
   return (
-    <li className="flex items-center justify-between p-2">
-      <GroupSummary flag={flag} {...gang.preview} size={'small'} />
-      <div className="flex flex-row">
+    <li className="relative flex items-center">
+      <button
+        className="flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50"
+        onClick={open}
+      >
+        <GroupSummary flag={flag} {...gang.preview} size={'small'} />
+      </button>
+      <div className="absolute right-2 flex flex-row">
         {gang.invite ? (
           <button className="button bg-red-soft text-red" onClick={reject}>
             Reject
           </button>
         ) : null}
-        <button className="button ml-2 bg-blue-soft text-blue" onClick={join}>
+        <button
+          className="button ml-2 bg-blue-soft text-blue"
+          onClick={group ? open : join}
+        >
           {group ? 'Open' : 'Join'}
         </button>
       </div>
