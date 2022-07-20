@@ -43,6 +43,7 @@ function subscribeOnce<T>(app: string, path: string) {
 }
 
 export const useGroupState = create<GroupState>((set, get) => ({
+  initialized: false,
   groups: {},
   pinnedGroups: [],
   gangs: {},
@@ -147,6 +148,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
   },
   join: async (flag, joinAll) => {
     get().batchSet((draft) => {
+      draft.gangs[flag].invite = null;
       draft.gangs[flag].claim = {
         progress: 'adding',
         'join-all': joinAll,
@@ -381,7 +383,17 @@ export const useGroupState = create<GroupState>((set, get) => ({
             draft.groups[flag] = group;
           });
         }
+
+        if ('del' in update.diff) {
+          get().batchSet((draft) => {
+            delete draft.groups[flag];
+          });
+        }
       },
+    });
+
+    get().batchSet((draft) => {
+      draft.initialized = true;
     });
   },
   initialize: async (flag: string) =>
@@ -467,4 +479,9 @@ export function usePendingInvites() {
   return Object.entries(gangs)
     .filter(([k, g]) => g.invite !== null && !(k in groups))
     .map(([k]) => k);
+}
+
+const selInit = (s: GroupState) => s.initialized;
+export function useGroupsInitialized() {
+  return useGroupState(selInit);
 }
