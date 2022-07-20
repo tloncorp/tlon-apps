@@ -64,9 +64,12 @@ exports[`Sidebar > renders as expected 1`] = `
           </svg>
           <div
             class="max-w-full flex-1 truncate text-left"
-            title="Find Groups"
           >
-            Find Groups
+            <div
+              class="flex items-center"
+            >
+              Find Groups
+            </div>
           </div>
         </a>
       </li>

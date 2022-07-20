@@ -22,42 +22,228 @@ exports[`NewChannel > renders as expected 1`] = `
     <div
       class="dialog"
     >
+      <div
+        class="sm:w-96"
+      >
+        <header
+          class="mb-3 flex items-center"
+        >
+          <h2
+            class="text-lg font-bold"
+          >
+            Edit Chat Channel
+          </h2>
+        </header>
+      </div>
       <form
         class="flex flex-col"
       >
-        <div
-          class="p-2"
+        <label
+          class="mb-3 font-semibold"
         >
-          <label
-            for="title"
-          >
-            Title
-          </label>
+          Channel Name
           <input
-            class="rounded border"
-            name="title"
+            class="input my-2 block w-full p-1"
+            name="meta.title"
             type="text"
           />
-        </div>
-        <div
-          class="p-2"
+        </label>
+        <label
+          class="mb-3 font-semibold"
         >
-          <label
-            for="description"
+          Channel Permissions
+          <ul
+            class="flex flex-col space-y-2"
           >
-            Description
-          </label>
-          <input
-            class="rounded border"
-            name="description"
-            type="text"
-          />
-        </div>
-        <button
-          type="submit"
+            <li>
+              <label
+                class="flex cursor-pointer items-center justify-between space-x-2 py-2"
+              >
+                <div
+                  class="flex items-center"
+                >
+                  <div
+                    class="h-4 w-4 rounded-xl border-4 border-gray-400"
+                  />
+                </div>
+                <div
+                  class="flex w-full flex-col"
+                >
+                  <div
+                    class="flex flex-row items-center space-x-2"
+                  >
+                    <div
+                      class="flex w-full flex-col justify-start text-left"
+                    >
+                      <span
+                        class="font-semibold"
+                      >
+                        Open To All
+                      </span>
+                      <span
+                        class="text-sm font-medium text-gray-600"
+                      >
+                        Anyone can view and write
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <input
+                  class="sr-only"
+                  name="privacy"
+                  type="radio"
+                  value="public"
+                />
+              </label>
+            </li>
+            <li>
+              <label
+                class="flex cursor-pointer items-center justify-between space-x-2 py-2"
+              >
+                <div
+                  class="flex items-center"
+                >
+                  <div
+                    class="h-4 w-4 rounded-xl border-2 border-gray-200"
+                  />
+                </div>
+                <div
+                  class="flex w-full flex-col"
+                >
+                  <div
+                    class="flex flex-row items-center space-x-2"
+                  >
+                    <div
+                      class="flex w-full flex-col justify-start text-left"
+                    >
+                      <span
+                        class="font-semibold"
+                      >
+                        Members Can View
+                      </span>
+                      <span
+                        class="text-sm font-medium text-gray-600"
+                      >
+                        Members can only view
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <input
+                  class="sr-only"
+                  name="privacy"
+                  type="radio"
+                  value="read-only"
+                />
+              </label>
+            </li>
+            <li>
+              <label
+                class="flex cursor-pointer items-center justify-between space-x-2 py-2"
+              >
+                <div
+                  class="flex items-center"
+                >
+                  <div
+                    class="h-4 w-4 rounded-xl border-2 border-gray-200"
+                  />
+                </div>
+                <div
+                  class="flex w-full flex-col"
+                >
+                  <div
+                    class="flex flex-row items-center space-x-2"
+                  >
+                    <div
+                      class="flex w-full flex-col justify-start text-left"
+                    >
+                      <span
+                        class="font-semibold"
+                      >
+                        Admin Only
+                      </span>
+                      <span
+                        class="text-sm font-medium text-gray-600"
+                      >
+                        Only Admin can view and write
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <input
+                  class="sr-only"
+                  name="privacy"
+                  type="radio"
+                  value="secret"
+                />
+              </label>
+            </li>
+          </ul>
+        </label>
+        <label
+          class="my-2 flex justify-between font-semibold"
         >
-          Submit
-        </button>
+          <div
+            class="flex flex-col"
+          >
+            <div
+              class="font-semibold"
+            >
+              Default
+            </div>
+            <div
+              class="font-normal text-gray-600"
+            >
+              Members will join this channel automatically when joining this group
+            </div>
+          </div>
+          <div
+            class="ml-4"
+          >
+            <button
+              aria-checked="false"
+              class="switch"
+              data-state="unchecked"
+              role="switch"
+              type="button"
+              value="false"
+            >
+              <span
+                class="switch-thumb"
+                data-state="unchecked"
+              />
+            </button>
+            <input
+              aria-hidden="true"
+              name="join"
+              style="transform: translateX(-100%); position: absolute; pointer-events: none; opacity: 0; margin: 0px;"
+              tabindex="-1"
+              type="checkbox"
+              value="on"
+            />
+          </div>
+        </label>
+        <footer
+          class="mt-4 flex items-center justify-between space-x-2"
+        >
+          <div
+            class="ml-auto flex items-center space-x-2"
+          >
+            <button
+              class="secondary-button ml-auto"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              class="button"
+              disabled=""
+              type="submit"
+            >
+              Done
+            </button>
+          </div>
+        </footer>
       </form>
       <button
         class="icon-button absolute top-6 right-6"

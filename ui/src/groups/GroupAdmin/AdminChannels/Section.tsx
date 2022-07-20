@@ -16,6 +16,7 @@ interface SectionProps {
     nextSectionTitle: string
   ) => void;
   onSectionDelete: (currentSectionKey: string) => void;
+  onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
 export default function Section({
@@ -24,6 +25,7 @@ export default function Section({
   index,
   onSectionEditNameSubmit,
   onSectionDelete,
+  onChannelDelete,
 }: SectionProps) {
   const groupFlag = useRouteGroup();
   const [isEditing, setIsEditing] = useState(false);
@@ -46,9 +48,9 @@ export default function Section({
       draggableId={sectionKey}
       index={index}
     >
-      {(provided, snapshot) => (
+      {(provided) => (
         <div ref={provided.innerRef} {...provided.draggableProps}>
-          <div className="card mb-4 p-0 pb-6">
+          <div className="card mb-4 p-0">
             <header className="flex items-center justify-between rounded-t-lg bg-gray-100 py-2 px-3">
               <div className="flex w-full items-center">
                 {isSectionless || isEditing ? null : (
@@ -74,7 +76,11 @@ export default function Section({
                 />
               )}
             </header>
-            <Channels listId={sectionKey} channels={sectionData.channels} />
+            <Channels
+              listId={sectionKey}
+              channels={sectionData.channels}
+              onChannelDelete={onChannelDelete}
+            />
           </div>
         </div>
       )}

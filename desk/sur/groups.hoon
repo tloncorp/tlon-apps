@@ -40,7 +40,7 @@
   +$  channel
     $:  meta=data:meta
         added=time
-        zon=(unit zone)
+        zone=(unit zone)
         join=?
         readers=(set sect)
     ==
@@ -186,7 +186,7 @@
       =time
   ==
 ::
-+$  invite  ~
++$  invite  (pair flag ship)
 ::  $gang: view of foreign group
 +$  gang
   $:  cam=(unit claim)

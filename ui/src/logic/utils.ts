@@ -199,3 +199,7 @@ export function toTitleCase(s: string): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
+
+export function randomElement<T>(a: T[]) {
+  return a[Math.floor(Math.random() * a.length)];
+}

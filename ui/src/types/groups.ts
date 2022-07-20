@@ -246,7 +246,7 @@ export interface GroupPreview {
 }
 
 export interface Invite {
-  text: string;
+  flag: string;
   ship: string;
 }
 
@@ -269,6 +269,12 @@ export interface Gangs {
 
 export type PrivacyType = 'public' | 'private' | 'secret';
 
+export type ChannelPrivacyType = 'public' | 'read-only' | 'secret';
+
 export interface GroupFormSchema extends GroupMeta {
   privacy: PrivacyType;
+}
+
+export interface ChannelFormSchema extends Channel {
+  privacy: ChannelPrivacyType;
 }

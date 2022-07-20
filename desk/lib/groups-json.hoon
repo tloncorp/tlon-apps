@@ -148,7 +148,10 @@
   ::
   ++  invite
     |=  i=invite:g
-    `json`~
+    %-  pairs
+    :~  flag/s/(flag p.i)
+        ship/(ship q.i)
+    ==
   ::
   ++  zones
     |=  zons=(map zone:g data:^meta)
@@ -214,7 +217,7 @@
     :~  meta/(meta meta.ch)
         added/(time added.ch)
         readers/a/(turn ~(tap in readers.ch) (lead %s))
-        zone/?~(zon.ch ~ s/u.zon.ch)
+        zone/?~(zone.ch ~ s/u.zone.ch)
         join/b/join.ch
     ==
   ::
@@ -277,6 +280,12 @@
     :~  flag/flag
         join-all/bo
     ==
+  ++  invite
+    ^-  $-(json invite:g)
+    %-  ot
+    :~  flag/flag
+        ship/ship
+    ==
   ++  action
     ^-  $-(json action:g)
     %-  ot
@@ -301,13 +310,23 @@
   ::
   ++  channel-diff
     %-  of
-    :~  add-sects/(as sym)
+    :~  add/channel
+        del/ul
+        add-sects/(as sym)
         del-sects/(as sym)
         add-zone/sym
         del-zone/ul
         join/bo
     ==
   ::
+  ++  channel
+    %-  ot
+    :~  meta/meta
+        added/di
+        zone/(mu (se %tas))
+        join/bo
+        readers/(as ship)
+    ==
   ++  cordon
     %-  of
     :~  open/open-cordon

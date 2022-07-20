@@ -1,76 +1,89 @@
-import React, { useState } from 'react';
-import { DraggableProvided } from 'react-beautiful-dnd';
-import * as Switch from '@radix-ui/react-switch';
+import React, { useCallback, useState } from 'react';
+import cn from 'classnames';
+import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { Channel } from '@/types/groups';
-import EditChannelNameModal from '@/groups/GroupAdmin/AdminChannels/EditChannelNameModal';
-import PencilIcon from '@/components/icons/PencilIcon';
+import EditChannelModal from '@/groups/GroupAdmin/AdminChannels/EditChannelModal';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
+import BubbleIcon from '@/components/icons/BubbleIcon';
 import AdminChannelListDropdown from './AdminChannelListDropdown';
+import DeleteChannelModal from './DeleteChannelModal';
 
 interface AdminChannelListItemProps {
   channel: Channel;
   channelFlag: string;
+  sectionKey: string;
   provided: DraggableProvided;
+  snapshot: DraggableStateSnapshot;
+  onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
 export default function AdminChannelListItem({
   channel,
   channelFlag,
   provided,
+  snapshot,
+  sectionKey,
+  onChannelDelete,
 }: AdminChannelListItemProps) {
   const flag = useRouteGroup();
-  const { meta } = channel;
+  const { meta, readers } = channel;
   const [editIsOpen, setEditIsOpen] = useState(false);
-  const [defaultIsChecked, setDefaultIsChecked] = useState(
-    channel?.join || false
-  );
+  const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
 
-  const onDefaultCheckedChange = () => {
-    useGroupState
-      .getState()
-      .setChannelJoin(flag, channelFlag, !defaultIsChecked);
-    setDefaultIsChecked(!defaultIsChecked);
-  };
+  const permissionText = readers.includes('admin')
+    ? 'Admin Only'
+    : 'Open To All';
+
+  const onDeleteChannelConfirm = useCallback(async () => {
+    setDeleteChannelIsOpen(!deleteChannelIsOpen);
+    await useGroupState.getState().deleteChannel(flag, channelFlag);
+    onChannelDelete(channelFlag, sectionKey);
+  }, [channelFlag, deleteChannelIsOpen, onChannelDelete, sectionKey, flag]);
 
   return (
     <>
       <div ref={provided.innerRef} {...provided.draggableProps}>
         <div
-          className={
-            'flex items-center justify-between rounded-lg bg-white py-5 px-6'
-          }
+          className={cn(
+            'flex items-center justify-between rounded-lg py-5 px-6',
+            snapshot.isDragging ? 'bg-gray-50' : 'bg-white'
+          )}
         >
           <div className="flex items-center">
             <div {...provided.dragHandleProps}>
               <SixDotIcon className="mr-3 h-5 w-5 fill-gray-600" />
             </div>
+            <div className="mr-3 flex h-8 w-8 items-center justify-center rounded bg-gray-400">
+              <BubbleIcon className="h-5 w-5 fill-gray-600" />
+            </div>
             <div>
               <div className="flex items-center">
                 <h2 className="font-semibold">{meta.title}</h2>
-                <div onClick={() => setEditIsOpen(!editIsOpen)}>
-                  <PencilIcon className="mx-3 h-3 w-3 cursor-pointer fill-gray-500" />
-                </div>
               </div>
-              <div className="text-sm font-semibold text-gray-400">Chat</div>
+              <div className="text-sm font-semibold text-gray-400">
+                {permissionText}
+              </div>
             </div>
           </div>
-          <AdminChannelListDropdown channelFlag={channelFlag} />
-          <div className="flex items-center text-gray-800">
-            Default
-            <Switch.Root
-              checked={defaultIsChecked}
-              onCheckedChange={onDefaultCheckedChange}
-              className="switch"
-            >
-              <Switch.Thumb className="switch-thumb" />
-            </Switch.Root>
-          </div>
+          <AdminChannelListDropdown
+            editIsOpen={editIsOpen}
+            setEditIsOpen={setEditIsOpen}
+            setDeleteChannelIsOpen={setDeleteChannelIsOpen}
+            deleteChannelIsOpen={deleteChannelIsOpen}
+          />
         </div>
       </div>
-      <EditChannelNameModal
+      <EditChannelModal
         editIsOpen={editIsOpen}
         setEditIsOpen={setEditIsOpen}
+        flag={channelFlag}
+        channel={channel}
+      />
+      <DeleteChannelModal
+        deleteChannelIsOpen={deleteChannelIsOpen}
+        onDeleteChannelConfirm={onDeleteChannelConfirm}
+        setDeleteChannelIsOpen={setDeleteChannelIsOpen}
         channel={channel}
       />
     </>

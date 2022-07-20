@@ -8,7 +8,6 @@ import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import AddIcon16 from '@/components/icons/Add16Icon';
 import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
 import GroupAvatar from '../GroupAvatar';
@@ -18,7 +17,6 @@ import './GroupSidebar.css';
 export default function GroupSidebar() {
   const flag = useNavStore((state) => state.flag);
   const group = useGroup(flag);
-  const location = useLocation();
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   // TODO: get activity count from hark store
@@ -71,15 +69,6 @@ export default function GroupSidebar() {
             to={`/groups/${flag}/channels`}
           >
             All Channels
-          </SidebarItem>
-          <SidebarItem
-            color="text-green"
-            highlight="bg-green-soft dark:bg-green-900 hover:bg-green-soft hover:dark:bg-green-900"
-            icon={<AddIcon16 className="m-1 h-4 w-4" />}
-            to={`/groups/${flag}/channels/new`}
-            state={{ backgroundLocation: location }}
-          >
-            Create Channel
           </SidebarItem>
           <a
             className="no-underline"

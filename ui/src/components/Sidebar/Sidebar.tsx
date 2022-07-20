@@ -3,7 +3,7 @@ import { useLocation } from 'react-router';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
-import { usePinnedGroups } from '@/state/groups';
+import { usePendingInvites, usePinnedGroups } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
@@ -16,6 +16,8 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const pinned = usePinnedGroups();
+  const pendingInvites = usePendingInvites();
+  const pendingInvitesCount = pendingInvites.length;
   const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get notification count from hark store
   const notificationCount = 0;
@@ -37,7 +39,14 @@ export default function Sidebar() {
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
           to="/groups/find"
         >
-          Find Groups
+          <div className="flex items-center">
+            Find Groups
+            {pendingInvitesCount > 0 ? (
+              <span className="ml-auto font-semibold text-blue">
+                {pendingInvitesCount}
+              </span>
+            ) : null}
+          </div>
         </SidebarItem>
         <SidebarItem
           color="text-blue"
