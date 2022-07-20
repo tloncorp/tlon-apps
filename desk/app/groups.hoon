@@ -240,6 +240,7 @@
   ++  go-leave
     =.  cor  (emit leave:go-pass)
     =.  cor  (emit remove-self:go-pass)
+    =.  cor  (emit %give %fact ~[/groups/ui] group-leave+!>(flag))
     go-core(gone &)
   ::
   ++  go-init  
