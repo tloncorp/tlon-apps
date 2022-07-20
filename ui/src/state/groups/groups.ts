@@ -3,6 +3,7 @@ import create from 'zustand';
 import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
+import { createMockGang } from '@/mocks/groups';
 import {
   Gangs,
   Channel,
@@ -110,6 +111,24 @@ export const useGroupState = create<GroupState>((set, get) => ({
         },
       })
     );
+  },
+  index: async (flag) => {
+    /**
+     * flag is a patp in this case
+     * TODO: use subscribeOnce poke; for now, simulate response
+     */
+
+    const mockIndex = {
+      [`${flag}/test`]: createMockGang({ hasPreview: true }),
+      [`${flag}/help`]: createMockGang({ hasPreview: true }),
+      [`${flag}/test`]: createMockGang({ hasPreview: true }),
+    };
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 1000);
+    });
+
+    return mockIndex;
   },
   search: async (flag) => {
     try {

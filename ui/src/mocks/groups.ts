@@ -1,5 +1,7 @@
+import { AUTHORS } from '@/constants';
+import { randomElement } from '@/logic/utils';
 import faker from '@faker-js/faker';
-import { Group, Vessel, Gangs } from '../types/groups';
+import { Group, Vessel, Gangs, Gang } from '../types/groups';
 
 const emptyVessel = (): Vessel => ({
   sects: [],
@@ -10,6 +12,47 @@ const adminVessel = (): Vessel => ({
   sects: ['admin'],
   joined: Date.now(),
 });
+
+const randomColor = () => Math.floor(Math.random() * 16777215).toString(16);
+
+export function createMockGang({
+  hasClaim = false,
+  hasInvite = false,
+  hasPreview = false,
+}): Gang {
+  const name = faker.company.companyName();
+
+  return {
+    claim: hasClaim
+      ? {
+          progress: 'done',
+          'join-all': false,
+        }
+      : null,
+    invite: hasInvite
+      ? {
+          text: `Join the ${name} group`,
+          ship: randomElement(AUTHORS),
+        }
+      : null,
+    preview: hasPreview
+      ? {
+          cordon: {
+            open: {
+              ships: [],
+              ranks: [],
+            },
+          },
+          meta: {
+            title: name,
+            description: faker.company.catchPhrase(),
+            image: '',
+            color: randomColor(),
+          },
+        }
+      : null,
+  };
+}
 
 export function createMockGroup(title: string): Group {
   return {
