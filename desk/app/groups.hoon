@@ -84,6 +84,7 @@
   ?+    mark  ~|(bad-mark/mark !!)
       %group-leave
     =+  !<(=flag:g vase)
+    ?<  =(our.bowl p.flag)
     go-abet:go-leave:(go-abed:group-core flag)
   ::
       %group-create
@@ -239,6 +240,7 @@
   ++  go-leave
     =.  cor  (emit leave:go-pass)
     =.  cor  (emit remove-self:go-pass)
+    =.  cor  (emit %give %fact ~[/groups/ui] group-leave+!>(flag))
     go-core(gone &)
   ::
   ++  go-init  
