@@ -2,7 +2,7 @@ import ob from 'urbit-ob';
 import { unixToDa } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, startOfToday, endOfToday } from 'date-fns';
 import _ from 'lodash';
 import { ChatWhom } from '../types/chat';
 import {
@@ -43,7 +43,7 @@ export function channelHref(flag: string, ch: string) {
 }
 
 export function makePrettyDay(date: Date) {
-  const diff = differenceInDays(new Date(), date);
+  const diff = differenceInDays(endOfToday(), date);
   switch (diff) {
     case 0:
       return 'Today';
@@ -55,7 +55,7 @@ export function makePrettyDay(date: Date) {
 }
 
 export function makePrettyDayAndTime(date: Date) {
-  const diff = differenceInDays(new Date(), date);
+  const diff = differenceInDays(endOfToday(), date);
   const time = format(date, 'HH:mm');
   switch (true) {
     case diff === 0:
@@ -70,7 +70,7 @@ export function makePrettyDayAndTime(date: Date) {
 }
 
 export function makePrettyDayAndDateAndTime(date: Date) {
-  const diff = differenceInDays(new Date(), date);
+  const diff = differenceInDays(endOfToday(), date);
   const time = format(date, 'HH:mm');
   const fullDate = `${format(date, 'LLLL')} ${format(date, 'do')}, ${format(
     date,
