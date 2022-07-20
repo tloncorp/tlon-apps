@@ -1,33 +1,26 @@
 |%
-::
+::  $rope: notification origin
+::    
+::    Shows where a notification has come from. Used to group
+::    notifications into threads
 +$  rope
   $:  gop=(unit flag)                 :: originating group
       can=(unit flag)                 :: originating channel
       des=desk                        :: originating desk
-      ted=path
+      ted=path                        :: threading identifer
   ==
+::  $thread: notification group
 ::
-+$  weave
-  $:  saw=?                           :: seen?
-      sem=(set seam)                 :: relevant indices
-  ==
-::
-+$  thread
-  [yarns=(set id) sen=?]
-::
-+$  yarn  
-  $:  sem=(set seam)
-      note  
-  ==
-::
++$  thread  (set id)
+::  $id: notification identifier
 +$  id   @uvH
-::
-+$  note
+::  $yarn: notification
++$  yarn
   $:  =id
-      rop=rope
-      tim=time
+      rop=rope                       :: origin
+      tim=time                       :: time sent
       con=(list content)             :: content of notification
-      rig=origin                     :: originating path (should be list?)
+      wer=path                       :: where to link to in FE
       but=(unit button)              :: action, if any
   ==
 ::
@@ -35,19 +28,22 @@
   $:  title=cord
       handler=path
   ==
-::  $origin: originating path
-+$  origin  path 
 +$  flag  (pair ship term)
-::
+::  $content: notification text to be rendered
 +$  content
+  $@  @t
   $%  [%ship p=ship]
-      [%text p=cord]
       [%emph p=cord]
   ==
+::  $action: Actions for hark
+::  
+::    %add-yarn adds a notification to the relevant inboxes, indicated
+::    by the loobs in the type
+::    %saw-seam marks all notifications in an inbox as unread
+::    %saw-rope marks a particular rope as read in all inboxes
 ::
 +$  action
-  $%  ::
-      [%add-note all=? desk=? =note]
+  $%  [%add-yarn all=? desk=? =yarn] 
       [%saw-seam =seam]
       [%saw-rope =rope]
   ==
@@ -57,26 +53,30 @@
       =seam
       threads=(map time thread)
   ==
+::  $seam: inbox identifier
 ::
+::    All notifications end up in one of these inboxes
 +$  seam
   $%  [%group =flag]
       [%desk =desk]
       [%all ~]
   ==
-+$  fibre
-  [=seam =time]
+::  $rug: notifications inbox
+::  
+::    .new contains all "unread" notifications, grouped by $rope
+::    .qul is an archive
 ::
 +$  rug
   [new=(map rope thread) qul=quilt]
-::
 ++  quilt
   =<  quilt
   |%
-  +$  thread
-    [yarns=(set id) sen=?]
+  ::  $quilt: inbox archive
+  ::  
+  ::    Threads are keyed by an autoincrementing counter that starts at
+  ::    0
+  ::
   +$  quilt  ((mop @ud thread) lte)
   ++  on  ((^on @ud thread) lte)
   --
-+$  bin  path
-+$  lid  path
 --
