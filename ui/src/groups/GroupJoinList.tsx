@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { useGang } from '@/state/groups';
+import { useGang, useGroup } from '@/state/groups';
 import { useLocation, useNavigate } from 'react-router';
 import { getGroupPrivacy } from '@/logic/utils';
 import GroupSummary, { GroupSummarySize } from './GroupSummary';
@@ -12,13 +12,20 @@ function GroupJoinItem({ flag }: GroupJoinItemProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const gang = useGang(flag);
+  const group = useGroup(flag);
   const privacy = gang.preview?.cordon
     ? getGroupPrivacy(gang.preview?.cordon)
     : 'public';
 
   const join = useCallback(() => {
-    navigate(`/gangs/${flag}`, { state: { backgroundLocation: location } });
-  }, [flag, location, navigate]);
+    if (group) {
+      return navigate(`/groups/${flag}`);
+    }
+
+    return navigate(`/gangs/${flag}`, {
+      state: { backgroundLocation: location },
+    });
+  }, [flag, group, location, navigate]);
 
   const reject = useCallback(() => {
     if (privacy === 'public') {
@@ -41,7 +48,7 @@ function GroupJoinItem({ flag }: GroupJoinItemProps) {
           </button>
         ) : null}
         <button className="button ml-2 bg-blue-soft text-blue" onClick={join}>
-          Join
+          {group ? 'Open' : 'Join'}
         </button>
       </div>
     </li>
