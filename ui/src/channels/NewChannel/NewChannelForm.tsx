@@ -8,8 +8,10 @@ import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym, channelHref } from '@/logic/utils';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
+import { useChatState } from '@/state/chat';
 
 interface NewChannelFormProps {
+  flag?: string;
   channel?: Channel;
   retainRoute?: boolean;
   presetSection?: string;
@@ -18,6 +20,7 @@ interface NewChannelFormProps {
 }
 
 export default function NewChannelForm({
+  flag,
   channel,
   retainRoute = false,
   presetSection,
@@ -28,7 +31,6 @@ export default function NewChannelForm({
   const navigate = useNavigate();
 
   const group = useRouteGroup();
-  const flag = useRouteGroup();
   const defaultValues: ChannelFormSchema = {
     zone: channel?.zone || null,
     added: channel?.added || Date.now(),
@@ -49,10 +51,10 @@ export default function NewChannelForm({
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
-      const nextChannel = values;
+      const { privacy, ...nextChannel } = values;
       const name = strToSym(values.meta.title);
 
-      if (nextChannel.privacy === 'secret') {
+      if (privacy === 'secret') {
         nextChannel.readers.push('admin');
       }
 
@@ -60,19 +62,31 @@ export default function NewChannelForm({
         nextChannel.zone = presetSection;
       }
 
-      await useGroupState.getState().addOrEditChannel(group, name, nextChannel);
+      if (flag) {
+        await useGroupState
+          .getState()
+          .addOrEditChannel(group, flag, nextChannel);
+      } else {
+        await useChatState.getState().create({
+          name,
+          group,
+          title: values.meta.title,
+          description: values.meta.description,
+          readers: values.readers,
+        });
+      }
       if (retainRoute === true && setEditIsOpen) {
         setEditIsOpen(false);
       } else if (redirect === true) {
-        navigate(channelHref(flag, `${window.our}/${name}`));
+        navigate(channelHref(group, `${window.our}/${name}`));
       } else {
         dismiss();
       }
     },
     [
+      flag,
       group,
       dismiss,
-      flag,
       navigate,
       redirect,
       retainRoute,

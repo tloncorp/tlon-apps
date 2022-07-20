@@ -77,6 +77,7 @@ export default function AdminChannelListItem({
       <EditChannelModal
         editIsOpen={editIsOpen}
         setEditIsOpen={setEditIsOpen}
+        flag={channelFlag}
         channel={channel}
       />
       <DeleteChannelModal

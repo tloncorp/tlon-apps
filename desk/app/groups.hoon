@@ -571,13 +571,13 @@
     ::
         %add-zone
       =/  =channel:g  (got:by-ch ch)
-      =.  zon.channel   `zone.diff
+      =.  zone.channel   `zone.diff
       =.  channels.group  (put:by-ch ch channel)
       go-core
     ::
         %del-zone
       =/  =channel:g  (got:by-ch ch)
-      =.  zon.channel   ~
+      =.  zone.channel   ~
       =.  channels.group  (put:by-ch ch channel)
       go-core
     ::
