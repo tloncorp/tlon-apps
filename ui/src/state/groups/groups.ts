@@ -400,6 +400,11 @@ export const useGroupState = create<GroupState>((set, get) => ({
   },
 }));
 
+const selGroups = (s: GroupState) => s.groups;
+export function useGroups(): Groups {
+  return useGroupState(selGroups);
+}
+
 export function useGroup(flag: string): Group | undefined {
   return useGroupState(useCallback((s) => s.groups[flag], [flag]));
 }
@@ -454,4 +459,12 @@ export function useAmAdmin(flag: string) {
   const group = useGroup(flag);
   const vessel = group?.fleet[window.our];
   return vessel && vessel.sects.includes(GROUP_ADMIN);
+}
+
+export function usePendingInvites() {
+  const groups = useGroups();
+  const gangs = useGangs();
+  return Object.entries(gangs)
+    .filter(([k, g]) => g.invite !== null && !(k in groups))
+    .map(([k]) => k);
 }

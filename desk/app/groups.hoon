@@ -624,7 +624,7 @@
     =/  [=net:g =group:g]  (~(got by groups) flag)
     ?.  ?=(%load -.net)  cor
     =.  xeno  (~(del by xeno) flag)
-    cor
+    ga-give-update
   ::
   ++  ga-abed
     |=  f=flag:g

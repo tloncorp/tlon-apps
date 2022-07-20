@@ -8,12 +8,13 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { getGroupPrivacy } from '@/logic/utils';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import GroupSummary from '../GroupSummary';
 
 export default function JoinGroupModal() {
   const location = useLocation();
-  const navigate = useModalNavigate();
+  const navigate = useNavigate();
+  const modalNavigate = useModalNavigate();
   const flag = useRouteGroup();
   const gang = useGang(flag);
   const group = useGroup(flag);
@@ -30,8 +31,8 @@ export default function JoinGroupModal() {
 
   const join = useCallback(async () => {
     await useGroupState.getState().join(flag, true);
-    dismiss();
-  }, [dismiss, flag]);
+    navigate(`/groups/${flag}`);
+  }, [flag, navigate]);
 
   const reject = useCallback(() => {
     if (privacy === 'public') {
@@ -40,10 +41,10 @@ export default function JoinGroupModal() {
       return;
     }
 
-    navigate(`/gangs/${flag}/reject`, {
+    modalNavigate(`/gangs/${flag}/reject`, {
       state: { backgroundLocation: location },
     });
-  }, [dismiss, flag, location, navigate, privacy]);
+  }, [dismiss, flag, location, modalNavigate, privacy]);
 
   return (
     <Dialog defaultOpen onOpenChange={() => dismiss()}>
