@@ -11,14 +11,16 @@ import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSe
 
 interface NewChannelFormProps {
   channel?: Channel;
-  newChannel: boolean;
+  retainRoute?: boolean;
+  presetSection?: string;
   redirect?: boolean;
   setEditIsOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function NewChannelForm({
   channel,
-  newChannel = true,
+  retainRoute = false,
+  presetSection,
   redirect = true,
   setEditIsOpen,
 }: NewChannelFormProps) {
@@ -54,8 +56,12 @@ export default function NewChannelForm({
         nextChannel.readers.push('admin');
       }
 
+      if (presetSection) {
+        nextChannel.zone = presetSection;
+      }
+
       await useGroupState.getState().addOrEditChannel(group, name, nextChannel);
-      if (newChannel === false && setEditIsOpen) {
+      if (retainRoute === true && setEditIsOpen) {
         setEditIsOpen(false);
       } else if (redirect === true) {
         navigate(channelHref(flag, `${window.our}/${name}`));
@@ -63,7 +69,16 @@ export default function NewChannelForm({
         dismiss();
       }
     },
-    [group, dismiss, flag, navigate, redirect, newChannel, setEditIsOpen]
+    [
+      group,
+      dismiss,
+      flag,
+      navigate,
+      redirect,
+      retainRoute,
+      setEditIsOpen,
+      presetSection,
+    ]
   );
 
   return (
@@ -89,10 +104,7 @@ export default function NewChannelForm({
         <ChannelJoinSelector />
 
         <footer className="mt-4 flex items-center justify-between space-x-2">
-          <div>
-            <button className="red-text-button">Delete</button>
-          </div>
-          <div className="flex items-center space-x-2">
+          <div className="ml-auto flex items-center space-x-2">
             <DialogPrimitive.Close asChild>
               <button className="secondary-button ml-auto">Cancel</button>
             </DialogPrimitive.Close>

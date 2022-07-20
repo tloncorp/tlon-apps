@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { DraggableProvided } from 'react-beautiful-dnd';
+import cn from 'classnames';
+import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { Channel } from '@/types/groups';
 import EditChannelModal from '@/groups/GroupAdmin/AdminChannels/EditChannelModal';
 import { useGroupState, useRouteGroup } from '@/state/groups';
@@ -13,6 +14,7 @@ interface AdminChannelListItemProps {
   channelFlag: string;
   sectionKey: string;
   provided: DraggableProvided;
+  snapshot: DraggableStateSnapshot;
   onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
@@ -20,6 +22,7 @@ export default function AdminChannelListItem({
   channel,
   channelFlag,
   provided,
+  snapshot,
   sectionKey,
   onChannelDelete,
 }: AdminChannelListItemProps) {
@@ -42,9 +45,10 @@ export default function AdminChannelListItem({
     <>
       <div ref={provided.innerRef} {...provided.draggableProps}>
         <div
-          className={
-            'flex items-center justify-between rounded-lg bg-white py-5 px-6'
-          }
+          className={cn(
+            'flex items-center justify-between rounded-lg py-5 px-6',
+            snapshot.isDragging ? 'bg-gray-50' : 'bg-white'
+          )}
         >
           <div className="flex items-center">
             <div {...provided.dragHandleProps}>

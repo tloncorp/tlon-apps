@@ -2,7 +2,7 @@ import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 import { ChannelListItem } from './types';
 import AdminChannelListItem from './AdminChannelListItem';
-import EmptySectionTools from '../EmptySectionTools';
+import EmptySectionTools from './EmptySectionTools';
 
 interface ChannelsProps {
   listId: string;
@@ -17,7 +17,7 @@ export default function Channels({
 }: ChannelsProps) {
   return (
     <Droppable droppableId={listId} type="CHANNELS">
-      {(provided, snapshot) => (
+      {(provided) => (
         <div {...provided.droppableProps}>
           <div ref={provided.innerRef}>
             {channels.length ? (
@@ -31,6 +31,7 @@ export default function Channels({
                     <AdminChannelListItem
                       sectionKey={listId}
                       onChannelDelete={onChannelDelete}
+                      snapshot={dragSnapshot}
                       channelFlag={channel.key}
                       channel={channel.channel}
                       provided={dragProvided}
@@ -39,7 +40,7 @@ export default function Channels({
                 </Draggable>
               ))
             ) : (
-              <EmptySectionTools />
+              <EmptySectionTools sectionKey={listId} />
             )}
             {provided.placeholder}
           </div>

@@ -23,7 +23,7 @@ export default function AdminChannelListSections({
 }: AdminChannelListSectionsProps) {
   return (
     <Droppable droppableId="sections" type="SECTIONS">
-      {(provided, snapshot) => (
+      {(provided) => (
         <div ref={provided.innerRef} {...provided.droppableProps}>
           {orderedSections.map((key: string, index: number) => (
             <Section

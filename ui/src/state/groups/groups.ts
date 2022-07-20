@@ -1,6 +1,6 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
-import produce, { current } from 'immer';
+import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
 import {
@@ -11,7 +11,6 @@ import {
   Groups,
   GroupAction,
   GroupPreview,
-  GroupMeta,
 } from '../../types/groups';
 import api from '../../api';
 import groupsReducer from './groupsReducer';
