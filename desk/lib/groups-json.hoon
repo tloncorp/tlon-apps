@@ -148,7 +148,10 @@
   ::
   ++  invite
     |=  i=invite:g
-    `json`~
+    %-  pairs
+    :~  flag/s/(flag p.i)
+        ship/(ship q.i)
+    ==
   ::
   ++  zones
     |=  zons=(map zone:g data:^meta)
@@ -276,6 +279,12 @@
     %-  ot
     :~  flag/flag
         join-all/bo
+    ==
+  ++  invite
+    ^-  $-(json invite:g)
+    %-  ot
+    :~  flag/flag
+        ship/ship
     ==
   ++  action
     ^-  $-(json action:g)

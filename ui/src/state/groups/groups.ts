@@ -333,6 +333,15 @@ export const useGroupState = create<GroupState>((set, get) => ({
     }));
     await api.subscribe({
       app: 'groups',
+      path: '/gangs/updates',
+      event: (data) => {
+        get().batchSet((draft) => {
+          draft.gangs = data;
+        });
+      },
+    });
+    await api.subscribe({
+      app: 'groups',
       path: '/groups/ui',
       event: (data, mark) => {
         if (mark === 'gang-gone') {
