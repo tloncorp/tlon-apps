@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
-import { useGangs, useGroupState } from '@/state/groups';
+import { useGroupState, usePendingInvites } from '@/state/groups';
 import { whomIsFlag } from '@/logic/utils';
 import { ModalLocationState } from '@/logic/routing';
 import GroupJoinList from './GroupJoinList';
@@ -22,10 +22,7 @@ export default function FindGroups() {
   const query = ship && ship + (name ? `/${name}` : '');
   const [foundGangs, setFoundGangs] = useState<string[]>([]);
   const [rawInput, setRawInput] = useState(query || '');
-  const gangs = useGangs();
-  const pendingGangs = Object.entries(gangs)
-    .filter((entry) => entry[1].invite !== null)
-    .map((entry) => entry[0]);
+  const pendingInvites = usePendingInvites();
 
   const searchGroups = useCallback(async (q: string) => {
     const isFlag = whomIsFlag(q);
@@ -104,10 +101,10 @@ export default function FindGroups() {
             )}
           </section>
         ) : null}
-        {pendingGangs.length > 0 ? (
+        {pendingInvites.length > 0 ? (
           <section className="card mb-4 space-y-8 p-8">
             <h1 className="text-lg font-bold">Pending Invites</h1>
-            <GroupJoinList gangs={pendingGangs} />
+            <GroupJoinList gangs={pendingInvites} />
           </section>
         ) : null}
       </div>
