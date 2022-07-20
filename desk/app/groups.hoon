@@ -84,6 +84,7 @@
   ?+    mark  ~|(bad-mark/mark !!)
       %group-leave
     =+  !<(=flag:g vase)
+    ?<  =(our.bowl p.flag)
     go-abet:go-leave:(go-abed:group-core flag)
   ::
       %group-create
