@@ -82,6 +82,10 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
+      %group-leave
+    =+  !<(=flag:g vase)
+    go-abet:go-leave:(go-abed:group-core flag)
+  ::
       %group-create
     =+  !<(=create:g vase)
     =/  =flag:g  [our.bowl name.create]
@@ -205,6 +209,22 @@
   ::
   ++  go-pass
     |%
+    ++  leave
+      ^-  card
+      =/  =wire  (snoc go-area %updates)
+      =/  =dock  [p.flag dap.bowl]
+      [%pass wire %agent dock %leave ~]
+    ::
+    ++  remove-self
+      ^-  card
+      =/  =wire  (snoc go-area %proxy)
+      =/  =dock  [p.flag dap.bowl]
+      =/  =cage
+        :-  %group-action
+        !>  ^-  action:g
+        [flag now.bowl %fleet (silt our.bowl ~) %del ~]
+      [%pass wire %agent dock %poke cage]
+    ::
     ++  join-pinned
       ^-  (list card)
       %+  turn  ~(tap by channels.group)
@@ -215,6 +235,11 @@
       =/  =wire  (snoc go-area %join-pinned)
       [%pass wire %agent dock %poke cage]
     --
+  ::
+  ++  go-leave
+    =.  cor  (emit leave:go-pass)
+    =.  cor  (emit remove-self:go-pass)
+    go-core(gone &)
   ::
   ++  go-init  
     |=  =create:g
@@ -300,6 +325,12 @@
       ?~  p.sign
         go-core
       %-  (slog leaf/"Failed to autojoin channel" u.p.sign)
+      go-core
+    ::
+        [%proxy ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  go-core
+      %-  (slog leaf/"Error forwarding poke" u.p.sign)
       go-core
     ==
   ::
