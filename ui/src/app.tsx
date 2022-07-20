@@ -19,8 +19,6 @@ import api, { IS_MOCK } from '@/api';
 import Dms from '@/pages/Dms';
 import Search from '@/pages/Search';
 import NewDM from '@/pages/NewDm';
-import Gang, { GangModal } from '@/pages/Gang';
-import JoinGroup, { JoinGroupModal } from '@/pages/JoinGroup';
 import { DmThread, GroupChatThread } from '@/chat/ChatThread/ChatThread';
 import Policy from '@/pages/Policy';
 import useMedia from '@/logic/useMedia';
@@ -41,7 +39,10 @@ import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
 import MultiDMEditModal from './dms/MultiDMEditModal';
 import NewChannel from './channels/NewChannel/NewChannel';
+import FindGroups from './groups/FindGroups';
+import JoinGroupModal from './groups/Join/JoinGroupModal';
 import ChannelIndex from './groups/ChannelIndex/ChannelIndex';
+import RejectConfirmModal from './groups/Join/RejectConfirmModal';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -92,14 +93,13 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
-        <Route path="/gangs/:ship/:name" element={<Gang />} />
-        <Route path="/groups/join" element={<JoinGroup />} />
+        <Route path="/groups/find" element={<FindGroups />} />
+        <Route path="/groups/find/:ship/:name" element={<FindGroups />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="info" element={<GroupAdmin />}>
             <Route index element={<GroupInfo />} />
             <Route path="members" element={<GroupMemberManager />} />
             <Route path="channels" element={<GroupChannelManager />} />
-            <Route path="channel-settings" element={<div />} />
           </Route>
           <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
             <Route
@@ -117,11 +117,14 @@ function GroupsRoutes({ state, location }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/groups/new" element={<NewGroup />} />
-          <Route path="/groups/join" element={<JoinGroupModal />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
-          <Route path="/gangs/:ship/:name" element={<GangModal />} />
+          <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
+          <Route
+            path="/gangs/:ship/:name/reject"
+            element={<RejectConfirmModal />}
+          />
           <Route
             path="/groups/:ship/:name/channels/new"
             element={<NewChannel />}

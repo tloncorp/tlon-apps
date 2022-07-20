@@ -1,19 +1,20 @@
 /* eslint-disable no-console */
+import { groupBy } from 'lodash';
 import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
-import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { useNavigate } from 'react-router';
+import { Link } from 'react-router-dom';
+import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { Channel } from '@/types/groups';
-import { groupBy } from 'lodash';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import { channelHref, pluralize } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useBriefs, useChatState } from '@/state/chat';
-import { LoadingSpinner } from '@/components/LoadingSpinner/LoadingSpinner';
-import { Link } from 'react-router-dom';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import PencilIcon from '@/components/icons/PencilIcon';
 
 const UNZONED = '';
 const READY = 'READY';
@@ -21,15 +22,21 @@ const PENDING = 'PENDING';
 const FAILED = 'FAILED';
 type JoinState = typeof READY | typeof PENDING | typeof FAILED;
 
-function Channel({ channel }: { channel: Channel }) {
-  const flag = useRouteGroup();
-  const group = useGroup(flag);
+function Channel({ channel, flag }: { flag: string; channel: Channel }) {
+  const groupFlag = useRouteGroup();
+  const group = useGroup(groupFlag);
   const briefs = useBriefs();
+  const isAdmin = useAmAdmin(flag);
+  const navigate = useNavigate();
 
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
   const [joinState, setJoinState] = useState<JoinState>(READY);
+
+  const editChannel = useCallback(() => {
+    navigate(`/groups/${flag}/info/channels`);
+  }, [flag, navigate]);
 
   const joinChannel = useCallback(async () => {
     try {
@@ -54,10 +61,15 @@ function Channel({ channel }: { channel: Channel }) {
     }
   }, [flag, timer]);
 
-  const leaveChannel = useCallback(() => {
-    // TODO: what happens on Leave?
-    console.log('leave ...');
-  }, []);
+  const leaveChannel = useCallback(async () => {
+    try {
+      await useChatState.getState().leaveChat(flag);
+    } catch (error) {
+      if (error) {
+        console.error(`[ChannelIndex:LeaveError] ${error}`);
+      }
+    }
+  }, [flag]);
 
   const muteChannel = useCallback(() => {
     // TODO: what happens on Mute?
@@ -72,8 +84,13 @@ function Channel({ channel }: { channel: Channel }) {
     (entry) => entry[1] === channel
   )?.[0];
 
-  // A Channel is considered Joined if a Brief exists
-  const joined = channelFlag && channelFlag in briefs;
+  // If the current user is the Channel host, they are automatically joined,
+  // and cannot leave the group
+  const isChannelHost = window.our === channelFlag?.split('/')[0];
+
+  // A Channel is considered Joined if hosted by current user, or if a Brief
+  // exists
+  const joined = isChannelHost || (channelFlag && channelFlag in briefs);
 
   // TODO: figure out Channel participant count
   const participantCount = Object.keys(group.fleet).length;
@@ -90,7 +107,7 @@ function Channel({ channel }: { channel: Channel }) {
           {joined && channelFlag ? (
             <Link
               className="font-semibold text-gray-800"
-              to={channelHref(flag, channelFlag)}
+              to={channelHref(groupFlag, channelFlag)}
             >
               {channel.meta.title}
             </Link>
@@ -122,13 +139,24 @@ function Channel({ channel }: { channel: Channel }) {
                 <BulletIcon className="h-6 w-6 text-gray-400" />
                 <span className="text-gray-800">Mute Channel</span>
               </DropdownMenu.Item>
-              <DropdownMenu.Item
-                onSelect={leaveChannel}
-                className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
-              >
-                <LeaveIcon className="h-6 w-6" />
-                <span>Leave Channel</span>
-              </DropdownMenu.Item>
+              {isAdmin ? (
+                <DropdownMenu.Item
+                  onSelect={editChannel}
+                  className="dropdown-item flex items-center space-x-2"
+                >
+                  <PencilIcon className="m-1.5 h-3 w-3 fill-gray-500" />
+                  <span>Edit Channel</span>
+                </DropdownMenu.Item>
+              ) : null}
+              {!isChannelHost ? (
+                <DropdownMenu.Item
+                  onSelect={leaveChannel}
+                  className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+                >
+                  <LeaveIcon className="h-6 w-6" />
+                  <span>Leave Channel</span>
+                </DropdownMenu.Item>
+              ) : null}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         ) : (
@@ -164,19 +192,21 @@ function ChannelSection({
   channels,
   zone,
 }: {
-  channels: Channel[];
+  channels: [string, Channel][];
   zone: string | null;
 }) {
   const sortedChannels = channels.slice();
-  sortedChannels.sort((a, b) => a.meta.title.localeCompare(b.meta.title));
+  sortedChannels.sort(([, a], [, b]) =>
+    a.meta.title.localeCompare(b.meta.title)
+  );
 
   return (
     <div>
       {zone !== UNZONED ? (
         <div className="py-4 font-semibold text-gray-400">{zone}</div>
       ) : null}
-      {sortedChannels.map((channel) => (
-        <Channel channel={channel} key={channel.added} />
+      {sortedChannels.map(([flag, channel]) => (
+        <Channel flag={flag} channel={channel} key={channel.added} />
       ))}
     </div>
   );
@@ -193,8 +223,8 @@ export default function ChannelIndex() {
   }
 
   const sectionedChannels = groupBy(
-    Object.entries(group.channels).map((e) => e[1]),
-    (ch) => ch.zone
+    Object.entries(group.channels),
+    ([, ch]) => ch.zone
   );
   // unsectioned channels have zone 'null' after groupBy; replace with empty str
   if ('null' in sectionedChannels) {
@@ -216,12 +246,12 @@ export default function ChannelIndex() {
   });
 
   return (
-    <div className="w-full p-4">
+    <section className="w-full max-w-3xl p-4">
       <div className="mb-4 flex flex-row justify-between">
         <h1 className="text-lg font-bold">All Channels</h1>
         {isAdmin ? (
           <button
-            onClick={() => navigate(`/groups/${flag}/info/channel-settings`)}
+            onClick={() => navigate(`/groups/${flag}/info/channels`)}
             className="rounded-md bg-gray-800 py-1 px-2 text-[12px] font-semibold leading-4 text-white"
           >
             Channel Settings
@@ -229,14 +259,10 @@ export default function ChannelIndex() {
         ) : null}
       </div>
       {zones.map((zone) => (
-        <div className="mb-2 w-full rounded-xl bg-white px-4 py-1">
-          <ChannelSection
-            key={zone}
-            channels={sectionedChannels[zone]}
-            zone={zone}
-          />
+        <div key={zone} className="mb-2 w-full rounded-xl bg-white px-4 py-1">
+          <ChannelSection channels={sectionedChannels[zone]} zone={zone} />
         </div>
       ))}
-    </div>
+    </section>
   );
 }

@@ -116,15 +116,17 @@ export const useGroupState = create<GroupState>((set, get) => ({
         'groups',
         `/gangs/${flag}/preview`
       );
-      get().batchSet((draft) => {
-        const gang = draft.gangs[flag] || {
-          preview: null,
-          invite: null,
-          claim: null,
-        };
-        gang.preview = res;
-        draft.gangs[flag] = gang;
-      });
+      if (res) {
+        get().batchSet((draft) => {
+          const gang = draft.gangs[flag] || {
+            preview: null,
+            invite: null,
+            claim: null,
+          };
+          gang.preview = res;
+          draft.gangs[flag] = gang;
+        });
+      }
     } catch (e) {
       // TODO: fix error handling
       console.error(e);
@@ -144,6 +146,13 @@ export const useGroupState = create<GroupState>((set, get) => ({
     await api.poke(groupAction(flag, { del: null }));
   },
   join: async (flag, joinAll) => {
+    get().batchSet((draft) => {
+      draft.gangs[flag].claim = {
+        progress: 'adding',
+        'join-all': joinAll,
+      };
+    });
+
     api.poke({
       app: 'groups',
       mark: 'group-join',
@@ -153,7 +162,6 @@ export const useGroupState = create<GroupState>((set, get) => ({
       },
     });
   },
-  // addMember: async
   addSects: async (flag, ship, sects) => {
     const diff = {
       fleet: {
@@ -350,7 +358,13 @@ export const useGroupState = create<GroupState>((set, get) => ({
     await api.subscribe({
       app: 'groups',
       path: '/groups/ui',
-      event: (data) => {
+      event: (data, mark) => {
+        if (mark === 'gang-gone') {
+          get().batchSet((draft) => {
+            delete draft.gangs[data];
+          });
+        }
+
         const { flag, update } = data as GroupAction;
         if ('create' in update.diff) {
           const group = update.diff.create;
@@ -405,6 +419,11 @@ const defGang = {
 
 export function useGang(flag: string) {
   return useGroupState(useCallback((s) => s.gangs[flag] || defGang, [flag]));
+}
+
+const selGangs = (s: GroupState) => s.gangs;
+export function useGangs() {
+  return useGroupState(selGangs);
 }
 
 const selGangList = (s: GroupState) => Object.keys(s.gangs);

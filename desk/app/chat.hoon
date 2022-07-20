@@ -592,6 +592,8 @@
   ++  ca-init
     |=  req=create:c
     =/  =perm:c  [~ group.req]
+    =.  cor
+      (give-brief flag/flag ca-brief)
     =.  ca-core  (ca-update now.bowl %create perm)
     (add-channel:ca-pass req)
   ::
@@ -715,12 +717,14 @@
     ^+  ca-core
     =.  chats  (~(put by chats) f *chat:c)
     =.  ca-core  (ca-abed f)
+    =.  cor  (give-brief flag/flag ca-brief)
     ca-sub
   ::
   ++  ca-leave
     =/  =dock  [p.flag dap.bowl]
     =/  =wire  (snoc ca-area %updates)
     =.  cor  (emit %pass wire %agent dock %leave ~)
+    =.  cor  (emit %give %fact ~[/briefs] chat-leave+!>(flag))
     =.  gone  &
     ca-core
   ::

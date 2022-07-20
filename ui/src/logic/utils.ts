@@ -1,10 +1,18 @@
+import ob from 'urbit-ob';
 import { unixToDa } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays } from 'date-fns';
 import _ from 'lodash';
 import { ChatWhom } from '../types/chat';
-import { Cabal, Cabals, Group, PrivacyType, Rank } from '../types/groups';
+import {
+  Cabal,
+  Cabals,
+  Cordon,
+  Group,
+  PrivacyType,
+  Rank,
+} from '../types/groups';
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
@@ -84,8 +92,12 @@ export function whomIsDm(whom: ChatWhom): boolean {
   return whom.startsWith('~') && !whom.match('/');
 }
 
+// ship + term, term being a @tas: lower-case letters, numbers, and hyphens
 export function whomIsFlag(whom: ChatWhom): boolean {
-  return whom.startsWith('~') && whom.includes('/');
+  return (
+    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
+    ob.isValidPatp(whom.split('/')[0])
+  );
 }
 
 export function whomIsMultiDm(whom: ChatWhom): boolean {
@@ -144,6 +156,15 @@ export function getSectTitle(cabals: Cabals, sect: string) {
   return cabals[sect]?.meta.title || sect;
 }
 
+export function getFlagParts(flag: string) {
+  const parts = flag.split('/');
+
+  return {
+    ship: parts[0],
+    name: parts[1],
+  };
+}
+
 export function isValidUrl(str?: string): boolean {
   const pattern = new RegExp(
     '^(https?:\\/\\/)?' + // protocol
@@ -157,10 +178,28 @@ export function isValidUrl(str?: string): boolean {
   return str ? !!pattern.test(str) : false;
 }
 
-export function getGroupPrivacy(group: Group): PrivacyType {
-  if ('open' in group.cordon) {
+export function getGroupPrivacy(cordon: Cordon): PrivacyType {
+  if ('open' in cordon) {
     return 'public';
   }
 
-  return 'private';
+  if ('shut' in cordon) {
+    return 'private';
+  }
+
+  return 'secret';
+}
+
+export function toTitleCase(s: string): string {
+  if (!s) {
+    return '';
+  }
+  return s
+    .split(' ')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+export function randomElement<T>(a: T[]) {
+  return a[Math.floor(Math.random() * a.length)];
 }

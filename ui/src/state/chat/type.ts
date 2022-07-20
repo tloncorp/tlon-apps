@@ -46,6 +46,7 @@ export interface ChatState {
   fetchOlder: (ship: string, count: string) => Promise<boolean>;
   draft: (whom: string, story: ChatStory) => Promise<void>;
   joinChat: (flag: string) => Promise<void>;
+  leaveChat: (flag: string) => Promise<void>;
   archiveDm: (ship: string) => Promise<void>;
   unarchiveDm: (ship: string) => Promise<void>;
   sendMessage: (whom: string, memo: ChatMemo) => void;

@@ -6,13 +6,13 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
 import useSidebarSort from '../../logic/useSidebarSort';
 import {
+  useGang,
   useGangList,
   useGroup,
   useGroupList,
   usePinnedGroups,
 } from '../../state/groups/groups';
 import Divider from '../Divider';
-import GangName from '../../groups/GangName/GangName';
 import GroupAvatar from '../../groups/GroupAvatar';
 import useNavStore from '../Nav/useNavStore';
 import GroupActions from '../../groups/GroupActions';
@@ -136,14 +136,25 @@ function GroupItemContainer({
 // Gang is a pending group invite
 function GangItem(props: { flag: string }) {
   const { flag } = props;
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
+  const { preview, claim } = useGang(flag);
+
+  if (!claim) {
+    return null;
+  }
+
   return (
     <SidebarItem
-      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" />}
-      to={`/gangs/${flag}`}
-      onClick={() => navPrimary('hidden')}
+      icon={
+        <GroupAvatar
+          {...preview?.meta}
+          size="h-12 w-12 sm:h-6 sm:w-6"
+          className="opacity-60"
+        />
+      }
     >
-      <GangName flag={flag} className="inline-block w-full truncate" />
+      <span className="inline-block w-full truncate opacity-60">
+        {preview ? preview.meta.title : flag}
+      </span>
     </SidebarItem>
   );
 }
@@ -221,16 +232,15 @@ export default function GroupList({
     </DndProvider>
   ) : (
     <ul className={cn('h-full space-y-3 p-2 sm:space-y-0', className)}>
+      {gangs.map((flag) => (
+        <GangItem key={flag} flag={flag} />
+      ))}
       {flags
         .filter((flag) => !pinnedFlags.includes(flag))
         .sort(sortOptions[sortFn])
         .map((flag) => (
           <GroupItem key={flag} flag={flag} />
         ))}
-      {gangs.length > 0 ? <Divider>Pending</Divider> : null}
-      {gangs.map((flag) => (
-        <GangItem key={flag} flag={flag} />
-      ))}
     </ul>
   );
 }

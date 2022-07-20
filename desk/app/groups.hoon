@@ -252,6 +252,10 @@
     ^-  (unit (unit cage))
     :-  ~
     ?+    pole  ~
+        [%fleet ship=@ %vessel ~]
+      =/  src  (slav %p ship.pole)
+      `noun+!>((~(got by fleet.group) src))
+      ::
         [%channel ship=@ name=@ rest=*]
       =/  fog=flag:g  [(slav %p ship.pole) name.pole]
       =/  =channel:g  (~(got by channels.group) fog)
@@ -327,7 +331,12 @@
   ++  go-fact-init
     |=  [=time gr=group:g]
     =.  group  gr
-    =.  net  [%sub time]
+    =.  net  [%sub time] 
+    =/  create=diff:g  [%create group]
+    =.  cor  
+      (give %fact ~[/groups/ui] group-action+!>(`action:g`[flag now.bowl create]))
+    =.  cor
+      (give %fact ~[/groups/ui] gang-gone+!>(flag))
     =.  cor
       (emil join-pinned:go-pass)
     go-core
@@ -342,7 +351,6 @@
         out
       (~(put in out) path)
     =.  paths  (~(put in paths) (snoc go-area %ui))
-    =.  paths  (~(put in paths) /groups/ui)
     =.  cor
       (give %fact ~(tap in paths) group-update+!>(`update:g`[time diff]))
     =.  cor
