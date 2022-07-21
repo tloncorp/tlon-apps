@@ -699,8 +699,8 @@
     (emit %give %kick ~[path] ~)
   ::
       %fact
-    ?.  =(%gangs p.cage.sign)  cor
-    =+  !<(=gangs:g q.cage.sign)
+    ?.  =(%group-previews p.cage.sign)  cor
+    =+  !<(=previews:g q.cage.sign)
     (emit %give %fact ~[path] cage.sign)
   ==
 ::
