@@ -5,6 +5,7 @@ import { Gangs } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
 import { hasKeys } from '@/logic/utils';
 import GroupJoinList from './GroupJoinList';
+import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 
 export default function FindGroups() {
   const [foundGangs, setFoundGangs] = useState<Gangs | null>(null);
@@ -95,7 +96,9 @@ export default function FindGroups() {
           {selectedShip ? (
             <section className="card mb-4 space-y-8 p-8">
               <p className="font-semibold text-gray-400">{resultsTitle()}</p>
-              {publicAndPrivateGangs && hasKeys(publicAndPrivateGangs) ? (
+              {isPending ? (
+                <GroupJoinListPlaceholder />
+              ) : publicAndPrivateGangs && hasKeys(publicAndPrivateGangs) ? (
                 <GroupJoinList gangs={publicAndPrivateGangs} />
               ) : null}
             </section>
