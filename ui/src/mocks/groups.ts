@@ -82,7 +82,7 @@ export function createMockGang({
             title: name,
             description: faker.company.catchPhrase(),
             image: '',
-            color: randomColor(),
+            color: `#${randomColor()}`,
           },
         }
       : null,

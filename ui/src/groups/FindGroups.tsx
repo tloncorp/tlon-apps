@@ -94,7 +94,7 @@ export default function FindGroups() {
             </div>
           </div>
           {selectedShip ? (
-            <section className="card mb-4 space-y-8 p-8">
+            <section className="space-y-3">
               <p className="font-semibold text-gray-400">{resultsTitle()}</p>
               {isPending ? (
                 <GroupJoinListPlaceholder />

@@ -54,12 +54,15 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
       </button>
       <div className="absolute right-2 flex flex-row">
         {gang.invite ? (
-          <button className="button bg-red-soft text-red" onClick={reject}>
+          <button
+            className="button bg-red-soft text-red mix-blend-multiply dark:mix-blend-screen"
+            onClick={reject}
+          >
             Reject
           </button>
         ) : null}
         <button
-          className="button ml-2 bg-blue-soft text-blue"
+          className="button ml-2 bg-blue-soft text-blue mix-blend-multiply dark:mix-blend-screen"
           onClick={group ? open : join}
         >
           {group ? 'Open' : 'Join'}
