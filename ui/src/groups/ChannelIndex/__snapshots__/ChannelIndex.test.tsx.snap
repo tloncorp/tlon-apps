@@ -52,11 +52,6 @@ exports[`ChannelIndex > renders as expected 1`] = `
               >
                 Fake Channel
               </div>
-              <div
-                class="font-semibold text-gray-400"
-              >
-                3 members
-              </div>
             </div>
           </div>
           <div>
