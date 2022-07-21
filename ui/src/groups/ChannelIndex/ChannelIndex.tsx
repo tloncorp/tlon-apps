@@ -92,9 +92,6 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
   // exists
   const joined = isChannelHost || (channelFlag && channelFlag in briefs);
 
-  // TODO: figure out Channel participant count
-  const participantCount = Object.keys(group.fleet).length;
-
   return (
     <div className="my-2 flex flex-row items-center justify-between">
       {/* avatar, title, participants */}
@@ -116,9 +113,6 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
               {channel.meta.title}
             </div>
           )}
-          <div className="font-semibold text-gray-400">
-            {participantCount} {pluralize('member', participantCount)}
-          </div>
         </div>
       </div>
       {/* action and options */}
