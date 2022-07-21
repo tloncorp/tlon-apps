@@ -15,12 +15,9 @@ import { useBriefs, useChatState } from '@/state/chat';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import PencilIcon from '@/components/icons/PencilIcon';
+import useRequestState from '@/logic/useRequestState';
 
 const UNZONED = '';
-const READY = 'READY';
-const PENDING = 'PENDING';
-const FAILED = 'FAILED';
-type JoinState = typeof READY | typeof PENDING | typeof FAILED;
 
 function Channel({ channel, flag }: { flag: string; channel: Channel }) {
   const groupFlag = useRouteGroup();
@@ -28,11 +25,11 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
   const briefs = useBriefs();
   const isAdmin = useAmAdmin(flag);
   const navigate = useNavigate();
-
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const [joinState, setJoinState] = useState<JoinState>(READY);
+  const { isFailed, isPending, isReady, setFailed, setPending, setReady } =
+    useRequestState();
 
   const editChannel = useCallback(() => {
     navigate(`/groups/${flag}/info/channels`);
@@ -44,22 +41,22 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
         clearTimeout(timer);
         setTimer(null);
       }
-      setJoinState(PENDING);
+      setPending();
       await useChatState.getState().joinChat(flag);
-      setJoinState(READY);
+      setReady();
     } catch (error) {
       if (error) {
         console.error(`[ChannelIndex:JoinError] ${error}`);
       }
-      setJoinState(FAILED);
+      setFailed();
       setTimer(
         setTimeout(() => {
-          setJoinState(READY);
+          setReady();
           setTimer(null);
         }, 10 * 1000)
       );
     }
-  }, [flag, timer]);
+  }, [flag, setFailed, setPending, setReady, timer]);
 
   const leaveChannel = useCallback(async () => {
     try {
@@ -161,22 +158,22 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
           </DropdownMenu.Root>
         ) : (
           <button
-            disabled={joinState === PENDING}
+            disabled={isPending}
             onClick={joinChannel}
             className={cn('button disabled:bg-gray-50', {
-              'bg-gray-50': [READY, PENDING].includes(joinState),
-              'bg-red-soft': joinState === FAILED,
-              'text-gray-800': joinState === READY,
-              'text-gray-400': joinState === PENDING,
-              'text-red': joinState === FAILED,
+              'bg-gray-50': isReady || isPending,
+              'bg-red-soft': isFailed,
+              'text-gray-800': isReady,
+              'text-gray-400': isPending,
+              'text-red': isFailed,
             })}
           >
-            {joinState === PENDING ? (
+            {isPending ? (
               <span className="center-items flex">
                 <LoadingSpinner />
                 <span className="ml-2">Joining...</span>
               </span>
-            ) : joinState === FAILED ? (
+            ) : isFailed ? (
               'Retry'
             ) : (
               'Join'

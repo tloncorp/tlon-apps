@@ -1,7 +1,14 @@
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
 import faker from '@faker-js/faker';
-import { Group, Vessel, Gangs, Gang } from '../types/groups';
+import {
+  Group,
+  Vessel,
+  Gangs,
+  Gang,
+  PrivacyType,
+  Cordon,
+} from '../types/groups';
 
 const emptyVessel = (): Vessel => ({
   sects: [],
@@ -16,11 +23,44 @@ const adminVessel = (): Vessel => ({
 const randomColor = () => Math.floor(Math.random() * 16777215).toString(16);
 
 export function createMockGang({
+  flag,
   hasClaim = false,
   hasInvite = false,
   hasPreview = false,
+  privacy = 'public',
+}: {
+  flag: string;
+  hasClaim?: boolean;
+  hasInvite?: boolean;
+  hasPreview?: boolean;
+  privacy?: PrivacyType;
 }): Gang {
   const name = faker.company.companyName();
+  let cordon: Cordon;
+  switch (privacy) {
+    case 'public':
+      cordon = {
+        open: {
+          ships: [],
+          ranks: [],
+        },
+      };
+      break;
+    case 'private':
+      cordon = {
+        shut: [],
+      };
+      break;
+    default:
+      cordon = {
+        afar: {
+          app: '',
+          path: '',
+          desc: '',
+        },
+      };
+      break;
+  }
 
   return {
     claim: hasClaim
@@ -31,18 +71,13 @@ export function createMockGang({
       : null,
     invite: hasInvite
       ? {
-          text: `Join the ${name} group`,
+          flag,
           ship: randomElement(AUTHORS),
         }
       : null,
     preview: hasPreview
       ? {
-          cordon: {
-            open: {
-              ships: [],
-              ranks: [],
-            },
-          },
+          cordon,
           meta: {
             title: name,
             description: faker.company.catchPhrase(),

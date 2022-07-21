@@ -119,13 +119,21 @@ export const useGroupState = create<GroupState>((set, get) => ({
      */
 
     const mockIndex = {
-      [`${flag}/test`]: createMockGang({ hasPreview: true }),
-      [`${flag}/help`]: createMockGang({ hasPreview: true }),
-      [`${flag}/test`]: createMockGang({ hasPreview: true }),
+      [`${flag}/public`]: createMockGang({ flag, hasPreview: true }),
+      [`${flag}/private`]: createMockGang({
+        flag,
+        hasPreview: true,
+        privacy: 'private',
+      }),
+      [`${flag}/secret`]: createMockGang({
+        flag,
+        hasPreview: true,
+        privacy: 'secret',
+      }),
     };
 
     await new Promise((resolve) => {
-      setTimeout(resolve, 1000);
+      setTimeout(resolve, 2000);
     });
 
     return mockIndex;
@@ -498,6 +506,20 @@ export function usePendingInvites() {
   return Object.entries(gangs)
     .filter(([k, g]) => g.invite !== null && !(k in groups))
     .map(([k]) => k);
+}
+
+export function usePendingGangs() {
+  const groups = useGroups();
+  const gangs = useGangs();
+  const pendingGangs: Gangs = {};
+
+  Object.entries(gangs)
+    .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .forEach(([flag, gang]) => {
+      pendingGangs[flag] = gang;
+    });
+
+  return pendingGangs;
 }
 
 const selInit = (s: GroupState) => s.initialized;

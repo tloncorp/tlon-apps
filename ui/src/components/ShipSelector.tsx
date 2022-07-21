@@ -15,6 +15,7 @@ import {
   GroupBase,
   SingleValue,
   ValueContainerProps,
+  ClearIndicatorProps,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
@@ -27,6 +28,7 @@ import Avatar from '@/components/Avatar';
 import { useMemoizedContacts } from '@/state/contact';
 import { MAX_DISPLAYED_OPTIONS } from '@/constants';
 import ShipName from './ShipName';
+import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export interface ShipOption {
   value: string;
@@ -38,6 +40,10 @@ interface ShipSelectorProps {
   setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
   onEnter?: (ships: ShipOption[]) => void;
   isMulti?: boolean;
+  isClearable?: boolean;
+  isLoading?: boolean;
+  hasPrompt?: boolean;
+  placeholder?: string;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -50,6 +56,34 @@ function Control({ children, ...props }: ControlProps<ShipOption, true>) {
       {children}
     </components.Control>
   );
+}
+
+function ClearIndicator({ ...props }: ClearIndicatorProps<ShipOption, true>) {
+  const clearValue = () => {
+    props.clearValue();
+    // reset state in parent
+    // @ts-expect-error we passed an extra prop to selectProps
+    if (props.selectProps.onClear) {
+      // @ts-expect-error we passed an extra prop to selectProps
+      props.selectProps.onClear();
+    }
+  };
+
+  const innerProps = {
+    ...props.innerProps,
+    onMouseDown: clearValue,
+    onTouchEnd: clearValue,
+  };
+
+  return (
+    <span {...props} {...innerProps} className="cursor-pointer">
+      <X16Icon className="h-4 w-4" />
+    </span>
+  );
+}
+
+function LoadingIndicator() {
+  return <LoadingSpinner />;
 }
 
 function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
@@ -108,7 +142,9 @@ function SingleValueShipTagLabelContainer({
     <components.ValueContainer {...props} className="flex">
       <div className="flex justify-between">
         {children}
-        {props.hasValue ? (
+        {props.hasValue &&
+        // @ts-expect-error we passed an extra prop to selectProps
+        props.selectProps.hasPrompt ? (
           <button
             className="font-semibold text-gray-400"
             // @ts-expect-error we passed an extra prop to selectProps
@@ -182,6 +218,10 @@ export default function ShipSelector({
   setShips,
   onEnter,
   isMulti = true,
+  isClearable = false,
+  isLoading = false,
+  hasPrompt = true,
+  placeholder = 'Type a name ie; ~sampel-palnet',
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -229,7 +269,7 @@ export default function ShipSelector({
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(
-      (entry) => `${entry[1].nickname}${entry[0]}`
+      ([patp, contact]) => `${contact.nickname}${patp}`
     );
 
     const fuzzyNames = fuzzy
@@ -320,6 +360,10 @@ export default function ShipSelector({
     }
   };
 
+  const onClear = () => {
+    setShips([]);
+  };
+
   if (!isMulti) {
     return (
       <CreatableSelect
@@ -376,10 +420,14 @@ export default function ShipSelector({
         onInputChange={(val) => setInputValue(val)}
         isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
         onKeyDown={onKeyDown}
-        placeholder=""
+        placeholder={placeholder}
         hideSelectedOptions
         // TODO: create custom filter for sorting potential DM participants.
         filterOption={() => true} // disable the default filter
+        isClearable={isClearable}
+        isLoading={isLoading}
+        onClear={onClear}
+        hasPrompt={hasPrompt}
         components={{
           Control,
           Menu: ShipDropDownMenu,
@@ -387,7 +435,8 @@ export default function ShipSelector({
           Input,
           DropdownIndicator: () => null,
           IndicatorSeparator: () => null,
-          ClearIndicator: () => null,
+          ClearIndicator,
+          LoadingIndicator,
           Option: ShipItem,
           NoOptionsMessage: NoShipsMessage,
           SingleValue: SingleShipLabel,
@@ -449,10 +498,12 @@ export default function ShipSelector({
       onInputChange={(val) => setInputValue(val)}
       isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
       onKeyDown={onKeyDown}
-      placeholder="Type a name ie; ~sampel-palnet"
+      placeholder={placeholder}
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
       filterOption={() => true} // disable the default filter
+      isClearable={isClearable}
+      isLoading={isLoading}
       components={{
         Control,
         Menu: ShipDropDownMenu,
@@ -460,7 +511,8 @@ export default function ShipSelector({
         Input,
         DropdownIndicator: () => null,
         IndicatorSeparator: () => null,
-        ClearIndicator: () => null,
+        LoadingIndicator,
+        ClearIndicator,
         Option: ShipItem,
         NoOptionsMessage: NoShipsMessage,
         MultiValueLabel: ShipTagLabel,
