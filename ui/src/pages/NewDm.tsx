@@ -15,9 +15,16 @@ export default function NewDM() {
   const isMultiDm = ships.length > 1;
   const navigate = useNavigate();
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
-  const validShips = shipValues.every((ship) => ob.isValidPatp(ship));
   const newClubId = useMemo(() => newUv(), []);
   const sendMultiDm = useSendMultiDm(true, shipValues);
+
+  const validShips = useCallback(
+    () =>
+      Boolean(shipValues.length) &&
+      shipValues.every((ship) => ob.isValidPatp(ship)),
+    [shipValues]
+  );
+
   const sendDm = useCallback(
     async (whom: string, memo: ChatMemo) => {
       if (isMultiDm) {
@@ -60,7 +67,7 @@ export default function NewDM() {
                 : ''
             }
             showReply
-            sendDisabled={!validShips}
+            sendDisabled={!validShips()}
             sendMessage={sendDm}
           />
         </div>

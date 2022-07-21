@@ -1,7 +1,7 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
 import { ChatInline, ChatMemo, ChatStory } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
@@ -299,7 +299,6 @@ export default function ChatInput({
       }
 
       const data = parseTipTapJSON(editor?.getJSON());
-      console.log(editor.getJSON());
       const memo: ChatMemo = {
         replying: reply,
         author: `~${window.ship || 'zod'}`,
@@ -408,7 +407,11 @@ export default function ChatInput({
             </button>
           </div>
         </div>
-        <button className="button" disabled={sendDisabled} onClick={onClick}>
+        <button
+          className="button"
+          disabled={sendDisabled || messageEditor.getText() === ''}
+          onClick={onClick}
+        >
           Send
         </button>
       </div>
