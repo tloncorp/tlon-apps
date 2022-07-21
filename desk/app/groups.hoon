@@ -139,8 +139,13 @@
     go-abet:(go-watch:(go-abed:group-core ship name.pole) rest.pole)
   ::
      [%gangs ship=@ name=@ rest=*]
-     =/  ship=@p  (slav %p ship.pole)
-     ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
+    =/  ship=@p  (slav %p ship.pole)
+    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
+  ::
+      [%gangs %index ship=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    ?:  =(our.bowl ship)  res-gang-index
+    (req-gang-index ship)
   ==
 ++  peek
   |=  =(pole knot)
@@ -168,6 +173,9 @@
       [%gangs ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     ga-abet:(ga-agent:(ga-abed:gang-core ship name.pole) rest.pole sign)
+  ::
+      [%gangs %index ship=@ ~]
+    (take-gang-index (slav %p ship.pole) sign)
   ==
 ::
 ++  arvo
@@ -655,6 +663,46 @@
     ::
     ==
   --
+::
+++  res-gang-index
+  ^+  cor
+  =;  =cage
+    (emit %give %fact ~ cage)
+  :-  %group-previews
+  !>  ^-  previews:g
+  %-  ~(gas by *previews:g)
+  %+  murn  ~(tap by groups)
+  |=  [=flag:g =net:g =group:g]
+  ^-  (unit [flag:g preview:g])
+  ?:  =(our.bowl p.flag)
+    ~
+  `[flag =,(group [meta cordon now.bowl])]
+::
+++  req-gang-index
+  |=  =ship
+  ^+  cor
+  =/  =wire  /gangs/index/(scot %p ship)
+  =/  =dock  [ship dap.bowl]
+  (emit %pass wire %agent dock %watch `path`wire)
+::
+++  take-gang-index
+  |=  [=ship =sign:agent:gall]
+  ^+  cor
+  =/  =path  /gangs/index/(scot %p ship)
+  ?+  -.sign  !!
+      %kick  cor
+  ::
+      %watch-ack
+    ?~  p.sign  cor
+    %-  (slog leaf/"failed to watch gang index" u.p.sign)
+    (emit %give %kick ~[path] ~)
+  ::
+      %fact
+    ?.  =(%gangs p.cage.sign)  cor
+    =+  !<(=gangs:g q.cage.sign)
+    (emit %give %fact ~[path] cage.sign)
+  ==
+::
 ++  gang-core
   |_  [=flag:g =gang:g]
   ++  ga-core  .
