@@ -26,7 +26,7 @@
         joined=time
     ==
   +$  diff
-    $%  [%add =vessel]
+    $%  [%add ~]
         [%del ~]
         [%add-sects sects=(set sect)]
         [%del-sects sects=(set sect)]
@@ -40,7 +40,8 @@
   +$  channel
     $:  meta=data:meta
         added=time
-        zon=(unit zone)
+        zone=(unit zone)
+        join=?
         readers=(set sect)
     ==
   +$  diff
@@ -52,6 +53,8 @@
       ::
         [%add-zone =zone]
         [%del-zone ~]
+      ::
+        [%join join=_|]
     ==
   --
 ::
@@ -121,13 +124,15 @@
     ==
   --
 +$  diff
-  $%  [%fleet p=ship q=diff:fleet]
+  $%  [%fleet p=(set ship) q=diff:fleet]
       [%cabal p=sect q=diff:cabal]
       [%channel p=flag q=diff:channel]
       [%bloc p=diff:bloc]
       [%cordon p=diff:cordon]
       [%zone p=diff:zone]
+      [%meta p=data:meta]
       [%create p=group]
+      [%del ~]
   ==
 +$  action
   (pair flag update)
@@ -140,7 +145,11 @@
       description=cord
       image=cord  
       color=cord
+      =cordon
+      members=(jug ship sect)
   ==
+::
++$  init  [=time =group]
 ::
 +$  groups
   (map flag group)
@@ -177,7 +186,7 @@
       =time
   ==
 ::
-+$  invite  ~
++$  invite  (pair flag ship)
 ::  $gang: view of foreign group
 +$  gang
   $:  cam=(unit claim)

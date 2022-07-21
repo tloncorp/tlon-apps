@@ -3,27 +3,25 @@ import cn from 'classnames';
 import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
-import ChatInput from '../chat/ChatInput/ChatInput';
-import ChatWindow from '../chat/ChatWindow';
-import EllipsisIcon from '../components/icons/EllipsisIcon';
-import Layout from '../components/Layout/Layout';
-import { useIsMobile } from '../logic/useMedia';
+import ChatInput from '@/chat/ChatInput/ChatInput';
+import ChatWindow from '@/chat/ChatWindow';
+import EllipsisIcon from '@/components/icons/EllipsisIcon';
+import Layout from '@/components/Layout/Layout';
+import { useIsMobile } from '@/logic/useMedia';
 import {
   useChatIsJoined,
   useChatPerms,
   useChatState,
   useMessagesForChat,
-} from '../state/chat';
-import { useChannel, useRouteGroup, useVessel } from '../state/groups';
-import { channelHref } from '../logic/utils';
-import { useChatInfo } from '../chat/useChatStore';
-import CaretLeftIcon from '../components/icons/CaretLeftIcon';
-import useNavStore from '../components/Nav/useNavStore';
+} from '@/state/chat';
+import { useChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
+import { channelHref } from '@/logic/utils';
+import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import useNavStore from '@/components/Nav/useNavStore';
 
 function Channel() {
   const { chShip, chName } = useParams();
   const flag = `${chShip}/${chName}`;
-  const chatInfo = useChatInfo(flag);
   const groupFlag = useRouteGroup();
   const isJoined = useChatIsJoined(flag);
   const join = () => {
@@ -47,7 +45,7 @@ function Channel() {
 
   return (
     <Layout
-      className="flex-1"
+      className="flex-1 bg-white"
       aside={<Outlet />}
       header={
         <div
@@ -72,7 +70,7 @@ function Channel() {
 
           <Link
             className="icon-button ml-auto h-8 w-8 bg-transparent"
-            to={`${channelHref(groupFlag, flag)}/settings`}
+            to={`/groups/${groupFlag}/info/channels`}
           >
             <EllipsisIcon className="h-6 w-6" />
           </Link>
@@ -81,12 +79,7 @@ function Channel() {
       footer={
         <div className="border-t-2 border-black/10 p-4">
           {canWrite ? (
-            <ChatInput
-              whom={flag}
-              replying={chatInfo?.replying || null}
-              sendMessage={sendMessage}
-              showReply
-            />
+            <ChatInput whom={flag} sendMessage={sendMessage} showReply />
           ) : (
             <span>Cannot write to this channel</span>
           )}

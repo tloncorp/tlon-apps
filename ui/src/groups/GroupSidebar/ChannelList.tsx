@@ -1,9 +1,10 @@
 import cn from 'classnames';
 import React, { useCallback } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useBriefs } from '@/state/chat';
 import { useIsMobile } from '../../logic/useMedia';
 import { channelHref } from '../../logic/utils';
-import { useGroup } from '../../state/groups';
+import { useGroup } from '../../state/groups/groups';
 import BubbleIcon from '../../components/icons/BubbleIcon';
 import useNavStore from '../../components/Nav/useNavStore';
 import CaretDownIcon from '../../components/icons/CaretDownIcon';
@@ -19,6 +20,7 @@ interface ChannelListProps {
 export default function ChannelList({ flag, className }: ChannelListProps) {
   const isMobile = useIsMobile();
   const group = useGroup(flag);
+  const briefs = useBriefs();
   const { sortFn, sortOptions, setSortFn } = useSidebarSort();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const hide = useCallback(() => {
@@ -30,6 +32,8 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   if (!group) {
     return null;
   }
+
+  const channels = Object.entries(group.channels).filter(([k]) => k in briefs);
 
   const icon = (active: boolean) =>
     isMobile ? (
@@ -61,7 +65,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
         <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
       </DropdownMenu.Root>
       <ul className={cn(isMobile && 'space-y-3')}>
-        {Object.entries(group.channels).map(([key, channel]) => (
+        {channels.map(([key, channel]) => (
           <SidebarItem
             key={key}
             icon={icon}

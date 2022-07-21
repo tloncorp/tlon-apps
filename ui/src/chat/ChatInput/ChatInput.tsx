@@ -1,29 +1,26 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useRef } from 'react';
-import { NavigateFunction } from 'react-router';
-import { useChatState, useChatDraft, useChat, usePact } from '../../state/chat';
-import { ChatInline, ChatMemo, ChatStory } from '../../types/chat';
-import MessageEditor, {
-  useMessageEditor,
-} from '../../components/MessageEditor';
-import Avatar from '../../components/Avatar';
-import ShipName from '../../components/ShipName';
-import AddIcon from '../../components/icons/AddIcon';
-import X16Icon from '../../components/icons/X16Icon';
-import { useChatStore } from '../useChatStore';
-import ChatInputMenu from '../ChatInputMenu/ChatInputMenu';
-import { useIsMobile } from '../../logic/useMedia';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { useChatState, useChatDraft, usePact } from '@/state/chat';
+import { ChatInline, ChatMemo, ChatStory } from '@/types/chat';
+import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
+import Avatar from '@/components/Avatar';
+import ShipName from '@/components/ShipName';
+import AddIcon from '@/components/icons/AddIcon';
+import X16Icon from '@/components/icons/X16Icon';
+import { useChatInfo, useChatStore } from '@/chat/useChatStore';
+import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
+import { useIsMobile } from '@/logic/useMedia';
+import { randomElement } from '@/logic/utils';
+import { Image, PLACEHOLDER_IMAGES } from '@/constants';
 
 interface ChatInputProps {
   whom: string;
-  replying?: string | null;
+  replying?: string;
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
-  newDm?: boolean;
-  navigate?: NavigateFunction;
   sendMessage: (whom: string, memo: ChatMemo) => void;
 }
 
@@ -259,17 +256,17 @@ function parseChatMessage(message: ChatStory): JSONContent {
 
 export default function ChatInput({
   whom,
-  replying = null,
   showReply = false,
+  replying,
   className = '',
   sendDisabled = false,
-  newDm = false,
-  navigate = undefined,
   sendMessage,
 }: ChatInputProps) {
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
-  const replyingWrit = replying && pact.writs.get(pact.index[replying]);
+  const chatInfo = useChatInfo(whom);
+  const reply = replying || chatInfo?.replying || null;
+  const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
 
@@ -277,26 +274,33 @@ export default function ChatInput({
     useChatStore.getState().reply(whom, null);
   }, [whom]);
 
-  const onUpdate = useRef(
-    debounce(({ editor }) => {
-      const data = parseTipTapJSON(editor?.getJSON());
-      useChatState.getState().draft(whom, {
-        inline: Array.isArray(data) ? data : [data],
-        block: [],
-      });
-    }, 5000)
+  const onUpdate = useMemo(
+    () =>
+      debounce(({ editor }) => {
+        if (!whom) {
+          return;
+        }
+
+        const data = parseTipTapJSON(editor?.getJSON());
+        useChatState.getState().draft(whom, {
+          inline: Array.isArray(data) ? data : [data],
+          block: [],
+        });
+      }, 1000),
+    [whom]
   );
 
+  useEffect(() => () => onUpdate.cancel(), [onUpdate]);
+
   const onSubmit = useCallback(
-    (editor: Editor) => {
+    async (editor: Editor) => {
       if (!editor.getText()) {
         return;
       }
 
       const data = parseTipTapJSON(editor?.getJSON());
-      console.log(editor.getJSON());
       const memo: ChatMemo = {
-        replying,
+        replying: reply,
         author: `~${window.ship || 'zod'}`,
         sent: Date.now(),
         content: {
@@ -311,16 +315,9 @@ export default function ChatInput({
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
-      if (newDm && navigate) {
-        navigate(`/dm/${whom}`);
-      }
     },
-    [replying, sendMessage, whom, newDm, navigate, closeReply]
+    [reply, whom, sendMessage, closeReply]
   );
-
-  useEffect(() => {
-    useChatState.getState().getDraft(whom);
-  }, [whom]);
 
   const messageEditor = useMessageEditor({
     content: '',
@@ -332,14 +329,21 @@ export default function ChatInput({
       },
       [onSubmit]
     ),
-    onUpdate: onUpdate.current,
+    onUpdate,
   });
 
   useEffect(() => {
-    if (replying) {
+    if (whom) {
+      messageEditor?.commands.setContent('');
+      useChatState.getState().getDraft(whom);
+    }
+  }, [whom, messageEditor]);
+
+  useEffect(() => {
+    if (reply) {
       messageEditor?.commands.focus();
     }
-  }, [replying, messageEditor]);
+  }, [reply, messageEditor]);
 
   useEffect(() => {
     if (draft && messageEditor) {
@@ -364,11 +368,11 @@ export default function ChatInput({
     <>
       <div className={cn('flex w-full items-end space-x-2', className)}>
         <div className="flex-1">
-          {showReply && ship && replying ? (
+          {showReply && ship && reply ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="text-gray-600">Replying to</span>
               <Avatar size="xs" ship={ship} className="ml-2" />
-              <ShipName name={ship} className="ml-2" />
+              <ShipName name={ship} showAlias className="ml-2" />
               <button className="icon-button ml-auto" onClick={closeReply}>
                 <X16Icon className="h-4 w-4" />
               </button>
@@ -378,6 +382,7 @@ export default function ChatInput({
             <MessageEditor editor={messageEditor} className="w-full" />
             <button
               // this is not contained by relative because of a bug in radix popovers
+              title={'Insert Test Image'}
               className="absolute mr-2 text-gray-600 hover:text-gray-800"
               aria-label="Add attachment"
               onClick={() => {
@@ -390,12 +395,7 @@ export default function ChatInput({
                       inline: [],
                       block: [
                         {
-                          image: {
-                            src: 'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.3.21..22.06.42-FBqq4mCVkAM8Cs5.jpeg',
-                            width: 750,
-                            height: 599,
-                            alt: '',
-                          },
+                          image: randomElement<Image>(PLACEHOLDER_IMAGES),
                         },
                       ],
                     },
@@ -407,7 +407,11 @@ export default function ChatInput({
             </button>
           </div>
         </div>
-        <button className="button" disabled={sendDisabled} onClick={onClick}>
+        <button
+          className="button"
+          disabled={sendDisabled || messageEditor.getText() === ''}
+          onClick={onClick}
+        >
           Send
         </button>
       </div>

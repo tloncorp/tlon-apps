@@ -197,6 +197,12 @@ export interface Club {
   hive: string[];
   team: string[];
   meta: GroupMeta;
+  pin: boolean;
+}
+
+export interface ClubPin {
+  id: string;
+  pin: boolean;
 }
 
 export interface DmAction {
@@ -246,6 +252,11 @@ export interface ClubCreate {
   id: string;
   hive: Ship[];
 }
+
+export interface ClubInvite extends Club {
+  id: string;
+}
+
 export interface Hive {
   by: string;
   for: string;

@@ -1,15 +1,16 @@
+import { whomIsMultiDm } from '../../logic/utils';
 import { ChatMemo } from '../../types/chat';
 import { useChatState } from './chat';
+import createClub from './createClub';
 
 // `ChatInput` expects `sendMessage(whom, memo)`, so wrap it within a closure
-export default function useSendMultiDm(clubId: string | null) {
-  if (!clubId) {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    return () => {};
-  }
-  const { sendMultiDm } = useChatState.getState();
-  const makeSender = () => (whom: string, memo: ChatMemo) => {
-    sendMultiDm(clubId, whom, memo);
+export default function useSendMultiDm(newDm?: boolean, ships?: string[]) {
+  const { sendMessage } = useChatState.getState();
+  const makeSender = () => async (whom: string, memo: ChatMemo) => {
+    if (newDm && whomIsMultiDm(whom) && ships) {
+      await createClub(whom, ships);
+    }
+    sendMessage(whom, memo);
   };
   return makeSender();
 }

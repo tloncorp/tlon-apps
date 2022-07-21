@@ -6,6 +6,7 @@ import { ChatState } from './type';
 
 interface WritsStore {
   initialize: () => Promise<void>;
+  getNewer: (count: string) => Promise<boolean>;
   getOlder: (count: string) => Promise<boolean>;
 }
 
@@ -46,9 +47,9 @@ export default function makeWritsStore(
           const s = get();
           s.batchSet((draft) => {
             const pact = draft.pacts[whom];
-            if ('add' in delta) {
+            if ('add' in delta && !pact.index[id]) {
               const time = bigInt(unixToDa(Date.now()));
-              draft.pacts[whom].index[id] = time;
+              pact.index[id] = time;
               const seal = { id, feels: {}, replied: [] };
               const writ = { seal, memo: delta.add };
               pact.writs = pact.writs.set(time, writ);
@@ -60,7 +61,7 @@ export default function makeWritsStore(
                   pact.writs.set(replyTime, ancestor);
                 }
               }
-            } else if ('del' in delta) {
+            } else if ('del' in delta && pact.index[id]) {
               const time = pact.index[id];
               const old = pact.writs.get(time);
               pact.writs = pact.writs.delete(time);
@@ -91,6 +92,42 @@ export default function makeWritsStore(
           });
         },
       });
+    },
+    getNewer: async (count: string) => {
+      // TODO: fix for group chats
+      const { pacts } = get();
+      const pact = pacts[whom];
+
+      const oldMessagesSize = pact.writs.size ?? 0;
+      if (oldMessagesSize === 0) {
+        // already loading the graph
+        return false;
+      }
+
+      const index = pact.writs.peekLargest()?.[0];
+      if (!index) {
+        return false;
+      }
+
+      const fetchStart = decToUd(pact.writs.peekLargest()[0].toString());
+
+      const writs = await api.scry<ChatWrits>({
+        app: 'chat',
+        path: `${scryPath}/newer/${fetchStart}/${count}`,
+      });
+
+      get().batchSet((draft) => {
+        Object.keys(writs).forEach((key) => {
+          const writ = writs[key];
+          const tim = bigInt(udToDec(key));
+          pact.writs = pact.writs.set(tim, writ);
+          pact.index[writ.seal.id] = tim;
+        });
+        draft.pacts[whom] = pact;
+      });
+
+      const newMessageSize = get().pacts[whom].writs.size;
+      return newMessageSize !== oldMessagesSize;
     },
     getOlder: async (count: string) => {
       // TODO: fix for group chats

@@ -34,13 +34,15 @@
     |=  d=diff:g
     %+  frond  -.d
     ?-    -.d
-      %fleet    (pairs ship/(ship p.d) diff/(fleet-diff q.d) ~)
+      %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
       %channel  (pairs flag/s/(flag p.d) diff/(channel-diff q.d) ~)
       %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
       %bloc     (bloc-diff p.d)
       %cordon   (cordon-diff p.d)
       %create   (group p.d)
       %zone     (zone-diff p.d)
+      %meta     (meta p.d)
+      %del      ~
     ==
   ::
   ++  zone-diff
@@ -94,6 +96,7 @@
       ?(%add-sects %del-sects)  a/(turn ~(tap in sects.d) (lead %s))
       %add-zone                 s/zone.d
       %del-zone                 ~
+      %join                     b/join.d
     ==
   ::
   ++  cabal-diff
@@ -108,7 +111,7 @@
     |=  d=diff:fleet:g
     %+  frond  -.d
     ?-  -.d
-      %add  (vessel vessel.d)
+      %add  ~
       %del  ~
       %add-sects  a/(turn ~(tap in sects.d) (lead %s))
       %del-sects  a/(turn ~(tap in sects.d) (lead %s))
@@ -145,7 +148,10 @@
   ::
   ++  invite
     |=  i=invite:g
-    `json`~
+    %-  pairs
+    :~  flag/s/(flag p.i)
+        ship/(ship q.i)
+    ==
   ::
   ++  zones
     |=  zons=(map zone:g data:^meta)
@@ -210,7 +216,9 @@
     %-  pairs
     :~  meta/(meta meta.ch)
         added/(time added.ch)
-        zone/?~(zon.ch ~ s/u.zon.ch)
+        readers/a/(turn ~(tap in readers.ch) (lead %s))
+        zone/?~(zone.ch ~ s/u.zone.ch)
+        join/b/join.ch
     ==
   ::
   ++  cordon
@@ -262,6 +270,8 @@
         description+so
         image+so
         color+so
+        cordon+cordon
+        members+(op ;~(pfix sig fed:ag) (as sym))
     ==
   ::
   ++  join
@@ -269,6 +279,12 @@
     %-  ot
     :~  flag/flag
         join-all/bo
+    ==
+  ++  invite
+    ^-  $-(json invite:g)
+    %-  ot
+    :~  flag/flag
+        ship/ship
     ==
   ++  action
     ^-  $-(json action:g)
@@ -285,19 +301,32 @@
   ++  diff
     %-  of
     :~  cabal/(ot sect/sym diff/cabal-diff ~)
-        fleet/(ot ship/ship diff/fleet-diff ~)
+        fleet/(ot ships/(as ship) diff/fleet-diff ~)
         cordon/cordon-diff
         channel/(ot flag/flag diff/channel-diff ~)
+        meta/meta
+        del/ul
     ==
   ::
   ++  channel-diff
     %-  of
-    :~  add-sects/(as sym)
+    :~  add/channel
+        del/ul
+        add-sects/(as sym)
         del-sects/(as sym)
         add-zone/sym
         del-zone/ul
+        join/bo
     ==
   ::
+  ++  channel
+    %-  ot
+    :~  meta/meta
+        added/di
+        zone/(mu (se %tas))
+        join/bo
+        readers/(as ship)
+    ==
   ++  cordon
     %-  of
     :~  open/open-cordon
@@ -333,7 +362,10 @@
   ::
   ++  fleet-diff
     %-  of
-    :~  [%add-sects (as sym)]
+    :~  [%add ul]
+        [%del ul]
+        [%add-sects (as sym)]
+        [%del-sects (as sym)]
     ==
   ::
   ++  cabal-diff

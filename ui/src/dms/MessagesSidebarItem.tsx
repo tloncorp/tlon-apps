@@ -6,7 +6,7 @@ import DmOptions from './DMOptions';
 import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 import { ChatBrief } from '../types/chat';
 import { useMultiDm } from '../state/chat';
-import { useChannel, useGroupState } from '../state/groups';
+import { useChannel, useGroupState } from '../state/groups/groups';
 import { useIsMobile } from '../logic/useMedia';
 import useNavStore from '../components/Nav/useNavStore';
 import GroupAvatar from '../groups/GroupAvatar';
@@ -38,7 +38,7 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
   return (
     <SidebarItem
       to={`/groups/${groupFlag}/channels/chat/${whom}`}
-      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" img={img} />}
+      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...channel.meta} />}
       actions={
         (brief?.count ?? 0) > 0 ? (
           <BulletIcon
@@ -63,12 +63,12 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
       to={`/dm/${whom}`}
       icon={
         pending ? (
-          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue sm:h-6 sm:w-6" />
+          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue md:h-6 md:w-6" />
         ) : (
           <Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />
         )
       }
-      actions={<DmOptions ship={whom} pending={!!pending} />}
+      actions={<DmOptions whom={whom} pending={!!pending} />}
       onClick={() => isMobile && navPrimary('hidden')}
     >
       <ShipName
@@ -88,10 +88,10 @@ export function MultiDMSidebarItem({
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const club = useMultiDm(whom);
-  const groupName =
-    club?.meta.title || club?.team.concat(club.hive).join(', ') || whom;
+  const allMembers = club?.team.concat(club.hive);
+  const groupName = club?.meta.title || allMembers?.join(', ') || whom;
 
-  if (club && !club.hive.includes(window.our)) {
+  if (club && !allMembers?.includes(window.our)) {
     return null;
   }
 
@@ -100,12 +100,12 @@ export function MultiDMSidebarItem({
       to={`/dm/${whom}`}
       icon={
         pending ? (
-          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue sm:h-6 sm:w-6" />
+          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue md:h-6 md:w-6" />
         ) : (
-          <MultiDmAvatar size={isMobile ? 'default' : 'xs'} />
+          <MultiDmAvatar {...club?.meta} size={isMobile ? 'default' : 'xs'} />
         )
       }
-      actions={<DmOptions ship={whom} pending={!!pending} />}
+      actions={<DmOptions whom={whom} pending={!!pending} isMulti />}
       onClick={() => isMobile && navPrimary('hidden')}
     >
       {groupName}

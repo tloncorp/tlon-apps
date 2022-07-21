@@ -45,5 +45,18 @@ module.exports = {
     tailwindcss: {
       officialSorting: true,
     },
+    'import/resolver': {
+      alias: {
+        // mapping big-integer and fuzzy to a non-existent to squash error described here:
+        // https://github.com/johvin/eslint-import-resolver-alias/issues/18
+        map: [
+          ['@', './src'],
+          ['big-integer', 'hack'],
+          ['fuzzy', 'hack'],
+          ['vitest', 'hack'],
+        ],
+        extensions: ['.ts', '.tsx'],
+      },
+    },
   },
 };

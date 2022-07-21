@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import AsteriskIcon from '../components/icons/Asterisk16Icon';
 import NewMessageIcon from '../components/icons/NewMessageIcon';
 import { useIsMobile } from '../logic/useMedia';
-import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
+// import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
 import CaretDown16Icon from '../components/icons/CaretDown16Icon';
 import ChatSmallIcon from '../components/icons/ChatSmallIcon';
 import PersonSmallIcon from '../components/icons/Person16Icon';
@@ -11,7 +12,12 @@ import CmdSmallIcon from '../components/icons/CmdSmallIcon';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
-import { useBriefs, usePinnedChats } from '../state/chat';
+import {
+  useBriefs,
+  usePinned,
+  usePinnedChats,
+  usePinnedClubs,
+} from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 
@@ -19,28 +25,43 @@ export default function MessagesSidebar() {
   const isMobile = useIsMobile();
   const { filter, setFilter } = useMessagesFilter();
   const briefs = useBriefs();
-  const pinned = usePinnedChats();
+  const pinned = usePinned();
 
   if (isMobile) {
     return <MobileMessagesSidebar />;
   }
 
   return (
-    <nav className="flex h-full w-64 flex-col border-r-2 border-gray-50 bg-white">
+    <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex w-full flex-col px-2 pt-2">
-        <SidebarItem
+        {/* <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
           to="/dm/search"
         >
           Search Messages
-        </SidebarItem>
+        </SidebarItem> */}
         <SidebarItem
           to="/dm/new"
           color="text-blue"
+          highlight="bg-blue-soft dark:bg-blue-900 hover:bg-blue-soft hover:dark:bg-blue-900"
           icon={<NewMessageIcon className="h-6 w-6" />}
         >
           New Message
         </SidebarItem>
+        <a
+          className="no-underline"
+          href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=chat:"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <SidebarItem
+            color="text-yellow-600 dark:text-yellow-500"
+            highlight="bg-yellow-soft hover:bg-yellow-soft hover:dark:bg-yellow-800"
+            icon={<AsteriskIcon className="m-1 h-4 w-4" />}
+          >
+            Submit Issue
+          </SidebarItem>
+        </a>
         {pinned && pinned.length > 0 ? (
           <>
             <li className="flex items-center space-x-2 p-2">

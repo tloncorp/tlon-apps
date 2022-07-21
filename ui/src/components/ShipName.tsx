@@ -26,7 +26,7 @@ export default function ShipName({
   return (
     <span {...props}>
       {contact?.nickname && showAlias ? (
-        <span>{contact.nickname}</span>
+        <span title={citedName}>{contact.nickname}</span>
       ) : (
         <>
           <span aria-hidden>~</span>

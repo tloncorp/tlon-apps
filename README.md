@@ -46,3 +46,29 @@ This project uses husky to run git pre-commit hooks. If you don't like husky you
 [typescript]: https://www.typescriptlang.org/
 [tailwind css]: https://tailwindcss.com/
 [vite]: https://vitejs.dev/
+
+## Glossary
+
+*brief*
+: TBD
+
+*club*
+: a multi-DM group
+
+*cabal*
+: TBD
+
+*cordon*
+: TBD
+
+*flag*
+: composite identifier consisting of `ship/group-name` used to key state and in routes 
+
+*fleet*
+: TBD
+
+*sect*
+: TBD
+
+*vessel*
+: TBD

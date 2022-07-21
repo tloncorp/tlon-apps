@@ -57,7 +57,7 @@
 ++  club
   =<  club
   |%
-  +$  id  @uwH
+  +$  id  @uvH
   +$  net  ?(%archive %invited %done)
   +$  club  [=pact crew]
   ::
@@ -66,6 +66,7 @@
         hive=(set ship)
         met=data:meta
         =net
+        pin=_|
     ==
 
   ::
@@ -73,7 +74,7 @@
   +$  create
     [=id hive=(set ship)]
   ::
-  +$  invite  create
+  +$  invite  [=id team=(set ship) hive=(set ship) met=data:meta]
   +$  echo    @ud  :: number of times diff has been echoed
   +$  diff    (pair echo delta)
   ::
@@ -194,4 +195,6 @@
       description=cord
       readers=(set sect:g)
   ==
+::
++$  leave  flag
 --

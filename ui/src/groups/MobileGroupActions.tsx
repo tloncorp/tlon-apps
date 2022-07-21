@@ -4,8 +4,9 @@ import InviteIcon from '../components/icons/InviteIcon';
 import LinkIcon from '../components/icons/LinkIcon';
 import PersonIcon from '../components/icons/PersonIcon';
 import SlidersIcon from '../components/icons/SlidersIcon';
-import { useGroupActions } from '../components/Sidebar/GroupActions';
+import { useGroupActions } from './GroupActions';
 import SidebarItem from '../components/Sidebar/SidebarItem';
+import useNavStore from '../components/Nav/useNavStore';
 
 interface MobileGroupActionsProps {
   flag: string;
@@ -13,7 +14,10 @@ interface MobileGroupActionsProps {
 
 export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
   const location = useLocation();
-  const { onCopyClick } = useGroupActions(flag);
+  const { onCopy, copyItemText } = useGroupActions(flag);
+  const { navPrimary } = useNavStore((state) => ({
+    navPrimary: state.navigatePrimary,
+  }));
 
   return (
     <nav>
@@ -37,18 +41,18 @@ export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
               <LinkIcon className="h-6 w-6" />
             </div>
           }
-          onClick={onCopyClick}
+          onClick={onCopy}
         >
-          Copy Group Link
+          {copyItemText}
         </SidebarItem>
         <SidebarItem
           to={`/groups/${flag}/info`}
-          state={{ backgroundLocation: location }}
           icon={
             <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
               <PersonIcon className="h-6 w-6" />
             </div>
           }
+          onClick={() => navPrimary('hidden')}
         >
           Members &amp; Group Info
         </SidebarItem>

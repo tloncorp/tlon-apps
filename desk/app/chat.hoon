@@ -115,10 +115,15 @@
     =+  !<([=ship pin=?] vase)
     di-abet:(di-pin:(di-abed:di-core ship) pin)
   ::
-      %flag
+      ?(%flag %channel-join)
     =+  !<(=flag:c vase)
     ?<  =(our.bowl p.flag)
     (join flag)
+  ::
+      %chat-leave
+    =+  !<(=leave:c vase)
+    ?<  =(our.bowl p.leave)  :: cannot leave chat we host
+    ca-abet:ca-leave:(ca-abed:ca-core leave)
   ::
       %chat-draft
     =+  !<(=draft:c vase)
@@ -164,6 +169,10 @@
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
   ::
+      %club-pin
+    =+  !<([=id:club:c pin=?] vase)
+    cu-abet:(cu-pin:(cu-abed:cu-core id) pin)
+  ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
   ++  join
@@ -187,6 +196,7 @@
   |=  =path
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
+      [%club %new ~]  ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
       [%chat ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
@@ -198,10 +208,10 @@
   ::
       [%dm @ *]
     =/  =ship  (slav %p i.t.path)
-    di-abet:(di-watch:(di-abed:di-core ship) t.t.path)
+    di-abet:(di-watch:(di-abed:di-core ship) t.t.path)      
   ::
       [%club @ *]
-    =/  =id:club:c  (slav %uw i.t.path)
+    =/  =id:club:c  (slav %uv i.t.path)
     cu-abet:(cu-watch:(cu-abed id) t.t.path)
   ==
 ::
@@ -215,7 +225,7 @@
     di-abet:(di-agent:(di-abed:di-core ship) t.t.wire sign)
   ::
       [%club @ *]
-    =/  =id:club:c  (slav %uw i.t.wire)
+    =/  =id:club:c  (slav %uv i.t.wire)
     cu-abet:(cu-agent:(cu-abed id) t.t.wire sign)
 
       [%chat @ @ *]
@@ -249,14 +259,18 @@
     ?.  =(p.action group.perm.chat)  ~
     `flag
   ?+    q.q.action  cor
-      [%fleet @ %del ~]
+      [%fleet * %del ~]
     ~&  'revoke perms for'
     %+  roll  affected
     |=  [=flag:c co=_cor]
-    =/  ca  (ca-abed:ca-core:co flag)
-    ca-abet:(ca-revoke:ca p.q.q.action)
+    ^+  cor
+    %+  roll  ~(tap in p.q.q.action)
+    |=  [=ship ci=_cor]
+    ^+  cor
+    =/  ca  (ca-abed:ca-core:ci flag)
+    ca-abet:(ca-revoke:ca ship)
   ::
-      [%fleet @ %del-sects *]
+      [%fleet * %del-sects *]
     ~&  'recheck permissions'
     %+  roll  affected
     |=  [=flag:c co=_cor]
@@ -311,7 +325,7 @@
     (di-peek:(di-abed:di-core ship) t.t.t.path)
   ::
       [%x %club @ *]
-    (cu-peek:(cu-abed (slav %uw i.t.t.path)) t.t.t.path)
+    (cu-peek:(cu-abed (slav %uv i.t.t.path)) t.t.t.path)
   ::
       [%x %draft @ $@(~ [@ ~])]
     =/  =whom:c
@@ -356,10 +370,15 @@
 ++  cu-abed  cu-abed:cu-core
 ::
 ++  cu-core
-  |_  [=id:club:c =club:c]
+  |_  [=id:club:c =club:c gone=_|]
   +*  cu-pact  ~(. pac pact.club)
   ++  cu-core  .
-  ++  cu-abet  cor(clubs (~(put by clubs) id club))
+  ++  cu-abet  
+  =.  clubs
+    ?:  gone
+      (~(del by clubs) id)
+    (~(put by clubs) id club)
+  cor
   ++  cu-abed
     |=  i=id:club:c
     ~|  no-club/i
@@ -368,7 +387,7 @@
   ++  cu-circle
     (~(uni in team.club) hive.club)
   ::
-  ++  cu-area  `wire`/club/(scot %uw id)
+  ++  cu-area  `wire`/club/(scot %uv id)
   ::
   ++  cu-pass
     |%
@@ -391,7 +410,7 @@
   ++  cu-init
     |=  [=net:club:c =create:club:c]
     =/  clab=club:c
-      [*pact:c (silt our.bowl ~) hive.create *data:meta net]
+      [*pact:c (silt our.bowl ~) hive.create *data:meta net |]
     cu-core(id id.create, club clab)
   ::
   ++  cu-brief  (brief:cu-pact [our now]:bowl)
@@ -404,13 +423,10 @@
     =/  =notice:c
       :-  ''
       (rap 3 ' started a group chat with ' (scot %ud ~(wyt in hive.create)) ' other members' ~)
+    =.  cor  (give-brief club/id cu-brief)
     =.  cu-core
       (cu-diff 0 [%writ now-id %add ~ our.bowl now.bowl notice/notice])
     cu-core
-  ::
-  ++  cu-invite  
-    |=  =invite:club:c 
-    (cu-init %invited invite)
   ::
   ::  NB: need to be careful not to forward automatically generated
   ::  messages like this, each node should generate its own notice
@@ -420,10 +436,8 @@
     =/  =id:c
       [ship now.bowl]
     =/  w-d=diff:writs:c  [id %add ~ ship now.bowl notice/notice]
-    =/  del=delta:club:c
-      [%writ w-d] 
     =.  pact.club  (reduce:cu-pact now.bowl w-d)
-    (cu-give-delta del)
+    (cu-give-writs-diff w-d)
   ::
   ++  cu-give-delta
     |=  =delta:club:c
@@ -432,40 +446,59 @@
       (emit %give %fact ~[(snoc cu-area %ui)] cage)
     cu-core
   ::
+  ++  cu-give-writs-diff
+    |=  =diff:writs:c
+    =.  cor
+      =/  =cage  writ-diff+!>(diff)
+      ~&  diff
+      ~&  cu-area
+      (emit %give %fact ~[(welp cu-area /ui/writs)] cage)
+    cu-core
+  ::
   ++  cu-diff
     |=  [=echo:club:c =delta:club:c]
     ::  ?>  (~(has in cu-circle) src.bowl)  :: TODO: signatures?? probably overkill
     =?  cor  (lth echo club-eq)
       (emil (gossip:cu-pass +(echo) delta))
-    =.  cu-core  (cu-give-delta delta)
     ?-    -.delta
     ::
         %init
       =:  hive.club  hive.delta
           team.club  team.delta
           met.club   met.delta
-        ==
+      ==
+      =/  cage  club-invite+!>([id (tail delta)])
+      =.  cor  (emit %give %fact ~[`wire`/club/new] cage)
       cu-core
     ::
         %meta
       =.  met.club  meta.delta
+      =.  cu-core  (cu-give-delta delta)
       cu-core
     ::
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
+      =.  cu-core  (cu-give-writs-diff diff.delta)
       cu-core
     ::
         %team
       =*  ship  ship.delta
+      =.  cu-core  (cu-give-delta delta)
+      ?:  &(!ok.delta (~(has in team.club) ship))
+        ?.  =(our src):bowl
+          cu-core
+        cu-core(gone &)
       ?.  (~(has in hive.club) ship)
         cu-core
       =.  hive.club  (~(del in hive.club) ship)
       ?.  ok.delta
         (cu-post-notice ship '' ' declined the invite')
+      =.  cor  (give-brief club/id cu-brief)
       =.  team.club  (~(put in team.club) ship)
       (cu-post-notice ship '' ' joined the chat')
     ::
         %hive
+      =.  cu-core  (cu-give-delta delta)
       ?:  add.delta
         ?:  (~(has in hive.club) for.delta)
           cu-core
@@ -481,6 +514,11 @@
       (cu-post-notice for.delta '' ' was uninvited from the chat') 
     ==
   ::
+  ++  cu-pin
+    |=  pin=?
+    ^+  cu-core
+    cu-core(pin.club pin)
+  ::
   ++  cu-peek
     |=  =path
     ^-  (unit (unit cage))
@@ -494,6 +532,7 @@
     ^+  cu-core
     ?>  =(src our):bowl
     ?+  path  !!
+      [%ui ~]  cu-core
       [%ui %writs ~]  cu-core
     ==
   ::
@@ -540,7 +579,7 @@
       |=  req=create:c
       =/  =dock      [p.group.req %groups]
       =/  =channel:g  
-        =,(req [[title description '' ''] now.bowl ~ readers])
+        =,(req [[title description '' ''] now.bowl ~ | readers])
       =/  =action:g  [group.req now.bowl %channel flag %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc ca-area %create)
@@ -553,6 +592,8 @@
   ++  ca-init
     |=  req=create:c
     =/  =perm:c  [~ group.req]
+    =.  cor
+      (give-brief flag/flag ca-brief)
     =.  ca-core  (ca-update now.bowl %create perm)
     (add-channel:ca-pass req)
   ::
@@ -676,7 +717,16 @@
     ^+  ca-core
     =.  chats  (~(put by chats) f *chat:c)
     =.  ca-core  (ca-abed f)
+    =.  cor  (give-brief flag/flag ca-brief)
     ca-sub
+  ::
+  ++  ca-leave
+    =/  =dock  [p.flag dap.bowl]
+    =/  =wire  (snoc ca-area %updates)
+    =.  cor  (emit %pass wire %agent dock %leave ~)
+    =.  cor  (emit %give %fact ~[/briefs] chat-leave+!>(flag))
+    =.  gone  &
+    ca-core
   ::
   ++  ca-apply-logs
     |=  =logs:c

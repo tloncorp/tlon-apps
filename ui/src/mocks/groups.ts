@@ -6,14 +6,36 @@ const emptyVessel = (): Vessel => ({
   joined: Date.now(),
 });
 
-function createMockGroup(title: string): Group {
+const adminVessel = (): Vessel => ({
+  sects: ['admin'],
+  joined: Date.now(),
+});
+
+export function createMockGroup(title: string): Group {
   return {
     fleet: {
       '~hastuc-dibtux': emptyVessel(),
-      '~finned-palmer': emptyVessel(),
+      '~finned-palmer': adminVessel(),
       '~zod': emptyVessel(),
     },
-    cabals: {},
+    cabals: {
+      admin: {
+        meta: {
+          title: 'Admin',
+          description: '',
+          image: '',
+          color: '',
+        },
+      },
+      member: {
+        meta: {
+          title: 'Member',
+          description: '',
+          image: '',
+          color: '',
+        },
+      },
+    },
     channels: {},
     cordon: {
       open: {
@@ -29,18 +51,43 @@ function createMockGroup(title: string): Group {
         'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.6.14..18.37.11-Icon Box.png',
       color: '',
     },
+    zones: {},
   };
 }
 const mockGroupOne: Group = {
-  fleet: {},
-  cabals: {},
+  fleet: {
+    '~finned-palmer': adminVessel(),
+  },
+  cabals: {
+    admin: {
+      meta: {
+        title: 'Admin',
+        description: '',
+        image: '',
+        color: '',
+      },
+    },
+    member: {
+      meta: {
+        title: 'Member',
+        description: '',
+        image: '',
+        color: '',
+      },
+    },
+  },
   channels: {
     '~dev/test': {
       meta: {
         title: 'Watercooler',
         description: 'watering hole',
         image: '',
+        color: '',
       },
+      added: 1657774188151,
+      join: false,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -53,12 +100,33 @@ const mockGroupOne: Group = {
     title: 'tlon',
     description: 'the tlon corporation',
     image: '',
+    color: '',
   },
+  zones: {},
 };
 
 const mockGroupTwo: Group = {
-  fleet: {},
-  cabals: {},
+  fleet: {
+    '~finned-palmer': adminVessel(),
+  },
+  cabals: {
+    admin: {
+      meta: {
+        title: 'Admin',
+        description: '',
+        image: '',
+        color: '',
+      },
+    },
+    member: {
+      meta: {
+        title: 'Member',
+        description: '',
+        image: '',
+        color: '',
+      },
+    },
+  },
   channels: {
     '~zod/test': {
       meta: {
@@ -67,6 +135,10 @@ const mockGroupTwo: Group = {
         image: '',
         color: '',
       },
+      added: 1657774188151,
+      join: true,
+      readers: [],
+      zone: null,
     },
   },
   cordon: {
@@ -81,6 +153,7 @@ const mockGroupTwo: Group = {
     image: '',
     color: '',
   },
+  zones: {},
 };
 
 const mockGroups: { [flag: string]: Group } = {
@@ -88,7 +161,7 @@ const mockGroups: { [flag: string]: Group } = {
   '~dev/tlon': mockGroupOne,
 };
 
-function createChannel(title: string) {
+export function createChannel(title: string) {
   return {
     meta: {
       title,
@@ -96,6 +169,10 @@ function createChannel(title: string) {
       image: '',
       color: '',
     },
+    added: 1657774188151,
+    join: false,
+    readers: [],
+    zone: null,
   };
 }
 
@@ -112,7 +189,7 @@ for (let i = 0; i < 20; i += 1) {
 export const mockGangs: Gangs = {
   '~zod/structure': {
     invite: {
-      text: 'Come join the group',
+      flag: '~zod/structure',
       ship: '~fabled-faster',
     },
     claim: {

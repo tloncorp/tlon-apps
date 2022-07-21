@@ -1,42 +1,58 @@
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import React, { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { Link } from 'react-router-dom';
 import Dialog, { DialogContent } from '../components/Dialog';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import LeaveIcon from '../components/icons/LeaveIcon';
-import { useBriefs, useChatState, usePinnedChats } from '../state/chat';
+import {
+  useBriefs,
+  useChatState,
+  useMultiDms,
+  usePinned,
+  usePinnedChats,
+  usePinnedClubs,
+} from '../state/chat';
 import PinIcon from '../components/icons/PinIcon';
 import BulletIcon from '../components/icons/BulletIcon';
 import InviteIcon16 from '../components/icons/InviteIcon16';
 import DmInviteDialog from './DmInviteDialog';
+import { whomIsMultiDm } from '../logic/utils';
+import SlidersIcon from '../components/icons/SlidersIcon';
+import PeopleIcon from '../components/icons/PeopleIcon';
 
 interface DMOptionsProps {
-  ship: string;
+  whom: string;
   pending: boolean;
   className?: string;
+  isMulti?: boolean;
+  alwaysShowEllipsis?: boolean;
 }
 
 export default function DmOptions({
-  ship,
+  whom,
   pending,
+  isMulti = false,
+  alwaysShowEllipsis = false,
   className,
 }: DMOptionsProps) {
+  const location = useLocation();
   const navigate = useNavigate();
-  const pinned = usePinnedChats();
+  const pinned = usePinned();
   const briefs = useBriefs();
-  const hasActivity = (briefs[ship]?.count ?? 0) > 0 || pending;
+  const hasActivity = (briefs[whom]?.count ?? 0) > 0 || pending;
   const [isOpen, setIsOpen] = useState(false);
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
 
   const onArchive = () => {
     navigate(-1);
-    useChatState.getState().archiveDm(ship);
+    useChatState.getState().archiveDm(whom);
   };
 
   const markRead = useCallback(() => {
-    useChatState.getState().markRead(ship);
-  }, [ship]);
+    useChatState.getState().markRead(whom);
+  }, [whom]);
 
   const [dialog, setDialog] = useState(false);
   const onTryArchive = (e: Event) => {
@@ -44,7 +60,11 @@ export default function DmOptions({
   };
   const leaveMessage = () => {
     navigate('/dm');
-    useChatState.getState().dmRsvp(ship, false);
+    if (whomIsMultiDm(whom)) {
+      useChatState.getState().multiDmRsvp(whom, false);
+    } else {
+      useChatState.getState().dmRsvp(whom, false);
+    }
   };
   const closeDialog = () => {
     setDialog(false);
@@ -53,26 +73,42 @@ export default function DmOptions({
   const handlePin = useCallback(
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
-      const isPinned = pinned.includes(ship);
-      if (isPinned) {
-        useChatState.getState().unpinDm(ship);
+      const isPinned = pinned.includes(whom);
+      if (isMulti) {
+        useChatState.getState().toggleMultiDmPin(whom, !isPinned);
       } else {
-        useChatState.getState().pinDm(ship);
+        useChatState.getState().toggleDmPin(whom, !isPinned);
       }
     },
-    [ship, pinned]
+    [whom, pinned, isMulti]
   );
 
   const handleInvite = () => {
     setInviteIsOpen(true);
   };
 
+  const handleAccept = () => {
+    useChatState.getState().dmRsvp(whom, true);
+  };
+  const handleDecline = () => {
+    navigate(-1);
+    useChatState.getState().dmRsvp(whom, false);
+  };
+
+  const handleMultiAccept = () => {
+    useChatState.getState().multiDmRsvp(whom, true);
+  };
+
+  const handleMultiDecline = () => {
+    useChatState.getState().multiDmRsvp(whom, false);
+  };
+
   return (
     <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
-        <DropdownMenu.Trigger asChild>
+        <DropdownMenu.Trigger asChild className="appearance-none">
           <div className="relative h-6 w-6">
-            {!isOpen && hasActivity ? (
+            {!alwaysShowEllipsis && !isOpen && hasActivity ? (
               <BulletIcon
                 className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
                 aria-label="Has Activity"
@@ -82,7 +118,7 @@ export default function DmOptions({
               className={cn(
                 'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
                 hasActivity && 'text-blue',
-                isOpen ? 'opacity:100' : 'opacity-0'
+                isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
               )}
               aria-label="Open Message Options"
             >
@@ -91,30 +127,82 @@ export default function DmOptions({
           </div>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
-          <DropdownMenu.Item
-            className="dropdown-item flex items-center space-x-3"
-            onClick={handlePin}
-          >
-            <PinIcon className="h-4 w-4" />
-            <span>{pinned.includes(ship) ? 'Unpin' : 'Pin'}</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className="dropdown-item flex items-center space-x-2"
-            onClick={handleInvite}
-          >
-            <InviteIcon16 className="h-6 w-6" />
-            <span>Invite</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            onSelect={leaveMessage}
-            className="dropdown-item flex items-center space-x-2 text-red"
-          >
-            <LeaveIcon className="h-6 w-6 opacity-60" />
-            <span>Leave Message</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item className="dropdown-item" onClick={markRead}>
-            Mark Read
-          </DropdownMenu.Item>
+          {pending ? (
+            <>
+              <DropdownMenu.Item
+                className="dropdown-item flex items-center space-x-2"
+                onClick={isMulti ? handleMultiAccept : handleAccept}
+              >
+                <PeopleIcon className="h-6 w-6" />
+                <span>Accept</span>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                className="dropdown-item flex items-center space-x-2"
+                onClick={isMulti ? handleMultiDecline : handleDecline}
+              >
+                <PeopleIcon className="h-6 w-6" />
+                <span>Decline</span>
+              </DropdownMenu.Item>
+            </>
+          ) : (
+            <>
+              {hasActivity ? (
+                <DropdownMenu.Item
+                  className="dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
+                  onClick={markRead}
+                >
+                  <BulletIcon className="h-6 w-6" />
+                  <span>Mark Read</span>
+                </DropdownMenu.Item>
+              ) : null}
+              {isMulti ? (
+                <>
+                  <DropdownMenu.Item
+                    className="dropdown-item flex items-center space-x-2"
+                    onClick={(e) => e.preventDefault}
+                  >
+                    <PeopleIcon className="h-6 w-6" />
+                    <span>Info</span>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    className="dropdown-item flex items-center space-x-2"
+                    asChild
+                  >
+                    <Link
+                      to={`/dm/${whom}/edit-info`}
+                      state={{ backgroundLocation: location }}
+                    >
+                      <SlidersIcon className="h-6 w-6" />
+                      <span>Edit Chat Info</span>
+                    </Link>
+                  </DropdownMenu.Item>
+                </>
+              ) : null}
+              <DropdownMenu.Item
+                className="dropdown-item flex items-center space-x-3"
+                onClick={handlePin}
+              >
+                <PinIcon className="h-4 w-4" />
+                <span>{pinned.includes(whom) ? 'Unpin' : 'Pin'}</span>
+              </DropdownMenu.Item>
+              {isMulti ? (
+                <DropdownMenu.Item
+                  className="dropdown-item flex items-center space-x-2"
+                  onClick={handleInvite}
+                >
+                  <InviteIcon16 className="h-6 w-6" />
+                  <span>Invite</span>
+                </DropdownMenu.Item>
+              ) : null}
+              <DropdownMenu.Item
+                onSelect={leaveMessage}
+                className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+              >
+                <LeaveIcon className="h-6 w-6 opacity-60" />
+                <span>Leave Message</span>
+              </DropdownMenu.Item>
+            </>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Root>
       <Dialog open={dialog} onOpenChange={setDialog}>
@@ -143,10 +231,13 @@ export default function DmOptions({
           </div>
         </DialogContent>
       </Dialog>
-      <DmInviteDialog
-        inviteIsOpen={inviteIsOpen}
-        setInviteIsOpen={setInviteIsOpen}
-      />
+      {isMulti ? (
+        <DmInviteDialog
+          inviteIsOpen={inviteIsOpen}
+          setInviteIsOpen={setInviteIsOpen}
+          whom={whom}
+        />
+      ) : null}
     </>
   );
 }

@@ -1,10 +1,18 @@
+import ob from 'urbit-ob';
 import { unixToDa } from '@urbit/api';
-import { formatUw } from '@urbit/aura';
+import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, startOfToday, endOfToday } from 'date-fns';
 import _ from 'lodash';
 import { ChatWhom } from '../types/chat';
-import { Rank } from '../types/groups';
+import {
+  Cabal,
+  Cabals,
+  Cordon,
+  Group,
+  PrivacyType,
+  Rank,
+} from '../types/groups';
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
@@ -35,7 +43,7 @@ export function channelHref(flag: string, ch: string) {
 }
 
 export function makePrettyDay(date: Date) {
-  const diff = differenceInDays(new Date(), date);
+  const diff = differenceInDays(endOfToday(), date);
   switch (diff) {
     case 0:
       return 'Today';
@@ -47,7 +55,7 @@ export function makePrettyDay(date: Date) {
 }
 
 export function makePrettyDayAndTime(date: Date) {
-  const diff = differenceInDays(new Date(), date);
+  const diff = differenceInDays(endOfToday(), date);
   const time = format(date, 'HH:mm');
   switch (true) {
     case diff === 0:
@@ -62,7 +70,7 @@ export function makePrettyDayAndTime(date: Date) {
 }
 
 export function makePrettyDayAndDateAndTime(date: Date) {
-  const diff = differenceInDays(new Date(), date);
+  const diff = differenceInDays(endOfToday(), date);
   const time = format(date, 'HH:mm');
   const fullDate = `${format(date, 'LLLL')} ${format(date, 'do')}, ${format(
     date,
@@ -84,12 +92,16 @@ export function whomIsDm(whom: ChatWhom): boolean {
   return whom.startsWith('~') && !whom.match('/');
 }
 
+// ship + term, term being a @tas: lower-case letters, numbers, and hyphens
 export function whomIsFlag(whom: ChatWhom): boolean {
-  return whom.startsWith('~') && whom.includes('/');
+  return (
+    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
+    ob.isValidPatp(whom.split('/')[0])
+  );
 }
 
 export function whomIsMultiDm(whom: ChatWhom): boolean {
-  return whom.startsWith(`0w`);
+  return whom.startsWith(`0v`);
 }
 
 export function normalizeUrbitColor(color: string): string {
@@ -136,6 +148,58 @@ export function preSig(ship: string): string {
   return '~'.concat(ship.trim());
 }
 
-export function newUw(seed = Date.now()) {
-  return formatUw(unixToDa(seed));
+export function newUv(seed = Date.now()) {
+  return formatUv(unixToDa(seed));
+}
+
+export function getSectTitle(cabals: Cabals, sect: string) {
+  return cabals[sect]?.meta.title || sect;
+}
+
+export function getFlagParts(flag: string) {
+  const parts = flag.split('/');
+
+  return {
+    ship: parts[0],
+    name: parts[1],
+  };
+}
+
+export function isValidUrl(str?: string): boolean {
+  const pattern = new RegExp(
+    '^(https?:\\/\\/)?' + // protocol
+      '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+      '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+      '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+      '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+      '(\\#[-a-z\\d_]*)?$',
+    'i'
+  ); // fragment locator
+  return str ? !!pattern.test(str) : false;
+}
+
+export function getGroupPrivacy(cordon: Cordon): PrivacyType {
+  if ('open' in cordon) {
+    return 'public';
+  }
+
+  if ('shut' in cordon) {
+    return 'private';
+  }
+
+  return 'secret';
+}
+
+export function toTitleCase(s: string): string {
+  if (!s) {
+    return '';
+  }
+  return s
+    .split(' ')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+export function randomElement<T>(a: T[]) {
+  return a[Math.floor(Math.random() * a.length)];
 }

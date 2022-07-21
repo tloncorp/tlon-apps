@@ -6,6 +6,7 @@ import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import pluginRewriteAll from 'vite-plugin-rewrite-all';
+import { fileURLToPath } from 'url';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -69,6 +70,11 @@ export default ({ mode }: { mode: string }) => {
             },
           },
     plugins: plugins(mode),
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
+    },
     test: {
       globals: true,
       environment: 'jsdom',
