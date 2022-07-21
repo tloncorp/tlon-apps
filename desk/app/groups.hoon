@@ -675,7 +675,7 @@
   %+  murn  ~(tap by groups)
   |=  [=flag:g =net:g =group:g]
   ^-  (unit [flag:g preview:g])
-  ?:  =(our.bowl p.flag)
+  ?.  =(our.bowl p.flag)
     ~
   `[flag =,(group [meta cordon now.bowl])]
 ::
