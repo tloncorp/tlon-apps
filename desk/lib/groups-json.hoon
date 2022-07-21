@@ -15,6 +15,13 @@
         update/(update q.a)
     ==
   ::
+  ++  previews
+    |=  ps=previews:g
+    %-  pairs
+    %+  turn  ~(tap by ps)
+    |=  [f=flag:g p=preview:g]
+    [(flag f) (preview p)]
+  ::
   ++  preview
     |=  p=preview:g
     %-  pairs
