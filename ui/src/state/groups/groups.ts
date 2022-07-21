@@ -117,23 +117,31 @@ export const useGroupState = create<GroupState>((set, get) => ({
      * flag is a patp in this case
      * TODO: use subscribeOnce poke; for now, simulate response
      */
-
-    const mockIndex = {
-      [`${flag}/public`]: createMockGang({ flag, hasPreview: true }),
-      [`${flag}/private`]: createMockGang({
-        flag,
-        hasPreview: true,
-        privacy: 'private',
-      }),
-      [`${flag}/secret`]: createMockGang({
-        flag,
-        hasPreview: true,
-        privacy: 'secret',
-      }),
-    };
+    const mockIndex =
+      flag === '~finned-palmer'
+        ? {
+            [`${flag}/secret`]: createMockGang({
+              flag,
+              hasPreview: true,
+              privacy: 'secret',
+            }),
+          }
+        : {
+            [`${flag}/public`]: createMockGang({ flag, hasPreview: true }),
+            [`${flag}/private`]: createMockGang({
+              flag,
+              hasPreview: true,
+              privacy: 'private',
+            }),
+            [`${flag}/secret`]: createMockGang({
+              flag,
+              hasPreview: true,
+              privacy: 'secret',
+            }),
+          };
 
     await new Promise((resolve) => {
-      setTimeout(resolve, 2000);
+      setTimeout(resolve, Math.random() * 2000);
     });
 
     return mockIndex;

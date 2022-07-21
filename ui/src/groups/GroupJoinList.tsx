@@ -78,18 +78,9 @@ export default function GroupJoinList({ gangs }: GroupJoinListProps) {
 
   return (
     <ul>
-      {gangEntries
-        .filter(([, gang]) => {
-          if (gang.invite) {
-            // Show all privacy levels in Pending Invites
-            return true;
-          }
-          // Only show Public and Private in Search Results
-          return gang.preview && !('afar' in gang.preview.cordon);
-        })
-        .map(([flag, gang]) => (
-          <GroupJoinItem key={flag} flag={flag} gang={gang} />
-        ))}
+      {gangEntries.map(([flag, gang]) => (
+        <GroupJoinItem key={flag} flag={flag} gang={gang} />
+      ))}
     </ul>
   );
 }

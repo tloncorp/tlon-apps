@@ -3,12 +3,20 @@ import { useGroupState, usePendingGangs } from '@/state/groups';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { Gangs } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
+import { hasKeys } from '@/logic/utils';
 import GroupJoinList from './GroupJoinList';
-
-// TODO: how to handle the invite link case?
 
 export default function FindGroups() {
   const [foundGangs, setFoundGangs] = useState<Gangs | null>(null);
+  // For search results, only show Public and Private gangs
+  const publicAndPrivateGangs = foundGangs
+    ? Object.entries(foundGangs)
+        .filter(([, gang]) => gang.preview && !('afar' in gang.preview.cordon))
+        .reduce(
+          (memo, [flag, gang]) => ({ ...memo, [flag]: gang }),
+          {} as Gangs
+        )
+    : null;
   const pendingGangs = usePendingGangs();
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
   const selectedShip =
@@ -16,7 +24,7 @@ export default function FindGroups() {
   const presentedShip = selectedShip
     ? selectedShip.label || selectedShip.value
     : '';
-  const { isPending, isReady, setPending, setReady } = useRequestState();
+  const { isPending, setPending, setReady } = useRequestState();
 
   const searchGroups = useCallback(async () => {
     if (!selectedShip) {
@@ -30,10 +38,38 @@ export default function FindGroups() {
   }, [selectedShip, setPending, setReady]);
 
   useEffect(() => {
-    if (shipSelectorShips.length > 0) {
+    if (selectedShip) {
       searchGroups();
     }
-  }, [searchGroups, shipSelectorShips]);
+  }, [searchGroups, selectedShip]);
+
+  const resultsTitle = () => {
+    if (isPending) {
+      return (
+        <>
+          <span>Searching for groups hosted by&nbsp;</span>
+          <span className="text-gray-800">{presentedShip}</span>
+          <span>&nbsp;...</span>
+        </>
+      );
+    }
+
+    if (publicAndPrivateGangs) {
+      if (hasKeys(publicAndPrivateGangs)) {
+        return (
+          <>
+            <span>Groups hosted by&nbsp;</span>
+            <span className="text-gray-800">{presentedShip}</span>
+            <span>:</span>
+          </>
+        );
+      }
+
+      return <span>This ship doesn&apos;t host any groups</span>;
+    }
+
+    return null;
+  };
 
   return (
     <div className="flex grow bg-gray-50">
@@ -58,30 +94,14 @@ export default function FindGroups() {
           </div>
           {selectedShip ? (
             <section className="card mb-4 space-y-8 p-8">
-              <p className="font-semibold text-gray-400">
-                {isPending ? (
-                  <>
-                    <span>Searching for groups hosted by&nbsp;</span>
-                    <span className="text-gray-800">{presentedShip}</span>
-                    <span>...</span>
-                  </>
-                ) : isReady ? (
-                  <>
-                    <span>Groups hosted by&nbsp;</span>
-                    <span className="text-gray-800">{presentedShip}</span>
-                    <span>:</span>
-                  </>
-                ) : null}
-              </p>
-              {isReady && foundGangs ? (
-                <GroupJoinList gangs={foundGangs} />
-              ) : isReady ? (
-                <p>No groups found for &apos;{presentedShip}&apos;</p>
+              <p className="font-semibold text-gray-400">{resultsTitle()}</p>
+              {publicAndPrivateGangs && hasKeys(publicAndPrivateGangs) ? (
+                <GroupJoinList gangs={publicAndPrivateGangs} />
               ) : null}
             </section>
           ) : null}
         </section>
-        {Object.keys(pendingGangs).length > 0 ? (
+        {hasKeys(pendingGangs) ? (
           <section className="card mb-4 space-y-8 p-8">
             <h1 className="text-lg font-bold">Pending Invites</h1>
             <GroupJoinList gangs={pendingGangs} />
