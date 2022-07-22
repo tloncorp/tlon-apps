@@ -1,6 +1,8 @@
 import React from 'react';
 import { useGroupState, useRouteGroup } from '@/state/groups';
+import { strToSym } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
+import { GroupMeta, Zones } from '@/types/groups';
 import { ChannelListItem } from './types';
 
 interface HandleSectionNameEditInputProps {
@@ -9,44 +11,59 @@ interface HandleSectionNameEditInputProps {
     currentSectionKey: string,
     nextSectionTitle: string
   ) => void;
+  sectionTitle: string;
   channels: ChannelListItem[];
   sectionKey: string;
 }
 
 interface SectionNameEditInputValues {
-  zone: string;
+  zoneMeta: GroupMeta;
 }
 
 export default function SectionNameEditInput({
   handleEditingChange,
   onSectionEditNameSubmit,
   channels,
+  sectionTitle,
   sectionKey,
 }: HandleSectionNameEditInputProps) {
-  const groupFlag = useRouteGroup();
+  const group = useRouteGroup();
 
-  const defaultValues: SectionNameEditInputValues = {
-    zone: channels[0]?.channel.zone || '',
+  const defaultValues: GroupMeta = {
+    title: sectionTitle || '',
+    description: '',
+    image: '',
+    color: '',
   };
 
   const { handleSubmit, register, setValue, watch } = useForm({
     defaultValues,
   });
 
-  const onSubmit = async (values: SectionNameEditInputValues) => {
-    onSectionEditNameSubmit(sectionKey, values.zone);
+  const addChannelsToZone = async (
+    zoneFlag: string,
+    groupFlag: string,
+    channelFlag: string
+  ) => {
+    await useGroupState
+      .getState()
+      .addChannelToZone(zoneFlag, groupFlag, channelFlag);
+  };
+
+  const onSubmit = async (values: GroupMeta) => {
+    const zoneFlag = strToSym(sectionKey);
+    onSectionEditNameSubmit(zoneFlag, values.title);
     handleEditingChange();
-    await channels.forEach((channel) => {
-      useGroupState
-        .getState()
-        .addChannelToZone(values.zone, groupFlag, channel.key);
+    await useGroupState.getState().createZone(group, zoneFlag, values);
+    channels.forEach((channel) => {
+      addChannelsToZone(zoneFlag, group, channel.key);
     });
   };
 
   return (
     <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
       <input
-        {...register('zone')}
+        {...register('title')}
         type="text"
         placeholder="Section Name"
         className="input w-full border-gray-200 bg-transparent text-lg font-semibold focus:bg-transparent"

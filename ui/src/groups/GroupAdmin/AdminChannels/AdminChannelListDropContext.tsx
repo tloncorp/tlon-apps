@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { DragDropContext, DraggableLocation } from 'react-beautiful-dnd';
 import bigInt from 'big-integer';
+import { strToSym } from '@/logic/utils';
 import { formatUv } from '@urbit/aura';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
 import { SectionMap } from './types';
@@ -15,11 +16,16 @@ export default function AdminChannelListDropContext({
   sectionedChannels,
 }: AdminChannelListContentsProps) {
   const group = useRouteGroup();
-  const initialChannels = sectionedChannels;
-  const [sections, setSections] = useState<SectionMap>(initialChannels);
-  const [orderedSections, setOrderedSections] = useState(
-    Object.keys(initialChannels)
-  );
+  const [sections, setSections] = useState<SectionMap>({});
+  const [orderedSections, setOrderedSections] = useState<string[]>([]);
+
+  useEffect(() => {
+    // debugger;
+    setSections(sectionedChannels);
+    setOrderedSections(Object.keys(sectionedChannels));
+  }, [sectionedChannels]);
+
+  // console.log(sections);
 
   const onSectionEditNameSubmit = (
     currentSectionKey: string,
@@ -27,11 +33,8 @@ export default function AdminChannelListDropContext({
   ) => {
     const nextSections = sections;
 
-    // if zone with same title exists, exit
-    if (
-      Object.prototype.hasOwnProperty.call(nextSections, nextSectionTitle) ||
-      !nextSectionTitle.length
-    ) {
+    // if zone has no title, cancel edit
+    if (!nextSectionTitle.length) {
       return;
     }
 
@@ -55,6 +58,7 @@ export default function AdminChannelListDropContext({
 
       setSections(nextSections);
       setOrderedSections(nextOrderedSections);
+      // debugger;
     },
     [orderedSections, sections]
   );
@@ -73,7 +77,7 @@ export default function AdminChannelListDropContext({
       channels: [],
     };
 
-    const nextSectionId = formatUv(bigInt(Date.now()));
+    const nextSectionId = strToSym(formatUv(bigInt(Date.now())));
     const nextSections = {
       ...sections,
       [nextSectionId]: nextSection,
@@ -96,21 +100,20 @@ export default function AdminChannelListDropContext({
     []
   );
 
-  const setChannelZone = async (
-    channelFlag: string,
-    zoneFlag: string,
-    groupFlag: string
-  ) => {
-    if (zoneFlag === 'Sectionless' || zoneFlag === '') {
-      await useGroupState
-        .getState()
-        .removeChannelFromZone(groupFlag, channelFlag);
-    } else {
-      await useGroupState
-        .getState()
-        .addChannelToZone(zoneFlag, groupFlag, channelFlag);
-    }
-  };
+  const setChannelZone = useCallback(
+    async (channelFlag: string, zoneFlag: string, groupFlag: string) => {
+      if (zoneFlag === 'Sectionless' || zoneFlag === '') {
+        await useGroupState
+          .getState()
+          .removeChannelFromZone(groupFlag, channelFlag);
+      } else {
+        await useGroupState
+          .getState()
+          .addChannelToZone(zoneFlag, groupFlag, channelFlag);
+      }
+    },
+    []
+  );
 
   const reorderSectionMap = useCallback(
     (
@@ -149,14 +152,11 @@ export default function AdminChannelListDropContext({
           channels: next,
         },
       };
-      setChannelZone(
-        target.key,
-        sectionMap[destination.droppableId].title,
-        group
-      );
+      target.channel.zone = destination.droppableId;
+      setChannelZone(target.key, destination.droppableId, group);
       return result;
     },
-    [reorder, group]
+    [reorder, group, setChannelZone]
   );
 
   const onDragEnd = useCallback(

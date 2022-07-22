@@ -31,7 +31,7 @@ export default function AdminChannelListItem({
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
 
-  const permissionText = readers.includes('admin')
+  const permissionText = readers?.includes('admin')
     ? 'Admin Only'
     : 'Open To All';
 
