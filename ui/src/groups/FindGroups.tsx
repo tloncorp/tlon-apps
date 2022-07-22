@@ -72,7 +72,7 @@ export default function FindGroups() {
 
   return (
     <div className="flex grow bg-gray-50">
-      <div className="w-full max-w-3xl p-4">
+      <div className="w-full p-4">
         <section className="card mb-4 space-y-8 p-8">
           <h1 className="text-lg font-bold">Find Groups</h1>
           <div>
