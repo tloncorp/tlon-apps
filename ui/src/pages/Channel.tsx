@@ -77,7 +77,7 @@ function Channel() {
         </div>
       }
       footer={
-        <div className="border-t-2 border-black/10 p-4">
+        <div className="border-t-2 border-gray-50 p-4">
           {canWrite ? (
             <ChatInput whom={flag} sendMessage={sendMessage} showReply />
           ) : (
