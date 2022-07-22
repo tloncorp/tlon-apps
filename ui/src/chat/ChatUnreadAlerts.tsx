@@ -1,5 +1,6 @@
 import { format, isToday } from 'date-fns';
 import React, { useCallback } from 'react';
+import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '../logic/utils';
 import { useChatState } from '../state/chat';
 import { ChatBrief } from '../types/chat';
@@ -33,15 +34,20 @@ export default function ChatUnreadAlerts({
   return (
     <>
       <div className="absolute top-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
-        <button className="button whitespace-nowrap bg-blue-soft text-sm text-blue lg:text-base">
-          <span className="whitespace-nowrap font-normal">{unreadMessage}</span>
-          &nbsp;&bull;&nbsp;View Unread
-        </button>
         <button
-          className="button whitespace-nowrap bg-blue-soft text-sm text-blue lg:text-base"
+          className="button whitespace-nowrap bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"
+          // TODO: This should navigate you to the last unread message
           onClick={markRead}
         >
-          Mark as Read
+          <span className="whitespace-nowrap font-normal">
+            {unreadMessage}&nbsp;&mdash;&nbsp;Click to View
+          </span>
+        </button>
+        <button
+          className="button whitespace-nowrap bg-blue-soft px-2 text-sm text-blue dark:bg-blue-900 lg:text-base"
+          onClick={markRead}
+        >
+          <XIcon className="h-4 w-4" />
         </button>
       </div>
       <div />

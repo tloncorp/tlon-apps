@@ -21,7 +21,6 @@ import {
   useVessel,
   useGroup,
 } from '@/state/groups/groups';
-import { channelHref } from '@/logic/utils';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import useNavStore from '@/components/Nav/useNavStore';
 
