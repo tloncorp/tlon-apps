@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useGroupState, usePendingGangs } from '@/state/groups';
+import { useGangs, useGroupState, usePendingGangs } from '@/state/groups';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { Gangs, GroupIndex } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
@@ -9,9 +9,11 @@ import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 
 export default function FindGroups() {
   const [foundIndex, setFoundIndex] = useState<GroupIndex | null>(null);
+  const existingGangs = useGangs();
   const pendingGangs = usePendingGangs();
   // For search results, only show Public and Private gangs
-  // TODO: filter invites, so they are displayed in the below section
+  // Filter out those with invites, since they will be displayed in the
+  // Pending Invites section below
   const publicAndPrivateGangs = foundIndex
     ? Object.entries(foundIndex)
         .filter(([, preview]) => preview && !('afar' in preview.cordon))
@@ -20,8 +22,8 @@ export default function FindGroups() {
             ...memo,
             [flag]: {
               preview,
-              invite: flag in pendingGangs ? pendingGangs[flag].invite : null,
-              claim: null,
+              invite: null,
+              claim: flag in existingGangs ? existingGangs[flag].claim : null,
             },
           }),
           {} as Gangs
