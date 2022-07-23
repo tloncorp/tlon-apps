@@ -11,5 +11,6 @@ export interface ChannelListItem {
 
 export interface SectionListItem {
   title: string;
+  isNew?: boolean;
   channels: ChannelListItem[];
 }

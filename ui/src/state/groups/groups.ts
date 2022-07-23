@@ -251,8 +251,6 @@ export const useGroupState = create<GroupState>((set, get) => ({
     );
   },
   createZone: async (flag, zone, meta) => {
-    console.log(meta);
-    console.log(zone);
     const diff = {
       zone: {
         zone,

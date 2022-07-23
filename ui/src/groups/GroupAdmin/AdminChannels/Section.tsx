@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import { useGroupState, useRouteGroup } from '@/state/groups';
@@ -32,6 +32,12 @@ export default function Section({
   const [isEditing, setIsEditing] = useState(false);
   const isSectionless = sectionKey === 'sectionless';
 
+  useEffect(() => {
+    if (sectionData.isNew === true) {
+      setIsEditing(true);
+    }
+  }, [sectionData.isNew]);
+
   const handleEditingChange = useCallback(() => {
     setIsEditing(!isEditing);
   }, [isEditing]);
@@ -46,7 +52,6 @@ export default function Section({
   };
 
   const handleDeleteClick = useCallback(async () => {
-    // debugger;
     const sectionFlag = strToSym(sectionKey);
     onSectionDelete(sectionFlag);
     sectionData.channels.forEach((channel) => {
@@ -92,6 +97,7 @@ export default function Section({
             </header>
             <Channels
               listId={sectionKey}
+              isNew={sectionData.isNew}
               channels={sectionData.channels}
               onChannelDelete={onChannelDelete}
             />

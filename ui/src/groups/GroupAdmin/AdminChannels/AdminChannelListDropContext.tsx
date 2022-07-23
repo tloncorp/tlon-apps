@@ -3,7 +3,7 @@ import { DragDropContext, DraggableLocation } from 'react-beautiful-dnd';
 import bigInt from 'big-integer';
 import { strToSym } from '@/logic/utils';
 import { formatUv } from '@urbit/aura';
-import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
+import { useGroupState, useRouteGroup } from '@/state/groups';
 import { SectionMap } from './types';
 import AdminChannelListSections from './AdminChannelListSections';
 import ChannelManagerHeader from './ChannelManagerHeader';
@@ -20,27 +20,25 @@ export default function AdminChannelListDropContext({
   const [orderedSections, setOrderedSections] = useState<string[]>([]);
 
   useEffect(() => {
-    // debugger;
     setSections(sectionedChannels);
     setOrderedSections(Object.keys(sectionedChannels));
   }, [sectionedChannels]);
 
-  // console.log(sections);
+  const onSectionEditNameSubmit = useCallback(
+    (currentSectionKey: string, nextSectionTitle: string) => {
+      const nextSections = sections;
 
-  const onSectionEditNameSubmit = (
-    currentSectionKey: string,
-    nextSectionTitle: string
-  ) => {
-    const nextSections = sections;
+      // if zone has no title, cancel edit
+      if (!nextSectionTitle.length) {
+        return;
+      }
 
-    // if zone has no title, cancel edit
-    if (!nextSectionTitle.length) {
-      return;
-    }
-
-    nextSections[currentSectionKey].title = nextSectionTitle;
-    setSections(sections);
-  };
+      nextSections[currentSectionKey].title = nextSectionTitle;
+      nextSections[currentSectionKey].isNew = false;
+      setSections({ ...nextSections });
+    },
+    [sections]
+  );
 
   const onSectionDelete = useCallback(
     (currentSectionKey: string) => {
@@ -58,7 +56,6 @@ export default function AdminChannelListDropContext({
 
       setSections(nextSections);
       setOrderedSections(nextOrderedSections);
-      // debugger;
     },
     [orderedSections, sections]
   );
@@ -72,8 +69,14 @@ export default function AdminChannelListDropContext({
   };
 
   const addSection = () => {
+    if (
+      Object.keys(sections).filter((key) => sections[key].isNew === true).length
+    ) {
+      return;
+    }
     const nextSection = {
       title: '',
+      isNew: true,
       channels: [],
     };
 

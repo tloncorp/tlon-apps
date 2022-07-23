@@ -2,7 +2,7 @@ import React from 'react';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
-import { GroupMeta, Zones } from '@/types/groups';
+import { GroupMeta } from '@/types/groups';
 import { ChannelListItem } from './types';
 
 interface HandleSectionNameEditInputProps {
@@ -14,10 +14,6 @@ interface HandleSectionNameEditInputProps {
   sectionTitle: string;
   channels: ChannelListItem[];
   sectionKey: string;
-}
-
-interface SectionNameEditInputValues {
-  zoneMeta: GroupMeta;
 }
 
 export default function SectionNameEditInput({
@@ -36,7 +32,7 @@ export default function SectionNameEditInput({
     color: '',
   };
 
-  const { handleSubmit, register, setValue, watch } = useForm({
+  const { handleSubmit, register } = useForm({
     defaultValues,
   });
 
@@ -52,17 +48,18 @@ export default function SectionNameEditInput({
 
   const onSubmit = async (values: GroupMeta) => {
     const zoneFlag = strToSym(sectionKey);
-    onSectionEditNameSubmit(zoneFlag, values.title);
     handleEditingChange();
     await useGroupState.getState().createZone(group, zoneFlag, values);
     channels.forEach((channel) => {
       addChannelsToZone(zoneFlag, group, channel.key);
     });
+    onSectionEditNameSubmit(zoneFlag, values.title);
   };
 
   return (
     <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
       <input
+        autoFocus
         {...register('title')}
         type="text"
         placeholder="Section Name"

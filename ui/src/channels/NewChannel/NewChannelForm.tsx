@@ -8,7 +8,6 @@ import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym, channelHref } from '@/logic/utils';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
-import { useChatState } from '@/state/chat';
 
 interface NewChannelFormProps {
   flag?: string;
@@ -20,7 +19,6 @@ interface NewChannelFormProps {
 }
 
 export default function NewChannelForm({
-  flag,
   channel,
   retainRoute = false,
   presetSection,
@@ -62,19 +60,8 @@ export default function NewChannelForm({
         nextChannel.zone = presetSection;
       }
 
-      if (flag) {
-        await useGroupState
-          .getState()
-          .addOrEditChannel(group, flag, nextChannel);
-      } else {
-        await useChatState.getState().create({
-          name,
-          group,
-          title: values.meta.title,
-          description: values.meta.description,
-          readers: values.readers,
-        });
-      }
+      await useGroupState.getState().addOrEditChannel(group, name, nextChannel);
+
       if (retainRoute === true && setEditIsOpen) {
         setEditIsOpen(false);
       } else if (redirect === true) {
@@ -84,7 +71,6 @@ export default function NewChannelForm({
       }
     },
     [
-      flag,
       group,
       dismiss,
       navigate,
