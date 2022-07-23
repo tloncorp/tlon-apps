@@ -3,7 +3,6 @@ import create from 'zustand';
 import produce from 'immer';
 import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
-import { createMockGang } from '@/mocks/groups';
 import {
   Gangs,
   Channel,
@@ -12,6 +11,7 @@ import {
   Groups,
   GroupAction,
   GroupPreview,
+  GroupIndex,
 } from '../../types/groups';
 import api from '../../api';
 import groupsReducer from './groupsReducer';
@@ -112,39 +112,23 @@ export const useGroupState = create<GroupState>((set, get) => ({
       })
     );
   },
-  index: async (flag) => {
-    /**
-     * flag is a patp in this case
-     * TODO: use subscribeOnce poke; for now, simulate response
-     */
-    const mockIndex =
-      flag === '~finned-palmer'
-        ? {
-            [`${flag}/secret`]: createMockGang({
-              flag,
-              hasPreview: true,
-              privacy: 'secret',
-            }),
-          }
-        : {
-            [`${flag}/public`]: createMockGang({ flag, hasPreview: true }),
-            [`${flag}/private`]: createMockGang({
-              flag,
-              hasPreview: true,
-              privacy: 'private',
-            }),
-            [`${flag}/secret`]: createMockGang({
-              flag,
-              hasPreview: true,
-              privacy: 'secret',
-            }),
-          };
-
-    await new Promise((resolve) => {
-      setTimeout(resolve, Math.random() * 2000);
-    });
-
-    return mockIndex;
+  // TODO: handle timeout of 10s (i.e., when ship is not available)
+  // update http-api? to expose AbortController
+  index: async (ship) => {
+    try {
+      const res = await subscribeOnce<GroupIndex>(
+        'groups',
+        `/gangs/index/${ship}`
+      );
+      if (res) {
+        return res;
+      }
+      return {};
+    } catch (e) {
+      // TODO: fix error handling
+      console.error(e);
+      return {};
+    }
   },
   search: async (flag) => {
     try {

@@ -1,24 +1,32 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useGroupState, usePendingGangs } from '@/state/groups';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
-import { Gangs } from '@/types/groups';
+import { Gangs, GroupIndex } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
 import { hasKeys } from '@/logic/utils';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 
 export default function FindGroups() {
-  const [foundGangs, setFoundGangs] = useState<Gangs | null>(null);
+  const [foundIndex, setFoundIndex] = useState<GroupIndex | null>(null);
+  const pendingGangs = usePendingGangs();
   // For search results, only show Public and Private gangs
-  const publicAndPrivateGangs = foundGangs
-    ? Object.entries(foundGangs)
-        .filter(([, gang]) => gang.preview && !('afar' in gang.preview.cordon))
+  // TODO: filter invites, so they are displayed in the below section
+  const publicAndPrivateGangs = foundIndex
+    ? Object.entries(foundIndex)
+        .filter(([, preview]) => preview && !('afar' in preview.cordon))
         .reduce(
-          (memo, [flag, gang]) => ({ ...memo, [flag]: gang }),
+          (memo, [flag, preview]) => ({
+            ...memo,
+            [flag]: {
+              preview,
+              invite: flag in pendingGangs ? pendingGangs[flag].invite : null,
+              claim: null,
+            },
+          }),
           {} as Gangs
         )
     : null;
-  const pendingGangs = usePendingGangs();
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
   const selectedShip =
     shipSelectorShips.length > 0 ? shipSelectorShips[0] : null;
@@ -31,10 +39,10 @@ export default function FindGroups() {
     if (!selectedShip) {
       return;
     }
-    setFoundGangs(null);
+    setFoundIndex(null);
     setPending();
     const results = await useGroupState.getState().index(selectedShip.value);
-    setFoundGangs(results);
+    setFoundIndex(results);
     setReady();
   }, [selectedShip, setPending, setReady]);
 

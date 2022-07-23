@@ -8,6 +8,8 @@ import {
   Gang,
   PrivacyType,
   Cordon,
+  GroupIndex,
+  GroupPreview,
 } from '../types/groups';
 
 const emptyVessel = (): Vessel => ({
@@ -22,20 +24,7 @@ const adminVessel = (): Vessel => ({
 
 const randomColor = () => Math.floor(Math.random() * 16777215).toString(16);
 
-export function createMockGang({
-  flag,
-  hasClaim = false,
-  hasInvite = false,
-  hasPreview = false,
-  privacy = 'public',
-}: {
-  flag: string;
-  hasClaim?: boolean;
-  hasInvite?: boolean;
-  hasPreview?: boolean;
-  privacy?: PrivacyType;
-}): Gang {
-  const name = faker.company.companyName();
+export function makeCordon(privacy = 'public') {
   let cordon: Cordon;
   switch (privacy) {
     case 'public':
@@ -61,7 +50,35 @@ export function createMockGang({
       };
       break;
   }
+  return cordon;
+}
 
+export function makeGroupPreview(privacy = 'public'): GroupPreview {
+  return {
+    cordon: makeCordon(privacy),
+    time: Date.now(),
+    meta: {
+      title: faker.company.companyName(),
+      description: faker.company.catchPhrase(),
+      image: '',
+      color: `#${randomColor()}`,
+    },
+  };
+}
+
+export function createMockGang({
+  flag,
+  hasClaim = false,
+  hasInvite = false,
+  hasPreview = false,
+  privacy = 'public',
+}: {
+  flag: string;
+  hasClaim?: boolean;
+  hasInvite?: boolean;
+  hasPreview?: boolean;
+  privacy?: PrivacyType;
+}): Gang {
   return {
     claim: hasClaim
       ? {
@@ -75,17 +92,15 @@ export function createMockGang({
           ship: randomElement(AUTHORS),
         }
       : null,
-    preview: hasPreview
-      ? {
-          cordon,
-          meta: {
-            title: name,
-            description: faker.company.catchPhrase(),
-            image: '',
-            color: `#${randomColor()}`,
-          },
-        }
-      : null,
+    preview: hasPreview ? makeGroupPreview(privacy) : null,
+  };
+}
+
+export function createMockIndex(ship: string): GroupIndex {
+  return {
+    [`~${ship}/some-public-group`]: makeGroupPreview(),
+    [`~${ship}/some-private-group`]: makeGroupPreview('private'),
+    [`~${ship}/some-secret-group`]: makeGroupPreview('secret'),
   };
 }
 
@@ -275,6 +290,7 @@ export const mockGangs: Gangs = {
       'join-all': true,
     },
     preview: {
+      time: Date.now(),
       cordon: {
         afar: {
           app: '~zod/eth-verify',
