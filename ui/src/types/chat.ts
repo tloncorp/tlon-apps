@@ -167,6 +167,10 @@ interface ChatDiffAddSects {
   'add-sects': string[];
 }
 
+interface ChatDiffDelSects {
+  'del-sects': string[];
+}
+
 export type WritDelta = WritDeltaAdd | WritDeltaDel | WritDeltaAddFeel;
 
 export interface WritDiff {
@@ -174,7 +178,10 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
-export type ChatDiff = { writs: WritDiff } | ChatDiffAddSects;
+export type ChatDiff =
+  | { writs: WritDiff }
+  | ChatDiffAddSects
+  | ChatDiffDelSects;
 
 export interface ChatUpdate {
   time: Patda;
@@ -220,6 +227,15 @@ export interface Pact {
   index: {
     [id: string]: BigInteger;
   };
+}
+
+export interface ChatCreate {
+  group: string;
+  name: string;
+  title: string;
+  description: string;
+  readers: string[];
+  writers: string[];
 }
 
 export interface ChatDraft {

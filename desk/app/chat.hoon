@@ -186,7 +186,7 @@
     ^+  cor
     =/  =flag:c  [our.bowl name.req]
     =|  =chat:c
-    =/  =perm:c  [~ group.req]
+    =/  =perm:c  [writers.req group.req]
     =.  perm.chat  perm
     =.  net.chat  [%pub ~]
     =.  chats  (~(put by chats) flag chat)
@@ -591,7 +591,7 @@
     --
   ++  ca-init
     |=  req=create:c
-    =/  =perm:c  [~ group.req]
+    =/  =perm:c  [writers.req group.req]
     =.  cor
       (give-brief flag/flag ca-brief)
     =.  ca-core  (ca-update now.bowl %create perm)

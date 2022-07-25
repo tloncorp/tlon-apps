@@ -56,6 +56,8 @@ export default function NewChannelForm({
 
       if (privacy === 'secret') {
         nextChannel.readers.push('admin');
+      } else {
+        nextChannel.readers.splice(nextChannel.readers.indexOf('admin'), 1);
       }
 
       if (presetSection) {
@@ -66,6 +68,12 @@ export default function NewChannelForm({
         await useGroupState
           .getState()
           .addOrEditChannel(group, flag, nextChannel);
+
+        if (privacy !== 'public') {
+          useChatState.getState().addSects(flag, ['admin']);
+        } else {
+          useChatState.getState().delSects(flag, ['admin']);
+        }
       } else {
         await useChatState.getState().create({
           name,
@@ -73,6 +81,7 @@ export default function NewChannelForm({
           title: values.meta.title,
           description: values.meta.description,
           readers: values.readers,
+          writers: privacy !== 'public' ? ['admin'] : [],
         });
       }
       if (retainRoute === true && setEditIsOpen) {

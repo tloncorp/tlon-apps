@@ -470,6 +470,9 @@ export const useChatState = create<ChatState>(
       addSects: async (whom, sects) => {
         await api.poke(chatAction(whom, { 'add-sects': sects }));
       },
+      delSects: async (whom, sects) => {
+        await api.poke(chatAction(whom, { 'del-sects': sects }));
+      },
       initialize: async (whom: string) => {
         if (whom in get().chats) {
           return;
