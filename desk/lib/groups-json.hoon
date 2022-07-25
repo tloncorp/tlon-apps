@@ -304,6 +304,7 @@
         fleet/(ot ships/(as ship) diff/fleet-diff ~)
         cordon/cordon-diff
         channel/(ot flag/flag diff/channel-diff ~)
+        zone/zone-diff
         meta/meta
         del/ul
     ==
@@ -325,7 +326,7 @@
         added/di
         zone/(mu (se %tas))
         join/bo
-        readers/(as ship)
+        readers/(as sym)
     ==
   ++  cordon
     %-  of
@@ -369,6 +370,18 @@
     ==
   ::
   ++  cabal-diff
+    %-  of
+    :~  add/meta
+        del/ul
+    ==
+  ::
+  ++  zone-diff
+    %-  ot
+    :~  zone/(se %tas)
+        delta/zone-delta
+    ==
+  ::
+  ++  zone-delta
     %-  of
     :~  add/meta
         del/ul

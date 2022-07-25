@@ -107,6 +107,17 @@
         read-id/?~(read-id.b ~ (id u.read-id.b))
     ==
   ::
+  ++  chats
+    |=  cs=(map flag:c chat:c)
+    %-  pairs
+    %+  turn  ~(tap by cs)
+    |=  [f=flag:c ch=chat:c]
+    [(rap 3 (scot %p p.f) '/' q.f ~) (chat ch)]
+  ++  chat
+    |=  ch=chat:c
+    %-  pairs
+    :~  perms/(perm perm.ch)
+    ==
   ++  perm
     |=  p=perm:c
     %-  pairs
@@ -416,6 +427,7 @@
     %-  of
     :~  writs/writs-diff
         add-sects/add-sects
+        del-sects/del-sects
     ==
   ::
   ++  id  
@@ -439,6 +451,8 @@
     ==
   ::
   ++  add-sects  (as (se %tas))
+  ::
+  ++  del-sects  (as (se %tas))
   ::
   ++  add-feel
     %-  ot

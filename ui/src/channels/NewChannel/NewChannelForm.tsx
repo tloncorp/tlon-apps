@@ -5,10 +5,10 @@ import { Channel, ChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';
-import { strToSym, channelHref } from '@/logic/utils';
+import { strToSym, channelHref, getPrivacyFromChannel } from '@/logic/utils';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
-import { useChatState } from '@/state/chat';
+import { useChat, useChatState } from '@/state/chat';
 
 interface NewChannelFormProps {
   flag?: string;
@@ -31,6 +31,7 @@ export default function NewChannelForm({
   const navigate = useNavigate();
 
   const group = useRouteGroup();
+  const chat = useChat(flag || '');
   const defaultValues: ChannelFormSchema = {
     zone: channel?.zone || null,
     added: channel?.added || Date.now(),
@@ -42,7 +43,7 @@ export default function NewChannelForm({
       image: '',
       color: '',
     },
-    privacy: 'public',
+    privacy: getPrivacyFromChannel(channel, chat),
   };
 
   const form = useForm<ChannelFormSchema>({

@@ -297,6 +297,8 @@
   ::
     [%x %chat ~]  ``flags+!>(~(key by chats))
   ::
+    [%x %chats ~]  ``chats+!>(chats)
+  ::
       [%x %chat @ @ *]
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path

@@ -194,7 +194,10 @@ export interface ChatPerm {
 
 export interface Chat {
   perms: ChatPerm;
-  draft: ChatStory;
+}
+
+export interface Chats {
+  [key: string]: Chat;
 }
 
 /**
