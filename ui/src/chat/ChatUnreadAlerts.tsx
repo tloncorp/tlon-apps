@@ -47,7 +47,7 @@ export default function ChatUnreadAlerts({
           className="button whitespace-nowrap bg-blue-soft px-2 text-sm text-blue dark:bg-blue-900 lg:text-base"
           onClick={markRead}
         >
-          <XIcon className="h-4 w-4" />
+          <XIcon className="h-4 w-4" ariaLabel="Mark as Read" />
         </button>
       </div>
       <div />
