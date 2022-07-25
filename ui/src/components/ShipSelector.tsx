@@ -16,6 +16,7 @@ import {
   SingleValue,
   ValueContainerProps,
   ClearIndicatorProps,
+  InputActionMeta,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
@@ -23,12 +24,13 @@ import { deSig } from '@urbit/api';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import X16Icon from '@/components/icons/X16Icon';
-import { preSig } from '@/logic/utils';
+import { preSig, whomIsFlag } from '@/logic/utils';
 import Avatar from '@/components/Avatar';
 import { useMemoizedContacts } from '@/state/contact';
 import { MAX_DISPLAYED_OPTIONS } from '@/constants';
 import ShipName from './ShipName';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
+import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
 
 export interface ShipOption {
   value: string;
@@ -44,6 +46,7 @@ interface ShipSelectorProps {
   isLoading?: boolean;
   hasPrompt?: boolean;
   placeholder?: string;
+  isValidNewOption?: (value: string) => boolean;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -86,18 +89,34 @@ function LoadingIndicator() {
   return <LoadingSpinner />;
 }
 
+function SearchGroupMessage({ value }: { value: string }) {
+  return (
+    <div className="flex content-center space-x-1 px-2 py-3 text-gray-400">
+      <span className="italic">Search for {value}</span>
+    </div>
+  );
+}
+
 function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
   const { value: rawValue, label } = data;
   const value = preSig(rawValue);
   return (
     <components.Option data={data} className="hover:cursor-pointer" {...props}>
       <div className="flex items-center space-x-1">
-        {ob.isValidPatp(value) ? (
-          <Avatar ship={value} size="xs" />
-        ) : (
-          <div className="h-6 w-6 rounded bg-white" />
-        )}
-        {label ? (
+        {
+          // Case when user has entered an invite link (e.g., ~zod/group-name)
+          whomIsFlag(value) ? (
+            <UnknownAvatarIcon className="w-[18px] text-gray-400" />
+          ) : // Normal case, searching for a nickname or patp
+          ob.isValidPatp(value) ? (
+            <Avatar ship={value} size="xs" />
+          ) : (
+            <div className="h-6 w-6 rounded bg-white" />
+          )
+        }
+        {whomIsFlag(value) ? (
+          <SearchGroupMessage value={value} />
+        ) : label ? (
           <>
             <span className="font-semibold">{label}</span>
             <ShipName name={value} className="font-semibold text-gray-300" />
@@ -119,8 +138,12 @@ function NoShipsMessage() {
   );
 }
 
-function AddNonContactShip(value: string) {
-  return ob.isValidPatp(preSig(value)) ? null : <NoShipsMessage />;
+function AddNewOption(value: string) {
+  return whomIsFlag(value) ? (
+    <SearchGroupMessage value={value} />
+  ) : ob.isValidPatp(preSig(value)) ? null : (
+    <NoShipsMessage />
+  );
 }
 
 function ShipTagLabelContainer({
@@ -222,6 +245,7 @@ export default function ShipSelector({
   isLoading = false,
   hasPrompt = true,
   placeholder = 'Type a name ie; ~sampel-palnet',
+  isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -235,7 +259,7 @@ export default function ShipSelector({
     label: contacts[contact].nickname,
   }));
   const validShips = ships
-    ? ships.every((ship) => ob.isValidPatp(ship.value))
+    ? ships.every((ship) => isValidNewOption(ship.value))
     : false;
 
   const handleEnter = () => {
@@ -327,6 +351,10 @@ export default function ShipSelector({
     }
   };
 
+  const onInputChange = (newValue: string, _actionMeta: InputActionMeta) => {
+    setInputValue(newValue);
+  };
+
   const onChange = (
     newValue: MultiValue<ShipOption>,
     actionMeta: ActionMeta<ShipOption>
@@ -337,7 +365,7 @@ export default function ShipSelector({
       )
     ) {
       const validPatps = newValue.filter((o) =>
-        ob.isValidPatp(preSig(o.value))
+        isValidNewOption(preSig(o.value))
       );
       setShips(validPatps);
     }
@@ -353,7 +381,7 @@ export default function ShipSelector({
       ) &&
       newValue !== null
     ) {
-      const validPatp = ob.isValidPatp(preSig(newValue.value));
+      const validPatp = isValidNewOption(preSig(newValue.value));
       if (validPatp) {
         setShips([newValue]);
       }
@@ -369,7 +397,7 @@ export default function ShipSelector({
       <CreatableSelect
         handleEnter={handleEnter}
         ref={selectRef}
-        formatCreateLabel={AddNonContactShip}
+        formatCreateLabel={AddNewOption}
         autoFocus
         styles={{
           control: (base) => ({}),
@@ -417,8 +445,8 @@ export default function ShipSelector({
         value={ships}
         // @ts-expect-error this error is irrelevant
         onChange={singleOnChange}
-        onInputChange={(val) => setInputValue(val)}
-        isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
+        onInputChange={onInputChange}
+        isValidNewOption={isValidNewOption}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         hideSelectedOptions
@@ -449,7 +477,7 @@ export default function ShipSelector({
   return (
     <CreatableSelect
       ref={selectRef}
-      formatCreateLabel={AddNonContactShip}
+      formatCreateLabel={AddNewOption}
       autoFocus
       isMulti
       styles={{
@@ -495,8 +523,8 @@ export default function ShipSelector({
       options={slicedOptions}
       value={ships}
       onChange={onChange}
-      onInputChange={(val) => setInputValue(val)}
-      isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
+      onInputChange={onInputChange}
+      isValidNewOption={isValidNewOption}
       onKeyDown={onKeyDown}
       placeholder={placeholder}
       hideSelectedOptions

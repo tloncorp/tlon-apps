@@ -82,8 +82,11 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
-        <Route path="/groups/find" element={<FindGroups />} />
+        {/* Find by Invite URL */}
         <Route path="/groups/find/:ship/:name" element={<FindGroups />} />
+        {/* Find by Nickname or @p */}
+        <Route path="/groups/find/:ship" element={<FindGroups />} />
+        <Route path="/groups/find" element={<FindGroups />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="info" element={<GroupAdmin />}>
             <Route index element={<GroupInfo />} />
