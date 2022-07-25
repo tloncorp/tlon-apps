@@ -149,7 +149,12 @@ export default function GroupMemberManager() {
                 <Dropdown.Root>
                   <Dropdown.Trigger className="default-focus mr-2 flex items-center rounded px-2 py-1.5 text-gray-400">
                     {vessel.sects
-                      .map((s) => getSectTitle(group.cabals, s))
+                      .map((s) => {
+                        const sectTitle = getSectTitle(group.cabals, s);
+                        return (
+                          sectTitle.charAt(0).toUpperCase() + sectTitle.slice(1)
+                        );
+                      })
                       .join(', ')}
                     <CaretDown16Icon className="ml-2 h-4 w-4" />
                   </Dropdown.Trigger>
@@ -171,6 +176,15 @@ export default function GroupMemberManager() {
                         )}
                       </Dropdown.Item>
                     ))}
+                    <Dropdown.Item
+                      className={cn(
+                        'dropdown-item flex items-center',
+                        'text-gray-400'
+                      )}
+                    >
+                      Member
+                      <CheckIcon className="ml-auto h-6 w-6 text-green" />
+                    </Dropdown.Item>
                   </Dropdown.Content>
                 </Dropdown.Root>
               ) : null}
