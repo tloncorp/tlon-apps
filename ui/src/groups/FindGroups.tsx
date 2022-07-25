@@ -23,16 +23,20 @@ export default function FindGroups() {
    *  - Only show Public and Private groups, unless already a member of a ship's
    *    Secret group
    * */
-  const indexGangs = groupIndex
+  const indexedGangs = groupIndex
     ? Object.entries(groupIndex)
         .filter(([flag, preview]) => {
-          // Show Secret groups if already a member
           if (flag in existingGangs) {
-            return !!preview;
+            // Bucket invites separately (in Pending Invites section)
+            if (existingGangs[flag].invite) {
+              return false;
+            }
+            // Show group if already a member
+            return true;
           }
 
-          // Otherwise, filter them out
-          return preview && !('afar' in preview.cordon);
+          // Hide secret gangs
+          return !('afar' in preview.cordon);
         })
         .reduce((memo, [flag, preview]) => {
           // Invite URL case: only show the linked group
@@ -113,8 +117,8 @@ export default function FindGroups() {
       );
     }
 
-    if (indexGangs) {
-      if (hasKeys(indexGangs)) {
+    if (indexedGangs) {
+      if (hasKeys(indexedGangs)) {
         return (
           <>
             <span>Groups hosted by&nbsp;</span>
@@ -161,8 +165,8 @@ export default function FindGroups() {
               <p className="font-semibold text-gray-400">{resultsTitle()}</p>
               {isPending ? (
                 <GroupJoinListPlaceholder />
-              ) : indexGangs && hasKeys(indexGangs) ? (
-                <GroupJoinList gangs={indexGangs} />
+              ) : indexedGangs && hasKeys(indexedGangs) ? (
+                <GroupJoinList gangs={indexedGangs} />
               ) : null}
             </section>
           ) : null}

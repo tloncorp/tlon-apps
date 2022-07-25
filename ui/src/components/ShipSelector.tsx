@@ -79,7 +79,7 @@ function ClearIndicator({ ...props }: ClearIndicatorProps<ShipOption, true>) {
   };
 
   return (
-    <span {...props} {...innerProps} className="cursor-pointer">
+    <span {...innerProps} className="cursor-pointer">
       <X16Icon className="h-4 w-4" />
     </span>
   );
