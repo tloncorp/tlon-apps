@@ -104,15 +104,15 @@ export default function AdminChannelListDropContext({
   );
 
   const setChannelZone = useCallback(
-    async (channelFlag: string, zoneFlag: string, groupFlag: string) => {
-      if (zoneFlag === 'Sectionless' || zoneFlag === '') {
+    async (channelName: string, zoneName: string, groupFlag: string) => {
+      if (zoneName === 'Sectionless' || zoneName === '') {
         await useGroupState
           .getState()
-          .removeChannelFromZone(groupFlag, channelFlag);
+          .removeChannelFromZone(groupFlag, channelName);
       } else {
         await useGroupState
           .getState()
-          .addChannelToZone(zoneFlag, groupFlag, channelFlag);
+          .addChannelToZone(zoneName, groupFlag, channelName);
       }
     },
     []

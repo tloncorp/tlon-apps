@@ -37,13 +37,13 @@ export default function SectionNameEditInput({
   });
 
   const addChannelsToZone = async (
-    zoneFlag: string,
+    zone: string,
     groupFlag: string,
-    channelFlag: string
+    channelName: string
   ) => {
     await useGroupState
       .getState()
-      .addChannelToZone(zoneFlag, groupFlag, channelFlag);
+      .addChannelToZone(zone, groupFlag, channelName);
   };
 
   const onSubmit = async (values: GroupMeta) => {
