@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import { useGroupState, useRouteGroup } from '@/state/groups';
+import { strToSym } from '@/logic/utils';
 import { SectionListItem } from './types';
 import Channels from './Channels';
 import EditSectionDropdown from './EditSectionDropdown';
@@ -27,20 +28,37 @@ export default function Section({
   onSectionDelete,
   onChannelDelete,
 }: SectionProps) {
-  const groupFlag = useRouteGroup();
+  const group = useRouteGroup();
   const [isEditing, setIsEditing] = useState(false);
   const isSectionless = sectionKey === 'sectionless';
+
+  useEffect(() => {
+    if (sectionData.isNew === true) {
+      setIsEditing(true);
+    }
+  }, [sectionData.isNew]);
 
   const handleEditingChange = useCallback(() => {
     setIsEditing(!isEditing);
   }, [isEditing]);
 
+  const removeChannelsFromZone = async (
+    groupFlag: string,
+    channelFlag: string
+  ) => {
+    await useGroupState
+      .getState()
+      .removeChannelFromZone(groupFlag, channelFlag);
+  };
+
   const handleDeleteClick = useCallback(async () => {
-    onSectionDelete(sectionKey);
-    await sectionData.channels.forEach((channel) => {
-      useGroupState.getState().removeChannelFromZone(groupFlag, channel.key);
+    const sectionFlag = strToSym(sectionKey);
+    onSectionDelete(sectionFlag);
+    sectionData.channels.forEach((channel) => {
+      removeChannelsFromZone(group, channel.key);
     });
-  }, [sectionData, groupFlag, onSectionDelete, sectionKey]);
+    await useGroupState.getState().deleteZone(group, sectionFlag);
+  }, [sectionData, group, onSectionDelete, sectionKey]);
 
   return (
     <Draggable
@@ -61,6 +79,7 @@ export default function Section({
                 {isEditing ? (
                   <SectionNameEditInput
                     handleEditingChange={handleEditingChange}
+                    sectionTitle={sectionData.title}
                     onSectionEditNameSubmit={onSectionEditNameSubmit}
                     channels={sectionData.channels}
                     sectionKey={sectionKey}
@@ -78,6 +97,7 @@ export default function Section({
             </header>
             <Channels
               listId={sectionKey}
+              isNew={sectionData.isNew}
               channels={sectionData.channels}
               onChannelDelete={onChannelDelete}
             />

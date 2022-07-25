@@ -6,12 +6,12 @@ import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym, channelHref, getPrivacyFromChannel } from '@/logic/utils';
+import { useChat, useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
-import { useChat, useChatState } from '@/state/chat';
 
 interface NewChannelFormProps {
-  flag?: string;
+  channelFlag?: string;
   channel?: Channel;
   retainRoute?: boolean;
   presetSection?: string;
@@ -20,7 +20,7 @@ interface NewChannelFormProps {
 }
 
 export default function NewChannelForm({
-  flag,
+  channelFlag,
   channel,
   retainRoute = false,
   presetSection,
@@ -29,9 +29,9 @@ export default function NewChannelForm({
 }: NewChannelFormProps) {
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
+  const groupFlag = useRouteGroup();
 
-  const group = useRouteGroup();
-  const chat = useChat(flag || '');
+  const chat = useChat(channelFlag || '');
   const defaultValues: ChannelFormSchema = {
     zone: channel?.zone || null,
     added: channel?.added || Date.now(),
@@ -53,7 +53,8 @@ export default function NewChannelForm({
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
       const { privacy, ...nextChannel } = values;
-      const name = strToSym(values.meta.title);
+      const channelName = strToSym(values.meta.title);
+      const newChannelFlag = `${window.our}/${channelName}`;
 
       if (privacy === 'secret') {
         nextChannel.readers.push('admin');
@@ -65,37 +66,43 @@ export default function NewChannelForm({
         nextChannel.zone = presetSection;
       }
 
-      if (flag) {
+      if (channelFlag) {
         await useGroupState
           .getState()
-          .addOrEditChannel(group, flag, nextChannel);
+          .addOrEditChannel(groupFlag, channelFlag, nextChannel);
 
         if (privacy !== 'public') {
-          useChatState.getState().addSects(flag, ['admin']);
+          useChatState.getState().addSects(channelFlag, ['admin']);
         } else {
-          useChatState.getState().delSects(flag, ['admin']);
+          useChatState.getState().delSects(channelFlag, ['admin']);
         }
       } else {
         await useChatState.getState().create({
-          name,
-          group,
+          group: groupFlag,
+          name: channelName,
           title: values.meta.title,
           description: values.meta.description,
           readers: values.readers,
           writers: privacy !== 'public' ? ['admin'] : [],
         });
+        if (presetSection) {
+          await useGroupState
+            .getState()
+            .addChannelToZone(presetSection, groupFlag, newChannelFlag);
+        }
       }
+
       if (retainRoute === true && setEditIsOpen) {
         setEditIsOpen(false);
       } else if (redirect === true) {
-        navigate(channelHref(group, `${window.our}/${name}`));
+        navigate(channelHref(groupFlag, newChannelFlag));
       } else {
         dismiss();
       }
     },
     [
-      flag,
-      group,
+      channelFlag,
+      groupFlag,
       dismiss,
       navigate,
       redirect,
