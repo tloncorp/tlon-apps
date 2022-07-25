@@ -226,7 +226,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  addOrEditChannel: async (groupFlag, flag, channel) => {
+  editChannel: async (groupFlag, flag, channel) => {
     await api.poke(
       groupAction(groupFlag, {
         channel: {

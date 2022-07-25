@@ -66,7 +66,7 @@ export default function NewChannelForm({
       if (channelFlag) {
         await useGroupState
           .getState()
-          .addOrEditChannel(groupFlag, channelFlag, nextChannel);
+          .editChannel(groupFlag, channelFlag, nextChannel);
       } else {
         await useChatState.getState().create({
           group: groupFlag,

@@ -60,9 +60,11 @@ export default function AdminChannelListItem({
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-md font-semibold">{meta.title}</h2>
-                <div className="rounded-md border-2 border-gray-600 px-1 text-sm font-bold text-gray-600">
-                  Default
-                </div>
+                {channel.join ? (
+                  <div className="rounded-md border-2 border-gray-600 px-1 text-sm font-bold text-gray-600">
+                    Default
+                  </div>
+                ) : null}
               </div>
               <div className="text-sm font-semibold text-gray-400">
                 {permissionText}

@@ -42,7 +42,7 @@ export interface GroupState {
   join: (flag: string, joinAll: boolean) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   deleteZone: (flag: string, zone: string) => Promise<void>;
-  addOrEditChannel: (
+  editChannel: (
     groupFlag: string,
     flag: string,
     channel: Channel
