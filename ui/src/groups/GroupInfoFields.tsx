@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import cn from 'classnames';
 import { useFormContext } from 'react-hook-form';
 import ColorPicker from '@/components/ColorPicker';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
@@ -82,9 +83,11 @@ export default function GroupInfoFields() {
           <span className="pb-2 font-bold">Group Icon*</span>
           <div className="flex items-center space-x-2">
             {iconType === undefined || iconType === 'image' ? (
-              <div className="relative flex w-full items-baseline space-x-2">
+              <div className="relative flex w-full items-baseline">
                 <input
-                  className="input w-full"
+                  className={cn('input grow', {
+                    'rounded-r-none': iconType === 'image',
+                  })}
                   onFocus={() => setIconType('image')}
                   {...register('image', {
                     required: true,
@@ -92,7 +95,7 @@ export default function GroupInfoFields() {
                   })}
                 />
                 {iconType === undefined ? (
-                  <div className="pointer-events-none absolute top-2 cursor-pointer">
+                  <div className="pointer-events-none absolute left-[0.5625rem] top-2 cursor-pointer">
                     <span className="pointer-events-none">
                       Paste an image URL
                     </span>
@@ -107,7 +110,7 @@ export default function GroupInfoFields() {
                 ) : null}
                 {iconType === 'image' ? (
                   <button
-                    className="absolute right-2 top-2"
+                    className="secondary-button self-stretch rounded-l-none px-2"
                     onClick={handleCancelImageIcon}
                   >
                     <XIcon className="h-4 w-4" />
