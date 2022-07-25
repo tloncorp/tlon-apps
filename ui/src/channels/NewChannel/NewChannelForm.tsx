@@ -11,7 +11,7 @@ import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPerms
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
 
 interface NewChannelFormProps {
-  flag?: string;
+  channelFlag?: string;
   channel?: Channel;
   retainRoute?: boolean;
   presetSection?: string;
@@ -20,6 +20,7 @@ interface NewChannelFormProps {
 }
 
 export default function NewChannelForm({
+  channelFlag,
   channel,
   retainRoute = false,
   presetSection,
@@ -52,7 +53,7 @@ export default function NewChannelForm({
     async (values: ChannelFormSchema) => {
       const { privacy, ...nextChannel } = values;
       const channelName = strToSym(values.meta.title);
-      const channelFlag = `${window.our}/${channelName}`;
+      const newChannelFlag = `${window.our}/${channelName}`;
 
       if (privacy === 'secret') {
         nextChannel.readers.push('admin');
@@ -62,7 +63,7 @@ export default function NewChannelForm({
         nextChannel.zone = presetSection;
       }
 
-      if (channel) {
+      if (channelFlag) {
         await useGroupState
           .getState()
           .addOrEditChannel(groupFlag, channelFlag, nextChannel);
@@ -77,20 +78,20 @@ export default function NewChannelForm({
         if (presetSection) {
           await useGroupState
             .getState()
-            .addChannelToZone(presetSection, groupFlag, channelFlag);
+            .addChannelToZone(presetSection, groupFlag, newChannelFlag);
         }
       }
 
       if (retainRoute === true && setEditIsOpen) {
         setEditIsOpen(false);
       } else if (redirect === true) {
-        navigate(channelHref(groupFlag, channelFlag));
+        navigate(channelHref(groupFlag, newChannelFlag));
       } else {
         dismiss();
       }
     },
     [
-      channel,
+      channelFlag,
       groupFlag,
       dismiss,
       navigate,

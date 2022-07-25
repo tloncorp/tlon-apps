@@ -39,11 +39,11 @@ export default function SectionNameEditInput({
   const addChannelsToZone = async (
     zone: string,
     groupFlag: string,
-    channelName: string
+    channelFlag: string
   ) => {
     await useGroupState
       .getState()
-      .addChannelToZone(zone, groupFlag, channelName);
+      .addChannelToZone(zone, groupFlag, channelFlag);
   };
 
   const onSubmit = async (values: GroupMeta) => {

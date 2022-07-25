@@ -4,7 +4,7 @@ import NewChannelForm from '@/channels/NewChannel/NewChannelForm';
 import { Channel } from '@/types/groups';
 
 interface EditChannelModalProps {
-  flag?: string;
+  channelFlag?: string;
   channel?: Channel;
   presetSection?: string;
   editIsOpen: boolean;
@@ -12,7 +12,7 @@ interface EditChannelModalProps {
 }
 
 export default function EditChannelModal({
-  flag,
+  channelFlag,
   channel,
   editIsOpen,
   presetSection,
@@ -22,7 +22,7 @@ export default function EditChannelModal({
     <Dialog open={editIsOpen} onOpenChange={setEditIsOpen}>
       <DialogContent containerClass="w-full sm:max-w-lg">
         <NewChannelForm
-          flag={flag}
+          channelFlag={channelFlag}
           channel={channel}
           retainRoute={true}
           presetSection={presetSection}
