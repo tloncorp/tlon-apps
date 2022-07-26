@@ -47,7 +47,7 @@ export default function SectionNameEditInput({
   };
 
   const onSubmit = async (values: GroupMeta) => {
-    const zoneFlag = strToSym(sectionKey);
+    const zoneFlag = sectionKey;
     handleEditingChange();
     await useGroupState.getState().createZone(group, zoneFlag, values);
     channels.forEach((channel) => {
