@@ -6,6 +6,7 @@ import { Gangs, GroupIndex } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
 import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
 import { useNavigate, useParams } from 'react-router';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 
@@ -81,9 +82,22 @@ export default function FindGroups() {
 
     setGroupIndex(null);
     setPending();
-    const results = await useGroupState.getState().index(ship);
-    setGroupIndex(results);
-    setReady();
+    try {
+      // @ts-expect-error results will always either be a GroupIndex, or the
+      // request will throw an error, which will be caught below
+      const results: GroupIndex = await asyncCallWithTimeout(
+        useGroupState.getState().index(ship),
+        10 * 1000
+      );
+      setGroupIndex(results);
+      setReady();
+    } catch (error) {
+      console.log(
+        '[FindGroups:SearchGroups] Request failed due to timeout or network issue'
+      );
+      setGroupIndex({});
+      setReady(); // TODO: show error state? e.g. request timed out... or "Is the host online?"
+    }
   }, [setPending, setReady, ship]);
 
   // if ship in query params, do query
