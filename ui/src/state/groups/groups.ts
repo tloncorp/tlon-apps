@@ -11,6 +11,7 @@ import {
   Groups,
   GroupAction,
   GroupPreview,
+  GroupIndex,
 } from '../../types/groups';
 import api from '../../api';
 import groupsReducer from './groupsReducer';
@@ -110,6 +111,24 @@ export const useGroupState = create<GroupState>((set, get) => ({
         },
       })
     );
+  },
+  // TODO: handle timeout of 10s (i.e., when ship is not available)
+  // update http-api? to expose AbortController
+  index: async (ship) => {
+    try {
+      const res = await subscribeOnce<GroupIndex>(
+        'groups',
+        `/gangs/index/${ship}`
+      );
+      if (res) {
+        return res;
+      }
+      return {};
+    } catch (e) {
+      // TODO: fix error handling
+      console.error(e);
+      return {};
+    }
   },
   search: async (flag) => {
     try {
@@ -479,6 +498,20 @@ export function usePendingInvites() {
   return Object.entries(gangs)
     .filter(([k, g]) => g.invite !== null && !(k in groups))
     .map(([k]) => k);
+}
+
+export function usePendingGangs() {
+  const groups = useGroups();
+  const gangs = useGangs();
+  const pendingGangs: Gangs = {};
+
+  Object.entries(gangs)
+    .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .forEach(([flag, gang]) => {
+      pendingGangs[flag] = gang;
+    });
+
+  return pendingGangs;
 }
 
 const selInit = (s: GroupState) => s.initialized;

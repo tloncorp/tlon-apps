@@ -66,3 +66,18 @@ export const PLACEHOLDER_IMAGES = [
     alt: 'there is no meme i love you',
   },
 ];
+
+export const AUTHORS = [
+  '~nocsyx-lassul',
+  '~finned-palmer',
+  '~hastuc-dibtux',
+  '~datder-sonnet',
+  '~rilfun-lidlen',
+  '~ravmel-ropdyl',
+  '~fabled-faster',
+  '~fallyn-balfus',
+  '~riprud-tidmel',
+  '~wicdev-wisryt',
+  '~rovnys-ricfer',
+  '~mister-dister-dozzod-dozzod',
+];

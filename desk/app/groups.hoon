@@ -668,7 +668,8 @@
 ++  res-gang-index
   ^+  cor
   =;  =cage
-    (emit %give %fact ~ cage)
+    =.  cor  (emit %give %fact ~ cage)
+    (emit %give %kick ~ ~)
   :-  %group-previews
   !>  ^-  previews:g
   %-  ~(gas by *previews:g)
@@ -691,7 +692,7 @@
   ^+  cor
   =/  =path  /gangs/index/(scot %p ship)
   ?+  -.sign  !!
-      %kick  cor
+      %kick  (emit %give %kick ~[path] ~)
   ::
       %watch-ack
     ?~  p.sign  cor
@@ -701,7 +702,8 @@
       %fact
     ?.  =(%group-previews p.cage.sign)  cor
     =+  !<(=previews:g q.cage.sign)
-    (emit %give %fact ~[path] cage.sign)
+    =.  cor  (emit %give %fact ~[path] cage.sign)
+    (emit %give %kick ~[path] ~)
   ==
 ::
 ++  gang-core

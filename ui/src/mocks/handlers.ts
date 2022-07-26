@@ -12,7 +12,7 @@ import { decToUd, udToDec, unixToDa } from '@urbit/api';
 
 import _ from 'lodash';
 import bigInt from 'big-integer';
-import mockGroups, { mockGangs, pinnedGroups } from './groups';
+import mockGroups, { createMockIndex, mockGangs, pinnedGroups } from './groups';
 import {
   makeFakeChatWrits,
   chatKeys,
@@ -121,6 +121,16 @@ const contactNacksSub = {
   path: '/nacks',
 } as SubscriptionHandler;
 
+const groupIndexSub = {
+  action: 'subscribe',
+  app: 'groups',
+  path: '/gangs/index/:ship',
+  initialResponder: (req) =>
+    createResponse(req, 'diff', {
+      ...createMockIndex(req.ship),
+    }),
+} as SubscriptionHandler;
+
 const groups: Handler[] = [
   groupSub,
   specificGroupSub,
@@ -153,6 +163,7 @@ const groups: Handler[] = [
     path: '/gangs',
     func: () => mockGangs,
   } as ScryHandler,
+  groupIndexSub,
 ];
 
 const chatSub = {
