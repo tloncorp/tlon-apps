@@ -195,7 +195,7 @@ export default function ShipSelector({
     label: contacts[contact].nickname,
   }));
   const validShips = ships
-    ? ships.every((ship) => ob.isValidPatp(ship.value))
+    ? ships.every((ship) => ob.isValidPatp(preSig(ship.value)))
     : false;
 
   const handleEnter = () => {
