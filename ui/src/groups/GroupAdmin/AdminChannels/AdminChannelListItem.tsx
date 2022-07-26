@@ -30,6 +30,7 @@ export default function AdminChannelListItem({
   const { meta, readers } = channel;
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const permissionText = readers?.includes('admin')
     ? 'Admin Only'
@@ -45,6 +46,8 @@ export default function AdminChannelListItem({
     <>
       <div ref={provided.innerRef} {...provided.draggableProps}>
         <div
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           className={cn(
             'flex items-center justify-between rounded-lg py-5 px-6',
             snapshot.isDragging ? 'bg-gray-50' : 'bg-white'
@@ -54,7 +57,7 @@ export default function AdminChannelListItem({
             <div {...provided.dragHandleProps}>
               <SixDotIcon className="mr-3 h-5 w-5 fill-gray-600" />
             </div>
-            <div className="mr-3 flex h-8 w-8 items-center justify-center rounded bg-gray-400">
+            <div className="mr-3 flex h-8 w-8 items-center justify-center rounded bg-gray-50">
               <BubbleIcon className="h-5 w-5 fill-gray-600" />
             </div>
             <div>
@@ -72,6 +75,7 @@ export default function AdminChannelListItem({
             </div>
           </div>
           <AdminChannelListDropdown
+            parentIsHovered={isHovered}
             editIsOpen={editIsOpen}
             setEditIsOpen={setEditIsOpen}
             setDeleteChannelIsOpen={setDeleteChannelIsOpen}
