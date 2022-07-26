@@ -1,12 +1,13 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import InviteIcon from '../components/icons/InviteIcon';
-import LinkIcon from '../components/icons/LinkIcon';
-import PersonIcon from '../components/icons/PersonIcon';
-import SlidersIcon from '../components/icons/SlidersIcon';
-import { useGroupActions } from './GroupActions';
-import SidebarItem from '../components/Sidebar/SidebarItem';
-import useNavStore from '../components/Nav/useNavStore';
+import InviteIcon from '@/components/icons/InviteIcon';
+import LinkIcon from '@/components/icons/LinkIcon';
+import PersonIcon from '@/components/icons/PersonIcon';
+import SlidersIcon from '@/components/icons/SlidersIcon';
+import { useGroupActions } from '@/groups/GroupActions';
+import SidebarItem from '@/components/Sidebar/SidebarItem';
+import useNavStore from '@/components/Nav/useNavStore';
+import LeaveIcon from '@/components/icons/LeaveIcon';
 
 interface MobileGroupActionsProps {
   flag: string;
@@ -64,6 +65,16 @@ export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
           }
         >
           Group Preferences
+        </SidebarItem>
+        <SidebarItem
+          to={`/groups/${flag}/leave`}
+          icon={
+            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+              <LeaveIcon className="h-6 w-6" />
+            </div>
+          }
+        >
+          Leave Group
         </SidebarItem>
       </ul>
     </nav>

@@ -27,6 +27,7 @@ import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import Nav from '@/components/Nav/Nav';
 import GroupInviteDialog from '@/groups/GroupInviteDialog';
+import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
@@ -108,6 +109,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
+          <Route
+            path="/groups/:ship/:name/leave"
+            element={<GroupLeaveDialog />}
+          />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
           <Route
             path="/gangs/:ship/:name/reject"

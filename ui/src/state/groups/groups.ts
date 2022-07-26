@@ -183,6 +183,13 @@ export const useGroupState = create<GroupState>((set, get) => ({
       },
     });
   },
+  leave: async (flag: string) => {
+    await api.poke({
+      app: 'groups',
+      mark: 'group-leave',
+      json: flag,
+    });
+  },
   addSects: async (flag, ship, sects) => {
     const diff = {
       fleet: {
