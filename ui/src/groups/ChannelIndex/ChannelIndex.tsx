@@ -243,7 +243,7 @@ export default function ChannelIndex() {
   });
 
   return (
-    <section className="w-full max-w-3xl p-4">
+    <section className="w-full p-4">
       <div className="mb-4 flex flex-row justify-between">
         <h1 className="text-lg font-bold">All Channels</h1>
         {isAdmin ? (
