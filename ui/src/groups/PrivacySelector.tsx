@@ -26,7 +26,7 @@ const PRIVACY_TYPE: Record<PrivacyType, PrivacySetting> = {
   secret: {
     icon: <PrivateIcon className="h-6 w-6 text-gray-600" />,
     title: 'Secret',
-    description: 'Anyone can find, approval needed to join',
+    description: 'Only invited can join, no one can find',
   },
 };
 

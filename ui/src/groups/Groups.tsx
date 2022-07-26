@@ -1,13 +1,22 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router';
-import { useGroup, useGroupState, useRouteGroup } from '../state/groups/groups';
+import { Outlet, useNavigate } from 'react-router';
+import {
+  useGang,
+  useGroup,
+  useGroupsInitialized,
+  useGroupState,
+  useRouteGroup,
+} from '../state/groups/groups';
 import useNavStore from '../components/Nav/useNavStore';
 import api from '../api';
 import { useIsMobile } from '../logic/useMedia';
 
 function Groups() {
+  const navigate = useNavigate();
   const flag = useRouteGroup();
+  const initialized = useGroupsInitialized();
   const group = useGroup(flag);
+  const gang = useGang(flag);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -17,6 +26,13 @@ function Groups() {
       useNavStore.getState().navigatePrimary('hidden');
     }
   }, [flag, isMobile]);
+
+  useEffect(() => {
+    if (initialized && !group && !gang) {
+      useNavStore.getState().navigatePrimary('main');
+      navigate('/');
+    }
+  }, [gang, group, initialized, navigate]);
 
   useEffect(() => {
     let id = null as number | null;

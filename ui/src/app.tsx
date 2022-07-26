@@ -11,16 +11,12 @@ import { ErrorBoundary } from 'react-error-boundary';
 import Groups from '@/groups/Groups';
 import Channel from '@/pages/Channel';
 import { useGroupState } from '@/state/groups';
-import Members from '@/pages/Members';
-import Roles from '@/pages/Roles';
 import { useChatState } from '@/state/chat';
-import ChannelSettings from '@/pages/ChannelSettings';
 import api, { IS_MOCK } from '@/api';
 import Dms from '@/pages/Dms';
 import Search from '@/pages/Search';
 import NewDM from '@/pages/NewDm';
 import { DmThread, GroupChatThread } from '@/chat/ChatThread/ChatThread';
-import Policy from '@/pages/Policy';
 import useMedia from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
@@ -64,19 +60,12 @@ function ChatRoutes({ state, location }: RoutesProps) {
         </Route>
 
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
-          <Route path="members" element={<Members />} />
-          <Route path="roles" element={<Roles />} />
-          <Route path="policy" element={<Policy />} />
           <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
             <Route
               path="message/:idShip/:idTime"
               element={<GroupChatThread />}
             />
           </Route>
-          <Route
-            path="channels/:app/:chShip/:chName/settings"
-            element={<ChannelSettings />}
-          />
         </Route>
       </Routes>
       {state?.backgroundLocation ? (
@@ -107,10 +96,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               element={<GroupChatThread />}
             />
           </Route>
-          <Route
-            path="channels/:app/:chShip/:chName/settings"
-            element={<ChannelSettings />}
-          />
           <Route path="channels" element={<ChannelIndex />} />
         </Route>
       </Routes>

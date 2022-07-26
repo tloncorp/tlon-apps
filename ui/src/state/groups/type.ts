@@ -3,6 +3,7 @@ import { Gangs, Group, Rank, GroupMeta, Channel } from '../../types/groups';
 export interface GroupState {
   set: (fn: (sta: GroupState) => void) => void;
   batchSet: (fn: (sta: GroupState) => void) => void;
+  initialized: boolean;
   groups: {
     [flag: string]: Group;
   };
