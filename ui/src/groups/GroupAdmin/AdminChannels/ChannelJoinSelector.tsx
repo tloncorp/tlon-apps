@@ -1,24 +1,41 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
-import * as Switch from '@radix-ui/react-switch';
-import { ChannelFormSchema, ChannelPrivacyType } from '@/types/groups';
+import { ChannelFormSchema } from '@/types/groups';
+import CheckIcon from '@/components/icons/CheckIcon';
 
 export default function ChannelJoinSelector() {
-  const { register } = useFormContext<ChannelFormSchema>();
+  const { register, watch } = useFormContext<ChannelFormSchema>();
+  const selected = watch('join') === true;
 
   return (
-    <label className="my-2 flex justify-between font-semibold">
-      <div className="flex flex-col">
-        <div className="font-semibold">Default</div>
-        <div className="font-normal text-gray-600">
-          Members will join this channel automatically when joining this group
+    <label
+      className={
+        'flex cursor-pointer items-center justify-between space-x-2 py-2'
+      }
+    >
+      <div className="flex items-center">
+        {selected ? (
+          <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
+            <CheckIcon className="h-3 w-3 fill-gray-400" />
+          </div>
+        ) : (
+          <div className="h-4 w-4 rounded-sm border-2 border-gray-200" />
+        )}
+      </div>
+
+      <div className="flex w-full flex-col">
+        <div className="flex flex-row items-center space-x-2">
+          <div className="flex w-full flex-col justify-start text-left">
+            <span className="font-semibold">Default</span>
+            <span className="text-sm font-medium text-gray-600">
+              Members will join this channel automatically when joining this
+              group
+            </span>
+          </div>
         </div>
       </div>
-      <div className="ml-4">
-        <Switch.Root {...register('join')} className="switch">
-          <Switch.Thumb className="switch-thumb" />
-        </Switch.Root>
-      </div>
+
+      <input {...register('join')} className="sr-only" type="checkbox" />
     </label>
   );
 }

@@ -109,6 +109,13 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       group.meta = diff.meta;
     } else if ('del' in diff) {
       delete draft.groups[flag];
+    } else if ('zone' in diff) {
+      const { zone: f, delta: d } = diff.zone;
+      if ('add' in d) {
+        group.zones[f] = d.add;
+      } else if ('del' in d) {
+        delete group.zones[f];
+      }
     } else {
       // console.log('unreachable');
     }
