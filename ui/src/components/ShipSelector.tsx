@@ -21,13 +21,13 @@ import {
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
 import { deSig } from '@urbit/api';
-import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import X16Icon from '@/components/icons/X16Icon';
 import { preSig, whomIsFlag } from '@/logic/utils';
 import Avatar from '@/components/Avatar';
 import { useMemoizedContacts } from '@/state/contact';
 import { MAX_DISPLAYED_OPTIONS } from '@/constants';
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import ShipName from './ShipName';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
@@ -55,7 +55,7 @@ function Control({ children, ...props }: ControlProps<ShipOption, true>) {
       {...props}
       className="input cursor-text items-center text-gray-800"
     >
-      <MagnifyingGlass className="h-6 w-6 text-gray-300" />
+      <MagnifyingGlass16Icon className="h-4 w-4 text-gray-300" />
       {children}
     </components.Control>
   );
@@ -132,7 +132,7 @@ function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
 function NoShipsMessage() {
   return (
     <div className="flex content-center space-x-1 px-2 py-3">
-      <ExclamationPoint className="w-[18px] text-gray-300" />
+      <ExclamationPoint className="mr-2 w-[18px] text-gray-300" />
       <span className="italic">This name was not found.</span>
     </div>
   );
@@ -211,7 +211,10 @@ function ShipTagRemove(props: MultiValueRemoveProps<ShipOption, true>) {
 
 function ShipDropDownMenu({ children, ...props }: MenuProps<ShipOption, true>) {
   return (
-    <components.Menu className="rounded-lg border-2 border-gray-100" {...props}>
+    <components.Menu
+      className="rounded-lg border-2 border-transparent"
+      {...props}
+    >
       {children}
     </components.Menu>
   );
