@@ -24,7 +24,7 @@ import ElipsisCircleIcon from '../../components/icons/EllipsisCircleIcon';
 import LeaveIcon from '../../components/icons/LeaveIcon';
 import CheckIcon from '../../components/icons/CheckIcon';
 import CaretDown16Icon from '../../components/icons/CaretDown16Icon';
-import { getSectTitle } from '../../logic/utils';
+import { getSectTitle, toTitleCase } from '../../logic/utils';
 import { Vessel } from '../../types/groups';
 
 export default function GroupMemberManager() {
@@ -149,7 +149,7 @@ export default function GroupMemberManager() {
                 <Dropdown.Root>
                   <Dropdown.Trigger className="default-focus mr-2 flex items-center rounded px-2 py-1.5 text-gray-400">
                     {vessel.sects
-                      .map((s) => getSectTitle(group.cabals, s))
+                      .map((s) => toTitleCase(getSectTitle(group.cabals, s)))
                       .join(', ')}
                     <CaretDown16Icon className="ml-2 h-4 w-4" />
                   </Dropdown.Trigger>
@@ -171,6 +171,15 @@ export default function GroupMemberManager() {
                         )}
                       </Dropdown.Item>
                     ))}
+                    <Dropdown.Item
+                      className={cn(
+                        'dropdown-item flex items-center',
+                        'text-gray-400'
+                      )}
+                    >
+                      Member
+                      <CheckIcon className="ml-auto h-6 w-6 text-green" />
+                    </Dropdown.Item>
                   </Dropdown.Content>
                 </Dropdown.Root>
               ) : null}
