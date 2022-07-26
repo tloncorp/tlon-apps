@@ -262,7 +262,7 @@ export default function ShipSelector({
     label: contacts[contact].nickname,
   }));
   const validShips = ships
-    ? ships.every((ship) => isValidNewOption(ship.value))
+    ? ships.every((ship) => isValidNewOption(preSig(ship.value)))
     : false;
 
   const handleEnter = () => {
