@@ -13,6 +13,8 @@ import { useBriefs } from '@/state/chat';
 import { useGroupState, usePinnedGroups } from '@/state/groups/groups';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 
+const { ship } = window;
+
 export function useGroupActions(flag: string) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [isOpen, setIsOpen] = useState(false);
@@ -141,16 +143,18 @@ export default function GroupActions({
               <span className="pr-2">Members &amp; Group Info</span>
             </Link>
           </DropdownMenu.Item>
-          <DropdownMenu.Item asChild className="dropdown-item">
-            <Link
-              to={`/groups/${flag}/leave`}
-              state={{ backgroundLocation: location }}
-              className="flex items-center space-x-2"
-            >
-              <LeaveIcon className="h-6 w-6 text-gray-600" />
-              <span className="pr-2">Leave Group</span>
-            </Link>
-          </DropdownMenu.Item>
+          {flag.includes(ship) ? null : (
+            <DropdownMenu.Item asChild className="dropdown-item">
+              <Link
+                to={`/groups/${flag}/leave`}
+                state={{ backgroundLocation: location }}
+                className="flex items-center space-x-2"
+              >
+                <LeaveIcon className="h-6 w-6 text-gray-600" />
+                <span className="pr-2">Leave Group</span>
+              </Link>
+            </DropdownMenu.Item>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Root>
     </div>

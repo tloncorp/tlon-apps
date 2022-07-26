@@ -1,13 +1,12 @@
 import React, { useCallback } from 'react';
 import Dialog, { DialogClose, DialogContent } from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { useGroupState, useRouteGroup } from '@/state/groups/groups';
-
-const { ship } = window;
+import { useGroupState, useRouteGroup, useGroup } from '@/state/groups/groups';
 
 export default function GroupInviteDialog() {
   const dismiss = useDismissNavigate();
   const flag = useRouteGroup();
+  const group = useGroup(flag);
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -21,31 +20,21 @@ export default function GroupInviteDialog() {
 
   return (
     <Dialog defaultOpen onOpenChange={onOpenChange}>
-      <DialogContent containerClass="w-full max-w-lg" showClose>
+      <DialogContent containerClass="w-full max-w-lg" showClose={false}>
         <div className="flex flex-col">
-          <h2 className="mb-4 text-lg font-bold">Leave Group</h2>
-          <div className="w-full py-3">
-            {flag.includes(ship) ? (
-              <span className="text-sm font-semibold">
-                You cannot leave a group that you host. You should delete the
-                group instead
-              </span>
-            ) : (
-              <span className="text-sm font-semibold">
-                Do you really want to leave {flag}?
-              </span>
-            )}
+          <h2 className="text-lg font-bold">Leave Group</h2>
+          <div className="w-full py-6">
+            Do you really want to leave{' '}
+            <span className="font-semibold">{group?.meta.title}</span>?
           </div>
           <div className="flex items-center justify-end space-x-2">
             <DialogClose className="secondary-button">Cancel</DialogClose>
-            {flag.includes(ship) ? null : (
-              <DialogClose
-                onClick={onLeave}
-                className="button bg-blue text-white dark:text-black"
-              >
-                Leave
-              </DialogClose>
-            )}
+            <DialogClose
+              onClick={onLeave}
+              className="button bg-red text-white dark:text-black"
+            >
+              Leave
+            </DialogClose>
           </div>
         </div>
       </DialogContent>

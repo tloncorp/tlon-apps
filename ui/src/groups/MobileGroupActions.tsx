@@ -13,6 +13,8 @@ interface MobileGroupActionsProps {
   flag: string;
 }
 
+const { ship } = window;
+
 export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
   const location = useLocation();
   const { onCopy, copyItemText } = useGroupActions(flag);
@@ -66,16 +68,18 @@ export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
         >
           Group Preferences
         </SidebarItem>
-        <SidebarItem
-          to={`/groups/${flag}/leave`}
-          icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-              <LeaveIcon className="h-6 w-6" />
-            </div>
-          }
-        >
-          Leave Group
-        </SidebarItem>
+        {flag.includes(ship) ? null : (
+          <SidebarItem
+            to={`/groups/${flag}/leave`}
+            icon={
+              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                <LeaveIcon className="h-6 w-6" />
+              </div>
+            }
+          >
+            Leave Group
+          </SidebarItem>
+        )}
       </ul>
     </nav>
   );
