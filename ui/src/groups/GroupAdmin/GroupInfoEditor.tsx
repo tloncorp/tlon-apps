@@ -42,6 +42,7 @@ export default function GroupInfoEditor() {
     form.reset({
       ...emptyMeta,
       ...group?.meta,
+      privacy: (group && getGroupPrivacy(group.cordon)) || 'public',
     });
   }, [group, form]);
 

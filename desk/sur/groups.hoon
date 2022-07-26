@@ -186,7 +186,8 @@
       =time
   ==
 ::
-+$  invite  ~
++$  previews  (map flag preview)
++$  invite  (pair flag ship)
 ::  $gang: view of foreign group
 +$  gang
   $:  cam=(unit claim)

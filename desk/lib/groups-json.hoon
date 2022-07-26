@@ -15,6 +15,13 @@
         update/(update q.a)
     ==
   ::
+  ++  previews
+    |=  ps=previews:g
+    %-  pairs
+    %+  turn  ~(tap by ps)
+    |=  [f=flag:g p=preview:g]
+    [(flag f) (preview p)]
+  ::
   ++  preview
     |=  p=preview:g
     %-  pairs
@@ -148,7 +155,10 @@
   ::
   ++  invite
     |=  i=invite:g
-    `json`~
+    %-  pairs
+    :~  flag/s/(flag p.i)
+        ship/(ship q.i)
+    ==
   ::
   ++  zones
     |=  zons=(map zone:g data:^meta)
@@ -276,6 +286,12 @@
     %-  ot
     :~  flag/flag
         join-all/bo
+    ==
+  ++  invite
+    ^-  $-(json invite:g)
+    %-  ot
+    :~  flag/flag
+        ship/ship
     ==
   ++  action
     ^-  $-(json action:g)

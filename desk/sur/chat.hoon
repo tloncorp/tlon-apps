@@ -158,7 +158,7 @@
   $%  [%italics p=inline]
       [%bold p=inline]
       [%strike p=inline]
-      [%inline-code p=inline]
+      [%inline-code p=cord]
       [%blockquote p=(list inline)]
       [%block p=@ud q=cord]
       [%code p=cord]

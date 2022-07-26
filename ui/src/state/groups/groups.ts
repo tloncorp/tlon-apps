@@ -43,6 +43,7 @@ function subscribeOnce<T>(app: string, path: string) {
 }
 
 export const useGroupState = create<GroupState>((set, get) => ({
+  initialized: false,
   groups: {},
   pinnedGroups: [],
   gangs: {},
@@ -147,6 +148,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
   },
   join: async (flag, joinAll) => {
     get().batchSet((draft) => {
+      draft.gangs[flag].invite = null;
       draft.gangs[flag].claim = {
         progress: 'adding',
         'join-all': joinAll,
@@ -357,6 +359,15 @@ export const useGroupState = create<GroupState>((set, get) => ({
     }));
     await api.subscribe({
       app: 'groups',
+      path: '/gangs/updates',
+      event: (data) => {
+        get().batchSet((draft) => {
+          draft.gangs = data;
+        });
+      },
+    });
+    await api.subscribe({
+      app: 'groups',
       path: '/groups/ui',
       event: (data, mark) => {
         if (mark === 'gang-gone') {
@@ -372,7 +383,17 @@ export const useGroupState = create<GroupState>((set, get) => ({
             draft.groups[flag] = group;
           });
         }
+
+        if ('del' in update.diff) {
+          get().batchSet((draft) => {
+            delete draft.groups[flag];
+          });
+        }
       },
+    });
+
+    get().batchSet((draft) => {
+      draft.initialized = true;
     });
   },
   initialize: async (flag: string) =>
@@ -390,6 +411,11 @@ export const useGroupState = create<GroupState>((set, get) => ({
     });
   },
 }));
+
+const selGroups = (s: GroupState) => s.groups;
+export function useGroups(): Groups {
+  return useGroupState(selGroups);
+}
 
 export function useGroup(flag: string): Group | undefined {
   return useGroupState(useCallback((s) => s.groups[flag], [flag]));
@@ -445,4 +471,17 @@ export function useAmAdmin(flag: string) {
   const group = useGroup(flag);
   const vessel = group?.fleet[window.our];
   return vessel && vessel.sects.includes(GROUP_ADMIN);
+}
+
+export function usePendingInvites() {
+  const groups = useGroups();
+  const gangs = useGangs();
+  return Object.entries(gangs)
+    .filter(([k, g]) => g.invite !== null && !(k in groups))
+    .map(([k]) => k);
+}
+
+const selInit = (s: GroupState) => s.initialized;
+export function useGroupsInitialized() {
+  return useGroupState(selInit);
 }

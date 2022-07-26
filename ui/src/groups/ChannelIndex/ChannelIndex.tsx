@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { Channel } from '@/types/groups';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import { channelHref, pluralize } from '@/logic/utils';
+import { channelHref } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
@@ -92,11 +92,8 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
   // exists
   const joined = isChannelHost || (channelFlag && channelFlag in briefs);
 
-  // TODO: figure out Channel participant count
-  const participantCount = Object.keys(group.fleet).length;
-
   return (
-    <div className="my-2 flex flex-row items-center justify-between">
+    <div className="my-2 flex flex-row items-center justify-between rounded-lg pl-0 pr-2 hover:bg-gray-50">
       {/* avatar, title, participants */}
       <div className="flex flex-row">
         <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
@@ -116,9 +113,6 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
               {channel.meta.title}
             </div>
           )}
-          <div className="font-semibold text-gray-400">
-            {participantCount} {pluralize('member', participantCount)}
-          </div>
         </div>
       </div>
       {/* action and options */}
@@ -126,7 +120,7 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
         {joined ? (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild className="appearance-none">
-              <button className="button bg-green-soft text-green">
+              <button className="button bg-green-soft text-green mix-blend-multiply dark:bg-green-900 dark:mix-blend-screen hover:dark:bg-green-800">
                 <span className="mr-1">Joined</span>{' '}
                 <CaretDown16Icon className="h-4 w-4" />
               </button>
@@ -163,13 +157,16 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
           <button
             disabled={joinState === PENDING}
             onClick={joinChannel}
-            className={cn('button disabled:bg-gray-50', {
-              'bg-gray-50': [READY, PENDING].includes(joinState),
-              'bg-red-soft': joinState === FAILED,
-              'text-gray-800': joinState === READY,
-              'text-gray-400': joinState === PENDING,
-              'text-red': joinState === FAILED,
-            })}
+            className={cn(
+              'button mix-blend-multiply disabled:bg-gray-50 dark:mix-blend-screen',
+              {
+                'bg-gray-50': [READY, PENDING].includes(joinState),
+                'bg-red-soft': joinState === FAILED,
+                'text-gray-800': joinState === READY,
+                'text-gray-400': joinState === PENDING,
+                'text-red': joinState === FAILED,
+              }
+            )}
           >
             {joinState === PENDING ? (
               <span className="center-items flex">
@@ -259,7 +256,10 @@ export default function ChannelIndex() {
         ) : null}
       </div>
       {zones.map((zone) => (
-        <div key={zone} className="mb-2 w-full rounded-xl bg-white px-4 py-1">
+        <div
+          key={zone}
+          className="mb-2 w-full rounded-xl bg-white py-1 pl-4 pr-2"
+        >
           <ChannelSection channels={sectionedChannels[zone]} zone={zone} />
         </div>
       ))}

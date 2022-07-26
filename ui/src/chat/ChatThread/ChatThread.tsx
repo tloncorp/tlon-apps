@@ -41,7 +41,7 @@ export default function ChatThread({ whom, children }: ChatThreadProps) {
         className="text-gray-400"
         label={`${replies.size} ${replies.size === 1 ? 'Reply' : 'Replies'}`}
       />
-      <div className="flex flex-col">
+      <div className="flex flex-1 flex-col">
         <ChatScroller messages={replies} whom={whom} replying />
       </div>
       <div className="sticky bottom-0 z-10 bg-white py-4">
