@@ -10,10 +10,15 @@
   =<  zone
   |%
   +$  zone  @tas
+  +$  realm
+    $:  met=data:meta
+        ord=(list flag)
+    ==
   +$  diff  (pair zone delta)
   +$  delta
     $%  [%add meta=data:meta]
         [%del ~]
+        [%mov =flag idx=@ud]
     ==
   --
 ::
@@ -61,7 +66,7 @@
 +$  group
   $:  =fleet
       cabals=(map sect cabal)
-      zones=(map zone data:meta)
+      zones=(map zone realm:zone)
       =bloc
       =channels:channel
       =cordon

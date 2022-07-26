@@ -63,8 +63,13 @@
     |=  d=delta:zone:g
     %+  frond  -.d
     ?-  -.d
-      %del  ~
-      %add  (meta meta.d)
+        %del  ~
+        %add  (meta meta.d)
+        %mov
+      %-  pairs 
+      :~  flag/s/(flag flag.d)
+          idx/(numb idx.d)
+      ==
     ==
   ::
   ++  bloc-diff
@@ -161,12 +166,16 @@
     ==
   ::
   ++  zones
-    |=  zons=(map zone:g data:^meta)
+    |=  zons=(map zone:g realm:zone:g)
     %-  pairs
     %+  turn  ~(tap by zons)
-    |=  [=zone:g m=data:^meta]
+    |=  [=zone:g r=realm:zone:g]
     ^-  [@t json]
-    [zone (meta m)]
+    :-  zone
+    %-  pairs
+    :~  meta/(meta met.r)
+        idx/a/(turn ord.r (cork flag (lead %s)))
+    ==
   ::
   ++  group
     |=  gr=group:g
@@ -309,11 +318,30 @@
     %-  of
     :~  cabal/(ot sect/sym diff/cabal-diff ~)
         fleet/(ot ships/(as ship) diff/fleet-diff ~)
+        zone/zone-diff
         cordon/cordon-diff
         channel/(ot flag/flag diff/channel-diff ~)
         meta/meta
         del/ul
     ==
+  ::
+  ++  zone-diff
+    %-  ot
+    :~  zone/sym
+        delta/zone-delta
+    ==
+  ::
+  ++  zone-delta
+    %-  of
+    :~  add/meta
+        del/ul
+        :-  %mov
+        %-  ot
+        :~  flag/flag
+            index/ni
+        ==
+    ==
+
   ::
   ++  channel-diff
     %-  of
