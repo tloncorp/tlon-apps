@@ -4,18 +4,16 @@ import { uniq, without } from 'lodash';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
-import { usePinnedGroups } from '@/state/chat';
-import useSidebarSort from '@/logic/useSidebarSort';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useGang,
   useGangList,
   useGroup,
-  useGroups,
 } from '@/state/groups/groups';
 import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
+import { Group } from '@/types/groups';
 import Divider from '../Divider';
 import useNavStore from '../Nav/useNavStore';
 import SidebarItem from './SidebarItem';
@@ -162,17 +160,18 @@ function GangItem(props: { flag: string }) {
 interface GroupListProps {
   className?: string;
   pinned?: boolean;
+  groups: [string, Group][];
+  pinnedGroups: [string, Group][];
 }
 
 export default function GroupList({
   className,
   pinned = false,
+  groups,
+  pinnedGroups,
 }: GroupListProps) {
   const isMobile = useIsMobile();
-  const groups = useGroups();
-  const pinnedGroups = usePinnedGroups();
   const gangs = useGangList();
-  const { sortGroups } = useSidebarSort();
   const { order, loaded } = useSettingsState(selOrderedPins);
 
   useEffect(() => {
@@ -224,7 +223,7 @@ export default function GroupList({
         <Divider>Pinned</Divider>
         <div className="grow border-b-2 border-gray-100" />
       </li>
-      {sortGroups(pinnedGroups).map(([flag]) => (
+      {pinnedGroups.map(([flag]) => (
         <GroupItemContainer flag={flag} key={flag}>
           <DraggableGroupItem flag={flag} />
         </GroupItemContainer>
@@ -235,7 +234,7 @@ export default function GroupList({
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />
       ))}
-      {sortGroups(groups)
+      {groups
         .filter(([flag, _group]) => !Object.keys(pinnedGroups).includes(flag))
         .map(([flag]) => (
           <GroupItem key={flag} flag={flag} />
