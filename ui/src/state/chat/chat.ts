@@ -590,6 +590,9 @@ export function useCurrentPactSize(whom: string) {
 export function useReplies(whom: string, id: string) {
   const pact = usePact(whom);
   return useMemo(() => {
+    if (!pact) {
+      return new BigIntOrderedMap<ChatWrit>();
+    }
     const { writs, index } = pact;
     const time = index[id];
     if (!time) {
