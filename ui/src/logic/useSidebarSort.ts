@@ -1,3 +1,5 @@
+import { Channel, Channels, Group, Groups } from '@/types/groups';
+import { get } from 'lodash';
 import { useCallback, useState } from 'react';
 import { useBriefs } from '../state/chat';
 import { ChatWhom } from '../types/chat';
@@ -35,9 +37,50 @@ export default function useSidebarSort(
     [RECENT]: sortRecent,
   };
 
+  /**
+   * Sorts a Record object by an accessed value of T, returns an array of entries
+   * @param records An object shaped like { [string]: [T] }, e.g. { "~tlon/group": { // Group obj }}
+   * @param accessor Function to get the comparison field
+   * @returns [string, T][]
+   */
+  function sortRecordsBy<T>(
+    records: Record<string, T>,
+    accessor: (k: string, v: T) => string
+  ) {
+    const entries = Object.entries(records);
+    entries.sort(([aKey, aObj], [bKey, bObj]) => {
+      const aVal = accessor(aKey, aObj);
+      const bVal = accessor(bKey, bObj);
+
+      return sortOptions[sortFn](aVal, bVal);
+    });
+    return entries;
+  }
+
+  function sortChannels(channels: Channels) {
+    const accessors: Record<string, (k: string, v: Channel) => string> = {
+      [ALPHABETICAL]: (_flag: string, channel: Channel) =>
+        get(channel, 'meta.title'),
+      [RECENT]: (flag: string, _channel: Channel) => flag,
+    };
+
+    return sortRecordsBy(channels, accessors[sortFn]);
+  }
+
+  function sortGroups(groups: Groups) {
+    const accessors: Record<string, (k: string, v: Group) => string> = {
+      [ALPHABETICAL]: (_flag: string, group: Group) => get(group, 'meta.title'),
+      [RECENT]: (flag: string, _group: Group) => flag,
+    };
+
+    return sortRecordsBy(groups, accessors[sortFn]);
+  }
+
   return {
     setSortFn,
     sortFn,
     sortOptions,
+    sortChannels,
+    sortGroups,
   };
 }

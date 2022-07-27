@@ -1,6 +1,7 @@
 import React from 'react';
 import useSidebarSort from '@/logic/useSidebarSort';
 import { usePinnedGroups } from '@/state/chat';
+import { hasKeys } from '@/logic/utils';
 import useNavStore from '../Nav/useNavStore';
 import SidebarSorter from './SidebarSorter';
 import NavTab from '../NavTab';
@@ -20,7 +21,7 @@ export default function MobileSidebar() {
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
       <header className="flex-none px-2 py-1">
-        {pinned ? (
+        {hasKeys(pinned) ? (
           <ul className="mb-3 space-y-2 sm:mb-2 sm:space-y-0 md:mb-0">
             <GroupList pinned />
           </ul>
@@ -62,10 +63,6 @@ export default function MobileSidebar() {
               <ActivityIndicator count={notificationCount} className="mb-0.5" />
               Notifications
             </NavTab>
-            {/* <NavTab loc="search">
-              <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
-              Search
-            </NavTab> */}
             <a
               className="flex-1 no-underline"
               href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"

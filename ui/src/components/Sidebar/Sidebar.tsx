@@ -12,6 +12,7 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import useSidebarSort from '@/logic/useSidebarSort';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import { usePinnedGroups } from '@/state/chat';
+import { hasKeys } from '@/logic/utils';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
@@ -72,7 +73,7 @@ export default function Sidebar() {
             Submit Issue
           </SidebarItem>
         </a>
-        {pinned.length > 0 ? (
+        {hasKeys(pinned) ? (
           <GroupList className="flex-1 overflow-y-scroll pr-0" pinned />
         ) : null}
         <li className="p-2">

@@ -1,5 +1,4 @@
 import React from 'react';
-import { useLocation } from 'react-router';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups/groups';
 import useNavStore from '@/components/Nav/useNavStore';
@@ -58,12 +57,6 @@ export default function GroupSidebar() {
           >
             Activity
           </SidebarItem>
-          {/* <SidebarItem
-            icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
-            to={`/groups/${flag}/search`}
-          >
-            Find in Group
-          </SidebarItem> */}
           <SidebarItem
             icon={<HashIcon16 className="m-1 h-4 w-4" />}
             to={`/groups/${flag}/channels`}

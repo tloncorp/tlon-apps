@@ -21,7 +21,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const isMobile = useIsMobile();
   const group = useGroup(flag);
   const briefs = useBriefs();
-  const { sortFn, sortOptions, setSortFn } = useSidebarSort();
+  const { sortFn, sortOptions, setSortFn, sortChannels } = useSidebarSort();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const hide = useCallback(() => {
     if (isMobile) {
@@ -32,8 +32,6 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   if (!group) {
     return null;
   }
-
-  const channels = Object.entries(group.channels).filter(([k]) => k in briefs);
 
   const icon = (active: boolean) =>
     isMobile ? (
@@ -65,16 +63,18 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
         <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
       </DropdownMenu.Root>
       <ul className={cn(isMobile && 'space-y-3')}>
-        {channels.map(([key, channel]) => (
-          <SidebarItem
-            key={key}
-            icon={icon}
-            to={channelHref(flag, key)}
-            onClick={hide}
-          >
-            {channel.meta.title || key}
-          </SidebarItem>
-        ))}
+        {sortChannels(group.channels)
+          .filter(([k]) => k in briefs)
+          .map(([key, channel]) => (
+            <SidebarItem
+              key={key}
+              icon={icon}
+              to={channelHref(flag, key)}
+              onClick={hide}
+            >
+              {channel.meta.title || key}
+            </SidebarItem>
+          ))}
       </ul>
     </div>
   );

@@ -11,7 +11,7 @@ import {
   useGang,
   useGangList,
   useGroup,
-  useGroupList,
+  useGroups,
 } from '@/state/groups/groups';
 import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
@@ -169,15 +169,15 @@ export default function GroupList({
   pinned = false,
 }: GroupListProps) {
   const isMobile = useIsMobile();
-  const flags = useGroupList();
-  const pinnedFlags = usePinnedGroups();
+  const groups = useGroups();
+  const pinnedGroups = usePinnedGroups();
   const gangs = useGangList();
-  const { sortFn, sortOptions } = useSidebarSort();
+  const { sortGroups } = useSidebarSort();
   const { order, loaded } = useSettingsState(selOrderedPins);
 
   useEffect(() => {
     const hasKeys = order && !!order.length;
-    const pinnedKeys = Object.keys(pinnedFlags);
+    const pinnedKeys = Object.keys(pinnedGroups);
     const hasPinnedKeys = pinnedKeys.length > 0;
 
     if (!loaded) {
@@ -200,10 +200,10 @@ export default function GroupList({
         .putEntry(
           'groups',
           'orderedGroupPins',
-          uniq(order.filter((key) => key in pinnedFlags).concat(pinnedKeys))
+          uniq(order.filter((key) => key in pinnedGroups).concat(pinnedKeys))
         );
     }
-  }, [pinnedFlags, order, loaded]);
+  }, [pinnedGroups, order, loaded]);
 
   return pinned ? (
     <DndProvider
@@ -224,7 +224,7 @@ export default function GroupList({
         <Divider>Pinned</Divider>
         <div className="grow border-b-2 border-gray-100" />
       </li>
-      {pinnedFlags.sort(sortOptions[sortFn]).map((flag) => (
+      {sortGroups(pinnedGroups).map(([flag]) => (
         <GroupItemContainer flag={flag} key={flag}>
           <DraggableGroupItem flag={flag} />
         </GroupItemContainer>
@@ -235,10 +235,9 @@ export default function GroupList({
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />
       ))}
-      {flags
-        .filter((flag) => !pinnedFlags.includes(flag))
-        .sort(sortOptions[sortFn])
-        .map((flag) => (
+      {sortGroups(groups)
+        .filter(([flag, _group]) => !Object.keys(pinnedGroups).includes(flag))
+        .map(([flag]) => (
           <GroupItem key={flag} flag={flag} />
         ))}
     </ul>
