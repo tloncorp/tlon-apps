@@ -12,12 +12,7 @@ import CmdSmallIcon from '../components/icons/CmdSmallIcon';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
-import {
-  useBriefs,
-  usePinned,
-  usePinnedChats,
-  usePinnedClubs,
-} from '../state/chat';
+import { useBriefs, usePinned } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 

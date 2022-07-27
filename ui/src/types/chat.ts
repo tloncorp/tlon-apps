@@ -207,12 +207,6 @@ export interface Club {
   hive: string[];
   team: string[];
   meta: GroupMeta;
-  pin: boolean;
-}
-
-export interface ClubPin {
-  id: string;
-  pin: boolean;
 }
 
 export interface DmAction {
@@ -264,6 +258,10 @@ export interface ChatBriefUpdate {
  * Either a `@p` or a `$flag` rendered as string
  */
 export type ChatWhom = string;
+
+export interface Pins {
+  pins: ChatWhom[];
+}
 
 // Clubs, AKA MultiDMs
 

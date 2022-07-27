@@ -9,12 +9,7 @@ import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
 import useNavStore from '@/components/Nav/useNavStore';
 import NewMessageIcon from '@/components/icons/NewMessageIcon';
-import {
-  useBriefs,
-  usePinned,
-  usePinnedChats,
-  usePinnedClubs,
-} from '@/state/chat';
+import { useBriefs, usePinned } from '@/state/chat';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
 import MessagesSidebarItem from './MessagesSidebarItem';

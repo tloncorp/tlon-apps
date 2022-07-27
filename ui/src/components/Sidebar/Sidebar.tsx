@@ -3,7 +3,7 @@ import { useLocation } from 'react-router';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
-import { usePendingInvites, usePinnedGroups } from '@/state/groups';
+import { usePendingInvites } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
@@ -11,6 +11,7 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import useSidebarSort from '@/logic/useSidebarSort';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
+import { usePinnedGroups } from '@/state/chat';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();

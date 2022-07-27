@@ -9,8 +9,8 @@ import PinIcon16 from '@/components/icons/PinIcon16';
 import Person16Icon from '@/components/icons/Person16Icon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
-import { useBriefs } from '@/state/chat';
-import { useGroupState, usePinnedGroups } from '@/state/groups/groups';
+import { useBriefs, useChatState, usePinnedGroups } from '@/state/chat';
+import { useGroupState } from '@/state/groups/groups';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 
 const { ship } = window;
@@ -35,11 +35,7 @@ export function useGroupActions(flag: string) {
     // eslint-disable-next-line prefer-arrow-callback
     function <T>(e: React.MouseEvent<T>) {
       e.stopPropagation();
-      if (isPinned) {
-        useGroupState.getState().unpinGroup(flag);
-      } else {
-        useGroupState.getState().pinGroup(flag);
-      }
+      useChatState.getState().togglePin(flag, !isPinned);
     },
     [flag, isPinned]
   );

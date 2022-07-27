@@ -1,6 +1,7 @@
 import React from 'react';
+import useSidebarSort from '@/logic/useSidebarSort';
+import { usePinnedGroups } from '@/state/chat';
 import useNavStore from '../Nav/useNavStore';
-import useSidebarSort from '../../logic/useSidebarSort';
 import SidebarSorter from './SidebarSorter';
 import NavTab from '../NavTab';
 import GroupIcon from '../icons/GroupIcon';
@@ -8,7 +9,6 @@ import ActivityIndicator from './ActivityIndicator';
 import AsteriskIcon from '../icons/Asterisk16Icon';
 // import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
 import GroupList from './GroupList';
-import { usePinnedGroups } from '../../state/groups/groups';
 
 export default function MobileSidebar() {
   const secondary = useNavStore((state) => state.secondary);

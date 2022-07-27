@@ -4,21 +4,21 @@ import { uniq, without } from 'lodash';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
-import useSidebarSort from '../../logic/useSidebarSort';
+import { usePinnedGroups } from '@/state/chat';
+import useSidebarSort from '@/logic/useSidebarSort';
+import { useIsMobile } from '@/logic/useMedia';
 import {
   useGang,
   useGangList,
   useGroup,
   useGroupList,
-  usePinnedGroups,
-} from '../../state/groups/groups';
+} from '@/state/groups/groups';
+import { SettingsState, useSettingsState } from '@/state/settings';
+import GroupAvatar from '@/groups/GroupAvatar';
+import GroupActions from '@/groups/GroupActions';
 import Divider from '../Divider';
-import GroupAvatar from '../../groups/GroupAvatar';
 import useNavStore from '../Nav/useNavStore';
-import GroupActions from '../../groups/GroupActions';
 import SidebarItem from './SidebarItem';
-import { useIsMobile } from '../../logic/useMedia';
-import { SettingsState, useSettingsState } from '../../state/settings';
 
 const dragTypes = {
   GROUP: 'group',
