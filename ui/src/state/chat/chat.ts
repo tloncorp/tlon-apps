@@ -13,6 +13,7 @@ import {
   ChatDiff,
   ChatDraft,
   ChatPerm,
+  Chats,
   ChatWrit,
   Club,
   ClubAction,
@@ -159,34 +160,52 @@ export const useChatState = create<ChatState>(
       },
       start: async () => {
         // TODO: parallelise
-        const briefs = await api.scry<ChatBriefs>({
-          app: 'chat',
-          path: '/briefs',
-        });
+        api
+          .scry<ChatBriefs>({
+            app: 'chat',
+            path: '/briefs',
+          })
+          .then((briefs) => {
+            get().batchSet((draft) => {
+              draft.briefs = briefs;
+            });
+          });
 
-        get().batchSet((draft) => {
-          draft.briefs = briefs;
-        });
+        api
+          .scry<string[]>({
+            app: 'chat',
+            path: '/dm/invited',
+          })
+          .then((pendingDms) => {
+            get().batchSet((draft) => {
+              draft.pendingDms = pendingDms;
+            });
+          });
 
-        const pendingDms = await api.scry<string[]>({
-          app: 'chat',
-          path: '/dm/invited',
-        });
-        get().batchSet((draft) => {
-          draft.pendingDms = pendingDms;
-        });
-
-        try {
-          const pinnedDms = await api.scry<string[]>({
+        api
+          .scry<string[]>({
             app: 'chat',
             path: '/dm/pinned',
+          })
+          .then((pinnedDms) => {
+            get().batchSet((draft) => {
+              draft.pinnedDms = pinnedDms;
+            });
+          })
+          .catch((error) => {
+            console.log(error);
           });
-          get().batchSet((draft) => {
-            draft.pinnedDms = pinnedDms;
+
+        api
+          .scry<Chats>({
+            app: 'chat',
+            path: '/chats',
+          })
+          .then((chats) => {
+            get().batchSet((draft) => {
+              draft.chats = chats;
+            });
           });
-        } catch (error) {
-          console.log(error);
-        }
 
         api.subscribe({
           app: 'chat',
@@ -302,13 +321,8 @@ export const useChatState = create<ChatState>(
         get().batchSet((draft) => {
           dms.forEach((ship) => {
             const chat = {
-              writs: new BigIntOrderedMap<ChatWrit>(),
               perms: {
                 writers: [],
-              },
-              draft: {
-                inline: [],
-                block: [],
               },
             };
             draft.dms[ship] = chat;
@@ -469,6 +483,23 @@ export const useChatState = create<ChatState>(
       },
       addSects: async (whom, sects) => {
         await api.poke(chatAction(whom, { 'add-sects': sects }));
+        const perms = await api.scry<ChatPerm>({
+          app: 'chat',
+          path: `/chat/${whom}/perm`,
+        });
+        get().batchSet((draft) => {
+          draft.chats[whom].perms = perms;
+        });
+      },
+      delSects: async (whom, sects) => {
+        await api.poke(chatAction(whom, { 'del-sects': sects }));
+        const perms = await api.scry<ChatPerm>({
+          app: 'chat',
+          path: `/chat/${whom}/perm`,
+        });
+        get().batchSet((draft) => {
+          draft.chats[whom].perms = perms;
+        });
       },
       initialize: async (whom: string) => {
         if (whom in get().chats) {
@@ -480,11 +511,7 @@ export const useChatState = create<ChatState>(
           path: `/chat/${whom}/perm`,
         });
         get().batchSet((draft) => {
-          const chat = {
-            writs: new BigIntOrderedMap<ChatWrit>(),
-            perms,
-            draft: { block: [], inline: [] },
-          };
+          const chat = { perms };
           draft.chats[whom] = chat;
         });
 

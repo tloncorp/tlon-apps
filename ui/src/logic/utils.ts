@@ -4,10 +4,12 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, startOfToday, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import { ChatWhom } from '../types/chat';
+import { Chat, ChatWhom } from '../types/chat';
 import {
   Cabal,
   Cabals,
+  Channel,
+  ChannelPrivacyType,
   Cordon,
   Group,
   PrivacyType,
@@ -188,6 +190,25 @@ export function getGroupPrivacy(cordon: Cordon): PrivacyType {
   }
 
   return 'secret';
+}
+
+export function getPrivacyFromChannel(
+  channel?: Channel,
+  chat?: Chat
+): ChannelPrivacyType {
+  if (!channel || !chat) {
+    return 'public';
+  }
+
+  if (channel.readers.includes('admin')) {
+    return 'secret';
+  }
+
+  if (chat.perms.writers.includes('admin')) {
+    return 'read-only';
+  }
+
+  return 'public';
 }
 
 export function toTitleCase(s: string): string {

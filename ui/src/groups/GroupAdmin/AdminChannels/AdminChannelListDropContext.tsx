@@ -80,7 +80,8 @@ export default function AdminChannelListDropContext({
       channels: [],
     };
 
-    const nextSectionId = strToSym(formatUv(bigInt(Date.now())));
+    const idParts = formatUv(bigInt(Date.now())).split('.');
+    const nextSectionId = `z${idParts[idParts.length - 1]}`;
     const nextSections = {
       ...sections,
       [nextSectionId]: nextSection,

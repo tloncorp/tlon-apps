@@ -7,6 +7,7 @@ import {
   ChatStory,
   Club,
   Hive,
+  ChatCreate,
 } from '../../types/chat';
 import { GroupMeta } from '../../types/groups';
 
@@ -52,13 +53,8 @@ export interface ChatState {
   sendMessage: (whom: string, memo: ChatMemo) => void;
   delMessage: (flag: string, time: string) => void;
   addSects: (flag: string, writers: string[]) => Promise<void>;
-  create: (req: {
-    group: string;
-    name: string;
-    title: string;
-    description: string;
-    readers: string[];
-  }) => Promise<void>;
+  delSects: (flag: string, writers: string[]) => Promise<void>;
+  create: (req: ChatCreate) => Promise<void>;
   createMultiDm: (
     id: string,
     hive: string[] // array of ships
