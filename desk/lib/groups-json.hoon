@@ -65,7 +65,8 @@
     ?-  -.d
         %del  ~
         %add  (meta meta.d)
-        %mov
+        %mov  (numb idx.d)
+        %mov-flag
       %-  pairs 
       :~  flag/s/(flag flag.d)
           idx/(numb idx.d)
@@ -183,6 +184,7 @@
     :~  fleet/(fleet fleet.gr)
         cabals/(cabals cabals.gr)
         zones/(zones zones.gr)
+        zone-ord/a/(turn zone-ord.gr (lead %s))
         channels/(channels channels.gr)
         bloc/a/(turn ~(tap in bloc.gr) (lead %s))
         cordon/(cordon cordon.gr)
@@ -326,17 +328,12 @@
         del/ul
     ==
   ::
-  ++  zone-diff
-    %-  ot
-    :~  zone/sym
-        delta/zone-delta
-    ==
-  ::
   ++  zone-delta
     %-  of
     :~  add/meta
         del/ul
-        :-  %mov
+        mov/ni
+        :-  %mov-flag
         %-  ot
         :~  flag/flag
             index/ni
@@ -414,12 +411,6 @@
     %-  ot
     :~  zone/(se %tas)
         delta/zone-delta
-    ==
-  ::
-  ++  zone-delta
-    %-  of
-    :~  add/meta
-        del/ul
     ==
   ::
   ++  meta
