@@ -110,7 +110,7 @@
   ++  pins
     |=  ps=(list whom:c)
     %-  pairs
-    :~  pins/a/(turn ps whom)
+    :~  pins/a/(turn ps (cork whom (lead %s)))
     ==
   ::
   ++  chats
