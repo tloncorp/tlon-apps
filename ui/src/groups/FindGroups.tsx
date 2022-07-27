@@ -66,6 +66,15 @@ export default function FindGroups() {
           };
         }, {} as Gangs)
     : null;
+
+  useEffect(() => {
+    if (indexedGangs && hasKeys(indexedGangs)) {
+      useGroupState.setState((draft) => ({
+        gangs: { ...draft.gangs, ...indexedGangs },
+      }));
+    }
+  }, [indexedGangs]);
+
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
 
   const selectedShip =
