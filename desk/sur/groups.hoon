@@ -18,7 +18,8 @@
   +$  delta
     $%  [%add meta=data:meta]
         [%del ~]
-        [%mov =flag idx=@ud]
+        [%mov idx=@ud]
+        [%mov-flag =flag idx=@ud]
     ==
   --
 ::
@@ -67,6 +68,7 @@
   $:  =fleet
       cabals=(map sect cabal)
       zones=(map zone realm:zone)
+      zone-ord=(list zone)
       =bloc
       =channels:channel
       =cordon
