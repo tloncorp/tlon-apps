@@ -97,7 +97,7 @@
       ^-  vessel:fleet:g
       [sects *time]
     =/  =group:g
-      [fleet ~ ~ ~ ~ cordon.create title.create description.create image.create color.create] 
+      [fleet ~ ~ ~ ~ ~ cordon.create title.create description.create image.create color.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:(go-init:(go-abed:group-core flag) create)
@@ -461,18 +461,27 @@
         %add
       =/  =realm:zone:g  [meta.delta ~]
       =.  zones.group    (~(put by zones.group) zone realm)
+      =.  zone-ord.group  [zone zone-ord.group]
       go-core
     ::
         %del
       =.  zones.group  
         (~(del by zones.group) zone)
+      =.  zone-ord.group
+        (skim zone-ord.group |=(z=zone:g !=(zone z)))
       =.  channels.group
         %-  ~(run by channels.group)
         |=  =channel:g
         channel(zone ?:(=(`zone zone.channel) ~ zone.channel))
       go-core
     ::
-        %mov  
+        %mov
+      =.  zone-ord.group
+        %+  into  (skim zone-ord.group |=(z=zone:g !=(zone z)))
+        [idx.delta zone]
+      go-core
+    ::
+        %mov-flag
       =/  =realm:zone:g  (~(got by zones.group) zone)
       =.  ord.realm  
         %+  into  (skim ord.realm |=(=flag:g !=(flag flag.delta)))

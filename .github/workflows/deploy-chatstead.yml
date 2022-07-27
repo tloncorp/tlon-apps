@@ -7,7 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: "Create and deploy a glob to ~marnec-dozzod-marzod (devstream)"
+    name: "Create and deploy a glob to ~wannec-dozzod-marzod (devstream)"
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/deploy
