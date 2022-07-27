@@ -224,3 +224,7 @@ export function toTitleCase(s: string): string {
 export function randomElement<T>(a: T[]) {
   return a[Math.floor(Math.random() * a.length)];
 }
+
+export function hasKeys(obj: Record<string, unknown>) {
+  return Object.keys(obj).length > 0;
+}

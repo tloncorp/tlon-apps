@@ -69,7 +69,7 @@ export default function NewChannelForm({
       if (channelFlag) {
         await useGroupState
           .getState()
-          .addOrEditChannel(groupFlag, channelFlag, nextChannel);
+          .editChannel(groupFlag, channelFlag, nextChannel);
 
         if (privacy !== 'public') {
           useChatState.getState().addSects(channelFlag, ['admin']);

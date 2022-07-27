@@ -1,6 +1,7 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { ChannelFormSchema } from '@/types/groups';
+import CheckIcon from '@/components/icons/CheckIcon';
 
 export default function ChannelJoinSelector() {
   const { register, watch } = useFormContext<ChannelFormSchema>();
@@ -14,8 +15,8 @@ export default function ChannelJoinSelector() {
     >
       <div className="flex items-center">
         {selected ? (
-          <div className="h-4 w-4 rounded-sm border-2 border-gray-400 p-0.5">
-            <div className="h-full w-full rounded-sm bg-gray-400" />
+          <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
+            <CheckIcon className="h-3 w-3 fill-gray-400" />
           </div>
         ) : (
           <div className="h-4 w-4 rounded-sm border-2 border-gray-200" />

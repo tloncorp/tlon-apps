@@ -27,6 +27,7 @@ import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import Nav from '@/components/Nav/Nav';
 import GroupInviteDialog from '@/groups/GroupInviteDialog';
+import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
@@ -82,8 +83,11 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
-        <Route path="/groups/find" element={<FindGroups />} />
+        {/* Find by Invite URL */}
         <Route path="/groups/find/:ship/:name" element={<FindGroups />} />
+        {/* Find by Nickname or @p */}
+        <Route path="/groups/find/:ship" element={<FindGroups />} />
+        <Route path="/groups/find" element={<FindGroups />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="info" element={<GroupAdmin />}>
             <Route index element={<GroupInfo />} />
@@ -105,6 +109,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
+          <Route
+            path="/groups/:ship/:name/leave"
+            element={<GroupLeaveDialog />}
+          />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
           <Route
             path="/gangs/:ship/:name/reject"

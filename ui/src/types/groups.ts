@@ -243,6 +243,11 @@ export interface Groups {
 export interface GroupPreview {
   meta: GroupMeta;
   cordon: Cordon;
+  time: number;
+}
+
+export interface GroupIndex {
+  [flag: string]: GroupPreview;
 }
 
 export interface Invite {

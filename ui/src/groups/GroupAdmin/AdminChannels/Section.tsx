@@ -69,7 +69,7 @@ export default function Section({
       {(provided) => (
         <div ref={provided.innerRef} {...provided.draggableProps}>
           <div className="card mb-4 p-0">
-            <header className="flex items-center justify-between rounded-t-lg bg-gray-100 py-2 px-3">
+            <header className="flex items-center justify-between rounded-t-lg bg-gray-100 py-2 pl-3 pr-8">
               <div className="flex w-full items-center">
                 {isSectionless || isEditing ? null : (
                   <div {...provided.dragHandleProps}>

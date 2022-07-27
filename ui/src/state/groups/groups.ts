@@ -11,6 +11,7 @@ import {
   Groups,
   GroupAction,
   GroupPreview,
+  GroupIndex,
 } from '../../types/groups';
 import api from '../../api';
 import groupsReducer from './groupsReducer';
@@ -111,6 +112,24 @@ export const useGroupState = create<GroupState>((set, get) => ({
       })
     );
   },
+  // TODO: handle timeout of 10s (i.e., when ship is not available)
+  // update http-api? to expose AbortController
+  index: async (ship) => {
+    try {
+      const res = await subscribeOnce<GroupIndex>(
+        'groups',
+        `/gangs/index/${ship}`
+      );
+      if (res) {
+        return res;
+      }
+      return {};
+    } catch (e) {
+      // TODO: fix error handling
+      console.error(e);
+      return {};
+    }
+  },
   search: async (flag) => {
     try {
       const res = await subscribeOnce<GroupPreview>(
@@ -162,6 +181,13 @@ export const useGroupState = create<GroupState>((set, get) => ({
         flag,
         'join-all': joinAll,
       },
+    });
+  },
+  leave: async (flag: string) => {
+    await api.poke({
+      app: 'groups',
+      mark: 'group-leave',
+      json: flag,
     });
   },
   addSects: async (flag, ship, sects) => {
@@ -228,7 +254,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  addOrEditChannel: async (groupFlag, flag, channel) => {
+  editChannel: async (groupFlag, flag, channel) => {
     await api.poke(
       groupAction(groupFlag, {
         channel: {
@@ -479,6 +505,20 @@ export function usePendingInvites() {
   return Object.entries(gangs)
     .filter(([k, g]) => g.invite !== null && !(k in groups))
     .map(([k]) => k);
+}
+
+export function usePendingGangs() {
+  const groups = useGroups();
+  const gangs = useGangs();
+  const pendingGangs: Gangs = {};
+
+  Object.entries(gangs)
+    .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .forEach(([flag, gang]) => {
+      pendingGangs[flag] = gang;
+    });
+
+  return pendingGangs;
 }
 
 const selInit = (s: GroupState) => s.initialized;

@@ -1,7 +1,9 @@
-import { decToUd, udToDec, unixToDa } from '@urbit/api';
+import { decToUd, unixToDa } from '@urbit/api';
 import _ from 'lodash';
 import { subDays, subMinutes } from 'date-fns';
 import faker from '@faker-js/faker';
+import { AUTHORS } from '@/constants';
+import { randomElement } from '@/logic/utils';
 import {
   ChatWrit,
   ChatWrits,
@@ -9,21 +11,6 @@ import {
   ChatStory,
   ChatNotice,
 } from '../types/chat';
-
-const AUTHORS = [
-  '~nocsyx-lassul',
-  '~finned-palmer',
-  '~hastuc-dibtux',
-  '~datder-sonnet',
-  '~rilfun-lidlen',
-  '~ravmel-ropdyl',
-  '~fabled-faster',
-  '~fallyn-balfus',
-  '~riprud-tidmel',
-  '~wicdev-wisryt',
-  '~rovnys-ricfer',
-  '~mister-dister-dozzod-dozzod',
-];
 
 export const makeFakeChatWrit = (
   count: number,
@@ -81,7 +68,7 @@ export const randInt = (max: number, min = 1) =>
 
 const generateMessage = (time: Date) => {
   const body = faker.lorem.sentences(randInt(5));
-  const author = AUTHORS[randInt(AUTHORS.length - 1, 0)];
+  const author = randomElement(AUTHORS);
 
   const story = {
     block: [],

@@ -32,6 +32,13 @@ export default function SectionNameEditInput({
     color: '',
   };
 
+  const untitledSectionValues: GroupMeta = {
+    title: 'New Section',
+    description: '',
+    image: '',
+    color: '',
+  };
+
   const { handleSubmit, register } = useForm({
     defaultValues,
   });
@@ -56,13 +63,32 @@ export default function SectionNameEditInput({
     onSectionEditNameSubmit(zoneFlag, values.title);
   };
 
+  const onLoseFocus = async () => {
+    const zoneFlag = strToSym(sectionKey);
+    handleEditingChange();
+    if (sectionTitle && sectionTitle.length) {
+      return;
+    }
+    await useGroupState
+      .getState()
+      .createZone(group, zoneFlag, untitledSectionValues);
+    onSectionEditNameSubmit(zoneFlag, untitledSectionValues.title);
+    channels.forEach((channel) => {
+      addChannelsToZone(zoneFlag, group, channel.key);
+    });
+  };
+
   return (
-    <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
+    <form
+      className="w-full"
+      onSubmit={handleSubmit(onSubmit)}
+      onBlur={handleSubmit(onLoseFocus)}
+    >
       <input
         autoFocus
         {...register('title')}
         type="text"
-        placeholder="Section Name"
+        placeholder="New Section"
         className="input w-full border-gray-200 bg-transparent text-lg font-semibold focus:bg-transparent"
       />
     </form>

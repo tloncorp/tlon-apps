@@ -459,13 +459,25 @@
     ^+  go-core
     ?-    -.delta
         %add
-      =.  zones.group  
-        (~(put by zones.group) zone meta.delta)
+      =/  =realm:zone:g  [meta.delta ~]
+      =.  zones.group    (~(put by zones.group) zone realm)
       go-core
     ::
         %del
       =.  zones.group  
         (~(del by zones.group) zone)
+      =.  channels.group
+        %-  ~(run by channels.group)
+        |=  =channel:g
+        channel(zone ?:(=(`zone zone.channel) ~ zone.channel))
+      go-core
+    ::
+        %mov  
+      =/  =realm:zone:g  (~(got by zones.group) zone)
+      =.  ord.realm  
+        %+  into  (skim ord.realm |=(=flag:g !=(flag flag.delta)))
+        [idx.delta flag]
+      =.  zones.group    (~(put by zones.group) zone realm)
       go-core
     ==
   ++  go-bloc-update
@@ -648,10 +660,17 @@
       =/  =channel:g  (got:by-ch ch)
       =.  zone.channel   `zone.diff
       =.  channels.group  (put:by-ch ch channel)
+      =/  =realm:zone:g  (~(got by zones.group) zone.diff)
+      =.  ord.realm  [ch ord.realm]
+      =.  zones.group  (~(put by zones.group) zone.diff realm)
       go-core
     ::
         %del-zone
       =/  =channel:g  (got:by-ch ch)
+      =/  =zone:g  (need zone.channel)
+      =/  =realm:zone:g  (~(got by zones.group) zone)
+      =.  ord.realm  (skim ord.realm |=(=flag:g !=(ch flag)))
+      =.  zones.group  (~(put by zones.group) zone realm) 
       =.  zone.channel   ~
       =.  channels.group  (put:by-ch ch channel)
       go-core
@@ -668,7 +687,8 @@
 ++  res-gang-index
   ^+  cor
   =;  =cage
-    (emit %give %fact ~ cage)
+    =.  cor  (emit %give %fact ~ cage)
+    (emit %give %kick ~ ~)
   :-  %group-previews
   !>  ^-  previews:g
   %-  ~(gas by *previews:g)
@@ -691,7 +711,7 @@
   ^+  cor
   =/  =path  /gangs/index/(scot %p ship)
   ?+  -.sign  !!
-      %kick  cor
+      %kick  (emit %give %kick ~[path] ~)
   ::
       %watch-ack
     ?~  p.sign  cor
@@ -701,7 +721,8 @@
       %fact
     ?.  =(%group-previews p.cage.sign)  cor
     =+  !<(=previews:g q.cage.sign)
-    (emit %give %fact ~[path] cage.sign)
+    =.  cor  (emit %give %fact ~[path] cage.sign)
+    (emit %give %kick ~[path] ~)
   ==
 ::
 ++  gang-core
