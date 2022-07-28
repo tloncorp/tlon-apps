@@ -108,12 +108,13 @@ export const useChatState = create<ChatState>(
         });
       },
       chats: {},
+      dms: {},
+      multiDms: {},
       dmArchive: [],
       pacts: {},
-      dms: {},
       drafts: {},
+      chatSubs: [],
       dmSubs: [],
-      multiDms: {},
       multiDmSubs: [],
       pendingDms: [],
       pinnedDms: [],
@@ -502,7 +503,7 @@ export const useChatState = create<ChatState>(
         });
       },
       initialize: async (whom: string) => {
-        if (whom in get().chats) {
+        if (get().chatSubs.includes(whom)) {
           return;
         }
 
@@ -513,6 +514,7 @@ export const useChatState = create<ChatState>(
         get().batchSet((draft) => {
           const chat = { perms };
           draft.chats[whom] = chat;
+          draft.chatSubs.push(whom);
         });
 
         await makeWritsStore(

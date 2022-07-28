@@ -20,15 +20,16 @@ export interface ChatState {
   dms: {
     [ship: string]: Chat;
   };
-  drafts: {
-    [whom: string]: ChatStory;
-  };
-  dmSubs: string[];
-  dmArchive: string[];
   multiDms: {
     [id: string]: Club; // id is `@uw`
   };
+  drafts: {
+    [whom: string]: ChatStory;
+  };
+  chatSubs: string[];
+  dmSubs: string[];
   multiDmSubs: string[];
+  dmArchive: string[];
   pinnedDms: string[];
   fetchDms: () => Promise<void>;
   fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
