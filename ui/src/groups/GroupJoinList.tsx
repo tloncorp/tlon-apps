@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { useGroup } from '@/state/groups';
+import { useGroup, useGroupState } from '@/state/groups';
 import { useLocation, useNavigate } from 'react-router';
 import { getGroupPrivacy } from '@/logic/utils';
 import { Gang, Gangs } from '@/types/groups';
@@ -14,6 +14,9 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const group = useGroup(flag);
+  const privacy = gang.preview?.cordon
+    ? getGroupPrivacy(gang.preview?.cordon)
+    : 'public';
 
   const open = useCallback(() => {
     if (group) {
@@ -25,11 +28,25 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
     });
   }, [flag, group, location, navigate]);
 
+  const join = useCallback(async () => {
+    await useGroupState.getState().join(flag, true);
+    navigate(`/groups/${flag}`);
+  }, [flag, navigate]);
+
   const reject = useCallback(() => {
+    /**
+     * No need to confirm if the group is public, since it's easy to re-initiate
+     * a join request
+     */
+    if (privacy === 'public') {
+      // TODO: consume gang reject endpoint
+      return;
+    }
+
     navigate(`/gangs/${flag}/reject`, {
       state: { backgroundLocation: location },
     });
-  }, [flag, location, navigate]);
+  }, [flag, location, navigate, privacy]);
 
   return (
     <li className="relative flex items-center">
@@ -50,7 +67,7 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
         ) : null}
         <button
           className="button ml-2 bg-blue-soft text-blue mix-blend-multiply dark:mix-blend-screen"
-          onClick={open}
+          onClick={group ? open : join}
         >
           {group ? 'Open' : 'Join'}
         </button>

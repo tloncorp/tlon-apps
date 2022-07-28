@@ -38,7 +38,7 @@ export default function JoinGroupModal() {
     /**
      * Skip the confirmation modal for public groups, since a Join can easily be
      * re-initiated
-    */
+     */
     if (privacy === 'public') {
       // TODO: consume the backend reject endpoint
       dismiss();

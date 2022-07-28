@@ -5,11 +5,7 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
 import { useIsMobile } from '@/logic/useMedia';
-import {
-  useGang,
-  useGangList,
-  useGroup,
-} from '@/state/groups/groups';
+import { useGang, useGangList, useGroup } from '@/state/groups/groups';
 import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
