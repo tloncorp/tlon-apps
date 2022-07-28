@@ -72,7 +72,7 @@ export default function FindGroups() {
       const indexedFlags = Object.keys(indexedGangs);
       if (!indexedFlags.every((f) => f in existingGangs)) {
         // The gangs state has already been merged with the indexed gangs,
-        // so need to update again
+        // so no need to update again
         return;
       }
       useGroupState.setState((draft) => ({
