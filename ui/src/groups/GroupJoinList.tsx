@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { useGroup, useGroupState } from '@/state/groups';
+import { useGroup } from '@/state/groups';
 import { useLocation, useNavigate } from 'react-router';
 import { getGroupPrivacy } from '@/logic/utils';
 import { Gang, Gangs } from '@/types/groups';
@@ -14,9 +14,6 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const group = useGroup(flag);
-  const privacy = gang.preview?.cordon
-    ? getGroupPrivacy(gang.preview?.cordon)
-    : 'public';
 
   const open = useCallback(() => {
     if (group) {
@@ -29,20 +26,10 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
   }, [flag, group, location, navigate]);
 
   const reject = useCallback(() => {
-    if (privacy === 'public') {
-      // TODO: Liam is working on implementing the Reject Gang endpoint
-      return;
-    }
-
     navigate(`/gangs/${flag}/reject`, {
       state: { backgroundLocation: location },
     });
-  }, [flag, location, navigate, privacy]);
-
-  const join = useCallback(async () => {
-    await useGroupState.getState().join(flag, true);
-    navigate(`/groups/${flag}`);
-  }, [flag, navigate]);
+  }, [flag, location, navigate]);
 
   return (
     <li className="relative flex items-center">
@@ -63,7 +50,7 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
         ) : null}
         <button
           className="button ml-2 bg-blue-soft text-blue mix-blend-multiply dark:mix-blend-screen"
-          onClick={group ? open : join}
+          onClick={open}
         >
           {group ? 'Open' : 'Join'}
         </button>
