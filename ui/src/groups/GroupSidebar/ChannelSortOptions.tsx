@@ -5,7 +5,10 @@ import useSidebarSort from '../../logic/useSidebarSort';
 export default function ChannelSortOptions({
   sortOptions,
   setSortFn,
-}: Omit<ReturnType<typeof useSidebarSort>, 'sortFn'>) {
+}: Omit<
+  ReturnType<typeof useSidebarSort>,
+  'sortFn' | 'sortChannels' | 'sortGroups'
+>) {
   return (
     <DropdownMenu.Content className="dropdown">
       <DropdownMenu.Item

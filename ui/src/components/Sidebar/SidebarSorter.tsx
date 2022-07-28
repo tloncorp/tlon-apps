@@ -1,11 +1,13 @@
-import cn from 'classnames';
 import React from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import CaretDown16Icon from '../icons/CaretDown16Icon';
 import useSidebarSort from '../../logic/useSidebarSort';
 import CaretDownIcon from '../icons/CaretDownIcon';
 
-type SidebarSorterProps = ReturnType<typeof useSidebarSort> & {
+type SidebarSorterProps = Omit<
+  ReturnType<typeof useSidebarSort>,
+  'sortChannels' | 'sortGroups'
+> & {
   isMobile: boolean;
 };
 

@@ -20,7 +20,7 @@ export function useGroupActions(flag: string) {
   const [isOpen, setIsOpen] = useState(false);
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
   const pinned = usePinnedGroups();
-  const isPinned = pinned.includes(flag);
+  const isPinned = Object.keys(pinned).includes(flag);
 
   const onCopy = useCallback(() => {
     doCopy(flag);
