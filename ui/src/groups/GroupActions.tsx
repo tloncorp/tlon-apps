@@ -42,6 +42,7 @@ export function useGroupActions(flag: string) {
 
   return {
     isOpen,
+    isPinned,
     setIsOpen,
     copyItemText,
     onCopy,
@@ -63,7 +64,7 @@ export default function GroupActions({
   const briefs = useBriefs();
   const hasActivity = (briefs[flag]?.count ?? 0) > 0;
 
-  const { isOpen, setIsOpen, copyItemText, onCopy, onPinClick } =
+  const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
     useGroupActions(flag);
 
   const onCopySelect = useCallback(
@@ -127,7 +128,7 @@ export default function GroupActions({
             onClick={onPinClick}
           >
             <PinIcon16 className="h-6 w-6 text-gray-600" />
-            <span className="pr-2">Pin</span>
+            <span className="pr-2">{isPinned ? 'Unpin' : 'Pin'}</span>
           </DropdownMenu.Item>
           <DropdownMenu.Item asChild className="dropdown-item">
             <Link
