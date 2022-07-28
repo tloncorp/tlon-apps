@@ -107,6 +107,12 @@
         read-id/?~(read-id.b ~ (id u.read-id.b))
     ==
   ::
+  ++  pins
+    |=  ps=(list whom:c)
+    %-  pairs
+    :~  pins/a/(turn ps (cork whom (lead %s)))
+    ==
+  ::
   ++  chats
     |=  cs=(map flag:c chat:c)
     %-  pairs
@@ -202,7 +208,6 @@
         hive/a/(turn ~(tap in hive.cr) ship)
         meta/(meta met.cr)
         net/s/net.cr
-        pin/b/pin.cr
     ==
   ::
   ++  notice
@@ -315,7 +320,12 @@
         ship/(se %p)
         ok/bo
     ==
-
+  ::
+  ++  pins
+    %-  ot
+    :~  pins/(ar whom)
+    ==
+  ::
   ++  whom
     ^-  $-(json whom:c)
     %-  su
