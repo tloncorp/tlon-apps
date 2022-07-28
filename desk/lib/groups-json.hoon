@@ -69,9 +69,9 @@
         %del  ~
         %add  (meta meta.d)
         %mov  (numb idx.d)
-        %mov-flag
+        %mov-nest
       %-  pairs 
-      :~  flag/s/(flag flag.d)
+      :~  nest/s/(nest nest.d)
           idx/(numb idx.d)
       ==
     ==
@@ -178,7 +178,7 @@
     :-  zone
     %-  pairs
     :~  meta/(meta met.r)
-        idx/a/(turn ord.r (cork flag (lead %s)))
+        idx/a/(turn ord.r (cork nest (lead %s)))
     ==
   ::
   ++  group
@@ -337,9 +337,9 @@
     :~  add/meta
         del/ul
         mov/ni
-        :-  %mov-flag
+        :-  %mov-nest
         %-  ot
-        :~  flag/flag
+        :~  nest/nest
             index/ni
         ==
     ==

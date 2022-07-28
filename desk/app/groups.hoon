@@ -481,11 +481,11 @@
         [idx.delta zone]
       go-core
     ::
-        %mov-flag
+        %mov-nest
       =/  =realm:zone:g  (~(got by zones.group) zone)
       =.  ord.realm  
-        %+  into  (skim ord.realm |=(=flag:g !=(flag flag.delta)))
-        [idx.delta flag]
+        %+  into  (skim ord.realm |=(=nest:g !=(nest nest.delta)))
+        [idx nest]:delta
       =.  zones.group    (~(put by zones.group) zone realm)
       go-core
     ==
@@ -670,7 +670,7 @@
       =.  zone.channel   `zone.diff
       =.  channels.group  (put:by-ch ch channel)
       =/  =realm:zone:g  (~(got by zones.group) zone.diff)
-      =.  ord.realm  [q.ch ord.realm]
+      =.  ord.realm  [ch ord.realm]
       =.  zones.group  (~(put by zones.group) zone.diff realm)
       go-core
     ::
@@ -678,7 +678,7 @@
       =/  =channel:g  (got:by-ch ch)
       =/  =zone:g  (need zone.channel)
       =/  =realm:zone:g  (~(got by zones.group) zone)
-      =.  ord.realm  (skim ord.realm |=(=flag:g !=(q.ch flag)))
+      =.  ord.realm  (skim ord.realm |=(=nest:g !=(ch nest)))
       =.  zones.group  (~(put by zones.group) zone realm) 
       =.  zone.channel   ~
       =.  channels.group  (put:by-ch ch channel)

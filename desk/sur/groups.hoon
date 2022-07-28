@@ -13,14 +13,14 @@
   +$  zone  @tas
   +$  realm
     $:  met=data:meta
-        ord=(list flag)
+        ord=(list nest)
     ==
   +$  diff  (pair zone delta)
   +$  delta
     $%  [%add meta=data:meta]
         [%del ~]
         [%mov idx=@ud]
-        [%mov-flag =flag idx=@ud]
+        [%mov-nest =nest idx=@ud]
     ==
   --
 ::
