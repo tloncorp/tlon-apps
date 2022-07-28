@@ -371,13 +371,14 @@
     |=  [=wire =ship =term] 
     ^-  card
     [%pass wire %agent [ship term] %leave ~]
-  ?.  tell
-    cor
+  =.  cor  init
+  ?.  tell  cor
   %-  emil
-  %+  turn  desk-bill
+  %+  murn  desk-bill
   |=  =dude:gall
-  ^-  card
-  [%pass / %agent [our.bowl dude] %poke holt+!>(~)]
+  ^-  (unit card)
+  ?:  =(dude dap.bowl)  ~
+  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
 ::
 ++  give-brief
   |=  [=whom:c =brief:briefs:c]

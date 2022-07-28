@@ -189,10 +189,11 @@
   ?.  tell
     cor
   %-  emil
-  %+  turn  desk-bill
+  %+  murn  desk-bill
   |=  =dude:gall
-  ^-  card
-  [%pass / %agent [our.bowl dude] %poke holt+!>(~)]
+  ^-  (unit card)
+  ?:  =(dude dap.bowl)  ~
+  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
 ::
 ++  give-invites
   |=  [=flag:g ships=(set ship)]
