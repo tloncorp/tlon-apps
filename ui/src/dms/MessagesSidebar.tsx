@@ -1,19 +1,19 @@
 import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import AsteriskIcon from '../components/icons/Asterisk16Icon';
-import NewMessageIcon from '../components/icons/NewMessageIcon';
-import { useIsMobile } from '../logic/useMedia';
-import CaretDown16Icon from '../components/icons/CaretDown16Icon';
-import ChatSmallIcon from '../components/icons/ChatSmallIcon';
-import PersonSmallIcon from '../components/icons/Person16Icon';
-import CmdSmallIcon from '../components/icons/CmdSmallIcon';
+import AsteriskIcon from '@/components/icons/Asterisk16Icon';
+import NewMessageIcon from '@/components/icons/NewMessageIcon';
+import { useIsMobile } from '@/logic/useMedia';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
+import PersonSmallIcon from '@/components/icons/Person16Icon';
+import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
+import { useBriefs, usePinned } from '@/state/chat';
+import SidebarItem from '@/components/Sidebar/SidebarItem';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
-import { useBriefs, usePinned } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
-import SidebarItem from '../components/Sidebar/SidebarItem';
 
 export default function MessagesSidebar() {
   const isMobile = useIsMobile();
