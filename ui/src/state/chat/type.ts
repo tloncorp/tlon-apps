@@ -29,8 +29,8 @@ export interface ChatState {
   chatSubs: string[];
   dmSubs: string[];
   multiDmSubs: string[];
+  pins: ChatWhom[];
   dmArchive: string[];
-  pinnedDms: string[];
   fetchDms: () => Promise<void>;
   fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
   pacts: {
@@ -38,8 +38,8 @@ export interface ChatState {
   };
   pendingDms: string[];
   briefs: ChatBriefs;
-  toggleDmPin: (whom: string, pin: boolean) => Promise<void>;
-  toggleMultiDmPin: (whom: string, pin: boolean) => Promise<void>;
+  togglePin: (whom: string, pin: boolean) => Promise<void>;
+  fetchPins: () => Promise<void>;
   markRead: (whom: string) => Promise<void>;
   start: () => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;

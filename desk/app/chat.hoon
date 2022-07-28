@@ -18,6 +18,7 @@
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         drafts=(map whom:c story:c)
+        pins=(list whom:c)
         bad=(set ship)
         inv=(set ship)
     ==
@@ -111,9 +112,9 @@
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
-      %dm-pin
-    =+  !<([=ship pin=?] vase)
-    di-abet:(di-pin:(di-abed:di-core ship) pin)
+      %chat-pins
+    =+  !<(ps=(list whom:c) vase)
+    (pin ps)
   ::
       ?(%flag %channel-join)
     =+  !<(=flag:c vase)
@@ -169,10 +170,6 @@
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
   ::
-      %club-pin
-    =+  !<([=id:club:c pin=?] vase)
-    cu-abet:(cu-pin:(cu-abed:cu-core id) pin)
-  ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
   ++  join
@@ -191,6 +188,10 @@
     =.  net.chat  [%pub ~]
     =.  chats  (~(put by chats) flag chat)
     ca-abet:(ca-init:(ca-abed:ca-core flag) req)
+  ++  pin
+    |=  ps=(list whom:c)
+    =.  pins  ps
+    cor
   --
 ++  watch
   |=  =path
@@ -299,6 +300,8 @@
   ::
     [%x %chats ~]  ``chats+!>(chats)
   ::
+    [%x %pins ~]  ``chat-pins+!>(pins)
+  ::
       [%x %chat @ @ *]
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path
@@ -309,15 +312,6 @@
   ::
       [%x %dm %invited ~]
     ``ships+!>(~(key by pending-dms))
-  ::
-      [%x %dm %pinned ~]
-    =-  ``ships+!>(-)
-    ^-  (set ship)
-    %-  silt
-    %+  murn  ~(tap by dms)
-    |=  [=ship =dm:c]
-    ?.  pin.dm  ~
-    `ship
   ::
       [%x %dm %archive ~]
     ``ships+!>(~(key by archived-dms))
@@ -515,11 +509,6 @@
       =.  hive.club  (~(del in hive.club) for.delta)
       (cu-post-notice for.delta '' ' was uninvited from the chat') 
     ==
-  ::
-  ++  cu-pin
-    |=  pin=?
-    ^+  cu-core
-    cu-core(pin.club pin)
   ::
   ++  cu-peek
     |=  =path
@@ -871,11 +860,6 @@
     =.  cor
       (emit (hark:di-pass invited:di-hark))
     di-core
-  ::
-  ++  di-pin
-    |=  pin=?
-    ^+  di-core
-    di-core(pin.dm pin)
   ::
   ++  di-notify
     |=  [=id:c =delta:writs:c]

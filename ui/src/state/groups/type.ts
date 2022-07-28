@@ -14,9 +14,6 @@ export interface GroupState {
   groups: {
     [flag: string]: Group;
   };
-  pinnedGroups: string[];
-  pinGroup: (flag: string) => Promise<void>;
-  unpinGroup: (flag: string) => Promise<void>;
   gangs: Gangs;
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
