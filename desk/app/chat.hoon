@@ -370,7 +370,7 @@
   =.  cor  init
   ?.  tell  cor
   %-  emil
-  %+  murn  desk-bill
+  %+  murn  `(list dude:gall)`desk-bill
   |=  =dude:gall
   ^-  (unit card)
   ?:  =(dude dap.bowl)  ~
