@@ -49,6 +49,9 @@ export default function NewChannelForm({
     defaultValues,
   });
 
+  const headerText: string =
+    channel && channelFlag ? 'Edit Chat Channel' : 'New Chat Channel';
+
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
       const { privacy, ...nextChannel } = values;
@@ -106,7 +109,7 @@ export default function NewChannelForm({
     <FormProvider {...form}>
       <div className="sm:w-96">
         <header className="mb-3 flex items-center">
-          <h2 className="text-lg font-bold">Edit Chat Channel</h2>
+          <h2 className="text-lg font-bold">{headerText}</h2>
         </header>
       </div>
       <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>

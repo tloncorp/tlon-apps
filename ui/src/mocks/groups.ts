@@ -149,7 +149,14 @@ export function createMockGroup(title: string): Group {
 }
 const mockGroupOne: Group = {
   fleet: {
-    '~finned-palmer': adminVessel(),
+    '~finned-palmer': emptyVessel(),
+    '~zod': adminVessel(),
+    '~tocref-ripmyr': emptyVessel(),
+    '~hastuc-dibtux': emptyVessel(),
+    '~fallyn-balfus': emptyVessel(),
+    '~fabled-faster': emptyVessel(),
+    '~rilfun-lidlen': emptyVessel(),
+    '~nocsyx-lassul': emptyVessel(),
   },
   cabals: {
     admin: {
