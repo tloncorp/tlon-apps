@@ -1,6 +1,6 @@
-/-  c=chat
-/+  j=chat-json
-|_  =create:c
+/-  ch=channel
+/+  j=channel-json
+|_  =create:ch
 ++  grad  %noun
 ++  grow
   |%
@@ -8,7 +8,7 @@
   --
 ++  grab
   |%
-  ++  noun  create:c
+  ++  noun  create:ch
   ++  json  create:dejs:j
   --
 --

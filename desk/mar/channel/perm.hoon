@@ -1,6 +1,6 @@
-/-  c=chat
-/+  j=chat-json
-|_  =perm:c
+/-  ch=channel
+/+  j=channel-json
+|_  =perm:ch
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  perm:c
+  ++  noun  perm:ch
   --
 --

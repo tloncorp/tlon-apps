@@ -1,4 +1,5 @@
 /-  g=groups
+/-  ch=channel
 /-  meta
 |%
 +$  writ   [seal memo]
@@ -44,7 +45,7 @@
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
     ::
-      [%create p=perm]
+      [%create p=perm:ch]
   ==
 
 +$  index   (map id time)
@@ -129,12 +130,8 @@
 +$  remark
   [last-read=time watching=_| ~]
 ::
-+$  perm
-  $:  writers=(set sect:g)
-      group=flag
-  ==
 +$  chat
-  [=net =remark =log =perm =pact]
+  [=net =remark =log =perm:ch =pact]
 ::
 +$  notice  [pfix=@t sfix=@t]
 ::
@@ -188,14 +185,4 @@
 +$  logs
   ((mop time diff) lte)
 ::
-+$  create
-  $:  group=flag  :: TODO: unmanaged-style group chats
-      name=term
-      title=cord
-      description=cord
-      readers=(set sect:g)
-      writers=(set sect:g)
-  ==
-::
-+$  leave  flag
 --

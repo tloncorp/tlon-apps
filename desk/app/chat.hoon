@@ -1,9 +1,9 @@
 /-  c=chat, g=groups
 /-  meta
 /-  ha=hark-store
+/-  chan=channel
 /+  default-agent, verb, dbug
 /+  chat-json
-/+  w=chat-writs
 /+  pac=dm
 /+  ch=chat-hark
 /*  desk-bill  %bill  /desk/bill
@@ -119,8 +119,8 @@
     ?<  =(our.bowl p.flag)
     (join flag)
   ::
-      %chat-leave
-    =+  !<(=leave:c vase)
+      %channel-leave
+    =+  !<(=leave:chan vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     ca-abet:ca-leave:(ca-abed:ca-core leave)
   ::
@@ -132,8 +132,8 @@
        (~(put by drafts) p.draft q.draft)
     ==
   ::
-      %chat-create
-    =+  !<(req=create:c vase)
+      %channel-create
+    =+  !<(req=create:chan vase)
     (create req)
   ::
       %chat-action
@@ -177,11 +177,11 @@
     ca-abet:(ca-join:ca-core flag)
   ::
   ++  create
-    |=  req=create:c
+    |=  req=create:chan
     ^+  cor
     =/  =flag:c  [our.bowl name.req]
     =|  =chat:c
-    =/  =perm:c  [writers.req group.req]
+    =/  =perm:chan  [writers.req group.req]
     =.  perm.chat  perm
     =.  net.chat  [%pub ~]
     =.  chats  (~(put by chats) flag chat)
@@ -370,7 +370,8 @@
   =.  cor  init
   ?.  tell  cor
   %-  emil
-  %+  murn  desk-bill
+  ^-  (list card)
+  %+  murn  `(list dude:gall)`desk-bill
   |=  =dude:gall
   ^-  (unit card)
   ?:  =(dude dap.bowl)  ~
@@ -585,7 +586,7 @@
   ++  ca-pass
     |%
     ++  add-channel
-      |=  req=create:c
+      |=  req=create:chan
       =/  =dock      [p.group.req %groups]
       =/  =channel:g  
         =,(req [[title description '' ''] now.bowl ~ | readers])
@@ -599,8 +600,8 @@
       ca-core
     --
   ++  ca-init
-    |=  req=create:c
-    =/  =perm:c  [writers.req group.req]
+    |=  req=create:chan
+    =/  =perm:chan  [writers.req group.req]
     =.  cor
       (give-brief flag/flag ca-brief)
     =.  ca-core  (ca-update now.bowl %create perm)
@@ -630,7 +631,7 @@
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
       [%writs rest=*]  (peek:ca-pact rest.pole)
-      [%perm ~]        ``chat-perm+!>(perm.chat)
+      [%perm ~]        ``channel-perm+!>(perm.chat)
     ==
   ::
   ++  ca-revoke
@@ -733,7 +734,7 @@
     =/  =dock  [p.flag dap.bowl]
     =/  =wire  (snoc ca-area %updates)
     =.  cor  (emit %pass wire %agent dock %leave ~)
-    =.  cor  (emit %give %fact ~[/briefs] chat-leave+!>(flag))
+    =.  cor  (emit %give %fact ~[/briefs] channel-leave+!>(flag))
     =.  gone  &
     ca-core
   ::

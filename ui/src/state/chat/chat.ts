@@ -203,7 +203,7 @@ export const useChatState = create<ChatState>(
           app: 'chat',
           path: '/briefs',
           event: (event: unknown, mark: string) => {
-            if (mark === 'chat-leave') {
+            if (mark === 'channel-leave') {
               get().batchSet((draft) => {
                 delete draft.briefs[event as string];
               });
@@ -357,7 +357,7 @@ export const useChatState = create<ChatState>(
       leaveChat: async (flag) => {
         await api.poke({
           app: 'chat',
-          mark: 'chat-leave',
+          mark: 'channel-leave',
           json: flag,
         });
       },
@@ -411,7 +411,7 @@ export const useChatState = create<ChatState>(
       create: async (req) => {
         await api.poke({
           app: 'chat',
-          mark: 'chat-create',
+          mark: 'channel-create',
           json: req,
         });
       },
