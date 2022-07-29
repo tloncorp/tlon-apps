@@ -141,7 +141,9 @@ export default function GroupMemberManager() {
           const vessel = group.fleet[m];
           return (
             <li key={m} className="flex items-center font-semibold">
-              <Avatar ship={m} size="small" className="mr-2" />
+              <div className="cursor-pointer" onClick={() => onViewProfile(m)}>
+                <Avatar ship={m} size="small" className="mr-2" />
+              </div>
               <div className="flex flex-1 flex-col">
                 <h2>
                   {contacts[m]?.nickname ? (
