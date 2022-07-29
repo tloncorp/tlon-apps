@@ -7,8 +7,8 @@ import {
   useGroupState,
   useRouteGroup,
 } from '@/state/groups';
-import { getGroupPrivacy } from '@/logic/utils';
 import { useLocation, useNavigate } from 'react-router';
+import { getGroupPrivacy } from '@/logic/utils';
 import GroupSummary from '../GroupSummary';
 
 export default function JoinGroupModal() {
@@ -35,8 +35,12 @@ export default function JoinGroupModal() {
   }, [flag, navigate]);
 
   const reject = useCallback(() => {
+    /**
+     * Skip the confirmation modal for public groups, since a Join can easily be
+     * re-initiated
+     */
     if (privacy === 'public') {
-      // TODO: Liam is working on implementing the Reject Gang endpoint
+      // TODO: consume the backend reject endpoint
       dismiss();
       return;
     }

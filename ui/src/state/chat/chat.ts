@@ -739,18 +739,16 @@ export function usePinnedGroups() {
   const pinned = usePinned();
   return useMemo(
     () =>
-      pinned
-        .filter(whomIsFlag)
-        .reduce(
-          (memo, flag) =>
-            flag in groups
-              ? {
+      pinned.filter(whomIsFlag).reduce(
+        (memo, flag) =>
+          flag in groups
+            ? {
                 ...memo,
                 [flag]: groups[flag],
               }
-              : memo,
-          {} as Groups
-        ),
+            : memo,
+        {} as Groups
+      ),
     [groups, pinned]
   );
 }

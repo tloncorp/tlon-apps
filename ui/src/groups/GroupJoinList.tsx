@@ -28,9 +28,18 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
     });
   }, [flag, group, location, navigate]);
 
+  const join = useCallback(async () => {
+    await useGroupState.getState().join(flag, true);
+    navigate(`/groups/${flag}`);
+  }, [flag, navigate]);
+
   const reject = useCallback(() => {
+    /**
+     * No need to confirm if the group is public, since it's easy to re-initiate
+     * a join request
+     */
     if (privacy === 'public') {
-      // TODO: Liam is working on implementing the Reject Gang endpoint
+      // TODO: consume gang reject endpoint
       return;
     }
 
@@ -38,11 +47,6 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
       state: { backgroundLocation: location },
     });
   }, [flag, location, navigate, privacy]);
-
-  const join = useCallback(async () => {
-    await useGroupState.getState().join(flag, true);
-    navigate(`/groups/${flag}`);
-  }, [flag, navigate]);
 
   return (
     <li className="relative flex items-center">
