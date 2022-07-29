@@ -58,6 +58,12 @@ export default function JoinGroupModal() {
           <GroupSummary flag={flag} {...gang.preview} />
           <p>{gang.preview?.meta.description}</p>
           <div className="flex items-center justify-end space-x-2">
+            <button
+              className="secondary-button mr-auto bg-transparent"
+              onClick={() => navigate(-1)}
+            >
+              Back
+            </button>
             {gang.invite ? (
               <button className="button bg-red-soft text-red" onClick={reject}>
                 Reject Invite
