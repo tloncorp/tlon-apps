@@ -59,7 +59,7 @@ export default function ProfileModal() {
               <ShipName name={ship} showAlias />
             </div>
           </div>
-          <footer className="flex items-center bg-gray-100 py-4 px-6">
+          <footer className="flex items-center py-4 px-6">
             <button
               className="secondary-button ml-auto"
               onClick={handleCopyClick}
