@@ -29,6 +29,7 @@ import {
   ClubAction,
   ClubCreate,
   DmRsvp,
+  Pins,
   WritDiff,
 } from '../types/chat';
 import { GroupAction } from '../types/groups';
@@ -37,6 +38,7 @@ import mockContacts from './contacts';
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 
 const archive: string[] = [];
+let pins: string[] = [...pinnedDMs, ...pinnedGroups];
 const sortByUd = (aString: string, bString: string) => {
   const a = bigInt(udToDec(aString));
   const b = bigInt(udToDec(bString));
@@ -148,12 +150,6 @@ const groups: Handler[] = [
   {
     action: 'scry',
     app: 'groups',
-    path: '/groups/pinned',
-    func: () => pinnedGroups,
-  },
-  {
-    action: 'scry',
-    app: 'groups',
     path: '/groups',
     func: () => mockGroups,
   } as ScryHandler,
@@ -180,12 +176,30 @@ const chat: Handler[] = [
     func: () => chatWritsSet1,
   } as ScryHandler,
   {
-    action: 'scry' as const,
+    action: 'scry',
     app: 'chat',
     path: `/chat/:ship/:name/perm`,
     func: () => ({
       writers: [],
     }),
+  },
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/pins',
+    func: () => ({ pins }),
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'chat-pins',
+    returnSubscription: fakeDefaultSub,
+    initialResponder: (req: Message & Poke<Pins>) => {
+      pins = req.json.pins;
+
+      return createResponse(req);
+    },
+    dataResponder: (req) => createResponse(req, 'diff'),
   },
   {
     action: 'poke',
@@ -440,12 +454,6 @@ const dms: Handler[] = [
   {
     action: 'scry',
     app: 'chat',
-    path: '/dm/pinned',
-    func: () => pinnedDMs,
-  },
-  {
-    action: 'scry',
-    app: 'chat',
     path: '/dm/archive',
     func: () => archive,
   },
@@ -539,7 +547,6 @@ const clubs: { [id: string]: Club } = {
       image: '',
       color: '',
     },
-    pin: false,
   },
 };
 
@@ -611,7 +618,6 @@ const clubHandlers: Handler[] = [
           image: '',
           color: '',
         },
-        pin: false,
       };
 
       return createResponse(req, 'diff');

@@ -14,9 +14,6 @@ export interface GroupState {
   groups: {
     [flag: string]: Group;
   };
-  pinnedGroups: string[];
-  pinGroup: (flag: string) => Promise<void>;
-  unpinGroup: (flag: string) => Promise<void>;
   gangs: Gangs;
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
@@ -43,6 +40,7 @@ export interface GroupState {
     members: Record<string, string[]>;
     cordon: Record<string, any>;
   }) => Promise<void>;
+  leave: (flag: string) => Promise<void>;
   edit: (flag: string, metadata: GroupMeta) => Promise<void>;
   delete: (flag: string) => Promise<void>;
   start: () => Promise<void>;

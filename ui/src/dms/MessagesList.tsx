@@ -6,7 +6,6 @@ import {
   usePendingDms,
   useBriefs,
   isGroupBrief,
-  usePinnedChats,
   usePendingMultiDms,
   usePinned,
 } from '../state/chat';

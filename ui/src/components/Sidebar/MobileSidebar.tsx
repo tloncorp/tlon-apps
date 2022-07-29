@@ -1,28 +1,37 @@
 import React from 'react';
+import useSidebarSort from '@/logic/useSidebarSort';
+import { usePinnedGroups } from '@/state/chat';
+import { hasKeys } from '@/logic/utils';
+import { useGroups } from '@/state/groups/groups';
 import useNavStore from '../Nav/useNavStore';
-import useSidebarSort from '../../logic/useSidebarSort';
 import SidebarSorter from './SidebarSorter';
 import NavTab from '../NavTab';
 import GroupIcon from '../icons/GroupIcon';
 import ActivityIndicator from './ActivityIndicator';
 import AsteriskIcon from '../icons/Asterisk16Icon';
-// import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
 import GroupList from './GroupList';
-import { usePinnedGroups } from '../../state/groups/groups';
 
 export default function MobileSidebar() {
   const secondary = useNavStore((state) => state.secondary);
-  const pinned = usePinnedGroups();
-  const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get notification count from hark store
   const notificationCount = 0;
+
+  const { sortFn, setSortFn, sortOptions, sortGroups } = useSidebarSort();
+  const groups = useGroups();
+  const pinnedGroups = usePinnedGroups();
+  const sortedGroups = sortGroups(groups);
+  const sortedPinnedGroups = sortGroups(pinnedGroups);
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
       <header className="flex-none px-2 py-1">
-        {pinned ? (
+        {hasKeys(pinnedGroups) ? (
           <ul className="mb-3 space-y-2 sm:mb-2 sm:space-y-0 md:mb-0">
-            <GroupList pinned />
+            <GroupList
+              pinned
+              groups={sortedGroups}
+              pinnedGroups={sortedPinnedGroups}
+            />
           </ul>
         ) : null}
         {secondary === 'main' ? (
@@ -44,7 +53,7 @@ export default function MobileSidebar() {
       </header>
       <nav className="h-full flex-1 overflow-y-auto">
         {secondary === 'main' ? (
-          <GroupList />
+          <GroupList groups={sortedGroups} pinnedGroups={sortedPinnedGroups} />
         ) : secondary === 'notifications' ? (
           <div />
         ) : secondary === 'search' ? (
@@ -62,10 +71,6 @@ export default function MobileSidebar() {
               <ActivityIndicator count={notificationCount} className="mb-0.5" />
               Notifications
             </NavTab>
-            {/* <NavTab loc="search">
-              <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
-              Search
-            </NavTab> */}
             <a
               className="flex-1 no-underline"
               href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"

@@ -6,6 +6,7 @@ import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
+import { Groups } from '@/types/groups';
 import {
   Chat,
   ChatBriefs,
@@ -13,13 +14,14 @@ import {
   ChatDiff,
   ChatDraft,
   ChatPerm,
+  Chats,
   ChatWrit,
   Club,
   ClubAction,
   ClubDelta,
   ClubInvite,
-  ClubPin,
   DmAction,
+  Pins,
   WritDelta,
 } from '../../types/chat';
 import api from '../../api';
@@ -29,10 +31,12 @@ import {
   storageVersion,
   whomIsDm,
   whomIsMultiDm,
+  whomIsFlag,
 } from '../../logic/utils';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
+import { useGroups } from '../groups';
 
 setAutoFreeze(false);
 
@@ -107,44 +111,45 @@ export const useChatState = create<ChatState>(
         });
       },
       chats: {},
+      dms: {},
+      multiDms: {},
       dmArchive: [],
       pacts: {},
-      dms: {},
       drafts: {},
+      chatSubs: [],
       dmSubs: [],
-      multiDms: {},
       multiDmSubs: [],
       pendingDms: [],
-      pinnedDms: [],
+      pins: [],
       briefs: {},
-      toggleDmPin: async (ship, pin) => {
-        get().set((draft) => {
-          if (pin) {
-            draft.pinnedDms = [...draft.pinnedDms, ship];
-          } else {
-            draft.pinnedDms = draft.pinnedDms.filter((s) => s !== ship);
-          }
-        });
-        await api.poke({
+      togglePin: async (whom, pin) => {
+        const { pins } = get();
+        let newPins = [];
+
+        if (pin) {
+          newPins = [...pins, whom];
+        } else {
+          newPins = pins.filter((w) => w !== whom);
+        }
+
+        await api.poke<Pins>({
           app: 'chat',
-          mark: 'dm-pin',
+          mark: 'chat-pins',
           json: {
-            ship,
-            pin,
+            pins: newPins,
           },
         });
+
+        get().fetchPins();
       },
-      toggleMultiDmPin: async (whom, pin) => {
-        get().set((draft) => {
-          draft.multiDms[whom].pin = pin;
-        });
-        await api.poke<ClubPin>({
+      fetchPins: async () => {
+        const { pins } = await api.scry<Pins>({
           app: 'chat',
-          mark: 'club-pin',
-          json: {
-            id: whom,
-            pin,
-          },
+          path: '/pins',
+        });
+
+        get().set((draft) => {
+          draft.pins = pins;
         });
       },
       markRead: async (whom) => {
@@ -159,34 +164,40 @@ export const useChatState = create<ChatState>(
       },
       start: async () => {
         // TODO: parallelise
-        const briefs = await api.scry<ChatBriefs>({
-          app: 'chat',
-          path: '/briefs',
-        });
-
-        get().batchSet((draft) => {
-          draft.briefs = briefs;
-        });
-
-        const pendingDms = await api.scry<string[]>({
-          app: 'chat',
-          path: '/dm/invited',
-        });
-        get().batchSet((draft) => {
-          draft.pendingDms = pendingDms;
-        });
-
-        try {
-          const pinnedDms = await api.scry<string[]>({
+        api
+          .scry<ChatBriefs>({
             app: 'chat',
-            path: '/dm/pinned',
+            path: '/briefs',
+          })
+          .then((briefs) => {
+            get().batchSet((draft) => {
+              draft.briefs = briefs;
+            });
           });
-          get().batchSet((draft) => {
-            draft.pinnedDms = pinnedDms;
+
+        api
+          .scry<string[]>({
+            app: 'chat',
+            path: '/dm/invited',
+          })
+          .then((pendingDms) => {
+            get().batchSet((draft) => {
+              draft.pendingDms = pendingDms;
+            });
           });
-        } catch (error) {
-          console.log(error);
-        }
+
+        get().fetchPins();
+
+        api
+          .scry<Chats>({
+            app: 'chat',
+            path: '/chats',
+          })
+          .then((chats) => {
+            get().batchSet((draft) => {
+              draft.chats = chats;
+            });
+          });
 
         api.subscribe({
           app: 'chat',
@@ -302,13 +313,8 @@ export const useChatState = create<ChatState>(
         get().batchSet((draft) => {
           dms.forEach((ship) => {
             const chat = {
-              writs: new BigIntOrderedMap<ChatWrit>(),
               perms: {
                 writers: [],
-              },
-              draft: {
-                inline: [],
-                block: [],
               },
             };
             draft.dms[ship] = chat;
@@ -442,7 +448,6 @@ export const useChatState = create<ChatState>(
               image: '',
               color: '',
             },
-            pin: false,
           };
         });
         await api.poke({
@@ -469,9 +474,26 @@ export const useChatState = create<ChatState>(
       },
       addSects: async (whom, sects) => {
         await api.poke(chatAction(whom, { 'add-sects': sects }));
+        const perms = await api.scry<ChatPerm>({
+          app: 'chat',
+          path: `/chat/${whom}/perm`,
+        });
+        get().batchSet((draft) => {
+          draft.chats[whom].perms = perms;
+        });
+      },
+      delSects: async (whom, sects) => {
+        await api.poke(chatAction(whom, { 'del-sects': sects }));
+        const perms = await api.scry<ChatPerm>({
+          app: 'chat',
+          path: `/chat/${whom}/perm`,
+        });
+        get().batchSet((draft) => {
+          draft.chats[whom].perms = perms;
+        });
       },
       initialize: async (whom: string) => {
-        if (whom in get().chats) {
+        if (get().chatSubs.includes(whom)) {
           return;
         }
 
@@ -480,12 +502,9 @@ export const useChatState = create<ChatState>(
           path: `/chat/${whom}/perm`,
         });
         get().batchSet((draft) => {
-          const chat = {
-            writs: new BigIntOrderedMap<ChatWrit>(),
-            perms,
-            draft: { block: [], inline: [] },
-          };
+          const chat = { perms };
           draft.chats[whom] = chat;
+          draft.chatSubs.push(whom);
         });
 
         await makeWritsStore(
@@ -535,7 +554,7 @@ export const useChatState = create<ChatState>(
       migrate: clearStorageMigration,
       partialize: (state) => ({
         multiDms: state.multiDms,
-        pinnedDms: state.pinnedDms,
+        pins: state.pins,
       }),
     }
   )
@@ -590,6 +609,9 @@ export function useCurrentPactSize(whom: string) {
 export function useReplies(whom: string, id: string) {
   const pact = usePact(whom);
   return useMemo(() => {
+    if (!pact) {
+      return new BigIntOrderedMap<ChatWrit>();
+    }
     const { writs, index } = pact;
     const time = index[id];
     if (!time) {
@@ -708,22 +730,35 @@ export function useBriefs() {
   return useChatState(useCallback((s: ChatState) => s.briefs, []));
 }
 
-export function usePinnedChats() {
-  return useChatState(useCallback((s: ChatState) => s.pinnedDms, []));
+export function usePinned() {
+  return useChatState(useCallback((s: ChatState) => s.pins, []));
+}
+
+export function usePinnedGroups() {
+  const groups = useGroups();
+  const pinned = usePinned();
+  return useMemo(
+    () =>
+      pinned.filter(whomIsFlag).reduce(
+        (memo, flag) =>
+          flag in groups
+            ? {
+                ...memo,
+                [flag]: groups[flag],
+              }
+            : memo,
+        {} as Groups
+      ),
+    [groups, pinned]
+  );
+}
+
+export function usePinnedDms() {
+  const pinned = usePinned();
+  return useMemo(() => pinned.filter(whomIsDm), [pinned]);
 }
 
 export function usePinnedClubs() {
-  const multiDms = useMultiDms();
-  return Object.entries(multiDms)
-    .filter(([, v]) => v.pin)
-    .map(([k]) => k);
-}
-
-export function usePinned() {
-  const pinnedDms = usePinnedChats();
-  const pinnedMultiDms = usePinnedClubs();
-  return useMemo(
-    () => [...pinnedDms, ...pinnedMultiDms],
-    [pinnedDms, pinnedMultiDms]
-  );
+  const pinned = usePinned();
+  return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);
 }

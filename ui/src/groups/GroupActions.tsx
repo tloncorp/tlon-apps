@@ -3,21 +3,24 @@ import React, { PropsWithChildren, useCallback, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link, useLocation } from 'react-router-dom';
 import { useCopyToClipboard } from 'usehooks-ts';
-import InviteIcon16 from '../components/icons/InviteIcon16';
-import LinkIcon16 from '../components/icons/LinkIcon16';
-import PinIcon16 from '../components/icons/PinIcon16';
-import Person16Icon from '../components/icons/Person16Icon';
-import EllipsisIcon from '../components/icons/EllipsisIcon';
-import BulletIcon from '../components/icons/BulletIcon';
-import { useBriefs } from '../state/chat';
-import { useGroupState, usePinnedGroups } from '../state/groups/groups';
+import InviteIcon16 from '@/components/icons/InviteIcon16';
+import LinkIcon16 from '@/components/icons/LinkIcon16';
+import PinIcon16 from '@/components/icons/PinIcon16';
+import Person16Icon from '@/components/icons/Person16Icon';
+import EllipsisIcon from '@/components/icons/EllipsisIcon';
+import BulletIcon from '@/components/icons/BulletIcon';
+import { useBriefs, useChatState, usePinnedGroups } from '@/state/chat';
+import { useGroupState } from '@/state/groups/groups';
+import LeaveIcon from '@/components/icons/LeaveIcon';
+
+const { ship } = window;
 
 export function useGroupActions(flag: string) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [isOpen, setIsOpen] = useState(false);
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
   const pinned = usePinnedGroups();
-  const isPinned = pinned.includes(flag);
+  const isPinned = Object.keys(pinned).includes(flag);
 
   const onCopy = useCallback(() => {
     doCopy(flag);
@@ -32,17 +35,14 @@ export function useGroupActions(flag: string) {
     // eslint-disable-next-line prefer-arrow-callback
     function <T>(e: React.MouseEvent<T>) {
       e.stopPropagation();
-      if (isPinned) {
-        useGroupState.getState().unpinGroup(flag);
-      } else {
-        useGroupState.getState().pinGroup(flag);
-      }
+      useChatState.getState().togglePin(flag, !isPinned);
     },
     [flag, isPinned]
   );
 
   return {
     isOpen,
+    isPinned,
     setIsOpen,
     copyItemText,
     onCopy,
@@ -64,7 +64,7 @@ export default function GroupActions({
   const briefs = useBriefs();
   const hasActivity = (briefs[flag]?.count ?? 0) > 0;
 
-  const { isOpen, setIsOpen, copyItemText, onCopy, onPinClick } =
+  const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
     useGroupActions(flag);
 
   const onCopySelect = useCallback(
@@ -128,7 +128,7 @@ export default function GroupActions({
             onClick={onPinClick}
           >
             <PinIcon16 className="h-6 w-6 text-gray-600" />
-            <span className="pr-2">Pin</span>
+            <span className="pr-2">{isPinned ? 'Unpin' : 'Pin'}</span>
           </DropdownMenu.Item>
           <DropdownMenu.Item asChild className="dropdown-item">
             <Link
@@ -140,6 +140,18 @@ export default function GroupActions({
               <span className="pr-2">Members &amp; Group Info</span>
             </Link>
           </DropdownMenu.Item>
+          {flag.includes(ship) ? null : (
+            <DropdownMenu.Item asChild className="dropdown-item">
+              <Link
+                to={`/groups/${flag}/leave`}
+                state={{ backgroundLocation: location }}
+                className="flex items-center space-x-2"
+              >
+                <LeaveIcon className="h-6 w-6 text-gray-600" />
+                <span className="pr-2">Leave Group</span>
+              </Link>
+            </DropdownMenu.Item>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Root>
     </div>

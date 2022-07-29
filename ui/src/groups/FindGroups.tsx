@@ -66,6 +66,21 @@ export default function FindGroups() {
           };
         }, {} as Gangs)
     : null;
+
+  useEffect(() => {
+    if (indexedGangs && hasKeys(indexedGangs)) {
+      const indexedFlags = Object.keys(indexedGangs);
+      if (!indexedFlags.every((f) => f in existingGangs)) {
+        // The gangs state has already been merged with the indexed gangs,
+        // so no need to update again
+        return;
+      }
+      useGroupState.setState((draft) => ({
+        gangs: { ...draft.gangs, ...indexedGangs },
+      }));
+    }
+  }, [existingGangs, indexedGangs]);
+
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
 
   const selectedShip =
@@ -118,7 +133,8 @@ export default function FindGroups() {
 
     // user has cleared selection, redirect back to find root
     navigate('/groups/find');
-  }, [navigate, selectedShip]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShip]);
 
   const resultsTitle = () => {
     if (isPending) {

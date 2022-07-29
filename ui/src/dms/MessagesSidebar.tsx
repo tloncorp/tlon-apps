@@ -1,25 +1,19 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import AsteriskIcon from '../components/icons/Asterisk16Icon';
-import NewMessageIcon from '../components/icons/NewMessageIcon';
-import { useIsMobile } from '../logic/useMedia';
-// import MagnifyingGlass from '../components/icons/MagnifyingGlass16Icon';
-import CaretDown16Icon from '../components/icons/CaretDown16Icon';
-import ChatSmallIcon from '../components/icons/ChatSmallIcon';
-import PersonSmallIcon from '../components/icons/Person16Icon';
-import CmdSmallIcon from '../components/icons/CmdSmallIcon';
+import AsteriskIcon from '@/components/icons/Asterisk16Icon';
+import NewMessageIcon from '@/components/icons/NewMessageIcon';
+import { useIsMobile } from '@/logic/useMedia';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
+import PersonSmallIcon from '@/components/icons/Person16Icon';
+import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
+import { useBriefs, usePinned } from '@/state/chat';
+import SidebarItem from '@/components/Sidebar/SidebarItem';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
-import {
-  useBriefs,
-  usePinned,
-  usePinnedChats,
-  usePinnedClubs,
-} from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
-import SidebarItem from '../components/Sidebar/SidebarItem';
 
 export default function MessagesSidebar() {
   const isMobile = useIsMobile();
@@ -34,12 +28,6 @@ export default function MessagesSidebar() {
   return (
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex w-full flex-col px-2 pt-2">
-        {/* <SidebarItem
-          icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
-          to="/dm/search"
-        >
-          Search Messages
-        </SidebarItem> */}
         <SidebarItem
           to="/dm/new"
           color="text-blue"

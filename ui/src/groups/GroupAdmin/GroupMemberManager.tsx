@@ -194,9 +194,14 @@ export default function GroupMemberManager() {
               ) : null}
               {isAdmin ? (
                 <Dropdown.Root>
-                  <Dropdown.Trigger className="default-focus ml-auto rounded text-gray-400">
-                    <ElipsisCircleIcon className="h-6 w-6" />
-                  </Dropdown.Trigger>
+                  {m !== window.our ? (
+                    <Dropdown.Trigger className="default-focus ml-auto rounded text-gray-400">
+                      <ElipsisCircleIcon className="h-6 w-6" />
+                    </Dropdown.Trigger>
+                  ) : (
+                    <div className="h-6 w-6" />
+                  )}
+
                   <Dropdown.Content className="dropdown min-w-52 text-gray-800">
                     <Dropdown.Item
                       className="dropdown-item flex items-center text-red"

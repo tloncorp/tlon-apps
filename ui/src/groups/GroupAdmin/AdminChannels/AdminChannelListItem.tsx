@@ -3,11 +3,14 @@ import cn from 'classnames';
 import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { Channel } from '@/types/groups';
 import EditChannelModal from '@/groups/GroupAdmin/AdminChannels/EditChannelModal';
+import { useChat } from '@/state/chat';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import BubbleIcon from '@/components/icons/BubbleIcon';
+import { getPrivacyFromChannel } from '@/logic/utils';
 import AdminChannelListDropdown from './AdminChannelListDropdown';
 import DeleteChannelModal from './DeleteChannelModal';
+import { PRIVACY_TYPE } from './ChannelPermsSelector';
 
 interface AdminChannelListItemProps {
   channel: Channel;
@@ -27,14 +30,14 @@ export default function AdminChannelListItem({
   onChannelDelete,
 }: AdminChannelListItemProps) {
   const flag = useRouteGroup();
-  const { meta, readers } = channel;
+  const { meta } = channel;
+  const chat = useChat(channelFlag);
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const permissionText = readers?.includes('admin')
-    ? 'Admin Only'
-    : 'Open To All';
+  const permissionText =
+    PRIVACY_TYPE[getPrivacyFromChannel(channel, chat)].title;
 
   const onDeleteChannelConfirm = useCallback(async () => {
     setDeleteChannelIsOpen(!deleteChannelIsOpen);

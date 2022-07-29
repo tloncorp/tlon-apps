@@ -194,6 +194,7 @@
       title=cord
       description=cord
       readers=(set sect:g)
+      writers=(set sect:g)
   ==
 ::
 +$  leave  flag

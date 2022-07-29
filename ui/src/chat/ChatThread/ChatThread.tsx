@@ -29,22 +29,30 @@ export default function ChatThread({ whom, children }: ChatThreadProps) {
   const [time, writ] = maybeWrit;
 
   return (
-    <div className="flex h-full w-72 flex-col space-y-2 overflow-y-auto border-l px-4 pt-4 xl:w-96">
-      <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
-        {children}
-        <Link to="..">
-          <X16Icon className="h-4 w-4 text-gray-400" />
-        </Link>
+    <div className="fixed inset-0 z-40 flex h-full w-full flex-col overflow-y-auto bg-white sm:absolute lg:static lg:w-72 lg:border-l xl:w-96">
+      <div className="space-y-2 p-4">
+        <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
+          {children}
+          <Link to="..">
+            <X16Icon className="h-4 w-4 text-gray-400" />
+          </Link>
+        </div>
+        <ChatMessage
+          whom={whom}
+          time={time}
+          writ={writ}
+          newAuthor
+          hideReplies
+        />
+        <RowDivider
+          className="text-gray-400"
+          label={`${replies.size} ${replies.size === 1 ? 'Reply' : 'Replies'}`}
+        />
       </div>
-      <ChatMessage whom={whom} time={time} writ={writ} newAuthor hideReplies />
-      <RowDivider
-        className="text-gray-400"
-        label={`${replies.size} ${replies.size === 1 ? 'Reply' : 'Replies'}`}
-      />
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col p-2">
         <ChatScroller messages={replies} whom={whom} replying />
       </div>
-      <div className="sticky bottom-0 z-10 bg-white py-4">
+      <div className="sticky bottom-0 z-10 border-t-2 border-gray-50 bg-white p-4">
         <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />
       </div>
     </div>

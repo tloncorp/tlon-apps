@@ -5,8 +5,8 @@ import { Channel, ChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';
-import { useChatState } from '@/state/chat';
-import { strToSym, channelHref } from '@/logic/utils';
+import { strToSym, channelHref, getPrivacyFromChannel } from '@/logic/utils';
+import { useChat, useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
 
@@ -31,6 +31,7 @@ export default function NewChannelForm({
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
 
+  const chat = useChat(channelFlag || '');
   const defaultValues: ChannelFormSchema = {
     zone: channel?.zone || null,
     added: channel?.added || Date.now(),
@@ -42,7 +43,7 @@ export default function NewChannelForm({
       image: '',
       color: '',
     },
-    privacy: 'public',
+    privacy: getPrivacyFromChannel(channel, chat),
   };
 
   const form = useForm<ChannelFormSchema>({
@@ -60,6 +61,8 @@ export default function NewChannelForm({
 
       if (privacy === 'secret') {
         nextChannel.readers.push('admin');
+      } else {
+        nextChannel.readers.splice(nextChannel.readers.indexOf('admin'), 1);
       }
 
       if (presetSection) {
@@ -70,6 +73,12 @@ export default function NewChannelForm({
         await useGroupState
           .getState()
           .editChannel(groupFlag, channelFlag, nextChannel);
+
+        if (privacy !== 'public') {
+          useChatState.getState().addSects(channelFlag, ['admin']);
+        } else {
+          useChatState.getState().delSects(channelFlag, ['admin']);
+        }
       } else {
         await useChatState.getState().create({
           group: groupFlag,
@@ -77,6 +86,7 @@ export default function NewChannelForm({
           title: values.meta.title,
           description: values.meta.description,
           readers: values.readers,
+          writers: privacy !== 'public' ? ['admin'] : [],
         });
         if (presetSection) {
           await useGroupState
