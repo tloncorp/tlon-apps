@@ -157,5 +157,6 @@ module.exports = {
         { name: 'dark', selectors: ['.dark'], theme: dark.theme },
       ],
     }),
+    require('@tailwindcss/line-clamp'),
   ],
 };
