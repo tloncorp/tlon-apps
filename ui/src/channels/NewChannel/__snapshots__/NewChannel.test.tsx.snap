@@ -31,7 +31,7 @@ exports[`NewChannel > renders as expected 1`] = `
           <h2
             class="text-lg font-bold"
           >
-            Edit Chat Channel
+            New Chat Channel
           </h2>
         </header>
       </div>
