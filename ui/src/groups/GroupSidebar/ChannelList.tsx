@@ -3,7 +3,7 @@ import React, { useCallback } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useBriefs } from '@/state/chat';
 import { useIsMobile } from '../../logic/useMedia';
-import { channelHref } from '../../logic/utils';
+import { channelHref, nestToFlag } from '../../logic/utils';
 import { useGroup } from '../../state/groups/groups';
 import BubbleIcon from '../../components/icons/BubbleIcon';
 import useNavStore from '../../components/Nav/useNavStore';
@@ -21,7 +21,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const isMobile = useIsMobile();
   const group = useGroup(flag);
   const briefs = useBriefs();
-  const { sortFn, sortOptions, setSortFn } = useSidebarSort();
+  const { sortFn, sortOptions, setSortFn, sortChannels } = useSidebarSort();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const hide = useCallback(() => {
     if (isMobile) {
@@ -32,12 +32,6 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   if (!group) {
     return null;
   }
-
-  // TODO: should switch on the app type
-  //   we use .slice to turn a nest into a flag
-  const channels = Object.entries(group.channels).filter(
-    ([k]) => k.slice(5) in briefs
-  );
 
   const icon = (active: boolean) =>
     isMobile ? (
@@ -69,16 +63,22 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
         <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
       </DropdownMenu.Root>
       <ul className={cn(isMobile && 'space-y-3')}>
-        {channels.map(([key, channel]) => (
-          <SidebarItem
-            key={key}
-            icon={icon}
-            to={channelHref(flag, key)}
-            onClick={hide}
-          >
-            {channel.meta.title || key}
-          </SidebarItem>
-        ))}
+        {sortChannels(group.channels)
+          .filter(([n]) => {
+            const [app, f] = nestToFlag(n);
+
+            return f in briefs;
+          })
+          .map(([nest, channel]) => (
+            <SidebarItem
+              key={nest}
+              icon={icon}
+              to={channelHref(flag, nest)}
+              onClick={hide}
+            >
+              {channel.meta.title || nest}
+            </SidebarItem>
+          ))}
       </ul>
     </div>
   );

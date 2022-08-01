@@ -6,6 +6,7 @@ import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
+import { Groups } from '@/types/groups';
 import {
   Chat,
   ChatBriefs,
@@ -35,6 +36,7 @@ import {
 import makeWritsStore from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
+import { useGroups } from '../groups';
 
 setAutoFreeze(false);
 
@@ -733,8 +735,22 @@ export function usePinned() {
 }
 
 export function usePinnedGroups() {
+  const groups = useGroups();
   const pinned = usePinned();
-  return useMemo(() => pinned.filter(whomIsFlag), [pinned]);
+  return useMemo(
+    () =>
+      pinned.filter(whomIsFlag).reduce(
+        (memo, flag) =>
+          flag in groups
+            ? {
+                ...memo,
+                [flag]: groups[flag],
+              }
+            : memo,
+        {} as Groups
+      ),
+    [groups, pinned]
+  );
 }
 
 export function usePinnedDms() {

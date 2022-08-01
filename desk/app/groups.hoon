@@ -2,6 +2,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  groups-json  :: unused, nice for perf
+/*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
   |%
@@ -33,13 +34,9 @@
       (mole |.(!<(state-0 vase)))  
     ?^  old  `this(state u.old)
     ~&  >>>  "Incompatible load, nuking"
-    =^  cards  this  on-init
-    :_  this
-    =-  (welp - cards)
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
+    =^  cards  state
+      abet:(holt:cor &)
+    [cards this]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -82,6 +79,8 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
+      %holt  (holt |)
+  ::
       %group-leave
     =+  !<(=flag:g vase)
     ?<  =(our.bowl p.flag)
@@ -167,6 +166,8 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
+      ~   cor
+  ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     go-abet:(go-agent:(go-abed:group-core ship name.pole) rest.pole sign)
@@ -183,6 +184,26 @@
   |=  [=wire sign=sign-arvo]
   ^+  cor
   !!
+::
+++  holt
+  |=  tell=?
+  ^+  cor
+  =.  state  *state-0
+  =.  cor
+    %-  emil
+    %+  turn  ~(tap in ~(key by wex.bowl))
+    |=  [=wire =ship =term] 
+    ^-  card
+    [%pass wire %agent [ship term] %leave ~]
+  ?.  tell
+    cor
+  %-  emil
+  %+  murn  `(list dude:gall)`desk-bill
+  |=  =dude:gall
+  ^-  (unit card)
+  ?:  =(dude dap.bowl)  ~
+  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
+::
 ++  give-invites
   |=  [=flag:g ships=(set ship)]
   %-  emil

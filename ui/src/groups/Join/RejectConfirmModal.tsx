@@ -36,8 +36,7 @@ export default function RejectConfirmModal() {
     if (checkboxRef && checkboxRef.current?.checked) {
       setSkipConfirmation(true);
     }
-    // TODO: Liam is working on implementing the Reject Gang endpoint
-    console.log('reject ...');
+    // TODO: consume the backend reject endpoint
     dismiss();
   }, [dismiss, setSkipConfirmation]);
 

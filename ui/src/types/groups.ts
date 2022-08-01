@@ -24,6 +24,10 @@ export interface Channel {
   join: boolean;
 }
 
+export interface Channels {
+  [nest: string]: Channel;
+}
+
 export type Zone = string;
 
 export interface Zones {
@@ -59,9 +63,7 @@ export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 export interface Group {
   fleet: Fleet;
   cabals: Cabals;
-  channels: {
-    [nest: string]: Channel;
-  };
+  channels: Channels;
   cordon: Cordon;
   meta: GroupMeta;
   zones: Zones;

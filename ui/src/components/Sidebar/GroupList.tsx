@@ -4,18 +4,12 @@ import { uniq, without } from 'lodash';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
-import { usePinnedGroups } from '@/state/chat';
-import useSidebarSort from '@/logic/useSidebarSort';
 import { useIsMobile } from '@/logic/useMedia';
-import {
-  useGang,
-  useGangList,
-  useGroup,
-  useGroupList,
-} from '@/state/groups/groups';
+import { useGang, useGangList, useGroup } from '@/state/groups/groups';
 import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
+import { Group } from '@/types/groups';
 import Divider from '../Divider';
 import useNavStore from '../Nav/useNavStore';
 import SidebarItem from './SidebarItem';
@@ -162,22 +156,23 @@ function GangItem(props: { flag: string }) {
 interface GroupListProps {
   className?: string;
   pinned?: boolean;
+  groups: [string, Group][];
+  pinnedGroups: [string, Group][];
 }
 
 export default function GroupList({
   className,
   pinned = false,
+  groups,
+  pinnedGroups,
 }: GroupListProps) {
   const isMobile = useIsMobile();
-  const flags = useGroupList();
-  const pinnedFlags = usePinnedGroups();
   const gangs = useGangList();
-  const { sortFn, sortOptions } = useSidebarSort();
   const { order, loaded } = useSettingsState(selOrderedPins);
 
   useEffect(() => {
     const hasKeys = order && !!order.length;
-    const pinnedKeys = Object.keys(pinnedFlags);
+    const pinnedKeys = Object.keys(pinnedGroups);
     const hasPinnedKeys = pinnedKeys.length > 0;
 
     if (!loaded) {
@@ -200,10 +195,10 @@ export default function GroupList({
         .putEntry(
           'groups',
           'orderedGroupPins',
-          uniq(order.filter((key) => key in pinnedFlags).concat(pinnedKeys))
+          uniq(order.filter((key) => key in pinnedGroups).concat(pinnedKeys))
         );
     }
-  }, [pinnedFlags, order, loaded]);
+  }, [pinnedGroups, order, loaded]);
 
   return pinned ? (
     <DndProvider
@@ -224,7 +219,7 @@ export default function GroupList({
         <Divider>Pinned</Divider>
         <div className="grow border-b-2 border-gray-100" />
       </li>
-      {pinnedFlags.sort(sortOptions[sortFn]).map((flag) => (
+      {pinnedGroups.map(([flag]) => (
         <GroupItemContainer flag={flag} key={flag}>
           <DraggableGroupItem flag={flag} />
         </GroupItemContainer>
@@ -235,10 +230,9 @@ export default function GroupList({
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />
       ))}
-      {flags
-        .filter((flag) => !pinnedFlags.includes(flag))
-        .sort(sortOptions[sortFn])
-        .map((flag) => (
+      {groups
+        .filter(([flag, _group]) => !Object.keys(pinnedGroups).includes(flag))
+        .map(([flag]) => (
           <GroupItem key={flag} flag={flag} />
         ))}
     </ul>

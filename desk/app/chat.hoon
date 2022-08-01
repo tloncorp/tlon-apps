@@ -6,6 +6,7 @@
 /+  w=chat-writs
 /+  pac=dm
 /+  ch=chat-hark
+/*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
   |%
@@ -51,13 +52,9 @@
         dm(watching.remark &)
       `this(state u.old)
     ~&  >>>  "Incompatible load, nuking"
-    =^  cards  this  on-init
-    :_  this
-    =-  (welp - cards)
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
+    =^  cards  state
+      abet:(holt:cor &)
+    [cards this]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -109,6 +106,7 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
+      %holt  (holt |)
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
@@ -220,6 +218,7 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
+      ~  cor
   ::
       [%dm @ *]
     =/  =ship  (slav %p i.t.wire)
@@ -357,6 +356,25 @@
     :-  flag/flag
     ca-brief:(ca-abed:ca-core flag)
   ==
+::
+++  holt
+  |=  tell=?
+  ^+  cor
+  =.  state  *state-0
+  =.  cor
+    %-  emil
+    %+  turn  ~(tap in ~(key by wex.bowl))
+    |=  [=wire =ship =term] 
+    ^-  card
+    [%pass wire %agent [ship term] %leave ~]
+  =.  cor  init
+  ?.  tell  cor
+  %-  emil
+  %+  murn  `(list dude:gall)`desk-bill
+  |=  =dude:gall
+  ^-  (unit card)
+  ?:  =(dude dap.bowl)  ~
+  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
 ::
 ++  give-brief
   |=  [=whom:c =brief:briefs:c]
