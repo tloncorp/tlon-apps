@@ -70,7 +70,7 @@ export default function FindGroups() {
   useEffect(() => {
     if (indexedGangs && hasKeys(indexedGangs)) {
       const indexedFlags = Object.keys(indexedGangs);
-      if (!indexedFlags.every((f) => f in existingGangs)) {
+      if (indexedFlags.every((f) => f in existingGangs)) {
         // The gangs state has already been merged with the indexed gangs,
         // so no need to update again
         return;
