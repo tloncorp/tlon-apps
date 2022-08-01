@@ -4,13 +4,13 @@
         [[[her=ship name=term] mess=(list inline:c) op=(unit time) ~] ~]
     ==
 ::
-:-  %chat-action
+:-  %heap-action
 ^-  action:h
 =/  curio
-  :-  [now *(map ship feel:c) *(set time)]
-  =*  ~
+  :-  [now *(map ship feel:h) *(set time)]
+  :*  ~
       mess
-      our
+      p.beak
       now
       op
   ==

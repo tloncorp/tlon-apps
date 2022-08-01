@@ -1,7 +1,7 @@
 /-  ch=channel, g=groups
 :-  %say
 |=  $:  [now=@da eny=@uvJ =beak]
-        [[[group=flag:g name=term title=cord description=cord] =id:c ~] ~]
+        [[group=flag:g name=term title=cord description=cord ~] ~]
     ==
 ::
 :-  %channel-create
