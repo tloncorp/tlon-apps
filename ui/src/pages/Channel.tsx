@@ -25,8 +25,9 @@ import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import useNavStore from '@/components/Nav/useNavStore';
 
 function Channel() {
-  const { chShip, chName } = useParams();
+  const { app, chShip, chName } = useParams();
   const flag = `${chShip}/${chName}`;
+  const nest = `${app}/${flag}`;
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const isJoined = useChatIsJoined(flag);
@@ -46,7 +47,7 @@ function Channel() {
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
-  const channel = useChannel(groupFlag, flag)!;
+  const channel = useChannel(groupFlag, nest)!;
   const { sendMessage } = useChatState.getState();
   const groupName = group?.meta.title;
 

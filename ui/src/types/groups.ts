@@ -60,7 +60,7 @@ export interface Group {
   fleet: Fleet;
   cabals: Cabals;
   channels: {
-    [flag: string]: Channel;
+    [nest: string]: Channel;
   };
   cordon: Cordon;
   meta: GroupMeta;
@@ -138,7 +138,7 @@ interface ChannelDiffJoin {
 
 interface ChannelDiff {
   channel: {
-    flag: string;
+    nest: string;
     diff:
       | ChannelDiffAdd
       | ChannelDiffDel

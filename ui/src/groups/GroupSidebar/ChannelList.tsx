@@ -33,7 +33,11 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
     return null;
   }
 
-  const channels = Object.entries(group.channels).filter(([k]) => k in briefs);
+  // TODO: should switch on the app type
+  //   we use .slice to turn a nest into a flag
+  const channels = Object.entries(group.channels).filter(
+    ([k]) => k.slice(5) in briefs
+  );
 
   const icon = (active: boolean) =>
     isMobile ? (
