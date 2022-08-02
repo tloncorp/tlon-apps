@@ -4,6 +4,26 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  carpet
+    |=  c=carpet:h
+    ^-  json
+    %-  pairs
+    :~  seam/(seam seam.c)
+        yarns/(yarns yarns.c)
+        cable/(cable cable.c)
+    ==
+  ::
+  ++  cable
+    |=  c=(map rope:h thread:h)
+    ^-  json
+    :-  %a
+    %+  turn  ~(tap by c)
+    |=  [r=rope:h t=thread:h]
+    %-  pairs
+    :~  rope/(rope r)
+        thread/(thread t)
+    ==
+  ::
   ++  id
     |=  i=id:h
     ^-  json
