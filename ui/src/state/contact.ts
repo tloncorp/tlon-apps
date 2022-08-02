@@ -143,6 +143,10 @@ export function useMemoizedContacts() {
   return useMemo(() => useContactState.getState().contacts, []);
 }
 
+export function isOurContactPublic() {
+  return useContactState.getState().isContactPublic;
+}
+
 export function useContact(ship: string) {
   return useContactState(
     useCallback(
