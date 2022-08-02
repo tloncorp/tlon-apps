@@ -587,9 +587,10 @@
     ++  add-channel
       |=  req=create:c
       =/  =dock      [p.group.req %groups]
+      =/  =nest:g    [dap.bowl flag]
       =/  =channel:g  
         =,(req [[title description '' ''] now.bowl ~ | readers])
-      =/  =action:g  [group.req now.bowl %channel flag %add channel]
+      =/  =action:g  [group.req now.bowl %channel nest %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc ca-area %create)
       =/  =card
@@ -693,7 +694,7 @@
     |=  her=ship
     =/  =path
       %+  welp  ca-groups-scry
-      /channel/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
+      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
     .^(? %gx path)
   ::
   ++  ca-pub

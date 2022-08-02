@@ -25,7 +25,7 @@ export interface Channel {
 }
 
 export interface Channels {
-  [flag: string]: Channel;
+  [nest: string]: Channel;
 }
 
 export type Zone = string;
@@ -140,7 +140,7 @@ interface ChannelDiffJoin {
 
 interface ChannelDiff {
   channel: {
-    flag: string;
+    nest: string;
     diff:
       | ChannelDiffAdd
       | ChannelDiffDel

@@ -16,6 +16,12 @@ import {
   Rank,
 } from '../types/groups';
 
+export function nestToFlag(nest: string): [string, string] {
+  const [app, ...rest] = nest.split('/');
+
+  return [app, rest.join('/')];
+}
+
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
     return plural ? 'Galaxies' : 'Galaxy';
@@ -41,7 +47,7 @@ export function strToSym(str: string): string {
 }
 
 export function channelHref(flag: string, ch: string) {
-  return `/groups/${flag}/channels/chat/${ch}`;
+  return `/groups/${flag}/channels/${ch}`;
 }
 
 export function makePrettyDay(date: Date) {

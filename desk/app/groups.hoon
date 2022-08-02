@@ -265,10 +265,10 @@
     ++  join-pinned
       ^-  (list card)
       %+  turn  ~(tap by channels.group)
-      |=  [ch=flag:g =channel:g]
+      |=  [nes=nest:g =channel:g]
       ^-  card
-      =/  =dock  [our.bowl %chat] :: TODO: generally remove chat hard-coding j
-      =/  =cage  channel-join+!>(ch)
+      =/  =dock  [our.bowl p.nes] :: TODO: generally remove chat hard-coding j
+      =/  =cage  channel-join+!>(q.nes)
       =/  =wire  (snoc go-area %join-pinned)
       [%pass wire %agent dock %poke cage]
     --
@@ -340,9 +340,9 @@
       =/  src  (slav %p ship.pole)
       `noun+!>((~(got by fleet.group) src))
       ::
-        [%channel ship=@ name=@ rest=*]
-      =/  fog=flag:g  [(slav %p ship.pole) name.pole]
-      =/  =channel:g  (~(got by channels.group) fog)
+        [%channel app=@ ship=@ name=@ rest=*]
+      =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
+      =/  =channel:g  (~(got by channels.group) nes)
       ?+    rest.pole  ~
           [%can-read src=@ ~]
         =/  src  (slav %p src.rest.pole)
@@ -506,11 +506,11 @@
         [idx.delta zone]
       go-core
     ::
-        %mov-flag
+        %mov-nest
       =/  =realm:zone:g  (~(got by zones.group) zone)
       =.  ord.realm  
-        %+  into  (skim ord.realm |=(=flag:g !=(flag flag.delta)))
-        [idx.delta flag]
+        %+  into  (skim ord.realm |=(=nest:g !=(nest nest.delta)))
+        [idx nest]:delta
       =.  zones.group    (~(put by zones.group) zone realm)
       go-core
     ==
@@ -664,7 +664,7 @@
       go-core
     ==
   ++  go-channel-update
-    |=  [ch=flag:g =diff:channel:g]
+    |=  [ch=nest:g =diff:channel:g]
     ^+  go-core
     ?>  go-is-bloc
     =*  by-ch  ~(. by channels.group)
@@ -703,7 +703,7 @@
       =/  =channel:g  (got:by-ch ch)
       =/  =zone:g  (need zone.channel)
       =/  =realm:zone:g  (~(got by zones.group) zone)
-      =.  ord.realm  (skim ord.realm |=(=flag:g !=(ch flag)))
+      =.  ord.realm  (skim ord.realm |=(=nest:g !=(ch nest)))
       =.  zones.group  (~(put by zones.group) zone realm) 
       =.  zone.channel   ~
       =.  channels.group  (put:by-ch ch channel)

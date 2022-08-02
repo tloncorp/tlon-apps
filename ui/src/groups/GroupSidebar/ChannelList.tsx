@@ -3,7 +3,7 @@ import React, { useCallback } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useBriefs } from '@/state/chat';
 import { useIsMobile } from '../../logic/useMedia';
-import { channelHref } from '../../logic/utils';
+import { channelHref, nestToFlag } from '../../logic/utils';
 import { useGroup } from '../../state/groups/groups';
 import BubbleIcon from '../../components/icons/BubbleIcon';
 import useNavStore from '../../components/Nav/useNavStore';
@@ -64,15 +64,19 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
       </DropdownMenu.Root>
       <ul className={cn(isMobile && 'space-y-3')}>
         {sortChannels(group.channels)
-          .filter(([k]) => k in briefs)
-          .map(([key, channel]) => (
+          .filter(([n]) => {
+            const [app, f] = nestToFlag(n);
+
+            return f in briefs;
+          })
+          .map(([nest, channel]) => (
             <SidebarItem
-              key={key}
+              key={nest}
               icon={icon}
-              to={channelHref(flag, key)}
+              to={channelHref(flag, nest)}
               onClick={hide}
             >
-              {channel.meta.title || key}
+              {channel.meta.title || nest}
             </SidebarItem>
           ))}
       </ul>
