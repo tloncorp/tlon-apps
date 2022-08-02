@@ -47,6 +47,7 @@ export interface GroupState {
   search: (flag: string) => Promise<void>;
   index: (ship: string) => Promise<GroupIndex>;
   join: (flag: string, joinAll: boolean) => Promise<void>;
+  reject: (flag: string) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   deleteZone: (flag: string, zone: string) => Promise<void>;
   editChannel: (

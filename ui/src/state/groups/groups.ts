@@ -162,6 +162,17 @@ export const useGroupState = create<GroupState>((set, get) => ({
       },
     });
   },
+  reject: async (flag) => {
+    await api.poke({
+      app: 'groups',
+      mark: 'invite-reject',
+      json: flag,
+    });
+
+    get().batchSet((draft) => {
+      delete draft.gangs[flag];
+    });
+  },
   leave: async (flag: string) => {
     await api.poke({
       app: 'groups',
