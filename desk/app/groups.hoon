@@ -123,6 +123,10 @@
     =.  cam.gang  `claim
     =.  xeno  (~(put by xeno) flag.join gang)
     ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
+  ::
+      %invite-reject
+    =+  !<(=flag:g vase)
+    ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
 ++  watch
   |=  =(pole knot)
@@ -868,5 +872,10 @@
     =.  cor  ga-give-update
     ga-core
   ::
+  ++  ga-invite-reject
+    ^+  ga-core
+    =.  vit.gang  ~
+    =.  cor  ga-give-update
+    ga-core
   --
 --
