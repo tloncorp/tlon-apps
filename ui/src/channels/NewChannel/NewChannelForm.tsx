@@ -1,11 +1,7 @@
 import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import {
-  Channel,
-  ChannelFormSchema,
-  NewChannelFormSchema,
-} from '@/types/groups';
+import { NewChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';

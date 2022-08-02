@@ -10,7 +10,8 @@ import HeapChannel from '@/heap/HeapChannel';
 
 function Channel() {
   const { app, chShip, chName } = useParams();
-  const nest = `${chShip}/${chName}`;
+  const chflag = `${chShip}/${chName}`;
+  const nest = `${app}/${chflag}`;
   const flag = useRouteGroup();
   const isJoined = useChatIsJoined(nest);
   const join = () => {

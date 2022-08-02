@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { Channel } from '@/types/groups';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import { channelHref } from '@/logic/utils';
+import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
@@ -19,7 +19,8 @@ import useRequestState from '@/logic/useRequestState';
 
 const UNZONED = '';
 
-function Channel({ channel, flag }: { flag: string; channel: Channel }) {
+function Channel({ channel, nest }: { nest: string; channel: Channel }) {
+  const [app, flag] = nestToFlag(nest);
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useBriefs();
@@ -77,17 +78,13 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
     return null;
   }
 
-  const channelFlag = Object.entries(group.channels).find(
-    (entry) => entry[1] === channel
-  )?.[0];
-
   // If the current user is the Channel host, they are automatically joined,
   // and cannot leave the group
-  const isChannelHost = window.our === channelFlag?.split('/')[0];
+  const isChannelHost = window.our === flag?.split('/')[0];
 
   // A Channel is considered Joined if hosted by current user, or if a Brief
   // exists
-  const joined = isChannelHost || (channelFlag && channelFlag in briefs);
+  const joined = isChannelHost || (flag && flag in briefs);
 
   return (
     <div className="my-2 flex flex-row items-center justify-between rounded-lg pl-0 pr-2 hover:bg-gray-50">
@@ -98,10 +95,10 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
           <BubbleIcon className="h-6 w-6 text-gray-400" />
         </div>
         <div className="flex flex-col justify-evenly">
-          {joined && channelFlag ? (
+          {joined && nest ? (
             <Link
               className="font-semibold text-gray-800"
-              to={channelHref(groupFlag, channelFlag)}
+              to={channelHref(groupFlag, nest)}
             >
               {channel.meta.title}
             </Link>
@@ -199,8 +196,8 @@ function ChannelSection({
       {zone !== UNZONED ? (
         <div className="py-4 font-semibold text-gray-400">{zone}</div>
       ) : null}
-      {sortedChannels.map(([flag, channel]) => (
-        <Channel flag={flag} channel={channel} key={channel.added} />
+      {sortedChannels.map(([nest, channel]) => (
+        <Channel nest={nest} channel={channel} key={channel.added} />
       ))}
     </div>
   );
