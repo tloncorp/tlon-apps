@@ -59,20 +59,13 @@ export interface GroupState {
   addChannelToZone: (
     zone: string,
     groupFlag: string,
-    channelFlag: string
+    nest: string
   ) => Promise<void>;
-  removeChannelFromZone: (
-    groupFlag: string,
-    channelFlag: string
-  ) => Promise<void>;
+  removeChannelFromZone: (groupFlag: string, nest: string) => Promise<void>;
   setChannelPerm: (
     flag: string,
-    channelFlag: string,
+    nest: string,
     sects: string[]
   ) => Promise<void>;
-  setChannelJoin: (
-    flag: string,
-    channelFlag: string,
-    join: boolean
-  ) => Promise<void>;
+  setChannelJoin: (flag: string, nest: string, join: boolean) => Promise<void>;
 }

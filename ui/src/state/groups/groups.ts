@@ -244,11 +244,11 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  editChannel: async (groupFlag, flag, channel) => {
+  editChannel: async (flag, nest, channel) => {
     await api.poke(
-      groupAction(groupFlag, {
+      groupAction(flag, {
         channel: {
-          flag,
+          nest,
           diff: {
             add: channel,
           },
@@ -256,11 +256,11 @@ export const useGroupState = create<GroupState>((set, get) => ({
       })
     );
   },
-  deleteChannel: async (groupFlag, flag) => {
+  deleteChannel: async (flag, nest) => {
     await api.poke(
-      groupAction(groupFlag, {
+      groupAction(flag, {
         channel: {
-          flag,
+          nest,
           diff: {
             del: null,
           },
@@ -290,34 +290,33 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
-  addChannelToZone: async (zone, groupFlag, channelFlag) => {
+  addChannelToZone: async (zone, flag, nest) => {
     const diff = {
       channel: {
-        flag: channelFlag,
+        nest,
         diff: {
           'add-zone': zone,
         },
       },
     };
-    await api.poke(groupAction(groupFlag, diff));
+    await api.poke(groupAction(flag, diff));
   },
-  removeChannelFromZone: async (groupFlag, channelFlag) => {
+  removeChannelFromZone: async (flag, nest) => {
     const diff = {
       channel: {
-        flag: channelFlag,
+        nest,
         diff: {
           'del-zone': null,
         },
       },
     };
-    await api.poke(groupAction(groupFlag, diff));
+    await api.poke(groupAction(flag, diff));
   },
-  setChannelPerm: async (flag, channelFlag, sects) => {
-    const currentReaders =
-      get().groups[flag].channels[channelFlag]?.readers || [];
+  setChannelPerm: async (flag, nest, sects) => {
+    const currentReaders = get().groups[flag].channels[nest]?.readers || [];
     const addDiff = {
       channel: {
-        flag: channelFlag,
+        nest,
         diff: {
           'add-sects': sects.filter((s) => !currentReaders.includes(s)),
         },
@@ -325,7 +324,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     const removeDiff = {
       channel: {
-        flag: channelFlag,
+        nest,
         diff: {
           'del-sects': currentReaders.filter((s) => sects.includes(s)),
         },
@@ -334,10 +333,10 @@ export const useGroupState = create<GroupState>((set, get) => ({
     await api.poke(groupAction(flag, addDiff));
     await api.poke(groupAction(flag, removeDiff));
   },
-  setChannelJoin: async (flag, channelFlag, join) => {
+  setChannelJoin: async (flag, nest, join) => {
     const diff = {
       channel: {
-        flag: channelFlag,
+        nest,
         diff: {
           join,
         },
@@ -500,3 +499,5 @@ const selInit = (s: GroupState) => s.initialized;
 export function useGroupsInitialized() {
   return useGroupState(selInit);
 }
+
+(window as any).groups = useGroupState.getState;
