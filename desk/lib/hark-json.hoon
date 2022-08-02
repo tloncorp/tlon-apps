@@ -86,4 +86,32 @@
         thread/s/(spat ted.r)
     ==
   --
+::
+++  dejs
+  =,  dejs:format
+  |%
+  ++  action
+    ^-  $-(json action:h)
+    %-  of
+    :~  saw-seam/seam
+        saw-rope/rope
+    ==
+  ::
+  ++  seam
+    %-  of
+    :~  all/ul
+        desk/so
+        group/flag
+    ==
+  ::
+  ++  flag  flag:dejs:groups-json
+  ::
+  ++  rope
+    %-  ot
+    :~  group/(mu flag)
+        channel/(mu flag)
+        desk/so
+        thread/pa
+    ==
+  --
 --
