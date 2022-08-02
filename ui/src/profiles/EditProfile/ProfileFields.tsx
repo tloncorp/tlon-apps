@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import cn from 'classnames';
 import { useFormContext } from 'react-hook-form';
 import {
@@ -6,14 +6,19 @@ import {
   ContactEditFieldPrim,
   ContactEditField,
   ContactUpdate,
+  hexToUx,
+  uxToHex
 } from '@urbit/api';
 import ColorPicker from '@/components/ColorPicker';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
+import CheckIcon from '@/components/icons/CheckIcon';
 import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import XIcon from '@/components/icons/XIcon';
 import useMedia from '@/logic/useMedia';
 import { isValidUrl } from '@/logic/utils';
 import { GroupMeta } from '@/types/groups';
+import LinkIcon from '@/components/icons/LinkIcon';
+import { initial } from 'lodash';
 
 interface ProfileFormSchema extends ContactEditField {
   isContactPublic: boolean;
@@ -22,155 +27,102 @@ interface ProfileFormSchema extends ContactEditField {
 export default function ProfileFields() {
   const {
     register,
-    unregister,
     watch,
     setValue,
-    formState: { errors },
+    formState,
   } = useFormContext<ProfileFormSchema>();
-  const [iconType, setIconType] = useState<'avatar' | 'color'>();
-  const [iconColor, setIconColor] = useState<string>();
-  const [iconLetter, setIconLetter] = useState<string>();
-  const [iconUrl, setIconUrl] = useState<string>();
-  const watchIconColor = watch('color');
-  const watchIconImage = watch('avatar');
-  // const watchTitle = watch('title');
-  const dark = useMedia('(prefers-color-scheme: dark)');
-  const defaultColor = dark ? '#FFFFFF' : '#000000';
+  const {errors} = formState;
+  const [headerFieldFocused, setHeaderFieldFocused] = useState<boolean>();
+  const [avatarFieldFocused, setAvatarFieldFocused] = useState<boolean>();
+  const watchAvatar = watch('avatar');
+  const watchCover = watch('cover');
+  const avatarHasLength = watchAvatar?.length;
+  const coverHasLength = watchCover?.length;
+  const watchSigilColor = watch('color');
+  const isPublicSelected = watch('isContactPublic') === true;
 
-  useEffect(() => {
-    if (watchIconImage) {
-      setIconType('avatar');
-    } else if (watchIconColor) {
-      setIconType('color');
-    } else {
-      setIconType(undefined);
-    }
-  }, [watchIconColor, watchIconImage]);
-
-  useEffect(() => {
-    if (iconType === 'color' && watchIconColor !== '') {
-      setIconColor(watchIconColor as string);
-    }
-  }, [iconType, watchIconColor]);
-
-  // useEffect(() => {
-  //   if (iconType === 'color' && watchTitle !== '') {
-  //     setIconLetter((watchTitle as string).slice(0, 1));
-  //   }
-  // }, [iconType, watchTitle]);
-
-  // useEffect(() => {
-  //   if (iconType === 'image' && watchIconImage !== '') {
-  //     setIconUrl(watchIconImage as string);
-  //   }
-  // }, [iconType, watchIconImage]);
-
-  useEffect(() => {
-    register('color');
-  }, []); // eslint-disable-line
-
-  const handleCancelColorIcon = (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    setIconType(undefined);
-    setIconColor(undefined);
-    setIconLetter(undefined);
-    setValue('color', '');
+  const normalizeHexToUx = (hex: string) => {
+    const deHashed = hex.replace('#', '');
+    return hexToUx(deHashed);
   };
 
-  const handleCancelImageIcon = (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    setIconType(undefined);
-    setIconUrl(undefined);
-    setValue('avatar', '');
-    unregister('avatar');
+  const normalizeUxToHex = (ux: string) => {
+    const hex = uxToHex(ux);
+    return `#${hex}`;
+  };
+  
+  const setColor = (newColor: string) => {
+    setValue('color', normalizeHexToUx(newColor), {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
   };
 
   return (
     <>
       <div className="flex">
         <div className="flex grow flex-col">
-          <span className="pb-2 font-bold">Group Icon*</span>
+          <span className="pb-2 font-bold">Sigil Color</span>
           <div className="flex items-center space-x-2">
-            {iconType === undefined || iconType === 'avatar' ? (
               <div className="relative flex w-full items-baseline">
-                <input
-                  className={cn('input grow', {
-                    'rounded-r-none': iconType === 'avatar',
-                  })}
-                  onFocus={() => setIconType('avatar')}
-                  {...register('avatar', {
-                    required: true,
-                    validate: (value) => isValidUrl(value),
-                  })}
-                />
-                {iconType === undefined ? (
-                  <div className="pointer-events-none absolute left-[0.5625rem] top-2 cursor-pointer">
-                    <span className="pointer-events-none">
-                      Paste an image URL
-                    </span>
-                    <span
-                      className="pointer-events-auto text-blue"
-                      onClick={() => setIconType('color')}
-                    >
-                      {' '}
-                      or choose fill color
-                    </span>
-                  </div>
-                ) : null}
-                {iconType === 'avatar' ? (
-                  <button
-                    className="secondary-button self-stretch rounded-l-none px-2"
-                    onClick={handleCancelImageIcon}
-                  >
-                    <XIcon className="h-4 w-4" />
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            {iconType === 'color' ? (
-              <div className="flex items-center space-x-2">
                 <ColorPicker
-                  color={
-                    (watchIconColor as string) === ''
-                      ? defaultColor
-                      : (watchIconColor as string)
-                  }
-                  setColor={(newColor: string) =>
-                    setValue('color', newColor || '', {
-                      shouldDirty: true,
-                      shouldTouch: true,
-                    })
-                  }
+                  color={normalizeUxToHex(watchSigilColor || '0x0')}
+                  setColor={setColor}
                 />
-                <button
-                  className="secondary-button px-2"
-                  onClick={handleCancelColorIcon}
-                >
-                  <XIcon className="h-4 w-4" />
-                </button>
               </div>
-            ) : null}
-            {errors.color ? (
-              <span className="text-sm">{errors.color.message}</span>
-            ) : null}
+              {errors.color ? (
+                <span className="text-sm">{errors.color.message}</span>
+              ) : null}
           </div>
         </div>
-        {iconType === 'color' ? (
-          <ColorBoxIcon
-            className="ml-2 h-12 w-12 text-xl"
-            color={iconColor ? iconColor : '#000000'}
-            letter={iconLetter ? iconLetter : 'T'}
-          />
-        ) : null}
-        {/* {iconType === 'avatar' && isValidUrl(iconUrl) ? (
-          <GroupAvatar size="ml-2 h-14 w-14" image={iconUrl} />
-        ) : null} */}
-        {iconType === undefined ? (
-          <EmptyIconBox className="ml-2 h-14 w-14 text-gray-300" />
-        ) : null}
       </div>
       <div className="flex flex-col">
-        <label htmlFor="title" className="pb-2 font-bold">
+        <label htmlFor="headerImage" className="pb-2 font-bold">Overlay Avatar</label>
+          <div className="relative flex w-full items-baseline">
+            <input
+              className={cn('input grow')}
+              onFocus={() => setAvatarFieldFocused(true)}
+              {...register('avatar', {
+                onBlur: () => setAvatarFieldFocused(false),
+                validate: (value) => value && value.length ? isValidUrl(value) : true,
+              })}
+            />
+            {!avatarFieldFocused && !avatarHasLength ? (
+                <div className="pointer-events-none absolute left-[0.5625rem] top-2 flex cursor-pointer items-center">
+                  <LinkIcon className='mr-1 inline h-4 w-4 fill-gray-100' />
+                  <span className="pointer-events-none">
+                    Paste an image URL
+                  </span>
+                </div>
+            ) : null}
+          </div>
+          <div className="mt-1 text-sm font-semibold text-gray-600">
+            Overlay avatars may be hidden by others
+          </div>
+      </div>
+      <div className="flex flex-col">
+        <label htmlFor="headerImage" className="pb-2 font-bold">Header</label>
+          <div className="relative flex w-full items-baseline">
+            <input
+              className={cn('input grow')}
+              onFocus={() => setHeaderFieldFocused(true)}
+              {...register('cover', {
+                onBlur: () => setHeaderFieldFocused(false),
+                validate: (value) => value && value.length ? isValidUrl(value) : true,
+              })}
+            />
+            {!headerFieldFocused && !coverHasLength ? (
+                <div className="pointer-events-none absolute left-[0.5625rem] top-2 flex cursor-pointer items-center">
+                  <LinkIcon className='mr-1 inline h-4 w-4 fill-gray-100' />
+                  <span className="pointer-events-none">
+                    Paste an image URL
+                  </span>
+                </div>
+            ) : null}
+          </div>
+      </div>
+      <div className="flex flex-col">
+        <label htmlFor="nickname" className="pb-2 font-bold">
           Display Name
         </label>
         <input
@@ -182,15 +134,43 @@ export default function ProfileFields() {
         />
       </div>
       <div className="flex flex-col">
-        <label htmlFor="description" className="pb-2 font-bold">
-          Group Description (optional)
+        <label htmlFor="bio" className="pb-2 font-bold">
+          Bio
         </label>
         <textarea
           // TODO: set sane maxLength
-          {...register('description', { maxLength: 300 })}
+          {...register('bio', { maxLength: 1000 })}
           className="input"
         />
       </div>
+      <label
+        className={
+          'flex cursor-pointer items-center justify-between space-x-2 py-2'
+        }
+      >
+        <div className="flex items-center">
+          {isPublicSelected ? (
+            <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
+              <CheckIcon className="h-3 w-3 fill-gray-400" />
+            </div>
+          ) : (
+            <div className="h-4 w-4 rounded-sm border-2 border-gray-200" />
+          )}
+        </div>
+
+        <div className="flex w-full flex-col">
+          <div className="flex flex-row items-center space-x-2">
+            <div className="flex w-full flex-col justify-start text-left">
+              <span className="font-semibold">Make Profile Private</span>
+              <span className="text-sm text-gray-600">
+                Only Ship Name and Sigil will be publicly visible
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <input {...register('isContactPublic')} className="sr-only" type="checkbox" />
+      </label>
     </>
   );
 }
