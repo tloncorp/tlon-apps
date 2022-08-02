@@ -53,6 +53,18 @@
       =seam
       threads=(map time thread)
   ==
+::
++$  carpet
+  $:  =seam
+      yarns=(map id yarn)
+      cable=(map rope thread)
+      stitch=@ud
+  ==
++$  blanket
+  $:  =seam
+      yarns=(map id yarn)
+      =quilt
+  ==
 ::  $seam: inbox identifier
 ::
 ::    All notifications end up in one of these inboxes

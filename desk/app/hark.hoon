@@ -1,5 +1,6 @@
 /-  c=chat, h=hark
 /+  default-agent, verb, dbug
+/+  hark-json  :: performance
 |%
 +$  card  card:agent:gall
 ++  yarns-per-update  3
@@ -87,21 +88,18 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  ?+  pole  [~ ~]
+  ?+    pole  [~ ~]
+  ::
+      [%x %all rest=*]  (scry-rug rest.pole all/~ all)
   ::
       [%x %group ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     =/  =flag:h  [ship name.pole]
     =/  =rug:h  (~(got by groups) flag)
-    ?+  rest.pole  [~ ~]
-    ::
-        [%latest ~]
-      =-  ``hark-update+!>(-)
-      %+  threads-to-update  [%group flag]
-      %-  ~(gas by *(map @ud thread:h))
-      %+  scag  20
-      (bap:on:quilt:h qul.rug)
-    ==
+    (scry-rug rest.pole group/flag rug)
+  ::
+      [%x %desk desk=@ rest=*]
+    (scry-rug rest.pole desk/desk.pole (~(got by desks) desk.pole))
   ==
 ++  watch
   |=  =path
@@ -115,9 +113,32 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   cor
+::
+++  scry-rug
+  |=  [=(pole knot) =seam:h =rug:h] 
+  ^-  (unit (unit cage))
+  ?+    pole  [~ ~]
+      [%latest ~]  ``hark-carpet+!>((rug-to-carpet seam rug))
+  ==
+++  rug-to-carpet
+  |=  [=seam:h =rug:h]
+  ^-  carpet:h
+  =-  [seam - new.rug (quilt-idx qul.rug)]
+  %-  ~(gas by *(map id:h yarn:h))
+  %-  zing
+  %+  turn  ~(tap by new.rug)
+  |=  [=rope:h =thread:h]
+  ^-  (list [id:h yarn:h])
+  %+  murn  ~(tap in thread)
+  |=  =id:h
+  ^-  (unit [id:h yarn:h])
+  ?~  yar=(~(get by yarns) id)
+    ~
+  `[id u.yar]
+::
 ++  threads-to-update
   |=  [=seam:h teds=(map @ thread:h)]
-  ^-  update:h
+  ^-  *
   =-  [- seam teds]
   ^-  (map id:h yarn:h)
   %-  ~(gas by *(map id:h yarn:h))
@@ -149,6 +170,16 @@
   =?  groups  ?=(^ gop.rope)
     (~(jab by groups) u.gop.rope saw)
   cor
+++  rug-to-yarns
+  |=  =rug:h
+  ^-  (map id:h yarn:h)
+  %-  ~(gas by *(map id:h yarn:h))
+  ~
+    ::^-  (list [id:h yarn:h])
+    :: %-  zing
+    :: %+  turn  ~(tap by new.rug)
+    :: |=  [=rope:h =thread:h]
+
 ::  +stale: garbage collection
 ::
 ++  stale
