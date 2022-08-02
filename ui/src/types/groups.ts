@@ -1,3 +1,5 @@
+import { ChannelType } from './channel';
+
 export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
 export type Rank = typeof allRanks[number];
 
@@ -278,10 +280,16 @@ export type PrivacyType = 'public' | 'private' | 'secret';
 
 export type ChannelPrivacyType = 'public' | 'read-only' | 'secret';
 
+export type ChannelType = 'chat' | 'links';
+
 export interface GroupFormSchema extends GroupMeta {
   privacy: PrivacyType;
 }
 
 export interface ChannelFormSchema extends Channel {
   privacy: ChannelPrivacyType;
+}
+
+export interface NewChannelFormSchema extends ChannelFormSchema {
+  type: ChannelType;
 }

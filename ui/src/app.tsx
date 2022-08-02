@@ -9,7 +9,7 @@ import {
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import Groups from '@/groups/Groups';
-import Channel from '@/pages/Channel';
+import Channel from '@/channels/Channel';
 import { useGroupState } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import api, { IS_MOCK } from '@/api';
@@ -35,7 +35,7 @@ import GroupChannelManager from '@/groups/GroupAdmin/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
 import MultiDMEditModal from './dms/MultiDMEditModal';
-import NewChannel from './channels/NewChannel/NewChannel';
+import NewChannelModal from './channels/NewChannel/NewChannelModal';
 import FindGroups from './groups/FindGroups';
 import JoinGroupModal from './groups/Join/JoinGroupModal';
 import ChannelIndex from './groups/ChannelIndex/ChannelIndex';
@@ -120,7 +120,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           />
           <Route
             path="/groups/:ship/:name/channels/new"
-            element={<NewChannel />}
+            element={<NewChannelModal />}
           />
         </Routes>
       ) : null}

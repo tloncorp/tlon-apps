@@ -1,5 +1,6 @@
 import { BigIntOrderedMap } from '@urbit/api';
 import { BigInteger } from 'big-integer';
+import { ChannelPerm } from './channel';
 import { GroupMeta } from './groups';
 
 export type Patda = string;
@@ -188,12 +189,8 @@ export interface ChatUpdate {
   diff: WritDelta;
 }
 
-export interface ChatPerm {
-  writers: string[];
-}
-
 export interface Chat {
-  perms: ChatPerm;
+  perms: ChannelPerm;
 }
 
 export interface Chats {
@@ -224,15 +221,6 @@ export interface Pact {
   index: {
     [id: string]: BigInteger;
   };
-}
-
-export interface ChatCreate {
-  group: string;
-  name: string;
-  title: string;
-  description: string;
-  readers: string[];
-  writers: string[];
 }
 
 export interface ChatDraft {

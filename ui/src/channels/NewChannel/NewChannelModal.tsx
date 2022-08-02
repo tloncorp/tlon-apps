@@ -1,9 +1,9 @@
 import React from 'react';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import NewChannelForm from './NewChannelForm';
+import EditChannelForm from '../EditChannelForm';
 
-export default function NewChannel() {
+export default function NewChannelModal() {
   const dismiss = useDismissNavigate();
 
   const onOpenChange = (isOpen: boolean) => {
@@ -15,7 +15,7 @@ export default function NewChannel() {
   return (
     <Dialog defaultOpen onOpenChange={onOpenChange}>
       <DialogContent containerClass="w-full sm:max-w-lg">
-        <NewChannelForm />
+        <EditChannelForm />
       </DialogContent>
     </Dialog>
   );

@@ -22,7 +22,7 @@
   +$  diff
     (pair time delta)
   +$  delta
-    $%  [%add p=curio]
+    $%  [%add p=heart]
         [%del ~]
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]

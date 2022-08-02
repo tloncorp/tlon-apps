@@ -1,6 +1,6 @@
 import React from 'react';
 import Dialog, { DialogContent } from '@/components/Dialog';
-import NewChannelForm from '@/channels/NewChannel/NewChannelForm';
+import EditChannelForm from '@/channels/EditChannelForm';
 import { Channel } from '@/types/groups';
 
 interface EditChannelModalProps {
@@ -21,7 +21,7 @@ export default function EditChannelModal({
   return (
     <Dialog open={editIsOpen} onOpenChange={setEditIsOpen}>
       <DialogContent containerClass="w-full sm:max-w-lg">
-        <NewChannelForm
+        <EditChannelForm
           channelFlag={channelFlag}
           channel={channel}
           retainRoute={true}

@@ -1,61 +1,61 @@
 import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import {
-  Channel,
-  ChannelFormSchema,
-  NewChannelFormSchema,
-} from '@/types/groups';
+import { Channel, ChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';
-import { strToSym, channelHref } from '@/logic/utils';
-import { useChatState } from '@/state/chat';
+import { strToSym, channelHref, getPrivacyFromChannel } from '@/logic/utils';
+import { useChat, useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
-import ChannelTypeSelector from '../ChannelTypeSelector';
 
-interface NewChannelFormProps {
+interface EditChannelFormProps {
+  nest: string;
+  channel: Channel;
   retainRoute?: boolean;
   presetSection?: string;
   redirect?: boolean;
   setEditIsOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function NewChannelForm({
+export default function EditChannelForm({
+  nest,
+  channel,
   retainRoute = false,
   presetSection,
   redirect = true,
   setEditIsOpen,
-}: NewChannelFormProps) {
+}: EditChannelFormProps) {
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
-  const defaultValues: NewChannelFormSchema = {
-    type: 'chat',
-    zone: null,
-    added: Date.now(),
-    readers: [],
-    join: false,
-    meta: {
+  const [app, ...flag] = nest;
+  const channelFlag = flag.join('/');
+  const chat = useChat(channelFlag || '');
+  const defaultValues: ChannelFormSchema = {
+    zone: channel.zone || null,
+    added: channel.added || Date.now(),
+    readers: channel.readers || [],
+    join: channel.join || false,
+    meta: channel.meta || {
       title: '',
       description: '',
       image: '',
       color: '',
     },
-    privacy: 'public',
+    privacy: getPrivacyFromChannel(channel, chat),
   };
 
-  const form = useForm<NewChannelFormSchema>({
+  const form = useForm<ChannelFormSchema>({
     defaultValues,
   });
 
   const onSubmit = useCallback(
-    async (values: NewChannelFormSchema) => {
-      const { privacy, type, ...nextChannel } = values;
+    async (values: ChannelFormSchema) => {
+      const { privacy, ...nextChannel } = values;
       const channelName = strToSym(values.meta.title);
-      const newChannelFlag = `${window.our}/${channelName}`;
 
       if (privacy === 'secret') {
         nextChannel.readers.push('admin');
@@ -67,35 +67,30 @@ export default function NewChannelForm({
         nextChannel.zone = presetSection;
       }
 
-      const creator =
-        type === 'chat'
-          ? useChatState.getState().create
-          : useHeapState.getState().create;
+      await useGroupState
+        .getState()
+        .editChannel(groupFlag, channelFlag, nextChannel);
 
-      await creator({
-        group: groupFlag,
-        name: channelName,
-        title: values.meta.title,
-        description: values.meta.description,
-        readers: values.readers,
-        writers: privacy !== 'public' ? ['admin'] : [],
-      });
+      const chState =
+        app === 'chat' ? useChatState.getState() : useHeapState.getState();
 
-      if (presetSection) {
-        await useGroupState
-          .getState()
-          .addChannelToZone(presetSection, groupFlag, newChannelFlag);
+      if (privacy !== 'public') {
+        useChatState.getState().addSects(channelFlag, ['admin']);
+      } else {
+        useChatState.getState().delSects(channelFlag, ['admin']);
       }
 
       if (retainRoute === true && setEditIsOpen) {
         setEditIsOpen(false);
       } else if (redirect === true) {
-        navigate(channelHref(groupFlag, newChannelFlag));
+        navigate(channelHref(groupFlag, channelFlag));
       } else {
         dismiss();
       }
     },
     [
+      app,
+      channelFlag,
       groupFlag,
       dismiss,
       navigate,
@@ -110,11 +105,10 @@ export default function NewChannelForm({
     <FormProvider {...form}>
       <div className="sm:w-96">
         <header className="mb-3 flex items-center">
-          <h2 className="text-lg font-bold">Add New Channel</h2>
+          <h2 className="text-lg font-bold">Edit Chat Channel</h2>
         </header>
       </div>
       <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>
-        <ChannelTypeSelector />
         <label className="mb-3 font-semibold">
           Channel Name
           <input
@@ -139,7 +133,7 @@ export default function NewChannelForm({
               className="button"
               disabled={!form.formState.isDirty}
             >
-              Add Channel
+              Done
             </button>
           </div>
         </footer>

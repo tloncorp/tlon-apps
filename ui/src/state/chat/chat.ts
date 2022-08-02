@@ -13,7 +13,6 @@ import {
   ChatBriefUpdate,
   ChatDiff,
   ChatDraft,
-  ChatPerm,
   Chats,
   ChatWrit,
   Club,
@@ -23,8 +22,8 @@ import {
   DmAction,
   Pins,
   WritDelta,
-} from '../../types/chat';
-import api from '../../api';
+} from '@/types/chat';
+import api from '@/api';
 import {
   createStorageKey,
   clearStorageMigration,
@@ -32,7 +31,8 @@ import {
   whomIsDm,
   whomIsMultiDm,
   whomIsFlag,
-} from '../../logic/utils';
+} from '@/logic/utils';
+import { ChannelPerm } from '@/types/channel';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
@@ -474,7 +474,7 @@ export const useChatState = create<ChatState>(
       },
       addSects: async (whom, sects) => {
         await api.poke(chatAction(whom, { 'add-sects': sects }));
-        const perms = await api.scry<ChatPerm>({
+        const perms = await api.scry<ChannelPerm>({
           app: 'chat',
           path: `/chat/${whom}/perm`,
         });
@@ -484,7 +484,7 @@ export const useChatState = create<ChatState>(
       },
       delSects: async (whom, sects) => {
         await api.poke(chatAction(whom, { 'del-sects': sects }));
-        const perms = await api.scry<ChatPerm>({
+        const perms = await api.scry<ChannelPerm>({
           app: 'chat',
           path: `/chat/${whom}/perm`,
         });
@@ -497,7 +497,7 @@ export const useChatState = create<ChatState>(
           return;
         }
 
-        const perms = await api.scry<ChatPerm>({
+        const perms = await api.scry<ChannelPerm>({
           app: 'chat',
           path: `/chat/${whom}/perm`,
         });

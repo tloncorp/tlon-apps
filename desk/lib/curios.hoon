@@ -42,7 +42,7 @@
     ?:  (~(has by cur) time)
       cur
     =.  cur
-      (put:on:curios:h cur now p.del)
+      (put:on:curios:h cur now [seal p.del])
     ?~  replying.p.del  cur
     =*  replying  u.replying.p.del
     (jab replying |=(curio:h +<(replied (~(put in replied) time))))

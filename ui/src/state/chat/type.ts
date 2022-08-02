@@ -1,3 +1,4 @@
+import { ChannelCreate } from '@/types/channel';
 import {
   Chat,
   ChatWhom,
@@ -7,7 +8,6 @@ import {
   ChatStory,
   Club,
   Hive,
-  ChatCreate,
 } from '../../types/chat';
 import { GroupMeta } from '../../types/groups';
 
@@ -55,7 +55,7 @@ export interface ChatState {
   delMessage: (flag: string, time: string) => void;
   addSects: (flag: string, writers: string[]) => Promise<void>;
   delSects: (flag: string, writers: string[]) => Promise<void>;
-  create: (req: ChatCreate) => Promise<void>;
+  create: (req: ChannelCreate) => Promise<void>;
   createMultiDm: (
     id: string,
     hive: string[] // array of ships
