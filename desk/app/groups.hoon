@@ -500,6 +500,13 @@
         channel(zone ?:(=(`zone zone.channel) ~ zone.channel))
       go-core
     ::
+        %edit
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone
+        |=  realm:zone:g
+        +<(met meta.delta)
+      go-core
+    ::
         %mov
       =.  zone-ord.group
         %+  into  (skim zone-ord.group |=(z=zone:g !=(zone z)))

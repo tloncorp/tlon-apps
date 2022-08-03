@@ -19,6 +19,7 @@
   +$  delta
     $%  [%add meta=data:meta]
         [%del ~]
+        [%edit meta=data:meta]
         [%mov idx=@ud]
         [%mov-nest =nest idx=@ud]
     ==
