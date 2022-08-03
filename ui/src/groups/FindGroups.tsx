@@ -16,6 +16,9 @@ export default function FindGroups() {
   const [groupIndex, setGroupIndex] = useState<GroupIndex | null>(null);
   const existingGangs = useGangs();
   const pendingGangs = usePendingGangs();
+  const pendingGangsWithoutClaim = Object.entries(pendingGangs).filter(
+    ([_, gang]) => !gang.claim
+  );
   /**
    *  Search results for render:
    *
@@ -201,7 +204,7 @@ export default function FindGroups() {
             </section>
           ) : null}
         </section>
-        {hasKeys(pendingGangs) ? (
+        {pendingGangsWithoutClaim.length > 0 ? (
           <section className="card mb-4 space-y-8 p-8">
             <h1 className="text-lg font-bold">Pending Invites</h1>
             <GroupJoinList gangs={pendingGangs} />
