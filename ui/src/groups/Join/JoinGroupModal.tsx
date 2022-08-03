@@ -34,13 +34,13 @@ export default function JoinGroupModal() {
     navigate(`/groups/${flag}`);
   }, [flag, navigate]);
 
-  const reject = useCallback(() => {
+  const reject = useCallback(async () => {
     /**
      * Skip the confirmation modal for public groups, since a Join can easily be
      * re-initiated
      */
     if (privacy === 'public') {
-      // TODO: consume the backend reject endpoint
+      await useGroupState.getState().reject(flag);
       dismiss();
       return;
     }

@@ -33,13 +33,13 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
     navigate(`/groups/${flag}`);
   }, [flag, navigate]);
 
-  const reject = useCallback(() => {
+  const reject = useCallback(async () => {
     /**
      * No need to confirm if the group is public, since it's easy to re-initiate
      * a join request
      */
     if (privacy === 'public') {
-      // TODO: consume gang reject endpoint
+      await useGroupState.getState().reject(flag);
       return;
     }
 
