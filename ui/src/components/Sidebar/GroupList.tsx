@@ -137,6 +137,7 @@ function GroupItemContainer({
 function GangItem(props: { flag: string }) {
   const { flag } = props;
   const { preview, claim } = useGang(flag);
+  const isMobile = useIsMobile();
 
   const handleCancel = async () => {
     await useGroupState.getState().reject(flag);
@@ -149,7 +150,7 @@ function GangItem(props: { flag: string }) {
   return (
     <Popover.Root>
       <Popover.Anchor>
-        <Popover.Trigger>
+        <Popover.Trigger asChild>
           <SidebarItem
             icon={
               <GroupAvatar
@@ -165,7 +166,10 @@ function GangItem(props: { flag: string }) {
           </SidebarItem>
         </Popover.Trigger>
       </Popover.Anchor>
-      <Popover.Content side="right" sideOffset={16}>
+      <Popover.Content
+        side={isMobile ? 'top' : 'right'}
+        sideOffset={isMobile ? 0 : 16}
+      >
         <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg">
           <span>You are currently joining this group.</span>
           <span>
