@@ -1,4 +1,4 @@
-import { Channel } from '@/types/groups';
+import { GroupChannel } from '@/types/groups';
 
 export interface SectionMap {
   [key: string]: SectionListItem;
@@ -6,7 +6,7 @@ export interface SectionMap {
 
 export interface ChannelListItem {
   key: string;
-  channel: Channel;
+  channel: GroupChannel;
 }
 
 export interface SectionListItem {

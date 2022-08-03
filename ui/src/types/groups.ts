@@ -1,5 +1,3 @@
-import { ChannelType } from './channel';
-
 export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
 export type Rank = typeof allRanks[number];
 
@@ -18,7 +16,7 @@ export interface Cabals {
   [sect: string]: Cabal;
 }
 
-export interface Channel {
+export interface GroupChannel {
   added: number;
   meta: GroupMeta;
   zone: Zone | null;
@@ -27,7 +25,7 @@ export interface Channel {
 }
 
 export interface Channels {
-  [nest: string]: Channel;
+  [nest: string]: GroupChannel;
 }
 
 export type Zone = string;
@@ -113,7 +111,7 @@ interface CabalDiff {
 }
 
 interface ChannelDiffAdd {
-  add: Channel;
+  add: GroupChannel;
 }
 
 interface ChannelDiffDel {
@@ -280,13 +278,13 @@ export type PrivacyType = 'public' | 'private' | 'secret';
 
 export type ChannelPrivacyType = 'public' | 'read-only' | 'secret';
 
-export type ChannelType = 'chat' | 'links';
+export type ChannelType = 'chat' | 'heap';
 
 export interface GroupFormSchema extends GroupMeta {
   privacy: PrivacyType;
 }
 
-export interface ChannelFormSchema extends Channel {
+export interface ChannelFormSchema extends GroupChannel {
   privacy: ChannelPrivacyType;
 }
 

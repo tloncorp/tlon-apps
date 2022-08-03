@@ -2,8 +2,7 @@ import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
-import { useNavigate } from 'react-router';
-import { useDismissNavigate } from '@/logic/routing';
+import { useNavigate, useParams } from 'react-router';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym, channelHref } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
@@ -12,20 +11,8 @@ import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSe
 import { useHeapState } from '@/state/heap/heap';
 import ChannelTypeSelector from '../ChannelTypeSelector';
 
-interface NewChannelFormProps {
-  retainRoute?: boolean;
-  presetSection?: string;
-  redirect?: boolean;
-  setEditIsOpen?: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-export default function NewChannelForm({
-  retainRoute = false,
-  presetSection,
-  redirect = true,
-  setEditIsOpen,
-}: NewChannelFormProps) {
-  const dismiss = useDismissNavigate();
+export default function NewChannelForm() {
+  const { section } = useParams<{ section: string }>();
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const defaultValues: NewChannelFormSchema = {
@@ -59,8 +46,8 @@ export default function NewChannelForm({
         nextChannel.readers.splice(nextChannel.readers.indexOf('admin'), 1);
       }
 
-      if (presetSection) {
-        nextChannel.zone = presetSection;
+      if (section) {
+        nextChannel.zone = section;
       }
 
       const creator =
@@ -77,29 +64,15 @@ export default function NewChannelForm({
         writers: privacy !== 'public' ? ['admin'] : [],
       });
 
-      if (presetSection) {
+      if (section) {
         await useGroupState
           .getState()
-          .addChannelToZone(presetSection, groupFlag, newChannelFlag);
+          .addChannelToZone(section, groupFlag, newChannelFlag);
       }
 
-      if (retainRoute === true && setEditIsOpen) {
-        setEditIsOpen(false);
-      } else if (redirect === true) {
-        navigate(channelHref(groupFlag, newChannelFlag));
-      } else {
-        dismiss();
-      }
+      navigate(channelHref(groupFlag, `${type}/${newChannelFlag}`));
     },
-    [
-      groupFlag,
-      dismiss,
-      navigate,
-      redirect,
-      retainRoute,
-      setEditIsOpen,
-      presetSection,
-    ]
+    [section, groupFlag, navigate]
   );
 
   return (
@@ -110,7 +83,7 @@ export default function NewChannelForm({
         </header>
       </div>
       <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>
-        <ChannelTypeSelector />
+        <ChannelTypeSelector className="mb-5" />
         <label className="mb-3 font-semibold">
           Channel Name
           <input

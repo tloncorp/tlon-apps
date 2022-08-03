@@ -1,10 +1,9 @@
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
-import { BigInteger } from 'big-integer';
 import { useCallback, useMemo } from 'react';
 import {
   CurioDelta,

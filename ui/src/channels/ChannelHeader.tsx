@@ -17,7 +17,7 @@ export default function ChannelHeader({ flag, nest }: ChannelHeaderProps) {
   const group = useGroup(flag);
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
-  const channel = useChannel(flag, nest)!;
+  const channel = useChannel(flag, nest);
   const groupName = group?.meta.title;
 
   return (
@@ -44,7 +44,7 @@ export default function ChannelHeader({ flag, nest }: ChannelHeaderProps) {
             <span className="text-sm font-medium text-gray-600">
               {groupName}
             </span>
-            <div className="text-md font-semibold">{channel.meta.title}</div>
+            <div className="text-md font-semibold">{channel?.meta.title}</div>
           </div>
         </div>
       </button>

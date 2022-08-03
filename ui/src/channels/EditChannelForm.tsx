@@ -1,11 +1,16 @@
 import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { Channel, ChannelFormSchema } from '@/types/groups';
+import { GroupChannel, ChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';
-import { strToSym, channelHref, getPrivacyFromChannel } from '@/logic/utils';
+import {
+  strToSym,
+  channelHref,
+  getPrivacyFromChannel,
+  nestToFlag,
+} from '@/logic/utils';
 import { useChat, useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
@@ -13,7 +18,7 @@ import { useHeapState } from '@/state/heap/heap';
 
 interface EditChannelFormProps {
   nest: string;
-  channel: Channel;
+  channel: GroupChannel;
   retainRoute?: boolean;
   presetSection?: string;
   redirect?: boolean;
@@ -31,7 +36,7 @@ export default function EditChannelForm({
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
-  const [app, ...flag] = nest;
+  const [app, ...flag] = nestToFlag(nest);
   const channelFlag = flag.join('/');
   const chat = useChat(channelFlag || '');
   const defaultValues: ChannelFormSchema = {
@@ -55,7 +60,6 @@ export default function EditChannelForm({
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
       const { privacy, ...nextChannel } = values;
-      const channelName = strToSym(values.meta.title);
 
       if (privacy === 'secret') {
         nextChannel.readers.push('admin');
@@ -75,9 +79,9 @@ export default function EditChannelForm({
         app === 'chat' ? useChatState.getState() : useHeapState.getState();
 
       if (privacy !== 'public') {
-        useChatState.getState().addSects(channelFlag, ['admin']);
+        chState.addSects(channelFlag, ['admin']);
       } else {
-        useChatState.getState().delSects(channelFlag, ['admin']);
+        chState.delSects(channelFlag, ['admin']);
       }
 
       if (retainRoute === true && setEditIsOpen) {

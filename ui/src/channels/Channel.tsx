@@ -2,27 +2,36 @@ import _ from 'lodash';
 import React from 'react';
 import { useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useChatIsJoined, useChatState } from '@/state/chat';
-import { useRouteGroup } from '@/state/groups/groups';
+import { useBriefs, useChatState } from '@/state/chat';
+import { useBriefs as useHeapBriefs, useHeapState } from '@/state/heap/heap';
+import { useChannel, useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import ChatChannel from '@/chat/ChatChannel';
 import HeapChannel from '@/heap/HeapChannel';
+import useAllBriefs from '@/logic/useAllBriefs';
 
 function Channel() {
   const { app, chShip, chName } = useParams();
-  const chflag = `${chShip}/${chName}`;
-  const nest = `${app}/${chflag}`;
+  const chFlag = `${chShip}/${chName}`;
+  const nest = `${app}/${chFlag}`;
   const flag = useRouteGroup();
-  const isJoined = useChatIsJoined(nest);
+  const channel = useChannel(flag, nest);
+  const briefs = useAllBriefs();
+  const isJoined = chFlag in briefs;
   const join = () => {
-    useChatState.getState().joinChat(nest);
+    const joiner =
+      app === 'chat'
+        ? useChatState.getState().joinChat
+        : useHeapState.getState().joinHeap;
+
+    joiner(chFlag);
   };
 
   if (app === 'chat' && isJoined) {
     return <ChatChannel flag={flag} nest={nest} />;
   }
 
-  if (app === 'links' && isJoined) {
+  if (app === 'heap' && isJoined) {
     return <HeapChannel flag={flag} nest={nest} />;
   }
 
@@ -32,13 +41,17 @@ function Channel() {
       header={<ChannelHeader flag={flag} nest={nest} />}
     >
       {isJoined ? (
-        <div className="flex h-full w-full flex-col overflow-hidden p-4">
+        <div className="p-4">
           <h1 className="text-xl font-semibold">Unsupported channel type</h1>
         </div>
       ) : (
-        <div className="flex h-full w-full flex-col overflow-hidden p-4">
-          <h1 className="text-xl font-semibold">{flag}</h1>
-          <button onClick={join}>Join</button>
+        <div className="space-y-2 p-4">
+          <h1 className="text-xl font-semibold">
+            {channel?.meta.title || chFlag}
+          </h1>
+          <button className="button" onClick={join}>
+            Join
+          </button>
         </div>
       )}
     </Layout>

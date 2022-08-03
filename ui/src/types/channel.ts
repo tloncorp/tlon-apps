@@ -7,6 +7,10 @@ export interface ChannelCreate {
   writers: string[];
 }
 
+export interface Channel {
+  perms: ChannelPerm;
+}
+
 export interface ChannelPerm {
   writers: string[];
 }

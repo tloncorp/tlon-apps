@@ -9,6 +9,7 @@ import {
   useHeapState,
 } from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
+import { nestToFlag } from '@/logic/utils';
 
 export interface HeapChannelProps {
   flag: string;
@@ -16,9 +17,10 @@ export interface HeapChannelProps {
 }
 
 function HeapChannel({ flag, nest }: HeapChannelProps) {
+  const [app, chFlag] = nestToFlag(nest);
   useEffect(() => {
-    useHeapState.getState().initialize(nest);
-  }, [nest]);
+    useHeapState.getState().initialize(chFlag);
+  }, [chFlag]);
 
   const curios = useCuriosForHeap(nest);
   const perms = useHeapPerms(nest);

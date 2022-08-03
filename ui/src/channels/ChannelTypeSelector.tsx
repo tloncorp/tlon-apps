@@ -17,7 +17,7 @@ const CHANNEL_TYPE: Record<ChannelType, ChannelTypeMetadata> = {
     title: 'Chat',
     description: 'A simple, no frills text chat',
   },
-  links: {
+  heap: {
     icon: <LinkIcon className="h-6 w-6 text-gray-600" />,
     title: 'Collection',
     description: 'Gather, entangle, connect, and arrange rich media',
@@ -52,7 +52,7 @@ function ChannelTypeSelection({ type }: ChannelTypeSelectionProps) {
         </div>
       </div>
       <input
-        {...register('privacy')}
+        {...register('type')}
         className="sr-only"
         type="radio"
         value={type}
@@ -68,9 +68,15 @@ function ChannelTypeSelection({ type }: ChannelTypeSelectionProps) {
   );
 }
 
-export default function ChannelTypeSelector() {
+interface ChannelTypeSelectorProps {
+  className?: string;
+}
+
+export default function ChannelTypeSelector({
+  className,
+}: ChannelTypeSelectorProps) {
   return (
-    <ul className="flex flex-col space-y-2">
+    <ul className={cn('flex flex-col space-y-2', className)}>
       {Object.keys(CHANNEL_TYPE).map((ch) => (
         <li key={ch}>
           <ChannelTypeSelection type={ch as ChannelType} />

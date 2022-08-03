@@ -41,6 +41,7 @@ import FindGroups from '@/groups/FindGroups';
 import JoinGroupModal from '@/groups/Join/JoinGroupModal';
 import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
+import { useHeapState } from './state/heap/heap';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -130,6 +131,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="/groups/:ship/:name/channels/new"
             element={<NewChannelModal />}
           />
+          <Route
+            path="/groups/:ship/:name/channels/new/:section"
+            element={<NewChannelModal />}
+          />
           <Route path="/profile/:ship" element={<ProfileModal />} />
         </Routes>
       ) : null}
@@ -166,6 +171,7 @@ function App() {
       checkIfLoggedIn();
       useGroupState.getState().start();
       useChatState.getState().start();
+      useHeapState.getState().start();
       useChatState.getState().fetchDms();
       const { initialize: settingsInitialize, fetchAll } =
         useSettingsState.getState();

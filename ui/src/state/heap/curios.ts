@@ -134,11 +134,7 @@ export default function makeCuriosStore(
         },
       });
     },
-    getNewer: async (count: string) => {
-      return getMessages('newer', count);
-    },
-    getOlder: async (count: string) => {
-      return getMessages('older', count);
-    },
+    getNewer: async (count: string) => getMessages('newer', count),
+    getOlder: async (count: string) => getMessages('older', count),
   };
 }

@@ -36,11 +36,24 @@
   ==
 +$  heart
   $:  title=(unit @t)
-      content=(list inline:c)
+      content=(list inline)
       author=ship
       sent=time
       replying=(unit time)
   ==
++$  inline
+  $@  @t
+  $%  [%italics p=inline]
+      [%bold p=inline]
+      [%strike p=inline]
+      [%inline-code p=cord]
+      [%blockquote p=(list inline)]
+      [%code p=cord]
+      [%tag p=cord]
+      [%link p=cord q=cord]
+      [%break ~]
+  ==
+::
 +$  log
   ((mop time diff) lte)
 ++  log-on

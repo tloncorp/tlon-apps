@@ -217,7 +217,7 @@
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
   ::
-    [%x %heaps ~]  ``stash+!>(stash)
+    [%x %stash ~]  ``stash+!>(stash)
   ::
       [%x %heap @ @ *]
     =/  =ship  (slav %p i.t.t.path)
@@ -267,9 +267,10 @@
     ++  add-channel
       |=  req=create:ch
       =/  =dock      [p.group.req %groups]
+      =/  =nest:g    [dap.bowl flag]
       =/  =channel:g  
         =,(req [[title description '' ''] now.bowl ~ | readers])
-      =/  =action:g  [group.req now.bowl %channel flag %add channel]
+      =/  =action:g  [group.req now.bowl %channel nest %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc he-area %create)
       =/  =card
@@ -444,8 +445,8 @@
     =.  cor
       (give %fact ~(tap in paths) cag)
     =?  cor  ?=(%curios -.d)
-      =/  =cage  curio-diff+!>(p.d)
-      (give %fact ~[(welp he-area /ui/curios)] curio-diff+!>(p.d))
+      =/  =cage  curios-diff+!>(p.d)
+      (give %fact ~[(welp he-area /ui/curios)] cage)
     he-core
   ::
   ++  he-remark-diff
