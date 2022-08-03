@@ -4,7 +4,6 @@ import {
   Heap,
   HeapBriefs,
   HeapCurioMap,
-  HeapCurios,
   HeapFlag,
 } from '@/types/heap';
 
@@ -19,14 +18,14 @@ export interface HeapState {
     [flag: HeapFlag]: HeapCurioMap;
   };
   briefs: HeapBriefs;
-  markRead: (flag: HeapFlag) => Promise<void>;
+  create: (req: ChannelCreate) => Promise<void>;
   start: () => Promise<void>;
+  initialize: (flag: HeapFlag) => Promise<void>;
   joinHeap: (flag: HeapFlag) => Promise<void>;
   leaveHeap: (flag: HeapFlag) => Promise<void>;
-  sendMessage: (flag: HeapFlag, heart: CurioHeart) => void;
-  delMessage: (flag: HeapFlag, time: string) => void;
+  markRead: (flag: HeapFlag) => Promise<void>;
+  addCurio: (flag: HeapFlag, heart: CurioHeart) => void;
+  delCurio: (flag: HeapFlag, time: number) => void;
   addSects: (flag: HeapFlag, writers: string[]) => Promise<void>;
   delSects: (flag: HeapFlag, writers: string[]) => Promise<void>;
-  create: (req: ChannelCreate) => Promise<void>;
-  initialize: (flag: HeapFlag) => Promise<void>;
 }

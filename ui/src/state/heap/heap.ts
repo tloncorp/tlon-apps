@@ -29,8 +29,8 @@ setAutoFreeze(false);
 
 function heapAction(flag: HeapFlag, diff: HeapDiff) {
   return {
-    app: 'chat',
-    mark: 'chat-action',
+    app: 'heap',
+    mark: 'heap-action',
     json: {
       flag,
       update: {
@@ -41,7 +41,7 @@ function heapAction(flag: HeapFlag, diff: HeapDiff) {
   };
 }
 
-function heapCurioDiff(flag: HeapFlag, time: string, delta: CurioDelta) {
+function heapCurioDiff(flag: HeapFlag, time: number, delta: CurioDelta) {
   return heapAction(flag, {
     curios: {
       time,
@@ -135,11 +135,10 @@ export const useHeapState = create<HeapState>(
           json: flag,
         });
       },
-      sendMessage: (flag, heart) => {
-        const time = getTime();
-        api.poke(heapCurioDiff(flag, time, { add: heart }));
+      addCurio: (flag, heart) => {
+        api.poke(heapCurioDiff(flag, Date.now(), { add: heart }));
       },
-      delMessage: (flag, time) => {
+      delCurio: (flag, time) => {
         api.poke(heapCurioDiff(flag, time, { del: null }));
       },
       create: async (req) => {
@@ -240,8 +239,8 @@ export function useComments(flag: HeapFlag, time: string) {
     }
 
     const curio = curios.get(bigInt(time));
-    const replies = (curio?.seal?.replied || ([] as string[]))
-      .map((r: string) => {
+    const replies = (curio?.seal?.replied || ([] as number[]))
+      .map((r: number) => {
         const t = bigInt(r);
         const c = curios.get(t);
         return c ? ([t, c] as const) : undefined;

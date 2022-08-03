@@ -85,11 +85,11 @@ export function isBreak(item: unknown): item is Break {
 }
 
 export interface CurioSeal {
-  time: string;
+  time: number;
   feels: {
     [ship: Ship]: string;
   };
-  replied: string[];
+  replied: number[];
 }
 
 export type CurioContent = HeapInline[];
@@ -99,7 +99,7 @@ export interface CurioHeart {
   content: CurioContent;
   author: Ship;
   sent: number;
-  replying: Patda | null;
+  replying: number | null;
 }
 
 export interface HeapCurio {
@@ -140,7 +140,7 @@ interface HeapDiffDelSects {
 export type CurioDelta = CurioDeltaAdd | CurioDeltaDel | CurioDeltaAddFeel;
 
 export interface CurioDiff {
-  time: string;
+  time: number;
   delta: CurioDelta;
 }
 
@@ -150,7 +150,7 @@ export type HeapDiff =
   | HeapDiffDelSects;
 
 export interface HeapUpdate {
-  time: Patda;
+  time: number;
   diff: HeapDiff;
 }
 
