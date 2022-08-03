@@ -495,6 +495,21 @@ export function usePendingGangs() {
   return pendingGangs;
 }
 
+export function usePendingGangsWithoutClaim() {
+  const groups = useGroups();
+  const gangs = useGangs();
+  const pendingGangs: Gangs = {};
+
+  Object.entries(gangs)
+    .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .filter(([_, gang]) => !gang.claim)
+    .forEach(([flag, gang]) => {
+      pendingGangs[flag] = gang;
+    });
+
+  return pendingGangs;
+}
+
 const selInit = (s: GroupState) => s.initialized;
 export function useGroupsInitialized() {
   return useGroupState(selInit);

@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import ob from 'urbit-ob';
-import { useGangs, useGroupState, usePendingGangs } from '@/state/groups';
+import {
+  useGangs,
+  useGroupState,
+  usePendingGangsWithoutClaim,
+} from '@/state/groups';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { Gangs, GroupIndex } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
@@ -15,10 +19,8 @@ export default function FindGroups() {
   const navigate = useNavigate();
   const [groupIndex, setGroupIndex] = useState<GroupIndex | null>(null);
   const existingGangs = useGangs();
-  const pendingGangs = usePendingGangs();
-  const pendingGangsWithoutClaim = Object.entries(pendingGangs).filter(
-    ([_, gang]) => !gang.claim
-  );
+  const pendingGangs = usePendingGangsWithoutClaim();
+
   /**
    *  Search results for render:
    *
@@ -204,7 +206,7 @@ export default function FindGroups() {
             </section>
           ) : null}
         </section>
-        {pendingGangsWithoutClaim.length > 0 ? (
+        {hasKeys(pendingGangs) ? (
           <section className="card mb-4 space-y-8 p-8">
             <h1 className="text-lg font-bold">Pending Invites</h1>
             <GroupJoinList gangs={pendingGangs} />

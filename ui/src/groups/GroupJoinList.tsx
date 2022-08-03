@@ -85,11 +85,9 @@ export default function GroupJoinList({ gangs }: GroupJoinListProps) {
 
   return (
     <ul>
-      {gangEntries
-        .filter(([_, gang]) => !gang.claim)
-        .map(([flag, gang]) => (
-          <GroupJoinItem key={flag} flag={flag} gang={gang} />
-        ))}
+      {gangEntries.map(([flag, gang]) => (
+        <GroupJoinItem key={flag} flag={flag} gang={gang} />
+      ))}
     </ul>
   );
 }
