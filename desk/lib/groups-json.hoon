@@ -66,9 +66,9 @@
     |=  d=delta:zone:g
     %+  frond  -.d
     ?-  -.d
-        %del  ~
-        %add  (meta meta.d)
-        %mov  (numb idx.d)
+        %del           ~
+        %mov           (numb idx.d)
+        ?(%add %edit)  (meta meta.d)
         %mov-nest
       %-  pairs 
       :~  nest/s/(nest nest.d)
@@ -335,6 +335,7 @@
   ++  zone-delta
     %-  of
     :~  add/meta
+        edit/meta
         del/ul
         mov/ni
         :-  %mov-nest
