@@ -188,20 +188,34 @@
 +$  logs
   ((mop time diff) lte)
 ::
+::  $perm: represents the permissions for a channel and gives a pointer
+::  back to the group it belongs to.
+::
 +$  perm
   $:  writers=(set sect:g)
       group=flag:g
   ==
 ::
+::  $leave: a flag to pass for a channel leave
+::
 +$  leave  flag:g
 ::
+::  $create: represents a request to create a channel
+::    
+::    The name will be used as part of the flag which represents the
+::    channel. $create is consumed by the chat agent first 
+::    and then passed to the groups agent to register the channel with 
+::    the group. 
+::  
+::    Write permission is stored with the specific agent in the channel,
+::    read permission is stored with the group's data.
+::
 +$  create
-  $:  group=flag:g  :: TODO: unmanaged-style group chats
+  $:  group=flag:g
       name=term
       title=cord
       description=cord
       readers=(set sect:g)
       writers=(set sect:g)
   ==
-::
 --
