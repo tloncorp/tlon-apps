@@ -5,7 +5,7 @@ import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
-import { Channel } from '@/types/groups';
+import { Channel, Zone } from '@/types/groups';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -194,8 +194,14 @@ function ChannelSection({
   zone,
 }: {
   channels: [string, Channel][];
-  zone: string | null;
+  zone: Zone | null;
 }) {
+  const flag = useRouteGroup();
+  const group = useGroup(flag);
+  const sectionTitle =
+    zone && group?.zones && zone in group.zones
+      ? group.zones[zone].meta.title
+      : '';
   const sortedChannels = channels.slice();
   sortedChannels.sort(([, a], [, b]) =>
     a.meta.title.localeCompare(b.meta.title)
@@ -203,8 +209,8 @@ function ChannelSection({
 
   return (
     <>
-      {zone !== UNZONED ? (
-        <div className="py-4 font-semibold text-gray-400">{zone}</div>
+      {sectionTitle !== UNZONED ? (
+        <div className="py-4 font-semibold text-gray-400">{sectionTitle}</div>
       ) : null}
       <ul>
         {sortedChannels.map(([nest, channel]) => (
