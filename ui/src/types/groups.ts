@@ -33,7 +33,7 @@ export type Zone = string;
 export interface Zones {
   [key: Zone]: {
     meta: GroupMeta;
-    idx: number[];
+    idx: string[];
   };
 }
 
