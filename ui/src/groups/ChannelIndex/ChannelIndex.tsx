@@ -80,10 +80,6 @@ function GroupChannel({
     console.log('mute ...');
   }, []);
 
-  if (!group) {
-    return null;
-  }
-
   // If the current user is the Channel host, they are automatically joined,
   // and cannot leave the group
   const isChannelHost = window.our === flag?.split('/')[0];
@@ -92,30 +88,44 @@ function GroupChannel({
   // exists
   const joined = isChannelHost || (flag && flag in briefs);
 
+  const open = useCallback(() => {
+    if (!joined) {
+      return;
+    }
+    navigate(channelHref(groupFlag, nest));
+  }, [groupFlag, joined, navigate, nest]);
+
+  if (!group) {
+    return null;
+  }
+
   return (
-    <div className="my-2 flex flex-row items-center justify-between rounded-lg pl-0 pr-2 hover:bg-gray-50">
-      {/* avatar, title, participants */}
-      <div className="flex flex-row">
-        <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
-          {/* TODO: Channel Type icons */}
-          <BubbleIcon className="h-6 w-6 text-gray-400" />
+    <li className="my-2 flex flex-row items-center justify-between rounded-lg pl-0 pr-2 hover:bg-gray-50">
+      <button
+        className="flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50"
+        onClick={open}
+      >
+        <div className="flex flex-row">
+          <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
+            {/* TODO: Channel Type icons */}
+            <BubbleIcon className="h-6 w-6 text-gray-400" />
+          </div>
+          <div className="flex flex-col justify-evenly">
+            {joined && nest ? (
+              <Link
+                className="font-semibold text-gray-800"
+                to={channelHref(groupFlag, nest)}
+              >
+                {channel.meta.title}
+              </Link>
+            ) : (
+              <div className="font-semibold text-gray-800">
+                {channel.meta.title}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col justify-evenly">
-          {joined && nest ? (
-            <Link
-              className="font-semibold text-gray-800"
-              to={channelHref(groupFlag, nest)}
-            >
-              {channel.meta.title}
-            </Link>
-          ) : (
-            <div className="font-semibold text-gray-800">
-              {channel.meta.title}
-            </div>
-          )}
-        </div>
-      </div>
-      {/* action and options */}
+      </button>
       <div>
         {joined ? (
           <DropdownMenu.Root>
@@ -181,7 +191,7 @@ function GroupChannel({
           </button>
         )}
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -198,14 +208,16 @@ function ChannelSection({
   );
 
   return (
-    <div>
+    <>
       {zone !== UNZONED ? (
         <div className="py-4 font-semibold text-gray-400">{zone}</div>
       ) : null}
-      {sortedChannels.map(([nest, channel]) => (
-        <GroupChannel nest={nest} channel={channel} key={channel.added} />
-      ))}
-    </div>
+      <ul>
+        {sortedChannels.map(([nest, channel]) => (
+          <GroupChannel nest={nest} channel={channel} key={channel.added} />
+        ))}
+      </ul>
+    </>
   );
 }
 

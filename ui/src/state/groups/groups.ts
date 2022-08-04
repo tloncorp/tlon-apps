@@ -162,6 +162,17 @@ export const useGroupState = create<GroupState>((set, get) => ({
       },
     });
   },
+  reject: async (flag) => {
+    await api.poke({
+      app: 'groups',
+      mark: 'invite-decline',
+      json: flag,
+    });
+
+    get().batchSet((draft) => {
+      draft.gangs[flag].invite = null;
+    });
+  },
   leave: async (flag: string) => {
     await api.poke({
       app: 'groups',
@@ -480,6 +491,21 @@ export function usePendingGangs() {
 
   Object.entries(gangs)
     .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .forEach(([flag, gang]) => {
+      pendingGangs[flag] = gang;
+    });
+
+  return pendingGangs;
+}
+
+export function usePendingGangsWithoutClaim() {
+  const groups = useGroups();
+  const gangs = useGangs();
+  const pendingGangs: Gangs = {};
+
+  Object.entries(gangs)
+    .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .filter(([_, gang]) => !gang.claim)
     .forEach(([flag, gang]) => {
       pendingGangs[flag] = gang;
     });

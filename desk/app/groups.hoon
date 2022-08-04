@@ -124,7 +124,7 @@
     =.  xeno  (~(put by xeno) flag.join gang)
     ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
   ::
-      %invite-reject
+      %invite-decline
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
@@ -498,6 +498,13 @@
         %-  ~(run by channels.group)
         |=  =channel:g
         channel(zone ?:(=(`zone zone.channel) ~ zone.channel))
+      go-core
+    ::
+        %edit
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone
+        |=  realm:zone:g
+        +<(met meta.delta)
       go-core
     ::
         %mov

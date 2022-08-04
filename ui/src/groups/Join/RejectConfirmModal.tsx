@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { useGang, useRouteGroup } from '@/state/groups';
+import { useGang, useGroupState, useRouteGroup } from '@/state/groups';
 import { getGroupPrivacy, toTitleCase } from '@/logic/utils';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -32,13 +32,14 @@ export default function RejectConfirmModal() {
     dismiss();
   }, [dismiss]);
 
-  const reject = useCallback(() => {
+  const reject = useCallback(async () => {
     if (checkboxRef && checkboxRef.current?.checked) {
       setSkipConfirmation(true);
     }
-    // TODO: consume the backend reject endpoint
+
+    await useGroupState.getState().reject(flag);
     dismiss();
-  }, [dismiss, setSkipConfirmation]);
+  }, [dismiss, flag, setSkipConfirmation]);
 
   useEffect(() => {
     if (skipConfirmation) {
