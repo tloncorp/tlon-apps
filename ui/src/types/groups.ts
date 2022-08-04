@@ -31,7 +31,10 @@ export interface Channels {
 export type Zone = string;
 
 export interface Zones {
-  [key: Zone]: GroupMeta;
+  [key: Zone]: {
+    meta: GroupMeta;
+    idx: number[];
+  };
 }
 
 export interface Vessel {
@@ -67,6 +70,8 @@ export interface Group {
   cordon: Cordon;
   meta: GroupMeta;
   zones: Zones;
+  'zone-ord': Zone[];
+  bloc: string[];
 }
 
 export interface Fleet {
