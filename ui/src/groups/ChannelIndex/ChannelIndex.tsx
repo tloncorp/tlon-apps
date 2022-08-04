@@ -5,9 +5,9 @@ import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
-import { Channel } from '@/types/groups';
+import { Channel, Zone } from '@/types/groups';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import { channelHref } from '@/logic/utils';
+import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
@@ -19,7 +19,8 @@ import useRequestState from '@/logic/useRequestState';
 
 const UNZONED = '';
 
-function Channel({ channel, flag }: { flag: string; channel: Channel }) {
+function Channel({ channel, nest }: { nest: string; channel: Channel }) {
+  const [app, flag] = nestToFlag(nest);
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useBriefs();
@@ -73,46 +74,52 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
     console.log('mute ...');
   }, []);
 
+  // If the current user is the Channel host, they are automatically joined,
+  // and cannot leave the group
+  const isChannelHost = window.our === flag?.split('/')[0];
+
+  // A Channel is considered Joined if hosted by current user, or if a Brief
+  // exists
+  const joined = isChannelHost || (flag && flag in briefs);
+
+  const open = useCallback(() => {
+    if (!joined) {
+      return;
+    }
+    navigate(channelHref(groupFlag, nest));
+  }, [groupFlag, joined, navigate, nest]);
+
   if (!group) {
     return null;
   }
 
-  const channelFlag = Object.entries(group.channels).find(
-    (entry) => entry[1] === channel
-  )?.[0];
-
-  // If the current user is the Channel host, they are automatically joined,
-  // and cannot leave the group
-  const isChannelHost = window.our === channelFlag?.split('/')[0];
-
-  // A Channel is considered Joined if hosted by current user, or if a Brief
-  // exists
-  const joined = isChannelHost || (channelFlag && channelFlag in briefs);
-
   return (
-    <div className="my-2 flex flex-row items-center justify-between rounded-lg pl-0 pr-2 hover:bg-gray-50">
-      {/* avatar, title, participants */}
-      <div className="flex flex-row">
-        <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
-          {/* TODO: Channel Type icons */}
-          <BubbleIcon className="h-6 w-6 text-gray-400" />
+    <li className="my-2 flex flex-row items-center justify-between rounded-lg pl-0 pr-2 hover:bg-gray-50">
+      <button
+        className="flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50"
+        onClick={open}
+      >
+        <div className="flex flex-row">
+          <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
+            {/* TODO: Channel Type icons */}
+            <BubbleIcon className="h-6 w-6 text-gray-400" />
+          </div>
+          <div className="flex flex-col justify-evenly">
+            {joined && nest ? (
+              <Link
+                className="font-semibold text-gray-800"
+                to={channelHref(groupFlag, nest)}
+              >
+                {channel.meta.title}
+              </Link>
+            ) : (
+              <div className="font-semibold text-gray-800">
+                {channel.meta.title}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col justify-evenly">
-          {joined && channelFlag ? (
-            <Link
-              className="font-semibold text-gray-800"
-              to={channelHref(groupFlag, channelFlag)}
-            >
-              {channel.meta.title}
-            </Link>
-          ) : (
-            <div className="font-semibold text-gray-800">
-              {channel.meta.title}
-            </div>
-          )}
-        </div>
-      </div>
-      {/* action and options */}
+      </button>
       <div>
         {joined ? (
           <DropdownMenu.Root>
@@ -178,7 +185,7 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
           </button>
         )}
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -187,22 +194,30 @@ function ChannelSection({
   zone,
 }: {
   channels: [string, Channel][];
-  zone: string | null;
+  zone: Zone | null;
 }) {
+  const flag = useRouteGroup();
+  const group = useGroup(flag);
+  const sectionTitle =
+    zone && group?.zones && zone in group.zones
+      ? group.zones[zone].meta.title
+      : '';
   const sortedChannels = channels.slice();
   sortedChannels.sort(([, a], [, b]) =>
     a.meta.title.localeCompare(b.meta.title)
   );
 
   return (
-    <div>
-      {zone !== UNZONED ? (
-        <div className="py-4 font-semibold text-gray-400">{zone}</div>
+    <>
+      {sectionTitle !== UNZONED ? (
+        <div className="py-4 font-semibold text-gray-400">{sectionTitle}</div>
       ) : null}
-      {sortedChannels.map(([flag, channel]) => (
-        <Channel flag={flag} channel={channel} key={channel.added} />
-      ))}
-    </div>
+      <ul>
+        {sortedChannels.map(([nest, channel]) => (
+          <Channel nest={nest} channel={channel} key={channel.added} />
+        ))}
+      </ul>
+    </>
   );
 }
 

@@ -18,7 +18,7 @@ export default function AdminChannelList() {
     if (group) {
       Object.entries(group.zones).forEach(([key, zone]) => {
         sectionedChannels[key] = {
-          title: zone.title,
+          title: zone.meta.title,
           channels: [],
         };
       });
