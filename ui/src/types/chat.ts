@@ -1,6 +1,5 @@
 import { BigIntOrderedMap } from '@urbit/api';
 import { BigInteger } from 'big-integer';
-import { ChannelPerm } from './channel';
 import { GroupMeta } from './groups';
 
 export type Patda = string;
@@ -190,7 +189,7 @@ export interface ChatUpdate {
 }
 
 export interface Chat {
-  perms: ChannelPerm;
+  perms: ChatPerm;
 }
 
 export interface Chats {
@@ -311,4 +310,17 @@ export type ClubDiff = {
 export interface ClubAction {
   id: string;
   diff: ClubDiff;
+}
+
+export interface ChatCreate {
+  group: string;
+  name: string;
+  title: string;
+  description: string;
+  readers: string[];
+  writers: string[];
+}
+
+export interface ChatPerm {
+  writers: string[];
 }

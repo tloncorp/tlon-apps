@@ -1,6 +1,6 @@
-/-  ch=channel
-/+  j=channel-json
-|_  =perm:ch
+/-  h=heap
+/+  j=heap-json
+|_  =perm:h
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  perm:ch
+  ++  noun  perm:h
   --
 --

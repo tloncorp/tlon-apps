@@ -1,5 +1,4 @@
 import { BigIntOrderedMap } from '@urbit/api';
-import { ChannelPerm } from './channel';
 
 export type Patda = string;
 export type Ship = string;
@@ -155,7 +154,7 @@ export interface HeapUpdate {
 }
 
 export interface Heap {
-  perms: ChannelPerm;
+  perms: HeapPerm;
 }
 
 export interface Stash {
@@ -181,3 +180,16 @@ export interface HeapBriefUpdate {
  * `@p`/{name}
  */
 export type HeapFlag = string;
+
+export interface HeapCreate {
+  group: string;
+  name: string;
+  title: string;
+  description: string;
+  readers: string[];
+  writers: string[];
+}
+
+export interface HeapPerm {
+  writers: string[];
+}

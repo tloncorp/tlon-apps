@@ -4,8 +4,7 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import { Channel } from '@/types/channel';
-import { Chat, ChatWhom } from '../types/chat';
+import { Chat, ChatWhom } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -13,7 +12,8 @@ import {
   Cordon,
   PrivacyType,
   Rank,
-} from '../types/groups';
+} from '@/types/groups';
+import { Heap } from '@/types/heap';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -199,7 +199,7 @@ export function getGroupPrivacy(cordon: Cordon): PrivacyType {
 
 export function getPrivacyFromChannel(
   groupChannel?: GroupChannel,
-  channel?: Channel
+  channel?: Chat | Heap
 ): ChannelPrivacyType {
   if (!groupChannel || !channel) {
     return 'public';

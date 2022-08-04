@@ -1,7 +1,6 @@
 /-  c=chat, g=groups
 /-  meta
 /-  ha=hark-store
-/-  chan=channel
 /+  default-agent, verb, dbug
 /+  chat-json
 /+  pac=dm
@@ -119,8 +118,8 @@
     ?<  =(our.bowl p.flag)
     (join flag)
   ::
-      %channel-leave
-    =+  !<(=leave:chan vase)
+      %chat-leave
+    =+  !<(=leave:c vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     ca-abet:ca-leave:(ca-abed:ca-core leave)
   ::
@@ -132,8 +131,8 @@
        (~(put by drafts) p.draft q.draft)
     ==
   ::
-      %channel-create
-    =+  !<(req=create:chan vase)
+      %chat-create
+    =+  !<(req=create:c vase)
     (create req)
   ::
       %chat-action
@@ -177,11 +176,11 @@
     ca-abet:(ca-join:ca-core flag)
   ::
   ++  create
-    |=  req=create:chan
+    |=  req=create:c
     ^+  cor
     =/  =flag:c  [our.bowl name.req]
     =|  =chat:c
-    =/  =perm:chan  [writers.req group.req]
+    =/  =perm:c  [writers.req group.req]
     =.  perm.chat  perm
     =.  net.chat  [%pub ~]
     =.  chats  (~(put by chats) flag chat)
@@ -585,7 +584,7 @@
   ++  ca-pass
     |%
     ++  add-channel
-      |=  req=create:chan
+      |=  req=create:c
       =/  =dock      [p.group.req %groups]
       =/  =nest:g    [dap.bowl flag]
       =/  =channel:g  
@@ -600,8 +599,8 @@
       ca-core
     --
   ++  ca-init
-    |=  req=create:chan
-    =/  =perm:chan  [writers.req group.req]
+    |=  req=create:c
+    =/  =perm:c  [writers.req group.req]
     =.  cor
       (give-brief flag/flag ca-brief)
     =.  ca-core  (ca-update now.bowl %create perm)
@@ -631,7 +630,7 @@
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
       [%writs rest=*]  (peek:ca-pact rest.pole)
-      [%perm ~]        ``channel-perm+!>(perm.chat)
+      [%perm ~]        ``chat-perm+!>(perm.chat)
     ==
   ::
   ++  ca-revoke
@@ -734,7 +733,7 @@
     =/  =dock  [p.flag dap.bowl]
     =/  =wire  (snoc ca-area %updates)
     =.  cor  (emit %pass wire %agent dock %leave ~)
-    =.  cor  (emit %give %fact ~[/briefs] channel-leave+!>(flag))
+    =.  cor  (emit %give %fact ~[/briefs] chat-leave+!>(flag))
     =.  gone  &
     ca-core
   ::

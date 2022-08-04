@@ -1,8 +1,8 @@
-import { ChannelCreate } from '@/types/channel';
 import {
   CurioHeart,
   Heap,
   HeapBriefs,
+  HeapCreate,
   HeapCurioMap,
   HeapFlag,
 } from '@/types/heap';
@@ -18,7 +18,7 @@ export interface HeapState {
     [flag: HeapFlag]: HeapCurioMap;
   };
   briefs: HeapBriefs;
-  create: (req: ChannelCreate) => Promise<void>;
+  create: (req: HeapCreate) => Promise<void>;
   start: () => Promise<void>;
   initialize: (flag: HeapFlag) => Promise<void>;
   joinHeap: (flag: HeapFlag) => Promise<void>;

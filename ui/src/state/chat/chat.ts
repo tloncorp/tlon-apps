@@ -13,6 +13,7 @@ import {
   ChatBriefUpdate,
   ChatDiff,
   ChatDraft,
+  ChatPerm,
   Chats,
   ChatWrit,
   Club,
@@ -32,7 +33,6 @@ import {
   whomIsMultiDm,
   whomIsFlag,
 } from '@/logic/utils';
-import { ChannelPerm } from '@/types/channel';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
@@ -203,7 +203,7 @@ export const useChatState = create<ChatState>(
           app: 'chat',
           path: '/briefs',
           event: (event: unknown, mark: string) => {
-            if (mark === 'channel-leave') {
+            if (mark === 'chat-leave') {
               get().batchSet((draft) => {
                 delete draft.briefs[event as string];
               });
@@ -357,7 +357,7 @@ export const useChatState = create<ChatState>(
       leaveChat: async (flag) => {
         await api.poke({
           app: 'chat',
-          mark: 'channel-leave',
+          mark: 'chat-leave',
           json: flag,
         });
       },
@@ -411,7 +411,7 @@ export const useChatState = create<ChatState>(
       create: async (req) => {
         await api.poke({
           app: 'chat',
-          mark: 'channel-create',
+          mark: 'chat-create',
           json: req,
         });
       },
@@ -474,7 +474,7 @@ export const useChatState = create<ChatState>(
       },
       addSects: async (whom, sects) => {
         await api.poke(chatAction(whom, { 'add-sects': sects }));
-        const perms = await api.scry<ChannelPerm>({
+        const perms = await api.scry<ChatPerm>({
           app: 'chat',
           path: `/chat/${whom}/perm`,
         });
@@ -484,7 +484,7 @@ export const useChatState = create<ChatState>(
       },
       delSects: async (whom, sects) => {
         await api.poke(chatAction(whom, { 'del-sects': sects }));
-        const perms = await api.scry<ChannelPerm>({
+        const perms = await api.scry<ChatPerm>({
           app: 'chat',
           path: `/chat/${whom}/perm`,
         });
@@ -497,7 +497,7 @@ export const useChatState = create<ChatState>(
           return;
         }
 
-        const perms = await api.scry<ChannelPerm>({
+        const perms = await api.scry<ChatPerm>({
           app: 'chat',
           path: `/chat/${whom}/perm`,
         });

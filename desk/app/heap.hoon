@@ -1,4 +1,4 @@
-/-  h=heap, g=groups, ch=channel
+/-  h=heap, g=groups
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
@@ -97,13 +97,13 @@
     ?<  =(our.bowl p.flag)
     (join flag)
   ::
-      %channel-leave
-    =+  !<(=leave:ch vase)
+      %heap-leave
+    =+  !<(=leave:h vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     he-abet:he-leave:(he-abed:he-core leave)
   ::
-      %channel-create
-    =+  !<(req=create:ch vase)
+      %heap-create
+    =+  !<(req=create:h vase)
     (create req)
   ::
       %heap-action
@@ -125,11 +125,11 @@
     he-abet:(he-join:he-core flag)
   ::
   ++  create
-    |=  req=create:ch
+    |=  req=create:h
     ^+  cor
     =/  =flag:h  [our.bowl name.req]
     =|  =heap:h
-    =/  =perm:ch  [writers.req group.req]
+    =/  =perm:h  [writers.req group.req]
     =.  perm.heap  perm
     =.  net.heap  [%pub ~]
     =.  stash  (~(put by stash) flag heap)
@@ -265,7 +265,7 @@
   ++  he-pass
     |%
     ++  add-channel
-      |=  req=create:ch
+      |=  req=create:h
       =/  =dock      [p.group.req %groups]
       =/  =nest:g    [dap.bowl flag]
       =/  =channel:g  
@@ -280,8 +280,8 @@
       he-core
     --
   ++  he-init
-    |=  req=create:ch
-    =/  =perm:ch  [writers.req group.req]
+    |=  req=create:h
+    =/  =perm:h  [writers.req group.req]
     =.  cor
       (give-brief flag he-brief)
     =.  he-core  (he-update now.bowl %create perm)
@@ -311,7 +311,7 @@
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
       [%curios rest=*]  (peek:he-curios rest.pole)
-      [%perm ~]        ``channel-perm+!>(perm.heap)
+      [%perm ~]        ``heap-perm+!>(perm.heap)
     ==
   ::
   ++  he-revoke
@@ -414,7 +414,7 @@
     =/  =dock  [p.flag dap.bowl]
     =/  =wire  (snoc he-area %updates)
     =.  cor  (emit %pass wire %agent dock %leave ~)
-    =.  cor  (emit %give %fact ~[/briefs] channel-leave+!>(flag))
+    =.  cor  (emit %give %fact ~[/briefs] heap-leave+!>(flag))
     =.  gone  &
     he-core
   ::

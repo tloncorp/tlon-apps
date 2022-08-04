@@ -1,6 +1,6 @@
-/-  ch=channel
-/+  j=channel-json
-|_  =create:ch
+/-  h=heap
+/+  j=heap-json
+|_  =create:h
 ++  grad  %noun
 ++  grow
   |%
@@ -8,7 +8,7 @@
   --
 ++  grab
   |%
-  ++  noun  create:ch
+  ++  noun  create:h
   ++  json  create:dejs:j
   --
 --

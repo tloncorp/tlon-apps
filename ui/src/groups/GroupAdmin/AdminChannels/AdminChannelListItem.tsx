@@ -2,7 +2,6 @@ import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
 import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { GroupChannel } from '@/types/groups';
-import { Channel } from '@/types/channel';
 import EditChannelModal from '@/groups/GroupAdmin/AdminChannels/EditChannelModal';
 import { useChat, useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
@@ -10,6 +9,8 @@ import { useGroupState, useRouteGroup } from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import { getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
+import { Chat } from '@/types/chat';
+import { Heap } from '@/types/heap';
 import AdminChannelListDropdown from './AdminChannelListDropdown';
 import DeleteChannelModal from './DeleteChannelModal';
 import { PRIVACY_TYPE } from './ChannelPermsSelector';
@@ -23,7 +24,7 @@ interface AdminChannelListItemProps {
   onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
-function getChannel(flag: string): Channel {
+function getChannel(flag: string): Chat | Heap {
   const { chats } = useChatState.getState();
   const { stash } = useHeapState.getState();
 

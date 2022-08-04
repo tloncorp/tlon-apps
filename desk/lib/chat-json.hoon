@@ -1,6 +1,5 @@
 /-  c=chat
 /-  meta
-/+  cj=channel-json
 |%
 ++  enjs
   =,  enjs:format
@@ -123,7 +122,12 @@
   ++  chat
     |=  ch=chat:c
     %-  pairs
-    :~  perms/(perm:enjs:cj perm.ch)
+    :~  perms/(perm perm.ch)
+    ==
+  ++  perm
+    |=  p=perm:c
+    %-  pairs
+    :~  writers/a/(turn ~(tap in writers.p) (lead %s))
     ==
   ++  ship
     |=  her=@p
@@ -341,6 +345,16 @@
     :~  read/ul
         watch/ul
         unwatch/ul
+    ==
+  ++  create
+    ^-  $-(json create:c)
+    %-  ot
+    :~  group+flag
+        name+(se %tas)
+        title+so
+        description+so
+        readers+(as (se %tas))
+        writers+(as (se %tas))
     ==
   ++  ship  (su ;~(pfix sig fed:ag))
   ++  flag  `$-(json flag:c)`(su flag-rule)

@@ -1,4 +1,4 @@
-/-  c=chat, g=groups, ch=channel
+/-  g=groups
 |%
 +$  flag  (pair ship term)
 +$  feel  @ta
@@ -7,7 +7,7 @@
 +$  heap
   $:  =net
       =log
-      =perm:ch
+      =perm
       =view
       =curios
       =remark
@@ -68,7 +68,7 @@
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
     ::
-      [%create p=perm:ch]
+      [%create p=perm]
   ==
 +$  net
   $~  [%load ~]
@@ -97,6 +97,22 @@
   $%  [%read ~]
       [%read-at p=time]
       [?(%watch %unwatch) ~]
+  ==
+::
++$  perm
+  $:  writers=(set sect:g)
+      group=flag:g
+  ==
+::
++$  leave  flag:g
+::
++$  create
+  $:  group=flag:g  :: TODO: unmanaged-style group chats
+      name=term
+      title=cord
+      description=cord
+      readers=(set sect:g)
+      writers=(set sect:g)
   ==
 ::
 --

@@ -13,6 +13,7 @@ import {
   HeapCurio,
   HeapDiff,
   HeapFlag,
+  HeapPerm,
   Stash,
 } from '@/types/heap';
 import api from '@/api';
@@ -21,7 +22,6 @@ import {
   clearStorageMigration,
   storageVersion,
 } from '@/logic/utils';
-import { ChannelPerm } from '@/types/channel';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
 
@@ -107,7 +107,7 @@ export const useHeapState = create<HeapState>(
           app: 'heap',
           path: '/briefs',
           event: (event: unknown, mark: string) => {
-            if (mark === 'channel-leave') {
+            if (mark === 'heap-leave') {
               get().batchSet((draft) => {
                 delete draft.briefs[event as string];
               });
@@ -131,7 +131,7 @@ export const useHeapState = create<HeapState>(
       leaveHeap: async (flag) => {
         await api.poke({
           app: 'chat',
-          mark: 'channel-leave',
+          mark: 'heap-leave',
           json: flag,
         });
       },
@@ -144,13 +144,13 @@ export const useHeapState = create<HeapState>(
       create: async (req) => {
         await api.poke({
           app: 'heap',
-          mark: 'channel-create',
+          mark: 'heap-create',
           json: req,
         });
       },
       addSects: async (flag, sects) => {
         await api.poke(heapAction(flag, { 'add-sects': sects }));
-        const perms = await api.scry<ChannelPerm>({
+        const perms = await api.scry<HeapPerm>({
           app: 'heap',
           path: `/heap/${flag}/perm`,
         });
@@ -160,7 +160,7 @@ export const useHeapState = create<HeapState>(
       },
       delSects: async (flag, sects) => {
         await api.poke(heapAction(flag, { 'del-sects': sects }));
-        const perms = await api.scry<ChannelPerm>({
+        const perms = await api.scry<HeapPerm>({
           app: 'chat',
           path: `/heap/${flag}/perm`,
         });
@@ -173,7 +173,7 @@ export const useHeapState = create<HeapState>(
           return;
         }
 
-        const perms = await api.scry<ChannelPerm>({
+        const perms = await api.scry<HeapPerm>({
           app: 'heap',
           path: `/heap/${flag}/perm`,
         });

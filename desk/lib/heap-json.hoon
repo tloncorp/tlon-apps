@@ -1,6 +1,5 @@
 /-  h=heap
 /-  meta
-/+  cj=channel-json
 |%
 ++  enjs
   =,  enjs:format
@@ -45,7 +44,12 @@
   ++  heap
     |=  he=heap:h
     %-  pairs
-    :~  perms/(perm:enjs:cj perm.he)
+    :~  perms/(perm perm.he)
+    ==
+  ++  perm
+    |=  p=perm:h
+    %-  pairs
+    :~  writers/a/(turn ~(tap in writers.p) (lead %s))
     ==
   ++  update
     |=  =update:h
@@ -157,6 +161,16 @@
   ++  ship  (su ;~(pfix sig fed:ag))
   ++  flag  `$-(json flag:h)`(su flag-rule)
   ++  flag-rule  ;~((glue fas) ;~(pfix sig fed:ag) sym)
+  ++  create
+    ^-  $-(json create:h)
+    %-  ot
+    :~  group+flag
+        name+(se %tas)
+        title+so
+        description+so
+        readers+(as (se %tas))
+        writers+(as (se %tas))
+    ==
   ++  action
     ^-  $-(json action:h)
     %-  ot
