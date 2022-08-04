@@ -2,6 +2,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  groups-json  :: unused, nice for perf
+/*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
   |%
@@ -33,13 +34,9 @@
       (mole |.(!<(state-0 vase)))  
     ?^  old  `this(state u.old)
     ~&  >>>  "Incompatible load, nuking"
-    =^  cards  this  on-init
-    :_  this
-    =-  (welp - cards)
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
+    =^  cards  state
+      abet:(holt:cor &)
+    [cards this]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -82,6 +79,8 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
+      %holt  (holt |)
+  ::
       %group-leave
     =+  !<(=flag:g vase)
     ?<  =(our.bowl p.flag)
@@ -97,7 +96,7 @@
       ^-  vessel:fleet:g
       [sects *time]
     =/  =group:g
-      [fleet ~ ~ ~ ~ cordon.create title.create description.create image.create color.create] 
+      [fleet ~ ~ ~ ~ ~ cordon.create title.create description.create image.create color.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:(go-init:(go-abed:group-core flag) create)
@@ -124,6 +123,10 @@
     =.  cam.gang  `claim
     =.  xeno  (~(put by xeno) flag.join gang)
     ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
+  ::
+      %invite-decline
+    =+  !<(=flag:g vase)
+    ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
 ++  watch
   |=  =(pole knot)
@@ -138,9 +141,15 @@
     =/  ship=@p  (slav %p ship.pole)
     go-abet:(go-watch:(go-abed:group-core ship name.pole) rest.pole)
   ::
+      [%gangs %index ship=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    ?:  =(our.bowl ship)  res-gang-index
+    (req-gang-index ship)
+  ::
      [%gangs ship=@ name=@ rest=*]
-     =/  ship=@p  (slav %p ship.pole)
-     ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
+    =/  ship=@p  (slav %p ship.pole)
+    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
+  ::
   ==
 ++  peek
   |=  =(pole knot)
@@ -161,9 +170,14 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
+      ~   cor
+  ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     go-abet:(go-agent:(go-abed:group-core ship name.pole) rest.pole sign)
+  ::
+      [%gangs %index ship=@ ~]
+    (take-gang-index (slav %p ship.pole) sign)
   ::
       [%gangs ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -174,6 +188,26 @@
   |=  [=wire sign=sign-arvo]
   ^+  cor
   !!
+::
+++  holt
+  |=  tell=?
+  ^+  cor
+  =.  state  *state-0
+  =.  cor
+    %-  emil
+    %+  turn  ~(tap in ~(key by wex.bowl))
+    |=  [=wire =ship =term] 
+    ^-  card
+    [%pass wire %agent [ship term] %leave ~]
+  ?.  tell
+    cor
+  %-  emil
+  %+  murn  `(list dude:gall)`desk-bill
+  |=  =dude:gall
+  ^-  (unit card)
+  ?:  =(dude dap.bowl)  ~
+  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
+::
 ++  give-invites
   |=  [=flag:g ships=(set ship)]
   %-  emil
@@ -231,10 +265,10 @@
     ++  join-pinned
       ^-  (list card)
       %+  turn  ~(tap by channels.group)
-      |=  [ch=flag:g =channel:g]
+      |=  [nes=nest:g =channel:g]
       ^-  card
-      =/  =dock  [our.bowl %chat] :: TODO: generally remove chat hard-coding j
-      =/  =cage  channel-join+!>(ch)
+      =/  =dock  [our.bowl p.nes] :: TODO: generally remove chat hard-coding j
+      =/  =cage  channel-join+!>(q.nes)
       =/  =wire  (snoc go-area %join-pinned)
       [%pass wire %agent dock %poke cage]
     --
@@ -306,9 +340,9 @@
       =/  src  (slav %p ship.pole)
       `noun+!>((~(got by fleet.group) src))
       ::
-        [%channel ship=@ name=@ rest=*]
-      =/  fog=flag:g  [(slav %p ship.pole) name.pole]
-      =/  =channel:g  (~(got by channels.group) fog)
+        [%channel app=@ ship=@ name=@ rest=*]
+      =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
+      =/  =channel:g  (~(got by channels.group) nes)
       ?+    rest.pole  ~
           [%can-read src=@ ~]
         =/  src  (slav %p src.rest.pole)
@@ -450,13 +484,41 @@
     ^+  go-core
     ?-    -.delta
         %add
-      =.  zones.group  
-        (~(put by zones.group) zone meta.delta)
+      =/  =realm:zone:g  [meta.delta ~]
+      =.  zones.group    (~(put by zones.group) zone realm)
+      =.  zone-ord.group  [zone zone-ord.group]
       go-core
     ::
         %del
       =.  zones.group  
         (~(del by zones.group) zone)
+      =.  zone-ord.group
+        (skim zone-ord.group |=(z=zone:g !=(zone z)))
+      =.  channels.group
+        %-  ~(run by channels.group)
+        |=  =channel:g
+        channel(zone ?:(=(`zone zone.channel) ~ zone.channel))
+      go-core
+    ::
+        %edit
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone
+        |=  realm:zone:g
+        +<(met meta.delta)
+      go-core
+    ::
+        %mov
+      =.  zone-ord.group
+        %+  into  (skim zone-ord.group |=(z=zone:g !=(zone z)))
+        [idx.delta zone]
+      go-core
+    ::
+        %mov-nest
+      =/  =realm:zone:g  (~(got by zones.group) zone)
+      =.  ord.realm  
+        %+  into  (skim ord.realm |=(=nest:g !=(nest nest.delta)))
+        [idx nest]:delta
+      =.  zones.group    (~(put by zones.group) zone realm)
       go-core
     ==
   ++  go-bloc-update
@@ -609,7 +671,7 @@
       go-core
     ==
   ++  go-channel-update
-    |=  [ch=flag:g =diff:channel:g]
+    |=  [ch=nest:g =diff:channel:g]
     ^+  go-core
     ?>  go-is-bloc
     =*  by-ch  ~(. by channels.group)
@@ -639,10 +701,17 @@
       =/  =channel:g  (got:by-ch ch)
       =.  zone.channel   `zone.diff
       =.  channels.group  (put:by-ch ch channel)
+      =/  =realm:zone:g  (~(got by zones.group) zone.diff)
+      =.  ord.realm  [ch ord.realm]
+      =.  zones.group  (~(put by zones.group) zone.diff realm)
       go-core
     ::
         %del-zone
       =/  =channel:g  (got:by-ch ch)
+      =/  =zone:g  (need zone.channel)
+      =/  =realm:zone:g  (~(got by zones.group) zone)
+      =.  ord.realm  (skim ord.realm |=(=nest:g !=(ch nest)))
+      =.  zones.group  (~(put by zones.group) zone realm) 
       =.  zone.channel   ~
       =.  channels.group  (put:by-ch ch channel)
       go-core
@@ -655,6 +724,48 @@
     ::
     ==
   --
+::
+++  res-gang-index
+  ^+  cor
+  =;  =cage
+    =.  cor  (emit %give %fact ~ cage)
+    (emit %give %kick ~ ~)
+  :-  %group-previews
+  !>  ^-  previews:g
+  %-  ~(gas by *previews:g)
+  %+  murn  ~(tap by groups)
+  |=  [=flag:g =net:g =group:g]
+  ^-  (unit [flag:g preview:g])
+  ?.  =(our.bowl p.flag)
+    ~
+  `[flag =,(group [meta cordon now.bowl])]
+::
+++  req-gang-index
+  |=  =ship
+  ^+  cor
+  =/  =wire  /gangs/index/(scot %p ship)
+  =/  =dock  [ship dap.bowl]
+  (emit %pass wire %agent dock %watch `path`wire)
+::
+++  take-gang-index
+  |=  [=ship =sign:agent:gall]
+  ^+  cor
+  =/  =path  /gangs/index/(scot %p ship)
+  ?+  -.sign  !!
+      %kick  (emit %give %kick ~[path] ~)
+  ::
+      %watch-ack
+    ?~  p.sign  cor
+    %-  (slog leaf/"failed to watch gang index" u.p.sign)
+    (emit %give %kick ~[path] ~)
+  ::
+      %fact
+    ?.  =(%group-previews p.cage.sign)  cor
+    =+  !<(=previews:g q.cage.sign)
+    =.  cor  (emit %give %fact ~[path] cage.sign)
+    (emit %give %kick ~[path] ~)
+  ==
+::
 ++  gang-core
   |_  [=flag:g =gang:g]
   ++  ga-core  .
@@ -768,5 +879,10 @@
     =.  cor  ga-give-update
     ga-core
   ::
+  ++  ga-invite-reject
+    ^+  ga-core
+    =.  vit.gang  ~
+    =.  cor  ga-give-update
+    ga-core
   --
 --

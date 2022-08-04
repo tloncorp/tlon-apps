@@ -73,26 +73,26 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
     const group = draft.groups[flag];
 
     if ('channel' in diff) {
-      const { flag: f, diff: d } = diff.channel;
+      const { nest, diff: d } = diff.channel;
       if ('add' in d) {
-        group.channels[f] = d.add;
+        group.channels[nest] = d.add;
       } else if ('del' in d) {
-        delete group.channels[f];
+        delete group.channels[nest];
       } else if ('add-zone' in d) {
-        group.channels[f].zone = d['add-zone'];
+        group.channels[nest].zone = d['add-zone'];
       } else if ('del-zone' in d) {
-        group.channels[f].zone = null;
+        group.channels[nest].zone = null;
       } else if ('add-sects' in d) {
-        group.channels[f].readers = [
-          ...group.channels[f].readers,
+        group.channels[nest].readers = [
+          ...group.channels[nest].readers,
           ...d['add-sects'],
         ];
       } else if ('del-sects' in d) {
-        group.channels[f].readers = group.channels[f].readers.filter(
+        group.channels[nest].readers = group.channels[nest].readers.filter(
           (s) => !d['del-sects'].includes(s)
         );
       } else if ('join' in d) {
-        group.channels[f].join = d.join;
+        group.channels[nest].join = d.join;
       }
     } else if ('fleet' in diff) {
       reduceFleet(group, diff);
@@ -109,6 +109,14 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       group.meta = diff.meta;
     } else if ('del' in diff) {
       delete draft.groups[flag];
+    } else if ('zone' in diff) {
+      const { zone: f, delta: d } = diff.zone;
+      if ('add' in d) {
+        // TODO: what should `idx` be populated with?
+        group.zones[f] = { meta: d.add, idx: [] };
+      } else if ('del' in d) {
+        delete group.zones[f];
+      }
     } else {
       // console.log('unreachable');
     }

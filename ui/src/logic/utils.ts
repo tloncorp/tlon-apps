@@ -4,15 +4,23 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, startOfToday, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import { ChatWhom } from '../types/chat';
+import { Chat, ChatWhom } from '../types/chat';
 import {
   Cabal,
   Cabals,
+  Channel,
+  ChannelPrivacyType,
   Cordon,
   Group,
   PrivacyType,
   Rank,
 } from '../types/groups';
+
+export function nestToFlag(nest: string): [string, string] {
+  const [app, ...rest] = nest.split('/');
+
+  return [app, rest.join('/')];
+}
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
@@ -39,7 +47,7 @@ export function strToSym(str: string): string {
 }
 
 export function channelHref(flag: string, ch: string) {
-  return `/groups/${flag}/channels/chat/${ch}`;
+  return `/groups/${flag}/channels/${ch}`;
 }
 
 export function makePrettyDay(date: Date) {
@@ -190,6 +198,25 @@ export function getGroupPrivacy(cordon: Cordon): PrivacyType {
   return 'secret';
 }
 
+export function getPrivacyFromChannel(
+  channel?: Channel,
+  chat?: Chat
+): ChannelPrivacyType {
+  if (!channel || !chat) {
+    return 'public';
+  }
+
+  if (channel.readers.includes('admin')) {
+    return 'secret';
+  }
+
+  if (chat.perms.writers.includes('admin')) {
+    return 'read-only';
+  }
+
+  return 'public';
+}
+
 export function toTitleCase(s: string): string {
   if (!s) {
     return '';
@@ -202,4 +229,8 @@ export function toTitleCase(s: string): string {
 
 export function randomElement<T>(a: T[]) {
   return a[Math.floor(Math.random() * a.length)];
+}
+
+export function hasKeys(obj: Record<string, unknown>) {
+  return Object.keys(obj).length > 0;
 }

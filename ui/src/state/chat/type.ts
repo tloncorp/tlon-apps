@@ -7,6 +7,7 @@ import {
   ChatStory,
   Club,
   Hive,
+  ChatCreate,
 } from '../../types/chat';
 import { GroupMeta } from '../../types/groups';
 
@@ -19,16 +20,17 @@ export interface ChatState {
   dms: {
     [ship: string]: Chat;
   };
-  drafts: {
-    [whom: string]: ChatStory;
-  };
-  dmSubs: string[];
-  dmArchive: string[];
   multiDms: {
     [id: string]: Club; // id is `@uw`
   };
+  drafts: {
+    [whom: string]: ChatStory;
+  };
+  chatSubs: string[];
+  dmSubs: string[];
   multiDmSubs: string[];
-  pinnedDms: string[];
+  pins: ChatWhom[];
+  dmArchive: string[];
   fetchDms: () => Promise<void>;
   fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
   pacts: {
@@ -36,8 +38,8 @@ export interface ChatState {
   };
   pendingDms: string[];
   briefs: ChatBriefs;
-  toggleDmPin: (whom: string, pin: boolean) => Promise<void>;
-  toggleMultiDmPin: (whom: string, pin: boolean) => Promise<void>;
+  togglePin: (whom: string, pin: boolean) => Promise<void>;
+  fetchPins: () => Promise<void>;
   markRead: (whom: string) => Promise<void>;
   start: () => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
@@ -52,13 +54,8 @@ export interface ChatState {
   sendMessage: (whom: string, memo: ChatMemo) => void;
   delMessage: (flag: string, time: string) => void;
   addSects: (flag: string, writers: string[]) => Promise<void>;
-  create: (req: {
-    group: string;
-    name: string;
-    title: string;
-    description: string;
-    readers: string[];
-  }) => Promise<void>;
+  delSects: (flag: string, writers: string[]) => Promise<void>;
+  create: (req: ChatCreate) => Promise<void>;
   createMultiDm: (
     id: string,
     hive: string[] // array of ships

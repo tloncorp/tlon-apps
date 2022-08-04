@@ -1,5 +1,16 @@
+import { AUTHORS } from '@/constants';
+import { randomElement } from '@/logic/utils';
 import faker from '@faker-js/faker';
-import { Group, Vessel, Gangs } from '../types/groups';
+import {
+  Group,
+  Vessel,
+  Gangs,
+  Gang,
+  PrivacyType,
+  Cordon,
+  GroupIndex,
+  GroupPreview,
+} from '../types/groups';
 
 const emptyVessel = (): Vessel => ({
   sects: [],
@@ -10,6 +21,88 @@ const adminVessel = (): Vessel => ({
   sects: ['admin'],
   joined: Date.now(),
 });
+
+const randomColor = () => Math.floor(Math.random() * 16777215).toString(16);
+
+export function makeCordon(privacy = 'public') {
+  let cordon: Cordon;
+  switch (privacy) {
+    case 'public':
+      cordon = {
+        open: {
+          ships: [],
+          ranks: [],
+        },
+      };
+      break;
+    case 'private':
+      cordon = {
+        shut: [],
+      };
+      break;
+    default:
+      cordon = {
+        afar: {
+          app: '',
+          path: '',
+          desc: '',
+        },
+      };
+      break;
+  }
+  return cordon;
+}
+
+export function makeGroupPreview(privacy = 'public'): GroupPreview {
+  return {
+    cordon: makeCordon(privacy),
+    time: Date.now(),
+    meta: {
+      title: faker.company.companyName(),
+      description: faker.company.catchPhrase(),
+      image: '',
+      color: `#${randomColor()}`,
+    },
+  };
+}
+
+export function createMockGang({
+  flag,
+  hasClaim = false,
+  hasInvite = false,
+  hasPreview = false,
+  privacy = 'public',
+}: {
+  flag: string;
+  hasClaim?: boolean;
+  hasInvite?: boolean;
+  hasPreview?: boolean;
+  privacy?: PrivacyType;
+}): Gang {
+  return {
+    claim: hasClaim
+      ? {
+          progress: 'done',
+          'join-all': false,
+        }
+      : null,
+    invite: hasInvite
+      ? {
+          flag,
+          ship: randomElement(AUTHORS),
+        }
+      : null,
+    preview: hasPreview ? makeGroupPreview(privacy) : null,
+  };
+}
+
+export function createMockIndex(ship: string): GroupIndex {
+  return {
+    [`~${ship}/some-public-group`]: makeGroupPreview(),
+    [`~${ship}/some-private-group`]: makeGroupPreview('private'),
+    [`~${ship}/some-secret-group`]: makeGroupPreview('secret'),
+  };
+}
 
 export function createMockGroup(title: string): Group {
   return {
@@ -52,11 +145,20 @@ export function createMockGroup(title: string): Group {
       color: '',
     },
     zones: {},
+    bloc: [],
+    'zone-ord': [],
   };
 }
 const mockGroupOne: Group = {
   fleet: {
-    '~finned-palmer': adminVessel(),
+    '~finned-palmer': emptyVessel(),
+    '~zod': adminVessel(),
+    '~tocref-ripmyr': emptyVessel(),
+    '~hastuc-dibtux': emptyVessel(),
+    '~fallyn-balfus': emptyVessel(),
+    '~fabled-faster': emptyVessel(),
+    '~rilfun-lidlen': emptyVessel(),
+    '~nocsyx-lassul': emptyVessel(),
   },
   cabals: {
     admin: {
@@ -103,6 +205,8 @@ const mockGroupOne: Group = {
     color: '',
   },
   zones: {},
+  bloc: [],
+  'zone-ord': [],
 };
 
 const mockGroupTwo: Group = {
@@ -154,6 +258,8 @@ const mockGroupTwo: Group = {
     color: '',
   },
   zones: {},
+  bloc: [],
+  'zone-ord': [],
 };
 
 const mockGroups: { [flag: string]: Group } = {
@@ -197,6 +303,7 @@ export const mockGangs: Gangs = {
       'join-all': true,
     },
     preview: {
+      time: Date.now(),
       cordon: {
         afar: {
           app: '~zod/eth-verify',

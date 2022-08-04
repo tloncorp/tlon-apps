@@ -6,7 +6,7 @@ import DmOptions from './DMOptions';
 import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 import { ChatBrief } from '../types/chat';
 import { useMultiDm } from '../state/chat';
-import { useChannel, useGroupState } from '../state/groups/groups';
+import { useChannel, useGroup, useGroupState } from '../state/groups/groups';
 import { useIsMobile } from '../logic/useMedia';
 import useNavStore from '../components/Nav/useNavStore';
 import GroupAvatar from '../groups/GroupAvatar';
@@ -29,16 +29,16 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
     ([k, v]) => whom in v.channels
   )?.[0];
   const channel = useChannel(groupFlag || '', whom);
+  const group = useGroup(groupFlag || '');
 
   if (!channel) {
     return null;
   }
 
-  const img = channel.meta.image;
   return (
     <SidebarItem
       to={`/groups/${groupFlag}/channels/chat/${whom}`}
-      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...channel.meta} />}
+      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
       actions={
         (brief?.count ?? 0) > 0 ? (
           <BulletIcon
@@ -118,6 +118,8 @@ export default function MessagesSidebarItem({
   brief,
   pending,
 }: MessagesSidebarItemProps) {
+  const channelWhom = `chat/${whom}`;
+
   if (whomIsDm(whom)) {
     return <DMSidebarItem pending={pending} whom={whom} brief={brief} />;
   }
@@ -126,5 +128,5 @@ export default function MessagesSidebarItem({
     return <MultiDMSidebarItem whom={whom} brief={brief} pending={pending} />;
   }
 
-  return <ChannelSidebarItem whom={whom} brief={brief} />;
+  return <ChannelSidebarItem whom={channelWhom} brief={brief} />;
 }

@@ -24,10 +24,17 @@ export interface Channel {
   join: boolean;
 }
 
+export interface Channels {
+  [nest: string]: Channel;
+}
+
 export type Zone = string;
 
 export interface Zones {
-  [key: Zone]: GroupMeta;
+  [key: Zone]: {
+    meta: GroupMeta;
+    idx: string[];
+  };
 }
 
 export interface Vessel {
@@ -59,12 +66,12 @@ export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 export interface Group {
   fleet: Fleet;
   cabals: Cabals;
-  channels: {
-    [flag: string]: Channel;
-  };
+  channels: Channels;
   cordon: Cordon;
   meta: GroupMeta;
   zones: Zones;
+  'zone-ord': Zone[];
+  bloc: string[];
 }
 
 export interface Fleet {
@@ -138,7 +145,7 @@ interface ChannelDiffJoin {
 
 interface ChannelDiff {
   channel: {
-    flag: string;
+    nest: string;
     diff:
       | ChannelDiffAdd
       | ChannelDiffDel
@@ -243,6 +250,11 @@ export interface Groups {
 export interface GroupPreview {
   meta: GroupMeta;
   cordon: Cordon;
+  time: number;
+}
+
+export interface GroupIndex {
+  [flag: string]: GroupPreview;
 }
 
 export interface Invite {

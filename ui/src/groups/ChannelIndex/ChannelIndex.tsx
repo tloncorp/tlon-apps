@@ -5,9 +5,9 @@ import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
-import { Channel } from '@/types/groups';
+import { Channel, Zone } from '@/types/groups';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import { channelHref, pluralize } from '@/logic/utils';
+import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
@@ -15,24 +15,22 @@ import { useBriefs, useChatState } from '@/state/chat';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import PencilIcon from '@/components/icons/PencilIcon';
+import useRequestState from '@/logic/useRequestState';
 
 const UNZONED = '';
-const READY = 'READY';
-const PENDING = 'PENDING';
-const FAILED = 'FAILED';
-type JoinState = typeof READY | typeof PENDING | typeof FAILED;
 
-function Channel({ channel, flag }: { flag: string; channel: Channel }) {
+function Channel({ channel, nest }: { nest: string; channel: Channel }) {
+  const [app, flag] = nestToFlag(nest);
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useBriefs();
   const isAdmin = useAmAdmin(flag);
   const navigate = useNavigate();
-
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const [joinState, setJoinState] = useState<JoinState>(READY);
+  const { isFailed, isPending, isReady, setFailed, setPending, setReady } =
+    useRequestState();
 
   const editChannel = useCallback(() => {
     navigate(`/groups/${flag}/info/channels`);
@@ -44,22 +42,22 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
         clearTimeout(timer);
         setTimer(null);
       }
-      setJoinState(PENDING);
+      setPending();
       await useChatState.getState().joinChat(flag);
-      setJoinState(READY);
+      setReady();
     } catch (error) {
       if (error) {
         console.error(`[ChannelIndex:JoinError] ${error}`);
       }
-      setJoinState(FAILED);
+      setFailed();
       setTimer(
         setTimeout(() => {
-          setJoinState(READY);
+          setReady();
           setTimer(null);
         }, 10 * 1000)
       );
     }
-  }, [flag, timer]);
+  }, [flag, setFailed, setPending, setReady, timer]);
 
   const leaveChannel = useCallback(async () => {
     try {
@@ -76,51 +74,57 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
     console.log('mute ...');
   }, []);
 
+  // If the current user is the Channel host, they are automatically joined,
+  // and cannot leave the group
+  const isChannelHost = window.our === flag?.split('/')[0];
+
+  // A Channel is considered Joined if hosted by current user, or if a Brief
+  // exists
+  const joined = isChannelHost || (flag && flag in briefs);
+
+  const open = useCallback(() => {
+    if (!joined) {
+      return;
+    }
+    navigate(channelHref(groupFlag, nest));
+  }, [groupFlag, joined, navigate, nest]);
+
   if (!group) {
     return null;
   }
 
-  const channelFlag = Object.entries(group.channels).find(
-    (entry) => entry[1] === channel
-  )?.[0];
-
-  // If the current user is the Channel host, they are automatically joined,
-  // and cannot leave the group
-  const isChannelHost = window.our === channelFlag?.split('/')[0];
-
-  // A Channel is considered Joined if hosted by current user, or if a Brief
-  // exists
-  const joined = isChannelHost || (channelFlag && channelFlag in briefs);
-
   return (
-    <div className="my-2 flex flex-row items-center justify-between">
-      {/* avatar, title, participants */}
-      <div className="flex flex-row">
-        <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
-          {/* TODO: Channel Type icons */}
-          <BubbleIcon className="h-6 w-6 text-gray-400" />
+    <li className="my-2 flex flex-row items-center justify-between rounded-lg pl-0 pr-2 hover:bg-gray-50">
+      <button
+        className="flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50"
+        onClick={open}
+      >
+        <div className="flex flex-row">
+          <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
+            {/* TODO: Channel Type icons */}
+            <BubbleIcon className="h-6 w-6 text-gray-400" />
+          </div>
+          <div className="flex flex-col justify-evenly">
+            {joined && nest ? (
+              <Link
+                className="font-semibold text-gray-800"
+                to={channelHref(groupFlag, nest)}
+              >
+                {channel.meta.title}
+              </Link>
+            ) : (
+              <div className="font-semibold text-gray-800">
+                {channel.meta.title}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col justify-evenly">
-          {joined && channelFlag ? (
-            <Link
-              className="font-semibold text-gray-800"
-              to={channelHref(groupFlag, channelFlag)}
-            >
-              {channel.meta.title}
-            </Link>
-          ) : (
-            <div className="font-semibold text-gray-800">
-              {channel.meta.title}
-            </div>
-          )}
-        </div>
-      </div>
-      {/* action and options */}
+      </button>
       <div>
         {joined ? (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild className="appearance-none">
-              <button className="button bg-green-soft text-green">
+              <button className="button bg-green-soft text-green mix-blend-multiply dark:bg-green-900 dark:mix-blend-screen hover:dark:bg-green-800">
                 <span className="mr-1">Joined</span>{' '}
                 <CaretDown16Icon className="h-4 w-4" />
               </button>
@@ -155,22 +159,25 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
           </DropdownMenu.Root>
         ) : (
           <button
-            disabled={joinState === PENDING}
+            disabled={isPending}
             onClick={joinChannel}
-            className={cn('button disabled:bg-gray-50', {
-              'bg-gray-50': [READY, PENDING].includes(joinState),
-              'bg-red-soft': joinState === FAILED,
-              'text-gray-800': joinState === READY,
-              'text-gray-400': joinState === PENDING,
-              'text-red': joinState === FAILED,
-            })}
+            className={cn(
+              'button mix-blend-multiply disabled:bg-gray-50 dark:mix-blend-screen',
+              {
+                'bg-gray-50': isReady || isPending,
+                'bg-red-soft': isFailed,
+                'text-gray-800': isReady,
+                'text-gray-400': isPending,
+                'text-red': isFailed,
+              }
+            )}
           >
-            {joinState === PENDING ? (
+            {isPending ? (
               <span className="center-items flex">
                 <LoadingSpinner />
                 <span className="ml-2">Joining...</span>
               </span>
-            ) : joinState === FAILED ? (
+            ) : isFailed ? (
               'Retry'
             ) : (
               'Join'
@@ -178,7 +185,7 @@ function Channel({ channel, flag }: { flag: string; channel: Channel }) {
           </button>
         )}
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -187,22 +194,30 @@ function ChannelSection({
   zone,
 }: {
   channels: [string, Channel][];
-  zone: string | null;
+  zone: Zone | null;
 }) {
+  const flag = useRouteGroup();
+  const group = useGroup(flag);
+  const sectionTitle =
+    zone && group?.zones && zone in group.zones
+      ? group.zones[zone].meta.title
+      : '';
   const sortedChannels = channels.slice();
   sortedChannels.sort(([, a], [, b]) =>
     a.meta.title.localeCompare(b.meta.title)
   );
 
   return (
-    <div>
-      {zone !== UNZONED ? (
-        <div className="py-4 font-semibold text-gray-400">{zone}</div>
+    <>
+      {sectionTitle !== UNZONED ? (
+        <div className="py-4 font-semibold text-gray-400">{sectionTitle}</div>
       ) : null}
-      {sortedChannels.map(([flag, channel]) => (
-        <Channel flag={flag} channel={channel} key={channel.added} />
-      ))}
-    </div>
+      <ul>
+        {sortedChannels.map(([nest, channel]) => (
+          <Channel nest={nest} channel={channel} key={channel.added} />
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -240,7 +255,7 @@ export default function ChannelIndex() {
   });
 
   return (
-    <section className="w-full max-w-3xl p-4">
+    <section className="w-full p-4">
       <div className="mb-4 flex flex-row justify-between">
         <h1 className="text-lg font-bold">All Channels</h1>
         {isAdmin ? (
@@ -253,7 +268,10 @@ export default function ChannelIndex() {
         ) : null}
       </div>
       {zones.map((zone) => (
-        <div key={zone} className="mb-2 w-full rounded-xl bg-white px-4 py-1">
+        <div
+          key={zone}
+          className="mb-2 w-full rounded-xl bg-white py-1 pl-4 pr-2"
+        >
           <ChannelSection channels={sectionedChannels[zone]} zone={zone} />
         </div>
       ))}

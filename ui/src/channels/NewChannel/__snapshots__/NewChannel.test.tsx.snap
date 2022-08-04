@@ -31,7 +31,7 @@ exports[`NewChannel > renders as expected 1`] = `
           <h2
             class="text-lg font-bold"
           >
-            Edit Chat Channel
+            New Chat Channel
           </h2>
         </header>
       </div>
@@ -181,47 +181,42 @@ exports[`NewChannel > renders as expected 1`] = `
           </ul>
         </label>
         <label
-          class="my-2 flex justify-between font-semibold"
+          class="flex cursor-pointer items-center justify-between space-x-2 py-2"
         >
           <div
-            class="flex flex-col"
+            class="flex items-center"
           >
             <div
-              class="font-semibold"
-            >
-              Default
-            </div>
-            <div
-              class="font-normal text-gray-600"
-            >
-              Members will join this channel automatically when joining this group
-            </div>
-          </div>
-          <div
-            class="ml-4"
-          >
-            <button
-              aria-checked="false"
-              class="switch"
-              data-state="unchecked"
-              role="switch"
-              type="button"
-              value="false"
-            >
-              <span
-                class="switch-thumb"
-                data-state="unchecked"
-              />
-            </button>
-            <input
-              aria-hidden="true"
-              name="join"
-              style="transform: translateX(-100%); position: absolute; pointer-events: none; opacity: 0; margin: 0px;"
-              tabindex="-1"
-              type="checkbox"
-              value="on"
+              class="h-4 w-4 rounded-sm border-2 border-gray-200"
             />
           </div>
+          <div
+            class="flex w-full flex-col"
+          >
+            <div
+              class="flex flex-row items-center space-x-2"
+            >
+              <div
+                class="flex w-full flex-col justify-start text-left"
+              >
+                <span
+                  class="font-semibold"
+                >
+                  Default
+                </span>
+                <span
+                  class="text-sm font-medium text-gray-600"
+                >
+                  Members will join this channel automatically when joining this group
+                </span>
+              </div>
+            </div>
+          </div>
+          <input
+            class="sr-only"
+            name="join"
+            type="checkbox"
+          />
         </label>
         <footer
           class="mt-4 flex items-center justify-between space-x-2"

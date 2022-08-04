@@ -6,6 +6,7 @@
 /+  w=chat-writs
 /+  pac=dm
 /+  ch=chat-hark
+/*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
   |%
@@ -18,6 +19,7 @@
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         drafts=(map whom:c story:c)
+        pins=(list whom:c)
         bad=(set ship)
         inv=(set ship)
     ==
@@ -50,13 +52,9 @@
         dm(watching.remark &)
       `this(state u.old)
     ~&  >>>  "Incompatible load, nuking"
-    =^  cards  this  on-init
-    :_  this
-    =-  (welp - cards)
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
+    =^  cards  state
+      abet:(holt:cor &)
+    [cards this]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -108,12 +106,13 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
+      %holt  (holt |)
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
-      %dm-pin
-    =+  !<([=ship pin=?] vase)
-    di-abet:(di-pin:(di-abed:di-core ship) pin)
+      %chat-pins
+    =+  !<(ps=(list whom:c) vase)
+    (pin ps)
   ::
       ?(%flag %channel-join)
     =+  !<(=flag:c vase)
@@ -169,10 +168,6 @@
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
   ::
-      %club-pin
-    =+  !<([=id:club:c pin=?] vase)
-    cu-abet:(cu-pin:(cu-abed:cu-core id) pin)
-  ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
   ++  join
@@ -186,11 +181,15 @@
     ^+  cor
     =/  =flag:c  [our.bowl name.req]
     =|  =chat:c
-    =/  =perm:c  [~ group.req]
+    =/  =perm:c  [writers.req group.req]
     =.  perm.chat  perm
     =.  net.chat  [%pub ~]
     =.  chats  (~(put by chats) flag chat)
     ca-abet:(ca-init:(ca-abed:ca-core flag) req)
+  ++  pin
+    |=  ps=(list whom:c)
+    =.  pins  ps
+    cor
   --
 ++  watch
   |=  =path
@@ -219,6 +218,7 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
+      ~  cor
   ::
       [%dm @ *]
     =/  =ship  (slav %p i.t.wire)
@@ -297,6 +297,10 @@
   ::
     [%x %chat ~]  ``flags+!>(~(key by chats))
   ::
+    [%x %chats ~]  ``chats+!>(chats)
+  ::
+    [%x %pins ~]  ``chat-pins+!>(pins)
+  ::
       [%x %chat @ @ *]
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path
@@ -307,15 +311,6 @@
   ::
       [%x %dm %invited ~]
     ``ships+!>(~(key by pending-dms))
-  ::
-      [%x %dm %pinned ~]
-    =-  ``ships+!>(-)
-    ^-  (set ship)
-    %-  silt
-    %+  murn  ~(tap by dms)
-    |=  [=ship =dm:c]
-    ?.  pin.dm  ~
-    `ship
   ::
       [%x %dm %archive ~]
     ``ships+!>(~(key by archived-dms))
@@ -361,6 +356,25 @@
     :-  flag/flag
     ca-brief:(ca-abed:ca-core flag)
   ==
+::
+++  holt
+  |=  tell=?
+  ^+  cor
+  =.  state  *state-0
+  =.  cor
+    %-  emil
+    %+  turn  ~(tap in ~(key by wex.bowl))
+    |=  [=wire =ship =term] 
+    ^-  card
+    [%pass wire %agent [ship term] %leave ~]
+  =.  cor  init
+  ?.  tell  cor
+  %-  emil
+  %+  murn  `(list dude:gall)`desk-bill
+  |=  =dude:gall
+  ^-  (unit card)
+  ?:  =(dude dap.bowl)  ~
+  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
 ::
 ++  give-brief
   |=  [=whom:c =brief:briefs:c]
@@ -514,11 +528,6 @@
       (cu-post-notice for.delta '' ' was uninvited from the chat') 
     ==
   ::
-  ++  cu-pin
-    |=  pin=?
-    ^+  cu-core
-    cu-core(pin.club pin)
-  ::
   ++  cu-peek
     |=  =path
     ^-  (unit (unit cage))
@@ -578,9 +587,10 @@
     ++  add-channel
       |=  req=create:c
       =/  =dock      [p.group.req %groups]
+      =/  =nest:g    [dap.bowl flag]
       =/  =channel:g  
         =,(req [[title description '' ''] now.bowl ~ | readers])
-      =/  =action:g  [group.req now.bowl %channel flag %add channel]
+      =/  =action:g  [group.req now.bowl %channel nest %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc ca-area %create)
       =/  =card
@@ -591,7 +601,7 @@
     --
   ++  ca-init
     |=  req=create:c
-    =/  =perm:c  [~ group.req]
+    =/  =perm:c  [writers.req group.req]
     =.  cor
       (give-brief flag/flag ca-brief)
     =.  ca-core  (ca-update now.bowl %create perm)
@@ -684,7 +694,7 @@
     |=  her=ship
     =/  =path
       %+  welp  ca-groups-scry
-      /channel/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
+      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
     .^(? %gx path)
   ::
   ++  ca-pub
@@ -869,11 +879,6 @@
     =.  cor
       (emit (hark:di-pass invited:di-hark))
     di-core
-  ::
-  ++  di-pin
-    |=  pin=?
-    ^+  di-core
-    di-core(pin.dm pin)
   ::
   ++  di-notify
     |=  [=id:c =delta:writs:c]

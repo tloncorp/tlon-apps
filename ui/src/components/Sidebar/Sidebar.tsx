@@ -3,7 +3,7 @@ import { useLocation } from 'react-router';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
-import { usePendingInvites, usePinnedGroups } from '@/state/groups';
+import { useGroups, usePendingInvites } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
@@ -11,16 +11,22 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import useSidebarSort from '@/logic/useSidebarSort';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
+import { usePinnedGroups } from '@/state/chat';
+import { hasKeys } from '@/logic/utils';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
-  const pinned = usePinnedGroups();
   const pendingInvites = usePendingInvites();
   const pendingInvitesCount = pendingInvites.length;
-  const { sortFn, setSortFn, sortOptions } = useSidebarSort();
   // TODO: get notification count from hark store
   const notificationCount = 0;
+
+  const { sortFn, setSortFn, sortOptions, sortGroups } = useSidebarSort();
+  const groups = useGroups();
+  const pinnedGroups = usePinnedGroups();
+  const sortedGroups = sortGroups(groups);
+  const sortedPinnedGroups = sortGroups(pinnedGroups);
 
   if (isMobile) {
     return <MobileSidebar />;
@@ -71,8 +77,13 @@ export default function Sidebar() {
             Submit Issue
           </SidebarItem>
         </a>
-        {pinned.length > 0 ? (
-          <GroupList className="flex-1 overflow-y-scroll pr-0" pinned />
+        {hasKeys(pinnedGroups) ? (
+          <GroupList
+            className="flex-1 overflow-y-scroll pr-0"
+            pinned
+            groups={sortedGroups}
+            pinnedGroups={sortedPinnedGroups}
+          />
         ) : null}
         <li className="p-2">
           <SidebarSorter
@@ -83,7 +94,11 @@ export default function Sidebar() {
           />
         </li>
       </ul>
-      <GroupList className="flex-1 overflow-x-hidden overflow-y-scroll pr-0 pt-0" />
+      <GroupList
+        className="flex-1 overflow-x-hidden overflow-y-scroll pr-0 pt-0"
+        groups={sortedGroups}
+        pinnedGroups={sortedPinnedGroups}
+      />
     </nav>
   );
 }

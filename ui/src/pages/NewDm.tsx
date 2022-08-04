@@ -57,7 +57,7 @@ export default function NewDM() {
     <Layout
       className="flex-1"
       footer={
-        <div className="border-t-2 border-black/10 p-4">
+        <div className="border-t-2 border-gray-50 p-4">
           <ChatInput
             whom={
               ships && ships.length > 0

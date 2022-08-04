@@ -1,4 +1,11 @@
-import { Gangs, Group, Rank, GroupMeta, Channel } from '../../types/groups';
+import {
+  Gangs,
+  Group,
+  Rank,
+  GroupMeta,
+  Channel,
+  GroupIndex,
+} from '../../types/groups';
 
 export interface GroupState {
   set: (fn: (sta: GroupState) => void) => void;
@@ -7,9 +14,6 @@ export interface GroupState {
   groups: {
     [flag: string]: Group;
   };
-  pinnedGroups: string[];
-  pinGroup: (flag: string) => Promise<void>;
-  unpinGroup: (flag: string) => Promise<void>;
   gangs: Gangs;
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
@@ -36,14 +40,17 @@ export interface GroupState {
     members: Record<string, string[]>;
     cordon: Record<string, any>;
   }) => Promise<void>;
+  leave: (flag: string) => Promise<void>;
   edit: (flag: string, metadata: GroupMeta) => Promise<void>;
   delete: (flag: string) => Promise<void>;
   start: () => Promise<void>;
   search: (flag: string) => Promise<void>;
+  index: (ship: string) => Promise<GroupIndex>;
   join: (flag: string, joinAll: boolean) => Promise<void>;
+  reject: (flag: string) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   deleteZone: (flag: string, zone: string) => Promise<void>;
-  addOrEditChannel: (
+  editChannel: (
     groupFlag: string,
     flag: string,
     channel: Channel
@@ -52,20 +59,13 @@ export interface GroupState {
   addChannelToZone: (
     zone: string,
     groupFlag: string,
-    channelFlag: string
+    nest: string
   ) => Promise<void>;
-  removeChannelFromZone: (
-    groupFlag: string,
-    channelFlag: string
-  ) => Promise<void>;
+  removeChannelFromZone: (groupFlag: string, nest: string) => Promise<void>;
   setChannelPerm: (
     flag: string,
-    channelFlag: string,
+    nest: string,
     sects: string[]
   ) => Promise<void>;
-  setChannelJoin: (
-    flag: string,
-    channelFlag: string,
-    join: boolean
-  ) => Promise<void>;
+  setChannelJoin: (flag: string, nest: string, join: boolean) => Promise<void>;
 }

@@ -52,20 +52,29 @@ This project uses husky to run git pre-commit hooks. If you don't like husky you
 *brief*
 : TBD
 
-*club*
-: a multi-DM group
-
 *cabal*
 : TBD
 
+*chat*
+: backend term for a group chat
+
+*club*
+: backend term for a multi-DM group (distinct from a `chat` and a `dm`)
+
 *cordon*
-: TBD
+: represents a group's permissions. `open` is Public, `shut` is Private, `afar` is Secret
+
+*dm*
+: backend term for a 1:1 message
 
 *flag*
 : composite identifier consisting of `ship/group-name` used to key state and in routes 
 
 *fleet*
 : TBD
+
+*gang*
+: a group invite
 
 *sect*
 : TBD

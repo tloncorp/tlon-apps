@@ -1,6 +1,7 @@
 /-  meta
 |%
 +$  flag  (pair ship term)
++$  nest  (pair dude:gall flag)
 ::  $sect: ID for cabal
 ::
 +$  sect  term
@@ -10,10 +11,17 @@
   =<  zone
   |%
   +$  zone  @tas
+  +$  realm
+    $:  met=data:meta
+        ord=(list nest)
+    ==
   +$  diff  (pair zone delta)
   +$  delta
     $%  [%add meta=data:meta]
         [%del ~]
+        [%edit meta=data:meta]
+        [%mov idx=@ud]
+        [%mov-nest =nest idx=@ud]
     ==
   --
 ::
@@ -36,7 +44,7 @@
 ++  channel
   =<  channel
   |%
-  +$  channels  (map flag channel)
+  +$  channels  (map nest channel)
   +$  channel
     $:  meta=data:meta
         added=time
@@ -61,7 +69,8 @@
 +$  group
   $:  =fleet
       cabals=(map sect cabal)
-      zones=(map zone data:meta)
+      zones=(map zone realm:zone)
+      zone-ord=(list zone)
       =bloc
       =channels:channel
       =cordon
@@ -126,7 +135,7 @@
 +$  diff
   $%  [%fleet p=(set ship) q=diff:fleet]
       [%cabal p=sect q=diff:cabal]
-      [%channel p=flag q=diff:channel]
+      [%channel p=nest q=diff:channel]
       [%bloc p=diff:bloc]
       [%cordon p=diff:cordon]
       [%zone p=diff:zone]
@@ -186,6 +195,7 @@
       =time
   ==
 ::
++$  previews  (map flag preview)
 +$  invite  (pair flag ship)
 ::  $gang: view of foreign group
 +$  gang

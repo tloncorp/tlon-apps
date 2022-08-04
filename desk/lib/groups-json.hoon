@@ -4,6 +4,9 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  nest
+    |=  n=nest:g
+    (rap 3 p.n '/' (flag q.n) ~)
   ++  ship
     |=  her=@p
     s/(scot %p her)
@@ -14,6 +17,13 @@
     :~  flag/s/(flag p.a)
         update/(update q.a)
     ==
+  ::
+  ++  previews
+    |=  ps=previews:g
+    %-  pairs
+    %+  turn  ~(tap by ps)
+    |=  [f=flag:g p=preview:g]
+    [(flag f) (preview p)]
   ::
   ++  preview
     |=  p=preview:g
@@ -35,7 +45,7 @@
     %+  frond  -.d
     ?-    -.d
       %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
-      %channel  (pairs flag/s/(flag p.d) diff/(channel-diff q.d) ~)
+      %channel  (pairs nest/s/(nest p.d) diff/(channel-diff q.d) ~)
       %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
       %bloc     (bloc-diff p.d)
       %cordon   (cordon-diff p.d)
@@ -56,8 +66,14 @@
     |=  d=delta:zone:g
     %+  frond  -.d
     ?-  -.d
-      %del  ~
-      %add  (meta meta.d)
+        %del           ~
+        %mov           (numb idx.d)
+        ?(%add %edit)  (meta meta.d)
+        %mov-nest
+      %-  pairs 
+      :~  nest/s/(nest nest.d)
+          idx/(numb idx.d)
+      ==
     ==
   ::
   ++  bloc-diff
@@ -154,12 +170,16 @@
     ==
   ::
   ++  zones
-    |=  zons=(map zone:g data:^meta)
+    |=  zons=(map zone:g realm:zone:g)
     %-  pairs
     %+  turn  ~(tap by zons)
-    |=  [=zone:g m=data:^meta]
+    |=  [=zone:g r=realm:zone:g]
     ^-  [@t json]
-    [zone (meta m)]
+    :-  zone
+    %-  pairs
+    :~  meta/(meta met.r)
+        idx/a/(turn ord.r (cork nest (lead %s)))
+    ==
   ::
   ++  group
     |=  gr=group:g
@@ -167,6 +187,7 @@
     :~  fleet/(fleet fleet.gr)
         cabals/(cabals cabals.gr)
         zones/(zones zones.gr)
+        zone-ord/a/(turn zone-ord.gr (lead %s))
         channels/(channels channels.gr)
         bloc/a/(turn ~(tap in bloc.gr) (lead %s))
         cordon/(cordon cordon.gr)
@@ -204,12 +225,12 @@
     (rap 3 (scot %p p.f) '/' q.f ~)
   ::
   ++  channels
-    |=  chs=(map flag:g channel:g)
+    |=  chs=(map nest:g channel:g)
     %-  pairs
     %+  turn  ~(tap by chs)
-    |=  [f=flag:g c=channel:g]
+    |=  [n=nest:g c=channel:g]
     ^-  [cord json]
-    [(flag f) (channel c)]
+    [(nest n) (channel c)]
   ::
   ++  channel
     |=  ch=channel:g
@@ -262,6 +283,7 @@
   ++  ship  (se %p)
   ++  rank  (su (perk %czar %king %duke %earl %pawn ~))
   ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) ^sym))
+  ++  nest  (su ;~((glue fas) ^sym ;~(pfix sig fed:ag) ^sym))
   ++  create
     ^-  $-(json create:g)
     %-  ot
@@ -302,11 +324,27 @@
     %-  of
     :~  cabal/(ot sect/sym diff/cabal-diff ~)
         fleet/(ot ships/(as ship) diff/fleet-diff ~)
+        zone/zone-diff
         cordon/cordon-diff
-        channel/(ot flag/flag diff/channel-diff ~)
+        channel/(ot nest/nest diff/channel-diff ~)
+        zone/zone-diff
         meta/meta
         del/ul
     ==
+  ::
+  ++  zone-delta
+    %-  of
+    :~  add/meta
+        edit/meta
+        del/ul
+        mov/ni
+        :-  %mov-nest
+        %-  ot
+        :~  nest/nest
+            index/ni
+        ==
+    ==
+
   ::
   ++  channel-diff
     %-  of
@@ -325,7 +363,7 @@
         added/di
         zone/(mu (se %tas))
         join/bo
-        readers/(as ship)
+        readers/(as sym)
     ==
   ++  cordon
     %-  of
@@ -372,6 +410,12 @@
     %-  of
     :~  add/meta
         del/ul
+    ==
+  ::
+  ++  zone-diff
+    %-  ot
+    :~  zone/(se %tas)
+        delta/zone-delta
     ==
   ::
   ++  meta

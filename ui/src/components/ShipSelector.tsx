@@ -15,18 +15,22 @@ import {
   GroupBase,
   SingleValue,
   ValueContainerProps,
+  ClearIndicatorProps,
+  InputActionMeta,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
 import { deSig } from '@urbit/api';
-import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import X16Icon from '@/components/icons/X16Icon';
-import { preSig } from '@/logic/utils';
+import { preSig, whomIsFlag } from '@/logic/utils';
 import Avatar from '@/components/Avatar';
 import { useMemoizedContacts } from '@/state/contact';
 import { MAX_DISPLAYED_OPTIONS } from '@/constants';
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import ShipName from './ShipName';
+import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
+import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
 
 export interface ShipOption {
   value: string;
@@ -38,6 +42,11 @@ interface ShipSelectorProps {
   setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
   onEnter?: (ships: ShipOption[]) => void;
   isMulti?: boolean;
+  isClearable?: boolean;
+  isLoading?: boolean;
+  hasPrompt?: boolean;
+  placeholder?: string;
+  isValidNewOption?: (value: string) => boolean;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -46,9 +55,45 @@ function Control({ children, ...props }: ControlProps<ShipOption, true>) {
       {...props}
       className="input cursor-text items-center text-gray-800"
     >
-      <MagnifyingGlass className="h-6 w-6 text-gray-300" />
+      <MagnifyingGlass16Icon className="h-4 w-4 text-gray-300" />
       {children}
     </components.Control>
+  );
+}
+
+function ClearIndicator({ ...props }: ClearIndicatorProps<ShipOption, true>) {
+  const clearValue = () => {
+    props.clearValue();
+    // reset state in parent
+    // @ts-expect-error we passed an extra prop to selectProps
+    if (props.selectProps.onClear) {
+      // @ts-expect-error we passed an extra prop to selectProps
+      props.selectProps.onClear();
+    }
+  };
+
+  const innerProps = {
+    ...props.innerProps,
+    onMouseDown: clearValue,
+    onTouchEnd: clearValue,
+  };
+
+  return (
+    <span {...innerProps} className="cursor-pointer">
+      <X16Icon className="h-4 w-4" />
+    </span>
+  );
+}
+
+function LoadingIndicator() {
+  return <LoadingSpinner />;
+}
+
+function SearchGroupMessage({ value }: { value: string }) {
+  return (
+    <div className="flex content-center space-x-1 px-2 py-3 text-gray-400">
+      <span className="italic">Search for {value}</span>
+    </div>
   );
 }
 
@@ -58,12 +103,20 @@ function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
   return (
     <components.Option data={data} className="hover:cursor-pointer" {...props}>
       <div className="flex items-center space-x-1">
-        {ob.isValidPatp(value) ? (
-          <Avatar ship={value} size="xs" />
-        ) : (
-          <div className="h-6 w-6 rounded bg-white" />
-        )}
-        {label ? (
+        {
+          // Case when user has entered an invite link (e.g., ~zod/group-name)
+          whomIsFlag(value) ? (
+            <UnknownAvatarIcon className="w-[18px] text-gray-400" />
+          ) : // Normal case, searching for a nickname or patp
+          ob.isValidPatp(value) ? (
+            <Avatar ship={value} size="xs" />
+          ) : (
+            <div className="h-6 w-6 rounded bg-white" />
+          )
+        }
+        {whomIsFlag(value) ? (
+          <SearchGroupMessage value={value} />
+        ) : label ? (
           <>
             <span className="font-semibold">{label}</span>
             <ShipName name={value} className="font-semibold text-gray-300" />
@@ -79,14 +132,18 @@ function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
 function NoShipsMessage() {
   return (
     <div className="flex content-center space-x-1 px-2 py-3">
-      <ExclamationPoint className="w-[18px] text-gray-300" />
+      <ExclamationPoint className="mr-2 w-[18px] text-gray-300" />
       <span className="italic">This name was not found.</span>
     </div>
   );
 }
 
-function AddNonContactShip(value: string) {
-  return ob.isValidPatp(preSig(value)) ? null : <NoShipsMessage />;
+function AddNewOption(value: string) {
+  return whomIsFlag(value) ? (
+    <SearchGroupMessage value={value} />
+  ) : ob.isValidPatp(preSig(value)) ? null : (
+    <NoShipsMessage />
+  );
 }
 
 function ShipTagLabelContainer({
@@ -108,7 +165,9 @@ function SingleValueShipTagLabelContainer({
     <components.ValueContainer {...props} className="flex">
       <div className="flex justify-between">
         {children}
-        {props.hasValue ? (
+        {props.hasValue &&
+        // @ts-expect-error we passed an extra prop to selectProps
+        props.selectProps.hasPrompt ? (
           <button
             className="font-semibold text-gray-400"
             // @ts-expect-error we passed an extra prop to selectProps
@@ -152,7 +211,10 @@ function ShipTagRemove(props: MultiValueRemoveProps<ShipOption, true>) {
 
 function ShipDropDownMenu({ children, ...props }: MenuProps<ShipOption, true>) {
   return (
-    <components.Menu className="rounded-lg border-2 border-gray-100" {...props}>
+    <components.Menu
+      className="rounded-lg border-2 border-transparent"
+      {...props}
+    >
       {children}
     </components.Menu>
   );
@@ -182,6 +244,11 @@ export default function ShipSelector({
   setShips,
   onEnter,
   isMulti = true,
+  isClearable = false,
+  isLoading = false,
+  hasPrompt = true,
+  placeholder = 'Type a name ie; ~sampel-palnet',
+  isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -195,7 +262,7 @@ export default function ShipSelector({
     label: contacts[contact].nickname,
   }));
   const validShips = ships
-    ? ships.every((ship) => ob.isValidPatp(ship.value))
+    ? ships.every((ship) => isValidNewOption(preSig(ship.value)))
     : false;
 
   const handleEnter = () => {
@@ -229,7 +296,7 @@ export default function ShipSelector({
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(
-      (entry) => `${entry[1].nickname}${entry[0]}`
+      ([patp, contact]) => `${contact.nickname}${patp}`
     );
 
     const fuzzyNames = fuzzy
@@ -287,6 +354,10 @@ export default function ShipSelector({
     }
   };
 
+  const onInputChange = (newValue: string, _actionMeta: InputActionMeta) => {
+    setInputValue(newValue);
+  };
+
   const onChange = (
     newValue: MultiValue<ShipOption>,
     actionMeta: ActionMeta<ShipOption>
@@ -297,7 +368,7 @@ export default function ShipSelector({
       )
     ) {
       const validPatps = newValue.filter((o) =>
-        ob.isValidPatp(preSig(o.value))
+        isValidNewOption(preSig(o.value))
       );
       setShips(validPatps);
     }
@@ -313,11 +384,15 @@ export default function ShipSelector({
       ) &&
       newValue !== null
     ) {
-      const validPatp = ob.isValidPatp(preSig(newValue.value));
+      const validPatp = isValidNewOption(preSig(newValue.value));
       if (validPatp) {
         setShips([newValue]);
       }
     }
+  };
+
+  const onClear = () => {
+    setShips([]);
   };
 
   if (!isMulti) {
@@ -325,7 +400,7 @@ export default function ShipSelector({
       <CreatableSelect
         handleEnter={handleEnter}
         ref={selectRef}
-        formatCreateLabel={AddNonContactShip}
+        formatCreateLabel={AddNewOption}
         autoFocus
         styles={{
           control: (base) => ({}),
@@ -373,13 +448,17 @@ export default function ShipSelector({
         value={ships}
         // @ts-expect-error this error is irrelevant
         onChange={singleOnChange}
-        onInputChange={(val) => setInputValue(val)}
-        isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
+        onInputChange={onInputChange}
+        isValidNewOption={isValidNewOption}
         onKeyDown={onKeyDown}
-        placeholder=""
+        placeholder={placeholder}
         hideSelectedOptions
         // TODO: create custom filter for sorting potential DM participants.
         filterOption={() => true} // disable the default filter
+        isClearable={isClearable}
+        isLoading={isLoading}
+        onClear={onClear}
+        hasPrompt={hasPrompt}
         components={{
           Control,
           Menu: ShipDropDownMenu,
@@ -387,7 +466,8 @@ export default function ShipSelector({
           Input,
           DropdownIndicator: () => null,
           IndicatorSeparator: () => null,
-          ClearIndicator: () => null,
+          ClearIndicator,
+          LoadingIndicator,
           Option: ShipItem,
           NoOptionsMessage: NoShipsMessage,
           SingleValue: SingleShipLabel,
@@ -400,7 +480,7 @@ export default function ShipSelector({
   return (
     <CreatableSelect
       ref={selectRef}
-      formatCreateLabel={AddNonContactShip}
+      formatCreateLabel={AddNewOption}
       autoFocus
       isMulti
       styles={{
@@ -446,13 +526,15 @@ export default function ShipSelector({
       options={slicedOptions}
       value={ships}
       onChange={onChange}
-      onInputChange={(val) => setInputValue(val)}
-      isValidNewOption={(val) => (val ? ob.isValidPatp(preSig(val)) : false)}
+      onInputChange={onInputChange}
+      isValidNewOption={isValidNewOption}
       onKeyDown={onKeyDown}
-      placeholder="Type a name ie; ~sampel-palnet"
+      placeholder={placeholder}
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
       filterOption={() => true} // disable the default filter
+      isClearable={isClearable}
+      isLoading={isLoading}
       components={{
         Control,
         Menu: ShipDropDownMenu,
@@ -460,7 +542,8 @@ export default function ShipSelector({
         Input,
         DropdownIndicator: () => null,
         IndicatorSeparator: () => null,
-        ClearIndicator: () => null,
+        LoadingIndicator,
+        ClearIndicator,
         Option: ShipItem,
         NoOptionsMessage: NoShipsMessage,
         MultiValueLabel: ShipTagLabel,

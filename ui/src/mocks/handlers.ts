@@ -12,7 +12,7 @@ import { decToUd, udToDec, unixToDa } from '@urbit/api';
 
 import _ from 'lodash';
 import bigInt from 'big-integer';
-import mockGroups, { mockGangs, pinnedGroups } from './groups';
+import mockGroups, { createMockIndex, mockGangs, pinnedGroups } from './groups';
 import {
   makeFakeChatWrits,
   chatKeys,
@@ -29,6 +29,7 @@ import {
   ClubAction,
   ClubCreate,
   DmRsvp,
+  Pins,
   WritDiff,
 } from '../types/chat';
 import { GroupAction } from '../types/groups';
@@ -37,6 +38,7 @@ import mockContacts from './contacts';
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 
 const archive: string[] = [];
+let pins: string[] = [...pinnedDMs, ...pinnedGroups];
 const sortByUd = (aString: string, bString: string) => {
   const a = bigInt(udToDec(aString));
   const b = bigInt(udToDec(bString));
@@ -121,6 +123,16 @@ const contactNacksSub = {
   path: '/nacks',
 } as SubscriptionHandler;
 
+const groupIndexSub = {
+  action: 'subscribe',
+  app: 'groups',
+  path: '/gangs/index/:ship',
+  initialResponder: (req) =>
+    createResponse(req, 'diff', {
+      ...createMockIndex(req.ship),
+    }),
+} as SubscriptionHandler;
+
 const groups: Handler[] = [
   groupSub,
   specificGroupSub,
@@ -138,12 +150,6 @@ const groups: Handler[] = [
   {
     action: 'scry',
     app: 'groups',
-    path: '/groups/pinned',
-    func: () => pinnedGroups,
-  },
-  {
-    action: 'scry',
-    app: 'groups',
     path: '/groups',
     func: () => mockGroups,
   } as ScryHandler,
@@ -153,6 +159,7 @@ const groups: Handler[] = [
     path: '/gangs',
     func: () => mockGangs,
   } as ScryHandler,
+  groupIndexSub,
 ];
 
 const chatSub = {
@@ -169,12 +176,30 @@ const chat: Handler[] = [
     func: () => chatWritsSet1,
   } as ScryHandler,
   {
-    action: 'scry' as const,
+    action: 'scry',
     app: 'chat',
     path: `/chat/:ship/:name/perm`,
     func: () => ({
       writers: [],
     }),
+  },
+  {
+    action: 'scry',
+    app: 'chat',
+    path: '/pins',
+    func: () => ({ pins }),
+  },
+  {
+    action: 'poke',
+    app: 'chat',
+    mark: 'chat-pins',
+    returnSubscription: fakeDefaultSub,
+    initialResponder: (req: Message & Poke<Pins>) => {
+      pins = req.json.pins;
+
+      return createResponse(req);
+    },
+    dataResponder: (req) => createResponse(req, 'diff'),
   },
   {
     action: 'poke',
@@ -429,12 +454,6 @@ const dms: Handler[] = [
   {
     action: 'scry',
     app: 'chat',
-    path: '/dm/pinned',
-    func: () => pinnedDMs,
-  },
-  {
-    action: 'scry',
-    app: 'chat',
     path: '/dm/archive',
     func: () => archive,
   },
@@ -528,7 +547,6 @@ const clubs: { [id: string]: Club } = {
       image: '',
       color: '',
     },
-    pin: false,
   },
 };
 
@@ -600,7 +618,6 @@ const clubHandlers: Handler[] = [
           image: '',
           color: '',
         },
-        pin: false,
       };
 
       return createResponse(req, 'diff');

@@ -107,6 +107,23 @@
         read-id/?~(read-id.b ~ (id u.read-id.b))
     ==
   ::
+  ++  pins
+    |=  ps=(list whom:c)
+    %-  pairs
+    :~  pins/a/(turn ps (cork whom (lead %s)))
+    ==
+  ::
+  ++  chats
+    |=  cs=(map flag:c chat:c)
+    %-  pairs
+    %+  turn  ~(tap by cs)
+    |=  [f=flag:c ch=chat:c]
+    [(rap 3 (scot %p p.f) '/' q.f ~) (chat ch)]
+  ++  chat
+    |=  ch=chat:c
+    %-  pairs
+    :~  perms/(perm perm.ch)
+    ==
   ++  perm
     |=  p=perm:c
     %-  pairs
@@ -191,7 +208,6 @@
         hive/a/(turn ~(tap in hive.cr) ship)
         meta/(meta met.cr)
         net/s/net.cr
-        pin/b/pin.cr
     ==
   ::
   ++  notice
@@ -225,10 +241,10 @@
         %break
       ~
     ::
-        ?(%italics %bold %strike %inline-code)
+        ?(%italics %bold %strike)
       (inline p.i)
     ::
-        ?(%code %tag)
+        ?(%code %tag %inline-code)
       s+p.i
     ::
         %blockquote
@@ -304,7 +320,12 @@
         ship/(se %p)
         ok/bo
     ==
-
+  ::
+  ++  pins
+    %-  ot
+    :~  pins/(ar whom)
+    ==
+  ::
   ++  whom
     ^-  $-(json whom:c)
     %-  su
@@ -333,6 +354,7 @@
         title+so
         description+so
         readers+(as (se %tas))
+        writers+(as (se %tas))
     ==
 
   ++  ship  (su ;~(pfix sig fed:ag))
@@ -415,6 +437,7 @@
     %-  of
     :~  writs/writs-diff
         add-sects/add-sects
+        del-sects/del-sects
     ==
   ::
   ++  id  
@@ -438,6 +461,8 @@
     ==
   ::
   ++  add-sects  (as (se %tas))
+  ::
+  ++  del-sects  (as (se %tas))
   ::
   ++  add-feel
     %-  ot
@@ -499,7 +524,7 @@
     :~  italics/inline
         bold/inline
         strike/inline
-        inline-code/inline
+        inline-code/so
         code/so
         blockquote/(ar inline)
         tag/so

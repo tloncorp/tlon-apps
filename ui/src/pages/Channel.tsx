@@ -3,6 +3,7 @@ import cn from 'classnames';
 import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
+import BubbleIcon from '@/components/icons/BubbleIcon';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
@@ -14,15 +15,21 @@ import {
   useChatState,
   useMessagesForChat,
 } from '@/state/chat';
-import { useChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
-import { channelHref } from '@/logic/utils';
+import {
+  useChannel,
+  useRouteGroup,
+  useVessel,
+  useGroup,
+} from '@/state/groups/groups';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import useNavStore from '@/components/Nav/useNavStore';
 
 function Channel() {
-  const { chShip, chName } = useParams();
+  const { app, chShip, chName } = useParams();
   const flag = `${chShip}/${chName}`;
+  const nest = `${app}/${flag}`;
   const groupFlag = useRouteGroup();
+  const group = useGroup(groupFlag);
   const isJoined = useChatIsJoined(flag);
   const join = () => {
     useChatState.getState().joinChat(flag);
@@ -40,8 +47,9 @@ function Channel() {
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
-  const channel = useChannel(groupFlag, flag)!;
+  const channel = useChannel(groupFlag, nest)!;
   const { sendMessage } = useChatState.getState();
+  const groupName = group?.meta.title;
 
   return (
     <Layout
@@ -50,22 +58,34 @@ function Channel() {
       header={
         <div
           className={cn(
-            'flex w-full items-center',
-            isMobile && 'px-2 py-1',
-            !isMobile && 'border-b-2 border-gray-50 p-4'
+            'flex h-full items-center border-b-2 border-gray-50 p-2'
           )}
         >
           <button
             className={cn(
-              isMobile && 'flex items-center rounded-lg p-2 hover:bg-gray-50'
+              'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
+              isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
             )}
             aria-label="Open Channels Menu"
             onClick={() => isMobile && navPrimary('group', groupFlag)}
           >
             {isMobile ? (
-              <CaretLeftIcon className="mr-4 h-6 w-6 text-gray-400" />
+              <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
             ) : null}
-            <h1 className="text-xl font-medium">{channel.meta.title}</h1>
+            <div className="flex items-center space-x-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-gray-50">
+                {/* TODO: Channel Type icons */}
+                <BubbleIcon className="h-4 w-4 text-gray-400" />
+              </div>
+              <div className="flex flex-col items-start text-left">
+                <span className="text-sm font-medium text-gray-600">
+                  {groupName}
+                </span>
+                <div className="text-md font-semibold">
+                  {channel.meta.title}
+                </div>
+              </div>
+            </div>
           </button>
 
           <Link
@@ -77,7 +97,7 @@ function Channel() {
         </div>
       }
       footer={
-        <div className="border-t-2 border-black/10 p-4">
+        <div className="border-t-2 border-gray-50 p-4">
           {canWrite ? (
             <ChatInput whom={flag} sendMessage={sendMessage} showReply />
           ) : (

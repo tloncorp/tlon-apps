@@ -4,21 +4,21 @@ import { uniq, without } from 'lodash';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
-import useSidebarSort from '../../logic/useSidebarSort';
+import * as Popover from '@radix-ui/react-popover';
+import { useIsMobile } from '@/logic/useMedia';
 import {
   useGang,
   useGangList,
   useGroup,
-  useGroupList,
-  usePinnedGroups,
-} from '../../state/groups/groups';
+  useGroupState,
+} from '@/state/groups/groups';
+import { SettingsState, useSettingsState } from '@/state/settings';
+import GroupAvatar from '@/groups/GroupAvatar';
+import GroupActions from '@/groups/GroupActions';
+import { Group } from '@/types/groups';
 import Divider from '../Divider';
-import GroupAvatar from '../../groups/GroupAvatar';
 import useNavStore from '../Nav/useNavStore';
-import GroupActions from '../../groups/GroupActions';
 import SidebarItem from './SidebarItem';
-import { useIsMobile } from '../../logic/useMedia';
-import { SettingsState, useSettingsState } from '../../state/settings';
 
 const dragTypes = {
   GROUP: 'group',
@@ -137,47 +137,81 @@ function GroupItemContainer({
 function GangItem(props: { flag: string }) {
   const { flag } = props;
   const { preview, claim } = useGang(flag);
+  const isMobile = useIsMobile();
+
+  const handleCancel = async () => {
+    await useGroupState.getState().reject(flag);
+  };
 
   if (!claim) {
     return null;
   }
 
   return (
-    <SidebarItem
-      icon={
-        <GroupAvatar
-          {...preview?.meta}
-          size="h-12 w-12 sm:h-6 sm:w-6"
-          className="opacity-60"
-        />
-      }
-    >
-      <span className="inline-block w-full truncate opacity-60">
-        {preview ? preview.meta.title : flag}
-      </span>
-    </SidebarItem>
+    <Popover.Root>
+      <Popover.Anchor>
+        <Popover.Trigger asChild>
+          <SidebarItem
+            icon={
+              <GroupAvatar
+                {...preview?.meta}
+                size="h-12 w-12 sm:h-6 sm:w-6"
+                className="opacity-60"
+              />
+            }
+          >
+            <span className="inline-block w-full truncate opacity-60">
+              {preview ? preview.meta.title : flag}
+            </span>
+          </SidebarItem>
+        </Popover.Trigger>
+      </Popover.Anchor>
+      <Popover.Content
+        side={isMobile ? 'top' : 'right'}
+        sideOffset={isMobile ? 0 : 16}
+      >
+        <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg">
+          <span>You are currently joining this group.</span>
+          <span>
+            It may take a few minutes depending on the host&apos;s and your
+            connection
+          </span>
+          <div className="flex">
+            <Popover.Close>
+              <button
+                className="small-button bg-gray-50 text-gray-800"
+                onClick={handleCancel}
+              >
+                Cancel Join
+              </button>
+            </Popover.Close>
+          </div>
+        </div>
+      </Popover.Content>
+    </Popover.Root>
   );
 }
 
 interface GroupListProps {
   className?: string;
   pinned?: boolean;
+  groups: [string, Group][];
+  pinnedGroups: [string, Group][];
 }
 
 export default function GroupList({
   className,
   pinned = false,
+  groups,
+  pinnedGroups,
 }: GroupListProps) {
   const isMobile = useIsMobile();
-  const flags = useGroupList();
-  const pinnedFlags = usePinnedGroups();
   const gangs = useGangList();
-  const { sortFn, sortOptions } = useSidebarSort();
   const { order, loaded } = useSettingsState(selOrderedPins);
 
   useEffect(() => {
     const hasKeys = order && !!order.length;
-    const pinnedKeys = Object.keys(pinnedFlags);
+    const pinnedKeys = Object.keys(pinnedGroups);
     const hasPinnedKeys = pinnedKeys.length > 0;
 
     if (!loaded) {
@@ -200,10 +234,10 @@ export default function GroupList({
         .putEntry(
           'groups',
           'orderedGroupPins',
-          uniq(order.filter((key) => key in pinnedFlags).concat(pinnedKeys))
+          uniq(order.filter((key) => key in pinnedGroups).concat(pinnedKeys))
         );
     }
-  }, [pinnedFlags, order, loaded]);
+  }, [pinnedGroups, order, loaded]);
 
   return pinned ? (
     <DndProvider
@@ -224,7 +258,7 @@ export default function GroupList({
         <Divider>Pinned</Divider>
         <div className="grow border-b-2 border-gray-100" />
       </li>
-      {pinnedFlags.sort(sortOptions[sortFn]).map((flag) => (
+      {pinnedGroups.map(([flag]) => (
         <GroupItemContainer flag={flag} key={flag}>
           <DraggableGroupItem flag={flag} />
         </GroupItemContainer>
@@ -235,10 +269,11 @@ export default function GroupList({
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />
       ))}
-      {flags
-        .filter((flag) => !pinnedFlags.includes(flag))
-        .sort(sortOptions[sortFn])
-        .map((flag) => (
+      {groups
+        .filter(
+          ([flag, _group]) => !pinnedGroups.map(([f, _]) => f).includes(flag)
+        )
+        .map(([flag]) => (
           <GroupItem key={flag} flag={flag} />
         ))}
     </ul>

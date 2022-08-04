@@ -18,6 +18,7 @@ janeway \
 
 janeway \
     --ci \
+    --verbose \
     --credentials /service-account \
     --ssh-key /id_ssh \
     release ota \

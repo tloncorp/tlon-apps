@@ -9,7 +9,7 @@ interface ChannelPrivacySetting {
   writerSects: string[];
 }
 
-const PRIVACY_TYPE: Record<ChannelPrivacyType, ChannelPrivacySetting> = {
+export const PRIVACY_TYPE: Record<ChannelPrivacyType, ChannelPrivacySetting> = {
   public: {
     title: 'Open To All',
     description: 'Anyone can view and write',

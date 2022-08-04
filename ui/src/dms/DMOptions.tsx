@@ -6,14 +6,7 @@ import { Link } from 'react-router-dom';
 import Dialog, { DialogContent } from '../components/Dialog';
 import EllipsisIcon from '../components/icons/EllipsisIcon';
 import LeaveIcon from '../components/icons/LeaveIcon';
-import {
-  useBriefs,
-  useChatState,
-  useMultiDms,
-  usePinned,
-  usePinnedChats,
-  usePinnedClubs,
-} from '../state/chat';
+import { useBriefs, useChatState, usePinned } from '../state/chat';
 import PinIcon from '../components/icons/PinIcon';
 import BulletIcon from '../components/icons/BulletIcon';
 import InviteIcon16 from '../components/icons/InviteIcon16';
@@ -74,13 +67,9 @@ export default function DmOptions({
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
       const isPinned = pinned.includes(whom);
-      if (isMulti) {
-        useChatState.getState().toggleMultiDmPin(whom, !isPinned);
-      } else {
-        useChatState.getState().toggleDmPin(whom, !isPinned);
-      }
+      useChatState.getState().togglePin(whom, !isPinned);
     },
-    [whom, pinned, isMulti]
+    [whom, pinned]
   );
 
   const handleInvite = () => {

@@ -27,18 +27,20 @@ import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import Nav from '@/components/Nav/Nav';
 import GroupInviteDialog from '@/groups/GroupInviteDialog';
+import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
 import GroupChannelManager from '@/groups/GroupAdmin/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
-import MultiDMEditModal from './dms/MultiDMEditModal';
-import NewChannel from './channels/NewChannel/NewChannel';
-import FindGroups from './groups/FindGroups';
-import JoinGroupModal from './groups/Join/JoinGroupModal';
-import ChannelIndex from './groups/ChannelIndex/ChannelIndex';
-import RejectConfirmModal from './groups/Join/RejectConfirmModal';
+import ProfileModal from '@/profiles/ProfileModal';
+import MultiDMEditModal from '@/dms/MultiDMEditModal';
+import NewChannel from '@/channels/NewChannel/NewChannel';
+import FindGroups from '@/groups/FindGroups';
+import JoinGroupModal from '@/groups/Join/JoinGroupModal';
+import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
+import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -71,6 +73,12 @@ function ChatRoutes({ state, location }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
+          <Route path="/profile/:ship" element={<ProfileModal />} />
+          <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
+          <Route
+            path="/gangs/:ship/:name/reject"
+            element={<RejectConfirmModal />}
+          />
         </Routes>
       ) : null}
     </>
@@ -82,8 +90,11 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
-        <Route path="/groups/find" element={<FindGroups />} />
+        {/* Find by Invite URL */}
         <Route path="/groups/find/:ship/:name" element={<FindGroups />} />
+        {/* Find by Nickname or @p */}
+        <Route path="/groups/find/:ship" element={<FindGroups />} />
+        <Route path="/groups/find" element={<FindGroups />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route path="info" element={<GroupAdmin />}>
             <Route index element={<GroupInfo />} />
@@ -98,6 +109,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           </Route>
           <Route path="channels" element={<ChannelIndex />} />
         </Route>
+        <Route path="/dm/:ship" element={<Message />} />
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
@@ -105,6 +117,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
+          <Route
+            path="/groups/:ship/:name/leave"
+            element={<GroupLeaveDialog />}
+          />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
           <Route
             path="/gangs/:ship/:name/reject"
@@ -114,6 +130,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="/groups/:ship/:name/channels/new"
             element={<NewChannel />}
           />
+          <Route path="/profile/:ship" element={<ProfileModal />} />
         </Routes>
       ) : null}
     </>
