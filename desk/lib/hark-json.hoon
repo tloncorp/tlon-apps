@@ -13,6 +13,21 @@
       %saw-rope  (rope +.a)
     ==
   ::
+  ++  blanket
+    |=  b=blanket:h
+    %-  pairs
+    :~  seam/(seam seam.b)
+        yarns/(yarns yarns.b)
+        quilt/(quilt quilt.b)
+    ==
+  ::
+  ++  quilt
+    |=  q=quilt:h
+    %-  pairs
+    %+  turn  (tap:on:quilt:h q)
+    |=  [num=@ud t=thread:h]
+    [(scot %ud num) (thread t)]
+  ::
   ++  add-yarn
     |=  [all=? desk=? yar=yarn:h]
     %-  pairs

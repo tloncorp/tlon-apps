@@ -4,7 +4,8 @@
 |%
 +$  card  card:agent:gall
 ++  yarns-per-update  3
-++  rug-trim-size  10  :: number of
+++  rug-trim-size  10
+++  blanket-size  10   :: page size for blankets
 ::  TODO: move to stdlib
 ++  zip
   |*  [a=(list) b=(list)]
@@ -126,6 +127,10 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%latest ~]  ``hark-carpet+!>((rug-to-carpet seam rug))
+  ::
+      [%quilt idx=@ ~]
+    =/  idx  (slav %p idx.pole)
+    ``hark-blanket+!>((rug-to-blanket seam idx rug))
   ==
 ++  rug-to-carpet
   |=  [=seam:h =rug:h]
@@ -136,12 +141,35 @@
   %+  turn  ~(tap by new.rug)
   |=  [=rope:h =thread:h]
   ^-  (list [id:h yarn:h])
-  %+  murn  ~(tap in thread)
+  (thread-to-yarns thread)
+  ::
+++  thread-to-yarns
+  |=  =thread:h
+  ^-  (list [id:h yarn:h])
+  %+  murn   ~(tap in thread)
   |=  =id:h
   ^-  (unit [id:h yarn:h])
   ?~  yar=(~(get by yarns) id)
     ~
   `[id u.yar]
+::
+++  index-quilt
+  |=  [=quilt:h idx=@ud]
+  =/  trimmed  (lot:on:quilt:h quilt ~ `idx)
+  (gas:on:quilt:h *quilt:h (scag blanket-size (bap:on:quilt:h trimmed)))
+::
+++  rug-to-blanket
+  |=  [=seam:h idx=@ud =rug:h]
+  ^-  blanket:h
+  =/  indexed
+    (index-quilt qul.rug idx)
+  =/  yarns=(map id:h yarn:h)
+    %-  ~(gas by *(map id:h yarn:h))
+    %-  zing
+    %+  turn  (tap:on:quilt:h indexed)
+    |=  [num=@ud =thread:h]
+    (thread-to-yarns thread)
+  [seam yarns indexed]
 ::
 ++  give-ui
   |=  =action:h
