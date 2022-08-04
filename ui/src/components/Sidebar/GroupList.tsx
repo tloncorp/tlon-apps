@@ -270,7 +270,9 @@ export default function GroupList({
         <GangItem key={flag} flag={flag} />
       ))}
       {groups
-        .filter(([flag, _group]) => !Object.keys(pinnedGroups).includes(flag))
+        .filter(
+          ([flag, _group]) => !pinnedGroups.map(([f, _]) => f).includes(flag)
+        )
         .map(([flag]) => (
           <GroupItem key={flag} flag={flag} />
         ))}
