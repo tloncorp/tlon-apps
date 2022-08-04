@@ -112,7 +112,8 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
     } else if ('zone' in diff) {
       const { zone: f, delta: d } = diff.zone;
       if ('add' in d) {
-        group.zones[f] = d.add;
+        // TODO: what should `idx` be populated with?
+        group.zones[f] = { meta: d.add, idx: [] };
       } else if ('del' in d) {
         delete group.zones[f];
       }
