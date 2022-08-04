@@ -6,7 +6,6 @@
 =>
   |%
   +$  card  card:agent:gall
-  ++  def-flag  `flag:h`[~zod %test]
   +$  state-0
     $:  %0
         =stash:h
