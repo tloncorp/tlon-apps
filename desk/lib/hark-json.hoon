@@ -4,6 +4,23 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  action
+    |=  a=action:h
+    %+  frond  -.a
+    ?-  -.a
+      %add-yarn  (add-yarn +.a)
+      %saw-seam  (seam +.a)
+      %saw-rope  (rope +.a)
+    ==
+  ::
+  ++  add-yarn
+    |=  [all=? desk=? yar=yarn:h]
+    %-  pairs
+    :~  all/b/all
+        desk/b/desk
+        yarn/(yarn yar)
+    ==
+  ::
   ++  carpet
     |=  c=carpet:h
     ^-  json
@@ -62,7 +79,23 @@
   ++  yarn
     |=  y=yarn:h
     ^-  json
-    *json
+    %-  pairs
+    :~  id/s/(scot %uv id.y)
+        rope/(rope rop.y)
+        time/(time tim.y)
+        con/a/(turn con.y content)
+        wer/s/(spat wer.y)
+        button/~
+    ==
+  ::
+  ++  content
+    |=  c=content:h
+    ^-  json
+    ?@  c  s/c
+    ?-  -.c
+      %ship  (frond ship/s/(scot %p p.c))
+      %emph  (frond emph/s/p.c)
+    ==
   ::
   ++  seam
     |=  s=seam:h

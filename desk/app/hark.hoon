@@ -79,6 +79,7 @@
   ?+    mark  ~|(bad-mark/mark !!)
       %hark-action
     =+  !<(act=action:h vase)
+    =.  cor  (give-ui act)
     ?-    -.act
       %saw-rope  (saw-rope rope.act)
       %saw-seam  (saw-seam +.act)
@@ -101,10 +102,16 @@
       [%x %desk desk=@ rest=*]
     (scry-rug rest.pole desk/desk.pole (~(got by desks) desk.pole))
   ==
+::
+++  is-us  =(our src):bowl
+::
 ++  watch
   |=  =path
   ^+  cor
-  cor
+  ?+  path  ~|(evil-watch/path !!)
+    [%ui ~]  ?>(is-us cor)
+  ==
+::
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -135,6 +142,11 @@
   ?~  yar=(~(get by yarns) id)
     ~
   `[id u.yar]
+::
+++  give-ui
+  |=  =action:h
+  ^+  cor
+  (emit %give %fact ~[/ui] hark-action+!>(action))
 ::
 ++  threads-to-update
   |=  [=seam:h teds=(map @ thread:h)]
