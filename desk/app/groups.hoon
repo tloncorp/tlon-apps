@@ -332,6 +332,9 @@
     ^-  (unit (unit cage))
     :-  ~
     ?+    pole  ~
+        [%fleet %ships ~]
+      `ships+!>(~(key by fleet.group))
+      ::
         [%fleet ship=@ %vessel ~]
       =/  src  (slav %p ship.pole)
       `noun+!>((~(got by fleet.group) src))
