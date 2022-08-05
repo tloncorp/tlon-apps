@@ -5,7 +5,7 @@ import { useParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
 import {
   Gangs,
-  Channel,
+  GroupChannel,
   Group,
   GroupDiff,
   Groups,
@@ -461,7 +461,10 @@ export function useGangList() {
   return useGroupState(selGangList);
 }
 
-export function useChannel(flag: string, channel: string): Channel | undefined {
+export function useChannel(
+  flag: string,
+  channel: string
+): GroupChannel | undefined {
   return useGroupState(
     useCallback((s) => s.groups[flag]?.channels[channel], [flag, channel])
   );

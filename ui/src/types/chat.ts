@@ -188,10 +188,6 @@ export interface ChatUpdate {
   diff: WritDelta;
 }
 
-export interface ChatPerm {
-  writers: string[];
-}
-
 export interface Chat {
   perms: ChatPerm;
 }
@@ -224,15 +220,6 @@ export interface Pact {
   index: {
     [id: string]: BigInteger;
   };
-}
-
-export interface ChatCreate {
-  group: string;
-  name: string;
-  title: string;
-  description: string;
-  readers: string[];
-  writers: string[];
 }
 
 export interface ChatDraft {
@@ -323,4 +310,17 @@ export type ClubDiff = {
 export interface ClubAction {
   id: string;
   diff: ClubDiff;
+}
+
+export interface ChatCreate {
+  group: string;
+  name: string;
+  title: string;
+  description: string;
+  readers: string[];
+  writers: string[];
+}
+
+export interface ChatPerm {
+  writers: string[];
 }

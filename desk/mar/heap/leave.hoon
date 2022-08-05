@@ -1,6 +1,6 @@
-/-  c=chat
-/+  j=chat-json
-|_  =leave:ch
+/-  h=heap
+/+  j=heap-json
+|_  =leave:h
 ++  grad  %noun
 ++  grow
   |%
@@ -9,7 +9,7 @@
   --
 ++  grab
   |%
-  ++  noun  leave:c
+  ++  noun  leave:h
   ++  json  flag:dejs:j
   --
 --

@@ -23,8 +23,8 @@ import {
   DmAction,
   Pins,
   WritDelta,
-} from '../../types/chat';
-import api from '../../api';
+} from '@/types/chat';
+import api from '@/api';
 import {
   createStorageKey,
   clearStorageMigration,
@@ -32,7 +32,7 @@ import {
   whomIsDm,
   whomIsMultiDm,
   whomIsFlag,
-} from '../../logic/utils';
+} from '@/logic/utils';
 import makeWritsStore from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';

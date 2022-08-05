@@ -1,4 +1,4 @@
-import { Channel, Channels, Group, Groups } from '@/types/groups';
+import { GroupChannel, Channels, Group, Groups } from '@/types/groups';
 import { get } from 'lodash';
 import { useCallback, useState } from 'react';
 import { useBriefs } from '../state/chat';
@@ -61,10 +61,10 @@ export default function useSidebarSort(
   }
 
   function sortChannels(channels: Channels) {
-    const accessors: Record<string, (k: string, v: Channel) => string> = {
-      [ALPHABETICAL]: (_flag: string, channel: Channel) =>
+    const accessors: Record<string, (k: string, v: GroupChannel) => string> = {
+      [ALPHABETICAL]: (_flag: string, channel: GroupChannel) =>
         get(channel, 'meta.title'),
-      [RECENT]: (flag: string, _channel: Channel) => flag,
+      [RECENT]: (flag: string, _channel: GroupChannel) => flag,
     };
 
     return sortRecordsBy(channels, accessors[sortFn], sortFn === RECENT);

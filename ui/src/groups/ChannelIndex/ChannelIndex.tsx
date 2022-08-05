@@ -5,7 +5,7 @@ import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
-import { Channel, Zone } from '@/types/groups';
+import { GroupChannel, Zone } from '@/types/groups';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -19,7 +19,13 @@ import useRequestState from '@/logic/useRequestState';
 
 const UNZONED = '';
 
-function Channel({ channel, nest }: { nest: string; channel: Channel }) {
+function GroupChannel({
+  channel,
+  nest,
+}: {
+  nest: string;
+  channel: GroupChannel;
+}) {
   const [app, flag] = nestToFlag(nest);
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
@@ -193,7 +199,7 @@ function ChannelSection({
   channels,
   zone,
 }: {
-  channels: [string, Channel][];
+  channels: [string, GroupChannel][];
   zone: Zone | null;
 }) {
   const flag = useRouteGroup();
@@ -214,7 +220,7 @@ function ChannelSection({
       ) : null}
       <ul>
         {sortedChannels.map(([nest, channel]) => (
-          <Channel nest={nest} channel={channel} key={channel.added} />
+          <GroupChannel nest={nest} channel={channel} key={channel.added} />
         ))}
       </ul>
     </>
