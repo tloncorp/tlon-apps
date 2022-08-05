@@ -48,7 +48,7 @@ export default function NewGroup() {
 
   const form = useForm<GroupFormSchema>({
     defaultValues,
-    mode: 'onBlur',
+    mode: 'onChange',
   });
 
   const onComplete = useCallback(async () => {
