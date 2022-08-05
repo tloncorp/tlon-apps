@@ -1,29 +1,39 @@
 import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
 import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
-import { Channel } from '@/types/groups';
+import { GroupChannel } from '@/types/groups';
 import EditChannelModal from '@/groups/GroupAdmin/AdminChannels/EditChannelModal';
-import { useChat } from '@/state/chat';
+import { useChat, useChatState } from '@/state/chat';
+import { useHeapState } from '@/state/heap/heap';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import { getPrivacyFromChannel } from '@/logic/utils';
+import { getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
+import { Chat } from '@/types/chat';
+import { Heap } from '@/types/heap';
 import AdminChannelListDropdown from './AdminChannelListDropdown';
 import DeleteChannelModal from './DeleteChannelModal';
 import { PRIVACY_TYPE } from './ChannelPermsSelector';
 
 interface AdminChannelListItemProps {
-  channel: Channel;
-  channelFlag: string;
+  nest: string;
+  channel: GroupChannel;
   sectionKey: string;
   provided: DraggableProvided;
   snapshot: DraggableStateSnapshot;
   onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
+function getChannel(flag: string): Chat | Heap {
+  const { chats } = useChatState.getState();
+  const { stash } = useHeapState.getState();
+
+  return chats[flag] || stash[flag] || { perms: { writers: [] } };
+}
+
 export default function AdminChannelListItem({
+  nest,
   channel,
-  channelFlag,
   provided,
   snapshot,
   sectionKey,
@@ -31,19 +41,18 @@ export default function AdminChannelListItem({
 }: AdminChannelListItemProps) {
   const flag = useRouteGroup();
   const { meta } = channel;
-  const chat = useChat(channelFlag);
+  const [, channelFlag] = nestToFlag(nest);
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-
-  const permissionText =
-    PRIVACY_TYPE[getPrivacyFromChannel(channel, chat)].title;
+  const privacy = getPrivacyFromChannel(channel, getChannel(channelFlag));
+  const permissionText = PRIVACY_TYPE[privacy].title;
 
   const onDeleteChannelConfirm = useCallback(async () => {
     setDeleteChannelIsOpen(!deleteChannelIsOpen);
-    await useGroupState.getState().deleteChannel(flag, channelFlag);
-    onChannelDelete(channelFlag, sectionKey);
-  }, [channelFlag, deleteChannelIsOpen, onChannelDelete, sectionKey, flag]);
+    await useGroupState.getState().deleteChannel(flag, nest);
+    onChannelDelete(nest, sectionKey);
+  }, [nest, deleteChannelIsOpen, onChannelDelete, sectionKey, flag]);
 
   return (
     <>
@@ -89,7 +98,7 @@ export default function AdminChannelListItem({
       <EditChannelModal
         editIsOpen={editIsOpen}
         setEditIsOpen={setEditIsOpen}
-        channelFlag={channelFlag}
+        nest={nest}
         channel={channel}
       />
       <DeleteChannelModal

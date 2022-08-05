@@ -3,7 +3,6 @@
 /-  ha=hark-store
 /+  default-agent, verb, dbug
 /+  chat-json
-/+  w=chat-writs
 /+  pac=dm
 /+  ch=chat-hark
 /*  desk-bill  %bill  /desk/bill

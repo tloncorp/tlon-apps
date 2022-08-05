@@ -3,7 +3,7 @@ import {
   Group,
   Rank,
   GroupMeta,
-  Channel,
+  GroupChannel,
   GroupIndex,
 } from '../../types/groups';
 
@@ -53,7 +53,7 @@ export interface GroupState {
   editChannel: (
     groupFlag: string,
     flag: string,
-    channel: Channel
+    channel: GroupChannel
   ) => Promise<void>;
   deleteChannel: (groupFlag: string, flag: string) => Promise<void>;
   addChannelToZone: (

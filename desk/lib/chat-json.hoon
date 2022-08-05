@@ -356,7 +356,6 @@
         readers+(as (se %tas))
         writers+(as (se %tas))
     ==
-
   ++  ship  (su ;~(pfix sig fed:ag))
   ++  flag  `$-(json flag:c)`(su flag-rule)
   ++  flag-rule  ;~((glue fas) ;~(pfix sig fed:ag) sym)

@@ -34,7 +34,7 @@ export default function Channels({
                         sectionKey={listId}
                         onChannelDelete={onChannelDelete}
                         snapshot={dragSnapshot}
-                        channelFlag={channel.key}
+                        nest={channel.key}
                         channel={channel.channel}
                         provided={dragProvided}
                       />

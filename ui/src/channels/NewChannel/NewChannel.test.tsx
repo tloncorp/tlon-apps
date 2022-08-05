@@ -2,11 +2,11 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render } from '../../../test/utils';
-import NewChannel from './NewChannel';
+import NewChannelModal from './NewChannelModal';
 
-describe('NewChannel', () => {
+describe('NewChannelModal', () => {
   it('renders as expected', () => {
-    const { asFragment } = render(<NewChannel />);
+    const { asFragment } = render(<NewChannelModal />);
     expect(asFragment()).toMatchSnapshot();
   });
 });

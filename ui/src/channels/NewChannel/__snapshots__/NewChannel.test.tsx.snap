@@ -1,6 +1,6 @@
 // Vitest Snapshot v1
 
-exports[`NewChannel > renders as expected 1`] = `
+exports[`NewChannelModal > renders as expected 1`] = `
 <DocumentFragment>
   <div
     aria-hidden="true"
@@ -31,13 +31,132 @@ exports[`NewChannel > renders as expected 1`] = `
           <h2
             class="text-lg font-bold"
           >
-            New Chat Channel
+            Add New Channel
           </h2>
         </header>
       </div>
       <form
         class="flex flex-col"
       >
+        <ul
+          class="flex flex-col space-y-2 mb-5"
+        >
+          <li>
+            <label
+              class="flex cursor-pointer items-center justify-between rounded-lg border-2 p-2 border-gray-200 bg-gray-50"
+            >
+              <div
+                class="flex w-full flex-col"
+              >
+                <div
+                  class="flex flex-row items-center space-x-2"
+                >
+                  <div
+                    class="p-2"
+                  >
+                    <svg
+                      class="h-6 w-6 text-gray-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        class="fill-current"
+                        d="m4.44444 14.636-.94419.3294.94419-.3294Zm14.68296 1.001-.9806.1961-.0683-.3414.1585-.31.8904.4553Zm.7255 3.6276.9806-.1962-.9806.1962Zm-.5883.5883-.1962.9806.1962-.9806Zm-3.6276-.7255-.4553-.8904.31-.1585.3414.0683-.1961.9806Zm-6.27299.4282.32938-.9442-.32938.9442ZM5 12c0 .8099.13714 1.5857.38864 2.3066l-1.88839.6588C3.17587 14.0355 3 13.0372 3 12h2Zm7-7c-3.86599 0-7 3.13401-7 7H3c0-4.97056 4.02944-9 9-9v2Zm7 7c0-3.86599-3.134-7-7-7V3c4.9706 0 9 4.02944 9 9h-2Zm-.763 3.1817c.4875-.9535.763-2.034.763-3.1817h2c0 1.4716-.3539 2.8634-.9822 4.0922l-1.7808-.9105Zm1.871.2591.7255 3.6276-1.9612.3923-.7255-3.6276 1.9612-.3923Zm.7255 3.6276c.2099 1.0496-.7155 1.975-1.7651 1.7651l.3923-1.9612c-.3499-.0699-.6583.2385-.5884.5884l1.9612-.3923Zm-1.7651 1.7651-3.6276-.7255.3923-1.9612 3.6276.7255-.3923 1.9612ZM12 19c1.1477 0 2.2282-.2755 3.1817-.763l.9105 1.7808C14.8634 20.6461 13.4716 21 12 21v-2Zm-2.30661-.3886C10.4143 18.8629 11.1901 19 12 19v2c-1.0372 0-2.03554-.1759-2.96538-.5002l.65877-1.8884Zm-4.30475-4.3048c.70113 2.0098 2.29492 3.6036 4.30475 4.3048l-.65877 1.8884c-2.58577-.9021-4.63233-2.9487-5.53437-5.5344l1.88839-.6588Z"
+                      />
+                    </svg>
+                  </div>
+                  <div
+                    class="flex w-full flex-col justify-start text-left"
+                  >
+                    <span
+                      class="font-semibold"
+                    >
+                      Chat
+                    </span>
+                    <span
+                      class="text-sm font-medium text-gray-600"
+                    >
+                      A simple, no frills text chat
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <input
+                class="sr-only"
+                name="type"
+                type="radio"
+                value="chat"
+              />
+              <div
+                class="flex items-center"
+              >
+                <div
+                  class="h-4 w-4 rounded-xl border-4 border-gray-400"
+                />
+              </div>
+            </label>
+          </li>
+          <li>
+            <label
+              class="flex cursor-pointer items-center justify-between rounded-lg border-2 p-2 border-gray-100 bg-white"
+            >
+              <div
+                class="flex w-full flex-col"
+              >
+                <div
+                  class="flex flex-row items-center space-x-2"
+                >
+                  <div
+                    class="p-2"
+                  >
+                    <svg
+                      class="h-6 w-6 text-gray-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        class="stroke-current"
+                        d="m9.0886 14.9114 5.8232-5.82322m-1.4562 7.27942-2.4263 2.4264C10.257 19.5662 9.20971 20 8.11764 20c-1.09206 0-2.1394-.4338-2.91161-1.206C4.43382 18.0218 4 16.9744 4 15.8824c0-1.0921.43382-2.1394 1.20603-2.9117l2.42634-2.4263m8.73523 2.9112 2.4264-2.4263C19.5662 10.257 20 9.20971 20 8.11764c0-1.09206-.4338-2.1394-1.206-2.91161C18.0218 4.43382 16.9744 4 15.8824 4c-1.0921 0-2.1394.43382-2.9117 1.20603l-2.4263 2.42634"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                      />
+                    </svg>
+                  </div>
+                  <div
+                    class="flex w-full flex-col justify-start text-left"
+                  >
+                    <span
+                      class="font-semibold"
+                    >
+                      Collection
+                    </span>
+                    <span
+                      class="text-sm font-medium text-gray-600"
+                    >
+                      Gather, entangle, connect, and arrange rich media
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <input
+                class="sr-only"
+                name="type"
+                type="radio"
+                value="heap"
+              />
+              <div
+                class="flex items-center"
+              >
+                <div
+                  class="h-4 w-4 rounded-xl border-2 border-gray-200"
+                />
+              </div>
+            </label>
+          </li>
+        </ul>
         <label
           class="mb-3 font-semibold"
         >
@@ -235,7 +354,7 @@ exports[`NewChannel > renders as expected 1`] = `
               disabled=""
               type="submit"
             >
-              Done
+              Add Channel
             </button>
           </div>
         </footer>
