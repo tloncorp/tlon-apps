@@ -7,6 +7,7 @@ import Layout from '@/components/Layout/Layout';
 import { useChatPerms, useChatState, useMessagesForChat } from '@/state/chat';
 import { useVessel } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
+import { nestToFlag } from '@/logic/utils';
 
 export interface HeapChannelProps {
   flag: string;
@@ -14,12 +15,13 @@ export interface HeapChannelProps {
 }
 
 function ChatChannel({ flag, nest }: HeapChannelProps) {
+  const [, chFlag] = nestToFlag(nest);
   useEffect(() => {
-    useChatState.getState().initialize(nest);
-  }, [nest]);
+    useChatState.getState().initialize(chFlag);
+  }, [chFlag]);
 
-  const messages = useMessagesForChat(nest);
-  const perms = useChatPerms(nest);
+  const messages = useMessagesForChat(chFlag);
+  const perms = useChatPerms(chFlag);
   const vessel = useVessel(flag, window.our);
   const canWrite =
     perms.writers.length === 0 ||
@@ -34,14 +36,14 @@ function ChatChannel({ flag, nest }: HeapChannelProps) {
       footer={
         <div className="border-t-2 border-gray-50 p-4">
           {canWrite ? (
-            <ChatInput whom={nest} sendMessage={sendMessage} showReply />
+            <ChatInput whom={chFlag} sendMessage={sendMessage} showReply />
           ) : (
             <span>Cannot write to this channel</span>
           )}
         </div>
       }
     >
-      <ChatWindow whom={nest} messages={messages} />
+      <ChatWindow whom={chFlag} messages={messages} />
     </Layout>
   );
 }
