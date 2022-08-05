@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { GroupChannel, Zone } from '@/types/groups';
-import BubbleIcon from '@/components/icons/BubbleIcon';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
@@ -16,6 +15,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import PencilIcon from '@/components/icons/PencilIcon';
 import useRequestState from '@/logic/useRequestState';
+import ChannelIcon from '@/channels/ChannelIcon';
 
 const UNZONED = '';
 
@@ -107,8 +107,7 @@ function GroupChannel({
       >
         <div className="flex flex-row">
           <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
-            {/* TODO: Channel Type icons */}
-            <BubbleIcon className="h-6 w-6 text-gray-400" />
+            <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
           </div>
           <div className="flex flex-col justify-evenly">
             {joined && nest ? (
