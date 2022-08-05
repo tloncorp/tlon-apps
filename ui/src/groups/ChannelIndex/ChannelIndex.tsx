@@ -266,7 +266,10 @@ export default function ChannelIndex() {
           key={zone}
           className="mb-2 w-full rounded-xl bg-white py-1 pl-4 pr-2"
         >
-          <ChannelSection channels={sectionedChannels[zone]} zone={zone} />
+          <ChannelSection
+            channels={sectionedChannels[zone] || []}
+            zone={zone}
+          />
         </div>
       ))}
     </section>
