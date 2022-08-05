@@ -1,8 +1,8 @@
 import React from 'react';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import LinkIcon from '@/components/icons/LinkIcon';
 import UnknownAvatarIcon from '@/components/icons/UnknownAvatarIcon';
 import { nestToFlag } from '@/logic/utils';
+import ShapesIcon from '@/components/icons/ShapesIcon';
 
 interface ChannelIconProps extends React.HTMLAttributes<SVGElement> {
   nest: string;
@@ -14,7 +14,7 @@ export default function ChannelIcon({ nest, ...rest }: ChannelIconProps) {
     case 'chat':
       return <BubbleIcon {...rest} />;
     case 'heap':
-      return <LinkIcon {...rest} />;
+      return <ShapesIcon {...rest} />;
     default:
       return <UnknownAvatarIcon {...rest} />;
   }
