@@ -231,6 +231,7 @@ export default function ChannelIndex() {
     return null;
   }
 
+  const zones = [UNZONED, ...group['zone-ord']];
   const sectionedChannels = groupBy(
     Object.entries(group.channels),
     ([, ch]) => ch.zone
@@ -240,19 +241,6 @@ export default function ChannelIndex() {
     sectionedChannels[UNZONED] = sectionedChannels.null;
     delete sectionedChannels.null;
   }
-
-  const zones = Object.keys(sectionedChannels);
-  // TODO: respect the sorted order set by the user?
-  zones.sort((a, b) => {
-    if (a === UNZONED) {
-      return -1;
-    }
-    if (b === UNZONED) {
-      return 1;
-    }
-
-    return a.localeCompare(b);
-  });
 
   return (
     <section className="w-full p-4">
