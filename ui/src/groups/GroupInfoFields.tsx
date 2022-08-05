@@ -60,6 +60,13 @@ export default function GroupInfoFields() {
     register('color');
   }, []); // eslint-disable-line
 
+  const handleColorIconType = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setIconType('color');
+    setIconColor(defaultColor as string);
+    setValue('color', defaultColor);
+  };
+
   const handleCancelColorIcon = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setIconType(undefined);
@@ -101,7 +108,7 @@ export default function GroupInfoFields() {
                     </span>
                     <span
                       className="pointer-events-auto text-blue"
-                      onClick={() => setIconType('color')}
+                      onClick={handleColorIconType}
                     >
                       {' '}
                       or choose fill color

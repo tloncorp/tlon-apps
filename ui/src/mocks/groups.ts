@@ -145,6 +145,8 @@ export function createMockGroup(title: string): Group {
       color: '',
     },
     zones: {},
+    bloc: [],
+    'zone-ord': [],
   };
 }
 const mockGroupOne: Group = {
@@ -203,6 +205,8 @@ const mockGroupOne: Group = {
     color: '',
   },
   zones: {},
+  bloc: [],
+  'zone-ord': [],
 };
 
 const mockGroupTwo: Group = {
@@ -254,6 +258,8 @@ const mockGroupTwo: Group = {
     color: '',
   },
   zones: {},
+  bloc: [],
+  'zone-ord': [],
 };
 
 const mockGroups: { [flag: string]: Group } = {

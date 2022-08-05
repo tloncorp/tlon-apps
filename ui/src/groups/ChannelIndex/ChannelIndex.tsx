@@ -5,7 +5,7 @@ import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
-import { GroupChannel } from '@/types/groups';
+import { GroupChannel, Zone } from '@/types/groups';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -200,8 +200,14 @@ function ChannelSection({
   zone,
 }: {
   channels: [string, GroupChannel][];
-  zone: string | null;
+  zone: Zone | null;
 }) {
+  const flag = useRouteGroup();
+  const group = useGroup(flag);
+  const sectionTitle =
+    zone && group?.zones && zone in group.zones
+      ? group.zones[zone].meta.title
+      : '';
   const sortedChannels = channels.slice();
   sortedChannels.sort(([, a], [, b]) =>
     a.meta.title.localeCompare(b.meta.title)
@@ -209,8 +215,8 @@ function ChannelSection({
 
   return (
     <>
-      {zone !== UNZONED ? (
-        <div className="py-4 font-semibold text-gray-400">{zone}</div>
+      {sectionTitle !== UNZONED ? (
+        <div className="py-4 font-semibold text-gray-400">{sectionTitle}</div>
       ) : null}
       <ul>
         {sortedChannels.map(([nest, channel]) => (
@@ -231,6 +237,7 @@ export default function ChannelIndex() {
     return null;
   }
 
+  const zones = [UNZONED, ...group['zone-ord']];
   const sectionedChannels = groupBy(
     Object.entries(group.channels),
     ([, ch]) => ch.zone
@@ -240,19 +247,6 @@ export default function ChannelIndex() {
     sectionedChannels[UNZONED] = sectionedChannels.null;
     delete sectionedChannels.null;
   }
-
-  const zones = Object.keys(sectionedChannels);
-  // TODO: respect the sorted order set by the user?
-  zones.sort((a, b) => {
-    if (a === UNZONED) {
-      return -1;
-    }
-    if (b === UNZONED) {
-      return 1;
-    }
-
-    return a.localeCompare(b);
-  });
 
   return (
     <section className="w-full p-4">
