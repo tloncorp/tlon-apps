@@ -61,7 +61,7 @@ export default function AdminChannelListItem({
               <SixDotIcon className="mr-3 h-5 w-5 fill-gray-600" />
             </div>
             <div className="mr-3 flex h-8 w-8 items-center justify-center rounded bg-gray-50">
-              <BubbleIcon className="h-5 w-5 fill-gray-600" />
+              <BubbleIcon className="h-5 w-5 text-gray-400" />
             </div>
             <div>
               <div className="flex items-center space-x-2">

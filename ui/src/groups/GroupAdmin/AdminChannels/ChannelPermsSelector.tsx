@@ -11,7 +11,7 @@ interface ChannelPrivacySetting {
 
 export const PRIVACY_TYPE: Record<ChannelPrivacyType, ChannelPrivacySetting> = {
   public: {
-    title: 'Open To All',
+    title: 'Open to All',
     description: 'Anyone can view and write',
     readerSects: ['all'],
     writerSects: ['all'],

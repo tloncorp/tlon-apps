@@ -78,7 +78,7 @@ exports[`NewChannel > renders as expected 1`] = `
                       <span
                         class="font-semibold"
                       >
-                        Open To All
+                        Open to All
                       </span>
                       <span
                         class="text-sm font-medium text-gray-600"

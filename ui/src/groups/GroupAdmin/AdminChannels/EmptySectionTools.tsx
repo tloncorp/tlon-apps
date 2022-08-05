@@ -19,7 +19,7 @@ export default function EmptySectionTools({
           New Channel
         </button>
         <h2 className="ml-2 font-semibold text-gray-600">
-          or Drag A Channel Here
+          or drag a Channel here
         </h2>
       </div>
       <EditChannelModal

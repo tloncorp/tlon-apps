@@ -48,7 +48,7 @@ export default function Channels({
             {isNew === true ? (
               <div className="flex items-center py-4 px-5">
                 <h2 className="font-semibold text-gray-600">
-                  Please Give This Section A Name
+                  Please give this Section a name
                 </h2>
               </div>
             ) : null}
