@@ -131,7 +131,7 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ?+  pole  ~|(bad-watch/path !!)
+  ?+  pole  ~|(bad-watch/pole !!)
   ::
     [%groups %ui ~]       cor
     [%groups ~]           cor
@@ -276,7 +276,7 @@
   ++  go-leave
     =.  cor  (emit leave:go-pass)
     =.  cor  (emit remove-self:go-pass)
-    =.  cor  (emit %give %fact ~[/groups/ui] group-leave+!>(flag))
+    =.  cor  (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
     go-core(gone &)
   ::
   ++  go-init  
@@ -427,9 +427,9 @@
     =.  net  [%sub time] 
     =/  create=diff:g  [%create group]
     =.  cor  
-      (give %fact ~[/groups/ui] group-action+!>(`action:g`[flag now.bowl create]))
+      (give %fact ~[/groups /groups/ui] group-action+!>(`action:g`[flag now.bowl create]))
     =.  cor
-      (give %fact ~[/groups/ui] gang-gone+!>(flag))
+      (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
     =.  cor
       (emil join-pinned:go-pass)
     go-core
@@ -447,7 +447,7 @@
     =.  cor
       (give %fact ~(tap in paths) group-update+!>(`update:g`[time diff]))
     =.  cor
-      (give %fact ~[/groups/ui] group-action+!>(`action:g`[flag time diff]))
+      (give %fact ~[/groups /groups/ui] group-action+!>(`action:g`[flag time diff]))
     go-core
   ::
   ++  go-tell-update

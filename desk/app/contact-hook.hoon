@@ -5,7 +5,7 @@
 |%
 +$  card  card:agent:gall
 +$  state-0
-  [%0 ships=(set ship) groups=(set flag:g)]
+  [%0 pull=[groups=(set flag:g) ships=(set ship)] push=(set flag:g)]
 --
 =|  state-0
 =*  state  -
@@ -98,6 +98,8 @@
     `[ship u.co]
   ++  watch-store
     (emit %pass /contacts %agent [our.bowl %contact-store] %watch /updates)
+  ++  watch-groups
+    (emit %pass /groups %agent [our.bowl %groups] %watch /groups)
   --
 ++  net
   |%
@@ -118,37 +120,63 @@
   ++  leave-group  |=(=flag:g (pass-group flag %leave ~))
   --
 ++  init
-  watch-store:con
+  =.  core  watch-store:con
+  watch-groups:con
 ++  poke
   |=  [=mark =vase]
   ^+  core
   ?+    mark  ~|(evil-mark/mark !!)
       %contact-share  core
-    ::
       %contact-ship-add 
-    =+  !<(=ship vase)
-    ?<  (~(has in ships) ship)
-    =.  ships  (~(put in ships) ship)
-    (watch-ship:net ship)
+    (add-ship !<(=ship vase))
   ::
       %contact-ship-del 
-    =+  !<(=ship vase)
-    ?>  (~(has in ships) ship)
-    =.  ships  (~(del in ships) ship)
-    (leave-ship:net ship)
-  ::
-      %contact-groups-add 
-    =+  !<(=flag:g vase)
-    ?<  (~(has in groups) flag)
-    =.  groups  (~(put in groups) flag)
-    (watch-group:net flag)
-  ::
-      %contact-ship-del 
-    =+  !<(=flag:g vase)
-    ?>  (~(has in groups) flag)
-    =.  groups  (~(del in groups) flag)
-    (leave-group:net flag)
+    (del-ship !<(ship vase))
   ==
+::
+++  add-ships
+  |=  ships=(set ship)
+  ^+  core
+  %+  roll  ~(tap in ships)
+  |=  [=ship co=_core]
+  ?:  (~(has in ships.pull) ship)
+    co
+  (add-ship:co ship)
+::
+++  add-ship
+  |=  =ship
+  ^+  core
+  ?<  (~(has in ships.pull) ship)
+  =.  ships.pull  (~(put in ships.pull) ship)
+  (watch-ship:net ship)
+::
+++  del-ship
+  |=  =ship
+  ^+  core
+  ?>  (~(has in ships.pull) ship)
+  =.  ships.pull  (~(put in ships.pull) ship)
+  (leave-ship:net ship)
+::
+++  del-ships
+  |=  ships=(set ship)
+  ^+  core
+  %+  roll  ~(tap in ships)
+  |=  [=ship co=_core]
+  ?.  (~(has in ships.pull) ship)
+    co
+  (del-ship:co ship)
+::
+++  add-group
+  |=  =flag:g
+  ?<  (~(has in groups.pull) flag)
+  =.  groups.pull  (~(put in groups.pull) flag)
+  (watch-group:net flag)
+  ::
+++  del-group
+  |=  =flag:g
+  ?>  (~(has in groups.pull) flag)
+  =.  groups.pull  (~(del in groups.pull) flag)
+  (leave-group:net flag)
 ::
 ++  peek
   |=  =path
@@ -186,6 +214,37 @@
   ?+  wire  ~|(evil-agent/wire !!)
     [%contacts ~]  (take-store sign)
     [%net *]       (take-net t.wire sign)
+    [%groups ~]    (take-groups sign)
+  ==
+::
+++  take-groups
+  |=  =sign:agent:gall
+  ^+  core
+  ?+    -.sign  ~|(bad-groups-take/-.sign !!)
+      %watch-ack
+    %.  core
+    ?~  p.sign  same
+    (slog leaf/"Failed to watch groups" u.p.sign)
+  ::
+      %fact
+    ?.  =(%group-action p.cage.sign)
+      ~&  'groups ver mismatch'
+      core
+    =+  !<(=action:g q.cage.sign)
+    =*  flag  p.action
+    ?.  =(our.bowl p.flag)  core
+    ?+    -.q.q.action  core
+        %create
+      =.  push  (~(put in push) flag)
+      (add-ships ~(key by fleet.p.q.q.action))
+    ::
+        %fleet
+      =*  diff  q.q.action
+      ?+  -.q.diff  core
+        %add  (add-ships p.diff)
+        %del  (del-ships p.diff)
+      ==
+    ==
   ==
 ::
 ++  take-net
@@ -198,7 +257,7 @@
         %watch-ack
       ?~  p.sign  core
       %-  (slog leaf/"Failed to watch {<ship>}" u.p.sign)
-      =.  ships  (~(del in ships) ship)
+      =.  ships.pull  (~(del in ships.pull) ship)
       core
     ::
         %fact
@@ -219,7 +278,7 @@
         %watch-ack
       ?~  p.sign  core
       %-  (slog leaf/"Failed to watch {<flag>}" u.p.sign)
-      =.  groups  (~(del in groups) flag)
+      =.  groups.pull  (~(del in groups.pull) flag)
       core
     ::
         %fact
@@ -266,7 +325,7 @@
     %+  welp
       ?.  =(our.bowl ship)  *(list path)
       ~[/our]
-    %+  murn  ~(tap in groups)
+    %+  murn  ~(tap in groups.pull)
     |=  =flag:g
     ^-  (unit path)
     ?.  (is-member:con flag ship)  ~
@@ -280,11 +339,12 @@
   (emit %pass /contacts %agent dock %poke cage)
 ::
 ++  is-allowed-group
- |=  [=ship =flag:g]
- ^-  ?
- &
+  |=  [=ship =flag:g]
+  ^-  ?
+  & :: we don't support private profiles 
+::
 ++  is-allowed
   |=  =ship
   ^-  ?
-  &  :: TODO: fix
+  & :: we don't support private profiles 
 --
