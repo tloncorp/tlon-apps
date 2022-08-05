@@ -346,10 +346,11 @@ export default function ChatInput({
   }, [reply, messageEditor]);
 
   useEffect(() => {
-    if (draft && messageEditor) {
+    const draftEmpty = draft.inline.length === 0 && draft.block.length === 0;
+    if (!draftEmpty && messageEditor) {
       const current = tipTapToString(messageEditor.getJSON());
-      const newDraft = tipTapToString(parseChatMessage(draft));
-      if (current !== newDraft) {
+
+      if (current === '') {
         messageEditor.commands.setContent(parseChatMessage(draft), true);
       }
     }
