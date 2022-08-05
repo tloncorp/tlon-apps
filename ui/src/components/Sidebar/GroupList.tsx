@@ -174,7 +174,7 @@ function GangItem(props: { flag: string }) {
           <span>You are currently joining this group.</span>
           <span>
             It may take a few minutes depending on the host&apos;s and your
-            connection
+            connection.
           </span>
           <div className="flex">
             <Popover.Close>
