@@ -373,7 +373,7 @@
     |=  her=ship
     =/  =path
       %+  welp  he-groups-scry
-      /channel/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
+      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
     .^(? %gx path)
   ::
   ++  he-pub
