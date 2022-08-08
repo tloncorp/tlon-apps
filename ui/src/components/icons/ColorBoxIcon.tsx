@@ -1,6 +1,7 @@
 import React from 'react';
 import classNames from 'classnames';
 import { IconProps } from '@/components/icons/icon';
+import { foregroundFromBackground } from '@/components/Avatar';
 
 interface ColorBoxIconProps extends IconProps {
   color: string;
@@ -20,7 +21,7 @@ export default function ColorBoxIcon({
       )}
       style={{ backgroundColor: color }}
     >
-      <span className="text-white">{letter}</span>
+      <span style={{ color: foregroundFromBackground(color) }}>{letter}</span>
     </div>
   );
 }

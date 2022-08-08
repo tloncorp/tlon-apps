@@ -65,6 +65,10 @@ a:not([class]) {
   @apply bg-gray-100;
 }
 
+.alt-highlight::selection {
+  @apply bg-white;
+}
+
 /* Ensures text selection is visible on dark mode desktop safari */
 _::-webkit-full-page-media,
 _:future,

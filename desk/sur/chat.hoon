@@ -129,10 +129,6 @@
 +$  remark
   [last-read=time watching=_| ~]
 ::
-+$  perm
-  $:  writers=(set sect:g)
-      group=flag
-  ==
 +$  chat
   [=net =remark =log =perm =pact]
 ::
@@ -188,8 +184,15 @@
 +$  logs
   ((mop time diff) lte)
 ::
++$  perm
+  $:  writers=(set sect:g)
+      group=flag:g
+  ==
+::
++$  leave  flag:g
+::
 +$  create
-  $:  group=flag  :: TODO: unmanaged-style group chats
+  $:  group=flag:g  :: TODO: unmanaged-style group chats
       name=term
       title=cord
       description=cord
@@ -197,5 +200,4 @@
       writers=(set sect:g)
   ==
 ::
-+$  leave  flag
 --

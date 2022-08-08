@@ -3,7 +3,7 @@ import Dialog, { DialogContent } from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
 import NewChannelForm from './NewChannelForm';
 
-export default function NewChannel() {
+export default function NewChannelModal() {
   const dismiss = useDismissNavigate();
 
   const onOpenChange = (isOpen: boolean) => {

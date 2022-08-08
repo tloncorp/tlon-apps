@@ -89,7 +89,7 @@ export default function SectionNameEditInput({
         {...register('title')}
         type="text"
         placeholder="New Section"
-        className="input w-full border-gray-200 bg-transparent text-lg font-semibold focus:bg-transparent"
+        className="input alt-highlight w-full border-gray-200 bg-transparent text-lg font-semibold focus:bg-transparent"
       />
     </form>
   );

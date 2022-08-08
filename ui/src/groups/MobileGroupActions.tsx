@@ -30,7 +30,7 @@ export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
           state={{ backgroundLocation: location }}
           color="text-blue"
           icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-blue-soft">
+            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-blue-soft dark:bg-blue-800">
               <InviteIcon className="h-6 w-6" />
             </div>
           }
@@ -40,7 +40,7 @@ export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
         <SidebarItem
           color="text-blue"
           icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-blue-soft">
+            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-blue-soft dark:bg-blue-800">
               <LinkIcon className="h-6 w-6" />
             </div>
           }
@@ -71,8 +71,9 @@ export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
         {flag.includes(ship) ? null : (
           <SidebarItem
             to={`/groups/${flag}/leave`}
+            color="text-red"
             icon={
-              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-red-soft dark:bg-red-800">
                 <LeaveIcon className="h-6 w-6" />
               </div>
             }

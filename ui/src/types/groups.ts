@@ -16,7 +16,7 @@ export interface Cabals {
   [sect: string]: Cabal;
 }
 
-export interface Channel {
+export interface GroupChannel {
   added: number;
   meta: GroupMeta;
   zone: Zone | null;
@@ -25,13 +25,16 @@ export interface Channel {
 }
 
 export interface Channels {
-  [flag: string]: Channel;
+  [nest: string]: GroupChannel;
 }
 
 export type Zone = string;
 
 export interface Zones {
-  [key: Zone]: GroupMeta;
+  [key: Zone]: {
+    meta: GroupMeta;
+    idx: string[];
+  };
 }
 
 export interface Vessel {
@@ -67,6 +70,8 @@ export interface Group {
   cordon: Cordon;
   meta: GroupMeta;
   zones: Zones;
+  'zone-ord': Zone[];
+  bloc: string[];
 }
 
 export interface Fleet {
@@ -111,7 +116,7 @@ interface CabalDiff {
 }
 
 interface ChannelDiffAdd {
-  add: Channel;
+  add: GroupChannel;
 }
 
 interface ChannelDiffDel {
@@ -140,7 +145,7 @@ interface ChannelDiffJoin {
 
 interface ChannelDiff {
   channel: {
-    flag: string;
+    nest: string;
     diff:
       | ChannelDiffAdd
       | ChannelDiffDel
@@ -278,10 +283,16 @@ export type PrivacyType = 'public' | 'private' | 'secret';
 
 export type ChannelPrivacyType = 'public' | 'read-only' | 'secret';
 
+export type ChannelType = 'chat' | 'heap';
+
 export interface GroupFormSchema extends GroupMeta {
   privacy: PrivacyType;
 }
 
-export interface ChannelFormSchema extends Channel {
+export interface ChannelFormSchema extends GroupChannel {
   privacy: ChannelPrivacyType;
+}
+
+export interface NewChannelFormSchema extends ChannelFormSchema {
+  type: ChannelType;
 }

@@ -1,16 +1,16 @@
 import cn from 'classnames';
 import React, { useCallback } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { useBriefs } from '@/state/chat';
-import { useIsMobile } from '../../logic/useMedia';
-import { channelHref } from '../../logic/utils';
-import { useGroup } from '../../state/groups/groups';
-import BubbleIcon from '../../components/icons/BubbleIcon';
-import useNavStore from '../../components/Nav/useNavStore';
-import CaretDownIcon from '../../components/icons/CaretDownIcon';
+import useAllBriefs from '@/logic/useAllBriefs';
+import { channelHref, nestToFlag } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
+import useSidebarSort from '@/logic/useSidebarSort';
+import { useGroup } from '@/state/groups/groups';
+import BubbleIcon from '@/components/icons/BubbleIcon';
+import useNavStore from '@/components/Nav/useNavStore';
+import CaretDownIcon from '@/components/icons/CaretDownIcon';
+import SidebarItem from '@/components/Sidebar/SidebarItem';
 import ChannelSortOptions from './ChannelSortOptions';
-import useSidebarSort from '../../logic/useSidebarSort';
-import SidebarItem from '../../components/Sidebar/SidebarItem';
 
 interface ChannelListProps {
   flag: string;
@@ -20,7 +20,7 @@ interface ChannelListProps {
 export default function ChannelList({ flag, className }: ChannelListProps) {
   const isMobile = useIsMobile();
   const group = useGroup(flag);
-  const briefs = useBriefs();
+  const briefs = useAllBriefs();
   const { sortFn, sortOptions, setSortFn, sortChannels } = useSidebarSort();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const hide = useCallback(() => {
@@ -64,15 +64,19 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
       </DropdownMenu.Root>
       <ul className={cn(isMobile && 'space-y-3')}>
         {sortChannels(group.channels)
-          .filter(([k]) => k in briefs)
-          .map(([key, channel]) => (
+          .filter(([n]) => {
+            const [app, f] = nestToFlag(n);
+
+            return f in briefs;
+          })
+          .map(([nest, channel]) => (
             <SidebarItem
-              key={key}
+              key={nest}
               icon={icon}
-              to={channelHref(flag, key)}
+              to={channelHref(flag, nest)}
               onClick={hide}
             >
-              {channel.meta.title || key}
+              {channel.meta.title || nest}
             </SidebarItem>
           ))}
       </ul>

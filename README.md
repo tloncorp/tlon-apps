@@ -50,10 +50,10 @@ This project uses husky to run git pre-commit hooks. If you don't like husky you
 ## Glossary
 
 *brief*
-: TBD
+: a representation of the last thing we've seen, and how many new items since
 
 *cabal*
-: TBD
+: contains the metadata for a role
 
 *chat*
 : backend term for a group chat
@@ -64,6 +64,9 @@ This project uses husky to run git pre-commit hooks. If you don't like husky you
 *cordon*
 : represents a group's permissions. `open` is Public, `shut` is Private, `afar` is Secret
 
+*curio*
+: represents an item in a collection
+
 *dm*
 : backend term for a 1:1 message
 
@@ -71,13 +74,19 @@ This project uses husky to run git pre-commit hooks. If you don't like husky you
 : composite identifier consisting of `ship/group-name` used to key state and in routes 
 
 *fleet*
-: TBD
+: the map of ships that are part of a group
 
 *gang*
 : a group invite
 
+*heap*
+: a collection
+
 *sect*
-: TBD
+: a term representing a role
+
+*stash*
+: all heaps we are a part of
 
 *vessel*
-: TBD
+: represents the roles a group member has and their join time

@@ -1,6 +1,6 @@
 /-  c=chat
 /+  j=chat-json
-|_  =leave:c
+|_  =leave:ch
 ++  grad  %noun
 ++  grow
   |%

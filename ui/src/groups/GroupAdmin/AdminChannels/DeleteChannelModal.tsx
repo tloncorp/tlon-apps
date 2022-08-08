@@ -1,12 +1,12 @@
 import React from 'react';
 import Dialog, { DialogContent } from '@/components/Dialog';
-import { Channel } from '@/types/groups';
+import { GroupChannel } from '@/types/groups';
 
 interface DeleteChannelModalProps {
   deleteChannelIsOpen: boolean;
   setDeleteChannelIsOpen: (open: boolean) => void;
   onDeleteChannelConfirm: () => void;
-  channel?: Channel;
+  channel?: GroupChannel;
 }
 
 export default function DeleteChannelModal({
