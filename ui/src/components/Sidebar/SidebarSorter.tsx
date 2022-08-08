@@ -39,7 +39,7 @@ export default function SidebarSorter({
       <DropdownMenu.Content className="dropdown">
         <DropdownMenu.Item
           disabled
-          className="dropdown-item flex items-center space-x-2 text-gray-300"
+          className="dropdown-item flex cursor-default items-center space-x-2 text-gray-300 hover:bg-transparent"
         >
           Group Ordering
         </DropdownMenu.Item>

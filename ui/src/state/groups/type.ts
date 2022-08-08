@@ -3,7 +3,7 @@ import {
   Group,
   Rank,
   GroupMeta,
-  Channel,
+  GroupChannel,
   GroupIndex,
 } from '../../types/groups';
 
@@ -47,31 +47,25 @@ export interface GroupState {
   search: (flag: string) => Promise<void>;
   index: (ship: string) => Promise<GroupIndex>;
   join: (flag: string, joinAll: boolean) => Promise<void>;
+  reject: (flag: string) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   deleteZone: (flag: string, zone: string) => Promise<void>;
   editChannel: (
     groupFlag: string,
     flag: string,
-    channel: Channel
+    channel: GroupChannel
   ) => Promise<void>;
   deleteChannel: (groupFlag: string, flag: string) => Promise<void>;
   addChannelToZone: (
     zone: string,
     groupFlag: string,
-    channelFlag: string
+    nest: string
   ) => Promise<void>;
-  removeChannelFromZone: (
-    groupFlag: string,
-    channelFlag: string
-  ) => Promise<void>;
+  removeChannelFromZone: (groupFlag: string, nest: string) => Promise<void>;
   setChannelPerm: (
     flag: string,
-    channelFlag: string,
+    nest: string,
     sects: string[]
   ) => Promise<void>;
-  setChannelJoin: (
-    flag: string,
-    channelFlag: string,
-    join: boolean
-  ) => Promise<void>;
+  setChannelJoin: (flag: string, nest: string, join: boolean) => Promise<void>;
 }

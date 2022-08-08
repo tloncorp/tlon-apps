@@ -1,18 +1,18 @@
 import React from 'react';
 import Dialog, { DialogContent } from '@/components/Dialog';
-import NewChannelForm from '@/channels/NewChannel/NewChannelForm';
-import { Channel } from '@/types/groups';
+import { GroupChannel } from '@/types/groups';
+import EditChannelForm from '@/channels/EditChannelForm';
 
 interface EditChannelModalProps {
-  channelFlag?: string;
-  channel?: Channel;
+  nest: string;
+  channel: GroupChannel;
   presetSection?: string;
   editIsOpen: boolean;
   setEditIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function EditChannelModal({
-  channelFlag,
+  nest,
   channel,
   editIsOpen,
   presetSection,
@@ -21,8 +21,8 @@ export default function EditChannelModal({
   return (
     <Dialog open={editIsOpen} onOpenChange={setEditIsOpen}>
       <DialogContent containerClass="w-full sm:max-w-lg">
-        <NewChannelForm
-          channelFlag={channelFlag}
+        <EditChannelForm
+          nest={nest}
           channel={channel}
           retainRoute={true}
           presetSection={presetSection}

@@ -9,7 +9,7 @@ import {
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import Groups from '@/groups/Groups';
-import Channel from '@/pages/Channel';
+import Channel from '@/channels/Channel';
 import { useGroupState } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import api, { IS_MOCK } from '@/api';
@@ -36,12 +36,13 @@ import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
 import ProfileModal from '@/profiles/ProfileModal';
 import MultiDMEditModal from '@/dms/MultiDMEditModal';
-import NewChannel from '@/channels/NewChannel/NewChannel';
+import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
 import FindGroups from '@/groups/FindGroups';
 import JoinGroupModal from '@/groups/Join/JoinGroupModal';
 import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
+import { useHeapState } from './state/heap/heap';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -132,7 +133,11 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           />
           <Route
             path="/groups/:ship/:name/channels/new"
-            element={<NewChannel />}
+            element={<NewChannelModal />}
+          />
+          <Route
+            path="/groups/:ship/:name/channels/new/:section"
+            element={<NewChannelModal />}
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
         </Routes>
@@ -170,6 +175,7 @@ function App() {
       checkIfLoggedIn();
       useGroupState.getState().start();
       useChatState.getState().start();
+      useHeapState.getState().start();
       useChatState.getState().fetchDms();
       const { initialize: settingsInitialize, fetchAll } =
         useSettingsState.getState();

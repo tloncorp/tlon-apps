@@ -2,19 +2,24 @@ import ob from 'urbit-ob';
 import { unixToDa } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
-import { format, differenceInDays, startOfToday, endOfToday } from 'date-fns';
+import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import { Chat, ChatWhom } from '../types/chat';
+import { Chat, ChatWhom } from '@/types/chat';
 import {
-  Cabal,
   Cabals,
-  Channel,
+  GroupChannel,
   ChannelPrivacyType,
   Cordon,
-  Group,
   PrivacyType,
   Rank,
-} from '../types/groups';
+} from '@/types/groups';
+import { Heap } from '@/types/heap';
+
+export function nestToFlag(nest: string): [string, string] {
+  const [app, ...rest] = nest.split('/');
+
+  return [app, rest.join('/')];
+}
 
 export function renderRank(rank: Rank, plural = false) {
   if (rank === 'czar') {
@@ -41,7 +46,7 @@ export function strToSym(str: string): string {
 }
 
 export function channelHref(flag: string, ch: string) {
-  return `/groups/${flag}/channels/chat/${ch}`;
+  return `/groups/${flag}/channels/${ch}`;
 }
 
 export function makePrettyDay(date: Date) {
@@ -193,18 +198,18 @@ export function getGroupPrivacy(cordon: Cordon): PrivacyType {
 }
 
 export function getPrivacyFromChannel(
-  channel?: Channel,
-  chat?: Chat
+  groupChannel?: GroupChannel,
+  channel?: Chat | Heap
 ): ChannelPrivacyType {
-  if (!channel || !chat) {
+  if (!groupChannel || !channel) {
     return 'public';
   }
 
-  if (channel.readers.includes('admin')) {
+  if (groupChannel.readers.includes('admin')) {
     return 'secret';
   }
 
-  if (chat.perms.writers.includes('admin')) {
+  if (channel.perms.writers.includes('admin')) {
     return 'read-only';
   }
 

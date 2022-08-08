@@ -48,7 +48,7 @@ export default function NewGroup() {
 
   const form = useForm<GroupFormSchema>({
     defaultValues,
-    mode: 'onBlur',
+    mode: 'onChange',
   });
 
   const onComplete = useCallback(async () => {
@@ -129,7 +129,7 @@ export default function NewGroup() {
         <FormProvider {...form}>
           <div className="flex flex-col">{currentStepComponent}</div>
         </FormProvider>
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center pt-4">
           {currentStep !== 1 ? (
             <NavigationDots
               maxStep={maxStep - 1}

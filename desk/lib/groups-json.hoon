@@ -4,6 +4,9 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  nest
+    |=  n=nest:g
+    (rap 3 p.n '/' (flag q.n) ~)
   ++  ship
     |=  her=@p
     s/(scot %p her)
@@ -42,7 +45,7 @@
     %+  frond  -.d
     ?-    -.d
       %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
-      %channel  (pairs flag/s/(flag p.d) diff/(channel-diff q.d) ~)
+      %channel  (pairs nest/s/(nest p.d) diff/(channel-diff q.d) ~)
       %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
       %bloc     (bloc-diff p.d)
       %cordon   (cordon-diff p.d)
@@ -63,12 +66,12 @@
     |=  d=delta:zone:g
     %+  frond  -.d
     ?-  -.d
-        %del  ~
-        %add  (meta meta.d)
-        %mov  (numb idx.d)
-        %mov-flag
+        %del           ~
+        %mov           (numb idx.d)
+        ?(%add %edit)  (meta meta.d)
+        %mov-nest
       %-  pairs 
-      :~  flag/s/(flag flag.d)
+      :~  nest/s/(nest nest.d)
           idx/(numb idx.d)
       ==
     ==
@@ -175,7 +178,7 @@
     :-  zone
     %-  pairs
     :~  meta/(meta met.r)
-        idx/a/(turn ord.r (cork flag (lead %s)))
+        idx/a/(turn ord.r (cork nest (lead %s)))
     ==
   ::
   ++  group
@@ -222,12 +225,12 @@
     (rap 3 (scot %p p.f) '/' q.f ~)
   ::
   ++  channels
-    |=  chs=(map flag:g channel:g)
+    |=  chs=(map nest:g channel:g)
     %-  pairs
     %+  turn  ~(tap by chs)
-    |=  [f=flag:g c=channel:g]
+    |=  [n=nest:g c=channel:g]
     ^-  [cord json]
-    [(flag f) (channel c)]
+    [(nest n) (channel c)]
   ::
   ++  channel
     |=  ch=channel:g
@@ -280,6 +283,7 @@
   ++  ship  (se %p)
   ++  rank  (su (perk %czar %king %duke %earl %pawn ~))
   ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) ^sym))
+  ++  nest  (su ;~((glue fas) ^sym ;~(pfix sig fed:ag) ^sym))
   ++  create
     ^-  $-(json create:g)
     %-  ot
@@ -322,7 +326,7 @@
         fleet/(ot ships/(as ship) diff/fleet-diff ~)
         zone/zone-diff
         cordon/cordon-diff
-        channel/(ot flag/flag diff/channel-diff ~)
+        channel/(ot nest/nest diff/channel-diff ~)
         zone/zone-diff
         meta/meta
         del/ul
@@ -331,11 +335,12 @@
   ++  zone-delta
     %-  of
     :~  add/meta
+        edit/meta
         del/ul
         mov/ni
-        :-  %mov-flag
+        :-  %mov-nest
         %-  ot
-        :~  flag/flag
+        :~  nest/nest
             index/ni
         ==
     ==

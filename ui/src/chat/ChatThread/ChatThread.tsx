@@ -66,7 +66,7 @@ export function GroupChatThread() {
 
   return (
     <ChatThread whom={flag}>
-      <div>Thread: {channel.meta.title}</div>
+      <div>Thread: {channel?.meta.title || ''}</div>
     </ChatThread>
   );
 }

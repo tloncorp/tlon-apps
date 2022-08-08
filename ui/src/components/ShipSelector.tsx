@@ -102,7 +102,7 @@ function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
   const value = preSig(rawValue);
   return (
     <components.Option data={data} className="hover:cursor-pointer" {...props}>
-      <div className="flex items-center space-x-1">
+      <div className="flex items-center space-x-2">
         {
           // Case when user has entered an invite link (e.g., ~zod/group-name)
           whomIsFlag(value) ? (
@@ -212,7 +212,7 @@ function ShipTagRemove(props: MultiValueRemoveProps<ShipOption, true>) {
 function ShipDropDownMenu({ children, ...props }: MenuProps<ShipOption, true>) {
   return (
     <components.Menu
-      className="rounded-lg border-2 border-transparent"
+      className="rounded-lg outline outline-2 outline-gray-100"
       {...props}
     >
       {children}
@@ -225,7 +225,7 @@ function ShipDropDownMenuList({
   ...props
 }: MenuListProps<ShipOption, true>) {
   return (
-    <components.MenuList className="rounded-md bg-white" {...props}>
+    <components.MenuList className="rounded-lg bg-white" {...props}>
       {children}
     </components.MenuList>
   );
