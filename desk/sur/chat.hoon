@@ -44,7 +44,7 @@
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
     ::
-      [%create p=perm]
+      [%create p=perm q=(unit pact)]
   ==
 
 +$  index   (map id time)
