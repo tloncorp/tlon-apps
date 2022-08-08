@@ -1,37 +1,20 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import cn from 'classnames';
 import { useFormContext } from 'react-hook-form';
-import {
-  Contact,
-  ContactEditFieldPrim,
-  ContactEditField,
-  ContactUpdate,
-  hexToUx,
-  uxToHex
-} from '@urbit/api';
+import { ContactEditField } from '@urbit/api';
 import ColorPicker from '@/components/ColorPicker';
-import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
-import EmptyIconBox from '@/components/icons/EmptyIconBox';
-import XIcon from '@/components/icons/XIcon';
-import useMedia from '@/logic/useMedia';
-import { isValidUrl } from '@/logic/utils';
-import { GroupMeta } from '@/types/groups';
+import { isValidUrl, normalizeUrbitColor } from '@/logic/utils';
 import LinkIcon from '@/components/icons/LinkIcon';
-import { initial } from 'lodash';
 
 interface ProfileFormSchema extends ContactEditField {
   isContactPublic: boolean;
 }
 
 export default function ProfileFields() {
-  const {
-    register,
-    watch,
-    setValue,
-    formState,
-  } = useFormContext<ProfileFormSchema>();
-  const {errors} = formState;
+  const { register, watch, setValue, formState } =
+    useFormContext<ProfileFormSchema>();
+  const { errors } = formState;
   const [headerFieldFocused, setHeaderFieldFocused] = useState<boolean>();
   const [avatarFieldFocused, setAvatarFieldFocused] = useState<boolean>();
   const watchAvatar = watch('avatar');
@@ -41,18 +24,8 @@ export default function ProfileFields() {
   const watchSigilColor = watch('color');
   const isPublicSelected = watch('isContactPublic') === true;
 
-  const normalizeHexToUx = (hex: string) => {
-    const deHashed = hex.replace('#', '');
-    return hexToUx(deHashed);
-  };
-
-  const normalizeUxToHex = (ux: string) => {
-    const hex = uxToHex(ux);
-    return `#${hex}`;
-  };
-  
   const setColor = (newColor: string) => {
-    setValue('color', normalizeHexToUx(newColor), {
+    setValue('color', normalizeUrbitColor(newColor), {
       shouldDirty: true,
       shouldTouch: true,
     });
@@ -64,62 +37,64 @@ export default function ProfileFields() {
         <div className="flex grow flex-col">
           <span className="pb-2 font-bold">Sigil Color</span>
           <div className="flex items-center space-x-2">
-              <div className="relative flex w-full items-baseline">
-                <ColorPicker
-                  color={normalizeUxToHex(watchSigilColor || '0x0')}
-                  setColor={setColor}
-                />
-              </div>
-              {errors.color ? (
-                <span className="text-sm">{errors.color.message}</span>
-              ) : null}
+            <div className="relative flex w-full items-baseline">
+              <ColorPicker
+                color={normalizeUrbitColor(watchSigilColor || '0x0')}
+                setColor={setColor}
+              />
+            </div>
+            {errors.color ? (
+              <span className="text-sm">{errors.color.message}</span>
+            ) : null}
           </div>
         </div>
       </div>
       <div className="flex flex-col">
-        <label htmlFor="headerImage" className="pb-2 font-bold">Overlay Avatar</label>
-          <div className="relative flex w-full items-baseline">
-            <input
-              className={cn('input grow')}
-              onFocus={() => setAvatarFieldFocused(true)}
-              {...register('avatar', {
-                onBlur: () => setAvatarFieldFocused(false),
-                validate: (value) => value && value.length ? isValidUrl(value) : true,
-              })}
-            />
-            {!avatarFieldFocused && !avatarHasLength ? (
-                <div className="pointer-events-none absolute left-[0.5625rem] top-2 flex cursor-pointer items-center">
-                  <LinkIcon className='mr-1 inline h-4 w-4 fill-gray-100' />
-                  <span className="pointer-events-none">
-                    Paste an image URL
-                  </span>
-                </div>
-            ) : null}
-          </div>
-          <div className="mt-1 text-sm font-semibold text-gray-600">
-            Overlay avatars may be hidden by others
-          </div>
+        <label htmlFor="headerImage" className="pb-2 font-bold">
+          Overlay Avatar
+        </label>
+        <div className="relative flex w-full items-baseline">
+          <input
+            className={cn('input grow')}
+            onFocus={() => setAvatarFieldFocused(true)}
+            {...register('avatar', {
+              onBlur: () => setAvatarFieldFocused(false),
+              validate: (value) =>
+                value && value.length ? isValidUrl(value) : true,
+            })}
+          />
+          {!avatarFieldFocused && !avatarHasLength ? (
+            <div className="pointer-events-none absolute left-[0.5625rem] top-2 flex cursor-pointer items-center">
+              <LinkIcon className="mr-1 inline h-4 w-4 fill-gray-100" />
+              <span className="pointer-events-none">Paste an image URL</span>
+            </div>
+          ) : null}
+        </div>
+        <div className="mt-1 text-sm font-semibold text-gray-600">
+          Overlay avatars may be hidden by others
+        </div>
       </div>
       <div className="flex flex-col">
-        <label htmlFor="headerImage" className="pb-2 font-bold">Header</label>
-          <div className="relative flex w-full items-baseline">
-            <input
-              className={cn('input grow')}
-              onFocus={() => setHeaderFieldFocused(true)}
-              {...register('cover', {
-                onBlur: () => setHeaderFieldFocused(false),
-                validate: (value) => value && value.length ? isValidUrl(value) : true,
-              })}
-            />
-            {!headerFieldFocused && !coverHasLength ? (
-                <div className="pointer-events-none absolute left-[0.5625rem] top-2 flex cursor-pointer items-center">
-                  <LinkIcon className='mr-1 inline h-4 w-4 fill-gray-100' />
-                  <span className="pointer-events-none">
-                    Paste an image URL
-                  </span>
-                </div>
-            ) : null}
-          </div>
+        <label htmlFor="headerImage" className="pb-2 font-bold">
+          Header
+        </label>
+        <div className="relative flex w-full items-baseline">
+          <input
+            className={cn('input grow')}
+            onFocus={() => setHeaderFieldFocused(true)}
+            {...register('cover', {
+              onBlur: () => setHeaderFieldFocused(false),
+              validate: (value) =>
+                value && value.length ? isValidUrl(value) : true,
+            })}
+          />
+          {!headerFieldFocused && !coverHasLength ? (
+            <div className="pointer-events-none absolute left-[0.5625rem] top-2 flex cursor-pointer items-center">
+              <LinkIcon className="mr-1 inline h-4 w-4 fill-gray-100" />
+              <span className="pointer-events-none">Paste an image URL</span>
+            </div>
+          ) : null}
+        </div>
       </div>
       <div className="flex flex-col">
         <label htmlFor="nickname" className="pb-2 font-bold">
@@ -169,7 +144,11 @@ export default function ProfileFields() {
           </div>
         </div>
 
-        <input {...register('isContactPublic')} className="sr-only" type="checkbox" />
+        <input
+          {...register('isContactPublic')}
+          className="sr-only"
+          type="checkbox"
+        />
       </label>
     </>
   );
