@@ -247,11 +247,13 @@
     %-  ~(gas by *channels:channel:g)
     %+  murn  ~(tap by om)
     |=  [=md-resource:m-one =association:m-one]
-    ^-  (unit [_flag channel:g])
+    ^-  (unit [nest:g channel:g])
     ?:  =(%groups app-name.md-resource)
       ~
+    ?~  dude=(graph-meta-to-agent metadatum.association)
+      ~
     :-  ~
-    :-  resource.md-resource
+    :-  [u.dude resource.md-resource]
     =/  meta=data:meta
       (old-to-new-meta metadatum.association)
     :*  meta
@@ -271,6 +273,17 @@
   =/  =net:g  pub/log
   =.  groups  (~(put by groups) flag [net group])
   go-abet:go-init:(go-abed:group-core flag) :: setup defaults
+  ::
+  ++  graph-meta-to-agent
+    |=  =metadatum:m-one
+    ^-  (unit dude:gall)
+    ?.  ?=(%graph -.config.metadatum)
+      ~
+    ?+  module.config.metadatum  ~
+      %chat  `%chat
+      %link  `%heap
+      %publish   ~  :: TODO
+    ==
   ::
   ++  old-assoc-to-new-meta
    |=  =association:m-one
