@@ -7,7 +7,7 @@ export default function ChannelSortOptions({
   setSortFn,
 }: Omit<
   ReturnType<typeof useSidebarSort>,
-  'sortFn' | 'sortChannels' | 'sortGroups'
+  'sortFn' | 'sortChannels' | 'sortGroups' | 'sortRecordsBy'
 >) {
   return (
     <DropdownMenu.Content className="dropdown">
