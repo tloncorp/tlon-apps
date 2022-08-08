@@ -24,7 +24,10 @@ export interface BaseContactState {
   contacts: Rolodex;
   isContactPublic: boolean;
   nackedContacts: Set<Patp>;
-  editContactField: (ship: string, contactField: ContactEditField) => Promise<void>;
+  editContactField: (
+    ship: string,
+    contactField: ContactEditField
+  ) => Promise<void>;
   setContactPublic: (isPublic: boolean) => Promise<void>;
   [ref: string]: unknown;
 }
@@ -71,9 +74,7 @@ export const edit = (
     const value = data['edit-field'][field];
     if (field === 'add-group') {
       if (typeof value !== 'string') {
-        state.contacts[ship].groups.push(
-          `${Object.values(value).join('/')}`
-        );
+        state.contacts[ship].groups.push(`${Object.values(value).join('/')}`);
       } else if (!state.contacts[ship].groups.includes(value)) {
         state.contacts[ship].groups.push(value);
       }

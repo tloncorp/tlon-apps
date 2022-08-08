@@ -18,7 +18,7 @@ interface AvatarProps {
   previewData?: {
     previewColor?: string;
     previewAvatar?: string;
-  }
+  };
 }
 
 interface AvatarMeta {
@@ -128,12 +128,13 @@ export default function Avatar({
   size = 'default',
   className,
   icon = true,
-  previewData
+  previewData,
 }: AvatarProps) {
   const currentTheme = useCurrentTheme();
   const contact = useContact(ship);
   const { previewColor, previewAvatar } = previewData ?? {};
-  const previewAvatarIsValid = previewAvatar && previewAvatar !== null && isValidUrl(previewAvatar);
+  const previewAvatarIsValid =
+    previewAvatar && previewAvatar !== null && isValidUrl(previewAvatar);
   const { color, avatar } = contact || emptyContact;
   const { classes, size: sigilSize } = sizeMap[size];
   const adjustedColor = themeAdjustColor(
@@ -151,10 +152,14 @@ export default function Avatar({
 
   if (previewAvatarIsValid) {
     return (
-      <img className={classNames(className, classes)} src={previewAvatar} alt="" />
+      <img
+        className={classNames(className, classes)}
+        src={previewAvatar}
+        alt=""
+      />
     );
-  } 
-  
+  }
+
   if (avatar) {
     return (
       <img className={classNames(className, classes)} src={avatar} alt="" />
