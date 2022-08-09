@@ -4,7 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
-import { useGroup } from '@/state/groups/groups';
+import { useGroup } from '@/state/groups';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import useNavStore from '@/components/Nav/useNavStore';
 import CaretDownIcon from '@/components/icons/CaretDownIcon';
@@ -90,14 +90,16 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
       <ul className={cn(isMobile && 'space-y-3')}>
         {isDefaultSort
           ? sections.map((s) => (
-              <>
+              <div key={s}>
                 {s !== UNZONED ? (
                   <Divider>
                     {s in group.zones ? group.zones[s].meta.title : ''}
                   </Divider>
                 ) : null}
-                {renderChannels(sectionedChannels[s])}
-              </>
+                {s in sectionedChannels
+                  ? renderChannels(sectionedChannels[s])
+                  : null}
+              </div>
             ))
           : renderChannels(unsectionedChannels)}
       </ul>
