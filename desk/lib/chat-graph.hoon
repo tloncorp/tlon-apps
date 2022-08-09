@@ -41,8 +41,8 @@
   ?-  -.con
     %text       text.con
     %mention    `@t`(scot %p ship.con)
-    %url        url.con
-    %code       expression.con
+    %url        [%link [. .]:url.con]
+    %code       [%inline-code expression.con]
     %reference  'elided reference' :: TODO fix?
   ==
 --

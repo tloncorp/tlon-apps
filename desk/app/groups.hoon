@@ -238,7 +238,10 @@
     %+  turn  ~(tap in members.og)
     |=  =ship
     ^-  [_ship vessel:fleet:g]
-    [ship ~ now.bowl]
+    =-  [ship - now.bowl]
+    ?.  (~(has ju tags.og) %admin ship)
+      ~
+    (silt %admin ~)
   =|  cabals=(map sect:g cabal:g)
   =|  zones=(map zone:g realm:zone:g)
   =|  zone-ord=(list zone:g)
