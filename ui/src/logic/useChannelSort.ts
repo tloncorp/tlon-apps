@@ -29,13 +29,7 @@ export default function useChannelSort() {
       b in group['zone-ord']
         ? group['zone-ord'].findIndex((e) => e === b)
         : Number.POSITIVE_INFINITY;
-    if (aIdx < bIdx) {
-      return -1;
-    }
-    if (aIdx > bIdx) {
-      return 1;
-    }
-    return 0;
+    return aIdx - bIdx;
   };
 
   const sortOptions: Record<string, Sorter> = {
