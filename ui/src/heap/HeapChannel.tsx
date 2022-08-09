@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import React, { useCallback, useEffect } from 'react';
+import React, { Suspense, useCallback, useEffect } from 'react';
 import { Outlet } from 'react-router';
 import Layout from '@/components/Layout/Layout';
 import { useVessel } from '@/state/groups/groups';
@@ -11,6 +11,7 @@ import {
 import ChannelHeader from '@/channels/ChannelHeader';
 import { nestToFlag } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
+import HeapBlock from './HeapBlock';
 
 export interface HeapChannelProps {
   flag: string;
@@ -60,18 +61,18 @@ function HeapChannel({ flag, nest }: HeapChannelProps) {
       header={<ChannelHeader flag={flag} nest={nest} />}
     >
       <div className="p-4">
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <input type="url" {...register('url')} placeholder="Enter url" />
-        </form>
-        <ul>
+        <div className="grid grid-cols-1 justify-center justify-items-center gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <input type="url" {...register('url')} placeholder="Enter url" />
+          </form>
           {Array.from(curios)
             .sort(([a], [b]) => b.compare(a))
             .map(([time, curio]) => (
-              <li key={time.toString()}>
-                <img src={(curio.heart.content[0] as string) || ''} />
-              </li>
+              <Suspense key={time.toString()} fallback={<div>Loading...</div>}>
+                <HeapBlock curio={curio} />
+              </Suspense>
             ))}
-        </ul>
+        </div>
       </div>
     </Layout>
   );

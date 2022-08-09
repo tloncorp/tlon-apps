@@ -14,6 +14,7 @@ import {
   Rank,
 } from '@/types/groups';
 import { Heap } from '@/types/heap';
+import { Suspender } from './suspend';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -232,4 +233,41 @@ export function randomElement<T>(a: T[]) {
 
 export function hasKeys(obj: Record<string, unknown>) {
   return Object.keys(obj).length > 0;
+}
+
+export const IMAGE_REGEX =
+  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.webm|\.svg)$/i;
+export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)$/i;
+export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
+
+const isFacebookGraphDependent = (url: string) => {
+  const caseDesensitizedURL = url.toLowerCase();
+  return (
+    caseDesensitizedURL.includes('facebook.com') ||
+    caseDesensitizedURL.includes('instagram.com')
+  );
+};
+
+export const validOembedCheck = (embed: Suspender<any>, url: string) => {
+  if (!isFacebookGraphDependent(url)) {
+    if (
+      !Object.prototype.hasOwnProperty.call(embed, 'error') &&
+      embed.read().html
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+export async function jsonFetch<T>(
+  info: RequestInfo,
+  init?: RequestInit
+): Promise<T> {
+  const res = await fetch(info, init);
+  if (!res.ok) {
+    throw new Error('Bad Fetch Response');
+  }
+  const data = await res.json();
+  return data as T;
 }
