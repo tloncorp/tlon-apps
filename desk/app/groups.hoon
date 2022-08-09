@@ -326,7 +326,7 @@
   ++  scry-meta
     =-  .^(associations:m-one -)
     %^  scry  %gx  %metadata-store
-    `path`[%groups (snoc old-flag-path %noun)]
+    `path`[%group (snoc old-flag-path %noun)]
   --
 
 ++  group-core
