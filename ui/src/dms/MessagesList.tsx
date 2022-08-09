@@ -1,6 +1,7 @@
+import useMessageSort from '@/logic/useMessageSort';
 import cn from 'classnames';
 import React from 'react';
-import useSidebarSort, { RECENT } from '../logic/useSidebarSort';
+import { RECENT } from '../logic/useSidebarSort';
 import { whomIsDm } from '../logic/utils';
 import {
   usePendingDms,
@@ -20,7 +21,7 @@ export default function MessagesList({ filter }: MessagesListProps) {
   const pending = usePendingDms();
   const pendingMultis = usePendingMultiDms();
   const pinned = usePinned();
-  const { sortOptions } = useSidebarSort(RECENT);
+  const { sortOptions } = useMessageSort();
   const briefs = useBriefs();
 
   const allPending = pending.concat(pendingMultis);
