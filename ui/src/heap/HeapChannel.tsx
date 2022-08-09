@@ -12,6 +12,7 @@ import ChannelHeader from '@/channels/ChannelHeader';
 import { nestToFlag } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 import HeapBlock from './HeapBlock';
+import HeapRow from './HeapRow';
 
 export interface HeapChannelProps {
   flag: string;
@@ -23,6 +24,8 @@ interface CurioForm {
 }
 
 function HeapChannel({ flag, nest }: HeapChannelProps) {
+  // naive displayType implementation, we need to figure out where this should live.
+  const [displayType, setDisplayType] = React.useState<'grid' | 'list'>('grid');
   const [app, chFlag] = nestToFlag(nest);
   const curios = useCuriosForHeap(chFlag);
   const perms = useHeapPerms(nest);
@@ -56,23 +59,51 @@ function HeapChannel({ flag, nest }: HeapChannelProps) {
 
   return (
     <Layout
-      className="flex-1 bg-white"
+      className="flex-1 bg-gray-50"
       aside={<Outlet />}
-      header={<ChannelHeader flag={flag} nest={nest} />}
+      header={
+        <ChannelHeader
+          flag={flag}
+          nest={nest}
+          displayType={displayType}
+          setDisplayType={setDisplayType}
+        />
+      }
     >
       <div className="p-4">
-        <div className="grid grid-cols-1 justify-center justify-items-center gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <input type="url" {...register('url')} placeholder="Enter url" />
-          </form>
-          {Array.from(curios)
-            .sort(([a], [b]) => b.compare(a))
-            .map(([time, curio]) => (
-              <Suspense key={time.toString()} fallback={<div>Loading...</div>}>
-                <HeapBlock curio={curio} />
-              </Suspense>
-            ))}
-        </div>
+        {displayType === 'grid' ? (
+          <div className="grid grid-cols-1 justify-center justify-items-center gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <input type="url" {...register('url')} placeholder="Enter url" />
+            </form>
+            {Array.from(curios)
+              .sort(([a], [b]) => b.compare(a))
+              .map(([time, curio]) => (
+                <Suspense
+                  key={time.toString()}
+                  fallback={<div>Loading...</div>}
+                >
+                  <HeapBlock curio={curio} />
+                </Suspense>
+              ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <input type="url" {...register('url')} placeholder="Enter url" />
+            </form>
+            {Array.from(curios)
+              .sort(([a], [b]) => b.compare(a))
+              .map(([time, curio]) => (
+                <Suspense
+                  key={time.toString()}
+                  fallback={<div>Loading...</div>}
+                >
+                  <HeapRow curio={curio} />
+                </Suspense>
+              ))}
+          </div>
+        )}
       </div>
     </Layout>
   );

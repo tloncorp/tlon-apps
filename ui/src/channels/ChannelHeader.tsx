@@ -11,10 +11,13 @@ import useNavStore from '@/components/Nav/useNavStore';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useChannel } from '@/state/groups';
 import { Link } from 'react-router-dom';
+import ListIcon from '@/components/icons/ListIcon';
 
 export interface ChannelHeaderProps {
   flag: string;
   nest: string;
+  displayType?: 'grid' | 'list';
+  setDisplayType?: (displayType: 'grid' | 'list') => void;
 }
 
 function ChannelHeaderButton({
@@ -34,7 +37,12 @@ function ChannelHeaderButton({
   );
 }
 
-export default function ChannelHeader({ flag, nest }: ChannelHeaderProps) {
+export default function ChannelHeader({
+  flag,
+  nest,
+  displayType,
+  setDisplayType,
+}: ChannelHeaderProps) {
   const group = useGroup(flag);
   const { app } = useParams();
   const isMobile = useIsMobile();
@@ -45,7 +53,7 @@ export default function ChannelHeader({ flag, nest }: ChannelHeaderProps) {
   return (
     <div
       className={cn(
-        'flex h-full items-center justify-between border-b-2 border-gray-50 p-2'
+        'flex h-full items-center justify-between border-b-2 border-gray-50 bg-white p-2'
       )}
     >
       <button
@@ -73,13 +81,20 @@ export default function ChannelHeader({ flag, nest }: ChannelHeaderProps) {
         </div>
       </button>
 
-      {app === 'heap' ? (
+      {app === 'heap' && displayType && setDisplayType ? (
         <div className="flex items-center space-x-12">
           <div className="flex items-center space-x-2">
-            <ChannelHeaderButton onClick={() => console.log('toggle grid')}>
-              <GridIcon className="-m-1 h-8 w-8" />
-              <span className="font-semibold">Grid</span>
-            </ChannelHeaderButton>
+            {displayType === 'grid' ? (
+              <ChannelHeaderButton onClick={() => setDisplayType('list')}>
+                <GridIcon className="-m-1 h-8 w-8" />
+                <span className="font-semibold">Grid</span>
+              </ChannelHeaderButton>
+            ) : (
+              <ChannelHeaderButton onClick={() => setDisplayType('grid')}>
+                <ListIcon className="-m-1 h-8 w-8" />
+                <span className="font-semibold">List</span>
+              </ChannelHeaderButton>
+            )}
             <ChannelHeaderButton onClick={() => console.log('toggle sort')}>
               <SortIcon className="h-6 w-6" />
               <span className="font-semibold">Sort</span>
