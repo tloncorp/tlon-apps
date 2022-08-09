@@ -1,0 +1,18 @@
+import React from 'react';
+import { IconProps } from './icon';
+
+export default function NotebookIcon({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+    >
+      <path
+        className="fill-current"
+        d="M4 4V3H3V4H4ZM4 19H3V20H4V19ZM7 22C7 22.5523 7.44772 23 8 23C8.55228 23 9 22.5523 9 22H7ZM11.5 8.5C10.9477 8.5 10.5 8.94772 10.5 9.5C10.5 10.0523 10.9477 10.5 11.5 10.5V8.5ZM15.5 10.5C16.0523 10.5 16.5 10.0523 16.5 9.5C16.5 8.94772 16.0523 8.5 15.5 8.5V10.5ZM3 4V19H5V4H3ZM18 6V17H20V6H18ZM4 5H8V3H4V5ZM8 5H17V3H8V5ZM17 18H8V20H17V18ZM8 18H4V20H8V18ZM7 4V19H9V4H7ZM7 19V22H9V19H7ZM11.5 10.5H15.5V8.5H11.5V10.5ZM18 17C18 17.5523 17.5523 18 17 18V20C18.6569 20 20 18.6569 20 17H18ZM20 6C20 4.34315 18.6569 3 17 3V5C17.5523 5 18 5.44772 18 6H20Z"
+      />
+    </svg>
+  );
+}

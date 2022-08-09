@@ -6,7 +6,7 @@ import CaretDownIcon from '../icons/CaretDownIcon';
 
 type SidebarSorterProps = Omit<
   ReturnType<typeof useSidebarSort>,
-  'sortChannels' | 'sortGroups'
+  'sortChannels' | 'sortGroups' | 'sortRecordsBy'
 > & {
   isMobile: boolean;
 };

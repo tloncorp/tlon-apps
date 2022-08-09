@@ -1,23 +1,23 @@
 /* eslint-disable import/no-extraneous-dependencies */
+import React from 'react';
 import { createChannel, createMockGroup } from '@/mocks/groups';
 import { Group } from '@/types/groups';
-import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render } from '../../../test/utils';
-import ChannelIndex from './ChannelIndex';
+import ChannelList from './ChannelList';
 
+const fakeFlag = '~zod/tlon';
 const fakeGroup: Group = createMockGroup('Fake Group');
-fakeGroup.channels[`chat/~zod/tlon`] = createChannel('Fake Channel');
+fakeGroup.channels[fakeFlag] = createChannel('Fake Channel');
 
 vi.mock('@/state/groups', () => ({
   useGroup: () => fakeGroup,
-  useRouteGroup: () => null,
-  useAmAdmin: () => true,
+  useRouteGroup: () => fakeFlag,
 }));
 
-describe('ChannelIndex', () => {
+describe('ChannelList', () => {
   it('renders as expected', () => {
-    const { asFragment } = render(<ChannelIndex />);
+    const { asFragment } = render(<ChannelList flag={fakeFlag} />);
     expect(asFragment()).toMatchSnapshot();
   });
 });

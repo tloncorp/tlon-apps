@@ -9,10 +9,10 @@ import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
-import useSidebarSort from '@/logic/useSidebarSort';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import { usePinnedGroups } from '@/state/chat';
 import { hasKeys } from '@/logic/utils';
+import useGroupSort from '@/logic/useGroupSort';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
@@ -22,7 +22,7 @@ export default function Sidebar() {
   // TODO: get notification count from hark store
   const notificationCount = 0;
 
-  const { sortFn, setSortFn, sortOptions, sortGroups } = useSidebarSort();
+  const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const groups = useGroups();
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);

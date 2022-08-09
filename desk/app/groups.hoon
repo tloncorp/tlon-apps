@@ -1,4 +1,6 @@
 /-  g=groups
+/-  g-one=group
+/-  m-one=metadata-store
 /-  meta
 /+  default-agent, verb, dbug
 /+  groups-json  :: unused, nice for perf
@@ -81,6 +83,12 @@
   ?+    mark  ~|(bad-mark/mark !!)
       %holt  (holt |)
   ::
+      %group-import
+    =+  !<(=flag:g vase)
+    ?>  &(=(our.bowl p.flag) =(src our):bowl)
+    (group-import flag)
+
+  ::
       %group-leave
     =+  !<(=flag:g vase)
     ?<  =(our.bowl p.flag)
@@ -99,7 +107,7 @@
       [fleet ~ ~ ~ ~ ~ cordon.create title.create description.create image.create color.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
-    go-abet:(go-init:(go-abed:group-core flag) create)
+    go-abet:go-init:(go-abed:group-core flag)
   ::
       %group-action  
     =+  !<(=action:g vase)
@@ -131,7 +139,7 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ?+  pole  ~|(bad-watch/path !!)
+  ?+  pole  ~|(bad-watch/pole !!)
   ::
     [%groups %ui ~]       cor
     [%groups ~]           cor
@@ -218,6 +226,112 @@
     =/  cage  group-invite+!>(`invite:g`[flag ship])
     =/  line  `wire`/gangs/(scot %p p.flag)/[q.flag]/invite
     [%pass line %agent [ship dap.bowl] %poke cage]
+::
+++  group-import
+  |=  =flag:g
+  |^
+  =/  =net:g  pub/~
+  =/  og=group:g-one  (need scry-group)
+  =/  om=associations:m-one  scry-meta
+  =/  =fleet:g
+    %-  ~(gas by *fleet:g)
+    %+  turn  ~(tap in members.og)
+    |=  =ship
+    ^-  [_ship vessel:fleet:g]
+    =-  [ship - now.bowl]
+    ?.  (~(has ju tags.og) %admin ship)
+      ~
+    (silt %admin ~)
+  =|  cabals=(map sect:g cabal:g)
+  =|  zones=(map zone:g realm:zone:g)
+  =|  zone-ord=(list zone:g)
+  =|  bloc=(set sect:g)  :: admin perms set up in +go-init at end
+  =/  =channels:channel:g
+    %-  ~(gas by *channels:channel:g)
+    %+  murn  ~(tap by om)
+    |=  [=md-resource:m-one =association:m-one]
+    ^-  (unit [nest:g channel:g])
+    ?:  =(%groups app-name.md-resource)
+      ~
+    ?~  dude=(graph-meta-to-agent metadatum.association)
+      ~
+    :-  ~
+    :-  [u.dude resource.md-resource]
+    =/  meta=data:meta
+      (old-to-new-meta metadatum.association)
+    :*  meta
+        added=date-created.metadatum.association
+        zone=~
+        join=|
+        readers=~
+    ==
+  =/  =cordon:g  (policy-to-cordon policy.og)
+  =/  meta=data:meta
+    =-  (fall - [(crip "{(scow %p p.flag)}/{(scow %ta q.flag)}") '' '' ''])
+    (bind (~(get by om) [%groups flag]) old-assoc-to-new-meta)
+  =/  =group:g
+    [fleet cabals zones zone-ord bloc channels cordon meta]
+  =|  =log:g
+  =.  log     (put:log-on:g log now.bowl create/group)
+  =/  =net:g  pub/log
+  =.  groups  (~(put by groups) flag [net group])
+  go-abet:go-init:(go-abed:group-core flag) :: setup defaults
+  ::
+  ++  graph-meta-to-agent
+    |=  =metadatum:m-one
+    ^-  (unit dude:gall)
+    ?.  ?=(%graph -.config.metadatum)
+      ~
+    ?+  module.config.metadatum  ~
+      %chat  `%chat
+      %link  `%heap
+      %publish   ~  :: TODO
+    ==
+  ::
+  ++  old-assoc-to-new-meta
+   |=  =association:m-one
+   (old-to-new-meta metadatum.association)
+  ::
+  ++  old-to-new-meta
+    |=  =metadatum:m-one
+    ^-  data:meta
+    =,(metadatum [title description picture (scot %ux color)])
+  ::
+  ++  policy-to-cordon
+    |=  =policy:g-one
+    ^-  cordon:g
+    ?-    -.policy
+        %open
+      [%open banned ban-ranks]:policy
+    ::
+        %invite
+      [%shut pending.policy]
+    ==
+  ::
+  ++  scry
+    |=  [care=@tas =dude:gall =path]
+    ^+  path
+    :*  care
+        (scot %p our.bowl)
+        dude
+        (scot %da now.bowl)
+        path
+    ==
+  ::
+  ++  old-flag-path
+    `path`/ship/(scot %p p.flag)/[q.flag]
+  ::
+  ++  scry-group
+    =-  .^((unit group:g-one) -)
+    %^  scry  %gx  %group-store
+    `path`[%groups (snoc old-flag-path %noun)]
+  ::
+  ++  scry-meta
+    =-  .^(associations:m-one -)
+    %^  scry  %gx  %metadata-store
+    `path`[%group (snoc old-flag-path %noun)]
+  --
+
 ++  group-core
   |_  [=flag:g =net:g =group:g gone=_|]
   ++  go-core  .
@@ -276,11 +390,10 @@
   ++  go-leave
     =.  cor  (emit leave:go-pass)
     =.  cor  (emit remove-self:go-pass)
-    =.  cor  (emit %give %fact ~[/groups/ui] group-leave+!>(flag))
+    =.  cor  (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
     go-core(gone &)
   ::
   ++  go-init  
-    |=  =create:g
     =|  our=vessel:fleet:g
     =.  sects.our  (~(put in sects.our) %admin)
     =.  fleet.group  (~(put by fleet.group) our.bowl our)
@@ -336,6 +449,9 @@
     ^-  (unit (unit cage))
     :-  ~
     ?+    pole  ~
+        [%fleet %ships ~]
+      `ships+!>(~(key by fleet.group))
+      ::
         [%fleet ship=@ %vessel ~]
       =/  src  (slav %p ship.pole)
       `noun+!>((~(got by fleet.group) src))
@@ -424,9 +540,9 @@
     =.  net  [%sub time] 
     =/  create=diff:g  [%create group]
     =.  cor  
-      (give %fact ~[/groups/ui] group-action+!>(`action:g`[flag now.bowl create]))
+      (give %fact ~[/groups /groups/ui] group-action+!>(`action:g`[flag now.bowl create]))
     =.  cor
-      (give %fact ~[/groups/ui] gang-gone+!>(flag))
+      (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
     =.  cor
       (emil join-pinned:go-pass)
     go-core
@@ -444,7 +560,7 @@
     =.  cor
       (give %fact ~(tap in paths) group-update+!>(`update:g`[time diff]))
     =.  cor
-      (give %fact ~[/groups/ui] group-action+!>(`action:g`[flag time diff]))
+      (give %fact ~[/groups /groups/ui] group-action+!>(`action:g`[flag time diff]))
     go-core
   ::
   ++  go-tell-update
