@@ -406,6 +406,7 @@
     =.  zones.group
       %+  ~(put by zones.group)  %$
       [['Sectionless' '' '' ''] ~]
+    =.  zone-ord.group  (~(into of zone-ord.group) %$)
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
   ++  go-start-sub
