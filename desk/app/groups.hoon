@@ -798,10 +798,18 @@
     =*  by-ch  ~(. by channels.group)
     ?-    -.diff
         %add
+      =/  =zone:g  zone.channel.diff
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone
+        |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
       =.  channels.group  (put:by-ch ch channel.diff)
       go-core
     ::
         %del
+      =/  =channel:g   (got:by-ch ch)
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone.channel
+        |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  channels.group  (del:by-ch ch)
       go-core
     ::
@@ -820,6 +828,9 @@
     ::
         %zone
       =/  =channel:g  (got:by-ch ch)
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone.channel
+        |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  zone.channel   zone.diff
       =.  channels.group  (put:by-ch ch channel)
       =/  =realm:zone:g  (~(got by zones.group) zone.diff)
