@@ -77,12 +77,16 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       if ('add' in d) {
         group.channels[nest] = d.add;
       } else if ('del' in d) {
+        const { zone } = group.channels[nest];
+        group.zones[zone || 'sectionless'].idx = group.zones[
+          zone || 'sectionless'
+        ].idx.filter((n) => n !== nest);
         delete group.channels[nest];
       } else if ('add-zone' in d) {
-        group.zones[group.channels[nest].zone || 'sectionless'].idx =
-          group.zones[group.channels[nest].zone || 'sectionless'].idx.filter(
-            (n) => n !== nest
-          );
+        const oldZone = group.channels[nest].zone || 'sectionless';
+        group.zones[oldZone].idx = group.zones[oldZone].idx.filter(
+          (n) => n !== nest
+        );
         group.channels[nest].zone = d['add-zone'];
         group.zones[d['add-zone']].idx.splice(0, 0, nest);
       } else if ('del-zone' in d) {

@@ -200,7 +200,7 @@ export default function AdminChannelListDropContext({
 
         useGroupState
           .getState()
-          .moveZone(group, result.source.draggableId, destination.index);
+          .moveZone(group, result.draggableId, destination.index);
         const newOrder = reorder(
           orderedSections,
           source.index,
