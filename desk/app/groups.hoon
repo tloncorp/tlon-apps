@@ -262,7 +262,7 @@
       (old-to-new-meta metadatum.association)
     :*  meta
         added=date-created.metadatum.association
-        zone=~
+        zone=%$
         join=|
         readers=~
     ==
@@ -403,6 +403,9 @@
       %+  ~(put by cabals.group)  %admin
       :_  ~
       ['Admin' 'Admins can add and remove channels and edit metadata' '' '']
+    =.  zones.group
+      %+  ~(put by zones.group)  %$
+      [['Sectionless' '' '' ''] ~]
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
   ++  go-start-sub
@@ -607,6 +610,8 @@
       go-core
     ::
         %del
+      ~|  %cant-delete-default-zone
+      ?<  =(%$ zone) 
       =.  zones.group  
         (~(del by zones.group) zone)
       =.  zone-ord.group
@@ -614,7 +619,7 @@
       =.  channels.group
         %-  ~(run by channels.group)
         |=  =channel:g
-        channel(zone ?:(=(`zone zone.channel) ~ zone.channel))
+        channel(zone ?:(=(zone zone.channel) %$ zone.channel))
       go-core
     ::
         %edit
@@ -813,23 +818,13 @@
       ::  TODO: revoke?
       go-core
     ::
-        %add-zone
+        %zone
       =/  =channel:g  (got:by-ch ch)
-      =.  zone.channel   `zone.diff
+      =.  zone.channel   zone.diff
       =.  channels.group  (put:by-ch ch channel)
       =/  =realm:zone:g  (~(got by zones.group) zone.diff)
-      =.  ord.realm  [ch ord.realm]
+      =.  ord.realm  (~(push of ord.realm) ch)
       =.  zones.group  (~(put by zones.group) zone.diff realm)
-      go-core
-    ::
-        %del-zone
-      =/  =channel:g  (got:by-ch ch)
-      =/  =zone:g  (need zone.channel)
-      =/  =realm:zone:g  (~(got by zones.group) zone)
-      =.  ord.realm  (skim ord.realm |=(=nest:g !=(ch nest)))
-      =.  zones.group  (~(put by zones.group) zone realm) 
-      =.  zone.channel   ~
-      =.  channels.group  (put:by-ch ch channel)
       go-core
     ::
         %join

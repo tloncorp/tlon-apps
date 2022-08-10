@@ -110,8 +110,7 @@
       %add                      (channel channel.d)
       %del                      ~
       ?(%add-sects %del-sects)  a/(turn ~(tap in sects.d) (lead %s))
-      %add-zone                 s/zone.d
-      %del-zone                 ~
+      %zone                 s/zone.d
       %join                     b/join.d
     ==
   ::
@@ -238,7 +237,7 @@
     :~  meta/(meta meta.ch)
         added/(time added.ch)
         readers/a/(turn ~(tap in readers.ch) (lead %s))
-        zone/?~(zone.ch ~ s/u.zone.ch)
+        zone/s/zone.ch
         join/b/join.ch
     ==
   ::
@@ -352,8 +351,7 @@
         del/ul
         add-sects/(as sym)
         del-sects/(as sym)
-        add-zone/sym
-        del-zone/ul
+        zone/sym
         join/bo
     ==
   ::
@@ -361,7 +359,7 @@
     %-  ot
     :~  meta/meta
         added/di
-        zone/(mu (se %tas))
+        zone/(se %tas)
         join/bo
         readers/(as sym)
     ==
