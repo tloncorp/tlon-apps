@@ -201,13 +201,35 @@ interface ZoneAdd {
   delta: { add: GroupMeta };
 }
 
+interface ZoneEdit {
+  zone: Zone;
+  delta: { edit: GroupMeta };
+}
+
+interface ZoneMoveChannel {
+  zone: Zone;
+  delta: {
+    'mov-nest': {
+      nest: string;
+      index: number;
+    };
+  };
+}
+
+interface MoveZone {
+  zone: Zone;
+  delta: {
+    mov: number;
+  };
+}
+
 interface ZoneDelete {
   zone: Zone;
   delta: { del: null };
 }
 
 interface ZoneDiff {
-  zone: ZoneAdd | ZoneDelete;
+  zone: ZoneAdd | ZoneDelete | ZoneEdit | ZoneMoveChannel | MoveZone;
 }
 
 export interface MetaDiff {

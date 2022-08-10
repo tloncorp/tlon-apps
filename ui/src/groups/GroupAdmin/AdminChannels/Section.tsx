@@ -80,12 +80,15 @@ export default function Section({
                   <SectionNameEditInput
                     handleEditingChange={handleEditingChange}
                     sectionTitle={sectionData.title}
+                    isNew={sectionData.isNew}
                     onSectionEditNameSubmit={onSectionEditNameSubmit}
                     channels={sectionData.channels}
                     sectionKey={sectionKey}
                   />
                 ) : (
-                  <h2 className="text-lg font-semibold">{sectionData.title}</h2>
+                  <h2 className="alt-highlight text-lg font-semibold">
+                    {sectionData.title}
+                  </h2>
                 )}
               </div>
               {isSectionless || isEditing ? null : (

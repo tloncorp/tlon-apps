@@ -40,7 +40,7 @@ export default function EditChannelForm({
   const channelFlag = flag.join('/');
   const chat = useChat(channelFlag || '');
   const defaultValues: ChannelFormSchema = {
-    zone: channel.zone || null,
+    zone: channel.zone || 'sectionless',
     added: channel.added || Date.now(),
     readers: channel.readers || [],
     join: channel.join || false,

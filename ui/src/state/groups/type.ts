@@ -49,6 +49,8 @@ export interface GroupState {
   join: (flag: string, joinAll: boolean) => Promise<void>;
   reject: (flag: string) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
+  editZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
+  moveZone: (flag: string, zone: string, index: number) => Promise<void>;
   deleteZone: (flag: string, zone: string) => Promise<void>;
   editChannel: (
     groupFlag: string,
@@ -62,6 +64,12 @@ export interface GroupState {
     nest: string
   ) => Promise<void>;
   removeChannelFromZone: (groupFlag: string, nest: string) => Promise<void>;
+  moveChannel: (
+    flag: string,
+    zone: string,
+    channelFlag: string,
+    index: number
+  ) => Promise<void>;
   setChannelPerm: (
     flag: string,
     nest: string,

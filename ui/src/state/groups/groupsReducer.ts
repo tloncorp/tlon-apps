@@ -79,8 +79,17 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       } else if ('del' in d) {
         delete group.channels[nest];
       } else if ('add-zone' in d) {
+        group.zones[group.channels[nest].zone || 'sectionless'].idx =
+          group.zones[group.channels[nest].zone || 'sectionless'].idx.filter(
+            (n) => n !== nest
+          );
         group.channels[nest].zone = d['add-zone'];
+        group.zones[d['add-zone']].idx.splice(0, 0, nest);
       } else if ('del-zone' in d) {
+        group.zones[group.channels[nest].zone || 'sectionless'].idx =
+          group.zones[group.channels[nest].zone || 'sectionless'].idx.filter(
+            (n) => n !== nest
+          );
         group.channels[nest].zone = null;
       } else if ('add-sects' in d) {
         group.channels[nest].readers = [
@@ -114,8 +123,18 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       if ('add' in d) {
         // TODO: what should `idx` be populated with?
         group.zones[f] = { meta: d.add, idx: [] };
+        group['zone-ord'].splice(1, 0, f);
       } else if ('del' in d) {
         delete group.zones[f];
+        group['zone-ord'] = group['zone-ord'].filter((nest) => nest !== f);
+      } else if ('mov-nest' in d) {
+        group.zones[f].idx = group.zones[f].idx.filter(
+          (nest) => nest !== d['mov-nest'].nest
+        );
+        group.zones[f].idx.splice(d['mov-nest'].index, 0, d['mov-nest'].nest);
+      } else if ('mov' in d) {
+        group['zone-ord'] = group['zone-ord'].filter((zone) => zone !== f);
+        group['zone-ord'].splice(d.mov, 0, f);
       }
     } else {
       // console.log('unreachable');

@@ -278,7 +278,7 @@ export function createChannel(title: string) {
     added: 1657774188151,
     join: false,
     readers: [],
-    zone: null,
+    zone: 'sectionless',
   };
 }
 
@@ -286,7 +286,7 @@ for (let i = 0; i < 20; i += 1) {
   const group = createMockGroup(faker.company.companyName());
 
   for (let j = 0; j < 20; j += 1) {
-    group.channels[`~zod/tlon${i}${j}`] = createChannel(faker.company.bs());
+    group.channels[`~zod/tlon${i}${j}`] = createChannel(j.toString());
   }
 
   mockGroups[`~zod/tlon${i}`] = group;

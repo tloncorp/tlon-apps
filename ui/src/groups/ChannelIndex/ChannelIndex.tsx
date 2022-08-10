@@ -17,7 +17,7 @@ import useRequestState from '@/logic/useRequestState';
 import ChannelIcon from '@/channels/ChannelIcon';
 import useChannelSections from '@/logic/useChannelSections';
 
-const UNZONED = '';
+const UNZONED = 'sectionless';
 
 function GroupChannel({
   channel,
@@ -214,7 +214,7 @@ function ChannelSection({
 
   return (
     <>
-      {sectionTitle !== UNZONED ? (
+      {zone !== UNZONED ? (
         <div className="py-4 font-semibold text-gray-400">{sectionTitle}</div>
       ) : null}
       <ul>
