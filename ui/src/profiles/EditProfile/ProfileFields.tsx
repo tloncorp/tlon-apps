@@ -15,8 +15,8 @@ export default function ProfileFields() {
   const { register, watch, setValue, formState } =
     useFormContext<ProfileFormSchema>();
   const { errors } = formState;
-  const [headerFieldFocused, setHeaderFieldFocused] = useState<boolean>();
-  const [avatarFieldFocused, setAvatarFieldFocused] = useState<boolean>();
+  const [headerFieldFocused, setHeaderFieldFocused] = useState<boolean>(false);
+  const [avatarFieldFocused, setAvatarFieldFocused] = useState<boolean>(false);
   const watchAvatar = watch('avatar');
   const watchCover = watch('cover');
   const avatarHasLength = watchAvatar?.length;
