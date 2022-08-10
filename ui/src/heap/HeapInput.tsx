@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
 import { intersection } from 'lodash';
 import { useForm } from 'react-hook-form';
@@ -8,7 +8,7 @@ import { useHeapPerms, useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import { isValidUrl, nestToFlag } from '@/logic/utils';
 import { useRouteGroup, useVessel } from '@/state/groups';
-import { GRID, HeapDisplayMode } from './HeapTypes';
+import { GRID, HeapDisplayMode, LIST } from './HeapTypes';
 
 interface HeapInputProps {
   displayType: HeapDisplayMode;
@@ -24,7 +24,10 @@ type InputMode = typeof LINK | typeof TEXT;
 
 export default function HeapInput({ displayType }: HeapInputProps) {
   const [inputMode, setInputMode] = useState<InputMode>(LINK);
+  const isGridMode = displayType === GRID;
+  const isListMode = displayType === LIST;
   const isLinkMode = inputMode === LINK;
+  const isTextMode = inputMode === TEXT;
   const flag = useRouteGroup();
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
@@ -64,49 +67,58 @@ export default function HeapInput({ displayType }: HeapInputProps) {
     return null;
   }
 
+  const modeToggle = () => (
+    <div className={cn('flex', isGridMode && 'p-1')}>
+      <button
+        className={cn(
+          isLinkMode ? 'button' : 'secondary-button',
+          isListMode && 'max-w-[120px] rounded-bl-none',
+          'flex-1 rounded-r-none'
+        )}
+        onClick={() => setInputMode(LINK)}
+      >
+        <LinkIcon className="mr-1 h-4 w-4" />
+        <span className="ml-1">Link</span>
+      </button>
+      <button
+        className={cn(
+          isTextMode ? 'button' : 'secondary-button',
+          isListMode && 'max-w-[120px] rounded-br-none',
+          'flex-1 rounded-l-none'
+        )}
+        onClick={() => setInputMode(TEXT)}
+      >
+        <TextIcon className="mr-1 h-4 w-4" />
+        <span className="ml-1">Text</span>
+      </button>
+    </div>
+  );
+
   return (
-    <div
-      className={cn(
-        displayType === GRID ? 'heap-block' : 'heap-row',
-        'flex cursor-auto flex-col'
-      )}
-    >
-      <div className="flex p-1">
-        <button
-          className={cn(
-            isLinkMode ? 'button' : 'secondary-button',
-            'flex-1 rounded-r-none'
-          )}
-          onClick={() => setInputMode(LINK)}
-        >
-          <LinkIcon className="mr-1 h-4 w-4" />
-          <span className="ml-1">Link</span>
-        </button>
-        <button
-          className={cn(
-            inputMode === TEXT ? 'button' : 'secondary-button',
-            'flex-1 rounded-l-none'
-          )}
-          onClick={() => setInputMode(TEXT)}
-        >
-          <TextIcon className="mr-1 h-4 w-4" />
-          <span className="ml-1">Text</span>
-        </button>
+    <div>
+      {isListMode ? modeToggle() : null}
+      <div
+        className={cn(
+          isGridMode ? 'heap-block flex-col' : 'heap-row flex-row',
+          'flex cursor-auto'
+        )}
+      >
+        {isGridMode ? modeToggle() : null}
+        <form onSubmit={handleSubmit(onSubmit)} className="relative flex-1 p-1">
+          <textarea
+            autoFocus
+            {...register('content')}
+            className="h-full w-full resize-none rounded-lg bg-gray-50 p-1 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
+            placeholder={`${isLinkMode ? 'Paste Link' : 'Enter Text'} Here`}
+          />
+          <input
+            value="Post"
+            type="submit"
+            className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
+            disabled={!isValidInput}
+          />
+        </form>
       </div>
-      <form onSubmit={handleSubmit(onSubmit)} className="relative flex-1 p-1">
-        <textarea
-          autoFocus
-          {...register('content')}
-          className="h-full w-full resize-none rounded-lg bg-gray-50 p-1 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
-          placeholder={`${isLinkMode ? 'Paste Link' : 'Enter Text'} Here`}
-        />
-        <input
-          value="Post"
-          type="submit"
-          className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
-          disabled={!isValidInput}
-        />
-      </form>
     </div>
   );
 }
