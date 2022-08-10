@@ -12,12 +12,18 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import { usePinnedGroups } from '@/state/chat';
 import { hasKeys } from '@/logic/utils';
+import { useOurContact } from '@/state/contact';
+import ShipName from '@/components/ShipName';
+import Avatar from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const pendingInvites = usePendingInvites();
+  const contact = useOurContact();
+  const currentShip = window.ship;
+
   const pendingInvitesCount = pendingInvites.length;
   // TODO: get notification count from hark store
   const notificationCount = 0;
@@ -35,6 +41,13 @@ export default function Sidebar() {
   return (
     <nav className="flex h-full w-64 flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex w-full flex-col px-2 pt-2">
+        {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
+        <SidebarItem
+          icon={<Avatar size="xs" ship={window.our} />}
+          to={'/profile/edit'}
+        >
+          <ShipName showAlias name={window.our} />
+        </SidebarItem>
         <SidebarItem
           icon={<ActivityIndicator count={notificationCount} />}
           to={`/notifications`}

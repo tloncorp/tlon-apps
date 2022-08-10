@@ -5,7 +5,7 @@ import { deSig, Contact, cite } from '@urbit/api';
 import _ from 'lodash';
 import { darken, lighten, parseToHsla } from 'color2k';
 import { useCurrentTheme } from '../state/local';
-import { normalizeUrbitColor } from '../logic/utils';
+import { normalizeUrbitColor, isValidUrl } from '../logic/utils';
 import { useContact } from '../state/contact';
 
 export type AvatarSizes = 'xs' | 'small' | 'default' | 'huge';
@@ -15,6 +15,10 @@ interface AvatarProps {
   size?: AvatarSizes;
   className?: string;
   icon?: boolean;
+  previewData?: {
+    previewColor?: string;
+    previewAvatar?: string;
+  };
 }
 
 interface AvatarMeta {
@@ -126,13 +130,17 @@ export default function Avatar({
   size = 'default',
   className,
   icon = true,
+  previewData,
 }: AvatarProps) {
   const currentTheme = useCurrentTheme();
   const contact = useContact(ship);
+  const { previewColor, previewAvatar } = previewData ?? {};
+  const previewAvatarIsValid =
+    previewAvatar && previewAvatar !== null && isValidUrl(previewAvatar);
   const { color, avatar } = contact || emptyContact;
   const { classes, size: sigilSize } = sizeMap[size];
   const adjustedColor = themeAdjustColor(
-    normalizeUrbitColor(color),
+    normalizeUrbitColor(previewColor || color),
     currentTheme
   );
   const foregroundColor = foregroundFromBackground(adjustedColor);
@@ -143,6 +151,17 @@ export default function Avatar({
     adjustedColor,
     foregroundColor
   );
+
+  if (previewAvatarIsValid) {
+    return (
+      <img
+        className={classNames(className, classes)}
+        src={previewAvatar}
+        alt=""
+      />
+    );
+  }
+
   if (avatar) {
     return (
       <img className={classNames(className, classes)} src={avatar} alt="" />
