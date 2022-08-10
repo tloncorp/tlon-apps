@@ -11,7 +11,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useChannel } from '@/state/groups';
 import { Link } from 'react-router-dom';
 import ListIcon from '@/components/icons/ListIcon';
-import ChannelIcon from './ChannelIcon';
+import ChannelIcon from '@/channels/ChannelIcon';
 
 export interface ChannelHeaderProps {
   flag: string;
