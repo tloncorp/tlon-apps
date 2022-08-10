@@ -179,7 +179,7 @@ const mockGroupOne: Group = {
     },
   },
   channels: {
-    '~dev/test': {
+    'chat/~dev/test': {
       meta: {
         title: 'Watercooler',
         description: 'watering hole',
@@ -232,10 +232,22 @@ const mockGroupTwo: Group = {
     },
   },
   channels: {
-    '~zod/test': {
+    'chat/~zod/test': {
       meta: {
         title: 'Milady',
         description: 'Milady maker chatroom',
+        image: '',
+        color: '',
+      },
+      added: 1657774188151,
+      join: true,
+      readers: [],
+      zone: null,
+    },
+    'heap/~zod/testHeap': {
+      meta: {
+        title: 'Milady Collection',
+        description: 'Milady maker collection',
         image: '',
         color: '',
       },
