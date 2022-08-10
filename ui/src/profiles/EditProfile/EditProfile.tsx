@@ -30,6 +30,58 @@ const emptyContact = {
   isContactPublic: true,
 };
 
+const onFormSubmit = (
+  values: ProfileFormSchema,
+  contact: Contact | undefined,
+  selectedGroups: GroupOption[],
+  ship: string
+) => {
+  if (!contact) {
+    return;
+  }
+
+  Object.entries(values as ProfileFormSchema).forEach((formValue) => {
+    const [key, value] = formValue;
+    const newValue = key !== 'color' ? value : uxToHex(value.replace('#', ''));
+    if (value !== contact[key as keyof Contact]) {
+      if (key === 'isContactPublic') {
+        useContactState.getState().setContactPublic(newValue);
+      } else if (key === 'groups') {
+        const toRemove: string[] = _.difference(
+          contact?.groups || [],
+          selectedGroups.map((group) => `/ship/${group.value}`)
+        );
+        const toAdd: string[] = _.difference(
+          selectedGroups.map((group) => `/ship/${group.value}`),
+          contact?.groups || []
+        );
+        toRemove.forEach((i) => {
+          const groupFlag = i.replace('/ship/', '');
+          const group = {
+            name: groupFlag.split('/')[1],
+            ship: groupFlag.split('/')[0] || '',
+          };
+          useContactState
+            .getState()
+            .editContactField(ship, { 'remove-group': group });
+        });
+        toAdd.forEach((i) => {
+          const groupFlag = i.replace('/ship/', '');
+          const group = {
+            name: groupFlag.split('/')[1],
+            ship: groupFlag.split('/')[0] || '',
+          };
+          useContactState
+            .getState()
+            .editContactField(ship, { 'add-group': group });
+        });
+      } else {
+        useContactState.getState().editContactField(ship, { [key]: newValue });
+      }
+    }
+  });
+};
+
 function EditProfileContent() {
   const [allGroups, setAllGroups] = useState<GroupOption[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<GroupOption[]>([]);
@@ -69,51 +121,7 @@ function EditProfileContent() {
 
   const onSubmit = useCallback(
     (values: ProfileFormSchema) => {
-      if (!contact) {
-        return;
-      }
-
-      Object.entries(values as ProfileFormSchema).forEach((formValue) => {
-        const [key, value] = formValue;
-        const newValue =
-          key !== 'color' ? value : uxToHex(value.replace('#', ''));
-        if (value !== contact[key as keyof Contact]) {
-          if (key === 'isContactPublic') {
-            useContactState.getState().setContactPublic(newValue);
-          } else if (key === 'groups') {
-            const toRemove: string[] = _.difference(
-              contact?.groups || [],
-              selectedGroups.map((group) => `/ship/${group.value}`)
-            );
-            const toAdd: string[] = _.difference(
-              selectedGroups.map((group) => `/ship/${group.value}`),
-              contact?.groups || []
-            );
-            toRemove.forEach((i) => {
-              const group = {
-                name: i.split('/')[1],
-                ship: i.split('/')[0] || '',
-              };
-              useContactState
-                .getState()
-                .editContactField(ship, { 'remove-group': group });
-            });
-            toAdd.forEach((i) => {
-              const group = {
-                name: i.split('/')[1],
-                ship: i.split('/')[0] || '',
-              };
-              useContactState
-                .getState()
-                .editContactField(ship, { 'add-group': group });
-            });
-          } else {
-            useContactState
-              .getState()
-              .editContactField(ship, { [key]: newValue });
-          }
-        }
-      });
+      onFormSubmit(values, contact, selectedGroups, ship);
     },
     [contact, selectedGroups, ship]
   );
@@ -123,15 +131,9 @@ function EditProfileContent() {
     setSelectedGroups(newSelectedGroups);
   };
 
-  const onRemoveGroupClick = useCallback(
-    (groupFlag: string) => {
-      const newSelectedGroups = selectedGroups.filter(
-        (groupItem) => groupItem.value !== groupFlag
-      );
-      setSelectedGroups(newSelectedGroups);
-    },
-    [selectedGroups]
-  );
+  const onRemoveGroupClick = useCallback((groupFlag: string) => {
+    setSelectedGroups((gs) => gs.filter((g) => g.value !== groupFlag));
+  }, []);
 
   const avatarPreviewData = {
     previewColor: form.watch('color') || emptyContact.color,
@@ -167,7 +169,7 @@ function EditProfileContent() {
           onSubmit={form.handleSubmit(onSubmit)}
         >
           <ProfileFields />
-          <label htmlFor="nickname" className="mt-2 pb-2 font-bold">
+          <label htmlFor="groups" className="mt-2 pb-2 font-bold">
             Favorite Groups
           </label>
           <GroupSelector
@@ -193,7 +195,7 @@ function EditProfileContent() {
               type="button"
               className="secondary-button"
               disabled={!form.formState.isDirty}
-              onClick={() => form.reset}
+              onClick={() => form.reset()}
             >
               Reset
             </button>

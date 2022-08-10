@@ -102,7 +102,7 @@ export default function ProfileFields() {
         </label>
         <input
           // TODO: set sane maxLength
-          {...register('nickname', { required: true, maxLength: 180 })}
+          {...register('nickname', { maxLength: 180 })}
           className="input"
           type="text"
           placeholder="Name"

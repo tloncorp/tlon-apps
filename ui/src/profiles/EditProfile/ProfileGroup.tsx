@@ -18,12 +18,13 @@ export default function ProfileGroup({
       <span className="p-1 font-semibold">
         {group ? group.meta.title : groupFlag}
       </span>
-      <div
+      <button
         className="flex h-full cursor-pointer items-center rounded bg-gray-100 pr-1"
+        aria-label="Remove"
         onClick={() => onRemoveGroupClick(groupFlag)}
       >
         <X16Icon className="h-4 text-gray-300" />
-      </div>
+      </button>
     </div>
   );
 }

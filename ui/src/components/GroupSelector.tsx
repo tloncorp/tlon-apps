@@ -170,7 +170,7 @@ function SingleGroupLabel({ data }: { data: GroupOption }) {
   const { value } = data;
   return (
     <div className="flex h-6 items-center rounded bg-gray-100">
-      <ShipName name={value} showAlias className="py-1 px-2 font-semibold" />
+      <span className="py-1 px-2 font-semibold">{value}</span>
     </div>
   );
 }
@@ -179,7 +179,7 @@ function GroupTagLabel({ data }: { data: GroupOption }) {
   const { value } = data;
   return (
     <div className="flex h-6 items-center rounded-l bg-gray-100">
-      <ShipName name={value} showAlias className="p-1 font-semibold" />
+      <span className="p-1 font-semibold">{value}</span>
     </div>
   );
 }
@@ -429,7 +429,7 @@ export default function GroupSelector({
             padding: '0px 8px',
           }),
         }}
-        aria-label="Ships"
+        aria-label="Groups"
         options={slicedOptions}
         value={groups}
         // @ts-expect-error this error is irrelevant
@@ -508,7 +508,7 @@ export default function GroupSelector({
           padding: '0px 8px',
         }),
       }}
-      aria-label="Ships"
+      aria-label="Groups"
       options={slicedOptions}
       value={groups}
       onChange={onChange}
