@@ -4,6 +4,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  groups-json  :: unused, nice for perf
+/+  of
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -602,14 +603,14 @@
         %add
       =/  =realm:zone:g  [meta.delta ~]
       =.  zones.group    (~(put by zones.group) zone realm)
-      =.  zone-ord.group  [zone zone-ord.group]
+      =.  zone-ord.group  (~(push of zone-ord.group) zone)
       go-core
     ::
         %del
       =.  zones.group  
         (~(del by zones.group) zone)
       =.  zone-ord.group
-        (skim zone-ord.group |=(z=zone:g !=(zone z)))
+        (~(del of zone-ord.group) zone)
       =.  channels.group
         %-  ~(run by channels.group)
         |=  =channel:g
@@ -625,15 +626,14 @@
     ::
         %mov
       =.  zone-ord.group
-        %+  into  (skim zone-ord.group |=(z=zone:g !=(zone z)))
-        [idx.delta zone]
+        (~(into of zone-ord.group) idx.delta zone)
       go-core
     ::
         %mov-nest
       =/  =realm:zone:g  (~(got by zones.group) zone)
+      ?>  (~(has of ord.realm) nest.delta)
       =.  ord.realm  
-        %+  into  (skim ord.realm |=(=nest:g !=(nest nest.delta)))
-        [idx nest]:delta
+        (~(into of ord.realm) [idx nest]:delta)
       =.  zones.group    (~(put by zones.group) zone realm)
       go-core
     ==
@@ -837,7 +837,6 @@
       =.  join.channel  join.diff
       =.  channels.group  (put:by-ch ch channel)
       go-core
-    ::
     ==
   --
 ::
