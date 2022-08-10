@@ -1,18 +1,14 @@
 import React from 'react';
+import { ChatInline, ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
-  ChatInline,
-  ChatBlock,
-  ChatMessage,
   isBlockquote,
   isBold,
   isBreak,
-  isChatImage,
   isInlineCode,
   isItalics,
   isLink,
   isStrikethrough,
-  ChatStory,
-} from '../../types/chat';
+} from '@/types/content';
 import ChatContentImage from './ChatContentImage';
 
 interface ChatContentProps {

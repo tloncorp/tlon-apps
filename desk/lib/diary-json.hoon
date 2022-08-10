@@ -96,11 +96,11 @@
     ^-  json
     %+  frond  -.verse
     ?-  -.verse
-        %block  (block +.verse)
-        %inline  (inline +.verse)
+        %block  (block p.verse)
+        %inline  a+(turn p.verse inline)
     ==
   ++  block
-    |=  b=block:c
+    |=  b=block:d
     ^-  json
     %+  frond  -.b
     ?-  -.b
@@ -245,14 +245,15 @@
     ==
   ::
   ++  verse
+    ^-  $-(json verse:d)
     %-  of
     :~  block/block
-        inline/inline
+        inline/(ar inline)
     ==
   ::
   ++  block
     |=  j=json
-    ^-  block:c
+    ^-  block:d
     %.  j
     %-  of
     :~

@@ -42,6 +42,7 @@ import JoinGroupModal from '@/groups/Join/JoinGroupModal';
 import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import { useHeapState } from './state/heap/heap';
+import { useDiaryState } from './state/diary';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -172,6 +173,8 @@ function App() {
       useGroupState.getState().start();
       useChatState.getState().start();
       useHeapState.getState().start();
+      useDiaryState.getState().start();
+
       useChatState.getState().fetchDms();
       const { initialize: settingsInitialize, fetchAll } =
         useSettingsState.getState();

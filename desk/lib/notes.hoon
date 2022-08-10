@@ -44,8 +44,9 @@
     (put:on:notes:d not now [seal p.del])
   ::
       %del
-    ?.  (has:on:notes:d time)  not
-    (del:on:notes:d not time)
+    =^  no=(unit note:d)  not
+      (del:on:notes:d not time)
+    not
   ::
       %add-feel
     %+  jab  time

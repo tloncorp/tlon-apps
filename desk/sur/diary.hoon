@@ -47,7 +47,7 @@
   --
 +$  note  [seal essay]
 +$  quip  [seal memo]
-+$  
+::
 +$  seal
   $:  =time
       feels=(map ship feel)
@@ -66,8 +66,8 @@
       sent=time
   ==
 +$  verse  
-  $%  [%block block]
-      [%inline (list inline)]
+  $%  [%block p=block]
+      [%inline p=(list inline)]
   ==
 +$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]

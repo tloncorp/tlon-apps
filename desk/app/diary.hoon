@@ -324,7 +324,7 @@
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
     ?:  (di-can-read:di ship)  di
-    he(cor (emit %give %kick ~[path] `ship))
+    di(cor (emit %give %kick ~[path] `ship))
   ::
   ++  di-take-update
     |=  =sign:agent:gall
@@ -466,29 +466,31 @@
     di-core
   ::
   ++  di-update
-    |=  [=time d=diff:d]
+    |=  [=time dif=diff:d]
     ?>  di-can-write
     ^+  di-core
     =.  log.diary
-      (put:log-on:d log.diary time d)
+      (put:log-on:d log.diary time dif)
     =.  di-core
-      (di-give-updates time d)
-    ?-    -.d
+      (di-give-updates time dif)
+    ?-    -.dif
         %notes
-      di-core(notes.diary (reduce:di-notes time p.d))
+      di-core(notes.diary (reduce:di-notes time p.dif))
+        %quips
+      di-core
     ::
         %add-sects
       =*  p  perm.diary
-      =.  writers.p  (~(uni in writers.p) p.d)
+      =.  writers.p  (~(uni in writers.p) p.dif)
       di-core
     ::
         %del-sects
       =*  p  perm.diary
-      =.  writers.p  (~(dif in writers.p) p.d)
+      =.  writers.p  (~(dif in writers.p) p.dif)
       di-core
     ::
         %create
-      =.  perm.diary  p.d
+      =.  perm.diary  p.dif
       di-core
     ==
   --
