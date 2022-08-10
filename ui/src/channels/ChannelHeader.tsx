@@ -1,7 +1,6 @@
 import cn from 'classnames';
 import React from 'react';
 import { useParams } from 'react-router';
-import BubbleIcon from '@/components/icons/BubbleIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import GridIcon from '@/components/icons/GridIcon';
@@ -12,6 +11,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useChannel } from '@/state/groups';
 import { Link } from 'react-router-dom';
 import ListIcon from '@/components/icons/ListIcon';
+import ChannelIcon from './ChannelIcon';
 
 export interface ChannelHeaderProps {
   flag: string;
@@ -69,8 +69,7 @@ export default function ChannelHeader({
         ) : null}
         <div className="flex items-center space-x-3">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-gray-50">
-            {/* TODO: Channel Type icons */}
-            <BubbleIcon className="h-4 w-4 text-gray-400" />
+            <ChannelIcon nest={nest} className="h-4 w-4 text-gray-400" />
           </div>
           <div className="flex flex-col items-start text-left">
             <span className="text-sm font-medium text-gray-600">
