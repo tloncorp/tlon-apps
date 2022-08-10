@@ -5,6 +5,8 @@
 /+  chat-json
 /+  pac=dm
 /+  ch=chat-hark
+/+  gra=graph-store
+/+  mig=chat-graph
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -106,6 +108,9 @@
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
       %holt  (holt |)
+      %graph-import
+    (import-graph !<([flag:g flag:g graph:gra] vase))
+  ::
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
@@ -189,6 +194,21 @@
     |=  ps=(list whom:c)
     =.  pins  ps
     cor
+  ::
+  ++  import-graph
+    |=  [grp=flag:g =flag:g =graph:gra]
+    ^+  cor
+    =/  =pact:c  (convert:mig graph)
+    =/  =net:c   pub/~
+    =|  =remark:c
+    =/  =perm:c  `grp
+    =/  =diff:c  create/[perm `pact]
+    =|  =log:c
+    =.  log  (put:log-on:c log now.bowl diff)
+    =/  =chat:c
+      [net remark log perm pact]
+    =.  chats  (~(put by chats) flag chat)
+    cor  :: TODO: initialise? 
   --
 ++  watch
   |=  =path
@@ -603,7 +623,7 @@
     =/  =perm:c  [writers.req group.req]
     =.  cor
       (give-brief flag/flag ca-brief)
-    =.  ca-core  (ca-update now.bowl %create perm)
+    =.  ca-core  (ca-update now.bowl %create perm ~)
     (add-channel:ca-pass req)
   ::
   ++  ca-agent

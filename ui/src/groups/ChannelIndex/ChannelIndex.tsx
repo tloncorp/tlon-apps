@@ -1,12 +1,10 @@
 /* eslint-disable no-console */
-import { groupBy } from 'lodash';
 import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { GroupChannel, Zone } from '@/types/groups';
-import BubbleIcon from '@/components/icons/BubbleIcon';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
@@ -16,6 +14,8 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import PencilIcon from '@/components/icons/PencilIcon';
 import useRequestState from '@/logic/useRequestState';
+import ChannelIcon from '@/channels/ChannelIcon';
+import useChannelSections from '@/logic/useChannelSections';
 
 const UNZONED = '';
 
@@ -26,7 +26,7 @@ function GroupChannel({
   nest: string;
   channel: GroupChannel;
 }) {
-  const [app, flag] = nestToFlag(nest);
+  const [_app, flag] = nestToFlag(nest);
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useBriefs();
@@ -107,8 +107,7 @@ function GroupChannel({
       >
         <div className="flex flex-row">
           <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
-            {/* TODO: Channel Type icons */}
-            <BubbleIcon className="h-6 w-6 text-gray-400" />
+            <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
           </div>
           <div className="flex flex-col justify-evenly">
             {joined && nest ? (
@@ -229,24 +228,9 @@ function ChannelSection({
 
 export default function ChannelIndex() {
   const flag = useRouteGroup();
-  const group = useGroup(flag);
+  const { sectionedChannels, sections } = useChannelSections(flag);
   const navigate = useNavigate();
   const isAdmin = useAmAdmin(flag);
-
-  if (!group) {
-    return null;
-  }
-
-  const zones = [UNZONED, ...group['zone-ord']];
-  const sectionedChannels = groupBy(
-    Object.entries(group.channels),
-    ([, ch]) => ch.zone
-  );
-  // unsectioned channels have zone 'null' after groupBy; replace with empty str
-  if ('null' in sectionedChannels) {
-    sectionedChannels[UNZONED] = sectionedChannels.null;
-    delete sectionedChannels.null;
-  }
 
   return (
     <section className="w-full p-4">
@@ -261,14 +245,16 @@ export default function ChannelIndex() {
           </button>
         ) : null}
       </div>
-      {zones.map((zone) => (
+      {sections.map((section) => (
         <div
-          key={zone}
+          key={section}
           className="mb-2 w-full rounded-xl bg-white py-1 pl-4 pr-2"
         >
           <ChannelSection
-            channels={sectionedChannels[zone] || []}
-            zone={zone}
+            channels={
+              section in sectionedChannels ? sectionedChannels[section] : []
+            }
+            zone={section}
           />
         </div>
       ))}

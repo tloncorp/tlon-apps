@@ -1,8 +1,8 @@
 import React from 'react';
-import useSidebarSort from '@/logic/useSidebarSort';
 import { usePinnedGroups } from '@/state/chat';
 import { hasKeys } from '@/logic/utils';
 import { useGroups } from '@/state/groups/groups';
+import useGroupSort from '@/logic/useGroupSort';
 import useNavStore from '../Nav/useNavStore';
 import SidebarSorter from './SidebarSorter';
 import NavTab from '../NavTab';
@@ -16,7 +16,7 @@ export default function MobileSidebar() {
   // TODO: get notification count from hark store
   const notificationCount = 0;
 
-  const { sortFn, setSortFn, sortOptions, sortGroups } = useSidebarSort();
+  const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const groups = useGroups();
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);
