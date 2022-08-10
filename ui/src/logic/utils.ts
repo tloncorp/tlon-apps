@@ -239,6 +239,7 @@ export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.webm|\.svg)$/i;
 export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)$/i;
 export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
+export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
 
 const isFacebookGraphDependent = (url: string) => {
   const caseDesensitizedURL = url.toLowerCase();
