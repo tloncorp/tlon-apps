@@ -103,7 +103,7 @@ function GroupItem({ data, ...props }: OptionProps<GroupOption, true>) {
   return (
     <components.Option data={data} className="hover:cursor-pointer" {...props}>
       <div className="flex items-center space-x-1">
-        <GroupAvatar image={group?.meta.image} color={group?.meta.color} />
+        <GroupAvatar {...group?.meta} className="mr-2" />
         {label ? (
           <span className="font-semibold">{label}</span>
         ) : (
@@ -158,7 +158,7 @@ function SingleValueGroupTagLabelContainer({
             // @ts-expect-error we passed an extra prop to selectProps
             onClick={props.selectProps.handleEnter}
           >
-            Enter
+            Add to Favorites
           </button>
         ) : null}
       </div>

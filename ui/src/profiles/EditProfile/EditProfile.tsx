@@ -122,8 +122,9 @@ function EditProfileContent() {
   const onSubmit = useCallback(
     (values: ProfileFormSchema) => {
       onFormSubmit(values, contact, selectedGroups, ship);
+      form.reset(values);
     },
-    [contact, selectedGroups, ship]
+    [contact, selectedGroups, ship, form]
   );
 
   const onEnter = (values: GroupOption[]) => {
@@ -165,29 +166,30 @@ function EditProfileContent() {
           </div>
         </div>
         <form
-          className="card mb-4 space-y-4"
+          className="card mb-4 flex flex-col space-y-6"
           onSubmit={form.handleSubmit(onSubmit)}
         >
           <ProfileFields />
-          <label htmlFor="groups" className="mt-2 pb-2 font-bold">
-            Favorite Groups
-          </label>
-          <GroupSelector
-            groups={allGroups}
-            onEnter={onEnter}
-            setGroups={setAllGroups}
-            isMulti={false}
-            isValidNewOption={(value) => groupFlags.includes(value)}
-          />
-
-          <div className="flex flex-wrap space-x-2">
-            {selectedGroups.map((group) => (
-              <ProfileGroup
-                key={group.value}
-                groupFlag={group.value}
-                onRemoveGroupClick={onRemoveGroupClick}
-              />
-            ))}
+          <div className="flex flex-col space-y-2">
+            <label htmlFor="groups" className="font-bold">
+              Favorite Groups
+            </label>
+            <GroupSelector
+              groups={allGroups}
+              onEnter={onEnter}
+              setGroups={setAllGroups}
+              isMulti={false}
+              isValidNewOption={(value) => groupFlags.includes(value)}
+            />
+            <div className="flex flex-wrap space-x-2 pt-2">
+              {selectedGroups.map((group) => (
+                <ProfileGroup
+                  key={group.value}
+                  groupFlag={group.value}
+                  onRemoveGroupClick={onRemoveGroupClick}
+                />
+              ))}
+            </div>
           </div>
 
           <footer className="flex items-center justify-end space-x-2">

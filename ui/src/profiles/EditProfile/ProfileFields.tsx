@@ -116,11 +116,12 @@ export default function ProfileFields() {
           // TODO: set sane maxLength
           {...register('bio', { maxLength: 1000 })}
           className="input"
+          placeholder="Add a bio"
         />
       </div>
       <label
         className={
-          'flex cursor-pointer items-center justify-between space-x-2 py-2'
+          'flex cursor-pointer items-start justify-between space-x-2 py-2'
         }
       >
         <div className="flex items-center">
@@ -134,7 +135,7 @@ export default function ProfileFields() {
         </div>
 
         <div className="flex w-full flex-col">
-          <div className="flex flex-row items-center space-x-2">
+          <div className="flex flex-row space-x-2">
             <div className="flex w-full flex-col justify-start text-left">
               <span className="font-semibold">Make Profile Private</span>
               <span className="text-sm text-gray-600">

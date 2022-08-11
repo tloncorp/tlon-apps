@@ -48,7 +48,12 @@ export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
     <Tooltip.Root>
       <Tooltip.Trigger asChild>
         <div onClick={onGroupClick} className="cursor-pointer">
-          <GroupAvatar image={data.image} color={data.color} size="h-14 w-14" />
+          <GroupAvatar
+            {...group?.meta}
+            image={data.image}
+            color={data.color}
+            size="h-14 w-14"
+          />
         </div>
       </Tooltip.Trigger>
       <Tooltip.Content

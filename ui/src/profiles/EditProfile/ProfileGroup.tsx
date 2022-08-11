@@ -14,16 +14,16 @@ export default function ProfileGroup({
   const group = useGroup(groupFlag);
 
   return (
-    <div className="my-2 flex h-6 items-center rounded bg-gray-100">
-      <span className="p-1 font-semibold">
+    <div className="flex h-8 items-center space-x-2 rounded-md bg-gray-50 px-4">
+      <span className="font-semibold">
         {group ? group.meta.title : groupFlag}
       </span>
       <button
-        className="flex h-full cursor-pointer items-center rounded bg-gray-100 pr-1"
+        className="flex h-full cursor-pointer items-center rounded pr-0"
         aria-label="Remove"
         onClick={() => onRemoveGroupClick(groupFlag)}
       >
-        <X16Icon className="h-4 text-gray-300" />
+        <X16Icon className="h-4 w-4 text-gray-300" />
       </button>
     </div>
   );

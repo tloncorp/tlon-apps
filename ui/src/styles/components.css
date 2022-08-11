@@ -3,7 +3,7 @@
 }
 
 .secondary-button {
-  @apply inline-flex items-center justify-center rounded-lg bg-gray-50 py-2 px-4 text-lg font-semibold leading-4 text-gray-800 mix-blend-multiply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 dark:mix-blend-screen sm:text-base;
+  @apply inline-flex items-center justify-center rounded-lg bg-gray-50 py-2 px-4 text-lg font-semibold leading-4 text-gray-800 mix-blend-multiply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-50 disabled:text-gray-400 dark:mix-blend-screen sm:text-base;
 }
 
 .small-button {
