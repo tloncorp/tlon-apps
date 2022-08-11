@@ -12,14 +12,19 @@ import { decToUd, udToDec, unixToDa } from '@urbit/api';
 
 import _ from 'lodash';
 import bigInt from 'big-integer';
-import mockGroups, { createMockIndex, mockGangs, pinnedGroups } from './groups';
+import heapHandlers from '@/mocks/heaps';
+import mockGroups, {
+  createMockIndex,
+  mockGangs,
+  pinnedGroups,
+} from '@/mocks/groups';
 import {
   makeFakeChatWrits,
   chatKeys,
   dmList,
   pendingDMs,
   pinnedDMs,
-} from './chat';
+} from '@/mocks/chat';
 import {
   ChatBriefs,
   ChatDiff,
@@ -31,9 +36,9 @@ import {
   DmRsvp,
   Pins,
   WritDiff,
-} from '../types/chat';
-import { GroupAction } from '../types/groups';
-import mockContacts from './contacts';
+} from '@/types/chat';
+import { GroupAction } from '@/types/groups';
+import mockContacts from '@/mocks/contacts';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 
@@ -101,6 +106,14 @@ const settingsSub = {
   app: 'settings-store',
   path: '/desk/homestead',
 } as SubscriptionHandler;
+
+const settingsPoke: PokeHandler = {
+  action: 'poke',
+  app: 'settings-store',
+  mark: 'settings-action',
+  returnSubscription: settingsSub,
+  dataResponder: (req: Message & Poke<any>) => createResponse(req),
+};
 
 const contactSub = {
   action: 'subscribe',
@@ -628,6 +641,7 @@ const clubHandlers: Handler[] = [
 const mockHandlers: Handler[] = (
   [
     settingsSub,
+    settingsPoke,
     contactSub,
     contactNacksSub,
     {
@@ -643,6 +657,6 @@ const mockHandlers: Handler[] = (
       }),
     },
   ] as Handler[]
-).concat(groups, chat, dms, newerChats, olderChats, clubHandlers);
+).concat(groups, chat, dms, newerChats, olderChats, clubHandlers, heapHandlers);
 
 export default mockHandlers;

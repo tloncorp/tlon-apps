@@ -262,7 +262,7 @@
       (old-to-new-meta metadatum.association)
     :*  meta
         added=date-created.metadatum.association
-        zone=%$
+        zone=%default
         join=|
         readers=~
     ==
@@ -404,8 +404,9 @@
       :_  ~
       ['Admin' 'Admins can add and remove channels and edit metadata' '' '']
     =.  zones.group
-      %+  ~(put by zones.group)  %$
+      %+  ~(put by zones.group)  %default
       [['Sectionless' '' '' ''] ~]
+    =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
   ++  go-start-sub
@@ -611,7 +612,7 @@
     ::
         %del
       ~|  %cant-delete-default-zone
-      ?<  =(%$ zone) 
+      ?<  =(%default zone) 
       =.  zones.group  
         (~(del by zones.group) zone)
       =.  zone-ord.group
@@ -619,7 +620,7 @@
       =.  channels.group
         %-  ~(run by channels.group)
         |=  =channel:g
-        channel(zone ?:(=(zone zone.channel) %$ zone.channel))
+        channel(zone ?:(=(zone zone.channel) %default zone.channel))
       go-core
     ::
         %edit

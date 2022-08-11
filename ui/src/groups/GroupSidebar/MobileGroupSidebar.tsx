@@ -64,6 +64,7 @@ export default function MobileGroupSidebar() {
             <NavTab loc="group">
               <GroupAvatar
                 {...group?.meta}
+                size="h-6 w-6"
                 className={cn('mb-0.5', secondary !== 'group' && 'opacity-50')}
               />
               Group
