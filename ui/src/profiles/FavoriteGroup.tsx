@@ -10,9 +10,11 @@ interface FavoriteGroupProps {
 }
 
 export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
-  const group = useGroup(groupFlag);
+  // contact-store prepends "/ship/" to each group flag added to it, which is the correct URL path in groups 1, but not here
+  const noShipGroupFlag = groupFlag.replace('/ship/', '');
+  const group = useGroup(noShipGroupFlag);
   const location = useLocation();
-  const gang = useGang(groupFlag);
+  const gang = useGang(noShipGroupFlag);
   const navigate = useNavigate();
   const modalNavigate = useModalNavigate();
 
@@ -34,9 +36,9 @@ export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
 
   const onGroupClick = () => {
     if (group) {
-      navigate(`/groups/${groupFlag}`);
+      navigate(`/groups/${noShipGroupFlag}`);
     } else {
-      modalNavigate(`/gangs/${groupFlag}`, {
+      modalNavigate(`/gangs/${noShipGroupFlag}`, {
         state: { backgroundLocation: location },
       });
     }
@@ -53,7 +55,7 @@ export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
         side="bottom"
         className="rounded bg-white p-2 font-semibold drop-shadow-md"
       >
-        {data.title && data.title.length ? data.title : groupFlag}
+        {data.title && data.title.length ? data.title : noShipGroupFlag}
       </Tooltip.Content>
     </Tooltip.Root>
   );
