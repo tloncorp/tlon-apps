@@ -138,6 +138,7 @@ export default function AdminChannelListDropContext({
         destination.droppableId === 'sectionless'
           ? ''
           : destination.droppableId;
+
       const current = [...sectionMap[sourceSectionLocator].channels];
       const next = [...sectionMap[destinationSectionLocator].channels];
       const target = current[source.index];
