@@ -84,3 +84,11 @@
 .switch-thumb[data-state='checked'] {
   @apply translate-x-2;
 }
+
+.heap-block {
+  @apply relative inline-block h-[245px] w-[245px] cursor-pointer overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat shadow;
+}
+
+.heap-row {
+  @apply flex h-14 w-full items-center justify-between space-x-2 rounded-lg bg-white;
+}
