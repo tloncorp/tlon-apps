@@ -17,8 +17,9 @@ export default function Channels({
   isNew,
   onChannelDelete,
 }: ChannelsProps) {
+  const droppableId = listId === '' ? 'sectionless' : listId;
   return (
-    <Droppable isDropDisabled={isNew} droppableId={listId} type="CHANNELS">
+    <Droppable isDropDisabled={isNew} droppableId={droppableId} type="CHANNELS">
       {(provided) => (
         <div {...provided.droppableProps}>
           <div ref={provided.innerRef}>

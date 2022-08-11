@@ -63,7 +63,6 @@ export interface GroupState {
     groupFlag: string,
     nest: string
   ) => Promise<void>;
-  removeChannelFromZone: (groupFlag: string, nest: string) => Promise<void>;
   moveChannel: (
     flag: string,
     zone: string,

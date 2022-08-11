@@ -10,7 +10,7 @@ import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
-import { GroupFormSchema, GroupMeta } from '@/types/groups';
+import { GroupFormSchema } from '@/types/groups';
 import { useStep } from 'usehooks-ts';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
@@ -73,17 +73,8 @@ export default function NewGroup() {
             shut: [],
           };
 
-    const sectionlessMeta: GroupMeta = {
-      title: 'Sectionless',
-      image: '',
-      color: '',
-      description: '',
-    };
     await useGroupState.getState().create({ ...values, name, members, cordon });
     const flag = `${window.our}/${name}`;
-    await useGroupState
-      .getState()
-      .createZone(flag, 'sectionless', sectionlessMeta);
     navigate(`/groups/${flag}`);
   }, [shipsToInvite, navigate, form]);
 

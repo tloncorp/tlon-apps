@@ -17,7 +17,7 @@ import useRequestState from '@/logic/useRequestState';
 import ChannelIcon from '@/channels/ChannelIcon';
 import useChannelSections from '@/logic/useChannelSections';
 
-const UNZONED = 'sectionless';
+const UNZONED = '';
 
 function GroupChannel({
   channel,

@@ -317,18 +317,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
       channel: {
         nest,
         diff: {
-          'add-zone': zone,
-        },
-      },
-    };
-    await api.poke(groupAction(flag, diff));
-  },
-  removeChannelFromZone: async (flag, nest) => {
-    const diff = {
-      channel: {
-        nest,
-        diff: {
-          'del-zone': null,
+          zone,
         },
       },
     };

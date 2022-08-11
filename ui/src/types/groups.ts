@@ -124,11 +124,7 @@ interface ChannelDiffDel {
 }
 
 interface ChannelDiffAddZone {
-  'add-zone': string;
-}
-
-interface ChannelDiffDelZone {
-  'del-zone': null;
+  zone: string;
 }
 
 interface ChannelDiffAddSects {
@@ -150,7 +146,6 @@ interface ChannelDiff {
       | ChannelDiffAdd
       | ChannelDiffDel
       | ChannelDiffAddZone
-      | ChannelDiffDelZone
       | ChannelDiffAddSects
       | ChannelDiffDelSects
       | ChannelDiffJoin;

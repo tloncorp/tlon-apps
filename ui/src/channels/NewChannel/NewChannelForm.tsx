@@ -69,10 +69,6 @@ export default function NewChannelForm() {
         await useGroupState
           .getState()
           .addChannelToZone(section, groupFlag, newChannelNest);
-      } else {
-        await useGroupState
-          .getState()
-          .addChannelToZone('sectionless', groupFlag, newChannelNest);
       }
 
       navigate(channelHref(groupFlag, newChannelNest));

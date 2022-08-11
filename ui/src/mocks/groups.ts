@@ -144,7 +144,17 @@ export function createMockGroup(title: string): Group {
         'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.6.14..18.37.11-Icon Box.png',
       color: '',
     },
-    zones: {},
+    zones: {
+      '': {
+        meta: {
+          title: 'sectionless',
+          color: '',
+          image: '',
+          description: '',
+        },
+        idx: [],
+      },
+    },
     bloc: [],
     'zone-ord': [],
   };
@@ -204,7 +214,17 @@ const mockGroupOne: Group = {
     image: '',
     color: '',
   },
-  zones: {},
+  zones: {
+    '': {
+      meta: {
+        title: 'sectionless',
+        color: '',
+        image: '',
+        description: '',
+      },
+      idx: ['/chat/~dev/test'],
+    },
+  },
   bloc: [],
   'zone-ord': [],
 };
@@ -278,7 +298,7 @@ export function createChannel(title: string) {
     added: 1657774188151,
     join: false,
     readers: [],
-    zone: 'sectionless',
+    zone: '',
   };
 }
 
@@ -286,7 +306,8 @@ for (let i = 0; i < 20; i += 1) {
   const group = createMockGroup(faker.company.companyName());
 
   for (let j = 0; j < 20; j += 1) {
-    group.channels[`~zod/tlon${i}${j}`] = createChannel(j.toString());
+    group.channels[`/chat/~zod/tlon${i}${j}`] = createChannel(j.toString());
+    group.zones[''].idx.push(`/chat/~zod/tlon${i}${j}`);
   }
 
   mockGroups[`~zod/tlon${i}`] = group;
