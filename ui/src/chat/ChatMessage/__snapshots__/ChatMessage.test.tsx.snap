@@ -247,6 +247,55 @@ exports[`ChatMessage > renders as expected 1`] = `
             </svg>
           </button>
         </div>
+        <div
+          class="group-two relative cursor-pointer"
+        >
+          <div
+            class="z-2 pointer-events-none absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
+          >
+            <div
+              class="hidden w-fit cursor-none rounded bg-gray-400 px-4 py-2 group-two-hover:block"
+            >
+              <label
+                class="whitespace-nowrap font-semibold text-white"
+              >
+                Delete
+              </label>
+            </div>
+            <div>
+              <svg
+                fill="none"
+                height="8"
+                viewBox="0 0 17 8"
+                width="17"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
+                  fill="#999999"
+                />
+              </svg>
+            </div>
+          </div>
+          <button
+            aria-label="Delete"
+            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50"
+          >
+            <svg
+              class="h-6 w-6 text-red"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="stroke-current"
+                d="m12 12 6-6m-6 6L6 6m6 6-6 6m6-6 6 6"
+                stroke-linecap="round"
+                stroke-width="2"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
       <div
         class="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100"

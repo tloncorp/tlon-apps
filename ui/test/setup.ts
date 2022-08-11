@@ -15,13 +15,23 @@ Object.defineProperty(global, 'ResizeObserver', {
     observe: vi.fn(),
     unobserve: vi.fn(),
     disconnect: vi.fn(),
-  }))
-})
+  })),
+});
+
+Object.defineProperty(window, 'ship', {
+  writable: true,
+  value: 'finned-palmer',
+});
+
+Object.defineProperty(window, 'our', {
+  writable: true,
+  value: '~finned-palmer',
+});
 
 // This prevents vite from failing when testing media queries that use matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation(query => ({
+  value: vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -31,4 +41,4 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
-})
+});
