@@ -10,7 +10,7 @@ import {
   VIDEO_REGEX,
 } from '@/logic/utils';
 import { useEmbed } from '@/logic/embed';
-import { formatDistanceToNow, formatRelative } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function HeapRow({ curio }: { curio: HeapCurio }) {
   const { content, sent } = curio.heart;
@@ -35,7 +35,7 @@ export default function HeapRow({ curio }: { curio: HeapCurio }) {
       case isAudio:
         return 'Audio';
       case isUrl:
-        return 'Link';
+        return 'URL';
       default:
         return 'Text';
     }
