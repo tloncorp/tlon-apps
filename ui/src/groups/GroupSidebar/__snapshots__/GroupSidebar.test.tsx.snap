@@ -48,9 +48,13 @@ exports[`GroupSidebar > renders as expected 1`] = `
               type="button"
             >
               <div
-                class="rounded h-6 w-6"
-                style="background: rgb(245, 245, 245);"
-              />
+                class="rounded h-6 w-6 text-sm flex items-center justify-center rounded-md"
+                style="background-color: rgb(245, 245, 245);"
+              >
+                <span
+                  style="color: black;"
+                />
+              </div>
               <div
                 class="max-w-full flex-1 truncate text-left"
               />
