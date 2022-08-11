@@ -116,6 +116,7 @@ export default function ProfileFields() {
           // TODO: set sane maxLength
           {...register('bio', { maxLength: 1000 })}
           className="input"
+          placeholder="Add a bio"
         />
       </div>
       <label

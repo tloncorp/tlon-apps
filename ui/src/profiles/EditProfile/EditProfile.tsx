@@ -166,7 +166,7 @@ function EditProfileContent() {
           </div>
         </div>
         <form
-          className="card mb-4 flex flex-col space-y-4"
+          className="card mb-4 flex flex-col space-y-6"
           onSubmit={form.handleSubmit(onSubmit)}
         >
           <ProfileFields />
@@ -181,8 +181,7 @@ function EditProfileContent() {
               isMulti={false}
               isValidNewOption={(value) => groupFlags.includes(value)}
             />
-
-            <div className="flex flex-wrap space-x-2">
+            <div className="flex flex-wrap space-x-2 pt-2">
               {selectedGroups.map((group) => (
                 <ProfileGroup
                   key={group.value}
