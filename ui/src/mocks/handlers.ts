@@ -107,6 +107,14 @@ const settingsSub = {
   path: '/desk/homestead',
 } as SubscriptionHandler;
 
+const settingsPoke: PokeHandler = {
+  action: 'poke',
+  app: 'settings-store',
+  mark: 'settings-action',
+  returnSubscription: settingsSub,
+  dataResponder: (req: Message & Poke<any>) => createResponse(req),
+};
+
 const contactSub = {
   action: 'subscribe',
   app: 'contact-store',
@@ -633,6 +641,7 @@ const clubHandlers: Handler[] = [
 const mockHandlers: Handler[] = (
   [
     settingsSub,
+    settingsPoke,
     contactSub,
     contactNacksSub,
     {
