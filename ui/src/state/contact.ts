@@ -2,24 +2,33 @@
 import {
   Contact,
   ContactEditFieldPrim,
+  ContactEditField,
   ContactUpdate,
+  editContact,
+  setPublic as pokeSetPublic,
   deSig,
   Patp,
   Rolodex,
 } from '@urbit/api';
 import { useCallback, useMemo } from 'react';
 import _ from 'lodash';
+import api from '@/api';
 import {
   BaseState,
   createState,
   createSubscription,
   reduceStateN,
-} from './base';
+} from '@/state/base';
 
 export interface BaseContactState {
   contacts: Rolodex;
   isContactPublic: boolean;
   nackedContacts: Set<Patp>;
+  editContactField: (
+    ship: string,
+    contactField: ContactEditField
+  ) => Promise<void>;
+  setContactPublic: (isPublic: boolean) => Promise<void>;
   [ref: string]: unknown;
 }
 
@@ -65,16 +74,14 @@ export const edit = (
     const value = data['edit-field'][field];
     if (field === 'add-group') {
       if (typeof value !== 'string') {
-        state.contacts[ship].groups.push(
-          `/ship/${Object.values(value).join('/')}`
-        );
+        state.contacts[ship].groups.push(`${Object.values(value).join('/')}`);
       } else if (!state.contacts[ship].groups.includes(value)) {
         state.contacts[ship].groups.push(value);
       }
     } else if (field === 'remove-group') {
       if (typeof value !== 'string') {
         state.contacts[ship].groups = state.contacts[ship].groups.filter(
-          (g) => g !== `/ship/${Object.values(value).join('/')}`
+          (g) => g !== `${Object.values(value).join('/')}`
         );
       } else {
         state.contacts[ship].groups = state.contacts[ship].groups.filter(
@@ -114,6 +121,12 @@ const useContactState = createState<BaseContactState>(
     contacts: {},
     nackedContacts: new Set(),
     isContactPublic: false,
+    editContactField: async (ship: string, contactField: ContactEditField) => {
+      await api.poke(editContact(ship, contactField));
+    },
+    setContactPublic: async (isPublic: boolean) => {
+      await api.poke(pokeSetPublic(isPublic));
+    },
   },
   ['nackedContacts'],
   [
@@ -141,6 +154,10 @@ export function useContacts() {
 
 export function useMemoizedContacts() {
   return useMemo(() => useContactState.getState().contacts, []);
+}
+
+export function isOurContactPublic() {
+  return useContactState.getState().isContactPublic;
 }
 
 export function useContact(ship: string) {

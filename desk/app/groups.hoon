@@ -4,6 +4,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  groups-json  :: unused, nice for perf
+/+  of
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -261,7 +262,7 @@
       (old-to-new-meta metadatum.association)
     :*  meta
         added=date-created.metadatum.association
-        zone=~
+        zone=%$
         join=|
         readers=~
     ==
@@ -402,6 +403,10 @@
       %+  ~(put by cabals.group)  %admin
       :_  ~
       ['Admin' 'Admins can add and remove channels and edit metadata' '' '']
+    =.  zones.group
+      %+  ~(put by zones.group)  %$
+      [['Sectionless' '' '' ''] ~]
+    =.  zone-ord.group  (~(into of zone-ord.group) %$)
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
   ++  go-start-sub
@@ -602,18 +607,20 @@
         %add
       =/  =realm:zone:g  [meta.delta ~]
       =.  zones.group    (~(put by zones.group) zone realm)
-      =.  zone-ord.group  [zone zone-ord.group]
+      =.  zone-ord.group  (~(push of zone-ord.group) zone)
       go-core
     ::
         %del
+      ~|  %cant-delete-default-zone
+      ?<  =(%$ zone) 
       =.  zones.group  
         (~(del by zones.group) zone)
       =.  zone-ord.group
-        (skim zone-ord.group |=(z=zone:g !=(zone z)))
+        (~(del of zone-ord.group) zone)
       =.  channels.group
         %-  ~(run by channels.group)
         |=  =channel:g
-        channel(zone ?:(=(`zone zone.channel) ~ zone.channel))
+        channel(zone ?:(=(zone zone.channel) %$ zone.channel))
       go-core
     ::
         %edit
@@ -625,15 +632,14 @@
     ::
         %mov
       =.  zone-ord.group
-        %+  into  (skim zone-ord.group |=(z=zone:g !=(zone z)))
-        [idx.delta zone]
+        (~(into of zone-ord.group) idx.delta zone)
       go-core
     ::
         %mov-nest
       =/  =realm:zone:g  (~(got by zones.group) zone)
+      ?>  (~(has of ord.realm) nest.delta)
       =.  ord.realm  
-        %+  into  (skim ord.realm |=(=nest:g !=(nest nest.delta)))
-        [idx nest]:delta
+        (~(into of ord.realm) [idx nest]:delta)
       =.  zones.group    (~(put by zones.group) zone realm)
       go-core
     ==
@@ -793,10 +799,18 @@
     =*  by-ch  ~(. by channels.group)
     ?-    -.diff
         %add
+      =/  =zone:g  zone.channel.diff
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone
+        |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
       =.  channels.group  (put:by-ch ch channel.diff)
       go-core
     ::
         %del
+      =/  =channel:g   (got:by-ch ch)
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone.channel
+        |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  channels.group  (del:by-ch ch)
       go-core
     ::
@@ -813,23 +827,16 @@
       ::  TODO: revoke?
       go-core
     ::
-        %add-zone
+        %zone
       =/  =channel:g  (got:by-ch ch)
-      =.  zone.channel   `zone.diff
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone.channel
+        |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
+      =.  zone.channel   zone.diff
       =.  channels.group  (put:by-ch ch channel)
       =/  =realm:zone:g  (~(got by zones.group) zone.diff)
-      =.  ord.realm  [ch ord.realm]
+      =.  ord.realm  (~(push of ord.realm) ch)
       =.  zones.group  (~(put by zones.group) zone.diff realm)
-      go-core
-    ::
-        %del-zone
-      =/  =channel:g  (got:by-ch ch)
-      =/  =zone:g  (need zone.channel)
-      =/  =realm:zone:g  (~(got by zones.group) zone)
-      =.  ord.realm  (skim ord.realm |=(=nest:g !=(ch nest)))
-      =.  zones.group  (~(put by zones.group) zone realm) 
-      =.  zone.channel   ~
-      =.  channels.group  (put:by-ch ch channel)
       go-core
     ::
         %join
@@ -837,7 +844,6 @@
       =.  join.channel  join.diff
       =.  channels.group  (put:by-ch ch channel)
       go-core
-    ::
     ==
   --
 ::
