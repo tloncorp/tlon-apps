@@ -156,7 +156,7 @@ export function createMockGroup(title: string): Group {
       },
     },
     bloc: [],
-    'zone-ord': [],
+    'zone-ord': ['default'],
   };
 }
 const mockGroupOne: Group = {
@@ -199,7 +199,7 @@ const mockGroupOne: Group = {
       added: 1657774188151,
       join: false,
       readers: [],
-      zone: null,
+      zone: 'default',
     },
   },
   cordon: {
@@ -226,7 +226,7 @@ const mockGroupOne: Group = {
     },
   },
   bloc: [],
-  'zone-ord': [],
+  'zone-ord': ['default'],
 };
 
 const mockGroupTwo: Group = {
@@ -262,7 +262,7 @@ const mockGroupTwo: Group = {
       added: 1657774188151,
       join: true,
       readers: [],
-      zone: null,
+      zone: 'default',
     },
     'heap/~zod/testHeap': {
       meta: {
@@ -274,7 +274,7 @@ const mockGroupTwo: Group = {
       added: 1657774188151,
       join: true,
       readers: [],
-      zone: null,
+      zone: 'default',
     },
   },
   cordon: {
@@ -291,7 +291,7 @@ const mockGroupTwo: Group = {
   },
   zones: {},
   bloc: [],
-  'zone-ord': [],
+  'zone-ord': ['default'],
 };
 
 const mockGroups: { [flag: string]: Group } = {
@@ -310,7 +310,7 @@ export function createChannel(title: string) {
     added: 1657774188151,
     join: false,
     readers: [],
-    zone: '',
+    zone: 'default',
   };
 }
 

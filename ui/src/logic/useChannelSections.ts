@@ -21,10 +21,10 @@ export default function useChannelSections(groupFlag: string) {
   );
 
   // unsectioned channels have zone 'null' after groupBy; replace with empty str
-  if ('null' in sectionedChannels) {
-    sectionedChannels[UNZONED] = sectionedChannels.null;
-    delete sectionedChannels.null;
-  }
+  // if ('null' in sectionedChannels) {
+  //   sectionedChannels[UNZONED] = sectionedChannels.null;
+  //   delete sectionedChannels.null;
+  // }
 
   Object.entries(sectionedChannels).forEach((section) => {
     const oldOrder = section[1];
