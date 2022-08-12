@@ -2,8 +2,6 @@ import { useGroup } from '@/state/groups';
 import { GroupChannel } from '@/types/groups';
 import { groupBy } from 'lodash';
 
-const UNZONED = 'default';
-
 export default function useChannelSections(groupFlag: string) {
   const group = useGroup(groupFlag);
 
@@ -19,12 +17,6 @@ export default function useChannelSections(groupFlag: string) {
     Object.entries(group.channels),
     ([, ch]) => ch.zone
   );
-
-  // unsectioned channels have zone 'null' after groupBy; replace with empty str
-  // if ('null' in sectionedChannels) {
-  //   sectionedChannels[UNZONED] = sectionedChannels.null;
-  //   delete sectionedChannels.null;
-  // }
 
   Object.entries(sectionedChannels).forEach((section) => {
     const oldOrder = section[1];

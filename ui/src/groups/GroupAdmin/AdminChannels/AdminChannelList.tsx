@@ -10,12 +10,7 @@ export default function AdminChannelList() {
   const group = useGroup(flag);
 
   const getSectionedChannels = useMemo(() => {
-    const sectionedChannels: SectionMap = {
-      // [UNZONED]: {
-      //   title: 'Sectionless',
-      //   channels: [],
-      // },
-    };
+    const sectionedChannels: SectionMap = {};
 
     if (group) {
       group['zone-ord'].forEach((zone) => {
