@@ -78,12 +78,12 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
         group.channels[nest] = d.add;
       } else if ('del' in d) {
         const { zone } = group.channels[nest];
-        group.zones[zone || ''].idx = group.zones[zone || ''].idx.filter(
-          (n) => n !== nest
-        );
+        group.zones[zone || 'default'].idx = group.zones[
+          zone || 'default'
+        ].idx.filter((n) => n !== nest);
         delete group.channels[nest];
       } else if ('zone' in d) {
-        const oldZone = group.channels[nest].zone || '';
+        const oldZone = group.channels[nest].zone || 'default';
         group.zones[oldZone].idx = group.zones[oldZone].idx.filter(
           (n) => n !== nest
         );
@@ -125,6 +125,8 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       } else if ('del' in d) {
         delete group.zones[f];
         group['zone-ord'] = group['zone-ord'].filter((nest) => nest !== f);
+      } else if ('edit' in d) {
+        group.zones[f].meta = d.edit;
       } else if ('mov-nest' in d) {
         group.zones[f].idx = group.zones[f].idx.filter(
           (nest) => nest !== d['mov-nest'].nest

@@ -3,7 +3,7 @@ import { useGroup, useRouteGroup } from '@/state/groups';
 import { SectionMap } from './types';
 import AdminChannelListDropContext from './AdminChannelListDropContext';
 
-const UNZONED = '';
+// const UNZONED = 'default';
 
 export default function AdminChannelList() {
   const flag = useRouteGroup();
@@ -11,10 +11,10 @@ export default function AdminChannelList() {
 
   const getSectionedChannels = useMemo(() => {
     const sectionedChannels: SectionMap = {
-      [UNZONED]: {
-        title: 'Sectionless',
-        channels: [],
-      },
+      // [UNZONED]: {
+      //   title: 'Sectionless',
+      //   channels: [],
+      // },
     };
 
     if (group) {
@@ -31,7 +31,7 @@ export default function AdminChannelList() {
           channel: group.channels[idx],
         }));
         sectionedChannels[key].channels = orderedChannels.filter(
-          (channelItem) => channelItem.channel.zone === key
+          (channelItem) => key === channelItem.channel.zone
         );
       });
     }

@@ -30,7 +30,7 @@ export default function Section({
 }: SectionProps) {
   const group = useRouteGroup();
   const [isEditing, setIsEditing] = useState(false);
-  const isSectionless = sectionKey === '';
+  const isSectionless = sectionKey === 'default';
 
   useEffect(() => {
     if (sectionData.isNew === true) {
@@ -43,7 +43,7 @@ export default function Section({
   }, [isEditing]);
 
   const removeChannelsFromZone = async (groupFlag: string, nest: string) => {
-    await useGroupState.getState().addChannelToZone('', groupFlag, nest);
+    await useGroupState.getState().addChannelToZone('default', groupFlag, nest);
   };
 
   const handleDeleteClick = useCallback(async () => {
@@ -58,7 +58,7 @@ export default function Section({
   return (
     <Draggable
       isDragDisabled={isSectionless || isEditing}
-      draggableId={sectionKey || 'sectionless'}
+      draggableId={sectionKey}
       index={index}
     >
       {(provided) => (

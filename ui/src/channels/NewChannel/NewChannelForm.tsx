@@ -17,7 +17,7 @@ export default function NewChannelForm() {
   const groupFlag = useRouteGroup();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
-    zone: 'sectionless',
+    zone: 'default',
     added: Date.now(),
     readers: [],
     join: false,

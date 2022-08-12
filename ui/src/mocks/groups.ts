@@ -145,9 +145,9 @@ export function createMockGroup(title: string): Group {
       color: '',
     },
     zones: {
-      '': {
+      default: {
         meta: {
-          title: 'sectionless',
+          title: 'Sectionless',
           color: '',
           image: '',
           description: '',
@@ -215,9 +215,9 @@ const mockGroupOne: Group = {
     color: '',
   },
   zones: {
-    '': {
+    default: {
       meta: {
-        title: 'sectionless',
+        title: 'Sectionless',
         color: '',
         image: '',
         description: '',
@@ -319,7 +319,7 @@ for (let i = 0; i < 20; i += 1) {
 
   for (let j = 0; j < 20; j += 1) {
     group.channels[`/chat/~zod/tlon${i}${j}`] = createChannel(j.toString());
-    group.zones[''].idx.push(`/chat/~zod/tlon${i}${j}`);
+    group.zones.default.idx.push(`/chat/~zod/tlon${i}${j}`);
   }
 
   mockGroups[`~zod/tlon${i}`] = group;

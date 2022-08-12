@@ -16,7 +16,7 @@ import { GroupChannel } from '@/types/groups';
 import Divider from '@/components/Divider';
 import ChannelSortOptions from './ChannelSortOptions';
 
-const UNZONED = '';
+const UNZONED = 'default';
 interface ChannelListProps {
   flag: string;
   className?: string;

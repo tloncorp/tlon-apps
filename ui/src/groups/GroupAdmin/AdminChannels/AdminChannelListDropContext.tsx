@@ -45,7 +45,7 @@ export default function AdminChannelListDropContext({
       const nextOrderedSections = orderedSections;
       const orderedSectionsIndex = orderedSections.indexOf(currentSectionKey);
 
-      nextSections[''].channels = nextSections[''].channels.concat(
+      nextSections.default.channels = nextSections.default.channels.concat(
         sections[currentSectionKey].channels
       );
 
@@ -118,10 +118,9 @@ export default function AdminChannelListDropContext({
       groupFlag: string,
       destinationIndex: number
     ) => {
-      const zone = zoneID === 'sectionless' ? '' : zoneID;
       await useGroupState
         .getState()
-        .moveChannel(groupFlag, zone, nest, destinationIndex);
+        .moveChannel(groupFlag, zoneID, nest, destinationIndex);
     },
     []
   );
@@ -132,15 +131,8 @@ export default function AdminChannelListDropContext({
       source: DraggableLocation,
       destination: DraggableLocation
     ) => {
-      const sourceSectionLocator =
-        source.droppableId === 'sectionless' ? '' : source.droppableId;
-      const destinationSectionLocator =
-        destination.droppableId === 'sectionless'
-          ? ''
-          : destination.droppableId;
-
-      const current = [...sectionMap[sourceSectionLocator].channels];
-      const next = [...sectionMap[destinationSectionLocator].channels];
+      const current = [...sectionMap[source.droppableId].channels];
+      const next = [...sectionMap[destination.droppableId].channels];
       const target = current[source.index];
 
       // move to same list
@@ -148,8 +140,8 @@ export default function AdminChannelListDropContext({
         const reordered = reorder(current, source.index, destination.index);
         const result: SectionMap = {
           ...sectionMap,
-          [sourceSectionLocator]: {
-            title: sectionMap[sourceSectionLocator].title,
+          [source.droppableId]: {
+            title: sectionMap[source.droppableId].title,
             channels: reordered,
           },
         };
@@ -168,21 +160,21 @@ export default function AdminChannelListDropContext({
       next.splice(destination.index, 0, target);
       const result: SectionMap = {
         ...sectionMap,
-        [sourceSectionLocator]: {
-          title: sectionMap[sourceSectionLocator].title,
+        [source.droppableId]: {
+          title: sectionMap[source.droppableId].title,
           channels: current,
         },
-        [destinationSectionLocator]: {
-          title: sectionMap[destinationSectionLocator].title,
+        [destination.droppableId]: {
+          title: sectionMap[destination.droppableId].title,
           channels: next,
         },
       };
-      target.channel.zone = destinationSectionLocator;
+      target.channel.zone = destination.droppableId;
 
-      setChannelZone(target.key, destinationSectionLocator, group);
+      setChannelZone(target.key, destination.droppableId, group);
       setChannelIndex(
         target.key,
-        destinationSectionLocator,
+        destination.droppableId,
         group,
         destination.index
       );
@@ -213,7 +205,7 @@ export default function AdminChannelListDropContext({
 
         useGroupState
           .getState()
-          .moveZone(group, result.draggableId, destination.index - 1);
+          .moveZone(group, result.draggableId, destination.index);
         const newOrder = reorder(
           orderedSections,
           source.index,
