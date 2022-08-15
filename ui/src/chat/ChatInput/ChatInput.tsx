@@ -1,9 +1,9 @@
 import { Editor, JSONContent } from '@tiptap/react';
-import { debounce } from 'lodash';
+import { debounce, reduce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
-import { ChatInline, ChatMemo, ChatStory } from '@/types/chat';
+import { ChatInline, ChatInlineKey, ChatMemo, ChatStory } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -83,16 +83,17 @@ function tipTapToString(json: JSONContent): string {
 
 // this will be replaced with more sophisticated logic based on
 // what we decide will be the message format
-function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
+function parseTipTapJSON(json: JSONContent): ChatInline[] {
   if (json.content) {
     if (json.content.length === 1) {
       if (json.type === 'blockquote') {
         const parsed = parseTipTapJSON(json.content[0]);
-        return {
-          blockquote: Array.isArray(parsed) ? parsed : [parsed],
-        } as ChatInline;
+        return [
+          {
+            blockquote: parsed,
+          },
+        ];
       }
-
       return parseTipTapJSON(json.content[0]);
     }
 
@@ -130,26 +131,63 @@ function parseTipTapJSON(json: JSONContent): ChatInline[] | ChatInline {
     }
 
     if (first.type === 'link' && first.attrs) {
-      return {
-        link: {
-          href: first.attrs.href,
-          content: json.text || first.attrs.href,
+      return [
+        {
+          link: {
+            href: first.attrs.href,
+            content: json.text || first.attrs.href,
+          },
         },
-      };
+      ];
     }
 
-    return {
-      [convertMarkType(first.type)]: parseTipTapJSON(json),
-    } as unknown as ChatInline;
+    return [
+      {
+        [convertMarkType(first.type)]: parseTipTapJSON(json),
+      },
+    ] as unknown as ChatInline[];
   }
 
   if (json.type === 'paragraph') {
-    return {
-      break: null,
-    };
+    return [
+      {
+        break: null,
+      },
+    ];
   }
 
-  return json.text || '';
+  return [json.text || ''];
+}
+
+const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
+function isMergeable(x: ChatInlineKey): x is typeof MERGEABLE_KEYS[number] {
+  return MERGEABLE_KEYS.includes(x as any);
+}
+function normalizeChatInline(inline: ChatInline[]): ChatInline[] {
+  return reduce(
+    inline,
+    (acc: ChatInline[], val) => {
+      if (acc.length === 0) {
+        return [...acc, val];
+      }
+      const last = acc[acc.length - 1];
+      if (typeof last === 'string' && typeof val === 'string') {
+        return [...acc.slice(0, -1), last + val];
+      }
+      const lastKey = Object.keys(acc[acc.length - 1])[0] as ChatInlineKey;
+      const currKey = Object.keys(val)[0] as keyof ChatInlineKey;
+      if (isMergeable(lastKey) && currKey === lastKey) {
+        // @ts-expect-error keying weirdness
+        const end: ChatInline = {
+          // @ts-expect-error keying weirdness
+          [lastKey]: [...last[lastKey as any], ...val[currKey as any]],
+        };
+        return [...acc.slice(0, -1), end];
+      }
+      return [...acc, val];
+    },
+    []
+  );
 }
 
 function wrapParagraphs(content: JSONContent[]) {
@@ -281,7 +319,7 @@ export default function ChatInput({
           return;
         }
 
-        const data = parseTipTapJSON(editor?.getJSON());
+        const data = normalizeChatInline(parseTipTapJSON(editor?.getJSON()));
         useChatState.getState().draft(whom, {
           inline: Array.isArray(data) ? data : [data],
           block: [],
@@ -298,7 +336,7 @@ export default function ChatInput({
         return;
       }
 
-      const data = parseTipTapJSON(editor?.getJSON());
+      const data = normalizeChatInline(parseTipTapJSON(editor?.getJSON()));
       const memo: ChatMemo = {
         replying: reply,
         author: `~${window.ship || 'zod'}`,

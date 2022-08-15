@@ -10,7 +10,7 @@ export default {
 
 const writ = makeFakeChatWrit(1, '~finned-palmer', {
   block: [],
-  inline: [{ bold: 'A bold test message' }, 'with some more text'],
+  inline: [{ bold: ['A bold test message'] }, 'with some more text'],
 });
 const time = unixToDa(writ.memo.sent);
 
