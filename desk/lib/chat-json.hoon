@@ -9,6 +9,14 @@
     ^-  json
     s/(rap 3 (scot %p p.f) '/' q.f ~)
   ::
+  ++  said
+    |=  s=said:c
+    ^-  json
+    %-  pairs
+    :~  flag/(flag p.s)
+        writ/(writ q.s)
+    ==
+  ::
   ++  club-delta
     |=  d=delta:club:c
     %+  frond  -.d
