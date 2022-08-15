@@ -3,6 +3,7 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
+/+  diary-json
 ^-  agent:gall
 =>
   |%

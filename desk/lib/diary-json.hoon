@@ -238,8 +238,30 @@
     ^-  $-(json diff:d)
     %-  of
     :~  notes/notes-diff
+        quips/(ot id/(se %ud) diff/quips-diff ~)
         add-sects/add-sects
         del-sects/del-sects
+    ==
+  ::
+  ++  quips-diff
+    %-  ot
+    :~  time/(se %ud)
+        delta/quips-delta
+    ==
+  ::
+  ++  quips-delta
+    %-  of
+    :~  add/memo
+        del/ul
+        add-feel/add-feel
+    ==
+  ::
+  ++  memo
+    %-  ot
+    :~  replying/(se %ud)
+        content/(ar inline)
+        author/(se %p)
+        sent/di
     ==
   ::
   ++  notes-diff
