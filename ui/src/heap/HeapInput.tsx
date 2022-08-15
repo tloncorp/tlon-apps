@@ -3,12 +3,13 @@ import cn from 'classnames';
 import { intersection } from 'lodash';
 import { useForm } from 'react-hook-form';
 import LinkIcon from '@/components/icons/LinkIcon';
-import TextIcon from '@/components/icons/TextIcon';
 import { useHeapPerms, useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import { isValidUrl, nestToFlag } from '@/logic/utils';
 import { useRouteGroup, useVessel } from '@/state/groups';
+import Text16Icon from '@/components/icons/Text16Icon';
 import { GRID, HeapDisplayMode, LIST } from './HeapTypes';
+import HeapTextInput from './HeapTextInput';
 
 interface HeapInputProps {
   displayType: HeapDisplayMode;
@@ -62,7 +63,6 @@ export default function HeapInput({ displayType }: HeapInputProps) {
     ? isValidUrl(watchedContent)
     : watchedContent.length > 0;
 
-  // TODO: should it be hidden completely? or input disabled?
   if (!canWrite) {
     return null;
   }
@@ -88,7 +88,7 @@ export default function HeapInput({ displayType }: HeapInputProps) {
         )}
         onClick={() => setInputMode(TEXT)}
       >
-        <TextIcon className="mr-1 h-4 w-4" />
+        <Text16Icon className="mr-1 h-4 w-4" />
         <span className="ml-1">Text</span>
       </button>
     </div>
@@ -104,20 +104,27 @@ export default function HeapInput({ displayType }: HeapInputProps) {
         )}
       >
         {isGridMode ? modeToggle() : null}
-        <form onSubmit={handleSubmit(onSubmit)} className="relative flex-1 p-1">
-          <textarea
-            autoFocus
-            {...register('content')}
-            className="h-full w-full resize-none rounded-lg bg-gray-50 p-1 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
-            placeholder={`${isLinkMode ? 'Paste Link' : 'Enter Text'} Here`}
-          />
-          <input
-            value="Post"
-            type="submit"
-            className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
-            disabled={!isValidInput}
-          />
-        </form>
+        {isLinkMode ? (
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="relative flex-1 p-1"
+          >
+            <textarea
+              autoFocus
+              {...register('content')}
+              className="h-full w-full resize-none rounded-lg bg-gray-50 p-1.5 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
+              placeholder="Paste Link Here"
+            />
+            <input
+              value="Post"
+              type="submit"
+              className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
+              disabled={!isValidInput}
+            />
+          </form>
+        ) : (
+          <HeapTextInput flag={chFlag} />
+        )}
       </div>
     </div>
   );
