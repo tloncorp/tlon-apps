@@ -160,6 +160,32 @@
     |=  [key=@da n=note:d]
     [(scot %ud key) (note n)]
   ::
+  ++  quips
+    |=  =quips:d
+    ^-  json
+    %-  pairs
+    %+  turn  (tap:on:quips:d quips)
+    |=  [key=@da q=quip:d]
+    [(scot %ud key) (quip q)]
+  ::
+  ++  quip
+    |=  q=quip:d
+    ^-  json
+    %-  pairs
+    :~  seal+(seal -.q)
+        memo+(memo +.q)
+    ==
+  ::
+  ++  memo
+    |=  m=memo:d
+    ^-  json
+    %-  pairs
+    :~  replying/s/(scot %ud replying.m)
+        content/a/(turn content.m inline)
+        author/(ship author.m)
+        sent/(time sent.m)
+    ==
+  ::
   ++  note
     |=  =note:d
     %-  pairs

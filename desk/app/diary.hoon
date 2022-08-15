@@ -2,6 +2,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  not=notes
+/+  qup=quips
 ^-  agent:gall
 =>
   |%
@@ -476,8 +477,11 @@
     ?-    -.dif
         %notes
       di-core(notes.diary (reduce:di-notes time p.dif))
+    ::
         %quips
-      di-core
+      =/  =quips:d   (~(got by banter.diary) p.dif)
+      =.  quips      (~(reduce qup quips) time q.dif)
+      di-core(banter.diary (~(put by banter.diary) p.dif quips))
     ::
         %add-sects
       =*  p  perm.diary

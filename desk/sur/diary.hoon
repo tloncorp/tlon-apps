@@ -96,7 +96,7 @@
   (pair time diff)
 +$  diff
   $%  [%notes p=diff:notes]
-      [%quips p=diff:quips]
+      [%quips p=time q=diff:quips]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
