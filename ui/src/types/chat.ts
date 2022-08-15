@@ -8,15 +8,15 @@ export type Ship = string;
 export type ChatBlock = ChatImage;
 
 export interface Italics {
-  italics: ChatInline;
+  italics: ChatInline[];
 }
 
 export interface Bold {
-  bold: ChatInline;
+  bold: ChatInline[];
 }
 
 export interface Strikethrough {
-  strike: ChatInline;
+  strike: ChatInline[];
 }
 
 /**
@@ -78,6 +78,18 @@ export type ChatInline =
   | Blockquote
   | Tag
   | Link;
+
+export type ChatInlineKey =
+  | 'italics'
+  | 'bold'
+  | 'strike'
+  | 'blockquote'
+  | 'inline-code'
+  | 'block'
+  | 'code'
+  | 'tag'
+  | 'link'
+  | 'break';
 
 export function isBold(item: unknown): item is Bold {
   return typeof item === 'object' && item !== null && 'bold' in item;

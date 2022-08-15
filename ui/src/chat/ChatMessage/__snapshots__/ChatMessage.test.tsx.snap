@@ -311,9 +311,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           <strong>
             A bold test message
           </strong>
-          <span>
-            with some more text
-          </span>
+          with some more text
         </div>
       </div>
     </div>
