@@ -23,6 +23,7 @@
         pins=(list whom:c)
         bad=(set ship)
         inv=(set ship)
+        voc=(map [flag:c id:c] said:c)
     ==
   --
 =|  state-0
@@ -593,14 +594,37 @@
     ca-core(flag f, chat (~(got by chats) f))
   ++  ca-area  `path`/chat/(scot %p p.flag)/[q.flag]
   ++  ca-watch
-    |=  =path
+    |=  =(pole knot)
     ^+  ca-core
-    ?+    path  !!
-      [%updates *]    (ca-pub t.path)
-      [%ui ~]         ?>(from-self ca-core)
-      [%ui %writs ~]       ?>(from-self ca-core)
+    ?+    pole  !!
+        [%updates rest=*]  (ca-pub rest.pole)
+        [%ui ~]            ?>(from-self ca-core)
+        [%ui %writs ~]     ?>(from-self ca-core)
+    ::
+        [%said ship=@ time=@ *]
+      =/  =ship  (slav %p ship.pole)
+      =/  =time  (slav %ud time.pole)
+      (ca-said ship time)
     ::
     ==
+  ::
+  ++  ca-said
+    |=  =id:c
+    |^  ^+  ca-core
+    ?.  =(p.flag our.bowl)
+      (proxy-said:ca-pass id)
+    ?.  (ca-can-read src.bowl)
+      (give-kick chat-denied+!>(~))
+    =/  [=time =writ:c]  (got:ca-pact id)
+    %+  give-kick  %chat-said
+    !>  ^-  said:c
+    [flag writ]
+    ++  give-kick
+      |=  =cage
+      =.  cor  (give %fact ~ cage)
+      =.  cor  (give %kick ~ ~)
+      ca-core
+    --
   ++  ca-pass
     |%
     ++  add-channel
@@ -616,6 +640,14 @@
         [%pass ca-area %agent dock %poke cage]
       =.  cor
         (emit card)
+      ca-core
+    ::
+    ++  proxy-said
+      |=  =id:c
+      =/  =wire  (welp ca-area /said/(scot %p p.id)/(scot %ud q.id))
+      =/  =dock  [p.flag dap.bowl]
+      =/  =card  [%pass wire %agent dock %watch wire]
+      =.  cor    (emit card)
       ca-core
     --
   ++  ca-init
