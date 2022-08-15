@@ -4,6 +4,7 @@
 +$  writ   [seal memo]
 +$  id     (pair ship time)
 +$  feel   @ta
++$  said   (pair flag writ)
 ::
 +$  seal
   $:  =id
