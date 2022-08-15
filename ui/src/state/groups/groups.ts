@@ -12,8 +12,8 @@ import {
   GroupAction,
   GroupPreview,
   GroupIndex,
-} from '../../types/groups';
-import api from '../../api';
+} from '@/types/groups';
+import api from '@/api';
 import groupsReducer from './groupsReducer';
 import { GroupState } from './type';
 
@@ -279,6 +279,28 @@ export const useGroupState = create<GroupState>((set, get) => ({
     };
     await api.poke(groupAction(flag, diff));
   },
+  editZone: async (flag, zone, meta) => {
+    const diff = {
+      zone: {
+        zone,
+        delta: {
+          edit: meta,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
+  moveZone: async (flag, zone, index) => {
+    const diff = {
+      zone: {
+        zone,
+        delta: {
+          mov: index,
+        },
+      },
+    };
+    await api.poke(groupAction(flag, diff));
+  },
   deleteZone: async (flag, zone) => {
     const diff = {
       zone: {
@@ -295,18 +317,21 @@ export const useGroupState = create<GroupState>((set, get) => ({
       channel: {
         nest,
         diff: {
-          'add-zone': zone,
+          zone,
         },
       },
     };
     await api.poke(groupAction(flag, diff));
   },
-  removeChannelFromZone: async (flag, nest) => {
+  moveChannel: async (flag, zone, nest, index) => {
     const diff = {
-      channel: {
-        nest,
-        diff: {
-          'del-zone': null,
+      zone: {
+        zone,
+        delta: {
+          'mov-nest': {
+            nest,
+            index,
+          },
         },
       },
     };

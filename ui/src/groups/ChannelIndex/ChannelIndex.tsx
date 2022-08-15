@@ -17,7 +17,7 @@ import useRequestState from '@/logic/useRequestState';
 import ChannelIcon from '@/channels/ChannelIcon';
 import useChannelSections from '@/logic/useChannelSections';
 
-const UNZONED = '';
+const UNZONED = 'default';
 
 function GroupChannel({
   channel,
@@ -207,18 +207,14 @@ function ChannelSection({
     zone && group?.zones && zone in group.zones
       ? group.zones[zone].meta.title
       : '';
-  const sortedChannels = channels.slice();
-  sortedChannels.sort(([, a], [, b]) =>
-    a.meta.title.localeCompare(b.meta.title)
-  );
 
   return (
     <>
-      {sectionTitle !== UNZONED ? (
+      {zone !== UNZONED ? (
         <div className="py-4 font-semibold text-gray-400">{sectionTitle}</div>
       ) : null}
       <ul>
-        {sortedChannels.map(([nest, channel]) => (
+        {channels.map(([nest, channel]) => (
           <GroupChannel nest={nest} channel={channel} key={channel.added} />
         ))}
       </ul>

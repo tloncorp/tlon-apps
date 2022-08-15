@@ -3,31 +3,31 @@ import { useGroup, useRouteGroup } from '@/state/groups';
 import { SectionMap } from './types';
 import AdminChannelListDropContext from './AdminChannelListDropContext';
 
+// const UNZONED = 'default';
+
 export default function AdminChannelList() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
 
   const getSectionedChannels = useMemo(() => {
-    const sectionedChannels: SectionMap = {
-      sectionless: {
-        title: 'Sectionless',
-        channels: [],
-      },
-    };
+    const sectionedChannels: SectionMap = {};
 
     if (group) {
-      Object.entries(group.zones).forEach(([key, zone]) => {
-        sectionedChannels[key] = {
-          title: zone.meta.title,
+      group['zone-ord'].forEach((zone) => {
+        sectionedChannels[zone] = {
+          title: group.zones[zone].meta.title,
           channels: [],
         };
       });
-      Object.entries(group.channels).forEach(([key, channel]) => {
-        if (channel.zone !== null && sectionedChannels[channel.zone]) {
-          sectionedChannels[channel.zone].channels.push({ key, channel });
-        } else {
-          sectionedChannels.sectionless.channels.push({ key, channel });
-        }
+
+      Object.entries(group.zones).forEach(([key, zone]) => {
+        const orderedChannels = (zone.idx || []).map((idx) => ({
+          key: idx,
+          channel: group.channels[idx],
+        }));
+        sectionedChannels[key].channels = orderedChannels.filter(
+          (channelItem) => key === channelItem.channel.zone
+        );
       });
     }
 

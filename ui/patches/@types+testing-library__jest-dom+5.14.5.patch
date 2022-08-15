@@ -1,10 +1,10 @@
 diff --git a/node_modules/@types/testing-library__jest-dom/index.d.ts b/node_modules/@types/testing-library__jest-dom/index.d.ts
-index bf5cafc..194925b 100755
+index 43ba6b7..522a6ec 100755
 --- a/node_modules/@types/testing-library__jest-dom/index.d.ts
 +++ b/node_modules/@types/testing-library__jest-dom/index.d.ts
 @@ -7,8 +7,6 @@
  // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
- // TypeScript Version: 3.8
+ // Minimum TypeScript Version: 4.3
  
 -/// <reference types="jest" />
 -

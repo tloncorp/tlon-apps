@@ -12,6 +12,7 @@ interface HandleSectionNameEditInputProps {
     nextSectionTitle: string
   ) => void;
   sectionTitle: string;
+  isNew?: boolean;
   channels: ChannelListItem[];
   sectionKey: string;
 }
@@ -20,6 +21,7 @@ export default function SectionNameEditInput({
   handleEditingChange,
   onSectionEditNameSubmit,
   channels,
+  isNew,
   sectionTitle,
   sectionKey,
 }: HandleSectionNameEditInputProps) {
@@ -54,9 +56,14 @@ export default function SectionNameEditInput({
   };
 
   const onSubmit = async (values: GroupMeta) => {
-    const zoneFlag = sectionKey;
+    const zoneFlag = strToSym(sectionKey);
     handleEditingChange();
-    await useGroupState.getState().createZone(group, zoneFlag, values);
+    if (isNew === true) {
+      await useGroupState.getState().createZone(group, zoneFlag, values);
+      await useGroupState.getState().moveZone(group, zoneFlag, 1);
+    } else {
+      await useGroupState.getState().editZone(group, zoneFlag, values);
+    }
     channels.forEach((channel) => {
       addChannelsToZone(zoneFlag, group, channel.key);
     });
@@ -72,6 +79,7 @@ export default function SectionNameEditInput({
     await useGroupState
       .getState()
       .createZone(group, zoneFlag, untitledSectionValues);
+    await useGroupState.getState().moveZone(group, zoneFlag, 1);
     onSectionEditNameSubmit(zoneFlag, untitledSectionValues.title);
     channels.forEach((channel) => {
       addChannelsToZone(zoneFlag, group, channel.key);

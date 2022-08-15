@@ -144,9 +144,19 @@ export function createMockGroup(title: string): Group {
         'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.6.14..18.37.11-Icon Box.png',
       color: '',
     },
-    zones: {},
+    zones: {
+      default: {
+        meta: {
+          title: 'Sectionless',
+          color: '',
+          image: '',
+          description: '',
+        },
+        idx: [],
+      },
+    },
     bloc: [],
-    'zone-ord': [],
+    'zone-ord': ['default'],
   };
 }
 const mockGroupOne: Group = {
@@ -189,7 +199,7 @@ const mockGroupOne: Group = {
       added: 1657774188151,
       join: false,
       readers: [],
-      zone: null,
+      zone: 'default',
     },
   },
   cordon: {
@@ -204,9 +214,19 @@ const mockGroupOne: Group = {
     image: '',
     color: '',
   },
-  zones: {},
+  zones: {
+    default: {
+      meta: {
+        title: 'Sectionless',
+        color: '',
+        image: '',
+        description: '',
+      },
+      idx: ['/chat/~dev/test'],
+    },
+  },
   bloc: [],
-  'zone-ord': [],
+  'zone-ord': ['default'],
 };
 
 const mockGroupTwo: Group = {
@@ -242,7 +262,7 @@ const mockGroupTwo: Group = {
       added: 1657774188151,
       join: true,
       readers: [],
-      zone: null,
+      zone: 'default',
     },
     'heap/~zod/testHeap': {
       meta: {
@@ -254,7 +274,7 @@ const mockGroupTwo: Group = {
       added: 1657774188151,
       join: true,
       readers: [],
-      zone: null,
+      zone: 'default',
     },
   },
   cordon: {
@@ -271,7 +291,7 @@ const mockGroupTwo: Group = {
   },
   zones: {},
   bloc: [],
-  'zone-ord': [],
+  'zone-ord': ['default'],
 };
 
 const mockGroups: { [flag: string]: Group } = {
@@ -290,7 +310,7 @@ export function createChannel(title: string) {
     added: 1657774188151,
     join: false,
     readers: [],
-    zone: null,
+    zone: 'default',
   };
 }
 
@@ -298,7 +318,8 @@ for (let i = 0; i < 20; i += 1) {
   const group = createMockGroup(faker.company.companyName());
 
   for (let j = 0; j < 20; j += 1) {
-    group.channels[`~zod/tlon${i}${j}`] = createChannel(faker.company.bs());
+    group.channels[`/chat/~zod/tlon${i}${j}`] = createChannel(j.toString());
+    group.zones.default.idx.push(`/chat/~zod/tlon${i}${j}`);
   }
 
   mockGroups[`~zod/tlon${i}`] = group;

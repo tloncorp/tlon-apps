@@ -10,7 +10,7 @@ import useSidebarSort, {
   useRecentSort,
 } from './useSidebarSort';
 
-const UNZONED = '';
+const UNZONED = 'default';
 
 export default function useChannelSort() {
   const groupFlag = useRouteGroup();

@@ -5,12 +5,7 @@ import { GroupChannel, ChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';
-import {
-  strToSym,
-  channelHref,
-  getPrivacyFromChannel,
-  nestToFlag,
-} from '@/logic/utils';
+import { channelHref, getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
 import { useChat, useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
@@ -40,7 +35,7 @@ export default function EditChannelForm({
   const channelFlag = flag.join('/');
   const chat = useChat(channelFlag || '');
   const defaultValues: ChannelFormSchema = {
-    zone: channel.zone || null,
+    zone: channel.zone || 'default',
     added: channel.added || Date.now(),
     readers: channel.readers || [],
     join: channel.join || false,

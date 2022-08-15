@@ -1,44 +1,38 @@
-import React, { ReactNode, useCallback } from 'react';
+import React, { ReactNode, useCallback, useMemo } from 'react';
 import { differenceInDays } from 'date-fns';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import ChatWritScroller from './ChatWritScroller';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
-import { useChatInfo } from '../useChatStore';
+import { ChatInfo, useChatInfo } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
 import { ChatState } from '../../state/chat/type';
 import { useChatState } from '../../state/chat/chat';
 import { MESSAGE_FETCH_PAGE_SIZE } from '../../constants';
-import { ChatWrit } from '../../types/chat';
+import { ChatBrief, ChatWrit } from '../../types/chat';
 
-export default function ChatScroller({
-  whom,
+interface CreateRendererParams {
+  messages: BigIntOrderedMap<ChatWrit>;
+  keys: bigInt.BigInteger[];
+  whom: string;
+  brief?: ChatBrief;
+  chatInfo?: ChatInfo;
+  prefixedElement: React.ReactNode;
+}
+
+interface RendererProps {
+  index: bigInt.BigInteger;
+}
+
+function createRenderer({
   messages,
-  replying = false,
+  keys,
+  whom,
+  brief,
+  chatInfo,
   prefixedElement,
-}: IChatScroller) {
-  const chatInfo = useChatInfo(whom);
-  const brief = useChatState((s: ChatState) => s.briefs[whom]);
-
-  const keys = messages
-    .keys()
-    .reverse()
-    .filter((k) => {
-      if (replying) {
-        return true;
-      }
-      return messages.get(k)?.memo.replying === null;
-    });
-  const mess = keys.reduce(
-    (acc, val) => acc.set(val, messages.get(val)),
-    new BigIntOrderedMap<ChatWrit>()
-  );
-
-  interface RendererProps {
-    index: bigInt.BigInteger;
-  }
-
+}: CreateRendererParams) {
   const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
     <>
       {index.eq(messages.peekSmallest()[0]) ? prefixedElement : null}
@@ -46,7 +40,7 @@ export default function ChatScroller({
     </>
   );
 
-  const renderer = React.forwardRef<HTMLDivElement, RendererProps>(
+  return React.forwardRef<HTMLDivElement, RendererProps>(
     ({ index }: RendererProps, ref) => {
       const writ = messages.get(index);
 
@@ -95,6 +89,43 @@ export default function ChatScroller({
         />
       );
     }
+  );
+}
+
+export default function ChatScroller({
+  whom,
+  messages,
+  replying = false,
+  prefixedElement,
+}: IChatScroller) {
+  const chatInfo = useChatInfo(whom);
+  const brief = useChatState((s: ChatState) => s.briefs[whom]);
+
+  const keys = messages
+    .keys()
+    .reverse()
+    .filter((k) => {
+      if (replying) {
+        return true;
+      }
+      return messages.get(k)?.memo.replying === null;
+    });
+  const mess = keys.reduce(
+    (acc, val) => acc.set(val, messages.get(val)),
+    new BigIntOrderedMap<ChatWrit>()
+  );
+
+  const renderer = useMemo(
+    () =>
+      createRenderer({
+        messages,
+        whom,
+        keys,
+        brief,
+        chatInfo,
+        prefixedElement,
+      }),
+    [messages, keys, whom, brief, chatInfo, prefixedElement]
   );
 
   const fetchMessages = useCallback(

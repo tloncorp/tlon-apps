@@ -30,7 +30,7 @@ export default function Section({
 }: SectionProps) {
   const group = useRouteGroup();
   const [isEditing, setIsEditing] = useState(false);
-  const isSectionless = sectionKey === 'sectionless';
+  const isSectionless = sectionKey === 'default';
 
   useEffect(() => {
     if (sectionData.isNew === true) {
@@ -42,13 +42,8 @@ export default function Section({
     setIsEditing(!isEditing);
   }, [isEditing]);
 
-  const removeChannelsFromZone = async (
-    groupFlag: string,
-    channelFlag: string
-  ) => {
-    await useGroupState
-      .getState()
-      .removeChannelFromZone(groupFlag, channelFlag);
+  const removeChannelsFromZone = async (groupFlag: string, nest: string) => {
+    await useGroupState.getState().addChannelToZone('default', groupFlag, nest);
   };
 
   const handleDeleteClick = useCallback(async () => {
@@ -80,12 +75,15 @@ export default function Section({
                   <SectionNameEditInput
                     handleEditingChange={handleEditingChange}
                     sectionTitle={sectionData.title}
+                    isNew={sectionData.isNew}
                     onSectionEditNameSubmit={onSectionEditNameSubmit}
                     channels={sectionData.channels}
                     sectionKey={sectionKey}
                   />
                 ) : (
-                  <h2 className="text-lg font-semibold">{sectionData.title}</h2>
+                  <h2 className="alt-highlight text-lg font-semibold">
+                    {sectionData.title}
+                  </h2>
                 )}
               </div>
               {isSectionless || isEditing ? null : (
