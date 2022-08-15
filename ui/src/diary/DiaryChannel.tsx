@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import React, { useCallback, useEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useParams, useRoutes } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useVessel } from '@/state/groups/groups';
+import { useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useNotesForDiary, useDiaryPerms, useDiaryState } from '@/state/diary';
 import ChannelHeader from '@/channels/ChannelHeader';
 import { nestToFlag } from '@/logic/utils';
@@ -10,19 +10,21 @@ import { useForm } from 'react-hook-form';
 import { parseInline, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
 import { VerseInline } from '@/types/diary';
 import DiaryEditor, { useDiaryEditor } from './DiaryEditor';
+import { Link } from 'react-router-dom';
 
-export interface DiaryChannelProps {
-  flag: string;
-  nest: string;
-}
+export interface DiaryChannelProps {}
 
 interface NoteForm {
   title: string;
   image: string;
 }
 
-function DiaryChannel({ flag, nest }: DiaryChannelProps) {
-  const [app, chFlag] = nestToFlag(nest);
+function DiaryChannel(props: DiaryChannelProps) {
+  const { chShip, chName } = useParams();
+  const chFlag = `${chShip}/${chName}`;
+  const nest = `diary/${chFlag}`;
+  const flag = useRouteGroup();
+
   const notes = useNotesForDiary(chFlag);
   const perms = useDiaryPerms(nest);
   const vessel = useVessel(flag, window.our);
@@ -88,14 +90,16 @@ function DiaryChannel({ flag, nest }: DiaryChannelProps) {
           {Array.from(notes)
             .sort(([a], [b]) => b.compare(a))
             .map(([time, note]) => (
-              <li key={time.toString()}>
-                <span>{note.essay.title}</span>
-                <p>
-                  {tipTapToString(
-                    parseInline((note.essay.content[0] as VerseInline).inline)
-                  )}
-                </p>
-              </li>
+              <Link to={`quips/${time.toString()}`}>
+                <li key={time.toString()}>
+                  <span>{note.essay.title}</span>
+                  <p>
+                    {tipTapToString(
+                      parseInline((note.essay.content[0] as VerseInline).inline)
+                    )}
+                  </p>
+                </li>
+              </Link>
             ))}
         </ul>
       </div>

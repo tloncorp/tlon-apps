@@ -43,6 +43,10 @@ import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import { useHeapState } from './state/heap/heap';
 import { useDiaryState } from './state/diary';
+import ChatChannel from './chat/ChatChannel';
+import HeapChannel from './heap/HeapChannel';
+import DiaryChannel from './diary/DiaryChannel';
+import DiaryQuips from './diary/DiaryQuips';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -103,11 +107,25 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             <Route path="members" element={<GroupMemberManager />} />
             <Route path="channels" element={<GroupChannelManager />} />
           </Route>
-          <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
+          <Route
+            path="channels/join/:app/:chShip/:chName"
+            element={<Channel />}
+          />
+          <Route path="channels/chat/:chShip/:chName" element={<ChatChannel />}>
             <Route
               path="message/:idShip/:idTime"
               element={<GroupChatThread />}
             />
+          </Route>
+          <Route
+            path="channels/heap/:chShip/:chName"
+            element={<HeapChannel />}
+          />
+          <Route
+            path="channels/diary/:chShip/:chName"
+            element={<DiaryChannel />}
+          >
+            <Route path="quips/:noteId" element={<DiaryQuips />} />
           </Route>
           <Route path="channels" element={<ChannelIndex />} />
         </Route>

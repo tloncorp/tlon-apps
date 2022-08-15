@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import React, { useCallback, useEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
 import { useVessel } from '@/state/groups/groups';
 import {
@@ -13,16 +13,18 @@ import { nestToFlag } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 
 export interface HeapChannelProps {
-  flag: string;
-  nest: string;
 }
 
 interface CurioForm {
   url: string;
 }
 
-function HeapChannel({ flag, nest }: HeapChannelProps) {
-  const [app, chFlag] = nestToFlag(nest);
+function HeapChannel(props: HeapChannelProps) {
+  const { chShip, chName } = useParams();
+  const chFlag = `${chShip}/${chName}`;
+  const nest = `heap/${chFlag}`;
+  const flag = useRouteGroup();
+
   const curios = useCuriosForHeap(chFlag);
   const perms = useHeapPerms(nest);
   const vessel = useVessel(flag, window.our);

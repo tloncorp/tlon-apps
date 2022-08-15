@@ -1,19 +1,21 @@
 import _ from 'lodash';
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
 import { useChatPerms, useChatState, useMessagesForChat } from '@/state/chat';
-import { useVessel } from '@/state/groups/groups';
+import { useRouteGroup, useVessel } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 
-export interface HeapChannelProps {
-  flag: string;
-  nest: string;
-}
+export interface ChatChannelProps {}
 
-function ChatChannel({ flag, nest }: HeapChannelProps) {
+function ChatChannel(props: ChatChannelProps) {
+  const { chShip, chName } = useParams();
+  const chFlag = `${chShip}/${chName}`;
+  const nest = `chat/${chFlag}`;
+  const flag = useRouteGroup();
+
   useEffect(() => {
     useChatState.getState().initialize(nest);
   }, [nest]);

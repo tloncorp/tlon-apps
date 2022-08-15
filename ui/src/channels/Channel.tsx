@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import React from 'react';
-import { useParams } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
 import { useBriefs, useChatState } from '@/state/chat';
 import { useBriefs as useHeapBriefs, useHeapState } from '@/state/heap/heap';
