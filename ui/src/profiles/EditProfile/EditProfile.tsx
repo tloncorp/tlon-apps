@@ -26,19 +26,27 @@ const emptyContact = {
   color: '0x0',
   avatar: null,
   cover: null,
-  groups: [{}],
+  groups: [] as GroupOption[],
   isContactPublic: true,
 };
 
 const onFormSubmit = (
   values: ProfileFormSchema,
   contact: Contact | undefined,
-  selectedGroups: GroupOption[],
   ship: string
 ) => {
   if (!contact) {
     return;
   }
+
+  const resourceifyGroup = (group: string) => {
+    const groupFlag = group.replace('/ship/', '');
+    const groupResource = {
+      name: groupFlag.split('/')[1],
+      ship: groupFlag.split('/')[0] || '',
+    };
+    return groupResource;
+  };
 
   Object.entries(values as ProfileFormSchema).forEach((formValue) => {
     const [key, value] = formValue;
@@ -49,28 +57,20 @@ const onFormSubmit = (
       } else if (key === 'groups') {
         const toRemove: string[] = _.difference(
           contact?.groups || [],
-          selectedGroups.map((group) => `/ship/${group.value}`)
+          values.groups.map((group) => `/ship/${group.value}`)
         );
         const toAdd: string[] = _.difference(
-          selectedGroups.map((group) => `/ship/${group.value}`),
+          values.groups.map((group) => `/ship/${group.value}`),
           contact?.groups || []
         );
         toRemove.forEach((i) => {
-          const groupFlag = i.replace('/ship/', '');
-          const group = {
-            name: groupFlag.split('/')[1],
-            ship: groupFlag.split('/')[0] || '',
-          };
+          const group = resourceifyGroup(i);
           useContactState
             .getState()
             .editContactField(ship, { 'remove-group': group });
         });
         toAdd.forEach((i) => {
-          const groupFlag = i.replace('/ship/', '');
-          const group = {
-            name: groupFlag.split('/')[1],
-            ship: groupFlag.split('/')[0] || '',
-          };
+          const group = resourceifyGroup(i);
           useContactState
             .getState()
             .editContactField(ship, { 'add-group': group });
@@ -84,57 +84,87 @@ const onFormSubmit = (
 
 function EditProfileContent() {
   const [allGroups, setAllGroups] = useState<GroupOption[]>([]);
-  const [selectedGroups, setSelectedGroups] = useState<GroupOption[]>([]);
   const groupData = useGroups();
   const groupFlags = Object.keys(groupData);
   const ship = window.our;
   const contact = useOurContact();
   const isPublic = isOurContactPublic();
 
-  useEffect(() => {
-    const groupOptions = contact?.groups.map((groupFlag) => {
-      // contact-store prepends "/ship/" to each group flag added to it, which is the correct URL path in groups 1, but not here
-      const deShippedGroupFlag = groupFlag.replace('/ship/', '');
-      return {
-        value: deShippedGroupFlag,
-        label: groupData[deShippedGroupFlag]?.meta.title,
-      };
-    });
-    setSelectedGroups(groupOptions || []);
-  }, [contact, groupData]);
+  const objectifyGroups = useCallback(
+    (groups: string[]) => {
+      const groupOptions = groups.map((groupFlag) => {
+        // contact-store prepends "/ship/" to each group flag added to it, which is the correct URL path in groups 1, but not here
+        const deShippedGroupFlag = groupFlag.replace('/ship/', '');
+        return {
+          value: deShippedGroupFlag,
+          label: groupData[deShippedGroupFlag]?.meta.title,
+        };
+      });
+      return groupOptions;
+    },
+    [groupData]
+  );
 
   const form = useForm<ProfileFormSchema>({
     defaultValues: {
       ...emptyContact,
       ...contact,
+      groups: objectifyGroups(contact?.groups || []),
       isContactPublic: isPublic,
     },
   });
 
   useEffect(() => {
+    const groupOptions = objectifyGroups(contact?.groups || []);
+    form.setValue('groups', groupOptions);
+  }, [contact, groupData, form, objectifyGroups]);
+
+  useEffect(() => {
     form.reset({
       ...emptyContact,
       ...contact,
+      groups: objectifyGroups(contact?.groups || []),
       isContactPublic: isPublic,
     });
-  }, [form, contact, isPublic]);
+  }, [form, contact, objectifyGroups, isPublic]);
 
   const onSubmit = useCallback(
     (values: ProfileFormSchema) => {
-      onFormSubmit(values, contact, selectedGroups, ship);
+      onFormSubmit(values, contact, ship);
       form.reset(values);
     },
-    [contact, selectedGroups, ship, form]
+    [contact, ship, form]
   );
 
-  const onEnter = (values: GroupOption[]) => {
-    const newSelectedGroups = [...selectedGroups, ...values];
-    setSelectedGroups(newSelectedGroups);
+  const uniqueGroupOptions = (groups: GroupOption[]) => {
+    const result: GroupOption[] = [];
+    const distinctValues = new Set();
+    groups.forEach((group) => {
+      if (!distinctValues.has(group.value)) {
+        distinctValues.add(group.value);
+        result.push(group);
+      }
+    });
+    return result;
   };
 
-  const onRemoveGroupClick = useCallback((groupFlag: string) => {
-    setSelectedGroups((gs) => gs.filter((g) => g.value !== groupFlag));
-  }, []);
+  const onEnter = (values: GroupOption[]) => {
+    const nextGroups = uniqueGroupOptions([
+      ...form.getValues('groups'),
+      ...values,
+    ]);
+    form.setValue('groups', nextGroups, { shouldDirty: true });
+  };
+
+  const onRemoveGroupClick = useCallback(
+    (groupFlag: string) => {
+      const newGroups = [...form.getValues('groups')].filter(
+        (g) => g.value !== groupFlag
+      );
+      form.setValue('groups', newGroups, { shouldDirty: true });
+    },
+    [form]
+  );
 
   const avatarPreviewData = {
     previewColor: form.watch('color') || emptyContact.color,
@@ -182,7 +212,7 @@ function EditProfileContent() {
               isValidNewOption={(value) => groupFlags.includes(value)}
             />
             <div className="flex flex-wrap space-x-2 pt-2">
-              {selectedGroups.map((group) => (
+              {form.watch('groups').map((group) => (
                 <ProfileGroup
                   key={group.value}
                   groupFlag={group.value}
