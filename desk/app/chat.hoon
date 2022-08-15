@@ -23,7 +23,7 @@
         pins=(list whom:c)
         bad=(set ship)
         inv=(set ship)
-        voc=(map [flag:c id:c] said:c)
+        voc=(map [flag:c id:c] (unit said:c))
     ==
   --
 =|  state-0
@@ -659,9 +659,9 @@
     (add-channel:ca-pass req)
   ::
   ++  ca-agent
-    |=  [=wire =sign:agent:gall]
+    |=  [=(pole knot) =sign:agent:gall]
     ^+  ca-core
-    ?+  wire  !!
+    ?+    pole  !!
         ~  :: noop wire, should only send pokes
       ca-core
     ::
@@ -673,6 +673,36 @@
       %.  ca-core  :: TODO rollback creation if poke fails?
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
+    ::
+        [%said ship=@ time=@ ~]
+      =/  =ship  (slav %p ship.pole)
+      =/  =time  (slav %ud time.pole)
+      =/  =id:c  [ship time]
+      ?+    -.sign  !!
+          %watch-ack
+        %.  ca-core
+        ?~  p.sign  same
+        (slog leaf/"Preview failed" u.p.sign)
+      ::
+          %kick
+        ?:  (~(has by voc) [flag id])
+          ca-core  :: subscription ended politely
+        (proxy-said:ca-pass id)
+      ::
+          %fact
+        =.  cor
+          (give %fact ~[(welp ca-area pole)] cage.sign)
+        ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
+            %chat-said
+          =+  !<(=said:c q.cage.sign)
+          =.  voc  (~(put by voc) [flag id] `said)
+          ca-core
+        ::
+            %chat-denied
+          =.  voc  (~(put by voc) [flag id] ~)
+          ca-core
+        ==
+      ==
     ==
   ::
   ++  ca-brief  (brief:ca-pact our.bowl last-read.remark.chat)
