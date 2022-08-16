@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { EditorView } from 'prosemirror-view';
 
 const oldUpdateState = EditorView.prototype.updateState;
