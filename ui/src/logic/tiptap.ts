@@ -60,16 +60,17 @@ export function tipTapToString(json: JSONContent): string {
 
 // this will be replaced with more sophisticated logic based on
 // what we decide will be the message format
-export function parseTipTapJSON(json: JSONContent): Inline[] | Inline {
+export function parseTipTapJSON(json: JSONContent): Inline[] {
   if (json.content) {
     if (json.content.length === 1) {
       if (json.type === 'blockquote') {
         const parsed = parseTipTapJSON(json.content[0]);
-        return {
-          blockquote: Array.isArray(parsed) ? parsed : [parsed],
-        } as Inline;
+        return [
+          {
+            blockquote: parsed,
+          },
+        ];
       }
-
       return parseTipTapJSON(json.content[0]);
     }
 
@@ -107,26 +108,32 @@ export function parseTipTapJSON(json: JSONContent): Inline[] | Inline {
     }
 
     if (first.type === 'link' && first.attrs) {
-      return {
-        link: {
-          href: first.attrs.href,
-          content: json.text || first.attrs.href,
+      return [
+        {
+          link: {
+            href: first.attrs.href,
+            content: json.text || first.attrs.href,
+          },
         },
-      };
+      ];
     }
 
-    return {
-      [convertMarkType(first.type)]: parseTipTapJSON(json),
-    } as unknown as Inline;
+    return [
+      {
+        [convertMarkType(first.type)]: parseTipTapJSON(json),
+      },
+    ] as unknown as Inline[];
   }
 
   if (json.type === 'paragraph') {
-    return {
-      break: null,
-    };
+    return [
+      {
+        break: null,
+      },
+    ];
   }
 
-  return json.text || '';
+  return [json.text || ''];
 }
 
 function wrapParagraphs(content: JSONContent[]) {

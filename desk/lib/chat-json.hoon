@@ -9,6 +9,14 @@
     ^-  json
     s/(rap 3 (scot %p p.f) '/' q.f ~)
   ::
+  ++  said
+    |=  s=said:c
+    ^-  json
+    %-  pairs
+    :~  flag/(flag p.s)
+        writ/(writ q.s)
+    ==
+  ::
   ++  club-delta
     |=  d=delta:club:c
     %+  frond  -.d
@@ -241,13 +249,10 @@
         %break
       ~
     ::
-        ?(%italics %bold %strike)
-      (inline p.i)
-    ::
         ?(%code %tag %inline-code)
       s+p.i
     ::
-        %blockquote
+        ?(%italics %bold %strike %blockquote)
       :-  %a
       (turn p.i inline)
     ::
@@ -520,12 +525,12 @@
     =>  .(j `json`j)
     %.  j
     %-  of
-    :~  italics/inline
-        bold/inline
-        strike/inline
+    :~  italics/(ar inline)
+        bold/(ar inline)
+        strike/(ar inline)
+        blockquote/(ar inline)
         inline-code/so
         code/so
-        blockquote/(ar inline)
         tag/so
         break/ul
     ::

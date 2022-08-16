@@ -1,9 +1,9 @@
 import { Editor, JSONContent } from '@tiptap/react';
-import { debounce } from 'lodash';
+import { debounce, reduce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
-import { ChatInline, ChatMemo, ChatStory } from '@/types/chat';
+import { ChatInline, ChatInlineKey, ChatMemo, ChatStory } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -23,6 +23,37 @@ interface ChatInputProps {
   className?: string;
   sendDisabled?: boolean;
   sendMessage: (whom: string, memo: ChatMemo) => void;
+}
+
+const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
+function isMergeable(x: ChatInlineKey): x is typeof MERGEABLE_KEYS[number] {
+  return MERGEABLE_KEYS.includes(x as any);
+}
+function normalizeChatInline(inline: ChatInline[]): ChatInline[] {
+  return reduce(
+    inline,
+    (acc: ChatInline[], val) => {
+      if (acc.length === 0) {
+        return [...acc, val];
+      }
+      const last = acc[acc.length - 1];
+      if (typeof last === 'string' && typeof val === 'string') {
+        return [...acc.slice(0, -1), last + val];
+      }
+      const lastKey = Object.keys(acc[acc.length - 1])[0] as ChatInlineKey;
+      const currKey = Object.keys(val)[0] as keyof ChatInlineKey;
+      if (isMergeable(lastKey) && currKey === lastKey) {
+        // @ts-expect-error keying weirdness
+        const end: ChatInline = {
+          // @ts-expect-error keying weirdness
+          [lastKey]: [...last[lastKey as any], ...val[currKey as any]],
+        };
+        return [...acc.slice(0, -1), end];
+      }
+      return [...acc, val];
+    },
+    []
+  );
 }
 
 export default function ChatInput({
@@ -52,7 +83,7 @@ export default function ChatInput({
           return;
         }
 
-        const data = parseTipTapJSON(editor?.getJSON());
+        const data = normalizeChatInline(parseTipTapJSON(editor?.getJSON()));
         useChatState.getState().draft(whom, {
           inline: Array.isArray(data) ? data : [data],
           block: [],
@@ -69,7 +100,7 @@ export default function ChatInput({
         return;
       }
 
-      const data = parseTipTapJSON(editor?.getJSON());
+      const data = normalizeChatInline(parseTipTapJSON(editor?.getJSON()));
       const memo: ChatMemo = {
         replying: reply,
         author: `~${window.ship || 'zod'}`,

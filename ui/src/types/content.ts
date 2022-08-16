@@ -1,15 +1,15 @@
 export type Ship = string;
 
 export interface Italics {
-  italics: Inline;
+  italics: Inline[];
 }
 
 export interface Bold {
-  bold: Inline;
+  bold: Inline[];
 }
 
 export interface Strikethrough {
-  strike: Inline;
+  strike: Inline[];
 }
 
 export interface Break {

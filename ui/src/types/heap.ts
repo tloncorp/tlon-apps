@@ -1,4 +1,4 @@
-import { BigIntOrderedMap, Tag } from '@urbit/api';
+import { BigIntOrderedMap } from '@urbit/api';
 import {
   Italics,
   Strikethrough,
@@ -8,6 +8,7 @@ import {
   Bold,
   Blockquote,
   Link,
+  Tag,
 } from './content';
 
 export type Patda = string;
@@ -25,6 +26,18 @@ export type HeapInline =
   | Blockquote
   | Tag
   | Link;
+
+export type HeapInlineKey =
+  | 'italics'
+  | 'bold'
+  | 'strike'
+  | 'blockquote'
+  | 'inline-code'
+  | 'block'
+  | 'code'
+  | 'tag'
+  | 'link'
+  | 'break';
 
 export function isBold(item: unknown): item is Bold {
   return typeof item === 'object' && item !== null && 'bold' in item;
