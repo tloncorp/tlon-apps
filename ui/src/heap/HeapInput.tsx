@@ -99,7 +99,7 @@ export default function HeapInput({ displayType }: HeapInputProps) {
       {isListMode ? modeToggle() : null}
       <div
         className={cn(
-          isGridMode ? 'heap-block flex-col' : 'heap-row flex-row',
+          isGridMode ? 'heap-block flex-col' : 'heap-row h-min flex-row',
           'flex cursor-auto'
         )}
       >
@@ -123,7 +123,7 @@ export default function HeapInput({ displayType }: HeapInputProps) {
             />
           </form>
         ) : (
-          <HeapTextInput flag={chFlag} />
+          <HeapTextInput displayType={displayType} flag={chFlag} />
         )}
       </div>
     </div>

@@ -21,7 +21,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
 
   if (isText) {
     return (
-      <div className="heap-block p-1">
+      <div className="heap-block px-2 py-1">
         <HeapContent content={content} />
       </div>
     );

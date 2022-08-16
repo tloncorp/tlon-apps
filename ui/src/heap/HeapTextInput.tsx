@@ -6,10 +6,13 @@ import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import { useHeapState } from '@/state/heap/heap';
 import { reduce } from 'lodash';
+import classNames from 'classnames';
+import { HeapDisplayMode, LIST } from './HeapTypes';
 
 interface HeapTextInputProps {
   flag: string;
   sendDisabled?: boolean;
+  displayType: HeapDisplayMode;
 }
 
 // TODO: should these be extracted to a common lib for usage in both ChatInput and HeapTextInput?
@@ -138,6 +141,7 @@ function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
 export default function HeapTextInput({
   flag,
   sendDisabled = false,
+  displayType,
 }: HeapTextInputProps) {
   const isMobile = useIsMobile();
 
@@ -191,15 +195,16 @@ export default function HeapTextInput({
 
   return (
     <>
-      <div className="relative flex-1 p-1">
+      <div className="relative flex-1 p-0.5">
         <MessageEditor
           editor={messageEditor}
           className="h-full w-full rounded-lg"
-          // Since TipTap simulates an input using a <p> tag, only style
-          // the fake placeholder when the field is empty
-          inputClassName={
-            messageEditor.getText() === '' ? 'font-semibold text-gray-400' : ''
-          }
+          inputClassName={classNames(
+            // Since TipTap simulates an input using a <p> tag, only style
+            // the fake placeholder when the field is empty
+            messageEditor.getText() === '' ? 'font-semibold text-gray-400' : '',
+            displayType === LIST ? 'min-h-[44px]' : ''
+          )}
         />
         <button
           className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
