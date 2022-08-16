@@ -23,9 +23,12 @@ import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 
+const oldUpdateState = EditorView.prototype.updateState;
+
 EditorView.prototype.updateState = function updateState(state) {
   if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
-  (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
+  // (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
+  oldUpdateState.call(this, state);
 };
 
 interface HandlerParams {
