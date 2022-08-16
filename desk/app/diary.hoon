@@ -311,8 +311,11 @@
     |=  =(pole knot)
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
-      [%notes rest=*]  (peek:di-notes rest.pole)
-      [%perm ~]        ``diary-perm+!>(perm.diary)
+        [%notes rest=*]  (peek:di-notes rest.pole)
+        [%perm ~]        ``diary-perm+!>(perm.diary)
+        [%quips time=@ rest=*]  
+      =/  =time  (slav %ud time.pole)
+      (~(peek qup (~(gut by banter.diary) time *quips:d)) rest.pole)
     ==
   ::
   ++  di-revoke
@@ -480,7 +483,7 @@
       di-core(notes.diary (reduce:di-notes time p.dif))
     ::
         %quips
-      =/  =quips:d   (~(got by banter.diary) p.dif)
+      =/  =quips:d   (~(gut by banter.diary) p.dif *quips:d)
       =.  quips      (~(reduce qup quips) time q.dif)
       di-core(banter.diary (~(put by banter.diary) p.dif quips))
     ::

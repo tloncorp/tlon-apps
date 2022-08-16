@@ -4,6 +4,21 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  quips-diff
+    |=  d=diff:quips:d
+    %-  pairs
+    :~  time/s/(scot %ud p.d)
+        delta/(quips-delta q.d)
+    ==
+  ::
+  ++  quips-delta
+    |=  d=delta:quips:d
+    %+  frond  -.d
+    ?+  -.d  ~
+      %add  (memo p.d)
+      %del  ~
+    ==
+  ::
   ++  flag
     |=  f=flag:d
     ^-  json
@@ -41,6 +56,7 @@
     %+  turn  ~(tap by sh)
     |=  [f=flag:d di=diary:d]
     [(rap 3 (scot %p p.f) '/' q.f ~) (diary di)]
+  ::
   ++  diary
     |=  di=diary:d
     %-  pairs
