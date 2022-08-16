@@ -9,6 +9,8 @@ import ChannelHeader from '@/channels/ChannelHeader';
 import ChatChannel from '@/chat/ChatChannel';
 import HeapChannel from '@/heap/HeapChannel';
 import useAllBriefs from '@/logic/useAllBriefs';
+import { useDiaryState } from '@/state/diary';
+import DiaryChannel from '@/diary/DiaryChannel';
 
 function Channel() {
   const { app, chShip, chName } = useParams();
@@ -22,7 +24,9 @@ function Channel() {
     const joiner =
       app === 'chat'
         ? useChatState.getState().joinChat
-        : useHeapState.getState().joinHeap;
+        : app === 'heap'
+        ? useHeapState.getState().joinHeap
+        : useDiaryState.getState().joinDiary;
 
     joiner(chFlag);
   };
@@ -33,6 +37,10 @@ function Channel() {
 
   if (app === 'heap' && isJoined) {
     return <HeapChannel flag={flag} nest={nest} />;
+  }
+
+  if (app === 'diary' && isJoined) {
+    return <DiaryChannel flag={flag} nest={nest} />;
   }
 
   return (

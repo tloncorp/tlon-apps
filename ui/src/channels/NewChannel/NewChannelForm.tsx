@@ -9,6 +9,7 @@ import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
+import { useDiaryState } from '@/state/diary';
 import ChannelTypeSelector from '../ChannelTypeSelector';
 
 export default function NewChannelForm() {
@@ -54,7 +55,9 @@ export default function NewChannelForm() {
       const creator =
         type === 'chat'
           ? useChatState.getState().create
-          : useHeapState.getState().create;
+          : type === 'heap'
+          ? useHeapState.getState().create
+          : useDiaryState.getState().create;
 
       await creator({
         group: groupFlag,
