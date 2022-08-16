@@ -7,7 +7,8 @@ import {
   validOembedCheck,
 } from '@/logic/utils';
 import { useEmbed } from '@/logic/embed';
-import HeapContent from './HeapContent';
+import HeapContent from '@/heap/HeapContent';
+import TwitterIcon from '@/components/icons/TwitterIcon';
 
 export default function HeapBlock({ curio }: { curio: HeapCurio }) {
   const { content } = curio.heart;
@@ -39,17 +40,48 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
   }
 
   if (isOembed) {
-    return (
-      <Suspense fallback={<div>Loading...</div>}>
-        <div className="heap-block">
-          <div className="oembed">
-            <div
-              className="oembed-content"
-              dangerouslySetInnerHTML={{ __html: oembed.read().html }}
+    const thumbnail = oembed.read().thumbnail_url;
+    const provider = oembed.read().provider_name;
+    console.log({ thumbnail, provider, oembed: oembed.read() });
+    if (provider === 'YouTube' || provider === 'SoundCloud') {
+      return (
+        <div
+          className="heap-block"
+          style={{
+            backgroundImage: `url(${oembed.read().thumbnail_url})`,
+          }}
+        />
+      );
+    }
+    if (provider === 'Twitter') {
+      const author = oembed.read().author_name;
+      const twitterHandle = oembed.read().author_url.split('/').pop();
+      const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
+      const tweetLink = oembed.read().url;
+      return (
+        <div className="heap-block group flex flex-col justify-between p-4">
+          <TwitterIcon />
+          <div className="flex flex-col items-center justify-center">
+            <img
+              className="h-[46px] w-[46px] rounded-full"
+              src={twitterProfilePic}
+              alt={author}
             />
+            <span className="font-semibold text-black">{author}</span>
+            <span className="text-gray-300">@{twitterHandle}</span>
+          </div>
+          <div>
+            <div className="border-top hidden border-2 group-hover:block">
+              <span className="font-semibold text-gray-100">{tweetLink}</span>
+            </div>
           </div>
         </div>
-      </Suspense>
+      );
+    }
+    return (
+      <div className="heap-block px-2 py-1">
+        <HeapContent content={content} />
+      </div>
     );
   }
 
