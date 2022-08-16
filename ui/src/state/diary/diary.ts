@@ -19,6 +19,7 @@ import {
   DiaryMemo,
   DiaryQuipMap,
   DiaryQuips,
+  DiaryQuip,
 } from '@/types/diary';
 import api from '@/api';
 import {
@@ -45,7 +46,7 @@ function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
   };
 }
 
-function diaryNoteDiff(flag: DiaryFlag, time: number, delta: NoteDelta) {
+function diaryNoteDiff(flag: DiaryFlag, time: string, delta: NoteDelta) {
   return diaryAction(flag, {
     notes: {
       time,
@@ -156,7 +157,7 @@ export const useDiaryState = create<DiaryState>(
         });
 
         get().batchSet((draft) => {
-          const map = new BigIntOrderedMap().gas(
+          const map = new BigIntOrderedMap<DiaryQuip>().gas(
             _.map(res, (val, key) => {
               const k = bigInt(udToDec(key));
               return [k, val];
@@ -185,7 +186,11 @@ export const useDiaryState = create<DiaryState>(
         });
       },
       addNote: (flag, heart) => {
-        api.poke(diaryNoteDiff(flag, Date.now(), { add: heart }));
+        api.poke(
+          diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
+            add: heart,
+          })
+        );
       },
       delNote: (flag, time) => {
         api.poke(diaryNoteDiff(flag, time, { del: null }));

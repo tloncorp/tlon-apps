@@ -33,7 +33,7 @@ export interface DiaryState {
   leaveDiary: (flag: DiaryFlag) => Promise<void>;
   markRead: (flag: DiaryFlag) => Promise<void>;
   addNote: (flag: DiaryFlag, essay: NoteEssay) => void;
-  delNote: (flag: DiaryFlag, time: number) => void;
+  delNote: (flag: DiaryFlag, time: string) => void;
   addSects: (flag: DiaryFlag, writers: string[]) => Promise<void>;
   delSects: (flag: DiaryFlag, writers: string[]) => Promise<void>;
   addQuip: (

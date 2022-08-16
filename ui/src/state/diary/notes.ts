@@ -92,13 +92,13 @@ export default function makeNotesStore(
         event: (data: DiaryUpdate) => {
           const { diff: d, time } = data;
           if ('notes' in d) {
-            const { time, delta } = d.notes;
-            const bigTime = bigInt(time);
+            const { time: noteId, delta } = d.notes;
+            const bigTime = bigInt(noteId);
             const s = get();
             s.batchSet((draft) => {
               let noteMap = draft.notes[flag];
               if ('add' in delta && !noteMap.has(bigTime)) {
-                const seal: NoteSeal = { time, feels: {} };
+                const seal: NoteSeal = { time: noteId, feels: {} };
                 const note: DiaryNote = { seal, essay: delta.add };
                 noteMap = noteMap.set(bigTime, note);
               } else if ('del' in delta && noteMap.has(bigTime)) {
@@ -110,19 +110,17 @@ export default function makeNotesStore(
             const { id: noteIdDec, diff } = d.quips;
             const noteId = udToDec(noteIdDec);
             const { delta, time: quipId } = diff;
+            const k = bigInt(udToDec(quipId));
             const s = get();
-            console.log('noteid', noteId);
             // TODO: check consistency if comments are unloaded?
             if ('add' in delta) {
               s.batchSet((draft) => {
-                console.log('adding quip', delta.add);
                 if (!(flag in draft.banter)) {
                   draft.banter[flag] = {};
                 }
                 if (!(noteId in draft.banter[flag])) {
                   draft.banter[flag][noteId] = new BigIntOrderedMap();
                 }
-                const k = bigInt(udToDec(quipId));
                 const quip = {
                   seal: {
                     time: quipId,
@@ -136,7 +134,10 @@ export default function makeNotesStore(
                 );
               });
             } else if ('del' in delta) {
-              s.batchSet((draft) => {});
+              s.batchSet((draft) => {
+                draft.banter[flag][noteId] =
+                  draft.banter[flag][noteId].delete(k);
+              });
             }
           }
         },

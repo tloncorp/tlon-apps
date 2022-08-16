@@ -8,9 +8,7 @@ import { useChatPerms, useChatState, useMessagesForChat } from '@/state/chat';
 import { useRouteGroup, useVessel } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 
-export interface ChatChannelProps {}
-
-function ChatChannel(props: ChatChannelProps) {
+function ChatChannel() {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;

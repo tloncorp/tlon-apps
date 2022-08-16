@@ -124,10 +124,12 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route
             path="channels/diary/:chShip/:chName"
             element={<DiaryChannel />}
-          >
-          </Route>
+          />
 
-          <Route path="channels/diary/:chShip/:chName/note/:noteId" element={<DiaryNote />} />
+          <Route
+            path="channels/diary/:chShip/:chName/note/:noteId"
+            element={<DiaryNote />}
+          />
           <Route path="channels" element={<ChannelIndex />} />
         </Route>
         <Route path="/dm/:ship" element={<Message />} />

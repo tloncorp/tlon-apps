@@ -120,7 +120,7 @@ interface DiaryDiffQuips {
 export type NoteDelta = NoteDeltaAdd | NoteDeltaDel | NoteDeltaAddFeel;
 
 export interface NoteDiff {
-  time: number;
+  time: string;
   delta: NoteDelta;
 }
 
@@ -131,7 +131,7 @@ export type DiaryDiff =
   | DiaryDiffQuips;
 
 export interface DiaryUpdate {
-  time: number;
+  time: string;
   diff: DiaryDiff;
 }
 

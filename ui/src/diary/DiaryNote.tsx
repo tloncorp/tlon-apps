@@ -10,13 +10,13 @@ interface CommentForm {
   content: string;
 }
 
-export default function DiaryNote(props: {}) {
+export default function DiaryNote() {
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
 
-  const [time, note] = useNote(chFlag, noteId)!;
+  const [, note] = useNote(chFlag, noteId)!;
 
   const { register, handleSubmit, reset } = useForm<CommentForm>({
     defaultValues: {

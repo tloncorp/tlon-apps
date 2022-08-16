@@ -2,7 +2,7 @@ import _ from 'lodash';
 import React, { useCallback, useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useVessel } from '@/state/groups/groups';
+import { useRouteGroup, useVessel } from '@/state/groups/groups';
 import {
   useCuriosForHeap,
   useHeapPerms,
@@ -12,14 +12,11 @@ import ChannelHeader from '@/channels/ChannelHeader';
 import { nestToFlag } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 
-export interface HeapChannelProps {
-}
-
 interface CurioForm {
   url: string;
 }
 
-function HeapChannel(props: HeapChannelProps) {
+function HeapChannel() {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;

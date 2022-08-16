@@ -31,18 +31,6 @@ function Channel() {
     joiner(chFlag);
   };
 
-  if (app === 'chat' && isJoined) {
-    return <ChatChannel flag={flag} nest={nest} />;
-  }
-
-  if (app === 'heap' && isJoined) {
-    return <HeapChannel flag={flag} nest={nest} />;
-  }
-
-  if (app === 'diary' && isJoined) {
-    return <DiaryChannel flag={flag} nest={nest} />;
-  }
-
   return (
     <Layout
       className="flex-1 bg-white"

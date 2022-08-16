@@ -9,17 +9,15 @@ import { nestToFlag } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 import { parseInline, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
 import { VerseInline } from '@/types/diary';
-import DiaryEditor, { useDiaryEditor } from './DiaryEditor';
 import { Link } from 'react-router-dom';
-
-export interface DiaryChannelProps {}
+import DiaryEditor, { useDiaryEditor } from './DiaryEditor';
 
 interface NoteForm {
   title: string;
   image: string;
 }
 
-function DiaryChannel(props: DiaryChannelProps) {
+function DiaryChannel() {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
