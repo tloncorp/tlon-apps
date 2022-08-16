@@ -90,7 +90,7 @@ function DiaryChannel(props: DiaryChannelProps) {
           {Array.from(notes)
             .sort(([a], [b]) => b.compare(a))
             .map(([time, note]) => (
-              <Link to={`quips/${time.toString()}`}>
+              <Link to={`note/${time.toString()}`}>
                 <li key={time.toString()}>
                   <span>{note.essay.title}</span>
                   <p>
