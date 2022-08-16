@@ -1,10 +1,11 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect } from 'react';
-import { HeapInline, CurioHeart } from '@/types/heap';
+import { HeapInline, CurioHeart, HeapInlineKey } from '@/types/heap';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import { useHeapState } from '@/state/heap/heap';
+import { reduce } from 'lodash';
 
 interface HeapTextInputProps {
   flag: string;
@@ -27,16 +28,17 @@ function convertMarkType(type: string): string {
 
 // this will be replaced with more sophisticated logic based on
 // what we decide will be the message format
-function parseTipTapJSON(json: JSONContent): HeapInline[] | HeapInline {
+function parseTipTapJSON(json: JSONContent): HeapInline[] {
   if (json.content) {
     if (json.content.length === 1) {
       if (json.type === 'blockquote') {
         const parsed = parseTipTapJSON(json.content[0]);
-        return {
-          blockquote: Array.isArray(parsed) ? parsed : [parsed],
-        } as HeapInline;
+        return [
+          {
+            blockquote: parsed,
+          },
+        ];
       }
-
       return parseTipTapJSON(json.content[0]);
     }
 
@@ -74,26 +76,63 @@ function parseTipTapJSON(json: JSONContent): HeapInline[] | HeapInline {
     }
 
     if (first.type === 'link' && first.attrs) {
-      return {
-        link: {
-          href: first.attrs.href,
-          content: json.text || first.attrs.href,
+      return [
+        {
+          link: {
+            href: first.attrs.href,
+            content: json.text || first.attrs.href,
+          },
         },
-      };
+      ];
     }
 
-    return {
-      [convertMarkType(first.type)]: parseTipTapJSON(json),
-    } as unknown as HeapInline;
+    return [
+      {
+        [convertMarkType(first.type)]: parseTipTapJSON(json),
+      },
+    ] as unknown as HeapInline[];
   }
 
   if (json.type === 'paragraph') {
-    return {
-      break: null,
-    };
+    return [
+      {
+        break: null,
+      },
+    ];
   }
 
-  return json.text || '';
+  return [json.text || ''];
+}
+
+const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
+function isMergeable(x: HeapInlineKey): x is typeof MERGEABLE_KEYS[number] {
+  return MERGEABLE_KEYS.includes(x as any);
+}
+function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
+  return reduce(
+    inline,
+    (acc: HeapInline[], val) => {
+      if (acc.length === 0) {
+        return [...acc, val];
+      }
+      const last = acc[acc.length - 1];
+      if (typeof last === 'string' && typeof val === 'string') {
+        return [...acc.slice(0, -1), last + val];
+      }
+      const lastKey = Object.keys(acc[acc.length - 1])[0] as HeapInlineKey;
+      const currKey = Object.keys(val)[0] as keyof HeapInlineKey;
+      if (isMergeable(lastKey) && currKey === lastKey) {
+        // @ts-expect-error keying weirdness
+        const end: HeapInline = {
+          // @ts-expect-error keying weirdness
+          [lastKey]: [...last[lastKey as any], ...val[currKey as any]],
+        };
+        return [...acc.slice(0, -1), end];
+      }
+      return [...acc, val];
+    },
+    []
+  );
 }
 
 export default function HeapTextInput({
@@ -108,13 +147,13 @@ export default function HeapTextInput({
         return;
       }
 
-      const data = parseTipTapJSON(editor?.getJSON());
+      const content = normalizeHeapInline(parseTipTapJSON(editor?.getJSON()));
       const heart: CurioHeart = {
         title: null, // TODO: do we need to set a title?
         replying: null,
         author: window.our,
         sent: Date.now(),
-        content: Array.isArray(data) ? data : [data],
+        content,
       };
 
       await useHeapState.getState().addCurio(flag, heart);

@@ -1,7 +1,13 @@
 import React, { Suspense } from 'react';
 import { HeapCurio } from '@/types/heap';
-import { AUDIO_REGEX, IMAGE_REGEX, validOembedCheck } from '@/logic/utils';
+import {
+  AUDIO_REGEX,
+  IMAGE_REGEX,
+  isValidUrl,
+  validOembedCheck,
+} from '@/logic/utils';
 import { useEmbed } from '@/logic/embed';
+import HeapContent from './HeapContent';
 
 export default function HeapBlock({ curio }: { curio: HeapCurio }) {
   const { content } = curio.heart;
@@ -9,8 +15,17 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
 
   const isImage = IMAGE_REGEX.test(url);
   const isAudio = AUDIO_REGEX.test(url);
+  const isText = !isValidUrl(url);
   const oembed = useEmbed(url);
   const isOembed = validOembedCheck(oembed, url);
+
+  if (isText) {
+    return (
+      <div className="heap-block p-1">
+        <HeapContent content={content} />
+      </div>
+    );
+  }
 
   if (isImage) {
     return (
