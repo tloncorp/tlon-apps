@@ -79,6 +79,7 @@
     %+  frond  -.diff
     ?+  -.diff  ~
       %notes     (notes-diff p.diff)
+      %quips     (pairs id/s/(scot %ud p.diff) diff/(quips-diff q.diff) ~)
     ==
   ::
   ++  notes-diff

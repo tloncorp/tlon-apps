@@ -447,10 +447,7 @@
     =.  paths  (~(put in paths) (snoc di-area %ui))
     =/  cag=cage  diary-update+!>([time d])
     =.  cor
-      (give %fact ~(tap in paths) cag)
-    =?  cor  ?=(%notes -.d)
-      =/  =cage  notes-diff+!>(p.d)
-      (give %fact ~[(welp di-area /ui/notes)] cage)
+      (give %fact [(welp di-area /ui) ~(tap in paths)] cag)
     di-core
   ::
   ++  di-remark-diff
