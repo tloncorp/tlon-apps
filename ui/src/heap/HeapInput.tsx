@@ -3,12 +3,14 @@ import cn from 'classnames';
 import { intersection } from 'lodash';
 import { useForm } from 'react-hook-form';
 import LinkIcon from '@/components/icons/LinkIcon';
-import TextIcon from '@/components/icons/TextIcon';
 import { useHeapPerms, useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import { isValidUrl, nestToFlag } from '@/logic/utils';
 import { useRouteGroup, useVessel } from '@/state/groups';
+import Text16Icon from '@/components/icons/Text16Icon';
+import useRequestState from '@/logic/useRequestState';
 import { GRID, HeapDisplayMode, LIST } from './HeapTypes';
+import HeapTextInput from './HeapTextInput';
 
 interface HeapInputProps {
   displayType: HeapDisplayMode;
@@ -42,6 +44,7 @@ export default function HeapInput({ displayType }: HeapInputProps) {
       content: '',
     },
   });
+  const { isPending, setPending, setReady } = useRequestState();
   const onSubmit = useCallback(
     async ({ content }: CurioForm) => {
       await useHeapState.getState().addCurio(chFlag, {
@@ -62,7 +65,26 @@ export default function HeapInput({ displayType }: HeapInputProps) {
     ? isValidUrl(watchedContent)
     : watchedContent.length > 0;
 
-  // TODO: should it be hidden completely? or input disabled?
+  // For Link mode, prevent newline entry + allow submit with Enter
+  const onKeyDown = useCallback(
+    async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+
+        if (isPending) {
+          return;
+        }
+
+        if (isValidInput) {
+          setPending();
+          await handleSubmit(onSubmit)();
+          setReady();
+        }
+      }
+    },
+    [handleSubmit, isPending, isValidInput, onSubmit, setPending, setReady]
+  );
+
   if (!canWrite) {
     return null;
   }
@@ -88,7 +110,7 @@ export default function HeapInput({ displayType }: HeapInputProps) {
         )}
         onClick={() => setInputMode(TEXT)}
       >
-        <TextIcon className="mr-1 h-4 w-4" />
+        <Text16Icon className="mr-1 h-4 w-4" />
         <span className="ml-1">Text</span>
       </button>
     </div>
@@ -99,25 +121,32 @@ export default function HeapInput({ displayType }: HeapInputProps) {
       {isListMode ? modeToggle() : null}
       <div
         className={cn(
-          isGridMode ? 'heap-block flex-col' : 'heap-row flex-row',
+          isGridMode ? 'heap-block flex-col' : 'heap-row h-min flex-row',
           'flex cursor-auto'
         )}
       >
         {isGridMode ? modeToggle() : null}
-        <form onSubmit={handleSubmit(onSubmit)} className="relative flex-1 p-1">
-          <textarea
-            autoFocus
-            {...register('content')}
-            className="h-full w-full resize-none rounded-lg bg-gray-50 p-1 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
-            placeholder={`${isLinkMode ? 'Paste Link' : 'Enter Text'} Here`}
-          />
-          <input
-            value="Post"
-            type="submit"
-            className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
-            disabled={!isValidInput}
-          />
-        </form>
+        {isLinkMode ? (
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="relative flex-1 p-1"
+          >
+            <textarea
+              {...register('content')}
+              className="h-full w-full resize-none rounded-lg bg-gray-50 p-2 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
+              placeholder="Paste Link Here"
+              onKeyDown={onKeyDown}
+            />
+            <input
+              value={isPending ? 'Posting...' : 'Post'}
+              type="submit"
+              className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
+              disabled={isPending || !isValidInput}
+            />
+          </form>
+        ) : (
+          <HeapTextInput displayType={displayType} flag={chFlag} />
+        )}
       </div>
     </div>
   );
