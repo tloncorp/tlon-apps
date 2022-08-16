@@ -25,6 +25,7 @@ export default function DiaryNote(props: {}) {
   });
   const onSubmit = (values: CommentForm) => {
     console.log(values);
+    console.log('noteid', noteId);
     useDiaryState.getState().addQuip(chFlag, noteId, [values.content]);
   };
 

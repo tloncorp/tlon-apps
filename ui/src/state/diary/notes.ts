@@ -4,6 +4,8 @@ import {
   DiaryNote,
   DiaryNotes,
   DiaryFlag,
+  DiaryDiff,
+  DiaryUpdate,
 } from '@/types/diary';
 import { BigIntOrderedMap, decToUd, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -87,22 +89,56 @@ export default function makeNotesStore(
       api.subscribe({
         app: 'diary',
         path: subPath,
-        event: (data: unknown) => {
-          const { time, delta } = data as NoteDiff;
-          const s = get();
-
-          const bigTime = bigInt(time);
-          s.batchSet((draft) => {
-            let noteMap = draft.notes[flag];
-            if ('add' in delta && !noteMap.has(bigTime)) {
-              const seal: NoteSeal = { time, feels: {} };
-              const note: DiaryNote = { seal, essay: delta.add };
-              noteMap = noteMap.set(bigTime, note);
-            } else if ('del' in delta && noteMap.has(bigTime)) {
-              noteMap = noteMap.delete(bigTime);
+        event: (data: DiaryUpdate) => {
+          const { diff: d, time } = data;
+          if ('notes' in d) {
+            const { time, delta } = d.notes;
+            const bigTime = bigInt(time);
+            const s = get();
+            s.batchSet((draft) => {
+              let noteMap = draft.notes[flag];
+              if ('add' in delta && !noteMap.has(bigTime)) {
+                const seal: NoteSeal = { time, feels: {} };
+                const note: DiaryNote = { seal, essay: delta.add };
+                noteMap = noteMap.set(bigTime, note);
+              } else if ('del' in delta && noteMap.has(bigTime)) {
+                noteMap = noteMap.delete(bigTime);
+              }
+              draft.notes[flag] = noteMap;
+            });
+          } else if ('quips' in d) {
+            const { id: noteIdDec, diff } = d.quips;
+            const noteId = udToDec(noteIdDec);
+            const { delta, time: quipId } = diff;
+            const s = get();
+            console.log('noteid', noteId);
+            // TODO: check consistency if comments are unloaded?
+            if ('add' in delta) {
+              s.batchSet((draft) => {
+                console.log('adding quip', delta.add);
+                if (!(flag in draft.banter)) {
+                  draft.banter[flag] = {};
+                }
+                if (!(noteId in draft.banter[flag])) {
+                  draft.banter[flag][noteId] = new BigIntOrderedMap();
+                }
+                const k = bigInt(udToDec(quipId));
+                const quip = {
+                  seal: {
+                    time: quipId,
+                    feels: {},
+                  },
+                  memo: delta.add,
+                };
+                draft.banter[flag][noteId] = draft.banter[flag][noteId].set(
+                  k,
+                  quip
+                );
+              });
+            } else if ('del' in delta) {
+              s.batchSet((draft) => {});
             }
-            draft.notes[flag] = noteMap;
-          });
+          }
         },
       });
     },

@@ -31,7 +31,7 @@ export type DiaryInline =
   | Link;
 
 export interface NoteSeal {
-  time: number;
+  time: string;
   feels: {
     [ship: Ship]: string;
   };

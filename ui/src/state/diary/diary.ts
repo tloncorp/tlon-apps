@@ -236,7 +236,7 @@ export const useDiaryState = create<DiaryState>(
           flag,
           get,
           `/diary/${flag}/notes`,
-          `/diary/${flag}/ui/notes`
+          `/diary/${flag}/ui`
         ).initialize();
       },
     }),
