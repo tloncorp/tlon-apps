@@ -43,6 +43,7 @@
     :~  seam/(seam seam.c)
         yarns/(yarns yarns.c)
         cable/(cable cable.c)
+        stitch/(numb stitch.c)
     ==
   ::
   ++  cable
