@@ -371,7 +371,7 @@ export default function ChatInput({
   });
 
   useEffect(() => {
-    if (whom) {
+    if (whom && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.setContent('');
       useChatState.getState().getDraft(whom);
     }
