@@ -270,7 +270,7 @@
       =/  =dock      [p.group.req %groups]
       =/  =nest:g    [dap.bowl flag]
       =/  =channel:g  
-        =,(req [[title description '' ''] now.bowl ~ | readers])
+        =,(req [[title description '' ''] now.bowl %default | readers])
       =/  =action:g  [group.req now.bowl %channel nest %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc di-area %create)

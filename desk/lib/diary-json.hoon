@@ -284,7 +284,7 @@
   ++  notes-diff
     ^-  $-(json diff:notes:d)
     %-  ot
-    :~  time/di
+    :~  time/(se %ud)
         delta/notes-delta
     ==
   ++  notes-delta
