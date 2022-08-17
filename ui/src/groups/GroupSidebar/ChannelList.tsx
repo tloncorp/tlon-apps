@@ -5,7 +5,6 @@ import useAllBriefs from '@/logic/useAllBriefs';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups';
-import BubbleIcon from '@/components/icons/BubbleIcon';
 import useNavStore from '@/components/Nav/useNavStore';
 import CaretDownIcon from '@/components/icons/CaretDownIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
@@ -14,6 +13,7 @@ import { DEFAULT } from '@/logic/useSidebarSort';
 import useChannelSections from '@/logic/useChannelSections';
 import { GroupChannel } from '@/types/groups';
 import Divider from '@/components/Divider';
+import ChannelIcon from '@/channels/ChannelIcon';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -37,36 +37,38 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
     }
   }, [navPrimary, isMobile]);
 
-  const icon = (active: boolean) =>
-    isMobile ? (
-      <span
-        className={cn(
-          'flex h-12 w-12 items-center justify-center rounded-md',
-          !active && 'bg-gray-50',
-          active && 'bg-white'
-        )}
-      >
-        <BubbleIcon className="h-6 w-6" />
-      </span>
-    ) : (
-      <BubbleIcon className="h-6 w-6" />
-    );
-
   if (!group) {
     return null;
   }
 
   const renderChannels = (channels: [string, GroupChannel][]) =>
-    channels.map(([nest, channel]) => (
-      <SidebarItem
-        key={nest}
-        icon={icon}
-        to={channelHref(flag, nest)}
-        onClick={hide}
-      >
-        {channel.meta.title || nest}
-      </SidebarItem>
-    ));
+    channels.map(([nest, channel]) => {
+      const icon = (active: boolean) =>
+        isMobile ? (
+          <span
+            className={cn(
+              'flex h-12 w-12 items-center justify-center rounded-md',
+              !active && 'bg-gray-50',
+              active && 'bg-white'
+            )}
+          >
+            <ChannelIcon nest={nest} className="h-6 w-6" />
+          </span>
+        ) : (
+          <ChannelIcon nest={nest} className="h-6 w-6" />
+        );
+
+      return (
+        <SidebarItem
+          key={nest}
+          icon={icon}
+          to={channelHref(flag, nest)}
+          onClick={hide}
+        >
+          {channel.meta.title || nest}
+        </SidebarItem>
+      );
+    });
 
   const unsectionedChannels = sortChannels(group.channels).filter(([n]) => {
     const [_app, f] = nestToFlag(n);
