@@ -27,7 +27,7 @@ function TopBar({
   return (
     <div
       className={
-        hasIcon
+        hasIcon || isTwitter
           ? 'flex items-center justify-between'
           : 'flex items-center justify-end'
       }
