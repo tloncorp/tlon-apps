@@ -15,6 +15,68 @@ import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import OpenSmallIcon from '@/components/icons/OpenSmallIcon';
 
+function TopBar({ isTwitter = false }: { isTwitter?: boolean }) {
+  return (
+    <div
+      className={
+        isTwitter
+          ? 'flex items-center justify-between'
+          : 'flex items-center justify-end'
+      }
+    >
+      {isTwitter ? <TwitterIcon className="m-2 h-6 w-6" /> : null}
+      <div className="flex space-x-2 text-sm text-gray-600">
+        <div className="hidden group-hover:block">
+          <IconButton
+            icon={<OpenSmallIcon className="h-4 w-4" />}
+            action={() => console.log('expand')}
+            label="expand"
+            className="rounded bg-white"
+          />
+        </div>
+        <div className="hidden group-hover:block">
+          <IconButton
+            icon={<ElipsisSmallIcon className="h-4 w-4" />}
+            action={() => console.log('options')}
+            label="options"
+            className="rounded bg-white"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface BottomBarProps {
+  provider: string;
+  prettySent: string;
+  url: string;
+  replying: number | null;
+}
+
+function BottomBar({ provider, prettySent, url, replying }: BottomBarProps) {
+  return (
+    <div className="-m-2 h-[50px]">
+      <div className="hidden h-[50px] w-full border-t-2 border-gray-100 bg-white p-2 group-hover:block">
+        <div className="flex flex-col">
+          <span className="truncate font-semibold text-gray-800">{url}</span>
+          <div className="items center flex justify-between">
+            <div className="flex items-center space-x-1 text-sm font-semibold">
+              <span className="text-gray-600">{provider}</span>
+              <span className="text-lg text-gray-200"> • </span>
+              <span className="text-gray-400">{prettySent} ago</span>
+            </div>
+            <div className="flex items-center space-x-1 text-sm font-semibold text-gray-400">
+              <span>{replying}</span>
+              <ChatSmallIcon className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HeapBlock({ curio }: { curio: HeapCurio }) {
   const { content, sent, replying = 1 } = curio.heart;
   const url = content[0].toString();
@@ -48,45 +110,31 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
   if (isOembed) {
     const thumbnail = oembed.read().thumbnail_url;
     const provider = oembed.read().provider_name;
-    console.log({ thumbnail, provider, oembed: oembed.read() });
     if (provider === 'YouTube' || provider === 'SoundCloud') {
       return (
         <div
-          className="heap-block"
+          className="heap-block group p-2"
           style={{
-            backgroundImage: `url(${oembed.read().thumbnail_url})`,
+            backgroundImage: `url(${thumbnail})`,
           }}
-        />
+        >
+          <TopBar />
+          <BottomBar
+            url={url}
+            provider={provider}
+            prettySent={prettySent}
+            replying={replying}
+          />
+        </div>
       );
     }
     if (provider === 'Twitter') {
       const author = oembed.read().author_name;
       const twitterHandle = oembed.read().author_url.split('/').pop();
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
-      const tweetLink = oembed.read().url;
       return (
-        <div className="heap-block group flex flex-col justify-between p-2">
-          <div className="flex items-center justify-between">
-            <TwitterIcon className="m-2 h-6 w-6" />
-            <div className="flex text-sm text-gray-600">
-              <div className="hidden group-hover:block">
-                <IconButton
-                  icon={<OpenSmallIcon className="h-4 w-4" />}
-                  action={() => console.log('expand')}
-                  label="expand"
-                  className="-mx-1"
-                />
-              </div>
-              <div className="hidden group-hover:block">
-                <IconButton
-                  icon={<ElipsisSmallIcon className="h-4 w-4" />}
-                  action={() => console.log('options')}
-                  label="options"
-                  className="-mx-1"
-                />
-              </div>
-            </div>
-          </div>
+        <div className="heap-block group p-2">
+          <TopBar isTwitter />
           <div className="flex flex-col items-center justify-center">
             <img
               className="h-[46px] w-[46px] rounded-full"
@@ -96,26 +144,12 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
             <span className="font-semibold text-black">{author}</span>
             <span className="text-gray-300">@{twitterHandle}</span>
           </div>
-          <div className="-m-2 h-[50px]">
-            <div className="hidden h-[50px] w-full border-t-2 border-gray-100 p-2 group-hover:block">
-              <div className="flex flex-col">
-                <span className="truncate font-semibold text-gray-800">
-                  {tweetLink}
-                </span>
-                <div className="items center flex justify-between">
-                  <div className="flex items-center space-x-1 text-sm font-semibold">
-                    <span className="text-gray-600">Twitter</span>
-                    <span className="text-lg text-gray-200"> • </span>
-                    <span className="text-gray-400">{prettySent} ago</span>
-                  </div>
-                  <div className="flex items-center space-x-1 text-sm font-semibold text-gray-400">
-                    <span>{replying}</span>
-                    <ChatSmallIcon className="h-4 w-4" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <BottomBar
+            url={url}
+            provider={provider}
+            prettySent={prettySent}
+            replying={replying}
+          />
         </div>
       );
     }
