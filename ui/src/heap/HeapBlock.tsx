@@ -14,17 +14,26 @@ import IconButton from '@/components/IconButton';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import OpenSmallIcon from '@/components/icons/OpenSmallIcon';
+import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
+import LinkIcon from '@/components/icons/LinkIcon';
 
-function TopBar({ isTwitter = false }: { isTwitter?: boolean }) {
+function TopBar({
+  hasIcon = false,
+  isTwitter = false,
+}: {
+  isTwitter?: boolean;
+  hasIcon?: boolean;
+}) {
   return (
     <div
       className={
-        isTwitter
+        hasIcon
           ? 'flex items-center justify-between'
           : 'flex items-center justify-end'
       }
     >
       {isTwitter ? <TwitterIcon className="m-2 h-6 w-6" /> : null}
+      {hasIcon ? <div className="m-2 h-6 w-6" /> : null}
       <div className="flex space-x-2 text-sm text-gray-600">
         <div className="hidden group-hover:block">
           <IconButton
@@ -99,11 +108,36 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
   if (isImage) {
     return (
       <div
-        className="heap-block"
+        className="heap-block group p-2"
         style={{
-          backgroundImage: `url(${content[0]})`,
+          backgroundImage: `url(${url})`,
         }}
-      />
+      >
+        <TopBar />
+        <BottomBar
+          provider="image"
+          prettySent={prettySent}
+          url={url}
+          replying={replying}
+        />
+      </div>
+    );
+  }
+
+  if (isAudio) {
+    return (
+      <div className="heap-block group p-2">
+        <TopBar hasIcon />
+        <div className="flex flex-col items-center justify-center">
+          <MusicLargeIcon className="h-16 w-16 text-gray-300" />
+        </div>
+        <BottomBar
+          provider="audio"
+          prettySent={prettySent}
+          url={url}
+          replying={replying}
+        />
+      </div>
     );
   }
 
@@ -154,11 +188,34 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
       );
     }
     return (
-      <div className="heap-block px-2 py-1">
-        <HeapContent content={content} />
+      <div className="heap-block group p-2">
+        <TopBar hasIcon />
+        <div className="flex flex-col items-center justify-center">
+          <LinkIcon className="h-16 w-16 text-gray-300" />
+        </div>
+        <BottomBar
+          url={url}
+          provider={'Link'}
+          // we could show the provider here for other oembeds, but we'll need to adjust the bottom bar
+          prettySent={prettySent}
+          replying={replying}
+        />
       </div>
     );
   }
 
-  return <div className="heap-block">{content[0]}</div>;
+  return (
+    <div className="heap-block group p-2">
+      <TopBar hasIcon />
+      <div className="flex flex-col items-center justify-center">
+        <LinkIcon className="h-16 w-16 text-gray-300" />
+      </div>
+      <BottomBar
+        url={url}
+        provider={'Link'}
+        prettySent={prettySent}
+        replying={replying}
+      />
+    </div>
+  );
 }

@@ -12,6 +12,9 @@ import {
 import { useEmbed } from '@/logic/embed';
 import { formatDistanceToNow } from 'date-fns';
 import TwitterIcon from '@/components/icons/TwitterIcon';
+import LinkIcon16 from '@/components/icons/LinkIcon16';
+import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
+import HeapContent from './HeapContent';
 
 export default function HeapRow({ curio }: { curio: HeapCurio }) {
   const { content, sent } = curio.heart;
@@ -55,50 +58,52 @@ export default function HeapRow({ curio }: { curio: HeapCurio }) {
         );
       case provider === 'Twitter':
         return <TwitterIcon className="m-2 h-6 w-6" />;
+      case isAudio:
+        return <MusicLargeIcon className="m-2 h-6 w-6 text-gray-300" />;
+      case isUrl:
+        return <LinkIcon16 className="m-2 h-8 w-8 text-gray-300" />;
       default:
         return null;
     }
   };
 
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <div className="flex h-14 w-full items-center justify-between space-x-2 rounded-lg bg-white">
-        <div className="flex space-x-2">
-          {isImage ? (
-            <div
-              className="relative inline-block h-14 w-14 cursor-pointer overflow-hidden rounded-l-lg bg-cover bg-no-repeat"
-              style={{ backgroundImage: `url(${contentString})` }}
-            />
-          ) : (
-            <div className="flex h-14 w-14 flex-col items-center justify-center rounded-l-lg bg-gray-200">
-              {otherImage()}
-            </div>
-          )}
-          <div className="flex flex-col justify-end p-2">
-            <div className="font-semibold text-gray-800">
-              {isUrl ? (
-                <a href={contentString} target="_blank" rel="noreferrer">
-                  {contentString}
-                </a>
-              ) : (
-                contentString
-              )}
-            </div>
-            <div className="text-sm font-semibold text-gray-600">
-              {description()} • {formatDistanceToNow(sent)} ago •{' '}
-              {replied.length} Comments
-            </div>
+    <div className="flex h-14 w-full items-center justify-between space-x-2 rounded-lg bg-white">
+      <div className="flex space-x-2">
+        {isImage ? (
+          <div
+            className="relative inline-block h-14 w-14 cursor-pointer overflow-hidden rounded-l-lg bg-cover bg-no-repeat"
+            style={{ backgroundImage: `url(${contentString})` }}
+          />
+        ) : (
+          <div className="flex h-14 w-14 flex-col items-center justify-center rounded-l-lg bg-gray-200">
+            {otherImage()}
+          </div>
+        )}
+        <div className="flex flex-col justify-end p-2">
+          <div className="font-semibold text-gray-800">
+            {isUrl ? (
+              <a href={contentString} target="_blank" rel="noreferrer">
+                {contentString}
+              </a>
+            ) : (
+              <HeapContent content={content} />
+            )}
+          </div>
+          <div className="text-sm font-semibold text-gray-600">
+            {description()} • {formatDistanceToNow(sent)} ago • {replied.length}{' '}
+            Comments
           </div>
         </div>
-        <div className="flex space-x-1 text-gray-400">
-          <button className="icon-button bg-transparent">
-            <CopyIcon className="h-6 w-6" />
-          </button>
-          <button className="icon-button bg-transparent">
-            <ElipsisIcon className="h-6 w-6" />
-          </button>
-        </div>
       </div>
-    </Suspense>
+      <div className="flex space-x-1 text-gray-400">
+        <button className="icon-button bg-transparent">
+          <CopyIcon className="h-6 w-6" />
+        </button>
+        <button className="icon-button bg-transparent">
+          <ElipsisIcon className="h-6 w-6" />
+        </button>
+      </div>
+    </div>
   );
 }
