@@ -9,8 +9,7 @@ EditorView.prototype.updateState = function updateState(state) {
   }
   // (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
   oldUpdateState.call(this, state);
-}
-
+};
 
 import React from 'react';
 import { render } from 'react-dom';
@@ -35,8 +34,6 @@ if (IS_MOCK) {
 }
 
 window.our = `~${window.ship}`;
-
-
 
 const root = document.getElementById('app') as HTMLElement;
 render(
