@@ -1,9 +1,10 @@
 import { Editor, JSONContent } from '@tiptap/react';
-import { debounce } from 'lodash';
+import { debounce, reduce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
-import { ChatInline, ChatMemo, ChatStory } from '@/types/chat';
+import { Inline, InlineKey } from '@/types/content';
+import { ChatMemo, ChatStory } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -14,7 +15,12 @@ import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement } from '@/logic/utils';
 import { Image, PLACEHOLDER_IMAGES } from '@/constants';
-import { parseInline, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
+import {
+  normalizeInline,
+  parseInline,
+  parseTipTapJSON,
+  tipTapToString,
+} from '@/logic/tiptap';
 
 interface ChatInputProps {
   whom: string;
@@ -52,7 +58,7 @@ export default function ChatInput({
           return;
         }
 
-        const data = parseTipTapJSON(editor?.getJSON());
+        const data = normalizeInline(parseTipTapJSON(editor?.getJSON()));
         useChatState.getState().draft(whom, {
           inline: Array.isArray(data) ? data : [data],
           block: [],
@@ -69,7 +75,7 @@ export default function ChatInput({
         return;
       }
 
-      const data = parseTipTapJSON(editor?.getJSON());
+      const data = normalizeInline(parseTipTapJSON(editor?.getJSON()));
       const memo: ChatMemo = {
         replying: reply,
         author: `~${window.ship || 'zod'}`,
@@ -117,10 +123,11 @@ export default function ChatInput({
   }, [reply, messageEditor]);
 
   useEffect(() => {
-    if (draft && messageEditor) {
+    const draftEmpty = draft.inline.length === 0 && draft.block.length === 0;
+    if (!draftEmpty && messageEditor) {
       const current = tipTapToString(messageEditor.getJSON());
-      const newDraft = tipTapToString(parseInline(draft.inline));
-      if (current !== newDraft) {
+
+      if (current === '') {
         messageEditor.commands.setContent(parseInline(draft.inline), true);
       }
     }

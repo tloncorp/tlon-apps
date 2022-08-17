@@ -21,7 +21,7 @@ describe('ChatMessage', () => {
       '~finned-palmer',
       {
         block: [],
-        inline: [{ bold: 'A bold test message' }, 'with some more text'],
+        inline: [{ bold: ['A bold test message'] }, 'with some more text'],
       },
       undefined
     );

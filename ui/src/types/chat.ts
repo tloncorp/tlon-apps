@@ -6,6 +6,7 @@ import {
   BlockReference,
   Bold,
   Break,
+  Inline,
   InlineCode,
   Italics,
   Link,
@@ -28,19 +29,33 @@ export interface ChatImage {
   };
 }
 
-export type ChatInline =
-  | string
-  | Bold
-  | Italics
-  | Strikethrough
-  | Ship
-  | Break
-  | BlockReference
-  | InlineCode
-  | BlockCode
-  | Blockquote
-  | Tag
-  | Link;
+export function isBold(item: unknown): item is Bold {
+  return typeof item === 'object' && item !== null && 'bold' in item;
+}
+
+export function isItalics(item: unknown): item is Italics {
+  return typeof item === 'object' && item !== null && 'italics' in item;
+}
+
+export function isLink(item: unknown): item is Link {
+  return typeof item === 'object' && item !== null && 'link' in item;
+}
+
+export function isStrikethrough(item: unknown): item is Strikethrough {
+  return typeof item === 'object' && item !== null && 'strike' in item;
+}
+
+export function isBlockquote(item: unknown): item is Blockquote {
+  return typeof item === 'object' && item !== null && 'blockquote' in item;
+}
+
+export function isInlineCode(item: unknown): item is InlineCode {
+  return typeof item === 'object' && item !== null && 'inline-code' in item;
+}
+
+export function isBreak(item: unknown): item is Break {
+  return typeof item === 'object' && item !== null && 'break' in item;
+}
 
 export function isChatImage(item: unknown): item is ChatImage {
   return typeof item === 'object' && item !== null && 'image' in item;
@@ -48,7 +63,7 @@ export function isChatImage(item: unknown): item is ChatImage {
 
 export interface ChatStory {
   block: ChatBlock[];
-  inline: ChatInline[];
+  inline: Inline[];
 }
 
 export interface ChatSeal {

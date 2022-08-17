@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChatInline, ChatBlock, isChatImage, ChatStory } from '@/types/chat';
+import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
   isBlockquote,
   isBold,
@@ -8,6 +8,7 @@ import {
   isItalics,
   isLink,
   isStrikethrough,
+  Inline,
 } from '@/types/content';
 import ChatContentImage from './ChatContentImage';
 
@@ -16,7 +17,7 @@ interface ChatContentProps {
 }
 
 interface InlineContentProps {
-  story: ChatInline;
+  story: Inline;
 }
 
 interface BlockContentProps {
@@ -25,17 +26,15 @@ interface BlockContentProps {
 
 export function InlineContent({ story }: InlineContentProps) {
   if (typeof story === 'string') {
-    return <span>{story}</span>;
+    return story as unknown as JSX.Element;
   }
 
   if (isBold(story)) {
     return (
       <strong>
-        {typeof story.bold === 'object' ? (
-          <InlineContent story={story.bold} />
-        ) : (
-          story.bold
-        )}
+        {story.bold.map((s, k) => (
+          <InlineContent key={k} story={s} />
+        ))}
       </strong>
     );
   }
@@ -43,11 +42,9 @@ export function InlineContent({ story }: InlineContentProps) {
   if (isItalics(story)) {
     return (
       <em>
-        {typeof story.italics === 'object' ? (
-          <InlineContent story={story.italics} />
-        ) : (
-          story.italics
-        )}
+        {story.italics.map((s, k) => (
+          <InlineContent key={k} story={s} />
+        ))}
       </em>
     );
   }
@@ -55,11 +52,9 @@ export function InlineContent({ story }: InlineContentProps) {
   if (isStrikethrough(story)) {
     return (
       <span className="line-through">
-        {typeof story.strike === 'object' ? (
-          <InlineContent story={story.strike} />
-        ) : (
-          story.strike
-        )}
+        {story.strike.map((s, k) => (
+          <InlineContent key={k} story={s} />
+        ))}
       </span>
     );
   }

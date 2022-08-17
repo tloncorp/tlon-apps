@@ -7,7 +7,7 @@ import { render } from '../../../test/utils';
 import ChannelIndex from './ChannelIndex';
 
 const fakeGroup: Group = createMockGroup('Fake Group');
-fakeGroup.channels[`~zod/tlon`] = createChannel('Fake Channel');
+fakeGroup.channels[`chat/~zod/tlon`] = createChannel('Fake Channel');
 
 vi.mock('@/state/groups', () => ({
   useGroup: () => fakeGroup,

@@ -26,6 +26,18 @@ export type HeapInline =
   | Tag
   | Link;
 
+export type HeapInlineKey =
+  | 'italics'
+  | 'bold'
+  | 'strike'
+  | 'blockquote'
+  | 'inline-code'
+  | 'block'
+  | 'code'
+  | 'tag'
+  | 'link'
+  | 'break';
+
 export function isBold(item: unknown): item is Bold {
   return typeof item === 'object' && item !== null && 'bold' in item;
 }

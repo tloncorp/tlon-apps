@@ -14,6 +14,7 @@ import {
   Rank,
 } from '@/types/groups';
 import { Heap } from '@/types/heap';
+import { Suspender } from './suspend';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -172,19 +173,6 @@ export function getFlagParts(flag: string) {
   };
 }
 
-export function isValidUrl(str?: string): boolean {
-  const pattern = new RegExp(
-    '^(https?:\\/\\/)?' + // protocol
-      '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
-      '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
-      '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
-      '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
-      '(\\#[-a-z\\d_]*)?$',
-    'i'
-  ); // fragment locator
-  return str ? !!pattern.test(str) : false;
-}
-
 export function getGroupPrivacy(cordon: Cordon): PrivacyType {
   if ('open' in cordon) {
     return 'public';
@@ -232,4 +220,46 @@ export function randomElement<T>(a: T[]) {
 
 export function hasKeys(obj: Record<string, unknown>) {
   return Object.keys(obj).length > 0;
+}
+
+export const IMAGE_REGEX =
+  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.webm|\.svg)$/i;
+export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)$/i;
+export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
+export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
+
+export function isValidUrl(str?: string): boolean {
+  return str ? !!URL_REGEX.test(str) : false;
+}
+
+const isFacebookGraphDependent = (url: string) => {
+  const caseDesensitizedURL = url.toLowerCase();
+  return (
+    caseDesensitizedURL.includes('facebook.com') ||
+    caseDesensitizedURL.includes('instagram.com')
+  );
+};
+
+export const validOembedCheck = (embed: Suspender<any>, url: string) => {
+  if (!isFacebookGraphDependent(url)) {
+    if (
+      !Object.prototype.hasOwnProperty.call(embed, 'error') &&
+      embed.read().html
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+export async function jsonFetch<T>(
+  info: RequestInfo,
+  init?: RequestInit
+): Promise<T> {
+  const res = await fetch(info, init);
+  if (!res.ok) {
+    throw new Error('Bad Fetch Response');
+  }
+  const data = await res.json();
+  return data as T;
 }

@@ -3,7 +3,7 @@
 }
 
 .secondary-button {
-  @apply inline-flex items-center justify-center rounded-lg bg-gray-50 py-2 px-4 text-lg font-semibold leading-4 text-gray-800 mix-blend-multiply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 dark:mix-blend-screen sm:text-base;
+  @apply inline-flex items-center justify-center rounded-lg bg-gray-50 py-2 px-4 text-lg font-semibold leading-4 text-gray-800 mix-blend-multiply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-50 disabled:text-gray-400 dark:mix-blend-screen sm:text-base;
 }
 
 .small-button {
@@ -83,4 +83,12 @@
 
 .switch-thumb[data-state='checked'] {
   @apply translate-x-2;
+}
+
+.heap-block {
+  @apply relative inline-block flex h-[245px] w-[245px] cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat shadow;
+}
+
+.heap-row {
+  @apply flex h-14 w-full items-center justify-between space-x-2 rounded-lg bg-white;
 }

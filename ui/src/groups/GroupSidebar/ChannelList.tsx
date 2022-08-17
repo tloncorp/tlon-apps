@@ -4,25 +4,33 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
-import useSidebarSort from '@/logic/useSidebarSort';
-import { useGroup } from '@/state/groups/groups';
-import BubbleIcon from '@/components/icons/BubbleIcon';
+import { useGroup } from '@/state/groups';
 import useNavStore from '@/components/Nav/useNavStore';
 import CaretDownIcon from '@/components/icons/CaretDownIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
+import useChannelSort from '@/logic/useChannelSort';
+import { DEFAULT } from '@/logic/useSidebarSort';
+import useChannelSections from '@/logic/useChannelSections';
+import { GroupChannel } from '@/types/groups';
+import Divider from '@/components/Divider';
+import ChannelIcon from '@/channels/ChannelIcon';
 import ChannelSortOptions from './ChannelSortOptions';
 
+const UNZONED = 'default';
 interface ChannelListProps {
   flag: string;
   className?: string;
 }
 
 export default function ChannelList({ flag, className }: ChannelListProps) {
-  const isMobile = useIsMobile();
   const group = useGroup(flag);
   const briefs = useAllBriefs();
-  const { sortFn, sortOptions, setSortFn, sortChannels } = useSidebarSort();
+  const { sortFn, sortOptions, setSortFn, sortChannels } = useChannelSort();
+  const isDefaultSort = sortFn === DEFAULT;
+  const { sectionedChannels, sections } = useChannelSections(flag);
+  const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
+
   const hide = useCallback(() => {
     if (isMobile) {
       navPrimary('hidden');
@@ -33,20 +41,39 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
     return null;
   }
 
-  const icon = (active: boolean) =>
-    isMobile ? (
-      <span
-        className={cn(
-          'flex h-12 w-12 items-center justify-center rounded-md',
-          !active && 'bg-gray-50',
-          active && 'bg-white'
-        )}
-      >
-        <BubbleIcon className="h-6 w-6" />
-      </span>
-    ) : (
-      <BubbleIcon className="h-6 w-6" />
-    );
+  const renderChannels = (channels: [string, GroupChannel][]) =>
+    channels.map(([nest, channel]) => {
+      const icon = (active: boolean) =>
+        isMobile ? (
+          <span
+            className={cn(
+              'flex h-12 w-12 items-center justify-center rounded-md',
+              !active && 'bg-gray-50',
+              active && 'bg-white'
+            )}
+          >
+            <ChannelIcon nest={nest} className="h-6 w-6" />
+          </span>
+        ) : (
+          <ChannelIcon nest={nest} className="h-6 w-6" />
+        );
+
+      return (
+        <SidebarItem
+          key={nest}
+          icon={icon}
+          to={channelHref(flag, nest)}
+          onClick={hide}
+        >
+          {channel.meta.title || nest}
+        </SidebarItem>
+      );
+    });
+
+  const unsectionedChannels = sortChannels(group.channels).filter(([n]) => {
+    const [_app, f] = nestToFlag(n);
+    return f in briefs;
+  });
 
   return (
     <div className={className}>
@@ -63,22 +90,20 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
         <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
       </DropdownMenu.Root>
       <ul className={cn(isMobile && 'space-y-3')}>
-        {sortChannels(group.channels)
-          .filter(([n]) => {
-            const [app, f] = nestToFlag(n);
-
-            return f in briefs;
-          })
-          .map(([nest, channel]) => (
-            <SidebarItem
-              key={nest}
-              icon={icon}
-              to={channelHref(flag, nest)}
-              onClick={hide}
-            >
-              {channel.meta.title || nest}
-            </SidebarItem>
-          ))}
+        {isDefaultSort
+          ? sections.map((s) => (
+              <div key={s}>
+                {s !== UNZONED ? (
+                  <Divider>
+                    {s in group.zones ? group.zones[s].meta.title : ''}
+                  </Divider>
+                ) : null}
+                {s in sectionedChannels
+                  ? renderChannels(sectionedChannels[s])
+                  : null}
+              </div>
+            ))
+          : renderChannels(unsectionedChannels)}
       </ul>
     </div>
   );

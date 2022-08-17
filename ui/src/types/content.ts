@@ -1,15 +1,15 @@
 export type Ship = string;
 
 export interface Italics {
-  italics: Inline;
+  italics: Inline[];
 }
 
 export interface Bold {
-  bold: Inline;
+  bold: Inline[];
 }
 
 export interface Strikethrough {
-  strike: Inline;
+  strike: Inline[];
 }
 
 export interface Break {
@@ -62,6 +62,18 @@ export type Inline =
   | BlockReference
   | Tag
   | Link;
+
+export type InlineKey =
+  | 'italics'
+  | 'bold'
+  | 'strike'
+  | 'blockquote'
+  | 'inline-code'
+  | 'block'
+  | 'code'
+  | 'tag'
+  | 'link'
+  | 'break';
 
 export function isBold(item: unknown): item is Bold {
   return typeof item === 'object' && item !== null && 'bold' in item;

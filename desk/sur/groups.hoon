@@ -48,7 +48,7 @@
   +$  channel
     $:  meta=data:meta
         added=time
-        zone=(unit zone)
+        =zone
         join=?
         readers=(set sect)
     ==
@@ -59,8 +59,7 @@
         [%add-sects sects=(set sect)]
         [%del-sects sects=(set sect)]
       ::
-        [%add-zone =zone]
-        [%del-zone ~]
+        [%zone =zone]
       ::
         [%join join=_|]
     ==

@@ -268,7 +268,7 @@
       =/  =dock      [p.group.req %groups]
       =/  =nest:g    [dap.bowl flag]
       =/  =channel:g  
-        =,(req [[title description '' ''] now.bowl ~ | readers])
+        =,(req [[title description '' ''] now.bowl %default | readers])
       =/  =action:g  [group.req now.bowl %channel nest %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc he-area %create)
@@ -373,7 +373,7 @@
     |=  her=ship
     =/  =path
       %+  welp  he-groups-scry
-      /channel/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
+      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
     .^(? %gx path)
   ::
   ++  he-pub

@@ -6,6 +6,7 @@ import {
   DeskData,
 } from '@urbit/api';
 import _ from 'lodash';
+import { GRID, HeapDisplayMode } from '@/heap/HeapTypes';
 import {
   BaseState,
   createState,
@@ -15,9 +16,18 @@ import {
 } from './base';
 import api from '../api';
 
+interface HeapSetting {
+  flag: string;
+  displayMode: 'grid' | 'list';
+  sortMode: 'time' | 'alpha';
+}
+
 interface BaseSettingsState {
   display: {
     theme: 'light' | 'dark' | 'auto';
+  };
+  heaps: {
+    heapSettings: Stringified<HeapSetting[]>;
   };
   groups: {
     orderedGroupPins: string[];
@@ -73,6 +83,9 @@ export const useSettingsState = createState<BaseSettingsState>(
     display: {
       theme: 'auto',
     },
+    heaps: {
+      heapSettings: '' as Stringified<HeapSetting[]>,
+    },
     groups: {
       orderedGroupPins: [],
     },
@@ -109,4 +122,56 @@ export const useSettingsState = createState<BaseSettingsState>(
 const selTheme = (s: SettingsState) => s.display.theme;
 export function useTheme() {
   return useSettingsState(selTheme);
+}
+
+export function parseHeapSettings(
+  settings: Stringified<HeapSetting[]>
+): HeapSetting[] {
+  return settings !== '' ? JSON.parse(settings) : [];
+}
+
+export function getHeapSetting(
+  settings: HeapSetting[],
+  flag: string
+): HeapSetting | undefined {
+  return settings.find((el) => el.flag === flag);
+}
+
+export function setHeapSetting(
+  settings: HeapSetting[],
+  newSetting: Partial<HeapSetting>,
+  flag: string
+): HeapSetting[] {
+  const oldSettings = settings.slice(0);
+  const oldSettingIndex = oldSettings.findIndex((s) => s.flag === flag);
+  const setting = {
+    ...oldSettings[oldSettingIndex],
+    flag,
+    ...newSetting,
+  };
+
+  if (oldSettingIndex >= 0) {
+    oldSettings.splice(oldSettingIndex, 1);
+  }
+
+  return [...oldSettings, setting];
+}
+
+const selHeapSettings = (s: SettingsState) => s.heaps.heapSettings;
+
+export function useHeapSettings(): HeapSetting[] {
+  const settings = useSettingsState(selHeapSettings);
+  return parseHeapSettings(settings ?? '');
+}
+
+export function useHeapDisplayMode(flag: string): HeapDisplayMode {
+  const settings = useHeapSettings();
+  const heapSetting = getHeapSetting(settings, flag);
+  return heapSetting?.displayMode ?? GRID;
+}
+
+export function useHeapSortMode(flag: string): 'time' | 'alpha' {
+  const settings = useHeapSettings();
+  const heapSetting = getHeapSetting(settings, flag);
+  return heapSetting?.sortMode ?? 'time';
 }

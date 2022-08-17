@@ -23,11 +23,6 @@ import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 
-EditorView.prototype.updateState = function updateState(state) {
-  if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
-  (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
-};
-
 interface HandlerParams {
   editor: Editor;
 }
@@ -70,7 +65,7 @@ export function useMessageEditor({
       extensions: [
         Blockquote,
         Bold,
-        Code.extend({ excludes: null }),
+        Code.extend({ excludes: undefined }),
         Document,
         HardBreak,
         History.configure({ newGroupDelay: 100 }),
@@ -104,17 +99,22 @@ export function useMessageEditor({
 interface MessageEditorProps {
   editor: Editor;
   className?: string;
+  inputClassName?: string;
 }
 
 export default function MessageEditor({
   editor,
   className,
+  inputClassName,
 }: MessageEditorProps) {
   const isMobile = useIsMobile();
   return (
     <div className={classNames('input block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
-      <EditorContent className="w-full" editor={editor} />
+      <EditorContent
+        className={classNames('w-full', inputClassName)}
+        editor={editor}
+      />
       {!isMobile ? <ChatInputMenu editor={editor} /> : null}
     </div>
   );

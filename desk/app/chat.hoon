@@ -5,6 +5,8 @@
 /+  chat-json
 /+  pac=dm
 /+  ch=chat-hark
+/+  gra=graph-store
+/+  mig=chat-graph
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -21,6 +23,7 @@
         pins=(list whom:c)
         bad=(set ship)
         inv=(set ship)
+        voc=(map [flag:c id:c] (unit said:c))
     ==
   --
 =|  state-0
@@ -106,6 +109,9 @@
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
       %holt  (holt |)
+      %graph-import
+    (import-graph !<([flag:g flag:g graph:gra] vase))
+  ::
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
@@ -189,6 +195,21 @@
     |=  ps=(list whom:c)
     =.  pins  ps
     cor
+  ::
+  ++  import-graph
+    |=  [grp=flag:g =flag:g =graph:gra]
+    ^+  cor
+    =/  =pact:c  (convert:mig graph)
+    =/  =net:c   pub/~
+    =|  =remark:c
+    =/  =perm:c  `grp
+    =/  =diff:c  create/[perm `pact]
+    =|  =log:c
+    =.  log  (put:log-on:c log now.bowl diff)
+    =/  =chat:c
+      [net remark log perm pact]
+    =.  chats  (~(put by chats) flag chat)
+    cor  :: TODO: initialise? 
   --
 ++  watch
   |=  =path
@@ -573,14 +594,37 @@
     ca-core(flag f, chat (~(got by chats) f))
   ++  ca-area  `path`/chat/(scot %p p.flag)/[q.flag]
   ++  ca-watch
-    |=  =path
+    |=  =(pole knot)
     ^+  ca-core
-    ?+    path  !!
-      [%updates *]    (ca-pub t.path)
-      [%ui ~]         ?>(from-self ca-core)
-      [%ui %writs ~]       ?>(from-self ca-core)
+    ?+    pole  !!
+        [%updates rest=*]  (ca-pub rest.pole)
+        [%ui ~]            ?>(from-self ca-core)
+        [%ui %writs ~]     ?>(from-self ca-core)
+    ::
+        [%said ship=@ time=@ *]
+      =/  =ship  (slav %p ship.pole)
+      =/  =time  (slav %ud time.pole)
+      (ca-said ship time)
     ::
     ==
+  ::
+  ++  ca-said
+    |=  =id:c
+    |^  ^+  ca-core
+    ?.  =(p.flag our.bowl)
+      (proxy-said:ca-pass id)
+    ?.  (ca-can-read src.bowl)
+      (give-kick chat-denied+!>(~))
+    =/  [=time =writ:c]  (got:ca-pact id)
+    %+  give-kick  %chat-said
+    !>  ^-  said:c
+    [flag writ]
+    ++  give-kick
+      |=  =cage
+      =.  cor  (give %fact ~ cage)
+      =.  cor  (give %kick ~ ~)
+      ca-core
+    --
   ++  ca-pass
     |%
     ++  add-channel
@@ -588,7 +632,7 @@
       =/  =dock      [p.group.req %groups]
       =/  =nest:g    [dap.bowl flag]
       =/  =channel:g  
-        =,(req [[title description '' ''] now.bowl ~ | readers])
+        =,(req [[title description '' ''] now.bowl %default | readers])
       =/  =action:g  [group.req now.bowl %channel nest %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc ca-area %create)
@@ -597,19 +641,27 @@
       =.  cor
         (emit card)
       ca-core
+    ::
+    ++  proxy-said
+      |=  =id:c
+      =/  =wire  (welp ca-area /said/(scot %p p.id)/(scot %ud q.id))
+      =/  =dock  [p.flag dap.bowl]
+      =/  =card  [%pass wire %agent dock %watch wire]
+      =.  cor    (emit card)
+      ca-core
     --
   ++  ca-init
     |=  req=create:c
     =/  =perm:c  [writers.req group.req]
     =.  cor
       (give-brief flag/flag ca-brief)
-    =.  ca-core  (ca-update now.bowl %create perm)
+    =.  ca-core  (ca-update now.bowl %create perm ~)
     (add-channel:ca-pass req)
   ::
   ++  ca-agent
-    |=  [=wire =sign:agent:gall]
+    |=  [=(pole knot) =sign:agent:gall]
     ^+  ca-core
-    ?+  wire  !!
+    ?+    pole  !!
         ~  :: noop wire, should only send pokes
       ca-core
     ::
@@ -621,6 +673,36 @@
       %.  ca-core  :: TODO rollback creation if poke fails?
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
+    ::
+        [%said ship=@ time=@ ~]
+      =/  =ship  (slav %p ship.pole)
+      =/  =time  (slav %ud time.pole)
+      =/  =id:c  [ship time]
+      ?+    -.sign  !!
+          %watch-ack
+        %.  ca-core
+        ?~  p.sign  same
+        (slog leaf/"Preview failed" u.p.sign)
+      ::
+          %kick
+        ?:  (~(has by voc) [flag id])
+          ca-core  :: subscription ended politely
+        (proxy-said:ca-pass id)
+      ::
+          %fact
+        =.  cor
+          (give %fact ~[(welp ca-area pole)] cage.sign)
+        ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
+            %chat-said
+          =+  !<(=said:c q.cage.sign)
+          =.  voc  (~(put by voc) [flag id] `said)
+          ca-core
+        ::
+            %chat-denied
+          =.  voc  (~(put by voc) [flag id] ~)
+          ca-core
+        ==
+      ==
     ==
   ::
   ++  ca-brief  (brief:ca-pact our.bowl last-read.remark.chat)

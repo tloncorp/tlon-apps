@@ -145,9 +145,9 @@ export default function GroupActions({
               <Link
                 to={`/groups/${flag}/leave`}
                 state={{ backgroundLocation: location }}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
               >
-                <LeaveIcon className="h-6 w-6 text-gray-600" />
+                <LeaveIcon className="h-6 w-6" />
                 <span className="pr-2">Leave Group</span>
               </Link>
             </DropdownMenu.Item>

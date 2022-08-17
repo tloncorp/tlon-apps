@@ -2,7 +2,7 @@ import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
 
-interface ChatInfo {
+export interface ChatInfo {
   replying: string | null;
 }
 

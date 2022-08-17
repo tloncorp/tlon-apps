@@ -34,8 +34,8 @@
   ^-  (list content:hark)
   ?@  i  ~[text/i]
   ?+  -.i   ~
-    ?(%italics %bold %strike %inline-code)  (flatten-story p.i)
-    ?(%code %tag)  ~[text/p.i]
+    ?(%italics %bold %strike)  (flatten-stories p.i)
+    ?(%inline-code %code %tag)  ~[text/p.i]
   ==
 ++  flatten-stories  
   |=  is=(list inline:c)

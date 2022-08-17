@@ -37,7 +37,7 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
 
   return (
     <SidebarItem
-      to={`/groups/${groupFlag}/channels/chat/${whom}`}
+      to={`/groups/${groupFlag}/channels/${whom}`}
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
       actions={
         (brief?.count ?? 0) > 0 ? (
@@ -118,6 +118,8 @@ export default function MessagesSidebarItem({
   brief,
   pending,
 }: MessagesSidebarItemProps) {
+  const channelWhom = `chat/${whom}`;
+
   if (whomIsDm(whom)) {
     return <DMSidebarItem pending={pending} whom={whom} brief={brief} />;
   }
@@ -126,5 +128,5 @@ export default function MessagesSidebarItem({
     return <MultiDMSidebarItem whom={whom} brief={brief} pending={pending} />;
   }
 
-  return <ChannelSidebarItem whom={whom} brief={brief} />;
+  return <ChannelSidebarItem whom={channelWhom} brief={brief} />;
 }

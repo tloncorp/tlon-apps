@@ -43,12 +43,22 @@ export default ({ mode }: { mode: string }) => {
         return [reactRefresh(), pluginRewriteAll()];
       case 'chat':
         return [
-          urbitPlugin({ base: 'chatstead', target: SHIP_URL, secure: false }),
+          urbitPlugin({
+            base: 'chatstead',
+            target: SHIP_URL,
+            changeOrigin: true,
+            secure: false,
+          }),
           reactRefresh(),
         ];
       default:
         return [
-          urbitPlugin({ base: 'homestead', target: SHIP_URL, secure: false }),
+          urbitPlugin({
+            base: 'homestead',
+            target: SHIP_URL,
+            changeOrigin: true,
+            secure: false,
+          }),
           reactRefresh(),
         ];
     }
@@ -58,7 +68,9 @@ export default ({ mode }: { mode: string }) => {
     base: base(mode),
     build:
       mode !== 'profile'
-        ? {}
+        ? {
+            sourcemap: 'inline',
+          }
         : {
             rollupOptions: {
               plugins: [

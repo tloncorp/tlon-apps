@@ -41,6 +41,7 @@ import FindGroups from '@/groups/FindGroups';
 import JoinGroupModal from '@/groups/Join/JoinGroupModal';
 import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
+import EditProfile from '@/profiles/EditProfile/EditProfile';
 import { useHeapState } from './state/heap/heap';
 import { useDiaryState } from './state/diary';
 import ChatChannel from './chat/ChatChannel';
@@ -75,6 +76,8 @@ function ChatRoutes({ state, location }: RoutesProps) {
             />
           </Route>
         </Route>
+
+        <Route path="/profile/edit" element={<EditProfile />} />
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
@@ -133,6 +136,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route path="channels" element={<ChannelIndex />} />
         </Route>
         <Route path="/dm/:ship" element={<Message />} />
+        <Route path="/profile/edit" element={<EditProfile />} />
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>

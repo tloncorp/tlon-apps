@@ -48,7 +48,7 @@ export function useDiaryEditor({
       extensions: [
         Blockquote,
         Bold,
-        Code.extend({ excludes: null }),
+        Code,
         Document,
         HardBreak,
         History.configure({ newGroupDelay: 100 }),

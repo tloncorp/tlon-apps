@@ -1,4 +1,5 @@
-import { Inline } from '@/types/content';
+import { Inline, InlineKey } from '@/types/content';
+import { reduce } from 'lodash';
 import { JSONContent } from '@tiptap/react';
 
 export function convertMarkType(type: string): string {
@@ -60,16 +61,17 @@ export function tipTapToString(json: JSONContent): string {
 
 // this will be replaced with more sophisticated logic based on
 // what we decide will be the message format
-export function parseTipTapJSON(json: JSONContent): Inline[] | Inline {
+export function parseTipTapJSON(json: JSONContent): Inline[] {
   if (json.content) {
     if (json.content.length === 1) {
       if (json.type === 'blockquote') {
         const parsed = parseTipTapJSON(json.content[0]);
-        return {
-          blockquote: Array.isArray(parsed) ? parsed : [parsed],
-        } as Inline;
+        return [
+          {
+            blockquote: parsed,
+          },
+        ];
       }
-
       return parseTipTapJSON(json.content[0]);
     }
 
@@ -107,26 +109,32 @@ export function parseTipTapJSON(json: JSONContent): Inline[] | Inline {
     }
 
     if (first.type === 'link' && first.attrs) {
-      return {
-        link: {
-          href: first.attrs.href,
-          content: json.text || first.attrs.href,
+      return [
+        {
+          link: {
+            href: first.attrs.href,
+            content: json.text || first.attrs.href,
+          },
         },
-      };
+      ];
     }
 
-    return {
-      [convertMarkType(first.type)]: parseTipTapJSON(json),
-    } as unknown as Inline;
+    return [
+      {
+        [convertMarkType(first.type)]: parseTipTapJSON(json),
+      },
+    ] as unknown as Inline[];
   }
 
   if (json.type === 'paragraph') {
-    return {
-      break: null,
-    };
+    return [
+      {
+        break: null,
+      },
+    ];
   }
 
-  return json.text || '';
+  return [json.text || ''];
 }
 
 function wrapParagraphs(content: JSONContent[]) {
@@ -229,4 +237,35 @@ export function parseInline(message: Inline[]): JSONContent {
     type: 'doc',
     content,
   };
+}
+
+const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
+function isMergeable(x: InlineKey): x is typeof MERGEABLE_KEYS[number] {
+  return MERGEABLE_KEYS.includes(x as any);
+}
+export function normalizeInline(inline: Inline[]): Inline[] {
+  return reduce(
+    inline,
+    (acc: Inline[], val) => {
+      if (acc.length === 0) {
+        return [...acc, val];
+      }
+      const last = acc[acc.length - 1];
+      if (typeof last === 'string' && typeof val === 'string') {
+        return [...acc.slice(0, -1), last + val];
+      }
+      const lastKey = Object.keys(acc[acc.length - 1])[0] as InlineKey;
+      const currKey = Object.keys(val)[0] as keyof InlineKey;
+      if (isMergeable(lastKey) && currKey === lastKey) {
+        // @ts-expect-error keying weirdness
+        const end: Inline = {
+          // @ts-expect-error keying weirdness
+          [lastKey]: [...last[lastKey as any], ...val[currKey as any]],
+        };
+        return [...acc.slice(0, -1), end];
+      }
+      return [...acc, val];
+    },
+    []
+  );
 }

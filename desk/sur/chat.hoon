@@ -4,6 +4,7 @@
 +$  writ   [seal memo]
 +$  id     (pair ship time)
 +$  feel   @ta
++$  said   (pair flag writ)
 ::
 +$  seal
   $:  =id
@@ -44,7 +45,7 @@
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
     ::
-      [%create p=perm]
+      [%create p=perm q=(unit pact)]
   ==
 
 +$  index   (map id time)
@@ -151,11 +152,11 @@
 ::
 +$  inline
   $@  @t
-  $%  [%italics p=inline]
-      [%bold p=inline]
-      [%strike p=inline]
-      [%inline-code p=cord]
+  $%  [%italics p=(list inline)]
+      [%bold p=(list inline)]
+      [%strike p=(list inline)]
       [%blockquote p=(list inline)]
+      [%inline-code p=cord]
       [%block p=@ud q=cord]
       [%code p=cord]
       [%tag p=cord]

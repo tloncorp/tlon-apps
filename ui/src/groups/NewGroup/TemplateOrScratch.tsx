@@ -43,11 +43,11 @@ export default function TemplateOrScratch({ next }: TemplateOrScratchProps) {
         </div>
         <div>
           <button className="button" onClick={() => next()}>
-            Create Group from scratch
+            Create Group from Scratch
           </button>
         </div>
       </div>
-      <div className="flex flex-col pt-6">
+      <div className="flex flex-col space-y-4 pt-6">
         <span className="text-lg font-bold text-gray-600">
           or use a Template
         </span>
@@ -63,7 +63,7 @@ export default function TemplateOrScratch({ next }: TemplateOrScratchProps) {
                   color={TEMPLATE_TYPE[template].iconColor}
                   letter="Aa"
                 />
-                <div className="flex flex-col">
+                <div className="flex flex-col space-y-2">
                   <span className="font-semibold">
                     {TEMPLATE_TYPE[template].name}
                   </span>

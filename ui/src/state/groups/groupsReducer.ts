@@ -77,11 +77,18 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       if ('add' in d) {
         group.channels[nest] = d.add;
       } else if ('del' in d) {
+        const { zone } = group.channels[nest];
+        group.zones[zone || 'default'].idx = group.zones[
+          zone || 'default'
+        ].idx.filter((n) => n !== nest);
         delete group.channels[nest];
-      } else if ('add-zone' in d) {
-        group.channels[nest].zone = d['add-zone'];
-      } else if ('del-zone' in d) {
-        group.channels[nest].zone = null;
+      } else if ('zone' in d) {
+        const oldZone = group.channels[nest].zone || 'default';
+        group.zones[oldZone].idx = group.zones[oldZone].idx.filter(
+          (n) => n !== nest
+        );
+        group.zones[d.zone].idx.splice(0, 0, nest);
+        group.channels[nest].zone = d.zone;
       } else if ('add-sects' in d) {
         group.channels[nest].readers = [
           ...group.channels[nest].readers,
@@ -112,9 +119,22 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
     } else if ('zone' in diff) {
       const { zone: f, delta: d } = diff.zone;
       if ('add' in d) {
-        group.zones[f] = d.add;
+        // TODO: what should `idx` be populated with?
+        group.zones[f] = { meta: d.add, idx: [] };
+        group['zone-ord'].splice(1, 0, f);
       } else if ('del' in d) {
         delete group.zones[f];
+        group['zone-ord'] = group['zone-ord'].filter((nest) => nest !== f);
+      } else if ('edit' in d) {
+        group.zones[f].meta = d.edit;
+      } else if ('mov-nest' in d) {
+        group.zones[f].idx = group.zones[f].idx.filter(
+          (nest) => nest !== d['mov-nest'].nest
+        );
+        group.zones[f].idx.splice(d['mov-nest'].index, 0, d['mov-nest'].nest);
+      } else if ('mov' in d) {
+        group['zone-ord'] = group['zone-ord'].filter((zone) => zone !== f);
+        group['zone-ord'].splice(d.mov, 0, f);
       }
     } else {
       // console.log('unreachable');

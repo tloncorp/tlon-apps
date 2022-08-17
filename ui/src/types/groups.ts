@@ -31,7 +31,10 @@ export interface Channels {
 export type Zone = string;
 
 export interface Zones {
-  [key: Zone]: GroupMeta;
+  [key: Zone]: {
+    meta: GroupMeta;
+    idx: string[];
+  };
 }
 
 export interface Vessel {
@@ -67,6 +70,8 @@ export interface Group {
   cordon: Cordon;
   meta: GroupMeta;
   zones: Zones;
+  'zone-ord': Zone[];
+  bloc: string[];
 }
 
 export interface Fleet {
@@ -119,11 +124,7 @@ interface ChannelDiffDel {
 }
 
 interface ChannelDiffAddZone {
-  'add-zone': string;
-}
-
-interface ChannelDiffDelZone {
-  'del-zone': null;
+  zone: string;
 }
 
 interface ChannelDiffAddSects {
@@ -145,7 +146,6 @@ interface ChannelDiff {
       | ChannelDiffAdd
       | ChannelDiffDel
       | ChannelDiffAddZone
-      | ChannelDiffDelZone
       | ChannelDiffAddSects
       | ChannelDiffDelSects
       | ChannelDiffJoin;
@@ -196,13 +196,35 @@ interface ZoneAdd {
   delta: { add: GroupMeta };
 }
 
+interface ZoneEdit {
+  zone: Zone;
+  delta: { edit: GroupMeta };
+}
+
+interface ZoneMoveChannel {
+  zone: Zone;
+  delta: {
+    'mov-nest': {
+      nest: string;
+      index: number;
+    };
+  };
+}
+
+interface MoveZone {
+  zone: Zone;
+  delta: {
+    mov: number;
+  };
+}
+
 interface ZoneDelete {
   zone: Zone;
   delta: { del: null };
 }
 
 interface ZoneDiff {
-  zone: ZoneAdd | ZoneDelete;
+  zone: ZoneAdd | ZoneDelete | ZoneEdit | ZoneMoveChannel | MoveZone;
 }
 
 export interface MetaDiff {

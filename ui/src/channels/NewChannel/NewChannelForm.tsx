@@ -18,7 +18,7 @@ export default function NewChannelForm() {
   const groupFlag = useRouteGroup();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
-    zone: null,
+    zone: 'default',
     added: Date.now(),
     readers: [],
     join: false,
@@ -40,6 +40,7 @@ export default function NewChannelForm() {
       const { privacy, type, ...nextChannel } = values;
       const channelName = strToSym(values.meta.title);
       const newChannelFlag = `${window.our}/${channelName}`;
+      const newChannelNest = `${type}/${newChannelFlag}`;
 
       if (privacy === 'secret') {
         nextChannel.readers.push('admin');
@@ -70,10 +71,10 @@ export default function NewChannelForm() {
       if (section) {
         await useGroupState
           .getState()
-          .addChannelToZone(section, groupFlag, newChannelFlag);
+          .addChannelToZone(section, groupFlag, newChannelNest);
       }
 
-      navigate(channelHref(groupFlag, `${type}/${newChannelFlag}`));
+      navigate(channelHref(groupFlag, newChannelNest));
     },
     [section, groupFlag, navigate]
   );

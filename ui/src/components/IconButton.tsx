@@ -1,10 +1,12 @@
 import React from 'react';
+import cn from 'classnames';
 
 interface IconButtonProps {
   icon: React.ReactElement;
   action: () => void;
   label: string;
   showTooltip?: boolean;
+  className?: string;
 }
 
 export default function IconButton({
@@ -12,9 +14,10 @@ export default function IconButton({
   action,
   label,
   showTooltip,
+  className = '',
 }: IconButtonProps) {
   return (
-    <div className="group-two relative cursor-pointer">
+    <div className={cn('group-two relative cursor-pointer', className)}>
       {showTooltip ? (
         <div className="z-2 pointer-events-none absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100">
           <div className="hidden w-fit cursor-none rounded bg-gray-400 px-4 py-2 group-two-hover:block">
