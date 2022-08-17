@@ -388,7 +388,7 @@ export default function ChatInput({
     if (!draftEmpty && messageEditor) {
       const current = tipTapToString(messageEditor.getJSON());
 
-      if (current === '') {
+      if (current === '' && !messageEditor.isDestroyed) {
         messageEditor.commands.setContent(parseChatMessage(draft), true);
       }
     }
