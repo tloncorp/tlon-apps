@@ -11,18 +11,19 @@ import {
 } from '@/logic/utils';
 import { useEmbed } from '@/logic/embed';
 import { formatDistanceToNow } from 'date-fns';
+import TwitterIcon from '@/components/icons/TwitterIcon';
 
 export default function HeapRow({ curio }: { curio: HeapCurio }) {
   const { content, sent } = curio.heart;
   const { replied } = curio.seal;
-  const url = content[0].toString();
+  const contentString = content[0].toString();
 
-  const isImage = IMAGE_REGEX.test(url);
-  const isUrl = URL_REGEX.test(url);
-  const isVideo = VIDEO_REGEX.test(url);
-  const isAudio = AUDIO_REGEX.test(url);
-  const oembed = useEmbed(url);
-  const isOembed = validOembedCheck(oembed, url);
+  const isImage = IMAGE_REGEX.test(contentString);
+  const isUrl = URL_REGEX.test(contentString);
+  const isVideo = VIDEO_REGEX.test(contentString);
+  const isAudio = AUDIO_REGEX.test(contentString);
+  const oembed = useEmbed(contentString);
+  const isOembed = validOembedCheck(oembed, contentString);
 
   const description = () => {
     switch (true) {
@@ -41,6 +42,24 @@ export default function HeapRow({ curio }: { curio: HeapCurio }) {
     }
   };
 
+  const otherImage = () => {
+    const thumbnail = oembed.read().thumbnail_url;
+    const provider = oembed.read().provider_name;
+    switch (true) {
+      case isOembed && provider !== 'Twitter':
+        return (
+          <div
+            className="relative inline-block h-14 w-14 cursor-pointer overflow-hidden rounded-l-lg bg-cover bg-no-repeat"
+            style={{ backgroundImage: `url(${thumbnail})` }}
+          />
+        );
+      case provider === 'Twitter':
+        return <TwitterIcon className="m-2 h-6 w-6" />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <div className="flex h-14 w-full items-center justify-between space-x-2 rounded-lg bg-white">
@@ -48,19 +67,21 @@ export default function HeapRow({ curio }: { curio: HeapCurio }) {
           {isImage ? (
             <div
               className="relative inline-block h-14 w-14 cursor-pointer overflow-hidden rounded-l-lg bg-cover bg-no-repeat"
-              style={{ backgroundImage: `url(${url})` }}
+              style={{ backgroundImage: `url(${contentString})` }}
             />
           ) : (
-            <div className="h-14 w-14 rounded-l-lg bg-gray-200" />
+            <div className="flex h-14 w-14 flex-col items-center justify-center rounded-l-lg bg-gray-200">
+              {otherImage()}
+            </div>
           )}
           <div className="flex flex-col justify-end p-2">
             <div className="font-semibold text-gray-800">
               {isUrl ? (
-                <a href={url} target="_blank" rel="noreferrer">
-                  {url}
+                <a href={contentString} target="_blank" rel="noreferrer">
+                  {contentString}
                 </a>
               ) : (
-                url
+                contentString
               )}
             </div>
             <div className="text-sm font-semibold text-gray-600">
