@@ -222,7 +222,7 @@ export function parseInline(message: Inline[]): JSONContent {
         return {
           type: 'text',
           marks: marks.concat([{ type: convertTipTapType(recursive) }]),
-          text: content.text,
+          text: content.text || 'foo',
         };
       }
 

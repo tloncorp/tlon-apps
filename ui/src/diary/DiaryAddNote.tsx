@@ -2,20 +2,27 @@ import ChannelHeader from '@/channels/ChannelHeader';
 import CoverImageInput from '@/components/CoverImageInput';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups';
-import React from 'react';
+import { Verse } from '@/types/diary';
+import React, { useState } from 'react';
 import { useParams } from 'react-router';
+import DiaryEditor from './DiaryEditor';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
+
+const TEST_CONTENT: Verse[] = [
+  {
+    inline: ['foo bar'],
+  },
+  {
+    inline: ['baz more tests'],
+  },
+];
 
 export default function DiaryAddNote() {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
-
-  const editor = useDiaryInlineEditor({
-    content: '',
-    placeholder: 'Start writing here, or click the menu to add a link block',
-  });
+  const [content, setContent] = useState(TEST_CONTENT);
 
   return (
     <Layout
@@ -30,7 +37,7 @@ export default function DiaryAddNote() {
             className="input-transparent text-3xl"
             type="text"
           />
-          {editor ? <DiaryInlineEditor editor={editor} /> : null}
+          <DiaryEditor setContent={setContent} content={content} />
         </form>
       </div>
     </Layout>

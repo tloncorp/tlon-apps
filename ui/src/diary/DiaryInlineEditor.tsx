@@ -1,5 +1,6 @@
 import classNames from 'classnames';
 import { EditorView } from 'prosemirror-view';
+import { Editor as EditorCore } from '@tiptap/core';
 import {
   Editor,
   EditorContent,
@@ -7,7 +8,7 @@ import {
   JSONContent,
   useEditor,
 } from '@tiptap/react';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -36,14 +37,16 @@ interface useDiaryInlineEditorParams {
   content: JSONContent | string;
   placeholder?: string;
   onUpdate?: ({ editor }: HandlerParams) => void;
+  onBlur?: ({ editor }: HandlerParams) => void;
 }
 
 export function useDiaryInlineEditor({
   content,
   placeholder,
   onUpdate,
+  onBlur,
 }: useDiaryInlineEditorParams) {
-  return useEditor(
+  const ed = useEditor(
     {
       extensions: [
         Blockquote,
@@ -64,9 +67,14 @@ export function useDiaryInlineEditor({
       content: content || '',
       editorProps: {
         attributes: {
-          class: '',
+          class: 'input-transparent',
           'aria-label': 'Note editor with formatting menu',
         },
+      },
+      onBlur: ({ editor }) => {
+        if (onBlur) {
+          onBlur({ editor } as any);
+        }
       },
       onUpdate: ({ editor }) => {
         if (onUpdate) {
@@ -74,8 +82,16 @@ export function useDiaryInlineEditor({
         }
       },
     },
-    [placeholder]
+    [placeholder, onBlur]
   );
+
+  useEffect(() => {
+    if (ed && !ed.isDestroyed) {
+      ed.chain().clearContent().insertContent(content).focus().run();
+    }
+  }, [ed, content]);
+
+  return ed;
 }
 
 interface DiaryInlineEditorProps {
