@@ -16,7 +16,7 @@ export default function ChannelIcon({ nest, ...rest }: ChannelIconProps) {
       return <BubbleIcon {...rest} />;
     case 'heap':
       return <ShapesIcon {...rest} />;
-    case 'note': // TODO: update to whatever app name is used for Notebooks
+    case 'diary':
       return <NotebookIcon {...rest} />;
     default:
       return <UnknownAvatarIcon {...rest} />;
