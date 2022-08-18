@@ -29,9 +29,9 @@ export default function DiaryAddNote() {
       className="align-center w-full flex-1 bg-white"
       header={<ChannelHeader flag={flag} nest={nest} />}
     >
-      <div className="mx-auto max-w-xl space-y-12 p-4">
+      <div className="mx-auto max-w-xl p-4">
         <CoverImageInput url="https://0x0.st/oT-r.jpg" />
-        <form className="contents">
+        <form className="space-y-6 py-6">
           <input
             placeholder="New Title"
             className="input-transparent text-3xl"
