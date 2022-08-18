@@ -1,6 +1,6 @@
-import _ from 'lodash';
-import React, { Suspense, useEffect } from 'react';
-import { Outlet } from 'react-router';
+// import _ from 'lodash';
+import React, { Suspense, useEffect, useCallback } from 'react';
+import { Outlet, useNavigate } from 'react-router';
 import Layout from '@/components/Layout/Layout';
 import { useCuriosForHeap, useHeapState } from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
@@ -22,6 +22,7 @@ export interface HeapChannelProps {
 }
 
 function HeapChannel({ flag, nest }: HeapChannelProps) {
+  const navigate = useNavigate();
   // for now displayMode and sortMode will be in the settings store.
   // in the future we will want to store in this via the heap agent.
   const [app, chFlag] = nestToFlag(nest);
@@ -54,6 +55,10 @@ function HeapChannel({ flag, nest }: HeapChannelProps) {
     useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
 
+  const navigateToDetail = useCallback((time: bigInt.BigInteger) => {
+    navigate(`curio/${time}`);
+  }, [navigate]);
+
   return (
     <Layout
       className="flex-1 bg-gray-50"
@@ -80,7 +85,11 @@ function HeapChannel({ flag, nest }: HeapChannelProps) {
                   key={time.toString()}
                   fallback={<div>Loading...</div>}
                 >
-                  <HeapBlock curio={curio} />
+                  <div
+                    onClick={() => navigateToDetail(time)}
+                  >
+                    <HeapBlock curio={curio} />
+                  </div>
                 </Suspense>
               ))}
           </div>

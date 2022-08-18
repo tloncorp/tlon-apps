@@ -42,6 +42,7 @@ import JoinGroupModal from '@/groups/Join/JoinGroupModal';
 import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
+import HeapDetail from '@/heap/HeapDetail';
 import { useHeapState } from './state/heap/heap';
 
 interface RoutesProps {
@@ -105,11 +106,17 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             <Route path="members" element={<GroupMemberManager />} />
             <Route path="channels" element={<GroupChannelManager />} />
           </Route>
-          <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
-            <Route
-              path="message/:idShip/:idTime"
-              element={<GroupChatThread />}
+          <Route path="channels/:app/:chShip/:chName">
+           <Route 
+              path="curio/:idCurio"
+              element={<HeapDetail />}
             />
+            <Route path="" element={<Channel />}>
+              <Route
+                path="message/:idShip/:idTime"
+                element={<GroupChatThread />}
+              />
+            </Route>
           </Route>
           <Route path="channels" element={<ChannelIndex />} />
         </Route>
