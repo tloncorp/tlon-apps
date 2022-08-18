@@ -1,18 +1,15 @@
 import React from 'react';
+import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
-  ChatInline,
-  ChatBlock,
-  ChatMessage,
   isBlockquote,
   isBold,
   isBreak,
-  isChatImage,
   isInlineCode,
   isItalics,
   isLink,
   isStrikethrough,
-  ChatStory,
-} from '../../types/chat';
+  Inline,
+} from '@/types/content';
 import ChatContentImage from './ChatContentImage';
 
 interface ChatContentProps {
@@ -20,7 +17,7 @@ interface ChatContentProps {
 }
 
 interface InlineContentProps {
-  story: ChatInline;
+  story: Inline;
 }
 
 interface BlockContentProps {

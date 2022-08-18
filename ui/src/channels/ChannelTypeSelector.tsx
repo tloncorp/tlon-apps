@@ -4,6 +4,7 @@ import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
+import NotebookIcon from '@/components/icons/NotebookIcon';
 
 interface ChannelTypeMetadata {
   title: string;
@@ -21,6 +22,11 @@ const CHANNEL_TYPE: Record<ChannelType, ChannelTypeMetadata> = {
     icon: <LinkIcon className="h-6 w-6 text-gray-600" />,
     title: 'Collection',
     description: 'Gather, entangle, connect, and arrange rich media',
+  },
+  diary: {
+    icon: <NotebookIcon className="h-6 w-6 text-gray-600" />,
+    title: 'Notebook',
+    description: 'Longform publishing and discussion',
   },
 };
 
