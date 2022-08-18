@@ -69,6 +69,7 @@ function HeapChannel() {
         <ChannelHeader
           flag={flag}
           nest={nest}
+          isHeap
           displayMode={displayMode}
           setDisplayMode={setDisplayMode}
           sortMode={sortMode}
@@ -87,7 +88,11 @@ function HeapChannel() {
                   key={time.toString()}
                   fallback={<div>Loading...</div>}
                 >
-                  <HeapBlock curio={curio} />
+                  <HeapBlock
+                    curio={curio}
+                    // @ts-expect-error time is apparently a number, or we have a problem in heap types.
+                    time={time}
+                  />
                 </Suspense>
               ))}
           </div>
@@ -101,7 +106,11 @@ function HeapChannel() {
                   key={time.toString()}
                   fallback={<div>Loading...</div>}
                 >
-                  <HeapRow curio={curio} />
+                  <HeapRow
+                    curio={curio}
+                    // @ts-expect-error time is apparently a number, or we have a problem in heap types.
+                    time={time}
+                  />
                 </Suspense>
               ))}
           </div>

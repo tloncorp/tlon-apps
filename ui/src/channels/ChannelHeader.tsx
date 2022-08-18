@@ -21,6 +21,7 @@ export interface ChannelHeaderProps {
   setDisplayMode?: (displayType: 'grid' | 'list') => void;
   sortMode?: 'time' | 'alpha';
   setSortMode?: (sortType: 'time' | 'alpha') => void;
+  isHeap?: boolean;
 }
 
 function ChannelHeaderButton({
@@ -47,9 +48,9 @@ export default function ChannelHeader({
   setDisplayMode,
   sortMode,
   setSortMode,
+  isHeap = false,
 }: ChannelHeaderProps) {
   const group = useGroup(flag);
-  const { app } = useParams();
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const channel = useChannel(flag, nest);
@@ -85,7 +86,7 @@ export default function ChannelHeader({
         </div>
       </button>
 
-      {app === 'heap' && displayMode && setDisplayMode && setSortMode ? (
+      {isHeap && displayMode && setDisplayMode && setSortMode ? (
         <div className="flex items-center space-x-12">
           <div className="flex items-center space-x-2">
             <Popover.Root>
