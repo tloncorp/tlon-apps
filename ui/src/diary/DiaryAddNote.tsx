@@ -4,7 +4,7 @@ import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups';
 import React from 'react';
 import { useParams } from 'react-router';
-import DiaryEditor, { useDiaryEditor } from './DiaryEditor';
+import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName } = useParams();
@@ -12,7 +12,7 @@ export default function DiaryAddNote() {
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
 
-  const editor = useDiaryEditor({
+  const editor = useDiaryInlineEditor({
     content: '',
     placeholder: 'Start writing here, or click the menu to add a link block',
   });
@@ -30,7 +30,7 @@ export default function DiaryAddNote() {
             className="input-transparent text-3xl"
             type="text"
           />
-          {editor ? <DiaryEditor editor={editor} /> : null}
+          {editor ? <DiaryInlineEditor editor={editor} /> : null}
         </form>
       </div>
     </Layout>

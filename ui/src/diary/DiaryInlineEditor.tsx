@@ -32,17 +32,17 @@ interface HandlerParams {
   editor: Editor;
 }
 
-interface useDiaryEditorParams {
+interface useDiaryInlineEditorParams {
   content: JSONContent | string;
   placeholder?: string;
   onUpdate?: ({ editor }: HandlerParams) => void;
 }
 
-export function useDiaryEditor({
+export function useDiaryInlineEditor({
   content,
   placeholder,
   onUpdate,
-}: useDiaryEditorParams) {
+}: useDiaryInlineEditorParams) {
   return useEditor(
     {
       extensions: [
@@ -78,12 +78,15 @@ export function useDiaryEditor({
   );
 }
 
-interface DiaryEditorProps {
+interface DiaryInlineEditorProps {
   editor: Editor;
   className?: string;
 }
 
-export default function DiaryEditor({ editor, className }: DiaryEditorProps) {
+export default function DiaryInlineEditor({
+  editor,
+  className,
+}: DiaryInlineEditorProps) {
   const isMobile = useIsMobile();
   return (
     <div className={classNames('input-transparent block p-0', className)}>

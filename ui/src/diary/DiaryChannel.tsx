@@ -11,7 +11,7 @@ import { parseInline, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
 import { VerseInline } from '@/types/diary';
 import { Link } from 'react-router-dom';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import DiaryEditor, { useDiaryEditor } from './DiaryEditor';
+import DiaryEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 interface NoteForm {
   title: string;
@@ -36,7 +36,7 @@ function DiaryChannel() {
       image: '',
     },
   });
-  const editor = useDiaryEditor({
+  const editor = useDiaryInlineEditor({
     content: '',
     placeholder: 'Write a note...',
   });
