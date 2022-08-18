@@ -60,7 +60,7 @@ interface BottomBarProps {
   provider: string;
   prettySent: string;
   url: string;
-  replying: number | null;
+  replying: string | null;
 }
 
 function BottomBar({ provider, prettySent, url, replying }: BottomBarProps) {
@@ -87,7 +87,7 @@ function BottomBar({ provider, prettySent, url, replying }: BottomBarProps) {
 }
 
 export default function HeapBlock({ curio }: { curio: HeapCurio }) {
-  const { content, sent, replying = 1 } = curio.heart;
+  const { content, sent, replying } = curio.heart;
   const url = content[0].toString();
   const prettySent = formatDistanceToNow(sent);
 

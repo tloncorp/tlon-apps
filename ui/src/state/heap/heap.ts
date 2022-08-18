@@ -3,7 +3,7 @@ import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
+import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { useCallback, useMemo } from 'react';
 import {
   CurioDelta,
@@ -41,7 +41,7 @@ function heapAction(flag: HeapFlag, diff: HeapDiff) {
   };
 }
 
-function heapCurioDiff(flag: HeapFlag, time: number, delta: CurioDelta) {
+function heapCurioDiff(flag: HeapFlag, time: string, delta: CurioDelta) {
   return heapAction(flag, {
     curios: {
       time,
@@ -136,7 +136,7 @@ export const useHeapState = create<HeapState>(
         });
       },
       addCurio: async (flag, heart) => {
-        await api.poke(heapCurioDiff(flag, Date.now(), { add: heart }));
+        await api.poke(heapCurioDiff(flag, getTime(), { add: heart }));
       },
       delCurio: async (flag, time) => {
         await api.poke(heapCurioDiff(flag, time, { del: null }));
@@ -240,8 +240,8 @@ export function useComments(flag: HeapFlag, time: string) {
 
     const curio = curios.get(bigInt(time));
     const replies = (curio?.seal?.replied || ([] as number[]))
-      .map((r: number) => {
-        const t = bigInt(r);
+      .map((r: string) => {
+        const t = bigInt(udToDec(r));
         const c = curios.get(t);
         return c ? ([t, c] as const) : undefined;
       })
