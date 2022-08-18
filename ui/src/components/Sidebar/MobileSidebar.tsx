@@ -4,6 +4,7 @@ import { hasKeys } from '@/logic/utils';
 import { useGroups } from '@/state/groups/groups';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
+import Notifications from '@/notifications/Notifications';
 import useNavStore from '../Nav/useNavStore';
 import SidebarSorter from './SidebarSorter';
 import NavTab from '../NavTab';
@@ -55,7 +56,7 @@ export default function MobileSidebar() {
         {secondary === 'main' ? (
           <GroupList groups={sortedGroups} pinnedGroups={sortedPinnedGroups} />
         ) : secondary === 'notifications' ? (
-          <div />
+          <Notifications />
         ) : secondary === 'search' ? (
           <div />
         ) : null}

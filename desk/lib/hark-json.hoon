@@ -124,13 +124,14 @@
     ==
   ::
   ++  flag  flag:enjs:groups-json
+  ++  nest  nest:enjs:groups-json
   ::
   ++  rope
     |=  r=rope:h
     ^-  json
     %-  pairs
     :~  group/?~(gop.r ~ s/(flag u.gop.r))
-        channel/?~(can.r ~ s/(flag u.can.r))
+        channel/?~(can.r ~ s/(nest u.can.r))
         desk/s/des.r
         thread/s/(spat ted.r)
     ==
@@ -154,11 +155,12 @@
     ==
   ::
   ++  flag  flag:dejs:groups-json
+  ++  nest  nest:dejs:groups-json
   ::
   ++  rope
     %-  ot
     :~  group/(mu flag)
-        channel/(mu flag)
+        channel/(mu nest)
         desk/so
         thread/pa
     ==

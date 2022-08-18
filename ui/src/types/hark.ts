@@ -21,7 +21,19 @@ export interface YarnButton {
   handler: string;
 }
 
-export type YarnContent = string | { ship: string } | { emph: string };
+interface YarnContentShip {
+  ship: string;
+}
+
+interface YarnContentEmphasis {
+  emph: string;
+}
+
+export type YarnContent = string | YarnContentShip | YarnContentEmphasis;
+
+export function isYarnShip(obj: YarnContent): obj is YarnContentShip {
+  return typeof obj !== 'string' && 'ship' in obj;
+}
 
 export interface Rope {
   group: Flag | null;
