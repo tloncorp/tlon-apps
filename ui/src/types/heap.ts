@@ -1,46 +1,17 @@
-import { BigIntOrderedMap } from '@urbit/api';
+import { BigIntOrderedMap, Tag } from '@urbit/api';
+import {
+  Italics,
+  Strikethrough,
+  Break,
+  InlineCode,
+  BlockCode,
+  Bold,
+  Blockquote,
+  Link,
+} from './content';
 
 export type Patda = string;
 export type Ship = string;
-
-export interface Italics {
-  italics: HeapInline;
-}
-
-export interface Bold {
-  bold: HeapInline;
-}
-
-export interface Strikethrough {
-  strike: HeapInline;
-}
-
-export interface Break {
-  break: null;
-}
-
-export interface InlineCode {
-  'inline-code': string;
-}
-
-export interface BlockCode {
-  code: string;
-}
-
-export interface Blockquote {
-  blockquote: HeapInline[];
-}
-
-export interface Tag {
-  tag: string;
-}
-
-export interface Link {
-  link: {
-    href: string;
-    content: string;
-  };
-}
 
 export type HeapInline =
   | string

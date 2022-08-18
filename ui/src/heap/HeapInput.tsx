@@ -8,6 +8,7 @@ import useNest from '@/logic/useNest';
 import { isValidUrl, nestToFlag } from '@/logic/utils';
 import { useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
+import useRequestState from '@/logic/useRequestState';
 import { GRID, HeapDisplayMode, LIST } from './HeapTypes';
 import HeapTextInput from './HeapTextInput';
 
@@ -43,6 +44,7 @@ export default function HeapInput({ displayType }: HeapInputProps) {
       content: '',
     },
   });
+  const { isPending, setPending, setReady } = useRequestState();
   const onSubmit = useCallback(
     async ({ content }: CurioForm) => {
       await useHeapState.getState().addCurio(chFlag, {
@@ -62,6 +64,26 @@ export default function HeapInput({ displayType }: HeapInputProps) {
   const isValidInput = isLinkMode
     ? isValidUrl(watchedContent)
     : watchedContent.length > 0;
+
+  // For Link mode, prevent newline entry + allow submit with Enter
+  const onKeyDown = useCallback(
+    async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+
+        if (isPending) {
+          return;
+        }
+
+        if (isValidInput) {
+          setPending();
+          await handleSubmit(onSubmit)();
+          setReady();
+        }
+      }
+    },
+    [handleSubmit, isPending, isValidInput, onSubmit, setPending, setReady]
+  );
 
   if (!canWrite) {
     return null;
@@ -110,16 +132,16 @@ export default function HeapInput({ displayType }: HeapInputProps) {
             className="relative flex-1 p-1"
           >
             <textarea
-              autoFocus
               {...register('content')}
-              className="h-full w-full resize-none rounded-lg bg-gray-50 p-1.5 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
+              className="h-full w-full resize-none rounded-lg bg-gray-50 p-2 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
               placeholder="Paste Link Here"
+              onKeyDown={onKeyDown}
             />
             <input
-              value="Post"
+              value={isPending ? 'Posting...' : 'Post'}
               type="submit"
               className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
-              disabled={!isValidInput}
+              disabled={isPending || !isValidInput}
             />
           </form>
         ) : (

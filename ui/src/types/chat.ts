@@ -1,60 +1,24 @@
 import { BigIntOrderedMap } from '@urbit/api';
 import { BigInteger } from 'big-integer';
+import {
+  BlockCode,
+  Blockquote,
+  BlockReference,
+  Bold,
+  Break,
+  Inline,
+  InlineCode,
+  Italics,
+  Link,
+  Strikethrough,
+  Tag,
+} from './content';
 import { GroupMeta } from './groups';
 
 export type Patda = string;
 export type Ship = string;
 
 export type ChatBlock = ChatImage;
-
-export interface Italics {
-  italics: ChatInline[];
-}
-
-export interface Bold {
-  bold: ChatInline[];
-}
-
-export interface Strikethrough {
-  strike: ChatInline[];
-}
-
-/**
- A reference to the accompanying blocks, indexed at 0
-*/
-export interface BlockReference {
-  block: {
-    index: number;
-    text: string;
-  };
-}
-
-export interface Break {
-  break: null;
-}
-
-export interface InlineCode {
-  'inline-code': string;
-}
-
-export interface BlockCode {
-  code: string;
-}
-
-export interface Blockquote {
-  blockquote: ChatInline[];
-}
-
-export interface Tag {
-  tag: string;
-}
-
-export interface Link {
-  link: {
-    href: string;
-    content: string;
-  };
-}
 
 export interface ChatImage {
   image: {
@@ -64,32 +28,6 @@ export interface ChatImage {
     alt: string;
   };
 }
-
-export type ChatInline =
-  | string
-  | Bold
-  | Italics
-  | Strikethrough
-  | Ship
-  | Break
-  | BlockReference
-  | InlineCode
-  | BlockCode
-  | Blockquote
-  | Tag
-  | Link;
-
-export type ChatInlineKey =
-  | 'italics'
-  | 'bold'
-  | 'strike'
-  | 'blockquote'
-  | 'inline-code'
-  | 'block'
-  | 'code'
-  | 'tag'
-  | 'link'
-  | 'break';
 
 export function isBold(item: unknown): item is Bold {
   return typeof item === 'object' && item !== null && 'bold' in item;
@@ -125,7 +63,7 @@ export function isChatImage(item: unknown): item is ChatImage {
 
 export interface ChatStory {
   block: ChatBlock[];
-  inline: ChatInline[];
+  inline: Inline[];
 }
 
 export interface ChatSeal {

@@ -1,6 +1,6 @@
 import React from 'react';
+import { Inline } from '@/types/content';
 import {
-  HeapInline,
   isBlockquote,
   isBold,
   isBreak,
@@ -16,7 +16,7 @@ interface HeapContentProps {
 }
 
 interface InlineContentProps {
-  inline: HeapInline;
+  inline: Inline;
 }
 
 export function InlineContent({ inline }: InlineContentProps) {

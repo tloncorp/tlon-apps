@@ -7,6 +7,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import { useHeapState } from '@/state/heap/heap';
 import { reduce } from 'lodash';
 import classNames from 'classnames';
+import useRequestState from '@/logic/useRequestState';
 import { HeapDisplayMode, LIST } from './HeapTypes';
 
 interface HeapTextInputProps {
@@ -144,12 +145,15 @@ export default function HeapTextInput({
   displayType,
 }: HeapTextInputProps) {
   const isMobile = useIsMobile();
+  const { isPending, setPending, setReady } = useRequestState();
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
       if (!editor.getText()) {
         return;
       }
+
+      setPending();
 
       const content = normalizeHeapInline(parseTipTapJSON(editor?.getJSON()));
       const heart: CurioHeart = {
@@ -162,8 +166,9 @@ export default function HeapTextInput({
 
       await useHeapState.getState().addCurio(flag, heart);
       editor?.commands.setContent('');
+      setReady();
     },
-    [flag]
+    [flag, setPending, setReady]
   );
 
   const messageEditor = useMessageEditor({
@@ -195,7 +200,7 @@ export default function HeapTextInput({
 
   return (
     <>
-      <div className="relative flex-1 p-0.5">
+      <div className="relative flex-1 p-1">
         <MessageEditor
           editor={messageEditor}
           className="h-full w-full rounded-lg"
@@ -208,10 +213,10 @@ export default function HeapTextInput({
         />
         <button
           className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
-          disabled={sendDisabled || messageEditor.getText() === ''}
+          disabled={sendDisabled || isPending || messageEditor.getText() === ''}
           onClick={onClick}
         >
-          Post
+          {isPending ? 'Posting...' : 'Post'}
         </button>
       </div>
       {isMobile && messageEditor.isFocused ? (

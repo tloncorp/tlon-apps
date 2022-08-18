@@ -3,14 +3,14 @@ import cn from 'classnames';
 import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { GroupChannel } from '@/types/groups';
 import EditChannelModal from '@/groups/GroupAdmin/AdminChannels/EditChannelModal';
-import { useChat, useChatState } from '@/state/chat';
+import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
-import BubbleIcon from '@/components/icons/BubbleIcon';
 import { getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
 import { Chat } from '@/types/chat';
 import { Heap } from '@/types/heap';
+import ChannelIcon from '@/channels/ChannelIcon';
 import AdminChannelListDropdown from './AdminChannelListDropdown';
 import DeleteChannelModal from './DeleteChannelModal';
 import { PRIVACY_TYPE } from './ChannelPermsSelector';
@@ -70,7 +70,7 @@ export default function AdminChannelListItem({
               <SixDotIcon className="mr-3 h-5 w-5 fill-gray-600" />
             </div>
             <div className="mr-3 flex h-8 w-8 items-center justify-center rounded bg-gray-50">
-              <BubbleIcon className="h-5 w-5 text-gray-400" />
+              <ChannelIcon nest={nest} className="h-5 w-5 text-gray-400" />
             </div>
             <div>
               <div className="flex items-center space-x-2">

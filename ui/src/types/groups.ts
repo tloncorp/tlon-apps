@@ -300,7 +300,7 @@ export type PrivacyType = 'public' | 'private' | 'secret';
 
 export type ChannelPrivacyType = 'public' | 'read-only' | 'secret';
 
-export type ChannelType = 'chat' | 'heap';
+export type ChannelType = 'chat' | 'heap' | 'diary';
 
 export interface GroupFormSchema extends GroupMeta {
   privacy: PrivacyType;

@@ -1,10 +1,14 @@
-// import _ from 'lodash';
-import React, { Suspense, useEffect, useCallback } from 'react';
-import { Outlet, useNavigate } from 'react-router';
+import _ from 'lodash';
+import React, { Suspense, useCallback, useEffect } from 'react';
+import { Outlet, useParams, useNavigate } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useCuriosForHeap, useHeapState } from '@/state/heap/heap';
+import { useRouteGroup, useVessel } from '@/state/groups/groups';
+import {
+  useCuriosForHeap,
+  useHeapPerms,
+  useHeapState,
+} from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
-import { nestToFlag } from '@/logic/utils';
 import {
   setHeapSetting,
   useHeapDisplayMode,
@@ -16,16 +20,19 @@ import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import HeapInput from '@/heap/HeapInput';
 
-export interface HeapChannelProps {
-  flag: string;
-  nest: string;
+interface CurioForm {
+  url: string;
 }
 
-function HeapChannel({ flag, nest }: HeapChannelProps) {
+function HeapChannel() {
+  const { chShip, chName } = useParams();
+  const chFlag = `${chShip}/${chName}`;
+  const nest = `heap/${chFlag}`;
+  const flag = useRouteGroup();
+
   const navigate = useNavigate();
   // for now displayMode and sortMode will be in the settings store.
   // in the future we will want to store in this via the heap agent.
-  const [app, chFlag] = nestToFlag(nest);
   const displayMode = useHeapDisplayMode(chFlag);
   const settings = useHeapSettings();
   // for now sortMode is not actually doing anything.

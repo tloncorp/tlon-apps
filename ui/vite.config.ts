@@ -68,7 +68,9 @@ export default ({ mode }: { mode: string }) => {
     base: base(mode),
     build:
       mode !== 'profile'
-        ? {}
+        ? {
+            sourcemap: 'inline',
+          }
         : {
             rollupOptions: {
               plugins: [
