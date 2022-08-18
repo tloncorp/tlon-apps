@@ -1,10 +1,9 @@
-import { Editor, JSONContent } from '@tiptap/react';
-import { debounce, reduce } from 'lodash';
+import { Editor } from '@tiptap/react';
+import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
-import { Inline, InlineKey } from '@/types/content';
-import { ChatMemo, ChatStory } from '@/types/chat';
+import { ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -110,7 +109,7 @@ export default function ChatInput({
   });
 
   useEffect(() => {
-    if (whom) {
+    if (whom && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.setContent('');
       useChatState.getState().getDraft(whom);
     }
@@ -127,7 +126,7 @@ export default function ChatInput({
     if (!draftEmpty && messageEditor) {
       const current = tipTapToString(messageEditor.getJSON());
 
-      if (current === '') {
+      if (current === '' && !messageEditor.isDestroyed) {
         messageEditor.commands.setContent(parseInline(draft.inline), true);
       }
     }
