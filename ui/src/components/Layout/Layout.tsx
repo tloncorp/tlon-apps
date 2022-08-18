@@ -6,10 +6,12 @@ type LayoutProps = PropsWithChildren<{
   footer?: React.ReactNode;
   header?: React.ReactNode;
   aside?: React.ReactNode;
+  mainClass?: string;
 }>;
 
 export default function Layout({
   className,
+  mainClass,
   children,
   footer,
   header,
@@ -19,7 +21,7 @@ export default function Layout({
     <div className={cn(className, 'layout')}>
       {header && <header className="header">{header}</header>}
       {aside && <aside className="aside">{aside}</aside>}
-      <main className="main">{children}</main>
+      <main className={cn('main', mainClass)}>{children}</main>
       {footer && <footer className="footer">{footer}</footer>}
     </div>
   );

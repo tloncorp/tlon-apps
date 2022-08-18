@@ -48,6 +48,7 @@ import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
 import DiaryNote from './diary/DiaryNote';
+import DiaryAddNote from './diary/DiaryAddNote';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -128,10 +129,13 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="channels/diary/:chShip/:chName"
             element={<DiaryChannel />}
           />
-
           <Route
             path="channels/diary/:chShip/:chName/note/:noteId"
             element={<DiaryNote />}
+          />
+          <Route
+            path="channels/diary/:chShip/:chName/add"
+            element={<DiaryAddNote />}
           />
           <Route path="channels" element={<ChannelIndex />} />
         </Route>

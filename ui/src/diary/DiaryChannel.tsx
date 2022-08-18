@@ -72,6 +72,7 @@ function DiaryChannel() {
       header={<ChannelHeader flag={flag} nest={nest} />}
     >
       <div className="p-4">
+        <Link to="add">Add Note</Link>
         <form onSubmit={handleSubmit(onSubmit)}>
           <input type="text" {...register('title')} placeholder="Enter title" />
           <input
