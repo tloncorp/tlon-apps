@@ -2,6 +2,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
+/+  heap-json
 ^-  agent:gall
 =>
   |%
