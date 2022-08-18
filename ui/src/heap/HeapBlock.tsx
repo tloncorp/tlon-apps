@@ -13,9 +13,9 @@ import { formatDistanceToNow } from 'date-fns';
 import IconButton from '@/components/IconButton';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
-import OpenSmallIcon from '@/components/icons/OpenSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
+import CopyIcon from '@/components/icons/CopyIcon';
 
 function TopBar({
   hasIcon = false,
@@ -37,7 +37,7 @@ function TopBar({
       <div className="flex space-x-2 text-sm text-gray-600">
         <div className="hidden group-hover:block">
           <IconButton
-            icon={<OpenSmallIcon className="h-4 w-4" />}
+            icon={<CopyIcon className="h-4 w-4" />}
             action={() => console.log('expand')}
             label="expand"
             className="rounded bg-white"
@@ -61,14 +61,23 @@ interface BottomBarProps {
   prettySent: string;
   url: string;
   replying: string | null;
+  title?: string;
 }
 
-function BottomBar({ provider, prettySent, url, replying }: BottomBarProps) {
+function BottomBar({
+  provider,
+  prettySent,
+  url,
+  replying,
+  title,
+}: BottomBarProps) {
   return (
     <div className="-m-2 h-[50px]">
       <div className="hidden h-[50px] w-full border-t-2 border-gray-100 bg-white p-2 group-hover:block">
         <div className="flex flex-col">
-          <span className="truncate font-semibold text-gray-800">{url}</span>
+          <span className="truncate font-semibold text-gray-800">
+            {title ? title : url}
+          </span>
           <div className="items center flex justify-between">
             <div className="flex items-center space-x-1 text-sm font-semibold">
               <span className="text-gray-600">{provider}</span>
@@ -99,8 +108,17 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
 
   if (isText) {
     return (
-      <div className="heap-block px-2 py-1">
+      <div className="heap-block group p-2">
+        <TopBar hasIcon />
         <HeapContent content={content} />
+        <BottomBar
+          provider="Text"
+          prettySent={prettySent}
+          url={url}
+          replying={replying}
+          // first three words.
+          title={content.toString().split(' ').slice(0, 3).join(' ')}
+        />
       </div>
     );
   }
@@ -115,7 +133,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
       >
         <TopBar />
         <BottomBar
-          provider="image"
+          provider="Image"
           prettySent={prettySent}
           url={url}
           replying={replying}
@@ -132,7 +150,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
           <MusicLargeIcon className="h-16 w-16 text-gray-300" />
         </div>
         <BottomBar
-          provider="audio"
+          provider="Audio"
           prettySent={prettySent}
           url={url}
           replying={replying}
@@ -142,9 +160,13 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
   }
 
   if (isOembed) {
-    const thumbnail = oembed.read().thumbnail_url;
-    const provider = oembed.read().provider_name;
-    if (provider === 'YouTube' || provider === 'SoundCloud') {
+    const {
+      title,
+      thumbnail_url: thumbnail,
+      provider_name: provider,
+    } = oembed.read();
+
+    if (thumbnail) {
       return (
         <div
           className="heap-block group p-2"
@@ -158,6 +180,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
             provider={provider}
             prettySent={prettySent}
             replying={replying}
+            title={title}
           />
         </div>
       );
@@ -195,8 +218,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
         </div>
         <BottomBar
           url={url}
-          provider={'Link'}
-          // we could show the provider here for other oembeds, but we'll need to adjust the bottom bar
+          provider={provider ? provider : 'Link'}
           prettySent={prettySent}
           replying={replying}
         />
