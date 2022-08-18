@@ -59,6 +59,7 @@ import DiaryNote from './diary/DiaryNote';
 import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
+import DiaryAddNote from './diary/DiaryAddNote';
 
 const appHead = (appName: string) => {
   switch (appName) {
@@ -224,10 +225,13 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="channels/diary/:chShip/:chName"
             element={<DiaryChannel />}
           />
-
           <Route
             path="channels/diary/:chShip/:chName/note/:noteId"
             element={<DiaryNote />}
+          />
+          <Route
+            path="channels/diary/:chShip/:chName/add"
+            element={<DiaryAddNote />}
           />
           <Route
             path="channels"

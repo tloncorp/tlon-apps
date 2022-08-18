@@ -86,7 +86,7 @@ interface DiaryEditorProps {
 export default function DiaryEditor({ editor, className }: DiaryEditorProps) {
   const isMobile = useIsMobile();
   return (
-    <div className={classNames('block p-0', className)}>
+    <div className={classNames('input-transparent block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
       <EditorContent className="w-full" editor={editor} />
       {!isMobile ? <ChatInputMenu editor={editor} /> : null}
