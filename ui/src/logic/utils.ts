@@ -50,6 +50,10 @@ export function channelHref(flag: string, ch: string) {
   return `/groups/${flag}/channels/${ch}`;
 }
 
+export function makePrettyTime(date: Date) {
+  return format(date, 'HH:mm');
+}
+
 export function makePrettyDay(date: Date) {
   const diff = differenceInDays(endOfToday(), date);
   switch (diff) {
@@ -64,7 +68,7 @@ export function makePrettyDay(date: Date) {
 
 export function makePrettyDayAndTime(date: Date) {
   const diff = differenceInDays(endOfToday(), date);
-  const time = format(date, 'HH:mm');
+  const time = makePrettyTime(date);
   switch (true) {
     case diff === 0:
       return `Today • ${time}`;
@@ -79,7 +83,7 @@ export function makePrettyDayAndTime(date: Date) {
 
 export function makePrettyDayAndDateAndTime(date: Date) {
   const diff = differenceInDays(endOfToday(), date);
-  const time = format(date, 'HH:mm');
+  const time = makePrettyTime(date);
   const fullDate = `${format(date, 'LLLL')} ${format(date, 'do')}, ${format(
     date,
     'yyyy'

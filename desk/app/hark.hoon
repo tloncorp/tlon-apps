@@ -129,7 +129,7 @@
       [%latest ~]  ``hark-carpet+!>((rug-to-carpet seam rug))
   ::
       [%quilt idx=@ ~]
-    =/  idx  (slav %p idx.pole)
+    =/  idx  (slav %ud idx.pole)
     ``hark-blanket+!>((rug-to-blanket seam idx rug))
   ==
 ++  rug-to-carpet
@@ -309,6 +309,7 @@
   =|  [add-all=? add-desk=? =yarn:h]
   |%
   ++  $
+    =.  yarns  (~(put by yarns) id.yarn yarn)
     =.  cor  weave-all
     =.  cor  weave-group
     weave-desk

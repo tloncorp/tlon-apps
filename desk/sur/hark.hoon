@@ -1,3 +1,4 @@
+/-  g=groups
 |%
 ::  $rope: notification origin
 ::    
@@ -5,7 +6,7 @@
 ::    notifications into threads
 +$  rope
   $:  gop=(unit flag)                 :: originating group
-      can=(unit flag)                 :: originating channel
+      can=(unit nest:g)               :: originating channel
       des=desk                        :: originating desk
       ted=path                        :: threading identifer
   ==

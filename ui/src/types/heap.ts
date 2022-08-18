@@ -1,4 +1,4 @@
-import { BigIntOrderedMap, Tag } from '@urbit/api';
+import { BigIntOrderedMap } from '@urbit/api';
 import {
   Italics,
   Strikethrough,
@@ -8,6 +8,7 @@ import {
   Bold,
   Blockquote,
   Link,
+  Tag,
 } from './content';
 
 export type Patda = string;

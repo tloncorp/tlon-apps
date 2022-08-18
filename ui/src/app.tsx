@@ -44,6 +44,8 @@ import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import { useHeapState } from './state/heap/heap';
 import { useDiaryState } from './state/diary';
+import useHarkState from './state/hark';
+import Notifications from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
@@ -99,6 +101,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
+        <Route path="/notifications" element={<Notifications />} />
         {/* Find by Invite URL */}
         <Route path="/groups/find/:ship/:name" element={<FindGroups />} />
         {/* Find by Nickname or @p */}
@@ -195,12 +198,14 @@ function App() {
   useEffect(() => {
     handleError(() => {
       checkIfLoggedIn();
+      // TODO: Clean up this order for different apps
       useGroupState.getState().start();
       useChatState.getState().start();
       useHeapState.getState().start();
       useDiaryState.getState().start();
 
       useChatState.getState().fetchDms();
+      useHarkState.getState().start();
       const { initialize: settingsInitialize, fetchAll } =
         useSettingsState.getState();
       settingsInitialize(api);
