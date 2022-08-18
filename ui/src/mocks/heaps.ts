@@ -19,7 +19,7 @@ const mockStash: Stash = {
 const mockCurios: HeapCurios = {
   '170141184505776467152677676749638598656': {
     seal: {
-      time: unixTime,
+      time: '170141184505776467152677676749638598656',
       feels: {},
       replied: [],
     },
@@ -35,7 +35,7 @@ const mockCurios: HeapCurios = {
   },
   '170141184505776467152677676749638598657': {
     seal: {
-      time: unixTime,
+      time: '170141184505776467152677676749638598657',
       feels: {},
       replied: [],
     },
@@ -51,7 +51,7 @@ const mockCurios: HeapCurios = {
   },
   '170141184505776467152677676749638598658': {
     seal: {
-      time: unixTime,
+      time: '170141184505776467152677676749638598658',
       feels: {},
       replied: [],
     },
@@ -67,7 +67,7 @@ const mockCurios: HeapCurios = {
   },
   '170141184505776467152677676749638598659': {
     seal: {
-      time: unixTime,
+      time: '170141184505776467152677676749638598659',
       feels: {},
       replied: [],
     },

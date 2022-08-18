@@ -25,7 +25,7 @@ export interface HeapState {
   leaveHeap: (flag: HeapFlag) => Promise<void>;
   markRead: (flag: HeapFlag) => Promise<void>;
   addCurio: (flag: HeapFlag, heart: CurioHeart) => Promise<void>;
-  delCurio: (flag: HeapFlag, time: number) => Promise<void>;
+  delCurio: (flag: HeapFlag, time: string) => Promise<void>;
   addSects: (flag: HeapFlag, writers: string[]) => Promise<void>;
   delSects: (flag: HeapFlag, writers: string[]) => Promise<void>;
 }
