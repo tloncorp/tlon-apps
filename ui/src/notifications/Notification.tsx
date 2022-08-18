@@ -1,20 +1,19 @@
 import cn from 'classnames';
-import React, { useCallback } from 'react';
+import React, { ReactNode, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ShipName from '@/components/ShipName';
-import Avatar from '@/components/Avatar';
 import { makePrettyTime, pluralize } from '@/logic/utils';
-import { useGroup } from '@/state/groups';
 import useHarkState from '@/state/hark';
-import { isYarnShip, YarnContent } from '@/types/hark';
-import GroupAvatar from '@/groups/GroupAvatar';
+import { YarnContent } from '@/types/hark';
 import { Bin } from './useNotifications';
 
 interface NotificationProps {
   bin: Bin;
+  topLine?: ReactNode;
+  avatar?: ReactNode;
 }
 
 function getContent(content: YarnContent) {
@@ -31,13 +30,13 @@ function getContent(content: YarnContent) {
   return <strong className="text-gray-800">{content.emph}</strong>;
 }
 
-export default function Notification({ bin }: NotificationProps) {
+export default function Notification({
+  bin,
+  avatar,
+  topLine,
+}: NotificationProps) {
   const rope = bin.topYarn?.rope;
-  const group = useGroup(rope?.group || '');
-  const groupTitle = group?.meta.title;
-  const channelTitle = group?.channels[rope?.channel || '']?.meta.title;
   const moreCount = bin.count - 1;
-  const ship = bin.topYarn?.con.find(isYarnShip);
 
   const onClick = useCallback(() => {
     useHarkState.getState().sawRope(rope);
@@ -55,20 +54,9 @@ export default function Notification({ bin }: NotificationProps) {
         className="flex flex-1 space-x-3"
         onClick={onClick}
       >
-        <div className="relative flex-none self-start">
-          <GroupAvatar size="w-12 h-12" {...group?.meta} />
-          {ship ? (
-            <div className="absolute -bottom-2 -right-2">
-              <Avatar size="xs" ship={ship.ship} />
-            </div>
-          ) : null}
-        </div>
+        <div className="relative flex-none self-start">{avatar}</div>
         <div className="space-y-2 p-1">
-          <p className="text-sm font-semibold">
-            {groupTitle}
-            {': '}
-            {channelTitle}
-          </p>
+          {topLine}
           <p>{bin.topYarn && bin.topYarn.con.map(getContent)}</p>
           {moreCount > 0 ? (
             <p className="text-sm font-semibold">

@@ -1051,6 +1051,12 @@
     di-core(ship s, dm d)
 
   ++  di-area  `path`/dm/(scot %p ship)
+  ++  di-spin  
+    |=  [con=(list content:ha) but=(unit button:ha)]
+    =/  rope  [~ ~ %chatstead /dm/(scot %p ship)]
+    =/  link  /dm/(scot %p ship)
+    (spin rope con link but)
+  ::
   ++  di-proxy
     |=  =diff:dm:c
     =.  di-core  (di-ingest-diff diff)
@@ -1092,7 +1098,27 @@
       (give-invites ship)
     =.  di-core  
       (di-notify diff)
-    di-core
+    ?:  from-self  di-core
+    ?-  -.q.diff  
+        ?(%del %add-feel %del-feel)  di-core
+        %add
+      =/  memo=memo:c  p.q.diff
+      ?-  -.content.memo
+          %notice  di-core
+          %story
+        =/  yarn
+          %+  di-spin 
+            :~  [%ship author.memo]
+                ?:  =(net.dm %invited)  ' has invited you to a direct message: “'
+                ': '
+                (flatten q.p.content.memo)
+                ?:(=(net.dm %invited) '”' '')
+            ==
+          ~
+        =.  cor  (emit (pass-hark & & yarn))
+        di-core
+      ==
+    ==
   ::
   ++  di-take-counter
     |=  =diff:dm:c

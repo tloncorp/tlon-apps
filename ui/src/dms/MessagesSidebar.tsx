@@ -10,6 +10,10 @@ import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
 import { useBriefs, usePinned } from '@/state/chat';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
+import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
+import Avatar from '@/components/Avatar';
+import ShipName from '@/components/ShipName';
+import { useNotifications } from '@/notifications/useNotifications';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
@@ -20,6 +24,7 @@ export default function MessagesSidebar() {
   const { filter, setFilter } = useMessagesFilter();
   const briefs = useBriefs();
   const pinned = usePinned();
+  const { count } = useNotifications();
 
   if (isMobile) {
     return <MobileMessagesSidebar />;
@@ -28,6 +33,18 @@ export default function MessagesSidebar() {
   return (
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex w-full flex-col px-2 pt-2">
+        <SidebarItem
+          icon={<Avatar size="xs" ship={window.our} />}
+          to={'/profile/edit'}
+        >
+          <ShipName showAlias name={window.our} />
+        </SidebarItem>
+        <SidebarItem
+          icon={<ActivityIndicator count={count} />}
+          to={`/notifications`}
+        >
+          Notifications
+        </SidebarItem>
         <SidebarItem
           to="/dm/new"
           color="text-blue"
