@@ -87,7 +87,11 @@ export function useDiaryInlineEditor({
 
   useEffect(() => {
     if (ed && !ed.isDestroyed) {
-      ed.chain().clearContent().insertContent(content).focus().run();
+      const com = ed.chain().clearContent().insertContent(content);
+      if (content !== '') {
+        com.focus();
+      }
+      com.run();
     }
   }, [ed, content]);
 
