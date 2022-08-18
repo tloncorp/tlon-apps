@@ -1,9 +1,11 @@
 import React from 'react';
 import { HeapCurio } from '@/types/heap';
+import cn from 'classnames';
 import {
   AUDIO_REGEX,
   IMAGE_REGEX,
   isValidUrl,
+  nestToFlag,
   validOembedCheck,
 } from '@/logic/utils';
 import { useEmbed } from '@/logic/embed';
@@ -16,14 +18,26 @@ import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
+import { useHeapState } from '@/state/heap/heap';
+import useNest from '@/logic/useNest';
 
 function TopBar({
   hasIcon = false,
   isTwitter = false,
+  time,
 }: {
   isTwitter?: boolean;
   hasIcon?: boolean;
+  time: number;
 }) {
+  const nest = useNest();
+  const [, chFlag] = nestToFlag(nest);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const onDelete = () => {
+    setMenuOpen(false);
+    // FIXME: this state update is not working.
+    useHeapState.getState().delCurio(chFlag, time.toString());
+  };
   return (
     <div
       className={
@@ -38,18 +52,36 @@ function TopBar({
         <div className="hidden group-hover:block">
           <IconButton
             icon={<CopyIcon className="h-4 w-4" />}
-            action={() => console.log('expand')}
+            // FIXME: add actual copy to clipboard functionality with link.
+            action={() => console.log('copy link to urbit webgraph url')}
             label="expand"
             className="rounded bg-white"
           />
         </div>
-        <div className="hidden group-hover:block">
+        <div className="relative hidden group-hover:block">
           <IconButton
             icon={<ElipsisSmallIcon className="h-4 w-4" />}
-            action={() => console.log('options')}
             label="options"
             className="rounded bg-white"
+            action={() => setMenuOpen(!menuOpen)}
           />
+          <div
+            className={cn(
+              'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
+              { hidden: !menuOpen }
+            )}
+            onMouseLeave={() => setMenuOpen(false)}
+          >
+            <button
+              // FIXME: add edit functionality
+              className="small-menu-button"
+            >
+              Edit
+            </button>
+            <button className="small-menu-button" onClick={onDelete}>
+              Delete
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -95,7 +127,13 @@ function BottomBar({
   );
 }
 
-export default function HeapBlock({ curio }: { curio: HeapCurio }) {
+export default function HeapBlock({
+  curio,
+  time,
+}: {
+  curio: HeapCurio;
+  time: number;
+}) {
   const { content, sent, replying } = curio.heart;
   const url = content[0].toString();
   const prettySent = formatDistanceToNow(sent);
@@ -109,7 +147,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
   if (isText) {
     return (
       <div className="heap-block group p-2">
-        <TopBar hasIcon />
+        <TopBar hasIcon time={time} />
         <HeapContent content={content} />
         <BottomBar
           provider="Text"
@@ -131,7 +169,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
           backgroundImage: `url(${url})`,
         }}
       >
-        <TopBar />
+        <TopBar time={time} />
         <BottomBar
           provider="Image"
           prettySent={prettySent}
@@ -145,7 +183,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
   if (isAudio) {
     return (
       <div className="heap-block group p-2">
-        <TopBar hasIcon />
+        <TopBar hasIcon time={time} />
         <div className="flex flex-col items-center justify-center">
           <MusicLargeIcon className="h-16 w-16 text-gray-300" />
         </div>
@@ -174,7 +212,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
             backgroundImage: `url(${thumbnail})`,
           }}
         >
-          <TopBar />
+          <TopBar time={time} />
           <BottomBar
             url={url}
             provider={provider}
@@ -191,7 +229,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
         <div className="heap-block group p-2">
-          <TopBar isTwitter />
+          <TopBar isTwitter time={time} />
           <div className="flex flex-col items-center justify-center">
             <img
               className="h-[46px] w-[46px] rounded-full"
@@ -212,7 +250,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
     }
     return (
       <div className="heap-block group p-2">
-        <TopBar hasIcon />
+        <TopBar hasIcon time={time} />
         <div className="flex flex-col items-center justify-center">
           <LinkIcon className="h-16 w-16 text-gray-300" />
         </div>
@@ -228,7 +266,7 @@ export default function HeapBlock({ curio }: { curio: HeapCurio }) {
 
   return (
     <div className="heap-block group p-2">
-      <TopBar hasIcon />
+      <TopBar hasIcon time={time} />
       <div className="flex flex-col items-center justify-center">
         <LinkIcon className="h-16 w-16 text-gray-300" />
       </div>

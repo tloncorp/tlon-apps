@@ -88,7 +88,11 @@ function HeapChannel() {
                   key={time.toString()}
                   fallback={<div>Loading...</div>}
                 >
-                  <HeapBlock curio={curio} />
+                  <HeapBlock
+                    curio={curio}
+                    // @ts-expect-error time is apparently a number, or we have a problem in heap types.
+                    time={time}
+                  />
                 </Suspense>
               ))}
           </div>
