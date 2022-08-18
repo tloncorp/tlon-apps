@@ -69,6 +69,7 @@ function HeapChannel() {
         <ChannelHeader
           flag={flag}
           nest={nest}
+          isHeap
           displayMode={displayMode}
           setDisplayMode={setDisplayMode}
           sortMode={sortMode}
