@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChatInline, ChatBlock, isChatImage, ChatStory } from '@/types/chat';
+import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
   isBlockquote,
   isBold,
@@ -8,6 +8,7 @@ import {
   isItalics,
   isLink,
   isStrikethrough,
+  Inline,
 } from '@/types/content';
 import ChatContentImage from './ChatContentImage';
 
@@ -16,7 +17,7 @@ interface ChatContentProps {
 }
 
 interface InlineContentProps {
-  story: ChatInline;
+  story: Inline;
 }
 
 interface BlockContentProps {

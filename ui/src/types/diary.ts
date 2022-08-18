@@ -5,6 +5,7 @@ import {
   BlockReference,
   Bold,
   Break,
+  Inline,
   InlineCode,
   Italics,
   Link,
@@ -30,7 +31,7 @@ export type DiaryInline =
   | Link;
 
 export interface NoteSeal {
-  time: number;
+  time: string;
   feels: {
     [ship: Ship]: string;
   };
@@ -67,6 +68,24 @@ export interface DiaryNotes {
 
 export type DiaryNoteMap = BigIntOrderedMap<DiaryNote>;
 
+export interface DiaryQuip {
+  seal: NoteSeal;
+  memo: DiaryMemo;
+}
+
+export interface DiaryMemo {
+  replying: string;
+  content: Inline[];
+  author: string;
+  sent: number;
+}
+
+export type DiaryQuipMap = BigIntOrderedMap<DiaryQuip>;
+
+export interface DiaryQuips {
+  [id: string]: DiaryQuip;
+}
+
 interface NoteDeltaAdd {
   add: NoteEssay;
 }
@@ -91,21 +110,59 @@ interface DiaryDiffDelSects {
   'del-sects': string[];
 }
 
+interface DiaryDiffQuips {
+  quips: {
+    id: string;
+    diff: QuipDiff;
+  };
+}
+
 export type NoteDelta = NoteDeltaAdd | NoteDeltaDel | NoteDeltaAddFeel;
 
 export interface NoteDiff {
-  time: number;
+  time: string;
   delta: NoteDelta;
 }
 
 export type DiaryDiff =
   | { notes: NoteDiff }
   | DiaryDiffAddSects
-  | DiaryDiffDelSects;
+  | DiaryDiffDelSects
+  | DiaryDiffQuips;
 
 export interface DiaryUpdate {
-  time: number;
+  time: string;
   diff: DiaryDiff;
+}
+
+export interface QuipDeltaAdd {
+  add: DiaryMemo;
+}
+
+export interface QuipDeltaDel {
+  del: null;
+}
+
+export interface QuipDeltaAddFeel {
+  'add-feel': {
+    ship: string;
+    feel: string;
+  };
+}
+
+export interface QuipDeltaDelFeel {
+  'del-feel': string;
+}
+
+export type QuipDelta =
+  | QuipDeltaAdd
+  | QuipDeltaDel
+  | QuipDeltaAddFeel
+  | QuipDeltaDelFeel;
+
+export interface QuipDiff {
+  time: string;
+  delta: QuipDelta;
 }
 
 export interface Diary {

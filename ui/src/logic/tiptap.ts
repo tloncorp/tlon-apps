@@ -1,4 +1,5 @@
-import { Inline } from '@/types/content';
+import { Inline, InlineKey } from '@/types/content';
+import { reduce } from 'lodash';
 import { JSONContent } from '@tiptap/react';
 
 export function convertMarkType(type: string): string {
@@ -236,4 +237,35 @@ export function parseInline(message: Inline[]): JSONContent {
     type: 'doc',
     content,
   };
+}
+
+const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
+function isMergeable(x: InlineKey): x is typeof MERGEABLE_KEYS[number] {
+  return MERGEABLE_KEYS.includes(x as any);
+}
+export function normalizeInline(inline: Inline[]): Inline[] {
+  return reduce(
+    inline,
+    (acc: Inline[], val) => {
+      if (acc.length === 0) {
+        return [...acc, val];
+      }
+      const last = acc[acc.length - 1];
+      if (typeof last === 'string' && typeof val === 'string') {
+        return [...acc.slice(0, -1), last + val];
+      }
+      const lastKey = Object.keys(acc[acc.length - 1])[0] as InlineKey;
+      const currKey = Object.keys(val)[0] as keyof InlineKey;
+      if (isMergeable(lastKey) && currKey === lastKey) {
+        // @ts-expect-error keying weirdness
+        const end: Inline = {
+          // @ts-expect-error keying weirdness
+          [lastKey]: [...last[lastKey as any], ...val[currKey as any]],
+        };
+        return [...acc.slice(0, -1), end];
+      }
+      return [...acc, val];
+    },
+    []
+  );
 }

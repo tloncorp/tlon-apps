@@ -4,6 +4,21 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  quips-diff
+    |=  d=diff:quips:d
+    %-  pairs
+    :~  time/s/(scot %ud p.d)
+        delta/(quips-delta q.d)
+    ==
+  ::
+  ++  quips-delta
+    |=  d=delta:quips:d
+    %+  frond  -.d
+    ?+  -.d  ~
+      %add  (memo p.d)
+      %del  ~
+    ==
+  ::
   ++  flag
     |=  f=flag:d
     ^-  json
@@ -41,6 +56,7 @@
     %+  turn  ~(tap by sh)
     |=  [f=flag:d di=diary:d]
     [(rap 3 (scot %p p.f) '/' q.f ~) (diary di)]
+  ::
   ++  diary
     |=  di=diary:d
     %-  pairs
@@ -63,6 +79,7 @@
     %+  frond  -.diff
     ?+  -.diff  ~
       %notes     (notes-diff p.diff)
+      %quips     (pairs id/s/(scot %ud p.diff) diff/(quips-diff q.diff) ~)
     ==
   ::
   ++  notes-diff
@@ -160,6 +177,32 @@
     |=  [key=@da n=note:d]
     [(scot %ud key) (note n)]
   ::
+  ++  quips
+    |=  =quips:d
+    ^-  json
+    %-  pairs
+    %+  turn  (tap:on:quips:d quips)
+    |=  [key=@da q=quip:d]
+    [(scot %ud key) (quip q)]
+  ::
+  ++  quip
+    |=  q=quip:d
+    ^-  json
+    %-  pairs
+    :~  seal+(seal -.q)
+        memo+(memo +.q)
+    ==
+  ::
+  ++  memo
+    |=  m=memo:d
+    ^-  json
+    %-  pairs
+    :~  replying/s/(scot %ud replying.m)
+        content/a/(turn content.m inline)
+        author/(ship author.m)
+        sent/(time sent.m)
+    ==
+  ::
   ++  note
     |=  =note:d
     %-  pairs
@@ -212,14 +255,36 @@
     ^-  $-(json diff:d)
     %-  of
     :~  notes/notes-diff
+        quips/(ot id/(se %ud) diff/quips-diff ~)
         add-sects/add-sects
         del-sects/del-sects
+    ==
+  ::
+  ++  quips-diff
+    %-  ot
+    :~  time/(se %ud)
+        delta/quips-delta
+    ==
+  ::
+  ++  quips-delta
+    %-  of
+    :~  add/memo
+        del/ul
+        add-feel/add-feel
+    ==
+  ::
+  ++  memo
+    %-  ot
+    :~  replying/(se %ud)
+        content/(ar inline)
+        author/(se %p)
+        sent/di
     ==
   ::
   ++  notes-diff
     ^-  $-(json diff:notes:d)
     %-  ot
-    :~  time/di
+    :~  time/(se %ud)
         delta/notes-delta
     ==
   ++  notes-delta

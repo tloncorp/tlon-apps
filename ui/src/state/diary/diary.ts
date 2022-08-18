@@ -1,10 +1,11 @@
 import bigInt, { BigInteger } from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
+import _ from 'lodash';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
-import { useCallback, useMemo } from 'react';
+import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   NoteDelta,
   Diary,
@@ -15,6 +16,10 @@ import {
   DiaryFlag,
   DiaryPerm,
   Shelf,
+  DiaryMemo,
+  DiaryQuipMap,
+  DiaryQuips,
+  DiaryQuip,
 } from '@/types/diary';
 import api from '@/api';
 import {
@@ -41,7 +46,7 @@ function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
   };
 }
 
-function diaryNoteDiff(flag: DiaryFlag, time: number, delta: NoteDelta) {
+function diaryNoteDiff(flag: DiaryFlag, time: string, delta: NoteDelta) {
   return diaryAction(flag, {
     notes: {
       time,
@@ -67,6 +72,7 @@ export const useDiaryState = create<DiaryState>(
       },
       shelf: {},
       notes: {},
+      banter: {},
       diarySubs: [],
       briefs: {},
       markRead: async (flag) => {
@@ -78,6 +84,28 @@ export const useDiaryState = create<DiaryState>(
             diff: { read: null },
           },
         });
+      },
+      addQuip: async (flag, noteId, content) => {
+        const replying = decToUd(noteId);
+        const memo: DiaryMemo = {
+          replying,
+          content,
+          author: window.our,
+          sent: Date.now(),
+        };
+        const diff: DiaryDiff = {
+          quips: {
+            id: replying,
+            diff: {
+              time: decToUd(unixToDa(Date.now()).toString()),
+              delta: {
+                add: memo,
+              },
+            },
+          },
+        };
+
+        await api.poke(diaryAction(flag, diff));
       },
       start: async () => {
         // TODO: parallelise
@@ -121,6 +149,28 @@ export const useDiaryState = create<DiaryState>(
           },
         });
       },
+      fetchQuips: async (flag, noteId) => {
+        const id = decToUd(noteId);
+        const res = await api.scry<DiaryQuips>({
+          app: 'diary',
+          path: `/diary/${flag}/quips/${id}/all`,
+        });
+
+        get().batchSet((draft) => {
+          const map = new BigIntOrderedMap<DiaryQuip>().gas(
+            _.map(res, (val, key) => {
+              const k = bigInt(udToDec(key));
+              return [k, val];
+            })
+          );
+
+          if (!(flag in draft.banter)) {
+            draft.banter[flag] = {};
+          }
+
+          draft.banter[flag][noteId] = map;
+        });
+      },
       joinDiary: async (flag) => {
         await api.poke({
           app: 'diary',
@@ -136,7 +186,11 @@ export const useDiaryState = create<DiaryState>(
         });
       },
       addNote: (flag, heart) => {
-        api.poke(diaryNoteDiff(flag, Date.now(), { add: heart }));
+        api.poke(
+          diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
+            add: heart,
+          })
+        );
       },
       delNote: (flag, time) => {
         api.poke(diaryNoteDiff(flag, time, { del: null }));
@@ -187,7 +241,7 @@ export const useDiaryState = create<DiaryState>(
           flag,
           get,
           `/diary/${flag}/notes`,
-          `/diary/${flag}/ui/notes`
+          `/diary/${flag}/ui`
         ).initialize();
       },
     }),
@@ -277,3 +331,17 @@ export function useDiary(flag: DiaryFlag): Diary | undefined {
 export function useBriefs() {
   return useDiaryState(useCallback((s: DiaryState) => s.briefs, []));
 }
+
+export function useQuips(flag: string, noteId: string): DiaryQuipMap {
+  useEffect(() => {
+    useDiaryState.getState().fetchQuips(flag, noteId);
+  }, [flag, noteId]);
+
+  return useDiaryState(
+    useCallback(
+      (s) => s.banter[flag]?.[noteId] || new BigIntOrderedMap(),
+      [flag, noteId]
+    )
+  );
+}
+(window as any).diary = useDiaryState.getState;

@@ -177,19 +177,6 @@ export function getFlagParts(flag: string) {
   };
 }
 
-export function isValidUrl(str?: string): boolean {
-  const pattern = new RegExp(
-    '^(https?:\\/\\/)?' + // protocol
-      '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
-      '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
-      '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
-      '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
-      '(\\#[-a-z\\d_]*)?$',
-    'i'
-  ); // fragment locator
-  return str ? !!pattern.test(str) : false;
-}
-
 export function getGroupPrivacy(cordon: Cordon): PrivacyType {
   if ('open' in cordon) {
     return 'public';
@@ -244,6 +231,10 @@ export const IMAGE_REGEX =
 export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)$/i;
 export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
+
+export function isValidUrl(str?: string): boolean {
+  return str ? !!URL_REGEX.test(str) : false;
+}
 
 const isFacebookGraphDependent = (url: string) => {
   const caseDesensitizedURL = url.toLowerCase();

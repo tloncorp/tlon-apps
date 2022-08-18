@@ -1,6 +1,6 @@
 import React from 'react';
+import { Inline } from '@/types/content';
 import {
-  HeapInline,
   isBlockquote,
   isBold,
   isBreak,
@@ -16,7 +16,7 @@ interface HeapContentProps {
 }
 
 interface InlineContentProps {
-  inline: HeapInline;
+  inline: Inline;
 }
 
 export function InlineContent({ inline }: InlineContentProps) {
@@ -54,10 +54,7 @@ export function InlineContent({ inline }: InlineContentProps) {
       <blockquote className="leading-6">
         {Array.isArray(inline.blockquote)
           ? inline.blockquote.map((item, index) => (
-              <InlineContent
-                key={item.toString() + index}
-                inline={item as HeapInline}
-              />
+              <InlineContent key={item.toString() + index} inline={item} />
             ))
           : inline.blockquote}
       </blockquote>

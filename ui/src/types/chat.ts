@@ -6,6 +6,7 @@ import {
   BlockReference,
   Bold,
   Break,
+  Inline,
   InlineCode,
   Italics,
   Link,
@@ -18,6 +19,7 @@ export type Patda = string;
 export type Ship = string;
 
 export type ChatBlock = ChatImage;
+
 export interface ChatImage {
   image: {
     src: string;
@@ -41,25 +43,13 @@ export type ChatInline =
   | Tag
   | Link;
 
-export type ChatInlineKey =
-  | 'italics'
-  | 'bold'
-  | 'strike'
-  | 'blockquote'
-  | 'inline-code'
-  | 'block'
-  | 'code'
-  | 'tag'
-  | 'link'
-  | 'break';
-
 export function isChatImage(item: unknown): item is ChatImage {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
 
 export interface ChatStory {
   block: ChatBlock[];
-  inline: ChatInline[];
+  inline: Inline[];
 }
 
 export interface ChatSeal {

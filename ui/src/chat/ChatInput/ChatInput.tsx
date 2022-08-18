@@ -1,9 +1,9 @@
-import { Editor, JSONContent } from '@tiptap/react';
-import { debounce, reduce } from 'lodash';
+import { Editor } from '@tiptap/react';
+import { debounce } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
-import { ChatInline, ChatInlineKey, ChatMemo, ChatStory } from '@/types/chat';
+import { ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -14,7 +14,12 @@ import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement } from '@/logic/utils';
 import { Image, PLACEHOLDER_IMAGES } from '@/constants';
-import { parseInline, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
+import {
+  normalizeInline,
+  parseInline,
+  parseTipTapJSON,
+  tipTapToString,
+} from '@/logic/tiptap';
 
 interface ChatInputProps {
   whom: string;
@@ -23,37 +28,6 @@ interface ChatInputProps {
   className?: string;
   sendDisabled?: boolean;
   sendMessage: (whom: string, memo: ChatMemo) => void;
-}
-
-const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
-function isMergeable(x: ChatInlineKey): x is typeof MERGEABLE_KEYS[number] {
-  return MERGEABLE_KEYS.includes(x as any);
-}
-function normalizeChatInline(inline: ChatInline[]): ChatInline[] {
-  return reduce(
-    inline,
-    (acc: ChatInline[], val) => {
-      if (acc.length === 0) {
-        return [...acc, val];
-      }
-      const last = acc[acc.length - 1];
-      if (typeof last === 'string' && typeof val === 'string') {
-        return [...acc.slice(0, -1), last + val];
-      }
-      const lastKey = Object.keys(acc[acc.length - 1])[0] as ChatInlineKey;
-      const currKey = Object.keys(val)[0] as keyof ChatInlineKey;
-      if (isMergeable(lastKey) && currKey === lastKey) {
-        // @ts-expect-error keying weirdness
-        const end: ChatInline = {
-          // @ts-expect-error keying weirdness
-          [lastKey]: [...last[lastKey as any], ...val[currKey as any]],
-        };
-        return [...acc.slice(0, -1), end];
-      }
-      return [...acc, val];
-    },
-    []
-  );
 }
 
 export default function ChatInput({
@@ -83,7 +57,7 @@ export default function ChatInput({
           return;
         }
 
-        const data = normalizeChatInline(parseTipTapJSON(editor?.getJSON()));
+        const data = normalizeInline(parseTipTapJSON(editor?.getJSON()));
         useChatState.getState().draft(whom, {
           inline: Array.isArray(data) ? data : [data],
           block: [],
@@ -100,7 +74,7 @@ export default function ChatInput({
         return;
       }
 
-      const data = normalizeChatInline(parseTipTapJSON(editor?.getJSON()));
+      const data = normalizeInline(parseTipTapJSON(editor?.getJSON()));
       const memo: ChatMemo = {
         replying: reply,
         author: `~${window.ship || 'zod'}`,
@@ -135,7 +109,7 @@ export default function ChatInput({
   });
 
   useEffect(() => {
-    if (whom) {
+    if (whom && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.setContent('');
       useChatState.getState().getDraft(whom);
     }
@@ -152,8 +126,7 @@ export default function ChatInput({
     if (!draftEmpty && messageEditor) {
       const current = tipTapToString(messageEditor.getJSON());
 
-      const newDraft = tipTapToString(parseInline(draft.inline));
-      if (current !== newDraft) {
+      if (current === '' && !messageEditor.isDestroyed) {
         messageEditor.commands.setContent(parseInline(draft.inline), true);
       }
     }

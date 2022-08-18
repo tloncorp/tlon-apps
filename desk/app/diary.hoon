@@ -2,6 +2,8 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  not=notes
+/+  qup=quips
+/+  diary-json
 ^-  agent:gall
 =>
   |%
@@ -268,7 +270,7 @@
       =/  =dock      [p.group.req %groups]
       =/  =nest:g    [dap.bowl flag]
       =/  =channel:g  
-        =,(req [[title description '' ''] now.bowl ~ | readers])
+        =,(req [[title description '' ''] now.bowl %default | readers])
       =/  =action:g  [group.req now.bowl %channel nest %add channel]
       =/  =cage      group-action+!>(action)
       =/  =wire      (snoc di-area %create)
@@ -309,8 +311,11 @@
     |=  =(pole knot)
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
-      [%notes rest=*]  (peek:di-notes rest.pole)
-      [%perm ~]        ``diary-perm+!>(perm.diary)
+        [%notes rest=*]  (peek:di-notes rest.pole)
+        [%perm ~]        ``diary-perm+!>(perm.diary)
+        [%quips time=@ rest=*]  
+      =/  =time  (slav %ud time.pole)
+      (~(peek qup (~(gut by banter.diary) time *quips:d)) rest.pole)
     ==
   ::
   ++  di-revoke
@@ -442,10 +447,7 @@
     =.  paths  (~(put in paths) (snoc di-area %ui))
     =/  cag=cage  diary-update+!>([time d])
     =.  cor
-      (give %fact ~(tap in paths) cag)
-    =?  cor  ?=(%notes -.d)
-      =/  =cage  notes-diff+!>(p.d)
-      (give %fact ~[(welp di-area /ui/notes)] cage)
+      (give %fact [(welp di-area /ui) ~(tap in paths)] cag)
     di-core
   ::
   ++  di-remark-diff
@@ -476,8 +478,11 @@
     ?-    -.dif
         %notes
       di-core(notes.diary (reduce:di-notes time p.dif))
+    ::
         %quips
-      di-core
+      =/  =quips:d   (~(gut by banter.diary) p.dif *quips:d)
+      =.  quips      (~(reduce qup quips) time q.dif)
+      di-core(banter.diary (~(put by banter.diary) p.dif quips))
     ::
         %add-sects
       =*  p  perm.diary
