@@ -560,6 +560,7 @@
           ?(%del %add-feel %del-feel)  cu-core
           %add
         =/  memo=memo:c  p.q.diff.delta
+        ?:  =(our.bowl author.memo)  cu-core
         ?-  -.content.memo
             %notice  cu-core
             %story
