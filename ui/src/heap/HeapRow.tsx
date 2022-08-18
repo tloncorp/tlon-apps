@@ -37,7 +37,7 @@ export default function HeapRow({
   const onDelete = () => {
     setMenuOpen(false);
     // FIXME: this state update is not working.
-    useHeapState.getState().delCurio(chFlag, time);
+    useHeapState.getState().delCurio(chFlag, time.toString());
   };
 
   const isImage = IMAGE_REGEX.test(contentString);
