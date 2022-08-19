@@ -1,16 +1,13 @@
 import _ from 'lodash';
 import React from 'react';
-import { Outlet, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useBriefs, useChatState } from '@/state/chat';
-import { useBriefs as useHeapBriefs, useHeapState } from '@/state/heap/heap';
+import { useChatState } from '@/state/chat';
+import { useHeapState } from '@/state/heap/heap';
 import { useChannel, useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
-import ChatChannel from '@/chat/ChatChannel';
-import HeapChannel from '@/heap/HeapChannel';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { useDiaryState } from '@/state/diary';
-import DiaryChannel from '@/diary/DiaryChannel';
 
 function Channel() {
   const { app, chShip, chName } = useParams();

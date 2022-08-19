@@ -16,6 +16,7 @@ import { useOurContact } from '@/state/contact';
 import ShipName from '@/components/ShipName';
 import Avatar from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
+import { useNotifications } from '@/notifications/useNotifications';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
@@ -25,8 +26,7 @@ export default function Sidebar() {
   const currentShip = window.ship;
 
   const pendingInvitesCount = pendingInvites.length;
-  // TODO: get notification count from hark store
-  const notificationCount = 0;
+  const { count } = useNotifications();
 
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const groups = useGroups();
@@ -49,7 +49,7 @@ export default function Sidebar() {
           <ShipName showAlias name={window.our} />
         </SidebarItem>
         <SidebarItem
-          icon={<ActivityIndicator count={notificationCount} />}
+          icon={<ActivityIndicator count={count} />}
           to={`/notifications`}
         >
           Notifications

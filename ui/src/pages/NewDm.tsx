@@ -74,7 +74,12 @@ export default function NewDM() {
       }
     >
       <div className="w-full py-3 px-4">
-        <ShipSelector ships={ships} setShips={setShips} onEnter={onEnter} />
+        <ShipSelector
+          ships={ships}
+          setShips={setShips}
+          onEnter={onEnter}
+          isMulti={true}
+        />
       </div>
     </Layout>
   );

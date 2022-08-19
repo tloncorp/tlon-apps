@@ -3,7 +3,7 @@ import cn from 'classnames';
 
 interface IconButtonProps {
   icon: React.ReactElement;
-  action: () => void;
+  action?: () => void;
   label: string;
   showTooltip?: boolean;
   className?: string;

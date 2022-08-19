@@ -68,7 +68,7 @@
   ++  curios-diff
     |=  =diff:curios:h
     %-  pairs
-    :~  time/(time p.diff)
+    :~  time/s/(scot %ud p.diff)
         delta/(curios-delta q.diff)
     ==
   ::
@@ -88,7 +88,7 @@
         content/a/(turn content.heart inline)
         author+(ship author.heart)
         sent+(time sent.heart)
-        replying+?~(replying.heart ~ (time u.replying.heart))
+        replying+?~(replying.heart ~ s/(scot %ud u.replying.heart))
     ==
   ::
   ++  inline
@@ -149,7 +149,7 @@
     ::
         :-  %replied
         :-  %a
-        (turn ~(tap in replied.seal) time)
+        (turn ~(tap in replied.seal) (cork (cury scot %ud) (lead %s)))
     ==
   --
 ++  dejs
@@ -192,7 +192,7 @@
   ++  curios-diff
     ^-  $-(json diff:curios:h)
     %-  ot
-    :~  time/di
+    :~  time/(se %ud)
         delta/curios-delta
     ==
   ++  curios-delta
@@ -214,7 +214,7 @@
         content/(ar inline)
         author/ship
         sent/di
-        replying/(mu di)
+        replying/(mu (se %ud))
     ==
   ::
   ++  inline

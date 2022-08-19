@@ -6,6 +6,7 @@
 ++  yarns-per-update  3
 ++  rug-trim-size  10
 ++  blanket-size  10   :: page size for blankets
+++  gc-interval  ~h24
 ::  TODO: move to stdlib
 ++  zip
   |*  [a=(list) b=(list)]
@@ -27,6 +28,7 @@
       groups=(map flag:h rug:h)
       desks=(map desk rug:h)
       all=rug:h
+      next-gc=@da
   ==
 --
 %-  agent:dbug
@@ -38,13 +40,16 @@
   +*  this  .
       cor    ~(. +> [bowl ~])
       def   ~(. (default-agent this %|) bowl)
-  ++  on-init  `this
+  ++  on-init  
+    =^  cards  state
+      abet:set-gc-wake:cor
+    [cards this]
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
     =/  old=(unit state-0)
       (mole |.(!<(state-0 vase)))  
-    ?~  old  `this
+    ?~  old  on-init
     `this(state u.old)
   ++  on-poke
     |=  [=mark =vase]
@@ -116,7 +121,11 @@
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
-  cor
+  ?+    wire  ~|(bad-arvo-take/wire !!)
+      [%gc ~]
+    =.  cor  stale
+    set-gc-wake
+  ==
 ++  agent
   |=  [=wire =sign:agent:gall]
   ^+  cor
@@ -129,7 +138,7 @@
       [%latest ~]  ``hark-carpet+!>((rug-to-carpet seam rug))
   ::
       [%quilt idx=@ ~]
-    =/  idx  (slav %p idx.pole)
+    =/  idx  (slav %ud idx.pole)
     ``hark-blanket+!>((rug-to-blanket seam idx rug))
   ==
 ++  rug-to-carpet
@@ -170,6 +179,10 @@
     |=  [num=@ud =thread:h]
     (thread-to-yarns thread)
   [seam yarns indexed]
+::
+++  set-gc-wake
+  =.  next-gc  (add now.bowl gc-interval)
+  (emit %pass /gc %arvo %b %wait next-gc)
 ::
 ++  give-ui
   |=  =action:h
@@ -309,6 +322,7 @@
   =|  [add-all=? add-desk=? =yarn:h]
   |%
   ++  $
+    =.  yarns  (~(put by yarns) id.yarn yarn)
     =.  cor  weave-all
     =.  cor  weave-group
     weave-desk

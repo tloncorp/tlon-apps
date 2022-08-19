@@ -1,4 +1,4 @@
-import { BigIntOrderedMap, Tag } from '@urbit/api';
+import { BigIntOrderedMap } from '@urbit/api';
 import {
   Italics,
   Strikethrough,
@@ -8,6 +8,7 @@ import {
   Bold,
   Blockquote,
   Link,
+  Tag,
 } from './content';
 
 export type Patda = string;
@@ -67,11 +68,11 @@ export function isBreak(item: unknown): item is Break {
 }
 
 export interface CurioSeal {
-  time: number;
+  time: string;
   feels: {
     [ship: Ship]: string;
   };
-  replied: number[];
+  replied: string[];
 }
 
 export type CurioContent = HeapInline[];
@@ -81,7 +82,7 @@ export interface CurioHeart {
   content: CurioContent;
   author: Ship;
   sent: number;
-  replying: number | null;
+  replying: string | null;
 }
 
 export interface HeapCurio {
@@ -122,7 +123,7 @@ interface HeapDiffDelSects {
 export type CurioDelta = CurioDeltaAdd | CurioDeltaDel | CurioDeltaAddFeel;
 
 export interface CurioDiff {
-  time: number;
+  time: string;
   delta: CurioDelta;
 }
 
