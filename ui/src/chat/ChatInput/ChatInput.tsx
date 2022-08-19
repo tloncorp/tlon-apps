@@ -116,8 +116,8 @@ export default function ChatInput({
   }, [whom, messageEditor]);
 
   useEffect(() => {
-    if (reply) {
-      messageEditor?.commands.focus();
+    if (reply && messageEditor && !messageEditor.isDestroyed) {
+      messageEditor.commands.focus();
     }
   }, [reply, messageEditor]);
 
