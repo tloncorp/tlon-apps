@@ -184,7 +184,7 @@ export default function HeapTextInput({
   });
 
   useEffect(() => {
-    if (flag) {
+    if (flag && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.setContent('');
     }
   }, [flag, messageEditor]);
