@@ -14,6 +14,8 @@ interface HeapTextInputProps {
   flag: string;
   sendDisabled?: boolean;
   displayType: HeapDisplayMode;
+  draft: JSONContent | undefined;
+  setDraft: React.Dispatch<React.SetStateAction<JSONContent | undefined>>;
 }
 
 // TODO: should these be extracted to a common lib for usage in both ChatInput and HeapTextInput?
@@ -143,6 +145,8 @@ export default function HeapTextInput({
   flag,
   sendDisabled = false,
   displayType,
+  draft,
+  setDraft,
 }: HeapTextInputProps) {
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
@@ -165,15 +169,24 @@ export default function HeapTextInput({
       };
 
       await useHeapState.getState().addCurio(flag, heart);
+      setDraft(undefined);
       editor?.commands.setContent('');
       setReady();
     },
-    [flag, setPending, setReady]
+    [flag, setDraft, setPending, setReady]
+  );
+
+  const onUpdate = useCallback(
+    ({ editor }: { editor: Editor }) => {
+      setDraft(editor.getJSON());
+    },
+    [setDraft]
   );
 
   const messageEditor = useMessageEditor({
-    content: '',
+    content: draft || '',
     placeholder: 'Enter Text Here',
+    onUpdate,
     onEnter: useCallback(
       ({ editor }) => {
         onSubmit(editor);
@@ -188,6 +201,14 @@ export default function HeapTextInput({
       messageEditor?.commands.setContent('');
     }
   }, [flag, messageEditor]);
+
+  useEffect(() => {
+    if (draft && messageEditor && !messageEditor.isDestroyed) {
+      messageEditor.commands.setContent(draft);
+    }
+    // only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageEditor]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
