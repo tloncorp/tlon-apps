@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import cn from 'classnames';
 import { intersection } from 'lodash';
 import { useForm } from 'react-hook-form';
@@ -9,6 +9,7 @@ import { isValidUrl, nestToFlag } from '@/logic/utils';
 import { useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
 import useRequestState from '@/logic/useRequestState';
+import { JSONContent } from '@tiptap/react';
 import { GRID, HeapDisplayMode, LIST } from './HeapTypes';
 import HeapTextInput from './HeapTextInput';
 
@@ -26,6 +27,8 @@ type InputMode = typeof LINK | typeof TEXT;
 
 export default function HeapInput({ displayType }: HeapInputProps) {
   const [inputMode, setInputMode] = useState<InputMode>(LINK);
+  const [draftLink, setDraftLink] = useState<string>();
+  const [draftText, setDraftText] = useState<JSONContent>();
   const isGridMode = displayType === GRID;
   const isListMode = displayType === LIST;
   const isLinkMode = inputMode === LINK;
@@ -55,15 +58,14 @@ export default function HeapInput({ displayType }: HeapInputProps) {
         replying: null,
       });
 
+      setDraftLink(undefined);
       reset();
     },
     [chFlag, reset]
   );
 
   const watchedContent = watch('content');
-  const isValidInput = isLinkMode
-    ? isValidUrl(watchedContent)
-    : watchedContent.length > 0;
+  const isValidInput = isValidUrl(watchedContent);
 
   // For Link mode, prevent newline entry + allow submit with Enter
   const onKeyDown = useCallback(
@@ -84,6 +86,12 @@ export default function HeapInput({ displayType }: HeapInputProps) {
     },
     [handleSubmit, isPending, isValidInput, onSubmit, setPending, setReady]
   );
+
+  useEffect(() => {
+    if (watchedContent) {
+      setDraftLink(watchedContent);
+    }
+  }, [watchedContent]);
 
   if (!canWrite) {
     return null;
@@ -136,6 +144,7 @@ export default function HeapInput({ displayType }: HeapInputProps) {
               className="h-full w-full resize-none rounded-lg bg-gray-50 p-2 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
               placeholder="Paste Link Here"
               onKeyDown={onKeyDown}
+              defaultValue={draftLink}
             />
             <input
               value={isPending ? 'Posting...' : 'Post'}
@@ -145,7 +154,12 @@ export default function HeapInput({ displayType }: HeapInputProps) {
             />
           </form>
         ) : (
-          <HeapTextInput displayType={displayType} flag={chFlag} />
+          <HeapTextInput
+            draft={draftText}
+            setDraft={setDraftText}
+            displayType={displayType}
+            flag={chFlag}
+          />
         )}
       </div>
     </div>
