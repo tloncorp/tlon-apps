@@ -1,10 +1,13 @@
-import React from 'react';
-import { Thread, Yarns } from '@/types/hark';
-import _ from 'lodash';
-import { useNotifications } from './useNotifications';
-import Notification from './Notification';
+import React, { ComponentType } from 'react';
+import { Bin, useNotifications } from './useNotifications';
 
-export default function Notifications() {
+interface NotificationsProps {
+  child: ComponentType<{ bin: Bin }>;
+}
+
+export default function Notifications({
+  child: Notification,
+}: NotificationsProps) {
   const { notifications } = useNotifications();
 
   return (

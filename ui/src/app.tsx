@@ -50,6 +50,8 @@ import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
 import DiaryNote from './diary/DiaryNote';
+import DMNotification from './notifications/DMNotification';
+import GroupNotification from './notifications/GroupNotification';
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -61,6 +63,10 @@ function ChatRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
+        <Route
+          path="/notifications"
+          element={<Notifications child={DMNotification} />}
+        />
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
@@ -71,7 +77,11 @@ function ChatRoutes({ state, location }: RoutesProps) {
         </Route>
 
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
-          <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
+          <Route
+            path="channels/join/:app/:chShip/:chName"
+            element={<Channel />}
+          />
+          <Route path="channels/chat/:chShip/:chName" element={<ChatChannel />}>
             <Route
               path="message/:idShip/:idTime"
               element={<GroupChatThread />}
@@ -101,7 +111,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
-        <Route path="/notifications" element={<Notifications />} />
+        <Route
+          path="/notifications"
+          element={<Notifications child={GroupNotification} />}
+        />
         {/* Find by Invite URL */}
         <Route path="/groups/find/:ship/:name" element={<FindGroups />} />
         {/* Find by Nickname or @p */}
