@@ -62,12 +62,24 @@ export function groupBinsByDate(bins: Bin[]): DayGrouping[] {
     .sort((a, b) => b.latest - a.latest);
 }
 
-const selNotifications = (state: HarkState) => ({
-  carpet: state.carpet,
-  blanket: state.blanket,
-});
-export const useNotifications = () => {
-  const { carpet, blanket } = useHarkState(selNotifications);
+export const useNotifications = (flag?: Flag) => {
+  const { carpet, blanket } = useHarkState(
+    useCallback(
+      (state) => {
+        if (flag) {
+          return (
+            state.textiles[flag] || {
+              carpet: emptyCarpet({ group: flag }),
+              blanket: emptyBlanket({ group: flag }),
+            }
+          );
+        }
+
+        return { carpet: state.carpet, blanket: state.blanket };
+      },
+      [flag]
+    )
+  );
   const bins: Bin[] = carpet.cable.map((c) =>
     getBin(c.thread, carpet.yarns, true)
   );
@@ -79,24 +91,5 @@ export const useNotifications = () => {
   return {
     count: carpet.cable.length,
     notifications,
-  };
-};
-
-export const useGroupNotifications = (flag: Flag) => {
-  const { carpet, blanket } = useHarkState(
-    useCallback(
-      (state) =>
-        state.textiles[flag] || {
-          carpet: emptyCarpet({ group: flag }),
-          blanket: emptyBlanket({ group: flag }),
-        },
-      [flag]
-    )
-  );
-
-  return {
-    count: carpet.cable.length,
-    carpet,
-    blanket,
   };
 };

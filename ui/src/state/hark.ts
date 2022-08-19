@@ -18,15 +18,15 @@ export interface HarkState {
       blanket: Blanket;
     };
   };
-  groupSubs: {
-    [flag: Flag]: number;
-  };
+  groupSubs: Flag[];
   /** start: fetches app-wide notifications and subscribes to updates */
   start: () => void;
   /** retrieve: refreshes app-wide notifications to latest  */
   retrieve: () => void;
-  /** retrieveGroup: fetches group's notifications */
+  /** retrieveGroup: fetches group's notifications and adds to "subs" */
   retrieveGroup: (flag: Flag) => void;
+  /** releaseGroup: removes updates from happening */
+  releaseGroup: (flag: Flag) => void;
   sawRope: (rope: Rope) => void;
   sawSeam: (seam: Seam) => void;
 }
@@ -68,7 +68,7 @@ const useHarkState = create<HarkState>((set, get) => ({
   carpet: emptyCarpet({ desk: window.desk }),
   blanket: emptyBlanket({ desk: window.desk }),
   textiles: {},
-  groupSubs: {},
+  groupSubs: [],
   start: () => {
     get().retrieve();
 
@@ -77,13 +77,12 @@ const useHarkState = create<HarkState>((set, get) => ({
       path: '/ui',
       event: (event: HarkAction) => {
         console.log(event, get().carpet);
-        get().retrieve();
-        // if ('add-yarn' in event) {
-        // }
-        // if ('saw-seam' in event) {
-        // }
-        // if ('saw-rope' in event) {
-        // }
+        const { groupSubs, retrieve, retrieveGroup } = get();
+        retrieve();
+
+        groupSubs.forEach((g) => {
+          retrieveGroup(g);
+        });
       },
     });
   },
@@ -120,6 +119,19 @@ const useHarkState = create<HarkState>((set, get) => ({
         carpet,
         blanket,
       };
+
+      if (!get().groupSubs.includes(flag)) {
+        draft.groupSubs.push(flag);
+      }
+    });
+  },
+  releaseGroup: (flag) => {
+    get().batchSet((draft) => {
+      const index = draft.groupSubs.indexOf(flag);
+
+      if (index !== -1) {
+        draft.groupSubs.splice(index, 1);
+      }
     });
   },
   sawRope: (rope) => {

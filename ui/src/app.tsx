@@ -121,6 +121,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
         <Route path="/groups/find/:ship" element={<FindGroups />} />
         <Route path="/groups/find" element={<FindGroups />} />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
+          <Route
+            path="activity"
+            element={<Notifications child={GroupNotification} />}
+          />
           <Route path="info" element={<GroupAdmin />}>
             <Route index element={<GroupInfo />} />
             <Route path="members" element={<GroupMemberManager />} />
