@@ -126,6 +126,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             element={<HeapChannel />}
           />
           <Route
+            path="channels/heap/:chShip/:chName/curio/:idCurio"
+            element={<HeapDetail />}
+          />
+          <Route
             path="channels/diary/:chShip/:chName"
             element={<DiaryChannel />}
           />
