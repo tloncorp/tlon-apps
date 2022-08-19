@@ -46,7 +46,7 @@ export function useMessageEditor({
         priority: 999999,
         addKeyboardShortcuts() {
           return {
-            Enter: ({ editor }) => onEnter({ editor } as any),
+            Enter: ({ editor }) => onEnter({ editor } as HandlerParams),
             'Shift-Enter': ({ editor }) =>
               editor.commands.first(({ commands }) => [
                 () => commands.newlineInCode(),
