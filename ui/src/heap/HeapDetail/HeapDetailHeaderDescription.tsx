@@ -1,18 +1,20 @@
-import React, {Suspense} from 'react';
+import React from 'react';
 import { useEmbed } from '@/logic/embed';
 import {
   AUDIO_REGEX,
   IMAGE_REGEX,
   URL_REGEX,
   validOembedCheck,
-  VIDEO_REGEX
+  VIDEO_REGEX,
 } from '@/logic/utils';
 
 interface HeapDetailHeaderDescriptionProps {
-  url: string
+  url: string;
 }
 
-export default function HeapDetailHeaderDescription({url}: HeapDetailHeaderDescriptionProps) {
+export default function HeapDetailHeaderDescription({
+  url,
+}: HeapDetailHeaderDescriptionProps) {
   const isImage = IMAGE_REGEX.test(url);
   const isUrl = URL_REGEX.test(url);
   const isVideo = VIDEO_REGEX.test(url);
@@ -37,7 +39,7 @@ export default function HeapDetailHeaderDescription({url}: HeapDetailHeaderDescr
     }
   };
 
-  return(
+  return (
     <div className="text-md font-semibold text-gray-600">{description()}</div>
   );
 }

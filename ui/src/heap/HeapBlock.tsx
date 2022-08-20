@@ -40,15 +40,19 @@ function TopBar({
   };
   return (
     <div
+      onClick={(e) => e.stopPropagation()}
       className={
         hasIcon || isTwitter
-          ? 'flex items-center justify-between'
-          : 'flex items-center justify-end'
+          ? 'z-10 flex items-center justify-between'
+          : 'z-10 flex items-center justify-end'
       }
     >
       {isTwitter ? <TwitterIcon className="m-2 h-6 w-6" /> : null}
       {hasIcon ? <div className="m-2 h-6 w-6" /> : null}
-      <div className="flex space-x-2 text-sm text-gray-600">
+      <div
+        className="flex space-x-2 text-sm text-gray-600"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="hidden group-hover:block">
           <IconButton
             icon={<CopyIcon className="h-4 w-4" />}
@@ -92,7 +96,7 @@ interface BottomBarProps {
   provider: string;
   prettySent: string;
   url: string;
-  replying: string | null;
+  replyCount: number;
   title?: string;
 }
 
@@ -100,11 +104,11 @@ function BottomBar({
   provider,
   prettySent,
   url,
-  replying,
+  replyCount,
   title,
 }: BottomBarProps) {
   return (
-    <div className="-m-2 h-[50px]">
+    <div className="absolute bottom-2 z-10 -m-2 h-[50px] w-full">
       <div className="hidden h-[50px] w-full border-t-2 border-gray-100 bg-white p-2 group-hover:block">
         <div className="flex flex-col">
           <span className="truncate font-semibold text-gray-800">
@@ -117,7 +121,7 @@ function BottomBar({
               <span className="text-gray-400">{prettySent} ago</span>
             </div>
             <div className="flex items-center space-x-1 text-sm font-semibold text-gray-400">
-              <span>{replying}</span>
+              <span>{replyCount > 0 && replyCount}</span>
               <ChatSmallIcon className="h-4 w-4" />
             </div>
           </div>
@@ -134,7 +138,8 @@ export default function HeapBlock({
   curio: HeapCurio;
   time: number;
 }) {
-  const { content, sent, replying } = curio.heart;
+  const { content, sent } = curio.heart;
+  const replyCount = curio.seal.replied.length;
   const url = content[0].toString();
   const prettySent = formatDistanceToNow(sent);
 
@@ -148,12 +153,12 @@ export default function HeapBlock({
     return (
       <div className="heap-block group p-2">
         <TopBar hasIcon time={time} />
-        <HeapContent content={content} />
+        <HeapContent className="h-full" content={content} />
         <BottomBar
           provider="Text"
           prettySent={prettySent}
           url={url}
-          replying={replying}
+          replyCount={replyCount}
           // first three words.
           title={content.toString().split(' ').slice(0, 3).join(' ')}
         />
@@ -174,7 +179,7 @@ export default function HeapBlock({
           provider="Image"
           prettySent={prettySent}
           url={url}
-          replying={replying}
+          replyCount={replyCount}
         />
       </div>
     );
@@ -191,7 +196,7 @@ export default function HeapBlock({
           provider="Audio"
           prettySent={prettySent}
           url={url}
-          replying={replying}
+          replyCount={replyCount}
         />
       </div>
     );
@@ -217,7 +222,7 @@ export default function HeapBlock({
             url={url}
             provider={provider}
             prettySent={prettySent}
-            replying={replying}
+            replyCount={replyCount}
             title={title}
           />
         </div>
@@ -230,7 +235,7 @@ export default function HeapBlock({
       return (
         <div className="heap-block group p-2">
           <TopBar isTwitter time={time} />
-          <div className="flex flex-col items-center justify-center">
+          <div className="flex h-full flex-col items-center justify-center">
             <img
               className="h-[46px] w-[46px] rounded-full"
               src={twitterProfilePic}
@@ -243,7 +248,7 @@ export default function HeapBlock({
             url={url}
             provider={provider}
             prettySent={prettySent}
-            replying={replying}
+            replyCount={replyCount}
           />
         </div>
       );
@@ -258,7 +263,7 @@ export default function HeapBlock({
           url={url}
           provider={provider ? provider : 'Link'}
           prettySent={prettySent}
-          replying={replying}
+          replyCount={replyCount}
         />
       </div>
     );
@@ -274,7 +279,7 @@ export default function HeapBlock({
         url={url}
         provider={'Link'}
         prettySent={prettySent}
-        replying={replying}
+        replyCount={replyCount}
       />
     </div>
   );

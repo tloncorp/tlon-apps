@@ -16,6 +16,7 @@ interface HeapTextInputProps {
   displayType: HeapDisplayMode;
   draft: JSONContent | undefined;
   setDraft: React.Dispatch<React.SetStateAction<JSONContent | undefined>>;
+  replyTo?: string | null;
 }
 
 // TODO: should these be extracted to a common lib for usage in both ChatInput and HeapTextInput?
@@ -144,6 +145,7 @@ function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
 export default function HeapTextInput({
   flag,
   sendDisabled = false,
+  replyTo = null,
   displayType,
   draft,
   setDraft,
@@ -160,9 +162,10 @@ export default function HeapTextInput({
       setPending();
 
       const content = normalizeHeapInline(parseTipTapJSON(editor?.getJSON()));
+
       const heart: CurioHeart = {
         title: null, // TODO: do we need to set a title?
-        replying: null,
+        replying: replyTo,
         author: window.our,
         sent: Date.now(),
         content,
@@ -173,7 +176,7 @@ export default function HeapTextInput({
       editor?.commands.setContent('');
       setReady();
     },
-    [flag, setDraft, setPending, setReady]
+    [flag, setDraft, setPending, setReady, replyTo]
   );
 
   const onUpdate = useCallback(
@@ -219,6 +222,7 @@ export default function HeapTextInput({
     return null;
   }
 
+  // TODO: Set a sane length limit for comments
   return (
     <>
       <div className="relative flex-1 p-1">

@@ -266,8 +266,8 @@ const mockGroupTwo: Group = {
     },
     'heap/~zod/testHeap': {
       meta: {
-        title: 'Milady Collection',
-        description: 'Milady maker collection',
+        title: 'Martini Collection',
+        description: 'Martini Maker Collection',
         image: '',
         color: '',
       },
@@ -289,7 +289,17 @@ const mockGroupTwo: Group = {
     image: '',
     color: '',
   },
-  zones: {},
+  zones: {
+    default: {
+      meta: {
+        title: 'Sectionless',
+        color: '',
+        image: '',
+        description: '',
+      },
+      idx: ['heap/~zod/testHeap', 'chat/~zod/test'],
+    },
+  },
   bloc: [],
   'zone-ord': ['default'],
 };

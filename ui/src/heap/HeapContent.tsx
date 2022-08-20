@@ -1,4 +1,5 @@
 import React from 'react';
+import cn from 'classnames';
 import { Inline } from '@/types/content';
 import {
   isBlockquote,
@@ -13,6 +14,7 @@ import {
 
 interface HeapContentProps {
   content: CurioContent;
+  className?: string;
 }
 
 interface InlineContentProps {
@@ -80,11 +82,11 @@ export function InlineContent({ inline }: InlineContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(inline)}`);
 }
 
-export default function HeapContent({ content }: HeapContentProps) {
+export default function HeapContent({ content, className }: HeapContentProps) {
   const inlineLength = content.length;
 
   return (
-    <div className="leading-6">
+    <div className={cn('leading-6', className && className)}>
       {inlineLength > 0 ? (
         <>
           {content.map((inlineItem, index) => (

@@ -1,55 +1,44 @@
 import cn from 'classnames';
-import React, {Suspense, useCallback, useState} from 'react';
-// import { useParams } from 'react-router';
+import React, { Suspense, useCallback, useState } from 'react';
 import { useCopyToClipboard } from 'usehooks-ts';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import useNavStore from '@/components/Nav/useNavStore';
 import { useIsMobile } from '@/logic/useMedia';
 import { Link } from 'react-router-dom';
-// import ListIcon from '@/components/icons/ListIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
-// import * as Popover from '@radix-ui/react-popover';
 import { useCurio } from '@/state/heap/heap';
-import { nestToFlag } from '@/logic/utils';
 import XIcon from '@/components/icons/XIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import HeapDetailHeaderDescription from './HeapDetailHeaderDescription';
 
 export interface ChannelHeaderProps {
   flag: string;
-  nest: string;
+  chFlag: string;
   idCurio: string;
 }
 
 export default function HeapDetailHeader({
   flag,
-  nest,
-  idCurio
+  chFlag,
+  idCurio,
 }: ChannelHeaderProps) {
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
-  // const group = useGroup(flag);
-  const [app, chFlag] = nestToFlag(nest);
-  // console.log({chFlag, idCurio});
-  // const channel = useChannel(flag, nest);
   const curioObject = useCurio(chFlag, idCurio);
-  // console.log(curio);
   const isMobile = useIsMobile();
   const curio = curioObject ? curioObject[1] : null;
   const curioContent = curio?.heart.content[0].toString() || '';
   const navPrimary = useNavStore((state) => state.navigatePrimary);
-  const curioTitle = curio?.heart.title || curio?.heart.content;
-
-  
+  const curioTitle = curio?.heart.title || curio?.heart.content[0];
 
   const onCopy = useCallback(() => {
-    doCopy(`${flag}/channels/${nest}/curio/${idCurio}`);
+    doCopy(`${flag}/channels/heap/${chFlag}/curio/${idCurio}`);
     setJustCopied(true);
     setTimeout(() => {
       setJustCopied(false);
     }, 1000);
-  }, [doCopy, idCurio, nest, flag]);
+  }, [doCopy, idCurio, chFlag, flag]);
 
   return (
     <div
@@ -70,38 +59,46 @@ export default function HeapDetailHeader({
         ) : null}
         <div className="flex items-center space-x-3">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-gray-50">
-            <ChannelIcon nest={nest} className="h-4 w-4 text-gray-400" />
+            <ChannelIcon
+              nest={`heap/${chFlag}`}
+              className="h-4 w-4 text-gray-400"
+            />
           </div>
-          <div className="flex flex-col items-start text-left">
-            <span className="text-md font-semibold">
+          <div className="flex max-w-prose flex-col text-left">
+            <span className="text-md w-full truncate font-semibold">
               {curioTitle}
             </span>
-            <Suspense fallback={<div className='text-md font-semibold text-gray-600'>Loading...</div>}>
+            <Suspense
+              fallback={
+                <div className="text-md font-semibold text-gray-600">
+                  Loading...
+                </div>
+              }
+            >
               <HeapDetailHeaderDescription url={curioContent} />
             </Suspense>
           </div>
         </div>
       </button>
       <div>
-        <button 
-        className='icon-button h-8 w-8 bg-transparent'
-        aria-controls='copy'
-        onClick={onCopy}
+        <button
+          className="icon-button h-8 w-8 bg-transparent"
+          aria-controls="copy"
+          onClick={onCopy}
         >
-          {
-           justCopied 
-           ? <CheckIcon className='h-6 w-6' />
-           : <CopyIcon className="h-6 w-6" />
-          }
+          {justCopied ? (
+            <CheckIcon className="h-6 w-6" />
+          ) : (
+            <CopyIcon className="h-6 w-6" />
+          )}
         </button>
         <Link
           className="icon-button h-8 w-8 bg-transparent"
-          to={`/groups/${flag}/channels/${nest}`}
+          to={`/groups/${flag}/channels/${chFlag}`}
         >
           <XIcon className="h-6 w-6" />
         </Link>
       </div>
-      
     </div>
   );
 }

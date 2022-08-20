@@ -112,7 +112,11 @@ export default function HeapRow({
         )}
         <div className="flex flex-col justify-end p-2">
           <div className="font-semibold text-gray-800">
-            {isUrl ? contentDisplayed() : <HeapContent content={content} />}
+            {isUrl ? (
+              contentDisplayed()
+            ) : (
+              <HeapContent className="line-clamp-1" content={content} />
+            )}
           </div>
           <div className="text-sm font-semibold text-gray-600">
             {description()} • {formatDistanceToNow(sent)} ago • {replied.length}{' '}

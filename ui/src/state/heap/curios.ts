@@ -102,7 +102,10 @@ export default function makeCuriosStore(
                 const replyTime = bigInt(udToDec(delta.add.replying));
                 if (replyTime) {
                   const ancestor = curioMap.get(replyTime);
-                  ancestor.seal.replied = [...ancestor.seal.replied, time];
+                  ancestor.seal.replied = [
+                    ...ancestor.seal.replied,
+                    udToDec(time),
+                  ];
                   curioMap.set(replyTime, ancestor);
                 }
               }
