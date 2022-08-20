@@ -1,3 +1,4 @@
+import { useRouteGroup } from '@/state/groups';
 import React, { ComponentType } from 'react';
 import { Bin, useNotifications } from './useNotifications';
 
@@ -8,10 +9,11 @@ interface NotificationsProps {
 export default function Notifications({
   child: Notification,
 }: NotificationsProps) {
-  const { notifications } = useNotifications();
+  const flag = useRouteGroup();
+  const { notifications } = useNotifications(flag);
 
   return (
-    <section className="w-full p-6">
+    <section className="w-full bg-white p-6">
       {notifications.map((grouping) => (
         <>
           <h2 className="mt-8 mb-4 text-lg font-bold text-gray-400">
