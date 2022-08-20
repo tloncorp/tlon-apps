@@ -115,7 +115,10 @@ export default function HeapRow({
             {isUrl ? (
               contentDisplayed()
             ) : (
-              <HeapContent className="line-clamp-1" content={content} />
+              <HeapContent
+                className="leading-6 line-clamp-1"
+                content={content}
+              />
             )}
           </div>
           <div className="text-sm font-semibold text-gray-600">

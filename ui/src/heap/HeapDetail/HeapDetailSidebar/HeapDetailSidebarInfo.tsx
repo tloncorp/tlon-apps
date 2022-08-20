@@ -25,7 +25,7 @@ export default function HeapDetailSidebarInfo({
   const [, chFlag] = nestToFlag(nest);
   const unixDate = new Date(sent);
   const stringContent = content[0].toString();
-  const textPreview = [];
+  const textPreview = content.toString().split(' ').slice(0, 3).join(' ');
 
   const onDelete = () => {
     setMenuOpen(false);
@@ -35,42 +35,33 @@ export default function HeapDetailSidebarInfo({
 
   const isURL = URL_REGEX.test(stringContent);
 
-  if (!isURL && content.length) {
-    textPreview.push(
-      content.map((inlineItem, index) => (
-        <InlineContent
-          key={`${inlineItem.toString()}-${index}`}
-          inline={inlineItem}
-        />
-      ))
-    );
-  }
-
   return (
     <div className="w-full break-words border-b-2 border-gray-50 p-2">
-      <div className="relative">
-        <IconButton
-          icon={<ElipsisSmallIcon className="h-4 w-4" />}
-          label="options"
-          className="rounded"
-          action={() => setMenuOpen(!menuOpen)}
-        />
-        <div
-          className={cn(
-            'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
-            { hidden: !menuOpen }
-          )}
-          onMouseLeave={() => setMenuOpen(false)}
-        >
-          <button
-            // FIXME: add edit functionality
-            className="small-menu-button"
+      <div className="relative mb-6">
+        <div className="absolute right-2 w-fit">
+          <IconButton
+            icon={<ElipsisSmallIcon className="h-4 w-4" />}
+            label="options"
+            className="rounded"
+            action={() => setMenuOpen(!menuOpen)}
+          />
+          <div
+            className={cn(
+              'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
+              { hidden: !menuOpen }
+            )}
+            onMouseLeave={() => setMenuOpen(false)}
           >
-            Edit
-          </button>
-          <button className="small-menu-button" onClick={onDelete}>
-            Delete
-          </button>
+            <button
+              // FIXME: add edit functionality
+              className="small-menu-button"
+            >
+              Edit
+            </button>
+            <button className="small-menu-button" onClick={onDelete}>
+              Delete
+            </button>
+          </div>
         </div>
       </div>
       <h2 className="mb-2 whitespace-normal text-lg font-semibold line-clamp-2">

@@ -153,7 +153,7 @@ export default function HeapBlock({
     return (
       <div className="heap-block group p-2">
         <TopBar hasIcon time={time} />
-        <HeapContent className="h-full" content={content} />
+        <HeapContent className="h-full leading-6" content={content} />
         <BottomBar
           provider="Text"
           prettySent={prettySent}

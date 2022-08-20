@@ -91,6 +91,7 @@ function HeapChannel() {
             <HeapInput displayType={displayMode} />
             {Array.from(curios)
               .sort(([a], [b]) => b.compare(a))
+              .filter(([, c]) => !c.heart.replying)
               .map(([time, curio]) => (
                 <Suspense
                   key={time.toString()}
@@ -111,6 +112,7 @@ function HeapChannel() {
             <HeapInput displayType={displayMode} />
             {Array.from(curios)
               .sort(([a], [b]) => b.compare(a))
+              .filter(([, c]) => !c.heart.replying)
               .map(([time, curio]) => (
                 <Suspense
                   key={time.toString()}

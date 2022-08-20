@@ -3,8 +3,8 @@ import { BigInteger } from 'big-integer';
 import useNest from '@/logic/useNest';
 import { useComments } from '@/state/heap/heap';
 import { nestToFlag } from '@/logic/utils';
-import { decToUd } from '@urbit/api';
 import HeapDetailCommentField from './HeapDetailCommentField';
+import HeapComment from './HeapComment';
 
 interface HeapDetailCommentsProps {
   time: BigInteger;
@@ -17,7 +17,14 @@ export default function HeapDetailComments({ time }: HeapDetailCommentsProps) {
   const comments = useComments(chFlag, stringTime);
 
   return (
-    <div className="relative h-full overflow-y-auto">
+    <div className="flex h-full flex-col justify-between overflow-y-auto p-2">
+      <div className="flex flex-col space-y-2">
+        {Array.from(comments)
+          .sort(([a], [b]) => a.compare(b))
+          .map(([, curio]) => (
+            <HeapComment curio={curio} />
+          ))}
+      </div>
       <HeapDetailCommentField />
     </div>
   );
