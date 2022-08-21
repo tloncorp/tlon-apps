@@ -1,9 +1,5 @@
 import { useCallback } from 'react';
-import useHarkState, {
-  emptyBlanket,
-  emptyCarpet,
-  HarkState,
-} from '@/state/hark';
+import useHarkState, { emptyBlanket, emptyCarpet } from '@/state/hark';
 import { Flag, Thread, Yarn, Yarns } from '@/types/hark';
 import _ from 'lodash';
 import { makePrettyDay } from '@/logic/utils';
@@ -50,7 +46,7 @@ function getBin(thread: Thread, yarns: Yarns, unread: boolean): Bin {
   };
 }
 
-export function groupBinsByDate(bins: Bin[]): DayGrouping[] {
+function groupBinsByDate(bins: Bin[]): DayGrouping[] {
   const groups = _.groupBy(bins, (b) => makePrettyDay(new Date(b.time)));
 
   return Object.entries(groups)
@@ -88,7 +84,27 @@ export const useNotifications = (flag?: Flag) => {
   );
   const notifications: DayGrouping[] = groupBinsByDate(bins.concat(oldBins));
 
+  function channelUnreads(chFlag: string) {
+    return notifications.reduce(
+      (memo, grouping) =>
+        memo +
+        grouping.bins.reduce((binMemo, bin) => {
+          if (!chFlag) return memo;
+          return (
+            binMemo +
+            (bin.unread &&
+            bin.topYarn?.rope.channel &&
+            bin.topYarn?.rope.channel.includes(chFlag)
+              ? 1
+              : 0)
+          );
+        }, 0),
+      0
+    );
+  }
+
   return {
+    channelUnreads,
     count: carpet.cable.length,
     notifications,
   };
