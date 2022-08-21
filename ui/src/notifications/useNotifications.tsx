@@ -84,27 +84,20 @@ export const useNotifications = (flag?: Flag) => {
   );
   const notifications: DayGrouping[] = groupBinsByDate(bins.concat(oldBins));
 
-  function channelUnreads(chFlag: string) {
-    return notifications.reduce(
-      (memo, grouping) =>
-        memo +
-        grouping.bins.reduce((binMemo, bin) => {
-          if (!chFlag) return memo;
-          return (
-            binMemo +
-            (bin.unread &&
-            bin.topYarn?.rope.channel &&
-            bin.topYarn?.rope.channel.includes(chFlag)
-              ? 1
-              : 0)
-          );
-        }, 0),
-      0
+  // A Channel is unread if any of its bins is unread and matches the chFlag
+  function isChannelUnread(chFlag: string) {
+    return notifications.some((n) =>
+      n.bins.some(
+        (b) =>
+          b.unread &&
+          b.topYarn?.rope.channel &&
+          b.topYarn?.rope.channel.includes(chFlag)
+      )
     );
   }
 
   return {
-    channelUnreads,
+    isChannelUnread,
     count: carpet.cable.length,
     notifications,
   };

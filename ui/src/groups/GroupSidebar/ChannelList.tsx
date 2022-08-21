@@ -32,7 +32,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const { sectionedChannels, sections } = useChannelSections(flag);
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
-  const { channelUnreads } = useNotifications(flag);
+  const { isChannelUnread } = useNotifications(flag);
 
   const hide = useCallback(() => {
     if (isMobile) {
@@ -69,7 +69,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
           to={channelHref(flag, nest)}
           onClick={hide}
           actions={
-            channelUnreads(chFlag) > 0 ? (
+            isChannelUnread(chFlag) ? (
               <ActivityIndicator
                 count={0}
                 bg={'transparent'}
