@@ -7,6 +7,7 @@ import Layout from '@/components/Layout/Layout';
 import { useChatPerms, useChatState, useMessagesForChat } from '@/state/chat';
 import { useRouteGroup, useVessel } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
+import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 
 function ChatChannel() {
   const { chShip, chName } = useParams();
@@ -25,6 +26,8 @@ function ChatChannel() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { sendMessage } = useChatState.getState();
+
+  useDismissChannelNotifications();
 
   return (
     <Layout

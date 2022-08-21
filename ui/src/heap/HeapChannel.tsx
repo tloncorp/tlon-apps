@@ -19,6 +19,7 @@ import {
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import HeapInput from '@/heap/HeapInput';
+import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 
 interface CurioForm {
   url: string;
@@ -60,6 +61,8 @@ function HeapChannel() {
   useEffect(() => {
     useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
+
+  useDismissChannelNotifications();
 
   return (
     <Layout
