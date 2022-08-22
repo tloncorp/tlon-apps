@@ -263,6 +263,7 @@ function RoutedApp() {
       case 'chatstaging':
       case 'staging':
         return '/';
+      case 'chatbuild':
       case 'chat':
         return '/apps/chatstead';
       default:

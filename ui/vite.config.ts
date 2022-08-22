@@ -42,8 +42,9 @@ export default ({ mode }: { mode: string }) => {
       case 'chatmock':
       case 'chatstaging':
         return [reactRefresh(), pluginRewriteAll()];
-      case 'chatpreview':
       case 'chat':
+      case 'chatbuild':
+      case 'chatpreview':
         return [
           urbitPlugin({
             base: 'chatstead',
@@ -71,7 +72,7 @@ export default ({ mode }: { mode: string }) => {
     build:
       mode !== 'profile'
         ? {
-            sourcemap: 'inline',
+            sourcemap: true,
           }
         : {
             rollupOptions: {
