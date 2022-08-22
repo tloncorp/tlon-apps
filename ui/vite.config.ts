@@ -27,6 +27,7 @@ export default ({ mode }: { mode: string }) => {
       case 'chatmock':
       case 'chatstaging':
         return '';
+      case 'chatpreview':
       case 'chat':
         return '/apps/chatstead/';
       default:
@@ -64,8 +65,10 @@ export default ({ mode }: { mode: string }) => {
     }
   };
 
+  const basePath = base(mode);
+
   return defineConfig({
-    base: base(mode),
+    base: basePath,
     build:
       mode !== 'profile'
         ? {
@@ -82,6 +85,20 @@ export default ({ mode }: { mode: string }) => {
             },
           },
     plugins: plugins(mode),
+    preview: {
+      proxy: {
+        [`^${basePath}desk.js`]: {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+        [`^((?!${basePath}).)*$`]: {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

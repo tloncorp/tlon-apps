@@ -22,6 +22,7 @@
     "chat": "vite --mode chat",
     "mock:chat": "vite --mode chatmock",
     "serve": "vite preview",
+    "serve:chat": "vite preview --mode chatpreview",
     "test": "vitest",
     "tsc": "tsc --noEmit",
     "postinstall": "patch-package",
