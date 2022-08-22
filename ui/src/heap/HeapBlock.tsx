@@ -1,14 +1,7 @@
 import React from 'react';
 import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
-import {
-  AUDIO_REGEX,
-  IMAGE_REGEX,
-  isValidUrl,
-  nestToFlag,
-  validOembedCheck,
-} from '@/logic/utils';
-import { useEmbed } from '@/logic/embed';
+import { nestToFlag } from '@/logic/utils';
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,6 +13,7 @@ import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import { useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
+import useHeapContentType from '@/logic/useHeapContentType';
 
 function TopBar({
   hasIcon = false,
@@ -43,8 +37,8 @@ function TopBar({
       onClick={(e) => e.stopPropagation()}
       className={
         hasIcon || isTwitter
-          ? 'z-10 flex items-center justify-between'
-          : 'z-10 flex items-center justify-end'
+          ? 'flex items-center justify-between'
+          : 'flex items-center justify-end'
       }
     >
       {isTwitter ? <TwitterIcon className="m-2 h-6 w-6" /> : null}
@@ -108,7 +102,7 @@ function BottomBar({
   title,
 }: BottomBarProps) {
   return (
-    <div className="absolute bottom-2 z-10 -m-2 h-[50px] w-full">
+    <div className="-m-2 h-[50px]">
       <div className="hidden h-[50px] w-full border-t-2 border-gray-100 bg-white p-2 group-hover:block">
         <div className="flex flex-col">
           <span className="truncate font-semibold text-gray-800">
@@ -143,17 +137,14 @@ export default function HeapBlock({
   const url = content[0].toString();
   const prettySent = formatDistanceToNow(sent);
 
-  const isImage = IMAGE_REGEX.test(url);
-  const isAudio = AUDIO_REGEX.test(url);
-  const isText = !isValidUrl(url);
-  const oembed = useEmbed(url);
-  const isOembed = validOembedCheck(oembed, url);
+  const { isImage, isAudio, isText, oembed, isOembed } =
+    useHeapContentType(url);
 
   if (isText) {
     return (
       <div className="heap-block group p-2">
         <TopBar hasIcon time={time} />
-        <HeapContent className="h-full leading-6" content={content} />
+        <HeapContent className="h-full max-h-24 leading-6" content={content} />
         <BottomBar
           provider="Text"
           prettySent={prettySent}
@@ -235,7 +226,7 @@ export default function HeapBlock({
       return (
         <div className="heap-block group p-2">
           <TopBar isTwitter time={time} />
-          <div className="flex h-full flex-col items-center justify-center">
+          <div className="flex flex-col items-center justify-center">
             <img
               className="h-[46px] w-[46px] rounded-full"
               src={twitterProfilePic}

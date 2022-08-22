@@ -3,15 +3,8 @@ import cn from 'classnames';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
-import {
-  AUDIO_REGEX,
-  IMAGE_REGEX,
-  nestToFlag,
-  URL_REGEX,
-  validOembedCheck,
-  VIDEO_REGEX,
-} from '@/logic/utils';
-import { useEmbed } from '@/logic/embed';
+import { nestToFlag } from '@/logic/utils';
+import useHeapContentType from '@/logic/useHeapContentType';
 import { formatDistanceToNow } from 'date-fns';
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import LinkIcon16 from '@/components/icons/LinkIcon16';
@@ -40,29 +33,8 @@ export default function HeapRow({
     useHeapState.getState().delCurio(chFlag, time.toString());
   };
 
-  const isImage = IMAGE_REGEX.test(contentString);
-  const isUrl = URL_REGEX.test(contentString);
-  const isVideo = VIDEO_REGEX.test(contentString);
-  const isAudio = AUDIO_REGEX.test(contentString);
-  const oembed = useEmbed(contentString);
-  const isOembed = validOembedCheck(oembed, contentString);
-
-  const description = () => {
-    switch (true) {
-      case isImage:
-        return 'Image';
-      case isOembed:
-        return oembed.read().provider_name;
-      case isVideo:
-        return 'Video';
-      case isAudio:
-        return 'Audio';
-      case isUrl:
-        return 'Link';
-      default:
-        return 'Text';
-    }
-  };
+  const { isImage, isUrl, isAudio, isOembed, oembed, description } =
+    useHeapContentType(contentString);
 
   const otherImage = () => {
     const thumbnail = oembed.read().thumbnail_url;

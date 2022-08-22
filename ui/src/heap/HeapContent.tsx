@@ -86,7 +86,7 @@ export default function HeapContent({ content, className }: HeapContentProps) {
   const inlineLength = content.length;
 
   return (
-    <div className={className && className}>
+    <div className={className}>
       {inlineLength > 0 ? (
         <>
           {content.map((inlineItem, index) => (

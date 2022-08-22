@@ -94,7 +94,7 @@ export default function HeapDetailHeader({
         </button>
         <Link
           className="icon-button h-8 w-8 bg-transparent"
-          to={`/groups/${flag}/channels/${chFlag}`}
+          to={`/groups/${flag}/channels/heap/${chFlag}`}
         >
           <XIcon className="h-6 w-6" />
         </Link>

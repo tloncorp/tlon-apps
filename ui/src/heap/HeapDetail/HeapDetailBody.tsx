@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  AUDIO_REGEX,
-  IMAGE_REGEX,
-  VIDEO_REGEX,
-  isValidUrl,
-  validOembedCheck,
-} from '@/logic/utils';
-import { useEmbed } from '@/logic/embed';
+import useHeapContentType from '@/logic/useHeapContentType';
 import { HeapCurio } from '@/types/heap';
 import HeapContent from '@/heap/HeapContent';
 import EmbedFallback from './EmbedFallback';
@@ -16,12 +9,8 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
   const { content } = curio.heart;
   const url = content[0].toString();
 
-  const isImage = IMAGE_REGEX.test(url);
-  const isAudio = AUDIO_REGEX.test(url);
-  const isVideo = VIDEO_REGEX.test(url);
-  const isText = !isValidUrl(url);
-  const oembed = useEmbed(url);
-  const isOembed = validOembedCheck(oembed, url);
+  const { isText, isImage, isAudio, isVideo, oembed, isOembed } =
+    useHeapContentType(url);
 
   if (isText) {
     return (

@@ -89,42 +89,50 @@ function HeapChannel() {
         {displayMode === 'grid' ? (
           <div className="grid grid-cols-1 justify-center justify-items-center gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
             <HeapInput displayType={displayMode} />
-            {Array.from(curios)
-              .sort(([a], [b]) => b.compare(a))
-              .filter(([, c]) => !c.heart.replying)
-              .map(([time, curio]) => (
-                <Suspense
-                  key={time.toString()}
-                  fallback={<div>Loading...</div>}
-                >
-                  <div onClick={() => navigateToDetail(time)}>
-                    <HeapBlock
-                      curio={curio}
-                      // @ts-expect-error time is apparently a number, or we have a problem in heap types.
-                      time={time}
-                    />
-                  </div>
-                </Suspense>
-              ))}
+            {
+              // Here, we sort the array by recently added and then filter out curios with a "replying" property
+              // as those are comments and shouldn't show up in the main view
+              Array.from(curios)
+                .sort(([a], [b]) => b.compare(a))
+                .filter(([, c]) => !c.heart.replying)
+                .map(([time, curio]) => (
+                  <Suspense
+                    key={time.toString()}
+                    fallback={<div>Loading...</div>}
+                  >
+                    <div tabIndex={0} onClick={() => navigateToDetail(time)}>
+                      <HeapBlock
+                        curio={curio}
+                        // @ts-expect-error time is apparently a number, or we have a problem in heap types.
+                        time={time}
+                      />
+                    </div>
+                  </Suspense>
+                ))
+            }
           </div>
         ) : (
           <div className="flex flex-col gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
             <HeapInput displayType={displayMode} />
-            {Array.from(curios)
-              .sort(([a], [b]) => b.compare(a))
-              .filter(([, c]) => !c.heart.replying)
-              .map(([time, curio]) => (
-                <Suspense
-                  key={time.toString()}
-                  fallback={<div>Loading...</div>}
-                >
-                  <HeapRow
-                    curio={curio}
-                    // @ts-expect-error time is apparently a number, or we have a problem in heap types.
-                    time={time}
-                  />
-                </Suspense>
-              ))}
+            {
+              // Here, we sort the array by recently added and then filter out curios with a "replying" property
+              // as those are comments and shouldn't show up in the main view
+              Array.from(curios)
+                .sort(([a], [b]) => b.compare(a))
+                .filter(([, c]) => !c.heart.replying)
+                .map(([time, curio]) => (
+                  <Suspense
+                    key={time.toString()}
+                    fallback={<div>Loading...</div>}
+                  >
+                    <HeapRow
+                      curio={curio}
+                      // @ts-expect-error time is apparently a number, or we have a problem in heap types.
+                      time={time}
+                    />
+                  </Suspense>
+                ))
+            }
           </div>
         )}
       </div>
