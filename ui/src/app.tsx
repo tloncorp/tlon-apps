@@ -256,14 +256,13 @@ function App() {
 
 function RoutedApp() {
   const mode = import.meta.env.MODE;
-  const basename = (modeName: string) => {
-    switch (modeName) {
-      case 'mock':
-      case 'chatmock':
-      case 'chatstaging':
-      case 'staging':
-        return '/';
-      case 'chatbuild':
+  const app = import.meta.env.VITE_APP;
+  const basename = (modeName: string, appName: string) => {
+    if (mode === 'mock' || mode === 'staging') {
+      return '/';
+    }
+
+    switch (appName) {
       case 'chat':
         return '/apps/chatstead';
       default:
@@ -275,7 +274,7 @@ function RoutedApp() {
       FallbackComponent={ErrorAlert}
       onReset={() => window.location.reload()}
     >
-      <Router basename={basename(mode)}>
+      <Router basename={basename(mode, app)}>
         <App />
       </Router>
     </ErrorBoundary>
