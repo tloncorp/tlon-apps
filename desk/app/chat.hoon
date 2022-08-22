@@ -409,7 +409,6 @@
 ++  pass-hark
   |=  [all=? desk=? =yarn:ha]
   ^-  card
-  ~&  yarn
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
   =/  =cage  hark-action+!>([%add-yarn all desk yarn])
