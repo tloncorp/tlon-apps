@@ -99,10 +99,10 @@ export default function ChannelHeader({
             <ChannelIcon nest={nest} className="h-4 w-4 text-gray-400" />
           </div>
           <div className="flex flex-col items-start text-left">
+            <div className="text-md font-semibold">{channel?.meta.title}</div>
             <span className="text-sm font-medium text-gray-600">
               {groupName}
             </span>
-            <div className="text-md font-semibold">{channel?.meta.title}</div>
           </div>
         </div>
       </button>
