@@ -21,7 +21,7 @@
     "mock": "vite --mode mock",
     "chat": "vite --mode chat",
     "mock:chat": "vite --mode chatmock",
-    "serve": "vite preview",
+    "serve": "vite preview --mode homepreview",
     "serve:chat": "vite preview --mode chatpreview",
     "test": "vitest",
     "tsc": "tsc --noEmit",

@@ -42,6 +42,7 @@ export default ({ mode }: { mode: string }) => {
       case 'chatmock':
       case 'chatstaging':
         return [reactRefresh(), pluginRewriteAll()];
+      case 'chatpreview':
       case 'chat':
         return [
           urbitPlugin({
@@ -65,10 +66,8 @@ export default ({ mode }: { mode: string }) => {
     }
   };
 
-  const basePath = base(mode);
-
   return defineConfig({
-    base: basePath,
+    base: base(mode),
     build:
       mode !== 'profile'
         ? {
@@ -85,20 +84,6 @@ export default ({ mode }: { mode: string }) => {
             },
           },
     plugins: plugins(mode),
-    preview: {
-      proxy: {
-        [`^${basePath}desk.js`]: {
-          target: SHIP_URL,
-          changeOrigin: true,
-          secure: false,
-        },
-        [`^((?!${basePath}).)*$`]: {
-          target: SHIP_URL,
-          changeOrigin: true,
-          secure: false,
-        },
-      },
-    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
