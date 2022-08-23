@@ -43,6 +43,8 @@ import JoinGroupModal from '@/groups/Join/JoinGroupModal';
 import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
+import groupsFavicon from '@/assets/groups.svg';
+import chatFavicon from '@/assets/chat.svg';
 import { useHeapState } from './state/heap/heap';
 import { useDiaryState } from './state/diary';
 import useHarkState from './state/hark';
@@ -263,12 +265,18 @@ function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
 
-  const prettyAppName = (appName: string) => {
+  const appHead = (appName: string) => {
     switch (appName) {
       case 'chat':
-        return 'Messages';
+        return {
+          title: 'Messages',
+          icon: chatFavicon,
+        };
       default:
-        return 'Groups';
+        return {
+          title: 'Groups',
+          icon: groupsFavicon,
+        };
     }
   };
 
@@ -292,7 +300,13 @@ function RoutedApp() {
     >
       <Router basename={basename(mode, app)}>
         <Helmet>
-          <title>{prettyAppName(app)}</title>
+          <title>{appHead(app).title}</title>
+          <link
+            rel="icon"
+            href={appHead(app).icon}
+            sizes="any"
+            type="image/svg+xml"
+          />
         </Helmet>
         <App />
       </Router>
