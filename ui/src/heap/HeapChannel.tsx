@@ -53,7 +53,9 @@ function HeapChannel() {
     useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
 
-  useDismissChannelNotifications();
+  useDismissChannelNotifications({
+    markRead: useHeapState.getState().markRead,
+  });
 
   return (
     <Layout

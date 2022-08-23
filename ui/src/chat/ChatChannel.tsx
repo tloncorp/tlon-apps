@@ -25,9 +25,9 @@ function ChatChannel() {
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
-  const { sendMessage } = useChatState.getState();
+  const { sendMessage, markRead } = useChatState.getState();
 
-  useDismissChannelNotifications();
+  useDismissChannelNotifications({ markRead });
 
   return (
     <Layout

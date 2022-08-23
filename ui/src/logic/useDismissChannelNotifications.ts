@@ -6,7 +6,13 @@ import { useRouteGroup } from '@/state/groups';
 import useHarkState from '@/state/hark';
 import { useEffect } from 'react';
 
-export default function useDismissChannelNotifications() {
+interface UseDismissChannelProps {
+  markRead: (flag: string) => Promise<void>;
+}
+
+export default function useDismissChannelNotifications({
+  markRead,
+}: UseDismissChannelProps) {
   const flag = useRouteGroup();
   const chFlag = useChannelFlag();
   const { isChannelUnread } = useIsChannelUnread();
@@ -23,7 +29,7 @@ export default function useDismissChannelNotifications() {
   useEffect(() => {
     if (chFlag && isChannelUnread(chFlag)) {
       // dismiss brief
-      useChatState.getState().markRead(chFlag);
+      markRead(chFlag);
       // iterate bins, saw each rope
       notifications.forEach((n) => {
         n.bins.forEach((b) => {
@@ -37,5 +43,5 @@ export default function useDismissChannelNotifications() {
         });
       });
     }
-  }, [chFlag, isChannelUnread, notifications]);
+  }, [chFlag, markRead, isChannelUnread, notifications]);
 }
