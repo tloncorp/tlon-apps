@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
-import { Outlet, useParams } from 'react-router';
+
+import React, { Suspense, useCallback, useEffect } from 'react';
+import { Outlet, useParams, useNavigate } from 'react-router';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
 import {
@@ -26,6 +27,9 @@ function HeapChannel() {
   const nest = `heap/${chFlag}`;
   const flag = useRouteGroup();
 
+  const navigate = useNavigate();
+  // for now displayMode and sortMode will be in the settings store.
+  // in the future we will want to store in this via the heap agent.
   const displayMode = useHeapDisplayMode(chFlag);
   // for now sortMode will be in the settings store.
   // in the future we will want to store in this via the heap agent.
@@ -50,9 +54,18 @@ function HeapChannel() {
     useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
 
+
+  const navigateToDetail = useCallback(
+    (time: bigInt.BigInteger) => {
+      navigate(`curio/${time}`);
+    },
+    [navigate]
+  );
+
   useDismissChannelNotifications({
     markRead: useHeapState.getState().markRead,
   });
+
 
   return (
     <Layout
@@ -74,24 +87,50 @@ function HeapChannel() {
         {displayMode === 'grid' ? (
           <div className="heap-grid">
             <HeapInput displayType={displayMode} />
-            {Array.from(curios)
-              .sort(([a], [b]) => b.compare(a))
-              .map(([time, curio]) => (
-                <HeapBlock
-                  key={time.toString()}
-                  curio={curio}
-                  time={time.toString()}
-                />
-              ))}
+            {
+              // Here, we sort the array by recently added and then filter out curios with a "replying" property
+              // as those are comments and shouldn't show up in the main view
+              Array.from(curios)
+                .sort(([a], [b]) => b.compare(a))
+                .filter(([, c]) => !c.heart.replying)
+                .map(([time, curio]) => (
+                  <Suspense
+                    key={time.toString()}
+                    fallback={<div>Loading...</div>}
+                  >
+                    <div tabIndex={0} onClick={() => navigateToDetail(time)}>
+                      <HeapBlock
+                        curio={curio}
+                        // @ts-expect-error time is apparently a number, or we have a problem in heap types.
+                        time={time}
+                      />
+                    </div>
+                  </Suspense>
+                ))
+            }
           </div>
         ) : (
           <div className="heap-list">
             <HeapInput displayType={displayMode} />
-            {Array.from(curios)
-              .sort(([a], [b]) => b.compare(a))
-              .map(([time, curio]) => (
-                <HeapRow curio={curio} time={time.toString()} />
-              ))}
+            {
+              // Here, we sort the array by recently added and then filter out curios with a "replying" property
+              // as those are comments and shouldn't show up in the main view
+              Array.from(curios)
+                .sort(([a], [b]) => b.compare(a))
+                .filter(([, c]) => !c.heart.replying)
+                .map(([time, curio]) => (
+                  <Suspense
+                    key={time.toString()}
+                    fallback={<div>Loading...</div>}
+                  >
+                    <HeapRow
+                      curio={curio}
+                      // @ts-expect-error time is apparently a number, or we have a problem in heap types.
+                      time={time}
+                    />
+                  </Suspense>
+                ))
+            }
           </div>
         )}
       </div>
