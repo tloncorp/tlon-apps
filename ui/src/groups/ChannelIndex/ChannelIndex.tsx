@@ -3,8 +3,9 @@ import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
-import { GroupChannel, Zone } from '@/types/groups';
+import { GroupChannel, Zone, ViewProps } from '@/types/groups';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
@@ -222,14 +223,19 @@ function ChannelSection({
   );
 }
 
-export default function ChannelIndex() {
+export default function ChannelIndex(props: ViewProps) {
+  const { title } = props;
   const flag = useRouteGroup();
   const { sectionedChannels, sections } = useChannelSections(flag);
   const navigate = useNavigate();
   const isAdmin = useAmAdmin(flag);
+  const group = useGroup(flag);
 
   return (
     <section className="w-full p-4">
+      <Helmet>
+        <title>{group ? `${title} in ${group?.meta?.title}` : title}</title>
+      </Helmet>
       <div className="mb-4 flex flex-row justify-between">
         <h1 className="text-lg font-bold">All Channels</h1>
         {isAdmin ? (

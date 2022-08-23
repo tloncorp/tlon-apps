@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import ob from 'urbit-ob';
 import {
   useGangs,
@@ -6,7 +7,7 @@ import {
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
-import { Gangs, GroupIndex } from '@/types/groups';
+import { Gangs, GroupIndex, ViewProps } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
 import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
 import { useNavigate, useParams } from 'react-router';
@@ -14,7 +15,8 @@ import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 
-export default function FindGroups() {
+export default function FindGroups(props: ViewProps) {
+  const { title } = props;
   const { ship, name } = useParams<{ ship: string; name: string }>();
   const navigate = useNavigate();
   const [groupIndex, setGroupIndex] = useState<GroupIndex | null>(null);
@@ -175,6 +177,9 @@ export default function FindGroups() {
 
   return (
     <div className="flex grow bg-gray-50">
+      <Helmet>
+        <title>{title ? title : document.title}</title>
+      </Helmet>
       <div className="w-full p-4">
         <section className="card mb-4 space-y-8 p-8">
           <h1 className="text-lg font-bold">Find Groups</h1>

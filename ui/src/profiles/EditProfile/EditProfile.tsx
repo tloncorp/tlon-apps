@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Contact, ContactEditField, uxToHex } from '@urbit/api';
+import { ViewProps } from '@/types/groups';
 import useContactState, {
   useOurContact,
   isOurContactPublic,
@@ -245,9 +247,13 @@ function EditProfileContent() {
   );
 }
 
-export default function EditProfile() {
+export default function EditProfile(props: ViewProps) {
+  const { title } = props;
   return (
     <div className="flex grow overflow-y-scroll bg-gray-50">
+      <Helmet>
+        <title>{title}</title>
+      </Helmet>
       <div className="m-4 w-full sm:my-5 sm:mx-8">
         <EditProfileContent />
       </div>

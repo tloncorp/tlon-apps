@@ -1,4 +1,5 @@
 import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import Dialog, {
   DialogClose,
@@ -6,7 +7,12 @@ import Dialog, {
   DialogTrigger,
 } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
-import { GroupFormSchema, GroupMeta, PrivacyType } from '@/types/groups';
+import {
+  GroupFormSchema,
+  GroupMeta,
+  PrivacyType,
+  ViewProps,
+} from '@/types/groups';
 import { useNavigate } from 'react-router';
 import useNavStore from '@/components/Nav/useNavStore';
 import { getGroupPrivacy } from '@/logic/utils';
@@ -24,7 +30,8 @@ function eqGroupName(a: string, b: string) {
   return a.toLocaleLowerCase() === b.toLocaleLowerCase();
 }
 
-export default function GroupInfoEditor() {
+export default function GroupInfoEditor(props: ViewProps) {
+  const { title } = props;
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
@@ -69,6 +76,11 @@ export default function GroupInfoEditor() {
 
   return (
     <>
+      <Helmet>
+        <title>
+          {group?.meta ? `${title} for ${group.meta.title}` : title}
+        </title>
+      </Helmet>
       <FormProvider {...form}>
         <form
           className="card mb-4 space-y-4"
