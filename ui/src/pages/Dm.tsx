@@ -6,7 +6,6 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import { useChatState, useDmIsPending, useDmMessages } from '@/state/chat';
 import ChatWindow from '@/chat/ChatWindow';
-import { useChatInfo } from '@/chat/useChatStore';
 import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
 import DmOptions from '@/dms/DMOptions';

@@ -1,14 +1,11 @@
-import { useCallback } from 'react';
 import create from 'zustand';
-import { Suspender, suspend } from './suspend';
-// import { suspend, Suspender } from '../lib/suspend';
-import { jsonFetch } from './utils';
+import { jsonFetch } from '@/logic/utils';
 
 export interface EmbedState {
   embeds: {
     [url: string]: any;
   };
-  getEmbed: (url: string) => Suspender<any>;
+  getEmbed: (url: string) => Promise<any>;
   fetch: (url: string) => Promise<any>;
 }
 
@@ -28,20 +25,18 @@ const useEmbedState = create<EmbedState>((set, get) => ({
     const embed = await jsonFetch(`${OEMBED_PROVIDER}?${search.toString()}`);
     return embed;
   },
-  getEmbed: (url: string): Suspender<any> => {
+  getEmbed: async (url: string) => {
     const { fetch, embeds } = get();
     if (url in embeds) {
       return embeds[url];
     }
     const { embeds: es } = get();
-    const embed = suspend(fetch(url), {});
+    const embed = await fetch(url).catch((reason) => {
+      throw reason;
+    });
     set({ embeds: { ...es, [url]: embed } });
     return embed;
   },
 }));
-
-export function useEmbed(url: string) {
-  return useEmbedState(useCallback((s) => s.getEmbed(url), [url]));
-}
 
 export default useEmbedState;

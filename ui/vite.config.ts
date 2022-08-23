@@ -10,6 +10,8 @@ import { fileURLToPath } from 'url';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
+  const app = process.env.APP || 'groups';
+  process.env.VITE_APP = app;
   process.env.VITE_STORAGE_VERSION =
     mode === 'dev' ? Date.now().toString() : packageJson.version;
 
@@ -20,13 +22,12 @@ export default ({ mode }: { mode: string }) => {
     'http://localhost:8080';
   console.log(SHIP_URL);
 
-  const base = (mode: string) => {
-    switch (mode) {
-      case 'mock':
-      case 'staging':
-      case 'chatmock':
-      case 'chatstaging':
-        return '';
+  const base = (mode: string, app: string) => {
+    if (mode === 'mock' || mode === 'staging') {
+      return '';
+    }
+
+    switch (app) {
       case 'chat':
         return '/apps/chatstead/';
       default:
@@ -34,13 +35,12 @@ export default ({ mode }: { mode: string }) => {
     }
   };
 
-  const plugins = (mode: string) => {
-    switch (mode) {
-      case 'mock':
-      case 'staging':
-      case 'chatmock':
-      case 'chatstaging':
-        return [reactRefresh(), pluginRewriteAll()];
+  const plugins = (mode: string, app: string) => {
+    if (mode === 'mock' || mode === 'staging') {
+      return [reactRefresh(), pluginRewriteAll()];
+    }
+
+    switch (app) {
       case 'chat':
         return [
           urbitPlugin({
@@ -64,12 +64,15 @@ export default ({ mode }: { mode: string }) => {
     }
   };
 
+  console.log(process.env.APP);
+  console.log(mode, app, base(mode, app));
+
   return defineConfig({
-    base: base(mode),
+    base: base(mode, app),
     build:
       mode !== 'profile'
         ? {
-            sourcemap: 'inline',
+            sourcemap: true,
           }
         : {
             rollupOptions: {
@@ -81,7 +84,7 @@ export default ({ mode }: { mode: string }) => {
               ],
             },
           },
-    plugins: plugins(mode),
+    plugins: plugins(mode, app),
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

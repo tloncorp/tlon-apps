@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import cn from 'classnames';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
 import { nestToFlag } from '@/logic/utils';
 import useHeapContentType from '@/logic/useHeapContentType';
+import useEmbedState from '@/state/embed';
 import { formatDistanceToNow } from 'date-fns';
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import LinkIcon16 from '@/components/icons/LinkIcon16';
@@ -12,33 +13,46 @@ import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import HeapContent from '@/heap/HeapContent';
 import { useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
+import HeapLoadingRow from '@/heap/HeapLoadingRow';
 
 export default function HeapRow({
   curio,
   time,
 }: {
   curio: HeapCurio;
-  time: number;
+  time: string;
 }) {
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [embed, setEmbed] = React.useState<any>();
   const { content, sent } = curio.heart;
   const { replied } = curio.seal;
   const contentString = content[0].toString();
 
   const onDelete = () => {
     setMenuOpen(false);
-    // FIXME: this state update is not working.
-    useHeapState.getState().delCurio(chFlag, time.toString());
+    useHeapState.getState().delCurio(chFlag, time);
   };
 
   const { isImage, isUrl, isAudio, isOembed, oembed, description } =
     useHeapContentType(contentString);
 
+  useEffect(() => {
+    const getOembed = async () => {
+      const oembed = await useEmbedState.getState().getEmbed(contentString);
+      setEmbed(oembed);
+    };
+    getOembed();
+  }, [contentString]);
+
+  if (embed === undefined) {
+    return <HeapLoadingRow />;
+  }
+
   const otherImage = () => {
-    const thumbnail = oembed.read().thumbnail_url;
-    const provider = oembed.read().provider_name;
+    const thumbnail = embed.thumbnail_url;
+    const provider = embed.provider_name;
     switch (true) {
       case isOembed && provider !== 'Twitter':
         return (
@@ -61,7 +75,7 @@ export default function HeapRow({
   const contentDisplayed = () => {
     switch (true) {
       case isOembed:
-        return oembed.read().title;
+        return embed.title;
       case isUrl:
         return contentString;
       default:

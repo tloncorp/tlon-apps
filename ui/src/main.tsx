@@ -23,10 +23,7 @@ import './assets/SourceCodePro-VariableFont_wght-subset.woff2';
 import './styles/index.css';
 
 const IS_MOCK =
-  import.meta.env.MODE === 'mock' ||
-  import.meta.env.MODE === 'staging' ||
-  import.meta.env.MODE === 'chatstaging' ||
-  import.meta.env.MODE === 'chatmock';
+  import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
 
 if (IS_MOCK) {
   window.ship = 'finned-palmer';

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups/groups';
 import useNavStore from '@/components/Nav/useNavStore';
@@ -7,6 +7,8 @@ import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
+import { useNotifications } from '@/notifications/useNotifications';
+import useHarkState from '@/state/hark';
 import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
 import GroupAvatar from '../GroupAvatar';
@@ -18,8 +20,15 @@ export default function GroupSidebar() {
   const group = useGroup(flag);
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
-  // TODO: get activity count from hark store
-  const activityCount = 0;
+  const { count } = useNotifications(flag);
+
+  useEffect(() => {
+    useHarkState.getState().retrieveGroup(flag);
+
+    return () => {
+      useHarkState.getState().releaseGroup(flag);
+    };
+  }, [flag]);
 
   if (isMobile) {
     return <MobileGroupSidebar />;
@@ -52,7 +61,7 @@ export default function GroupSidebar() {
             </GroupActions>
           </li>
           <SidebarItem
-            icon={<ActivityIndicator count={activityCount} />}
+            icon={<ActivityIndicator count={count} />}
             to={`/groups/${flag}/activity`}
           >
             Activity
