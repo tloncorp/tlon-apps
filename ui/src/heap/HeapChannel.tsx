@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
@@ -14,7 +14,6 @@ import {
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import HeapInput from '@/heap/HeapInput';
-import HeapLoadingBlock from './HeapLoadingBlock';
 
 function HeapChannel() {
   const { chShip, chName } = useParams();
@@ -73,7 +72,6 @@ function HeapChannel() {
         {displayMode === 'grid' ? (
           <div className="heap-grid">
             <HeapInput displayType={displayMode} />
-            {Array.from(curios).length === 0 ? <HeapLoadingBlock /> : null}
             {Array.from(curios)
               .sort(([a], [b]) => b.compare(a))
               .map(([time, curio]) => (
@@ -90,12 +88,7 @@ function HeapChannel() {
             {Array.from(curios)
               .sort(([a], [b]) => b.compare(a))
               .map(([time, curio]) => (
-                <Suspense
-                  key={time.toString()}
-                  fallback={<div>Loading...</div>}
-                >
-                  <HeapRow curio={curio} time={time.toString()} />
-                </Suspense>
+                <HeapRow curio={curio} time={time.toString()} />
               ))}
           </div>
         )}
