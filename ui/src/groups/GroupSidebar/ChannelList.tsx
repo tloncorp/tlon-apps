@@ -15,7 +15,7 @@ import { GroupChannel } from '@/types/groups';
 import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
-import { useNotifications } from '@/notifications/useNotifications';
+import useIsChannelUnread from '@/notifications/useIsChannelUnread';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -32,7 +32,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const { sectionedChannels, sections } = useChannelSections(flag);
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
-  const { isChannelUnread } = useNotifications(flag);
+  const { isChannelUnread } = useIsChannelUnread();
 
   const hide = useCallback(() => {
     if (isMobile) {
