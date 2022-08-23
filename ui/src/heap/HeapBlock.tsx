@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
-import { nestToFlag } from '@/logic/utils';
+import { nestToFlag, validOembedCheck } from '@/logic/utils';
+import useEmbedState from '@/state/embed';
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import { formatDistanceToNow } from 'date-fns';
@@ -132,13 +133,13 @@ export default function HeapBlock({
   curio: HeapCurio;
   time: string;
 }) {
+  const { content, sent } = curio.heart;
   const [embed, setEmbed] = React.useState<any>();
   const replyCount = curio.seal.replied.length;
   const url = content[0].toString();
   const prettySent = formatDistanceToNow(sent);
-  
-  const { isImage, isAudio, isText, oembed, isOembed } =
-    useHeapContentType(url);
+
+  const { isImage, isAudio, isText } = useHeapContentType(url);
 
   useEffect(() => {
     const getOembed = async () => {
@@ -151,6 +152,8 @@ export default function HeapBlock({
   if (embed === undefined) {
     return <HeapLoadingBlock />;
   }
+
+  const isOembed = validOembedCheck(embed, url);
 
   if (isText) {
     return (

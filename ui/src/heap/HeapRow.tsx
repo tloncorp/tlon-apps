@@ -3,7 +3,7 @@ import cn from 'classnames';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
-import { nestToFlag } from '@/logic/utils';
+import { nestToFlag, validOembedCheck } from '@/logic/utils';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useEmbedState from '@/state/embed';
 import { formatDistanceToNow } from 'date-fns';
@@ -35,7 +35,7 @@ export default function HeapRow({
     useHeapState.getState().delCurio(chFlag, time);
   };
 
-  const { isImage, isUrl, isAudio, isOembed, oembed, description } =
+  const { isImage, isUrl, isAudio, description } =
     useHeapContentType(contentString);
 
   useEffect(() => {
@@ -49,6 +49,8 @@ export default function HeapRow({
   if (embed === undefined) {
     return <HeapLoadingRow />;
   }
+
+  const isOembed = validOembedCheck(embed, contentString);
 
   const otherImage = () => {
     const thumbnail = embed.thumbnail_url;
