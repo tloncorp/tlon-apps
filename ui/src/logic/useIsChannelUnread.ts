@@ -1,8 +1,8 @@
 import useAllBriefs from '@/logic/useAllBriefs';
-import { useNotifications } from './useNotifications';
+import { useNotifications } from '@/notifications/useNotifications';
 
-export default function useIsChannelUnread() {
-  const { notifications } = useNotifications();
+export default function useIsChannelUnread(groupFlag: string) {
+  const { notifications } = useNotifications(groupFlag);
   const briefs = useAllBriefs();
 
   /**

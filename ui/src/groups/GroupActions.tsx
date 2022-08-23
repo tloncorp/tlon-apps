@@ -9,9 +9,9 @@ import PinIcon16 from '@/components/icons/PinIcon16';
 import Person16Icon from '@/components/icons/Person16Icon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
-import { useBriefs, useChatState, usePinnedGroups } from '@/state/chat';
-import { useGroupState } from '@/state/groups/groups';
+import { useChatState, usePinnedGroups } from '@/state/chat';
 import LeaveIcon from '@/components/icons/LeaveIcon';
+import useIsGroupUnread from '@/logic/useIsGroupUnread';
 
 const { ship } = window;
 
@@ -60,9 +60,9 @@ export default function GroupActions({
   className,
   children,
 }: GroupActionsProps) {
+  const { isGroupUnread } = useIsGroupUnread();
   const location = useLocation();
-  const briefs = useBriefs();
-  const hasActivity = (briefs[flag]?.count ?? 0) > 0;
+  const hasActivity = isGroupUnread(flag);
 
   const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
     useGroupActions(flag);

@@ -1,7 +1,6 @@
 import { useChannelFlag } from '@/hooks';
-import useIsChannelUnread from '@/notifications/useIsChannelUnread';
+import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import { useNotifications } from '@/notifications/useNotifications';
-import { useChatState } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
 import useHarkState from '@/state/hark';
 import { useEffect } from 'react';
@@ -15,7 +14,7 @@ export default function useDismissChannelNotifications({
 }: UseDismissChannelProps) {
   const flag = useRouteGroup();
   const chFlag = useChannelFlag();
-  const { isChannelUnread } = useIsChannelUnread();
+  const { isChannelUnread } = useIsChannelUnread(flag);
   const { notifications } = useNotifications(flag);
 
   /**
