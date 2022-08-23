@@ -43,6 +43,7 @@ import JoinGroupModal from '@/groups/Join/JoinGroupModal';
 import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
+import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import chatFavicon from '@/assets/chat.svg';
 import { useHeapState } from './state/heap/heap';
@@ -146,6 +147,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route
             path="channels/heap/:chShip/:chName"
             element={<HeapChannel />}
+          />
+          <Route
+            path="channels/heap/:chShip/:chName/curio/:idCurio"
+            element={<HeapDetail />}
           />
           <Route
             path="channels/diary/:chShip/:chName"

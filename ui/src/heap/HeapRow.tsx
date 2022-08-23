@@ -3,14 +3,8 @@ import cn from 'classnames';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
-import {
-  AUDIO_REGEX,
-  IMAGE_REGEX,
-  nestToFlag,
-  URL_REGEX,
-  validOembedCheck,
-  VIDEO_REGEX,
-} from '@/logic/utils';
+import { nestToFlag, validOembedCheck } from '@/logic/utils';
+import useHeapContentType from '@/logic/useHeapContentType';
 import useEmbedState from '@/state/embed';
 import { formatDistanceToNow } from 'date-fns';
 import TwitterIcon from '@/components/icons/TwitterIcon';
@@ -41,6 +35,9 @@ export default function HeapRow({
     useHeapState.getState().delCurio(chFlag, time);
   };
 
+  const { isImage, isUrl, isAudio, description } =
+    useHeapContentType(contentString);
+
   useEffect(() => {
     const getOembed = async () => {
       const oembed = await useEmbedState.getState().getEmbed(contentString);
@@ -49,32 +46,11 @@ export default function HeapRow({
     getOembed();
   }, [contentString]);
 
-  const isImage = IMAGE_REGEX.test(contentString);
-  const isUrl = URL_REGEX.test(contentString);
-  const isVideo = VIDEO_REGEX.test(contentString);
-  const isAudio = AUDIO_REGEX.test(contentString);
-  const isOembed = validOembedCheck(embed, contentString);
-
   if (embed === undefined) {
     return <HeapLoadingRow />;
   }
 
-  const description = () => {
-    switch (true) {
-      case isImage:
-        return 'Image';
-      case isOembed:
-        return embed.provider_name;
-      case isVideo:
-        return 'Video';
-      case isAudio:
-        return 'Audio';
-      case isUrl:
-        return 'Link';
-      default:
-        return 'Text';
-    }
-  };
+  const isOembed = validOembedCheck(embed, contentString);
 
   const otherImage = () => {
     const thumbnail = embed.thumbnail_url;
@@ -124,7 +100,14 @@ export default function HeapRow({
         )}
         <div className="flex flex-col justify-end p-2">
           <div className="font-semibold text-gray-800">
-            {isUrl ? contentDisplayed() : <HeapContent content={content} />}
+            {isUrl ? (
+              contentDisplayed()
+            ) : (
+              <HeapContent
+                className="leading-6 line-clamp-1"
+                content={content}
+              />
+            )}
           </div>
           <div className="text-sm font-semibold text-gray-600">
             {description()} • {formatDistanceToNow(sent)} ago • {replied.length}{' '}
