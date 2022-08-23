@@ -16,6 +16,9 @@ import PencilIcon from '@/components/icons/PencilIcon';
 import useRequestState from '@/logic/useRequestState';
 import ChannelIcon from '@/channels/ChannelIcon';
 import useChannelSections from '@/logic/useChannelSections';
+import { useHeapState } from '@/state/heap/heap';
+import { useDiaryState } from '@/state/diary';
+import useAllBriefs from '@/logic/useAllBriefs';
 
 const UNZONED = 'default';
 
@@ -29,7 +32,7 @@ function GroupChannel({
   const [_app, flag] = nestToFlag(nest);
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
-  const briefs = useBriefs();
+  const briefs = useAllBriefs();
   const isAdmin = useAmAdmin(flag);
   const navigate = useNavigate();
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
@@ -37,6 +40,19 @@ function GroupChannel({
   );
   const { isFailed, isPending, isReady, setFailed, setPending, setReady } =
     useRequestState();
+  const join = useCallback(
+    (chFlag: string) => {
+      const joiner =
+        _app === 'chat'
+          ? useChatState.getState().joinChat
+          : _app === 'heap'
+          ? useHeapState.getState().joinHeap
+          : useDiaryState.getState().joinDiary;
+
+      joiner(chFlag);
+    },
+    [_app]
+  );
 
   const editChannel = useCallback(() => {
     navigate(`/groups/${flag}/info/channels`);
@@ -49,7 +65,7 @@ function GroupChannel({
         setTimer(null);
       }
       setPending();
-      await useChatState.getState().joinChat(flag);
+      await join(flag);
       setReady();
     } catch (error) {
       if (error) {
@@ -63,7 +79,7 @@ function GroupChannel({
         }, 10 * 1000)
       );
     }
-  }, [flag, setFailed, setPending, setReady, timer]);
+  }, [flag, join, setFailed, setPending, setReady, timer]);
 
   const leaveChannel = useCallback(async () => {
     try {

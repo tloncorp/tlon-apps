@@ -19,7 +19,7 @@ export interface Cabals {
 export interface GroupChannel {
   added: number;
   meta: GroupMeta;
-  zone: Zone | null;
+  zone: Zone;
   readers: string[];
   join: boolean;
 }

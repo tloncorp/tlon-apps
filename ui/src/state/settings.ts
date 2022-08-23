@@ -6,7 +6,6 @@ import {
   DeskData,
 } from '@urbit/api';
 import _ from 'lodash';
-import { GRID, HeapDisplayMode } from '@/heap/HeapTypes';
 import {
   BaseState,
   createState,
@@ -162,12 +161,6 @@ const selHeapSettings = (s: SettingsState) => s.heaps.heapSettings;
 export function useHeapSettings(): HeapSetting[] {
   const settings = useSettingsState(selHeapSettings);
   return parseHeapSettings(settings ?? '');
-}
-
-export function useHeapDisplayMode(flag: string): HeapDisplayMode {
-  const settings = useHeapSettings();
-  const heapSetting = getHeapSetting(settings, flag);
-  return heapSetting?.displayMode ?? GRID;
 }
 
 export function useHeapSortMode(flag: string): 'time' | 'alpha' {

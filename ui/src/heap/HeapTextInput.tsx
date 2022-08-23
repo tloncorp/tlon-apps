@@ -1,6 +1,12 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect } from 'react';
-import { HeapInline, CurioHeart, HeapInlineKey } from '@/types/heap';
+import {
+  HeapInline,
+  CurioHeart,
+  HeapInlineKey,
+  HeapDisplayMode,
+  LIST,
+} from '@/types/heap';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
@@ -8,7 +14,6 @@ import { useHeapState } from '@/state/heap/heap';
 import { reduce } from 'lodash';
 import classNames from 'classnames';
 import useRequestState from '@/logic/useRequestState';
-import { HeapDisplayMode, LIST } from './HeapTypes';
 
 interface HeapTextInputProps {
   flag: string;

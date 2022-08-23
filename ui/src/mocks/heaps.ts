@@ -13,6 +13,7 @@ const mockStash: Stash = {
     perms: {
       writers: ['~zod', '~finned-palmer'],
     },
+    view: 'grid',
   },
 };
 
