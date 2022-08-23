@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { parseInline, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
 import { VerseInline } from '@/types/diary';
 import { Link } from 'react-router-dom';
+import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import DiaryEditor, { useDiaryEditor } from './DiaryEditor';
 
 interface NoteForm {
@@ -64,6 +65,8 @@ function DiaryChannel() {
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
   }, [chFlag]);
+
+  useDismissChannelNotifications();
 
   return (
     <Layout

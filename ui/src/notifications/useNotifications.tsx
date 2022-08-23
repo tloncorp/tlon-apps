@@ -1,9 +1,5 @@
 import { useCallback } from 'react';
-import useHarkState, {
-  emptyBlanket,
-  emptyCarpet,
-  HarkState,
-} from '@/state/hark';
+import useHarkState, { emptyBlanket, emptyCarpet } from '@/state/hark';
 import { Flag, Thread, Yarn, Yarns } from '@/types/hark';
 import _ from 'lodash';
 import { makePrettyDay } from '@/logic/utils';
@@ -50,7 +46,7 @@ function getBin(thread: Thread, yarns: Yarns, unread: boolean): Bin {
   };
 }
 
-export function groupBinsByDate(bins: Bin[]): DayGrouping[] {
+function groupBinsByDate(bins: Bin[]): DayGrouping[] {
   const groups = _.groupBy(bins, (b) => makePrettyDay(new Date(b.time)));
 
   return Object.entries(groups)

@@ -97,7 +97,6 @@ const useHarkState = create<HarkState>((set, get) => ({
       path: `/desk/${window.desk}/quilt/${carpet.stitch}`,
     });
 
-    console.log(carpet, blanket);
     get().batchSet((draft) => {
       draft.carpet = carpet;
       draft.blanket = blanket;
