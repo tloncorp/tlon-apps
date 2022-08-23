@@ -140,6 +140,7 @@
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
+      [%ui ~]      ?>(from-self cor)
     ::
       [%heap @ @ *]
     =/  =ship  (slav %p i.t.path)
@@ -444,6 +445,7 @@
     =/  cag=cage  heap-update+!>([time d])
     =.  cor
       (give %fact ~(tap in paths) cag)
+    =.  cor  (give %fact ~[/ui] heap-action+!>([flag [time d]]))
     =?  cor  ?=(%curios -.d)
       =/  =cage  curios-diff+!>(p.d)
       (give %fact ~[(welp he-area /ui/curios)] cage)
@@ -490,6 +492,9 @@
     ::
         %create
       =.  perm.heap  p.d
+      he-core
+        %view
+      =.  view.heap  p.d
       he-core
     ==
   --

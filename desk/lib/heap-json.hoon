@@ -45,11 +45,18 @@
     |=  he=heap:h
     %-  pairs
     :~  perms/(perm perm.he)
+        view/s/view.he
     ==
   ++  perm
     |=  p=perm:h
     %-  pairs
     :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+    ==
+  ++  action
+    |=  =action:h
+    %-  pairs
+    :~  flag/(flag p.action)
+        update/(update q.action)
     ==
   ++  update
     |=  =update:h
@@ -63,6 +70,7 @@
     %+  frond  -.diff
     ?+  -.diff  ~
       %curios     (curios-diff p.diff)
+      %view       s/p.diff
     ==
   ::
   ++  curios-diff
@@ -185,6 +193,7 @@
     ^-  $-(json diff:h)
     %-  of
     :~  curios/curios-diff
+        view/(su (perk %grid %list ~))
         add-sects/add-sects
         del-sects/del-sects
     ==
