@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
 import { nestToFlag } from '@/logic/utils';
@@ -14,6 +14,7 @@ import CopyIcon from '@/components/icons/CopyIcon';
 import { useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import useHeapContentType from '@/logic/useHeapContentType';
+import HeapLoadingBlock from './HeapLoadingBlock';
 
 function TopBar({
   hasIcon = false,
@@ -22,15 +23,14 @@ function TopBar({
 }: {
   isTwitter?: boolean;
   hasIcon?: boolean;
-  time: number;
+  time: string;
 }) {
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const onDelete = () => {
     setMenuOpen(false);
-    // FIXME: this state update is not working.
-    useHeapState.getState().delCurio(chFlag, time.toString());
+    useHeapState.getState().delCurio(chFlag, time);
   };
   return (
     <div
@@ -130,15 +130,27 @@ export default function HeapBlock({
   time,
 }: {
   curio: HeapCurio;
-  time: number;
+  time: string;
 }) {
-  const { content, sent } = curio.heart;
+  const [embed, setEmbed] = React.useState<any>();
   const replyCount = curio.seal.replied.length;
   const url = content[0].toString();
   const prettySent = formatDistanceToNow(sent);
-
+  
   const { isImage, isAudio, isText, oembed, isOembed } =
     useHeapContentType(url);
+
+  useEffect(() => {
+    const getOembed = async () => {
+      const oembed = await useEmbedState.getState().getEmbed(url);
+      setEmbed(oembed);
+    };
+    getOembed();
+  }, [url]);
+
+  if (embed === undefined) {
+    return <HeapLoadingBlock />;
+  }
 
   if (isText) {
     return (
@@ -194,11 +206,7 @@ export default function HeapBlock({
   }
 
   if (isOembed) {
-    const {
-      title,
-      thumbnail_url: thumbnail,
-      provider_name: provider,
-    } = oembed.read();
+    const { title, thumbnail_url: thumbnail, provider_name: provider } = embed;
 
     if (thumbnail) {
       return (
@@ -220,8 +228,8 @@ export default function HeapBlock({
       );
     }
     if (provider === 'Twitter') {
-      const author = oembed.read().author_name;
-      const twitterHandle = oembed.read().author_url.split('/').pop();
+      const author = embed.author_name;
+      const twitterHandle = embed.author_url.split('/').pop();
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
         <div className="heap-block group p-2">

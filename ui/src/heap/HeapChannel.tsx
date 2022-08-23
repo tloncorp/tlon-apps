@@ -1,4 +1,4 @@
-import _ from 'lodash';
+
 import React, { Suspense, useCallback, useEffect } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import Layout from '@/components/Layout/Layout';
@@ -15,6 +15,7 @@ import {
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import HeapInput from '@/heap/HeapInput';
+import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 
 function HeapChannel() {
   const { chShip, chName } = useParams();
@@ -54,12 +55,18 @@ function HeapChannel() {
     useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
 
+
   const navigateToDetail = useCallback(
     (time: bigInt.BigInteger) => {
       navigate(`curio/${time}`);
     },
     [navigate]
   );
+
+  useDismissChannelNotifications({
+    markRead: useHeapState.getState().markRead,
+  });
+
 
   return (
     <Layout
@@ -79,7 +86,7 @@ function HeapChannel() {
     >
       <div className="p-4">
         {displayMode === 'grid' ? (
-          <div className="grid grid-cols-1 justify-center justify-items-center gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
+          <div className="heap-grid">
             <HeapInput displayType={displayMode} />
             {
               // Here, we sort the array by recently added and then filter out curios with a "replying" property
@@ -104,7 +111,7 @@ function HeapChannel() {
             }
           </div>
         ) : (
-          <div className="flex flex-col gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
+          <div className="heap-list">
             <HeapInput displayType={displayMode} />
             {
               // Here, we sort the array by recently added and then filter out curios with a "replying" property

@@ -1,9 +1,5 @@
 import { useCallback } from 'react';
-import useHarkState, {
-  emptyBlanket,
-  emptyCarpet,
-  HarkState,
-} from '@/state/hark';
+import useHarkState, { emptyBlanket, emptyCarpet } from '@/state/hark';
 import { Flag, Thread, Yarn, Yarns } from '@/types/hark';
 import _ from 'lodash';
 import { makePrettyDay } from '@/logic/utils';
@@ -50,7 +46,7 @@ function getBin(thread: Thread, yarns: Yarns, unread: boolean): Bin {
   };
 }
 
-export function groupBinsByDate(bins: Bin[]): DayGrouping[] {
+function groupBinsByDate(bins: Bin[]): DayGrouping[] {
   const groups = _.groupBy(bins, (b) => makePrettyDay(new Date(b.time)));
 
   return Object.entries(groups)
@@ -62,12 +58,24 @@ export function groupBinsByDate(bins: Bin[]): DayGrouping[] {
     .sort((a, b) => b.latest - a.latest);
 }
 
-const selNotifications = (state: HarkState) => ({
-  carpet: state.carpet,
-  blanket: state.blanket,
-});
-export const useNotifications = () => {
-  const { carpet, blanket } = useHarkState(selNotifications);
+export const useNotifications = (flag?: Flag) => {
+  const { carpet, blanket } = useHarkState(
+    useCallback(
+      (state) => {
+        if (flag) {
+          return (
+            state.textiles[flag] || {
+              carpet: emptyCarpet({ group: flag }),
+              blanket: emptyBlanket({ group: flag }),
+            }
+          );
+        }
+
+        return { carpet: state.carpet, blanket: state.blanket };
+      },
+      [flag]
+    )
+  );
   const bins: Bin[] = carpet.cable.map((c) =>
     getBin(c.thread, carpet.yarns, true)
   );
@@ -79,24 +87,5 @@ export const useNotifications = () => {
   return {
     count: carpet.cable.length,
     notifications,
-  };
-};
-
-export const useGroupNotifications = (flag: Flag) => {
-  const { carpet, blanket } = useHarkState(
-    useCallback(
-      (state) =>
-        state.textiles[flag] || {
-          carpet: emptyCarpet({ group: flag }),
-          blanket: emptyBlanket({ group: flag }),
-        },
-      [flag]
-    )
-  );
-
-  return {
-    count: carpet.cable.length,
-    carpet,
-    blanket,
   };
 };

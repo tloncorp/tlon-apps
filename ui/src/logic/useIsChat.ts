@@ -1,10 +1,3 @@
-const useIsChat = () => {
-  const IS_CHAT =
-    import.meta.env.MODE === 'chat' ||
-    import.meta.env.MODE === 'chatmock' ||
-    import.meta.env.MODE === 'chatstaging';
-
-  return IS_CHAT;
-};
+const useIsChat = () => import.meta.env.VITE_APP === 'chat';
 
 export default useIsChat;

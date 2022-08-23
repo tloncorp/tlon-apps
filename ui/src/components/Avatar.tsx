@@ -1,3 +1,4 @@
+import { isValidPatp } from 'urbit-ob';
 import classNames from 'classnames';
 import React, { useMemo } from 'react';
 import { sigil as sigilRaw, reactRenderer } from '@tlon/sigil-js';
@@ -111,6 +112,7 @@ function getSigilElement(
   if (
     !ship ||
     ship === 'undefined' ||
+    !isValidPatp(ship) ||
     citedShip.match(/[_^]/) ||
     citedShip.length > 14
   ) {

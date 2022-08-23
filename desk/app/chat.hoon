@@ -409,7 +409,6 @@
 ++  pass-hark
   |=  [all=? desk=? =yarn:ha]
   ^-  card
-  ~&  yarn
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
   =/  =cage  hark-action+!>([%add-yarn all desk yarn])
@@ -948,6 +947,8 @@
       (put:log-on:c log.chat time d)
     =.  ca-core
       (ca-give-updates time d)
+    =.  cor
+      (give-brief flag/flag ca-brief)
     ?-    -.d
         %add-sects
       =*  p  perm.chat
