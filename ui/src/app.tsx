@@ -1,5 +1,6 @@
 import cookies from 'browser-cookies';
 import React, { useEffect } from 'react';
+import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
   Routes,
@@ -261,6 +262,16 @@ function App() {
 function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
+
+  const prettyAppName = (appName: string) => {
+    switch (appName) {
+      case 'chat':
+        return 'Messages';
+      default:
+        return 'Groups';
+    }
+  };
+
   const basename = (modeName: string, appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return '/';
@@ -273,12 +284,16 @@ function RoutedApp() {
         return '/apps/homestead';
     }
   };
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
       onReset={() => window.location.reload()}
     >
       <Router basename={basename(mode, app)}>
+        <Helmet>
+          <title>{prettyAppName(app)}</title>
+        </Helmet>
         <App />
       </Router>
     </ErrorBoundary>
