@@ -1,6 +1,28 @@
 import { Inline, InlineKey } from '@/types/content';
 import { reduce } from 'lodash';
 import { JSONContent } from '@tiptap/react';
+import {Editor, Extension, KeyboardShortcutCommand } from '@tiptap/core';
+
+export interface EditorOnUpdateProps {
+  editor: Editor;
+  transaction: any;
+}
+
+export interface EditorOnBlurProps {
+  editor: Editor;
+}
+
+export function Shortcuts(bindings: {
+  [keyCode: string]: KeyboardShortcutCommand; 
+}) {
+  return Extension.create({
+    priority: 999999,
+    addKeyboardShortcuts() {
+      return bindings;
+    }
+  });
+}
+
 
 export function convertMarkType(type: string): string {
   switch (type) {
