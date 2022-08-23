@@ -76,9 +76,10 @@
     |=  =delta:curios:h
     %+  frond  -.delta
     ?+  -.delta  ~
-      %add       (heart p.delta)
-      %del       ~
-      %add-feel  (add-feel +.delta)
+      %add        (heart p.delta)
+      %edit       (heart p.delta)
+      %del        ~
+      %add-feel   (add-feel +.delta)
     ==
   ::
   ++  heart
