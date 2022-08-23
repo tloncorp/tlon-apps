@@ -1,18 +1,34 @@
-import { parseInline, parseTipTapJSON } from '@/logic/tiptap';
-import { NoteContent, VerseInline } from '@/types/diary';
-import { Editor } from '@tiptap/react';
-import React, { useCallback, useMemo, useState } from 'react';
+import {
+  EditorOnBlurProps,
+  EditorOnUpdateProps,
+  parseInline,
+  parseTipTapJSON,
+} from '@/logic/tiptap';
+import { DiaryInline, NoteContent, Verse, VerseInline } from '@/types/diary';
+import { Editor, EditorOptions, KeyboardShortcutCommand } from '@tiptap/react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import { DiaryVerse } from './DiaryVerse';
 
 export interface DiaryEditorProps {
   content: NoteContent;
-  setContent: (c: NoteContent | ((con: NoteContent) => NoteContent)) => void;
+  setContent: React.SetStateAction<NoteContent>;
+}
+
+interface EditorCallbackArgs {
+  editor: Editor;
 }
 
 export default function DiaryEditor(props: DiaryEditorProps) {
   const { content, setContent } = props;
   const [editing, setEditing] = useState(null as number | null);
+
+  const shouldAppendOnBlur = useRef(false);
+  const appendPara = useCallback(() => {
+    setContent((cs) => [...cs, { inline: [] }]);
+    setEditing(content.length);
+  }, [setContent, content]);
+
   const editorContent = useMemo(() => {
     if (editing === null) {
       return '';
@@ -24,8 +40,22 @@ export default function DiaryEditor(props: DiaryEditorProps) {
     return parseInline((content[editing] as VerseInline).inline);
   }, [editing, content]);
 
+  const onUpdate = useCallback(({ transaction }: EditorOnUpdateProps) => {
+    console.log(transaction);
+  }, []);
+
+  const onEnter = useCallback(
+    ({ editor }: Parameters<KeyboardShortcutCommand>[0]) => {
+      console.log('entered');
+      shouldAppendOnBlur.current = true;
+      editor.chain().blur().run();
+      return true;
+    },
+    [appendPara]
+  );
+
   const onBlur = useCallback(
-    ({ editor }: { editor: Editor }) => {
+    ({ editor }: EditorOnBlurProps) => {
       if (editor.isDestroyed) {
         console.log('bail');
         return;
@@ -41,18 +71,37 @@ export default function DiaryEditor(props: DiaryEditorProps) {
         setContent((s) => s.slice(0, editing));
         return;
       }
-      setContent((s) => [
-        ...s.slice(0, editing),
-        { inline },
-        ...s.slice(editing + 1),
-      ]);
+      const newContent: Verse = { inline };
+      const trailing: Verse[] = shouldAppendOnBlur.current
+        ? [{ inline: [] }]
+        : [];
+      if (shouldAppendOnBlur.current) {
+        console.log(content);
+        setEditing(0);
+      }
+
+      shouldAppendOnBlur.current = false;
+
+      setContent((s) => {
+        const res = [
+          ...s.slice(0, editing),
+          newContent,
+          ...s.slice(editing + 1),
+          ...trailing,
+        ];
+        console.log(res);
+        return res;
+      });
     },
     [editing, setContent, content]
   );
   const editor = useDiaryInlineEditor({
     content: editorContent,
     placeholder: 'Start writing here, or click the menu to add a link block',
+    autofocus: editing !== 0,
+    onEnter,
     onBlur,
+    onUpdate,
   });
 
   return (
@@ -66,14 +115,7 @@ export default function DiaryEditor(props: DiaryEditorProps) {
           <DiaryVerse onClick={() => setEditing(idx)} verse={v} />
         )
       )}
-      <button
-        type="button"
-        className="button"
-        onClick={() => {
-          setContent((cs) => [...cs, { inline: [] }]);
-          setEditing(content.length);
-        }}
-      >
+      <button type="button" className="button" onClick={appendPara}>
         New Paragraph
       </button>
     </div>

@@ -24,6 +24,15 @@ export default function DiaryAddNote() {
   const flag = useRouteGroup();
   const [content, setContent] = useState(TEST_CONTENT);
 
+  const editor = useDiaryInlineEditor({
+    content: '',
+    placeholder: '',
+    onEnter: () => false,
+    onUpdate: ({ editor }) => {
+      console.log(editor.getJSON());
+    },
+  });
+
   return (
     <Layout
       className="align-center w-full flex-1 bg-white"
@@ -37,7 +46,7 @@ export default function DiaryAddNote() {
             className="input-transparent text-3xl"
             type="text"
           />
-          <DiaryEditor setContent={setContent} content={content} />
+          {editor ? <DiaryInlineEditor editor={editor} /> : null}
         </form>
       </div>
     </Layout>
