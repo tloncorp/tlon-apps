@@ -1,4 +1,4 @@
-/-  h=heap, g=groups
+/-  h=heap, g=groups, ha=hark
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
@@ -140,7 +140,6 @@
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
-      [%ui ~]      ?>(from-self cor)
     ::
       [%heap @ @ *]
     =/  =ship  (slav %p i.t.path)
@@ -152,6 +151,12 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
+  ::
+      [%hark ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf/"Failed to hark" u.p.sign)
+    cor
   ::
       [%heap @ @ *]
     =/  =ship  (slav %p i.t.wire)
@@ -239,6 +244,35 @@
   |=  [=flag:h =brief:briefs:h]
   (give %fact ~[/briefs] heap-brief-update+!>([flag brief]))
 ::
+++  pass-hark
+  |=  [all=? desk=? =yarn:ha]
+  ^-  card
+  =/  =wire  /hark
+  =/  =dock  [our.bowl %hark]
+  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  [%pass wire %agent dock %poke cage]
+++  spin
+  |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
+  ^-  yarn:ha
+  =/  id  (end [7 1] (shax eny.bowl))
+  [id rope now.bowl con wer but]
+++  flatten
+  |=  content=(list inline:h)
+  ^-  cord
+  %-  crip
+  %-  zing
+  %+  turn
+    content
+  |=  c=inline:h
+  ^-  tape
+  ?@  c  (trip c)
+  ?-  -.c
+      %break  ""
+      %tag    (trip p.c)
+      %link   (trip q.c)
+      ?(%code %inline-code)  ""
+      ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
+  ==
 ++  from-self  =(our src):bowl
 ++  he-core
   |_  [=flag:h =heap:h gone=_|]
@@ -254,6 +288,15 @@
     |=  f=flag:h
     he-core(flag f, heap (~(got by stash) f))
   ++  he-area  `path`/heap/(scot %p p.flag)/[q.flag]
+  ++  he-spin
+    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    =*  group  group.perm.heap
+    =/  =nest:g  [dap.bowl flag]
+    =/  rope  [`group `nest %homestead (welp /(scot %p p.flag)/[q.flag] rest)]
+    =/  link  
+      (welp /groups/(scot %p p.group)/[q.group]/channels/heap/(scot %p p.flag)/[q.flag] rest)
+    (spin rope con link but)
+  ::
   ++  he-watch
     |=  =path
     ^+  he-core
@@ -445,7 +488,6 @@
     =/  cag=cage  heap-update+!>([time d])
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] heap-action+!>([flag [time d]]))
     =?  cor  ?=(%curios -.d)
       =/  =cage  curios-diff+!>(p.d)
       (give %fact ~[(welp he-area /ui/curios)] cage)
@@ -478,7 +520,31 @@
       (he-give-updates time d)
     ?-    -.d
         %curios
-      he-core(curios.heap (reduce:he-curios time p.d))
+      =.  curios.heap  (reduce:he-curios time p.d)
+      ?-  -.q.p.d
+          ?(%edit %del %add-feel %del-feel)  he-core
+          %add
+        =/  =heart:h  p.q.p.d
+        ?~  replying.heart  he-core
+        =/  op  (~(get cur curios.heap) u.replying.heart)
+        ?~  op  he-core
+        =/  curio  curio.u.op
+        ?.  &(=(our.bowl author.curio) !from-self)  he-core
+        =/  yarn
+          %^  he-spin
+            /curio/(scot %ud u.replying.heart)
+            :~  [%ship author.heart]
+                ' replied to your message “'
+                (flatten content.curio)
+                '”: '
+                [%ship author.heart]
+                ': '
+                (flatten content.heart)
+            ==
+          ~  
+        =.  cor  (emit (pass-hark & & yarn))
+        he-core
+      ==
     ::
         %add-sects
       =*  p  perm.heap
@@ -492,9 +558,6 @@
     ::
         %create
       =.  perm.heap  p.d
-      he-core
-        %view
-      =.  view.heap  p.d
       he-core
     ==
   --
