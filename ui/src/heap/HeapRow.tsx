@@ -25,7 +25,7 @@ export default function HeapRow({
   time,
 }: {
   curio: HeapCurio;
-  time: number;
+  time: string;
 }) {
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
@@ -36,8 +36,7 @@ export default function HeapRow({
 
   const onDelete = () => {
     setMenuOpen(false);
-    // FIXME: this state update is not working.
-    useHeapState.getState().delCurio(chFlag, time.toString());
+    useHeapState.getState().delCurio(chFlag, time);
   };
 
   const isImage = IMAGE_REGEX.test(contentString);

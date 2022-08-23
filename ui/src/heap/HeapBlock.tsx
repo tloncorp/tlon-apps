@@ -28,15 +28,14 @@ function TopBar({
 }: {
   isTwitter?: boolean;
   hasIcon?: boolean;
-  time: number;
+  time: string;
 }) {
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const onDelete = () => {
     setMenuOpen(false);
-    // FIXME: this state update is not working.
-    useHeapState.getState().delCurio(chFlag, time.toString());
+    useHeapState.getState().delCurio(chFlag, time);
   };
   return (
     <div
@@ -132,7 +131,7 @@ export default function HeapBlock({
   time,
 }: {
   curio: HeapCurio;
-  time: number;
+  time: string;
 }) {
   const { content, sent, replying } = curio.heart;
   const url = content[0].toString();

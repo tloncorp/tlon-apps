@@ -93,6 +93,14 @@
   @apply flex h-14 w-full items-center justify-between space-x-2 rounded-lg bg-white;
 }
 
+.heap-grid {
+  @apply grid grid-cols-1 justify-center justify-items-center gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))];
+}
+
+.heap-list {
+  @apply flex flex-col gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))];
+}
+
 .small-menu-button {
   @apply w-full rounded bg-transparent p-2 text-left font-semibold ring-gray-200 hover:bg-gray-50 focus:outline-none focus-visible:ring-2;
 }
