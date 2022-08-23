@@ -8,13 +8,16 @@ import { useCallback, useMemo } from 'react';
 import {
   CurioDelta,
   Heap,
+  HeapAction,
   HeapBriefs,
   HeapBriefUpdate,
   HeapCurio,
   HeapDiff,
   HeapFlag,
   HeapPerm,
+  HeapDisplayMode,
   Stash,
+  GRID,
 } from '@/types/heap';
 import api from '@/api';
 import {
@@ -97,9 +100,9 @@ export const useHeapState = create<HeapState>(
             app: 'heap',
             path: '/stash',
           })
-          .then((chats) => {
+          .then((stash) => {
             get().batchSet((draft) => {
-              draft.stash = chats;
+              draft.stash = stash;
             });
           });
 
@@ -120,6 +123,24 @@ export const useHeapState = create<HeapState>(
             });
           },
         });
+
+        api.subscribe({
+          app: 'heap',
+          path: '/ui',
+          event: (event: HeapAction) => {
+            get().batchSet((draft) => {
+              const {
+                flag,
+                update: { diff },
+              } = event;
+              const heap = draft.stash[flag];
+
+              if ('view' in diff) {
+                heap.view = diff.view;
+              }
+            });
+          },
+        });
       },
       joinHeap: async (flag) => {
         await api.poke({
@@ -134,6 +155,13 @@ export const useHeapState = create<HeapState>(
           mark: 'heap-leave',
           json: flag,
         });
+      },
+      viewHeap: async (flag, view) => {
+        await api.poke(
+          heapAction(flag, {
+            view,
+          })
+        );
       },
       addCurio: async (flag, heart) => {
         await api.poke(heapCurioDiff(flag, getTime(), { add: heart }));
@@ -174,13 +202,7 @@ export const useHeapState = create<HeapState>(
           return;
         }
 
-        const perms = await api.scry<HeapPerm>({
-          app: 'heap',
-          path: `/heap/${flag}/perm`,
-        });
         get().batchSet((draft) => {
-          const heap = { perms };
-          draft.stash[flag] = heap;
           draft.heapSubs.push(flag);
         });
 
@@ -277,6 +299,11 @@ export function useHeap(flag: HeapFlag): Heap | undefined {
 
 export function useBriefs() {
   return useHeapState(useCallback((s: HeapState) => s.briefs, []));
+}
+
+export function useHeapDisplayMode(flag: string): HeapDisplayMode {
+  const heap = useHeap(flag);
+  return heap?.view ?? GRID;
 }
 
 (window as any).heap = useHeapState.getState;

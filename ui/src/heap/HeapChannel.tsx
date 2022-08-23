@@ -2,11 +2,14 @@ import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
-import { useCuriosForHeap, useHeapState } from '@/state/heap/heap';
+import {
+  useCuriosForHeap,
+  useHeapDisplayMode,
+  useHeapState,
+} from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
   setHeapSetting,
-  useHeapDisplayMode,
   useHeapSettings,
   useHeapSortMode,
   useSettingsState,
@@ -15,6 +18,7 @@ import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import HeapInput from '@/heap/HeapInput';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
+import { HeapDisplayMode } from '@/types/heap';
 
 function HeapChannel() {
   const { chShip, chName } = useParams();
@@ -22,24 +26,17 @@ function HeapChannel() {
   const nest = `heap/${chFlag}`;
   const flag = useRouteGroup();
 
-  // for now displayMode and sortMode will be in the settings store.
-  // in the future we will want to store in this via the heap agent.
   const displayMode = useHeapDisplayMode(chFlag);
+  // for now sortMode will be in the settings store.
+  // in the future we will want to store in this via the heap agent.
   const settings = useHeapSettings();
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
   const curios = useCuriosForHeap(chFlag);
 
-  const setDisplayMode = (setting: 'list' | 'grid') => {
-    const newSettings = setHeapSetting(
-      settings,
-      { displayMode: setting },
-      chFlag
-    );
-    useSettingsState
-      .getState()
-      .putEntry('heaps', 'heapSettings', JSON.stringify(newSettings));
+  const setDisplayMode = (setting: HeapDisplayMode) => {
+    useHeapState.getState().viewHeap(chFlag, setting);
   };
 
   const setSortMode = (setting: 'time' | 'alpha') => {
