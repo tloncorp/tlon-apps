@@ -5,7 +5,8 @@ import useNest from '@/logic/useNest';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups';
 import { nestToFlag } from '@/logic/utils';
-import HeapDetailSidebar from './HeapDetail/HeapDetailSidebar/HeapDetailSidebar';
+import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
+import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
 
@@ -40,7 +41,10 @@ export default function HeapDetail() {
       <Suspense fallback={<div>Loading...</div>}>
         <div className="flex flex-wrap lg:h-full lg:flex-nowrap">
           <HeapDetailBody curio={curio} />
-          <HeapDetailSidebar curio={curio} time={time} />
+          <div className="mt-5 flex h-full w-full flex-col border-gray-50 bg-white lg:mt-0 lg:w-72 lg:border-l-2 xl:w-96">
+            <HeapDetailSidebarInfo curio={curio} time={time} />
+            <HeapDetailComments time={time} />
+          </div>
         </div>
       </Suspense>
     </Layout>
