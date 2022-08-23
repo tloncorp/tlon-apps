@@ -1,5 +1,6 @@
 import cookies from 'browser-cookies';
 import React, { useEffect } from 'react';
+import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
   Routes,
@@ -42,6 +43,8 @@ import JoinGroupModal from '@/groups/Join/JoinGroupModal';
 import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
+import groupsFavicon from '@/assets/groups.svg';
+import chatFavicon from '@/assets/chat.svg';
 import { useHeapState } from './state/heap/heap';
 import { useDiaryState } from './state/diary';
 import useHarkState from './state/hark';
@@ -261,6 +264,22 @@ function App() {
 function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
+
+  const appHead = (appName: string) => {
+    switch (appName) {
+      case 'chat':
+        return {
+          title: 'Messages',
+          icon: chatFavicon,
+        };
+      default:
+        return {
+          title: 'Groups',
+          icon: groupsFavicon,
+        };
+    }
+  };
+
   const basename = (modeName: string, appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return '/';
@@ -273,12 +292,22 @@ function RoutedApp() {
         return '/apps/homestead';
     }
   };
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
       onReset={() => window.location.reload()}
     >
       <Router basename={basename(mode, app)}>
+        <Helmet>
+          <title>{appHead(app).title}</title>
+          <link
+            rel="icon"
+            href={appHead(app).icon}
+            sizes="any"
+            type="image/svg+xml"
+          />
+        </Helmet>
         <App />
       </Router>
     </ErrorBoundary>
