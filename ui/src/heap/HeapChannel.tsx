@@ -14,6 +14,7 @@ import {
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import HeapInput from '@/heap/HeapInput';
+import HeapLoadingBlock from './HeapLoadingBlock';
 
 function HeapChannel() {
   const { chShip, chName } = useParams();
@@ -72,15 +73,15 @@ function HeapChannel() {
         {displayMode === 'grid' ? (
           <div className="heap-grid">
             <HeapInput displayType={displayMode} />
+            {Array.from(curios).length === 0 ? <HeapLoadingBlock /> : null}
             {Array.from(curios)
               .sort(([a], [b]) => b.compare(a))
               .map(([time, curio]) => (
-                <Suspense
+                <HeapBlock
                   key={time.toString()}
-                  fallback={<div>Loading...</div>}
-                >
-                  <HeapBlock curio={curio} time={time.toString()} />
-                </Suspense>
+                  curio={curio}
+                  time={time.toString()}
+                />
               ))}
           </div>
         ) : (

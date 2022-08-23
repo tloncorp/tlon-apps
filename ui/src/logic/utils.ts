@@ -14,7 +14,6 @@ import {
   Rank,
 } from '@/types/groups';
 import { Heap } from '@/types/heap';
-import { Suspender } from './suspend';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -244,12 +243,9 @@ const isFacebookGraphDependent = (url: string) => {
   );
 };
 
-export const validOembedCheck = (embed: Suspender<any>, url: string) => {
+export const validOembedCheck = (embed: any, url: string) => {
   if (!isFacebookGraphDependent(url)) {
-    if (
-      !Object.prototype.hasOwnProperty.call(embed, 'error') &&
-      embed.read().html
-    ) {
+    if (embed?.html) {
       return true;
     }
   }
