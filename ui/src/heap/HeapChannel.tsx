@@ -1,13 +1,8 @@
-import _ from 'lodash';
-import React, { Suspense, useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup, useVessel } from '@/state/groups/groups';
-import {
-  useCuriosForHeap,
-  useHeapPerms,
-  useHeapState,
-} from '@/state/heap/heap';
+import { useRouteGroup } from '@/state/groups/groups';
+import { useCuriosForHeap, useHeapState } from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
   setHeapSetting,
@@ -20,10 +15,6 @@ import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import HeapInput from '@/heap/HeapInput';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-
-interface CurioForm {
-  url: string;
-}
 
 function HeapChannel() {
   const { chShip, chName } = useParams();
@@ -82,39 +73,25 @@ function HeapChannel() {
     >
       <div className="p-4">
         {displayMode === 'grid' ? (
-          <div className="grid grid-cols-1 justify-center justify-items-center gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
+          <div className="heap-grid">
             <HeapInput displayType={displayMode} />
             {Array.from(curios)
               .sort(([a], [b]) => b.compare(a))
               .map(([time, curio]) => (
-                <Suspense
+                <HeapBlock
                   key={time.toString()}
-                  fallback={<div>Loading...</div>}
-                >
-                  <HeapBlock
-                    curio={curio}
-                    // @ts-expect-error time is apparently a number, or we have a problem in heap types.
-                    time={time}
-                  />
-                </Suspense>
+                  curio={curio}
+                  time={time.toString()}
+                />
               ))}
           </div>
         ) : (
-          <div className="flex flex-col gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))]">
+          <div className="heap-list">
             <HeapInput displayType={displayMode} />
             {Array.from(curios)
               .sort(([a], [b]) => b.compare(a))
               .map(([time, curio]) => (
-                <Suspense
-                  key={time.toString()}
-                  fallback={<div>Loading...</div>}
-                >
-                  <HeapRow
-                    curio={curio}
-                    // @ts-expect-error time is apparently a number, or we have a problem in heap types.
-                    time={time}
-                  />
-                </Suspense>
+                <HeapRow curio={curio} time={time.toString()} />
               ))}
           </div>
         )}
