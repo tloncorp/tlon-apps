@@ -64,8 +64,8 @@ export default function HeapDetailHeader({
               className="h-4 w-4 text-gray-400"
             />
           </div>
-          <div className="flex max-w-prose flex-col text-left">
-            <span className="text-md w-full truncate font-semibold">
+          <div className="flex flex-col items-start text-left lg:max-w-prose">
+            <span className="text-md w-52 truncate font-semibold lg:w-auto">
               {curioTitle}
             </span>
             <Suspense

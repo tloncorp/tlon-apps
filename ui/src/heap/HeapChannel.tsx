@@ -2,12 +2,8 @@ import _ from 'lodash';
 import React, { Suspense, useCallback, useEffect } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup, useVessel } from '@/state/groups/groups';
-import {
-  useCuriosForHeap,
-  useHeapPerms,
-  useHeapState,
-} from '@/state/heap/heap';
+import { useRouteGroup } from '@/state/groups/groups';
+import { useCuriosForHeap, useHeapState } from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
   setHeapSetting,
@@ -19,10 +15,6 @@ import {
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import HeapInput from '@/heap/HeapInput';
-
-interface CurioForm {
-  url: string;
-}
 
 function HeapChannel() {
   const { chShip, chName } = useParams();
