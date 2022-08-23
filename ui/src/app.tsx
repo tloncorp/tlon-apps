@@ -83,7 +83,12 @@ function ChatRoutes({ state, location }: RoutesProps) {
       <Routes location={state?.backgroundLocation || location}>
         <Route
           path="/notifications"
-          element={<Notifications child={DMNotification} title="" />}
+          element={
+            <Notifications
+              child={DMNotification}
+              title={`${appHead('chat').title} • All Notifications`}
+            />
+          }
         />
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
@@ -99,7 +104,10 @@ function ChatRoutes({ state, location }: RoutesProps) {
             path="channels/join/:app/:chShip/:chName"
             element={<Channel />}
           />
-          <Route path="channels/chat/:chShip/:chName" element={<ChatChannel />}>
+          <Route
+            path="channels/chat/:chShip/:chName"
+            element={<ChatChannel title={`${appHead('chat').title} • `} />}
+          >
             <Route
               path="message/:idShip/:idTime"
               element={<GroupChatThread />}
@@ -107,7 +115,12 @@ function ChatRoutes({ state, location }: RoutesProps) {
           </Route>
         </Route>
 
-        <Route path="/profile/edit" element={<EditProfile />} />
+        <Route
+          path="/profile/edit"
+          element={
+            <EditProfile title={`${appHead('chat').title} • Edit Profile`} />
+          }
+        />
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
@@ -186,7 +199,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="channels/join/:app/:chShip/:chName"
             element={<Channel />}
           />
-          <Route path="channels/chat/:chShip/:chName" element={<ChatChannel />}>
+          <Route
+            path="channels/chat/:chShip/:chName"
+            element={<ChatChannel title={`${appHead('').title} • `} />}
+          >
             <Route
               path="message/:idShip/:idTime"
               element={<GroupChatThread />}
@@ -194,7 +210,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           </Route>
           <Route
             path="channels/heap/:chShip/:chName"
-            element={<HeapChannel />}
+            element={<HeapChannel title={`${appHead('').title} • `} />}
           />
           <Route
             path="channels/diary/:chShip/:chName"

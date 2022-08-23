@@ -1,15 +1,23 @@
 import _ from 'lodash';
 import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
+import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
+import { ViewProps } from '@/types/groups';
 import { useChatPerms, useChatState, useMessagesForChat } from '@/state/chat';
-import { useRouteGroup, useVessel } from '@/state/groups/groups';
+import {
+  useRouteGroup,
+  useVessel,
+  useGroup,
+  useChannel,
+} from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 
-function ChatChannel() {
+function ChatChannel(props: ViewProps) {
+  const { title } = props;
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
@@ -26,6 +34,9 @@ function ChatChannel() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { sendMessage } = useChatState.getState();
+
+  const channel = useChannel(flag, nest);
+  const group = useGroup(flag);
 
   useDismissChannelNotifications();
 
@@ -44,6 +55,13 @@ function ChatChannel() {
         </div>
       }
     >
+      <Helmet>
+        <title>
+          {channel && group
+            ? `${title} ${channel.meta.title} in ${group.meta.title}`
+            : title}
+        </title>
+      </Helmet>
       <ChatWindow whom={chFlag} messages={messages} />
     </Layout>
   );

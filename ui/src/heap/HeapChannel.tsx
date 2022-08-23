@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
+import { Helmet } from 'react-helmet';
+import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup } from '@/state/groups/groups';
+import { useRouteGroup, useGroup, useChannel } from '@/state/groups/groups';
 import { useCuriosForHeap, useHeapState } from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
@@ -16,7 +18,8 @@ import HeapRow from '@/heap/HeapRow';
 import HeapInput from '@/heap/HeapInput';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 
-function HeapChannel() {
+function HeapChannel(props: ViewProps) {
+  const { title } = props;
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
@@ -55,6 +58,9 @@ function HeapChannel() {
 
   useDismissChannelNotifications();
 
+  const channel = useChannel(flag, nest);
+  const group = useGroup(flag);
+
   return (
     <Layout
       className="flex-1 bg-gray-50"
@@ -71,6 +77,13 @@ function HeapChannel() {
         />
       }
     >
+      <Helmet>
+        <title>
+          {channel && group
+            ? `${title} ${channel.meta.title} in ${group.meta.title}`
+            : title}
+        </title>
+      </Helmet>
       <div className="p-4">
         {displayMode === 'grid' ? (
           <div className="heap-grid">
