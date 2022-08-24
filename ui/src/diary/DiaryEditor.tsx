@@ -12,7 +12,7 @@ import { DiaryVerse } from './DiaryVerse';
 
 export interface DiaryEditorProps {
   content: NoteContent;
-  setContent: React.SetStateAction<NoteContent>;
+  setContent: (f: React.SetStateAction<NoteContent>) => void;
 }
 
 interface EditorCallbackArgs {
@@ -51,7 +51,7 @@ export default function DiaryEditor(props: DiaryEditorProps) {
       editor.chain().blur().run();
       return true;
     },
-    [appendPara]
+    []
   );
 
   const onBlur = useCallback(

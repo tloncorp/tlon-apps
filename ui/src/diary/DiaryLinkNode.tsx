@@ -5,8 +5,7 @@ import {
   NodeViewContent,
 } from '@tiptap/react';
 import cn from 'classnames';
-import React, { ChangeEvent, useRef } from 'react';
-import { useEffect } from 'react';
+import React, { ChangeEvent, useRef, useEffect } from 'react';
 import useDiaryNode from './useDiaryNode';
 
 function DiaryLinkComponent(props: any) {
