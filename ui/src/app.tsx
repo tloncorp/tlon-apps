@@ -57,6 +57,21 @@ import DiaryNote from './diary/DiaryNote';
 import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 
+const appHead = (appName: string) => {
+  switch (appName) {
+    case 'chat':
+      return {
+        title: 'Messages',
+        icon: chatFavicon,
+      };
+    default:
+      return {
+        title: 'Groups',
+        icon: groupsFavicon,
+      };
+  }
+};
+
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
   location: Location;
@@ -69,7 +84,12 @@ function ChatRoutes({ state, location }: RoutesProps) {
       <Routes location={state?.backgroundLocation || location}>
         <Route
           path="/notifications"
-          element={<Notifications child={DMNotification} />}
+          element={
+            <Notifications
+              child={DMNotification}
+              title={`${appHead('chat').title} • All Notifications`}
+            />
+          }
         />
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
@@ -85,7 +105,10 @@ function ChatRoutes({ state, location }: RoutesProps) {
             path="channels/join/:app/:chShip/:chName"
             element={<Channel />}
           />
-          <Route path="channels/chat/:chShip/:chName" element={<ChatChannel />}>
+          <Route
+            path="channels/chat/:chShip/:chName"
+            element={<ChatChannel title={`${appHead('chat').title} • `} />}
+          >
             <Route
               path="message/:idShip/:idTime"
               element={<GroupChatThread />}
@@ -93,7 +116,12 @@ function ChatRoutes({ state, location }: RoutesProps) {
           </Route>
         </Route>
 
-        <Route path="/profile/edit" element={<EditProfile />} />
+        <Route
+          path="/profile/edit"
+          element={
+            <EditProfile title={`${appHead('chat').title} • Edit Profile`} />
+          }
+        />
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
@@ -117,28 +145,65 @@ function GroupsRoutes({ state, location }: RoutesProps) {
       <Routes location={state?.backgroundLocation || location}>
         <Route
           path="/notifications"
-          element={<Notifications child={GroupNotification} />}
+          element={
+            <Notifications
+              child={GroupNotification}
+              title={`${appHead('').title} • All Notifications`}
+            />
+          }
         />
         {/* Find by Invite URL */}
-        <Route path="/groups/find/:ship/:name" element={<FindGroups />} />
+        <Route
+          path="/groups/find/:ship/:name"
+          element={<FindGroups title={`${appHead('').title} • Find Groups`} />}
+        />
         {/* Find by Nickname or @p */}
-        <Route path="/groups/find/:ship" element={<FindGroups />} />
-        <Route path="/groups/find" element={<FindGroups />} />
+        <Route
+          path="/groups/find/:ship"
+          element={<FindGroups title={`${appHead('').title} • Find Groups`} />}
+        />
+        <Route
+          path="/groups/find"
+          element={<FindGroups title={`${appHead('').title} • Find Groups`} />}
+        />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route
             path="activity"
-            element={<Notifications child={GroupNotification} />}
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`${appHead('').title} • Activity`}
+              />
+            }
           />
           <Route path="info" element={<GroupAdmin />}>
-            <Route index element={<GroupInfo />} />
-            <Route path="members" element={<GroupMemberManager />} />
-            <Route path="channels" element={<GroupChannelManager />} />
+            <Route
+              index
+              element={<GroupInfo title={`${appHead('').title} • Info`} />}
+            />
+            <Route
+              path="members"
+              element={
+                <GroupMemberManager title={`${appHead('').title} • Members`} />
+              }
+            />
+            <Route
+              path="channels"
+              element={
+                <GroupChannelManager
+                  title={`${appHead('').title} • Channels`}
+                />
+              }
+            />
           </Route>
           <Route
             path="channels/join/:app/:chShip/:chName"
             element={<Channel />}
           />
-          <Route path="channels/chat/:chShip/:chName" element={<ChatChannel />}>
+          <Route
+            path="channels/chat/:chShip/:chName"
+            element={<ChatChannel title={`${appHead('').title} • `} />}
+          >
             <Route
               path="message/:idShip/:idTime"
               element={<GroupChatThread />}
@@ -146,7 +211,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           </Route>
           <Route
             path="channels/heap/:chShip/:chName"
-            element={<HeapChannel />}
+            element={<HeapChannel title={`${appHead('').title} • `} />}
           />
           <Route
             path="channels/heap/:chShip/:chName/curio/:idCurio"
@@ -161,10 +226,20 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="channels/diary/:chShip/:chName/note/:noteId"
             element={<DiaryNote />}
           />
-          <Route path="channels" element={<ChannelIndex />} />
+          <Route
+            path="channels"
+            element={
+              <ChannelIndex title={`${appHead('').title} • All Channels`} />
+            }
+          />
         </Route>
         <Route path="/dm/:ship" element={<Message />} />
-        <Route path="/profile/edit" element={<EditProfile />} />
+        <Route
+          path="/profile/edit"
+          element={
+            <EditProfile title={`${appHead('').title} • Edit Profile`} />
+          }
+        />
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
@@ -257,21 +332,6 @@ function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
-
-  const appHead = (appName: string) => {
-    switch (appName) {
-      case 'chat':
-        return {
-          title: 'Messages',
-          icon: chatFavicon,
-        };
-      default:
-        return {
-          title: 'Groups',
-          icon: groupsFavicon,
-        };
-    }
-  };
 
   const basename = (modeName: string, appName: string) => {
     if (mode === 'mock' || mode === 'staging') {

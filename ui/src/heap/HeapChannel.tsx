@@ -1,7 +1,9 @@
 import React, { Suspense, useCallback, useEffect } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
+import { Helmet } from 'react-helmet';
+import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup } from '@/state/groups/groups';
+import { useRouteGroup, useChannel, useGroup } from '@/state/groups/groups';
 import {
   useCuriosForHeap,
   useHeapDisplayMode,
@@ -20,7 +22,7 @@ import HeapInput from '@/heap/HeapInput';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { HeapDisplayMode } from '@/types/heap';
 
-function HeapChannel() {
+function HeapChannel({ title }: ViewProps) {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
@@ -64,6 +66,9 @@ function HeapChannel() {
     markRead: useHeapState.getState().markRead,
   });
 
+  const channel = useChannel(flag, nest);
+  const group = useGroup(flag);
+
   return (
     <Layout
       className="flex-1 bg-gray-50"
@@ -80,6 +85,13 @@ function HeapChannel() {
         />
       }
     >
+      <Helmet>
+        <title>
+          {channel && group
+            ? `${title} ${channel.meta.title} in ${group.meta.title}`
+            : title}
+        </title>
+      </Helmet>
       <div className="p-4">
         {displayMode === 'grid' ? (
           <div className="heap-grid">

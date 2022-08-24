@@ -1,16 +1,18 @@
 import React from 'react';
+import { Helmet } from 'react-helmet';
+import { ViewProps } from '@/types/groups';
 import { useRouteGroup, useGroup, useAmAdmin } from '../../state/groups/groups';
 import GroupAvatar from '../GroupAvatar';
 import GroupInfoEditor from './GroupInfoEditor';
 import GroupMemberManager from './GroupMemberManager';
 
-export default function GroupInfo() {
+export default function GroupInfo({ title }: ViewProps) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
 
   const isAdmin = useAmAdmin(flag);
   if (isAdmin) {
-    return <GroupInfoEditor />;
+    return <GroupInfoEditor title={title} />;
   }
 
   const meta = group?.meta;
@@ -20,6 +22,11 @@ export default function GroupInfo() {
 
   return (
     <>
+      <Helmet>
+        <title>
+          {group?.meta ? `${title} for ${group.meta.title}` : title}
+        </title>
+      </Helmet>
       <div className="card mb-4 flex flex-col items-center">
         <GroupAvatar {...meta} size="h-20 w-20" />
         <div className="my-4 text-center">
