@@ -64,6 +64,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
 
       return (
         <SidebarItem
+          inexact
           key={nest}
           icon={icon}
           to={channelHref(flag, nest)}
