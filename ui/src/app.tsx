@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
@@ -240,19 +240,6 @@ function App() {
     })();
   }, [handleError]);
 
-  const theme = useTheme();
-  const isDarkMode = useMedia('(prefers-color-scheme: dark)');
-
-  useEffect(() => {
-    if ((isDarkMode && theme === 'auto') || theme === 'dark') {
-      document.body.classList.add('dark');
-      useLocalState.setState({ currentTheme: 'dark' });
-    } else {
-      document.body.classList.remove('dark');
-      useLocalState.setState({ currentTheme: 'light' });
-    }
-  }, [isDarkMode, theme]);
-
   const state = location.state as { backgroundLocation?: Location } | null;
 
   return (
@@ -269,6 +256,7 @@ function App() {
 function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
+  const [userThemeColor, setUserThemeColor] = useState('#ffffff');
 
   const appHead = (appName: string) => {
     switch (appName) {
@@ -298,6 +286,21 @@ function RoutedApp() {
     }
   };
 
+  const theme = useTheme();
+  const isDarkMode = useMedia('(prefers-color-scheme: dark)');
+
+  useEffect(() => {
+    if ((isDarkMode && theme === 'auto') || theme === 'dark') {
+      document.body.classList.add('dark');
+      useLocalState.setState({ currentTheme: 'dark' });
+      setUserThemeColor('#000000');
+    } else {
+      document.body.classList.remove('dark');
+      useLocalState.setState({ currentTheme: 'light' });
+      setUserThemeColor('#ffffff');
+    }
+  }, [isDarkMode, theme]);
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
@@ -312,6 +315,7 @@ function RoutedApp() {
             sizes="any"
             type="image/svg+xml"
           />
+          <meta name="theme-color" content={userThemeColor} />
         </Helmet>
         <App />
       </Router>
