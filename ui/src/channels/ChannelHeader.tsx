@@ -7,12 +7,10 @@ import { useChatState } from '@/state/chat';
 import useNavStore from '@/components/Nav/useNavStore';
 import { useIsMobile } from '@/logic/useMedia';
 import { nestToFlag } from '@/logic/utils';
-import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import ChannelIcon from '@/channels/ChannelIcon';
 import Divider from '@/components/Divider';
 import BulletIcon from '@/components/icons/BulletIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
-import CheckIcon from '@/components/icons/CheckIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import GridIcon from '@/components/icons/GridIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
@@ -78,7 +76,6 @@ function ChannelActions({
   chFlag: string;
 }) {
   const isAdmin = useAmAdmin(flag);
-  const { isChannelUnread } = useIsChannelUnread(flag);
 
   const leaveChannel = useCallback(async () => {
     try {
@@ -115,19 +112,15 @@ function ChannelActions({
                 <span className="font-semibold">Subscribed Members...</span>
               </ChannelHeaderMenuButton>
             */}
-            {isChannelUnread(chFlag) ? (
-              <ChannelHeaderMenuButton
-                className="hover:bg-blue-soft"
-                onClick={() => console.log('TODO: dismiss unreads')}
-              >
-                <CheckIcon className="h-6 w-6 text-blue-300" />
-                <span className="font-semibold text-blue">Mark as Read</span>
-              </ChannelHeaderMenuButton>
-            ) : null}
             {/* TODO: Un-disable this once we have mute controls */}
             <ChannelHeaderMenuButton className="hover:bg-transparent">
               <BulletIcon className="h-6 w-6 text-gray-400" />
               <span className="font-semibold text-gray-400">Mute Channel</span>
+            </ChannelHeaderMenuButton>
+            {/* TODO: Un-disable this once we have mentions and mutes */}
+            <ChannelHeaderMenuButton className="hover:bg-transparent">
+              <BulletIcon className="h-6 w-6 text-gray-400" />
+              <span className="font-semibold text-gray-400">Mute Mentions</span>
             </ChannelHeaderMenuButton>
             <ChannelHeaderMenuButton
               className="hover:bg-red-soft"
