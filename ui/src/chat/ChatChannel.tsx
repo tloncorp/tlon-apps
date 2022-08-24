@@ -33,12 +33,12 @@ function ChatChannel(props: ViewProps) {
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
-  const { sendMessage } = useChatState.getState();
+  const { sendMessage, markRead } = useChatState.getState();
 
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
-
-  useDismissChannelNotifications();
+  
+  useDismissChannelNotifications({ markRead });
 
   return (
     <Layout

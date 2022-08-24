@@ -66,7 +66,9 @@ function DiaryChannel() {
     useDiaryState.getState().initialize(chFlag);
   }, [chFlag]);
 
-  useDismissChannelNotifications();
+  useDismissChannelNotifications({
+    markRead: useDiaryState.getState().markRead,
+  });
 
   return (
     <Layout

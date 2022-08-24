@@ -2,6 +2,7 @@ import React from 'react';
 import {
   makePrettyDayAndDateAndTime,
   makePrettyDayAndTime,
+  makePrettyTime,
 } from '@/logic/utils';
 import { useLocation } from 'react-router';
 import { useModalNavigate } from '@/logic/routing';
@@ -11,10 +12,12 @@ import ShipName from '@/components/ShipName';
 interface AuthorProps {
   ship: string;
   date: Date;
+  timeOnly?: boolean;
 }
-export default function Author({ ship, date }: AuthorProps) {
+export default function Author({ ship, date, timeOnly }: AuthorProps) {
   const location = useLocation();
   const modalNavigate = useModalNavigate();
+  const prettyTime = makePrettyTime(date);
   const prettyDayAndTime = makePrettyDayAndTime(date);
   const prettyDayAndDateAndTime = makePrettyDayAndDateAndTime(date);
 
@@ -34,7 +37,7 @@ export default function Author({ ship, date }: AuthorProps) {
         {prettyDayAndDateAndTime}
       </span>
       <span className="block text-sm font-semibold text-gray-500 group-hover:hidden">
-        {prettyDayAndTime}
+        {timeOnly ? prettyTime : prettyDayAndTime}
       </span>
     </div>
   );

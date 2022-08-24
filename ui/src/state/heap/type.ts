@@ -4,6 +4,7 @@ import {
   HeapBriefs,
   HeapCreate,
   HeapCurioMap,
+  HeapDisplayMode,
   HeapFlag,
 } from '@/types/heap';
 
@@ -23,6 +24,7 @@ export interface HeapState {
   initialize: (flag: HeapFlag) => Promise<void>;
   joinHeap: (flag: HeapFlag) => Promise<void>;
   leaveHeap: (flag: HeapFlag) => Promise<void>;
+  viewHeap: (flag: HeapFlag, view: HeapDisplayMode) => Promise<void>;
   markRead: (flag: HeapFlag) => Promise<void>;
   addCurio: (flag: HeapFlag, heart: CurioHeart) => Promise<void>;
   delCurio: (flag: HeapFlag, time: string) => Promise<void>;

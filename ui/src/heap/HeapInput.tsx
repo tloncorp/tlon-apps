@@ -10,7 +10,7 @@ import { useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/react';
-import { GRID, HeapDisplayMode, LIST } from './HeapTypes';
+import { GRID, HeapDisplayMode, LIST } from '@/types/heap';
 import HeapTextInput from './HeapTextInput';
 
 interface HeapInputProps {

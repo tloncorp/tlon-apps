@@ -14,6 +14,10 @@ import {
 export type Patda = string;
 export type Ship = string;
 
+export const GRID = 'grid';
+export const LIST = 'list';
+export type HeapDisplayMode = typeof GRID | typeof LIST;
+
 export type HeapInline =
   | string
   | Bold
@@ -112,6 +116,13 @@ interface CurioDeltaAddFeel {
   };
 }
 
+export type CurioDelta = CurioDeltaAdd | CurioDeltaDel | CurioDeltaAddFeel;
+
+export interface CurioDiff {
+  time: string;
+  delta: CurioDelta;
+}
+
 interface HeapDiffAddSects {
   'add-sects': string[];
 }
@@ -120,15 +131,17 @@ interface HeapDiffDelSects {
   'del-sects': string[];
 }
 
-export type CurioDelta = CurioDeltaAdd | CurioDeltaDel | CurioDeltaAddFeel;
+interface HeapDiffCurios {
+  curios: CurioDiff;
+}
 
-export interface CurioDiff {
-  time: string;
-  delta: CurioDelta;
+interface HeapDiffView {
+  view: HeapDisplayMode;
 }
 
 export type HeapDiff =
-  | { curios: CurioDiff }
+  | HeapDiffCurios
+  | HeapDiffView
   | HeapDiffAddSects
   | HeapDiffDelSects;
 
@@ -137,8 +150,14 @@ export interface HeapUpdate {
   diff: HeapDiff;
 }
 
+export interface HeapAction {
+  flag: string;
+  update: HeapUpdate;
+}
+
 export interface Heap {
   perms: HeapPerm;
+  view: HeapDisplayMode;
 }
 
 export interface Stash {

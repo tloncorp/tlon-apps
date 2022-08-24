@@ -1,6 +1,12 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect } from 'react';
-import { HeapInline, CurioHeart, HeapInlineKey } from '@/types/heap';
+import {
+  HeapInline,
+  CurioHeart,
+  HeapInlineKey,
+  HeapDisplayMode,
+  LIST,
+} from '@/types/heap';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
@@ -8,7 +14,6 @@ import { useHeapState } from '@/state/heap/heap';
 import { reduce } from 'lodash';
 import classNames from 'classnames';
 import useRequestState from '@/logic/useRequestState';
-import { HeapDisplayMode, LIST } from './HeapTypes';
 
 interface HeapTextInputProps {
   flag: string;
@@ -16,6 +21,7 @@ interface HeapTextInputProps {
   displayType: HeapDisplayMode;
   draft: JSONContent | undefined;
   setDraft: React.Dispatch<React.SetStateAction<JSONContent | undefined>>;
+  replyTo?: string | null;
 }
 
 // TODO: should these be extracted to a common lib for usage in both ChatInput and HeapTextInput?
@@ -144,6 +150,7 @@ function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
 export default function HeapTextInput({
   flag,
   sendDisabled = false,
+  replyTo = null,
   displayType,
   draft,
   setDraft,
@@ -160,9 +167,10 @@ export default function HeapTextInput({
       setPending();
 
       const content = normalizeHeapInline(parseTipTapJSON(editor?.getJSON()));
+
       const heart: CurioHeart = {
         title: null, // TODO: do we need to set a title?
-        replying: null,
+        replying: replyTo,
         author: window.our,
         sent: Date.now(),
         content,
@@ -173,7 +181,7 @@ export default function HeapTextInput({
       editor?.commands.setContent('');
       setReady();
     },
-    [flag, setDraft, setPending, setReady]
+    [flag, setDraft, setPending, setReady, replyTo]
   );
 
   const onUpdate = useCallback(
@@ -219,6 +227,7 @@ export default function HeapTextInput({
     return null;
   }
 
+  // TODO: Set a sane length limit for comments
   return (
     <>
       <div className="relative flex-1 p-1">
