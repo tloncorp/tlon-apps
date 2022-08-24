@@ -12,7 +12,6 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import { usePinnedGroups } from '@/state/chat';
 import { hasKeys } from '@/logic/utils';
-import { useOurContact } from '@/state/contact';
 import ShipName from '@/components/ShipName';
 import Avatar from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
@@ -22,8 +21,6 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const pendingInvites = usePendingInvites();
-  const contact = useOurContact();
-  const currentShip = window.ship;
 
   const pendingInvitesCount = pendingInvites.length;
   const { count } = useNotifications();

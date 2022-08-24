@@ -6,6 +6,10 @@ type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   to?: string;
   actions?: React.ReactNode;
+  // This is used for links we want to keep in an
+  // "active" state even if the route is deeper than
+  // the link's 'to' attribute
+  inexact?: boolean;
   color?: string;
   div?: boolean;
   highlight?: string;
@@ -37,10 +41,12 @@ export default function SidebarItem({
   actions,
   className,
   children,
+  inexact = false,
   div = false,
   ...rest
 }: SidebarProps) {
-  const matches = useMatch(to || 'DONT_MATCH');
+  const matchString = to && inexact ? `${to}/*` : to;
+  const matches = useMatch(matchString || 'DONT_MATCH');
   const active = !!matches;
   const Wrapper = div ? 'div' : 'li';
 

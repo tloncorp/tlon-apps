@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { Suspense, useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useCopyToClipboard } from 'usehooks-ts';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import useNavStore from '@/components/Nav/useNavStore';
@@ -10,7 +10,7 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import { useCurio } from '@/state/heap/heap';
 import XIcon from '@/components/icons/XIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
-import HeapDetailHeaderDescription from './HeapDetailHeaderDescription';
+import HeapDetailHeaderDescription from '@/heap/HeapDetail/HeapDetailHeaderDescription';
 
 export interface ChannelHeaderProps {
   flag: string;
@@ -68,15 +68,7 @@ export default function HeapDetailHeader({
             <span className="text-md w-52 truncate font-semibold lg:w-auto">
               {curioTitle}
             </span>
-            <Suspense
-              fallback={
-                <div className="text-md font-semibold text-gray-600">
-                  Loading...
-                </div>
-              }
-            >
-              <HeapDetailHeaderDescription url={curioContent} />
-            </Suspense>
+            <HeapDetailHeaderDescription url={curioContent} />
           </div>
         </div>
       </button>

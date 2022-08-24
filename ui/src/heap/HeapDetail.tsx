@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense } from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router';
 import { useCurio, useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
@@ -38,15 +38,13 @@ export default function HeapDetail() {
         />
       }
     >
-      <Suspense fallback={<div>Loading...</div>}>
-        <div className="flex flex-wrap lg:h-full lg:flex-nowrap">
-          <HeapDetailBody curio={curio} />
-          <div className="mt-5 flex h-full w-full flex-col border-gray-50 bg-white lg:mt-0 lg:w-72 lg:border-l-2 xl:w-96">
-            <HeapDetailSidebarInfo curio={curio} time={time} />
-            <HeapDetailComments time={time} />
-          </div>
+      <div className="flex flex-wrap lg:h-full lg:flex-nowrap">
+        <HeapDetailBody curio={curio} />
+        <div className="mt-5 flex h-full w-96 flex-col border-gray-50 bg-white sm:w-full lg:mt-0 lg:w-72 lg:border-l-2 xl:w-96">
+          <HeapDetailSidebarInfo curio={curio} time={time} />
+          <HeapDetailComments time={time} />
         </div>
-      </Suspense>
+      </div>
     </Layout>
   );
 }
