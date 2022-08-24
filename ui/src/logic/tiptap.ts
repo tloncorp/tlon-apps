@@ -108,6 +108,17 @@ export function parseTipTapJSON(json: JSONContent): Inline[] {
       throw new Error('Unsure what this is');
     }
 
+    if (
+      json.text &&
+      (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
+    ) {
+      return [
+        {
+          'inline-code': json.text,
+        },
+      ];
+    }
+
     if (first.type === 'link' && first.attrs) {
       return [
         {

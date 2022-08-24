@@ -139,13 +139,10 @@
         %break
       ~
     ::
-        ?(%italics %bold %strike)
-      (inline p.i)
-    ::
         ?(%code %tag %inline-code)
       s+p.i
     ::
-        %blockquote
+        ?(%italics %bold %strike %blockquote)
       :-  %a
       (turn p.i inline)
     ::
@@ -221,6 +218,22 @@
         |=  [her=@p =feel:d]
         [(scot %p her) s+feel]
     ==
+  ++  remark-action
+    |=  act=remark-action:d
+    %-  pairs
+    :~  flag/(flag p.act)
+        diff/(remark-diff q.act)
+    ==
+  ::
+  ++  remark-diff
+    |=  diff=remark-diff:d
+    %+  frond  -.diff
+    ~!  -.diff
+    ?-  -.diff
+      %read-at  (time p.diff)
+      ?(%read %watch %unwatch)  ~
+    ==
+  ::
   --
 ++  dejs
   =,  dejs:format
@@ -339,12 +352,12 @@
     =>  .(j `json`j)
     %.  j
     %-  of
-    :~  italics/inline
-        bold/inline
-        strike/inline
+    :~  italics/(ar inline)
+        bold/(ar inline)
+        strike/(ar inline)
+        blockquote/(ar inline)
         inline-code/so
         code/so
-        blockquote/(ar inline)
         tag/so
         break/ul
     ::

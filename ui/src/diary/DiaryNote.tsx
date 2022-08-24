@@ -2,7 +2,7 @@ import ChannelHeader from '@/channels/ChannelHeader';
 import Layout from '@/components/Layout/Layout';
 import { useDiaryState, useNote, useQuips } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router';
 
@@ -30,6 +30,10 @@ export default function DiaryNote() {
   };
 
   const quips = useQuips(chFlag, noteId);
+
+  useEffect(() => {
+    useDiaryState.getState().initialize(chFlag);
+  }, [chFlag]);
 
   return (
     <Layout
