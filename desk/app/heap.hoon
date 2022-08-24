@@ -531,10 +531,17 @@
         =/  op  (~(get cur curios.heap) u.replying.heart)
         ?~  op  he-core
         =/  curio  curio.u.op
-        ?.  &(=(our.bowl author.curio) !from-self)  he-core
+        =/  in-replies
+            %+  lien
+              ~(tap in replied.curio)
+            |=  =^time
+            =/  curio  (~(get cur curios.heap) time)
+            ?~  curio  %.n
+            =(author.curio.u.curio our.bowl)
+        ?:  |(=(author.heart our.bowl) !in-replies)  he-core
         =/  yarn
           %^  he-spin
-            /curio/(scot %ud u.replying.heart)
+            /curio/(rsh 4 (scot %ui u.replying.heart))
             :~  [%ship author.heart]
                 ' replied to your message “'
                 (flatten content.curio)
