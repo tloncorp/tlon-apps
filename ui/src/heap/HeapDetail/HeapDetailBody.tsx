@@ -4,23 +4,25 @@ import useEmbedState from '@/state/embed';
 import { validOembedCheck } from '@/logic/utils';
 import { HeapCurio } from '@/types/heap';
 import HeapContent from '@/heap/HeapContent';
-import EmbedFallback from './EmbedFallback';
-import HeapDetailEmbed from './HeapDetailEmbed';
+import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
+import HeapDetailEmbed from '@/heap/HeapDetail/HeapDetailEmbed';
+import { useIsMobile } from '@/logic/useMedia';
 
 export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
   const [embed, setEmbed] = useState<any>();
   const { content } = curio.heart;
   const url = content[0].toString();
+  const isMobile = useIsMobile();
 
   const { isText, isImage, isAudio, isVideo } = useHeapContentType(url);
 
   useEffect(() => {
     const getOembed = async () => {
-      const oembed = await useEmbedState.getState().getEmbed(url);
+      const oembed = await useEmbedState.getState().getEmbed(url, isMobile);
       setEmbed(oembed);
     };
     getOembed();
-  }, [url]);
+  }, [url, isMobile]);
 
   const isOembed = validOembedCheck(embed, url);
 
