@@ -10,11 +10,12 @@
 	2. `|merge %homestead our %base`
 	3. `|mount %homestead`
 3. From the urbit repo:
-	1. `rsync -avL --delete pkg/base-dev/* ~/zod/garden/` we delete here to clear the directory
-	2. `rsync -avL pkg/garden/* ~/zod/garden/`
-	3. `rsync -avL --delete pkg/base-dev/* ~/zod/homestead/` we delete here to clear the directory
-	4. `rsync -avL pkg/garden-dev/* ~/zod/homestead/`
-4. From the homestead repo: `rsync -avL desk/* ~/zod/homestead/`
+	1. `rsync -avL --delete pkg/garden/* ~/urbit/zod/garden/` we delete here to clear the directory
+	2. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/homestead/` we delete here to clear the directory
+	3. `rsync -avL pkg/garden-dev/* ~/urbit/zod/homestead/`
+4. From the homestead repo:
+	1. `rsync -avL desk/* ~/urbit/zod/homestead/`
+	2. `rsync -avL landscape-dev/* ~/urbit/zod/homestead/`
 5. Commit and install garden
 	1. `|commit %garden`
 	2. `|install our %garden`
