@@ -539,13 +539,18 @@
             ?~  curio  %.n
             =(author.curio.u.curio our.bowl)
         ?:  |(=(author.heart our.bowl) !in-replies)  he-core
+        =/  content  (trip (flatten content.curio))
+        =/  title
+          ?:  !=(title.heart ~)  (need title.heart)
+          ?:  (lte (lent content) 80)  (crip content)
+          (crip (weld (swag [0 77] content) "..."))
         =/  yarn
           %^  he-spin
             /curio/(rsh 4 (scot %ui u.replying.heart))
             :~  [%ship author.heart]
-                ' replied to your message “'
-                (flatten content.curio)
-                '”: '
+                ' commented on '
+                [%emph title]
+                ': '
                 [%ship author.heart]
                 ': '
                 (flatten content.heart)
