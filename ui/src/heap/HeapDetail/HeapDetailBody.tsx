@@ -7,6 +7,7 @@ import HeapContent from '@/heap/HeapContent';
 import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
 import HeapDetailEmbed from '@/heap/HeapDetail/HeapDetailEmbed';
 import { useIsMobile } from '@/logic/useMedia';
+import HeapAudioPlayer from '@/heap/HeapAudioPlayer';
 
 export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
   const [embed, setEmbed] = useState<any>();
@@ -35,7 +36,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
   }
 
   if (isAudio) {
-    // TODO: AUDIO PLAYER
+    return <HeapAudioPlayer source={url} />;
   }
 
   if (isVideo) {
