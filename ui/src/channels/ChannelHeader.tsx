@@ -27,14 +27,35 @@ export interface ChannelHeaderProps {
 function ChannelHeaderButton({
   children,
   onClick,
+  className,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
+  className?: string;
+}) {
+  return (
+    <button onClick={onClick} className={cn('secondary-button', className)}>
+      {children}
+    </button>
+  );
+}
+
+function ChannelHeaderMenuButton({
+  children,
+  onClick,
+  className,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
 }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center space-x-1 rounded-lg bg-transparent p-2 text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2"
+      className={cn(
+        'default-focus text-md flex w-full items-center space-x-3 rounded-lg py-2 px-4 font-semibold font-semibold  leading-4 text-gray-600 hover:bg-gray-50',
+        className
+      )}
     >
       {children}
     </button>
@@ -78,10 +99,10 @@ export default function ChannelHeader({
             <ChannelIcon nest={nest} className="h-4 w-4 text-gray-400" />
           </div>
           <div className="flex flex-col items-start text-left">
+            <div className="text-md font-semibold">{channel?.meta.title}</div>
             <span className="text-sm font-medium text-gray-600">
               {groupName}
             </span>
-            <div className="text-md font-semibold">{channel?.meta.title}</div>
           </div>
         </div>
       </button>
@@ -89,31 +110,34 @@ export default function ChannelHeader({
       {isHeap && displayMode && setDisplayMode && setSortMode ? (
         <div className="flex items-center space-x-12">
           <div className="flex items-center space-x-2">
+            <ChannelHeaderButton onClick={() => console.log('share')}>
+              <span className="font-semibold">Share</span>
+            </ChannelHeaderButton>
             <Popover.Root>
               <Popover.Anchor>
                 <Popover.Trigger asChild>
-                  {displayMode === 'grid' ? (
-                    <ChannelHeaderButton>
+                  <ChannelHeaderButton className="icon-button h-8 w-8 bg-transparent">
+                    {displayMode === 'grid' ? (
                       <GridIcon className="-m-1 h-8 w-8" />
-                      <span className="font-semibold">Grid</span>
-                    </ChannelHeaderButton>
-                  ) : (
-                    <ChannelHeaderButton>
+                    ) : (
                       <ListIcon className="-m-1 h-8 w-8" />
-                      <span className="font-semibold">List</span>
-                    </ChannelHeaderButton>
-                  )}
+                    )}
+                  </ChannelHeaderButton>
                 </Popover.Trigger>
                 <Popover.Content>
-                  <div className="flex w-[126px] flex-col space-y-2 rounded-lg bg-white leading-5 drop-shadow-lg">
-                    <ChannelHeaderButton onClick={() => setDisplayMode('list')}>
+                  <div className="flex w-[126px] flex-col rounded-lg bg-white leading-5 drop-shadow-lg">
+                    <ChannelHeaderMenuButton
+                      onClick={() => setDisplayMode('list')}
+                    >
                       <ListIcon className="-m-1 h-8 w-8" />
                       <span className="font-semibold">List</span>
-                    </ChannelHeaderButton>
-                    <ChannelHeaderButton onClick={() => setDisplayMode('grid')}>
+                    </ChannelHeaderMenuButton>
+                    <ChannelHeaderMenuButton
+                      onClick={() => setDisplayMode('grid')}
+                    >
                       <GridIcon className="-m-1 h-8 w-8" />
                       <span className="font-semibold">Grid</span>
-                    </ChannelHeaderButton>
+                    </ChannelHeaderMenuButton>
                   </div>
                 </Popover.Content>
               </Popover.Anchor>
@@ -121,29 +145,22 @@ export default function ChannelHeader({
             <Popover.Root>
               <Popover.Anchor>
                 <Popover.Trigger asChild>
-                  <ChannelHeaderButton>
+                  <ChannelHeaderButton className="icon-button h-8 w-8 bg-transparent">
                     <SortIcon className="h-6 w-6" />
-                    <span className="font-semibold">Sort</span>
                   </ChannelHeaderButton>
                 </Popover.Trigger>
               </Popover.Anchor>
               <Popover.Content>
-                <div className="flex w-[126px] flex-col space-y-2 rounded-lg bg-white leading-5 drop-shadow-lg">
-                  <ChannelHeaderButton onClick={() => setSortMode('time')}>
+                <div className="flex w-[126px] flex-col rounded-lg bg-white leading-5 drop-shadow-lg">
+                  <ChannelHeaderMenuButton onClick={() => setSortMode('time')}>
                     <span className="font-semibold">Time</span>
-                  </ChannelHeaderButton>
-                  <ChannelHeaderButton onClick={() => setSortMode('alpha')}>
+                  </ChannelHeaderMenuButton>
+                  <ChannelHeaderMenuButton onClick={() => setSortMode('alpha')}>
                     <span className="font-semibold">Alphabetical</span>
-                  </ChannelHeaderButton>
+                  </ChannelHeaderMenuButton>
                 </div>
               </Popover.Content>
             </Popover.Root>
-          </div>
-          <div className="flex items-center space-x-3">
-            <ChannelHeaderButton onClick={() => console.log('share')}>
-              <ShareIcon className="h-6 w-6" />
-              <span className="font-semibold">Share</span>
-            </ChannelHeaderButton>
             <Link
               className="icon-button h-8 w-8 bg-transparent"
               to={`/groups/${flag}/info/channels`}
