@@ -32,18 +32,28 @@ export default function useDiaryNode(
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
+      console.log(e.key);
       const foc = (n: number) => editor.chain().focus(n).run();
       const pos = getPos();
-      console.log(e);
       if ((e.key === 'Tab' && e.shiftKey === false) || e.key === 'ArrowRight') {
         foc(pos + 1);
         e.preventDefault();
       } else if ((e.key == 'Tab' && e.shiftKey) || e.key === 'ArrowLeft') {
         foc(pos - 1);
         e.preventDefault();
+      } else if (e.key == 'Backspace' && value.length === 0) {
+        editor
+          .chain()
+          .focus()
+          .deleteRange({
+            from: pos,
+            to: pos + 1,
+          })
+          .run();
+        e.preventDefault();
       }
     },
-    [editor, getPos]
+    [editor, getPos, value]
   );
   return useMemo(
     () => ({ ref, onKeyDown, onChange, value }),
