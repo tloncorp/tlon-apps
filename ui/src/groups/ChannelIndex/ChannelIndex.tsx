@@ -9,7 +9,7 @@ import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
-import { useBriefs, useChatState } from '@/state/chat';
+import { useChatState } from '@/state/chat';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import PencilIcon from '@/components/icons/PencilIcon';
@@ -92,7 +92,7 @@ function GroupChannel({
   }, [flag]);
 
   const muteChannel = useCallback(() => {
-    // TODO: what happens on Mute?
+    // TODO: add channel mute action here
     console.log('mute ...');
   }, []);
 
@@ -151,12 +151,13 @@ function GroupChannel({
               </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content className="dropdown">
+              {/* TODO: un-disable this once channel mutes are complete */}
               <DropdownMenu.Item
                 onSelect={muteChannel}
-                className="dropdown-item flex items-center space-x-2"
+                className="dropdown-item disabled flex items-center space-x-2 hover:bg-transparent"
               >
                 <BulletIcon className="h-6 w-6 text-gray-400" />
-                <span className="text-gray-800">Mute Channel</span>
+                <span className="text-gray-400">Mute Channel</span>
               </DropdownMenu.Item>
               {isAdmin ? (
                 <DropdownMenu.Item

@@ -1,18 +1,23 @@
 import cn from 'classnames';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useParams } from 'react-router';
+import { Link } from 'react-router-dom';
+import { useGroup, useChannel, useAmAdmin } from '@/state/groups';
+import { useChatState } from '@/state/chat';
+import useNavStore from '@/components/Nav/useNavStore';
+import * as Popover from '@radix-ui/react-popover';
+import { useIsMobile } from '@/logic/useMedia';
+import ChannelIcon from '@/channels/ChannelIcon';
+import Divider from '@/components/Divider';
+import BulletIcon from '@/components/icons/BulletIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import CheckIcon from '@/components/icons/CheckIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import GridIcon from '@/components/icons/GridIcon';
-import SortIcon from '@/components/icons/SortIcon';
-import ShareIcon from '@/components/icons/ShareIcon';
-import useNavStore from '@/components/Nav/useNavStore';
-import { useIsMobile } from '@/logic/useMedia';
-import { useGroup, useChannel } from '@/state/groups';
-import { Link } from 'react-router-dom';
+import LeaveIcon from '@/components/icons/LeaveIcon';
 import ListIcon from '@/components/icons/ListIcon';
-import ChannelIcon from '@/channels/ChannelIcon';
-import * as Popover from '@radix-ui/react-popover';
+import SlidersIcon from '@/components/icons/SlidersIcon';
+import SortIcon from '@/components/icons/SortIcon';
 
 export interface ChannelHeaderProps {
   flag: string;
@@ -53,12 +58,84 @@ function ChannelHeaderMenuButton({
     <button
       onClick={onClick}
       className={cn(
-        'default-focus text-md flex w-full items-center space-x-3 rounded-lg py-2 px-4 font-semibold font-semibold  leading-4 text-gray-600 hover:bg-gray-50',
+        'default-focus text-md flex w-full items-center space-x-2 rounded-lg',
+        'py-3 px-3 font-semibold text-gray-800 hover:bg-gray-50',
         className
       )}
     >
       {children}
     </button>
+  );
+}
+
+function ChannelActions({ flag, nest }: { flag: string; nest: string }) {
+  const isAdmin = useAmAdmin(flag);
+  const leaveChannel = useCallback(async () => {
+    try {
+      // FIXME: Are we using something else for leaving channels, not just Chat?
+      await useChatState.getState().leaveChat(flag);
+    } catch (error) {
+      if (error) {
+        console.error(`[ChannelIndex:LeaveError] ${error}`);
+      }
+    }
+  }, [flag]);
+
+  return (
+    <Popover.Root>
+      <Popover.Anchor>
+        <Popover.Trigger asChild>
+          <button className="icon-button h-8 w-8 bg-transparent">
+            <EllipsisIcon className="h-6 w-6" />
+          </button>
+        </Popover.Trigger>
+        <Popover.Content>
+          <div className="flex flex-col rounded-lg bg-white leading-5 drop-shadow-lg">
+            {/* TODO: Will need channel functionality for all these items
+              <ChannelHeaderMenuButton>
+                <BulletIcon className="h-5 w-5 text-blue-300" />
+                <span className="font-semibold text-blue">Invite to Channel</span>
+              </ChannelHeaderMenuButton>
+              <ChannelHeaderMenuButton>
+                <BulletIcon className="h-5 w-5 text-blue-300" />
+                <span className="font-semibold text-blue">Copy Channel Link</span>
+              </ChannelHeaderMenuButton>
+              <ChannelHeaderMenuButton>
+                <BulletIcon className="h-5 w-5 text-gray-400" />
+                <span className="font-semibold">Subscribed Members...</span>
+              </ChannelHeaderMenuButton>
+            */}
+            <ChannelHeaderMenuButton>
+              <CheckIcon className="h-5 w-5 text-blue-300" />
+              <span className="font-semibold text-blue">Mark as Read</span>
+            </ChannelHeaderMenuButton>
+            {/* TODO: Un-disable this once we have mute controls */}
+            <ChannelHeaderMenuButton className="hover:bg-transparent">
+              <BulletIcon className="h-5 w-5 text-gray-400" />
+              <span className="font-semibold text-gray-400">Mute Channel</span>
+            </ChannelHeaderMenuButton>
+            <ChannelHeaderMenuButton onClick={leaveChannel}>
+              <LeaveIcon className="h-5 w-5 text-red-400" />
+              <span className="font-semibold text-red">Leave Channel</span>
+            </ChannelHeaderMenuButton>
+            {isAdmin ? (
+              <>
+                <Divider>Admin</Divider>
+                <Link
+                  to={`/groups/${flag}/info/channels`}
+                  className="block no-underline"
+                >
+                  <ChannelHeaderMenuButton>
+                    <SlidersIcon className="h-5 w-5 text-gray-400" />
+                    <span className="font-semibold">Edit Channel</span>
+                  </ChannelHeaderMenuButton>
+                </Link>
+              </>
+            ) : null}
+          </div>
+        </Popover.Content>
+      </Popover.Anchor>
+    </Popover.Root>
   );
 }
 
@@ -161,21 +238,11 @@ export default function ChannelHeader({
                 </div>
               </Popover.Content>
             </Popover.Root>
-            <Link
-              className="icon-button h-8 w-8 bg-transparent"
-              to={`/groups/${flag}/info/channels`}
-            >
-              <EllipsisIcon className="h-6 w-6" />
-            </Link>
+            <ChannelActions {...{ flag, nest }} />
           </div>
         </div>
       ) : (
-        <Link
-          className="icon-button h-8 w-8 bg-transparent"
-          to={`/groups/${flag}/info/channels`}
-        >
-          <EllipsisIcon className="h-6 w-6" />
-        </Link>
+        <ChannelActions {...{ flag, nest }} />
       )}
     </div>
   );
