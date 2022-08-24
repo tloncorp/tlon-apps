@@ -247,8 +247,7 @@ function EditProfileContent() {
   );
 }
 
-export default function EditProfile(props: ViewProps) {
-  const { title } = props;
+export default function EditProfile({ title }: ViewProps) {
   return (
     <div className="flex grow overflow-y-scroll bg-gray-50">
       <Helmet>

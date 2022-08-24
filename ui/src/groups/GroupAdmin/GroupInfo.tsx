@@ -6,14 +6,13 @@ import GroupAvatar from '../GroupAvatar';
 import GroupInfoEditor from './GroupInfoEditor';
 import GroupMemberManager from './GroupMemberManager';
 
-export default function GroupInfo(props: ViewProps) {
-  const { title } = props;
+export default function GroupInfo({ title }: ViewProps) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
 
   const isAdmin = useAmAdmin(flag);
   if (isAdmin) {
-    return <GroupInfoEditor {...props} />;
+    return <GroupInfoEditor title={title} />;
   }
 
   const meta = group?.meta;

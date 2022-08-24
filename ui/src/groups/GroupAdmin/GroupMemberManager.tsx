@@ -30,8 +30,7 @@ import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import { getSectTitle, toTitleCase } from '@/logic/utils';
 import { Vessel, ViewProps } from '@/types/groups';
 
-export default function GroupMemberManager(props: ViewProps) {
-  const { title } = props;
+export default function GroupMemberManager({ title }: ViewProps) {
   const location = useLocation();
   const flag = useRouteGroup();
   const group = useGroup(flag);

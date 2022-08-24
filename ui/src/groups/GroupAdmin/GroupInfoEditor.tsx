@@ -30,8 +30,7 @@ function eqGroupName(a: string, b: string) {
   return a.toLocaleLowerCase() === b.toLocaleLowerCase();
 }
 
-export default function GroupInfoEditor(props: ViewProps) {
-  const { title } = props;
+export default function GroupInfoEditor({ title }: ViewProps) {
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);

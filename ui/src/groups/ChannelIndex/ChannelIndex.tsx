@@ -239,8 +239,7 @@ function ChannelSection({
   );
 }
 
-export default function ChannelIndex(props: ViewProps) {
-  const { title } = props;
+export default function ChannelIndex({ title }: ViewProps) {
   const flag = useRouteGroup();
   const { sectionedChannels, sections } = useChannelSections(flag);
   const navigate = useNavigate();

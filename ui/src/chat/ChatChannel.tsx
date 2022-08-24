@@ -16,8 +16,7 @@ import {
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 
-function ChatChannel(props: ViewProps) {
-  const { title } = props;
+function ChatChannel({ title }: ViewProps) {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
@@ -37,7 +36,7 @@ function ChatChannel(props: ViewProps) {
 
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
-  
+
   useDismissChannelNotifications({ markRead });
 
   return (

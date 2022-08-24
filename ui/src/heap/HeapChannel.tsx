@@ -22,8 +22,7 @@ import HeapInput from '@/heap/HeapInput';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { HeapDisplayMode } from '@/types/heap';
 
-function HeapChannel(props: ViewProps) {
-  const { title } = props;
+function HeapChannel({ title }: ViewProps) {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;

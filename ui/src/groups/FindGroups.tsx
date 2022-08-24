@@ -15,8 +15,7 @@ import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 
-export default function FindGroups(props: ViewProps) {
-  const { title } = props;
+export default function FindGroups({ title }: ViewProps) {
   const { ship, name } = useParams<{ ship: string; name: string }>();
   const navigate = useNavigate();
   const [groupIndex, setGroupIndex] = useState<GroupIndex | null>(null);
