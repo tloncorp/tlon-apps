@@ -1,4 +1,3 @@
-
 import React, { Suspense, useCallback, useEffect } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import Layout from '@/components/Layout/Layout';
@@ -54,7 +53,6 @@ function HeapChannel() {
     useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
 
-
   const navigateToDetail = useCallback(
     (time: bigInt.BigInteger) => {
       navigate(`curio/${time}`);
@@ -65,7 +63,6 @@ function HeapChannel() {
   useDismissChannelNotifications({
     markRead: useHeapState.getState().markRead,
   });
-
 
   return (
     <Layout

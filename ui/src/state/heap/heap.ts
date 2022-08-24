@@ -306,4 +306,30 @@ export function useHeapDisplayMode(flag: string): HeapDisplayMode {
   return heap?.view ?? GRID;
 }
 
+export function useOrderedCurios(
+  flag: HeapFlag,
+  currentId: bigInt.BigInteger | string
+) {
+  const curios = useCuriosForHeap(flag);
+  const sortedCurios = Array.from(curios).filter(
+    ([, c]) => c.heart.replying === null
+  );
+  sortedCurios.sort(([a], [b]) => b.compare(a));
+
+  const curioId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
+  const hasNext = curios.size > 0 && curioId.lt(curios.peekLargest()[0]);
+  const hasPrev = curios.size > 0 && curioId.gt(curios.peekSmallest()[0]);
+  const currentIdx = sortedCurios.findIndex(([i, _c]) => i.eq(curioId));
+  const nextCurio = hasNext ? sortedCurios[currentIdx - 1] : null;
+  const prevCurio = hasPrev ? sortedCurios[currentIdx + 1] : null;
+
+  return {
+    hasNext,
+    hasPrev,
+    nextCurio,
+    prevCurio,
+    sortedCurios,
+  };
+}
+
 (window as any).heap = useHeapState.getState;
