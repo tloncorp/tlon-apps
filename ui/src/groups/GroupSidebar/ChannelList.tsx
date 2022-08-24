@@ -14,8 +14,8 @@ import useChannelSections from '@/logic/useChannelSections';
 import { GroupChannel } from '@/types/groups';
 import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
-import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
-import useIsChannelUnread from '@/notifications/useIsChannelUnread';
+import useIsChannelUnread from '@/logic/useIsChannelUnread';
+import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -32,7 +32,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const { sectionedChannels, sections } = useChannelSections(flag);
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
-  const { isChannelUnread } = useIsChannelUnread();
+  const { isChannelUnread } = useIsChannelUnread(flag);
 
   const hide = useCallback(() => {
     if (isMobile) {
@@ -68,15 +68,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
           icon={icon}
           to={channelHref(flag, nest)}
           onClick={hide}
-          actions={
-            isChannelUnread(chFlag) ? (
-              <ActivityIndicator
-                count={0}
-                bg={'transparent'}
-                className="text-blue"
-              />
-            ) : null
-          }
+          actions={isChannelUnread(chFlag) ? <UnreadIndicator /> : null}
         >
           {channel.meta.title || nest}
         </SidebarItem>
