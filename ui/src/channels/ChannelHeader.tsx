@@ -1,12 +1,13 @@
 import cn from 'classnames';
 import React, { useCallback } from 'react';
-import { useParams } from 'react-router';
 import { Link } from 'react-router-dom';
+import * as Popover from '@radix-ui/react-popover';
 import { useGroup, useChannel, useAmAdmin } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import useNavStore from '@/components/Nav/useNavStore';
-import * as Popover from '@radix-ui/react-popover';
 import { useIsMobile } from '@/logic/useMedia';
+import { nestToFlag } from '@/logic/utils';
+import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import ChannelIcon from '@/channels/ChannelIcon';
 import Divider from '@/components/Divider';
 import BulletIcon from '@/components/icons/BulletIcon';
@@ -58,8 +59,7 @@ function ChannelHeaderMenuButton({
     <button
       onClick={onClick}
       className={cn(
-        'default-focus text-md flex w-full items-center space-x-2 rounded-lg',
-        'py-3 px-3 font-semibold text-gray-800 hover:bg-gray-50',
+        'dropdown-item flex w-full items-center space-x-2 pr-4',
         className
       )}
     >
@@ -68,8 +68,18 @@ function ChannelHeaderMenuButton({
   );
 }
 
-function ChannelActions({ flag, nest }: { flag: string; nest: string }) {
+function ChannelActions({
+  flag,
+  nest,
+  chFlag,
+}: {
+  flag: string;
+  nest: string;
+  chFlag: string;
+}) {
   const isAdmin = useAmAdmin(flag);
+  const { isChannelUnread } = useIsChannelUnread(flag);
+
   const leaveChannel = useCallback(async () => {
     try {
       // FIXME: Are we using something else for leaving channels, not just Chat?
@@ -105,17 +115,25 @@ function ChannelActions({ flag, nest }: { flag: string; nest: string }) {
                 <span className="font-semibold">Subscribed Members...</span>
               </ChannelHeaderMenuButton>
             */}
-            <ChannelHeaderMenuButton>
-              <CheckIcon className="h-5 w-5 text-blue-300" />
-              <span className="font-semibold text-blue">Mark as Read</span>
-            </ChannelHeaderMenuButton>
+            {isChannelUnread(chFlag) ? (
+              <ChannelHeaderMenuButton
+                className="hover:bg-blue-soft"
+                onClick={() => console.log('TODO: dismiss unreads')}
+              >
+                <CheckIcon className="h-6 w-6 text-blue-300" />
+                <span className="font-semibold text-blue">Mark as Read</span>
+              </ChannelHeaderMenuButton>
+            ) : null}
             {/* TODO: Un-disable this once we have mute controls */}
             <ChannelHeaderMenuButton className="hover:bg-transparent">
-              <BulletIcon className="h-5 w-5 text-gray-400" />
+              <BulletIcon className="h-6 w-6 text-gray-400" />
               <span className="font-semibold text-gray-400">Mute Channel</span>
             </ChannelHeaderMenuButton>
-            <ChannelHeaderMenuButton onClick={leaveChannel}>
-              <LeaveIcon className="h-5 w-5 text-red-400" />
+            <ChannelHeaderMenuButton
+              className="hover:bg-red-soft"
+              onClick={leaveChannel}
+            >
+              <LeaveIcon className="h-6 w-6 text-red-400" />
               <span className="font-semibold text-red">Leave Channel</span>
             </ChannelHeaderMenuButton>
             {isAdmin ? (
@@ -126,7 +144,7 @@ function ChannelActions({ flag, nest }: { flag: string; nest: string }) {
                   className="block no-underline"
                 >
                   <ChannelHeaderMenuButton>
-                    <SlidersIcon className="h-5 w-5 text-gray-400" />
+                    <SlidersIcon className="h-6 w-6 text-gray-400" />
                     <span className="font-semibold">Edit Channel</span>
                   </ChannelHeaderMenuButton>
                 </Link>
@@ -152,6 +170,7 @@ export default function ChannelHeader({
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const channel = useChannel(flag, nest);
+  const [chFlag] = nestToFlag(nest);
   const groupName = group?.meta.title;
 
   return (
@@ -187,7 +206,10 @@ export default function ChannelHeader({
       {isHeap && displayMode && setDisplayMode && setSortMode ? (
         <div className="flex items-center space-x-12">
           <div className="flex items-center space-x-2">
-            <ChannelHeaderButton onClick={() => console.log('share')}>
+            {/* TODO: Share a collection channel */}
+            <ChannelHeaderButton
+              onClick={() => console.log('share collection')}
+            >
               <span className="font-semibold">Share</span>
             </ChannelHeaderButton>
             <Popover.Root>
@@ -238,11 +260,11 @@ export default function ChannelHeader({
                 </div>
               </Popover.Content>
             </Popover.Root>
-            <ChannelActions {...{ flag, nest }} />
+            <ChannelActions {...{ flag, nest, chFlag }} />
           </div>
         </div>
       ) : (
-        <ChannelActions {...{ flag, nest }} />
+        <ChannelActions {...{ flag, nest, chFlag }} />
       )}
     </div>
   );
