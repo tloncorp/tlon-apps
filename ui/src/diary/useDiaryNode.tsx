@@ -27,7 +27,7 @@ export default function useDiaryNode(
         [name]: val,
       });
     },
-    [updateAttributes]
+    [updateAttributes, name]
   );
 
   const onKeyDown = useCallback(
@@ -38,10 +38,10 @@ export default function useDiaryNode(
       if ((e.key === 'Tab' && e.shiftKey === false) || e.key === 'ArrowRight') {
         foc(pos + 1);
         e.preventDefault();
-      } else if ((e.key == 'Tab' && e.shiftKey) || e.key === 'ArrowLeft') {
+      } else if ((e.key === 'Tab' && e.shiftKey) || e.key === 'ArrowLeft') {
         foc(pos - 1);
         e.preventDefault();
-      } else if (e.key == 'Backspace' && value.length === 0) {
+      } else if (e.key === 'Backspace' && value.length === 0) {
         editor
           .chain()
           .focus()

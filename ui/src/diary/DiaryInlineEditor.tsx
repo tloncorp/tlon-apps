@@ -20,6 +20,7 @@ import React, {
   useImperativeHandle,
   useMemo,
   useState,
+  forwardRef,
 } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
@@ -37,10 +38,12 @@ import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { Shortcuts } from '@/logic/tiptap';
-import Suggestion, { SuggestionPluginKey } from '@tiptap/suggestion';
+import Suggestion, {
+  SuggestionOptions,
+  SuggestionPluginKey,
+} from '@tiptap/suggestion';
 import { createPopper } from '@popperjs/core';
 import tippy from 'tippy.js';
-import { forwardRef } from 'react';
 import DiaryImageNode from './DiaryImageNode';
 import DiaryLinkNode from './DiaryLinkNode';
 
@@ -126,7 +129,11 @@ const ActionMenuBar = forwardRef<
   );
 });
 
-const ActionMenu = Extension.create({
+interface ActionMenuOptions {
+  suggestion: Omit<SuggestionOptions, 'editor'>;
+}
+
+const ActionMenu = Extension.create<ActionMenuOptions>({
   name: 'action-menu',
 
   addOptions() {
@@ -143,7 +150,7 @@ const ActionMenu = Extension.create({
         items: ({ query }: any): ActionMenuItemProps[] => {
           const nedl = query.toLowerCase();
 
-          const hstk = [
+          const hstk: ActionMenuItemProps[] = [
             {
               title: 'Image',
               command: ({ editor, range }) => {
@@ -175,7 +182,21 @@ const ActionMenu = Extension.create({
                   .run();
               },
             },
-            { title: 'Urbit Link', command: () => {} },
+            {
+              title: 'Urbit Link',
+              command: ({ editor, range }) => {
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange(range)
+                  .insertContent([
+                    { type: 'diary-link' },
+                    { type: 'paragraph' },
+                  ])
+                  .selectNodeBackward()
+                  .run();
+              },
+            },
             {
               title: 'Blockquote',
               command: ({ editor, range }) => {
@@ -211,7 +232,7 @@ const ActionMenu = Extension.create({
               }
 
               popup = tippy('body', {
-                getReferenceClientRect: props.clientRect,
+                getReferenceClientRect: props.clientRect as any,
                 appendTo: () => document.body,
                 content: component.element,
                 showOnCreate: true,

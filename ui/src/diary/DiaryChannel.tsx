@@ -38,6 +38,7 @@ function DiaryChannel() {
   const editor = useDiaryInlineEditor({
     content: '',
     placeholder: 'Write a note...',
+    onEnter: () => false,
   });
 
   const onSubmit = useCallback(

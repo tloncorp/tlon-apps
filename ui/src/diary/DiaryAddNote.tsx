@@ -28,9 +28,6 @@ export default function DiaryAddNote() {
     content: '',
     placeholder: '',
     onEnter: () => false,
-    onUpdate: ({ editor }) => {
-      console.log(editor.getJSON());
-    },
   });
 
   return (
