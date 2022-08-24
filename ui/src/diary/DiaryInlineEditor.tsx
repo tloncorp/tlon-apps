@@ -140,10 +140,10 @@ const ActionMenu = Extension.create({
           console.log('props', props);
           props.command({ editor, range });
         },
-        items: (props): ActionMenuItemProps[] => {
-          console.log('query', props);
+        items: ({ query }: any): ActionMenuItemProps[] => {
+          const nedl = query.toLowerCase();
 
-          return [
+          const hstk = [
             {
               title: 'Image',
               command: ({ editor, range }) => {
@@ -177,17 +177,6 @@ const ActionMenu = Extension.create({
             },
             { title: 'Urbit Link', command: () => {} },
             {
-              title: 'Paragraph',
-              command: ({ editor, range }) => {
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange(range)
-                  .insertContent({ type: 'paragraph' })
-                  .run();
-              },
-            },
-            {
               title: 'Blockquote',
               command: ({ editor, range }) => {
                 editor
@@ -198,15 +187,22 @@ const ActionMenu = Extension.create({
                   .run();
               },
             },
-            { title: 'Code block', command: () => {} },
+            {
+              title: 'Code block',
+              command: ({ editor, range }) => {
+                editor.chain().focus().deleteRange(range).toggleCode().run();
+              },
+            },
           ];
+          return hstk.filter(
+            ({ title }) => title.toLowerCase().search(nedl) !== -1
+          );
         },
         render: () => {
           let component: ReactRenderer<any, any> | null;
           let popup: any;
           return {
             onStart: (props) => {
-              console.log(props);
               component = new ReactRenderer<any, any>(ActionMenuBar, props);
               component.updateProps(props);
 
