@@ -3,7 +3,7 @@ import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup } from '@/state/groups/groups';
+import { useRouteGroup, useChannel, useGroup } from '@/state/groups/groups';
 import {
   useCuriosForHeap,
   useHeapDisplayMode,
@@ -56,7 +56,6 @@ function HeapChannel(props: ViewProps) {
     useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
 
-
   const navigateToDetail = useCallback(
     (time: bigInt.BigInteger) => {
       navigate(`curio/${time}`);
@@ -67,7 +66,6 @@ function HeapChannel(props: ViewProps) {
   useDismissChannelNotifications({
     markRead: useHeapState.getState().markRead,
   });
-
 
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
