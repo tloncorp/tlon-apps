@@ -15,7 +15,7 @@ import { GroupChannel } from '@/types/groups';
 import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
 import useIsChannelUnread from '@/logic/useIsChannelUnread';
-import UnreadIndicator from '@/components/Sidebar/UnreadIndictaor';
+import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';

@@ -12,6 +12,7 @@ import BulletIcon from '@/components/icons/BulletIcon';
 import { useChatState, usePinnedGroups } from '@/state/chat';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
+import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 
 const { ship } = window;
 
@@ -82,7 +83,7 @@ export default function GroupActions({
           {children || (
             <div className="relative h-6 w-6">
               {!isOpen && hasActivity ? (
-                <BulletIcon
+                <UnreadIndicator
                   className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
                   aria-label="Has Activity"
                 />
