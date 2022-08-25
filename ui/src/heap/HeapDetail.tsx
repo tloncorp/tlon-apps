@@ -65,7 +65,7 @@ export default function HeapDetail() {
                   'absolute top-0 left-0 z-50 flex h-full w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
                 }
               >
-                <div className="h-8 w-8 bg-white p-1">
+                <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
                   <CaretLeftIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
                 </div>
               </Link>
@@ -78,7 +78,7 @@ export default function HeapDetail() {
                   'absolute top-0 right-0 z-50 flex h-full w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
                 }
               >
-                <div className="h-8 w-8 bg-white p-1">
+                <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
                   <CaretRightIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
                 </div>
               </Link>
