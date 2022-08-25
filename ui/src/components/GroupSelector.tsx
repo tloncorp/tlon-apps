@@ -41,6 +41,7 @@ interface GroupSelectorProps {
   setGroups: React.Dispatch<React.SetStateAction<GroupOption[]>>;
   onEnter?: (groups: GroupOption[]) => void;
   isMulti?: boolean;
+  autoFocus?: boolean;
   isClearable?: boolean;
   isLoading?: boolean;
   hasPrompt?: boolean;
@@ -231,6 +232,7 @@ export default function GroupSelector({
   groups,
   setGroups,
   onEnter,
+  autoFocus = true,
   isMulti = true,
   isClearable = false,
   isLoading = false,
@@ -387,7 +389,7 @@ export default function GroupSelector({
         handleEnter={handleEnter}
         ref={selectRef}
         formatCreateLabel={AddNewOption}
-        autoFocus
+        autoFocus={autoFocus}
         styles={{
           control: (base) => ({}),
           menu: ({ width, borderRadius, ...base }) => ({
@@ -467,7 +469,7 @@ export default function GroupSelector({
     <CreatableSelect
       ref={selectRef}
       formatCreateLabel={AddNewOption}
-      autoFocus
+      autoFocus={autoFocus}
       isMulti
       styles={{
         control: (base) => ({}),
