@@ -43,7 +43,7 @@ export default function HeapDetailHeader({
   return (
     <div
       className={cn(
-        'flex h-full items-center justify-between border-b-2 border-gray-50 bg-white p-2'
+        'flex h-full w-full items-center justify-between border-b-2 border-gray-50 bg-white p-2'
       )}
     >
       <button
@@ -65,7 +65,7 @@ export default function HeapDetailHeader({
             />
           </div>
           <div className="flex flex-col items-start text-left lg:max-w-prose">
-            <span className="text-md w-52 truncate font-semibold lg:w-auto">
+            <span className="text-md w-44 truncate font-semibold lg:w-full">
               {curioTitle}
             </span>
             <HeapDetailHeaderDescription url={curioContent} />
