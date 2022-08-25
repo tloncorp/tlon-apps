@@ -83,8 +83,8 @@ export default function HeapDetail() {
             </Link>
           ) : null}
         </div>
-        <div className="mt-5 flex h-full w-96 flex-col border-gray-50 bg-white sm:w-full lg:mt-0 lg:w-72 lg:border-l-2 xl:w-96">
-          <HeapDetailSidebarInfo curio={curio} time={time} />
+        <div className="mt-5 flex h-full w-full flex-col border-gray-50 bg-white lg:mt-0 lg:w-72 lg:border-l-2 xl:w-96">
+          <HeapDetailSidebarInfo curio={curio} />
           <HeapDetailComments time={time} />
         </div>
       </div>

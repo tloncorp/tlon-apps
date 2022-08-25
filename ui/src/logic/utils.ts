@@ -4,7 +4,7 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import { Chat, ChatWhom } from '@/types/chat';
+import { Chat, ChatWhom, ChatBrief } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -13,7 +13,8 @@ import {
   PrivacyType,
   Rank,
 } from '@/types/groups';
-import { Heap } from '@/types/heap';
+import { Heap, HeapBrief } from '@/types/heap';
+import { DiaryBrief } from '@/types/diary';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -263,4 +264,15 @@ export async function jsonFetch<T>(
   }
   const data = await res.json();
   return data as T;
+}
+
+export function filterJoinedChannels(
+  channels: [string, GroupChannel][],
+  briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
+) {
+  return channels.filter(([nest]) => {
+    const [, chFlag] = nestToFlag(nest);
+    const isChannelHost = window.our === chFlag?.split('/')[0];
+    return isChannelHost || (chFlag && chFlag in briefs);
+  });
 }
