@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
@@ -149,9 +149,11 @@ function BottomBar({
 export default function HeapBlock({
   curio,
   time,
+  reference = false,
 }: {
   curio: HeapCurio;
   time: string;
+  reference?: boolean;
 }) {
   const { content, sent } = curio.heart;
   const [embed, setEmbed] = useState<any>();
@@ -177,7 +179,7 @@ export default function HeapBlock({
 
   if (isText) {
     return (
-      <div className="heap-block group p-2">
+      <div className="heap-block group">
         <TopBar hasIcon time={time} />
         <HeapContent className="h-full max-h-24 leading-6" content={content} />
         <BottomBar
@@ -195,7 +197,7 @@ export default function HeapBlock({
   if (isImage) {
     return (
       <div
-        className="heap-block group p-2"
+        className={reference ? 'heap-inline-block group' : 'heap-block group'}
         style={{
           backgroundImage: `url(${url})`,
         }}
@@ -213,7 +215,7 @@ export default function HeapBlock({
 
   if (isAudio) {
     return (
-      <div className="heap-block group p-2">
+      <div className="heap-block group">
         <TopBar hasIcon time={time} />
         <div className="flex flex-col items-center justify-center">
           <MusicLargeIcon className="h-16 w-16 text-gray-300" />
@@ -234,7 +236,7 @@ export default function HeapBlock({
     if (thumbnail) {
       return (
         <div
-          className="heap-block group p-2"
+          className="heap-block group"
           style={{
             backgroundImage: `url(${thumbnail})`,
           }}
@@ -255,7 +257,7 @@ export default function HeapBlock({
       const twitterHandle = embed.author_url.split('/').pop();
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
-        <div className="heap-block group p-2">
+        <div className="heap-block group">
           <TopBar isTwitter time={time} />
           <div className="flex flex-col items-center justify-center">
             <img
@@ -276,7 +278,7 @@ export default function HeapBlock({
       );
     }
     return (
-      <div className="heap-block group p-2">
+      <div className="heap-block group">
         <TopBar hasIcon time={time} />
         <div className="flex flex-col items-center justify-center">
           <LinkIcon className="h-16 w-16 text-gray-300" />
@@ -292,7 +294,7 @@ export default function HeapBlock({
   }
 
   return (
-    <div className="heap-block group p-2">
+    <div className="heap-block group">
       <TopBar hasIcon time={time} />
       <div className="flex flex-col items-center justify-center">
         <LinkIcon className="h-16 w-16 text-gray-300" />

@@ -1,24 +1,40 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useChatState } from '../../state/chat';
-import { ChatWrit } from '../../types/chat';
-import IconButton from '../../components/IconButton';
-import BubbleIcon from '../../components/icons/BubbleIcon';
-import EllipsisIcon from '../../components/icons/EllipsisIcon';
-import FaceIcon from '../../components/icons/FaceIcon';
-import HashIcon from '../../components/icons/HashIcon';
-import ShareIcon from '../../components/icons/ShareIcon';
-import XIcon from '../../components/icons/XIcon';
-import { useChatStore } from '../useChatStore';
+import { useCopyToClipboard } from 'usehooks-ts';
+import { useRouteGroup } from '@/state/groups';
+import { useChatState } from '@/state/chat';
+import { ChatWrit } from '@/types/chat';
+import IconButton from '@/components/IconButton';
+import BubbleIcon from '@/components/icons/BubbleIcon';
+import EllipsisIcon from '@/components/icons/EllipsisIcon';
+import FaceIcon from '@/components/icons/FaceIcon';
+import HashIcon from '@/components/icons/HashIcon';
+import ShareIcon from '@/components/icons/ShareIcon';
+import XIcon from '@/components/icons/XIcon';
+import { useChatStore } from '@/chat/useChatStore';
+import CopyIcon from '@/components/icons/CopyIcon';
+import CheckIcon from '@/components/icons/CheckIcon';
 
 export default function ChatMessageOptions(props: {
   whom: string;
   writ: ChatWrit;
 }) {
   const { whom, writ } = props;
+  const groupFlag = useRouteGroup();
+  const [_copied, doCopy] = useCopyToClipboard();
+  const [justCopied, setJustCopied] = useState(false);
+
   const onDelete = () => {
     useChatState.getState().delMessage(whom, writ.seal.id);
   };
+
+  const onCopy = useCallback(() => {
+    doCopy(`${groupFlag}/channels/chat/${whom}/message/${writ.seal.id}`);
+    setJustCopied(true);
+    setTimeout(() => {
+      setJustCopied(false);
+    }, 1000);
+  }, [doCopy, groupFlag, whom, writ]);
 
   const reply = useCallback(() => {
     useChatStore.getState().reply(whom, writ.seal.id);
@@ -49,6 +65,18 @@ export default function ChatMessageOptions(props: {
           />
         </>
       ) : null}
+      <IconButton
+        icon={
+          justCopied ? (
+            <CheckIcon className="h-6 w-6 text-gray-400" />
+          ) : (
+            <CopyIcon className="h-6 w-6 text-gray-400" />
+          )
+        }
+        label="Copy"
+        showTooltip
+        action={onCopy}
+      />
       {/* <IconButton
         icon={<ShareIcon className="h-6 w-6 text-gray-400" />}
         label="Send to..."

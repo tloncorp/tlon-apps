@@ -230,6 +230,7 @@ export const IMAGE_REGEX =
 export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)$/i;
 export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
+export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 
 export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
