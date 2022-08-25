@@ -2,7 +2,8 @@ import cn from 'classnames';
 import React, { useCallback } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
-import { channelHref, nestToFlag } from '@/logic/utils';
+// import useFilterUnjoinedChannels from '@/logic/useFilterUnjoinedChannels';
+import { channelHref, nestToFlag, filterJoinedChannels } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups';
 import useNavStore from '@/components/Nav/useNavStore';
@@ -45,42 +46,36 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   }
 
   const renderChannels = (channels: [string, GroupChannel][]) =>
-    channels
-      .filter(([nest]) => {
-        const [, chFlag] = nestToFlag(nest);
-        const isChannelHost = window.our === chFlag?.split('/')[0];
-        return isChannelHost || (chFlag && chFlag in briefs);
-      })
-      .map(([nest, channel]) => {
-        const [_app, chFlag] = nestToFlag(nest);
-        const icon = (active: boolean) =>
-          isMobile ? (
-            <span
-              className={cn(
-                'flex h-12 w-12 items-center justify-center rounded-md',
-                !active && 'bg-gray-50',
-                active && 'bg-white'
-              )}
-            >
-              <ChannelIcon nest={nest} className="h-6 w-6" />
-            </span>
-          ) : (
-            <ChannelIcon nest={nest} className="h-6 w-6" />
-          );
-
-        return (
-          <SidebarItem
-            inexact
-            key={nest}
-            icon={icon}
-            to={channelHref(flag, nest)}
-            onClick={hide}
-            actions={isChannelUnread(chFlag) ? <UnreadIndicator /> : null}
+    filterJoinedChannels(channels, briefs).map(([nest, channel]) => {
+      const [_app, chFlag] = nestToFlag(nest);
+      const icon = (active: boolean) =>
+        isMobile ? (
+          <span
+            className={cn(
+              'flex h-12 w-12 items-center justify-center rounded-md',
+              !active && 'bg-gray-50',
+              active && 'bg-white'
+            )}
           >
-            {channel.meta.title || nest}
-          </SidebarItem>
+            <ChannelIcon nest={nest} className="h-6 w-6" />
+          </span>
+        ) : (
+          <ChannelIcon nest={nest} className="h-6 w-6" />
         );
-      });
+
+      return (
+        <SidebarItem
+          inexact
+          key={nest}
+          icon={icon}
+          to={channelHref(flag, nest)}
+          onClick={hide}
+          actions={isChannelUnread(chFlag) ? <UnreadIndicator /> : null}
+        >
+          {channel.meta.title || nest}
+        </SidebarItem>
+      );
+    });
 
   const unsectionedChannels = sortChannels(group.channels).filter(([n]) => {
     const [_app, f] = nestToFlag(n);
