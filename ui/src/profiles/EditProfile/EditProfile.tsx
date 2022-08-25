@@ -207,6 +207,7 @@ function EditProfileContent() {
               Favorite Groups
             </label>
             <GroupSelector
+              autoFocus={false}
               groups={allGroups}
               onEnter={onEnter}
               setGroups={setAllGroups}

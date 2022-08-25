@@ -976,9 +976,15 @@
           ?~  replying.memo  ca-core
           =/  op  (~(get pac pact.chat) u.replying.memo)
           ?~  op  ca-core
-          ~!  writ.u.op
           =/  opwrit  writ.u.op
-          ?.  &(=(our.bowl author.opwrit) !from-self)  ca-core  
+          =/  in-replies
+            %+  lien
+              ~(tap in replied.opwrit)
+            |=  =id:c
+            =/  writ  (~(get pac pact.chat) id)
+            ?~  writ  %.n
+            =(author.writ.u.writ our.bowl)
+          ?:  |(=(author.memo our.bowl) !in-replies)  ca-core  
           ?-  -.content.opwrit
               %notice  ca-core
               %story          

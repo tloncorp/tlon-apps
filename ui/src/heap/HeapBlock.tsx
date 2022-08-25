@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useCopyToClipboard } from 'usehooks-ts';
 import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
 import { nestToFlag, validOembedCheck } from '@/logic/utils';
@@ -15,7 +16,9 @@ import CopyIcon from '@/components/icons/CopyIcon';
 import { useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import useHeapContentType from '@/logic/useHeapContentType';
-import HeapLoadingBlock from './HeapLoadingBlock';
+import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
+import { useRouteGroup } from '@/state/groups';
+import CheckIcon from '@/components/icons/CheckIcon';
 
 function TopBar({
   hasIcon = false,
@@ -27,12 +30,24 @@ function TopBar({
   time: string;
 }) {
   const nest = useNest();
+  const groupFlag = useRouteGroup();
+  const [_copied, doCopy] = useCopyToClipboard();
+  const [justCopied, setJustCopied] = useState(false);
   const [, chFlag] = nestToFlag(nest);
-  const [menuOpen, setMenuOpen] = React.useState(false);
-  const onDelete = () => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const onDelete = useCallback(() => {
     setMenuOpen(false);
     useHeapState.getState().delCurio(chFlag, time);
-  };
+  }, [chFlag, time]);
+
+  const onCopy = useCallback(() => {
+    doCopy(`${groupFlag}/channels/heap/${chFlag}/curio/${time}`);
+    setJustCopied(true);
+    setTimeout(() => {
+      setJustCopied(false);
+    }, 1000);
+  }, [doCopy, time, chFlag, groupFlag]);
+
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -50,9 +65,14 @@ function TopBar({
       >
         <div className="hidden group-hover:block">
           <IconButton
-            icon={<CopyIcon className="h-4 w-4" />}
-            // FIXME: add actual copy to clipboard functionality with link.
-            action={() => console.log('copy link to urbit webgraph url')}
+            icon={
+              justCopied ? (
+                <CheckIcon className="h-4 w-4" />
+              ) : (
+                <CopyIcon className="h-4 w-4" />
+              )
+            }
+            action={onCopy}
             label="expand"
             className="rounded bg-white"
           />
@@ -134,7 +154,7 @@ export default function HeapBlock({
   time: string;
 }) {
   const { content, sent } = curio.heart;
-  const [embed, setEmbed] = React.useState<any>();
+  const [embed, setEmbed] = useState<any>();
   const replyCount = curio.seal.replied.length;
   const url = content[0].toString();
   const prettySent = formatDistanceToNow(sent);

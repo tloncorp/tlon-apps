@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import cn from 'classnames';
+import { useCopyToClipboard } from 'usehooks-ts';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
@@ -14,6 +15,8 @@ import HeapContent from '@/heap/HeapContent';
 import { useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import HeapLoadingRow from '@/heap/HeapLoadingRow';
+import { useRouteGroup } from '@/state/groups';
+import CheckIcon from '@/components/icons/CheckIcon';
 
 export default function HeapRow({
   curio,
@@ -24,16 +27,27 @@ export default function HeapRow({
 }) {
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
-  const [menuOpen, setMenuOpen] = React.useState(false);
-  const [embed, setEmbed] = React.useState<any>();
+  const groupFlag = useRouteGroup();
+  const [_copied, doCopy] = useCopyToClipboard();
+  const [justCopied, setJustCopied] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [embed, setEmbed] = useState<any>();
   const { content, sent } = curio.heart;
   const { replied } = curio.seal;
   const contentString = content[0].toString();
 
-  const onDelete = () => {
+  const onDelete = useCallback(() => {
     setMenuOpen(false);
     useHeapState.getState().delCurio(chFlag, time);
-  };
+  }, [chFlag, time]);
+
+  const onCopy = useCallback(() => {
+    doCopy(`${groupFlag}/channels/heap/${chFlag}/curio/${time}`);
+    setJustCopied(true);
+    setTimeout(() => {
+      setJustCopied(false);
+    }, 1000);
+  }, [doCopy, time, chFlag, groupFlag]);
 
   const { isImage, isUrl, isAudio, description } =
     useHeapContentType(contentString);
@@ -116,8 +130,12 @@ export default function HeapRow({
         </div>
       </div>
       <div className="flex space-x-1 text-gray-400">
-        <button className="icon-button bg-transparent">
-          <CopyIcon className="h-6 w-6" />
+        <button onClick={onCopy} className="icon-button bg-transparent">
+          {justCopied ? (
+            <CheckIcon className="h-6 w-6" />
+          ) : (
+            <CopyIcon className="h-6 w-6" />
+          )}
         </button>
         <button
           className="icon-button bg-transparent"
