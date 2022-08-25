@@ -1,5 +1,6 @@
 import React from 'react';
-import EmbedFallback from './EmbedFallback';
+import EmbedContainer from 'react-oembed-container';
+import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
 
 interface HeapDetailEmbedProps {
   oembed: any;
@@ -7,15 +8,17 @@ interface HeapDetailEmbedProps {
 }
 
 export default function HeapDetailEmbed({ oembed, url }: HeapDetailEmbedProps) {
-  if (!oembed.html) {
+  const { html } = oembed;
+
+  if (!html) {
     return <EmbedFallback url={url} />;
   }
 
-  // TODO: re-implement embeds
   return (
-    <div
-      className="flex h-0 max-h-max max-w-max grow"
-      dangerouslySetInnerHTML={{ __html: oembed.html }}
-    />
+    <div className="flex h-full w-full items-center justify-center">
+      <EmbedContainer markup={html}>
+        <div dangerouslySetInnerHTML={{ __html: html }} />
+      </EmbedContainer>
+    </div>
   );
 }
