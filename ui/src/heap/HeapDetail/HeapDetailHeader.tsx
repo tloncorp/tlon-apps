@@ -65,7 +65,7 @@ export default function HeapDetailHeader({
             />
           </div>
           <div className="flex flex-col items-start text-left lg:max-w-prose">
-            <span className="text-md w-44 truncate font-semibold lg:w-auto">
+            <span className="text-md w-52 truncate font-semibold lg:w-auto">
               {curioTitle}
             </span>
             <HeapDetailHeaderDescription url={curioContent} />
