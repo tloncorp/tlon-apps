@@ -8,7 +8,6 @@ import Author from '@/chat/ChatMessage/Author';
 import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import IconButton from '@/components/IconButton';
 import useNest from '@/logic/useNest';
-import { InlineContent } from '@/heap/HeapContent';
 
 interface HeapDetailSidebarProps {
   curio: HeapCurio;
