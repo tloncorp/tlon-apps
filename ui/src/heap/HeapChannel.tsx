@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
 import { ViewProps } from '@/types/groups';
@@ -103,18 +103,13 @@ function HeapChannel({ title }: ViewProps) {
                 .sort(([a], [b]) => b.compare(a))
                 .filter(([, c]) => !c.heart.replying)
                 .map(([time, curio]) => (
-                  <Suspense
+                  <div
                     key={time.toString()}
-                    fallback={<div>Loading...</div>}
+                    tabIndex={0}
+                    onClick={() => navigateToDetail(time)}
                   >
-                    <div tabIndex={0} onClick={() => navigateToDetail(time)}>
-                      <HeapBlock
-                        curio={curio}
-                        // @ts-expect-error time is apparently a number, or we have a problem in heap types.
-                        time={time}
-                      />
-                    </div>
-                  </Suspense>
+                    <HeapBlock curio={curio} time={time.toString()} />
+                  </div>
                 ))
             }
           </div>
@@ -128,16 +123,11 @@ function HeapChannel({ title }: ViewProps) {
                 .sort(([a], [b]) => b.compare(a))
                 .filter(([, c]) => !c.heart.replying)
                 .map(([time, curio]) => (
-                  <Suspense
+                  <HeapRow
                     key={time.toString()}
-                    fallback={<div>Loading...</div>}
-                  >
-                    <HeapRow
-                      curio={curio}
-                      // @ts-expect-error time is apparently a number, or we have a problem in heap types.
-                      time={time}
-                    />
-                  </Suspense>
+                    curio={curio}
+                    time={time.toString()}
+                  />
                 ))
             }
           </div>
