@@ -10,7 +10,7 @@ import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
-import { useBriefs, useChatState } from '@/state/chat';
+import { useChatState } from '@/state/chat';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import PencilIcon from '@/components/icons/PencilIcon';
@@ -19,6 +19,8 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import useChannelSections from '@/logic/useChannelSections';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
+import useIsChannelHost from '@/logic/useIsChannelHost';
+import useIsChannelJoined from '@/logic/useIsChannelJoined';
 import useAllBriefs from '@/logic/useAllBriefs';
 
 const UNZONED = 'default';
@@ -34,6 +36,7 @@ function GroupChannel({
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useAllBriefs();
+  const isChannelHost = useIsChannelHost(flag);
   const isAdmin = useAmAdmin(flag);
   const navigate = useNavigate();
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
@@ -97,13 +100,7 @@ function GroupChannel({
     console.log('mute ...');
   }, []);
 
-  // If the current user is the Channel host, they are automatically joined,
-  // and cannot leave the group
-  const isChannelHost = window.our === flag?.split('/')[0];
-
-  // A Channel is considered Joined if hosted by current user, or if a Brief
-  // exists
-  const joined = isChannelHost || (flag && flag in briefs);
+  const joined = useIsChannelJoined(flag, briefs);
 
   const open = useCallback(() => {
     if (!joined) {

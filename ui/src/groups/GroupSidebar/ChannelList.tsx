@@ -2,7 +2,8 @@ import cn from 'classnames';
 import React, { useCallback } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
-import { channelHref, nestToFlag } from '@/logic/utils';
+// import useFilterUnjoinedChannels from '@/logic/useFilterUnjoinedChannels';
+import { channelHref, nestToFlag, filterJoinedChannels } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups';
 import useNavStore from '@/components/Nav/useNavStore';
@@ -45,7 +46,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   }
 
   const renderChannels = (channels: [string, GroupChannel][]) =>
-    channels.map(([nest, channel]) => {
+    filterJoinedChannels(channels, briefs).map(([nest, channel]) => {
       const [_app, chFlag] = nestToFlag(nest);
       const icon = (active: boolean) =>
         isMobile ? (
