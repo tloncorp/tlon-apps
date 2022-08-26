@@ -50,7 +50,6 @@
       %edit
     =/  curio  (get time)
     ?~  curio  cur
-    ?.  =(time sent.p.del)  cur
     (put:on:curios:h cur time [-.+.u.curio p.del])
   ::
       %del

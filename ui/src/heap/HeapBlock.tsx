@@ -192,7 +192,10 @@ export default function HeapBlock({
           url={url}
           replyCount={replyCount}
           // first three words.
-          title={content.toString().split(' ').slice(0, 3).join(' ')}
+          title={
+            curio.heart.title ||
+            content.toString().split(' ').slice(0, 3).join(' ')
+          }
         />
       </div>
     );
@@ -212,6 +215,7 @@ export default function HeapBlock({
           prettySent={prettySent}
           url={url}
           replyCount={replyCount}
+          title={curio.heart.title || undefined}
         />
       </div>
     );
@@ -229,6 +233,7 @@ export default function HeapBlock({
           prettySent={prettySent}
           url={url}
           replyCount={replyCount}
+          title={curio.heart.title || undefined}
         />
       </div>
     );
@@ -253,7 +258,7 @@ export default function HeapBlock({
             provider={provider}
             prettySent={prettySent}
             replyCount={replyCount}
-            title={title}
+            title={curio.heart.title || title}
           />
         </div>
       );
@@ -279,6 +284,7 @@ export default function HeapBlock({
             provider={provider}
             prettySent={prettySent}
             replyCount={replyCount}
+            title={curio.heart.title || undefined}
           />
         </div>
       );
@@ -294,6 +300,7 @@ export default function HeapBlock({
           provider={provider ? provider : 'Link'}
           prettySent={prettySent}
           replyCount={replyCount}
+          title={curio.heart.title || undefined}
         />
       </div>
     );
@@ -310,6 +317,7 @@ export default function HeapBlock({
         provider={'Link'}
         prettySent={prettySent}
         replyCount={replyCount}
+        title={curio.heart.title || undefined}
       />
     </div>
   );

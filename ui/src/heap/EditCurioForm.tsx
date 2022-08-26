@@ -51,13 +51,16 @@ export default function EditCurioForm() {
       try {
         await useHeapState
           .getState()
-          .editCurio(chFlag, { ...curio.heart, ...values });
+          .editCurio(chFlag, time?.toString() || '', {
+            ...curio.heart,
+            ...values,
+          });
         dismiss();
       } catch (error) {
         console.log(error);
       }
     },
-    [chFlag, curio, dismiss]
+    [chFlag, curio, time, dismiss]
   );
 
   return (
