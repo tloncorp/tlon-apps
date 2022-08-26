@@ -2,6 +2,7 @@ import { useNotifications } from '@/notifications/useNotifications';
 import { useGroups } from '@/state/groups';
 import { useCallback } from 'react';
 import useAllBriefs from './useAllBriefs';
+import { nestToFlag } from './utils';
 
 export default function useIsGroupUnread() {
   const { notifications } = useNotifications();
@@ -17,7 +18,9 @@ export default function useIsGroupUnread() {
   const isGroupUnread = useCallback(
     (flag: string) => {
       const group = groups[flag];
-      const chFlags = new Set(group ? Object.keys(group.channels) : []);
+      const chFlags = new Set(
+        group ? Object.keys(group.channels).map((k) => nestToFlag(k)[1]) : []
+      );
 
       const hasActivity = Array.from(chFlags).reduce(
         (memo, cf) => memo || (briefs[cf]?.count ?? 0) > 0,
