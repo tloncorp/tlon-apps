@@ -307,13 +307,27 @@ export function useCurrentNotesSize(flag: DiaryFlag) {
 //   }, [notes, time]);
 // }
 
-export function useNote(flag: DiaryFlag, time: string) {
+const emptyNote: DiaryNote = {
+  seal: { time: '', feels: {} },
+  essay: {
+    title: '',
+    image: '',
+    content: [],
+    author: window.our,
+    sent: Date.now(),
+  },
+};
+
+export function useNote(
+  flag: DiaryFlag,
+  time: string
+): readonly [bigInt.BigInteger, DiaryNote] {
   return useDiaryState(
     useCallback(
       (s) => {
         const notes = s.notes[flag];
         if (!notes) {
-          return undefined;
+          return [bigInt(0), emptyNote];
         }
 
         const t = bigInt(time);

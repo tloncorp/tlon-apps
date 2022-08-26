@@ -5,6 +5,7 @@
 ++  grow
   |%
   ++  noun  act
+  ++  json  (remark-action:enjs:j act)
   --
 ++  grab
   |%
