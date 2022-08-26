@@ -10,6 +10,8 @@ import { useChat, useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
+import { useDiaryState } from '@/state/diary';
+import useChannel from '@/logic/useChannel';
 
 interface EditChannelFormProps {
   nest: string;
@@ -31,9 +33,8 @@ export default function EditChannelForm({
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
-  const [app, ...flag] = nestToFlag(nest);
-  const channelFlag = flag.join('/');
-  const chat = useChat(channelFlag || '');
+  const [app, channelFlag] = nestToFlag(nest);
+  const chan = useChannel(nest);
   const defaultValues: ChannelFormSchema = {
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
@@ -45,7 +46,7 @@ export default function EditChannelForm({
       image: '',
       color: '',
     },
-    privacy: getPrivacyFromChannel(channel, chat),
+    privacy: getPrivacyFromChannel(channel, chan),
   };
 
   const form = useForm<ChannelFormSchema>({
@@ -66,12 +67,14 @@ export default function EditChannelForm({
         nextChannel.zone = presetSection;
       }
 
-      await useGroupState
-        .getState()
-        .editChannel(groupFlag, channelFlag, nextChannel);
+      await useGroupState.getState().editChannel(groupFlag, nest, nextChannel);
 
       const chState =
-        app === 'chat' ? useChatState.getState() : useHeapState.getState();
+        app === 'chat'
+          ? useChatState.getState()
+          : app === 'heap'
+          ? useHeapState.getState()
+          : useDiaryState.getState();
 
       if (privacy !== 'public') {
         chState.addSects(channelFlag, ['admin']);
@@ -91,6 +94,7 @@ export default function EditChannelForm({
       app,
       channelFlag,
       groupFlag,
+      nest,
       dismiss,
       navigate,
       redirect,

@@ -141,6 +141,7 @@
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
+      [%ui ~]      ?>(from-self cor)
     ::
       [%diary @ @ *]
     =/  =ship  (slav %p i.t.path)
@@ -490,6 +491,8 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
+    ~&  [flag [time d]]
+    =.  cor  (give %fact ~[/ui] diary-action+!>([flag [time d]]))
     =/  cag=cage  diary-update+!>([time d])
     =.  cor
       (give %fact ~(tap in paths) cag)
