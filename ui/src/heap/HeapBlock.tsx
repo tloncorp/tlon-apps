@@ -19,6 +19,7 @@ import useHeapContentType from '@/logic/useHeapContentType';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useRouteGroup } from '@/state/groups';
 import CheckIcon from '@/components/icons/CheckIcon';
+import { useLocation, useNavigate } from 'react-router';
 
 function TopBar({
   hasIcon = false,
@@ -35,10 +36,18 @@ function TopBar({
   const [justCopied, setJustCopied] = useState(false);
   const [, chFlag] = nestToFlag(nest);
   const [menuOpen, setMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
   const onDelete = useCallback(() => {
     setMenuOpen(false);
     useHeapState.getState().delCurio(chFlag, time);
   }, [chFlag, time]);
+  const onEdit = useCallback(() => {
+    setMenuOpen(false);
+    navigate(`curio/${time}/edit`, {
+      state: { backgroundLocation: location },
+    });
+  }, [location, navigate, time]);
 
   const onCopy = useCallback(() => {
     doCopy(`${groupFlag}/channels/heap/${chFlag}/curio/${time}`);
@@ -91,10 +100,7 @@ function TopBar({
             )}
             onMouseLeave={() => setMenuOpen(false)}
           >
-            <button
-              // FIXME: add edit functionality
-              className="small-menu-button"
-            >
+            <button onClick={onEdit} className="small-menu-button">
               Edit
             </button>
             <button className="small-menu-button" onClick={onDelete}>
