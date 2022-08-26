@@ -71,6 +71,8 @@
     ?+  -.diff  ~
       %curios     (curios-diff p.diff)
       %view       s/p.diff
+      %add-sects  a/(turn ~(tap in p.diff) (lead %s))
+      %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
   ::
   ++  curios-diff

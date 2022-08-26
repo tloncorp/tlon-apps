@@ -20,6 +20,7 @@ import {
   DiaryQuipMap,
   DiaryQuips,
   DiaryQuip,
+  DiaryAction,
 } from '@/types/diary';
 import api from '@/api';
 import {
@@ -125,9 +126,9 @@ export const useDiaryState = create<DiaryState>(
             app: 'diary',
             path: '/shelf',
           })
-          .then((chats) => {
+          .then((shelf) => {
             get().batchSet((draft) => {
-              draft.shelf = chats;
+              draft.shelf = shelf;
             });
           });
 
@@ -145,6 +146,30 @@ export const useDiaryState = create<DiaryState>(
             const { flag, brief } = event as DiaryBriefUpdate;
             get().batchSet((draft) => {
               draft.briefs[flag] = brief;
+            });
+          },
+        });
+
+        api.subscribe({
+          app: 'diary',
+          path: '/ui',
+          event: (event: DiaryAction) => {
+            get().batchSet((draft) => {
+              const {
+                flag,
+                update: { diff },
+              } = event;
+              const diary = draft.shelf[flag];
+
+              if ('del-sects' in diff) {
+                diary.perms.writers = diary.perms.writers.filter(
+                  (w) => !diff['del-sects'].includes(w)
+                );
+              } else if ('add-sects' in diff) {
+                diary.perms.writers = diary.perms.writers.concat(
+                  diff['add-sects']
+                );
+              }
             });
           },
         });
@@ -180,7 +205,7 @@ export const useDiaryState = create<DiaryState>(
       },
       leaveDiary: async (flag) => {
         await api.poke({
-          app: 'chat',
+          app: 'diary',
           mark: 'diary-leave',
           json: flag,
         });
@@ -215,7 +240,7 @@ export const useDiaryState = create<DiaryState>(
       delSects: async (flag, sects) => {
         await api.poke(diaryAction(flag, { 'del-sects': sects }));
         const perms = await api.scry<DiaryPerm>({
-          app: 'chat',
+          app: 'diary',
           path: `/diary/${flag}/perm`,
         });
         get().batchSet((draft) => {

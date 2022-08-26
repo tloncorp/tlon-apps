@@ -67,6 +67,12 @@
     %-  pairs
     :~  writers/a/(turn ~(tap in writers.p) (lead %s))
     ==
+  ++  action
+    |=  =action:d
+    %-  pairs
+    :~  flag/(flag p.action)
+        update/(update q.action)
+    ==
   ++  update
     |=  =update:d
     %-  pairs
@@ -80,6 +86,8 @@
     ?+  -.diff  ~
       %notes     (notes-diff p.diff)
       %quips     (pairs id/s/(scot %ud p.diff) diff/(quips-diff q.diff) ~)
+      %add-sects  a/(turn ~(tap in p.diff) (lead %s))
+      %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
   ::
   ++  notes-diff

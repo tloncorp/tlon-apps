@@ -137,6 +137,14 @@ export const useHeapState = create<HeapState>(
 
               if ('view' in diff) {
                 heap.view = diff.view;
+              } else if ('del-sects' in diff) {
+                heap.perms.writers = heap.perms.writers.filter(
+                  (w) => !diff['del-sects'].includes(w)
+                );
+              } else if ('add-sects' in diff) {
+                heap.perms.writers = heap.perms.writers.concat(
+                  diff['add-sects']
+                );
               }
             });
           },
@@ -151,7 +159,7 @@ export const useHeapState = create<HeapState>(
       },
       leaveHeap: async (flag) => {
         await api.poke({
-          app: 'chat',
+          app: 'heap',
           mark: 'heap-leave',
           json: flag,
         });
@@ -190,7 +198,7 @@ export const useHeapState = create<HeapState>(
       delSects: async (flag, sects) => {
         await api.poke(heapAction(flag, { 'del-sects': sects }));
         const perms = await api.scry<HeapPerm>({
-          app: 'chat',
+          app: 'heap',
           path: `/heap/${flag}/perm`,
         });
         get().batchSet((draft) => {
