@@ -17,6 +17,7 @@ import useNest from '@/logic/useNest';
 import HeapLoadingRow from '@/heap/HeapLoadingRow';
 import { useRouteGroup } from '@/state/groups';
 import CheckIcon from '@/components/icons/CheckIcon';
+import { useLocation, useNavigate } from 'react-router';
 
 export default function HeapRow({
   curio,
@@ -35,6 +36,15 @@ export default function HeapRow({
   const { content, sent } = curio.heart;
   const { replied } = curio.seal;
   const contentString = content[0].toString();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const onEdit = useCallback(() => {
+    setMenuOpen(false);
+    navigate(`curio/${time}/edit`, {
+      state: { backgroundLocation: location },
+    });
+  }, [location, navigate, time]);
 
   const onDelete = useCallback(() => {
     setMenuOpen(false);
@@ -150,10 +160,7 @@ export default function HeapRow({
           )}
           onMouseLeave={() => setMenuOpen(false)}
         >
-          <button
-            // FIXME: add edit functionality
-            className="small-menu-button"
-          >
+          <button onClick={onEdit} className="small-menu-button">
             Edit
           </button>
           <button className="small-menu-button" onClick={onDelete}>
