@@ -170,8 +170,9 @@ export const useHeapState = create<HeapState>(
         const ud = decToUd(time);
         await api.poke(heapCurioDiff(flag, ud, { del: null }));
       },
-      editCurio: async (flag, heart) => {
-        await api.poke(heapCurioDiff(flag, getTime(), { edit: heart }));
+      editCurio: async (flag, time, heart) => {
+        const ud = decToUd(time);
+        await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
       },
       create: async (req) => {
         await api.poke({
