@@ -30,10 +30,17 @@ export default function useDiaryNode(
     [updateAttributes, name]
   );
 
+  const clear = useCallback(() => {
+    updateAttributes({
+      [name]: null,
+    });
+  }, [updateAttributes, name]);
+
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       console.log(e.key);
-      const foc = (n: number) => editor.chain().focus(n).run();
+      const foc = (n: number) =>
+        editor.chain().focus(n, { scrollIntoView: true }).run();
       const pos = getPos();
       if ((e.key === 'Tab' && e.shiftKey === false) || e.key === 'ArrowRight') {
         foc(pos + 1);
@@ -55,8 +62,15 @@ export default function useDiaryNode(
     },
     [editor, getPos, value]
   );
+
+  const onFocus = useCallback(
+    (e: React.FocusEvent) => {
+      //editor.chain().focus(getPos()).run();
+    },
+    []
+  );
   return useMemo(
-    () => ({ ref, onKeyDown, onChange, value }),
-    [ref, onKeyDown, onChange, value]
+    () => ({ ref, onKeyDown, onChange, value, clear, onFocus }),
+    [ref, onKeyDown, onChange, value, clear, onFocus]
   );
 }

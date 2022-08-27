@@ -79,6 +79,7 @@ const ActionMenuBar = forwardRef<
   any,
   { items: ActionMenuItemProps[]; command: any }
 >((props, ref) => {
+  console.log(props);
   const { items = [] } = props;
   const [selected, setSelected] = useState(0);
   const selectItem = (index: number) => {
@@ -142,9 +143,6 @@ const ActionMenu = Extension.create<ActionMenuOptions>({
         char: '/',
         pluginKey: ActionMenuPluginKey,
         command: ({ editor, range, props }) => {
-          console.log('editor', editor);
-          console.log('range', range);
-          console.log('props', props);
           props.command({ editor, range });
         },
         items: ({ query }: any): ActionMenuItemProps[] => {
@@ -242,12 +240,16 @@ const ActionMenu = Extension.create<ActionMenuOptions>({
               });
             },
             onUpdate: (props) => {
-              console.log(props);
+              if (props.items.length === 0) {
+                popup[0]?.hide();
+                return true;
+              }
               component?.updateProps(props);
 
               popup[0].setProps({
                 getBoundingClientRect: props.clientRect,
               });
+              return true;
             },
             onKeyDown: (props) => {
               if (props.event.key === 'Escape') {
@@ -297,6 +299,7 @@ export function useDiaryInlineEditor({
             'Start writing here, or click the menu to add a link block',
           showOnlyCurrent: false,
           showOnlyWhenEditable: false,
+          includeChildren: true,
         }),
         Strike,
         Text,

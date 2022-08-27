@@ -33,6 +33,7 @@ export default function DiaryAddNote() {
   return (
     <Layout
       className="align-center w-full flex-1 bg-white"
+      mainClass="overflow-y-auto"
       header={<ChannelHeader flag={flag} nest={nest} />}
     >
       <div className="mx-auto max-w-xl p-4">
