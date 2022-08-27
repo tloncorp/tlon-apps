@@ -113,7 +113,7 @@ export default function EditChannelForm({
       </div>
       <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>
         <label className="mb-3 font-semibold">
-          Channel Name
+          Channel Name*
           <input
             {...form.register('meta.title')}
             className="input my-2 block w-full p-1"

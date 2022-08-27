@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": [
+      "vite/client",
+      "vitest/globals",
+      "@testing-library/jest-dom"
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [],
+  "files": [
+    "src/window.ts",
+    "src/env.d.ts",
+    "src/global.d.ts",
+    "/Users/prz/Development/homestead/ui/src/channels/ChannelTypeSelector.tsx",
+    "/Users/prz/Development/homestead/ui/src/channels/EditChannelForm.tsx",
+    "/Users/prz/Development/homestead/ui/src/channels/NewChannel/NewChannelForm.tsx",
+    "/Users/prz/Development/homestead/ui/src/components/ShipSelector.tsx",
+    "/Users/prz/Development/homestead/ui/src/groups/FindGroups.tsx",
+    "/Users/prz/Development/homestead/ui/src/groups/GroupAdmin/AdminChannels/ChannelJoinSelector.tsx",
+    "/Users/prz/Development/homestead/ui/src/groups/GroupInfoFields.tsx",
+    "/Users/prz/Development/homestead/ui/src/groups/PrivacySelector.tsx",
+    "/Users/prz/Development/homestead/ui/src/profiles/EditProfile/EditProfile.tsx",
+    "/Users/prz/Development/homestead/ui/src/profiles/EditProfile/ProfileFields.tsx"
+  ]
+}
