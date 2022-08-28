@@ -247,7 +247,7 @@ export default function ShipSelector({
   isClearable = false,
   isLoading = false,
   hasPrompt = true,
-  placeholder = 'Search for sigil (e.g. ~sampel-palnet) or display name',
+  placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
   isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
