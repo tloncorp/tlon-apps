@@ -173,8 +173,6 @@ export default function HeapBlock({
     return <HeapLoadingBlock />;
   }
 
-  const isOembed = validOembedCheck(embed, url);
-
   if (isText) {
     return (
       <div className="heap-block group p-2">
@@ -227,6 +225,8 @@ export default function HeapBlock({
       </div>
     );
   }
+
+  const isOembed = validOembedCheck(embed, url);
 
   if (isOembed) {
     const { title, thumbnail_url: thumbnail, provider_name: provider } = embed;
