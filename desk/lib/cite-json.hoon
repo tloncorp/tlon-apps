@@ -5,8 +5,15 @@
   =,  enjs:format
   |=  =cite:c
   %+  frond  -.cite
-  ?-  -.cite
-      ?(%group %desk)  s/(flag:enjs:j flag.cite)
+  ?-    -.cite
+      %group  s/(flag:enjs:j flag.cite)
+  ::
+      %desk
+    %-  pairs
+    :~  desk/s/(flag:enjs:j flag.cite)
+        where/?~(wer.cite ~ s/(spat u.wer.cite))
+    ==
+  ::
       %chan
     %-  pairs
     :~  nest/s/(nest:enjs:j nest.cite)
@@ -19,7 +26,12 @@
   ^-  $-(json cite:c)
   %-  of
   :~  group/flag:dejs:j
-      desk/flag:dejs:j
+      ::
+      :-  %desk
+      %-  ot
+      :~  flag/flag:dejs:j
+          where/(mu pa)
+      ==
       ::
       :-  %chan
       %-  ot
