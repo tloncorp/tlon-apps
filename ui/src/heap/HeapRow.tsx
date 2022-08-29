@@ -33,7 +33,7 @@ export default function HeapRow({
   const [justCopied, setJustCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [embed, setEmbed] = useState<any>();
-  const { content, sent } = curio.heart;
+  const { content, sent, title } = curio.heart;
   const { replied } = curio.seal;
   const contentString = content[0].toString();
   const navigate = useNavigate();
@@ -103,7 +103,7 @@ export default function HeapRow({
       case isOembed:
         return embed.title;
       case isUrl:
-        return contentString;
+        return title || contentString;
       default:
         return contentString.split(' ').slice(0, 5).join(' ');
     }
