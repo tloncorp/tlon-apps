@@ -1,5 +1,6 @@
 /-  c=chat
 /-  meta
+/+  cite=cite-json
 |%
 ++  enjs
   =,  enjs:format
@@ -210,6 +211,7 @@
     ^-  json
     %+  frond  -.b
     ?-  -.b
+        %cite  (enjs:cite cite.b)
         %image
       %-  pairs
       :~  src+s+src.b
@@ -217,6 +219,7 @@
           width+(numb width.b)
           alt+s+alt.b
       ==
+      
     ==
   ++  crew
     |=  cr=crew:club:c
@@ -257,6 +260,8 @@
     ?-  -.i
         %break
       ~
+    ::
+        %ship  s/(scot %p p.i)
     ::
         ?(%code %tag %inline-code)
       s+p.i
@@ -516,7 +521,7 @@
     ^-  block:c
     %.  j
     %-  of
-    :~
+    :~  cite/dejs:cite
     ::
       :-  %image
       %-  ot
@@ -537,6 +542,7 @@
     :~  italics/(ar inline)
         bold/(ar inline)
         strike/(ar inline)
+        ship/(se %p)
         blockquote/(ar inline)
         inline-code/so
         code/so

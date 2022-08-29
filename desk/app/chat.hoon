@@ -433,6 +433,7 @@
       %tag    (trip p.c)
       %block  (trip q.c)
       %link   (trip q.c)
+      %ship   (scow %p p.c)
       ?(%code %inline-code)  ""
       ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
   ==
