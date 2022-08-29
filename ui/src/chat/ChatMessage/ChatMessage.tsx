@@ -7,14 +7,15 @@ import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink } from 'react-router-dom';
-import { ChatBrief, ChatWrit } from '../../types/chat';
-import Author from './Author';
-import ChatContent from '../ChatContent/ChatContent';
-import ChatReactions from '../ChatReactions/ChatReactions';
-import DateDivider from './DateDivider';
-import ChatMessageOptions from './ChatMessageOptions';
-import { usePact } from '../../state/chat';
-import Avatar from '../../components/Avatar';
+import { ChatBrief, ChatWrit } from '@/types/chat';
+import Author from '@/chat/ChatMessage/Author';
+// eslint-disable-next-line import/no-cycle
+import ChatContent from '@/chat/ChatContent/ChatContent';
+import ChatReactions from '@/chat/ChatReactions/ChatReactions';
+import DateDivider from '@/chat/ChatMessage/DateDivider';
+import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
+import { usePact } from '@/state/chat';
+import Avatar from '@/components/Avatar';
 
 export interface ChatMessageProps {
   whom: string;
@@ -25,6 +26,7 @@ export interface ChatMessageProps {
   newDay?: boolean;
   unread?: ChatBrief;
   hideReplies?: boolean;
+  hideOptions?: boolean;
 }
 
 const ChatMessage = React.memo<
@@ -41,6 +43,7 @@ const ChatMessage = React.memo<
         newAuthor = false,
         newDay = false,
         hideReplies = false,
+        hideOptions = false,
       }: ChatMessageProps,
       ref
     ) => {
@@ -73,7 +76,9 @@ const ChatMessage = React.memo<
           {newDay && !unread ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex">
-            <ChatMessageOptions whom={whom} writ={writ} />
+            {hideOptions ? null : (
+              <ChatMessageOptions whom={whom} writ={writ} />
+            )}
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
             </div>

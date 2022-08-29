@@ -86,7 +86,15 @@
 }
 
 .heap-block {
-  @apply relative flex h-[245px] w-[245px] cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat shadow;
+  @apply relative flex h-[245px] w-[245px] cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat p-2 shadow;
+}
+
+.heap-inline-block {
+  @apply relative flex h-[300px] w-[600px] cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat p-2 shadow;
+}
+
+.writ-inline-block {
+  @apply relative flex h-full w-full flex-col justify-center overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat;
 }
 
 .heap-row {

@@ -80,7 +80,7 @@ export default function makeWritsStore(
               // draft.dms[ship].writs = draft.dms[ship].writs.delete(time);
             } else if ('add-feel' in delta) {
               // TODO: map from rcv -> id
-              /*  
+              /*
              * const d = delta['add-feel'];
             const time = bigInt(udToDec(d.time));
             const writ = draft.dms[ship].writs.get(time);

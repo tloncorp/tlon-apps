@@ -1,9 +1,19 @@
 import React from 'react';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
-export default function HeapLoadingBlock() {
+export default function HeapLoadingBlock({
+  reference = false,
+}: {
+  reference?: boolean;
+}) {
   return (
-    <div className="heap-block items-center justify-center bg-gray-100 p-2">
+    <div
+      className={
+        reference
+          ? 'heap-inline-block items-center justify-center bg-gray-100'
+          : 'heap-block items-center justify-center bg-gray-100'
+      }
+    >
       <LoadingSpinner />
     </div>
   );
