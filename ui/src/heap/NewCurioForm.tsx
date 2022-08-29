@@ -3,53 +3,50 @@ import cn from 'classnames';
 import { intersection } from 'lodash';
 import { useForm } from 'react-hook-form';
 import LinkIcon from '@/components/icons/LinkIcon';
-import { useHeapPerms, useHeapState } from '@/state/heap/heap';
+import {
+  useHeapDisplayMode,
+  useHeapPerms,
+  useHeapState,
+} from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import { isValidUrl, nestToFlag } from '@/logic/utils';
 import { useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/react';
-import { GRID, HeapDisplayMode, LIST } from '@/types/heap';
+import { GRID, LIST, NewCurioFormSchema } from '@/types/heap';
 import HeapTextInput from './HeapTextInput';
-
-interface HeapInputProps {
-  displayType: HeapDisplayMode;
-}
-
-interface CurioForm {
-  content: string;
-}
 
 const LINK = 'link';
 const TEXT = 'text';
 type InputMode = typeof LINK | typeof TEXT;
 
-export default function HeapInput({ displayType }: HeapInputProps) {
+export default function NewCurioForm() {
   const [inputMode, setInputMode] = useState<InputMode>(LINK);
   const [draftLink, setDraftLink] = useState<string>();
   const [draftText, setDraftText] = useState<JSONContent>();
-  const isGridMode = displayType === GRID;
-  const isListMode = displayType === LIST;
-  const isLinkMode = inputMode === LINK;
-  const isTextMode = inputMode === TEXT;
   const flag = useRouteGroup();
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
+  const displayMode = useHeapDisplayMode(flag);
+  const isGridMode = displayMode === GRID;
+  const isListMode = displayMode === LIST;
+  const isLinkMode = inputMode === LINK;
+  const isTextMode = inputMode === TEXT;
   const perms = useHeapPerms(nest);
   const vessel = useVessel(flag, window.our);
   const canWrite =
     perms.writers.length === 0 ||
     intersection(perms.writers, vessel.sects).length !== 0;
 
-  const { register, handleSubmit, reset, watch } = useForm<CurioForm>({
+  const { register, handleSubmit, reset, watch } = useForm<NewCurioFormSchema>({
     defaultValues: {
       content: '',
     },
   });
   const { isPending, setPending, setReady } = useRequestState();
   const onSubmit = useCallback(
-    async ({ content }: CurioForm) => {
+    async ({ content }: NewCurioFormSchema) => {
       await useHeapState.getState().addCurio(chFlag, {
         title: null,
         content: [content],
@@ -157,7 +154,6 @@ export default function HeapInput({ displayType }: HeapInputProps) {
           <HeapTextInput
             draft={draftText}
             setDraft={setDraftText}
-            displayType={displayType}
             flag={chFlag}
           />
         )}

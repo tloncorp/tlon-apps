@@ -205,4 +205,14 @@ export interface HeapPerm {
   writers: string[];
 }
 
-export type CurioFormSchema = Omit<CurioHeart, 'author' | 'replying' | 'sent'>;
+export const LINK = 'link';
+export const TEXT = 'text';
+export type CurioInputMode = typeof LINK | typeof TEXT;
+
+// export type NewCurioFormSchema = Pick<CurioHeart, 'content'>;
+export type NewCurioFormSchema = { content: string };
+
+export type EditCurioFormSchema = NewCurioFormSchema &
+  Pick<CurioHeart, 'title'>;
+
+export type CurioFormSchema = NewCurioFormSchema | EditCurioFormSchema;
