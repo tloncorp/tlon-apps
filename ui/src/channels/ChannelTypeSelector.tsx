@@ -16,12 +16,12 @@ const CHANNEL_TYPE: Record<ChannelType, ChannelTypeMetadata> = {
   chat: {
     icon: <BubbleIcon className="h-6 w-6 text-gray-600" />,
     title: 'Chat',
-    description: 'A simple, no frills text chat',
+    description: 'A simple, standard text chat',
   },
   heap: {
     icon: <LinkIcon className="h-6 w-6 text-gray-600" />,
     title: 'Collection',
-    description: 'Gather, entangle, connect, and arrange rich media',
+    description: 'Gather, connect, and arrange rich media',
   },
   diary: {
     icon: <NotebookIcon className="h-6 w-6 text-gray-600" />,
