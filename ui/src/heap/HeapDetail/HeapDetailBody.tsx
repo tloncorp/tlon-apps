@@ -25,8 +25,6 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
     getOembed();
   }, [url, isMobile]);
 
-  const isOembed = validOembedCheck(embed, url);
-
   if (isText) {
     return (
       <div className="mx-auto mt-3 max-w-prose">
@@ -50,6 +48,8 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
       </div>
     );
   }
+
+  const isOembed = validOembedCheck(embed, url);
 
   if (isOembed && embed !== undefined) {
     return <HeapDetailEmbed oembed={embed} url={url} />;
