@@ -86,7 +86,6 @@
       %hark-action
     =+  !<(act=action:h vase)
     =.  cor  (give-ui act)
-    ~&  act
     ?-    -.act
       %saw-rope  (saw-rope rope.act)
       %saw-seam  (saw-seam +.act)
@@ -332,7 +331,6 @@
     weave-desk
   ::
   ++  weave-all
-    ~&  weave-all/add-all
     ?.  add-all  cor
     cor(all (weave-rug all all/~))
   ++  weave-rug

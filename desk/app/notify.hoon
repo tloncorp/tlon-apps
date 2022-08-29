@@ -226,12 +226,10 @@
         ?.  ?=(%hark-action p.cage.sign)
           `this
         =+  !<(=action:ha q.cage.sign)
-        ~&  action
         =/  upd=(unit update)
           (filter-notifications:do action)
         :_  this
         ?~  upd  ~
-        ~&  notifying/uid.u.upd
         (drop (fact-all:io %notify-update !>(u.upd)))
       ::
           %kick
@@ -326,7 +324,6 @@
   |=  =action:ha
   ^-  (unit update)
   ?.  ?=(%add-yarn -.action)  ~
-  ::  ?.  all.action  ~
   `[id.yarn.action %notify]
 ::
 ++  is-whitelisted
