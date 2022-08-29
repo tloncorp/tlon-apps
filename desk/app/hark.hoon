@@ -86,6 +86,7 @@
       %hark-action
     =+  !<(act=action:h vase)
     =.  cor  (give-ui act)
+    ~&  act
     ?-    -.act
       %saw-rope  (saw-rope rope.act)
       %saw-seam  (saw-seam +.act)
@@ -107,6 +108,9 @@
   ::
       [%x %desk desk=@ rest=*]
     (scry-rug rest.pole desk/desk.pole (~(got by desks) desk.pole))
+  ::
+      [%x %yarn uid=@ ~]
+    ``hark-yarn+!>((~(got by yarns) (slav %uv uid.pole)))
   ==
 ::
 ++  is-us  =(our src):bowl
@@ -328,6 +332,7 @@
     weave-desk
   ::
   ++  weave-all
+    ~&  weave-all/add-all
     ?.  add-all  cor
     cor(all (weave-rug all all/~))
   ++  weave-rug

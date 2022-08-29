@@ -180,6 +180,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
+      [%hark ~]  cor
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -366,7 +367,7 @@
   ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
   ++  go-rope
     |=  thread=path
-    [`flag ~ %homestead (welp /(scot %p p.flag)/[q.flag] thread)]
+    [`flag ~ q.byk.bowl (welp /(scot %p p.flag)/[q.flag] thread)]
   ++  go-link
     |=  link=path 
     (welp /groups/(scot %p p.flag)/[q.flag] link)
@@ -1072,7 +1073,7 @@
           =/  link  /groups/find
           =/  yarn
             %-  spin
-            :*  [`flag ~ %homestead /(scot %p p.flag)/[q.flag]/invite]
+            :*  [`flag ~ q.byk.bowl /(scot %p p.flag)/[q.flag]/invite]
                 link
                 `['Join Group' link]
                 :~  [%ship src.bowl]

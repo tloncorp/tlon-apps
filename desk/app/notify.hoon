@@ -220,20 +220,23 @@
     ::
     ::  subscription from client to their own hark-store
     ::
-        [%hark @ ~]
+        [%hark ~]
       ?+  -.sign  (on-agent:def wire sign)
           %fact
         ?.  ?=(%hark-action p.cage.sign)
           `this
         =+  !<(=action:ha q.cage.sign)
-        =^  upds  notifications
+        ~&  action
+        =/  upd=(unit update)
           (filter-notifications:do action)
         :_  this
-        (murn upds |=(=update (fact-all:io %notify-update !>(update))))
+        ?~  upd  ~
+        ~&  notifying/uid.u.upd
+        (drop (fact-all:io %notify-update !>(u.upd)))
       ::
           %kick
         :_  this
-        [%pass wire %agent [our.bowl %hark] %watch t.wire]~
+        [%pass wire %agent [our.bowl %hark] %watch /ui]~
       ==
     ::
     ::  subscription from provider to client
@@ -321,25 +324,10 @@
 ::
 ++  filter-notifications
   |=  =action:ha
-  ^-  (list update)
-  ?+  -.action  `notifications
-  [~ notifications]
-::
-++  uids-for-place
-  |=  =place:hark
-  %-  ~(gas in *(set uid))
-  %+  murn  ~(tap by notifications)
-  |=  [=uid =notification]
-  ^-  (unit ^uid)
-  ?.  =(place.bin.notification place)  ~
-  `uid
-::
-++  group-is-hidden
-  |=  =resource:resource
-  ^-  ?
-  =/  grp=(unit group:group)  (~(scry-group group bowl) resource)
-  ?~  grp  |
-  hidden.u.grp
+  ^-  (unit update)
+  ?.  ?=(%add-yarn -.action)  ~
+  ::  ?.  all.action  ~
+  `[id.yarn.action %notify]
 ::
 ++  is-whitelisted
   |=  [who=@p entry=provider-entry]
