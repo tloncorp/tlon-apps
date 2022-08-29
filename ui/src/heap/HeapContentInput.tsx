@@ -48,30 +48,30 @@ export default function HeapContentInput({
   const isTextMode = inputMode === TEXT;
   const watchedContent = watch('content');
   const isValidInput = isLinkMode
-    ? isValidUrl(watchedContent.length > 0 ? watchedContent[0].toString() : '')
+    ? isValidUrl(watchedContent)
     : watchedContent.length > 0;
 
   // For Link mode, prevent newline entry + allow submit with Enter
-  // const onKeyDown = useCallback(
-  //   async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-  //     console.log('keydown');
-  //     return;
-  //     if (e.key === 'Enter') {
-  //       e.preventDefault();
+  const onKeyDown = useCallback(
+    async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
 
-  //       if (submitting || !submissible || !isValidInput) {
-  //         return;
-  //       }
+        if (submitting || !submissible || !isValidInput) {
+          return;
+        }
 
-  //       await onSubmit(getValues());
-  //     }
-  //   },
-  //   [getValues, isValidInput, onSubmit, submissible, submitting]
-  // );
+        // @ts-expect-error TODO
+        await onSubmit(getValues());
+      }
+    },
+    [getValues, isValidInput, onSubmit, submissible, submitting]
+  );
 
   const modeToggle = () => (
     <div className={cn('flex', isGridMode && 'p-1')}>
       <button
+        type="button"
         className={cn(
           isLinkMode ? 'button' : 'secondary-button',
           isListMode && 'max-w-[120px] rounded-bl-none',
@@ -83,6 +83,7 @@ export default function HeapContentInput({
         <span className="ml-1">Link</span>
       </button>
       <button
+        type="button"
         className={cn(
           isTextMode ? 'button' : 'secondary-button',
           isListMode && 'max-w-[120px] rounded-br-none',
@@ -118,7 +119,7 @@ export default function HeapContentInput({
               {...register('content')}
               className="h-full w-full resize-none rounded-lg bg-gray-50 p-2 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
               placeholder="Paste Link Here"
-              // onKeyDown={onKeyDown}
+              onKeyDown={onKeyDown}
               defaultValue={draftLink}
             />
             {submissible ? (
