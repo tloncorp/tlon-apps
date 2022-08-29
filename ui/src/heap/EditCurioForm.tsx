@@ -17,15 +17,13 @@ export default function EditCurioForm() {
     content: curio ? curio.heart.content : [],
   };
 
-  const { formState, handleSubmit, register, watch } = useForm<CurioFormSchema>(
-    {
-      defaultValues,
-    }
-  );
+  const { handleSubmit, register, watch } = useForm<CurioFormSchema>({
+    defaultValues,
+  });
 
-  // TODO: ensure valid input
-  // const watchedContent = watch('content');
-  // const isValidInput = watchedContent && watchedContent
+  // @ts-expect-error Suppress circular reference warning
+  const watchedContent = watch('content');
+  const isValidInput = [[], [''], ''].every((v) => v !== watchedContent);
 
   const onDelete = useCallback(async () => {
     if (!chFlag) {
@@ -73,7 +71,6 @@ export default function EditCurioForm() {
       <label className="mb-3 font-semibold">
         Item Name
         <input
-          // @ts-expect-error Dismiss the circular reference warning
           {...register('title')}
           className="input my-2 block w-full p-1"
           type="text"
@@ -92,7 +89,7 @@ export default function EditCurioForm() {
         <div>
           <button
             type="button"
-            className="button red-text-button"
+            className="button bg-red-soft text-red"
             onClick={onDelete}
           >
             Delete
@@ -105,9 +102,9 @@ export default function EditCurioForm() {
           <button
             type="submit"
             className="button"
-            disabled={!formState.isDirty}
+            disabled={!isValidInput || !curio}
           >
-            Done
+            Save
           </button>
         </div>
       </footer>
