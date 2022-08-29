@@ -13,8 +13,14 @@ interface AuthorProps {
   ship: string;
   date: Date;
   timeOnly?: boolean;
+  hideTime?: boolean;
 }
-export default function Author({ ship, date, timeOnly }: AuthorProps) {
+export default function Author({
+  ship,
+  date,
+  timeOnly,
+  hideTime,
+}: AuthorProps) {
   const location = useLocation();
   const modalNavigate = useModalNavigate();
   const prettyTime = makePrettyTime(date);
@@ -33,12 +39,20 @@ export default function Author({ ship, date, timeOnly }: AuthorProps) {
         <Avatar ship={ship} size="xs" className="cursor-pointer" />
       </div>
       <ShipName name={ship} showAlias className="text-md font-semibold" />
-      <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
-        {prettyDayAndDateAndTime}
-      </span>
-      <span className="block text-sm font-semibold text-gray-500 group-hover:hidden">
-        {timeOnly ? prettyTime : prettyDayAndTime}
-      </span>
+      {hideTime ? (
+        <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
+          {prettyDayAndTime}
+        </span>
+      ) : (
+        <>
+          <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
+            {prettyDayAndDateAndTime}
+          </span>
+          <span className="block text-sm font-semibold text-gray-500 group-hover:hidden">
+            {timeOnly ? prettyTime : prettyDayAndTime}
+          </span>
+        </>
+      )}
     </div>
   );
 }

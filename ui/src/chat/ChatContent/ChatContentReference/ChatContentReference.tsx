@@ -1,85 +1,11 @@
-import React, { useCallback, useEffect } from 'react';
+import React from 'react';
 import { useModalNavigate } from '@/logic/routing';
-import { useLocation, useNavigate } from 'react-router';
-import { useCurio, useHeapState } from '@/state/heap/heap';
+import { useLocation } from 'react-router';
 import { isValidPatp } from 'urbit-ob';
-import HeapBlock from '@/heap/HeapBlock';
 import ShipName from '@/components/ShipName';
-import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useWrit } from '@/state/chat';
 // eslint-disable-next-line import/no-cycle
-import ChatMessage from '@/chat/ChatMessage/ChatMessage';
-
-function CurioReference({
-  chFlag,
-  idCurio,
-  refToken,
-}: {
-  chFlag: string;
-  idCurio: string;
-  refToken: string;
-}) {
-  const curioObject = useCurio(chFlag, idCurio);
-  const navigate = useNavigate();
-
-  const onClick = useCallback(() => {
-    navigate(`/groups/${refToken}`);
-  }, [navigate, refToken]);
-
-  useEffect(() => {
-    useHeapState.getState().initialize(chFlag);
-  }, [chFlag]);
-
-  if (!curioObject) {
-    return <HeapLoadingBlock reference />;
-  }
-
-  const curio = curioObject[1];
-  return (
-    <div onClick={onClick}>
-      <HeapBlock curio={curio} time={idCurio} reference />
-    </div>
-  );
-}
-
-function WritReference({
-  chFlag,
-  idWrit,
-  refToken,
-}: {
-  chFlag: string;
-  idWrit: string;
-  refToken: string;
-}) {
-  const writObject = useWrit(chFlag, idWrit);
-  const navigate = useNavigate();
-
-  const onClick = useCallback(() => {
-    navigate(`/groups/${refToken}`);
-  }, [navigate, refToken]);
-
-  if (!writObject) {
-    return (
-      <div className="writ-inline-block p-2">
-        This is a reference to a group you do not have access to.
-      </div>
-    );
-  }
-
-  const [time, writ] = writObject;
-  return (
-    <div onClick={onClick} className="writ-inline-block p-2">
-      <ChatMessage
-        whom={chFlag}
-        time={time}
-        writ={writ}
-        newAuthor
-        hideReplies
-        hideOptions
-      />
-    </div>
-  );
-}
+import WritReference from '@/chat/ChatContent/ChatContentReference/WritReference';
+import CurioReference from '@/chat/ChatContent/ChatContentReference/CurioReference';
 
 export default function ChatContentReference({ story }: { story: string }) {
   const modalNavigate = useModalNavigate();
@@ -99,11 +25,19 @@ export default function ChatContentReference({ story }: { story: string }) {
 
           if (containsMessage) {
             const chFlag = refTokenSplitByFas.slice(4, 6).join('/');
+            const groupFlag = refTokenSplitByFas.slice(0, 2).join('/');
+            const nest = refTokenSplitByFas.slice(3, 6).join('/');
             const idWrit = refTokenSplitByFas.slice(7).join('/');
             return (
               <>
                 {makeSpace}
-                <WritReference chFlag={chFlag} idWrit={idWrit} refToken={x} />
+                <WritReference
+                  chFlag={chFlag}
+                  groupFlag={groupFlag}
+                  nest={nest}
+                  idWrit={idWrit}
+                  refToken={x}
+                />
               </>
             );
           }

@@ -13,7 +13,7 @@ import {
 import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
 import { PATP_REGEX } from '@/logic/utils';
 // eslint-disable-next-line import/no-cycle
-import ChatContentReference from '@/chat/ChatContent/ChatContentReference';
+import ChatContentReference from '@/chat/ChatContent/ChatContentReference/ChatContentReference';
 
 interface ChatContentProps {
   story: ChatStory;
