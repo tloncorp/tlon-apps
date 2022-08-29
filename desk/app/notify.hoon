@@ -1,6 +1,6 @@
 ::
-/-  *notify, resource, hark-store, post
-/+  default-agent, verb, dbug, group, agentio, graphlib=graph
+/-  *notify, resource, ha=hark
+/+  default-agent, verb, dbug, group, agentio
 ::
 |%
 +$  card  card:agent:gall
@@ -65,8 +65,7 @@
   ::
   ++  on-init
     :_  this
-    :~  (~(watch-our pass:io /hark/notes) %hark-store /notes)
-        (~(watch-our pass:io /hark/updates) %hark-store /updates)
+    :~  (~(watch-our pass:io /hark) %hark /ui)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
     ==
   ::
@@ -74,34 +73,7 @@
   ++  on-load
     |=  =old=vase
     ^-  (quip card _this)
-    =/  old  !<(versioned-state old-vase)
-    =|  cards=(list card)
-    |-
-    ?-  -.old
-    ::
-        %3
-      =/  upd=wire  /hark/updates
-      =/  not=wire  /hark/notes
-      =/  =dock  [our.bowl %hark-store]
-      =?  cards  !(~(has by wex.bowl) [upd dock])  :: rewatch updates
-        :_(cards [%pass upd %agent dock %watch /updates])
-      =?  cards  !(~(has by wex.bowl) [not dock])  ::  rewatch notes
-        :_(cards [%pass not %agent dock %watch /notes])
-      =.  notifications.old  ~
-      [(flop cards) this(state old)]
-    ::
-        %2
-      =.  cards  
-        :_  cards
-        (~(wait pass:io /clear) (add now.bowl clear-interval))
-      $(-.old %3)
-    ::
-        ?(%0 %1)
-      %_  $
-        -.old  %2
-        +.old  [~ +.old]
-      ==
-    ==
+    `this
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -251,17 +223,17 @@
         [%hark @ ~]
       ?+  -.sign  (on-agent:def wire sign)
           %fact
-        ?.  ?=(%hark-update p.cage.sign)
+        ?.  ?=(%hark-action p.cage.sign)
           `this
-        =+  !<(hark-update=update:hark-store q.cage.sign)
+        =+  !<(=action:ha q.cage.sign)
         =^  upds  notifications
-          (filter-notifications:do hark-update)
+          (filter-notifications:do action)
         :_  this
         (murn upds |=(=update (fact-all:io %notify-update !>(update))))
       ::
           %kick
         :_  this
-        [%pass wire %agent [our.bowl %hark-store] %watch t.wire]~
+        [%pass wire %agent [our.bowl %hark] %watch t.wire]~
       ==
     ::
     ::  subscription from provider to client
@@ -346,58 +318,12 @@
   ++  on-fail   on-fail:def
   --
 |_  bowl=bowl:gall
-+*  gra  ~(. graphlib bowl)
 ::
 ++  filter-notifications
-  |=  upd=update:hark-store
-  ^-  (quip update _notifications)
-  ?+    -.upd  `notifications
-  ::
-      %more
-    =|  upds=(list update)
-    |-
-    ?~  more.upd  [upds notifications]
-    =^  us  notifications
-      (filter-notifications i.more.upd)
-    $(upds (welp upds us), more.upd t.more.upd)
-  ::
-      %read-count
-    `notifications
-    ::  TODO: re-enable if/when fixed
-    ::=/  uids  ~(tap in (uids-for-place place.upd))
-    :: =|  upds=(list update)
-    ::|-  
-    ::?~  uids 
-    :: [upds notifications]
-    ::%_  $
-      :: notifications  (~(del by notifications) i.uids)
-      ::upds           :_(upds [i.uids %dismiss])
-      ::uids           t.uids
-    :: ==
-  ::
-      %add-note
-    =/  note=notification  +.upd
-    ?.  (should-notify note)  `notifications
-    =/  =uid  (shas %notify-uid eny.bowl)
-    :_  (~(put by notifications) uid note)
-    [uid %notify]~
-  ==
-::
-++  should-notify
-  |=  note=notification
-  ^-  ?
-  ?.  ?=([%graph @ @ *] path.place.bin.note)
-    |
-  =/  s=(unit ship)  (slaw %p i.t.path.place.bin.note)
-  ?~  s  |
-  =/  =resource:resource
-    [u.s i.t.t.path.place.bin.note]
-  ?&  ?=(%landscape desk.place.bin.note)
-  ?|  ?=([%graph-validator-dm *] link.body.note)
-      ?&  (group-is-hidden resource)
-          ?=([%graph-validator-chat *] link.body.note)
-      ==
-  ==  ==
+  |=  =action:ha
+  ^-  (list update)
+  ?+  -.action  `notifications
+  [~ notifications]
 ::
 ++  uids-for-place
   |=  =place:hark
