@@ -1,4 +1,5 @@
 /-  c=chat  
+/-  jibe
 /-  hark=hark-store
 |%
 ++  hark-dm
@@ -30,7 +31,7 @@
     ==
   --
 ++  flatten-story
-  |=  i=inline:c
+  |=  i=inline:jibe
   ^-  (list content:hark)
   ?@  i  ~[text/i]
   ?+  -.i   ~
@@ -38,7 +39,7 @@
     ?(%inline-code %code %tag)  ~[text/p.i]
   ==
 ++  flatten-stories  
-  |=  is=(list inline:c)
+  |=  is=(list inline:jibe)
   ^-  (list content:hark)
   (zing (turn is flatten-story))
   

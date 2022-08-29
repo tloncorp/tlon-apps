@@ -1,6 +1,7 @@
 /-  c=chat, g=groups
 /-  meta
 /-  ha=hark
+/-  jibe
 /+  default-agent, verb, dbug
 /+  chat-json
 /+  pac=dm
@@ -419,13 +420,13 @@
   =/  id  (end [7 1] (shax eny.bowl))
   [id rope now.bowl con wer but]
 ++  flatten
-  |=  content=(list inline:c)
+  |=  content=(list inline:jibe)
   ^-  cord
   %-  crip
   %-  zing
   %+  turn
     content
-  |=  c=inline:c
+  |=  c=inline:jibe
   ^-  tape
   ?@  c  (trip c)
   ?-  -.c

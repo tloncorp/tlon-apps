@@ -1,6 +1,7 @@
 /-  g=groups
 /-  meta
 /-  cite
+/-  jibe
 |%
 +$  writ   [seal memo]
 +$  id     (pair ship time)
@@ -144,29 +145,7 @@
 +$  draft
   (pair whom story)
 ::
-+$  story
-  (pair (list block) (list inline))
-::
-+$  block
-  $%  [%image src=cord height=@ud width=@ud alt=cord]
-      [%cite =cite]
-  ==
-::
-+$  inline
-  $@  @t
-  $%  [%italics p=(list inline)]
-      [%bold p=(list inline)]
-      [%strike p=(list inline)]
-      [%blockquote p=(list inline)]
-      [%inline-code p=cord]
-      [%ship p=ship]
-      [%block p=@ud q=cord]
-      [%code p=cord]
-      [%tag p=cord]
-      [%link p=cord q=cord]
-      [%break ~]
-  ==
-::
++$  story  jibe
 +$  memo  
   $:  replying=(unit id)
       author=ship

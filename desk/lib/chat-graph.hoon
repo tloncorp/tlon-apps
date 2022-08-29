@@ -1,4 +1,5 @@
 /-  c=chat
+/-  j=jibe
 /+  gra=graph-store
 /+  pac=dm
 |%
@@ -33,11 +34,11 @@
 ++  contents-to-content
   |=  cs=(list content:gra)
   ^-  content:c
-  =;  mes=(list inline:c)
+  =;  mes=(list inline:j)
     story/[~ mes]
   %+  turn  cs
   |=  con=content:gra
-  ^-  inline:c
+  ^-  inline:j
   ?-  -.con
     %text       text.con
     %mention    `@t`(scot %p ship.con)

@@ -1,6 +1,7 @@
 /-  c=chat
 /-  meta
 /+  cite=cite-json
+/+  jibe-json
 |%
 ++  enjs
   =,  enjs:format
@@ -64,12 +65,11 @@
         image/s/image.m
         color/s/color.m
     ==
-
   ++  draft
     |=  d=draft:c
     %-  pairs
     :~  whom/s/(whom p.d)
-        story/(story q.d)
+        story/(jibe:enjs:jibe-json q.d)
     ==
   ::
   ++  club-rsvp
@@ -205,22 +205,6 @@
         sent+(time sent.memo)
         content+(content content.memo)
     ==
-  ::
-  ++  block
-    |=  b=block:c
-    ^-  json
-    %+  frond  -.b
-    ?-  -.b
-        %cite  (enjs:cite cite.b)
-        %image
-      %-  pairs
-      :~  src+s+src.b
-          height+(numb height.b)
-          width+(numb width.b)
-          alt+s+alt.b
-      ==
-      
-    ==
   ++  crew
     |=  cr=crew:club:c
     %-  pairs
@@ -241,46 +225,8 @@
     |=  c=content:c
     %+  frond  -.c
     ?-  -.c
-      %story   (story p.c)
+      %story   (jibe:enjs:jibe-json p.c)
       %notice  (notice p.c)
-    ==
-  ::
-  ++  story
-    |=  s=story:c
-    %-  pairs
-    :~  block/a/(turn p.s block)
-        inline/a/(turn q.s inline)
-    ==
-  ::
-  ++  inline
-    |=  i=inline:c
-    ^-  json
-    ?@  i  s+i
-    %+  frond  -.i
-    ?-  -.i
-        %break
-      ~
-    ::
-        %ship  s/(scot %p p.i)
-    ::
-        ?(%code %tag %inline-code)
-      s+p.i
-    ::
-        ?(%italics %bold %strike %blockquote)
-      :-  %a
-      (turn p.i inline)
-    ::
-        %block
-      %-  pairs
-      :~  index+(numb p.i)
-          text+s+q.i
-      ==
-    ::
-        %link
-      %-  pairs
-      :~  href+s+p.i
-          content+s+q.i
-      ==
     ==
   ::
   ++  seal
@@ -325,7 +271,7 @@
   ++  draft
     %-  ot
     :~  whom/whom
-        story/story
+        story/jibe:dejs:jibe-json
     ==
   ++  rsvp
     %-  ot
@@ -499,7 +445,7 @@
   ::
   ++  content
     %-  of
-    :~  story/story
+    :~  story/jibe:dejs:jibe-json
         notice/notice
     ==
   ::
@@ -509,57 +455,6 @@
         sfix/so
     ==
   ::
-  ++  story
-    ^-  $-(json story:c)
-    %-  ot
-    :~  block/(ar block)
-        inline/(ar inline)
-    ==
-  ::
-  ++  block
-    |=  j=json
-    ^-  block:c
-    %.  j
-    %-  of
-    :~  cite/dejs:cite
-    ::
-      :-  %image
-      %-  ot
-      :~  src/so
-          height/ni
-          width/ni
-          alt/so
-      ==
-    ==
-  ::
-  ++  inline
-    |=  j=json
-    ^-  inline:c
-    ?:  ?=([%s *] j)  p.j
-    =>  .(j `json`j)
-    %.  j
-    %-  of
-    :~  italics/(ar inline)
-        bold/(ar inline)
-        strike/(ar inline)
-        ship/(se %p)
-        blockquote/(ar inline)
-        inline-code/so
-        code/so
-        tag/so
-        break/ul
-    ::
-      :-  %block
-      %-  ot
-      :~  index/ni
-          text/so
-      ==
-    ::
-      :-  %link
-      %-  ot
-      :~  href/so
-          content/so
-      ==
-    ==
+  ++  story  jibe:dejs:jibe-json
   --
 --
