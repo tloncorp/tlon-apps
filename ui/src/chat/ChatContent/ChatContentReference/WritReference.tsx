@@ -1,11 +1,12 @@
-import React, { useCallback } from 'react';
-import { useWrit } from '@/state/chat';
+import React, { useCallback, useEffect } from 'react';
+import { useWrit, useChatState } from '@/state/chat';
 import { useNavigate } from 'react-router';
 import { useChannel, useGroup } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { daToUnix } from '@urbit/api';
 import Author from '@/chat/ChatMessage/Author';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 export default function WritReference({
   groupFlag,
@@ -25,6 +26,10 @@ export default function WritReference({
   const channel = useChannel(groupFlag, nest);
   const group = useGroup(groupFlag);
 
+  useEffect(() => {
+    useChatState.getState().initialize(chFlag);
+  }, [chFlag]);
+
   const openThreadForWrit = useCallback(() => {
     navigate(`/groups/${refToken}`);
   }, [navigate, refToken]);
@@ -34,11 +39,7 @@ export default function WritReference({
   }, [navigate, nest, groupFlag]);
 
   if (!writObject) {
-    return (
-      <div className="writ-inline-block p-2">
-        This is a reference to a group you do not have access to.
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   const [time, writ] = writObject;
