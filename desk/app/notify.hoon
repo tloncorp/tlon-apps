@@ -71,9 +71,13 @@
   ::
   ++  on-save   !>(state)
   ++  on-load
-    |=  =old=vase
+    |=  =vase
     ^-  (quip card _this)
-    `this
+    =/  old=(unit state-3)
+      (mole |.(!<(state-3 vase)))  
+    ?~  old
+      on-init
+    `this(state u.old)
   ::
   ++  on-poke
     |=  [=mark =vase]
