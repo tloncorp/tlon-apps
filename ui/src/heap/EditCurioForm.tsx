@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { CurioFormSchema } from '@/types/heap';
+import { EditCurioFormSchema } from '@/types/heap';
 import { useForm } from 'react-hook-form';
 import { useHeapState } from '@/state/heap/heap';
 import { useChannelFlag } from '@/hooks';
@@ -12,16 +12,16 @@ export default function EditCurioForm() {
   const chFlag = useChannelFlag();
   const { curio, time } = useCurioFromParams();
 
-  const defaultValues: CurioFormSchema = {
+  const defaultValues: EditCurioFormSchema = {
     title: curio ? curio.heart.title : '',
-    content: curio ? curio.heart.content : [],
+    // content: curio ? curio.heart.content : [],
+    content: curio ? curio.heart.content.toString() : '',
   };
 
-  const { handleSubmit, register, watch } = useForm<CurioFormSchema>({
+  const { handleSubmit, register, watch } = useForm<EditCurioFormSchema>({
     defaultValues,
   });
 
-  // @ts-expect-error Suppress circular reference warning
   const watchedContent = watch('content');
   const isValidInput = [[], [''], ''].every((v) => v !== watchedContent);
 
@@ -38,7 +38,7 @@ export default function EditCurioForm() {
   }, [chFlag, dismiss, time]);
 
   const onSubmit = useCallback(
-    async (values: CurioFormSchema) => {
+    async ({ content, title }: EditCurioFormSchema) => {
       if (!chFlag) {
         return;
       }
@@ -51,7 +51,7 @@ export default function EditCurioForm() {
           .getState()
           .editCurio(chFlag, time?.toString() || '', {
             ...curio.heart,
-            ...values,
+            ...{ title, content: [content] }, // TODO
           });
         dismiss();
       } catch (error) {

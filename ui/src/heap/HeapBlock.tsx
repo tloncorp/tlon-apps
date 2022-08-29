@@ -162,7 +162,7 @@ export default function HeapBlock({
   const { content, sent } = curio.heart;
   const [embed, setEmbed] = useState<any>();
   const replyCount = curio.seal.replied.length;
-  const url = content[0].toString();
+  const url = content.length > 0 ? content[0].toString() : '';
   const prettySent = formatDistanceToNow(sent);
 
   const { isImage, isAudio, isText } = useHeapContentType(url);
@@ -180,6 +180,8 @@ export default function HeapBlock({
   }
 
   const isOembed = validOembedCheck(embed, url);
+
+  console.log(content);
 
   if (isText) {
     return (

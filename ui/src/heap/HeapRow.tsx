@@ -35,7 +35,8 @@ export default function HeapRow({
   const [embed, setEmbed] = useState<any>();
   const { content, sent, title } = curio.heart;
   const { replied } = curio.seal;
-  const contentString = content[0].toString();
+  // TODO: improve this
+  const contentString = content.length > 0 ? content[0].toString() : '';
   const navigate = useNavigate();
   const location = useLocation();
 

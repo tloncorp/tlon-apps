@@ -13,7 +13,7 @@ import {
   PrivacyType,
   Rank,
 } from '@/types/groups';
-import { Heap } from '@/types/heap';
+import { CurioContent, Heap } from '@/types/heap';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -262,4 +262,16 @@ export async function jsonFetch<T>(
   }
   const data = await res.json();
   return data as T;
+}
+
+/**
+ * Since there is no metadata persisted in a curio to determine what kind of
+ * curio it is (Link or Text), this function determines by checking the
+ * content's structure.
+ *
+ * @param content CurioContent
+ * @returns boolean
+ */
+export function isLinkCurio(content: CurioContent) {
+  return content.length === 1 && typeof content[0] === 'string';
 }
