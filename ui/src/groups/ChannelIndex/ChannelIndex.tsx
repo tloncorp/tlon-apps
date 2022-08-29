@@ -57,6 +57,19 @@ function GroupChannel({
     },
     [_app]
   );
+  const leave = useCallback(
+    (chFlag: string) => {
+      const leaver =
+        _app === 'chat'
+          ? useChatState.getState().leaveChat
+          : _app === 'heap'
+          ? useHeapState.getState().leaveHeap
+          : useDiaryState.getState().leaveDiary;
+
+      leaver(chFlag);
+    },
+    [_app]
+  );
 
   const editChannel = useCallback(() => {
     navigate(`/groups/${flag}/info/channels`);
@@ -87,13 +100,13 @@ function GroupChannel({
 
   const leaveChannel = useCallback(async () => {
     try {
-      await useChatState.getState().leaveChat(flag);
+      leave(flag);
     } catch (error) {
       if (error) {
         console.error(`[ChannelIndex:LeaveError] ${error}`);
       }
     }
-  }, [flag]);
+  }, [flag, leave]);
 
   const muteChannel = useCallback(() => {
     // TODO: what happens on Mute?

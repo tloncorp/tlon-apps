@@ -135,6 +135,11 @@ export interface DiaryUpdate {
   diff: DiaryDiff;
 }
 
+export interface DiaryAction {
+  flag: string;
+  update: DiaryUpdate;
+}
+
 export interface QuipDeltaAdd {
   add: DiaryMemo;
 }

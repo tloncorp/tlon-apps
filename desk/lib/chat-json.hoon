@@ -144,6 +144,13 @@
     |=  =id:c
     n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
   ::
+  ++  action
+    |=  =action:c
+    %-  pairs
+    :~  flag/(flag p.action)
+        update/(update q.action)
+    ==
+  ::
   ++  update
     |=  =update:c
     %-  pairs
@@ -156,6 +163,8 @@
     %+  frond  -.diff
     ?+  -.diff  ~
       %writs     (writs-diff p.diff)
+      %add-sects  a/(turn ~(tap in p.diff) (lead %s))
+      %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
   ::
   ++  writs-diff

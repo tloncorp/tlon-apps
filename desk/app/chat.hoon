@@ -217,7 +217,7 @@
   ?+    path  ~|(bad-watch-path/path !!)
       [%club %new ~]  ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
-      [%chat ~]  ?>(from-self cor)
+      [%ui ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
     ::
       [%chat @ @ *]
@@ -914,6 +914,7 @@
     =/  cag=cage  chat-update+!>([time d])
     =.  cor
       (give %fact ~(tap in paths) cag)
+    =.  cor  (give %fact ~[/ui] chat-action+!>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
       =/  =cage  writ-diff+!>(p.d)
       (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))

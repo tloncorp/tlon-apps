@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { Groups } from '@/types/groups';
 import {
   Chat,
+  ChatAction,
   ChatBriefs,
   ChatBriefUpdate,
   ChatDiff,
@@ -234,6 +235,30 @@ export const useChatState = create<ChatState>(
               const club = draft.multiDms[id];
               if (!club) {
                 draft.multiDms[id] = crew;
+              }
+            });
+          },
+        });
+
+        api.subscribe({
+          app: 'chat',
+          path: '/ui',
+          event: (event: ChatAction) => {
+            get().batchSet((draft) => {
+              const {
+                flag,
+                update: { diff },
+              } = event;
+              const chat = draft.chats[flag];
+
+              if ('del-sects' in diff) {
+                chat.perms.writers = chat.perms.writers.filter(
+                  (w) => !diff['del-sects'].includes(w)
+                );
+              } else if ('add-sects' in diff) {
+                chat.perms.writers = chat.perms.writers.concat(
+                  diff['add-sects']
+                );
               }
             });
           },

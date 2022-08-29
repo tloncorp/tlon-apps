@@ -1,4 +1,4 @@
-/-  d=diary, g=groups
+/-  d=diary, g=groups, ha=hark
 /-  meta
 /+  default-agent, verb, dbug
 /+  not=notes
@@ -141,6 +141,7 @@
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
+      [%ui ~]      ?>(from-self cor)
     ::
       [%diary @ @ *]
     =/  =ship  (slav %p i.t.path)
@@ -152,6 +153,12 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
+  ::
+      [%hark ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf/"Failed to hark" u.p.sign)
+    cor
   ::
       [%diary @ @ *]
     =/  =ship  (slav %p i.t.wire)
@@ -239,6 +246,36 @@
   |=  [=flag:d =brief:briefs:d]
   (give %fact ~[/briefs] diary-brief-update+!>([flag brief]))
 ::
+++  pass-hark
+  |=  [all=? desk=? =yarn:ha]
+  ^-  card
+  =/  =wire  /hark
+  =/  =dock  [our.bowl %hark]
+  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  [%pass wire %agent dock %poke cage]
+++  spin
+  |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
+  ^-  yarn:ha
+  =/  id  (end [7 1] (shax eny.bowl))
+  [id rope now.bowl con wer but]
+++  flatten
+  |=  content=(list inline:d)
+  ^-  cord
+  %-  crip
+  %-  zing
+  %+  turn
+    content
+  |=  c=inline:d
+  ^-  tape
+  ?@  c  (trip c)
+  ?-  -.c
+      %break  ""
+      %tag    (trip p.c)
+      %link   (trip q.c)
+      %block   (trip q.c)
+      ?(%code %inline-code)  ""
+      ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
+  ==
 ++  from-self  =(our src):bowl
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -254,6 +291,15 @@
     |=  f=flag:d
     di-core(flag f, diary (~(got by shelf) f))
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
+  ++  di-spin
+    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    =*  group  group.perm.diary
+    =/  =nest:g  [dap.bowl flag]
+    =/  rope  [`group `nest %homestead (welp /(scot %p p.flag)/[q.flag] rest)]
+    =/  link  
+      (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
+    (spin rope con link but)
+  ::
   ++  di-watch
     |=  =path
     ^+  di-core
@@ -378,7 +424,7 @@
     |=  her=ship
     =/  =path
       %+  welp  di-groups-scry
-      /channel/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
+      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
     .^(? %gx path)
   ::
   ++  di-pub
@@ -445,9 +491,11 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
+    ~&  [flag [time d]]
+    =.  cor  (give %fact ~[/ui] diary-action+!>([flag [time d]]))
     =/  cag=cage  diary-update+!>([time d])
     =.  cor
-      (give %fact [(welp di-area /ui) ~(tap in paths)] cag)
+      (give %fact ~(tap in paths) cag)
     di-core
   ::
   ++  di-remark-diff
@@ -480,9 +528,35 @@
       di-core(notes.diary (reduce:di-notes time p.dif))
     ::
         %quips
-      =/  =quips:d   (~(gut by banter.diary) p.dif *quips:d)
-      =.  quips      (~(reduce qup quips) time q.dif)
-      di-core(banter.diary (~(put by banter.diary) p.dif quips))
+      =/  =quips:d      (~(gut by banter.diary) p.dif *quips:d)
+      =.  quips         (~(reduce qup quips) time q.dif)
+      =.  banter.diary  (~(put by banter.diary) p.dif quips)
+      ?-  -.q.q.dif
+          ?(%del %add-feel %del-feel)  di-core
+          %add
+        =/  =memo:d  p.q.q.dif
+        =/  [ti=^time =note:d]  (~(got not notes.diary) p.dif)        
+        =/  in-replies
+          %+  lien
+            (tap:on:quips:d quips)
+          |=  [=^time =quip:d]
+          =(author.quip our.bowl)
+        ?:  |(=(author.memo our.bowl) !in-replies)  di-core
+        =/  yarn
+          %^  di-spin
+            /note/(rsh 4 (scot %ui replying.memo))
+            :~  [%ship author.memo]
+                ' commented on '
+                [%emph title.note]
+                ': '
+                [%ship author.memo]
+                ': '
+                (flatten content.memo)
+            ==
+          ~  
+        =.  cor  (emit (pass-hark & & yarn))
+        di-core
+      ==
     ::
         %add-sects
       =*  p  perm.diary
