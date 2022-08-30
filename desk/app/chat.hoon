@@ -1,6 +1,6 @@
 /-  c=chat, g=groups
 /-  meta
-/-  ha=hark-store
+/-  ha=hark
 /+  default-agent, verb, dbug
 /+  chat-json
 /+  pac=dm
@@ -217,7 +217,7 @@
   ?+    path  ~|(bad-watch-path/path !!)
       [%club %new ~]  ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
-      [%chat ~]  ?>(from-self cor)
+      [%ui ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
     ::
       [%chat @ @ *]
@@ -252,6 +252,12 @@
     =/  =ship  (slav %p i.t.wire)
     =*  name   i.t.t.wire
     ca-abet:(ca-agent:(ca-abed:ca-core ship name) t.t.t.wire sign)
+  ::
+      [%hark ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf/"Failed to hark" u.p.sign)
+    cor
   ::
       [%groups ~]
     ?+    -.sign  !!
@@ -400,6 +406,37 @@
   |=  [=whom:c =brief:briefs:c]
   (give %fact ~[/briefs] chat-brief-update+!>([whom brief]))
 ::
+++  pass-hark
+  |=  [all=? desk=? =yarn:ha]
+  ^-  card
+  =/  =wire  /hark
+  =/  =dock  [our.bowl %hark]
+  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  [%pass wire %agent dock %poke cage]
+++  spin
+  |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
+  ^-  yarn:ha
+  =/  id  (end [7 1] (shax eny.bowl))
+  [id rope now.bowl con wer but]
+++  flatten
+  |=  content=(list inline:c)
+  ^-  cord
+  %-  crip
+  %-  zing
+  %+  turn
+    content
+  |=  c=inline:c
+  ^-  tape
+  ?@  c  (trip c)
+  ?-  -.c
+      %break  ""
+      %tag    (trip p.c)
+      %block  (trip q.c)
+      %link   (trip q.c)
+      %ship   (scow %p p.c)
+      ?(%code %inline-code)  ""
+      ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
+  ==
 ++  from-self  =(our src):bowl
 ++  cu-abed  cu-abed:cu-core
 ::
@@ -422,6 +459,12 @@
     (~(uni in team.club) hive.club)
   ::
   ++  cu-area  `wire`/club/(scot %uv id)
+  ::
+  ++  cu-spin  
+    |=  [con=(list content:ha) but=(unit button:ha)]
+    =/  rope  [~ ~ %chatstead /club/(scot %uv id)]
+    =/  link  /dm/(scot %uv id)
+    (spin rope con link but)
   ::
   ++  cu-pass
     |%
@@ -513,7 +556,25 @@
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       =.  cu-core  (cu-give-writs-diff diff.delta)
-      cu-core
+      ?-  -.q.diff.delta  
+          ?(%del %add-feel %del-feel)  cu-core
+          %add
+        =/  memo=memo:c  p.q.diff.delta
+        ?:  =(our.bowl author.memo)  cu-core
+        ?-  -.content.memo
+            %notice  cu-core
+            %story
+          =/  yarn
+            %+  cu-spin 
+              :~  [%ship author.memo]
+                  ': '
+                  (flatten q.p.content.memo)
+              ==
+            ~
+          =.  cor  (emit (pass-hark & & yarn))
+          cu-core
+        ==
+      ==
     ::
         %team
       =*  ship  ship.delta
@@ -593,6 +654,15 @@
     |=  f=flag:c
     ca-core(flag f, chat (~(got by chats) f))
   ++  ca-area  `path`/chat/(scot %p p.flag)/[q.flag]
+  ++  ca-spin  
+    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    =*  group  group.perm.chat
+    =/  =nest:g  [dap.bowl flag]
+    =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
+    =/  link  
+      (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] rest)
+    (spin rope con link but)
+  ::
   ++  ca-watch
     |=  =(pole knot)
     ^+  ca-core
@@ -845,6 +915,7 @@
     =/  cag=cage  chat-update+!>([time d])
     =.  cor
       (give %fact ~(tap in paths) cag)
+    =.  cor  (give %fact ~[/ui] chat-action+!>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
       =/  =cage  writ-diff+!>(p.d)
       (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
@@ -878,10 +949,9 @@
       (put:log-on:c log.chat time d)
     =.  ca-core
       (ca-give-updates time d)
+    =.  cor
+      (give-brief flag/flag ca-brief)
     ?-    -.d
-        %writs
-      ca-core(pact.chat (reduce:ca-pact time p.d))
-    ::
         %add-sects
       =*  p  perm.chat
       =.  writers.p  (~(uni in writers.p) p.d)
@@ -895,6 +965,48 @@
         %create
       =.  perm.chat  p.d
       ca-core
+    ::
+        %writs
+      =.  pact.chat  (reduce:ca-pact time p.d)
+      ?-  -.q.p.d  
+          ?(%del %add-feel %del-feel)  ca-core
+          %add
+        =/  memo=memo:c  p.q.p.d
+        ?-  -.content.memo
+            %notice  ca-core
+            %story
+          ?~  replying.memo  ca-core
+          =/  op  (~(get pac pact.chat) u.replying.memo)
+          ?~  op  ca-core
+          =/  opwrit  writ.u.op
+          =/  in-replies
+            %+  lien
+              ~(tap in replied.opwrit)
+            |=  =id:c
+            =/  writ  (~(get pac pact.chat) id)
+            ?~  writ  %.n
+            =(author.writ.u.writ our.bowl)
+          ?:  |(=(author.memo our.bowl) !in-replies)  ca-core  
+          ?-  -.content.opwrit
+              %notice  ca-core
+              %story          
+            =/  yarn
+              %^  ca-spin
+                /message/(scot %p p.u.replying.memo)/(scot %ud q.u.replying.memo)
+                :~  [%ship author.memo]
+                    ' replied to your message “'
+                    (flatten q.p.content.opwrit)
+                    '”: '
+                    [%ship author.memo]
+                    ': '
+                    (flatten q.p.content.memo)
+                ==
+              ~
+            =.  cor  (emit (pass-hark & & yarn))
+            ca-core
+          ==
+        ==
+      ==
     ==
   --
 ::
@@ -949,6 +1061,12 @@
     di-core(ship s, dm d)
 
   ++  di-area  `path`/dm/(scot %p ship)
+  ++  di-spin  
+    |=  [con=(list content:ha) but=(unit button:ha)]
+    =/  rope  [~ ~ %chatstead /dm/(scot %p ship)]
+    =/  link  /dm/(scot %p ship)
+    (spin rope con link but)
+  ::
   ++  di-proxy
     |=  =diff:dm:c
     =.  di-core  (di-ingest-diff diff)
@@ -990,7 +1108,27 @@
       (give-invites ship)
     =.  di-core  
       (di-notify diff)
-    di-core
+    ?:  from-self  di-core
+    ?-  -.q.diff  
+        ?(%del %add-feel %del-feel)  di-core
+        %add
+      =/  memo=memo:c  p.q.diff
+      ?-  -.content.memo
+          %notice  di-core
+          %story
+        =/  yarn
+          %+  di-spin 
+            :~  [%ship author.memo]
+                ?:  =(net.dm %invited)  ' has invited you to a direct message: “'
+                ': '
+                (flatten q.p.content.memo)
+                ?:(=(net.dm %invited) '”' '')
+            ==
+          ~
+        =.  cor  (emit (pass-hark & & yarn))
+        di-core
+      ==
+    ==
   ::
   ++  di-take-counter
     |=  =diff:dm:c

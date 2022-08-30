@@ -28,8 +28,7 @@ export default function ChannelJoinSelector() {
           <div className="flex w-full flex-col justify-start text-left">
             <span className="font-semibold">Default</span>
             <span className="text-sm font-medium text-gray-600">
-              Members will join this channel automatically when joining this
-              group
+              New members will be automatically subscribed to this channel
             </span>
           </div>
         </div>

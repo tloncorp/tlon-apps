@@ -12,21 +12,18 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import { usePinnedGroups } from '@/state/chat';
 import { hasKeys } from '@/logic/utils';
-import { useOurContact } from '@/state/contact';
 import ShipName from '@/components/ShipName';
 import Avatar from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
+import { useNotifications } from '@/notifications/useNotifications';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const pendingInvites = usePendingInvites();
-  const contact = useOurContact();
-  const currentShip = window.ship;
 
   const pendingInvitesCount = pendingInvites.length;
-  // TODO: get notification count from hark store
-  const notificationCount = 0;
+  const { count } = useNotifications();
 
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const groups = useGroups();
@@ -39,7 +36,7 @@ export default function Sidebar() {
   }
 
   return (
-    <nav className="flex h-full w-64 flex-col border-r-2 border-gray-50 bg-white">
+    <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex w-full flex-col px-2 pt-2">
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
         <SidebarItem
@@ -49,7 +46,7 @@ export default function Sidebar() {
           <ShipName showAlias name={window.our} />
         </SidebarItem>
         <SidebarItem
-          icon={<ActivityIndicator count={notificationCount} />}
+          icon={<ActivityIndicator count={count} />}
           to={`/notifications`}
         >
           Notifications

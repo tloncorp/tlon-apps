@@ -1,11 +1,14 @@
 import cookies from 'browser-cookies';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Location,
   useLocation,
+  useNavigate,
+  NavigateFunction,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import Groups from '@/groups/Groups';
@@ -42,13 +45,36 @@ import JoinGroupModal from '@/groups/Join/JoinGroupModal';
 import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
+import HeapDetail from '@/heap/HeapDetail';
+import groupsFavicon from '@/assets/groups.svg';
+import chatFavicon from '@/assets/chat.svg';
 import { useHeapState } from './state/heap/heap';
 import { useDiaryState } from './state/diary';
+import useHarkState from './state/hark';
+import Notifications from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
 import DiaryNote from './diary/DiaryNote';
 import DiaryAddNote from './diary/DiaryAddNote';
+import DMNotification from './notifications/DMNotification';
+import GroupNotification from './notifications/GroupNotification';
+import EditCurioModal from './heap/EditCurioModal';
+
+const appHead = (appName: string) => {
+  switch (appName) {
+    case 'chat':
+      return {
+        title: 'Messages',
+        icon: chatFavicon,
+      };
+    default:
+      return {
+        title: 'Groups',
+        icon: groupsFavicon,
+      };
+  }
+};
 
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
@@ -60,6 +86,15 @@ function ChatRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
+        <Route
+          path="/notifications"
+          element={
+            <Notifications
+              child={DMNotification}
+              title={`${appHead('chat').title} • All Notifications`}
+            />
+          }
+        />
         <Route path="/dm/" element={<Dms />}>
           <Route index element={<DMHome />} />
           <Route path="new" element={<NewDM />} />
@@ -70,7 +105,14 @@ function ChatRoutes({ state, location }: RoutesProps) {
         </Route>
 
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
-          <Route path="channels/:app/:chShip/:chName" element={<Channel />}>
+          <Route
+            path="channels/join/:app/:chShip/:chName"
+            element={<Channel />}
+          />
+          <Route
+            path="channels/chat/:chShip/:chName"
+            element={<ChatChannel title={`${appHead('chat').title} • `} />}
+          >
             <Route
               path="message/:idShip/:idTime"
               element={<GroupChatThread />}
@@ -78,7 +120,12 @@ function ChatRoutes({ state, location }: RoutesProps) {
           </Route>
         </Route>
 
-        <Route path="/profile/edit" element={<EditProfile />} />
+        <Route
+          path="/profile/edit"
+          element={
+            <EditProfile title={`${appHead('chat').title} • Edit Profile`} />
+          }
+        />
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
@@ -100,22 +147,67 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Nav />
       <Routes location={state?.backgroundLocation || location}>
+        <Route
+          path="/notifications"
+          element={
+            <Notifications
+              child={GroupNotification}
+              title={`${appHead('').title} • All Notifications`}
+            />
+          }
+        />
         {/* Find by Invite URL */}
-        <Route path="/groups/find/:ship/:name" element={<FindGroups />} />
+        <Route
+          path="/groups/find/:ship/:name"
+          element={<FindGroups title={`${appHead('').title} • Find Groups`} />}
+        />
         {/* Find by Nickname or @p */}
-        <Route path="/groups/find/:ship" element={<FindGroups />} />
-        <Route path="/groups/find" element={<FindGroups />} />
+        <Route
+          path="/groups/find/:ship"
+          element={<FindGroups title={`${appHead('').title} • Find Groups`} />}
+        />
+        <Route
+          path="/groups/find"
+          element={<FindGroups title={`${appHead('').title} • Find Groups`} />}
+        />
         <Route path="/groups/:ship/:name/*" element={<Groups />}>
+          <Route
+            path="activity"
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`${appHead('').title} • Activity`}
+              />
+            }
+          />
           <Route path="info" element={<GroupAdmin />}>
-            <Route index element={<GroupInfo />} />
-            <Route path="members" element={<GroupMemberManager />} />
-            <Route path="channels" element={<GroupChannelManager />} />
+            <Route
+              index
+              element={<GroupInfo title={`${appHead('').title} • Info`} />}
+            />
+            <Route
+              path="members"
+              element={
+                <GroupMemberManager title={`${appHead('').title} • Members`} />
+              }
+            />
+            <Route
+              path="channels"
+              element={
+                <GroupChannelManager
+                  title={`${appHead('').title} • Channels`}
+                />
+              }
+            />
           </Route>
           <Route
             path="channels/join/:app/:chShip/:chName"
             element={<Channel />}
           />
-          <Route path="channels/chat/:chShip/:chName" element={<ChatChannel />}>
+          <Route
+            path="channels/chat/:chShip/:chName"
+            element={<ChatChannel title={`${appHead('').title} • `} />}
+          >
             <Route
               path="message/:idShip/:idTime"
               element={<GroupChatThread />}
@@ -123,7 +215,11 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           </Route>
           <Route
             path="channels/heap/:chShip/:chName"
-            element={<HeapChannel />}
+            element={<HeapChannel title={`${appHead('').title} • `} />}
+          />
+          <Route
+            path="channels/heap/:chShip/:chName/curio/:idCurio"
+            element={<HeapDetail />}
           />
           <Route
             path="channels/diary/:chShip/:chName"
@@ -137,10 +233,20 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="channels/diary/:chShip/:chName/add"
             element={<DiaryAddNote />}
           />
-          <Route path="channels" element={<ChannelIndex />} />
+          <Route
+            path="channels"
+            element={
+              <ChannelIndex title={`${appHead('').title} • All Channels`} />
+            }
+          />
         </Route>
         <Route path="/dm/:ship" element={<Message />} />
-        <Route path="/profile/edit" element={<EditProfile />} />
+        <Route
+          path="/profile/edit"
+          element={
+            <EditProfile title={`${appHead('').title} • Edit Profile`} />
+          }
+        />
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
@@ -156,6 +262,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route
             path="/gangs/:ship/:name/reject"
             element={<RejectConfirmModal />}
+          />
+          <Route
+            path="/groups/:ship/:name/channels/heap/:chShip/:chName/curio/:idCurio/edit"
+            element={<EditCurioModal />}
           />
           <Route
             path="/groups/:ship/:name/channels/new"
@@ -191,7 +301,18 @@ function checkIfLoggedIn() {
   }
 }
 
+function handleGridRedirect(navigate: NavigateFunction) {
+  const query = new URLSearchParams(window.location.search);
+
+  if (query.has('grid-note')) {
+    navigate(decodeURIComponent(query.get('grid-note')!));
+  } else if (query.has('grid-link')) {
+    navigate(decodeURIComponent(query.get('grid-link')!));
+  }
+}
+
 function App() {
+  const navigate = useNavigate();
   const handleError = useErrorHandler();
   const location = useLocation();
   const isChat = useIsChat();
@@ -199,12 +320,15 @@ function App() {
   useEffect(() => {
     handleError(() => {
       checkIfLoggedIn();
+      handleGridRedirect(navigate);
+      // TODO: Clean up this order for different apps
       useGroupState.getState().start();
       useChatState.getState().start();
       useHeapState.getState().start();
       useDiaryState.getState().start();
 
       useChatState.getState().fetchDms();
+      useHarkState.getState().start();
       const { initialize: settingsInitialize, fetchAll } =
         useSettingsState.getState();
       settingsInitialize(api);
@@ -212,20 +336,7 @@ function App() {
 
       useContactState.getState().initialize(api);
     })();
-  }, [handleError]);
-
-  const theme = useTheme();
-  const isDarkMode = useMedia('(prefers-color-scheme: dark)');
-
-  useEffect(() => {
-    if ((isDarkMode && theme === 'auto') || theme === 'dark') {
-      document.body.classList.add('dark');
-      useLocalState.setState({ currentTheme: 'dark' });
-    } else {
-      document.body.classList.remove('dark');
-      useLocalState.setState({ currentTheme: 'light' });
-    }
-  }, [isDarkMode, theme]);
+  }, [navigate, handleError]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
@@ -242,25 +353,53 @@ function App() {
 
 function RoutedApp() {
   const mode = import.meta.env.MODE;
-  const basename = (modeName: string) => {
-    switch (modeName) {
-      case 'mock':
-      case 'chatmock':
-      case 'chatstaging':
-      case 'staging':
-        return '/';
+  const app = import.meta.env.VITE_APP;
+  const [userThemeColor, setUserThemeColor] = useState('#ffffff');
+
+  const basename = (modeName: string, appName: string) => {
+    if (mode === 'mock' || mode === 'staging') {
+      return '/';
+    }
+
+    switch (appName) {
       case 'chat':
         return '/apps/chatstead';
       default:
         return '/apps/homestead';
     }
   };
+
+  const theme = useTheme();
+  const isDarkMode = useMedia('(prefers-color-scheme: dark)');
+
+  useEffect(() => {
+    if ((isDarkMode && theme === 'auto') || theme === 'dark') {
+      document.body.classList.add('dark');
+      useLocalState.setState({ currentTheme: 'dark' });
+      setUserThemeColor('#000000');
+    } else {
+      document.body.classList.remove('dark');
+      useLocalState.setState({ currentTheme: 'light' });
+      setUserThemeColor('#ffffff');
+    }
+  }, [isDarkMode, theme]);
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
       onReset={() => window.location.reload()}
     >
-      <Router basename={basename(mode)}>
+      <Router basename={basename(mode, app)}>
+        <Helmet>
+          <title>{appHead(app).title}</title>
+          <link
+            rel="icon"
+            href={appHead(app).icon}
+            sizes="any"
+            type="image/svg+xml"
+          />
+          <meta name="theme-color" content={userThemeColor} />
+        </Helmet>
         <App />
       </Router>
     </ErrorBoundary>

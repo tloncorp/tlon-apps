@@ -91,7 +91,7 @@ export default function makeCuriosStore(
           const { time, delta } = data as CurioDiff;
           const s = get();
 
-          const bigTime = bigInt(time);
+          const bigTime = bigInt(udToDec(time));
           s.batchSet((draft) => {
             let curioMap = draft.curios[flag];
             if ('add' in delta && !curioMap.has(bigTime)) {
@@ -99,18 +99,24 @@ export default function makeCuriosStore(
               const curio: HeapCurio = { seal, heart: delta.add };
               curioMap = curioMap.set(bigTime, curio);
               if (delta.add.replying) {
-                const replyTime = bigInt(delta.add.replying);
+                const replyTime = bigInt(udToDec(delta.add.replying));
                 if (replyTime) {
                   const ancestor = curioMap.get(replyTime);
-                  ancestor.seal.replied = [...ancestor.seal.replied, time];
+                  ancestor.seal.replied = [
+                    ...ancestor.seal.replied,
+                    udToDec(time),
+                  ];
                   curioMap.set(replyTime, ancestor);
                 }
               }
+            } else if ('edit' in delta && curioMap.has(bigTime)) {
+              const curio = curioMap.get(bigTime);
+              curioMap = curioMap.set(bigTime, { ...curio, heart: delta.edit });
             } else if ('del' in delta && curioMap.has(bigTime)) {
               const old = curioMap.get(bigTime);
               curioMap = curioMap.delete(bigTime);
               if (old.heart.replying) {
-                const replyTime = bigInt(old.heart.replying);
+                const replyTime = bigInt(udToDec(old.heart.replying));
                 const ancestor = curioMap.get(replyTime);
                 ancestor.seal.replied = ancestor.seal.replied.filter(
                   (r) => r !== old.heart.replying

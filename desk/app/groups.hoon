@@ -1,4 +1,4 @@
-/-  g=groups
+/-  g=groups, ha=hark
 /-  g-one=group
 /-  m-one=metadata-store
 /-  meta
@@ -180,6 +180,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
+      [%hark ~]  cor
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -216,6 +217,20 @@
   ^-  (unit card)
   ?:  =(dude dap.bowl)  ~
   `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
+::
+++  from-self  =(our src):bowl
+++  pass-hark
+  |=  [all=? desk=? =yarn:ha]
+  ^-  card
+  =/  =wire  /hark
+  =/  =dock  [our.bowl %hark]
+  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  [%pass wire %agent dock %poke cage]
+++  spin
+  |=  [=rope:ha wer=path but=(unit button:ha) con=(list content:ha)]
+  ^-  yarn:ha
+  =/  id  (end [7 1] (shax eny.bowl))
+  [id rope now.bowl con wer but]
 ::
 ++  give-invites
   |=  [=flag:g ships=(set ship)]
@@ -350,6 +365,12 @@
     go-core(flag f, group gr, net n)
   ::
   ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
+  ++  go-rope
+    |=  thread=path
+    [`flag ~ q.byk.bowl (welp /(scot %p p.flag)/[q.flag] thread)]
+  ++  go-link
+    |=  link=path 
+    (welp /groups/(scot %p p.flag)/[q.flag] link)
   ++  go-is-bloc
     |(=(src.bowl p.flag) (~(has in go-bloc-who) src.bowl))
   ++  go-bloc-who
@@ -756,6 +777,23 @@
           ::  if ship previously added, retain sects
           =/  vessel  (~(gut by fleet.group) ship *vessel:fleet:g)
           [ship [sects=sects.vessel joined=joined]]
+      ?:  from-self  go-core
+      =/  link  (go-link /info/members)
+      =/  yarn
+        %-  spin
+        :*  (go-rope /joins)
+            link
+            `['View all members' link]
+            %+  welp
+              ^-  (list content:ha)
+              %+  join  `content:ha`', '
+              `(list content:ha)`(turn ~(tap in ships) |=(=ship ship/ship))
+            :~  ?:  =(~(wyt in ships) 1)  ' has joined '
+                ' have joined '
+                [%emph title.meta.group]
+            ==
+        ==
+      =.  cor  (emit (pass-hark & & yarn))
       go-core
     ::
         %del
@@ -767,7 +805,23 @@
           ~(tap by fleet.group)
         |=  [=ship =vessel:fleet:g]
         (~(has in ships) ship)
-      ~&  ships
+      ?:  from-self  go-core
+      =/  link  (go-link /info/members)
+      =/  yarn
+        %-  spin
+        :*  (go-rope /leaves)
+            link
+            `['View all members' link]
+            %+  welp
+              ^-  (list content:ha)
+              %+  join  `content:ha`', '
+              `(list content:ha)`(turn ~(tap in ships) |=(=ship ship/ship))
+            :~  ?:  =(~(wyt in ships) 1)  ' has left '
+                ' have left '
+                [%emph title.meta.group]
+            ==
+        ==
+      =.  cor  (emit (pass-hark & & yarn))
       ?:  (~(has in ships) our.bowl)
         go-core(gone &)
       go-core
@@ -781,6 +835,32 @@
         |=  [=ship =vessel:fleet:g]
         ?.  (~(has in ships) ship)  vessel
         vessel(sects (~(uni in sects.vessel) sects.diff))
+      ?:  from-self  go-core
+      =/  link  (go-link /info/members)
+      =/  ship-list=(list content:ha)  
+        %+  join  `content:ha`', '
+        `(list content:ha)`(turn ~(tap in ships) |=(=ship ship/ship))
+      =/  role-list
+        %-  crip
+        %+  join  ', '
+        %+  turn 
+          ~(tap in sects.diff) 
+        |=  =sect:g
+        =/  cabal  (~(got by cabals.group) sect)
+        title.meta.cabal
+      =/  yarn
+        %-  spin
+        :*  (go-rope /add-roles)
+            link
+            `['View all members' link]
+            %+  welp
+              ship-list
+            :~  ?:  =(~(wyt in ships) 1)  ' is now a(n) '
+                ' are now a(n) '
+                [%emph role-list]
+            ==
+        ==
+      =.  cor  (emit (pass-hark & & yarn))
       go-core
     ::
         %del-sects
@@ -804,6 +884,19 @@
         %+  ~(jab by zones.group)  zone
         |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
       =.  channels.group  (put:by-ch ch channel.diff)
+      ?:  from-self  go-core
+      =/  link  (go-link /channels)
+      =/  yarn
+        %-  spin
+        :*  (go-rope /channel/add)
+            link
+            `['Subscribe to channel' link]
+            :~  [%emph title.meta.channel.diff]
+                ' has been added to '
+                [%emph title.meta.group]
+            ==
+        ==
+      =.  cor  (emit (pass-hark & & yarn))
       go-core
     ::
         %del
@@ -812,6 +905,19 @@
         %+  ~(jab by zones.group)  zone.channel
         |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  channels.group  (del:by-ch ch)
+      ?:  from-self  go-core
+      =/  link  (go-link /channels)
+      =/  yarn
+        %-  spin
+        :*  (go-rope /channel/del)
+            link
+            ~
+            :~  [%emph title.meta.channel]
+                ' has been removed from '
+                [%emph title.meta.group]
+            ==
+        ==
+      =.  cor  (emit (pass-hark & & yarn))
       go-core
     ::
         %add-sects
@@ -961,6 +1067,21 @@
             (emit %give %fact ~[path] cage.sign)
           =.  cor
             (emit %give %kick ~[path] ~)
+          ?:  from-self  ga-core
+          ?~  pev.gang   ga-core
+          ?~  vit.gang   ga-core
+          =/  link  /groups/find
+          =/  yarn
+            %-  spin
+            :*  [`flag ~ q.byk.bowl /(scot %p p.flag)/[q.flag]/invite]
+                link
+                `['Join Group' link]
+                :~  [%ship src.bowl]
+                    ' sent you an invite to '
+                    [%emph title.meta.u.pev.gang]
+                ==
+            ==
+          =.  cor  (emit (pass-hark & & yarn))
           ga-core
           ::
             %kick

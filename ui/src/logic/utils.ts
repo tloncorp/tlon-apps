@@ -4,7 +4,7 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import { Chat, ChatWhom } from '@/types/chat';
+import { Chat, ChatWhom, ChatBrief } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -13,8 +13,8 @@ import {
   PrivacyType,
   Rank,
 } from '@/types/groups';
-import { Heap } from '@/types/heap';
-import { Suspender } from './suspend';
+import { CurioContent, Heap, HeapBrief } from '@/types/heap';
+import { DiaryBrief } from '@/types/diary';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -50,6 +50,10 @@ export function channelHref(flag: string, ch: string) {
   return `/groups/${flag}/channels/${ch}`;
 }
 
+export function makePrettyTime(date: Date) {
+  return format(date, 'HH:mm');
+}
+
 export function makePrettyDay(date: Date) {
   const diff = differenceInDays(endOfToday(), date);
   switch (diff) {
@@ -64,7 +68,7 @@ export function makePrettyDay(date: Date) {
 
 export function makePrettyDayAndTime(date: Date) {
   const diff = differenceInDays(endOfToday(), date);
-  const time = format(date, 'HH:mm');
+  const time = makePrettyTime(date);
   switch (true) {
     case diff === 0:
       return `Today • ${time}`;
@@ -79,7 +83,7 @@ export function makePrettyDayAndTime(date: Date) {
 
 export function makePrettyDayAndDateAndTime(date: Date) {
   const diff = differenceInDays(endOfToday(), date);
-  const time = format(date, 'HH:mm');
+  const time = makePrettyTime(date);
   const fullDate = `${format(date, 'LLLL')} ${format(date, 'do')}, ${format(
     date,
     'yyyy'
@@ -227,6 +231,7 @@ export const IMAGE_REGEX =
 export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)$/i;
 export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
+export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 
 export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
@@ -240,12 +245,9 @@ const isFacebookGraphDependent = (url: string) => {
   );
 };
 
-export const validOembedCheck = (embed: Suspender<any>, url: string) => {
+export const validOembedCheck = (embed: any, url: string) => {
   if (!isFacebookGraphDependent(url)) {
-    if (
-      !Object.prototype.hasOwnProperty.call(embed, 'error') &&
-      embed.read().html
-    ) {
+    if (embed?.html) {
       return true;
     }
   }
@@ -262,4 +264,39 @@ export async function jsonFetch<T>(
   }
   const data = await res.json();
   return data as T;
+}
+
+export function filterJoinedChannels(
+  channels: [string, GroupChannel][],
+  briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
+) {
+  return channels.filter(([nest]) => {
+    const [, chFlag] = nestToFlag(nest);
+    const isChannelHost = window.our === chFlag?.split('/')[0];
+    return isChannelHost || (chFlag && chFlag in briefs);
+  });
+}
+
+/**
+ * Since there is no metadata persisted in a curio to determine what kind of
+ * curio it is (Link or Text), this function determines by checking the
+ * content's structure.
+ *
+ * @param content CurioContent
+ * @returns boolean
+ */
+export function isLinkCurio(content: CurioContent) {
+  return (
+    content.length === 1 &&
+    typeof content[0] === 'string' &&
+    isValidUrl(content[0])
+  );
+}
+
+export function linkFromCurioContent(content: CurioContent) {
+  if (isLinkCurio(content)) {
+    return content[0] as string;
+  }
+
+  return '';
 }

@@ -1,4 +1,4 @@
-import { BigIntOrderedMap, Tag } from '@urbit/api';
+import { BigIntOrderedMap } from '@urbit/api';
 import {
   Italics,
   Strikethrough,
@@ -8,10 +8,15 @@ import {
   Bold,
   Blockquote,
   Link,
+  Tag,
 } from './content';
 
 export type Patda = string;
 export type Ship = string;
+
+export const GRID = 'grid';
+export const LIST = 'list';
+export type HeapDisplayMode = typeof GRID | typeof LIST;
 
 export type HeapInline =
   | string
@@ -67,11 +72,11 @@ export function isBreak(item: unknown): item is Break {
 }
 
 export interface CurioSeal {
-  time: number;
+  time: string;
   feels: {
     [ship: Ship]: string;
   };
-  replied: number[];
+  replied: string[];
 }
 
 export type CurioContent = HeapInline[];
@@ -81,7 +86,7 @@ export interface CurioHeart {
   content: CurioContent;
   author: Ship;
   sent: number;
-  replying: number | null;
+  replying: string | null;
 }
 
 export interface HeapCurio {
@@ -103,12 +108,27 @@ interface CurioDeltaDel {
   del: null;
 }
 
+interface CurioDeltaEdit {
+  edit: CurioHeart;
+}
+
 interface CurioDeltaAddFeel {
   'add-feel': {
     time: string;
     feel: string;
     ship: string;
   };
+}
+
+export type CurioDelta =
+  | CurioDeltaAdd
+  | CurioDeltaDel
+  | CurioDeltaAddFeel
+  | CurioDeltaEdit;
+
+export interface CurioDiff {
+  time: string;
+  delta: CurioDelta;
 }
 
 interface HeapDiffAddSects {
@@ -119,15 +139,17 @@ interface HeapDiffDelSects {
   'del-sects': string[];
 }
 
-export type CurioDelta = CurioDeltaAdd | CurioDeltaDel | CurioDeltaAddFeel;
+interface HeapDiffCurios {
+  curios: CurioDiff;
+}
 
-export interface CurioDiff {
-  time: number;
-  delta: CurioDelta;
+interface HeapDiffView {
+  view: HeapDisplayMode;
 }
 
 export type HeapDiff =
-  | { curios: CurioDiff }
+  | HeapDiffCurios
+  | HeapDiffView
   | HeapDiffAddSects
   | HeapDiffDelSects;
 
@@ -136,8 +158,14 @@ export interface HeapUpdate {
   diff: HeapDiff;
 }
 
+export interface HeapAction {
+  flag: string;
+  update: HeapUpdate;
+}
+
 export interface Heap {
   perms: HeapPerm;
+  view: HeapDisplayMode;
 }
 
 export interface Stash {
@@ -176,3 +204,12 @@ export interface HeapCreate {
 export interface HeapPerm {
   writers: string[];
 }
+
+export const LINK = 'link';
+export const TEXT = 'text';
+export type CurioInputMode = typeof LINK | typeof TEXT;
+
+export type NewCurioFormSchema = { content: string };
+export type EditCurioFormSchema = NewCurioFormSchema &
+  Pick<CurioHeart, 'title'>;
+export type CurioFormSchema = NewCurioFormSchema | EditCurioFormSchema;

@@ -74,11 +74,11 @@
   ==
 +$  inline
   $@  @t
-  $%  [%italics p=inline]
-      [%bold p=inline]
-      [%strike p=inline]
-      [%inline-code p=cord]
+  $%  [%italics p=(list inline)]
+      [%bold p=(list inline)]
+      [%strike p=(list inline)]
       [%blockquote p=(list inline)]
+      [%inline-code p=cord]
       [%block p=@ud q=cord]
       [%code p=cord]
       [%tag p=cord]

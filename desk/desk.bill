@@ -1,6 +1,7 @@
 :~  %groups
     %chat
-    %diary
     %heap
+    %diary
     %hark
+    %notify
 ==

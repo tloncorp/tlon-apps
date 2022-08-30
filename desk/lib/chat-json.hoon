@@ -1,5 +1,6 @@
 /-  c=chat
 /-  meta
+/+  cite=cite-json
 |%
 ++  enjs
   =,  enjs:format
@@ -144,6 +145,13 @@
     |=  =id:c
     n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
   ::
+  ++  action
+    |=  =action:c
+    %-  pairs
+    :~  flag/(flag p.action)
+        update/(update q.action)
+    ==
+  ::
   ++  update
     |=  =update:c
     %-  pairs
@@ -156,6 +164,8 @@
     %+  frond  -.diff
     ?+  -.diff  ~
       %writs     (writs-diff p.diff)
+      %add-sects  a/(turn ~(tap in p.diff) (lead %s))
+      %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
   ::
   ++  writs-diff
@@ -201,6 +211,7 @@
     ^-  json
     %+  frond  -.b
     ?-  -.b
+        %cite  (enjs:cite cite.b)
         %image
       %-  pairs
       :~  src+s+src.b
@@ -208,6 +219,7 @@
           width+(numb width.b)
           alt+s+alt.b
       ==
+      
     ==
   ++  crew
     |=  cr=crew:club:c
@@ -248,6 +260,8 @@
     ?-  -.i
         %break
       ~
+    ::
+        %ship  s/(scot %p p.i)
     ::
         ?(%code %tag %inline-code)
       s+p.i
@@ -507,7 +521,7 @@
     ^-  block:c
     %.  j
     %-  of
-    :~
+    :~  cite/dejs:cite
     ::
       :-  %image
       %-  ot
@@ -528,6 +542,7 @@
     :~  italics/(ar inline)
         bold/(ar inline)
         strike/(ar inline)
+        ship/(se %p)
         blockquote/(ar inline)
         inline-code/so
         code/so

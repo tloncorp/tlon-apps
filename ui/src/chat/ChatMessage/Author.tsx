@@ -2,6 +2,7 @@ import React from 'react';
 import {
   makePrettyDayAndDateAndTime,
   makePrettyDayAndTime,
+  makePrettyTime,
 } from '@/logic/utils';
 import { useLocation } from 'react-router';
 import { useModalNavigate } from '@/logic/routing';
@@ -11,10 +12,18 @@ import ShipName from '@/components/ShipName';
 interface AuthorProps {
   ship: string;
   date: Date;
+  timeOnly?: boolean;
+  hideTime?: boolean;
 }
-export default function Author({ ship, date }: AuthorProps) {
+export default function Author({
+  ship,
+  date,
+  timeOnly,
+  hideTime,
+}: AuthorProps) {
   const location = useLocation();
   const modalNavigate = useModalNavigate();
+  const prettyTime = makePrettyTime(date);
   const prettyDayAndTime = makePrettyDayAndTime(date);
   const prettyDayAndDateAndTime = makePrettyDayAndDateAndTime(date);
 
@@ -30,12 +39,20 @@ export default function Author({ ship, date }: AuthorProps) {
         <Avatar ship={ship} size="xs" className="cursor-pointer" />
       </div>
       <ShipName name={ship} showAlias className="text-md font-semibold" />
-      <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
-        {prettyDayAndDateAndTime}
-      </span>
-      <span className="block text-sm font-semibold text-gray-500 group-hover:hidden">
-        {prettyDayAndTime}
-      </span>
+      {hideTime ? (
+        <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
+          {prettyDayAndTime}
+        </span>
+      ) : (
+        <>
+          <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
+            {prettyDayAndDateAndTime}
+          </span>
+          <span className="block text-sm font-semibold text-gray-500 group-hover:hidden">
+            {timeOnly ? prettyTime : prettyDayAndTime}
+          </span>
+        </>
+      )}
     </div>
   );
 }

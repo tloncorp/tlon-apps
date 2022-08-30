@@ -9,9 +9,10 @@ import PinIcon16 from '@/components/icons/PinIcon16';
 import Person16Icon from '@/components/icons/Person16Icon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
-import { useBriefs, useChatState, usePinnedGroups } from '@/state/chat';
-import { useGroupState } from '@/state/groups/groups';
+import { useChatState, usePinnedGroups } from '@/state/chat';
 import LeaveIcon from '@/components/icons/LeaveIcon';
+import useIsGroupUnread from '@/logic/useIsGroupUnread';
+import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 
 const { ship } = window;
 
@@ -60,9 +61,9 @@ export default function GroupActions({
   className,
   children,
 }: GroupActionsProps) {
+  const { isGroupUnread } = useIsGroupUnread();
   const location = useLocation();
-  const briefs = useBriefs();
-  const hasActivity = (briefs[flag]?.count ?? 0) > 0;
+  const hasActivity = isGroupUnread(flag);
 
   const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
     useGroupActions(flag);
@@ -82,7 +83,7 @@ export default function GroupActions({
           {children || (
             <div className="relative h-6 w-6">
               {!isOpen && hasActivity ? (
-                <BulletIcon
+                <UnreadIndicator
                   className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
                   aria-label="Has Activity"
                 />

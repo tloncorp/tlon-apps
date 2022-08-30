@@ -1,6 +1,10 @@
 export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
 export type Rank = typeof allRanks[number];
 
+export interface ViewProps {
+  title?: string;
+}
+
 export interface GroupMeta {
   title: string;
   description: string;
@@ -19,7 +23,7 @@ export interface Cabals {
 export interface GroupChannel {
   added: number;
   meta: GroupMeta;
-  zone: Zone | null;
+  zone: Zone;
   readers: string[];
   join: boolean;
 }

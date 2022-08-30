@@ -247,7 +247,7 @@ export default function ShipSelector({
   isClearable = false,
   isLoading = false,
   hasPrompt = true,
-  placeholder = 'Type a name ie; ~sampel-palnet',
+  placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
   isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<

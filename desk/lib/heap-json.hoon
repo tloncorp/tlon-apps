@@ -45,11 +45,18 @@
     |=  he=heap:h
     %-  pairs
     :~  perms/(perm perm.he)
+        view/s/view.he
     ==
   ++  perm
     |=  p=perm:h
     %-  pairs
     :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+    ==
+  ++  action
+    |=  =action:h
+    %-  pairs
+    :~  flag/(flag p.action)
+        update/(update q.action)
     ==
   ++  update
     |=  =update:h
@@ -63,12 +70,15 @@
     %+  frond  -.diff
     ?+  -.diff  ~
       %curios     (curios-diff p.diff)
+      %view       s/p.diff
+      %add-sects  a/(turn ~(tap in p.diff) (lead %s))
+      %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
   ::
   ++  curios-diff
     |=  =diff:curios:h
     %-  pairs
-    :~  time/(time p.diff)
+    :~  time/s/(scot %ud p.diff)
         delta/(curios-delta q.diff)
     ==
   ::
@@ -76,9 +86,10 @@
     |=  =delta:curios:h
     %+  frond  -.delta
     ?+  -.delta  ~
-      %add       (heart p.delta)
-      %del       ~
-      %add-feel  (add-feel +.delta)
+      %add        (heart p.delta)
+      %edit       (heart p.delta)
+      %del        ~
+      %add-feel   (add-feel +.delta)
     ==
   ::
   ++  heart
@@ -88,7 +99,7 @@
         content/a/(turn content.heart inline)
         author+(ship author.heart)
         sent+(time sent.heart)
-        replying+?~(replying.heart ~ (time u.replying.heart))
+        replying+?~(replying.heart ~ s/(scot %ud u.replying.heart))
     ==
   ::
   ++  inline
@@ -149,7 +160,7 @@
     ::
         :-  %replied
         :-  %a
-        (turn ~(tap in replied.seal) time)
+        (turn ~(tap in replied.seal) (cork (cury scot %ud) (lead %s)))
     ==
   --
 ++  dejs
@@ -185,6 +196,7 @@
     ^-  $-(json diff:h)
     %-  of
     :~  curios/curios-diff
+        view/(su (perk %grid %list ~))
         add-sects/add-sects
         del-sects/del-sects
     ==
@@ -192,13 +204,14 @@
   ++  curios-diff
     ^-  $-(json diff:curios:h)
     %-  ot
-    :~  time/di
+    :~  time/(se %ud)
         delta/curios-delta
     ==
   ++  curios-delta
     ^-  $-(json delta:curios:h)
     %-  of
     :~  add/heart
+        edit/heart
         del/ul
         add-feel/add-feel
     ==
@@ -214,7 +227,7 @@
         content/(ar inline)
         author/ship
         sent/di
-        replying/(mu di)
+        replying/(mu (se %ud))
     ==
   ::
   ++  inline

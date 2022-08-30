@@ -176,7 +176,7 @@ export default function GroupInfoFields() {
           {...register('title', { required: true, maxLength: 180 })}
           className="input"
           type="text"
-          placeholder="Title"
+          placeholder="e.g. Urbit Fan Club"
         />
       </div>
       <div className="flex flex-col">

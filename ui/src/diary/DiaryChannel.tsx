@@ -5,9 +5,9 @@ import Layout from '@/components/Layout/Layout';
 import { useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useNotesForDiary, useDiaryPerms, useDiaryState } from '@/state/diary';
 import ChannelHeader from '@/channels/ChannelHeader';
-import { nestToFlag } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 import { parseInline, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
+import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { VerseInline } from '@/types/diary';
 import { Link } from 'react-router-dom';
 import DiaryEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
@@ -65,6 +65,10 @@ function DiaryChannel() {
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
   }, [chFlag]);
+
+  useDismissChannelNotifications({
+    markRead: useDiaryState.getState().markRead,
+  });
 
   return (
     <Layout

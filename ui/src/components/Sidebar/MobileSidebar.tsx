@@ -3,6 +3,9 @@ import { usePinnedGroups } from '@/state/chat';
 import { hasKeys } from '@/logic/utils';
 import { useGroups } from '@/state/groups/groups';
 import useGroupSort from '@/logic/useGroupSort';
+import { useNotifications } from '@/notifications/useNotifications';
+import Notifications from '@/notifications/Notifications';
+import GroupNotification from '@/notifications/GroupNotification';
 import useNavStore from '../Nav/useNavStore';
 import SidebarSorter from './SidebarSorter';
 import NavTab from '../NavTab';
@@ -13,8 +16,7 @@ import GroupList from './GroupList';
 
 export default function MobileSidebar() {
   const secondary = useNavStore((state) => state.secondary);
-  // TODO: get notification count from hark store
-  const notificationCount = 0;
+  const { count } = useNotifications();
 
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const groups = useGroups();
@@ -55,7 +57,7 @@ export default function MobileSidebar() {
         {secondary === 'main' ? (
           <GroupList groups={sortedGroups} pinnedGroups={sortedPinnedGroups} />
         ) : secondary === 'notifications' ? (
-          <div />
+          <Notifications child={GroupNotification} />
         ) : secondary === 'search' ? (
           <div />
         ) : null}
@@ -68,7 +70,7 @@ export default function MobileSidebar() {
               Groups
             </NavTab>
             <NavTab loc="notifications">
-              <ActivityIndicator count={notificationCount} className="mb-0.5" />
+              <ActivityIndicator count={count} className="mb-0.5" />
               Notifications
             </NavTab>
             <a

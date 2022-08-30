@@ -6,7 +6,6 @@ import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
 import { useChannel, useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
-import ChatChannel from '@/chat/ChatChannel';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { useDiaryState } from '@/state/diary';
 
@@ -28,10 +27,6 @@ function Channel() {
 
     joiner(chFlag);
   };
-
-  if (app === 'chat' && isJoined) {
-    return <ChatChannel />;
-  }
 
   return (
     <Layout

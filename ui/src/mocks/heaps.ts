@@ -13,13 +13,14 @@ const mockStash: Stash = {
     perms: {
       writers: ['~zod', '~finned-palmer'],
     },
+    view: 'grid',
   },
 };
 
 const mockCurios: HeapCurios = {
   '170141184505776467152677676749638598656': {
     seal: {
-      time: unixTime,
+      time: '170141184505776467152677676749638598656',
       feels: {},
       replied: [],
     },
@@ -35,14 +36,14 @@ const mockCurios: HeapCurios = {
   },
   '170141184505776467152677676749638598657': {
     seal: {
-      time: unixTime,
+      time: '170141184505776467152677676749638598657',
       feels: {},
       replied: [],
     },
     heart: {
-      title: 'House rendering',
+      title: 'Description of a Martini',
       content: [
-        'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
+        'The martini is a cocktail made with gin and vermouth, and garnished with an olive or a lemon twist.',
       ],
       author: '~finned-palmer',
       sent: unixTime,
@@ -51,7 +52,7 @@ const mockCurios: HeapCurios = {
   },
   '170141184505776467152677676749638598658': {
     seal: {
-      time: unixTime,
+      time: '170141184505776467152677676749638598658',
       feels: {},
       replied: [],
     },
@@ -67,14 +68,30 @@ const mockCurios: HeapCurios = {
   },
   '170141184505776467152677676749638598659': {
     seal: {
-      time: unixTime,
+      time: '170141184505776467152677676749638598659',
       feels: {},
       replied: [],
     },
     heart: {
-      title: 'House rendering',
+      title: '',
       content: [
-        'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
+        'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/15-09-26-RalfR-WLC-0084.jpg/1920px-15-09-26-RalfR-WLC-0084.jpg',
+      ],
+      author: '~finned-palmer',
+      sent: unixTime,
+      replying: null,
+    },
+  },
+  '170141184505776467152677676749638598660': {
+    seal: {
+      time: '170141184505776467152677676749638598659',
+      feels: {},
+      replied: [],
+    },
+    heart: {
+      title: 'One Thing About Me',
+      content: [
+        'https://twitter.com/noagencynewyork/status/1540353656326946817?s=20&t=OSmaPCFVGbJmjvs1VtJtkg',
       ],
       author: '~finned-palmer',
       sent: unixTime,

@@ -452,7 +452,21 @@ export function useGroup(flag: string): Group | undefined {
 
 export function useRouteGroup() {
   const { ship, name } = useParams();
-  return useMemo(() => `${ship}/${name}`, [ship, name]);
+  return useMemo(() => {
+    if (!ship || !name) {
+      return '';
+    }
+
+    return `${ship}/${name}`;
+  }, [ship, name]);
+}
+
+/**
+ * Alias for useRouteGroup
+ * @returns group flag - a string
+ */
+export function useGroupFlag() {
+  return useRouteGroup();
 }
 
 const selList = (s: GroupState) => Object.keys(s.groups);

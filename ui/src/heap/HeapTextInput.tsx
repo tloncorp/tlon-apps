@@ -1,111 +1,21 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect } from 'react';
-import { HeapInline, CurioHeart, HeapInlineKey } from '@/types/heap';
+import { HeapInline, CurioHeart, HeapInlineKey, LIST } from '@/types/heap';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { useHeapState } from '@/state/heap/heap';
+import { useHeapDisplayMode, useHeapState } from '@/state/heap/heap';
 import { reduce } from 'lodash';
 import classNames from 'classnames';
 import useRequestState from '@/logic/useRequestState';
-import { HeapDisplayMode, LIST } from './HeapTypes';
+import { parseTipTapJSON } from '@/logic/tiptap';
 
 interface HeapTextInputProps {
   flag: string;
   sendDisabled?: boolean;
-  displayType: HeapDisplayMode;
-}
-
-// TODO: should these be extracted to a common lib for usage in both ChatInput and HeapTextInput?
-function convertMarkType(type: string): string {
-  switch (type) {
-    case 'italic':
-      return 'italics';
-    case 'code':
-      return 'inline-code';
-    case 'link':
-      return 'href';
-    default:
-      return type;
-  }
-}
-
-// this will be replaced with more sophisticated logic based on
-// what we decide will be the message format
-function parseTipTapJSON(json: JSONContent): HeapInline[] {
-  if (json.content) {
-    if (json.content.length === 1) {
-      if (json.type === 'blockquote') {
-        const parsed = parseTipTapJSON(json.content[0]);
-        return [
-          {
-            blockquote: parsed,
-          },
-        ];
-      }
-      return parseTipTapJSON(json.content[0]);
-    }
-
-    /* Only allow two or less consecutive breaks */
-    const breaksAdded: JSONContent[] = [];
-    let count = 0;
-    json.content.forEach((item) => {
-      if (item.type === 'paragraph' && !item.content) {
-        if (count === 1) {
-          breaksAdded.push(item);
-          count += 1;
-        }
-        return;
-      }
-
-      breaksAdded.push(item);
-
-      if (item.type === 'paragraph' && item.content) {
-        breaksAdded.push({ type: 'paragraph' });
-        count = 1;
-      }
-    });
-
-    return breaksAdded.reduce(
-      (message, contents) => message.concat(parseTipTapJSON(contents)),
-      [] as HeapInline[]
-    );
-  }
-
-  if (json.marks && json.marks.length > 0) {
-    const first = json.marks.pop();
-
-    if (!first) {
-      throw new Error('Unsure what this is');
-    }
-
-    if (first.type === 'link' && first.attrs) {
-      return [
-        {
-          link: {
-            href: first.attrs.href,
-            content: json.text || first.attrs.href,
-          },
-        },
-      ];
-    }
-
-    return [
-      {
-        [convertMarkType(first.type)]: parseTipTapJSON(json),
-      },
-    ] as unknown as HeapInline[];
-  }
-
-  if (json.type === 'paragraph') {
-    return [
-      {
-        break: null,
-      },
-    ];
-  }
-
-  return [json.text || ''];
+  draft: JSONContent | undefined;
+  setDraft: React.Dispatch<React.SetStateAction<JSONContent | undefined>>;
+  replyTo?: string | null;
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
@@ -142,38 +52,59 @@ function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
 export default function HeapTextInput({
   flag,
   sendDisabled = false,
-  displayType,
+  replyTo = null,
+  draft,
+  setDraft,
 }: HeapTextInputProps) {
+  const displayMode = useHeapDisplayMode(flag);
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
 
+  /**
+   * This handles submission for new Curios; for edits, see EditCurioForm
+   */
   const onSubmit = useCallback(
     async (editor: Editor) => {
+      if (sendDisabled) {
+        return;
+      }
       if (!editor.getText()) {
         return;
       }
 
       setPending();
 
-      const content = normalizeHeapInline(parseTipTapJSON(editor?.getJSON()));
+      const content = normalizeHeapInline(
+        parseTipTapJSON(editor?.getJSON()) as HeapInline[]
+      );
+
       const heart: CurioHeart = {
-        title: null, // TODO: do we need to set a title?
-        replying: null,
+        title: null,
+        replying: replyTo,
         author: window.our,
         sent: Date.now(),
         content,
       };
 
       await useHeapState.getState().addCurio(flag, heart);
+      setDraft(undefined);
       editor?.commands.setContent('');
       setReady();
     },
-    [flag, setPending, setReady]
+    [sendDisabled, setPending, replyTo, flag, setDraft, setReady]
+  );
+
+  const onUpdate = useCallback(
+    ({ editor }: { editor: Editor }) => {
+      setDraft(editor.getJSON());
+    },
+    [setDraft]
   );
 
   const messageEditor = useMessageEditor({
-    content: '',
+    content: draft || '',
     placeholder: 'Enter Text Here',
+    onUpdate,
     onEnter: useCallback(
       ({ editor }) => {
         onSubmit(editor);
@@ -184,10 +115,18 @@ export default function HeapTextInput({
   });
 
   useEffect(() => {
-    if (flag) {
+    if (flag && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.setContent('');
     }
   }, [flag, messageEditor]);
+
+  useEffect(() => {
+    if (draft && messageEditor && !messageEditor.isDestroyed) {
+      messageEditor.commands.setContent(draft);
+    }
+    // only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageEditor]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -198,6 +137,7 @@ export default function HeapTextInput({
     return null;
   }
 
+  // TODO: Set a sane length limit for comments
   return (
     <>
       <div className="relative flex-1 p-1">
@@ -208,16 +148,20 @@ export default function HeapTextInput({
             // Since TipTap simulates an input using a <p> tag, only style
             // the fake placeholder when the field is empty
             messageEditor.getText() === '' ? 'font-semibold text-gray-400' : '',
-            displayType === LIST ? 'min-h-[44px]' : ''
+            displayMode === LIST ? 'min-h-[44px]' : ''
           )}
         />
-        <button
-          className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
-          disabled={sendDisabled || isPending || messageEditor.getText() === ''}
-          onClick={onClick}
-        >
-          {isPending ? 'Posting...' : 'Post'}
-        </button>
+        {!sendDisabled ? (
+          <button
+            className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
+            disabled={
+              sendDisabled || isPending || messageEditor.getText() === ''
+            }
+            onClick={onClick}
+          >
+            {isPending ? 'Posting...' : 'Post'}
+          </button>
+        ) : null}
       </div>
       {isMobile && messageEditor.isFocused ? (
         <ChatInputMenu editor={messageEditor} />

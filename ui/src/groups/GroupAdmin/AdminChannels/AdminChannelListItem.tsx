@@ -10,6 +10,7 @@ import SixDotIcon from '@/components/icons/SixDotIcon';
 import { getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
 import { Chat } from '@/types/chat';
 import { Heap } from '@/types/heap';
+import { useDiaryState } from '@/state/diary';
 import ChannelIcon from '@/channels/ChannelIcon';
 import AdminChannelListDropdown from './AdminChannelListDropdown';
 import DeleteChannelModal from './DeleteChannelModal';
@@ -24,11 +25,21 @@ interface AdminChannelListItemProps {
   onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
-function getChannel(flag: string): Chat | Heap {
+function getChannel(app: string, flag: string): Chat | Heap {
   const { chats } = useChatState.getState();
   const { stash } = useHeapState.getState();
+  const { shelf } = useDiaryState.getState();
 
-  return chats[flag] || stash[flag] || { perms: { writers: [] } };
+  switch (app) {
+    case 'chat':
+      return chats[flag];
+    case 'heap':
+      return stash[flag];
+    case 'diary':
+      return shelf[flag];
+    default:
+      return { perms: { writers: [] } };
+  }
 }
 
 export default function AdminChannelListItem({
@@ -41,11 +52,11 @@ export default function AdminChannelListItem({
 }: AdminChannelListItemProps) {
   const flag = useRouteGroup();
   const { meta } = channel;
-  const [, channelFlag] = nestToFlag(nest);
+  const [app, channelFlag] = nestToFlag(nest);
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const privacy = getPrivacyFromChannel(channel, getChannel(channelFlag));
+  const privacy = getPrivacyFromChannel(channel, getChannel(app, channelFlag));
   const permissionText = PRIVACY_TYPE[privacy].title;
 
   const onDeleteChannelConfirm = useCallback(async () => {

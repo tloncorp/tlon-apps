@@ -3,18 +3,21 @@ import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
+import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { useCallback, useMemo } from 'react';
 import {
   CurioDelta,
   Heap,
+  HeapAction,
   HeapBriefs,
   HeapBriefUpdate,
   HeapCurio,
   HeapDiff,
   HeapFlag,
   HeapPerm,
+  HeapDisplayMode,
   Stash,
+  GRID,
 } from '@/types/heap';
 import api from '@/api';
 import {
@@ -22,8 +25,11 @@ import {
   clearStorageMigration,
   storageVersion,
 } from '@/logic/utils';
+import useNest from '@/logic/useNest';
+import { intersection } from 'lodash';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
+import { useVessel } from '../groups';
 
 setAutoFreeze(false);
 
@@ -41,7 +47,7 @@ function heapAction(flag: HeapFlag, diff: HeapDiff) {
   };
 }
 
-function heapCurioDiff(flag: HeapFlag, time: number, delta: CurioDelta) {
+function heapCurioDiff(flag: HeapFlag, time: string, delta: CurioDelta) {
   return heapAction(flag, {
     curios: {
       time,
@@ -97,9 +103,9 @@ export const useHeapState = create<HeapState>(
             app: 'heap',
             path: '/stash',
           })
-          .then((chats) => {
+          .then((stash) => {
             get().batchSet((draft) => {
-              draft.stash = chats;
+              draft.stash = stash;
             });
           });
 
@@ -120,6 +126,32 @@ export const useHeapState = create<HeapState>(
             });
           },
         });
+
+        api.subscribe({
+          app: 'heap',
+          path: '/ui',
+          event: (event: HeapAction) => {
+            get().batchSet((draft) => {
+              const {
+                flag,
+                update: { diff },
+              } = event;
+              const heap = draft.stash[flag];
+
+              if ('view' in diff) {
+                heap.view = diff.view;
+              } else if ('del-sects' in diff) {
+                heap.perms.writers = heap.perms.writers.filter(
+                  (w) => !diff['del-sects'].includes(w)
+                );
+              } else if ('add-sects' in diff) {
+                heap.perms.writers = heap.perms.writers.concat(
+                  diff['add-sects']
+                );
+              }
+            });
+          },
+        });
       },
       joinHeap: async (flag) => {
         await api.poke({
@@ -130,16 +162,28 @@ export const useHeapState = create<HeapState>(
       },
       leaveHeap: async (flag) => {
         await api.poke({
-          app: 'chat',
+          app: 'heap',
           mark: 'heap-leave',
           json: flag,
         });
       },
+      viewHeap: async (flag, view) => {
+        await api.poke(
+          heapAction(flag, {
+            view,
+          })
+        );
+      },
       addCurio: async (flag, heart) => {
-        await api.poke(heapCurioDiff(flag, Date.now(), { add: heart }));
+        await api.poke(heapCurioDiff(flag, getTime(), { add: heart }));
       },
       delCurio: async (flag, time) => {
-        await api.poke(heapCurioDiff(flag, time, { del: null }));
+        const ud = decToUd(time);
+        await api.poke(heapCurioDiff(flag, ud, { del: null }));
+      },
+      editCurio: async (flag, time, heart) => {
+        const ud = decToUd(time);
+        await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
       },
       create: async (req) => {
         await api.poke({
@@ -161,7 +205,7 @@ export const useHeapState = create<HeapState>(
       delSects: async (flag, sects) => {
         await api.poke(heapAction(flag, { 'del-sects': sects }));
         const perms = await api.scry<HeapPerm>({
-          app: 'chat',
+          app: 'heap',
           path: `/heap/${flag}/perm`,
         });
         get().batchSet((draft) => {
@@ -173,13 +217,7 @@ export const useHeapState = create<HeapState>(
           return;
         }
 
-        const perms = await api.scry<HeapPerm>({
-          app: 'heap',
-          path: `/heap/${flag}/perm`,
-        });
         get().batchSet((draft) => {
-          const heap = { perms };
-          draft.stash[flag] = heap;
           draft.heapSubs.push(flag);
         });
 
@@ -217,6 +255,17 @@ export function useHeapPerms(flag: HeapFlag) {
   );
 }
 
+export function useCanWriteToHeap(groupFlag: string) {
+  const vessel = useVessel(groupFlag, window.our);
+  const nest = useNest();
+  const perms = useHeapPerms(nest);
+  const canWrite =
+    perms.writers.length === 0 ||
+    intersection(perms.writers, vessel.sects).length !== 0;
+
+  return canWrite;
+}
+
 export function useHeapIsJoined(flag: HeapFlag) {
   return useHeapState(
     useCallback((s) => Object.keys(s.briefs).includes(flag), [flag])
@@ -240,8 +289,8 @@ export function useComments(flag: HeapFlag, time: string) {
 
     const curio = curios.get(bigInt(time));
     const replies = (curio?.seal?.replied || ([] as number[]))
-      .map((r: number) => {
-        const t = bigInt(r);
+      .map((r: string) => {
+        const t = bigInt(udToDec(r));
         const c = curios.get(t);
         return c ? ([t, c] as const) : undefined;
       })
@@ -277,3 +326,36 @@ export function useHeap(flag: HeapFlag): Heap | undefined {
 export function useBriefs() {
   return useHeapState(useCallback((s: HeapState) => s.briefs, []));
 }
+
+export function useHeapDisplayMode(flag: string): HeapDisplayMode {
+  const heap = useHeap(flag);
+  return heap?.view ?? GRID;
+}
+
+export function useOrderedCurios(
+  flag: HeapFlag,
+  currentId: bigInt.BigInteger | string
+) {
+  const curios = useCuriosForHeap(flag);
+  const sortedCurios = Array.from(curios).filter(
+    ([, c]) => c.heart.replying === null
+  );
+  sortedCurios.sort(([a], [b]) => b.compare(a));
+
+  const curioId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
+  const hasNext = curios.size > 0 && curioId.lt(curios.peekLargest()[0]);
+  const hasPrev = curios.size > 0 && curioId.gt(curios.peekSmallest()[0]);
+  const currentIdx = sortedCurios.findIndex(([i, _c]) => i.eq(curioId));
+  const nextCurio = hasNext ? sortedCurios[currentIdx - 1] : null;
+  const prevCurio = hasPrev ? sortedCurios[currentIdx + 1] : null;
+
+  return {
+    hasNext,
+    hasPrev,
+    nextCurio,
+    prevCurio,
+    sortedCurios,
+  };
+}
+
+(window as any).heap = useHeapState.getState;

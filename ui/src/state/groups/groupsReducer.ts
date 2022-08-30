@@ -76,6 +76,10 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       const { nest, diff: d } = diff.channel;
       if ('add' in d) {
         group.channels[nest] = d.add;
+
+        if (!group.zones[d.add.zone].idx.includes(nest)) {
+          group.zones[d.add.zone].idx.push(nest);
+        }
       } else if ('del' in d) {
         const { zone } = group.channels[nest];
         group.zones[zone || 'default'].idx = group.zones[

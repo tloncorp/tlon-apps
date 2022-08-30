@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Contact, ContactEditField, uxToHex } from '@urbit/api';
+import { ViewProps } from '@/types/groups';
 import useContactState, {
   useOurContact,
   isOurContactPublic,
@@ -205,12 +207,16 @@ function EditProfileContent() {
               Favorite Groups
             </label>
             <GroupSelector
+              autoFocus={false}
               groups={allGroups}
               onEnter={onEnter}
               setGroups={setAllGroups}
               isMulti={false}
               isValidNewOption={(value) => groupFlags.includes(value)}
             />
+            <div className="text-sm font-semibold text-gray-600">
+              Share your favorite groups on your profile
+            </div>
             <div className="flex flex-wrap space-x-2 pt-2">
               {form.watch('groups').map((group) => (
                 <ProfileGroup
@@ -245,9 +251,12 @@ function EditProfileContent() {
   );
 }
 
-export default function EditProfile() {
+export default function EditProfile({ title }: ViewProps) {
   return (
     <div className="flex grow overflow-y-scroll bg-gray-50">
+      <Helmet>
+        <title>{title}</title>
+      </Helmet>
       <div className="m-4 w-full sm:my-5 sm:mx-8">
         <EditProfileContent />
       </div>

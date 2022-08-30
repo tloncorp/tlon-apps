@@ -1,5 +1,6 @@
 /-  g=groups
 /-  meta
+/-  cite
 |%
 +$  writ   [seal memo]
 +$  id     (pair ship time)
@@ -148,6 +149,7 @@
 ::
 +$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
+      [%cite =cite]
   ==
 ::
 +$  inline
@@ -157,6 +159,7 @@
       [%strike p=(list inline)]
       [%blockquote p=(list inline)]
       [%inline-code p=cord]
+      [%ship p=ship]
       [%block p=@ud q=cord]
       [%code p=cord]
       [%tag p=cord]

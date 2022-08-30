@@ -23,6 +23,7 @@
     (pair time delta)
   +$  delta
     $%  [%add p=heart]
+        [%edit p=heart]
         [%del ~]
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
@@ -69,6 +70,7 @@
       [%del-sects p=(set sect:g)]
     ::
       [%create p=perm]
+      [%view p=view]
   ==
 +$  net
   $~  [%load ~]

@@ -1,5 +1,4 @@
 import classNames from 'classnames';
-import { EditorView } from 'prosemirror-view';
 import {
   Editor,
   EditorContent,
@@ -84,7 +83,7 @@ export function useMessageEditor({
       },
       onUpdate: ({ editor }) => {
         if (onUpdate) {
-          onUpdate({ editor } as any);
+          onUpdate({ editor } as HandlerParams);
         }
       },
     },
