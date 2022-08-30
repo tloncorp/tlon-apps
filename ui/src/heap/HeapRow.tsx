@@ -4,7 +4,7 @@ import { useCopyToClipboard } from 'usehooks-ts';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
-import { nestToFlag, validOembedCheck } from '@/logic/utils';
+import { isValidUrl, nestToFlag, validOembedCheck } from '@/logic/utils';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useEmbedState from '@/state/embed';
 import { formatDistanceToNow } from 'date-fns';
@@ -54,8 +54,10 @@ export default function HeapRow({
 
   useEffect(() => {
     const getOembed = async () => {
-      const oembed = await useEmbedState.getState().getEmbed(contentString);
-      setEmbed(oembed);
+      if (isValidUrl(contentString)) {
+        const oembed = await useEmbedState.getState().getEmbed(contentString);
+        setEmbed(oembed);
+      }
     };
     getOembed();
   }, [contentString]);
