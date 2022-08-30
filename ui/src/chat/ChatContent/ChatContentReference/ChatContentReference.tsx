@@ -6,6 +6,8 @@ import ShipName from '@/components/ShipName';
 // eslint-disable-next-line import/no-cycle
 import WritReference from '@/chat/ChatContent/ChatContentReference/WritReference';
 import CurioReference from '@/chat/ChatContent/ChatContentReference/CurioReference';
+import { whomIsFlag } from '@/logic/utils';
+import GroupReference from './GroupReference';
 
 export default function ChatContentReference({ story }: { story: string }) {
   const modalNavigate = useModalNavigate();
@@ -76,7 +78,13 @@ export default function ChatContentReference({ story }: { story: string }) {
               </>
             );
           }
+
+          if (whomIsFlag(x)) {
+            const groupFlag = refTokenSplitByFas.slice(0, 2).join('/');
+            return <GroupReference flag={groupFlag} />;
+          }
         }
+
         return (
           <>
             {makeSpace} {x}
