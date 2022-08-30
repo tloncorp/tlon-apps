@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router';
-import { useCurio, useHeapState, useOrderedCurios } from '@/state/heap/heap';
+import { useNavigate } from 'react-router';
+import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups';
@@ -14,20 +14,18 @@ import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSide
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
+import useCurioFromParams from './useCurioFromParams';
 
 export default function HeapDetail() {
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const nest = useNest();
-  const { idCurio } = useParams();
   const [, chFlag] = nestToFlag(nest);
-  const curioObject = useCurio(chFlag, idCurio || '');
-  const curio = curioObject ? curioObject[1] : null;
-  const time = curioObject ? curioObject[0] : null;
+  const { time, curio } = useCurioFromParams();
 
   const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
     chFlag,
-    idCurio || ''
+    time || ''
   );
 
   const curioHref = (id?: bigInt.BigInteger) => {
@@ -61,7 +59,7 @@ export default function HeapDetail() {
         <HeapDetailHeader
           flag={groupFlag}
           chFlag={chFlag}
-          idCurio={idCurio || ''}
+          idCurio={time.toString() || ''}
         />
       }
     >

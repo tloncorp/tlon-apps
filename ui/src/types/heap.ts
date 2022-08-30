@@ -108,6 +108,10 @@ interface CurioDeltaDel {
   del: null;
 }
 
+interface CurioDeltaEdit {
+  edit: CurioHeart;
+}
+
 interface CurioDeltaAddFeel {
   'add-feel': {
     time: string;
@@ -116,7 +120,11 @@ interface CurioDeltaAddFeel {
   };
 }
 
-export type CurioDelta = CurioDeltaAdd | CurioDeltaDel | CurioDeltaAddFeel;
+export type CurioDelta =
+  | CurioDeltaAdd
+  | CurioDeltaDel
+  | CurioDeltaAddFeel
+  | CurioDeltaEdit;
 
 export interface CurioDiff {
   time: string;
@@ -196,3 +204,12 @@ export interface HeapCreate {
 export interface HeapPerm {
   writers: string[];
 }
+
+export const LINK = 'link';
+export const TEXT = 'text';
+export type CurioInputMode = typeof LINK | typeof TEXT;
+
+export type NewCurioFormSchema = { content: string };
+export type EditCurioFormSchema = NewCurioFormSchema &
+  Pick<CurioHeart, 'title'>;
+export type CurioFormSchema = NewCurioFormSchema | EditCurioFormSchema;

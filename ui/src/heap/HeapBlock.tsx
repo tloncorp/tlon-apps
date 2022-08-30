@@ -19,6 +19,7 @@ import useHeapContentType from '@/logic/useHeapContentType';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useRouteGroup } from '@/state/groups';
 import CheckIcon from '@/components/icons/CheckIcon';
+import { useLocation, useNavigate } from 'react-router';
 
 function TopBar({
   hasIcon = false,
@@ -35,10 +36,18 @@ function TopBar({
   const [justCopied, setJustCopied] = useState(false);
   const [, chFlag] = nestToFlag(nest);
   const [menuOpen, setMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
   const onDelete = useCallback(() => {
     setMenuOpen(false);
     useHeapState.getState().delCurio(chFlag, time);
   }, [chFlag, time]);
+  const onEdit = useCallback(() => {
+    setMenuOpen(false);
+    navigate(`curio/${time}/edit`, {
+      state: { backgroundLocation: location },
+    });
+  }, [location, navigate, time]);
 
   const onCopy = useCallback(() => {
     doCopy(`${groupFlag}/channels/heap/${chFlag}/curio/${time}`);
@@ -91,10 +100,7 @@ function TopBar({
             )}
             onMouseLeave={() => setMenuOpen(false)}
           >
-            <button
-              // FIXME: add edit functionality
-              className="small-menu-button"
-            >
+            <button onClick={onEdit} className="small-menu-button">
               Edit
             </button>
             <button className="small-menu-button" onClick={onDelete}>
@@ -158,7 +164,7 @@ export default function HeapBlock({
   const { content, sent } = curio.heart;
   const [embed, setEmbed] = useState<any>();
   const replyCount = curio.seal.replied.length;
-  const url = content[0].toString();
+  const url = content.length > 0 ? content[0].toString() : '';
   const prettySent = formatDistanceToNow(sent);
 
   const { isImage, isAudio, isText } = useHeapContentType(url);
@@ -188,7 +194,10 @@ export default function HeapBlock({
           url={url}
           replyCount={replyCount}
           // first three words.
-          title={content.toString().split(' ').slice(0, 3).join(' ')}
+          title={
+            curio.heart.title ||
+            content.toString().split(' ').slice(0, 3).join(' ')
+          }
         />
       </div>
     );
@@ -208,6 +217,7 @@ export default function HeapBlock({
           prettySent={prettySent}
           url={url}
           replyCount={replyCount}
+          title={curio.heart.title || undefined}
         />
       </div>
     );
@@ -225,6 +235,7 @@ export default function HeapBlock({
           prettySent={prettySent}
           url={url}
           replyCount={replyCount}
+          title={curio.heart.title || undefined}
         />
       </div>
     );
@@ -249,7 +260,7 @@ export default function HeapBlock({
             provider={provider}
             prettySent={prettySent}
             replyCount={replyCount}
-            title={title}
+            title={curio.heart.title || title}
           />
         </div>
       );
@@ -275,6 +286,7 @@ export default function HeapBlock({
             provider={provider}
             prettySent={prettySent}
             replyCount={replyCount}
+            title={curio.heart.title || undefined}
           />
         </div>
       );
@@ -290,6 +302,7 @@ export default function HeapBlock({
           provider={provider ? provider : 'Link'}
           prettySent={prettySent}
           replyCount={replyCount}
+          title={curio.heart.title || undefined}
         />
       </div>
     );
@@ -306,6 +319,7 @@ export default function HeapBlock({
         provider={'Link'}
         prettySent={prettySent}
         replyCount={replyCount}
+        title={curio.heart.title || undefined}
       />
     </div>
   );
