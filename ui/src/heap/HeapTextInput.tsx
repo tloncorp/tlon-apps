@@ -60,9 +60,14 @@ export default function HeapTextInput({
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
 
-  // TODO: support for edit?
+  /**
+   * This handles submission for new Curios; for edits, see EditCurioForm
+   */
   const onSubmit = useCallback(
     async (editor: Editor) => {
+      if (sendDisabled) {
+        return;
+      }
       if (!editor.getText()) {
         return;
       }
@@ -74,7 +79,7 @@ export default function HeapTextInput({
       );
 
       const heart: CurioHeart = {
-        title: null, // TODO: do we need to set a title?
+        title: null,
         replying: replyTo,
         author: window.our,
         sent: Date.now(),
@@ -86,7 +91,7 @@ export default function HeapTextInput({
       editor?.commands.setContent('');
       setReady();
     },
-    [flag, setDraft, setPending, setReady, replyTo]
+    [sendDisabled, setPending, replyTo, flag, setDraft, setReady]
   );
 
   const onUpdate = useCallback(
@@ -146,13 +151,17 @@ export default function HeapTextInput({
             displayMode === LIST ? 'min-h-[44px]' : ''
           )}
         />
-        <button
-          className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
-          disabled={sendDisabled || isPending || messageEditor.getText() === ''}
-          onClick={onClick}
-        >
-          {isPending ? 'Posting...' : 'Post'}
-        </button>
+        {!sendDisabled ? (
+          <button
+            className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
+            disabled={
+              sendDisabled || isPending || messageEditor.getText() === ''
+            }
+            onClick={onClick}
+          >
+            {isPending ? 'Posting...' : 'Post'}
+          </button>
+        ) : null}
       </div>
       {isMobile && messageEditor.isFocused ? (
         <ChatInputMenu editor={messageEditor} />

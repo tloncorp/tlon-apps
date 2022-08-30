@@ -276,7 +276,7 @@ export function filterJoinedChannels(
     return isChannelHost || (chFlag && chFlag in briefs);
   });
 }
-  
+
 /**
  * Since there is no metadata persisted in a curio to determine what kind of
  * curio it is (Link or Text), this function determines by checking the
@@ -286,5 +286,17 @@ export function filterJoinedChannels(
  * @returns boolean
  */
 export function isLinkCurio(content: CurioContent) {
-  return content.length === 1 && typeof content[0] === 'string';
+  return (
+    content.length === 1 &&
+    typeof content[0] === 'string' &&
+    isValidUrl(content[0])
+  );
+}
+
+export function linkFromCurioContent(content: CurioContent) {
+  if (isLinkCurio(content)) {
+    return content[0] as string;
+  }
+
+  return '';
 }

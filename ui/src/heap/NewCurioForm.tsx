@@ -97,6 +97,7 @@ export default function NewCurioForm() {
   const modeToggle = () => (
     <div className={cn('flex', isGridMode && 'p-1')}>
       <button
+        type="button"
         className={cn(
           isLinkMode ? 'button' : 'secondary-button',
           isListMode && 'max-w-[120px] rounded-bl-none',
@@ -108,6 +109,7 @@ export default function NewCurioForm() {
         <span className="ml-1">Link</span>
       </button>
       <button
+        type="button"
         className={cn(
           isTextMode ? 'button' : 'secondary-button',
           isListMode && 'max-w-[120px] rounded-br-none',
