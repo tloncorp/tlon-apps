@@ -62,7 +62,7 @@ export default function HeapRow({
     getOembed();
   }, [contentString]);
 
-  if (embed === undefined) {
+  if (isValidUrl(contentString) && embed === undefined) {
     return <HeapLoadingRow />;
   }
 

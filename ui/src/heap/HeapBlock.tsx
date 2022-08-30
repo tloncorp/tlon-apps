@@ -173,7 +173,7 @@ export default function HeapBlock({
     getOembed();
   }, [url]);
 
-  if (embed === undefined) {
+  if (isValidUrl(url) && embed === undefined) {
     return <HeapLoadingBlock />;
   }
 
