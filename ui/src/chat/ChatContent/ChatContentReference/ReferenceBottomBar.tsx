@@ -4,6 +4,7 @@ import Author from '@/chat/ChatMessage/Author';
 import { useNavigate } from 'react-router';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
+import ChannelIcon from '@/channels/ChannelIcon';
 
 export default function ReferenceBottomBar({
   groupFlag,
@@ -32,6 +33,7 @@ export default function ReferenceBottomBar({
         onClick={navigateToChannel}
         className="flex cursor-pointer items-center space-x-2 text-gray-400 group-hover:text-gray-600"
       >
+        <ChannelIcon nest={nest} className="-mr-1 h-4 w-4" />
         <span className="font-semibold">{channel?.meta.title}</span>
         <span className="font-bold">•</span>
         <span className="font-semibold">{group?.meta.title}</span>
