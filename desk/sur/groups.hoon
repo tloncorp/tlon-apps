@@ -103,14 +103,16 @@
     --
   ++  shut
     |%
-    ++  diff
-      $%  [%add-ships p=(set ship)]
-          [%del-ships p=(set ship)]
+    +$  state  [pend=(set ship) ask=(set ship)]
+    +$  kind  ?(%ask %pending)
+    +$  diff
+      $%  [%add-ships p=kind q=(set ship)]
+          [%del-ships p=kind q=(set ship)]
       ==
     --
   ::
   +$  cordon
-    $%  [%shut pending=(set ship)]
+    $%  [%shut state:shut]
         [%afar =flag =path desc=@t]
         [%open =ban:open]
     ==
