@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import Layout from '@/components/Layout/Layout';
@@ -8,6 +9,7 @@ import { Link } from 'react-router-dom';
 import bigInt from 'big-integer';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import { useEventListener } from 'usehooks-ts';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -15,6 +17,7 @@ import HeapDetailBody from './HeapDetail/HeapDetailBody';
 import useCurioFromParams from './useCurioFromParams';
 
 export default function HeapDetail() {
+  const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
@@ -36,6 +39,14 @@ export default function HeapDetail() {
   useEffect(() => {
     useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
+
+  useEventListener('keydown', (e) => {
+    if (hasPrev && e.key === 'ArrowRight') {
+      navigate(curioHref(prevCurio?.[0]));
+    } else if (hasNext && e.key === 'ArrowLeft') {
+      navigate(curioHref(nextCurio?.[0]));
+    }
+  });
 
   if (!curio || !time) {
     return null;
