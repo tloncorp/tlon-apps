@@ -26,10 +26,13 @@ function reduceCordon(draft: Group, diff: CordonDiff) {
     }
   } else if ('shut' in d && 'shut' in draft.cordon) {
     if ('add-ships' in d.shut) {
-      draft.cordon.shut = [...draft.cordon.shut, ...d.shut['add-ships']];
+      const { kind, ships } = d.shut['add-ships'];
+      draft.cordon.shut[kind] = [...draft.cordon.shut[kind], ...ships];
     } else if ('del-ships' in d.shut) {
-      const ships = d.shut['del-ships'];
-      draft.cordon.shut = draft.cordon.shut.filter((s) => !ships.includes(s));
+      const { kind, ships } = d.shut['del-ships'];
+      draft.cordon.shut[kind] = draft.cordon.shut[kind].filter(
+        (s) => !ships.includes(s)
+      );
     }
   } else if ('swap' in d) {
     draft.cordon = d.swap;
