@@ -107,6 +107,9 @@
   ::
       [%x %desk desk=@ rest=*]
     (scry-rug rest.pole desk/desk.pole (~(got by desks) desk.pole))
+  ::
+      [%x %yarn uid=@ ~]
+    ``hark-yarn+!>((~(got by yarns) (slav %uv uid.pole)))
   ==
 ::
 ++  is-us  =(our src):bowl

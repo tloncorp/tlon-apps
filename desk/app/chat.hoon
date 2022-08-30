@@ -658,7 +658,7 @@
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
-    =/  rope  [`group `nest %homestead (welp /(scot %p p.flag)/[q.flag] rest)]
+    =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link  
       (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
