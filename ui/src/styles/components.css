@@ -90,7 +90,7 @@
 }
 
 .heap-inline-block {
-  @apply relative flex h-[300px] w-[600px] cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat p-2 shadow;
+  @apply relative flex h-[300px] w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat p-2;
 }
 
 .writ-inline-block {
