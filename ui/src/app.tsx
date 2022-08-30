@@ -7,6 +7,8 @@ import {
   Route,
   Location,
   useLocation,
+  useNavigate,
+  NavigateFunction,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import Groups from '@/groups/Groups';
@@ -295,7 +297,18 @@ function checkIfLoggedIn() {
   }
 }
 
+function handleGridRedirect(navigate: NavigateFunction) {
+  const query = new URLSearchParams(window.location.search);
+
+  if (query.has('grid-note')) {
+    navigate(decodeURIComponent(query.get('grid-note')!));
+  } else if (query.has('grid-link')) {
+    navigate(decodeURIComponent(query.get('grid-link')!));
+  }
+}
+
 function App() {
+  const navigate = useNavigate();
   const handleError = useErrorHandler();
   const location = useLocation();
   const isChat = useIsChat();
@@ -303,6 +316,7 @@ function App() {
   useEffect(() => {
     handleError(() => {
       checkIfLoggedIn();
+      handleGridRedirect(navigate);
       // TODO: Clean up this order for different apps
       useGroupState.getState().start();
       useChatState.getState().start();
@@ -318,7 +332,7 @@ function App() {
 
       useContactState.getState().initialize(api);
     })();
-  }, [handleError]);
+  }, [navigate, handleError]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
