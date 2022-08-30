@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState } from 'react';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
-import { nestToFlag, validOembedCheck } from '@/logic/utils';
+import { isValidUrl, nestToFlag, validOembedCheck } from '@/logic/utils';
 import useEmbedState from '@/state/embed';
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
@@ -165,13 +165,15 @@ export default function HeapBlock({
 
   useEffect(() => {
     const getOembed = async () => {
-      const oembed = await useEmbedState.getState().getEmbed(url);
-      setEmbed(oembed);
+      if (isValidUrl(url)) {
+        const oembed = await useEmbedState.getState().getEmbed(url);
+        setEmbed(oembed);
+      }
     };
     getOembed();
   }, [url]);
 
-  if (embed === undefined) {
+  if (isValidUrl(url) && embed === undefined) {
     return <HeapLoadingBlock />;
   }
 
