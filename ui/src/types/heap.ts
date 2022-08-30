@@ -1,3 +1,4 @@
+import { JSONContent } from '@tiptap/core';
 import { BigIntOrderedMap } from '@urbit/api';
 import {
   Italics,
@@ -209,10 +210,7 @@ export const LINK = 'link';
 export const TEXT = 'text';
 export type CurioInputMode = typeof LINK | typeof TEXT;
 
-// export type NewCurioFormSchema = Pick<CurioHeart, 'content'>;
 export type NewCurioFormSchema = { content: string };
-
 export type EditCurioFormSchema = NewCurioFormSchema &
   Pick<CurioHeart, 'title'>;
-
 export type CurioFormSchema = NewCurioFormSchema | EditCurioFormSchema;

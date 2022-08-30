@@ -1,14 +1,15 @@
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect } from 'react';
-import { HeapInline, CurioHeart, HeapInlineKey, LIST } from '@/types/heap';
+import { HeapInline, CurioHeart, LIST, EditCurioFormSchema, NewCurioFormSchema } from '@/types/heap';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import { useHeapDisplayMode, useHeapState } from '@/state/heap/heap';
-import { reduce } from 'lodash';
 import classNames from 'classnames';
 import useRequestState from '@/logic/useRequestState';
-import { parseTipTapJSON } from '@/logic/tiptap';
+import { normalizeInline, parseTipTapJSON } from '@/logic/tiptap';
+import useCurioFromParams from './useCurioFromParams';
+import { SubmitHandler } from 'react-hook-form';
 
 interface HeapTextInputProps {
   flag: string;
@@ -16,37 +17,10 @@ interface HeapTextInputProps {
   draft: JSONContent | undefined;
   setDraft: React.Dispatch<React.SetStateAction<JSONContent | undefined>>;
   replyTo?: string | null;
-}
-
-const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
-function isMergeable(x: HeapInlineKey): x is typeof MERGEABLE_KEYS[number] {
-  return MERGEABLE_KEYS.includes(x as any);
-}
-function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
-  return reduce(
-    inline,
-    (acc: HeapInline[], val) => {
-      if (acc.length === 0) {
-        return [...acc, val];
-      }
-      const last = acc[acc.length - 1];
-      if (typeof last === 'string' && typeof val === 'string') {
-        return [...acc.slice(0, -1), last + val];
-      }
-      const lastKey = Object.keys(acc[acc.length - 1])[0] as HeapInlineKey;
-      const currKey = Object.keys(val)[0] as keyof HeapInlineKey;
-      if (isMergeable(lastKey) && currKey === lastKey) {
-        // @ts-expect-error keying weirdness
-        const end: HeapInline = {
-          // @ts-expect-error keying weirdness
-          [lastKey]: [...last[lastKey as any], ...val[currKey as any]],
-        };
-        return [...acc.slice(0, -1), end];
-      }
-      return [...acc, val];
-    },
-    []
-  );
+  title?: string | null;
+  isEditing?: boolean;
+  submissible?: boolean;
+  providedOnSubmit?: SubmitHandler<NewCurioFormSchema> | SubmitHandler<EditCurioFormSchema>;
 }
 
 export default function HeapTextInput({
@@ -55,12 +29,16 @@ export default function HeapTextInput({
   replyTo = null,
   draft,
   setDraft,
+  title = null,
+  isEditing = false,
+  submissible = false,
+  providedOnSubmit,
 }: HeapTextInputProps) {
   const displayMode = useHeapDisplayMode(flag);
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
+  const { time } = useCurioFromParams();
 
-  // TODO: support for edit?
   const onSubmit = useCallback(
     async (editor: Editor) => {
       if (!editor.getText()) {
@@ -69,24 +47,30 @@ export default function HeapTextInput({
 
       setPending();
 
-      const content = normalizeHeapInline(
-        parseTipTapJSON(editor?.getJSON()) as HeapInline[]
-      );
+      const content = normalizeInline(
+        parseTipTapJSON(editor?.getJSON())
+      ) as HeapInline[];
 
       const heart: CurioHeart = {
-        title: null, // TODO: do we need to set a title?
+        title: isEditing ? title : null,
         replying: replyTo,
         author: window.our,
         sent: Date.now(),
         content,
       };
 
-      await useHeapState.getState().addCurio(flag, heart);
+      if(isEditing) {
+        if(!time) { return; }
+        await useHeapState.getState().editCurio(flag, time.toString(), heart);
+      } else {
+        await useHeapState.getState().addCurio(flag, heart);
+      }
+
       setDraft(undefined);
       editor?.commands.setContent('');
       setReady();
     },
-    [flag, setDraft, setPending, setReady, replyTo]
+    [setPending, isEditing, title, replyTo, setDraft, setReady, time, flag]
   );
 
   const onUpdate = useCallback(
@@ -102,10 +86,15 @@ export default function HeapTextInput({
     onUpdate,
     onEnter: useCallback(
       ({ editor }) => {
-        onSubmit(editor);
+        if(providedOnSubmit) {
+          providedOnSubmit({ content: draft, title });
+        } else
+        {
+          onSubmit(editor);
+        }
         return true;
       },
-      [onSubmit]
+      [onSubmit, providedOnSubmit]
     ),
   });
 
@@ -124,9 +113,14 @@ export default function HeapTextInput({
   }, [messageEditor]);
 
   const onClick = useCallback(
-    () => messageEditor && onSubmit(messageEditor),
-    [messageEditor, onSubmit]
-  );
+    () => {
+      if(providedOnSubmit) {
+        providedOnSubmit();
+      } else if (messageEditor)
+      {
+        onSubmit(messageEditor);
+      }
+    }, [messageEditor, onSubmit, providedOnSubmit]);
 
   if (!messageEditor) {
     return null;
@@ -146,13 +140,15 @@ export default function HeapTextInput({
             displayMode === LIST ? 'min-h-[44px]' : ''
           )}
         />
-        <button
-          className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
-          disabled={sendDisabled || isPending || messageEditor.getText() === ''}
-          onClick={onClick}
-        >
-          {isPending ? 'Posting...' : 'Post'}
-        </button>
+        {
+          submissible ? <button
+            className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
+            disabled={sendDisabled || isPending || messageEditor.getText() === ''}
+            onClick={onClick}
+          >
+            {isPending ? 'Posting...' : 'Post'}
+          </button> : null
+        }
       </div>
       {isMobile && messageEditor.isFocused ? (
         <ChatInputMenu editor={messageEditor} />

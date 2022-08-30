@@ -5,7 +5,7 @@ export default function HeapTitleInput() {
   const { register } = useFormContext();
   return (
     <label className="mb-3 font-semibold">
-      Item Name
+      Title
       <input
         {...register('title')}
         className="input my-2 block w-full p-1"

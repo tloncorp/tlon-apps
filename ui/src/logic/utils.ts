@@ -267,11 +267,25 @@ export async function jsonFetch<T>(
 /**
  * Since there is no metadata persisted in a curio to determine what kind of
  * curio it is (Link or Text), this function determines by checking the
- * content's structure.
+ * content's structure. Link curios are stored like so:
+ * 
+ * ['https://urbit.org']
+ * 
+ * Rich text is stored like so:
+ * 
+ * ['some text ', { bold: 'with style' }, ...]
  *
  * @param content CurioContent
  * @returns boolean
  */
 export function isLinkCurio(content: CurioContent) {
-  return content.length === 1 && typeof content[0] === 'string';
+  return content.length === 1 && typeof content[0] === 'string' && isValidUrl(content[0]);
+}
+
+export function linkFromCurioContent(content: CurioContent) {
+  if(isLinkCurio(content)) {
+    return content[0] as string;
+  }
+
+  return '';
 }

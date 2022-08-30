@@ -17,12 +17,14 @@ import {
 } from '@/types/heap';
 import { SubmitHandler, useFormContext } from 'react-hook-form';
 import { JSONContent } from '@tiptap/core';
+import { parseInline } from '@/logic/tiptap';
 import HeapTextInput from './HeapTextInput';
 import useCurioFromParams from './useCurioFromParams';
 
 interface HeapContentInputProps {
   submissible?: boolean;
   submitting?: boolean;
+  toggleable?: boolean;
   onSubmit:
     | SubmitHandler<NewCurioFormSchema>
     | SubmitHandler<EditCurioFormSchema>;
@@ -31,6 +33,7 @@ interface HeapContentInputProps {
 export default function HeapContentInput({
   submissible = false,
   submitting = false,
+  toggleable = false,
   onSubmit,
 }: HeapContentInputProps) {
   const [draftLink, setDraftLink] = useState<string>();
@@ -46,10 +49,11 @@ export default function HeapContentInput({
   const isLinkMode = inputMode === LINK;
   const isListMode = displayMode === LIST;
   const isTextMode = inputMode === TEXT;
+  const watchedTitle = watch('title');
   const watchedContent = watch('content');
   const isValidInput = isLinkMode
     ? isValidUrl(watchedContent)
-    : watchedContent.length > 0;
+    : draftText && Object.keys(draftText).length > 0;
 
   // For Link mode, prevent newline entry + allow submit with Enter
   const onKeyDown = useCallback(
@@ -67,6 +71,10 @@ export default function HeapContentInput({
     },
     [getValues, isValidInput, onSubmit, submissible, submitting]
   );
+
+  const onLinkChange: React.ChangeEventHandler<HTMLTextAreaElement> = useCallback((e) => {
+    setDraftLink(e.target.value);
+  }, []);
 
   const modeToggle = () => (
     <div className={cn('flex', isGridMode && 'p-1')}>
@@ -97,22 +105,27 @@ export default function HeapContentInput({
     </div>
   );
 
+  // on load, set the text draft to the persisted state
   useEffect(() => {
-    if (watchedContent) {
-      setDraftLink(watchedContent.toString());
+    if(curio && !isLinkCurio(curio.heart.content)) {
+      console.log('init / parse ...');
+      console.log(curio.heart.content);
+      const parsed = parseInline(curio.heart.content);
+      console.log(parsed);
+      setDraftText(parsed);
     }
-  }, [watchedContent]);
+  }, [curio]);
 
   return (
     <>
-      {isListMode ? modeToggle() : null}
+      {toggleable && isListMode ? modeToggle() : null}
       <div
         className={cn(
           isGridMode ? 'heap-block flex-col' : 'heap-row h-min flex-row',
           'flex cursor-auto'
         )}
       >
-        {isGridMode ? modeToggle() : null}
+        {toggleable && isGridMode ? modeToggle() : null}
         {isLinkMode ? (
           <>
             <textarea
@@ -120,6 +133,7 @@ export default function HeapContentInput({
               className="h-full w-full resize-none rounded-lg bg-gray-50 p-2 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
               placeholder="Paste Link Here"
               onKeyDown={onKeyDown}
+              onChange={onLinkChange}
               defaultValue={draftLink}
             />
             {submissible ? (
@@ -136,6 +150,9 @@ export default function HeapContentInput({
             draft={draftText}
             setDraft={setDraftText}
             flag={chFlag}
+            title={watchedTitle}
+            submissible={false}
+            providedOnSubmit={onSubmit}
           />
         )}
       </div>

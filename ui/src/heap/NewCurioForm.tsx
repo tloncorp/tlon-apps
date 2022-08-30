@@ -29,7 +29,7 @@ export default function NewCurioForm() {
     async ({ content }: NewCurioFormSchema) => {
       await useHeapState.getState().addCurio(chFlag, {
         title: null,
-        content: [content],
+        content: typeof(content) === 'string' ? [content] : content,
         author: window.our,
         sent: Date.now(),
         replying: null,
@@ -47,7 +47,7 @@ export default function NewCurioForm() {
   return (
     <FormProvider {...formMethods}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <HeapContentInput onSubmit={onSubmit} submissible={true} />
+        <HeapContentInput onSubmit={onSubmit} submissible={true} toggleable={true} />
       </form>
     </FormProvider>
   );
