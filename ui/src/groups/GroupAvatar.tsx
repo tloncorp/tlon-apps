@@ -14,6 +14,8 @@ interface GroupAvatarProps {
 const textSize = (size: string) => {
   const dims = parseInt(size.replace(/[^0-9.]/g, ''), 10);
   switch (dims) {
+    case 7272:
+      return 'text-3xl';
     case 2020:
       return 'text-xl';
     case 1616:

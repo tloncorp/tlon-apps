@@ -1,13 +1,10 @@
 import React, { useEffect } from 'react';
-import GroupSummary from '@/groups/GroupSummary';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useGang, useGroup, useGroupState } from '@/state/groups';
+import { useGang, useGroupState } from '@/state/groups';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { getFlagParts } from '@/logic/utils';
 import ShipName from '@/components/ShipName';
-import Globe16Icon from '@/components/icons/Globe16Icon';
-import Lock16Icon from '@/components/icons/Lock16Icon';
-import Private16Icon from '@/components/icons/Private16Icon';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
 
 interface GroupReferenceProps {
   flag: string;
@@ -26,8 +23,17 @@ export default function GroupReference({ flag }: GroupReferenceProps) {
     }
   }, [gang, group, flag]);
 
+  if (privacy === 'secret') {
+    return (
+      <div className="relative flex h-16 items-center space-x-3 rounded-lg border-2 border-gray-50 bg-gray-50 p-2 text-base font-semibold text-gray-600">
+        <ExclamationPoint className="h-8 w-8 text-gray-400" />
+        <span>This content is unavailable to you</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative flex items-center rounded-lg border-2 border-gray-50 text-base">
+    <div className="relative flex items-center rounded-lg border-2 border-gray-50 text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white">
       <button
         className="flex w-full items-center justify-start rounded-lg p-2 text-left"
         onClick={open}
@@ -41,33 +47,24 @@ export default function GroupReference({ flag }: GroupReferenceProps) {
                 by <ShipName name={ship} />
               </span>
             </div>
-            <span className="inline-flex items-center space-x-1 capitalize text-gray-400">
-              {privacy === 'public' ? (
-                <Globe16Icon className="h-4 w-4" />
-              ) : privacy === 'private' ? (
-                <Lock16Icon className="h-4 w-4" />
-              ) : (
-                <Private16Icon className="h-4 w-4" />
-              )}
-              <span>{privacy} Group</span>
-            </span>
+            <span className="capitalize text-gray-400">Group • {privacy}</span>
           </div>
         </div>
       </button>
-      <div className="absolute right-2 flex flex-row">
+      <div className="absolute right-5 flex flex-row">
         {gang.invite ? (
           <button
-            className="button bg-red-soft text-red mix-blend-multiply dark:bg-red-900 dark:mix-blend-screen"
+            className="small-button bg-red text-white dark:text-black"
             onClick={reject}
           >
             Reject
           </button>
         ) : null}
         <button
-          className="button ml-2 bg-blue-soft text-blue mix-blend-multiply dark:bg-blue-900 dark:mix-blend-screen"
+          className="small-button ml-2 bg-blue text-white dark:text-black"
           onClick={group ? open : join}
         >
-          {group ? 'Open' : 'Join'}
+          {group ? 'Go' : privacy === 'private' ? 'Request to Join' : 'Join'}
         </button>
       </div>
     </div>
