@@ -41,8 +41,23 @@ export interface VerseInline {
   inline: DiaryInline[];
 }
 
+export interface DiaryImage {
+  image: {
+    src: string;
+    height: number;
+    width: number;
+    alt: string;
+  };
+}
+
+export function isDiaryImage(item: unknown): item is DiaryImage {
+  return typeof item === 'object' && item !== null && 'image' in item;
+}
+
+export type DiaryBlock = DiaryImage;
+
 export interface VerseBlock {
-  block: null;
+  block: DiaryBlock;
 }
 
 export type Verse = VerseInline | VerseBlock;

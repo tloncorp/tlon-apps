@@ -338,7 +338,7 @@ const emptyNote: DiaryNote = {
     title: '',
     image: '',
     content: [],
-    author: window.our,
+    author: window.our || '',
     sent: Date.now(),
   },
 };
