@@ -35,10 +35,6 @@ export default function EditCurioForm() {
     ? isValidUrl(watchedContent)
     : Object.keys(draftText || {}).length > 0;
 
-  useEffect(() => {
-    console.log('draft', draftText);
-  }, [draftText]);
-
   const onDelete = useCallback(async () => {
     if (!chFlag) {
       return;
@@ -69,7 +65,7 @@ export default function EditCurioForm() {
           .getState()
           .editCurio(chFlag, time?.toString() || '', {
             ...curio.heart,
-            ...{ title, content: editedContent }, // TODO
+            ...{ title, content: editedContent },
           });
         setReady();
         dismiss();
