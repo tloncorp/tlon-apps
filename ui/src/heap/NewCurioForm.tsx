@@ -14,15 +14,18 @@ import { useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/react';
-import { GRID, LIST, NewCurioFormSchema } from '@/types/heap';
+import {
+  CurioInputMode,
+  GRID,
+  LINK,
+  LIST,
+  NewCurioFormSchema,
+  TEXT,
+} from '@/types/heap';
 import HeapTextInput from './HeapTextInput';
 
-const LINK = 'link';
-const TEXT = 'text';
-type InputMode = typeof LINK | typeof TEXT;
-
 export default function NewCurioForm() {
-  const [inputMode, setInputMode] = useState<InputMode>(LINK);
+  const [inputMode, setInputMode] = useState<CurioInputMode>(LINK);
   const [draftLink, setDraftLink] = useState<string>();
   const [draftText, setDraftText] = useState<JSONContent>();
   const flag = useRouteGroup();

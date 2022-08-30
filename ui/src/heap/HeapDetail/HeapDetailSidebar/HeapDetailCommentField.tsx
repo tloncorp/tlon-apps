@@ -17,7 +17,6 @@ export default function HeapDetailCommentField() {
     <div className="flex-end flex h-24 w-full">
       <HeapTextInput
         flag={chFlag}
-        // displayType="list" // TODO: restore this prop? to control layout
         draft={draftText}
         setDraft={setDraftText}
         replyTo={replyToTime}
