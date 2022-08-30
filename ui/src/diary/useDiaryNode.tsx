@@ -63,12 +63,9 @@ export default function useDiaryNode(
     [editor, getPos, value]
   );
 
-  const onFocus = useCallback(
-    (e: React.FocusEvent) => {
-      //editor.chain().focus(getPos()).run();
-    },
-    []
-  );
+  const onFocus = useCallback((e: React.FocusEvent) => {
+    // editor.chain().focus(getPos()).run();
+  }, []);
   return useMemo(
     () => ({ ref, onKeyDown, onChange, value, clear, onFocus }),
     [ref, onKeyDown, onChange, value, clear, onFocus]
