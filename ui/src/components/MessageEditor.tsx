@@ -21,6 +21,7 @@ import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
+import { Shortcuts } from '@/logic/tiptap';
 
 interface HandlerParams {
   editor: Editor;
@@ -41,20 +42,15 @@ export function useMessageEditor({
 }: useMessageEditorParams) {
   const keyMapExt = useMemo(
     () =>
-      Extension.create({
-        priority: 999999,
-        addKeyboardShortcuts() {
-          return {
-            Enter: ({ editor }) => onEnter({ editor } as HandlerParams),
-            'Shift-Enter': ({ editor }) =>
-              editor.commands.first(({ commands }) => [
-                () => commands.newlineInCode(),
-                () => commands.createParagraphNear(),
-                () => commands.liftEmptyBlock(),
-                () => commands.splitBlock(),
-              ]),
-          };
-        },
+      Shortcuts({
+        Enter: ({ editor }) => onEnter({ editor } as any),
+        'Shift-Enter': ({ editor }) =>
+          editor.commands.first(({ commands }) => [
+            () => commands.newlineInCode(),
+            () => commands.createParagraphNear(),
+            () => commands.liftEmptyBlock(),
+            () => commands.splitBlock(),
+          ]),
       }),
     [onEnter]
   );

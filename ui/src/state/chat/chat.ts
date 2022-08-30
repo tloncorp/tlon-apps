@@ -787,3 +787,5 @@ export function usePinnedClubs() {
   const pinned = usePinned();
   return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);
 }
+
+(window as any).chat = useChatState.getState;
