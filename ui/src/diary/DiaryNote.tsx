@@ -14,6 +14,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router';
 import DiaryContent from './DiaryContent/DiaryContent';
+import DiaryNoteHeader from './DiaryNoteHeader';
 
 interface CommentForm {
   content: string;
@@ -52,8 +53,8 @@ export default function DiaryNote() {
 
   return (
     <Layout
-      className="flex-1 bg-white"
-      header={<ChannelHeader flag={flag} nest={nest} />}
+      className="h-full flex-1 overflow-y-scroll bg-white"
+      header={<DiaryNoteHeader title={note.essay.title} />}
       mainClass="p-6"
     >
       <section className="mx-auto flex max-w-[600px] flex-col space-y-12">

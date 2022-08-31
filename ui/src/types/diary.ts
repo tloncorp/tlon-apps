@@ -185,6 +185,8 @@ export interface QuipDiff {
   delta: QuipDelta;
 }
 
+export type DiaryDisplayMode = 'list' | 'grid';
+
 export interface Diary {
   perms: DiaryPerm;
 }

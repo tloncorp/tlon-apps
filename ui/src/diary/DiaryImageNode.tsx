@@ -43,22 +43,20 @@ function DiaryImageComponent(props: any) {
           className
         )}
       >
-        <div className="absolute left-4 bottom-4 right-4 flex h-8 items-center space-x-2 rounded-lg border border-gray-100 bg-white px-2">
+        <div className="absolute inset-x-4 bottom-4 flex h-8 items-center space-x-2 rounded-lg border border-gray-100 bg-white px-2">
           <LinkIcon className="h-4 w-4" />
           <input className="input-transparent grow" type="text" {...bind} />
           {error ? (
-            <>
-              <div className="flex space-x-2">
-                <AsteriskIcon className="h-4 w-4" />
-                <div className="grow">Failed to Load</div>
-                <button type="button" onClick={props.deleteNode}>
-                  Cancel
-                </button>
-                <button type="button" onClick={onRetry}>
-                  Retry
-                </button>
-              </div>
-            </>
+            <div className="flex space-x-2">
+              <AsteriskIcon className="h-4 w-4" />
+              <div className="grow">Failed to Load</div>
+              <button type="button" onClick={props.deleteNode}>
+                Cancel
+              </button>
+              <button type="button" onClick={onRetry}>
+                Retry
+              </button>
+            </div>
           ) : null}
         </div>
         {src && !error ? (

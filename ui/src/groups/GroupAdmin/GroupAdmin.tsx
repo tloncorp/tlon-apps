@@ -15,7 +15,7 @@ export default function GroupAdmin() {
   }));
 
   return (
-    <section className="w-full">
+    <section className="w-full overflow-y-scroll">
       {isMobile ? (
         <div className="px-2 py-1">
           <button
