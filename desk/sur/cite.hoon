@@ -10,15 +10,12 @@
       [%chan agent=@ ship=@ name=@ rest=*]
     =/  ship  (slaw %p ship.pole)
     ?~  ship  ~
-    =/  wer  ?:(=(~ rest.pole) ~ `rest.pole)
-    `[%chan [agent.pole u.ship name.pole] wer]
+    `[%chan [agent.pole u.ship name.pole] rest.pole]
   ::
       [%desk ship=@ name=@ rest=*]
-    ~&  desk
     =/  ship  (slaw %p ship.pole)
     ?~  ship  ~
-    =/  wer  ?:(=(~ rest.pole) ~ `rest.pole)
-    `[%desk [u.ship name.pole] wer]
+    `[%desk [u.ship name.pole] rest.pole]
   ::
       [%group ship=@ name=@ ~]
     =/  ship  (slaw %p ship.pole)
@@ -35,21 +32,9 @@
   |^  ^-  path
   :-  (scot %ud 1)
   ?-  -.c
-      %chan
-    :-  %chan
-    %+  welp  (nest nest.c)
-    ?~  wer.c  ~
-    u.wer.c
-  ::
-      %desk
-    :-  %desk
-    %+  welp  (flag flag.c)
-    ?~  wer.c  ~
-    u.wer.c
-  ::
-      %group
-    :-  %group
-    (flag flag.c)
+    %chan   chan/(welp (nest nest.c) wer.c)
+    %desk   desk/(welp (flag flag.c) wer.c)
+    %group  group/(flag flag.c)
   ==
   ++  flag
     |=  f=flag:g
@@ -60,9 +45,9 @@
   --
 ::
 +$  cite
-  $%  [%chan =nest:g wer=(unit path)]
+  $%  [%chan =nest:g wer=path]
       [%group =flag:g]
-      [%desk =flag:g wer=(unit path)]
+      [%desk =flag:g wer=path]
   ==
 --
 
