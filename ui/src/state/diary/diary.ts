@@ -371,6 +371,10 @@ export function useBriefs() {
   return useDiaryState(useCallback((s: DiaryState) => s.briefs, []));
 }
 
+export function useBrief(flag: string) {
+  return useDiaryState(useCallback((s: DiaryState) => s.briefs[flag], [flag]));
+}
+
 export function useQuips(flag: string, noteId: string): DiaryQuipMap {
   useEffect(() => {
     useDiaryState.getState().fetchQuips(flag, noteId);

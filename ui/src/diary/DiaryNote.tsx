@@ -1,45 +1,27 @@
-import ChannelHeader from '@/channels/ChannelHeader';
 import Avatar from '@/components/Avatar';
+import Divider from '@/components/Divider';
 import Bubble16Icon from '@/components/icons/Bubble16Icon';
-import BubbleIcon from '@/components/icons/BubbleIcon';
 import Layout from '@/components/Layout/Layout';
 import ShipName from '@/components/ShipName';
 import { pluralize } from '@/logic/utils';
-import { useDiaryState, useNote, useQuips } from '@/state/diary';
-import { useRouteGroup } from '@/state/groups';
+import { useBrief, useDiaryState, useNote, useQuips } from '@/state/diary';
 import { format } from 'date-fns';
 import _ from 'lodash';
 import f from 'lodash/fp';
 import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router';
+import DiaryComment from './DiaryComment';
+import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
-
-interface CommentForm {
-  content: string;
-}
 
 export default function DiaryNote() {
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
-  const nest = `diary/${chFlag}`;
-  const flag = useRouteGroup();
-
   const [, note] = useNote(chFlag, noteId)!;
-
-  const { register, handleSubmit, reset } = useForm<CommentForm>({
-    defaultValues: {
-      content: '',
-    },
-  });
-  const onSubmit = (values: CommentForm) => {
-    console.log(values);
-    console.log('noteid', noteId);
-    useDiaryState.getState().addQuip(chFlag, noteId, [values.content]);
-  };
-
   const quips = useQuips(chFlag, noteId);
+  const quipArray = Array.from(quips);
+  const brief = useBrief(chFlag);
 
   const commenters = _.flow(
     f.compact,
@@ -57,7 +39,7 @@ export default function DiaryNote() {
       header={<DiaryNoteHeader title={note.essay.title} />}
       mainClass="p-6"
     >
-      <section className="mx-auto flex max-w-[600px] flex-col space-y-12">
+      <section className="mx-auto flex max-w-[600px] flex-col space-y-12 pb-32">
         {note.essay.image && (
           <img
             src={note.essay.image}
@@ -107,24 +89,33 @@ export default function DiaryNote() {
         </header>
         <DiaryContent content={note.essay.content} />
         <footer id="comments">
-          <h4>Comments</h4>
-          <ul>
-            {Array.from(quips).map(([time, quip]) => (
-              <li key={time.toString()}>{JSON.stringify(quip, null, 2)}</li>
-            ))}
-          </ul>
-          <div className="p-4">
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <input
-                type="text"
-                {...register('content')}
-                placeholder="Your 2 cents"
-              />
-              <button type="submit" className="button">
-                comment
-              </button>
-            </form>
+          <div className="mb-3 flex items-center py-3">
+            <Divider className="flex-1">
+              <h2 className="font-semibold text-gray-400">
+                {quips.size > 0
+                  ? `${quips.size} ${pluralize('comment', quips.size)}`
+                  : 'No comments'}
+              </h2>
+            </Divider>
           </div>
+          <DiaryCommentField flag={chFlag} replyTo={noteId} />
+          <ul className="mt-12">
+            {quipArray.map(([time, quip], index) => {
+              const prev = index > 0 ? quipArray[index - 1] : undefined;
+
+              return (
+                <li key={time.toString()}>
+                  <DiaryComment
+                    time={time}
+                    quip={quip}
+                    brief={brief}
+                    prevQuip={prev?.[1]}
+                    prevQuipTime={prev?.[0]}
+                  />
+                </li>
+              );
+            })}
+          </ul>
         </footer>
       </section>
     </Layout>

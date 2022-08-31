@@ -1,10 +1,13 @@
+import cn from 'classnames';
 import React, { PropsWithChildren } from 'react';
 
-type DividerProps = PropsWithChildren<unknown>;
+type DividerProps = PropsWithChildren<{
+  className?: string;
+}>;
 
-export default function Divider({ children }: DividerProps) {
+export default function Divider({ className, children }: DividerProps) {
   return (
-    <div className="flex items-center space-x-2 p-2">
+    <div className={cn('flex items-center space-x-2 p-2', className)}>
       <h2 className="text-sm font-semibold text-gray-400">{children}</h2>
       <div className="grow border-b-2 border-gray-100" />
     </div>
