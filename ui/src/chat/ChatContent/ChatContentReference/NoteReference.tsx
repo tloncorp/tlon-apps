@@ -46,6 +46,14 @@ export default function NoteReference({
         top
       />
       <div className="flex flex-col space-y-2 p-2 group-hover:bg-gray-50">
+        {note.essay.image ? (
+          <div
+            className="relative h-36 w-full rounded-lg bg-gray-100 bg-cover bg-center px-4"
+            style={{
+              backgroundImage: `url(${note.essay.image})`,
+            }}
+          />
+        ) : null}
         <span className="text-2xl font-bold">{note.essay.title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
         {/* This just shows the first content item for now */}
