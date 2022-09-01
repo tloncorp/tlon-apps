@@ -39,6 +39,12 @@ exports[`ChatInput > renders as expected 1`] = `
           />
         </div>
         <button
+          class="absolute mr-2"
+          title="Insert test ref"
+        >
+          Test Reference
+        </button>
+        <button
           aria-label="Add attachment"
           class="absolute mr-2 text-gray-600 hover:text-gray-800"
           title="Insert Test Image"

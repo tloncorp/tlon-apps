@@ -9,13 +9,11 @@ export default function CurioReference({
   chFlag,
   nest,
   idCurio,
-  refToken,
 }: {
   groupFlag: string;
   chFlag: string;
   nest: string;
   idCurio: string;
-  refToken: string;
 }) {
   const curioObject = useCurio(chFlag, idCurio);
 
@@ -28,9 +26,12 @@ export default function CurioReference({
   }
 
   const [time, curio] = curioObject;
+  if (!curio) {
+    return <HeapLoadingBlock reference />;
+  }
   return (
     <div className="heap-inline-block group">
-      <HeapBlock curio={curio} time={idCurio} refToken={refToken} />
+      <HeapBlock curio={curio} time={idCurio} />
       <ReferenceBottomBar
         groupFlag={groupFlag}
         nest={nest}

@@ -158,6 +158,35 @@ export default function ChatInput({
           <div className="flex items-center justify-end">
             <MessageEditor editor={messageEditor} className="w-full" />
             <button
+              title={'Insert test ref'}
+              className="absolute mr-2"
+              onClick={() => {
+                sendMessage(whom, {
+                  replying: null,
+                  author: window.our,
+                  sent: Date.now(),
+                  content: {
+                    story: {
+                      block: [
+                        {
+                          cite: {
+                            chan: {
+                              nest: 'heap/~bus/heap',
+                              where:
+                                '/curio/170141184505811637482533300459223908352',
+                            },
+                          },
+                        },
+                      ],
+                      inline: [],
+                    },
+                  },
+                });
+              }}
+            >
+              Test Reference
+            </button>
+            <button
               // this is not contained by relative because of a bug in radix popovers
               title={'Insert Test Image'}
               className="absolute mr-2 text-gray-600 hover:text-gray-800"
