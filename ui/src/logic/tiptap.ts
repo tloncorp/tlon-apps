@@ -169,105 +169,81 @@ export function parseTipTapJSON(json: JSONContent): Inline[] {
   return [json.text || ''];
 }
 
-function wrapParagraphs(content: JSONContent[]) {
-  let currentContent = content;
-  const newContent: JSONContent[] = [];
-
-  let index = currentContent.findIndex((item) => item.type === 'paragraph');
-  while (index !== -1) {
-    const head = currentContent.slice(0, index);
-    const tail = currentContent.slice(index + 1, currentContent.length);
-
-    if (head.length !== 0) {
-      newContent.push({
-        type: 'paragraph',
-        content: head,
-      });
-    } else {
-      newContent.push({
-        type: 'paragraph',
-      });
-    }
-
-    currentContent = tail;
-    index = currentContent.findIndex((item) => item.type === 'paragraph');
+const makeText = (t: string) => ({ type: 'text', text: t });
+const makeParagraph = (c?: JSONContent): JSONContent => {
+  if (c && c.type === 'paragraph') {
+    return c;
   }
-
-  if (newContent.length !== 0 && currentContent.length !== 0) {
-    newContent.push({
-      type: 'paragraph',
-      content: currentContent,
-    });
+  const p = { type: 'paragraph' };
+  if (!c) {
+    return p;
   }
-
-  return newContent.length !== 0
-    ? newContent
-    : [{ type: 'paragraph', content }];
-}
-
-/* this parser is still imperfect */
-export function parseInline(message: Inline[]): JSONContent {
-  const parser = (inline: Inline): JSONContent => {
-    if (typeof inline === 'string') {
-      return { type: 'text', text: inline };
-    }
-
-    if ('blockquote' in inline) {
-      return {
-        type: 'blockquote',
-        content: wrapParagraphs(inline.blockquote.map(parser)),
-      };
-    }
-
-    const keys = Object.keys(inline);
-    const simple = keys.find((k) => ['code', 'tag'].includes(k));
-    if (simple) {
-      return {
-        type: 'text',
-        marks: [{ type: convertTipTapType(simple) }],
-        text: (inline as any)[simple] || '',
-      };
-    }
-
-    const recursive = keys.find((k) =>
-      ['bold', 'italics', 'strike', 'inline-code'].includes(k)
-    );
-    if (recursive) {
-      const item = (inline as any)[recursive];
-      const hasNestedContent = typeof item === 'object';
-      const content = hasNestedContent ? parser(item) : item;
-
-      if (hasNestedContent) {
-        const marks = content.marks ? content.marks : [];
-
-        return {
-          type: 'text',
-          marks: marks.concat([{ type: convertTipTapType(recursive) }]),
-          text: content.text || 'foo',
-        };
-      }
-
-      return {
-        type: 'text',
-        marks: [{ type: convertTipTapType(recursive) }],
-        text: content,
-      };
-    }
-
-    return { type: 'paragraph' };
-  };
-
-  if (message.length === 0) {
+  return { ...p, content: [c] };
+};
+const makeMarks = (k: InlineKey) => ({ type: convertTipTapType(k) });
+const makeStyledText = (i: Inline, context: JSONContent = {}) => {
+  const m = Object.keys(i)[0] as InlineKey;
+  if (typeof i === 'string') {
     return {
-      type: 'doc',
-      content: [{ type: 'paragraph' }],
+      ...makeText(i),
+      marks: [...(context?.marks || [])],
     };
   }
 
-  const content = wrapParagraphs(message.map(parser));
+  return {
+    ...makeText(i[m as keyof Inline][0]),
+    marks: [{ type: convertTipTapType(m) }, ...(context?.marks || [])],
+  };
+};
+
+// 'foo' | { bold: ['bar'] } | { italics: [ { bold: [ "foobar" ] } ] } | { 'inline-code': 'code' } | { break: null }
+export const inlineToContent = (
+  inline: Inline,
+  ctx?: JSONContent
+): JSONContent => {
+  if (typeof inline === 'string') {
+    if (ctx && ctx.marks) {
+      return makeStyledText(inline, ctx);
+    }
+    return makeText(inline);
+  }
+
+  const key = Object.keys(inline)[0] as InlineKey;
+  if (key === 'break') {
+    return makeParagraph();
+  }
+
+  if (key in inline) {
+    const inlineValue = inline[key as keyof Inline];
+    const newContext: JSONContent = ctx ? Object.assign(ctx) : {};
+    newContext.marks = [makeMarks(key), ...(newContext?.marks ?? [])];
+    // if Array, it's a nestable tag (bold, italics, strike); otherwise it's
+    // an un-nestable tag such as inline-code or code
+    return inlineToContent(
+      Array.isArray(inlineValue) ? inlineValue[0] : inlineValue,
+      newContext
+    );
+  }
+
+  // TODO: is there a better fallback than an empty newline?
+  return makeParagraph();
+};
+
+/**
+ * This function parses Chat, Heap, or Diary Inlines persisted in the backend
+ * and re-serializes to the Prosemirror JSONContent schema (which is consumed
+ * by the TipTap Editor).
+ *
+ * @param message An array of Inline items. This is how persisted data is sent
+ *   from the backend to the frontend.
+ * @returns A JSONContent object (consumed by TipTap Editor to render rich text)
+ */
+export function inlinesToJSON(message: Inline[]): JSONContent {
   return {
     type: 'doc',
-    content,
+    content: message
+      .map((m) => inlineToContent(m))
+      .map((c) => makeParagraph(c)),
   };
 }
 

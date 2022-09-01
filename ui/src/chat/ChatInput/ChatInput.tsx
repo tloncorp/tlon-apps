@@ -16,7 +16,7 @@ import { randomElement } from '@/logic/utils';
 import { Image, PLACEHOLDER_IMAGES } from '@/constants';
 import {
   normalizeInline,
-  parseInline,
+  inlinesToJSON,
   parseTipTapJSON,
   tipTapToString,
 } from '@/logic/tiptap';
@@ -127,7 +127,7 @@ export default function ChatInput({
       const current = tipTapToString(messageEditor.getJSON());
 
       if (current === '' && !messageEditor.isDestroyed) {
-        messageEditor.commands.setContent(parseInline(draft.inline), true);
+        messageEditor.commands.setContent(inlinesToJSON(draft.inline), true);
       }
     }
   }, [draft, messageEditor]);

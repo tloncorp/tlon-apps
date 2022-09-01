@@ -26,15 +26,33 @@ export function InlineContent({ inline }: InlineContentProps) {
   }
 
   if (isBold(inline)) {
-    return <strong>{inline.bold}</strong>;
+    return (
+      <strong>
+        {inline.bold.map((s, k) => (
+          <InlineContent key={k} inline={s} />
+        ))}
+      </strong>
+    );
   }
 
   if (isItalics(inline)) {
-    return <em>{inline.italics}</em>;
+    return (
+      <em>
+        {inline.italics.map((s, k) => (
+          <InlineContent key={k} inline={s} />
+        ))}
+      </em>
+    );
   }
 
   if (isStrikethrough(inline)) {
-    return <span className="line-through">{inline.strike}</span>;
+    return (
+      <span className="line-through">
+        {inline.strike.map((s, k) => (
+          <InlineContent key={k} inline={s} />
+        ))}
+      </span>
+    );
   }
 
   if (isLink(inline)) {

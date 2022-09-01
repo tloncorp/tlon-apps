@@ -1,7 +1,7 @@
 import {
   EditorOnBlurProps,
   EditorOnUpdateProps,
-  parseInline,
+  inlinesToJSON,
   parseTipTapJSON,
 } from '@/logic/tiptap';
 import { DiaryInline, NoteContent, Verse, VerseInline } from '@/types/diary';
@@ -37,7 +37,7 @@ export default function DiaryEditor(props: DiaryEditorProps) {
     if (target.length === 0) {
       return '';
     }
-    return parseInline((content[editing] as VerseInline).inline);
+    return inlinesToJSON((content[editing] as VerseInline).inline);
   }, [editing, content]);
 
   const onUpdate = useCallback(({ transaction }: EditorOnUpdateProps) => {

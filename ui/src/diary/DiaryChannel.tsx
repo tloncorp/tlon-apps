@@ -7,7 +7,7 @@ import { useNotesForDiary, useDiaryPerms, useDiaryState } from '@/state/diary';
 import ChannelHeader from '@/channels/ChannelHeader';
 import { nestToFlag } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
-import { parseInline, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
+import { inlinesToJSON, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
 import { VerseInline } from '@/types/diary';
 import { Link } from 'react-router-dom';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
@@ -100,7 +100,9 @@ function DiaryChannel() {
                   <span>{note.essay.title}</span>
                   <p>
                     {tipTapToString(
-                      parseInline((note.essay.content[0] as VerseInline).inline)
+                      inlinesToJSON(
+                        (note.essay.content[0] as VerseInline).inline
+                      )
                     )}
                   </p>
                 </li>

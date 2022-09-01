@@ -11,6 +11,7 @@ import { useCurio } from '@/state/heap/heap';
 import XIcon from '@/components/icons/XIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import HeapDetailHeaderDescription from '@/heap/HeapDetail/HeapDetailHeaderDescription';
+import { makePrettyDayAndTime } from '@/logic/utils';
 
 export interface ChannelHeaderProps {
   flag: string;
@@ -30,7 +31,11 @@ export default function HeapDetailHeader({
   const curio = curioObject ? curioObject[1] : null;
   const curioContent = curio?.heart.content[0].toString() || '';
   const navPrimary = useNavStore((state) => state.navigatePrimary);
-  const curioTitle = curio?.heart.title || curio?.heart.content[0];
+  // TODO: a better title fallback
+  const prettyDayAndTime = makePrettyDayAndTime(
+    new Date(curio?.heart.sent || Date.now())
+  );
+  const curioTitle = curio?.heart.title || prettyDayAndTime;
 
   const onCopy = useCallback(() => {
     doCopy(`${flag}/channels/heap/${chFlag}/curio/${idCurio}`);
