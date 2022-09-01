@@ -147,6 +147,8 @@ function GangItem(props: { flag: string }) {
     return null;
   }
 
+  const requested = claim.progress === 'knocking';
+
   return (
     <Popover.Root>
       <Popover.Anchor>
@@ -171,21 +173,33 @@ function GangItem(props: { flag: string }) {
         sideOffset={isMobile ? 0 : 16}
       >
         <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg">
-          <span>You are currently joining this group.</span>
-          <span>
-            It may take a few minutes depending on the host&apos;s and your
-            connection.
-          </span>
-          <div className="flex">
-            <Popover.Close>
-              <button
-                className="small-button bg-gray-50 text-gray-800"
-                onClick={handleCancel}
-              >
-                Cancel Join
-              </button>
-            </Popover.Close>
-          </div>
+          {requested ? (
+            <>
+              <span>You've requested to join this group.</span>
+              <span>
+                An admin will have to approve your request and then you'll
+                receive an invitation to join.
+              </span>
+            </>
+          ) : (
+            <>
+              <span>You are currently joining this group.</span>
+              <span>
+                It may take a few minutes depending on the host&apos;s and your
+                connection.
+              </span>
+              <div className="flex">
+                <Popover.Close>
+                  <button
+                    className="small-button bg-gray-50 text-gray-800"
+                    onClick={handleCancel}
+                  >
+                    Cancel Join
+                  </button>
+                </Popover.Close>
+              </div>
+            </>
+          )}
         </div>
       </Popover.Content>
     </Popover.Root>

@@ -162,6 +162,41 @@ export const useGroupState = create<GroupState>((set, get) => ({
       },
     });
   },
+  knock: async (flag) => {
+    api.poke({
+      app: 'groups',
+      mark: 'group-knock',
+      json: flag,
+    });
+  },
+  invite: async (flag, ships) => {
+    api.poke(
+      groupAction(flag, {
+        cordon: {
+          shut: {
+            'add-ships': {
+              kind: 'pending',
+              ships,
+            },
+          },
+        },
+      })
+    );
+  },
+  rescind: async (flag, ships) => {
+    api.poke(
+      groupAction(flag, {
+        cordon: {
+          shut: {
+            'del-ships': {
+              kind: 'pending',
+              ships,
+            },
+          },
+        },
+      })
+    );
+  },
   reject: async (flag) => {
     await api.poke({
       app: 'groups',

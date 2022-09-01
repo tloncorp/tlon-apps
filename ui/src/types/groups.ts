@@ -294,7 +294,12 @@ export interface Invite {
   ship: string;
 }
 
-export type JoinProgress = 'adding' | 'watching' | 'done' | 'error';
+export type JoinProgress =
+  | 'knocking'
+  | 'adding'
+  | 'watching'
+  | 'done'
+  | 'error';
 
 interface GroupClaim {
   progress: JoinProgress;
