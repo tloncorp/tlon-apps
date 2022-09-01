@@ -27,6 +27,7 @@ export interface HeapSetting extends ChannelSetting {
 export interface DiarySetting extends ChannelSetting {
   displayMode: 'grid' | 'list';
   sortMode: 'time' | 'alpha';
+  commentSortMode: 'asc' | 'dsc';
 }
 
 interface BaseSettingsState {
@@ -196,6 +197,12 @@ export function useDiarySortMode(flag: string): 'time' | 'alpha' {
 
 export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
   const settings = useDiarySettings();
-  const heapSetting = getSetting(settings, flag);
-  return heapSetting?.displayMode ?? 'list';
+  const setting = getSetting(settings, flag);
+  return setting?.displayMode ?? 'list';
+}
+
+export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
+  const settings = useDiarySettings();
+  const setting = getSetting(settings, flag);
+  return setting?.commentSortMode ?? 'dsc';
 }

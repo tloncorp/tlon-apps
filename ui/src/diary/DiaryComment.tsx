@@ -7,43 +7,35 @@ import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
-import { DiaryBrief, DiaryQuip } from '@/types/diary';
+import { DiaryQuip } from '@/types/diary';
 
 export interface DiaryCommentProps {
   time: BigInteger;
   quip: DiaryQuip;
-  brief: DiaryBrief;
-  prevQuip?: DiaryQuip;
-  prevQuipTime?: BigInteger;
+  newAuthor: boolean;
+  newDay: boolean;
+  unreadCount?: number;
 }
 
 const DiaryComment = React.memo<
   DiaryCommentProps & React.RefAttributes<HTMLDivElement>
 >(
   React.forwardRef<HTMLDivElement, DiaryCommentProps>(
-    ({ time, quip, brief, prevQuip, prevQuipTime }: DiaryCommentProps, ref) => {
+    (
+      { time, quip, unreadCount, newAuthor, newDay }: DiaryCommentProps,
+      ref
+    ) => {
       const { seal, memo } = quip;
       const unix = new Date(daToUnix(time));
 
-      const newAuthor = prevQuip
-        ? quip.memo.author !== prevQuip.memo.author
-        : true;
-      const lastQuipDay = prevQuipTime
-        ? new Date(daToUnix(prevQuipTime))
-        : undefined;
-      const newDay =
-        prevQuip && lastQuipDay
-          ? differenceInDays(unix, lastQuipDay) > 0
-          : false;
-      const unreadBrief =
-        brief && brief['read-id'] === quip.seal.time ? brief : undefined;
-
       return (
         <div ref={ref} className="flex flex-col">
-          {unreadBrief ? (
-            <DateDivider date={unix} unreadCount={unreadBrief.count} />
+          {typeof unreadCount === 'number' ? (
+            <DateDivider date={unix} unreadCount={unreadCount} />
           ) : null}
-          {newDay && !unreadBrief ? <DateDivider date={unix} /> : null}
+          {newDay && typeof unreadCount === 'undefined' ? (
+            <DateDivider date={unix} />
+          ) : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex">
             {/* <ChatMessageOptions whom={whom} writ={writ} /> */}
