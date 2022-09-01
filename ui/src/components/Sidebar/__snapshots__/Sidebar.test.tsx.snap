@@ -3,7 +3,7 @@
 exports[`Sidebar > renders as expected 1`] = `
 <DocumentFragment>
   <nav
-    class="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white"
+    class="flex h-full w-64 flex-col bg-white"
   >
     <ul
       class="flex w-full flex-col px-2 pt-2"

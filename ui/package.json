@@ -45,6 +45,7 @@
     "@radix-ui/react-popover": "^0.1.6",
     "@radix-ui/react-switch": "^0.1.5",
     "@radix-ui/react-tooltip": "^1.0.0",
+    "@react-spring/web": "^9.5.2",
     "@tailwindcss/line-clamp": "^0.4.0",
     "@testing-library/react": "^12.1.5",
     "@testing-library/user-event": "^14.2.0",
