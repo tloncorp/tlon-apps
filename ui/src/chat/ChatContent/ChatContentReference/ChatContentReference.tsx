@@ -46,13 +46,17 @@ export default function ChatContentReference({ story }: { story: string }) {
 
           if (containsHeap) {
             const chFlag = refTokenSplitByFas.slice(4, 6).join('/');
+            const groupFlag = refTokenSplitByFas.slice(0, 2).join('/');
+            const nest = refTokenSplitByFas.slice(3, 6).join('/');
             const idCurio = refTokenSplitByFas[7];
 
             return (
               <>
                 {makeSpace}
                 <CurioReference
+                  groupFlag={groupFlag}
                   chFlag={chFlag}
+                  nest={nest}
                   idCurio={idCurio}
                   refToken={x}
                 />

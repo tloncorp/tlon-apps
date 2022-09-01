@@ -321,7 +321,7 @@
       [%open banned ban-ranks]:policy
     ::
         %invite
-      [%shut pending.policy]
+      [%shut pending.policy ~]
     ==
   ::
   ++  scry
@@ -677,16 +677,16 @@
   ++  go-cordon-update
     |=  =diff:cordon:g
     |^  ^+  go-core
-    ?>  go-is-bloc
     ?-  -.diff 
       %open     (open p.diff)
       %shut     (shut p.diff)
-      %swap     =.(cordon.group p.diff go-core)
+      %swap     ?>(go-is-bloc =.(cordon.group p.diff go-core))
     ==
     ::
     ++  open
       |=  =diff:open:cordon:g
       ^+  go-core
+      ?>  go-is-bloc
       =*  cordon  cordon.group
       ?>  ?=(%open -.cordon) 
       ?-  -.diff
@@ -732,9 +732,23 @@
       =*  cordon  cordon.group
       ?>  ?=(%shut -.cordon)
       =.  cordon.group
-        ?-  -.diff
-          %add-ships  cordon(pending (~(uni in pending.cordon) p.diff))
-          %del-ships  cordon(pending (~(dif in pending.cordon) p.diff))
+        ?+    [-.diff p.diff]  !!  :: should never happen, compiler bug
+        ::
+            [%add-ships %pending]
+          ?>  go-is-bloc
+          cordon(pend (~(uni in pend.cordon) q.diff))
+        ::
+            [%del-ships %pending]
+          ?>  go-is-bloc
+          cordon(pend (~(dif in pend.cordon) q.diff))
+        ::
+            [%add-ships %ask]
+          ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
+          cordon(ask (~(uni in ask.cordon) q.diff))
+        ::
+            [%del-ships %ask]
+          ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
+          cordon(ask (~(dif in ask.cordon) q.diff))
         ==
       go-core
     --

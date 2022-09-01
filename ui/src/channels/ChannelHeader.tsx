@@ -22,21 +22,21 @@ export type ChannelHeaderProps = PropsWithChildren<{
   showControls?: boolean;
 }>;
 
-function ChannelHeaderButton({
-  children,
-  onClick,
-  className,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-}) {
+const ChannelHeaderButton = React.forwardRef<
+  HTMLButtonElement,
+  React.HTMLProps<HTMLButtonElement>
+>((props, ref) => {
+  const { children, className, onClick } = props;
   return (
-    <button onClick={onClick} className={cn('secondary-button', className)}>
+    <button
+      ref={ref}
+      onClick={onClick}
+      className={cn('secondary-button', className)}
+    >
       {children}
     </button>
   );
-}
+});
 
 function ChannelHeaderMenuButton({
   children,

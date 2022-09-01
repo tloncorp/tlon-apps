@@ -1,4 +1,3 @@
-import ChannelHeader from '@/channels/ChannelHeader';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
@@ -7,7 +6,6 @@ import { Verse } from '@/types/diary';
 import React, { useState } from 'react';
 import { useParams } from 'react-router';
 import { Link } from 'react-router-dom';
-import DiaryEditor from './DiaryEditor';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 const TEST_CONTENT: Verse[] = [

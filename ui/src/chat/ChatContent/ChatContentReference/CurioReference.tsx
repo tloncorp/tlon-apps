@@ -1,24 +1,23 @@
-import React, { useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useEffect } from 'react';
 import { useCurio, useHeapState } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import HeapBlock from '@/heap/HeapBlock';
+import ReferenceBottomBar from './ReferenceBottomBar';
 
 export default function CurioReference({
+  groupFlag,
   chFlag,
+  nest,
   idCurio,
   refToken,
 }: {
+  groupFlag: string;
   chFlag: string;
+  nest: string;
   idCurio: string;
   refToken: string;
 }) {
   const curioObject = useCurio(chFlag, idCurio);
-  const navigate = useNavigate();
-
-  const onClick = useCallback(() => {
-    navigate(`/groups/${refToken}`);
-  }, [navigate, refToken]);
 
   useEffect(() => {
     useHeapState.getState().initialize(chFlag);
@@ -28,10 +27,16 @@ export default function CurioReference({
     return <HeapLoadingBlock reference />;
   }
 
-  const curio = curioObject[1];
+  const [time, curio] = curioObject;
   return (
-    <div onClick={onClick}>
-      <HeapBlock curio={curio} time={idCurio} reference />
+    <div className="heap-inline-block group">
+      <HeapBlock curio={curio} time={idCurio} refToken={refToken} />
+      <ReferenceBottomBar
+        groupFlag={groupFlag}
+        nest={nest}
+        time={time}
+        author={curio.heart.author}
+      />
     </div>
   );
 }
