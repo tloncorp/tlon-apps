@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useEffect } from 'react';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import ReferenceBar from '@/chat/ChatContent/ChatContentReference/ReferenceBar';
 import { useDiaryState, useNote } from '@/state/diary';
 import { makePrettyDate } from '@/logic/utils';
+import { Link } from 'react-router-dom';
 
 export default function NoteReference({
   groupFlag,
@@ -19,15 +19,10 @@ export default function NoteReference({
   refToken: string;
 }) {
   const noteObject = useNote(chFlag, id);
-  const navigate = useNavigate();
 
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
   }, [chFlag]);
-
-  const navigateToNote = useCallback(() => {
-    navigate(`/groups/${refToken}`);
-  }, [navigate, refToken]);
 
   if (!noteObject) {
     return <HeapLoadingBlock reference />;
@@ -74,11 +69,12 @@ export default function NoteReference({
           // TODO: handle blocks.
           return '';
         })}
-        <button className="small-secondary-button w-20">
-          <span onClick={navigateToNote} className="text-gray-800">
-            Read more
-          </span>
-        </button>
+        <Link
+          to={`/groups/${refToken}`}
+          className="small-secondary-button w-20"
+        >
+          <span className="text-gray-800">Read more</span>
+        </Link>
       </div>
       <ReferenceBar groupFlag={groupFlag} nest={nest} time={time} />
     </div>
