@@ -257,7 +257,7 @@ export default function ChannelIndex({ title }: ViewProps) {
   const group = useGroup(flag);
 
   return (
-    <section className="w-full p-4">
+    <section className="w-full overflow-y-scroll p-4">
       <Helmet>
         <title>{group ? `${title} in ${group?.meta?.title}` : title}</title>
       </Helmet>

@@ -126,101 +126,102 @@ export default function DiaryNote() {
 
   return (
     <Layout
-      className="h-full flex-1 overflow-y-scroll bg-white"
+      className="h-full flex-1 bg-white"
       header={<DiaryNoteHeader title={note.essay.title} />}
-      mainClass="p-6"
     >
-      <section className="mx-auto flex max-w-[600px] flex-col space-y-12 pb-32">
-        {note.essay.image && (
-          <img
-            src={note.essay.image}
-            alt=""
-            className="h-auto w-full rounded-xl"
-          />
-        )}
-        <header className="space-y-6">
-          <h1 className="text-3xl font-semibold">{note.essay.title}</h1>
-          <p className="font-semibold text-gray-400">
-            {format(note.essay.sent, 'LLLL do, yyyy')}
-          </p>
-          <a href="#comments" className="flex items-center">
-            <div className="flex items-center space-x-2 font-semibold">
-              <Avatar ship={note.essay.author} size="xs" />
-              <ShipName name={note.essay.author} />
-            </div>
-            <div className="ml-auto flex items-center">
-              <div className="relative flex items-center font-semibold text-gray-600">
-                {commenters.length > 0 ? (
-                  <>
-                    {commenters.map((ship, index) => (
-                      <Avatar
-                        key={ship}
-                        ship={ship}
-                        size="xs"
-                        className="relative outline outline-2 outline-white"
-                        style={{
-                          zIndex: 2 - index,
-                          transform: `translate(${index * -50}%)`,
-                        }}
-                      />
-                    ))}
-                    <span>
-                      {quips.size} {pluralize('comment', quips.size)}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Bubble16Icon className="mr-2 h-4 w-4" />
-                    <span className="text-gray-400">No comments</span>
-                  </>
-                )}
+      <div className="h-full overflow-y-scroll p-6">
+        <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
+          {note.essay.image && (
+            <img
+              src={note.essay.image}
+              alt=""
+              className="h-auto w-full rounded-xl"
+            />
+          )}
+          <header className="space-y-6">
+            <h1 className="text-3xl font-semibold">{note.essay.title}</h1>
+            <p className="font-semibold text-gray-400">
+              {format(note.essay.sent, 'LLLL do, yyyy')}
+            </p>
+            <a href="#comments" className="flex items-center">
+              <div className="flex items-center space-x-2 font-semibold">
+                <Avatar ship={note.essay.author} size="xs" />
+                <ShipName name={note.essay.author} />
               </div>
+              <div className="ml-auto flex items-center">
+                <div className="relative flex items-center font-semibold text-gray-600">
+                  {commenters.length > 0 ? (
+                    <>
+                      {commenters.map((ship, index) => (
+                        <Avatar
+                          key={ship}
+                          ship={ship}
+                          size="xs"
+                          className="relative outline outline-2 outline-white"
+                          style={{
+                            zIndex: 2 - index,
+                            transform: `translate(${index * -50}%)`,
+                          }}
+                        />
+                      ))}
+                      <span>
+                        {quips.size} {pluralize('comment', quips.size)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Bubble16Icon className="mr-2 h-4 w-4" />
+                      <span className="text-gray-400">No comments</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </a>
+          </header>
+          <DiaryContent content={note.essay.content} />
+          <footer id="comments">
+            <div className="mb-3 flex items-center py-3">
+              <Divider className="flex-1">
+                <h2 className="font-semibold text-gray-400">
+                  {quips.size > 0
+                    ? `${quips.size} ${pluralize('comment', quips.size)}`
+                    : 'No comments'}
+                </h2>
+              </Divider>
+              <Dropdown.Root>
+                <Dropdown.Trigger className="secondary-button">
+                  {sort === 'asc' ? 'Oldest' : 'Newest'}
+                  <CaretDown16Icon className="ml-2 h-4 w-4 text-gray-600" />
+                </Dropdown.Trigger>
+                <Dropdown.Content className="dropdown">
+                  <Dropdown.Item
+                    className="dropdown-item"
+                    onSelect={() => setSort('dsc')}
+                  >
+                    Newest
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    className="dropdown-item"
+                    onSelect={() => setSort('asc')}
+                  >
+                    Oldest
+                  </Dropdown.Item>
+                </Dropdown.Content>
+              </Dropdown.Root>
             </div>
-          </a>
-        </header>
-        <DiaryContent content={note.essay.content} />
-        <footer id="comments">
-          <div className="mb-3 flex items-center py-3">
-            <Divider className="flex-1">
-              <h2 className="font-semibold text-gray-400">
-                {quips.size > 0
-                  ? `${quips.size} ${pluralize('comment', quips.size)}`
-                  : 'No comments'}
-              </h2>
-            </Divider>
-            <Dropdown.Root>
-              <Dropdown.Trigger className="secondary-button">
-                {sort === 'asc' ? 'Oldest' : 'Newest'}
-                <CaretDown16Icon className="ml-2 h-4 w-4 text-gray-600" />
-              </Dropdown.Trigger>
-              <Dropdown.Content className="dropdown">
-                <Dropdown.Item
-                  className="dropdown-item"
-                  onSelect={() => setSort('dsc')}
-                >
-                  Newest
-                </Dropdown.Item>
-                <Dropdown.Item
-                  className="dropdown-item"
-                  onSelect={() => setSort('asc')}
-                >
-                  Oldest
-                </Dropdown.Item>
-              </Dropdown.Content>
-            </Dropdown.Root>
-          </div>
-          <DiaryCommentField flag={chFlag} replyTo={noteId} />
-          <ul className="mt-12">
-            {groupedQuips.map(([t, group]) =>
-              group.map((props) => (
-                <li key={props.time.toString()}>
-                  <DiaryComment {...props} />
-                </li>
-              ))
-            )}
-          </ul>
-        </footer>
-      </section>
+            <DiaryCommentField flag={chFlag} replyTo={noteId} />
+            <ul className="mt-12">
+              {groupedQuips.map(([t, group]) =>
+                group.map((props) => (
+                  <li key={props.time.toString()}>
+                    <DiaryComment {...props} />
+                  </li>
+                ))
+              )}
+            </ul>
+          </footer>
+        </section>
+      </div>
     </Layout>
   );
 }
