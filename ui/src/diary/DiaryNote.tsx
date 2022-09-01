@@ -127,7 +127,9 @@ export default function DiaryNote() {
   return (
     <Layout
       className="h-full flex-1 bg-white"
-      header={<DiaryNoteHeader title={note.essay.title} />}
+      header={
+        <DiaryNoteHeader title={note.essay.title} flag={chFlag} time={noteId} />
+      }
     >
       <div className="h-full overflow-y-scroll p-6">
         <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
