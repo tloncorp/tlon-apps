@@ -301,7 +301,7 @@ export function linkFromCurioContent(content: CurioContent) {
   return '';
 }
 
-export function pathToCite(cite: Cite) {
+export function citeToPath(cite: Cite) {
   if ('desk' in cite) {
     return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
   }
@@ -311,12 +311,12 @@ export function pathToCite(cite: Cite) {
   return `/1/group/${cite.group}`;
 }
 
-export function citeToPath(path: string): Cite | undefined {
+export function pathToCite(path: string): Cite | undefined {
   const segments = path.split('/');
   if (segments.length < 3) {
     return undefined;
   }
-  const [ver, kind, ...rest] = segments;
+  const [, ver, kind, ...rest] = segments;
   if (ver !== '1') {
     return undefined;
   }
@@ -328,7 +328,7 @@ export function citeToPath(path: string): Cite | undefined {
     return {
       chan: {
         nest,
-        where: rest.slice(3).join('/') || '/',
+        where: `/${rest.slice(3).join('/')}` || '/',
       },
     };
   }
@@ -340,7 +340,7 @@ export function citeToPath(path: string): Cite | undefined {
     return {
       desk: {
         flag,
-        where: rest.slice(2).join('/') || '/',
+        where: `/${rest.slice(2).join('/')}` || '/',
       },
     };
   }

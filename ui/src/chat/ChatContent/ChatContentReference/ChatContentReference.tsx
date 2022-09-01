@@ -34,7 +34,8 @@ export default function ChatContentReference({ cite }: { cite: Cite }) {
       );
     }
     if (app === 'chat') {
-      const idWrit = udToDec(segments[2]);
+      const idWritTime = udToDec(segments[3]);
+      const idWrit = `${segments[2]}/${segments[3]}`;
       return (
         <WritReference
           chFlag={chFlag}

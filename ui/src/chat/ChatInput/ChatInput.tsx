@@ -1,15 +1,19 @@
 import { Editor } from '@tiptap/react';
 import { debounce } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
-import { ChatMemo } from '@/types/chat';
+import { ChatBlock, ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import AddIcon from '@/components/icons/AddIcon';
 import X16Icon from '@/components/icons/X16Icon';
-import { useChatInfo, useChatStore } from '@/chat/useChatStore';
+import {
+  fetchChatBlocks,
+  useChatInfo,
+  useChatStore,
+} from '@/chat/useChatStore';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement } from '@/logic/utils';
@@ -75,6 +79,7 @@ export default function ChatInput({
       }
 
       const data = normalizeInline(parseTipTapJSON(editor?.getJSON()));
+      const blocks = fetchChatBlocks(whom);
       const memo: ChatMemo = {
         replying: reply,
         author: `~${window.ship || 'zod'}`,
@@ -82,7 +87,7 @@ export default function ChatInput({
         content: {
           story: {
             inline: Array.isArray(data) ? data : [data],
-            block: [],
+            block: blocks,
           },
         },
       };
@@ -91,11 +96,13 @@ export default function ChatInput({
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
+      useChatStore.getState().setBlocks(whom, []);
     },
     [reply, whom, sendMessage, closeReply]
   );
 
   const messageEditor = useMessageEditor({
+    whom,
     content: '',
     placeholder: 'Message',
     onEnter: useCallback(
@@ -145,6 +152,20 @@ export default function ChatInput({
     <>
       <div className={cn('flex w-full items-end space-x-2', className)}>
         <div className="flex-1">
+          {chatInfo.blocks.length > 0 ? (
+            <div className="mb-4 flex items-center justify-start font-semibold">
+              <span className="mr-2 text-gray-600">Attached: </span>
+              {chatInfo.blocks.length} reference
+              {chatInfo.blocks.length === 1 ? '' : 's'}
+              <button
+                className="icon-button ml-auto"
+                onClick={() => useChatStore.getState().setBlocks(whom, [])}
+              >
+                <X16Icon className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+
           {showReply && ship && reply ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="text-gray-600">Replying to</span>
@@ -157,35 +178,6 @@ export default function ChatInput({
           ) : null}
           <div className="flex items-center justify-end">
             <MessageEditor editor={messageEditor} className="w-full" />
-            <button
-              title={'Insert test ref'}
-              className="absolute mr-2"
-              onClick={() => {
-                sendMessage(whom, {
-                  replying: null,
-                  author: window.our,
-                  sent: Date.now(),
-                  content: {
-                    story: {
-                      block: [
-                        {
-                          cite: {
-                            chan: {
-                              nest: 'heap/~bus/heap',
-                              where:
-                                '/curio/170141184505811637482533300459223908352',
-                            },
-                          },
-                        },
-                      ],
-                      inline: [],
-                    },
-                  },
-                });
-              }}
-            >
-              Test Reference
-            </button>
             <button
               // this is not contained by relative because of a bug in radix popovers
               title={'Insert Test Image'}
