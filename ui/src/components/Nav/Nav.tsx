@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { ReactElement, useEffect, useState } from 'react';
 import { animated, useSpring } from '@react-spring/web';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import GroupSidebar from '@/groups/GroupSidebar/GroupSidebar';
@@ -6,6 +6,20 @@ import MessagesSidebar from '@/dms/MessagesSidebar';
 import useIsChat from '@/logic/useIsChat';
 import { useIsMobile } from '@/logic/useMedia';
 import useNavStore from './useNavStore';
+
+function MobileGroupsNav({ location }: { location: string }) {
+  let selectedSidebar: ReactElement | null = <Sidebar />;
+
+  if (location === 'main') {
+    selectedSidebar = <Sidebar />;
+  } else if (location === 'group') {
+    selectedSidebar = <GroupSidebar />;
+  } else {
+    selectedSidebar = null;
+  }
+
+  return selectedSidebar;
+}
 
 export default function Nav() {
   const navLocation = useNavStore((s) => s.primary) as string;
@@ -38,6 +52,10 @@ export default function Nav() {
 
   if (navLocation === 'dm') {
     return <MessagesSidebar />;
+  }
+
+  if (isMobile) {
+    return <MobileGroupsNav location={navLocation} />;
   }
 
   if (navLocation === 'group' || navLocation === 'main') {
