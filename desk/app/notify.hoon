@@ -402,7 +402,7 @@
   =/  params=(list [@t @t])
     :~  identity+(rsh [3 1] (scot %p who))
         action+`@t`action.update
-        uid+(scot %ux uid.update)
+        uid+(scot %uv uid.update)
     ==
   %:  post-form
       /send-notification/(scot %uv (sham eny.bowl))
