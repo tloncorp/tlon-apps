@@ -1,12 +1,21 @@
 import cn from 'classnames';
 import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import * as Popover from '@radix-ui/react-popover';
-import { useGroup, useChannel, useAmAdmin } from '@/state/groups';
+import {
+  useRouteGroup,
+  useGroup,
+  useChannel,
+  useAmAdmin,
+} from '@/state/groups';
 import { useChatState } from '@/state/chat';
+import { useHeapState } from '@/state/heap/heap';
+import { useDiaryState } from '@/state/diary';
 import useNavStore from '@/components/Nav/useNavStore';
+import useIsChannelHost from '@/logic/useIsChannelHost';
 import { useIsMobile } from '@/logic/useMedia';
-import { nestToFlag } from '@/logic/utils';
+import { getFlagParts, nestToFlag } from '@/logic/utils';
 import ChannelIcon from '@/channels/ChannelIcon';
 import Divider from '@/components/Divider';
 import BulletIcon from '@/components/icons/BulletIcon';
@@ -66,27 +75,38 @@ function ChannelHeaderMenuButton({
   );
 }
 
-function ChannelActions({
-  flag,
-  nest,
-  chFlag,
-}: {
-  flag: string;
-  nest: string;
-  chFlag: string;
-}) {
+function ChannelActions({ nest }: { nest: string }) {
+  const [_app, flag] = nestToFlag(nest);
   const isAdmin = useAmAdmin(flag);
+  const isChannelHost = useIsChannelHost(flag);
+  const navigate = useNavigate();
+  const groupFlag = useRouteGroup();
+  const { ship, name } = getFlagParts(groupFlag);
+
+  const leave = useCallback(
+    (chFlag: string) => {
+      const leaver =
+        _app === 'chat'
+          ? useChatState.getState().leaveChat
+          : _app === 'heap'
+          ? useHeapState.getState().leaveHeap
+          : useDiaryState.getState().leaveDiary;
+
+      leaver(chFlag);
+    },
+    [_app]
+  );
 
   const leaveChannel = useCallback(async () => {
     try {
-      // FIXME: Are we using something else for leaving channels, not just Chat?
-      await useChatState.getState().leaveChat(flag);
+      leave(flag);
+      navigate(`/groups/${ship}/${name}/channels`);
     } catch (error) {
       if (error) {
         console.error(`[ChannelIndex:LeaveError] ${error}`);
       }
     }
-  }, [flag]);
+  }, [flag, leave]);
 
   return (
     <Popover.Root>
@@ -122,13 +142,15 @@ function ChannelActions({
               <BulletIcon className="h-6 w-6 text-gray-400" />
               <span className="font-semibold text-gray-400">Mute Mentions</span>
             </ChannelHeaderMenuButton>
-            <ChannelHeaderMenuButton
-              className="hover:bg-red-soft"
-              onClick={leaveChannel}
-            >
-              <LeaveIcon className="h-6 w-6 text-red-400" />
-              <span className="font-semibold text-red">Leave Channel</span>
-            </ChannelHeaderMenuButton>
+            {!isChannelHost ? (
+              <ChannelHeaderMenuButton
+                className="hover:bg-red-soft"
+                onClick={leaveChannel}
+              >
+                <LeaveIcon className="h-6 w-6 text-red-400" />
+                <span className="font-semibold text-red">Leave Channel</span>
+              </ChannelHeaderMenuButton>
+            ) : null}
             {isAdmin ? (
               <>
                 <Divider>Admin</Divider>
@@ -138,7 +160,7 @@ function ChannelActions({
                 >
                   <ChannelHeaderMenuButton>
                     <SlidersIcon className="h-6 w-6 text-gray-400" />
-                    <span className="font-semibold">Edit Channel</span>
+                    <span className="font-semibold">Edit Channels</span>
                   </ChannelHeaderMenuButton>
                 </Link>
               </>
@@ -253,11 +275,11 @@ export default function ChannelHeader({
                 </div>
               </Popover.Content>
             </Popover.Root>
-            <ChannelActions {...{ flag, nest, chFlag }} />
+            <ChannelActions {...{ nest }} />
           </div>
         </div>
       ) : (
-        <ChannelActions {...{ flag, nest, chFlag }} />
+        <ChannelActions {...{ nest }} />
       )}
     </div>
   );
