@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useWrit, useChatState } from '@/state/chat';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router-dom';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -11,24 +11,17 @@ export default function WritReference({
   chFlag,
   nest,
   idWrit,
-  refToken,
 }: {
   groupFlag: string;
   chFlag: string;
   nest: string;
   idWrit: string;
-  refToken: string;
 }) {
   const writObject = useWrit(chFlag, idWrit);
-  const navigate = useNavigate();
 
   useEffect(() => {
     useChatState.getState().initialize(chFlag);
   }, [chFlag]);
-
-  const openThreadForWrit = useCallback(() => {
-    navigate(`/groups/${refToken}`);
-  }, [navigate, refToken]);
 
   if (!writObject) {
     return <LoadingSpinner />;
@@ -45,12 +38,12 @@ export default function WritReference({
 
   return (
     <div className="writ-inline-block group">
-      <div
-        onClick={openThreadForWrit}
+      <Link
+        to={`/groups/${groupFlag}/channels/${nest}?msg=${time}`}
         className="cursor-pointer p-2 group-hover:bg-gray-50"
       >
         <ChatContent story={content.story} />
-      </div>
+      </Link>
       <ReferenceBottomBar
         groupFlag={groupFlag}
         nest={nest}

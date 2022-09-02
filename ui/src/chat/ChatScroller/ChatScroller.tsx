@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useMemo } from 'react';
+import React, { ReactNode, useCallback, useEffect, useMemo } from 'react';
 import { differenceInDays } from 'date-fns';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -97,6 +97,7 @@ export default function ChatScroller({
   messages,
   replying = false,
   prefixedElement,
+  scrollTo = undefined,
 }: IChatScroller) {
   const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
@@ -153,6 +154,7 @@ export default function ChatScroller({
           data={mess}
           size={mess.size}
           pendingSize={0} // TODO
+          scrollTo={scrollTo}
           averageHeight={48}
           renderer={renderer}
           loadRows={fetchMessages}
