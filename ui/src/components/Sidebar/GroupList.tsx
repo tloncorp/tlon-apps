@@ -139,15 +139,18 @@ function GangItem(props: { flag: string }) {
   const { preview, claim } = useGang(flag);
   const isMobile = useIsMobile();
 
-  const handleCancel = async () => {
-    await useGroupState.getState().reject(flag);
-  };
-
   if (!claim) {
     return null;
   }
 
   const requested = claim.progress === 'knocking';
+  const handleCancel = async () => {
+    if (requested) {
+      await useGroupState.getState().rescind(flag);
+    } else {
+      await useGroupState.getState().reject(flag);
+    }
+  };
 
   return (
     <Popover.Root>
@@ -188,18 +191,18 @@ function GangItem(props: { flag: string }) {
                 It may take a few minutes depending on the host&apos;s and your
                 connection.
               </span>
-              <div className="flex">
-                <Popover.Close>
-                  <button
-                    className="small-button bg-gray-50 text-gray-800"
-                    onClick={handleCancel}
-                  >
-                    Cancel Join
-                  </button>
-                </Popover.Close>
-              </div>
             </>
           )}
+          <div className="flex">
+            <Popover.Close>
+              <button
+                className="small-button bg-gray-50 text-gray-800"
+                onClick={handleCancel}
+              >
+                {requested ? 'Cancel Request' : 'Cancel Join'}
+              </button>
+            </Popover.Close>
+          </div>
         </div>
       </Popover.Content>
     </Popover.Root>

@@ -134,12 +134,16 @@
     ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
   ::
       %group-knock
-    =+  !<(=knock:g vase)
-    =/  =gang:g  (~(gut by xeno) knock [~ ~ ~])
+    =+  !<(=flag:g vase)
+    =/  =gang:g  (~(gut by xeno) flag [~ ~ ~])
     =/  =claim:g  [| %knocking]
     =.  cam.gang  `claim
-    =.  xeno  (~(put by xeno) knock gang)
-    ga-abet:ga-knock:(ga-abed:gang-core knock)
+    =.  xeno  (~(put by xeno) flag gang)
+    ga-abet:ga-knock:(ga-abed:gang-core flag)
+  ::
+      %group-rescind
+    =+  !<(=flag:g vase)
+    ga-abet:ga-rescind:(ga-abed:gang-core flag)
   ::
       %invite-decline
     =+  !<(=flag:g vase)
@@ -751,34 +755,39 @@
           cordon(pend (~(dif in pend.cordon) q.diff))
         ::
             [%add-ships %ask]
-          =/  ships  q.diff
-          ?>  |(go-is-bloc =(~(tap in ships) ~[src.bowl]))
-          =.  ask.cordon  (~(uni in ask.cordon) ships)
-          ?:  from-self  cordon
-          =/  link  (go-link /info/members)
-          =/  yarn
-            %-  spin
-            :*  (go-rope /asks)
-                link
-                `['View all members' link]
-                %+  welp
-                  ^-  (list content:ha)
-                  %+  join  `content:ha`', '
-                  `(list content:ha)`(turn ~(tap in ships) |=(=ship ship/ship))
-                :~  ?:  =(~(wyt in ships) 1)  ' has '
-                    ' have '
-                    'requested to join '
-                    [%emph title.meta.group]
-                ==
-            ==
-          =.  cor  (emit (pass-hark & & yarn))
-          cordon
+          ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
+          cordon(ask (~(uni in ask.cordon) q.diff))
         ::
             [%del-ships %ask]
           ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
           cordon(ask (~(dif in ask.cordon) q.diff))
         ==
-      go-core
+      ?+  [-.diff p.diff]  !!
+          ?([%add-ships %pending] [%del-ships %pending] [%del-ships %ask])
+        go-core
+          [%add-ships %ask]
+        =/  ships  q.diff
+        ~&  [src.bowl our.bowl]
+        ?:  from-self  go-core
+        =/  link  (go-link /info/members)
+        =/  yarn
+          %-  spin
+          :*  (go-rope /asks)
+              link
+              `['View all members' link]
+              %+  welp
+                ^-  (list content:ha)
+                %+  join  `content:ha`', '
+                `(list content:ha)`(turn ~(tap in ships) |=(=ship ship/ship))
+              :~  ?:  =(~(wyt in ships) 1)  ' has '
+                  ' have '
+                  'requested to join '
+                  [%emph title.meta.group]
+              ==
+          ==
+        =.  cor  (emit (pass-hark & & yarn))
+        go-core
+      ==
     --
   ::
   ++  go-cabal-update
@@ -1070,6 +1079,10 @@
       =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
       =/  =action:g  [flag now.bowl %cordon %shut %add-ships %ask ships]
       (poke-host /knock group-action+!>(action))
+    ++  rescind
+      =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
+      =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
+      (poke-host /rescind group-action+!>(action))
     ++  get-preview
       =/  =task:agent:gall  [%watch /groups/(scot %p p.flag)/[q.flag]/preview]
       (pass-host /preview task)
@@ -1082,6 +1095,10 @@
   ++  ga-knock
     ^+  ga-core
     =.  cor  (emit knock:ga-pass)
+    ga-core
+  ++  ga-rescind
+    ^+  ga-core
+    =.  cor  (emit rescind:ga-pass)
     ga-core
   ++  ga-watch
     |=  =(pole knot)
@@ -1162,6 +1179,17 @@
           =.  progress.u.cam.gang  %error
           %-  (slog leaf/"Knocking failed" u.p.sign)
           ga-core
+        =.  cor  ga-give-update
+        ga-core
+          [%rescind ~]
+        ?>  ?=(%poke-ack -.sign)        
+        ?^  p.sign
+          ?>  ?=(^ cam.gang)
+          =.  progress.u.cam.gang  %error
+          %-  (slog leaf/"Rescind failed" u.p.sign)
+          ga-core
+        =.  cam.gang  ~
+        =.  cor  ga-give-update
         ga-core
     ==
   ::

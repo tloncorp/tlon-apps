@@ -48,8 +48,9 @@ export interface GroupState {
   index: (ship: string) => Promise<GroupIndex>;
   join: (flag: string, joinAll: boolean) => Promise<void>;
   knock: (flag: string) => Promise<void>;
+  rescind: (flag: string) => Promise<void>;
   invite: (flag: string, ships: string[]) => Promise<void>;
-  rescind: (flag: string, ships: string[]) => Promise<void>;
+  revoke: (flag: string, ships: string[]) => Promise<void>;
   reject: (flag: string) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   editZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;

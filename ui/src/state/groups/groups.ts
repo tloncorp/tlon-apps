@@ -169,6 +169,13 @@ export const useGroupState = create<GroupState>((set, get) => ({
       json: flag,
     });
   },
+  rescind: async (flag) => {
+    api.poke({
+      app: 'groups',
+      mark: 'group-rescind',
+      json: flag,
+    });
+  },
   invite: async (flag, ships) => {
     api.poke(
       groupAction(flag, {
@@ -183,7 +190,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
       })
     );
   },
-  rescind: async (flag, ships) => {
+  revoke: async (flag, ships) => {
     api.poke(
       groupAction(flag, {
         cordon: {
