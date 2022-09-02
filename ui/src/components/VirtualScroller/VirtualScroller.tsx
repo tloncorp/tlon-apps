@@ -310,8 +310,10 @@ export default class VirtualScroller<K, V> extends Component<
     this.cleanupRefInterval = setInterval(this.cleanupRefs, 5000);
 
     if (scrollTo) {
-      this.scrollLocked = false;
-      this.scrollToIndex(scrollTo);
+      requestAnimationFrame(() => {
+        this.scrollLocked = false;
+        this.scrollToIndex(scrollTo);
+      });
     }
   }
 
@@ -529,7 +531,8 @@ export default class VirtualScroller<K, V> extends Component<
         return;
       }
       this.scrollLocked = false;
-      this.updateVisible(Math.max(offset - this.pageDelta, 0));
+      // TODO: does not work for origin === top.
+      this.updateVisible(Math.max(this.lastOffset - offset - this.pageSize, 0));
       requestAnimationFrame(() => {
         ref = this.childRefs.get(keyToString(index));
         requestAnimationFrame(() => {
