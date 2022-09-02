@@ -45,12 +45,11 @@
       (put:on:curios:h cur now [seal p.del])
     ?~  replying.p.del  cur
     =*  replying  u.replying.p.del
-    (jab replying |=(curio:h +<(replied (~(put in replied) time))))
+    (jab replying |=(curio:h +<(replied (~(put in replied) now))))
   ::
       %edit
     =/  curio  (get time)
     ?~  curio  cur
-    ?.  =(time sent.p.del)  cur
     (put:on:curios:h cur time [-.+.u.curio p.del])
   ::
       %del

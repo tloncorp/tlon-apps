@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { Suspense, useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useCopyToClipboard } from 'usehooks-ts';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import useNavStore from '@/components/Nav/useNavStore';
@@ -10,7 +10,7 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import { useCurio } from '@/state/heap/heap';
 import XIcon from '@/components/icons/XIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
-import HeapDetailHeaderDescription from './HeapDetailHeaderDescription';
+import HeapDetailHeaderDescription from '@/heap/HeapDetail/HeapDetailHeaderDescription';
 
 export interface ChannelHeaderProps {
   flag: string;
@@ -43,7 +43,7 @@ export default function HeapDetailHeader({
   return (
     <div
       className={cn(
-        'flex h-full items-center justify-between border-b-2 border-gray-50 bg-white p-2'
+        'flex h-full w-full items-center justify-between border-b-2 border-gray-50 bg-white p-2'
       )}
     >
       <button
@@ -65,18 +65,10 @@ export default function HeapDetailHeader({
             />
           </div>
           <div className="flex flex-col items-start text-left lg:max-w-prose">
-            <span className="text-md w-52 truncate font-semibold lg:w-auto">
+            <span className="text-md w-44 truncate font-semibold lg:w-full">
               {curioTitle}
             </span>
-            <Suspense
-              fallback={
-                <div className="text-md font-semibold text-gray-600">
-                  Loading...
-                </div>
-              }
-            >
-              <HeapDetailHeaderDescription url={curioContent} />
-            </Suspense>
+            <HeapDetailHeaderDescription url={curioContent} />
           </div>
         </div>
       </button>

@@ -26,10 +26,13 @@ function reduceCordon(draft: Group, diff: CordonDiff) {
     }
   } else if ('shut' in d && 'shut' in draft.cordon) {
     if ('add-ships' in d.shut) {
-      draft.cordon.shut = [...draft.cordon.shut, ...d.shut['add-ships']];
+      const { kind, ships } = d.shut['add-ships'];
+      draft.cordon.shut[kind] = [...draft.cordon.shut[kind], ...ships];
     } else if ('del-ships' in d.shut) {
-      const ships = d.shut['del-ships'];
-      draft.cordon.shut = draft.cordon.shut.filter((s) => !ships.includes(s));
+      const { kind, ships } = d.shut['del-ships'];
+      draft.cordon.shut[kind] = draft.cordon.shut[kind].filter(
+        (s) => !ships.includes(s)
+      );
     }
   } else if ('swap' in d) {
     draft.cordon = d.swap;
@@ -76,7 +79,10 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
       const { nest, diff: d } = diff.channel;
       if ('add' in d) {
         group.channels[nest] = d.add;
-        group.zones[d.add.zone].idx.push(nest);
+
+        if (!group.zones[d.add.zone].idx.includes(nest)) {
+          group.zones[d.add.zone].idx.push(nest);
+        }
       } else if ('del' in d) {
         const { zone } = group.channels[nest];
         group.zones[zone || 'default'].idx = group.zones[

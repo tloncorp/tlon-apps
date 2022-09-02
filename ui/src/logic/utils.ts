@@ -4,7 +4,7 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import { Chat, ChatWhom } from '@/types/chat';
+import { Chat, ChatWhom, ChatBrief } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -13,7 +13,8 @@ import {
   PrivacyType,
   Rank,
 } from '@/types/groups';
-import { Heap } from '@/types/heap';
+import { CurioContent, Heap, HeapBrief } from '@/types/heap';
+import { DiaryBrief } from '@/types/diary';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -230,6 +231,7 @@ export const IMAGE_REGEX =
 export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)$/i;
 export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
+export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 
 export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
@@ -262,4 +264,39 @@ export async function jsonFetch<T>(
   }
   const data = await res.json();
   return data as T;
+}
+
+export function filterJoinedChannels(
+  channels: [string, GroupChannel][],
+  briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
+) {
+  return channels.filter(([nest]) => {
+    const [, chFlag] = nestToFlag(nest);
+    const isChannelHost = window.our === chFlag?.split('/')[0];
+    return isChannelHost || (chFlag && chFlag in briefs);
+  });
+}
+
+/**
+ * Since there is no metadata persisted in a curio to determine what kind of
+ * curio it is (Link or Text), this function determines by checking the
+ * content's structure.
+ *
+ * @param content CurioContent
+ * @returns boolean
+ */
+export function isLinkCurio(content: CurioContent) {
+  return (
+    content.length === 1 &&
+    typeof content[0] === 'string' &&
+    isValidUrl(content[0])
+  );
+}
+
+export function linkFromCurioContent(content: CurioContent) {
+  if (isLinkCurio(content)) {
+    return content[0] as string;
+  }
+
+  return '';
 }

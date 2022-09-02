@@ -121,7 +121,12 @@ export type ChatDiff =
 
 export interface ChatUpdate {
   time: Patda;
-  diff: WritDelta;
+  diff: ChatDiff;
+}
+
+export interface ChatAction {
+  flag: string;
+  update: ChatUpdate;
 }
 
 export interface Chat {

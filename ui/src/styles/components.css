@@ -36,9 +36,13 @@
 }
 
 .input-inner {
-  @apply bg-transparent py-1 px-2 text-lg leading-5 focus:outline-none sm:text-base sm:leading-5;
+  @apply border-transparent bg-transparent py-1 px-2 text-lg leading-5 focus:outline-none sm:text-base sm:leading-5;
 }
 
+.input-transparent {
+  @apply bg-transparent transition-colors focus-within:border-gray-100 focus-within:bg-white focus:outline-none
+  focus:outline-none focus-visible:border-gray-100;
+}
 /* Placeholder (at the top) */
 .ProseMirror:not(.ProseMirror-focused) p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -86,7 +90,15 @@
 }
 
 .heap-block {
-  @apply relative inline-block flex h-[245px] w-[245px] cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat shadow;
+  @apply relative flex h-[245px] w-[245px] cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat p-2 shadow;
+}
+
+.heap-inline-block {
+  @apply relative flex h-[300px] w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat p-2;
+}
+
+.writ-inline-block {
+  @apply relative flex h-full w-full flex-col justify-center overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat;
 }
 
 .heap-row {

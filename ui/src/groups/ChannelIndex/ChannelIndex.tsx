@@ -3,8 +3,9 @@ import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
-import { GroupChannel, Zone } from '@/types/groups';
+import { GroupChannel, Zone, ViewProps } from '@/types/groups';
 import { channelHref, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
@@ -18,6 +19,8 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import useChannelSections from '@/logic/useChannelSections';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
+import useIsChannelHost from '@/logic/useIsChannelHost';
+import useIsChannelJoined from '@/logic/useIsChannelJoined';
 import useAllBriefs from '@/logic/useAllBriefs';
 
 const UNZONED = 'default';
@@ -33,6 +36,7 @@ function GroupChannel({
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useAllBriefs();
+  const isChannelHost = useIsChannelHost(flag);
   const isAdmin = useAmAdmin(flag);
   const navigate = useNavigate();
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
@@ -50,6 +54,19 @@ function GroupChannel({
           : useDiaryState.getState().joinDiary;
 
       joiner(chFlag);
+    },
+    [_app]
+  );
+  const leave = useCallback(
+    (chFlag: string) => {
+      const leaver =
+        _app === 'chat'
+          ? useChatState.getState().leaveChat
+          : _app === 'heap'
+          ? useHeapState.getState().leaveHeap
+          : useDiaryState.getState().leaveDiary;
+
+      leaver(chFlag);
     },
     [_app]
   );
@@ -83,26 +100,20 @@ function GroupChannel({
 
   const leaveChannel = useCallback(async () => {
     try {
-      await useChatState.getState().leaveChat(flag);
+      leave(flag);
     } catch (error) {
       if (error) {
         console.error(`[ChannelIndex:LeaveError] ${error}`);
       }
     }
-  }, [flag]);
+  }, [flag, leave]);
 
   const muteChannel = useCallback(() => {
     // TODO: add channel mute action here
     console.log('mute ...');
   }, []);
 
-  // If the current user is the Channel host, they are automatically joined,
-  // and cannot leave the group
-  const isChannelHost = window.our === flag?.split('/')[0];
-
-  // A Channel is considered Joined if hosted by current user, or if a Brief
-  // exists
-  const joined = isChannelHost || (flag && flag in briefs);
+  const joined = useIsChannelJoined(flag, briefs);
 
   const open = useCallback(() => {
     if (!joined) {
@@ -247,14 +258,18 @@ function ChannelSection({
   );
 }
 
-export default function ChannelIndex() {
+export default function ChannelIndex({ title }: ViewProps) {
   const flag = useRouteGroup();
   const { sectionedChannels, sections } = useChannelSections(flag);
   const navigate = useNavigate();
   const isAdmin = useAmAdmin(flag);
+  const group = useGroup(flag);
 
   return (
     <section className="w-full p-4">
+      <Helmet>
+        <title>{group ? `${title} in ${group?.meta?.title}` : title}</title>
+      </Helmet>
       <div className="mb-4 flex flex-row justify-between">
         <h1 className="text-lg font-bold">All Channels</h1>
         {isAdmin ? (

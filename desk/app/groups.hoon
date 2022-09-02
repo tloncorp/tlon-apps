@@ -180,6 +180,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
+      [%hark ~]  cor
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -320,7 +321,7 @@
       [%open banned ban-ranks]:policy
     ::
         %invite
-      [%shut pending.policy]
+      [%shut pending.policy ~]
     ==
   ::
   ++  scry
@@ -366,7 +367,7 @@
   ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
   ++  go-rope
     |=  thread=path
-    [`flag ~ %homestead (welp /(scot %p p.flag)/[q.flag] thread)]
+    [`flag ~ q.byk.bowl (welp /(scot %p p.flag)/[q.flag] thread)]
   ++  go-link
     |=  link=path 
     (welp /groups/(scot %p p.flag)/[q.flag] link)
@@ -676,16 +677,16 @@
   ++  go-cordon-update
     |=  =diff:cordon:g
     |^  ^+  go-core
-    ?>  go-is-bloc
     ?-  -.diff 
       %open     (open p.diff)
       %shut     (shut p.diff)
-      %swap     =.(cordon.group p.diff go-core)
+      %swap     ?>(go-is-bloc =.(cordon.group p.diff go-core))
     ==
     ::
     ++  open
       |=  =diff:open:cordon:g
       ^+  go-core
+      ?>  go-is-bloc
       =*  cordon  cordon.group
       ?>  ?=(%open -.cordon) 
       ?-  -.diff
@@ -731,9 +732,23 @@
       =*  cordon  cordon.group
       ?>  ?=(%shut -.cordon)
       =.  cordon.group
-        ?-  -.diff
-          %add-ships  cordon(pending (~(uni in pending.cordon) p.diff))
-          %del-ships  cordon(pending (~(dif in pending.cordon) p.diff))
+        ?+    [-.diff p.diff]  !!  :: should never happen, compiler bug
+        ::
+            [%add-ships %pending]
+          ?>  go-is-bloc
+          cordon(pend (~(uni in pend.cordon) q.diff))
+        ::
+            [%del-ships %pending]
+          ?>  go-is-bloc
+          cordon(pend (~(dif in pend.cordon) q.diff))
+        ::
+            [%add-ships %ask]
+          ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
+          cordon(ask (~(uni in ask.cordon) q.diff))
+        ::
+            [%del-ships %ask]
+          ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
+          cordon(ask (~(dif in ask.cordon) q.diff))
         ==
       go-core
     --
@@ -1072,7 +1087,7 @@
           =/  link  /groups/find
           =/  yarn
             %-  spin
-            :*  [`flag ~ %homestead /(scot %p p.flag)/[q.flag]/invite]
+            :*  [`flag ~ q.byk.bowl /(scot %p p.flag)/[q.flag]/invite]
                 link
                 `['Join Group' link]
                 :~  [%ship src.bowl]

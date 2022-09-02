@@ -109,6 +109,9 @@ export default function makeCuriosStore(
                   curioMap.set(replyTime, ancestor);
                 }
               }
+            } else if ('edit' in delta && curioMap.has(bigTime)) {
+              const curio = curioMap.get(bigTime);
+              curioMap = curioMap.set(bigTime, { ...curio, heart: delta.edit });
             } else if ('del' in delta && curioMap.has(bigTime)) {
               const old = curioMap.get(bigTime);
               curioMap = curioMap.delete(bigTime);

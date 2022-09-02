@@ -1,6 +1,27 @@
 import { Inline, InlineKey } from '@/types/content';
 import { reduce } from 'lodash';
 import { JSONContent } from '@tiptap/react';
+import { Editor, Extension, KeyboardShortcutCommand } from '@tiptap/core';
+
+export interface EditorOnUpdateProps {
+  editor: Editor;
+  transaction: any;
+}
+
+export interface EditorOnBlurProps {
+  editor: Editor;
+}
+
+export function Shortcuts(bindings: {
+  [keyCode: string]: KeyboardShortcutCommand;
+}) {
+  return Extension.create({
+    priority: 999999,
+    addKeyboardShortcuts() {
+      return bindings;
+    },
+  });
+}
 
 export function convertMarkType(type: string): string {
   switch (type) {
@@ -108,6 +129,17 @@ export function parseTipTapJSON(json: JSONContent): Inline[] {
       throw new Error('Unsure what this is');
     }
 
+    if (
+      json.text &&
+      (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
+    ) {
+      return [
+        {
+          'inline-code': json.text,
+        },
+      ];
+    }
+
     if (first.type === 'link' && first.attrs) {
       return [
         {
@@ -211,7 +243,7 @@ export function parseInline(message: Inline[]): JSONContent {
         return {
           type: 'text',
           marks: marks.concat([{ type: convertTipTapType(recursive) }]),
-          text: content.text,
+          text: content.text || 'foo',
         };
       }
 

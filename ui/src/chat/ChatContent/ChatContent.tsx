@@ -10,7 +10,10 @@ import {
   isStrikethrough,
   Inline,
 } from '@/types/content';
-import ChatContentImage from './ChatContentImage';
+import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
+import { PATP_REGEX } from '@/logic/utils';
+// eslint-disable-next-line import/no-cycle
+import ChatContentReference from '@/chat/ChatContent/ChatContentReference/ChatContentReference';
 
 interface ChatContentProps {
   story: ChatStory;
@@ -26,7 +29,13 @@ interface BlockContentProps {
 
 export function InlineContent({ story }: InlineContentProps) {
   if (typeof story === 'string') {
-    return story as unknown as JSX.Element;
+    const containsPatp = PATP_REGEX.test(story);
+
+    if (containsPatp) {
+      return <ChatContentReference story={story} />;
+    }
+
+    return <span>{story}</span>;
   }
 
   if (isBold(story)) {

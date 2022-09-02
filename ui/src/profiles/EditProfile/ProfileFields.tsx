@@ -71,12 +71,12 @@ export default function ProfileFields() {
           ) : null}
         </div>
         <div className="mt-1 text-sm font-semibold text-gray-600">
-          Overlay avatars may be hidden by others
+          Overlay avatars may be hidden by other users
         </div>
       </div>
       <div className="flex flex-col">
         <label htmlFor="headerImage" className="pb-2 font-bold">
-          Header
+          Header Image
         </label>
         <div className="relative flex w-full items-baseline">
           <input
@@ -139,7 +139,7 @@ export default function ProfileFields() {
             <div className="flex w-full flex-col justify-start text-left">
               <span className="font-semibold">Make Profile Private</span>
               <span className="text-sm text-gray-600">
-                Only Ship Name and Sigil will be publicly visible
+                Only ship name and sigil will be publicly visible
               </span>
             </div>
           </div>

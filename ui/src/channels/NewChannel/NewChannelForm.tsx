@@ -89,7 +89,7 @@ export default function NewChannelForm() {
       <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>
         <ChannelTypeSelector className="mb-5" />
         <label className="mb-3 font-semibold">
-          Channel Name
+          Channel Name*
           <input
             {...form.register('meta.title')}
             className="input my-2 block w-full p-1"

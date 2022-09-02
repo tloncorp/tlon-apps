@@ -1,95 +1,123 @@
-import classNames from 'classnames';
-import { EditorView } from 'prosemirror-view';
 import {
-  Editor,
-  EditorContent,
-  Extension,
-  JSONContent,
-  useEditor,
-} from '@tiptap/react';
-import React, { useMemo } from 'react';
-import Document from '@tiptap/extension-document';
-import Blockquote from '@tiptap/extension-blockquote';
-import Placeholder from '@tiptap/extension-placeholder';
-import Bold from '@tiptap/extension-bold';
-import Code from '@tiptap/extension-code';
-import Italic from '@tiptap/extension-italic';
-import Strike from '@tiptap/extension-strike';
-import Link from '@tiptap/extension-link';
-import Text from '@tiptap/extension-text';
-import History from '@tiptap/extension-history';
-import Paragraph from '@tiptap/extension-paragraph';
-import HardBreak from '@tiptap/extension-hard-break';
-import { useIsMobile } from '@/logic/useMedia';
-import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
+  EditorOnBlurProps,
+  EditorOnUpdateProps,
+  parseInline,
+  parseTipTapJSON,
+} from '@/logic/tiptap';
+import { DiaryInline, NoteContent, Verse, VerseInline } from '@/types/diary';
+import { Editor, EditorOptions, KeyboardShortcutCommand } from '@tiptap/react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
+import { DiaryVerse } from './DiaryVerse';
 
-EditorView.prototype.updateState = function updateState(state) {
-  if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
-  (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
-};
+export interface DiaryEditorProps {
+  content: NoteContent;
+  setContent: (f: React.SetStateAction<NoteContent>) => void;
+}
 
-interface HandlerParams {
+interface EditorCallbackArgs {
   editor: Editor;
 }
 
-interface useDiaryEditorParams {
-  content: JSONContent | string;
-  placeholder?: string;
-  onUpdate?: ({ editor }: HandlerParams) => void;
-}
+export default function DiaryEditor(props: DiaryEditorProps) {
+  const { content, setContent } = props;
+  const [editing, setEditing] = useState(null as number | null);
 
-export function useDiaryEditor({
-  content,
-  placeholder,
-  onUpdate,
-}: useDiaryEditorParams) {
-  return useEditor(
-    {
-      extensions: [
-        Blockquote,
-        Bold,
-        Code.extend({ excludes: undefined }),
-        Document,
-        HardBreak,
-        History.configure({ newGroupDelay: 100 }),
-        Italic,
-        Link.configure({
-          openOnClick: false,
-        }),
-        Paragraph,
-        Placeholder.configure({ placeholder }),
-        Strike,
-        Text,
-      ],
-      content: content || '',
-      editorProps: {
-        attributes: {
-          class: '',
-          'aria-label': 'Note editor with formatting menu',
-        },
-      },
-      onUpdate: ({ editor }) => {
-        if (onUpdate) {
-          onUpdate({ editor } as any);
-        }
-      },
+  const shouldAppendOnBlur = useRef(false);
+  const appendPara = useCallback(() => {
+    setContent((cs) => [...cs, { inline: [] }]);
+    setEditing(content.length);
+  }, [setContent, content]);
+
+  const editorContent = useMemo(() => {
+    if (editing === null) {
+      return '';
+    }
+    const target = (content[editing] as VerseInline).inline;
+    if (target.length === 0) {
+      return '';
+    }
+    return parseInline((content[editing] as VerseInline).inline);
+  }, [editing, content]);
+
+  const onUpdate = useCallback(({ transaction }: EditorOnUpdateProps) => {
+    console.log(transaction);
+  }, []);
+
+  const onEnter = useCallback(
+    ({ editor }: Parameters<KeyboardShortcutCommand>[0]) => {
+      console.log('entered');
+      shouldAppendOnBlur.current = true;
+      editor.chain().blur().run();
+      return true;
     },
-    [placeholder]
+    []
   );
-}
 
-interface DiaryEditorProps {
-  editor: Editor;
-  className?: string;
-}
+  const onBlur = useCallback(
+    ({ editor }: EditorOnBlurProps) => {
+      if (editor.isDestroyed) {
+        console.log('bail');
+        return;
+      }
+      if (editing === null) {
+        console.warn(new Error('Invariant violation'));
+        return;
+      }
+      const json = editor.getJSON();
+      const inline = parseTipTapJSON(json);
+      // autoprune empty fields on blur
+      if (editing === content.length - 1 && inline.length === 0) {
+        setContent((s) => s.slice(0, editing));
+        return;
+      }
+      const newContent: Verse = { inline };
+      const trailing: Verse[] = shouldAppendOnBlur.current
+        ? [{ inline: [] }]
+        : [];
+      if (shouldAppendOnBlur.current) {
+        console.log(content);
+        setEditing(0);
+      }
 
-export default function DiaryEditor({ editor, className }: DiaryEditorProps) {
-  const isMobile = useIsMobile();
+      shouldAppendOnBlur.current = false;
+
+      setContent((s) => {
+        const res = [
+          ...s.slice(0, editing),
+          newContent,
+          ...s.slice(editing + 1),
+          ...trailing,
+        ];
+        console.log(res);
+        return res;
+      });
+    },
+    [editing, setContent, content]
+  );
+  const editor = useDiaryInlineEditor({
+    content: editorContent,
+    placeholder: 'Start writing here, or click the menu to add a link block',
+    autofocus: editing !== 0,
+    onEnter,
+    onBlur,
+    onUpdate,
+  });
+
   return (
-    <div className={classNames('block p-0', className)}>
-      {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
-      <EditorContent className="w-full" editor={editor} />
-      {!isMobile ? <ChatInputMenu editor={editor} /> : null}
+    <div className="flex flex-col space-y-3 ">
+      {content.map((v, idx) =>
+        idx === editing ? (
+          editor ? (
+            <DiaryInlineEditor editor={editor} />
+          ) : null
+        ) : (
+          <DiaryVerse onClick={() => setEditing(idx)} verse={v} />
+        )
+      )}
+      <button type="button" className="button" onClick={appendPara}>
+        New Paragraph
+      </button>
     </div>
   );
 }

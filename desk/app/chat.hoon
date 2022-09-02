@@ -217,7 +217,7 @@
   ?+    path  ~|(bad-watch-path/path !!)
       [%club %new ~]  ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
-      [%chat ~]  ?>(from-self cor)
+      [%ui ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
     ::
       [%chat @ @ *]
@@ -433,6 +433,7 @@
       %tag    (trip p.c)
       %block  (trip q.c)
       %link   (trip q.c)
+      %ship   (scow %p p.c)
       ?(%code %inline-code)  ""
       ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
   ==
@@ -657,7 +658,7 @@
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
-    =/  rope  [`group `nest %homestead (welp /(scot %p p.flag)/[q.flag] rest)]
+    =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link  
       (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
@@ -914,6 +915,7 @@
     =/  cag=cage  chat-update+!>([time d])
     =.  cor
       (give %fact ~(tap in paths) cag)
+    =.  cor  (give %fact ~[/ui] chat-action+!>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
       =/  =cage  writ-diff+!>(p.d)
       (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
@@ -976,9 +978,15 @@
           ?~  replying.memo  ca-core
           =/  op  (~(get pac pact.chat) u.replying.memo)
           ?~  op  ca-core
-          ~!  writ.u.op
           =/  opwrit  writ.u.op
-          ?.  &(=(our.bowl author.opwrit) !from-self)  ca-core  
+          =/  in-replies
+            %+  lien
+              ~(tap in replied.opwrit)
+            |=  =id:c
+            =/  writ  (~(get pac pact.chat) id)
+            ?~  writ  %.n
+            =(author.writ.u.writ our.bowl)
+          ?:  |(=(author.memo our.bowl) !in-replies)  ca-core  
           ?-  -.content.opwrit
               %notice  ca-core
               %story          

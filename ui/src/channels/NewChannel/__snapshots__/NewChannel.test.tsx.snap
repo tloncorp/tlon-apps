@@ -77,7 +77,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                     <span
                       class="text-sm font-medium text-gray-600"
                     >
-                      A simple, no frills text chat
+                      A simple, standard text chat
                     </span>
                   </div>
                 </div>
@@ -136,7 +136,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                     <span
                       class="text-sm font-medium text-gray-600"
                     >
-                      Gather, entangle, connect, and arrange rich media
+                      Gather, connect, and arrange rich media
                     </span>
                   </div>
                 </div>
@@ -216,7 +216,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
         <label
           class="mb-3 font-semibold"
         >
-          Channel Name
+          Channel Name*
           <input
             class="input my-2 block w-full p-1"
             name="meta.title"
@@ -382,7 +382,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                 <span
                   class="text-sm font-medium text-gray-600"
                 >
-                  Members will join this channel automatically when joining this group
+                  New members will be automatically subscribed to this channel
                 </span>
               </div>
             </div>
