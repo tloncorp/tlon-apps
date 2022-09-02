@@ -321,7 +321,14 @@ export default class VirtualScroller<K, V> extends Component<
     prevProps: VirtualScrollerProps<K, V>,
     _prevState: VirtualScrollerState<K>
   ) {
-    const { size, pendingSize, origin } = this.props;
+    const { size, pendingSize, origin, scrollTo } = this.props;
+
+    if (scrollTo && prevProps.scrollTo !== scrollTo) {
+      requestAnimationFrame(() => {
+        this.scrollLocked = false;
+        this.scrollToIndex(scrollTo);
+      });
+    }
 
     if (size !== prevProps.size || pendingSize !== prevProps.pendingSize) {
       if (!this.window) {
