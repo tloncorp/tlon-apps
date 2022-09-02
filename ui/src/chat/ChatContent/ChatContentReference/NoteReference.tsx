@@ -10,13 +10,11 @@ export default function NoteReference({
   chFlag,
   nest,
   id,
-  refToken,
 }: {
   groupFlag: string;
   chFlag: string;
   nest: string;
   id: string;
-  refToken: string;
 }) {
   const noteObject = useNote(chFlag, id);
 
@@ -70,7 +68,7 @@ export default function NoteReference({
           return '';
         })}
         <Link
-          to={`/groups/${refToken}`}
+          to={`/groups/${groupFlag}/channels/${nest}/note/${id}`}
           className="small-secondary-button w-20"
         >
           <span className="text-gray-800">Read more</span>

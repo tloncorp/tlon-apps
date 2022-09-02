@@ -80,7 +80,6 @@ export default function ChatContentReference({ story }: { story: string }) {
                   chFlag={chFlag}
                   nest={nest}
                   id={id}
-                  refToken={x}
                 />
               </span>
             );
