@@ -177,7 +177,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
     });
   },
   invite: async (flag, ships) => {
-    api.poke(
+    await api.poke(
       groupAction(flag, {
         cordon: {
           shut: {
@@ -189,6 +189,12 @@ export const useGroupState = create<GroupState>((set, get) => ({
         },
       })
     );
+
+    const groups = await api.scry<Groups>({
+      app: 'groups',
+      path: '/groups',
+    });
+    set(() => ({ groups }));
   },
   revoke: async (flag, ships) => {
     api.poke(
@@ -586,7 +592,7 @@ export function usePendingGangsWithoutClaim() {
 
   Object.entries(gangs)
     .filter(([flag, g]) => g.invite !== null && !(flag in groups))
-    .filter(([_, gang]) => !gang.claim)
+    .filter(([_, gang]) => !gang.claim || gang.claim.progress === 'knocking')
     .forEach(([flag, gang]) => {
       pendingGangs[flag] = gang;
     });

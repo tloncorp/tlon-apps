@@ -50,7 +50,11 @@ export interface GroupState {
   knock: (flag: string) => Promise<void>;
   rescind: (flag: string) => Promise<void>;
   invite: (flag: string, ships: string[]) => Promise<void>;
-  revoke: (flag: string, ships: string[]) => Promise<void>;
+  revoke: (
+    flag: string,
+    ships: string[],
+    kind: 'ask' | 'pending'
+  ) => Promise<void>;
   reject: (flag: string) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   editZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;

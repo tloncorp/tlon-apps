@@ -743,29 +743,23 @@
       ^+  go-core
       =*  cordon  cordon.group
       ?>  ?=(%shut -.cordon)
-      =.  cordon.group
-        ?+    [-.diff p.diff]  !!  :: should never happen, compiler bug
-        ::
-            [%add-ships %pending]
-          ?>  go-is-bloc
-          cordon(pend (~(uni in pend.cordon) q.diff))
-        ::
-            [%del-ships %pending]
-          ?>  go-is-bloc
-          cordon(pend (~(dif in pend.cordon) q.diff))
-        ::
-            [%add-ships %ask]
-          ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
-          cordon(ask (~(uni in ask.cordon) q.diff))
-        ::
-            [%del-ships %ask]
-          ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
-          cordon(ask (~(dif in ask.cordon) q.diff))
-        ==
-      ?+  [-.diff p.diff]  !!
-          ?([%add-ships %pending] [%del-ships %pending] [%del-ships %ask])
+      ?+    [-.diff p.diff]  !!  :: should never happen, compiler bug
+      ::
+          [%add-ships %pending]
+        ?>  go-is-bloc          
+        =.  pend.cordon.group  (~(uni in pend.cordon) q.diff)
+        =.  ask.cordon.group  (~(dif in ask.cordon) q.diff)
+        =.  cor  (give-invites flag q.diff)
         go-core
+      ::
+          [%del-ships %pending]
+        ?>  go-is-bloc
+        =.  pend.cordon.group  (~(dif in pend.cordon) q.diff)
+        go-core
+      ::
           [%add-ships %ask]
+        ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
+        =.  ask.cordon.group  (~(uni in ask.cordon) q.diff)
         =/  ships  q.diff
         ~&  [src.bowl our.bowl]
         ?:  from-self  go-core
@@ -786,6 +780,11 @@
               ==
           ==
         =.  cor  (emit (pass-hark & & yarn))
+        go-core
+      ::
+          [%del-ships %ask]
+        ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
+        =.  ask.cordon.group  (~(dif in ask.cordon) q.diff)
         go-core
       ==
     --
@@ -815,7 +814,15 @@
               =(p.flag src.bowl) :: subscription
               &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
           ==
-      ?<  =(-.cordon.group %shut)
+      ?<  ?&  =(-.cordon.group %shut) 
+              ?-  -.cordon.group
+                  ?(%open %afar)  |
+                  %shut
+                =/  cross  (~(int in pend.cordon.group) ships)
+                ~&  [cross ~(wyt in ships) ~(wyt in cross)]
+                !=(~(wyt in ships) ~(wyt in cross))
+              ==
+          ==      
       =.  cor  (give-invites flag ships)
       =.  fleet.group
         %-  ~(uni by fleet.group)
@@ -846,7 +853,12 @@
             ==
         ==
       =.  cor  (emit (pass-hark & & yarn))
-      go-core
+      ?-  -.cordon.group
+          ?(%open %afar)  go-core
+          %shut  
+        =.  pend.cordon.group  (~(dif in pend.cordon.group) ships)
+        go-core
+      ==
     ::
         %del
       ?<  &((~(has in ships) our.bowl) =(p.flag our.bowl))

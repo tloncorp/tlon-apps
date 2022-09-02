@@ -49,7 +49,6 @@ export default function GroupAdmin() {
                 <li>
                   <NavLink
                     to="members"
-                    end
                     className={({ isActive }) =>
                       cn(
                         'default-focus inline-block rounded-md p-2 hover:bg-gray-50',
