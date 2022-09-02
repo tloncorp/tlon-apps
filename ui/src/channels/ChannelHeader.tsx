@@ -106,7 +106,7 @@ function ChannelActions({ nest }: { nest: string }) {
         console.error(`[ChannelIndex:LeaveError] ${error}`);
       }
     }
-  }, [flag, leave]);
+  }, [flag, ship, name, navigate, leave]);
 
   return (
     <Popover.Root>
