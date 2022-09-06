@@ -44,10 +44,8 @@ export function ActualNav() {
 
     if (isChat) {
       useNavStore.getState().navigatePrimary('dm');
-    } else if (flag && !inChannel && !isMobile) {
+    } else if (flag) {
       useNavStore.getState().navigatePrimary('group', flag);
-    } else if (flag && (isMobile || inChannel)) {
-      useNavStore.getState().navigatePrimary('hidden');
     } else {
       useNavStore.getState().navigatePrimary('main');
     }
