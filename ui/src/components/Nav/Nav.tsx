@@ -40,7 +40,7 @@ export function ActualNav() {
   };
 
   useEffect(() => {
-    if (flag && isMobile) {
+    if (flag && isMobile && inChannel) {
       useNavStore.getState().navigatePrimary('hidden');
     }
 
