@@ -10,7 +10,6 @@ import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
 import { useBriefs, usePinned } from '@/state/chat';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import { useNotifications } from '@/notifications/useNotifications';
@@ -38,12 +37,6 @@ export default function MessagesSidebar() {
           to={'/profile/edit'}
         >
           <ShipName showAlias name={window.our} />
-        </SidebarItem>
-        <SidebarItem
-          icon={<ActivityIndicator count={count} />}
-          to={`/notifications`}
-        >
-          Notifications
         </SidebarItem>
         <SidebarItem
           to="/dm/new"
