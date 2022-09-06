@@ -1,9 +1,12 @@
 import React, { useEffect } from 'react';
+import _ from 'lodash';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import ReferenceBar from '@/chat/ChatContent/ChatContentReference/ReferenceBar';
-import { useDiaryState, useNote } from '@/state/diary';
+import { useDiaryState, useNote, useQuips } from '@/state/diary';
 import { makePrettyDate } from '@/logic/utils';
 import { Link } from 'react-router-dom';
+import Author from '@/chat/ChatMessage/Author';
+import Avatar from '@/components/Avatar';
 
 export default function NoteReference({
   groupFlag,
@@ -17,6 +20,11 @@ export default function NoteReference({
   id: string;
 }) {
   const noteObject = useNote(chFlag, id);
+  const quips = useQuips(chFlag, id);
+  const commentAuthors = _.uniq(
+    Array.from(quips).map(([, quip]) => quip.memo.author)
+  );
+  const totalComments = Array.from(quips).length;
 
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
@@ -31,13 +39,6 @@ export default function NoteReference({
 
   return (
     <div className="note-inline-block group">
-      <ReferenceBar
-        groupFlag={groupFlag}
-        nest={nest}
-        author={note.essay.author}
-        time={time}
-        top
-      />
       <div className="flex flex-col space-y-2 p-2 group-hover:bg-gray-50">
         {note.essay.image ? (
           <div
@@ -49,7 +50,30 @@ export default function NoteReference({
         ) : null}
         <span className="text-2xl font-bold">{note.essay.title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
-        {/* This just shows the first content item for now */}
+        {totalComments > 0 ? (
+          <div className="flex space-x-2">
+            <div className="relative flex items-center">
+              {commentAuthors.map((author, index) => (
+                <Avatar
+                  ship={author}
+                  size="xs"
+                  className="relative outline outline-2 outline-white"
+                  style={{
+                    zIndex: 2 - index,
+                    transform: `translate(${index * -50}%)`,
+                  }}
+                />
+              ))}
+            </div>
+            <span className="font-semibold text-gray-600">
+              {totalComments} {totalComments === 1 ? 'comment' : 'comments'}
+            </span>
+          </div>
+        ) : null}
+        {/*
+          TODO: render multiple authors when we have that ability.
+          note.essay.author ? <Author ship={note.essay.author} /> : null
+        */}
         {note.essay.content.slice(0, 1).map((verse, index) => {
           if ('inline' in verse) {
             return (
@@ -69,12 +93,17 @@ export default function NoteReference({
         })}
         <Link
           to={`/groups/${groupFlag}/channels/${nest}/note/${id}`}
-          className="small-secondary-button w-20"
+          className="small-secondary-button w-[120px]"
         >
-          <span className="text-gray-800">Read more</span>
+          <span className="text-gray-800">Continue Reading</span>
         </Link>
       </div>
-      <ReferenceBar groupFlag={groupFlag} nest={nest} time={time} />
+      <ReferenceBar
+        groupFlag={groupFlag}
+        nest={nest}
+        author={note.essay.author}
+        time={time}
+      />
     </div>
   );
 }
