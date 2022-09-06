@@ -11,13 +11,13 @@
       %desk
     %-  pairs
     :~  desk/s/(flag:enjs:j flag.cite)
-        where/?~(wer.cite ~ s/(spat u.wer.cite))
+        where/s/(spat wer.cite)
     ==
   ::
       %chan
     %-  pairs
     :~  nest/s/(nest:enjs:j nest.cite)
-        where/?~(wer.cite ~ s/(spat u.wer.cite))
+        where/s/(spat wer.cite)
     ==
   ==
 ::
@@ -30,14 +30,13 @@
       :-  %desk
       %-  ot
       :~  flag/flag:dejs:j
-          where/(mu pa)
+          where/pa
       ==
       ::
       :-  %chan
       %-  ot
       :~  nest/nest:dejs:j
-          where/(mu pa)
+          where/pa
       ==
-
   ==
 --
