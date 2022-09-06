@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import ReferenceBottomBar from './ReferenceBottomBar';
+import ReferenceBar from '@/chat/ChatContent/ChatContentReference/ReferenceBar';
 
 export default function WritReference({
   groupFlag,
@@ -44,7 +44,7 @@ export default function WritReference({
       >
         <ChatContent story={content.story} />
       </Link>
-      <ReferenceBottomBar
+      <ReferenceBar
         groupFlag={groupFlag}
         nest={nest}
         time={time}
