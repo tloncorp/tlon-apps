@@ -8,7 +8,7 @@ type DividerProps = PropsWithChildren<{
 export default function Divider({ className, children }: DividerProps) {
   return (
     <div className={cn('flex items-center space-x-2 p-2', className)}>
-      <h2 className="text-sm font-semibold text-gray-400">{children}</h2>
+      <span className="text-sm font-semibold text-gray-400">{children}</span>
       <div className="grow border-b-2 border-gray-100" />
     </div>
   );

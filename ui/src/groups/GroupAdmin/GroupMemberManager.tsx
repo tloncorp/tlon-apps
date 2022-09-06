@@ -1,5 +1,4 @@
 import { debounce } from 'lodash';
-import { Helmet } from 'react-helmet';
 import cn from 'classnames';
 import { deSig } from '@urbit/api';
 import React, {
@@ -28,9 +27,9 @@ import LeaveIcon from '@/components/icons/LeaveIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import { getSectTitle, toTitleCase } from '@/logic/utils';
-import { Vessel, ViewProps } from '@/types/groups';
+import { Vessel } from '@/types/groups';
 
-export default function GroupMemberManager({ title }: ViewProps) {
+export default function GroupMemberManager() {
   const location = useLocation();
   const flag = useRouteGroup();
   const group = useGroup(flag);
@@ -116,11 +115,7 @@ export default function GroupMemberManager({ title }: ViewProps) {
   const sects = Object.keys(group.cabals);
 
   return (
-    <div className="card">
-      <Helmet>
-        <title>{group ? `${title} of ${group.meta.title}` : title} </title>
-      </Helmet>
-      <h1 className="text-lg font-bold">Members</h1>
+    <div>
       <p className="mb-4 text-sm font-semibold text-gray-400">
         {members.length} total
       </p>

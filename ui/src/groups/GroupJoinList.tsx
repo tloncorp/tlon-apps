@@ -9,7 +9,7 @@ interface GroupJoinItemProps {
 }
 
 function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
-  const { group, open, reject, join } = useGroupJoin(flag, gang);
+  const { open, reject, button } = useGroupJoin(flag, gang);
 
   return (
     <li className="relative flex items-center">
@@ -29,10 +29,11 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
           </button>
         ) : null}
         <button
-          className="button ml-2 bg-blue-soft text-blue mix-blend-multiply dark:bg-blue-900 dark:mix-blend-screen"
-          onClick={group ? open : join}
+          className="button ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100"
+          onClick={button.action}
+          disabled={button.disabled}
         >
-          {group ? 'Open' : 'Join'}
+          {button.text}
         </button>
       </div>
     </li>

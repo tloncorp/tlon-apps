@@ -182,8 +182,9 @@
       join-all=?
   ==
 ::
++$  knock  flag
 +$  progress
-  ?(%adding %watching %done %error)
+  ?(%knocking %adding %watching %done %error)
 ::
 +$  claim
   $:  join-all=?

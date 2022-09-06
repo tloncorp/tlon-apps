@@ -1,6 +1,6 @@
 import create from 'zustand';
 
-export type NavPrimaryLocation = 'main' | 'dm' | 'group' | 'hidden';
+export type NavPrimaryLocation = 'initial' | 'main' | 'dm' | 'group' | 'hidden';
 export type NavSecondaryLocation =
   | 'main'
   | 'notifications'
@@ -16,7 +16,7 @@ interface NavStore {
 }
 
 const useNavStore = create<NavStore>((set) => ({
-  primary: 'main',
+  primary: 'initial',
   secondary: 'main',
   flag: '',
   navigatePrimary: (loc, flag = '') =>

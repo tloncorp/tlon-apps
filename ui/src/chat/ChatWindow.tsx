@@ -1,10 +1,12 @@
 import React, { ReactNode } from 'react';
 import _ from 'lodash';
 import { BigIntOrderedMap } from '@urbit/api';
-import { useChatState } from '../state/chat';
-import ChatUnreadAlerts from './ChatUnreadAlerts';
-import { ChatWrit } from '../types/chat';
-import ChatScroller from './ChatScroller/ChatScroller';
+import bigInt from 'big-integer';
+import { useChatState } from '@/state/chat';
+import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
+import { ChatWrit } from '@/types/chat';
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import { useLocation } from 'react-router';
 
 interface ChatWindowProps {
   whom: string;
@@ -18,6 +20,8 @@ export default function ChatWindow({
   prefixedElement,
 }: ChatWindowProps) {
   const brief = useChatState((s) => s.briefs[whom]);
+  const location = useLocation();
+  const scrollTo = new URLSearchParams(location.search).get('msg');
 
   return (
     <div className="relative h-full">
@@ -27,6 +31,7 @@ export default function ChatWindow({
           messages={messages}
           whom={whom}
           prefixedElement={prefixedElement}
+          scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
         />
       </div>
     </div>

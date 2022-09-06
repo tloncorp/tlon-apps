@@ -1,54 +1,21 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import Dialog, { DialogContent } from '@/components/Dialog';
-import { useDismissNavigate, useModalNavigate } from '@/logic/routing';
-import {
-  useGang,
-  useGroup,
-  useGroupState,
-  useRouteGroup,
-} from '@/state/groups';
-import { useLocation, useNavigate } from 'react-router';
-import { getGroupPrivacy } from '@/logic/utils';
+import { useGang, useRouteGroup } from '@/state/groups';
+import { useNavigate } from 'react-router';
 import GroupSummary from '../GroupSummary';
+import useGroupJoin from '../useGroupJoin';
 
 export default function JoinGroupModal() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const modalNavigate = useModalNavigate();
   const flag = useRouteGroup();
   const gang = useGang(flag);
-  const group = useGroup(flag);
-  const dismiss = useDismissNavigate();
-  const privacy = gang.preview?.cordon
-    ? getGroupPrivacy(gang.preview?.cordon)
-    : 'public';
+  const { group, dismiss, reject, button } = useGroupJoin(flag, gang);
 
   useEffect(() => {
     if (group) {
       navigate(`/groups/${flag}`);
     }
   }, [group, flag, navigate]);
-
-  const join = useCallback(async () => {
-    await useGroupState.getState().join(flag, true);
-    navigate(`/groups/${flag}`);
-  }, [flag, navigate]);
-
-  const reject = useCallback(async () => {
-    /**
-     * Skip the confirmation modal for public groups, since a Join can easily be
-     * re-initiated
-     */
-    if (privacy === 'public') {
-      await useGroupState.getState().reject(flag);
-      dismiss();
-      return;
-    }
-
-    modalNavigate(`/gangs/${flag}/reject`, {
-      state: { backgroundLocation: location },
-    });
-  }, [dismiss, flag, location, modalNavigate, privacy]);
 
   return (
     <Dialog defaultOpen onOpenChange={() => dismiss()}>
@@ -65,15 +32,19 @@ export default function JoinGroupModal() {
               Back
             </button>
             {gang.invite ? (
-              <button className="button bg-red-soft text-red" onClick={reject}>
+              <button
+                className="button bg-red text-white dark:text-black"
+                onClick={reject}
+              >
                 Reject Invite
               </button>
             ) : null}
             <button
-              className="button ml-2 bg-blue-soft text-blue"
-              onClick={join}
+              className="button ml-2 bg-blue text-white dark:text-black"
+              onClick={button.action}
+              disabled={button.disabled}
             >
-              Join
+              {button.text}
             </button>
           </div>
         </div>

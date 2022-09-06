@@ -4,7 +4,7 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import { Chat, ChatWhom, ChatBrief } from '@/types/chat';
+import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -64,6 +64,10 @@ export function makePrettyDay(date: Date) {
     default:
       return `${format(date, 'LLLL')} ${format(date, 'do')}`;
   }
+}
+
+export function makePrettyDate(date: Date) {
+  return `${format(date, 'PPP')}`;
 }
 
 export function makePrettyDayAndTime(date: Date) {
@@ -299,4 +303,58 @@ export function linkFromCurioContent(content: CurioContent) {
   }
 
   return '';
+}
+
+export function citeToPath(cite: Cite) {
+  if ('desk' in cite) {
+    return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
+  }
+  if ('chan' in cite) {
+    return `/1/chan/${cite.chan.nest}${cite.chan.where}`;
+  }
+  return `/1/group/${cite.group}`;
+}
+
+export function pathToCite(path: string): Cite | undefined {
+  const segments = path.split('/');
+  if (segments.length < 3) {
+    return undefined;
+  }
+  const [, ver, kind, ...rest] = segments;
+  if (ver !== '1') {
+    return undefined;
+  }
+  if (kind === 'chan') {
+    if (rest.length < 3) {
+      return undefined;
+    }
+    const nest = rest.slice(0, 3).join('/');
+    return {
+      chan: {
+        nest,
+        where: `/${rest.slice(3).join('/')}` || '/',
+      },
+    };
+  }
+  if (kind === 'desk') {
+    if (rest.length < 2) {
+      return undefined;
+    }
+    const flag = rest.slice(0, 2).join('/');
+    return {
+      desk: {
+        flag,
+        where: `/${rest.slice(2).join('/')}` || '/',
+      },
+    };
+  }
+  if (kind === 'group') {
+    if (rest.length !== 2) {
+      return undefined;
+    }
+    return {
+      group: rest.join('/'),
+    };
+  }
+  return undefined;
 }

@@ -29,12 +29,12 @@ export default function ChatMessageOptions(props: {
   };
 
   const onCopy = useCallback(() => {
-    doCopy(`${groupFlag}/channels/chat/${whom}/message/${writ.seal.id}`);
+    doCopy(`/1/chan/chat/${whom}/msg/${writ.seal.id}`);
     setJustCopied(true);
     setTimeout(() => {
       setJustCopied(false);
     }, 1000);
-  }, [doCopy, groupFlag, whom, writ]);
+  }, [doCopy, whom, writ]);
 
   const reply = useCallback(() => {
     useChatStore.getState().reply(whom, writ.seal.id);

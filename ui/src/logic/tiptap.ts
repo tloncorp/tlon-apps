@@ -1,7 +1,14 @@
 import { Inline, InlineKey } from '@/types/content';
 import { reduce } from 'lodash';
 import { JSONContent } from '@tiptap/react';
-import { Editor, Extension, KeyboardShortcutCommand } from '@tiptap/core';
+import {
+  Editor,
+  Extension,
+  KeyboardShortcutCommand,
+  PasteRule,
+} from '@tiptap/core';
+import { Cite } from '@/types/chat';
+import { pathToCite } from './utils';
 
 export interface EditorOnUpdateProps {
   editor: Editor;
@@ -300,4 +307,28 @@ export function normalizeInline(inline: Inline[]): Inline[] {
     },
     []
   );
+}
+
+const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
+
+export function refPasteRule(onReference: (r: Cite) => void) {
+  return new PasteRule({
+    find: REF_REGEX,
+    handler: ({ state, range, match, chain }) => {
+      const cite = pathToCite(match[0] || '');
+      if (!cite) {
+        // maybe should provide feedback?
+        return;
+      }
+
+      const insert = '';
+      const start = range.from;
+      const end = range.to;
+
+      onReference(cite);
+
+      state.tr.insertText(insert, start, end);
+      setTimeout(() => console.log(chain().focus().run()), 1);
+    },
+  });
 }

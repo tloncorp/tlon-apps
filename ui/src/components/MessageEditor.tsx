@@ -6,7 +6,7 @@ import {
   JSONContent,
   useEditor,
 } from '@tiptap/react';
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -21,13 +21,16 @@ import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
-import { Shortcuts } from '@/logic/tiptap';
+import { refPasteRule, Shortcuts } from '@/logic/tiptap';
+import { ChatBlock, Cite } from '@/types/chat';
+import { useChatStore } from '@/chat/useChatStore';
 
 interface HandlerParams {
   editor: Editor;
 }
 
 interface useMessageEditorParams {
+  whom?: string;
   content: JSONContent | string;
   placeholder?: string;
   editorClass?: string;
@@ -36,12 +39,25 @@ interface useMessageEditorParams {
 }
 
 export function useMessageEditor({
+  whom,
   content,
   placeholder,
   editorClass,
   onEnter,
   onUpdate,
 }: useMessageEditorParams) {
+  const onReference = useCallback(
+    (r) => {
+      if (!whom) {
+        return;
+      }
+      const { chats, setBlocks } = useChatStore.getState();
+      const blocks = chats[whom]?.blocks || [];
+      setBlocks(whom, [...blocks, { cite: r }]);
+    },
+    [whom]
+  );
+
   const keyMapExt = useMemo(
     () =>
       Shortcuts({
@@ -74,7 +90,11 @@ export function useMessageEditor({
         Paragraph,
         Placeholder.configure({ placeholder }),
         Strike,
-        Text,
+        Text.extend({
+          addPasteRules() {
+            return [refPasteRule(onReference)];
+          },
+        }),
       ],
       content: content || '',
       editorProps: {
@@ -89,7 +109,7 @@ export function useMessageEditor({
         }
       },
     },
-    [onEnter, placeholder]
+    [keyMapExt, placeholder]
   );
 }
 

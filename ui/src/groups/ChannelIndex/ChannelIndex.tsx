@@ -109,7 +109,7 @@ function GroupChannel({
   }, [flag, leave]);
 
   const muteChannel = useCallback(() => {
-    // TODO: what happens on Mute?
+    // TODO: add channel mute action here
     console.log('mute ...');
   }, []);
 
@@ -162,12 +162,21 @@ function GroupChannel({
               </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content className="dropdown">
+              {/* TODO: un-disable this once channel mutes are complete */}
               <DropdownMenu.Item
                 onSelect={muteChannel}
-                className="dropdown-item flex items-center space-x-2"
+                className="dropdown-item disabled flex items-center space-x-2 hover:bg-transparent"
               >
                 <BulletIcon className="h-6 w-6 text-gray-400" />
-                <span className="text-gray-800">Mute Channel</span>
+                <span className="text-gray-400">Mute Channel</span>
+              </DropdownMenu.Item>
+              {/* TODO: un-disable this once mentions and mutes are complete */}
+              <DropdownMenu.Item
+                onSelect={muteChannel}
+                className="dropdown-item disabled flex items-center space-x-2 hover:bg-transparent"
+              >
+                <BulletIcon className="h-6 w-6 text-gray-400" />
+                <span className="text-gray-400">Mute Mentions</span>
               </DropdownMenu.Item>
               {isAdmin ? (
                 <DropdownMenu.Item
