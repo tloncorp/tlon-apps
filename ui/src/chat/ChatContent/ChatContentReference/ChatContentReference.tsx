@@ -40,7 +40,6 @@ export default function ChatContentReference({ story }: { story: string }) {
                   groupFlag={groupFlag}
                   nest={nest}
                   idWrit={idWrit}
-                  refToken={x}
                 />
               </span>
             );

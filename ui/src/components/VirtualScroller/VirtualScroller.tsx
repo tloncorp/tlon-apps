@@ -126,6 +126,7 @@ export interface VirtualScrollerProps<K, V> {
   onEndReached?(): void;
   size: number;
   pendingSize: number;
+  scrollTo?: K;
   /*
    * Average height of a single rendered item
    *
@@ -301,19 +302,33 @@ export default class VirtualScroller<K, V> extends Component<
   }
 
   componentDidMount() {
-    const { origin } = this.props;
+    const { origin, scrollTo } = this.props;
     this.updateVisible(origin === 'top' ? 0 : this.lastOffset);
 
     this.loadTop();
     this.loadBottom();
     this.cleanupRefInterval = setInterval(this.cleanupRefs, 5000);
+
+    if (scrollTo) {
+      requestAnimationFrame(() => {
+        this.scrollLocked = false;
+        this.scrollToIndex(scrollTo);
+      });
+    }
   }
 
   componentDidUpdate(
     prevProps: VirtualScrollerProps<K, V>,
     _prevState: VirtualScrollerState<K>
   ) {
-    const { size, pendingSize, origin } = this.props;
+    const { size, pendingSize, origin, scrollTo } = this.props;
+
+    if (scrollTo && prevProps.scrollTo !== scrollTo) {
+      requestAnimationFrame(() => {
+        this.scrollLocked = false;
+        this.scrollToIndex(scrollTo);
+      });
+    }
 
     if (size !== prevProps.size || pendingSize !== prevProps.pendingSize) {
       if (!this.window) {
@@ -512,36 +527,38 @@ export default class VirtualScroller<K, V> extends Component<
     }
   };
 
-  // TODO: uncomment when needed
-  // scrollToIndex = (index: K) => {
-  //   const { keyToString, keyEq } = this.props;
-  //   let ref = this.childRefs.get(keyToString(index));
-  //   if (!ref) {
-  //     const offset = [...this.props.data].findIndex(([idx]) => keyEq(idx, index));
-  //     if (offset === -1) {
-  //       return;
-  //     }
-  //     this.scrollLocked = false;
-  //     this.updateVisible(Math.max(offset - this.pageDelta, 0));
-  //     requestAnimationFrame(() => {
-  //       ref = this.childRefs.get(keyToString(index));
-  //       requestAnimationFrame(() => {
-  //         this.savedIndex = null;
-  //         this.savedDistance = 0;
-  //         this.saveDepth = 0;
-  //       });
+  scrollToIndex = (index: K) => {
+    const { keyToString, keyEq } = this.props;
+    let ref = this.childRefs.get(keyToString(index));
+    if (!ref) {
+      const offset = [...this.props.data].findIndex(([idx]) =>
+        keyEq(idx, index)
+      );
+      if (offset === -1) {
+        return;
+      }
+      this.scrollLocked = false;
+      // TODO: does not work for origin === top.
+      this.updateVisible(Math.max(this.lastOffset - offset - this.pageSize, 0));
+      requestAnimationFrame(() => {
+        ref = this.childRefs.get(keyToString(index));
+        requestAnimationFrame(() => {
+          this.savedIndex = null;
+          this.savedDistance = 0;
+          this.saveDepth = 0;
+        });
 
-  //       ref?.scrollIntoView({ block: 'center' });
-  //     });
-  //   } else {
-  //     ref?.scrollIntoView({ block: 'center' });
-  //     requestAnimationFrame(() => {
-  //       this.savedIndex = null;
-  //       this.savedDistance = 0;
-  //       this.saveDepth = 0;
-  //     });
-  //   }
-  // };
+        ref?.scrollIntoView({ block: 'center' });
+      });
+    } else {
+      ref?.scrollIntoView({ block: 'center' });
+      requestAnimationFrame(() => {
+        this.savedIndex = null;
+        this.savedDistance = 0;
+        this.saveDepth = 0;
+      });
+    }
+  };
 
   setRef = (element: HTMLElement | null, index: K) => {
     const { keyToString } = this.props;

@@ -80,8 +80,8 @@ export default function HeapRow({
   const isOembed = validOembedCheck(embed, contentString);
 
   const otherImage = () => {
-    const thumbnail = embed.thumbnail_url;
-    const provider = embed.provider_name;
+    const thumbnail = embed?.thumbnail_url;
+    const provider = embed?.provider_name;
     switch (true) {
       case isOembed && provider !== 'Twitter':
         return (
