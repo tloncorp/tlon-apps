@@ -17,6 +17,8 @@ function MobileGroupsNav({ navLocation }: { navLocation: string }) {
     selectedSidebar = <Sidebar />;
   } else if (navLocation === 'group') {
     selectedSidebar = <GroupSidebar />;
+  } else if (navLocation === 'hidden') {
+    selectedSidebar = null;
   } else {
     selectedSidebar = null;
   }
@@ -38,6 +40,10 @@ export function ActualNav() {
   };
 
   useEffect(() => {
+    if (flag && isMobile) {
+      useNavStore.getState().navigatePrimary('hidden');
+    }
+
     if (!firstRender) {
       return;
     }
