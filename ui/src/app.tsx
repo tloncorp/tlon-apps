@@ -7,6 +7,8 @@ import {
   Route,
   Location,
   useLocation,
+  useNavigate,
+  NavigateFunction,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import Groups from '@/groups/Groups';
@@ -56,6 +58,8 @@ import DiaryChannel from './diary/DiaryChannel';
 import DiaryNote from './diary/DiaryNote';
 import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
+import EditCurioModal from './heap/EditCurioModal';
+import DiaryAddNote from './diary/DiaryAddNote';
 
 const appHead = (appName: string) => {
   switch (appName) {
@@ -236,6 +240,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               element={<DiaryNote />}
             />
             <Route
+              path="channels/diary/:chShip/:chName/add"
+              element={<DiaryAddNote />}
+            />
+            <Route
               path="channels"
               element={
                 <ChannelIndex title={`${appHead('').title} • All Channels`} />
@@ -265,6 +273,10 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route
             path="/gangs/:ship/:name/reject"
             element={<RejectConfirmModal />}
+          />
+          <Route
+            path="/groups/:ship/:name/channels/heap/:chShip/:chName/curio/:idCurio/edit"
+            element={<EditCurioModal />}
           />
           <Route
             path="/groups/:ship/:name/channels/new"
@@ -300,7 +312,18 @@ function checkIfLoggedIn() {
   }
 }
 
+function handleGridRedirect(navigate: NavigateFunction) {
+  const query = new URLSearchParams(window.location.search);
+
+  if (query.has('grid-note')) {
+    navigate(decodeURIComponent(query.get('grid-note')!));
+  } else if (query.has('grid-link')) {
+    navigate(decodeURIComponent(query.get('grid-link')!));
+  }
+}
+
 function App() {
+  const navigate = useNavigate();
   const handleError = useErrorHandler();
   const location = useLocation();
   const isChat = useIsChat();
@@ -308,6 +331,7 @@ function App() {
   useEffect(() => {
     handleError(() => {
       checkIfLoggedIn();
+      handleGridRedirect(navigate);
       // TODO: Clean up this order for different apps
       useGroupState.getState().start();
       useChatState.getState().start();
@@ -323,7 +347,7 @@ function App() {
 
       useContactState.getState().initialize(api);
     })();
-  }, [handleError]);
+  }, [navigate, handleError]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 

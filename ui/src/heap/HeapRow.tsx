@@ -4,7 +4,7 @@ import { useCopyToClipboard } from 'usehooks-ts';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
-import { nestToFlag, validOembedCheck } from '@/logic/utils';
+import { isValidUrl, nestToFlag, validOembedCheck } from '@/logic/utils';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useEmbedState from '@/state/embed';
 import { formatDistanceToNow } from 'date-fns';
@@ -17,6 +17,7 @@ import useNest from '@/logic/useNest';
 import HeapLoadingRow from '@/heap/HeapLoadingRow';
 import { useRouteGroup } from '@/state/groups';
 import CheckIcon from '@/components/icons/CheckIcon';
+import { useLocation, useNavigate } from 'react-router';
 
 export default function HeapRow({
   curio,
@@ -32,9 +33,19 @@ export default function HeapRow({
   const [justCopied, setJustCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [embed, setEmbed] = useState<any>();
-  const { content, sent } = curio.heart;
+  const { content, sent, title } = curio.heart;
   const { replied } = curio.seal;
-  const contentString = content[0].toString();
+  // TODO: improve this
+  const contentString = content.length > 0 ? content[0].toString() : '';
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const onEdit = useCallback(() => {
+    setMenuOpen(false);
+    navigate(`curio/${time}/edit`, {
+      state: { backgroundLocation: location },
+    });
+  }, [location, navigate, time]);
 
   const onDelete = useCallback(() => {
     setMenuOpen(false);
@@ -54,21 +65,23 @@ export default function HeapRow({
 
   useEffect(() => {
     const getOembed = async () => {
-      const oembed = await useEmbedState.getState().getEmbed(contentString);
-      setEmbed(oembed);
+      if (isValidUrl(contentString)) {
+        const oembed = await useEmbedState.getState().getEmbed(contentString);
+        setEmbed(oembed);
+      }
     };
     getOembed();
   }, [contentString]);
 
-  if (embed === undefined) {
+  if (isValidUrl(contentString) && embed === undefined) {
     return <HeapLoadingRow />;
   }
 
   const isOembed = validOembedCheck(embed, contentString);
 
   const otherImage = () => {
-    const thumbnail = embed.thumbnail_url;
-    const provider = embed.provider_name;
+    const thumbnail = embed?.thumbnail_url;
+    const provider = embed?.provider_name;
     switch (true) {
       case isOembed && provider !== 'Twitter':
         return (
@@ -93,7 +106,7 @@ export default function HeapRow({
       case isOembed:
         return embed.title;
       case isUrl:
-        return contentString;
+        return title || contentString;
       default:
         return contentString.split(' ').slice(0, 5).join(' ');
     }
@@ -150,10 +163,7 @@ export default function HeapRow({
           )}
           onMouseLeave={() => setMenuOpen(false)}
         >
-          <button
-            // FIXME: add edit functionality
-            className="small-menu-button"
-          >
+          <button onClick={onEdit} className="small-menu-button">
             Edit
           </button>
           <button className="small-menu-button" onClick={onDelete}>

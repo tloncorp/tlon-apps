@@ -1,18 +1,31 @@
 import cn from 'classnames';
-import React from 'react';
-import { useParams } from 'react-router';
+import React, { useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
+import * as Popover from '@radix-ui/react-popover';
+import {
+  useRouteGroup,
+  useGroup,
+  useChannel,
+  useAmAdmin,
+} from '@/state/groups';
+import { useChatState } from '@/state/chat';
+import { useHeapState } from '@/state/heap/heap';
+import { useDiaryState } from '@/state/diary';
+import useNavStore from '@/components/Nav/useNavStore';
+import useIsChannelHost from '@/logic/useIsChannelHost';
+import { useIsMobile } from '@/logic/useMedia';
+import { getFlagParts, nestToFlag } from '@/logic/utils';
+import ChannelIcon from '@/channels/ChannelIcon';
+import Divider from '@/components/Divider';
+import BulletIcon from '@/components/icons/BulletIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import GridIcon from '@/components/icons/GridIcon';
-import SortIcon from '@/components/icons/SortIcon';
-import ShareIcon from '@/components/icons/ShareIcon';
-import useNavStore from '@/components/Nav/useNavStore';
-import { useIsMobile } from '@/logic/useMedia';
-import { useGroup, useChannel } from '@/state/groups';
-import { Link } from 'react-router-dom';
+import LeaveIcon from '@/components/icons/LeaveIcon';
 import ListIcon from '@/components/icons/ListIcon';
-import ChannelIcon from '@/channels/ChannelIcon';
-import * as Popover from '@radix-ui/react-popover';
+import SlidersIcon from '@/components/icons/SlidersIcon';
+import SortIcon from '@/components/icons/SortIcon';
 
 export interface ChannelHeaderProps {
   flag: string;
@@ -24,21 +37,21 @@ export interface ChannelHeaderProps {
   isHeap?: boolean;
 }
 
-function ChannelHeaderButton({
-  children,
-  onClick,
-  className,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-}) {
+const ChannelHeaderButton = React.forwardRef<
+  HTMLButtonElement,
+  React.HTMLProps<HTMLButtonElement>
+>((props, ref) => {
+  const { children, className, onClick } = props;
   return (
-    <button onClick={onClick} className={cn('secondary-button', className)}>
+    <button
+      ref={ref}
+      onClick={onClick}
+      className={cn('secondary-button', className)}
+    >
       {children}
     </button>
   );
-}
+});
 
 function ChannelHeaderMenuButton({
   children,
@@ -53,12 +66,109 @@ function ChannelHeaderMenuButton({
     <button
       onClick={onClick}
       className={cn(
-        'default-focus text-md flex w-full items-center space-x-3 rounded-lg py-2 px-4 font-semibold font-semibold  leading-4 text-gray-600 hover:bg-gray-50',
+        'dropdown-item flex w-full items-center space-x-2 pr-4',
         className
       )}
     >
       {children}
     </button>
+  );
+}
+
+function ChannelActions({ nest }: { nest: string }) {
+  const [_app, flag] = nestToFlag(nest);
+  const isAdmin = useAmAdmin(flag);
+  const isChannelHost = useIsChannelHost(flag);
+  const navigate = useNavigate();
+  const groupFlag = useRouteGroup();
+  const { ship, name } = getFlagParts(groupFlag);
+
+  const leave = useCallback(
+    (chFlag: string) => {
+      const leaver =
+        _app === 'chat'
+          ? useChatState.getState().leaveChat
+          : _app === 'heap'
+          ? useHeapState.getState().leaveHeap
+          : useDiaryState.getState().leaveDiary;
+
+      leaver(chFlag);
+    },
+    [_app]
+  );
+
+  const leaveChannel = useCallback(async () => {
+    try {
+      leave(flag);
+      navigate(`/groups/${ship}/${name}/channels`);
+    } catch (error) {
+      if (error) {
+        console.error(`[ChannelIndex:LeaveError] ${error}`);
+      }
+    }
+  }, [flag, ship, name, navigate, leave]);
+
+  return (
+    <Popover.Root>
+      <Popover.Anchor>
+        <Popover.Trigger asChild>
+          <button className="icon-button h-8 w-8 bg-transparent">
+            <EllipsisIcon className="h-6 w-6" />
+          </button>
+        </Popover.Trigger>
+        <Popover.Content>
+          <div className="flex flex-col rounded-lg bg-white leading-5 drop-shadow-lg">
+            {/* TODO: Will need channel functionality for all these items
+              <ChannelHeaderMenuButton>
+                <BulletIcon className="h-5 w-5 text-blue-300" />
+                <span className="font-semibold text-blue">Invite to Channel</span>
+              </ChannelHeaderMenuButton>
+              <ChannelHeaderMenuButton>
+                <BulletIcon className="h-5 w-5 text-blue-300" />
+                <span className="font-semibold text-blue">Copy Channel Link</span>
+              </ChannelHeaderMenuButton>
+              <ChannelHeaderMenuButton>
+                <BulletIcon className="h-5 w-5 text-gray-400" />
+                <span className="font-semibold">Subscribed Members...</span>
+              </ChannelHeaderMenuButton>
+            */}
+            {/* TODO: Un-disable this once we have mute controls */}
+            <ChannelHeaderMenuButton className="hover:bg-transparent">
+              <BulletIcon className="h-6 w-6 text-gray-400" />
+              <span className="font-semibold text-gray-400">Mute Channel</span>
+            </ChannelHeaderMenuButton>
+            {/* TODO: Un-disable this once we have mentions and mutes */}
+            <ChannelHeaderMenuButton className="hover:bg-transparent">
+              <BulletIcon className="h-6 w-6 text-gray-400" />
+              <span className="font-semibold text-gray-400">Mute Mentions</span>
+            </ChannelHeaderMenuButton>
+            {!isChannelHost ? (
+              <ChannelHeaderMenuButton
+                className="hover:bg-red-soft"
+                onClick={leaveChannel}
+              >
+                <LeaveIcon className="h-6 w-6 text-red-400" />
+                <span className="font-semibold text-red">Leave Channel</span>
+              </ChannelHeaderMenuButton>
+            ) : null}
+            {isAdmin ? (
+              <>
+                <Divider>Admin</Divider>
+                <Link
+                  to={`/groups/${flag}/info/channels`}
+                  className="block no-underline"
+                >
+                  <ChannelHeaderMenuButton>
+                    <SlidersIcon className="h-6 w-6 text-gray-400" />
+                    <span className="font-semibold">Edit Channels</span>
+                  </ChannelHeaderMenuButton>
+                </Link>
+              </>
+            ) : null}
+          </div>
+        </Popover.Content>
+      </Popover.Anchor>
+    </Popover.Root>
   );
 }
 
@@ -75,6 +185,7 @@ export default function ChannelHeader({
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const channel = useChannel(flag, nest);
+  const [chFlag] = nestToFlag(nest);
   const groupName = group?.meta.title;
 
   return (
@@ -110,7 +221,10 @@ export default function ChannelHeader({
       {isHeap && displayMode && setDisplayMode && setSortMode ? (
         <div className="flex items-center space-x-12">
           <div className="flex items-center space-x-2">
-            <ChannelHeaderButton onClick={() => console.log('share')}>
+            {/* TODO: Share a collection channel */}
+            <ChannelHeaderButton
+              onClick={() => console.log('share collection')}
+            >
               <span className="font-semibold">Share</span>
             </ChannelHeaderButton>
             <Popover.Root>
@@ -161,21 +275,11 @@ export default function ChannelHeader({
                 </div>
               </Popover.Content>
             </Popover.Root>
-            <Link
-              className="icon-button h-8 w-8 bg-transparent"
-              to={`/groups/${flag}/info/channels`}
-            >
-              <EllipsisIcon className="h-6 w-6" />
-            </Link>
+            <ChannelActions {...{ nest }} />
           </div>
         </div>
       ) : (
-        <Link
-          className="icon-button h-8 w-8 bg-transparent"
-          to={`/groups/${flag}/info/channels`}
-        >
-          <EllipsisIcon className="h-6 w-6" />
-        </Link>
+        <ChannelActions {...{ nest }} />
       )}
     </div>
   );

@@ -461,6 +461,14 @@ export function useRouteGroup() {
   }, [ship, name]);
 }
 
+/**
+ * Alias for useRouteGroup
+ * @returns group flag - a string
+ */
+export function useGroupFlag() {
+  return useRouteGroup();
+}
+
 const selList = (s: GroupState) => Object.keys(s.groups);
 export function useGroupList(): string[] {
   return useGroupState(selList);

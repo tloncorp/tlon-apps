@@ -11,7 +11,7 @@
 }
 
 .small-secondary-button {
-  @apply inline-flex h-6 items-center justify-center rounded-md bg-gray-50 py-1 px-2 text-sm font-semibold leading-4 text-gray-800 mix-blend-multiply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 dark:mix-blend-screen;
+  @apply inline-flex h-6 items-center justify-center whitespace-nowrap rounded-md bg-gray-50 py-1 px-2 text-sm font-semibold leading-4 text-gray-800 mix-blend-multiply ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 dark:mix-blend-screen;
 }
 
 .red-text-button {
@@ -36,9 +36,13 @@
 }
 
 .input-inner {
-  @apply bg-transparent py-1 px-2 text-lg leading-5 focus:outline-none sm:text-base sm:leading-5;
+  @apply border-transparent bg-transparent py-1 px-2 text-lg leading-5 focus:outline-none sm:text-base sm:leading-5;
 }
 
+.input-transparent {
+  @apply bg-transparent transition-colors focus-within:border-gray-100 focus-within:bg-white focus:outline-none
+  focus:outline-none focus-visible:border-gray-100;
+}
 /* Placeholder (at the top) */
 .ProseMirror:not(.ProseMirror-focused) p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -90,7 +94,11 @@
 }
 
 .heap-inline-block {
-  @apply relative flex h-[300px] w-[600px] cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat p-2 shadow;
+  @apply relative flex h-[300px] w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat p-2;
+}
+
+.note-inline-block {
+  @apply relative flex h-full w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat p-2 p-2;
 }
 
 .writ-inline-block {

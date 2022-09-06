@@ -101,7 +101,10 @@
   ++  shut-cordon-diff
     |=  d=diff:shut:cordon:g
     %+  frond  -.d
-    a/(turn ~(tap in p.d) ship)
+    %-  pairs
+    :~  kind/s/p.d
+        ships/a/(turn ~(tap in q.d) ship)
+    ==
   ::
   ++  channel-diff
     |=  d=diff:channel:g
@@ -246,9 +249,17 @@
     %+  frond  -.c
     ?-  -.c
       %open  (ban-cordon ban.c)
-      %shut  a/(turn ~(tap in pending.c) ship)
+      %shut  (shut-cordon +.c)
       %afar  (afar-cordon +.c)
     ==
+  ::
+  ++  shut-cordon
+    |=  [pend=(set @p) ask=(set @p)]
+    %-  pairs
+    :~  pending/a/(turn ~(tap in pend) ship)
+        ask/a/(turn ~(tap in ask) ship)
+    ==
+
   ::
   ++  afar-cordon
     |=  [app=flag:g pax=^path desc=@t]
@@ -366,7 +377,12 @@
   ++  cordon
     %-  of
     :~  open/open-cordon
-        shut/(as ship)
+        shut/shut-cordon
+    ==
+  ++  shut-cordon
+    %-  ot
+    :~  pending/(as ship)
+        ask/(as ship)
     ==
   ::
   ++  open-cordon
@@ -391,10 +407,17 @@
     ==
   ::
   ++  shut-cordon-diff
+    |^
     %-  of
-    :~  add-ships/(as ship)
-        del-ships/(as ship)
+    :~  add-ships/body
+        del-ships/body
     ==
+    ++  body
+      %-  ot
+      :~  kind/(su (perk %ask %pending ~))
+          ships/(as ship)
+      ==
+    --
   ::
   ++  fleet-diff
     %-  of

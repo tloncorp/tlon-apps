@@ -7,6 +7,7 @@ interface IconButtonProps {
   label: string;
   showTooltip?: boolean;
   className?: string;
+  small?: boolean;
 }
 
 export default function IconButton({
@@ -15,6 +16,7 @@ export default function IconButton({
   label,
   showTooltip,
   className = '',
+  small = false,
 }: IconButtonProps) {
   return (
     <div className={cn('group-two relative cursor-pointer', className)}>
@@ -42,7 +44,13 @@ export default function IconButton({
         </div>
       ) : null}
       <button
-        className="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50"
+        className={cn(
+          'flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50',
+          {
+            'h-8 w-8': !small,
+            'h-6 w-6': small,
+          }
+        )}
         onClick={action}
         aria-label={label}
       >

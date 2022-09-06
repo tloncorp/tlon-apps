@@ -211,6 +211,7 @@
     ^-  $-(json delta:curios:h)
     %-  of
     :~  add/heart
+        edit/heart
         del/ul
         add-feel/add-feel
     ==

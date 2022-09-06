@@ -25,8 +25,11 @@ import {
   clearStorageMigration,
   storageVersion,
 } from '@/logic/utils';
+import useNest from '@/logic/useNest';
+import { intersection } from 'lodash';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
+import { useVessel } from '../groups';
 
 setAutoFreeze(false);
 
@@ -178,6 +181,10 @@ export const useHeapState = create<HeapState>(
         const ud = decToUd(time);
         await api.poke(heapCurioDiff(flag, ud, { del: null }));
       },
+      editCurio: async (flag, time, heart) => {
+        const ud = decToUd(time);
+        await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
+      },
       create: async (req) => {
         await api.poke({
           app: 'heap',
@@ -246,6 +253,17 @@ export function useHeapPerms(flag: HeapFlag) {
   return useHeapState(
     useCallback((s) => s.stash[flag]?.perms || defaultPerms, [flag])
   );
+}
+
+export function useCanWriteToHeap(groupFlag: string) {
+  const vessel = useVessel(groupFlag, window.our);
+  const nest = useNest();
+  const perms = useHeapPerms(nest);
+  const canWrite =
+    perms.writers.length === 0 ||
+    intersection(perms.writers, vessel.sects).length !== 0;
+
+  return canWrite;
 }
 
 export function useHeapIsJoined(flag: HeapFlag) {

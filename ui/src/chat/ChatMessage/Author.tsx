@@ -11,7 +11,7 @@ import ShipName from '@/components/ShipName';
 
 interface AuthorProps {
   ship: string;
-  date: Date;
+  date?: Date;
   timeOnly?: boolean;
   hideTime?: boolean;
 }
@@ -23,15 +23,28 @@ export default function Author({
 }: AuthorProps) {
   const location = useLocation();
   const modalNavigate = useModalNavigate();
-  const prettyTime = makePrettyTime(date);
-  const prettyDayAndTime = makePrettyDayAndTime(date);
-  const prettyDayAndDateAndTime = makePrettyDayAndDateAndTime(date);
+  const prettyTime = date ? makePrettyTime(date) : undefined;
+  const prettyDayAndTime = date ? makePrettyDayAndTime(date) : undefined;
+  const prettyDayAndDateAndTime = date
+    ? makePrettyDayAndDateAndTime(date)
+    : undefined;
 
   const handleProfileClick = () => {
     modalNavigate(`/profile/${ship}`, {
       state: { backgroundLocation: location },
     });
   };
+
+  if (!date) {
+    return (
+      <div className="align-center group flex items-center space-x-3 py-1">
+        <div onClick={handleProfileClick}>
+          <Avatar ship={ship} size="xs" className="cursor-pointer" />
+        </div>
+        <ShipName name={ship} showAlias className="text-md font-semibold" />
+      </div>
+    );
+  }
 
   return (
     <div className="align-center group flex items-center space-x-3 py-1">

@@ -183,7 +183,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           </div>
           <button
             aria-label="Reply"
-            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50"
+            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50 h-8 w-8"
           >
             <svg
               class="h-6 w-6 text-gray-400"
@@ -230,7 +230,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           </div>
           <button
             aria-label="Start Thread"
-            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50"
+            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50 h-8 w-8"
           >
             <svg
               class="h-6 w-6 text-gray-400"
@@ -279,7 +279,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           </div>
           <button
             aria-label="Copy"
-            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50"
+            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50 h-8 w-8"
           >
             <svg
               class="h-6 w-6 text-gray-400"
@@ -328,7 +328,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           </div>
           <button
             aria-label="Delete"
-            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50"
+            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50 h-8 w-8"
           >
             <svg
               class="h-6 w-6 text-red"
