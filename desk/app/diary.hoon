@@ -571,6 +571,9 @@
         %create
       =.  perm.diary  p.dif
       di-core
+        %view
+      =.  view.diary  p.dif
+      di-core
     ==
   --
 --

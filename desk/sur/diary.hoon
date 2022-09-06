@@ -102,6 +102,7 @@
       [%del-sects p=(set sect:g)]
     ::
       [%create p=perm]
+      [%view p=view]
   ==
 +$  net
   $~  [%load ~]
