@@ -5,7 +5,7 @@ import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
 import { useGroups, usePendingInvites } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
-import AsteriskIcon from '@/components/icons/Asterisk16Icon';
+import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
@@ -40,6 +40,14 @@ export default function Sidebar() {
       <ul className="flex w-full flex-col px-2 pt-2">
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
         <SidebarItem
+          div
+          highlight="transparent"
+          className="mb-4 cursor-default text-black"
+          icon={<AppGroupsIcon className="h-6 w-6" />}
+        >
+          Groups
+        </SidebarItem>
+        <SidebarItem
           icon={<Avatar size="xs" ship={window.our} />}
           to={'/profile/edit'}
         >
@@ -65,13 +73,11 @@ export default function Sidebar() {
           </div>
         </SidebarItem>
         <SidebarItem
-          color="text-blue"
-          highlight="bg-blue-soft dark:bg-blue-900 hover:bg-blue-soft hover:dark:bg-blue-900"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
           to="/groups/new"
           state={{ backgroundLocation: location }}
         >
-          Create Group
+          Create Groups
         </SidebarItem>
         <a
           className="no-underline"
@@ -79,13 +85,13 @@ export default function Sidebar() {
           target="_blank"
           rel="noreferrer"
         >
-          <SidebarItem
+          {/* <SidebarItem
             color="text-yellow-600 dark:text-yellow-500"
             highlight="bg-yellow-soft hover:bg-yellow-soft hover:dark:bg-yellow-800"
             icon={<AsteriskIcon className="m-1 h-4 w-4" />}
           >
             Submit Issue
-          </SidebarItem>
+          </SidebarItem> */}
         </a>
         {hasKeys(pinnedGroups) ? (
           <GroupList
@@ -95,7 +101,12 @@ export default function Sidebar() {
             pinnedGroups={sortedPinnedGroups}
           />
         ) : null}
-        <li className="p-2">
+        <li className="-mx-2 mt-4 grow border-t-2 border-gray-50 pt-3 pb-2">
+          <span className="ml-4 text-sm font-semibold text-gray-400">
+            All Groups
+          </span>
+        </li>
+        <li className="relative p-2">
           <SidebarSorter
             sortFn={sortFn}
             setSortFn={setSortFn}

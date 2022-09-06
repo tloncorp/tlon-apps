@@ -271,9 +271,10 @@ export default function GroupList({
           : undefined
       }
     >
-      <li className="-mb-2 flex items-center sm:m-0 md:pr-2">
-        <Divider>Pinned</Divider>
-        <div className="grow border-b-2 border-gray-100" />
+      <li className="-mx-2 mt-4 grow border-t-2 border-gray-50 pt-3 pb-2">
+        <span className="ml-4 text-sm font-semibold text-gray-400">
+          Pinned Groups
+        </span>
       </li>
       {pinnedGroups.map(([flag]) => (
         <GroupItemContainer flag={flag} key={flag}>
