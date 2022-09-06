@@ -33,7 +33,6 @@ function DiaryChannel() {
   const displayMode = useDiaryDisplayMode(chFlag);
   const sortMode = useDiarySortMode(chFlag);
 
-  console.log(displayMode);
 
   const setDisplayMode = (view: DiaryDisplayMode) => {
     useDiaryState.getState().viewDiary(chFlag, view);
