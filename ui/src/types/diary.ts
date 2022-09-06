@@ -163,8 +163,13 @@ export interface NoteDiff {
   delta: NoteDelta;
 }
 
+export interface DiaryDiffView {
+  view: DiaryDisplayMode;
+}
+
 export type DiaryDiff =
   | { notes: NoteDiff }
+  | DiaryDiffView
   | DiaryDiffAddSects
   | DiaryDiffDelSects
   | DiaryDiffQuips;
@@ -213,6 +218,7 @@ export type DiaryDisplayMode = 'list' | 'grid';
 
 export interface Diary {
   perms: DiaryPerm;
+  view: DiaryDisplayMode;
 }
 
 export interface Shelf {

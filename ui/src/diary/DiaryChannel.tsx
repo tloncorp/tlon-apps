@@ -3,11 +3,14 @@ import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
-import { useNotesForDiary, useDiaryState } from '@/state/diary';
+import {
+  useNotesForDiary,
+  useDiaryState,
+  useDiaryDisplayMode,
+} from '@/state/diary';
 import {
   DiarySetting,
   setSetting,
-  useDiaryDisplayMode,
   useDiarySettings,
   useDiarySortMode,
   useSettingsState,
@@ -30,15 +33,9 @@ function DiaryChannel() {
   const displayMode = useDiaryDisplayMode(chFlag);
   const sortMode = useDiarySortMode(chFlag);
 
-  const setDisplayMode = (setting: DiaryDisplayMode) => {
-    const newSettings = setSetting<DiarySetting>(
-      settings,
-      { displayMode: setting },
-      chFlag
-    );
-    useSettingsState
-      .getState()
-      .putEntry('diary', 'settings', JSON.stringify(newSettings));
+
+  const setDisplayMode = (view: DiaryDisplayMode) => {
+    useDiaryState.getState().viewDiary(chFlag, view);
   };
 
   const setSortMode = (setting: 'time' | 'alpha') => {

@@ -3,6 +3,7 @@ import {
   Diary,
   DiaryBriefs,
   DiaryCreate,
+  DiaryDisplayMode,
   DiaryFlag,
   DiaryNoteMap,
   DiaryQuipMap,
@@ -31,6 +32,7 @@ export interface DiaryState {
   initialize: (flag: DiaryFlag) => Promise<void>;
   joinDiary: (flag: DiaryFlag) => Promise<void>;
   leaveDiary: (flag: DiaryFlag) => Promise<void>;
+  viewDiary: (flag: DiaryFlag, view: DiaryDisplayMode) => Promise<void>;
   markRead: (flag: DiaryFlag) => Promise<void>;
   addNote: (flag: DiaryFlag, essay: NoteEssay) => void;
   delNote: (flag: DiaryFlag, time: string) => void;
