@@ -18,7 +18,27 @@ import { GroupMeta } from './groups';
 export type Patda = string;
 export type Ship = string;
 
-export type ChatBlock = ChatImage;
+export interface ChanCite {
+  chan: {
+    nest: string;
+    where: string;
+  };
+}
+
+export interface GroupCite {
+  group: string;
+}
+
+export interface DeskCite {
+  desk: {
+    flag: string;
+    where: string;
+  };
+}
+
+export type Cite = ChanCite | GroupCite | DeskCite;
+
+export type ChatBlock = ChatImage | { cite: Cite };
 
 export interface ChatImage {
   image: {

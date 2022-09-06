@@ -60,6 +60,8 @@ import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
 import DiaryAddNote from './diary/DiaryAddNote';
+import GroupMembers from './groups/GroupAdmin/GroupMembers';
+import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 
 const appHead = (appName: string) => {
   switch (appName) {
@@ -195,11 +197,13 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               <Route
                 path="members"
                 element={
-                  <GroupMemberManager
-                    title={`${appHead('').title} • Members`}
-                  />
+                  <GroupMembers title={`${appHead('').title} • Members`} />
                 }
-              />
+              >
+                <Route index element={<GroupMemberManager />} />
+                <Route path="pending" element={<GroupPendingManager />} />
+                <Route path="banned" element={<div />} />
+              </Route>
               <Route
                 path="channels"
                 element={
@@ -234,7 +238,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               path="channels/diary/:chShip/:chName"
               element={<DiaryChannel />}
             />
-
             <Route
               path="channels/diary/:chShip/:chName/note/:noteId"
               element={<DiaryNote />}

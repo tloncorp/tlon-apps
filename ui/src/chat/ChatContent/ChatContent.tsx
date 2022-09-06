@@ -29,12 +29,6 @@ interface BlockContentProps {
 
 export function InlineContent({ story }: InlineContentProps) {
   if (typeof story === 'string') {
-    const containsPatp = PATP_REGEX.test(story);
-
-    if (containsPatp) {
-      return <ChatContentReference story={story} />;
-    }
-
     return <span>{story}</span>;
   }
 
@@ -122,6 +116,9 @@ export function BlockContent({ story }: BlockContentProps) {
         altText={story.image.alt}
       />
     );
+  }
+  if ('cite' in story) {
+    return <ChatContentReference cite={story.cite} />;
   }
 
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
