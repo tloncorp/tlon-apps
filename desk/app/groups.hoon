@@ -133,6 +133,18 @@
     =.  xeno  (~(put by xeno) flag.join gang)
     ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
   ::
+      %group-knock
+    =+  !<(=flag:g vase)
+    =/  =gang:g  (~(gut by xeno) flag [~ ~ ~])
+    =/  =claim:g  [| %knocking]
+    =.  cam.gang  `claim
+    =.  xeno  (~(put by xeno) flag gang)
+    ga-abet:ga-knock:(ga-abed:gang-core flag)
+  ::
+      %group-rescind
+    =+  !<(=flag:g vase)
+    ga-abet:ga-rescind:(ga-abed:gang-core flag)
+  ::
       %invite-decline
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
@@ -321,7 +333,7 @@
       [%open banned ban-ranks]:policy
     ::
         %invite
-      [%shut pending.policy]
+      [%shut pending.policy ~]
     ==
   ::
   ++  scry
@@ -677,16 +689,16 @@
   ++  go-cordon-update
     |=  =diff:cordon:g
     |^  ^+  go-core
-    ?>  go-is-bloc
     ?-  -.diff 
       %open     (open p.diff)
       %shut     (shut p.diff)
-      %swap     =.(cordon.group p.diff go-core)
+      %swap     ?>(go-is-bloc =.(cordon.group p.diff go-core))
     ==
     ::
     ++  open
       |=  =diff:open:cordon:g
       ^+  go-core
+      ?>  go-is-bloc
       =*  cordon  cordon.group
       ?>  ?=(%open -.cordon) 
       ?-  -.diff
@@ -731,12 +743,50 @@
       ^+  go-core
       =*  cordon  cordon.group
       ?>  ?=(%shut -.cordon)
-      =.  cordon.group
-        ?-  -.diff
-          %add-ships  cordon(pending (~(uni in pending.cordon) p.diff))
-          %del-ships  cordon(pending (~(dif in pending.cordon) p.diff))
-        ==
-      go-core
+      ?+    [-.diff p.diff]  !!  :: should never happen, compiler bug
+      ::
+          [%add-ships %pending]
+        ?>  go-is-bloc          
+        =.  pend.cordon.group  (~(uni in pend.cordon) q.diff)
+        =.  ask.cordon.group  (~(dif in ask.cordon) q.diff)
+        =.  cor  (give-invites flag q.diff)
+        go-core
+      ::
+          [%del-ships %pending]
+        ?>  go-is-bloc
+        =.  pend.cordon.group  (~(dif in pend.cordon) q.diff)
+        go-core
+      ::
+          [%add-ships %ask]
+        ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
+        =.  ask.cordon.group  (~(uni in ask.cordon) q.diff)
+        =/  ships  q.diff
+        ~&  [src.bowl our.bowl]
+        ?:  from-self  go-core
+        =/  link  (go-link /info/members)
+        =/  yarn
+          %-  spin
+          :*  (go-rope /asks)
+              link
+              `['View all members' link]
+              %+  welp
+                ^-  (list content:ha)
+                %+  join  `content:ha`', '
+                `(list content:ha)`(turn ~(tap in ships) |=(=ship ship/ship))
+              :~  ?:  =(~(wyt in ships) 1)  ' has '
+                  ' have '
+                  'requested to join '
+                  [%emph title.meta.group]
+              ==
+          ==
+        =.  cor  (emit (pass-hark & & yarn))
+        go-core
+      ::
+          [%del-ships %ask]
+        ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
+        =.  ask.cordon.group  (~(dif in ask.cordon) q.diff)
+        go-core
+      ==
     --
   ::
   ++  go-cabal-update
@@ -764,6 +814,15 @@
               =(p.flag src.bowl) :: subscription
               &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
           ==
+      ?<  ?&  =(-.cordon.group %shut) 
+              ?-  -.cordon.group
+                  ?(%open %afar)  |
+                  %shut
+                =/  cross  (~(int in pend.cordon.group) ships)
+                ~&  [cross ~(wyt in ships) ~(wyt in cross)]
+                !=(~(wyt in ships) ~(wyt in cross))
+              ==
+          ==      
       =.  cor  (give-invites flag ships)
       =.  fleet.group
         %-  ~(uni by fleet.group)
@@ -794,7 +853,12 @@
             ==
         ==
       =.  cor  (emit (pass-hark & & yarn))
-      go-core
+      ?-  -.cordon.group
+          ?(%open %afar)  go-core
+          %shut  
+        =.  pend.cordon.group  (~(dif in pend.cordon.group) ships)
+        go-core
+      ==
     ::
         %del
       ?<  &((~(has in ships) our.bowl) =(p.flag our.bowl))
@@ -1023,6 +1087,14 @@
       =/  =action:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
       (poke-host /join/add group-action+!>(action))
     ::
+    ++  knock
+      =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
+      =/  =action:g  [flag now.bowl %cordon %shut %add-ships %ask ships]
+      (poke-host /knock group-action+!>(action))
+    ++  rescind
+      =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
+      =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
+      (poke-host /rescind group-action+!>(action))
     ++  get-preview
       =/  =task:agent:gall  [%watch /groups/(scot %p p.flag)/[q.flag]/preview]
       (pass-host /preview task)
@@ -1032,6 +1104,14 @@
     =.  cor  (emit add-self:ga-pass)
     ga-core
   ::
+  ++  ga-knock
+    ^+  ga-core
+    =.  cor  (emit knock:ga-pass)
+    ga-core
+  ++  ga-rescind
+    ^+  ga-core
+    =.  cor  (emit rescind:ga-pass)
+    ga-core
   ++  ga-watch
     |=  =(pole knot)
     ^+  ga-core
@@ -1103,6 +1183,25 @@
         ::
         =.  cor
           go-abet:(go-sub:(go-abed:group-core flag) &)
+        ga-core
+          [%knock ~]
+        ?>  ?=(%poke-ack -.sign)
+        ?>  ?=(^ cam.gang)
+        ?^  p.sign
+          =.  progress.u.cam.gang  %error
+          %-  (slog leaf/"Knocking failed" u.p.sign)
+          ga-core
+        =.  cor  ga-give-update
+        ga-core
+          [%rescind ~]
+        ?>  ?=(%poke-ack -.sign)        
+        ?^  p.sign
+          ?>  ?=(^ cam.gang)
+          =.  progress.u.cam.gang  %error
+          %-  (slog leaf/"Rescind failed" u.p.sign)
+          ga-core
+        =.  cam.gang  ~
+        =.  cor  ga-give-update
         ga-core
     ==
   ::

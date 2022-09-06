@@ -10,6 +10,7 @@ import { nestToFlag, whomIsFlag } from '@/logic/utils';
 import { Cite } from '@/types/chat';
 import { udToDec } from '@urbit/api';
 import GroupReference from './GroupReference';
+import NoteReference from './NoteReference';
 
 export default function ChatContentReference({ cite }: { cite: Cite }) {
   const modalNavigate = useModalNavigate();
@@ -42,7 +43,6 @@ export default function ChatContentReference({ cite }: { cite: Cite }) {
           groupFlag={groupFlag}
           nest={nest}
           idWrit={idWrit}
-          refToken=""
         />
       );
     }
@@ -62,6 +62,7 @@ export default function ChatContentReference({ cite }: { cite: Cite }) {
           const isPatp = refTokenSplitByFas.length === 1 && isValidPatp(x);
           const containsHeap = refTokenSplitByFas[3] === 'heap';
           const containsMessage = refTokenSplitByFas[6] === 'message';
+          const containsDiary = refTokenSplitByFas[3] === 'diary';
 
           if (containsMessage) {
             const chFlag = refTokenSplitByFas.slice(4, 6).join('/');
@@ -69,16 +70,15 @@ export default function ChatContentReference({ cite }: { cite: Cite }) {
             const nest = refTokenSplitByFas.slice(3, 6).join('/');
             const idWrit = refTokenSplitByFas.slice(7).join('/');
             return (
-              <>
+              <span key={i}>
                 {makeSpace}
                 <WritReference
                   chFlag={chFlag}
                   groupFlag={groupFlag}
                   nest={nest}
                   idWrit={idWrit}
-                  refToken={x}
                 />
-              </>
+              </span>
             );
           }
 
@@ -89,7 +89,7 @@ export default function ChatContentReference({ cite }: { cite: Cite }) {
             const idCurio = refTokenSplitByFas[7];
 
             return (
-              <>
+              <span key={i}>
                 {makeSpace}
                 <CurioReference
                   groupFlag={groupFlag}
@@ -98,7 +98,26 @@ export default function ChatContentReference({ cite }: { cite: Cite }) {
                   idCurio={idCurio}
                   refToken={x}
                 />
-              </>
+              </span>
+            );
+          }
+
+          if (containsDiary) {
+            const chFlag = refTokenSplitByFas.slice(4, 6).join('/');
+            const groupFlag = refTokenSplitByFas.slice(0, 2).join('/');
+            const nest = refTokenSplitByFas.slice(3, 6).join('/');
+            const id = refTokenSplitByFas[7];
+
+            return (
+              <span key={i}>
+                {makeSpace}
+                <NoteReference
+                  groupFlag={groupFlag}
+                  chFlag={chFlag}
+                  nest={nest}
+                  id={id}
+                />
+              </span>
             );
           }
 
@@ -109,7 +128,7 @@ export default function ChatContentReference({ cite }: { cite: Cite }) {
               });
             };
             return (
-              <>
+              <span key={i}>
                 {makeSpace}
                 <span
                   className="cursor-pointer font-semibold"
@@ -117,20 +136,20 @@ export default function ChatContentReference({ cite }: { cite: Cite }) {
                 >
                   <ShipName name={x} />
                 </span>
-              </>
+              </span>
             );
           }
 
           if (whomIsFlag(x)) {
             const groupFlag = refTokenSplitByFas.slice(0, 2).join('/');
-            return <GroupReference flag={groupFlag} />;
+            return <GroupReference key={i} flag={groupFlag} />;
           }
         }
 
         return (
-          <>
+          <span key={i}>
             {makeSpace} {x}
-          </>
+          </span>
         );
       })}
     </>

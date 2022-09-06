@@ -1,6 +1,6 @@
 import { isValidPatp } from 'urbit-ob';
 import classNames from 'classnames';
-import React, { useMemo } from 'react';
+import React, { CSSProperties } from 'react';
 import { sigil as sigilRaw, reactRenderer } from '@tlon/sigil-js';
 import { deSig, Contact, cite } from '@urbit/api';
 import _ from 'lodash';
@@ -15,6 +15,7 @@ interface AvatarProps {
   ship: string;
   size?: AvatarSizes;
   className?: string;
+  style?: CSSProperties;
   icon?: boolean;
   previewData?: {
     previewColor?: string;
@@ -131,6 +132,7 @@ export default function Avatar({
   ship,
   size = 'default',
   className,
+  style,
   icon = true,
   previewData,
 }: AvatarProps) {
@@ -160,13 +162,19 @@ export default function Avatar({
         className={classNames(className, classes)}
         src={previewAvatar}
         alt=""
+        style={style}
       />
     );
   }
 
   if (avatar) {
     return (
-      <img className={classNames(className, classes)} src={avatar} alt="" />
+      <img
+        className={classNames(className, classes)}
+        src={avatar}
+        alt=""
+        style={style}
+      />
     );
   }
 
@@ -181,7 +189,7 @@ export default function Avatar({
         size === 'huge' && 'p-3',
         className
       )}
-      style={{ backgroundColor: adjustedColor }}
+      style={{ backgroundColor: adjustedColor, ...style }}
     >
       {sigilElement || (
         <div style={{ width: `${sigilSize}px`, height: `${sigilSize}px` }} />

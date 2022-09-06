@@ -66,6 +66,10 @@ export function makePrettyDay(date: Date) {
   }
 }
 
+export function makePrettyDate(date: Date) {
+  return `${format(date, 'PPP')}`;
+}
+
 export function makePrettyDayAndTime(date: Date) {
   const diff = differenceInDays(endOfToday(), date);
   const time = makePrettyTime(date);

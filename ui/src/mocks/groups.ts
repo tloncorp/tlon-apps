@@ -37,7 +37,10 @@ export function makeCordon(privacy = 'public') {
       break;
     case 'private':
       cordon = {
-        shut: [],
+        shut: {
+          ask: [],
+          pending: [],
+        },
       };
       break;
     default:

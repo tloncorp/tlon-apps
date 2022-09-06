@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useCurio, useHeapState } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import HeapBlock from '@/heap/HeapBlock';
-import ReferenceBottomBar from './ReferenceBottomBar';
+import ReferenceBar from '@/chat/ChatContent/ChatContentReference/ReferenceBar';
 
 export default function CurioReference({
   groupFlag,
@@ -32,7 +32,7 @@ export default function CurioReference({
   return (
     <div className="heap-inline-block group">
       <HeapBlock curio={curio} time={idCurio} />
-      <ReferenceBottomBar
+      <ReferenceBar
         groupFlag={groupFlag}
         nest={nest}
         time={time}

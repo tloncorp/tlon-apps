@@ -23,9 +23,7 @@ export default function GroupSummary({
   size = 'default',
 }: GroupSummaryProps) {
   const privacy = cordon && getGroupPrivacy(cordon);
-  const group = useGroup(flag);
   const { ship } = getFlagParts(flag);
-  const memberCount = Object.keys(group?.fleet ?? {}).length;
 
   return (
     <div className="flex items-center space-x-3 font-semibold">
@@ -53,10 +51,6 @@ export default function GroupSummary({
               <span>{privacy}</span>
             </span>
           ) : null}
-          <span className="inline-flex items-center space-x-1 capitalize text-gray-400">
-            <Person16Icon className="h-4 w-4" />
-            <span>{memberCount} members</span>
-          </span>
         </div>
       </div>
     </div>

@@ -54,7 +54,10 @@ export interface OpenCordon {
 }
 
 export interface ShutCordon {
-  shut: string[];
+  shut: {
+    pending: string[];
+    ask: string[];
+  };
 }
 
 export interface AfarCordon {
@@ -179,12 +182,20 @@ interface CordonDiffOpen {
     | CordonDiffOpenDelRanks;
 }
 
+type CordonDiffShutKind = 'ask' | 'pending';
+
 interface CordonDiffShutAddShips {
-  'add-ships': string[];
+  'add-ships': {
+    kind: CordonDiffShutKind;
+    ships: string[];
+  };
 }
 
 interface CordonDiffShutDelShips {
-  'del-ships': string[];
+  'del-ships': {
+    kind: CordonDiffShutKind;
+    ships: string[];
+  };
 }
 
 interface CordonDiffShut {
@@ -283,7 +294,12 @@ export interface Invite {
   ship: string;
 }
 
-export type JoinProgress = 'adding' | 'watching' | 'done' | 'error';
+export type JoinProgress =
+  | 'knocking'
+  | 'adding'
+  | 'watching'
+  | 'done'
+  | 'error';
 
 interface GroupClaim {
   progress: JoinProgress;
