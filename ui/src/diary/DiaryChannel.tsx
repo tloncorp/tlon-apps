@@ -1,67 +1,56 @@
 import _ from 'lodash';
-import React, { useCallback, useEffect } from 'react';
-import { Outlet, useParams, useRoutes } from 'react-router';
+import React, { useEffect } from 'react';
+import { Outlet, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup, useVessel } from '@/state/groups/groups';
-import { useNotesForDiary, useDiaryPerms, useDiaryState } from '@/state/diary';
+import { useRouteGroup } from '@/state/groups/groups';
+import { useNotesForDiary, useDiaryState } from '@/state/diary';
+import {
+  DiarySetting,
+  setSetting,
+  useDiaryDisplayMode,
+  useDiarySettings,
+  useDiarySortMode,
+  useSettingsState,
+} from '@/state/settings';
 import ChannelHeader from '@/channels/ChannelHeader';
-import { nestToFlag } from '@/logic/utils';
-import { useForm } from 'react-hook-form';
-import { parseInline, parseTipTapJSON, tipTapToString } from '@/logic/tiptap';
-import { VerseInline } from '@/types/diary';
-import { Link } from 'react-router-dom';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import DiaryEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
-
-interface NoteForm {
-  title: string;
-  image: string;
-}
+import { DiaryDisplayMode } from '@/types/diary';
+import { Link } from 'react-router-dom';
 
 function DiaryChannel() {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
-
   const notes = useNotesForDiary(chFlag);
-  const perms = useDiaryPerms(nest);
-  const vessel = useVessel(flag, window.our);
-  const canWrite =
-    perms.writers.length === 0 ||
-    _.intersection(perms.writers, vessel.sects).length !== 0;
-  const { register, handleSubmit, reset } = useForm<NoteForm>({
-    defaultValues: {
-      title: '',
-      image: '',
-    },
-  });
-  const editor = useDiaryInlineEditor({
-    content: '',
-    placeholder: 'Write a note...',
-    onEnter: () => false,
-  });
 
-  const onSubmit = useCallback(
-    ({ title, image }: NoteForm) => {
-      if (!editor?.getText()) {
-        return;
-      }
+  const settings = useDiarySettings();
+  // for now sortMode is not actually doing anything.
+  // need input from design/product on what we want it to actually do, it's not spelled out in figma.
+  const displayMode = useDiaryDisplayMode(chFlag);
+  const sortMode = useDiarySortMode(chFlag);
 
-      const data = parseTipTapJSON(editor?.getJSON());
+  const setDisplayMode = (setting: DiaryDisplayMode) => {
+    const newSettings = setSetting<DiarySetting>(
+      settings,
+      { displayMode: setting },
+      chFlag
+    );
+    useSettingsState
+      .getState()
+      .putEntry('diary', 'settings', JSON.stringify(newSettings));
+  };
 
-      useDiaryState.getState().addNote(chFlag, {
-        title,
-        image,
-        content: [{ inline: Array.isArray(data) ? data : [data] }],
-        author: window.our,
-        sent: Date.now(),
-      });
-
-      reset();
-    },
-    [chFlag, editor, reset]
-  );
+  const setSortMode = (setting: 'time' | 'alpha') => {
+    const newSettings = setSetting<DiarySetting>(
+      settings,
+      { sortMode: setting },
+      chFlag
+    );
+    useSettingsState
+      .getState()
+      .putEntry('diary', 'settings', JSON.stringify(newSettings));
+  };
 
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
@@ -75,36 +64,32 @@ function DiaryChannel() {
     <Layout
       className="flex-1 bg-white"
       aside={<Outlet />}
-      header={<ChannelHeader flag={flag} nest={nest} />}
+      header={
+        <ChannelHeader
+          flag={flag}
+          nest={nest}
+          showControls
+          displayMode={displayMode}
+          setDisplayMode={setDisplayMode}
+          sortMode={sortMode}
+          setSortMode={setSortMode}
+        >
+          <Link to="edit" className="button bg-blue text-white dark:text-black">
+            Add Note
+          </Link>
+        </ChannelHeader>
+      }
     >
       <div className="p-4">
-        <Link to="add">Add Note</Link>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <input type="text" {...register('title')} placeholder="Enter title" />
-          <input
-            type="text"
-            {...register('image')}
-            placeholder="Enter image URL"
-          />
-          {editor ? <DiaryEditor editor={editor} /> : null}
-          <button type="submit" className="button">
-            publish
-          </button>
-        </form>
         <ul>
           {Array.from(notes)
             .sort(([a], [b]) => b.compare(a))
             .map(([time, note]) => (
-              <Link to={`note/${time.toString()}`}>
-                <li key={time.toString()}>
+              <li key={time.toString()}>
+                <Link to={`note/${time.toString()}`}>
                   <span>{note.essay.title}</span>
-                  <p>
-                    {tipTapToString(
-                      parseInline((note.essay.content[0] as VerseInline).inline)
-                    )}
-                  </p>
-                </li>
-              </Link>
+                </Link>
+              </li>
             ))}
         </ul>
       </div>

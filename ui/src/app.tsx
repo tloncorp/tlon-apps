@@ -56,10 +56,10 @@ import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
 import DiaryNote from './diary/DiaryNote';
+import DiaryAddNote from './diary/DiaryAddNote';
 import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
-import DiaryAddNote from './diary/DiaryAddNote';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 
@@ -226,26 +226,21 @@ function GroupsRoutes({ state, location }: RoutesProps) {
                 element={<GroupChatThread />}
               />
             </Route>
-            <Route
-              path="channels/heap/:chShip/:chName"
-              element={<HeapChannel title={`${appHead('').title} • `} />}
-            />
-            <Route
-              path="channels/heap/:chShip/:chName/curio/:idCurio"
-              element={<HeapDetail />}
-            />
-            <Route
-              path="channels/diary/:chShip/:chName"
-              element={<DiaryChannel />}
-            />
-            <Route
-              path="channels/diary/:chShip/:chName/note/:noteId"
-              element={<DiaryNote />}
-            />
-            <Route
-              path="channels/diary/:chShip/:chName/add"
-              element={<DiaryAddNote />}
-            />
+            <Route path="channels/heap/:chShip/:chName">
+              <Route
+                index
+                element={<HeapChannel title={`${appHead('').title} • `} />}
+              />
+              <Route path="curio/:idCurio" element={<HeapDetail />} />
+            </Route>
+            <Route path="channels/diary/:chShip/:chName">
+              <Route index element={<DiaryChannel />} />
+              <Route path="note/:noteId" element={<DiaryNote />} />
+              <Route path="edit">
+                <Route index element={<DiaryAddNote />} />
+                <Route path=":id" element={<DiaryAddNote />} />
+              </Route>
+            </Route>
             <Route
               path="channels"
               element={
@@ -253,7 +248,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               }
             />
           </Route>
-          <Route path="/dm/:ship" element={<Message />} />
           <Route
             path="/profile/edit"
             element={

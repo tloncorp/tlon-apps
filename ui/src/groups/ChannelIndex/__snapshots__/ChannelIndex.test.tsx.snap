@@ -3,7 +3,7 @@
 exports[`ChannelIndex > renders as expected 1`] = `
 <DocumentFragment>
   <section
-    class="w-full p-4"
+    class="w-full overflow-y-scroll p-4"
   >
     <div
       class="mb-4 flex flex-row justify-between"

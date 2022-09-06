@@ -1,4 +1,4 @@
-import classNames from 'classnames';
+import cn from 'classnames';
 import {
   Editor,
   EditorContent,
@@ -33,6 +33,7 @@ interface useMessageEditorParams {
   whom?: string;
   content: JSONContent | string;
   placeholder?: string;
+  editorClass?: string;
   onEnter: ({ editor }: HandlerParams) => boolean;
   onUpdate?: ({ editor }: HandlerParams) => void;
 }
@@ -41,6 +42,7 @@ export function useMessageEditor({
   whom,
   content,
   placeholder,
+  editorClass,
   onEnter,
   onUpdate,
 }: useMessageEditorParams) {
@@ -97,7 +99,7 @@ export function useMessageEditor({
       content: content || '',
       editorProps: {
         attributes: {
-          class: 'input-inner',
+          class: cn('input-inner', editorClass),
           'aria-label': 'Message editor with formatting menu',
         },
       },
@@ -124,12 +126,9 @@ export default function MessageEditor({
 }: MessageEditorProps) {
   const isMobile = useIsMobile();
   return (
-    <div className={classNames('input block p-0', className)}>
+    <div className={cn('input block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
-      <EditorContent
-        className={classNames('w-full', inputClassName)}
-        editor={editor}
-      />
+      <EditorContent className={cn('w-full', inputClassName)} editor={editor} />
       {!isMobile ? <ChatInputMenu editor={editor} /> : null}
     </div>
   );
