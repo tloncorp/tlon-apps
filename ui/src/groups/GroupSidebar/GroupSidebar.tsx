@@ -13,7 +13,6 @@ import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
 import GroupAvatar from '../GroupAvatar';
 import GroupActions from '../GroupActions';
-import './GroupSidebar.css';
 
 export default function GroupSidebar() {
   const flag = useNavStore((state) => state.flag);
@@ -35,7 +34,7 @@ export default function GroupSidebar() {
   }
 
   return (
-    <nav className="slide-in flex h-full w-64 flex-none flex-col overflow-hidden border-r-2 border-gray-50 bg-white sm:p-2">
+    <nav className="flex h-full w-64 flex-none flex-col bg-white sm:p-2">
       <header className="flex-none px-2 py-1 sm:p-0">
         <button
           className="default-focus flex w-full items-center rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"

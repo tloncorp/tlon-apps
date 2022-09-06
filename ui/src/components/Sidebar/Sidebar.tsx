@@ -36,7 +36,7 @@ export default function Sidebar() {
   }
 
   return (
-    <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
+    <nav className="flex h-full w-64 flex-col bg-white">
       <ul className="flex w-full flex-col px-2 pt-2">
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
         <SidebarItem

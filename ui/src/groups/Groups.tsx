@@ -17,15 +17,6 @@ function Groups() {
   const initialized = useGroupsInitialized();
   const group = useGroup(flag);
   const gang = useGang(flag);
-  const isMobile = useIsMobile();
-
-  useEffect(() => {
-    if (!isMobile) {
-      useNavStore.getState().navigatePrimary('group', flag);
-    } else {
-      useNavStore.getState().navigatePrimary('hidden');
-    }
-  }, [flag, isMobile]);
 
   useEffect(() => {
     if (initialized && !group && !gang) {
