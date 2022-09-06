@@ -13,7 +13,6 @@ import MobileGroupSidebar from './MobileGroupSidebar';
 import ChannelList from './ChannelList';
 import GroupAvatar from '../GroupAvatar';
 import GroupActions from '../GroupActions';
-import './GroupSidebar.css';
 
 export default function GroupSidebar() {
   const flag = useNavStore((state) => state.flag);

@@ -1,10 +1,13 @@
 import React, { ReactElement, useEffect } from 'react';
+import { Outlet, useMatch } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useIsFirstRender } from 'usehooks-ts';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import GroupSidebar from '@/groups/GroupSidebar/GroupSidebar';
 import MessagesSidebar from '@/dms/MessagesSidebar';
 import useIsChat from '@/logic/useIsChat';
 import { useIsMobile } from '@/logic/useMedia';
+import { useRouteGroup } from '@/state/groups';
 import useNavStore from './useNavStore';
 
 function MobileGroupsNav({ navLocation }: { navLocation: string }) {
@@ -21,10 +24,13 @@ function MobileGroupsNav({ navLocation }: { navLocation: string }) {
   return selectedSidebar;
 }
 
-export default function Nav() {
+export function ActualNav() {
   const navLocation = useNavStore((s) => s.primary) as string;
   const isMobile = useIsMobile();
   const isChat = useIsChat();
+  const flag = useRouteGroup();
+  const inChannel = useMatch('/groups/:ship/:name/channels*');
+  const firstRender = useIsFirstRender();
   const animationConfig = {
     type: 'spring',
     stiffness: 2880,
@@ -32,10 +38,20 @@ export default function Nav() {
   };
 
   useEffect(() => {
-    if (isChat && (navLocation === 'group' || navLocation === 'main')) {
-      useNavStore.getState().navigatePrimary('dm');
+    if (!firstRender) {
+      return;
     }
-  }, [isChat, navLocation]);
+
+    if (isChat) {
+      useNavStore.getState().navigatePrimary('dm');
+    } else if (flag && !inChannel && !isMobile) {
+      useNavStore.getState().navigatePrimary('group', flag);
+    } else if (flag && (isMobile || inChannel)) {
+      useNavStore.getState().navigatePrimary('hidden');
+    } else {
+      useNavStore.getState().navigatePrimary('main');
+    }
+  }, [flag, firstRender, isMobile, isChat, inChannel]);
 
   if (navLocation === 'dm') {
     return <MessagesSidebar />;
@@ -78,4 +94,13 @@ export default function Nav() {
   }
 
   return null;
+}
+
+export default function Nav() {
+  return (
+    <div className="flex h-full w-full">
+      <ActualNav />
+      <Outlet />
+    </div>
+  );
 }

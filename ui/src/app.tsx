@@ -141,105 +141,115 @@ function ChatRoutes({ state, location }: RoutesProps) {
 function GroupsRoutes({ state, location }: RoutesProps) {
   return (
     <>
-      <Nav />
       <Routes location={state?.backgroundLocation || location}>
-        <Route
-          path="/notifications"
-          element={
-            <Notifications
-              child={GroupNotification}
-              title={`${appHead('').title} • All Notifications`}
-            />
-          }
-        />
-        {/* Find by Invite URL */}
-        <Route
-          path="/groups/find/:ship/:name"
-          element={<FindGroups title={`${appHead('').title} • Find Groups`} />}
-        />
-        {/* Find by Nickname or @p */}
-        <Route
-          path="/groups/find/:ship"
-          element={<FindGroups title={`${appHead('').title} • Find Groups`} />}
-        />
-        <Route
-          path="/groups/find"
-          element={<FindGroups title={`${appHead('').title} • Find Groups`} />}
-        />
-        <Route path="/groups/:ship/:name/*" element={<Groups />}>
+        <Route element={<Nav />}>
+          <Route index />
           <Route
-            path="activity"
+            path="/notifications"
             element={
               <Notifications
                 child={GroupNotification}
-                title={`${appHead('').title} • Activity`}
+                title={`${appHead('').title} • All Notifications`}
               />
             }
           />
-          <Route path="info" element={<GroupAdmin />}>
+          {/* Find by Invite URL */}
+          <Route
+            path="/groups/find/:ship/:name"
+            element={
+              <FindGroups title={`${appHead('').title} • Find Groups`} />
+            }
+          />
+          {/* Find by Nickname or @p */}
+          <Route
+            path="/groups/find/:ship"
+            element={
+              <FindGroups title={`${appHead('').title} • Find Groups`} />
+            }
+          />
+          <Route
+            path="/groups/find"
+            element={
+              <FindGroups title={`${appHead('').title} • Find Groups`} />
+            }
+          />
+          <Route path="/groups/:ship/:name/*" element={<Groups />}>
             <Route
-              index
-              element={<GroupInfo title={`${appHead('').title} • Info`} />}
+              path="activity"
+              element={
+                <Notifications
+                  child={GroupNotification}
+                  title={`${appHead('').title} • Activity`}
+                />
+              }
+            />
+            <Route path="info" element={<GroupAdmin />}>
+              <Route
+                index
+                element={<GroupInfo title={`${appHead('').title} • Info`} />}
+              />
+              <Route
+                path="members"
+                element={
+                  <GroupMemberManager
+                    title={`${appHead('').title} • Members`}
+                  />
+                }
+              />
+              <Route
+                path="channels"
+                element={
+                  <GroupChannelManager
+                    title={`${appHead('').title} • Channels`}
+                  />
+                }
+              />
+            </Route>
+            <Route
+              path="channels/join/:app/:chShip/:chName"
+              element={<Channel />}
             />
             <Route
-              path="members"
-              element={
-                <GroupMemberManager title={`${appHead('').title} • Members`} />
-              }
+              path="channels/chat/:chShip/:chName"
+              element={<ChatChannel title={`${appHead('').title} • `} />}
+            >
+              <Route
+                path="message/:idShip/:idTime"
+                element={<GroupChatThread />}
+              />
+            </Route>
+            <Route
+              path="channels/heap/:chShip/:chName"
+              element={<HeapChannel title={`${appHead('').title} • `} />}
+            />
+            <Route
+              path="channels/heap/:chShip/:chName/curio/:idCurio"
+              element={<HeapDetail />}
+            />
+            <Route
+              path="channels/diary/:chShip/:chName"
+              element={<DiaryChannel />}
+            />
+
+            <Route
+              path="channels/diary/:chShip/:chName/note/:noteId"
+              element={<DiaryNote />}
             />
             <Route
               path="channels"
               element={
-                <GroupChannelManager
-                  title={`${appHead('').title} • Channels`}
-                />
+                <ChannelIndex title={`${appHead('').title} • All Channels`} />
               }
             />
           </Route>
+          <Route path="/dm/:ship" element={<Message />} />
           <Route
-            path="channels/join/:app/:chShip/:chName"
-            element={<Channel />}
-          />
-          <Route
-            path="channels/chat/:chShip/:chName"
-            element={<ChatChannel title={`${appHead('').title} • `} />}
-          >
-            <Route
-              path="message/:idShip/:idTime"
-              element={<GroupChatThread />}
-            />
-          </Route>
-          <Route
-            path="channels/heap/:chShip/:chName"
-            element={<HeapChannel title={`${appHead('').title} • `} />}
-          />
-          <Route
-            path="channels/heap/:chShip/:chName/curio/:idCurio"
-            element={<HeapDetail />}
-          />
-          <Route
-            path="channels/diary/:chShip/:chName"
-            element={<DiaryChannel />}
-          />
-
-          <Route
-            path="channels/diary/:chShip/:chName/note/:noteId"
-            element={<DiaryNote />}
-          />
-          <Route
-            path="channels"
+            path="/profile/edit"
             element={
-              <ChannelIndex title={`${appHead('').title} • All Channels`} />
+              <EditProfile title={`${appHead('').title} • Edit Profile`} />
             }
           />
         </Route>
-        <Route path="/dm/:ship" element={<Message />} />
-        <Route
-          path="/profile/edit"
-          element={
-            <EditProfile title={`${appHead('').title} • Edit Profile`} />
-          }
-        />
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
