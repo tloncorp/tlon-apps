@@ -68,12 +68,12 @@ export default function GroupSidebar() {
           </SidebarItem>
         </ul>
       </div>
-      <div className="flex-1">
-        <div className="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2">
-          <span className="ml-4 text-sm font-semibold text-gray-400">
-            Channels
-          </span>
-        </div>
+      <div className="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2">
+        <span className="ml-4 text-sm font-semibold text-gray-400">
+          Channels
+        </span>
+      </div>
+      <div className="flex-1 overflow-y-auto">
         <ChannelList className="p-2 pt-0" flag={flag} />
       </div>
     </nav>

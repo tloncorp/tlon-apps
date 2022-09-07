@@ -100,7 +100,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
         </div>
         <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
       </DropdownMenu.Root>
-      <ul className={cn(isMobile && 'space-y-3')}>
+      <ul className={cn(isMobile && 'flex-none space-y-3')}>
         {isDefaultSort
           ? sections.map((s) => (
               <div key={s}>
