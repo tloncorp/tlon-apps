@@ -33,6 +33,7 @@ function DiaryChannel() {
   const [showToast, setShowToast] = useState(false);
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
+  console.log(newNote);
 
   const settings = useDiarySettings();
   // for now sortMode is not actually doing anything.
@@ -70,8 +71,10 @@ function DiaryChannel() {
   useEffect(() => {
     if (newNote) {
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-      navigate(location.pathname, { replace: true });
+      setTimeout(() => {
+        setShowToast(false);
+        navigate(location.pathname, { replace: true });
+      }, 3000);
     }
   }, [newNote, location, navigate]);
 
