@@ -6,15 +6,52 @@ import ShipName from '@/components/ShipName';
 // eslint-disable-next-line import/no-cycle
 import WritReference from '@/chat/ChatContent/ChatContentReference/WritReference';
 import CurioReference from '@/chat/ChatContent/ChatContentReference/CurioReference';
-import { whomIsFlag } from '@/logic/utils';
+import { nestToFlag, whomIsFlag } from '@/logic/utils';
+import { Cite } from '@/types/chat';
+import { udToDec } from '@urbit/api';
 import GroupReference from './GroupReference';
 import NoteReference from './NoteReference';
 
-export default function ChatContentReference({ story }: { story: string }) {
+export default function ChatContentReference({ cite }: { cite: Cite }) {
   const modalNavigate = useModalNavigate();
   const location = useLocation();
-  const storySplitBySpace = story.split(' ');
-
+  if ('group' in cite) {
+    return <GroupReference flag={cite.group} />;
+  }
+  if ('chan' in cite) {
+    const { nest, where } = cite.chan;
+    const [app, chFlag] = nestToFlag(cite.chan.nest);
+    const segments = where.split('/');
+    const groupFlag = '~bus/test-group';
+    if (app === 'heap') {
+      const idCurio = udToDec(segments[2]);
+      return (
+        <CurioReference
+          groupFlag={groupFlag}
+          chFlag={chFlag}
+          nest={nest}
+          idCurio={idCurio}
+        />
+      );
+    }
+    if (app === 'chat') {
+      const idWritTime = udToDec(segments[3]);
+      const idWrit = `${segments[2]}/${segments[3]}`;
+      return (
+        <WritReference
+          chFlag={chFlag}
+          groupFlag={groupFlag}
+          nest={nest}
+          idWrit={idWrit}
+        />
+      );
+    }
+    if (app === 'diary') {
+      return null;
+    }
+  }
+  return null;
+  /*
   return (
     <>
       {storySplitBySpace.map((x, i) => {
@@ -116,5 +153,5 @@ export default function ChatContentReference({ story }: { story: string }) {
         );
       })}
     </>
-  );
+  ); */
 }

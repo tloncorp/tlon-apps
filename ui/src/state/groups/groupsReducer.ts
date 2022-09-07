@@ -53,6 +53,12 @@ function reduceFleet(draft: Group, diff: FleetDiff) {
         return fleet;
       }, {} as Fleet),
     };
+    if ('shut' in draft.cordon) {
+      const addsRemoved = draft.cordon.shut.pending.filter((s) =>
+        ships.includes(s)
+      );
+      draft.cordon.shut.pending = addsRemoved;
+    }
   } else if ('del' in d) {
     ships.forEach((ship) => {
       delete draft.fleet[ship];

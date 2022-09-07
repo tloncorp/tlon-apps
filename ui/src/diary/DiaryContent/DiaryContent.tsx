@@ -1,5 +1,4 @@
 import React from 'react';
-import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
   isBlockquote,
   isBold,
@@ -10,13 +9,13 @@ import {
   isStrikethrough,
   Inline,
 } from '@/types/content';
-import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
-import { PATP_REGEX } from '@/logic/utils';
 // eslint-disable-next-line import/no-cycle
 import ChatContentReference from '@/chat/ChatContent/ChatContentReference/ChatContentReference';
+import { DiaryBlock, isDiaryImage, NoteContent } from '@/types/diary';
+import DiaryContentImage from './DiaryContentImage';
 
-interface ChatContentProps {
-  story: ChatStory;
+interface DiaryContentProps {
+  content: NoteContent;
 }
 
 interface InlineContentProps {
@@ -24,7 +23,7 @@ interface InlineContentProps {
 }
 
 interface BlockContentProps {
-  story: ChatBlock;
+  story: DiaryBlock;
 }
 
 export function InlineContent({ story }: InlineContentProps) {
@@ -107,9 +106,9 @@ export function InlineContent({ story }: InlineContentProps) {
 }
 
 export function BlockContent({ story }: BlockContentProps) {
-  if (isChatImage(story)) {
+  if (isDiaryImage(story)) {
     return (
-      <ChatContentImage
+      <DiaryContentImage
         src={story.image.src}
         height={story.image.height}
         width={story.image.width}
@@ -117,6 +116,7 @@ export function BlockContent({ story }: BlockContentProps) {
       />
     );
   }
+
   if ('cite' in story) {
     return <ChatContentReference cite={story.cite} />;
   }
@@ -124,36 +124,22 @@ export function BlockContent({ story }: BlockContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export default function ChatContent({ story }: ChatContentProps) {
-  const inlineLength = story.inline.length;
-  const blockLength = story.block.length;
-
+export default function DiaryContent({ content }: DiaryContentProps) {
   return (
-    <div className="leading-6">
-      {blockLength > 0 ? (
-        <>
-          {story.block
-            .filter((a) => !!a)
-            .map((storyItem, index) => (
-              <div
-                key={`${storyItem.toString()}-${index}`}
-                className="flex flex-col"
-              >
-                <BlockContent story={storyItem} />
-              </div>
+    <article className="text-[18px] leading-[26px]">
+      {content.map((c, index) => {
+        if ('block' in c) {
+          return <BlockContent key={index} story={c.block} />;
+        }
+
+        return (
+          <p key={index}>
+            {c.inline.map((con, i) => (
+              <InlineContent key={i} story={con} />
             ))}
-        </>
-      ) : null}
-      {inlineLength > 0 ? (
-        <>
-          {story.inline.map((storyItem, index) => (
-            <InlineContent
-              key={`${storyItem.toString()}-${index}`}
-              story={storyItem}
-            />
-          ))}
-        </>
-      ) : null}
-    </div>
+          </p>
+        );
+      })}
+    </article>
   );
 }
