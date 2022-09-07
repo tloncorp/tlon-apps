@@ -7,7 +7,8 @@ import { channelHref, nestToFlag, filterJoinedChannels } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups';
 import useNavStore from '@/components/Nav/useNavStore';
-import CaretDownIcon from '@/components/icons/CaretDownIcon';
+import CaretDown16Icon from '@/components/icons/CaretDownIcon';
+import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useChannelSort from '@/logic/useChannelSort';
 import { DEFAULT } from '@/logic/useSidebarSort';
@@ -85,15 +86,18 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   return (
     <div className={className}>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger
-          className="default-focus mt-2 mb-3 rounded-lg p-2 text-gray-600 sm:m-0"
-          aria-label="Channels Sort Options"
-        >
-          <div className="default-focus flex items-center space-x-2 rounded-lg bg-gray-50 p-2 text-base font-semibold">
-            <span className="pl-1">{`Channels: ${sortFn}`}</span>
-            <CaretDownIcon className="w-4 text-gray-400" />
-          </div>
-        </DropdownMenu.Trigger>
+        <div className="p-2">
+          <DropdownMenu.Trigger
+            className="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
+            aria-label="Channels Sort Options"
+          >
+            <span className="flex items-center">
+              <SortIcon className="h-4 w-4 text-gray-400" />
+              <span className="mr-2 pl-1">{`Sort: ${sortFn}`}</span>
+            </span>
+            <CaretDown16Icon className="h-4 w-4 text-gray-400" />
+          </DropdownMenu.Trigger>
+        </div>
         <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
       </DropdownMenu.Root>
       <ul className={cn(isMobile && 'space-y-3')}>

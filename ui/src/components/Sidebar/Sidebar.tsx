@@ -82,20 +82,6 @@ export default function Sidebar() {
         >
           Create Groups
         </SidebarItem>
-        <a
-          className="no-underline"
-          href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=groups:"
-          target="_blank"
-          rel="noreferrer"
-        >
-          {/* <SidebarItem
-            color="text-yellow-600 dark:text-yellow-500"
-            highlight="bg-yellow-soft hover:bg-yellow-soft hover:dark:bg-yellow-800"
-            icon={<AsteriskIcon className="m-1 h-4 w-4" />}
-          >
-            Submit Issue
-          </SidebarItem> */}
-        </a>
         {hasKeys(pinnedGroups) ? (
           <GroupList
             className="flex-1 overflow-y-scroll pr-0"
