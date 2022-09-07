@@ -95,7 +95,7 @@
   ++  notes-diff
     |=  =diff:notes:d
     %-  pairs
-    :~  time/(time p.diff)
+    :~  time/s/(scot %ud p.diff)
         delta/(notes-delta q.diff)
     ==
   ::
