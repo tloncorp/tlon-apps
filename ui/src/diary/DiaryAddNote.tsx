@@ -3,16 +3,20 @@ import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
 import { parseTipTapJSON } from '@/logic/tiptap';
 import { useDiaryState } from '@/state/diary';
+import { useRouteGroup } from '@/state/groups';
 import { NoteEssay } from '@/types/diary';
+import { unixToDa } from '@urbit/api';
 import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
+  const group = useRouteGroup();
+  const navigate = useNavigate();
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
@@ -37,18 +41,25 @@ export default function DiaryAddNote() {
     const data = parseTipTapJSON(editor?.getJSON());
     const values = getValues();
 
+    const sent = Date.now();
+
     useDiaryState.getState().addNote(chFlag, {
       ...values,
       content: [{ inline: Array.isArray(data) ? data : [data] }],
       author: window.our,
-      sent: Date.now(),
+      sent,
     });
 
     reset();
     if (!editor?.isDestroyed) {
       editor.commands.setContent('');
     }
-  }, [chFlag, editor, reset, getValues]);
+    navigate(
+      `/groups/${group}/channels/diary/${chFlag}?new=${unixToDa(
+        sent
+      ).toString()}`
+    );
+  }, [chFlag, editor, reset, getValues, navigate, group]);
 
   return (
     <Layout

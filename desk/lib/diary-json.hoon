@@ -95,7 +95,7 @@
   ++  notes-diff
     |=  =diff:notes:d
     %-  pairs
-    :~  time/(time p.diff)
+    :~  time/s/(scot %ud p.diff)
         delta/(notes-delta q.diff)
     ==
   ::
@@ -180,7 +180,7 @@
     |=  =notes:d
     ^-  json
     %-  pairs
-    %+  turn  (tap:on:notes:d notes) 
+    %+  turn  (tap:on:notes:d notes)
     |=  [key=@da n=note:d]
     [(scot %ud key) (note n)]
   ::

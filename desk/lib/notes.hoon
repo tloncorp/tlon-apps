@@ -8,7 +8,7 @@
     key.u.tim
   =/  unreads
     (lot:on:notes:d not `last-read ~)
-  =/  read-id=(unit ^time)  
+  =/  read-id=(unit ^time)
     (bind (pry:on:notes:d unreads) |=([key=@da val=note:d] time.val))
   =/  count
     (lent (skim ~(tap by unreads) |=([tim=^time =note:d] !=(author.note our))))
@@ -41,7 +41,7 @@
     =/  =seal:d  [time ~]
     ?:  (~(has by not) time)
       not
-    (put:on:notes:d not now [seal p.del])
+    (put:on:notes:d not time [seal p.del])
   ::
       %del
     =^  no=(unit note:d)  not
