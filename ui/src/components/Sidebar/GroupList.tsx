@@ -53,6 +53,7 @@ function DraggableGroupItem({ flag }: { flag: string }) {
         div
         icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
         actions={<GroupActions flag={flag} />}
+        to={`/groups/${flag}`}
         onClick={() => navPrimary('group', flag)}
       >
         {group?.meta.title}
@@ -69,6 +70,7 @@ function GroupItem({ flag }: { flag: string }) {
     <SidebarItem
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
       actions={<GroupActions flag={flag} />}
+      to={`/groups/${flag}`}
       onClick={() => navPrimary('group', flag)}
     >
       {group?.meta.title}

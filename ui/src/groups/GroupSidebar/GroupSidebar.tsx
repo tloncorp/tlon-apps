@@ -36,13 +36,13 @@ export default function GroupSidebar() {
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
       <header className="flex-none p-2 pb-0">
-        <button
-          className="default-focus flex w-full items-center rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
+        <SidebarItem
+          icon={<CaretLeft16Icon className="m-1 h-4 w-4 text-gray-400" />}
+          to="/"
           onClick={() => navPrimary('main')}
         >
-          <CaretLeft16Icon className="m-1 mr-4 h-4 w-4 text-gray-400" />
           Back to Groups
-        </button>
+        </SidebarItem>
       </header>
       <div className="h-4" />
       <div className="flex min-h-0 flex-col p-2 pt-0">
@@ -60,12 +60,6 @@ export default function GroupSidebar() {
               </button>
             </GroupActions>
           </li>
-          <SidebarItem
-            icon={<ActivityIndicator count={count} />}
-            to={`/groups/${flag}/activity`}
-          >
-            Activity
-          </SidebarItem>
           <SidebarItem
             icon={<HashIcon16 className="m-1 h-4 w-4" />}
             to={`/groups/${flag}/channels`}

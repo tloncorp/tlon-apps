@@ -149,7 +149,15 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<Nav />}>
-          <Route index />
+          <Route
+            index
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`${appHead('').title} • Activity`}
+              />
+            }
+          />
           <Route
             path="/notifications"
             element={
@@ -179,16 +187,15 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               <FindGroups title={`${appHead('').title} • Find Groups`} />
             }
           />
-          <Route path="/groups/:ship/:name/*" element={<Groups />}>
-            <Route
-              path="activity"
-              element={
-                <Notifications
-                  child={GroupNotification}
-                  title={`${appHead('').title} • Activity`}
-                />
-              }
-            />
+          <Route
+            path="/groups/:ship/:name/*"
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`${appHead('').title} • Activity`}
+              />
+            }
+          >
             <Route path="info" element={<GroupAdmin />}>
               <Route
                 index
