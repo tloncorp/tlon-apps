@@ -88,6 +88,7 @@ function ChatRoutes({ state, location }: RoutesProps) {
     <>
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<Nav />}>
+          <Route index />
           <Route
             path="/notifications"
             element={
