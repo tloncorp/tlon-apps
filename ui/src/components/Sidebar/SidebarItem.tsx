@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import Color from 'color';
+import { mix } from 'color2k';
 import React, {
   ButtonHTMLAttributes,
   PropsWithChildren,
@@ -74,8 +74,8 @@ export default function SidebarItem({
       return {
         backgroundColor:
           currentTheme === 'dark'
-            ? Color(highlight).mix(Color('black'), 0.7)
-            : Color(highlight).mix(Color('white'), 0.8),
+            ? mix(highlight, 'black', 0.7)
+            : mix(highlight, 'white', 0.85),
       };
     return null;
   };
