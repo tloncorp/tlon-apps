@@ -41,7 +41,7 @@
     =/  =seal:d  [time ~]
     ?:  (~(has by not) time)
       not
-    (put:on:notes:d not now [seal p.del])
+    (put:on:notes:d not time [seal p.del])
   ::
       %del
     =^  no=(unit note:d)  not
