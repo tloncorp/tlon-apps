@@ -58,6 +58,7 @@ export function makeCordon(privacy = 'public') {
 
 export function makeGroupPreview(privacy = 'public'): GroupPreview {
   return {
+    flag: '~zod/test',
     cordon: makeCordon(privacy),
     time: Date.now(),
     meta: {
@@ -349,6 +350,7 @@ export const mockGangs: Gangs = {
       'join-all': true,
     },
     preview: {
+      flag: '~zod/structure',
       time: Date.now(),
       cordon: {
         afar: {

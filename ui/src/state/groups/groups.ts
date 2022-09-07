@@ -2,7 +2,7 @@ import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import create from 'zustand';
 import produce from 'immer';
 import { useParams } from 'react-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Gangs,
   GroupChannel,
@@ -12,10 +12,13 @@ import {
   GroupAction,
   GroupPreview,
   GroupIndex,
+  ChannelPreview,
+  ChannelPrivacyType,
 } from '@/types/groups';
 import api from '@/api';
 import groupsReducer from './groupsReducer';
 import { GroupState } from './type';
+import { useEffectOnce } from 'usehooks-ts';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -603,6 +606,17 @@ export function usePendingGangsWithoutClaim() {
 const selInit = (s: GroupState) => s.initialized;
 export function useGroupsInitialized() {
   return useGroupState(selInit);
+}
+
+export function useGroupPreviewByNest(nest: string) {
+  const [res, setRes] = useState(null as ChannelPreview | null);
+  useEffect(() => {
+    subscribeOnce<ChannelPreview>('groups', `/chan/${nest}`).then(setRes);
+    return () => {
+      setRes(null);
+    };
+  }, [nest]);
+  return res;
 }
 
 (window as any).groups = useGroupState.getState;

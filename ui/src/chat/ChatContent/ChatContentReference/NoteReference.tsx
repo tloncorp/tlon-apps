@@ -99,7 +99,6 @@ export default function NoteReference({
         </Link>
       </div>
       <ReferenceBar
-        groupFlag={groupFlag}
         nest={nest}
         author={note.essay.author}
         time={time}
