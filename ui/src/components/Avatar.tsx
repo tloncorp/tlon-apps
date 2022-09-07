@@ -197,3 +197,21 @@ export default function Avatar({
     </div>
   );
 }
+
+export function useProfileColor(
+  ship: string,
+  previewData?: {
+    previewColor?: string;
+    previewAvatar?: string;
+  }
+) {
+  const currentTheme = useCurrentTheme();
+  const contact = useContact(ship);
+  const { previewColor } = previewData ?? {};
+  const { color } = contact || emptyContact;
+  const adjustedColor = themeAdjustColor(
+    normalizeUrbitColor(previewColor || color),
+    currentTheme
+  );
+  return adjustedColor;
+}

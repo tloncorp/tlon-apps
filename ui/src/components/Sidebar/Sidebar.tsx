@@ -13,7 +13,7 @@ import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import { usePinnedGroups } from '@/state/chat';
 import { hasKeys } from '@/logic/utils';
 import ShipName from '@/components/ShipName';
-import Avatar from '@/components/Avatar';
+import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
 
@@ -30,6 +30,7 @@ export default function Sidebar() {
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);
   const sortedPinnedGroups = sortGroups(pinnedGroups);
+  const shipColor = useProfileColor(window.our);
 
   if (isMobile) {
     return <MobileSidebar />;
@@ -41,13 +42,15 @@ export default function Sidebar() {
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
         <SidebarItem
           div
-          highlight="transparent"
-          className="mb-4 cursor-default text-black"
+          className="text-black"
+          to="/"
           icon={<AppGroupsIcon className="h-6 w-6" />}
         >
           Groups
         </SidebarItem>
+        <div className="h-4" />
         <SidebarItem
+          highlight={shipColor}
           icon={<Avatar size="xs" ship={window.our} />}
           to={'/profile/edit'}
         >
