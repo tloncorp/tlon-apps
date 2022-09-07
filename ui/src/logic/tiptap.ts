@@ -170,15 +170,12 @@ export function parseTipTapJSON(json: JSONContent): Inline[] {
 }
 
 const makeText = (t: string) => ({ type: 'text', text: t });
-const makeParagraph = (c?: JSONContent): JSONContent => {
-  if (c && c.type === 'paragraph') {
-    return c;
-  }
+const makeParagraph = (content?: JSONContent[]): JSONContent => {
   const p = { type: 'paragraph' };
-  if (!c) {
+  if (!content) {
     return p;
   }
-  return { ...p, content: [c] };
+  return { ...p, content };
 };
 const makeMarks = (k: InlineKey) => ({ type: convertTipTapType(k) });
 const makeStyledText = (i: Inline, context: JSONContent = {}) => {
@@ -196,6 +193,40 @@ const makeStyledText = (i: Inline, context: JSONContent = {}) => {
   };
 };
 
+export function wrapParagraphs(content: JSONContent[]) {
+  let wrapQueue: JSONContent[] = [];
+
+  const wrappedContent = content.reduce((memo, c) => {
+    switch (c.type) {
+      case 'paragraph':
+        if (wrapQueue.length > 0) {
+          memo.push(makeParagraph(wrapQueue));
+        }
+        memo.push(c);
+        wrapQueue = [];
+        break;
+      case 'blockquote':
+        memo.push(c);
+        break;
+      default:
+        wrapQueue.push(c);
+        break;
+    }
+
+    return memo;
+  }, [] as JSONContent[]);
+
+  if (wrapQueue.length > 0) {
+    wrappedContent.push(makeParagraph(wrapQueue));
+  }
+
+  if (wrappedContent.length === 0) {
+    return [makeParagraph([])];
+  }
+
+  return wrappedContent;
+}
+
 // 'foo' | { bold: ['bar'] } | { italics: [ { bold: [ "foobar" ] } ] } | { 'inline-code': 'code' } | { break: null }
 export const inlineToContent = (
   inline: Inline,
@@ -206,6 +237,19 @@ export const inlineToContent = (
       return makeStyledText(inline, ctx);
     }
     return makeText(inline);
+  }
+
+  if ('blockquote' in inline) {
+    return {
+      type: 'blockquote',
+      content: wrapParagraphs(
+        inline.blockquote.map((bq) => inlineToContent(bq))
+      ),
+    };
+  }
+
+  if ('break' in inline) {
+    return makeParagraph();
   }
 
   const key = Object.keys(inline)[0] as InlineKey;
@@ -239,11 +283,11 @@ export const inlineToContent = (
  * @returns A JSONContent object (consumed by TipTap Editor to render rich text)
  */
 export function inlinesToJSON(message: Inline[]): JSONContent {
+  const parsedContent = message.map((m) => inlineToContent(m));
+
   return {
     type: 'doc',
-    content: message
-      .map((m) => inlineToContent(m))
-      .map((c) => makeParagraph(c)),
+    content: wrapParagraphs(parsedContent),
   };
 }
 
