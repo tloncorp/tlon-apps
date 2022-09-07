@@ -171,6 +171,10 @@
     =/  ship=@p  (slav %p ship.pole)
     ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
   ::
+     [%chan app=@ ship=@ name=@ rest=*]
+    =/  ship=@p  (slav %p ship.pole)
+    =/  =nest:g  [app.pole ship name.pole]
+    (watch-chan nest)
   ==
 ++  peek
   |=  =(pole knot)
@@ -204,6 +208,12 @@
       [%gangs ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     ga-abet:(ga-agent:(ga-abed:gang-core ship name.pole) rest.pole sign)
+  ::
+      [%chan app=@ ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    =/  =nest:g  [app.pole ship name.pole]
+    (take-chan nest sign)
+
   ==
 ::
 ++  arvo
@@ -229,6 +239,47 @@
   ^-  (unit card)
   ?:  =(dude dap.bowl)  ~
   `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
+::
+++  watch-chan
+  |=  =nest:g
+  ^+  cor
+  ?.  =(our.bowl p.q.nest)
+    =/  =wire  /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+    (emit [%pass wire %agent [p.q.nest dap.bowl] %watch `path`wire])
+  =/  gs  ~(tap by groups)
+  |-  
+  ?~  gs
+    ~|(no-group-found/nest !!)
+  =/  [=flag:g =net:g =group:g]  i.gs
+  ?.  (~(has by channels.group) nest)
+    $(gs t.gs)
+  =/  =preview:g
+    =,  group
+    [meta cordon now.bowl]
+  =.  cor  (emit %give %fact ~ group-preview+!>(preview))
+  (emit %give %kick ~ ~)
+::
+++  take-chan
+  |=  [=nest:g =sign:agent:gall]
+  =/  =wire  =,(nest /chan/[p]/(scot %p p.q)/[q.q])
+  ^+  cor
+  ?+    -.sign  ~|(bad-chan-take/[-.sign nest] !!)
+      %watch-ack
+    ?~  p.sign  cor
+    :: TODO: propagate upwards 
+    %-  (slog leaf/"Failed to fetch group" u.p.sign)
+    cor
+  ::
+      %fact
+    ?.  =(%group-preview p.cage.sign)
+      cor
+    =+  !<(=preview:g q.cage.sign) :: XX: really necessary?
+    =.  cor  (emit %give %fact ~[wire] cage.sign)
+    (emit %give %kick ~[wire] ~)
+  ::
+      %kick  :: XX: better?
+    (emit %give %kick ~[wire] ~)
+  ==
 ::
 ++  from-self  =(our src):bowl
 ++  pass-hark
