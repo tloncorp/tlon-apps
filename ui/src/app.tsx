@@ -329,6 +329,11 @@ function App() {
     handleError(() => {
       checkIfLoggedIn();
       handleGridRedirect(navigate);
+    });
+  }, [handleError, navigate]);
+
+  useEffect(() => {
+    handleError(() => {
       // TODO: Clean up this order for different apps
       useGroupState.getState().start();
       useChatState.getState().start();
@@ -344,7 +349,7 @@ function App() {
 
       useContactState.getState().initialize(api);
     })();
-  }, [navigate, handleError]);
+  }, [handleError]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
