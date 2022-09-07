@@ -56,10 +56,10 @@ import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
 import DiaryNote from './diary/DiaryNote';
+import DiaryAddNote from './diary/DiaryAddNote';
 import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
-import DiaryAddNote from './diary/DiaryAddNote';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 
@@ -86,48 +86,49 @@ interface RoutesProps {
 function ChatRoutes({ state, location }: RoutesProps) {
   return (
     <>
-      <Nav />
       <Routes location={state?.backgroundLocation || location}>
-        <Route
-          path="/notifications"
-          element={
-            <Notifications
-              child={DMNotification}
-              title={`${appHead('chat').title} • All Notifications`}
-            />
-          }
-        />
-        <Route path="/dm/" element={<Dms />}>
-          <Route index element={<DMHome />} />
-          <Route path="new" element={<NewDM />} />
-          <Route path=":ship" element={<Message />}>
-            <Route path="search" element={<Search />} />
-            <Route path="message/:idShip/:idTime" element={<DmThread />} />
-          </Route>
-        </Route>
-
-        <Route path="/groups/:ship/:name/*" element={<Groups />}>
+        <Route element={<Nav />}>
           <Route
-            path="channels/join/:app/:chShip/:chName"
-            element={<Channel />}
+            path="/notifications"
+            element={
+              <Notifications
+                child={DMNotification}
+                title={`${appHead('chat').title} • All Notifications`}
+              />
+            }
           />
-          <Route
-            path="channels/chat/:chShip/:chName"
-            element={<ChatChannel title={`${appHead('chat').title} • `} />}
-          >
-            <Route
-              path="message/:idShip/:idTime"
-              element={<GroupChatThread />}
-            />
+          <Route path="/dm/" element={<Dms />}>
+            <Route index element={<DMHome />} />
+            <Route path="new" element={<NewDM />} />
+            <Route path=":ship" element={<Message />}>
+              <Route path="search" element={<Search />} />
+              <Route path="message/:idShip/:idTime" element={<DmThread />} />
+            </Route>
           </Route>
-        </Route>
 
-        <Route
-          path="/profile/edit"
-          element={
-            <EditProfile title={`${appHead('chat').title} • Edit Profile`} />
-          }
-        />
+          <Route path="/groups/:ship/:name/*" element={<Groups />}>
+            <Route
+              path="channels/join/:app/:chShip/:chName"
+              element={<Channel />}
+            />
+            <Route
+              path="channels/chat/:chShip/:chName"
+              element={<ChatChannel title={`${appHead('chat').title} • `} />}
+            >
+              <Route
+                path="message/:idShip/:idTime"
+                element={<GroupChatThread />}
+              />
+            </Route>
+          </Route>
+
+          <Route
+            path="/profile/edit"
+            element={
+              <EditProfile title={`${appHead('chat').title} • Edit Profile`} />
+            }
+          />
+        </Route>
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
@@ -233,26 +234,21 @@ function GroupsRoutes({ state, location }: RoutesProps) {
                 element={<GroupChatThread />}
               />
             </Route>
-            <Route
-              path="channels/heap/:chShip/:chName"
-              element={<HeapChannel title={`${appHead('').title} • `} />}
-            />
-            <Route
-              path="channels/heap/:chShip/:chName/curio/:idCurio"
-              element={<HeapDetail />}
-            />
-            <Route
-              path="channels/diary/:chShip/:chName"
-              element={<DiaryChannel />}
-            />
-            <Route
-              path="channels/diary/:chShip/:chName/note/:noteId"
-              element={<DiaryNote />}
-            />
-            <Route
-              path="channels/diary/:chShip/:chName/add"
-              element={<DiaryAddNote />}
-            />
+            <Route path="channels/heap/:chShip/:chName">
+              <Route
+                index
+                element={<HeapChannel title={`${appHead('').title} • `} />}
+              />
+              <Route path="curio/:idCurio" element={<HeapDetail />} />
+            </Route>
+            <Route path="channels/diary/:chShip/:chName">
+              <Route index element={<DiaryChannel />} />
+              <Route path="note/:noteId" element={<DiaryNote />} />
+              <Route path="edit">
+                <Route index element={<DiaryAddNote />} />
+                <Route path=":id" element={<DiaryAddNote />} />
+              </Route>
+            </Route>
             <Route
               path="channels"
               element={
@@ -260,7 +256,6 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               }
             />
           </Route>
-          <Route path="/dm/:ship" element={<Message />} />
           <Route
             path="/profile/edit"
             element={
@@ -342,6 +337,11 @@ function App() {
     handleError(() => {
       checkIfLoggedIn();
       handleGridRedirect(navigate);
+    });
+  }, [handleError, navigate]);
+
+  useEffect(() => {
+    handleError(() => {
       // TODO: Clean up this order for different apps
       useGroupState.getState().start();
       useChatState.getState().start();
@@ -357,7 +357,7 @@ function App() {
 
       useContactState.getState().initialize(api);
     })();
-  }, [navigate, handleError]);
+  }, [handleError]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 

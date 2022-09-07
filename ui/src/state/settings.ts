@@ -6,6 +6,7 @@ import {
   DeskData,
 } from '@urbit/api';
 import _ from 'lodash';
+import { DiaryDisplayMode } from '@/types/diary';
 import {
   BaseState,
   createState,
@@ -15,10 +16,17 @@ import {
 } from './base';
 import api from '../api';
 
-interface HeapSetting {
+interface ChannelSetting {
   flag: string;
-  displayMode: 'grid' | 'list';
+}
+
+export interface HeapSetting extends ChannelSetting {
   sortMode: 'time' | 'alpha';
+}
+
+export interface DiarySetting extends ChannelSetting {
+  sortMode: 'time' | 'alpha';
+  commentSortMode: 'asc' | 'dsc';
 }
 
 interface BaseSettingsState {
@@ -27,6 +35,9 @@ interface BaseSettingsState {
   };
   heaps: {
     heapSettings: Stringified<HeapSetting[]>;
+  };
+  diary: {
+    settings: Stringified<DiarySetting[]>;
   };
   groups: {
     orderedGroupPins: string[];
@@ -85,6 +96,9 @@ export const useSettingsState = createState<BaseSettingsState>(
     heaps: {
       heapSettings: '' as Stringified<HeapSetting[]>,
     },
+    diary: {
+      settings: '' as Stringified<DiarySetting[]>,
+    },
     groups: {
       orderedGroupPins: [],
     },
@@ -123,24 +137,22 @@ export function useTheme() {
   return useSettingsState(selTheme);
 }
 
-export function parseHeapSettings(
-  settings: Stringified<HeapSetting[]>
-): HeapSetting[] {
+export function parseSettings<T>(settings: Stringified<T[]>): T[] {
   return settings !== '' ? JSON.parse(settings) : [];
 }
 
-export function getHeapSetting(
-  settings: HeapSetting[],
+export function getSetting<T extends ChannelSetting>(
+  settings: T[],
   flag: string
-): HeapSetting | undefined {
+): T | undefined {
   return settings.find((el) => el.flag === flag);
 }
 
-export function setHeapSetting(
-  settings: HeapSetting[],
-  newSetting: Partial<HeapSetting>,
+export function setSetting<T extends ChannelSetting>(
+  settings: T[],
+  newSetting: Partial<T>,
   flag: string
-): HeapSetting[] {
+): T[] {
   const oldSettings = settings.slice(0);
   const oldSettingIndex = oldSettings.findIndex((s) => s.flag === flag);
   const setting = {
@@ -160,11 +172,30 @@ const selHeapSettings = (s: SettingsState) => s.heaps.heapSettings;
 
 export function useHeapSettings(): HeapSetting[] {
   const settings = useSettingsState(selHeapSettings);
-  return parseHeapSettings(settings ?? '');
+  return parseSettings(settings ?? '');
 }
 
 export function useHeapSortMode(flag: string): 'time' | 'alpha' {
   const settings = useHeapSettings();
-  const heapSetting = getHeapSetting(settings, flag);
+  const heapSetting = getSetting(settings, flag);
   return heapSetting?.sortMode ?? 'time';
+}
+
+const selDiarySettings = (s: SettingsState) => s.diary.settings;
+
+export function useDiarySettings(): DiarySetting[] {
+  const settings = useSettingsState(selDiarySettings);
+  return parseSettings(settings ?? '');
+}
+
+export function useDiarySortMode(flag: string): 'time' | 'alpha' {
+  const settings = useDiarySettings();
+  const heapSetting = getSetting(settings, flag);
+  return heapSetting?.sortMode ?? 'time';
+}
+
+export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
+  const settings = useDiarySettings();
+  const setting = getSetting(settings, flag);
+  return setting?.commentSortMode ?? 'dsc';
 }

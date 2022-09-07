@@ -18,7 +18,6 @@ import {
 import React, {
   useEffect,
   useImperativeHandle,
-  useMemo,
   useState,
   forwardRef,
 } from 'react';
@@ -38,11 +37,7 @@ import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { Shortcuts } from '@/logic/tiptap';
-import Suggestion, {
-  SuggestionOptions,
-  SuggestionPluginKey,
-} from '@tiptap/suggestion';
-import { createPopper } from '@popperjs/core';
+import Suggestion, { SuggestionOptions } from '@tiptap/suggestion';
 import tippy from 'tippy.js';
 import DiaryImageNode from './DiaryImageNode';
 import DiaryLinkNode from './DiaryLinkNode';
@@ -52,23 +47,14 @@ EditorView.prototype.updateState = function updateState(state) {
   (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
 };
 
-interface HandlerParams {
-  editor: Editor;
-}
-
 interface useDiaryInlineEditorParams {
   content: JSONContent | string;
   placeholder?: string;
   onEnter: KeyboardShortcutCommand;
   onUpdate?: EditorOptions['onUpdate'];
-  onBlur?: EditorOptions['onBlur'];
   autofocus?: boolean;
 }
 const ActionMenuPluginKey = new PluginKey('action-menu');
-
-interface ActionMenuRef {
-  onKeyDown: (p: { event: KeyboardEvent }) => boolean;
-}
 
 interface ActionMenuItemProps {
   title: string;
@@ -278,7 +264,6 @@ export function useDiaryInlineEditor({
   autofocus = false,
   onEnter,
   onUpdate,
-  onBlur,
 }: useDiaryInlineEditorParams) {
   const ed = useEditor(
     {
@@ -317,7 +302,6 @@ export function useDiaryInlineEditor({
           'aria-label': 'Note editor with formatting menu',
         },
       },
-      onBlur,
       onUpdate: onUpdate || (() => false),
       onCreate: ({ editor }) => {
         if (autofocus) {
@@ -325,7 +309,7 @@ export function useDiaryInlineEditor({
         }
       },
     },
-    [placeholder, onBlur, autofocus]
+    [placeholder, autofocus]
   );
 
   useEffect(() => {

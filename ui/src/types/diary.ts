@@ -41,8 +41,47 @@ export interface VerseInline {
   inline: DiaryInline[];
 }
 
+export interface ChanCite {
+  chan: {
+    nest: string;
+    where: string;
+  };
+}
+
+export interface GroupCite {
+  group: string;
+}
+
+export interface DeskCite {
+  desk: {
+    flag: string;
+    where: string;
+  };
+}
+
+export type Cite = ChanCite | GroupCite | DeskCite;
+
+export interface DiaryCite {
+  cite: Cite;
+}
+
+export interface DiaryImage {
+  image: {
+    src: string;
+    height: number;
+    width: number;
+    alt: string;
+  };
+}
+
+export function isDiaryImage(item: unknown): item is DiaryImage {
+  return typeof item === 'object' && item !== null && 'image' in item;
+}
+
+export type DiaryBlock = DiaryImage | DiaryCite;
+
 export interface VerseBlock {
-  block: null;
+  block: DiaryBlock;
 }
 
 export type Verse = VerseInline | VerseBlock;
@@ -124,8 +163,13 @@ export interface NoteDiff {
   delta: NoteDelta;
 }
 
+export interface DiaryDiffView {
+  view: DiaryDisplayMode;
+}
+
 export type DiaryDiff =
   | { notes: NoteDiff }
+  | DiaryDiffView
   | DiaryDiffAddSects
   | DiaryDiffDelSects
   | DiaryDiffQuips;
@@ -170,8 +214,11 @@ export interface QuipDiff {
   delta: QuipDelta;
 }
 
+export type DiaryDisplayMode = 'list' | 'grid';
+
 export interface Diary {
   perms: DiaryPerm;
+  view: DiaryDisplayMode;
 }
 
 export interface Shelf {

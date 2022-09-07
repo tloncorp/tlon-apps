@@ -21,6 +21,7 @@ import {
   DiaryQuips,
   DiaryQuip,
   DiaryAction,
+  DiaryDisplayMode,
 } from '@/types/diary';
 import api from '@/api';
 import {
@@ -161,7 +162,9 @@ export const useDiaryState = create<DiaryState>(
               } = event;
               const diary = draft.shelf[flag];
 
-              if ('del-sects' in diff) {
+              if ('view' in diff) {
+                diary.view = diff.view;
+              } else if ('del-sects' in diff) {
                 diary.perms.writers = diary.perms.writers.filter(
                   (w) => !diff['del-sects'].includes(w)
                 );
@@ -210,6 +213,9 @@ export const useDiaryState = create<DiaryState>(
           json: flag,
         });
       },
+      viewDiary: async (flag, view) => {
+        await api.poke(diaryAction(flag, { view }));
+      },
       addNote: (flag, heart) => {
         api.poke(
           diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
@@ -257,7 +263,7 @@ export const useDiaryState = create<DiaryState>(
           path: `/diary/${flag}/perm`,
         });
         get().batchSet((draft) => {
-          const diary = { perms };
+          const diary = { perms, view: 'list' as DiaryDisplayMode };
           draft.shelf[flag] = diary;
           draft.diarySubs.push(flag);
         });
@@ -338,7 +344,7 @@ const emptyNote: DiaryNote = {
     title: '',
     image: '',
     content: [],
-    author: window.our,
+    author: window.our || '',
     sent: Date.now(),
   },
 };
@@ -371,6 +377,10 @@ export function useBriefs() {
   return useDiaryState(useCallback((s: DiaryState) => s.briefs, []));
 }
 
+export function useBrief(flag: string) {
+  return useDiaryState(useCallback((s: DiaryState) => s.briefs[flag], [flag]));
+}
+
 export function useQuips(flag: string, noteId: string): DiaryQuipMap {
   useEffect(() => {
     useDiaryState.getState().fetchQuips(flag, noteId);
@@ -384,3 +394,8 @@ export function useQuips(flag: string, noteId: string): DiaryQuipMap {
   );
 }
 (window as any).diary = useDiaryState.getState;
+
+export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
+  const diary = useDiary(flag);
+  return diary?.view ?? 'grid';
+}

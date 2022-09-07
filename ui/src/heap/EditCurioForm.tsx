@@ -8,7 +8,7 @@ import { useChannelFlag } from '@/hooks';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/core';
-import { parseInline, parseTipTapJSON } from '@/logic/tiptap';
+import { inlinesToJSON, parseTipTapJSON } from '@/logic/tiptap';
 import useCurioFromParams from './useCurioFromParams';
 import HeapTextInput from './HeapTextInput';
 
@@ -105,7 +105,7 @@ export default function EditCurioForm() {
   // on load, set the text draft to the persisted state
   useEffect(() => {
     if (curio && !isLinkMode) {
-      const parsed = parseInline(curio.heart.content);
+      const parsed = inlinesToJSON(curio.heart.content);
       setDraftText(parsed);
     }
   }, [curio, isLinkMode]);

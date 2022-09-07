@@ -11,7 +11,8 @@ import {
 } from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
-  setHeapSetting,
+  HeapSetting,
+  setSetting,
   useHeapSettings,
   useHeapSortMode,
   useSettingsState,
@@ -32,11 +33,7 @@ function HeapChannel({ title }: ViewProps) {
   const group = useGroup(flag);
 
   const navigate = useNavigate();
-  // for now displayMode and sortMode will be in the settings store.
-  // in the future we will want to store in this via the heap agent.
   const displayMode = useHeapDisplayMode(chFlag);
-  // for now sortMode will be in the settings store.
-  // in the future we will want to store in this via the heap agent.
   const settings = useHeapSettings();
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
@@ -48,7 +45,11 @@ function HeapChannel({ title }: ViewProps) {
   };
 
   const setSortMode = (setting: 'time' | 'alpha') => {
-    const newSettings = setHeapSetting(settings, { sortMode: setting }, chFlag);
+    const newSettings = setSetting<HeapSetting>(
+      settings,
+      { sortMode: setting },
+      chFlag
+    );
     useSettingsState
       .getState()
       .putEntry('heaps', 'heapSettings', JSON.stringify(newSettings));
@@ -93,7 +94,7 @@ function HeapChannel({ title }: ViewProps) {
         <ChannelHeader
           flag={flag}
           nest={nest}
-          isHeap
+          showControls
           displayMode={displayMode}
           setDisplayMode={setDisplayMode}
           sortMode={sortMode}
