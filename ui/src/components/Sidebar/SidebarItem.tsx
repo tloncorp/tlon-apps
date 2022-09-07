@@ -71,14 +71,12 @@ export default function SidebarItem({
 
   const customHiglightStyles = () => {
     if (hasHoverColor())
-      if (currentTheme === 'dark') {
-        return {
-          backgroundColor: Color(highlight).mix(Color('black'), 0.7),
-        };
-      }
-    return {
-      backgroundColor: Color(highlight).mix(Color('white'), 0.8),
-    };
+      return {
+        backgroundColor:
+          currentTheme === 'dark'
+            ? Color(highlight).mix(Color('black'), 0.7)
+            : Color(highlight).mix(Color('white'), 0.8),
+      };
     return null;
   };
 
