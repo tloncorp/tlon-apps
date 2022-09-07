@@ -73,11 +73,11 @@ export default function SidebarItem({
     if (hasHoverColor())
       if (currentTheme === 'dark') {
         return {
-          backgroundColor: Color(highlight).alpha(0.25).lighten(0.5),
+          backgroundColor: Color(highlight).mix(Color('black'), 0.7),
         };
       }
     return {
-      backgroundColor: Color(highlight).alpha(0.25).lighten(0.75),
+      backgroundColor: Color(highlight).mix(Color('white'), 0.8),
     };
     return null;
   };
