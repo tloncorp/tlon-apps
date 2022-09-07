@@ -253,10 +253,13 @@
   =/  [=flag:g =net:g =group:g]  i.gs
   ?.  (~(has by channels.group) nest)
     $(gs t.gs)
-  =/  =preview:g
+  =/  =preview:channel:g
     =,  group
-    [meta cordon now.bowl]
-  =.  cor  (emit %give %fact ~ group-preview+!>(preview))
+    :*  nest
+        meta:(~(got by channels.group) nest)
+        flag  meta  cordon  now.bowl
+    ==
+  =.  cor  (emit %give %fact ~ channel-preview+!>(preview))
   (emit %give %kick ~ ~)
 ::
 ++  take-chan
@@ -526,7 +529,7 @@
   ++  go-preview
     =/  =preview:g
       =,  group
-      [meta cordon now.bowl]
+      [flag meta cordon now.bowl]
     =.  cor
       (emit %give %fact ~ group-preview+!>(preview))
     =.  cor
@@ -1081,7 +1084,7 @@
   ^-  (unit [flag:g preview:g])
   ?.  =(our.bowl p.flag)
     ~
-  `[flag =,(group [meta cordon now.bowl])]
+  `[flag =,(group [flag meta cordon now.bowl])]
 ::
 ++  req-gang-index
   |=  =ship

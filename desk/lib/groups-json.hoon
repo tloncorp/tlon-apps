@@ -25,10 +25,19 @@
     |=  [f=flag:g p=preview:g]
     [(flag f) (preview p)]
   ::
+  ++  channel-preview
+    |=  p=preview:channel:g
+    %-  pairs
+    :~  nest+s+(nest nest.p)
+        meta+(meta meta.p)
+        group+(preview group.p)
+    ==
+  ::
   ++  preview
     |=  p=preview:g
     %-  pairs
-    :~  time+(time time.p)
+    :~  flag+s+(flag flag.p)
+        time+(time time.p)
         meta+(meta meta.p)
         cordon+(cordon cordon.p)
     ==

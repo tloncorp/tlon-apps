@@ -44,6 +44,12 @@
 ++  channel
   =<  channel
   |%
+  +$  preview
+    $:  =nest
+        meta=data:meta
+        group=^preview
+    ==
+  ::
   +$  channels  (map nest channel)
   +$  channel
     $:  meta=data:meta
@@ -192,7 +198,8 @@
   ==
 ::  TODO: finish
 +$  preview  
-  $:  meta=data:meta
+  $:  =flag
+      meta=data:meta
       =cordon
       =time
   ==
