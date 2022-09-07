@@ -44,8 +44,8 @@ export default function GroupSidebar() {
           Back to Groups
         </SidebarItem>
       </header>
-      <div className="h-4" />
-      <div className="flex min-h-0 flex-col p-2 pt-0">
+      <div className="h-5" />
+      <div className="flex min-h-0 flex-col px-2">
         <ul>
           <li className="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold text-gray-600 hover:bg-gray-50 sm:text-base">
             <GroupActions flag={flag} className="flex-1">
@@ -69,7 +69,7 @@ export default function GroupSidebar() {
         </ul>
       </div>
       <div className="flex-1">
-        <div className="mt-4 flex border-t-2 border-gray-50 pt-3 pb-2">
+        <div className="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2">
           <span className="ml-4 text-sm font-semibold text-gray-400">
             Channels
           </span>

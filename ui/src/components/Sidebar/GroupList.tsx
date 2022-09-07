@@ -16,7 +16,6 @@ import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 import { Group } from '@/types/groups';
-import Divider from '../Divider';
 import useNavStore from '../Nav/useNavStore';
 import SidebarItem from './SidebarItem';
 
@@ -273,7 +272,7 @@ export default function GroupList({
           : undefined
       }
     >
-      <li className="-mx-2 mt-4 grow border-t-2 border-gray-50 pt-3 pb-2">
+      <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
         <span className="ml-4 text-sm font-semibold text-gray-400">
           Pinned Groups
         </span>

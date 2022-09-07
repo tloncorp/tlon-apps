@@ -48,7 +48,7 @@ export default function Sidebar() {
         >
           Groups
         </SidebarItem>
-        <div className="h-4" />
+        <div className="h-5" />
         <SidebarItem
           highlight={shipColor}
           icon={<Avatar size="xs" ship={window.our} />}
@@ -90,7 +90,7 @@ export default function Sidebar() {
             pinnedGroups={sortedPinnedGroups}
           />
         ) : null}
-        <li className="-mx-2 mt-4 grow border-t-2 border-gray-50 pt-3 pb-2">
+        <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
           <span className="ml-4 text-sm font-semibold text-gray-400">
             All Groups
           </span>
