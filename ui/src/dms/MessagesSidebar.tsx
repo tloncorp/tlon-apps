@@ -1,18 +1,16 @@
 import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import AsteriskIcon from '@/components/icons/Asterisk16Icon';
-import NewMessageIcon from '@/components/icons/NewMessageIcon';
+import AddIcon from '@/components/icons/AddIcon';
 import { useIsMobile } from '@/logic/useMedia';
+import Filter16Icon from '@/components/icons/Filter16Icon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
-import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
-import PersonSmallIcon from '@/components/icons/Person16Icon';
-import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
 import { useBriefs, usePinned } from '@/state/chat';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import { useNotifications } from '@/notifications/useNotifications';
+import BubbleIcon from '@/components/icons/BubbleIcon';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
@@ -23,7 +21,6 @@ export default function MessagesSidebar() {
   const { filter, setFilter } = useMessagesFilter();
   const briefs = useBriefs();
   const pinned = usePinned();
-  const { count } = useNotifications();
 
   if (isMobile) {
     return <MobileMessagesSidebar />;
@@ -33,40 +30,29 @@ export default function MessagesSidebar() {
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex w-full flex-col px-2 pt-2">
         <SidebarItem
+          div
+          className="text-black"
+          to="/"
+          icon={<BubbleIcon className="h-6 w-6" />}
+        >
+          Talk
+        </SidebarItem>
+        <div className="h-5" />
+        <SidebarItem
           icon={<Avatar size="xs" ship={window.our} />}
           to={'/profile/edit'}
         >
           <ShipName showAlias name={window.our} />
         </SidebarItem>
-        <SidebarItem
-          to="/dm/new"
-          color="text-blue"
-          highlight="bg-blue-soft dark:bg-blue-900 hover:bg-blue-soft hover:dark:bg-blue-900"
-          icon={<NewMessageIcon className="h-6 w-6" />}
-        >
+        <SidebarItem to="/dm/new" icon={<AddIcon className="m-1 h-4 w-4" />}>
           New Message
         </SidebarItem>
-        <a
-          className="no-underline"
-          href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=chat:"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <SidebarItem
-            color="text-yellow-600 dark:text-yellow-500"
-            highlight="bg-yellow-soft hover:bg-yellow-soft hover:dark:bg-yellow-800"
-            icon={<AsteriskIcon className="m-1 h-4 w-4" />}
-          >
-            Submit Issue
-          </SidebarItem>
-        </a>
         {pinned && pinned.length > 0 ? (
           <>
-            <li className="flex items-center space-x-2 p-2">
-              <span className="text-xs font-semibold text-gray-400">
-                Pinned
+            <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
+              <span className="ml-4 text-sm font-semibold text-gray-400">
+                Pinned Messages
               </span>
-              <div className="grow border-b-2 border-gray-100" />
             </li>
             {pinned.map((ship: string) => (
               <MessagesSidebarItem
@@ -77,15 +63,23 @@ export default function MessagesSidebar() {
             ))}
           </>
         ) : null}
+        <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
+          <span className="ml-4 text-sm font-semibold text-gray-400">
+            Messages
+          </span>
+        </li>
         <li className="p-2">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger
               className={
-                'default-focus flex items-center space-x-2 rounded-lg bg-gray-50 p-2 text-base font-semibold'
+                'default-focus flex w-full items-center justify-between space-x-2 rounded-lg bg-gray-50 px-2 py-1 text-sm font-semibold'
               }
               aria-label="Groups Filter Options"
             >
-              <span className="pl-1">{filter}</span>
+              <span className="flex items-center">
+                <Filter16Icon className="w-4 text-gray-400" />
+                <span className="pl-1">Filter: {filter}</span>
+              </span>
               <CaretDown16Icon className="w-4 text-gray-400" />
             </DropdownMenu.Trigger>
             <DropdownMenu.Content className="dropdown text-gray-600">
@@ -96,7 +90,6 @@ export default function MessagesSidebar() {
                 )}
                 onClick={() => setFilter(filters.all)}
               >
-                <ChatSmallIcon className="mr-2 h-4 w-4" />
                 All Messages
               </DropdownMenu.Item>
               <DropdownMenu.Item
@@ -106,7 +99,6 @@ export default function MessagesSidebar() {
                 )}
                 onClick={() => setFilter(filters.dms)}
               >
-                <PersonSmallIcon className="mr-2 h-4 w-4" />
                 Direct Messages
               </DropdownMenu.Item>
               <DropdownMenu.Item
@@ -116,8 +108,7 @@ export default function MessagesSidebar() {
                 )}
                 onClick={() => setFilter(filters.groups)}
               >
-                <CmdSmallIcon className="mr-2 h-4 w-4" />
-                Group Talk Channels
+                Group Channels
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>

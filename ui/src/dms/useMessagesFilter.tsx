@@ -3,12 +3,12 @@ import create from 'zustand';
 export type SidebarFilter =
   | 'Direct Messages'
   | 'All Messages'
-  | 'Group Talk Channels';
+  | 'Group Channels';
 
 export const filters: Record<string, SidebarFilter> = {
   dms: 'Direct Messages',
   all: 'All Messages',
-  groups: 'Group Talk Channels',
+  groups: 'Group Channels',
 };
 
 interface MessagesFilter {
