@@ -1,6 +1,12 @@
 import cn from 'classnames';
-import React, { ButtonHTMLAttributes, PropsWithChildren } from 'react';
+import { mix } from 'color2k';
+import React, {
+  ButtonHTMLAttributes,
+  PropsWithChildren,
+  useState,
+} from 'react';
 import { Link, LinkProps, useMatch } from 'react-router-dom';
+import { useCurrentTheme } from '@/state/local';
 
 type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
@@ -46,21 +52,53 @@ export default function SidebarItem({
   ...rest
 }: SidebarProps) {
   const matchString = to && inexact ? `${to}/*` : to;
+  const [hover, setHover] = useState(false);
   const matches = useMatch(matchString || 'DONT_MATCH');
   const active = !!matches;
   const Wrapper = div ? 'div' : 'li';
+  const currentTheme = useCurrentTheme();
 
-  const hasHovers = highlight.search(/hover:/) !== -1;
-  const hovers = (hl: string) =>
-    hl.split(' ').filter((c) => c.startsWith('hover:'));
+  const hasHoverColor = () => {
+    switch (highlight) {
+      case 'bg-gray-50': {
+        return false;
+      }
+      default: {
+        return true;
+      }
+    }
+  };
+
+  const customHiglightStyles = () => {
+    if (hasHoverColor())
+      return {
+        backgroundColor:
+          currentTheme === 'dark'
+            ? mix(highlight, 'black', 0.7)
+            : mix(highlight, 'white', 0.85),
+      };
+    return null;
+  };
 
   return (
     <Wrapper
+      onMouseEnter={() => {
+        setHover(true);
+      }}
+      onMouseLeave={() => {
+        setHover(false);
+      }}
+      style={
+        {
+          ...(hasHoverColor() && hover ? customHiglightStyles() : null),
+          ...(hasHoverColor() && active ? customHiglightStyles() : null),
+        } as React.CSSProperties
+      }
       className={cn(
         'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base',
         color,
-        hasHovers ? hovers(highlight) : `hover:${highlight}`,
-        active && highlight
+        !hasHoverColor() ? `hover:${highlight}` : null,
+        !hasHoverColor() && active && to !== '/' ? highlight : null
       )}
     >
       <Action

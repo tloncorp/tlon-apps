@@ -16,7 +16,6 @@ import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 import { Group } from '@/types/groups';
-import Divider from '../Divider';
 import useNavStore from '../Nav/useNavStore';
 import SidebarItem from './SidebarItem';
 
@@ -53,6 +52,7 @@ function DraggableGroupItem({ flag }: { flag: string }) {
         div
         icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
         actions={<GroupActions flag={flag} />}
+        to={`/groups/${flag}`}
         onClick={() => navPrimary('group', flag)}
       >
         {group?.meta.title}
@@ -69,6 +69,7 @@ function GroupItem({ flag }: { flag: string }) {
     <SidebarItem
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
       actions={<GroupActions flag={flag} />}
+      to={`/groups/${flag}`}
       onClick={() => navPrimary('group', flag)}
     >
       {group?.meta.title}
@@ -271,9 +272,10 @@ export default function GroupList({
           : undefined
       }
     >
-      <li className="-mb-2 flex items-center sm:m-0 md:pr-2">
-        <Divider>Pinned</Divider>
-        <div className="grow border-b-2 border-gray-100" />
+      <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
+        <span className="ml-4 text-sm font-semibold text-gray-400">
+          Pinned Groups
+        </span>
       </li>
       {pinnedGroups.map(([flag]) => (
         <GroupItemContainer flag={flag} key={flag}>

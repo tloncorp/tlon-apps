@@ -8,8 +8,37 @@ exports[`Sidebar > renders as expected 1`] = `
     <ul
       class="flex w-full flex-col px-2 pt-2"
     >
-      <li
+      <div
         class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+      >
+        <a
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold text-black"
+          href="/"
+        >
+          <svg
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              class="fill-current"
+              d="M11.0833 17.9583V16.5833C11.0833 16.0771 11.4937 15.6667 12 15.6667C12.5063 15.6667 12.9167 16.0771 12.9167 16.5833V17.9583C12.9167 20.7428 15.1739 23 17.9583 23C20.7428 23 23 20.7428 23 17.9583C23 15.1739 20.7428 12.9167 17.9583 12.9167H16.5833V13.8333C16.5833 14.3396 16.1729 14.75 15.6667 14.75C15.1604 14.75 14.75 14.3396 14.75 13.8333V10.1667C14.75 9.66041 15.1604 9.25 15.6667 9.25C16.1729 9.25 16.5833 9.66041 16.5833 10.1667V11.0833H17.9583C20.7428 11.0833 23 8.8261 23 6.04167C23 3.25723 20.7428 1 17.9583 1C15.1739 1 12.9167 3.25723 12.9167 6.04167V7.41667C12.9167 7.92293 12.5063 8.33333 12 8.33333C11.4937 8.33333 11.0833 7.92293 11.0833 7.41667V6.04167C11.0833 3.25723 8.8261 1 6.04167 1C3.25723 1 1 3.25723 1 6.04167C1 8.8261 3.25723 11.0833 6.04167 11.0833H7.41667V10.1667C7.41667 9.66041 7.82707 9.25 8.33333 9.25C8.83959 9.25 9.25 9.66041 9.25 10.1667V13.8333C9.25 14.3396 8.83959 14.75 8.33333 14.75C7.82707 14.75 7.41667 14.3396 7.41667 13.8333V12.9167H6.04167C3.25723 12.9167 1 15.1739 1 17.9583C1 20.7428 3.25723 23 6.04167 23C8.8261 23 11.0833 20.7428 11.0833 17.9583Z"
+            />
+          </svg>
+          <div
+            class="max-w-full flex-1 truncate text-left"
+            title="Groups"
+          >
+            Groups
+          </div>
+        </a>
+      </div>
+      <div
+        class="h-5"
+      />
+      <li
+        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
@@ -190,7 +219,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </li>
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
+        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
@@ -211,61 +240,53 @@ exports[`Sidebar > renders as expected 1`] = `
           </svg>
           <div
             class="max-w-full flex-1 truncate text-left"
-            title="Create Group"
+            title="Create Groups"
           >
-            Create Group
+            Create Groups
           </div>
         </a>
       </li>
-      <a
-        class="no-underline"
-        href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=groups:"
-        rel="noreferrer"
-        target="_blank"
-      >
-        <li
-          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-yellow-600 dark:text-yellow-500 hover:bg-yellow-soft hover:dark:bg-yellow-800"
-        >
-          <button
-            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
-          >
-            <svg
-              class="m-1 h-4 w-4"
-              fill="none"
-              viewBox="0 0 16 16"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                class="stroke-current"
-                d="m8 8 4-4M8 8 4 4m4 4-4 4m4-4 4 4M8 8h5M8 8V3m0 5H3m5 0v5"
-                stroke-linecap="round"
-                stroke-width="2"
-              />
-            </svg>
-            <div
-              class="max-w-full flex-1 truncate text-left"
-              title="Submit Issue"
-            >
-              Submit Issue
-            </div>
-          </button>
-        </li>
-      </a>
       <li
-        class="p-2"
+        class="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2"
+      >
+        <span
+          class="ml-4 text-sm font-semibold text-gray-400"
+        >
+          All Groups
+        </span>
+      </li>
+      <li
+        class="relative p-2"
       >
         <button
           aria-haspopup="menu"
           aria-label="Groups Sort Options"
-          class="default-focus flex items-center rounded-lg bg-gray-50 py-2 px-4 text-base font-semibold"
+          class="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
           data-state="closed"
           id="radix-0"
           type="button"
         >
           <span
-            class="mr-2 pl-1"
+            class="flex items-center"
           >
-            All Groups: A → Z
+            <svg
+              class="h-4 w-4 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                clip-rule="evenodd"
+                d="M17.207 4.793a1 1 0 0 0-1.414 0l-3 3a1 1 0 0 0 1.414 1.414L15.5 7.914V17.5a1 1 0 1 0 2 0V7.914l1.293 1.293a1 1 0 1 0 1.414-1.414l-3-3ZM8.5 5.5a1 1 0 0 0-2 0v9.586l-1.293-1.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l3-3a1 1 0 0 0-1.414-1.414L8.5 15.086V5.5Z"
+                fill-rule="evenodd"
+              />
+            </svg>
+            <span
+              class="mr-2 pl-1"
+            >
+              Sort: A → Z
+            </span>
           </span>
           <svg
             class="h-4 w-4 text-gray-400"

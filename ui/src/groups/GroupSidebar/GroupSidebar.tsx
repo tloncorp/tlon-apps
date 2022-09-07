@@ -34,18 +34,19 @@ export default function GroupSidebar() {
   }
 
   return (
-    <nav className="flex h-full w-64 flex-none flex-col bg-white sm:p-2">
-      <header className="flex-none px-2 py-1 sm:p-0">
-        <button
-          className="default-focus flex w-full items-center rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
+    <nav className="flex h-full w-64 flex-none flex-col bg-white">
+      <header className="flex-none p-2 pb-0">
+        <SidebarItem
+          icon={<CaretLeft16Icon className="m-1 h-4 w-4 text-gray-400" />}
+          to="/"
           onClick={() => navPrimary('main')}
         >
-          <CaretLeft16Icon className="m-1 mr-4 h-4 w-4 text-gray-400" />
-          All Groups
-        </button>
+          Back to Groups
+        </SidebarItem>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col p-2 sm:p-0">
-        <ul className="flex-none">
+      <div className="h-5" />
+      <div className="flex min-h-0 flex-col px-2">
+        <ul>
           <li className="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold text-gray-600 hover:bg-gray-50 sm:text-base">
             <GroupActions flag={flag} className="flex-1">
               <button className="default-focus flex w-full items-center space-x-3 rounded-lg p-2 pr-4 font-semibold">
@@ -60,35 +61,20 @@ export default function GroupSidebar() {
             </GroupActions>
           </li>
           <SidebarItem
-            icon={<ActivityIndicator count={count} />}
-            to={`/groups/${flag}/activity`}
-          >
-            Activity
-          </SidebarItem>
-          <SidebarItem
             icon={<HashIcon16 className="m-1 h-4 w-4" />}
             to={`/groups/${flag}/channels`}
           >
             All Channels
           </SidebarItem>
-          <a
-            className="no-underline"
-            href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=groups:"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <SidebarItem
-              color="text-yellow-600 dark:text-yellow-500"
-              highlight="bg-yellow-soft hover:bg-yellow-soft hover:dark:bg-yellow-800"
-              icon={<AsteriskIcon className="m-1 h-4 w-4" />}
-            >
-              Submit Issue
-            </SidebarItem>
-          </a>
         </ul>
-        <div className="flex-1 overflow-y-auto">
-          <ChannelList flag={flag} />
-        </div>
+      </div>
+      <div className="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2">
+        <span className="ml-4 text-sm font-semibold text-gray-400">
+          Channels
+        </span>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <ChannelList className="p-2 pt-0" flag={flag} />
       </div>
     </nav>
   );
