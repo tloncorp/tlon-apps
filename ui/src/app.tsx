@@ -88,7 +88,7 @@ function ChatRoutes({ state, location }: RoutesProps) {
     <>
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<Nav />}>
-          <Route index />
+          <Route index element={<DMHome />} />
           <Route
             path="/notifications"
             element={
@@ -151,7 +151,15 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<Nav />}>
-          <Route index />
+          <Route
+            index
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`${appHead('').title} • All Notifications`}
+              />
+            }
+          />
           <Route
             path="/notifications"
             element={
@@ -179,6 +187,15 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="/groups/find"
             element={
               <FindGroups title={`${appHead('').title} • Find Groups`} />
+            }
+          />
+          <Route
+            path="/groups/:ship/:name"
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`${appHead('').title} • Activity`}
+              />
             }
           />
           <Route path="/groups/:ship/:name/*" element={<Groups />}>

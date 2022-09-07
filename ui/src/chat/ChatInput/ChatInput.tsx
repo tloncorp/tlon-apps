@@ -177,6 +177,7 @@ export default function ChatInput({
             </div>
           ) : null}
           <div className="flex items-center justify-end">
+            <Avatar size="xs" ship={window.our} className="mr-2" />
             <MessageEditor editor={messageEditor} className="w-full" />
             <button
               // this is not contained by relative because of a bug in radix popovers
