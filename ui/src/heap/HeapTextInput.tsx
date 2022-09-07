@@ -1,10 +1,11 @@
+import cn from 'classnames';
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect } from 'react';
 import { HeapInline, CurioHeart, HeapInlineKey, LIST } from '@/types/heap';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { useHeapDisplayMode, useHeapState } from '@/state/heap/heap';
+import { useHeapState } from '@/state/heap/heap';
 import { reduce } from 'lodash';
 import classNames from 'classnames';
 import useRequestState from '@/logic/useRequestState';
@@ -12,10 +13,12 @@ import { parseTipTapJSON } from '@/logic/tiptap';
 
 interface HeapTextInputProps {
   flag: string;
-  sendDisabled?: boolean;
   draft: JSONContent | undefined;
   setDraft: React.Dispatch<React.SetStateAction<JSONContent | undefined>>;
+  sendDisabled?: boolean;
   replyTo?: string | null;
+  className?: string;
+  inputClass?: string;
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
@@ -51,12 +54,13 @@ function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
 
 export default function HeapTextInput({
   flag,
-  sendDisabled = false,
-  replyTo = null,
   draft,
   setDraft,
+  replyTo = null,
+  sendDisabled = false,
+  className,
+  inputClass,
 }: HeapTextInputProps) {
-  const displayMode = useHeapDisplayMode(flag);
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
 
@@ -140,15 +144,14 @@ export default function HeapTextInput({
   // TODO: Set a sane length limit for comments
   return (
     <>
-      <div className="relative flex-1 p-1">
+      <div className={cn('relative', className)}>
         <MessageEditor
           editor={messageEditor}
-          className="h-full w-full rounded-lg"
+          className={cn('h-full w-full rounded-lg', inputClass)}
           inputClassName={classNames(
             // Since TipTap simulates an input using a <p> tag, only style
             // the fake placeholder when the field is empty
-            messageEditor.getText() === '' ? 'font-semibold text-gray-400' : '',
-            displayMode === LIST ? 'min-h-[44px]' : ''
+            messageEditor.getText() === '' ? 'font-semibold text-gray-400' : ''
           )}
         />
         {!sendDisabled ? (
