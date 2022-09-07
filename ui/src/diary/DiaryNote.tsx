@@ -26,6 +26,7 @@ import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
+import DiaryCommenters from './DiaryCommenters';
 
 function groupQuips(
   quips: [bigInt.BigInteger, DiaryQuip][],
@@ -151,32 +152,10 @@ export default function DiaryNote() {
                 <ShipName name={note.essay.author} />
               </div>
               <div className="ml-auto flex items-center">
-                <div className="relative flex items-center font-semibold text-gray-600">
-                  {commenters.length > 0 ? (
-                    <>
-                      {commenters.map((ship, index) => (
-                        <Avatar
-                          key={ship}
-                          ship={ship}
-                          size="xs"
-                          className="relative outline outline-2 outline-white"
-                          style={{
-                            zIndex: 2 - index,
-                            transform: `translate(${index * -50}%)`,
-                          }}
-                        />
-                      ))}
-                      <span>
-                        {quips.size} {pluralize('comment', quips.size)}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Bubble16Icon className="mr-2 h-4 w-4" />
-                      <span className="text-gray-400">No comments</span>
-                    </>
-                  )}
-                </div>
+                <DiaryCommenters
+                  commenters={commenters}
+                  quipCount={quips.size}
+                />
               </div>
             </a>
           </header>

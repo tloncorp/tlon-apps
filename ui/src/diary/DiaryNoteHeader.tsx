@@ -3,10 +3,9 @@ import React, { useCallback, useState } from 'react';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { Link } from 'react-router-dom';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import { useDiaryState } from '@/state/diary';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { useGroupFlag } from '@/state/groups';
+import DiaryNoteOptionsDropdown from './DiaryNoteOptionsDropdown';
 
 export interface DiaryNoteHeaderProps {
   title: string;
@@ -22,9 +21,6 @@ export default function DiaryNoteHeader({
   const groupFlag = useGroupFlag();
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
-  const delNote = useCallback(() => {
-    useDiaryState.getState().delNote(flag, time);
-  }, [flag, time]);
 
   const onCopy = useCallback(() => {
     doCopy(`${groupFlag}/channels/diary/${flag}/note/${time}`);
@@ -42,14 +38,14 @@ export default function DiaryNoteHeader({
     >
       <Link
         to=".."
-        className="flex h-8 w-8 items-center justify-center rounded bg-gray-50"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gray-50"
         aria-label="Back to notebook"
       >
         <CaretLeftIcon className="h-6 w-6 text-gray-600" />
       </Link>
-      <h1 className="ml-3 font-semibold">{title}</h1>
+      <h1 className="mx-2 ml-3 grow-0 truncate font-semibold">{title}</h1>
 
-      <div className="ml-auto flex items-center space-x-3">
+      <div className="ml-auto flex min-w-fit items-center space-x-3">
         <Link to={`../edit/${time}`} className="secondary-button">
           Edit Note
         </Link>
@@ -58,31 +54,13 @@ export default function DiaryNoteHeader({
             {justCopied ? 'copied!' : 'Share'}
           </span>
         </button>
-        <Dropdown.Root>
-          <Dropdown.Trigger
-            className="secondary-button h-8 w-8 p-0"
-            aria-label="Note menu"
-          >
-            <EllipsisIcon className="h-6 w-6" />
-          </Dropdown.Trigger>
-          <Dropdown.Content
-            sideOffset={8}
-            className="dropdown min-w-[208px] drop-shadow-lg"
-          >
-            <Dropdown.Item className="dropdown-item" onSelect={onCopy}>
-              Copy Note Link
-            </Dropdown.Item>
-            <Dropdown.Item className="dropdown-item" asChild>
-              <Link to={`../edit/${time}`}>Edit Note</Link>
-            </Dropdown.Item>
-            <Dropdown.Item
-              className="dropdown-item text-red"
-              onSelect={delNote}
-            >
-              Delete Note
-            </Dropdown.Item>
-          </Dropdown.Content>
-        </Dropdown.Root>
+        <DiaryNoteOptionsDropdown
+          time={time}
+          flag={flag}
+          triggerClassName={'secondary-button'}
+        >
+          <EllipsisIcon className="h-6 w-6" />
+        </DiaryNoteOptionsDropdown>
       </div>
     </div>
   );

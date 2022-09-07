@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
@@ -18,6 +17,7 @@ import {
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryDisplayMode } from '@/types/diary';
+import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 
 function DiaryChannel() {
@@ -32,7 +32,6 @@ function DiaryChannel() {
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const displayMode = useDiaryDisplayMode(chFlag);
   const sortMode = useDiarySortMode(chFlag);
-
 
   const setDisplayMode = (view: DiaryDisplayMode) => {
     useDiaryState.getState().viewDiary(chFlag, view);
@@ -57,9 +56,11 @@ function DiaryChannel() {
     markRead: useDiaryState.getState().markRead,
   });
 
+  const sortedNotes = Array.from(notes).sort(([a], [b]) => b.compare(a));
+
   return (
     <Layout
-      className="flex-1 bg-white"
+      className="flex-1 overflow-y-scroll bg-gray-50"
       aside={<Outlet />}
       header={
         <ChannelHeader
@@ -78,7 +79,8 @@ function DiaryChannel() {
       }
     >
       <div className="p-4">
-        <ul>
+        <DiaryGridView notes={sortedNotes} />
+        {/* <ul>
           {Array.from(notes)
             .sort(([a], [b]) => b.compare(a))
             .map(([time, note]) => (
@@ -88,7 +90,7 @@ function DiaryChannel() {
                 </Link>
               </li>
             ))}
-        </ul>
+        </ul> */}
       </div>
     </Layout>
   );
