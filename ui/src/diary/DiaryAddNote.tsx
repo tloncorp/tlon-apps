@@ -76,11 +76,9 @@ export default function DiaryAddNote() {
             <CaretLeftIcon className="h-6 w-6 text-gray-600" />
           </Link>
           <button
+            disabled={!editor?.getText()}
             className={cn(
-              'button',
-              editor?.getText()
-                ? 'bg-blue text-white dark:text-black'
-                : 'bg-gray-200 text-gray-400'
+              'button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:text-black'
             )}
             onClick={publish}
           >
