@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router';
 import { DiaryNote } from '@/types/diary';
 import IconButton from '@/components/IconButton';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
-import ShareIcon from '@/components/icons/ShareIcon';
+import CopyIcon from '@/components/icons/CopyIcon';
 import { makePrettyDate } from '@/logic/utils';
 import { daToUnix } from '@urbit/api';
 import DiaryCommenters from '@/diary/DiaryCommenters';
@@ -90,9 +90,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
                 className={`h-5 w-5 ${!hasImage && 'text-gray-600'}`}
               />
             ) : (
-              <ShareIcon
-                className={`h-5 w-5 ${!hasImage && 'text-gray-600'}`}
-              />
+              <CopyIcon className={`h-5 w-5 ${!hasImage && 'text-gray-600'}`} />
             )
           }
         />
