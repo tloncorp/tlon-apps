@@ -25,14 +25,7 @@ export default function ChatContentReference({ cite }: { cite: Cite }) {
     const groupFlag = '~bus/test-group';
     if (app === 'heap') {
       const idCurio = udToDec(segments[2]);
-      return (
-        <CurioReference
-          groupFlag={groupFlag}
-          chFlag={chFlag}
-          nest={nest}
-          idCurio={idCurio}
-        />
-      );
+      return <CurioReference chFlag={chFlag} nest={nest} idCurio={idCurio} />;
     }
     if (app === 'chat') {
       const idWritTime = udToDec(segments[3]);
