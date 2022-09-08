@@ -49,23 +49,18 @@ export default function DiaryCommenters({
     >
       {commenters.length > 0 ? (
         <>
-          {
-            // when within grid view, we only show the first 3 avatars
-            commenters
-              .slice(0, fullSize ? commenters.length : 3)
-              .map((ship, index) => (
-                <Avatar
-                  key={ship}
-                  ship={ship}
-                  size="xs"
-                  className="relative outline outline-2 outline-white"
-                  style={{
-                    zIndex: 2 - index,
-                    transform: `translate(${index * -50}%)`,
-                  }}
-                />
-              ))
-          }
+          {commenters.map((ship, index) => (
+            <Avatar
+              key={ship}
+              ship={ship}
+              size="xs"
+              className="relative outline outline-2 outline-white"
+              style={{
+                zIndex: 2 - index,
+                transform: `translate(${index * -50}%)`,
+              }}
+            />
+          ))}
           <span className="ml-2">
             {quipCount} {fullSize && pluralize('comment', quipCount)}
           </span>

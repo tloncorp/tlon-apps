@@ -19,6 +19,7 @@ import useDismissChannelNotifications from '@/logic/useDismissChannelNotificatio
 import { DiaryDisplayMode } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
+import DiaryListItem from './DiaryList/DiaryListItem';
 
 function DiaryChannel() {
   const { chShip, chName } = useParams();
@@ -79,18 +80,17 @@ function DiaryChannel() {
       }
     >
       <div className="p-4">
-        <DiaryGridView notes={sortedNotes} />
-        {/* <ul>
-          {Array.from(notes)
-            .sort(([a], [b]) => b.compare(a))
-            .map(([time, note]) => (
-              <li key={time.toString()}>
-                <Link to={`note/${time.toString()}`}>
-                  <span>{note.essay.title}</span>
-                </Link>
-              </li>
-            ))}
-        </ul> */}
+        {displayMode === 'grid' ? (
+          <DiaryGridView notes={sortedNotes} />
+        ) : (
+          <div className="h-full p-6">
+            <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
+              {sortedNotes.map(([time, note]) => (
+                <DiaryListItem time={time} note={note} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

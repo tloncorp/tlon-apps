@@ -1,17 +1,12 @@
-import Avatar from '@/components/Avatar';
 import Divider from '@/components/Divider';
-import Bubble16Icon from '@/components/icons/Bubble16Icon';
 import Layout from '@/components/Layout/Layout';
-import ShipName from '@/components/ShipName';
 import { pluralize } from '@/logic/utils';
 import { useBrief, useDiaryState, useNote, useQuips } from '@/state/diary';
 import { DiaryBrief, DiaryQuip } from '@/types/diary';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
-import { format, isSameDay } from 'date-fns';
-import _ from 'lodash';
-import f from 'lodash/fp';
-import React, { useCallback, useEffect, useState } from 'react';
+import { isSameDay } from 'date-fns';
+import React, { useCallback, useEffect } from 'react';
 import { useParams } from 'react-router';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
@@ -26,7 +21,7 @@ import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
-import DiaryCommenters from './DiaryCommenters';
+import DiaryNoteHeadline from './DiaryNoteHeadline';
 
 function groupQuips(
   quips: [bigInt.BigInteger, DiaryQuip][],
@@ -115,12 +110,6 @@ export default function DiaryNote() {
     [settings, chFlag]
   );
 
-  const commenters = _.flow(
-    f.compact,
-    f.uniq,
-    f.take(3)
-  )([...quips].map(([, v]) => v.memo.author));
-
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
   }, [chFlag]);
@@ -134,31 +123,7 @@ export default function DiaryNote() {
     >
       <div className="h-full overflow-y-scroll p-6">
         <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
-          {note.essay.image && (
-            <img
-              src={note.essay.image}
-              alt=""
-              className="h-auto w-full rounded-xl"
-            />
-          )}
-          <header className="space-y-6">
-            <h1 className="text-3xl font-semibold">{note.essay.title}</h1>
-            <p className="font-semibold text-gray-400">
-              {format(note.essay.sent, 'LLLL do, yyyy')}
-            </p>
-            <a href="#comments" className="flex items-center">
-              <div className="flex items-center space-x-2 font-semibold">
-                <Avatar ship={note.essay.author} size="xs" />
-                <ShipName name={note.essay.author} />
-              </div>
-              <div className="ml-auto flex items-center">
-                <DiaryCommenters
-                  commenters={commenters}
-                  quipCount={quips.size}
-                />
-              </div>
-            </a>
-          </header>
+          <DiaryNoteHeadline note={note} time={bigInt(noteId)} />
           <DiaryContent content={note.essay.content} />
           <footer id="comments">
             <div className="mb-3 flex items-center py-3">
