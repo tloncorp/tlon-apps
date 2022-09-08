@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDismissNavigate } from '@/logic/routing';
 import Dialog, { DialogContent } from '../components/Dialog';
-import MultiDMInfoForm from '../components/MultiDMInfoForm/MultiDMInfoForm';
+import MultiDMInfoForm from './MultiDMInfoForm';
 
 export default function MultiDMEditModal() {
   const dismiss = useDismissNavigate();
