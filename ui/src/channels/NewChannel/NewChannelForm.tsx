@@ -26,7 +26,7 @@ export default function NewChannelForm() {
       title: '',
       description: '',
       image: '',
-      color: '',
+      cover: '',
     },
     privacy: 'public',
   };
