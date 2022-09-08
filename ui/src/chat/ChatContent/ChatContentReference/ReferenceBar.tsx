@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
 import ChannelIcon from '@/channels/ChannelIcon';
-import { useEffectOnce } from 'usehooks-ts';
 
 export default function ReferenceBar({
   nest,
