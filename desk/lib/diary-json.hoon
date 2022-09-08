@@ -180,7 +180,7 @@
     |=  =notes:d
     ^-  json
     %-  pairs
-    %+  turn  (tap:on:notes:d notes) 
+    %+  turn  (tap:on:notes:d notes)
     |=  [key=@da n=note:d]
     [(scot %ud key) (note n)]
   ::

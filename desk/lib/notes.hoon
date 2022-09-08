@@ -8,7 +8,7 @@
     key.u.tim
   =/  unreads
     (lot:on:notes:d not `last-read ~)
-  =/  read-id=(unit ^time)  
+  =/  read-id=(unit ^time)
     (bind (pry:on:notes:d unreads) |=([key=@da val=note:d] time.val))
   =/  count
     (lent (skim ~(tap by unreads) |=([tim=^time =note:d] !=(author.note our))))

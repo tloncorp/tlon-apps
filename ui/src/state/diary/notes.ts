@@ -93,7 +93,7 @@ export default function makeNotesStore(
           const { diff: d, time } = data;
           if ('notes' in d) {
             const { time: noteId, delta } = d.notes;
-            const bigTime = bigInt(noteId);
+            const bigTime = bigInt(udToDec(noteId));
             const s = get();
             s.batchSet((draft) => {
               let noteMap = draft.notes[flag];
