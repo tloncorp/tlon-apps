@@ -10,7 +10,7 @@ import {
   Inline,
 } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
-import ChatContentReference from '@/chat/ChatContent/ChatContentReference/ChatContentReference';
+import ChatContentReference from '@/components/References/ContentReference';
 import { DiaryBlock, isDiaryImage, NoteContent } from '@/types/diary';
 import DiaryContentImage from './DiaryContentImage';
 

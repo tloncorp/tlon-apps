@@ -1,23 +1,23 @@
 import React, { useEffect } from 'react';
-import { useWrit, useChatState } from '@/state/chat';
 import { Link } from 'react-router-dom';
+import { useWrit, useChatState } from '@/state/chat';
+import { useGroupPreviewByNest } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import ReferenceBar from '@/chat/ChatContent/ChatContentReference/ReferenceBar';
+import ReferenceBar from './ReferenceBar';
 
 export default function WritReference({
-  groupFlag,
   chFlag,
   nest,
   idWrit,
 }: {
-  groupFlag: string;
   chFlag: string;
   nest: string;
   idWrit: string;
 }) {
   const writObject = useWrit(chFlag, idWrit);
+  const preview = useGroupPreviewByNest(nest);
 
   useEffect(() => {
     useChatState.getState().initialize(chFlag);
@@ -39,7 +39,11 @@ export default function WritReference({
   return (
     <div className="writ-inline-block group">
       <Link
-        to={`/groups/${groupFlag}/channels/${nest}?msg=${time}`}
+        to={
+          preview?.group
+            ? `/groups/${preview.group.flag}/channels/${nest}?msg=${time}`
+            : ''
+        }
         className="cursor-pointer p-2 group-hover:bg-gray-50"
       >
         <ChatContent story={content.story} />

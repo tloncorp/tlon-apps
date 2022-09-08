@@ -15,6 +15,7 @@ interface HeapTextInputProps {
   flag: string;
   draft: JSONContent | undefined;
   setDraft: React.Dispatch<React.SetStateAction<JSONContent | undefined>>;
+  placeholder?: string;
   sendDisabled?: boolean;
   replyTo?: string | null;
   className?: string;
@@ -58,6 +59,7 @@ export default function HeapTextInput({
   setDraft,
   replyTo = null,
   sendDisabled = false,
+  placeholder,
   className,
   inputClass,
 }: HeapTextInputProps) {
@@ -107,7 +109,7 @@ export default function HeapTextInput({
 
   const messageEditor = useMessageEditor({
     content: draft || '',
-    placeholder: 'Enter Text Here',
+    placeholder: placeholder || 'Enter Text Here',
     onUpdate,
     onEnter: useCallback(
       ({ editor }) => {

@@ -17,7 +17,7 @@ export default function HeapDetailComments({ time }: HeapDetailCommentsProps) {
   const comments = useComments(chFlag, stringTime);
 
   return (
-    <div className="flex h-full flex-col justify-between overflow-y-auto p-2">
+    <div className="flex h-full flex-col justify-between overflow-y-auto p-4">
       <div className="flex flex-col space-y-2">
         {Array.from(comments)
           .sort(([a], [b]) => a.compare(b))

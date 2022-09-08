@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { useCurio, useHeapState } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import HeapBlock from '@/heap/HeapBlock';
-import ReferenceBar from '@/chat/ChatContent/ChatContentReference/ReferenceBar';
 import { useGroupPreviewByNest } from '@/state/groups';
+import ReferenceBar from './ReferenceBar';
 
 export default function CurioReference({
   chFlag,
@@ -16,6 +16,9 @@ export default function CurioReference({
 }) {
   const curioObject = useCurio(chFlag, idCurio);
   const preview = useGroupPreviewByNest(nest);
+  const refToken = preview?.group
+    ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
+    : undefined;
 
   useEffect(() => {
     useHeapState.getState().initialize(chFlag);
@@ -31,7 +34,7 @@ export default function CurioReference({
   }
   return (
     <div className="heap-inline-block group">
-      <HeapBlock curio={curio} time={idCurio} />
+      <HeapBlock curio={curio} time={idCurio} refToken={refToken} />
       <ReferenceBar nest={nest} time={time} author={curio.heart.author} />
     </div>
   );

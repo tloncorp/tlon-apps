@@ -71,18 +71,20 @@ function HeapChannel({ title }: ViewProps) {
   });
 
   const renderCurio = useCallback(
-    (curio: HeapCurio, time: bigInt.BigInteger) =>
-      displayMode === GRID ? (
-        <div
-          key={time.toString()}
-          tabIndex={0}
-          onClick={() => navigateToDetail(time)}
-        >
+    (curio: HeapCurio, time: bigInt.BigInteger) => (
+      <div
+        key={time.toString()}
+        tabIndex={0}
+        className="cursor-pointer"
+        onClick={() => navigateToDetail(time)}
+      >
+        {displayMode === GRID ? (
           <HeapBlock curio={curio} time={time.toString()} />
-        </div>
-      ) : (
-        <HeapRow key={time.toString()} curio={curio} time={time.toString()} />
-      ),
+        ) : (
+          <HeapRow key={time.toString()} curio={curio} time={time.toString()} />
+        )}
+      </div>
+    ),
     [displayMode, navigateToDetail]
   );
 
