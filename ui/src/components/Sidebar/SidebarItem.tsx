@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import { Link, LinkProps, useMatch } from 'react-router-dom';
 import { useCurrentTheme } from '@/state/local';
+import { isColor } from '@/logic/utils';
 
 type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
@@ -70,7 +71,7 @@ export default function SidebarItem({
   };
 
   const customHiglightStyles = () => {
-    if (hasHoverColor())
+    if (hasHoverColor() && isColor(highlight))
       return {
         backgroundColor:
           currentTheme === 'dark'
