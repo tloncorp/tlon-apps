@@ -1,3 +1,9 @@
+import React, { useCallback } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router';
+import { Link } from 'react-router-dom';
+import cn from 'classnames';
+import { unixToDa } from '@urbit/api';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
@@ -5,11 +11,6 @@ import { parseTipTapJSON } from '@/logic/tiptap';
 import { useDiaryState } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
 import { NoteEssay } from '@/types/diary';
-import { unixToDa } from '@urbit/api';
-import React, { useCallback } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router';
-import { Link } from 'react-router-dom';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
@@ -21,7 +22,7 @@ export default function DiaryAddNote() {
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
       title: '',
-      image: 'https://0x0.st/oT-r.jpg',
+      image: '',
     },
   });
 
@@ -75,7 +76,12 @@ export default function DiaryAddNote() {
             <CaretLeftIcon className="h-6 w-6 text-gray-600" />
           </Link>
           <button
-            className="button bg-blue text-white dark:text-black"
+            className={cn(
+              'button',
+              editor?.getText()
+                ? 'bg-blue text-white dark:text-black'
+                : 'bg-gray-200 text-gray-400'
+            )}
             onClick={publish}
           >
             Publish
@@ -89,7 +95,7 @@ export default function DiaryAddNote() {
             <CoverImageInput url="" />
             <input
               placeholder="New Title"
-              className="input-transparent text-3xl"
+              className="input-transparent text-3xl font-semibold"
               type="text"
               {...register('title')}
             />
