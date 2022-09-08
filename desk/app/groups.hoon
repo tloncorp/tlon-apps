@@ -105,7 +105,7 @@
       ^-  vessel:fleet:g
       [sects *time]
     =/  =group:g
-      [fleet ~ ~ ~ ~ ~ cordon.create title.create description.create image.create color.create] 
+      [fleet ~ ~ ~ ~ ~ cordon.create title.create description.create image.create cover.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:go-init:(go-abed:group-core flag)

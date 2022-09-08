@@ -31,14 +31,14 @@ export default function SectionNameEditInput({
     title: sectionTitle || '',
     description: '',
     image: '',
-    color: '',
+    cover: '',
   };
 
   const untitledSectionValues: GroupMeta = {
     title: 'New Section',
     description: '',
     image: '',
-    color: '',
+    cover: '',
   };
 
   const { handleSubmit, register } = useForm({

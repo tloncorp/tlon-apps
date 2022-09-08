@@ -160,7 +160,7 @@
       title=cord
       description=cord
       image=cord  
-      color=cord
+      cover=cord
       =cordon
       members=(jug ship sect)
   ==

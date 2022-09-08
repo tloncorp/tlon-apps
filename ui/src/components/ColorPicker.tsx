@@ -2,6 +2,15 @@ import React from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import * as Popover from '@radix-ui/react-popover';
 import classNames from 'classnames';
+import {
+  Controller,
+  FieldPath,
+  FieldValues,
+  Path,
+  PathValue,
+  useFormContext,
+} from 'react-hook-form';
+import { isColor } from '@/logic/utils';
 
 interface ColorPickerProps {
   color: string;
@@ -34,5 +43,35 @@ export default function ColorPicker({
         </Popover.Content>
       </Popover.Root>
     </div>
+  );
+}
+
+interface ColorPickerFieldProps<FormType extends FieldValues> {
+  fieldName: FieldPath<FormType>;
+  defaultValue?: PathValue<FormType, Path<FormType>>;
+  className?: string;
+}
+
+export function ColorPickerField<FormType extends FieldValues>({
+  fieldName,
+  defaultValue,
+  className,
+}: ColorPickerFieldProps<FormType>) {
+  const { control } = useFormContext<FormType>();
+
+  return (
+    <Controller
+      control={control}
+      name={fieldName}
+      defaultValue={defaultValue}
+      rules={{ validate: isColor }}
+      render={({ field: { onChange, value } }) => (
+        <ColorPicker
+          className={className}
+          color={value}
+          setColor={(newColor) => onChange(newColor)}
+        />
+      )}
+    />
   );
 }

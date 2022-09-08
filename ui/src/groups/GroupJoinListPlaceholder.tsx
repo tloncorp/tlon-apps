@@ -7,7 +7,7 @@ export default function GroupJoinListPlaceholder() {
       <li className="relative flex items-center">
         <div className="flex w-full items-center justify-start rounded-xl p-2 text-left">
           <div className="flex items-center space-x-3 font-semibold">
-            <GroupAvatar color={'#f5f5f5'} size={'h-12 w-12'} />
+            <GroupAvatar image={'#f5f5f5'} size={'h-12 w-12'} />
             <div className="space-y-2">
               <div className="h-5 w-[68px] rounded bg-gray-100" />
               <div className="h-5 w-[123px] rounded bg-gray-200" />
