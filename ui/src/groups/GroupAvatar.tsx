@@ -1,12 +1,12 @@
 import cn from 'classnames';
 import React from 'react';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
-import useMedia from '../logic/useMedia';
+import { isColor } from '@/logic/utils';
+import useMedia from '@/logic/useMedia';
 
 interface GroupAvatarProps {
   image?: string;
   size?: string;
-  color?: string;
   className?: string;
   title?: string;
 }
@@ -34,14 +34,13 @@ const textSize = (size: string) => {
 export default function GroupAvatar({
   image,
   size = 'h-6 w-6',
-  color,
   className,
   title,
 }: GroupAvatarProps) {
   const dark = useMedia('(prefers-color-scheme: dark)');
-  const background = color || (dark ? '#1A1A1A' : '#F5F5F5');
+  const background = image || (dark ? '#1A1A1A' : '#F5F5F5');
 
-  return (image || '').length > 0 ? (
+  return image && !isColor(image) ? (
     <img className={cn('rounded', size, className)} src={image} />
   ) : (
     <ColorBoxIcon

@@ -42,7 +42,7 @@ export default function NewGroup() {
     title: '',
     description: '',
     image: '',
-    color: '',
+    cover: '',
     privacy: 'public',
   };
 

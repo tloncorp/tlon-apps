@@ -21,17 +21,14 @@ export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
   const data = {
     image: '',
     title: '',
-    color: '',
   };
 
   if (group) {
     data.image = group.meta.image;
     data.title = group.meta.title;
-    data.color = group.meta.color;
   } else if (gang.preview) {
     data.image = gang.preview?.meta.image;
     data.title = gang.preview?.meta.title;
-    data.color = gang.preview?.meta.color;
   }
 
   const onGroupClick = () => {
@@ -48,12 +45,7 @@ export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
     <Tooltip.Root>
       <Tooltip.Trigger asChild>
         <div onClick={onGroupClick} className="cursor-pointer">
-          <GroupAvatar
-            {...group?.meta}
-            image={data.image}
-            color={data.color}
-            size="h-14 w-14"
-          />
+          <GroupAvatar {...group?.meta} image={data.image} size="h-14 w-14" />
         </div>
       </Tooltip.Trigger>
       <Tooltip.Content

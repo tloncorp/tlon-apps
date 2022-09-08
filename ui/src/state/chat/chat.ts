@@ -318,7 +318,7 @@ export const useChatState = create<ChatState>(
               title: '',
               description: '',
               image: '',
-              color: '',
+              cover: '',
             },
             pin: false,
           };
@@ -471,7 +471,7 @@ export const useChatState = create<ChatState>(
               title: '',
               description: '',
               image: '',
-              color: '',
+              cover: '',
             },
           };
         });

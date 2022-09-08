@@ -277,7 +277,7 @@ export const useGroupState = create<GroupState>((set, get) => ({
       cabal: {
         sect,
         diff: {
-          add: { ...meta, image: '', color: '' },
+          add: { ...meta, image: '', cover: '' },
         },
       },
     };
