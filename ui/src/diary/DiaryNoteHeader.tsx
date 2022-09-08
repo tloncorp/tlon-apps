@@ -20,6 +20,7 @@ export default function DiaryNoteHeader({
   time,
 }: DiaryNoteHeaderProps) {
   const groupFlag = useGroupFlag();
+  const [isOpen, setIsOpen] = useState(false);
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
   const delNote = useCallback(() => {
@@ -30,9 +31,18 @@ export default function DiaryNoteHeader({
     doCopy(`${groupFlag}/channels/diary/${flag}/note/${time}`);
     setJustCopied(true);
     setTimeout(() => {
+      setIsOpen(false);
       setJustCopied(false);
     }, 1000);
   }, [doCopy, time, groupFlag, flag]);
+
+  const onCopySelect = useCallback(
+    (event: Event) => {
+      event.preventDefault();
+      onCopy();
+    },
+    [onCopy]
+  );
 
   return (
     <div
@@ -51,14 +61,12 @@ export default function DiaryNoteHeader({
 
       <div className="ml-auto flex items-center space-x-3">
         <Link to={`../edit/${time}`} className="secondary-button">
-          Edit Note
+          Edit Post
         </Link>
-        <button className="secondary-button" onClick={onCopy}>
-          <span className="font-semibold">
-            {justCopied ? 'copied!' : 'Share'}
-          </span>
+        <button className="secondary-button" disabled>
+          Share
         </button>
-        <Dropdown.Root>
+        <Dropdown.Root open={isOpen} onOpenChange={setIsOpen}>
           <Dropdown.Trigger
             className="secondary-button h-8 w-8 p-0"
             aria-label="Note menu"
@@ -69,9 +77,20 @@ export default function DiaryNoteHeader({
             sideOffset={8}
             className="dropdown min-w-[208px] drop-shadow-lg"
           >
-            <Dropdown.Item className="dropdown-item" onSelect={onCopy}>
-              Copy Note Link
+            <Dropdown.Item className="dropdown-item text-gray-400">
+              Share Note
             </Dropdown.Item>
+            <Dropdown.Item className="dropdown-item" onSelect={onCopySelect}>
+              {justCopied ? 'Copied!' : 'Copy Note Link'}
+            </Dropdown.Item>
+            <div className="m-2 border-t-2 border-gray-50" />
+            <Dropdown.Item className="dropdown-item text-gray-400">
+              Mark Read
+            </Dropdown.Item>
+            <Dropdown.Item className="dropdown-item text-gray-400">
+              Mute
+            </Dropdown.Item>
+            <div className="m-2 border-t-2 border-gray-50" />
             <Dropdown.Item className="dropdown-item" asChild>
               <Link to={`../edit/${time}`}>Edit Note</Link>
             </Dropdown.Item>
