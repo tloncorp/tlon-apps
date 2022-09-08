@@ -16,9 +16,9 @@ import {
   ChannelPrivacyType,
 } from '@/types/groups';
 import api from '@/api';
+import { useEffectOnce } from 'usehooks-ts';
 import groupsReducer from './groupsReducer';
 import { GroupState } from './type';
-import { useEffectOnce } from 'usehooks-ts';
 
 export const GROUP_ADMIN = 'admin';
 

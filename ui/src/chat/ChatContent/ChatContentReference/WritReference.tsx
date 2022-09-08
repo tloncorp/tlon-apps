@@ -44,11 +44,7 @@ export default function WritReference({
       >
         <ChatContent story={content.story} />
       </Link>
-      <ReferenceBar
-        nest={nest}
-        time={time}
-        author={author}
-      />
+      <ReferenceBar nest={nest} time={time} author={author} />
     </div>
   );
 }
