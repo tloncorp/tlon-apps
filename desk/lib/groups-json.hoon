@@ -282,7 +282,7 @@
     :~  title/s/title.m
         description/s/description.m
         image/s/image.m
-        color/s/color.m
+        cover/s/cover.m
     ==
   --
 ::
@@ -301,7 +301,7 @@
         title+so
         description+so
         image+so
-        color+so
+        cover+so
         cordon+cordon
         members+(op ;~(pfix sig fed:ag) (as sym))
     ==
@@ -444,7 +444,7 @@
     :~  title/so
         description/so
         image/so
-        color/so
+        cover/so
     ==
   --
 --
