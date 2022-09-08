@@ -31,8 +31,8 @@
 }
 
 .input {
-  @apply flex rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 text-lg leading-5 transition-colors focus-within:border-gray-100 focus-within:bg-white
-  focus:outline-none focus-visible:border-gray-100 focus-visible:bg-white sm:text-base sm:leading-5;
+  @apply flex rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 text-lg leading-5 caret-blue-400 transition-colors focus-within:border-gray-100
+  focus-within:bg-white focus:outline-none focus-visible:border-gray-100 focus-visible:bg-white sm:text-base sm:leading-5;
 }
 
 .input-inner {
@@ -40,7 +40,7 @@
 }
 
 .input-transparent {
-  @apply bg-transparent transition-colors focus-within:border-gray-100 focus-within:bg-white focus:outline-none
+  @apply bg-transparent caret-blue-400 transition-colors focus-within:border-gray-100 focus-within:bg-white focus:outline-none
   focus:outline-none focus-visible:border-gray-100;
 }
 /* Placeholder (at the top) */
