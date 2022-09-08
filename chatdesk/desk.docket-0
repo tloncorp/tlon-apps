@@ -1,7 +1,7 @@
 :~  title+'chatstead'
     info+'An Urbit app that does great things'
     color+0xd5.6f4f
-    glob-http+['https://bootstrap.urbit.org/glob-0v6.1sf61.tvmp2.hh56r.cvsta.hb64m.glob' 0v6.1sf61.tvmp2.hh56r.cvsta.hb64m]
+    glob-http+['https://bootstrap.urbit.org/glob-0v5.9mtlo.65i5t.tfe1g.3pf4h.cnpar.glob' 0v5.9mtlo.65i5t.tfe1g.3pf4h.cnpar]
     base+'chatstead'
     version+[0 0 1]
     website+'https://github.com'
