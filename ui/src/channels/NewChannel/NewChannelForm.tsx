@@ -74,7 +74,7 @@ export default function NewChannelForm() {
           .addChannelToZone(section, groupFlag, newChannelNest);
       }
 
-      navigate(channelHref(groupFlag, newChannelNest));
+      navigate(`/groups/${groupFlag}/info/channels`);
     },
     [section, groupFlag, navigate]
   );
