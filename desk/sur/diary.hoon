@@ -1,4 +1,4 @@
-/-  g=groups
+/-  g=groups, c=cite
 |%
 +$  flag  (pair ship term)
 +$  feel  @ta
@@ -71,6 +71,7 @@
   ==
 +$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
+      [%cite =cite:c]
   ==
 +$  inline
   $@  @t

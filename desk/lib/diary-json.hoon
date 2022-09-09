@@ -1,5 +1,6 @@
 /-  d=diary
 /-  meta
+/+  cite=cite-json
 |%
 ++  enjs
   =,  enjs:format
@@ -131,6 +132,7 @@
     ^-  json
     %+  frond  -.b
     ?-  -.b
+        %cite  (enjs:cite cite.b)
         %image
       %-  pairs
       :~  src+s+src.b
@@ -345,7 +347,7 @@
     ^-  block:d
     %.  j
     %-  of
-    :~
+    :~  cite/dejs:cite
     ::
       :-  %image
       %-  ot

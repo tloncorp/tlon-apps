@@ -3,14 +3,16 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
+import _ from 'lodash';
 import { unixToDa } from '@urbit/api';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
-import { parseTipTapJSON } from '@/logic/tiptap';
+import { parseTipTapJSON, parseTipTapJSONMixed } from '@/logic/tiptap';
 import { useDiaryState } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
-import { NoteEssay } from '@/types/diary';
+import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
+import { Inline } from '@/types/content';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
@@ -39,14 +41,36 @@ export default function DiaryAddNote() {
       return;
     }
 
-    const data = parseTipTapJSON(editor?.getJSON());
+    const data = parseTipTapJSONMixed(editor?.getJSON());
     const values = getValues();
 
     const sent = Date.now();
 
+    const isBlock = (c: Inline | DiaryBlock) =>
+      ['image', 'cite'].some((k) => typeof c !== 'string' && k in c);
+    const content: NoteContent = [];
+    let index = 0;
+    data.forEach((c, i) => {
+      if (i < index) {
+        return;
+      }
+
+      if (isBlock(c)) {
+        content.push({ block: c as DiaryBlock });
+        index += 1;
+      } else {
+        const inline = _.takeWhile(
+          _.drop(data, index),
+          (d) => !isBlock(d)
+        ) as Inline[];
+        content.push({ inline });
+        index += inline.length;
+      }
+    });
+
     useDiaryState.getState().addNote(chFlag, {
       ...values,
-      content: [{ inline: Array.isArray(data) ? data : [data] }],
+      content,
       author: window.our,
       sent,
     });
