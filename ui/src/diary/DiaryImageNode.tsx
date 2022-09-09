@@ -3,7 +3,7 @@ import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { mergeAttributes, Node } from '@tiptap/core';
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import cn from 'classnames';
-import React, { ChangeEvent, useState, useEffect } from 'react';
+import React, { ChangeEvent, useState, useEffect, useRef } from 'react';
 import useDiaryNode from './useDiaryNode';
 
 function DiaryImageComponent(props: any) {
@@ -14,6 +14,7 @@ function DiaryImageComponent(props: any) {
   const { clear, ...bind } = useDiaryNode('src', props);
   const [error, setError] = useState(false);
   const [src, setSrc] = useState(null as string | null);
+  const image = useRef<HTMLImageElement>(null);
   const onError = () => {
     setError(true);
   };
@@ -35,6 +36,15 @@ function DiaryImageComponent(props: any) {
     setError(false);
   };
 
+  const onLoad = () => {
+    if (image.current) {
+      props.updateAttributes({
+        width: image.current.naturalWidth,
+        height: image.current.naturalHeight,
+      });
+    }
+  };
+
   return (
     <NodeViewWrapper>
       <div
@@ -45,7 +55,12 @@ function DiaryImageComponent(props: any) {
       >
         <div className="absolute inset-x-4 bottom-4 flex h-8 items-center space-x-2 rounded-lg border border-gray-100 bg-white px-2">
           <LinkIcon className="h-4 w-4" />
-          <input className="input-transparent grow" type="text" {...bind} />
+          <input
+            className="input-transparent grow"
+            type="text"
+            {...bind}
+            placeholder="Enter an image/embed/web URL"
+          />
           {error ? (
             <div className="flex space-x-2">
               <AsteriskIcon className="h-4 w-4" />
@@ -60,7 +75,13 @@ function DiaryImageComponent(props: any) {
           ) : null}
         </div>
         {src && !error ? (
-          <img className="rounded-xl" src={src} onError={onError} />
+          <img
+            ref={image}
+            className="rounded-xl"
+            src={src}
+            onError={onError}
+            onLoad={onLoad}
+          />
         ) : (
           <div className="h-16 w-full" />
         )}
@@ -86,10 +107,13 @@ const DiaryImageNode = Node.create({
         default: null,
       },
       alt: {
-        default: null,
+        default: '',
       },
-      title: {
-        default: null,
+      height: {
+        default: 0,
+      },
+      width: {
+        default: 0,
       },
     };
   },

@@ -8,6 +8,7 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { Cite } from '@/types/chat';
+import { DiaryBlock } from '@/types/diary';
 import { pathToCite } from './utils';
 
 export interface EditorOnUpdateProps {
@@ -163,6 +164,117 @@ export function parseTipTapJSON(json: JSONContent): Inline[] {
         [convertMarkType(first.type)]: parseTipTapJSON(json),
       },
     ] as unknown as Inline[];
+  }
+
+  if (json.type === 'paragraph') {
+    return [
+      {
+        break: null,
+      },
+    ];
+  }
+
+  return [json.text || ''];
+}
+
+export function parseTipTapJSONMixed(
+  json: JSONContent
+): (Inline | DiaryBlock)[] {
+  if (json.content) {
+    if (json.content.length === 1) {
+      if (json.type === 'blockquote') {
+        const parsed = parseTipTapJSON(json.content[0]);
+        return [
+          {
+            blockquote: parsed,
+          },
+        ];
+      }
+      return parseTipTapJSONMixed(json.content[0]);
+    }
+
+    /* Only allow two or less consecutive breaks */
+    const breaksAdded: JSONContent[] = [];
+    let count = 0;
+    json.content.forEach((item) => {
+      if (item.type === 'paragraph' && !item.content) {
+        if (count === 1) {
+          breaksAdded.push(item);
+          count += 1;
+        }
+        return;
+      }
+
+      breaksAdded.push(item);
+
+      if (item.type === 'paragraph' && item.content) {
+        breaksAdded.push({ type: 'paragraph' });
+        count = 1;
+      }
+    });
+
+    return breaksAdded.reduce(
+      (message, contents) => message.concat(parseTipTapJSONMixed(contents)),
+      [] as (Inline | DiaryBlock)[]
+    );
+  }
+
+  if (json.marks && json.marks.length > 0) {
+    const first = json.marks.pop();
+
+    if (!first) {
+      throw new Error('Unsure what this is');
+    }
+
+    if (
+      json.text &&
+      (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
+    ) {
+      return [
+        {
+          'inline-code': json.text,
+        },
+      ];
+    }
+
+    if (first.type === 'link' && first.attrs) {
+      return [
+        {
+          link: {
+            href: first.attrs.href,
+            content: json.text || first.attrs.href,
+          },
+        },
+      ];
+    }
+
+    return [
+      {
+        [convertMarkType(first.type)]: parseTipTapJSON(json),
+      },
+    ] as unknown as Inline[];
+  }
+
+  if (json.type === 'diary-image' && json.attrs) {
+    return [
+      {
+        image: {
+          src: json.attrs.src,
+          alt: json.attrs.alt,
+          height: json.attrs.height,
+          width: json.attrs.width,
+        },
+      },
+    ];
+  }
+
+  if (json.type === 'diary-cite' && json.attrs) {
+    const cite = pathToCite(json.attrs.path);
+    if (!cite) {
+      return [''];
+    }
+
+    return [{ cite }];
   }
 
   if (json.type === 'paragraph') {
