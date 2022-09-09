@@ -241,23 +241,29 @@
   ==
 ::
 ++  agent
-  |=  [=wire =sign:agent:gall]
+  |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
-  ?+    wire  ~|(bad-agent-wire/wire !!)
+  ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
   ::
-      [%dm @ *]
-    =/  =ship  (slav %p i.t.wire)
-    di-abet:(di-agent:(di-abed:di-core ship) t.t.wire sign)
+      [%said host=@ name=@ %msg sender=@ time=@ ~]
+    =/  host=ship    (slav %p host.pole)
+    =/  =flag:c      [host name.pole]
+    =/  sender=ship  (slav %p sender.pole)
+    =/  =id:c        [sender (slav %ud time.pole)]
+    (take-said flag id sign)
   ::
-      [%club @ *]
-    =/  =id:club:c  (slav %uv i.t.wire)
-    cu-abet:(cu-agent:(cu-abed id) t.t.wire sign)
+      [%dm ship=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    di-abet:(di-agent:(di-abed:di-core ship) rest.pole sign)
+  ::
+      [%club id=@ rest=*]
+    =/  =id:club:c  (slav %uv id.pole)
+    cu-abet:(cu-agent:(cu-abed id) rest.pole sign)
 
-      [%chat @ @ *]
-    =/  =ship  (slav %p i.t.wire)
-    =*  name   i.t.t.wire
-    ca-abet:(ca-agent:(ca-abed:ca-core ship name) t.t.t.wire sign)
+      [%chat ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    ca-abet:(ca-agent:(ca-abed:ca-core ship name.pole) rest.pole sign)
   ::
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
