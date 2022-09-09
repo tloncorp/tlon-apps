@@ -129,6 +129,10 @@ interface NoteDeltaAdd {
   add: NoteEssay;
 }
 
+interface NoteDeltaEdit {
+  edit: NoteEssay;
+}
+
 interface NoteDeltaDel {
   del: null;
 }
@@ -156,7 +160,11 @@ interface DiaryDiffQuips {
   };
 }
 
-export type NoteDelta = NoteDeltaAdd | NoteDeltaDel | NoteDeltaAddFeel;
+export type NoteDelta =
+  | NoteDeltaAdd
+  | NoteDeltaEdit
+  | NoteDeltaDel
+  | NoteDeltaAddFeel;
 
 export interface NoteDiff {
   time: string;

@@ -216,10 +216,17 @@ export const useDiaryState = create<DiaryState>(
       viewDiary: async (flag, view) => {
         await api.poke(diaryAction(flag, { view }));
       },
-      addNote: async (flag, heart) => {
+      addNote: async (flag, essay) => {
         await api.poke(
           diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
-            add: heart,
+            add: essay,
+          })
+        );
+      },
+      editNote: async (flag, essay) => {
+        await api.poke(
+          diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
+            edit: essay,
           })
         );
       },

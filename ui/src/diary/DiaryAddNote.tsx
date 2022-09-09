@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -8,30 +8,39 @@ import { unixToDa } from '@urbit/api';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
-import { parseTipTapJSON, parseTipTapJSONMixed } from '@/logic/tiptap';
-import { useDiaryState } from '@/state/diary';
+import {
+  mixedToJSON,
+  parseTipTapJSON,
+  parseTipTapJSONMixed,
+} from '@/logic/tiptap';
+import { useDiaryState, useNote } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
 import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
 import { Inline } from '@/types/content';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
-  const { chShip, chName } = useParams();
+  const { chShip, chName, id } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const group = useRouteGroup();
   const navigate = useNavigate();
+  const [, note] = useNote(chFlag, id || '');
+  const content = useMemo(
+    () => (note.essay.content ? mixedToJSON(note.essay.content) : ''),
+    [note.essay.content]
+  );
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
-      title: '',
-      image: '',
+      title: note.essay.title || '',
+      image: note.essay.image || '',
     },
   });
 
   const { reset, register, getValues } = form;
 
   const editor = useDiaryInlineEditor({
-    content: '',
+    content,
     placeholder: '',
     onEnter: () => false,
   });
@@ -48,7 +57,7 @@ export default function DiaryAddNote() {
 
     const isBlock = (c: Inline | DiaryBlock) =>
       ['image', 'cite'].some((k) => typeof c !== 'string' && k in c);
-    const content: NoteContent = [];
+    const noteContent: NoteContent = [];
     let index = 0;
     data.forEach((c, i) => {
       if (i < index) {
@@ -56,24 +65,32 @@ export default function DiaryAddNote() {
       }
 
       if (isBlock(c)) {
-        content.push({ block: c as DiaryBlock });
+        noteContent.push({ block: c as DiaryBlock });
         index += 1;
       } else {
         const inline = _.takeWhile(
           _.drop(data, index),
           (d) => !isBlock(d)
         ) as Inline[];
-        content.push({ inline });
+        noteContent.push({ inline });
         index += inline.length;
       }
     });
 
-    useDiaryState.getState().addNote(chFlag, {
-      ...values,
-      content,
-      author: window.our,
-      sent,
-    });
+    if (id) {
+      useDiaryState.getState().editNote(chFlag, {
+        ...note.essay,
+        ...values,
+        content: noteContent,
+      });
+    } else {
+      useDiaryState.getState().addNote(chFlag, {
+        ...values,
+        content: noteContent,
+        author: window.our,
+        sent,
+      });
+    }
 
     reset();
     if (!editor?.isDestroyed) {
@@ -84,7 +101,7 @@ export default function DiaryAddNote() {
         sent
       ).toString()}`
     );
-  }, [chFlag, editor, reset, getValues, navigate, group]);
+  }, [chFlag, editor, id, note.essay, reset, getValues, navigate, group]);
 
   return (
     <Layout

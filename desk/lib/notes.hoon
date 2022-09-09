@@ -43,6 +43,11 @@
       not
     (put:on:notes:d not time [seal p.del])
   ::
+      %edit
+    =/  note  (get time)
+    ?~  note  not
+    (put:on:notes:d not time [-.+.u.note p.del])
+  ::
       %del
     =^  no=(unit note:d)  not
       (del:on:notes:d not time)
