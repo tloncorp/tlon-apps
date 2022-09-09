@@ -35,7 +35,6 @@ function DiaryChannel() {
   const [showToast, setShowToast] = useState(false);
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
-  console.log(newNote);
 
   const settings = useDiarySettings();
   // for now sortMode is not actually doing anything.
@@ -149,7 +148,7 @@ function DiaryChannel() {
           <div className="h-full p-6">
             <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
               {sortedNotes.map(([time, note]) => (
-                <DiaryListItem time={time} note={note} />
+                <DiaryListItem key={time.toString()} time={time} note={note} />
               ))}
             </div>
           </div>
