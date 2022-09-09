@@ -2,11 +2,12 @@ import cn from 'classnames';
 import React, { useCallback, useState } from 'react';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { useDiaryState } from '@/state/diary';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { useGroupFlag } from '@/state/groups';
+import { decToUd } from '@urbit/api';
 
 export interface DiaryNoteHeaderProps {
   title: string;
@@ -19,13 +20,15 @@ export default function DiaryNoteHeader({
   flag,
   time,
 }: DiaryNoteHeaderProps) {
+  const navigate = useNavigate();
   const groupFlag = useGroupFlag();
   const [isOpen, setIsOpen] = useState(false);
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
-  const delNote = useCallback(() => {
-    useDiaryState.getState().delNote(flag, time);
-  }, [flag, time]);
+  const delNote = useCallback(async () => {
+    await useDiaryState.getState().delNote(flag, decToUd(time));
+    navigate('../');
+  }, [flag, time, navigate]);
 
   const onCopy = useCallback(() => {
     doCopy(`${groupFlag}/channels/diary/${flag}/note/${time}`);

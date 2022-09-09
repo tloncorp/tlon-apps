@@ -223,8 +223,8 @@ export const useDiaryState = create<DiaryState>(
           })
         );
       },
-      delNote: (flag, time) => {
-        api.poke(diaryNoteDiff(flag, time, { del: null }));
+      delNote: async (flag, time) => {
+        await api.poke(diaryNoteDiff(flag, time, { del: null }));
       },
       create: async (req) => {
         await api.poke({
