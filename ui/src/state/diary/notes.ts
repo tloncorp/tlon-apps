@@ -101,6 +101,9 @@ export default function makeNotesStore(
                 const seal: NoteSeal = { time: noteId, feels: {} };
                 const note: DiaryNote = { seal, essay: delta.add };
                 noteMap = noteMap.set(bigTime, note);
+              } else if ('edit' in delta && noteMap.has(bigTime)) {
+                const note = noteMap.get(bigTime);
+                noteMap = noteMap.set(bigTime, { ...note, essay: delta.edit });
               } else if ('del' in delta && noteMap.has(bigTime)) {
                 noteMap = noteMap.delete(bigTime);
               }

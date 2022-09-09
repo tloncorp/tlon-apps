@@ -223,9 +223,9 @@ export const useDiaryState = create<DiaryState>(
           })
         );
       },
-      editNote: async (flag, essay) => {
+      editNote: async (flag, time, essay) => {
         await api.poke(
-          diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
+          diaryNoteDiff(flag, decToUd(time), {
             edit: essay,
           })
         );

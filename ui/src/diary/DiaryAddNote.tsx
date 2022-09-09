@@ -78,7 +78,7 @@ export default function DiaryAddNote() {
     });
 
     if (id) {
-      useDiaryState.getState().editNote(chFlag, {
+      useDiaryState.getState().editNote(chFlag, id, {
         ...note.essay,
         ...values,
         content: noteContent,
