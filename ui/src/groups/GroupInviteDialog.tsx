@@ -1,13 +1,16 @@
 import ob from 'urbit-ob';
 import React, { useCallback, useState } from 'react';
-import Dialog, { DialogClose, DialogContent } from '../components/Dialog';
-import ShipSelector, { ShipOption } from '../components/ShipSelector';
-import { useDismissNavigate } from '../logic/routing';
-import { useGroupState, useRouteGroup } from '../state/groups/groups';
+import Dialog, { DialogClose, DialogContent } from '@/components/Dialog';
+import ShipSelector, { ShipOption } from '@/components/ShipSelector';
+import { useDismissNavigate } from '@/logic/routing';
+import { useGroup, useGroupState, useRouteGroup } from '@/state/groups/groups';
+import { getGroupPrivacy } from '@/logic/utils';
 
 export default function GroupInviteDialog() {
   const dismiss = useDismissNavigate();
   const flag = useRouteGroup();
+  const group = useGroup(flag);
+  const privacy = group ? getGroupPrivacy(group.cordon) : 'public';
   const [ships, setShips] = useState<ShipOption[]>([]);
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
@@ -20,11 +23,13 @@ export default function GroupInviteDialog() {
   };
 
   const onInvite = useCallback(() => {
-    useGroupState.getState().addMembers(
-      flag,
-      ships.map((s) => s.value)
-    );
-  }, [flag, ships]);
+    const shipList = ships.map((s) => s.value);
+    if (privacy === 'public') {
+      useGroupState.getState().addMembers(flag, shipList);
+    } else if (privacy === 'private') {
+      useGroupState.getState().invite(flag, shipList);
+    }
+  }, [flag, privacy, ships]);
 
   const onEnter = useCallback(() => {
     onInvite();
@@ -33,7 +38,7 @@ export default function GroupInviteDialog() {
 
   return (
     <Dialog defaultOpen onOpenChange={onOpenChange}>
-      <DialogContent containerClass="w-full max-w-lg" showClose>
+      <DialogContent containerClass="w-full max-w-xl" showClose>
         <div className="flex flex-col">
           <h2 className="mb-4 text-lg font-bold">Invite To Group</h2>
           <div className="w-full py-3">
