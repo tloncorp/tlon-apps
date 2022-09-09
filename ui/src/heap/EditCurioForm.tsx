@@ -8,7 +8,7 @@ import { useChannelFlag } from '@/hooks';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/core';
-import { inlinesToJSON, parseTipTapJSON } from '@/logic/tiptap';
+import { inlinesToJSON, JSONToInlines } from '@/logic/tiptap';
 import useCurioFromParams from './useCurioFromParams';
 import HeapTextInput from './HeapTextInput';
 
@@ -57,7 +57,7 @@ export default function EditCurioForm() {
       }
       const editedContent = isLinkMode
         ? [content]
-        : (parseTipTapJSON(draftText || {}) as HeapInline[]);
+        : (JSONToInlines(draftText || {}) as HeapInline[]);
 
       try {
         setPending();

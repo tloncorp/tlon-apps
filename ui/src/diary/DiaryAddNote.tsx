@@ -7,7 +7,7 @@ import { unixToDa } from '@urbit/api';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
-import { parseTipTapJSON } from '@/logic/tiptap';
+import { JSONToInlines } from '@/logic/tiptap';
 import { useDiaryState } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
 import { NoteEssay } from '@/types/diary';
@@ -39,7 +39,7 @@ export default function DiaryAddNote() {
       return;
     }
 
-    const data = parseTipTapJSON(editor?.getJSON());
+    const data = JSONToInlines(editor?.getJSON());
     const values = getValues();
 
     const sent = Date.now();

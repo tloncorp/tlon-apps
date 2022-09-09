@@ -89,18 +89,18 @@ export function tipTapToString(json: JSONContent): string {
 
 // this will be replaced with more sophisticated logic based on
 // what we decide will be the message format
-export function parseTipTapJSON(json: JSONContent): Inline[] {
+export function JSONToInlines(json: JSONContent): Inline[] {
   if (json.content) {
     if (json.content.length === 1) {
       if (json.type === 'blockquote') {
-        const parsed = parseTipTapJSON(json.content[0]);
+        const parsed = JSONToInlines(json.content[0]);
         return [
           {
             blockquote: parsed,
           },
         ];
       }
-      return parseTipTapJSON(json.content[0]);
+      return JSONToInlines(json.content[0]);
     }
 
     /* Only allow two or less consecutive breaks */
@@ -124,7 +124,7 @@ export function parseTipTapJSON(json: JSONContent): Inline[] {
     });
 
     return breaksAdded.reduce(
-      (message, contents) => message.concat(parseTipTapJSON(contents)),
+      (message, contents) => message.concat(JSONToInlines(contents)),
       [] as Inline[]
     );
   }
@@ -160,7 +160,7 @@ export function parseTipTapJSON(json: JSONContent): Inline[] {
 
     return [
       {
-        [convertMarkType(first.type)]: parseTipTapJSON(json),
+        [convertMarkType(first.type)]: JSONToInlines(json),
       },
     ] as unknown as Inline[];
   }
@@ -172,6 +172,8 @@ export function parseTipTapJSON(json: JSONContent): Inline[] {
       },
     ];
   }
+
+  // TODO: add codeblock case
 
   return [json.text || ''];
 }

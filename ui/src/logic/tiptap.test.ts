@@ -2,7 +2,12 @@
 import { describe, expect, it } from 'vitest';
 import { JSONContent } from '@tiptap/react';
 import { Inline } from '@/types/content';
-import { inlinesToJSON, inlineToContent, wrapParagraphs } from './tiptap';
+import {
+  inlinesToJSON,
+  inlineToContent,
+  JSONToInlines,
+  wrapParagraphs,
+} from './tiptap';
 
 describe('wrapParagraphs', () => {
   it('wraps empty content', () => {
@@ -370,6 +375,133 @@ describe('inlinesToJSON', () => {
         { type: 'paragraph' },
       ],
     };
+    expect(output).toEqual(expected);
+  });
+});
+
+describe('JSONToInlines', () => {
+  it('text', () => {
+    const input: JSONContent = { type: 'text', text: 'foo' };
+    const output = JSONToInlines(input);
+    const expected: Inline[] = ['foo'];
+    expect(output).toEqual(expected);
+  });
+
+  it('newline', () => {
+    const input: JSONContent = { type: 'paragraph' };
+    const output = JSONToInlines(input);
+    const expected: Inline[] = [{ break: null }];
+    expect(output).toEqual(expected);
+  });
+
+  it('unstyled paragraph', () => {
+    const input: JSONContent = {
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'bar' }],
+    };
+    const output = JSONToInlines(input);
+    const expected: Inline[] = ['bar'];
+    expect(output).toEqual(expected);
+  });
+
+  it('styled paragraph', () => {
+    const input: JSONContent = {
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'foobar', marks: [{ type: 'bold' }] }],
+    };
+    const output = JSONToInlines(input);
+    const expected: Inline[] = [{ bold: ['foobar'] }];
+    expect(output).toEqual(expected);
+  });
+
+  it('simple doc', () => {
+    const input: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'some text',
+            },
+          ],
+        },
+      ],
+    };
+    const output = JSONToInlines(input);
+    const expected: Inline[] = ['some text'];
+    expect(output).toEqual(expected);
+  });
+
+  it('doc with multiple paragraphs', () => {
+    const input: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'some text',
+            },
+          ],
+        },
+        {
+          type: "paragraph"
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'foofoo',
+              marks: [{ type: 'bold' }]
+            },
+          ],
+        },
+      ],
+    };
+    const output = JSONToInlines(input);
+    const expected: Inline[] = ['some text', { break: null }, { bold: ['foofoo']}];
+    expect(output).toEqual(expected);
+  });
+
+  it('it only allows 2 breaks in a row', () => {
+    const input: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'some text',
+            },
+          ],
+        },
+        {
+          type: "paragraph"
+        },
+        {
+          type: "paragraph"
+        },
+        {
+          type: "paragraph"
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'some more text',
+            },
+          ],
+        },
+      ],
+    };
+    const output = JSONToInlines(input);
+    const expected: Inline[] = ['some text', { break: null }, { break: null }, 'some more text'];
     expect(output).toEqual(expected);
   });
 });
