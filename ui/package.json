@@ -7,7 +7,7 @@
   },
   "scripts": {
     "prepare": "cd .. && husky install ui/.husky",
-    "build": "tsc && vite build",
+    "build": "node --max_old_space_size=4096 && tsc && vite build",
     "build:mock": "tsc && vite build --mode staging",
     "build:profile": "tsc && vite build --mode profile",
     "build:chatmock": "tsc && cross-env APP=chat vite build --mode staging",
