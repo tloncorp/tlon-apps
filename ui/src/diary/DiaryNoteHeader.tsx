@@ -19,6 +19,7 @@ export default function DiaryNoteHeader({
   time,
 }: DiaryNoteHeaderProps) {
   const groupFlag = useGroupFlag();
+  const [isOpen, setIsOpen] = useState(false);
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
 
@@ -26,9 +27,18 @@ export default function DiaryNoteHeader({
     doCopy(`${groupFlag}/channels/diary/${flag}/note/${time}`);
     setJustCopied(true);
     setTimeout(() => {
+      setIsOpen(false);
       setJustCopied(false);
     }, 1000);
   }, [doCopy, time, groupFlag, flag]);
+
+  const onCopySelect = useCallback(
+    (event: Event) => {
+      event.preventDefault();
+      onCopy();
+    },
+    [onCopy]
+  );
 
   return (
     <div
@@ -47,12 +57,10 @@ export default function DiaryNoteHeader({
 
       <div className="ml-auto flex min-w-fit items-center space-x-3">
         <Link to={`../edit/${time}`} className="secondary-button">
-          Edit Note
+          Edit Post
         </Link>
-        <button className="secondary-button" onClick={onCopy}>
-          <span className="font-semibold">
-            {justCopied ? 'copied!' : 'Share'}
-          </span>
+        <button className="secondary-button" disabled>
+          Share
         </button>
         <DiaryNoteOptionsDropdown
           time={time}

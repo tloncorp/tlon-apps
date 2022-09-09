@@ -86,48 +86,50 @@ interface RoutesProps {
 function ChatRoutes({ state, location }: RoutesProps) {
   return (
     <>
-      <Nav />
       <Routes location={state?.backgroundLocation || location}>
-        <Route
-          path="/notifications"
-          element={
-            <Notifications
-              child={DMNotification}
-              title={`${appHead('chat').title} • All Notifications`}
-            />
-          }
-        />
-        <Route path="/dm/" element={<Dms />}>
+        <Route element={<Nav />}>
           <Route index element={<DMHome />} />
-          <Route path="new" element={<NewDM />} />
-          <Route path=":ship" element={<Message />}>
-            <Route path="search" element={<Search />} />
-            <Route path="message/:idShip/:idTime" element={<DmThread />} />
-          </Route>
-        </Route>
-
-        <Route path="/groups/:ship/:name/*" element={<Groups />}>
           <Route
-            path="channels/join/:app/:chShip/:chName"
-            element={<Channel />}
+            path="/notifications"
+            element={
+              <Notifications
+                child={DMNotification}
+                title={`${appHead('chat').title} • All Notifications`}
+              />
+            }
           />
-          <Route
-            path="channels/chat/:chShip/:chName"
-            element={<ChatChannel title={`${appHead('chat').title} • `} />}
-          >
-            <Route
-              path="message/:idShip/:idTime"
-              element={<GroupChatThread />}
-            />
+          <Route path="/dm/" element={<Dms />}>
+            <Route index element={<DMHome />} />
+            <Route path="new" element={<NewDM />} />
+            <Route path=":ship" element={<Message />}>
+              <Route path="search" element={<Search />} />
+              <Route path="message/:idShip/:idTime" element={<DmThread />} />
+            </Route>
           </Route>
-        </Route>
 
-        <Route
-          path="/profile/edit"
-          element={
-            <EditProfile title={`${appHead('chat').title} • Edit Profile`} />
-          }
-        />
+          <Route path="/groups/:ship/:name/*" element={<Groups />}>
+            <Route
+              path="channels/join/:app/:chShip/:chName"
+              element={<Channel />}
+            />
+            <Route
+              path="channels/chat/:chShip/:chName"
+              element={<ChatChannel title={`${appHead('chat').title} • `} />}
+            >
+              <Route
+                path="message/:idShip/:idTime"
+                element={<GroupChatThread />}
+              />
+            </Route>
+          </Route>
+
+          <Route
+            path="/profile/edit"
+            element={
+              <EditProfile title={`${appHead('chat').title} • Edit Profile`} />
+            }
+          />
+        </Route>
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
@@ -149,7 +151,15 @@ function GroupsRoutes({ state, location }: RoutesProps) {
     <>
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<Nav />}>
-          <Route index />
+          <Route
+            index
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`${appHead('').title} • All Notifications`}
+              />
+            }
+          />
           <Route
             path="/notifications"
             element={
@@ -177,6 +187,15 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             path="/groups/find"
             element={
               <FindGroups title={`${appHead('').title} • Find Groups`} />
+            }
+          />
+          <Route
+            path="/groups/:ship/:name"
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`${appHead('').title} • Activity`}
+              />
             }
           />
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
@@ -329,6 +348,11 @@ function App() {
     handleError(() => {
       checkIfLoggedIn();
       handleGridRedirect(navigate);
+    });
+  }, [handleError, navigate]);
+
+  useEffect(() => {
+    handleError(() => {
       // TODO: Clean up this order for different apps
       useGroupState.getState().start();
       useChatState.getState().start();
@@ -344,7 +368,7 @@ function App() {
 
       useContactState.getState().initialize(api);
     })();
-  }, [navigate, handleError]);
+  }, [handleError]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 

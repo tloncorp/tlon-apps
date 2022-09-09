@@ -58,13 +58,14 @@ export function makeCordon(privacy = 'public') {
 
 export function makeGroupPreview(privacy = 'public'): GroupPreview {
   return {
+    flag: '~zod/test',
     cordon: makeCordon(privacy),
     time: Date.now(),
     meta: {
       title: faker.company.companyName(),
       description: faker.company.catchPhrase(),
-      image: '',
-      color: `#${randomColor()}`,
+      image: `#${randomColor()}`,
+      cover: `#${randomColor()}`,
     },
   };
 }
@@ -120,7 +121,7 @@ export function createMockGroup(title: string): Group {
           title: 'Admin',
           description: '',
           image: '',
-          color: '',
+          cover: '',
         },
       },
       member: {
@@ -128,7 +129,7 @@ export function createMockGroup(title: string): Group {
           title: 'Member',
           description: '',
           image: '',
-          color: '',
+          cover: '',
         },
       },
     },
@@ -145,13 +146,13 @@ export function createMockGroup(title: string): Group {
         'We build infrastructre that is technically excellent, architecturally sound, and aesthetically beautiful',
       image:
         'https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.6.14..18.37.11-Icon Box.png',
-      color: '',
+      cover: '',
     },
     zones: {
       default: {
         meta: {
           title: 'Sectionless',
-          color: '',
+          cover: '',
           image: '',
           description: '',
         },
@@ -179,7 +180,7 @@ const mockGroupOne: Group = {
         title: 'Admin',
         description: '',
         image: '',
-        color: '',
+        cover: '',
       },
     },
     member: {
@@ -187,7 +188,7 @@ const mockGroupOne: Group = {
         title: 'Member',
         description: '',
         image: '',
-        color: '',
+        cover: '',
       },
     },
   },
@@ -197,7 +198,7 @@ const mockGroupOne: Group = {
         title: 'Watercooler',
         description: 'watering hole',
         image: '',
-        color: '',
+        cover: '',
       },
       added: 1657774188151,
       join: false,
@@ -215,13 +216,13 @@ const mockGroupOne: Group = {
     title: 'tlon',
     description: 'the tlon corporation',
     image: '',
-    color: '',
+    cover: '',
   },
   zones: {
     default: {
       meta: {
         title: 'Sectionless',
-        color: '',
+        cover: '',
         image: '',
         description: '',
       },
@@ -242,7 +243,7 @@ const mockGroupTwo: Group = {
         title: 'Admin',
         description: '',
         image: '',
-        color: '',
+        cover: '',
       },
     },
     member: {
@@ -250,7 +251,7 @@ const mockGroupTwo: Group = {
         title: 'Member',
         description: '',
         image: '',
-        color: '',
+        cover: '',
       },
     },
   },
@@ -260,7 +261,7 @@ const mockGroupTwo: Group = {
         title: 'Milady',
         description: 'Milady maker chatroom',
         image: '',
-        color: '',
+        cover: '',
       },
       added: 1657774188151,
       join: true,
@@ -272,7 +273,7 @@ const mockGroupTwo: Group = {
         title: 'Martini Collection',
         description: 'Martini Maker Collection',
         image: '',
-        color: '',
+        cover: '',
       },
       added: 1657774188151,
       join: true,
@@ -290,13 +291,13 @@ const mockGroupTwo: Group = {
     title: 'remco',
     description: 'The urbit group for remilia, a digital art collective',
     image: '',
-    color: '',
+    cover: '',
   },
   zones: {
     default: {
       meta: {
         title: 'Sectionless',
-        color: '',
+        cover: '',
         image: '',
         description: '',
       },
@@ -318,7 +319,7 @@ export function createChannel(title: string) {
       title,
       description: 'Do some chatting',
       image: '',
-      color: '',
+      cover: '',
     },
     added: 1657774188151,
     join: false,
@@ -349,6 +350,7 @@ export const mockGangs: Gangs = {
       'join-all': true,
     },
     preview: {
+      flag: '~zod/structure',
       time: Date.now(),
       cordon: {
         afar: {
@@ -363,7 +365,7 @@ export const mockGangs: Gangs = {
           'Urbit Structural Design and Engineering Group. Always Thinking About Mechanics.',
         image:
           'https://fabled-faster.nyc3.digitaloceanspaces.com/fabled-faster/2022.1.27..17.59.43-image.png',
-        color: '',
+        cover: '',
       },
     },
   },

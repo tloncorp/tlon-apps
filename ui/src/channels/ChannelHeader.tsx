@@ -31,12 +31,21 @@ export type ChannelHeaderProps = PropsWithChildren<{
   nest: string;
   displayMode?: 'grid' | 'list';
   setDisplayMode?: (displayType: 'grid' | 'list') => void;
-  sortMode?: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
-  setSortMode?: (
-    sortType: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc'
-  ) => void;
+  sortMode?:
+    | 'time-dsc'
+    | 'quip-dsc'
+    | 'time-asc'
+    | 'quip-asc'
+    | 'alpha'
+    | 'time';
+  setSortMode?: (sortType: any) => void;
+  isDiary?: boolean;
   showControls?: boolean;
 }>;
+
+interface ChannelHeaderSortControlsProps {
+  setSortMode?: (sortType: any) => void;
+}
 
 const ChannelHeaderButton = React.forwardRef<
   HTMLButtonElement,
@@ -171,6 +180,73 @@ function ChannelActions({ nest }: { nest: string }) {
   );
 }
 
+function HeapSortControls({ setSortMode }: ChannelHeaderSortControlsProps) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <ChannelHeaderButton className="icon-button h-8 w-8 bg-transparent">
+          <SortIcon className="h-6 w-6" />
+        </ChannelHeaderButton>
+      </Popover.Trigger>
+      <Popover.Content>
+        <div className="flex w-[126px] flex-col rounded-lg bg-white leading-5 drop-shadow-lg">
+          <ChannelHeaderMenuButton
+            onClick={() => (setSortMode ? setSortMode('time') : null)}
+          >
+            <span className="font-semibold">Time</span>
+          </ChannelHeaderMenuButton>
+          <ChannelHeaderMenuButton
+            onClick={() => (setSortMode ? setSortMode('alpha') : null)}
+          >
+            <span className="font-semibold">Alphabetical</span>
+          </ChannelHeaderMenuButton>
+        </div>
+      </Popover.Content>
+    </Popover.Root>
+  );
+}
+
+function DiarySortControls({ setSortMode }: ChannelHeaderSortControlsProps) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <ChannelHeaderButton className="icon-button h-8 w-8 bg-transparent">
+          <SortIcon className="h-6 w-6" />
+        </ChannelHeaderButton>
+      </Popover.Trigger>
+      <Popover.Content asChild>
+        <div className="flex max-w-sm flex-col rounded-lg bg-white p-2 leading-5 drop-shadow-lg">
+          <ChannelHeaderMenuButton
+            onClick={() => (setSortMode ? setSortMode('time-dsc') : null)}
+          >
+            <span className="font-semibold">New Posts First</span>
+          </ChannelHeaderMenuButton>
+          <ChannelHeaderMenuButton
+            onClick={() => (setSortMode ? setSortMode('time-asc') : null)}
+          >
+            <span className="font-semibold">Old Posts First</span>
+          </ChannelHeaderMenuButton>
+          <Divider />
+          <ChannelHeaderMenuButton
+          // onClick={() => setSortMode('quip-asc')}
+          >
+            <span className="font-semibold text-gray-400">
+              New Comments First
+            </span>
+          </ChannelHeaderMenuButton>
+          <ChannelHeaderMenuButton
+          // onClick={() => setSortMode('quip-dsc')}
+          >
+            <span className="font-semibold text-gray-400">
+              Old Comments First
+            </span>
+          </ChannelHeaderMenuButton>
+        </div>
+      </Popover.Content>
+    </Popover.Root>
+  );
+}
+
 export default function ChannelHeader({
   flag,
   nest,
@@ -179,6 +255,7 @@ export default function ChannelHeader({
   setDisplayMode,
   sortMode,
   setSortMode,
+  isDiary = false,
   showControls = false,
 }: ChannelHeaderProps) {
   const group = useGroup(flag);
@@ -247,42 +324,12 @@ export default function ChannelHeader({
               </div>
             </Popover.Content>
           </Popover.Root>
-          <Popover.Root>
-            <Popover.Trigger asChild>
-              <ChannelHeaderButton className="icon-button h-8 w-8 bg-transparent">
-                <SortIcon className="h-6 w-6" />
-              </ChannelHeaderButton>
-            </Popover.Trigger>
-            <Popover.Content asChild>
-              <div className="flex max-w-sm flex-col rounded-lg bg-white p-2 leading-5 drop-shadow-lg">
-                <ChannelHeaderMenuButton
-                  onClick={() => setSortMode('time-dsc')}
-                >
-                  <span className="font-semibold">New Posts First</span>
-                </ChannelHeaderMenuButton>
-                <ChannelHeaderMenuButton
-                  onClick={() => setSortMode('time-asc')}
-                >
-                  <span className="font-semibold">Old Posts First</span>
-                </ChannelHeaderMenuButton>
-                <Divider />
-                <ChannelHeaderMenuButton
-                // onClick={() => setSortMode('quip-asc')}
-                >
-                  <span className="font-semibold text-gray-400">
-                    New Comments First
-                  </span>
-                </ChannelHeaderMenuButton>
-                <ChannelHeaderMenuButton
-                // onClick={() => setSortMode('quip-dsc')}
-                >
-                  <span className="font-semibold text-gray-400">
-                    Old Comments First
-                  </span>
-                </ChannelHeaderMenuButton>
-              </div>
-            </Popover.Content>
-          </Popover.Root>
+          {isDiary ? (
+            <DiarySortControls setSortMode={setSortMode} />
+          ) : (
+            <HeapSortControls setSortMode={setSortMode} />
+          )}
+
           <ChannelActions {...{ nest }} />
         </div>
       ) : (

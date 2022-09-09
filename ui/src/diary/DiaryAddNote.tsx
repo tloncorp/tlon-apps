@@ -1,18 +1,23 @@
+import React, { useCallback } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router';
+import { Link } from 'react-router-dom';
+import cn from 'classnames';
+import { unixToDa } from '@urbit/api';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
 import { parseTipTapJSON } from '@/logic/tiptap';
 import { useDiaryState } from '@/state/diary';
+import { useRouteGroup } from '@/state/groups';
 import { NoteEssay } from '@/types/diary';
-import React, { useCallback } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
-import { useParams } from 'react-router';
-import { Link } from 'react-router-dom';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
+  const group = useRouteGroup();
+  const navigate = useNavigate();
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
@@ -37,18 +42,25 @@ export default function DiaryAddNote() {
     const data = parseTipTapJSON(editor?.getJSON());
     const values = getValues();
 
+    const sent = Date.now();
+
     useDiaryState.getState().addNote(chFlag, {
       ...values,
       content: [{ inline: Array.isArray(data) ? data : [data] }],
       author: window.our,
-      sent: Date.now(),
+      sent,
     });
 
     reset();
     if (!editor?.isDestroyed) {
       editor.commands.setContent('');
     }
-  }, [chFlag, editor, reset, getValues]);
+    navigate(
+      `/groups/${group}/channels/diary/${chFlag}?new=${unixToDa(
+        sent
+      ).toString()}`
+    );
+  }, [chFlag, editor, reset, getValues, navigate, group]);
 
   return (
     <Layout
@@ -64,7 +76,10 @@ export default function DiaryAddNote() {
             <CaretLeftIcon className="h-6 w-6 text-gray-600" />
           </Link>
           <button
-            className="button bg-blue text-white dark:text-black"
+            disabled={!editor?.getText()}
+            className={cn(
+              'button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:text-black'
+            )}
             onClick={publish}
           >
             Publish
@@ -78,7 +93,7 @@ export default function DiaryAddNote() {
             <CoverImageInput url="" />
             <input
               placeholder="New Title"
-              className="input-transparent text-3xl"
+              className="input-transparent text-3xl font-semibold"
               type="text"
               {...register('title')}
             />

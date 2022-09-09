@@ -216,8 +216,8 @@ export const useDiaryState = create<DiaryState>(
       viewDiary: async (flag, view) => {
         await api.poke(diaryAction(flag, { view }));
       },
-      addNote: (flag, heart) => {
-        api.poke(
+      addNote: async (flag, heart) => {
+        await api.poke(
           diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
             add: heart,
           })

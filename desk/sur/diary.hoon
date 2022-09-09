@@ -3,12 +3,14 @@
 +$  flag  (pair ship term)
 +$  feel  @ta
 +$  view  ?(%grid %list)
++$  sort  ?(%alpha %time)
 +$  shelf  (map flag:g diary)
 +$  diary
   $:  =net
       =log
       =perm
       =view
+      =sort
       =notes
       =remark
       banter=(map time quips)
@@ -103,6 +105,8 @@
     ::
       [%create p=perm]
       [%view p=view]
+      [%sort p=sort]
+    ::
   ==
 +$  net
   $~  [%load ~]

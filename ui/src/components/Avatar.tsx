@@ -46,7 +46,7 @@ export const foregroundFromBackground = (
   const brightness = (299 * rgb.r + 587 * rgb.g + 114 * rgb.b) / 1000;
   const whiteBrightness = 255;
 
-  return whiteBrightness - brightness < 50 ? 'black' : 'white';
+  return whiteBrightness - brightness < 70 ? 'black' : 'white';
 };
 
 const emptyContact: Contact = {
@@ -196,4 +196,22 @@ export default function Avatar({
       )}
     </div>
   );
+}
+
+export function useProfileColor(
+  ship: string,
+  previewData?: {
+    previewColor?: string;
+    previewAvatar?: string;
+  }
+) {
+  const currentTheme = useCurrentTheme();
+  const contact = useContact(ship);
+  const { previewColor } = previewData ?? {};
+  const { color } = contact || emptyContact;
+  const adjustedColor = themeAdjustColor(
+    normalizeUrbitColor(previewColor || color),
+    currentTheme
+  );
+  return adjustedColor;
 }

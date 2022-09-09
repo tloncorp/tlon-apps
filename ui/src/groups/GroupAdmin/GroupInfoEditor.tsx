@@ -23,7 +23,7 @@ const emptyMeta = {
   title: '',
   description: '',
   image: '',
-  color: '',
+  cover: '',
 };
 
 function eqGroupName(a: string, b: string) {

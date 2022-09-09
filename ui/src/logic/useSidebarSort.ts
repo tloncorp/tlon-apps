@@ -3,7 +3,7 @@ import { useBriefs } from '@/state/chat';
 import { ChatWhom } from '@/types/chat';
 
 export const ALPHABETICAL = 'A → Z';
-export const DEFAULT = 'Default';
+export const DEFAULT = 'Arranged';
 export const RECENT = 'Recent';
 
 type SortMode = typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;

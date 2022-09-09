@@ -31,7 +31,7 @@ export default function NewCurioForm() {
   const flag = useRouteGroup();
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
-  const displayMode = useHeapDisplayMode(flag);
+  const displayMode = useHeapDisplayMode(chFlag);
   const isGridMode = displayMode === GRID;
   const isListMode = displayMode === LIST;
   const isLinkMode = inputMode === LINK;
@@ -97,8 +97,8 @@ export default function NewCurioForm() {
     return null;
   }
 
-  const modeToggle = () => (
-    <div className={cn('flex', isGridMode && 'p-1')}>
+  const modeToggle = (className?: string) => (
+    <div className={cn('flex', className)}>
       <button
         type="button"
         className={cn(
@@ -131,19 +131,21 @@ export default function NewCurioForm() {
       {isListMode ? modeToggle() : null}
       <div
         className={cn(
-          isGridMode ? 'heap-block flex-col' : 'heap-row h-min flex-row',
+          isGridMode ? 'heap-block flex-col p-1' : 'heap-row h-min flex-row',
           'flex cursor-auto'
         )}
       >
-        {isGridMode ? modeToggle() : null}
+        {isGridMode ? modeToggle('mb-1') : null}
         {isLinkMode ? (
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="relative flex-1 p-1"
-          >
+          <form onSubmit={handleSubmit(onSubmit)} className="relative flex-1">
             <textarea
               {...register('content')}
-              className="h-full w-full resize-none rounded-lg bg-gray-50 p-2 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
+              className={cn(
+                'h-full w-full resize-none rounded-lg border-2 py-1 px-2 leading-5 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400 focus:outline-none',
+                isListMode
+                  ? 'min-h-[60px] rounded-tl-none border-gray-100 bg-white align-middle focus:border-gray-300'
+                  : 'border-gray-50 bg-gray-50'
+              )}
               placeholder="Paste Link Here"
               onKeyDown={onKeyDown}
               defaultValue={draftLink}
@@ -160,6 +162,12 @@ export default function NewCurioForm() {
             draft={draftText}
             setDraft={setDraftText}
             flag={chFlag}
+            className="flex-1"
+            inputClass={cn(
+              isListMode
+                ? 'border-gray-100 bg-white focus-within:border-gray-300 focus:outline-none rounded-tl-none min-h-[60px]'
+                : 'border-gray-50 focus-within:border-gray-50 bg-gray-50 focus-within:bg-gray-50 focus:outline-none'
+            )}
           />
         )}
       </div>

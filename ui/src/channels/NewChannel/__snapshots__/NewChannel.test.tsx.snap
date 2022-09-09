@@ -43,7 +43,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
         >
           <li>
             <label
-              class="flex cursor-pointer items-center justify-between rounded-lg border-2 p-2 border-gray-200 bg-gray-50"
+              class="flex cursor-pointer items-center justify-between rounded-lg p-2 bg-blue-soft"
             >
               <div
                 class="flex w-full flex-col"
@@ -52,7 +52,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                   class="flex flex-row items-center space-x-2"
                 >
                   <div
-                    class="p-2"
+                    class="rounded p-2 mix-blend-multiply bg-blue-soft"
                   >
                     <svg
                       class="h-6 w-6 text-gray-600"
@@ -88,18 +88,11 @@ exports[`NewChannelModal > renders as expected 1`] = `
                 type="radio"
                 value="chat"
               />
-              <div
-                class="flex items-center"
-              >
-                <div
-                  class="h-4 w-4 rounded-xl border-4 border-gray-400"
-                />
-              </div>
             </label>
           </li>
           <li>
             <label
-              class="flex cursor-pointer items-center justify-between rounded-lg border-2 p-2 border-gray-100 bg-white"
+              class="flex cursor-pointer items-center justify-between rounded-lg p-2 bg-white"
             >
               <div
                 class="flex w-full flex-col"
@@ -108,7 +101,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                   class="flex flex-row items-center space-x-2"
                 >
                   <div
-                    class="p-2"
+                    class="rounded p-2 mix-blend-multiply bg-green-soft"
                   >
                     <svg
                       class="h-6 w-6 text-gray-600"
@@ -117,11 +110,10 @@ exports[`NewChannelModal > renders as expected 1`] = `
                       xmlns="http://www.w3.org/2000/svg"
                     >
                       <path
-                        class="stroke-current"
-                        d="m9.0886 14.9114 5.8232-5.82322m-1.4562 7.27942-2.4263 2.4264C10.257 19.5662 9.20971 20 8.11764 20c-1.09206 0-2.1394-.4338-2.91161-1.206C4.43382 18.0218 4 16.9744 4 15.8824c0-1.0921.43382-2.1394 1.20603-2.9117l2.42634-2.4263m8.73523 2.9112 2.4264-2.4263C19.5662 10.257 20 9.20971 20 8.11764c0-1.09206-.4338-2.1394-1.206-2.91161C18.0218 4.43382 16.9744 4 15.8824 4c-1.0921 0-2.1394.43382-2.9117 1.20603l-2.4263 2.42634"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
+                        class="fill-current"
+                        clip-rule="evenodd"
+                        d="M5 3C3.89543 3 3 3.89543 3 5V13C3 14.1046 3.89543 15 5 15H8.01894C8.27426 18.3562 11.0784 21 14.5 21C18.0899 21 21 18.0899 21 14.5C21 11.0784 18.3562 8.27426 15 8.01894V5C15 3.89543 14.1046 3 13 3H5ZM13 8.17393V5L5 5V13H8.17393C8.73735 10.6148 10.6148 8.73735 13 8.17393ZM19 14.5C19 16.9853 16.9853 19 14.5 19C12.0147 19 10 16.9853 10 14.5C10 12.0147 12.0147 10 14.5 10C16.9853 10 19 12.0147 19 14.5Z"
+                        fill-rule="evenodd"
                       />
                     </svg>
                   </div>
@@ -147,18 +139,11 @@ exports[`NewChannelModal > renders as expected 1`] = `
                 type="radio"
                 value="heap"
               />
-              <div
-                class="flex items-center"
-              >
-                <div
-                  class="h-4 w-4 rounded-xl border-2 border-gray-200"
-                />
-              </div>
             </label>
           </li>
           <li>
             <label
-              class="flex cursor-pointer items-center justify-between rounded-lg border-2 p-2 border-gray-100 bg-white"
+              class="flex cursor-pointer items-center justify-between rounded-lg p-2 bg-white"
             >
               <div
                 class="flex w-full flex-col"
@@ -167,7 +152,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                   class="flex flex-row items-center space-x-2"
                 >
                   <div
-                    class="p-2"
+                    class="rounded p-2 mix-blend-multiply bg-red-soft"
                   >
                     <svg
                       class="h-6 w-6 text-gray-600"
@@ -203,13 +188,6 @@ exports[`NewChannelModal > renders as expected 1`] = `
                 type="radio"
                 value="diary"
               />
-              <div
-                class="flex items-center"
-              >
-                <div
-                  class="h-4 w-4 rounded-xl border-2 border-gray-200"
-                />
-              </div>
             </label>
           </li>
         </ul>

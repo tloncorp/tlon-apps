@@ -98,12 +98,7 @@ export default function NoteReference({
           <span className="text-gray-800">Continue Reading</span>
         </Link>
       </div>
-      <ReferenceBar
-        groupFlag={groupFlag}
-        nest={nest}
-        author={note.essay.author}
-        time={time}
-      />
+      <ReferenceBar nest={nest} author={note.essay.author} time={time} />
     </div>
   );
 }

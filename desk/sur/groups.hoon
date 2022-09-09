@@ -44,6 +44,12 @@
 ++  channel
   =<  channel
   |%
+  +$  preview
+    $:  =nest
+        meta=data:meta
+        group=^preview
+    ==
+  ::
   +$  channels  (map nest channel)
   +$  channel
     $:  meta=data:meta
@@ -154,7 +160,7 @@
       title=cord
       description=cord
       image=cord  
-      color=cord
+      cover=cord
       =cordon
       members=(jug ship sect)
   ==
@@ -192,7 +198,8 @@
   ==
 ::  TODO: finish
 +$  preview  
-  $:  meta=data:meta
+  $:  =flag
+      meta=data:meta
       =cordon
       =time
   ==

@@ -3,37 +3,48 @@
 exports[`GroupSidebar > renders as expected 1`] = `
 <DocumentFragment>
   <nav
-    class="flex h-full w-64 flex-none flex-col bg-white sm:p-2"
+    class="flex h-full w-64 flex-none flex-col bg-white"
   >
     <header
-      class="flex-none px-2 py-1 sm:p-0"
+      class="flex-none p-2 pb-0"
     >
-      <button
-        class="default-focus flex w-full items-center rounded-lg p-2 text-base font-semibold text-gray-600 hover:bg-gray-50"
+      <li
+        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
       >
-        <svg
-          class="m-1 mr-4 h-4 w-4 text-gray-400"
-          fill="none"
-          viewBox="0 0 16 16"
-          xmlns="http://www.w3.org/2000/svg"
+        <a
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          href="/"
         >
-          <path
-            class="stroke-current"
-            d="M9 12 5 8l4-4"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-          />
-        </svg>
-        All Groups
-      </button>
+          <svg
+            class="m-1 h-4 w-4 text-gray-400"
+            fill="none"
+            viewBox="0 0 16 16"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              class="stroke-current"
+              d="M9 12 5 8l4-4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+            />
+          </svg>
+          <div
+            class="max-w-full flex-1 truncate text-left"
+            title="Back to Groups"
+          >
+            Back to Groups
+          </div>
+        </a>
+      </li>
     </header>
     <div
-      class="flex min-h-0 flex-1 flex-col p-2 sm:p-0"
+      class="h-5"
+    />
+    <div
+      class="flex min-h-0 flex-col px-2"
     >
-      <ul
-        class="flex-none"
-      >
+      <ul>
         <li
           class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold text-gray-600 hover:bg-gray-50 sm:text-base"
         >
@@ -66,40 +77,6 @@ exports[`GroupSidebar > renders as expected 1`] = `
         >
           <a
             class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
-            href="/groups//activity"
-          >
-            <div
-              class="flex h-6 w-6 items-center justify-center rounded text-sm font-semibold bg-gray-100"
-            >
-              <svg
-                class="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <rect
-                  class="fill-current"
-                  height="8"
-                  rx="4"
-                  width="8"
-                  x="8"
-                  y="8"
-                />
-              </svg>
-            </div>
-            <div
-              class="max-w-full flex-1 truncate text-left"
-              title="Activity"
-            >
-              Activity
-            </div>
-          </a>
-        </li>
-        <li
-          class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
-        >
-          <a
-            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
             href="/groups//channels"
           >
             <svg
@@ -123,45 +100,20 @@ exports[`GroupSidebar > renders as expected 1`] = `
             </div>
           </a>
         </li>
-        <a
-          class="no-underline"
-          href="https://github.com/tloncorp/homestead/issues/new?assignees=&labels=bug&template=bug_report.md&title=groups:"
-          rel="noreferrer"
-          target="_blank"
-        >
-          <li
-            class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-yellow-600 dark:text-yellow-500 hover:bg-yellow-soft hover:dark:bg-yellow-800"
-          >
-            <button
-              class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
-            >
-              <svg
-                class="m-1 h-4 w-4"
-                fill="none"
-                viewBox="0 0 16 16"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  class="stroke-current"
-                  d="m8 8 4-4M8 8 4 4m4 4-4 4m4-4 4 4M8 8h5M8 8V3m0 5H3m5 0v5"
-                  stroke-linecap="round"
-                  stroke-width="2"
-                />
-              </svg>
-              <div
-                class="max-w-full flex-1 truncate text-left"
-                title="Submit Issue"
-              >
-                Submit Issue
-              </div>
-            </button>
-          </li>
-        </a>
       </ul>
-      <div
-        class="flex-1 overflow-y-auto"
-      />
     </div>
+    <div
+      class="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2"
+    >
+      <span
+        class="ml-4 text-sm font-semibold text-gray-400"
+      >
+        Channels
+      </span>
+    </div>
+    <div
+      class="flex-1 overflow-y-auto"
+    />
   </nav>
 </DocumentFragment>
 `;

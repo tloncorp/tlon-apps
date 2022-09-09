@@ -15,6 +15,7 @@ import {
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief } from '@/types/diary';
+import { parseToRgba } from 'color2k';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -128,6 +129,15 @@ export function normalizeUrbitColor(color: string): string {
   const colorString = color.slice(2).replace('.', '').toUpperCase();
   const lengthAdjustedColor = _.padEnd(colorString, 6, _.last(colorString));
   return `#${lengthAdjustedColor}`;
+}
+
+export function isColor(color: string): boolean {
+  try {
+    parseToRgba(color);
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 export function pluralize(word: string, count: number): string {

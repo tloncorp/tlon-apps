@@ -1,8 +1,9 @@
 import React from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import CaretDown16Icon from '../icons/CaretDown16Icon';
-import useSidebarSort from '../../logic/useSidebarSort';
-import CaretDownIcon from '../icons/CaretDownIcon';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import SortIcon from '@/components/icons/SortIcon';
+import useSidebarSort from '@/logic/useSidebarSort';
+import CaretDownIcon from '@/components/icons/CaretDownIcon';
 
 type SidebarSorterProps = Omit<
   ReturnType<typeof useSidebarSort>,
@@ -29,10 +30,13 @@ export default function SidebarSorter({
         </DropdownMenu.Trigger>
       ) : (
         <DropdownMenu.Trigger
-          className="default-focus flex items-center rounded-lg bg-gray-50 py-2 px-4 text-base font-semibold"
+          className="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
           aria-label="Groups Sort Options"
         >
-          <span className="mr-2 pl-1">{`All Groups: ${sortFn}`}</span>
+          <span className="flex items-center">
+            <SortIcon className="h-4 w-4 text-gray-400" />
+            <span className="mr-2 pl-1">{`Sort: ${sortFn}`}</span>
+          </span>
           <CaretDown16Icon className="h-4 w-4 text-gray-400" />
         </DropdownMenu.Trigger>
       )}

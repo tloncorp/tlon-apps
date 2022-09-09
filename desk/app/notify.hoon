@@ -77,7 +77,10 @@
       (mole |.(!<(state-3 vase)))  
     ?~  old
       on-init
-    `this(state u.old)
+    :_  this(state u.old)
+    ?:  (~(has by wex.bowl) [/hark our.bowl %hark])
+      ~
+    ~[(~(watch-our pass:io /hark) %hark /ui)]
   ::
   ++  on-poke
     |=  [=mark =vase]

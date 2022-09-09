@@ -9,7 +9,7 @@ export interface GroupMeta {
   title: string;
   description: string;
   image: string;
-  color: string;
+  cover: string;
 }
 
 export interface Cabal {
@@ -280,6 +280,7 @@ export interface Groups {
 }
 
 export interface GroupPreview {
+  flag: string;
   meta: GroupMeta;
   cordon: Cordon;
   time: number;
@@ -332,4 +333,10 @@ export interface ChannelFormSchema extends GroupChannel {
 
 export interface NewChannelFormSchema extends ChannelFormSchema {
   type: ChannelType;
+}
+
+export interface ChannelPreview {
+  nest: string;
+  meta: GroupMeta;
+  group: GroupPreview;
 }
