@@ -362,7 +362,7 @@ export function useNote(
         }
 
         const t = bigInt(time);
-        return [t, notes.get(t)] as const;
+        return [t, notes.get(t) || emptyNote] as const;
       },
       [flag, time]
     )
