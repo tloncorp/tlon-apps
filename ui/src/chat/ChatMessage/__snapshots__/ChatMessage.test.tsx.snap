@@ -163,53 +163,6 @@ exports[`ChatMessage > renders as expected 1`] = `
               <label
                 class="whitespace-nowrap font-semibold text-white"
               >
-                Reply
-              </label>
-            </div>
-            <div>
-              <svg
-                fill="none"
-                height="8"
-                viewBox="0 0 17 8"
-                width="17"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
-                  fill="#999999"
-                />
-              </svg>
-            </div>
-          </div>
-          <button
-            aria-label="Reply"
-            class="flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50 h-8 w-8"
-          >
-            <svg
-              class="h-6 w-6 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                class="fill-current"
-                d="m4.44444 14.636-.94419.3294.94419-.3294Zm14.68296 1.001-.9806.1961-.0683-.3414.1585-.31.8904.4553Zm.7255 3.6276.9806-.1962-.9806.1962Zm-.5883.5883-.1962.9806.1962-.9806Zm-3.6276-.7255-.4553-.8904.31-.1585.3414.0683-.1961.9806Zm-6.27299.4282.32938-.9442-.32938.9442ZM5 12c0 .8099.13714 1.5857.38864 2.3066l-1.88839.6588C3.17587 14.0355 3 13.0372 3 12h2Zm7-7c-3.86599 0-7 3.13401-7 7H3c0-4.97056 4.02944-9 9-9v2Zm7 7c0-3.86599-3.134-7-7-7V3c4.9706 0 9 4.02944 9 9h-2Zm-.763 3.1817c.4875-.9535.763-2.034.763-3.1817h2c0 1.4716-.3539 2.8634-.9822 4.0922l-1.7808-.9105Zm1.871.2591.7255 3.6276-1.9612.3923-.7255-3.6276 1.9612-.3923Zm.7255 3.6276c.2099 1.0496-.7155 1.975-1.7651 1.7651l.3923-1.9612c-.3499-.0699-.6583.2385-.5884.5884l1.9612-.3923Zm-1.7651 1.7651-3.6276-.7255.3923-1.9612 3.6276.7255-.3923 1.9612ZM12 19c1.1477 0 2.2282-.2755 3.1817-.763l.9105 1.7808C14.8634 20.6461 13.4716 21 12 21v-2Zm-2.30661-.3886C10.4143 18.8629 11.1901 19 12 19v2c-1.0372 0-2.03554-.1759-2.96538-.5002l.65877-1.8884Zm-4.30475-4.3048c.70113 2.0098 2.29492 3.6036 4.30475 4.3048l-.65877 1.8884c-2.58577-.9021-4.63233-2.9487-5.53437-5.5344l1.88839-.6588Z"
-              />
-            </svg>
-          </button>
-        </div>
-        <div
-          class="group-two relative cursor-pointer"
-        >
-          <div
-            class="z-2 pointer-events-none absolute -top-10 grid grid-cols-1 grid-rows-2 justify-items-center rounded opacity-0 group-two-hover:opacity-100"
-          >
-            <div
-              class="hidden w-fit cursor-none rounded bg-gray-400 px-4 py-2 group-two-hover:block"
-            >
-              <label
-                class="whitespace-nowrap font-semibold text-white"
-              >
                 Start Thread
               </label>
             </div>

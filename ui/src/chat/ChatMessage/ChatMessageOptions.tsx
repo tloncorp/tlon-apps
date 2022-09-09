@@ -51,12 +51,16 @@ export default function ChatMessageOptions(props: {
       /> */}
       {!writ.memo.replying ? (
         <>
+          {/*
+          TODO: Add replies back in post-demo.
           <IconButton
             icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
             label="Reply"
             showTooltip
             action={reply}
           />
+
+            */}
           <IconButton
             icon={<HashIcon className="h-6 w-6 text-gray-400" />}
             label="Start Thread"
