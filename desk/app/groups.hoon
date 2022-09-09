@@ -274,9 +274,9 @@
     cor
   ::
       %fact
-    ?.  =(%group-preview p.cage.sign)
+    ?.  =(%channel-preview p.cage.sign)
       cor
-    =+  !<(=preview:g q.cage.sign) :: XX: really necessary?
+    =+  !<(=preview:channel:g q.cage.sign) :: XX: really necessary?
     =.  cor  (emit %give %fact ~[wire] cage.sign)
     (emit %give %kick ~[wire] ~)
   ::
