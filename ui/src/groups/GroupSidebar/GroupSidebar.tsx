@@ -136,7 +136,7 @@ export default function GroupSidebar() {
         <div className="h-5" />
         <div className="flex min-h-0 flex-col px-2">
           <ul>
-            {/* <GroupHeader /> */}
+            <GroupHeader />
             <SidebarItem
               icon={<HashIcon16 className="m-1 h-4 w-4" />}
               to={`/groups/${flag}/channels`}
