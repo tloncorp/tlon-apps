@@ -62,6 +62,7 @@
     %-  pairs
     :~  perms/(perm perm.di)
         view/s/view.di
+        sort/s/sort.di
     ==
   ++  perm
     |=  p=perm:d
@@ -86,6 +87,7 @@
     %+  frond  -.diff
     ?+  -.diff  ~
       %view       s/p.diff
+      %sort       s/p.diff
       %notes     (notes-diff p.diff)
       %quips     (pairs id/s/(scot %ud p.diff) diff/(quips-diff q.diff) ~)
       %add-sects  a/(turn ~(tap in p.diff) (lead %s))
@@ -279,6 +281,7 @@
     %-  of
     :~  notes/notes-diff
         view/(su (perk %grid %list ~))
+        sort/(su (perk %time %alpha ~))
         quips/(ot id/(se %ud) diff/quips-diff ~)
         add-sects/add-sects
         del-sects/del-sects
