@@ -214,7 +214,7 @@ function DiarySortControls({ setSortMode }: ChannelHeaderSortControlsProps) {
           <SortIcon className="h-6 w-6" />
         </ChannelHeaderButton>
       </Popover.Trigger>
-      <Popover.Content asChild>
+      <Popover.Content>
         <div className="flex max-w-sm flex-col rounded-lg bg-white p-2 leading-5 drop-shadow-lg">
           <ChannelHeaderMenuButton
             onClick={() => (setSortMode ? setSortMode('time-dsc') : null)}
