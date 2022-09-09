@@ -274,9 +274,9 @@
     cor
   ::
       %fact
-    ?.  =(%group-preview p.cage.sign)
+    ?.  =(%channel-preview p.cage.sign)
       cor
-    =+  !<(=preview:g q.cage.sign) :: XX: really necessary?
+    =+  !<(=preview:channel:g q.cage.sign) :: XX: really necessary?
     =.  cor  (emit %give %fact ~[wire] cage.sign)
     (emit %give %kick ~[wire] ~)
   ::
@@ -554,6 +554,7 @@
       ?+    rest.pole  ~
           [%can-read src=@ ~]
         =/  src  (slav %p src.rest.pole)
+        ?:  =(%open -.cordon.group)  `loob+!>(&)
         ?~  ves=(~(get by fleet.group) src)  `loob+!>(|)
         ?:  =(~ readers.channel)  `loob+!>(&)
         `loob+!>(!=(~ (~(int in readers.channel) sects.u.ves)))
