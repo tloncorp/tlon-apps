@@ -212,26 +212,32 @@
     cor  :: TODO: initialise? 
   --
 ++  watch
-  |=  =path
+  |=  =(pole knot)
   ^+  cor
-  ?+    path  ~|(bad-watch-path/path !!)
+  ?+    pole  ~|(bad-watch-path/path !!)
       [%club %new ~]  ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
     ::
-      [%chat @ @ *]
-    =/  =ship  (slav %p i.t.path)
-    =*  name   i.t.t.path
-    ca-abet:(ca-watch:(ca-abed:ca-core ship name) t.t.t.path)
+      [%said host=@ name=@ %msg sender=@ time=@ ~]
+    =/  host=ship  (slav %p host.pole)
+    =/  =flag:c     [host name.pole]
+    =/  sender=ship  (slav %p sender.pole)
+    =/  =id:c       [sender (slav %ud time.pole)]
+    (watch-said flag id)
+    ::
+      [%chat ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    ca-abet:(ca-watch:(ca-abed:ca-core ship name.pole) rest.pole)
   ::
-      [%dm @ *]
-    =/  =ship  (slav %p i.t.path)
-    di-abet:(di-watch:(di-abed:di-core ship) t.t.path)      
+      [%dm ship=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    di-abet:(di-watch:(di-abed:di-core ship) rest.pole)
   ::
-      [%club @ *]
-    =/  =id:club:c  (slav %uv i.t.path)
-    cu-abet:(cu-watch:(cu-abed id) t.t.path)
+      [%club id=@ rest=*]
+    =/  =id:club:c  (slav %uv id.pole)
+    cu-abet:(cu-watch:(cu-abed id) rest.pole)
   ==
 ::
 ++  agent
@@ -275,6 +281,52 @@
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
+++  watch-said
+  |=  [=flag:c =id:c]
+  ?.  (~(has by chats) flag)
+    (proxy-said flag id)
+  ca-abet:(ca-said:(ca-abed:ca-core flag) id)
+++  said-wire
+  |=  [=flag:c =id:c]
+  ^-  wire
+  /said/(scot %p p.flag)/[q.flag]/msg/(scot %p p.id)/(scot %ud q.id)
+::
+++  take-said
+  |=  [=flag:c =id:c =sign:agent:gall]
+  ^+  cor
+  ?+    -.sign  !!
+      %watch-ack
+    %.  cor
+    ?~  p.sign  same
+    (slog leaf/"Preview failed" u.p.sign)
+  ::
+      %kick
+    ?:  (~(has by voc) [flag id])
+      cor  :: subscription ended politely
+    (proxy-said flag id)
+  ::
+      %fact
+    =.  cor
+      (give %fact ~[(said-wire flag id)] cage.sign)
+    ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
+        %chat-said
+      =+  !<(=said:c q.cage.sign)
+      =.  voc  (~(put by voc) [flag id] `said)
+      cor
+    ::
+        %chat-denied
+      =.  voc  (~(put by voc) [flag id] ~)
+      cor
+    ==
+  ==
+::
+++  proxy-said
+  |=  [=flag:c =id:c]
+  =/  =dock  [p.flag dap.bowl]
+  =/  wire  (said-wire flag id)
+  =/  =card  [%pass wire %agent dock %watch wire]
+  (emit card)
+
 ::  TODO: more efficient?
 ::    perhaps a cached index of (jug group=flag chat=flag)
 ++  take-groups
@@ -681,8 +733,6 @@
   ++  ca-said
     |=  =id:c
     |^  ^+  ca-core
-    ?.  =(p.flag our.bowl)
-      (proxy-said:ca-pass id)
     ?.  (ca-can-read src.bowl)
       (give-kick chat-denied+!>(~))
     =/  [=time =writ:c]  (got:ca-pact id)
@@ -712,13 +762,6 @@
         (emit card)
       ca-core
     ::
-    ++  proxy-said
-      |=  =id:c
-      =/  =wire  (welp ca-area /said/(scot %p p.id)/(scot %ud q.id))
-      =/  =dock  [p.flag dap.bowl]
-      =/  =card  [%pass wire %agent dock %watch wire]
-      =.  cor    (emit card)
-      ca-core
     --
   ++  ca-init
     |=  req=create:c
@@ -744,35 +787,6 @@
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
     ::
-        [%said ship=@ time=@ ~]
-      =/  =ship  (slav %p ship.pole)
-      =/  =time  (slav %ud time.pole)
-      =/  =id:c  [ship time]
-      ?+    -.sign  !!
-          %watch-ack
-        %.  ca-core
-        ?~  p.sign  same
-        (slog leaf/"Preview failed" u.p.sign)
-      ::
-          %kick
-        ?:  (~(has by voc) [flag id])
-          ca-core  :: subscription ended politely
-        (proxy-said:ca-pass id)
-      ::
-          %fact
-        =.  cor
-          (give %fact ~[(welp ca-area pole)] cage.sign)
-        ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
-            %chat-said
-          =+  !<(=said:c q.cage.sign)
-          =.  voc  (~(put by voc) [flag id] `said)
-          ca-core
-        ::
-            %chat-denied
-          =.  voc  (~(put by voc) [flag id] ~)
-          ca-core
-        ==
-      ==
     ==
   ::
   ++  ca-brief  (brief:ca-pact our.bowl last-read.remark.chat)
