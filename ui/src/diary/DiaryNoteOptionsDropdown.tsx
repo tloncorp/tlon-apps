@@ -3,6 +3,7 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
 import { useGroupFlag } from '@/state/groups';
 import { useDiaryState } from '@/state/diary';
+import Divider from '@/components/Divider';
 import { useCopyToClipboard } from 'usehooks-ts';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
@@ -50,9 +51,31 @@ export default function DiaryNoteOptionsDropdown({
         sideOffset={8}
         className="dropdown min-w-[208px] drop-shadow-lg"
       >
+        <Dropdown.Item
+          disabled
+          className="dropdown-item text-gray-400"
+          onSelect={onCopy}
+        >
+          Share Note
+        </Dropdown.Item>
         <Dropdown.Item className="dropdown-item" onSelect={onCopy}>
           {justCopied ? 'Link Copied!' : 'Copy Note Link'}
         </Dropdown.Item>
+        <Divider />
+        <Dropdown.Item
+          disabled
+          className="dropdown-item text-gray-400"
+          onSelect={onCopy}
+        >
+          Mark Read
+        </Dropdown.Item>
+        <Dropdown.Item
+          className="dropdown-item text-gray-400"
+          onSelect={onCopy}
+        >
+          Mute
+        </Dropdown.Item>
+        <Divider />
         <Dropdown.Item className="dropdown-item" asChild>
           <Link to={`../edit/${time}`}>Edit Note</Link>
         </Dropdown.Item>

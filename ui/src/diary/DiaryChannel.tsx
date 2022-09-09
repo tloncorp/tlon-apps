@@ -38,7 +38,9 @@ function DiaryChannel() {
     useDiaryState.getState().viewDiary(chFlag, view);
   };
 
-  const setSortMode = (setting: 'time' | 'alpha') => {
+  const setSortMode = (
+    setting: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc'
+  ) => {
     const newSettings = setSetting<DiarySetting>(
       settings,
       { sortMode: setting },
@@ -57,7 +59,22 @@ function DiaryChannel() {
     markRead: useDiaryState.getState().markRead,
   });
 
-  const sortedNotes = Array.from(notes).sort(([a], [b]) => b.compare(a));
+  const sortedNotes = Array.from(notes).sort(([a], [b]) => {
+    if (sortMode === 'time-dsc') {
+      return b.compare(a);
+    }
+    if (sortMode === 'time-asc') {
+      return a.compare(b);
+    }
+    // TODO: get the time of most recent quip from each diary note, and compare that way
+    if (sortMode === 'quip-asc') {
+      return b.compare(a);
+    }
+    if (sortMode === 'quip-dsc') {
+      return b.compare(a);
+    }
+    return b.compare(a);
+  });
 
   return (
     <Layout
