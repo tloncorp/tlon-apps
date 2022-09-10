@@ -1,4 +1,4 @@
-:~  title+'chatstead'
+:~  title+'Talk'
     info+'An Urbit app that does great things'
     color+0xd5.6f4f
     glob-http+['https://bootstrap.urbit.org/glob-0v5.iovi7.pikhh.653lm.33jln.a4a58.glob' 0v5.iovi7.pikhh.653lm.33jln.a4a58]
