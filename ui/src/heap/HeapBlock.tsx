@@ -145,7 +145,10 @@ function TopBar({
                 <button onClick={onEdit} className="small-menu-button">
                   Edit
                 </button>
-                <button className="small-menu-button" onClick={onDelete}>
+                <button
+                  className="small-menu-button text-red"
+                  onClick={onDelete}
+                >
                   Delete
                 </button>
               </>

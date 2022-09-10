@@ -78,7 +78,7 @@ export default function DiaryAddNote() {
           <button
             disabled={!editor?.getText()}
             className={cn(
-              'button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:text-black'
+              'button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:text-black dark:disabled:text-gray-400'
             )}
             onClick={publish}
           >

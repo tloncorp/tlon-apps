@@ -18,19 +18,19 @@ const CHANNEL_TYPE: Record<ChannelType, ChannelTypeMetadata> = {
     icon: <BubbleIcon className="h-6 w-6 text-gray-600" />,
     title: 'Chat',
     description: 'A simple, standard text chat',
-    color: 'bg-blue-soft',
+    color: 'bg-blue-soft dark:bg-blue-900',
   },
   heap: {
     icon: <ShapesIcon className="h-6 w-6 text-gray-600" />,
     title: 'Collection',
     description: 'Gather, connect, and arrange rich media',
-    color: 'bg-green-soft',
+    color: 'bg-green-soft dark:bg-green-900',
   },
   diary: {
     icon: <NotebookIcon className="h-6 w-6 text-gray-600" />,
     title: 'Notebook',
     description: 'Longform publishing and discussion',
-    color: 'bg-red-soft',
+    color: 'bg-red-soft dark:bg-red-900',
   },
 };
 
@@ -52,7 +52,12 @@ function ChannelTypeSelection({ type }: ChannelTypeSelectionProps) {
     >
       <div className="flex w-full flex-col">
         <div className="flex flex-row items-center space-x-2">
-          <div className={cn('rounded p-2 mix-blend-multiply', color)}>
+          <div
+            className={cn(
+              'rounded p-2 mix-blend-multiply dark:mix-blend-screen',
+              color
+            )}
+          >
             {icon}
           </div>
           <div className="flex w-full flex-col justify-start text-left">
