@@ -67,7 +67,7 @@ const appHead = (appName: string) => {
   switch (appName) {
     case 'chat':
       return {
-        title: 'Messages',
+        title: 'Talk',
         icon: chatFavicon,
       };
     default:
