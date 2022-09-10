@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import packageJson from './package.json';
-import { loadEnv, defineConfig } from 'vite';
+import { loadEnv, defineConfig, BuildOptions } from 'vite';
 import reactRefresh from '@vitejs/plugin-react-refresh';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
@@ -72,9 +72,9 @@ export default ({ mode }: { mode: string }) => {
     build:
       mode !== 'profile'
         ? {
-            sourcemap: true,
+            sourcemap: false,
           }
-        : {
+        : ({
             rollupOptions: {
               plugins: [
                 analyze({
@@ -83,7 +83,7 @@ export default ({ mode }: { mode: string }) => {
                 visualizer(),
               ],
             },
-          },
+          } as BuildOptions),
     plugins: plugins(mode, app),
     resolve: {
       alias: {
