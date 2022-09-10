@@ -17,7 +17,7 @@ import {
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryDisplayMode } from '@/types/diary';
-import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
+// import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 import * as Toast from '@radix-ui/react-toast';
 import { useCopyToClipboard } from 'usehooks-ts';
@@ -142,17 +142,17 @@ function DiaryChannel() {
         </div>
       </Toast.Provider>
       <div className="p-4">
-        {displayMode === 'grid' ? (
+        {/* {displayMode === 'grid' ? (
           <DiaryGridView notes={sortedNotes} />
-        ) : (
-          <div className="h-full p-6">
-            <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
-              {sortedNotes.map(([time, note]) => (
-                <DiaryListItem key={time.toString()} time={time} note={note} />
-              ))}
-            </div>
+        ) : ( */}
+        <div className="h-full p-6">
+          <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
+            {sortedNotes.map(([time, note]) => (
+              <DiaryListItem key={time.toString()} time={time} note={note} />
+            ))}
           </div>
-        )}
+        </div>
+        {/* )} */}
       </div>
     </Layout>
   );
