@@ -22,7 +22,7 @@ export default function DiaryAddNote() {
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
       title: '',
-      image: 'https://0x0.st/ofA-.jpg',
+      image: '',
     },
   });
 
