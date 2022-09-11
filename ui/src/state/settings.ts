@@ -25,7 +25,7 @@ export interface HeapSetting extends ChannelSetting {
 }
 
 export interface DiarySetting extends ChannelSetting {
-  sortMode: 'time' | 'alpha';
+  sortMode: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
   commentSortMode: 'asc' | 'dsc';
 }
 
@@ -188,10 +188,12 @@ export function useDiarySettings(): DiarySetting[] {
   return parseSettings(settings ?? '');
 }
 
-export function useDiarySortMode(flag: string): 'time' | 'alpha' {
+export function useDiarySortMode(
+  flag: string
+): 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc' {
   const settings = useDiarySettings();
   const heapSetting = getSetting(settings, flag);
-  return heapSetting?.sortMode ?? 'time';
+  return heapSetting?.sortMode ?? 'time-dsc';
 }
 
 export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {

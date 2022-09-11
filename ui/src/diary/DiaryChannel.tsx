@@ -17,9 +17,11 @@ import {
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryDisplayMode } from '@/types/diary';
+import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 import * as Toast from '@radix-ui/react-toast';
 import { useCopyToClipboard } from 'usehooks-ts';
+import DiaryListItem from './DiaryList/DiaryListItem';
 
 function DiaryChannel() {
   const { chShip, chName } = useParams();
@@ -33,7 +35,6 @@ function DiaryChannel() {
   const [showToast, setShowToast] = useState(false);
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
-  console.log(newNote);
 
   const settings = useDiarySettings();
   // for now sortMode is not actually doing anything.
@@ -45,7 +46,9 @@ function DiaryChannel() {
     useDiaryState.getState().viewDiary(chFlag, view);
   };
 
-  const setSortMode = (setting: 'time' | 'alpha') => {
+  const setSortMode = (
+    setting: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc'
+  ) => {
     const newSettings = setSetting<DiarySetting>(
       settings,
       { sortMode: setting },
@@ -82,12 +85,30 @@ function DiaryChannel() {
     markRead: useDiaryState.getState().markRead,
   });
 
+  const sortedNotes = Array.from(notes).sort(([a], [b]) => {
+    if (sortMode === 'time-dsc') {
+      return b.compare(a);
+    }
+    if (sortMode === 'time-asc') {
+      return a.compare(b);
+    }
+    // TODO: get the time of most recent quip from each diary note, and compare that way
+    if (sortMode === 'quip-asc') {
+      return b.compare(a);
+    }
+    if (sortMode === 'quip-dsc') {
+      return b.compare(a);
+    }
+    return b.compare(a);
+  });
+
   return (
     <Layout
-      className="flex-1 bg-white"
+      className="flex-1 overflow-y-scroll bg-gray-50"
       aside={<Outlet />}
       header={
         <ChannelHeader
+          isDiary
           flag={flag}
           nest={nest}
           showControls
@@ -103,7 +124,7 @@ function DiaryChannel() {
       }
     >
       <Toast.Provider>
-        <div className="relative flex flex-col items-center p-4">
+        <div className="relative flex flex-col items-center">
           <Toast.Root duration={3000} defaultOpen={false} open={showToast}>
             <Toast.Description asChild>
               <div className="absolute z-10 flex w-[415px] -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold drop-shadow-lg">
@@ -118,19 +139,21 @@ function DiaryChannel() {
             </Toast.Description>
           </Toast.Root>
           <Toast.Viewport label="Note successfully published" />
-          <ul>
-            {Array.from(notes)
-              .sort(([a], [b]) => b.compare(a))
-              .map(([time, note]) => (
-                <li key={time.toString()}>
-                  <Link to={`note/${time.toString()}`}>
-                    <span>{note.essay.title}</span>
-                  </Link>
-                </li>
-              ))}
-          </ul>
         </div>
       </Toast.Provider>
+      <div className="p-4">
+        {displayMode === 'grid' ? (
+          <DiaryGridView notes={sortedNotes} />
+        ) : (
+          <div className="h-full p-6">
+            <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
+              {sortedNotes.map(([time, note]) => (
+                <DiaryListItem key={time.toString()} time={time} note={note} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </Layout>
   );
 }

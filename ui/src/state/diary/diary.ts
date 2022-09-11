@@ -393,6 +393,14 @@ export function useQuips(flag: string, noteId: string): DiaryQuipMap {
     )
   );
 }
+// TODO: this is a WIP part of implementing sorting by most recent comment
+// export function useDiaryQuips(flag: string): [bigInt.BigInteger, DiaryQuipMap][] {
+//   const def = useMemo(() => new BigIntOrderedMap<DiaryQuipMap>(), []);
+//   const notes = useNotesForDiary(flag);
+//   const getQuip = useQuips;
+//   const quipNotes = Array.from(notes).map(([time, note]) => [time, getQuip(flag, time.toString())]);
+// }
+
 (window as any).diary = useDiaryState.getState;
 
 export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
