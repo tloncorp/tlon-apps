@@ -8,8 +8,8 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { Cite } from '@/types/chat';
-import { DiaryBlock } from '@/types/diary';
-import { pathToCite } from './utils';
+import { DiaryBlock, NoteContent } from '@/types/diary';
+import { citeToPath, pathToCite } from './utils';
 
 export interface EditorOnUpdateProps {
   editor: Editor;
@@ -392,6 +392,27 @@ export const inlineToContent = (
   return makeParagraph();
 };
 
+export const blockToContent = (content: DiaryBlock): JSONContent => {
+  if ('cite' in content) {
+    return {
+      type: 'diary-cite',
+      attrs: {
+        path: citeToPath(content.cite),
+      },
+    };
+  }
+
+  if ('image' in content) {
+    return {
+      type: 'diary-image',
+      attrs: content.image,
+    };
+  }
+
+  // TODO: is there a better fallback than an empty newline?
+  return makeParagraph();
+};
+
 /**
  * This function parses Chat, Heap, or Diary Inlines persisted in the backend
  * and re-serializes to the Prosemirror JSONContent schema (which is consumed
@@ -407,6 +428,21 @@ export function inlinesToJSON(message: Inline[]): JSONContent {
   return {
     type: 'doc',
     content: wrapParagraphs(parsedContent),
+  };
+}
+
+export function mixedToJSON(note: NoteContent): JSONContent {
+  const parsedContent = note.map((c) => {
+    if ('inline' in c) {
+      return wrapParagraphs(c.inline.map((i) => inlineToContent(i)));
+    }
+
+    return blockToContent(c.block);
+  });
+
+  return {
+    type: 'doc',
+    content: parsedContent.flat(),
   };
 }
 

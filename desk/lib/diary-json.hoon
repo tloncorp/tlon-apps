@@ -107,6 +107,7 @@
     %+  frond  -.delta
     ?+  -.delta  ~
       %add       (essay p.delta)
+      %edit      (essay p.delta)
       %del       ~
       %add-feel  (add-feel +.delta)
     ==
@@ -320,6 +321,7 @@
     ^-  $-(json delta:notes:d)
     %-  of
     :~  add/essay
+        edit/essay
         del/ul
         add-feel/add-feel
     ==

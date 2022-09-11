@@ -26,6 +26,7 @@
     (pair time delta)
   +$  delta
     $%  [%add p=essay]
+        [%edit p=essay]
         [%del ~]
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
