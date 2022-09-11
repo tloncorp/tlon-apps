@@ -5,7 +5,7 @@ import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import { BigInteger } from 'big-integer';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Groups } from '@/types/groups';
 import {
   Chat,
@@ -40,6 +40,16 @@ import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 
 setAutoFreeze(false);
+
+function subscribeOnce<T>(app: string, path: string) {
+  return new Promise<T>((resolve) => {
+    api.subscribe({
+      app,
+      path,
+      event: resolve,
+    });
+  });
+}
 
 function chatAction(whom: string, diff: ChatDiff) {
   return {
@@ -786,6 +796,24 @@ export function usePinnedDms() {
 export function usePinnedClubs() {
   const pinned = usePinned();
   return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);
+}
+
+type UnsubbedWrit = {
+  flag: string;
+  writ: ChatWrit;
+}
+
+export function useWritByFlagAndWritId(chFlag: string, idWrit: string) {
+  const [res, setRes] = useState(null as UnsubbedWrit | null);
+  useEffect(() => {
+    subscribeOnce<UnsubbedWrit>('chat', `/said/${chFlag}/msg/${idWrit}`).then(
+      setRes
+    );
+    return () => {
+      setRes(null);
+    };
+  }, [chFlag, idWrit]);
+  return res;
 }
 
 (window as any).chat = useChatState.getState;
