@@ -87,95 +87,120 @@ export function tipTapToString(json: JSONContent): string {
   return json.text || '';
 }
 
-// this will be replaced with more sophisticated logic based on
-// what we decide will be the message format
+// Limits the amount of consecutive breaks to 2 or less
+function limitBreaks(inlines: Inline[]): Inline[] {
+  return inlines.reduce(
+    (memo, inline) => {
+      // not a break
+      if (typeof inline === 'string' || !('break' in inline)) {
+        return { count: 0, result: [...memo.result, inline] };
+      }
+
+      // is a break
+      // consider the running count of consecutive breaks; if 2 or more, drop it
+      if (memo.count < 2) {
+        return { count: memo.count + 1, result: [...memo.result, inline] };
+      }
+
+      return { count: memo.count + 1, result: memo.result };
+    },
+    { count: 0, result: [] as Inline[] }
+  ).result;
+}
+
 export function JSONToInlines(json: JSONContent): Inline[] {
-  if (json.content) {
-    if (json.content.length === 1) {
-      if (json.type === 'blockquote') {
-        const parsed = JSONToInlines(json.content[0]);
+  switch (json.type) {
+    case 'text': {
+      // unstyled / marks base case
+      if (!json.marks || json.marks.length === 0) {
+        return [json.text ?? ''];
+      }
+
+      // styled
+      const first = json.marks.pop();
+      if (!first) {
+        return [];
+      }
+
+      // inline code special case
+      if (
+        json.text &&
+        (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
+      ) {
         return [
           {
-            blockquote: parsed,
+            'inline-code': json.text,
           },
         ];
       }
-      return JSONToInlines(json.content[0]);
-    }
 
-    /* Only allow two or less consecutive breaks */
-    const breaksAdded: JSONContent[] = [];
-    let count = 0;
-    json.content.forEach((item) => {
-      if (item.type === 'paragraph' && !item.content) {
-        if (count === 1) {
-          breaksAdded.push(item);
-          count += 1;
-        }
-        return;
-      }
-
-      breaksAdded.push(item);
-
-      if (item.type === 'paragraph' && item.content) {
-        breaksAdded.push({ type: 'paragraph' });
-        count = 1;
-      }
-    });
-
-    return breaksAdded.reduce(
-      (message, contents) => message.concat(JSONToInlines(contents)),
-      [] as Inline[]
-    );
-  }
-
-  if (json.marks && json.marks.length > 0) {
-    const first = json.marks.pop();
-
-    if (!first) {
-      throw new Error('Unsure what this is');
-    }
-
-    if (
-      json.text &&
-      (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
-    ) {
-      return [
-        {
-          'inline-code': json.text,
-        },
-      ];
-    }
-
-    if (first.type === 'link' && first.attrs) {
-      return [
-        {
-          link: {
-            href: first.attrs.href,
-            content: json.text || first.attrs.href,
+      // link special case
+      if (first.type === 'link' && first.attrs) {
+        return [
+          {
+            link: {
+              href: first.attrs.href,
+              content: json.text || first.attrs.href,
+            },
           },
+        ];
+      }
+
+      return [
+        {
+          [convertMarkType(first.type)]: JSONToInlines(json),
+        },
+      ] as unknown as Inline[];
+    }
+    case 'paragraph': {
+      // newline
+      if (!json.content) {
+        return [{ break: null }];
+      }
+
+      const inlines = json.content.reduce(
+        (memo, c) => memo.concat(JSONToInlines(c)),
+        [] as Inline[]
+      );
+      return limitBreaks(inlines);
+    }
+    case 'doc': {
+      if (!json.content) {
+        return [];
+      }
+
+      const inlines = json.content.reduce(
+        (memo, c) => memo.concat(JSONToInlines(c)),
+        [] as Inline[]
+      );
+      return limitBreaks(inlines);
+    }
+    case 'blockquote': {
+      const inlines =
+        json.content?.reduce(
+          (memo, c) => memo.concat(JSONToInlines(c)),
+          [] as Inline[]
+        ) ?? [];
+      return [
+        {
+          blockquote: limitBreaks(inlines),
         },
       ];
     }
-
-    return [
-      {
-        [convertMarkType(first.type)]: JSONToInlines(json),
-      },
-    ] as unknown as Inline[];
+    case 'code_block': {
+      if (!json.content || json.content.length === 0) {
+        return [];
+      }
+      return [
+        {
+          code: json.content[0].text ?? '',
+        },
+      ];
+    }
+    default: {
+      return [];
+    }
   }
-
-  if (json.type === 'paragraph') {
-    return [
-      {
-        break: null,
-      },
-    ];
-  }
-
-  // TODO: add codeblock case
-
-  return [json.text || ''];
 }
 
 const makeText = (t: string) => ({ type: 'text', text: t });
