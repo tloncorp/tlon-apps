@@ -43,7 +43,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
         >
           <li>
             <label
-              class="flex cursor-pointer items-center justify-between rounded-lg p-2 bg-blue-soft"
+              class="flex cursor-pointer items-center justify-between rounded-lg p-2 bg-blue-soft dark:bg-blue-900"
             >
               <div
                 class="flex w-full flex-col"
@@ -52,7 +52,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                   class="flex flex-row items-center space-x-2"
                 >
                   <div
-                    class="rounded p-2 mix-blend-multiply bg-blue-soft"
+                    class="rounded p-2 mix-blend-multiply dark:mix-blend-screen bg-blue-soft dark:bg-blue-900"
                   >
                     <svg
                       class="h-6 w-6 text-gray-600"
@@ -101,7 +101,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                   class="flex flex-row items-center space-x-2"
                 >
                   <div
-                    class="rounded p-2 mix-blend-multiply bg-green-soft"
+                    class="rounded p-2 mix-blend-multiply dark:mix-blend-screen bg-green-soft dark:bg-green-900"
                   >
                     <svg
                       class="h-6 w-6 text-gray-600"
@@ -152,7 +152,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                   class="flex flex-row items-center space-x-2"
                 >
                   <div
-                    class="rounded p-2 mix-blend-multiply bg-red-soft"
+                    class="rounded p-2 mix-blend-multiply dark:mix-blend-screen bg-red-soft dark:bg-red-900"
                   >
                     <svg
                       class="h-6 w-6 text-gray-600"
