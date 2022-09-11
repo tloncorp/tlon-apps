@@ -577,9 +577,9 @@ describe('JSONToInlines', () => {
     expect(output).toEqual(expected);
   });
 
-  it('code_block', () => {
+  it('codeBlock', () => {
     const input: JSONContent = {
-      type: 'code_block',
+      type: 'codeBlock',
       content: [
         {
           type: 'text',

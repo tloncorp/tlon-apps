@@ -187,7 +187,7 @@ export function JSONToInlines(json: JSONContent): Inline[] {
         },
       ];
     }
-    case 'code_block': {
+    case 'codeBlock': {
       if (!json.content || json.content.length === 0) {
         return [];
       }
