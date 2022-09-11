@@ -88,7 +88,7 @@ export function tipTapToString(json: JSONContent): string {
 }
 
 // Limits the amount of consecutive breaks to 2 or less
-function limitBreaks(inlines: Inline[]): Inline[] {
+function limitBreaks(inlines: Inline[], maxBreaks = 2): Inline[] {
   return inlines.reduce(
     (memo, inline) => {
       // not a break
@@ -98,7 +98,7 @@ function limitBreaks(inlines: Inline[]): Inline[] {
 
       // is a break
       // consider the running count of consecutive breaks; if 2 or more, drop it
-      if (memo.count < 2) {
+      if (memo.count < maxBreaks) {
         return { count: memo.count + 1, result: [...memo.result, inline] };
       }
 
