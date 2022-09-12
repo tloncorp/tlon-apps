@@ -1,10 +1,11 @@
 import React, { PropsWithChildren, useCallback, useState } from 'react';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useGroupFlag } from '@/state/groups';
 import { useDiaryState } from '@/state/diary';
 import Divider from '@/components/Divider';
 import { useCopyToClipboard } from 'usehooks-ts';
+import { decToUd } from '@urbit/api';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
   time: string;
@@ -18,13 +19,16 @@ export default function DiaryNoteOptionsDropdown({
   time,
   triggerClassName,
 }: DiaryNoteOptionsDropdownProps) {
+  const navigate = useNavigate();
   const groupFlag = useGroupFlag();
   const [isOpen, setIsOpen] = useState(false);
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
-  const delNote = useCallback(() => {
-    useDiaryState.getState().delNote(flag, time);
-  }, [flag, time]);
+
+  const delNote = useCallback(async () => {
+    await useDiaryState.getState().delNote(flag, decToUd(time));
+    navigate('../');
+  }, [flag, time, navigate]);
 
   const onCopy = useCallback(
     (e) => {
