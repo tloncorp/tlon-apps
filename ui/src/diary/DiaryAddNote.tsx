@@ -26,7 +26,8 @@ export default function DiaryAddNote() {
   const navigate = useNavigate();
   const [, note] = useNote(chFlag, id || '');
   const content = useMemo(
-    () => (note.essay.content ? mixedToJSON(note.essay.content) : ''),
+    () =>
+      note.essay.content.length > 0 ? mixedToJSON(note.essay.content) : '',
     [note.essay.content]
   );
 

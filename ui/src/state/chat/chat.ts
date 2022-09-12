@@ -801,7 +801,7 @@ export function usePinnedClubs() {
 type UnsubbedWrit = {
   flag: string;
   writ: ChatWrit;
-}
+};
 
 export function useWritByFlagAndWritId(chFlag: string, idWrit: string) {
   const [res, setRes] = useState(null as UnsubbedWrit | null);
