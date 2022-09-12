@@ -1,5 +1,6 @@
 /-  d=diary
 /-  meta
+/+  cite=cite-json
 |%
 ++  enjs
   =,  enjs:format
@@ -106,6 +107,7 @@
     %+  frond  -.delta
     ?+  -.delta  ~
       %add       (essay p.delta)
+      %edit      (essay p.delta)
       %del       ~
       %add-feel  (add-feel +.delta)
     ==
@@ -133,6 +135,7 @@
     ^-  json
     %+  frond  -.b
     ?-  -.b
+        %cite  (enjs:cite cite.b)
         %image
       %-  pairs
       :~  src+s+src.b
@@ -318,6 +321,7 @@
     ^-  $-(json delta:notes:d)
     %-  of
     :~  add/essay
+        edit/essay
         del/ul
         add-feel/add-feel
     ==
@@ -348,7 +352,7 @@
     ^-  block:d
     %.  j
     %-  of
-    :~
+    :~  cite/dejs:cite
     ::
       :-  %image
       %-  ot

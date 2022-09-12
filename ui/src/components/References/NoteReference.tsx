@@ -1,24 +1,27 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
-import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import ReferenceBar from '@/chat/ChatContent/ChatContentReference/ReferenceBar';
-import { useDiaryState, useNote, useQuips } from '@/state/diary';
-import { makePrettyDate } from '@/logic/utils';
 import { Link } from 'react-router-dom';
-import Author from '@/chat/ChatMessage/Author';
+import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
+import { useDiaryState, useNote, useQuips } from '@/state/diary';
+import { useGroupPreviewByNest } from '@/state/groups';
+import { makePrettyDate } from '@/logic/utils';
+import { udToDec } from '@urbit/api';
+import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
+import ReferenceBar from './ReferenceBar';
 
 export default function NoteReference({
-  groupFlag,
   chFlag,
   nest,
   id,
 }: {
-  groupFlag: string;
   chFlag: string;
   nest: string;
   id: string;
 }) {
+  const preview = useGroupPreviewByNest(nest);
+  const [scryError, setScryError] = useState<string>();
+  const groupFlag = preview?.group?.flag || '~zod/test';
   const noteObject = useNote(chFlag, id);
   const quips = useQuips(chFlag, id);
   const commentAuthors = _.uniq(
@@ -27,8 +30,31 @@ export default function NoteReference({
   const totalComments = Array.from(quips).length;
 
   useEffect(() => {
-    useDiaryState.getState().initialize(chFlag);
+    useDiaryState
+      .getState()
+      .initialize(chFlag)
+      .catch((reason) => {
+        setScryError(reason);
+      });
   }, [chFlag]);
+
+  if (scryError !== undefined) {
+    // TODO handle requests for single notes like we do for single writs.
+    const time = bigInt(udToDec(id.split('/')[1]));
+    return (
+      <div className="heap-inline-block group">
+        This content is unavailable to you.
+        <ReferenceBar
+          nest={nest}
+          time={time}
+          groupFlag={preview?.group.flag}
+          groupTitle={preview?.group.meta.title}
+          channelTitle={preview?.meta?.title}
+        />
+      </div>
+    );
+  }
+
 
   if (!noteObject) {
     return <HeapLoadingBlock reference />;
@@ -98,7 +124,14 @@ export default function NoteReference({
           <span className="text-gray-800">Continue Reading</span>
         </Link>
       </div>
-      <ReferenceBar nest={nest} author={note.essay.author} time={time} />
+      <ReferenceBar
+        nest={nest}
+        time={time}
+        author={note.essay.author}
+        groupFlag={preview?.group.flag}
+        groupTitle={preview?.group.meta.title}
+        channelTitle={preview?.meta?.title}
+      />
     </div>
   );
 }

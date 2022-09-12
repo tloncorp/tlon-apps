@@ -1,35 +1,46 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
+import _ from 'lodash';
 import { unixToDa } from '@urbit/api';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
-import { parseTipTapJSON } from '@/logic/tiptap';
-import { useDiaryState } from '@/state/diary';
+import {
+  mixedToJSON,
+  parseTipTapJSON,
+  parseTipTapJSONMixed,
+} from '@/logic/tiptap';
+import { useDiaryState, useNote } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
-import { NoteEssay } from '@/types/diary';
+import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
+import { Inline } from '@/types/content';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
-  const { chShip, chName } = useParams();
+  const { chShip, chName, id } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const group = useRouteGroup();
   const navigate = useNavigate();
+  const [, note] = useNote(chFlag, id || '');
+  const content = useMemo(
+    () => (note.essay.content ? mixedToJSON(note.essay.content) : ''),
+    [note.essay.content]
+  );
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
-      title: '',
-      image: '',
+      title: note.essay.title || '',
+      image: note.essay.image || '',
     },
   });
 
   const { reset, register, getValues } = form;
 
   const editor = useDiaryInlineEditor({
-    content: '',
+    content,
     placeholder: '',
     onEnter: () => false,
   });
@@ -39,17 +50,47 @@ export default function DiaryAddNote() {
       return;
     }
 
-    const data = parseTipTapJSON(editor?.getJSON());
+    const data = parseTipTapJSONMixed(editor?.getJSON());
     const values = getValues();
 
     const sent = Date.now();
 
-    useDiaryState.getState().addNote(chFlag, {
-      ...values,
-      content: [{ inline: Array.isArray(data) ? data : [data] }],
-      author: window.our,
-      sent,
+    const isBlock = (c: Inline | DiaryBlock) =>
+      ['image', 'cite'].some((k) => typeof c !== 'string' && k in c);
+    const noteContent: NoteContent = [];
+    let index = 0;
+    data.forEach((c, i) => {
+      if (i < index) {
+        return;
+      }
+
+      if (isBlock(c)) {
+        noteContent.push({ block: c as DiaryBlock });
+        index += 1;
+      } else {
+        const inline = _.takeWhile(
+          _.drop(data, index),
+          (d) => !isBlock(d)
+        ) as Inline[];
+        noteContent.push({ inline });
+        index += inline.length;
+      }
     });
+
+    if (id) {
+      useDiaryState.getState().editNote(chFlag, id, {
+        ...note.essay,
+        ...values,
+        content: noteContent,
+      });
+    } else {
+      useDiaryState.getState().addNote(chFlag, {
+        ...values,
+        content: noteContent,
+        author: window.our,
+        sent,
+      });
+    }
 
     reset();
     if (!editor?.isDestroyed) {
@@ -60,7 +101,7 @@ export default function DiaryAddNote() {
         sent
       ).toString()}`
     );
-  }, [chFlag, editor, reset, getValues, navigate, group]);
+  }, [chFlag, editor, id, note.essay, reset, getValues, navigate, group]);
 
   return (
     <Layout

@@ -41,6 +41,7 @@ import Suggestion, { SuggestionOptions } from '@tiptap/suggestion';
 import tippy from 'tippy.js';
 import DiaryImageNode from './DiaryImageNode';
 import DiaryLinkNode from './DiaryLinkNode';
+import DiaryCiteNode from './DiaryCiteNode';
 
 EditorView.prototype.updateState = function updateState(state) {
   if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
@@ -167,14 +168,14 @@ const ActionMenu = Extension.create<ActionMenuOptions>({
               },
             },
             {
-              title: 'Urbit Link',
+              title: 'Urbit Reference',
               command: ({ editor, range }) => {
                 editor
                   .chain()
                   .focus()
                   .deleteRange(range)
                   .insertContent([
-                    { type: 'diary-link' },
+                    { type: 'diary-cite' },
                     { type: 'paragraph' },
                   ])
                   .selectNodeBackward()
@@ -294,6 +295,7 @@ export function useDiaryInlineEditor({
         ActionMenu,
         DiaryImageNode,
         DiaryLinkNode,
+        DiaryCiteNode,
       ],
       content: content || '',
       editorProps: {

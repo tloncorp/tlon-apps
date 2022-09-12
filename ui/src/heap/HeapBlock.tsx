@@ -1,8 +1,7 @@
-import React, { useEffect, useCallback, useState } from 'react';
-import { useCopyToClipboard } from 'usehooks-ts';
+import React, { useEffect, useState } from 'react';
 import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
-import { isValidUrl, nestToFlag, validOembedCheck } from '@/logic/utils';
+import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import useEmbedState from '@/state/embed';
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
@@ -13,13 +12,11 @@ import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
-import { useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import useHeapContentType from '@/logic/useHeapContentType';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useRouteGroup } from '@/state/groups';
 import CheckIcon from '@/components/icons/CheckIcon';
-import { useLocation, useNavigate } from 'react-router';
+import useCurioActions from './useCurioActions';
 
 function TopBar({
   hasIcon = false,
@@ -33,39 +30,15 @@ function TopBar({
   time: string;
 }) {
   const nest = useNest();
-  const navigate = useNavigate();
-  const groupFlag = useRouteGroup();
-  const [_copied, doCopy] = useCopyToClipboard();
-  const [justCopied, setJustCopied] = useState(false);
-  const [, chFlag] = nestToFlag(nest);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const location = useLocation();
-  const onDelete = useCallback(() => {
-    setMenuOpen(false);
-    useHeapState.getState().delCurio(chFlag, time);
-  }, [chFlag, time]);
-  const onEdit = useCallback(() => {
-    setMenuOpen(false);
-    navigate(`curio/${time}/edit`, {
-      state: { backgroundLocation: location },
-    });
-  }, [location, navigate, time]);
-
-  const navigateToCollectionItem = useCallback(() => {
-    navigate(`/groups/${refToken}`);
-  }, [navigate, refToken]);
-
-  const onCopy = useCallback(() => {
-    if (refToken) {
-      doCopy(refToken);
-    } else {
-      doCopy(`${groupFlag}/channels/heap/${chFlag}/curio/${time}`);
-    }
-    setJustCopied(true);
-    setTimeout(() => {
-      setJustCopied(false);
-    }, 1000);
-  }, [doCopy, time, chFlag, groupFlag, refToken]);
+  const {
+    justCopied,
+    menuOpen,
+    setMenuOpen,
+    onDelete,
+    onEdit,
+    onCopy,
+    navigateToCurio,
+  } = useCurioActions({ nest, time, refToken });
 
   return (
     <div
@@ -88,7 +61,7 @@ function TopBar({
         <div className="hidden group-hover:block">
           {refToken ? (
             <button
-              onClick={navigateToCollectionItem}
+              onClick={navigateToCurio}
               className="small-menu-button border border-gray-100 bg-white px-2 py-1"
             >
               View

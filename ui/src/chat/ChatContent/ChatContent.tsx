@@ -11,9 +11,8 @@ import {
   Inline,
 } from '@/types/content';
 import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
-import { PATP_REGEX } from '@/logic/utils';
 // eslint-disable-next-line import/no-cycle
-import ChatContentReference from '@/chat/ChatContent/ChatContentReference/ChatContentReference';
+import ContentReference from '@/components/References/ContentReference';
 
 interface ChatContentProps {
   story: ChatStory;
@@ -118,7 +117,7 @@ export function BlockContent({ story }: BlockContentProps) {
     );
   }
   if ('cite' in story) {
-    return <ChatContentReference cite={story.cite} />;
+    return <ContentReference cite={story.cite} />;
   }
 
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);

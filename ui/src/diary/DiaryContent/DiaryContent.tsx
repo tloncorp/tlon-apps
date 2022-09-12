@@ -10,7 +10,7 @@ import {
   Inline,
 } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
-import ChatContentReference from '@/chat/ChatContent/ChatContentReference/ChatContentReference';
+import ContentReference from '@/components/References/ContentReference';
 import { DiaryBlock, isDiaryImage, NoteContent } from '@/types/diary';
 import DiaryContentImage from './DiaryContentImage';
 
@@ -118,7 +118,11 @@ export function BlockContent({ story }: BlockContentProps) {
   }
 
   if ('cite' in story) {
-    return <ChatContentReference cite={story.cite} />;
+    return (
+      <div className="my-4 text-base">
+        <ContentReference cite={story.cite} />
+      </div>
+    );
   }
 
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);

@@ -1,6 +1,5 @@
 import cn from 'classnames';
-import React, { useCallback, useState } from 'react';
-import { useCopyToClipboard } from 'usehooks-ts';
+import React from 'react';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import useNavStore from '@/components/Nav/useNavStore';
 import { useIsMobile } from '@/logic/useMedia';
@@ -12,6 +11,7 @@ import XIcon from '@/components/icons/XIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import HeapDetailHeaderDescription from '@/heap/HeapDetail/HeapDetailHeaderDescription';
 import { makePrettyDayAndTime } from '@/logic/utils';
+import useCurioActions from '../useCurioActions';
 
 export interface ChannelHeaderProps {
   flag: string;
@@ -24,8 +24,6 @@ export default function HeapDetailHeader({
   chFlag,
   idCurio,
 }: ChannelHeaderProps) {
-  const [_copied, doCopy] = useCopyToClipboard();
-  const [justCopied, setJustCopied] = useState(false);
   const curioObject = useCurio(chFlag, idCurio);
   const isMobile = useIsMobile();
   const curio = curioObject ? curioObject[1] : null;
@@ -36,14 +34,10 @@ export default function HeapDetailHeader({
     new Date(curio?.heart.sent || Date.now())
   );
   const curioTitle = curio?.heart.title || prettyDayAndTime;
-
-  const onCopy = useCallback(() => {
-    doCopy(`${flag}/channels/heap/${chFlag}/curio/${idCurio}`);
-    setJustCopied(true);
-    setTimeout(() => {
-      setJustCopied(false);
-    }, 1000);
-  }, [doCopy, idCurio, chFlag, flag]);
+  const { onCopy, justCopied } = useCurioActions({
+    nest: `heap/${chFlag}`,
+    time: idCurio,
+  });
 
   return (
     <div

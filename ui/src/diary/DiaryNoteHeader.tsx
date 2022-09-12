@@ -1,10 +1,8 @@
 import cn from 'classnames';
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { Link } from 'react-router-dom';
-import { useCopyToClipboard } from 'usehooks-ts';
-import { useGroupFlag } from '@/state/groups';
 import DiaryNoteOptionsDropdown from './DiaryNoteOptionsDropdown';
 
 export interface DiaryNoteHeaderProps {
@@ -18,28 +16,6 @@ export default function DiaryNoteHeader({
   flag,
   time,
 }: DiaryNoteHeaderProps) {
-  const groupFlag = useGroupFlag();
-  const [isOpen, setIsOpen] = useState(false);
-  const [_copied, doCopy] = useCopyToClipboard();
-  const [justCopied, setJustCopied] = useState(false);
-
-  const onCopy = useCallback(() => {
-    doCopy(`${groupFlag}/channels/diary/${flag}/note/${time}`);
-    setJustCopied(true);
-    setTimeout(() => {
-      setIsOpen(false);
-      setJustCopied(false);
-    }, 1000);
-  }, [doCopy, time, groupFlag, flag]);
-
-  const onCopySelect = useCallback(
-    (event: Event) => {
-      event.preventDefault();
-      onCopy();
-    },
-    [onCopy]
-  );
-
   return (
     <div
       className={cn(
