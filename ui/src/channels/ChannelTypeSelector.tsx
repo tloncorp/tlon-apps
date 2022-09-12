@@ -18,19 +18,19 @@ const CHANNEL_TYPE: Record<ChannelType, ChannelTypeMetadata> = {
     icon: <BubbleIcon className="h-6 w-6 text-gray-600" />,
     title: 'Chat',
     description: 'A simple, standard text chat',
-    color: 'bg-blue-soft dark:bg-blue-900',
+    color: 'bg-blue-soft',
   },
   heap: {
     icon: <ShapesIcon className="h-6 w-6 text-gray-600" />,
     title: 'Collection',
     description: 'Gather, connect, and arrange rich media',
-    color: 'bg-green-soft dark:bg-green-900',
+    color: 'bg-green-soft',
   },
   diary: {
     icon: <NotebookIcon className="h-6 w-6 text-gray-600" />,
     title: 'Notebook',
     description: 'Longform publishing and discussion',
-    color: 'bg-red-soft dark:bg-red-900',
+    color: 'bg-red-soft',
   },
 };
 
