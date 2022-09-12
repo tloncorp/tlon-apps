@@ -55,7 +55,6 @@ export default function NoteReference({
     );
   }
 
-
   if (!noteObject) {
     return <HeapLoadingBlock reference />;
   }
