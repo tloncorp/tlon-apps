@@ -216,15 +216,22 @@ export const useDiaryState = create<DiaryState>(
       viewDiary: async (flag, view) => {
         await api.poke(diaryAction(flag, { view }));
       },
-      addNote: async (flag, heart) => {
+      addNote: async (flag, essay) => {
         await api.poke(
           diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
-            add: heart,
+            add: essay,
           })
         );
       },
-      delNote: (flag, time) => {
-        api.poke(diaryNoteDiff(flag, time, { del: null }));
+      editNote: async (flag, time, essay) => {
+        await api.poke(
+          diaryNoteDiff(flag, decToUd(time), {
+            edit: essay,
+          })
+        );
+      },
+      delNote: async (flag, time) => {
+        await api.poke(diaryNoteDiff(flag, time, { del: null }));
       },
       create: async (req) => {
         await api.poke({
@@ -362,7 +369,7 @@ export function useNote(
         }
 
         const t = bigInt(time);
-        return [t, notes.get(t)] as const;
+        return [t, notes.get(t) || emptyNote] as const;
       },
       [flag, time]
     )
@@ -393,6 +400,14 @@ export function useQuips(flag: string, noteId: string): DiaryQuipMap {
     )
   );
 }
+// TODO: this is a WIP part of implementing sorting by most recent comment
+// export function useDiaryQuips(flag: string): [bigInt.BigInteger, DiaryQuipMap][] {
+//   const def = useMemo(() => new BigIntOrderedMap<DiaryQuipMap>(), []);
+//   const notes = useNotesForDiary(flag);
+//   const getQuip = useQuips;
+//   const quipNotes = Array.from(notes).map(([time, note]) => [time, getQuip(flag, time.toString())]);
+// }
+
 (window as any).diary = useDiaryState.getState;
 
 export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {

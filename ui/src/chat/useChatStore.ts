@@ -33,7 +33,7 @@ export const useChatStore = create<ChatStore>((set) => ({
     set(
       produce((draft) => {
         if (!draft.chats[flag]) {
-          draft.chats[flag] = { replying: msgId };
+          draft.chats[flag] = { replying: msgId, blocks: [] };
         } else {
           draft.chats[flag].replying = msgId;
         }

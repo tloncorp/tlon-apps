@@ -20,6 +20,8 @@ export default function HeapDetailCommentField() {
         draft={draftText}
         setDraft={setDraftText}
         replyTo={replyToTime}
+        className="flex-1"
+        placeholder="Comment"
       />
     </div>
   );

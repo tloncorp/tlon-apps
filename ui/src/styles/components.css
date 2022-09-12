@@ -40,8 +40,7 @@
 }
 
 .input-transparent {
-  @apply bg-transparent caret-blue-400 transition-colors focus-within:border-gray-100 focus-within:bg-white focus:outline-none
-  focus:outline-none focus-visible:border-gray-100;
+  @apply bg-transparent text-lg leading-5 caret-blue-400 transition-colors focus-within:border-gray-100 focus-within:bg-white focus:outline-none focus-visible:border-gray-100 sm:text-base sm:leading-5;
 }
 /* Placeholder (at the top) */
 .ProseMirror:not(.ProseMirror-focused) p.is-editor-empty:first-child::before {

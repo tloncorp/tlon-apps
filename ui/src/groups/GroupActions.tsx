@@ -13,6 +13,7 @@ import { useChatState, usePinnedGroups } from '@/state/chat';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
+import { citeToPath } from '@/logic/utils';
 
 const { ship } = window;
 
@@ -24,7 +25,7 @@ export function useGroupActions(flag: string) {
   const isPinned = Object.keys(pinned).includes(flag);
 
   const onCopy = useCallback(() => {
-    doCopy(flag);
+    doCopy(citeToPath({ group: flag }));
     setCopyItemText('Copied!');
     setTimeout(() => {
       setCopyItemText('Copy Group Link');

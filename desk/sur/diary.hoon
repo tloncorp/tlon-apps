@@ -1,4 +1,4 @@
-/-  g=groups
+/-  g=groups, c=cite
 |%
 +$  flag  (pair ship term)
 +$  feel  @ta
@@ -26,6 +26,7 @@
     (pair time delta)
   +$  delta
     $%  [%add p=essay]
+        [%edit p=essay]
         [%del ~]
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
@@ -73,6 +74,7 @@
   ==
 +$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
+      [%cite =cite:c]
   ==
 +$  inline
   $@  @t

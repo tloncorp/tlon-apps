@@ -30,6 +30,24 @@ export const PLACEHOLDER_IMAGES = [
     alt: 'sig svg',
   },
   {
+    src: 'https://0x0.st/ofAr.png',
+    height: 405,
+    width: 568,
+    alt: 'teleoplexopathy',
+  },
+  {
+    src: 'https://0x0.st/ofA-.jpg',
+    height: 1980,
+    width: 3200,
+    alt: 'White Jade Tablet',
+  },
+  {
+    src: 'https://0x0.st/ofT7.jpg',
+    height: 2356,
+    width: 3000,
+    alt: 'notitle',
+  },
+  {
     src: 'https://20-urbit.s3.us-west-1.amazonaws.com/ravmel-ropdyl/2022.7.18..02.36.24-05F63B00-BDB3-4ACD-A3D2-3C5960F8576C.jpeg',
     height: 1280,
     width: 959,
