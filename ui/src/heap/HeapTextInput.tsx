@@ -7,9 +7,8 @@ import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import { useHeapState } from '@/state/heap/heap';
 import { reduce } from 'lodash';
-import classNames from 'classnames';
 import useRequestState from '@/logic/useRequestState';
-import { parseTipTapJSON } from '@/logic/tiptap';
+import { JSONToInlines } from '@/logic/tiptap';
 
 interface HeapTextInputProps {
   flag: string;
@@ -81,7 +80,7 @@ export default function HeapTextInput({
       setPending();
 
       const content = normalizeHeapInline(
-        parseTipTapJSON(editor?.getJSON()) as HeapInline[]
+        JSONToInlines(editor?.getJSON()) as HeapInline[]
       );
 
       const heart: CurioHeart = {
@@ -150,7 +149,7 @@ export default function HeapTextInput({
         <MessageEditor
           editor={messageEditor}
           className={cn('h-full w-full rounded-lg', inputClass)}
-          inputClassName={classNames(
+          inputClassName={cn(
             // Since TipTap simulates an input using a <p> tag, only style
             // the fake placeholder when the field is empty
             messageEditor.getText() === '' ? 'font-semibold text-gray-400' : ''

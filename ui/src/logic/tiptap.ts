@@ -88,109 +88,134 @@ export function tipTapToString(json: JSONContent): string {
   return json.text || '';
 }
 
-// this will be replaced with more sophisticated logic based on
-// what we decide will be the message format
-export function parseTipTapJSON(json: JSONContent): Inline[] {
-  if (json.content) {
-    if (json.content.length === 1) {
-      if (json.type === 'blockquote') {
-        const parsed = parseTipTapJSON(json.content[0]);
-        return [
-          {
-            blockquote: parsed,
-          },
-        ];
-      }
-      return parseTipTapJSON(json.content[0]);
-    }
-
-    /* Only allow two or less consecutive breaks */
-    const breaksAdded: JSONContent[] = [];
-    let count = 0;
-    json.content.forEach((item) => {
-      if (item.type === 'paragraph' && !item.content) {
-        if (count === 1) {
-          breaksAdded.push(item);
-          count += 1;
-        }
-        return;
+// Limits the amount of consecutive breaks to 2 or less
+function limitBreaks(inlines: Inline[], maxBreaks = 2): Inline[] {
+  return inlines.reduce(
+    (memo, inline) => {
+      // not a break
+      if (typeof inline === 'string' || !('break' in inline)) {
+        return { count: 0, result: [...memo.result, inline] };
       }
 
-      breaksAdded.push(item);
-
-      if (item.type === 'paragraph' && item.content) {
-        breaksAdded.push({ type: 'paragraph' });
-        count = 1;
+      // is a break
+      // consider the running count of consecutive breaks; if 2 or more, drop it
+      if (memo.count < maxBreaks) {
+        return { count: memo.count + 1, result: [...memo.result, inline] };
       }
-    });
 
-    return breaksAdded.reduce(
-      (message, contents) => message.concat(parseTipTapJSON(contents)),
-      [] as Inline[]
-    );
-  }
-
-  if (json.marks && json.marks.length > 0) {
-    const first = json.marks.pop();
-
-    if (!first) {
-      throw new Error('Unsure what this is');
-    }
-
-    if (
-      json.text &&
-      (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
-    ) {
-      return [
-        {
-          'inline-code': json.text,
-        },
-      ];
-    }
-
-    if (first.type === 'link' && first.attrs) {
-      return [
-        {
-          link: {
-            href: first.attrs.href,
-            content: json.text || first.attrs.href,
-          },
-        },
-      ];
-    }
-
-    return [
-      {
-        [convertMarkType(first.type)]: parseTipTapJSON(json),
-      },
-    ] as unknown as Inline[];
-  }
-
-  if (json.type === 'paragraph') {
-    return [
-      {
-        break: null,
-      },
-    ];
-  }
-
-  return [json.text || ''];
+      return { count: memo.count + 1, result: memo.result };
+    },
+    { count: 0, result: [] as Inline[] }
+  ).result;
 }
 
-export function parseTipTapJSONMixed(
-  json: JSONContent
-): (Inline | DiaryBlock)[] {
+export function JSONToInlines(json: JSONContent): Inline[] {
+  switch (json.type) {
+    case 'text': {
+      // unstyled / marks base case
+      if (!json.marks || json.marks.length === 0) {
+        return [json.text ?? ''];
+      }
+
+      // styled
+      const first = json.marks.pop();
+      if (!first) {
+        return [];
+      }
+
+      // inline code special case
+      if (
+        json.text &&
+        (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
+      ) {
+        return [
+          {
+            'inline-code': json.text,
+          },
+        ];
+      }
+
+      // link special case
+      if (first.type === 'link' && first.attrs) {
+        return [
+          {
+            link: {
+              href: first.attrs.href,
+              content: json.text || first.attrs.href,
+            },
+          },
+        ];
+      }
+
+      return [
+        {
+          [convertMarkType(first.type)]: JSONToInlines(json),
+        },
+      ] as unknown as Inline[];
+    }
+    case 'paragraph': {
+      // newline
+      if (!json.content) {
+        return [{ break: null }];
+      }
+
+      const inlines = json.content.reduce(
+        (memo, c) => memo.concat(JSONToInlines(c)),
+        [] as Inline[]
+      );
+      return limitBreaks(inlines);
+    }
+    case 'doc': {
+      if (!json.content) {
+        return [];
+      }
+
+      const inlines = json.content.reduce(
+        (memo, c) => memo.concat(JSONToInlines(c)),
+        [] as Inline[]
+      );
+      return limitBreaks(inlines);
+    }
+    case 'blockquote': {
+      const inlines =
+        json.content?.reduce(
+          (memo, c) => memo.concat(JSONToInlines(c)),
+          [] as Inline[]
+        ) ?? [];
+      return [
+        {
+          blockquote: limitBreaks(inlines),
+        },
+      ];
+    }
+    case 'codeBlock': {
+      if (!json.content || json.content.length === 0) {
+        return [];
+      }
+      return [
+        {
+          code: json.content[0].text ?? '',
+        },
+      ];
+    }
+    default: {
+      return [];
+    }
+  }
+}
+
+export function JSONMixedToInlines(json: JSONContent): (Inline | DiaryBlock)[] {
   if (json.content) {
     if (json.content.length === 1) {
       if (json.type === 'blockquote') {
-        const parsed = parseTipTapJSON(json.content[0]);
+        const parsed = JSONToInlines(json.content[0]);
         return [
           {
             blockquote: parsed,
           },
         ];
       }
-      return parseTipTapJSONMixed(json.content[0]);
+      return JSONMixedToInlines(json.content[0]);
     }
 
     /* Only allow two or less consecutive breaks */
@@ -214,7 +239,7 @@ export function parseTipTapJSONMixed(
     });
 
     return breaksAdded.reduce(
-      (message, contents) => message.concat(parseTipTapJSONMixed(contents)),
+      (message, contents) => message.concat(JSONMixedToInlines(contents)),
       [] as (Inline | DiaryBlock)[]
     );
   }
@@ -250,7 +275,7 @@ export function parseTipTapJSONMixed(
 
     return [
       {
-        [convertMarkType(first.type)]: parseTipTapJSON(json),
+        [convertMarkType(first.type)]: JSONToInlines(json),
       },
     ] as unknown as Inline[];
   }

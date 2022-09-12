@@ -8,11 +8,7 @@ import { unixToDa } from '@urbit/api';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
-import {
-  mixedToJSON,
-  parseTipTapJSON,
-  parseTipTapJSONMixed,
-} from '@/logic/tiptap';
+import { mixedToJSON, JSONMixedToInlines } from '@/logic/tiptap';
 import { useDiaryState, useNote } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
 import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
@@ -51,7 +47,7 @@ export default function DiaryAddNote() {
       return;
     }
 
-    const data = parseTipTapJSONMixed(editor?.getJSON());
+    const data = JSONMixedToInlines(editor?.getJSON());
     const values = getValues();
 
     const sent = Date.now();

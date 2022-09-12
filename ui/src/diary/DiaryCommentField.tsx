@@ -7,7 +7,7 @@ import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import { useDiaryState } from '@/state/diary';
 import useRequestState from '@/logic/useRequestState';
-import { normalizeInline, parseTipTapJSON } from '@/logic/tiptap';
+import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
 
 interface DiaryCommentFieldProps {
   flag: string;
@@ -40,7 +40,7 @@ export default function DiaryCommentField({
       setPending();
 
       const content = normalizeInline(
-        parseTipTapJSON(editor?.getJSON()) as DiaryInline[]
+        JSONToInlines(editor?.getJSON()) as DiaryInline[]
       );
 
       await useDiaryState.getState().addQuip(flag, replyTo, content);

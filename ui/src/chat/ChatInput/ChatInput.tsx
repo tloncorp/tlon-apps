@@ -21,7 +21,7 @@ import { Image, PLACEHOLDER_IMAGES } from '@/constants';
 import {
   normalizeInline,
   inlinesToJSON,
-  parseTipTapJSON,
+  JSONToInlines,
   tipTapToString,
 } from '@/logic/tiptap';
 
@@ -61,7 +61,7 @@ export default function ChatInput({
           return;
         }
 
-        const data = normalizeInline(parseTipTapJSON(editor?.getJSON()));
+        const data = normalizeInline(JSONToInlines(editor?.getJSON()));
         useChatState.getState().draft(whom, {
           inline: Array.isArray(data) ? data : [data],
           block: [],
@@ -78,7 +78,7 @@ export default function ChatInput({
         return;
       }
 
-      const data = normalizeInline(parseTipTapJSON(editor?.getJSON()));
+      const data = normalizeInline(JSONToInlines(editor?.getJSON()));
       const blocks = fetchChatBlocks(whom);
       const memo: ChatMemo = {
         replying: reply,
