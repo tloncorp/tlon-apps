@@ -61,13 +61,7 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
   return (
     <SidebarItem
       to={`/dm/${whom}`}
-      icon={
-        pending ? (
-          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue md:h-6 md:w-6" />
-        ) : (
-          <Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />
-        )
-      }
+      icon={<Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />}
       actions={<DmOptions whom={whom} pending={!!pending} />}
       onClick={() => isMobile && navPrimary('hidden')}
     >
