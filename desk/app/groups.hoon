@@ -466,7 +466,11 @@
     ::
     ++  join-pinned
       ^-  (list card)
-      %+  turn  ~(tap by channels.group)
+      %+  turn  
+        %+  skim
+          ~(tap by channels.group)
+        |=  [nes=nest:g =channel:g]
+        join.channel 
       |=  [nes=nest:g =channel:g]
       ^-  card
       =/  =dock  [our.bowl p.nes] :: TODO: generally remove chat hard-coding j
