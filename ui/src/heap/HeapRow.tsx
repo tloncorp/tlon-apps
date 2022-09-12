@@ -141,7 +141,7 @@ export default function HeapRow({
           <button onClick={onEdit} className="small-menu-button">
             Edit
           </button>
-          <button className="small-menu-button" onClick={onDelete}>
+          <button className="small-menu-button text-red" onClick={onDelete}>
             Delete
           </button>
         </div>

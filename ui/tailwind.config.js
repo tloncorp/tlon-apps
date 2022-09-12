@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable global-require */
+const colors = require('tailwindcss/colors');
 const defaultTheme = require('tailwindcss/defaultTheme');
 
 const lightColors = {
@@ -60,27 +61,27 @@ const darkColors = {
   },
   red: {
     DEFAULT: '#FF6240',
-    soft: '#FFEFEC',
+    soft: colors.red['900'],
   },
   orange: {
     DEFAULT: '#FF9040',
-    soft: '#FFF4EC',
+    soft: colors.orange['900'],
   },
   yellow: {
     DEFAULT: '#FADE7A',
-    soft: '#FAF5D9',
+    soft: colors.yellow['900'],
   },
   green: {
     DEFAULT: '#2AD546',
-    soft: '#EAFBEC',
+    soft: colors.green['900'],
   },
   blue: {
     DEFAULT: '#008EFF',
-    soft: '#E5F4FF',
+    soft: colors.blue['900'],
   },
   indigo: {
     DEFAULT: '#615FD3',
-    soft: '#EFEFFB',
+    soft: colors.indigo['900'],
   },
 };
 
