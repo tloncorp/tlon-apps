@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import f from 'lodash/fp';
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router';
 import { DiaryNote } from '@/types/diary';
 import IconButton from '@/components/IconButton';
@@ -10,11 +10,10 @@ import { makePrettyDate } from '@/logic/utils';
 import { daToUnix } from '@urbit/api';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import { useChannelFlag } from '@/hooks';
-import { useGroupFlag } from '@/state/groups';
 import { useQuips } from '@/state/diary';
-import { useCopyToClipboard } from 'usehooks-ts';
 import CheckIcon from '@/components/icons/CheckIcon';
 import DiaryNoteOptionsDropdown from '../DiaryNoteOptionsDropdown';
+import useDiaryActions from '../useDiaryActions';
 
 interface DiaryGridItemProps {
   note: DiaryNote;
@@ -22,23 +21,16 @@ interface DiaryGridItemProps {
 }
 
 export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
-  const [justCopied, setJustCopied] = useState(false);
-  const [_copied, doCopy] = useCopyToClipboard();
   const chFlag = useChannelFlag();
-  const groupFlag = useGroupFlag();
   const quips = useQuips(chFlag || '', time.toString());
   const unix = new Date(daToUnix(time));
   const date = makePrettyDate(unix);
   const navigate = useNavigate();
   const hasImage = note.essay.image.length !== 0;
-
-  const onCopy = useCallback(() => {
-    doCopy(`${groupFlag}/channels/diary/${chFlag}/note/${time}`);
-    setJustCopied(true);
-    setTimeout(() => {
-      setJustCopied(false);
-    }, 1000);
-  }, [doCopy, time, groupFlag, chFlag]);
+  const { justCopied, onCopy } = useDiaryActions({
+    flag: chFlag || '',
+    time: time.toString(),
+  });
 
   const commenters = _.flow(
     f.compact,
