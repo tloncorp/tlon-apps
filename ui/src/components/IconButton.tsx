@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { MouseEventHandler } from 'react';
 import cn from 'classnames';
 
 interface IconButtonProps {
   icon: React.ReactElement;
-  action?: () => void;
+  action?: MouseEventHandler<HTMLButtonElement>;
   label: string;
   showTooltip?: boolean;
   className?: string;

@@ -35,7 +35,8 @@ export interface DiaryState {
   viewDiary: (flag: DiaryFlag, view: DiaryDisplayMode) => Promise<void>;
   markRead: (flag: DiaryFlag) => Promise<void>;
   addNote: (flag: DiaryFlag, essay: NoteEssay) => void;
-  delNote: (flag: DiaryFlag, time: string) => void;
+  editNote: (flag: DiaryFlag, time: string, essay: NoteEssay) => Promise<void>;
+  delNote: (flag: DiaryFlag, time: string) => Promise<void>;
   addSects: (flag: DiaryFlag, writers: string[]) => Promise<void>;
   delSects: (flag: DiaryFlag, writers: string[]) => Promise<void>;
   addQuip: (

@@ -348,7 +348,7 @@ function App() {
     handleError(() => {
       checkIfLoggedIn();
       handleGridRedirect(navigate);
-    });
+    })();
   }, [handleError, navigate]);
 
   useEffect(() => {

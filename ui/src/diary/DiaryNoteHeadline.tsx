@@ -15,6 +15,7 @@ import { useGroupFlag } from '@/state/groups';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { useNavigate } from 'react-router-dom';
 import Author from '@/chat/ChatMessage/Author';
+import useDiaryActions from './useDiaryActions';
 
 interface DiaryListItemProps {
   note: DiaryNote;
@@ -27,20 +28,13 @@ export default function DiaryNoteHeadline({
   time,
   isInList,
 }: DiaryListItemProps) {
-  const [justCopied, setJustCopied] = useState(false);
   const chFlag = useChannelFlag();
-  const groupFlag = useGroupFlag();
-  const [_copied, doCopy] = useCopyToClipboard();
   const navigate = useNavigate();
   const quips = useQuips(chFlag || '', time.toString());
-
-  const onCopy = useCallback(() => {
-    doCopy(`${groupFlag}/channels/diary/${chFlag}/note/${time}`);
-    setJustCopied(true);
-    setTimeout(() => {
-      setJustCopied(false);
-    }, 1000);
-  }, [doCopy, time, groupFlag, chFlag]);
+  const { justCopied, onCopy } = useDiaryActions({
+    flag: chFlag || '',
+    time: time.toString(),
+  });
 
   const commenters = _.flow(
     f.compact,

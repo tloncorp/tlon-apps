@@ -1,10 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import cn from 'classnames';
-import { useCopyToClipboard } from 'usehooks-ts';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
-import { isValidUrl, nestToFlag, validOembedCheck } from '@/logic/utils';
+import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useEmbedState from '@/state/embed';
 import { formatDistanceToNow } from 'date-fns';
@@ -12,12 +11,10 @@ import TwitterIcon from '@/components/icons/TwitterIcon';
 import LinkIcon16 from '@/components/icons/LinkIcon16';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import HeapContent from '@/heap/HeapContent';
-import { useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import HeapLoadingRow from '@/heap/HeapLoadingRow';
-import { useRouteGroup } from '@/state/groups';
 import CheckIcon from '@/components/icons/CheckIcon';
-import { useLocation, useNavigate } from 'react-router';
+import useCurioActions from './useCurioActions';
 
 export default function HeapRow({
   curio,
@@ -27,38 +24,13 @@ export default function HeapRow({
   time: string;
 }) {
   const nest = useNest();
-  const [, chFlag] = nestToFlag(nest);
-  const groupFlag = useRouteGroup();
-  const [_copied, doCopy] = useCopyToClipboard();
-  const [justCopied, setJustCopied] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { justCopied, menuOpen, setMenuOpen, onDelete, onEdit, onCopy } =
+    useCurioActions({ nest, time });
   const [embed, setEmbed] = useState<any>();
   const { content, sent, title } = curio.heart;
   const { replied } = curio.seal;
   // TODO: improve this
   const contentString = content.length > 0 ? content[0].toString() : '';
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const onEdit = useCallback(() => {
-    setMenuOpen(false);
-    navigate(`curio/${time}/edit`, {
-      state: { backgroundLocation: location },
-    });
-  }, [location, navigate, time]);
-
-  const onDelete = useCallback(() => {
-    setMenuOpen(false);
-    useHeapState.getState().delCurio(chFlag, time);
-  }, [chFlag, time]);
-
-  const onCopy = useCallback(() => {
-    doCopy(`${groupFlag}/channels/heap/${chFlag}/curio/${time}`);
-    setJustCopied(true);
-    setTimeout(() => {
-      setJustCopied(false);
-    }, 1000);
-  }, [doCopy, time, chFlag, groupFlag]);
 
   const { isImage, isUrl, isAudio, description } =
     useHeapContentType(contentString);
@@ -142,7 +114,10 @@ export default function HeapRow({
           </div>
         </div>
       </div>
-      <div className="flex space-x-1 text-gray-400">
+      <div
+        className="flex space-x-1 text-gray-400"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button onClick={onCopy} className="icon-button bg-transparent">
           {justCopied ? (
             <CheckIcon className="h-6 w-6" />
@@ -166,7 +141,7 @@ export default function HeapRow({
           <button onClick={onEdit} className="small-menu-button">
             Edit
           </button>
-          <button className="small-menu-button" onClick={onDelete}>
+          <button className="small-menu-button text-red" onClick={onDelete}>
             Delete
           </button>
         </div>

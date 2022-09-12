@@ -25,14 +25,11 @@ export default function CoverImageInput({
       style={image ? { backgroundImage: `url(${image})` } : {}}
     >
       <div className="absolute bottom-0 left-0 w-full p-4">
-        <label
-          className={cn(
-            'mb-1 block font-semibold text-gray-400',
-            image !== '' ? 'text-white' : null
-          )}
-        >
-          Optional Cover Image
-        </label>
+        {!image && (
+          <label className="mb-1 block font-semibold text-gray-400">
+            Optional Cover Image
+          </label>
+        )}
         <input
           type="url"
           {...register('image')}

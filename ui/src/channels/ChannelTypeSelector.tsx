@@ -52,7 +52,12 @@ function ChannelTypeSelection({ type }: ChannelTypeSelectionProps) {
     >
       <div className="flex w-full flex-col">
         <div className="flex flex-row items-center space-x-2">
-          <div className={cn('rounded p-2 mix-blend-multiply', color)}>
+          <div
+            className={cn(
+              'rounded p-2 mix-blend-multiply dark:mix-blend-screen',
+              color
+            )}
+          >
             {icon}
           </div>
           <div className="flex w-full flex-col justify-start text-left">

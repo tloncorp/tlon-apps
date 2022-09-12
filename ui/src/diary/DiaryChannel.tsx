@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
@@ -20,8 +20,8 @@ import { DiaryDisplayMode } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 import * as Toast from '@radix-ui/react-toast';
-import { useCopyToClipboard } from 'usehooks-ts';
 import DiaryListItem from './DiaryList/DiaryListItem';
+import useDiaryActions from './useDiaryActions';
 
 function DiaryChannel() {
   const { chShip, chName } = useParams();
@@ -33,8 +33,10 @@ function DiaryChannel() {
   const navigate = useNavigate();
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
-  const [_copied, doCopy] = useCopyToClipboard();
-  const [justCopied, setJustCopied] = useState(false);
+  const { justCopied, onCopy } = useDiaryActions({
+    flag: chFlag,
+    time: newNote || '',
+  });
 
   const settings = useDiarySettings();
   // for now sortMode is not actually doing anything.
@@ -58,14 +60,6 @@ function DiaryChannel() {
       .getState()
       .putEntry('diary', 'settings', JSON.stringify(newSettings));
   };
-
-  const onCopy = useCallback(() => {
-    doCopy(`${flag}/channels/diary/${chFlag}/note/${newNote}`);
-    setJustCopied(true);
-    setTimeout(() => {
-      setJustCopied(false);
-    }, 1000);
-  }, [doCopy, chFlag, flag, newNote]);
 
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
@@ -127,11 +121,11 @@ function DiaryChannel() {
         <div className="relative flex flex-col items-center">
           <Toast.Root duration={3000} defaultOpen={false} open={showToast}>
             <Toast.Description asChild>
-              <div className="absolute z-10 flex w-[415px] -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold drop-shadow-lg">
+              <div className="absolute z-10 flex w-[415px] -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold text-white drop-shadow-lg dark:bg-gray-200 dark:text-black">
                 <span className="py-2 px-4">Note successfully published</span>
                 <button
                   onClick={onCopy}
-                  className="-mx-4 -my-2 w-[135px] rounded-r-lg bg-blue py-2 px-4 text-white"
+                  className="-mx-4 -my-2 w-[135px] rounded-r-lg bg-blue py-2 px-4 text-white dark:text-black"
                 >
                   {justCopied ? 'Copied' : 'Copy Note Link'}
                 </button>

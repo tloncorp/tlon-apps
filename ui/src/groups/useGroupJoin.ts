@@ -1,5 +1,6 @@
 import useNavStore from '@/components/Nav/useNavStore';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
+import useHarkState from '@/state/hark';
 import { getGroupPrivacy } from '@/logic/utils';
 import { useGroup, useGroupState } from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
@@ -55,6 +56,12 @@ export default function useGroupJoin(
   const join = useCallback(async () => {
     if (privacy === 'public' || (privacy === 'private' && invited)) {
       await useGroupState.getState().join(flag, true);
+      useHarkState.getState().sawRope({
+        channel: null,
+        desk: window.desk,
+        group: flag,
+        thread: `/${flag}/invite`,
+      });
       navPrimary('group', flag);
       navigate(`/groups/${flag}`);
     } else {

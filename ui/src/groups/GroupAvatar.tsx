@@ -38,7 +38,7 @@ export default function GroupAvatar({
   title,
 }: GroupAvatarProps) {
   const dark = useMedia('(prefers-color-scheme: dark)');
-  const background = image || (dark ? '#1A1A1A' : '#F5F5F5');
+  const background = image || (dark ? '#333333' : '#E5E5E5');
 
   return image && !isColor(image) ? (
     <img className={cn('rounded', size, className)} src={image} />
