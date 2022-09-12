@@ -1,11 +1,8 @@
-import React, { PropsWithChildren, useCallback, useState } from 'react';
+import React, { PropsWithChildren } from 'react';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import { Link, useNavigate } from 'react-router-dom';
-import { useGroupFlag } from '@/state/groups';
-import { useDiaryState } from '@/state/diary';
+import { Link } from 'react-router-dom';
 import Divider from '@/components/Divider';
-import { useCopyToClipboard } from 'usehooks-ts';
-import { decToUd } from '@urbit/api';
+import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
   time: string;
@@ -19,29 +16,10 @@ export default function DiaryNoteOptionsDropdown({
   time,
   triggerClassName,
 }: DiaryNoteOptionsDropdownProps) {
-  const navigate = useNavigate();
-  const groupFlag = useGroupFlag();
-  const [isOpen, setIsOpen] = useState(false);
-  const [_copied, doCopy] = useCopyToClipboard();
-  const [justCopied, setJustCopied] = useState(false);
-
-  const delNote = useCallback(async () => {
-    await useDiaryState.getState().delNote(flag, decToUd(time));
-    navigate('../');
-  }, [flag, time, navigate]);
-
-  const onCopy = useCallback(
-    (e) => {
-      e.preventDefault();
-      doCopy(`${groupFlag}/channels/diary/${flag}/note/${time}`);
-      setJustCopied(true);
-      setTimeout(() => {
-        setJustCopied(false);
-        setIsOpen(false);
-      }, 1000);
-    },
-    [doCopy, time, groupFlag, flag]
-  );
+  const { isOpen, justCopied, onCopy, delNote, setIsOpen } = useDiaryActions({
+    flag,
+    time,
+  });
 
   return (
     <Dropdown.Root open={isOpen} onOpenChange={setIsOpen}>
