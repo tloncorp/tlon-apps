@@ -42,7 +42,7 @@ import tippy from 'tippy.js';
 import DiaryImageNode from './DiaryImageNode';
 import DiaryLinkNode from './DiaryLinkNode';
 import DiaryCiteNode from './DiaryCiteNode';
-import DiaryCodeBlock from './DiaryCodeBlock';
+import PrismCodeBlock from './PrismCodeBlock';
 
 EditorView.prototype.updateState = function updateState(state) {
   if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
@@ -278,7 +278,7 @@ export function useDiaryInlineEditor({
         Blockquote,
         Bold,
         Code.extend({ excludes: undefined }),
-        DiaryCodeBlock,
+        PrismCodeBlock,
         Document,
         HardBreak,
         History.configure({ newGroupDelay: 100 }),
