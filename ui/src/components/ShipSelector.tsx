@@ -101,7 +101,11 @@ function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
   const { value: rawValue, label } = data;
   const value = preSig(rawValue);
   return (
-    <components.Option data={data} className="hover:cursor-pointer" {...props}>
+    <components.Option
+      data={data}
+      className="rounded-lg p-3 hover:cursor-pointer"
+      {...props}
+    >
       <div className="flex items-center space-x-2">
         {
           // Case when user has entered an invite link (e.g., ~zod/group-name)
@@ -225,7 +229,10 @@ function ShipDropDownMenuList({
   ...props
 }: MenuListProps<ShipOption, true>) {
   return (
-    <components.MenuList className="rounded-lg bg-white" {...props}>
+    <components.MenuList
+      className="hide-scroll rounded-lg bg-white p-3"
+      {...props}
+    >
       {children}
     </components.MenuList>
   );
@@ -485,7 +492,17 @@ export default function ShipSelector({
       isMulti
       styles={{
         control: (base) => ({}),
-        menu: ({ width, borderRadius, ...base }) => ({
+        menuList: ({ padding, paddingTop, paddingBottom, ...base }) => ({
+          ...base,
+        }),
+        menu: ({
+          paddingTop,
+          paddingBottom,
+          padding,
+          width,
+          borderRadius,
+          ...base
+        }) => ({
           borderWidth: '',
           borderColor: '',
           zIndex: 50,
@@ -513,7 +530,7 @@ export default function ShipSelector({
             backgroundColor: 'inherit',
           },
         }),
-        option: (base, state) => ({
+        option: ({ padding, ...base }, state) => ({
           ...base,
           backgroundColor: state.isFocused ? 'rgb(var(--colors-gray-50))' : '',
         }),
