@@ -1,7 +1,7 @@
 :~  title+'homestead'
     info+'An Urbit app that does great things'
     color+0x60.94d2
-    glob-http+['https://bootstrap.urbit.org/glob-0vjn98p.5b431.okq2s.ert9r.1qu94.glob' 0vjn98p.5b431.okq2s.ert9r.1qu94]
+    glob-http+['https://bootstrap.urbit.org/glob-0v1.a5tfi.t46ft.8sine.u428i.5tppm.glob' 0v1.a5tfi.t46ft.8sine.u428i.5tppm]
     base+'homestead'
     version+[0 0 1]
     website+'https://github.com'
