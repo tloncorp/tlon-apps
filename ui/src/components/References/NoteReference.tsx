@@ -40,7 +40,7 @@ export default function NoteReference({
 
   if (scryError !== undefined) {
     // TODO handle requests for single notes like we do for single writs.
-    const time = bigInt(udToDec(id.split('/')[1]));
+    const time = bigInt(udToDec(id));
     return (
       <div className="heap-inline-block group">
         This content is unavailable to you.
