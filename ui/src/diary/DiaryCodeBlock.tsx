@@ -1,7 +1,7 @@
-import { lowlight } from 'lowlight/lib/core';
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import CodeBlock from '@tiptap/extension-code-block';
 import './DiaryCodeBlock.css';
 
-const DiaryCodeBlock = CodeBlockLowlight.configure({ lowlight });
+// TODO: Use prism for syntax highlighting
+const DiaryCodeBlock = CodeBlock;
 
 export default DiaryCodeBlock;
