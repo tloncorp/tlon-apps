@@ -190,7 +190,7 @@
 ::
 ::  $net: an indicator of whether I'm a host or subscriber
 ::
-::    %load: iniating chat join
+::    %load: initiating diary join
 ::    %pub: am publisher/host with fresh log
 ::    %sub: subscribed to the ship
 ::
@@ -201,7 +201,7 @@
       [%load ~]
   ==
 ::
-::  $briefs: a map of chat/club/dm unread information
+::  $briefs: a map of diary unread information
 ::
 ::    brief: the last time a diary was read, how many posts since,
 ::    and the id of the last read note
