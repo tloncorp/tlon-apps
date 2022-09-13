@@ -12,10 +12,14 @@
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
+::    id: the id of the message  
+::    feels: reactions to a message
+::    replied: set of replies to a message
+::
 +$  seal
   $:  =id
-      feels=(map ship feel)   :: reactions to a message
-      replied=(set id)        :: replies to a message
+      feels=(map ship feel)
+      replied=(set id)
   ==
 ::
 ::  $whom: a polymorphic identifier for chats
@@ -28,14 +32,14 @@
 ::
 ::  $briefs: a map of chat/club/dm unread information
 ::
+::    brief: the last time a message was read, how many messages since,
+::    and the id of the last read message
+::
 ++  briefs
   =<  briefs
   |% 
   +$  briefs
     (map whom brief)
-  ::  $brief: the last time a message was read, how many messages since,
-  ::  and the id of the last read message
-  ::
   +$  brief
     [last=time count=@ud read-id=(unit id)]
   +$  update
@@ -232,8 +236,9 @@
 ::    %italics: italic text
 ::    %bold: bold text
 ::    %strike: strikethrough text
-::    %inline-code: code formatting for small snippets
 ::    %blockquote: blockquote surrounded content
+::    %inline-code: code formatting for small snippets
+::    %ship: a mention of a ship
 ::    %block: link/reference to blocks
 ::    %code: code formatting for large snippets
 ::    %tag: tag gets special signifier
