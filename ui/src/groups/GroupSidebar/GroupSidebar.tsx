@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
@@ -20,12 +20,17 @@ function GroupHeader() {
   const group = useGroup(flag);
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const [groupCoverHover, setGroupCoverHover] = useState(false);
+  const [noCors, setNoCors] = useState(false);
   const [coverImgColor, setCoverImgColor] = useState('');
   const cover = useRef(null);
   const fac = new FastAverageColor();
   const dark = useMedia('(prefers-color-scheme: dark)');
   const hoverFallbackForeground = dark ? 'white' : 'black';
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
+
+  const onError = useCallback(() => {
+    setNoCors(true);
+  }, []);
 
   const getCoverImageColor = () => {
     fac
@@ -85,9 +90,10 @@ function GroupHeader() {
     <li className="relative mb-2 w-full rounded-lg" style={coverStyles()}>
       {group && !isColor(group?.meta.cover) && (
         <img
+          {...(noCors ? {} : { crossOrigin: 'anonymous' })}
           src={group?.meta.cover}
           ref={cover}
-          crossOrigin="anonymous"
+          onError={onError}
           onLoad={() => getCoverImageColor()}
           className="absolute h-full w-full flex-none rounded-lg object-cover"
         />
