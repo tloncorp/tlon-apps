@@ -94,7 +94,7 @@ function ChatRoutes({ state, location }: RoutesProps) {
             element={
               <Notifications
                 child={DMNotification}
-                title={`${appHead('chat').title} • All Notifications`}
+                title={`• ${appHead('chat').title}`}
               />
             }
           />
@@ -114,7 +114,7 @@ function ChatRoutes({ state, location }: RoutesProps) {
             />
             <Route
               path="channels/chat/:chShip/:chName"
-              element={<ChatChannel title={`${appHead('chat').title} • `} />}
+              element={<ChatChannel title={`• ${appHead('chat').title}`} />}
             >
               <Route
                 path="message/:idShip/:idTime"
@@ -126,7 +126,7 @@ function ChatRoutes({ state, location }: RoutesProps) {
           <Route
             path="/profile/edit"
             element={
-              <EditProfile title={`${appHead('chat').title} • Edit Profile`} />
+              <EditProfile title={`Edit Profile • ${appHead('chat').title}`} />
             }
           />
         </Route>
@@ -156,7 +156,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             element={
               <Notifications
                 child={GroupNotification}
-                title={`${appHead('').title} • All Notifications`}
+                title={`All Notifications • ${appHead('').title}`}
               />
             }
           />
@@ -165,7 +165,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             element={
               <Notifications
                 child={GroupNotification}
-                title={`${appHead('').title} • All Notifications`}
+                title={`All Notifications • ${appHead('').title}`}
               />
             }
           />
@@ -173,20 +173,20 @@ function GroupsRoutes({ state, location }: RoutesProps) {
           <Route
             path="/groups/find/:ship/:name"
             element={
-              <FindGroups title={`${appHead('').title} • Find Groups`} />
+              <FindGroups title={`Find Groups • ${appHead('').title}`} />
             }
           />
           {/* Find by Nickname or @p */}
           <Route
             path="/groups/find/:ship"
             element={
-              <FindGroups title={`${appHead('').title} • Find Groups`} />
+              <FindGroups title={`Find Groups • ${appHead('').title}`} />
             }
           />
           <Route
             path="/groups/find"
             element={
-              <FindGroups title={`${appHead('').title} • Find Groups`} />
+              <FindGroups title={`Find Groups • ${appHead('').title}`} />
             }
           />
           <Route
@@ -194,7 +194,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             element={
               <Notifications
                 child={GroupNotification}
-                title={`${appHead('').title} • Activity`}
+                title={`• ${appHead('').title}`}
               />
             }
           />
@@ -204,20 +204,18 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               element={
                 <Notifications
                   child={GroupNotification}
-                  title={`${appHead('').title} • Activity`}
+                  title={`• ${appHead('').title}`}
                 />
               }
             />
             <Route path="info" element={<GroupAdmin />}>
               <Route
                 index
-                element={<GroupInfo title={`${appHead('').title} • Info`} />}
+                element={<GroupInfo title={`• ${appHead('').title}`} />}
               />
               <Route
                 path="members"
-                element={
-                  <GroupMembers title={`${appHead('').title} • Members`} />
-                }
+                element={<GroupMembers title={`• ${appHead('').title}`} />}
               >
                 <Route index element={<GroupMemberManager />} />
                 <Route path="pending" element={<GroupPendingManager />} />
@@ -226,9 +224,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               <Route
                 path="channels"
                 element={
-                  <GroupChannelManager
-                    title={`${appHead('').title} • Channels`}
-                  />
+                  <GroupChannelManager title={`• ${appHead('').title}`} />
                 }
               />
             </Route>
@@ -238,7 +234,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             />
             <Route
               path="channels/chat/:chShip/:chName"
-              element={<ChatChannel title={`${appHead('').title} • `} />}
+              element={<ChatChannel title={` • ${appHead('').title}`} />}
             >
               <Route
                 path="message/:idShip/:idTime"
@@ -248,7 +244,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             <Route path="channels/heap/:chShip/:chName">
               <Route
                 index
-                element={<HeapChannel title={`${appHead('').title} • `} />}
+                element={<HeapChannel title={` • ${appHead('').title}`} />}
               />
               <Route path="curio/:idCurio" element={<HeapDetail />} />
             </Route>
@@ -262,15 +258,13 @@ function GroupsRoutes({ state, location }: RoutesProps) {
             </Route>
             <Route
               path="channels"
-              element={
-                <ChannelIndex title={`${appHead('').title} • All Channels`} />
-              }
+              element={<ChannelIndex title={` • ${appHead('').title}`} />}
             />
           </Route>
           <Route
             path="/profile/edit"
             element={
-              <EditProfile title={`${appHead('').title} • Edit Profile`} />
+              <EditProfile title={`Edit Profile • ${appHead('').title}`} />
             }
           />
         </Route>

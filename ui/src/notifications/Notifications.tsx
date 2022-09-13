@@ -21,7 +21,11 @@ export default function Notifications({
   return (
     <section className="w-full bg-white p-6">
       <Helmet>
-        <title>{group ? `${title} for ${group?.meta?.title}` : title}</title>
+        <title>
+          {group
+            ? `All Notifications for ${group?.meta?.title} ${title}`
+            : title}
+        </title>
       </Helmet>
       {notifications.map((grouping) => (
         <>

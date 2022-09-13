@@ -77,7 +77,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     <>
       <Helmet>
         <title>
-          {group?.meta ? `${title} for ${group.meta.title}` : title}
+          {group?.meta ? `Info for ${group.meta.title} ${title}` : title}
         </title>
       </Helmet>
       <FormProvider {...form}>

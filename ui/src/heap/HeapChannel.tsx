@@ -107,7 +107,7 @@ function HeapChannel({ title }: ViewProps) {
       <Helmet>
         <title>
           {channel && group
-            ? `${title} ${channel.meta.title} in ${group.meta.title}`
+            ? `${channel.meta.title} in ${group.meta.title} ${title}`
             : title}
         </title>
       </Helmet>
