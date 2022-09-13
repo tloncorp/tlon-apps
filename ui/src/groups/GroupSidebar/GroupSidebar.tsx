@@ -10,10 +10,11 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useHarkState from '@/state/hark';
 import { isColor } from '@/logic/utils';
 import { foregroundFromBackground } from '@/components/Avatar';
-import MobileGroupSidebar from './MobileGroupSidebar';
-import ChannelList from './ChannelList';
-import GroupAvatar from '../GroupAvatar';
-import GroupActions from '../GroupActions';
+import Sidebar from '@/components/Sidebar/Sidebar';
+import MobileGroupSidebar from '@/groups/GroupSidebar/MobileGroupSidebar';
+import ChannelList from '@/groups/GroupSidebar/ChannelList';
+import GroupAvatar from '@/groups/GroupAvatar';
+import GroupActions from '@/groups/GroupActions';
 
 function GroupHeader() {
   const flag = useNavStore((state) => state.flag);
@@ -174,5 +175,5 @@ export default function GroupSidebar() {
     );
   }
 
-  return null;
+  return <Sidebar />;
 }
