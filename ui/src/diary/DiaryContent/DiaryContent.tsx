@@ -8,6 +8,7 @@ import {
   isLink,
   isStrikethrough,
   Inline,
+  isBlockCode,
 } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
@@ -95,6 +96,20 @@ export function InlineContent({ story }: InlineContentProps) {
           story['inline-code']
         )}
       </code>
+    );
+  }
+
+  if (isBlockCode(story)) {
+    return (
+      <pre>
+        <code>
+          {typeof story.code === 'object' ? (
+            <InlineContent story={story.code} />
+          ) : (
+            story.code
+          )}
+        </code>
+      </pre>
     );
   }
 

@@ -1,5 +1,4 @@
 import classNames from 'classnames';
-import { lowlight } from 'lowlight/lib/core';
 import { EditorView } from 'prosemirror-view';
 import { PluginKey } from 'prosemirror-state';
 import {
@@ -40,11 +39,10 @@ import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { Shortcuts } from '@/logic/tiptap';
 import Suggestion, { SuggestionOptions } from '@tiptap/suggestion';
 import tippy from 'tippy.js';
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import DiaryImageNode from './DiaryImageNode';
 import DiaryLinkNode from './DiaryLinkNode';
 import DiaryCiteNode from './DiaryCiteNode';
-import './DiaryInlineEditor.css';
+import DiaryCodeBlock from './DiaryCodeBlock';
 
 EditorView.prototype.updateState = function updateState(state) {
   if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
@@ -280,8 +278,7 @@ export function useDiaryInlineEditor({
         Blockquote,
         Bold,
         Code.extend({ excludes: undefined }),
-        // CodeBlock,
-        CodeBlockLowlight.configure({ lowlight }),
+        DiaryCodeBlock,
         Document,
         HardBreak,
         History.configure({ newGroupDelay: 100 }),
@@ -347,6 +344,7 @@ export default function DiaryInlineEditor({
   className,
 }: DiaryInlineEditorProps) {
   const isMobile = useIsMobile();
+
   return (
     <div className={classNames('input-transparent block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}

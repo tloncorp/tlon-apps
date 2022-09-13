@@ -99,6 +99,10 @@ export function isInlineCode(item: unknown): item is InlineCode {
   return typeof item === 'object' && item !== null && 'inline-code' in item;
 }
 
+export function isBlockCode(item: unknown): item is BlockCode {
+  return typeof item === 'object' && item !== null && 'code' in item;
+}
+
 export function isBreak(item: unknown): item is Break {
   return typeof item === 'object' && item !== null && 'break' in item;
 }
