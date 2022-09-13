@@ -268,7 +268,9 @@ export default function ChannelIndex({ title }: ViewProps) {
   return (
     <section className="w-full overflow-y-scroll p-4">
       <Helmet>
-        <title>{group ? `${title} in ${group?.meta?.title}` : title}</title>
+        <title>
+          {group ? `All Channels in ${group?.meta?.title} ${title}` : title}
+        </title>
       </Helmet>
       <div className="mb-4 flex flex-row justify-between">
         <h1 className="text-lg font-bold">All Channels</h1>
