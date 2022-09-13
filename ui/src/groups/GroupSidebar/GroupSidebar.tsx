@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
-import { useIsMobile } from '@/logic/useMedia';
+import useMedia, { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups/groups';
 import useNavStore from '@/components/Nav/useNavStore';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
@@ -23,6 +23,9 @@ function GroupHeader() {
   const [coverImgColor, setCoverImgColor] = useState('');
   const cover = useRef(null);
   const fac = new FastAverageColor();
+  const dark = useMedia('(prefers-color-scheme: dark)');
+  const hoverFallbackForeground = dark ? 'white' : 'black';
+  const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
 
   const getCoverImageColor = () => {
     fac
@@ -50,12 +53,20 @@ function GroupHeader() {
             : 'transparent',
         color: foregroundFromBackground(group.meta.cover),
       };
+    // debugger;
     if (group && !isColor(group.meta.cover)) {
       return {
-        color: foregroundFromBackground(coverImgColor),
+        color: isColor(coverImgColor)
+          ? foregroundFromBackground(coverImgColor)
+          : hoverFallbackForeground,
         backgroundColor:
           groupCoverHover === true
-            ? transparentize(coverImgColor, 0.33)
+            ? transparentize(
+                isColor(coverImgColor)
+                  ? coverImgColor
+                  : hoverFallbackBackground,
+                0.33
+              )
             : 'transparent',
       };
     }
