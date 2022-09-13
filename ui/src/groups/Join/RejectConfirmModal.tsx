@@ -24,7 +24,7 @@ export default function RejectConfirmModal() {
     : 'public';
   const checkboxRef = useRef<HTMLInputElement | null>(null);
   const [skipConfirmation, setSkipConfirmation] = useLocalStorage(
-    'homestead:skipGroupInviteRejectConfirm',
+    'groups:skipGroupInviteRejectConfirm',
     false
   );
 

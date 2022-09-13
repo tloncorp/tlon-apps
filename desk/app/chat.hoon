@@ -520,7 +520,7 @@
   ::
   ++  cu-spin  
     |=  [con=(list content:ha) but=(unit button:ha)]
-    =/  rope  [~ ~ %chatstead /club/(scot %uv id)]
+    =/  rope  [~ ~ q.byk.bowl /club/(scot %uv id)]
     =/  link  /dm/(scot %uv id)
     (spin rope con link but)
   ::
@@ -1083,7 +1083,7 @@
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin  
     |=  [con=(list content:ha) but=(unit button:ha)]
-    =/  rope  [~ ~ %chatstead /dm/(scot %p ship)]
+    =/  rope  [~ ~ q.byk.bowl /dm/(scot %p ship)]
     =/  link  /dm/(scot %p ship)
     (spin rope con link but)
   ::
