@@ -13,7 +13,7 @@ function DiaryLinkComponent(props: NodeViewProps) {
   return (
     <NodeViewWrapper>
       <NodeViewContent>
-        <div className="absolute inset-x-4 bottom-4 flex h-8 items-center space-x-2 rounded-lg border border-gray-100 bg-white px-2">
+        <div className="flex h-8 items-center space-x-2 rounded-lg border border-gray-100 bg-white px-2">
           <LinkIcon className="h-4 w-4" />
           <input
             className="input-transparent grow"
