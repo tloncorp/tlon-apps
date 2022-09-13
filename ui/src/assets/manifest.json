@@ -1,6 +1,6 @@
 {
-  "name": "homestead",
-  "short_name": "homestead",
+  "name": "Groups",
+  "short_name": "Groups",
   "icons": [
     {
       "src": "/apps/grid/android-chrome-512x512.png",

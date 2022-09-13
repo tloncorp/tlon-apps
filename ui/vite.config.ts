@@ -29,9 +29,9 @@ export default ({ mode }: { mode: string }) => {
 
     switch (app) {
       case 'chat':
-        return '/apps/chatstead/';
+        return '/apps/talk/';
       default:
-        return '/apps/homestead/';
+        return '/apps/groups/';
     }
   };
 
@@ -44,7 +44,7 @@ export default ({ mode }: { mode: string }) => {
       case 'chat':
         return [
           urbitPlugin({
-            base: 'chatstead',
+            base: 'talk',
             target: SHIP_URL,
             changeOrigin: true,
             secure: false,
@@ -54,7 +54,7 @@ export default ({ mode }: { mode: string }) => {
       default:
         return [
           urbitPlugin({
-            base: 'homestead',
+            base: 'groups',
             target: SHIP_URL,
             changeOrigin: true,
             secure: false,

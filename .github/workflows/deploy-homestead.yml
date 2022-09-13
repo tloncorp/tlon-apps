@@ -1,4 +1,4 @@
-name: Deploy Homestead
+name: Deploy Groups
 on:
   workflow_dispatch:
   push:
@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/deploy
         with:
-          app: 'homestead'
+          app: 'groups'
           ship: 'devstream'
           credentials: ${{ secrets.JANEWAY_SERVICE_KEY }}
           ssh-sec-key: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
