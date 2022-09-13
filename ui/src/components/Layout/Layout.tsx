@@ -2,6 +2,7 @@ import React, { PropsWithChildren } from 'react';
 import cn from 'classnames';
 
 type LayoutProps = PropsWithChildren<{
+  stickyHeader?: boolean;
   className?: string;
   footer?: React.ReactNode;
   header?: React.ReactNode;
@@ -16,10 +17,15 @@ export default function Layout({
   footer,
   header,
   aside,
+  stickyHeader = false,
 }: LayoutProps) {
   return (
-    <div className={cn(className, 'layout')}>
-      {header && <header className="header">{header}</header>}
+    <div className={cn(className, 'layout', stickyHeader ? 'relative' : '')}>
+      {header && (
+        <header className={cn('header', stickyHeader ? ' sticky top-0' : '')}>
+          {header}
+        </header>
+      )}
       {aside && <aside className="aside">{aside}</aside>}
       <main className={cn('main', mainClass)}>{children}</main>
       {footer && <footer className="footer">{footer}</footer>}

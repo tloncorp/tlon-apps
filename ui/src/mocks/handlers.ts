@@ -104,7 +104,7 @@ const briefsSub = {
 const settingsSub = {
   action: 'subscribe',
   app: 'settings-store',
-  path: '/desk/homestead',
+  path: '/desk/groups',
 } as SubscriptionHandler;
 
 const settingsPoke: PokeHandler = {
@@ -647,7 +647,7 @@ const mockHandlers: Handler[] = (
     {
       action: 'scry',
       app: 'settings-store',
-      path: '/desk/homestead',
+      path: '/desk/groups',
       func: () => ({
         desk: {
           display: {

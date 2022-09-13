@@ -3,8 +3,8 @@
 ## Install the Nightly Build
 
 ```
-|install ~wannec-dozzod-marzod %homestead
-|install ~wannec-dozzod-marzod %chatstead
+|install ~wannec-dozzod-marzod %groups
+|install ~wannec-dozzod-marzod %talk
 ```
 
 ## Preview

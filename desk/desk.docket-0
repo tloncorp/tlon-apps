@@ -1,9 +1,9 @@
-:~  title+'homestead'
-    info+'An Urbit app that does great things'
+:~  title+'Groups'
+    info+'An Urbit app for gathering together'
     color+0x60.94d2
-    glob-http+['https://bootstrap.urbit.org/glob-0vgtvej.cahhh.jcr24.uj2vc.561eo.glob' 0vgtvej.cahhh.jcr24.uj2vc.561eo]
-    base+'homestead'
-    version+[0 0 1]
-    website+'https://github.com'
+    glob-http+['https://bootstrap.urbit.org/glob-0v3qg84.n56rc.in1et.2v25l.gorl5.glob' 0v3qg84.n56rc.in1et.2v25l.gorl5]
+    base+'groups'
+    version+[0 1 0]
+    website+'https://tlon.io'
     license+'MIT'
 ==
