@@ -77,14 +77,15 @@ export default function ChatInput({
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
-      if (!editor.getText()) {
+      const blocks = fetchChatBlocks(whom);
+      if (!editor.getText() && !blocks.length) {
         return;
       }
 
       const data = normalizeInline(
         JSONToInlines(editor?.getJSON()) as Inline[]
       );
-      const blocks = fetchChatBlocks(whom);
+
       const memo: ChatMemo = {
         replying: reply,
         author: `~${window.ship || 'zod'}`,
@@ -213,7 +214,10 @@ export default function ChatInput({
         </div>
         <button
           className="button"
-          disabled={sendDisabled || messageEditor.getText() === ''}
+          disabled={
+            sendDisabled ||
+            (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
+          }
           onClick={onClick}
         >
           Send
