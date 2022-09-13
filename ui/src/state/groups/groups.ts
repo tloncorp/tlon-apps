@@ -198,13 +198,13 @@ export const useGroupState = create<GroupState>((set, get) => ({
     });
     set(() => ({ groups }));
   },
-  revoke: async (flag, ships) => {
+  revoke: async (flag, ships, kind) => {
     api.poke(
       groupAction(flag, {
         cordon: {
           shut: {
             'del-ships': {
-              kind: 'pending',
+              kind,
               ships,
             },
           },

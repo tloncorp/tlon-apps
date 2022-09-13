@@ -822,7 +822,7 @@
         =/  ships  q.diff
         ~&  [src.bowl our.bowl]
         ?:  from-self  go-core
-        =/  link  (go-link /info/members)
+        =/  link  (go-link /info/members/pending)
         =/  yarn
           %-  spin
           :*  (go-rope /asks)
