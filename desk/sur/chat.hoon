@@ -16,6 +16,8 @@
 ::    feels: reactions to a message
 ::    replied: set of replies to a message
 ::
+::  $seal: the id of a chat and its meta-responses
+::
 +$  seal
   $:  =id
       feels=(map ship feel)
@@ -40,6 +42,8 @@
   |% 
   +$  briefs
     (map whom brief)
+  ::  $brief: the last time a message was read, how many messages since,
+  ::  and the id of the last read message
   +$  brief
     [last=time count=@ud read-id=(unit id)]
   +$  update

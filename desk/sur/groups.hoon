@@ -1,6 +1,5 @@
 /-  meta
 |%
-::
 ::  $flag: ID for a group
 ::
 +$  flag  (pair ship term)
@@ -66,7 +65,7 @@
     ==
   --
 ::
-::  $channel: 
+::  $channel: a medium for interaction
 ::
 ++  channel
   =<  channel
@@ -121,8 +120,6 @@
 ::
 ::    group holds all data around members, permissions, channel
 ::    organization, and its own metadata to represent the group
-::
-::    each key is represn
 ::
 +$  group
   $:  =fleet
@@ -282,10 +279,10 @@
 ::  $net: an indicator of whether I'm a host or subscriber
 ::
 +$  net
-  $~  [%pub ~]        :: am publisher/host with fresh log
-  $%  [%pub p=log]    :: start publishing with an existing log 
-      [%sub p=time]   :: subscribed at time, sync log from that point
-      [%load ~]       :: iniating group join
+  $~  [%pub ~]
+  $%  [%pub p=log]
+      [%sub p=time]
+      [%load ~]
   ==
 ::
 ::  $join: a join request, can elect to join all channels
