@@ -1,17 +1,9 @@
-import { Editor } from '@tiptap/react';
+import { NodeViewProps } from '@tiptap/react';
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef } from 'react';
-
-interface UseDiaryNodeProps {
-  getPos: () => number;
-  editor: Editor;
-  selected: boolean;
-  node: any;
-  updateAttributes: any;
-}
 
 export default function useDiaryNode(
   name: string,
-  { node, getPos, editor, selected, updateAttributes }: UseDiaryNodeProps
+  { node, getPos, editor, selected, updateAttributes }: NodeViewProps
 ) {
   const ref = useRef<HTMLInputElement>(null);
   const value = node.attrs[name] || '';

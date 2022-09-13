@@ -227,6 +227,19 @@ export function JSONToInlines(json: JSONContent): (Inline | DiaryBlock)[] {
 
       return [{ cite }];
     }
+    case 'diary-link': {
+      if (!json.attrs) {
+        return [];
+      }
+      return [
+        {
+          link: {
+            href: json.attrs.href,
+            content: json.attrs.title || json.attrs.href,
+          },
+        },
+      ];
+    }
     default: {
       return [];
     }

@@ -1,21 +1,27 @@
-import { mergeAttributes, Node } from '@tiptap/core';
+import LinkIcon from '@/components/icons/LinkIcon';
+import { Node, NodeViewProps } from '@tiptap/core';
 import {
   NodeViewWrapper,
   ReactNodeViewRenderer,
   NodeViewContent,
 } from '@tiptap/react';
-import cn from 'classnames';
-import React, { ChangeEvent, useRef, useEffect } from 'react';
+import React from 'react';
 import useDiaryNode from './useDiaryNode';
 
-function DiaryLinkComponent(props: any) {
-  const className = '';
-  const inputRef = useRef<HTMLInputElement>(null);
+function DiaryLinkComponent(props: NodeViewProps) {
   const bind = useDiaryNode('href', props);
   return (
     <NodeViewWrapper>
       <NodeViewContent>
-        <input {...bind} />
+        <div className="flex h-8 items-center space-x-2 rounded-lg border border-gray-100 bg-white px-2">
+          <LinkIcon className="h-4 w-4" />
+          <input
+            className="input-transparent grow"
+            type="text"
+            {...bind}
+            placeholder="Enter a URL"
+          />
+        </div>
       </NodeViewContent>
     </NodeViewWrapper>
   );
