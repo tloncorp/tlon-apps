@@ -34,7 +34,7 @@ export default function CurioReference({
 
   if (scryError !== undefined) {
     // TODO handle requests for single curios like we do for single writs.
-    const time = bigInt(udToDec(idCurio.split('/')[1]));
+    const time = bigInt(udToDec(idCurio));
     return (
       <div className="heap-inline-block group">
         This content is unavailable to you.
