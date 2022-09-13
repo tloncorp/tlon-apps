@@ -1,16 +1,14 @@
 import LinkIcon from '@/components/icons/LinkIcon';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
-import { mergeAttributes, Node } from '@tiptap/core';
+import { Node, NodeViewProps } from '@tiptap/core';
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import cn from 'classnames';
-import React, { ChangeEvent, useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useDiaryNode from './useDiaryNode';
 
-function DiaryImageComponent(props: any) {
+function DiaryImageComponent(props: NodeViewProps) {
   const className = '';
-  const { selected, node, editor } = props;
-  console.log('node', node);
-  console.log('editor', editor);
+  const { selected, editor } = props;
   const { clear, ...bind } = useDiaryNode('src', props);
   const [error, setError] = useState(false);
   const [src, setSrc] = useState(null as string | null);
