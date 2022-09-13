@@ -98,6 +98,7 @@ function DiaryChannel() {
 
   return (
     <Layout
+      stickyHeader
       className="flex-1 overflow-y-scroll bg-gray-50"
       aside={<Outlet />}
       header={
