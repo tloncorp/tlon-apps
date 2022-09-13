@@ -4,14 +4,14 @@ import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import _ from 'lodash';
-import { unixToDa } from '@urbit/api';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
-import { mixedToJSON, JSONMixedToInlines } from '@/logic/tiptap';
+import { diaryInlinesToJSON, JSONToInlines } from '@/logic/tiptap';
 import { useDiaryState, useNote } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
 import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
+import { unixToDa } from '@urbit/api';
 import { Inline } from '@/types/content';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
@@ -23,7 +23,9 @@ export default function DiaryAddNote() {
   const [, note] = useNote(chFlag, id || '');
   const content = useMemo(
     () =>
-      note.essay.content.length > 0 ? mixedToJSON(note.essay.content) : '',
+      note.essay.content.length > 0
+        ? diaryInlinesToJSON(note.essay.content)
+        : '',
     [note.essay.content]
   );
 
@@ -47,7 +49,7 @@ export default function DiaryAddNote() {
       return;
     }
 
-    const data = JSONMixedToInlines(editor?.getJSON());
+    const data = JSONToInlines(editor?.getJSON());
     const values = getValues();
 
     const sent = Date.now();
@@ -98,7 +100,7 @@ export default function DiaryAddNote() {
         sent
       ).toString()}`
     );
-  }, [chFlag, editor, id, note.essay, reset, getValues, navigate, group]);
+  }, [chFlag, editor, getValues, group, id, navigate, note.essay, reset]);
 
   return (
     <Layout

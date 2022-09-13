@@ -53,6 +53,7 @@
     "@tiptap/extension-blockquote": "^2.0.0-beta.26",
     "@tiptap/extension-bold": "^2.0.0-beta.26",
     "@tiptap/extension-code": "^2.0.0-beta.26",
+    "@tiptap/extension-code-block": "^2.0.0-beta.194",
     "@tiptap/extension-document": "^2.0.0-beta.15",
     "@tiptap/extension-hard-break": "^2.0.0-beta.30",
     "@tiptap/extension-history": "^2.0.0-beta.21",

@@ -42,6 +42,7 @@ import tippy from 'tippy.js';
 import DiaryImageNode from './DiaryImageNode';
 import DiaryLinkNode from './DiaryLinkNode';
 import DiaryCiteNode from './DiaryCiteNode';
+import DiaryCodeBlock from './DiaryCodeBlock';
 
 EditorView.prototype.updateState = function updateState(state) {
   if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
@@ -196,7 +197,12 @@ const ActionMenu = Extension.create<ActionMenuOptions>({
             {
               title: 'Code block',
               command: ({ editor, range }) => {
-                editor.chain().focus().deleteRange(range).toggleCode().run();
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange(range)
+                  .toggleCodeBlock()
+                  .run();
               },
             },
           ];
@@ -272,6 +278,7 @@ export function useDiaryInlineEditor({
         Blockquote,
         Bold,
         Code.extend({ excludes: undefined }),
+        DiaryCodeBlock,
         Document,
         HardBreak,
         History.configure({ newGroupDelay: 100 }),
@@ -337,6 +344,7 @@ export default function DiaryInlineEditor({
   className,
 }: DiaryInlineEditorProps) {
   const isMobile = useIsMobile();
+
   return (
     <div className={classNames('input-transparent block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}

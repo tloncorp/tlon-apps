@@ -24,6 +24,7 @@ import {
   JSONToInlines,
   tipTapToString,
 } from '@/logic/tiptap';
+import { Inline } from '@/types/content';
 
 interface ChatInputProps {
   whom: string;
@@ -61,7 +62,9 @@ export default function ChatInput({
           return;
         }
 
-        const data = normalizeInline(JSONToInlines(editor?.getJSON()));
+        const data = normalizeInline(
+          JSONToInlines(editor?.getJSON()) as Inline[]
+        );
         useChatState.getState().draft(whom, {
           inline: Array.isArray(data) ? data : [data],
           block: [],
@@ -78,7 +81,9 @@ export default function ChatInput({
         return;
       }
 
-      const data = normalizeInline(JSONToInlines(editor?.getJSON()));
+      const data = normalizeInline(
+        JSONToInlines(editor?.getJSON()) as Inline[]
+      );
       const blocks = fetchChatBlocks(whom);
       const memo: ChatMemo = {
         replying: reply,
