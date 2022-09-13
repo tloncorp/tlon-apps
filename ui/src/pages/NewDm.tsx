@@ -9,6 +9,7 @@ import { useChatState } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
 import useSendMultiDm from '@/state/chat/useSendMultiDm';
 import { ChatMemo } from '@/types/chat';
+import { Link } from 'react-router-dom';
 
 export default function NewDM() {
   const [ships, setShips] = useState<ShipOption[]>([]);
@@ -73,13 +74,18 @@ export default function NewDM() {
         </div>
       }
     >
-      <div className="w-full py-3 px-4">
-        <ShipSelector
-          ships={ships}
-          setShips={setShips}
-          onEnter={onEnter}
-          isMulti={true}
-        />
+      <div className="flex w-full items-center space-x-2 py-3 px-4">
+        <div className="w-full">
+          <ShipSelector
+            ships={ships}
+            setShips={setShips}
+            onEnter={onEnter}
+            isMulti={true}
+          />
+        </div>
+        <Link className="secondary-button" to="/">
+          Cancel
+        </Link>
       </div>
     </Layout>
   );

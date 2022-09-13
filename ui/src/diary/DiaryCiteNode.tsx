@@ -1,13 +1,13 @@
 import Sig16Icon from '@/components/icons/Sig16Icon';
 import ContentReference from '@/components/References/ContentReference';
 import { pathToCite } from '@/logic/utils';
-import { mergeAttributes, Node } from '@tiptap/core';
+import { mergeAttributes, Node, NodeViewProps } from '@tiptap/core';
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
-import React, { ChangeEvent } from 'react';
+import React from 'react';
 import useDiaryNode from './useDiaryNode';
 
-function DiaryCiteComponent(props: any) {
-  const { clear, ...bind } = useDiaryNode('path', props);
+function DiaryCiteComponent(props: NodeViewProps) {
+  const { ...bind } = useDiaryNode('path', props);
   const { path } = props.node.attrs;
   const cite = pathToCite(path);
 

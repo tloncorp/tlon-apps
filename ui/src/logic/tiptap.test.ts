@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { JSONContent } from '@tiptap/react';
 import { Inline } from '@/types/content';
+import { DiaryBlock } from '@/types/diary';
 import {
   inlinesToJSON,
   inlineToContent,
@@ -620,6 +621,63 @@ describe('JSONToInlines', () => {
           { bold: ['bold statement'] },
         ],
       },
+    ];
+    expect(output).toEqual(expected);
+  });
+
+  it('diary-image', () => {
+    const input: JSONContent = {
+      type: 'diary-image',
+      attrs: {
+        src: 'https://example.com/test.jpg',
+        alt: '',
+        height: 509,
+        width: 616,
+      },
+    };
+    const output = JSONToInlines(input);
+    const expected: DiaryBlock[] = [
+      {
+        image: {
+          src: 'https://example.com/test.jpg',
+          alt: '',
+          height: 509,
+          width: 616,
+        },
+      },
+    ];
+    expect(output).toEqual(expected);
+  });
+
+  it('diary-cite', () => {
+    const input: JSONContent = {
+      type: 'diary-cite',
+      attrs: {
+        path: '/1/group/~zod/test',
+      },
+    };
+    const output = JSONToInlines(input);
+    const expected: DiaryBlock[] = [
+      {
+        cite: {
+          group: '~zod/test',
+        },
+      },
+    ];
+    expect(output).toEqual(expected);
+  });
+
+  it('diary-link', () => {
+    const input: JSONContent = {
+      type: 'diary-link',
+      attrs: {
+        href: 'https://urbit.org',
+        title: 'click here',
+      },
+    };
+    const output = JSONToInlines(input);
+    const expected: Inline[] = [
+      { link: { href: 'https://urbit.org', content: 'click here' } },
     ];
     expect(output).toEqual(expected);
   });
