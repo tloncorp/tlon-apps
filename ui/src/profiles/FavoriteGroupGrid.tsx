@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import * as Tooltip from '@radix-ui/react-tooltip';
 import FavoriteGroup from './FavoriteGroup';
 
 interface FavoriteGroupGridProps {
@@ -18,7 +17,7 @@ export default function FavoriteGroupGrid({
   };
 
   return (
-    <Tooltip.Provider delayDuration={400}>
+    <>
       <div className="flex flex-wrap place-content-start gap-3">
         {groupFlags
           .slice(0, showAllGroups ? groupFlags.length : 11)
@@ -34,6 +33,6 @@ export default function FavoriteGroupGrid({
           {showAllGroups ? 'Collapse Groups' : 'Expand Groups'}
         </button>
       )}
-    </Tooltip.Provider>
+    </>
   );
 }
