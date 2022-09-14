@@ -213,69 +213,58 @@ export default function HeapBlock({
 
   const cnm = (refClass?: string) =>
     asRef ? refClass || '' : 'heap-block group';
-  const containerCnm = (refClass?: string) =>
-    asRef ? refClass || '' : 'aspect-h-1 aspect-w-1';
   const topBar = { time, refToken };
   const botBar = { curio, asRef };
 
   if (isText) {
     return (
-      <div className={containerCnm()}>
-        <div className={cnm()}>
-          <TopBar hasIcon {...topBar} />
-          <HeapContent
-            className="h-full max-h-24 leading-6"
-            content={content}
-          />
-          <BottomBar
-            {...botBar}
-            provider="Text"
-            title={
-              curio.heart.title ||
-              content.toString().split(' ').slice(0, 3).join(' ')
-            }
-          />
-        </div>
+      <div className={cnm()}>
+        <TopBar hasIcon {...topBar} />
+        <HeapContent className="h-full max-h-24 leading-6" content={content} />
+        <BottomBar
+          {...botBar}
+          provider="Text"
+          title={
+            curio.heart.title ||
+            content.toString().split(' ').slice(0, 3).join(' ')
+          }
+        />
       </div>
     );
   }
 
   if (isImage) {
     return (
-      <div className={containerCnm()}>
-        <div
-          className={cnm(
-            'h-full w-full bg-gray-50 bg-contain bg-center bg-no-repeat'
-          )}
-          style={{
-            backgroundImage: `url(${url})`,
-          }}
-        >
-          <TopBar {...topBar} />
-          <BottomBar
-            {...botBar}
-            provider="Image"
-            title={curio.heart.title || undefined}
-          />
-        </div>
+      <div
+        className={cnm(
+          'h-full w-full bg-gray-50 bg-contain bg-center bg-no-repeat'
+        )}
+        style={{
+          backgroundImage: `url(${url})`,
+        }}
+      >
+        <TopBar {...topBar} />
+        <BottomBar
+          {...botBar}
+          provider="Image"
+          title={curio.heart.title || undefined}
+        />
       </div>
     );
   }
 
   if (isAudio) {
     return (
-      <div className={containerCnm()}>
-        <div className={cnm()}>
-          <TopBar hasIcon {...topBar} />
-          <div className="flex flex-col items-center justify-center">
-            <MusicLargeIcon className="h-16 w-16 text-gray-300" />
-          </div>
-          <BottomBar
-            {...botBar}
-            provider="Audio"
-            title={curio.heart.title || undefined}
-          />
+      <div className={cnm()}>
+        <TopBar hasIcon {...topBar} />
+        <div className="flex flex-col items-center justify-center">
+          <MusicLargeIcon className="h-16 w-16 text-gray-300" />
         </div>
+        <BottomBar
+          {...botBar}
+          provider="Audio"
+          title={curio.heart.title || undefined}
+        />
       </div>
     );
   }
@@ -287,20 +276,18 @@ export default function HeapBlock({
 
     if (thumbnail) {
       return (
-        <div className={containerCnm()}>
-          <div
-            className={cnm('h-full w-full bg-cover bg-center bg-no-repeat')}
-            style={{
-              backgroundImage: `url(${thumbnail})`,
-            }}
-          >
-            <TopBar {...topBar} />
-            <BottomBar
-              {...botBar}
-              provider={provider}
-              title={curio.heart.title || title}
-            />
-          </div>
+        <div
+          className={cnm('h-full w-full bg-cover bg-center bg-no-repeat')}
+          style={{
+            backgroundImage: `url(${thumbnail})`,
+          }}
+        >
+          <TopBar {...topBar} />
+          <BottomBar
+            {...botBar}
+            provider={provider}
+            title={curio.heart.title || title}
+          />
         </div>
       );
     }
@@ -309,46 +296,26 @@ export default function HeapBlock({
       const twitterHandle = embed.author_url.split('/').pop();
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
-        <div className={containerCnm()}>
-          <div className={cnm()}>
-            <TopBar isTwitter {...topBar} />
-            <div className="flex flex-col items-center justify-center">
-              <img
-                className="h-[46px] w-[46px] rounded-full"
-                src={twitterProfilePic}
-                alt={author}
-              />
-              <span className="font-semibold text-black">{author}</span>
-              <span className="text-gray-300">@{twitterHandle}</span>
-            </div>
-            <BottomBar
-              {...botBar}
-              provider={provider}
-              title={curio.heart.title || undefined}
+        <div className={cnm()}>
+          <TopBar isTwitter {...topBar} />
+          <div className="flex flex-col items-center justify-center">
+            <img
+              className="h-[46px] w-[46px] rounded-full"
+              src={twitterProfilePic}
+              alt={author}
             />
+            <span className="font-semibold text-black">{author}</span>
+            <span className="text-gray-300">@{twitterHandle}</span>
           </div>
+          <BottomBar
+            {...botBar}
+            provider={provider}
+            title={curio.heart.title || undefined}
+          />
         </div>
       );
     }
     return (
-      <div className={containerCnm()}>
-        <div className={cnm()}>
-          <TopBar hasIcon {...topBar} />
-          <div className="flex flex-col items-center justify-center">
-            <LinkIcon className="h-16 w-16 text-gray-300" />
-          </div>
-          <BottomBar
-            {...botBar}
-            provider={provider ? provider : 'Link'}
-            title={curio.heart.title || undefined}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={containerCnm()}>
       <div className={cnm()}>
         <TopBar hasIcon {...topBar} />
         <div className="flex flex-col items-center justify-center">
@@ -356,10 +323,24 @@ export default function HeapBlock({
         </div>
         <BottomBar
           {...botBar}
-          provider="Link"
+          provider={provider ? provider : 'Link'}
           title={curio.heart.title || undefined}
         />
       </div>
+    );
+  }
+
+  return (
+    <div className={cnm()}>
+      <TopBar hasIcon {...topBar} />
+      <div className="flex flex-col items-center justify-center">
+        <LinkIcon className="h-16 w-16 text-gray-300" />
+      </div>
+      <BottomBar
+        {...botBar}
+        provider="Link"
+        title={curio.heart.title || undefined}
+      />
     </div>
   );
 }

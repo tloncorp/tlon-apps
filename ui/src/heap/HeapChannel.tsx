@@ -80,7 +80,9 @@ function HeapChannel({ title }: ViewProps) {
         onClick={() => navigateToDetail(time)}
       >
         {displayMode === GRID ? (
-          <HeapBlock curio={curio} time={time.toString()} />
+          <div className="aspect-h-1 aspect-w-1">
+            <HeapBlock curio={curio} time={time.toString()} />
+          </div>
         ) : (
           <HeapRow key={time.toString()} curio={curio} time={time.toString()} />
         )}
