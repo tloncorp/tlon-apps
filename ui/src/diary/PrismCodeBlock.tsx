@@ -4,7 +4,9 @@ import { Plugin, PluginKey } from 'prosemirror-state';
 import { findChildren, NodeViewProps } from '@tiptap/core';
 import { Node as ProsemirrorNode } from 'prosemirror-model';
 import { Decoration, DecorationSet } from 'prosemirror-view';
-import { refractor } from 'refractor/lib/all.js';
+import { refractor } from 'refractor/lib/common.js';
+import hoon from 'refractor/lang/hoon.js';
+
 import {
   NodeViewContent,
   NodeViewWrapper,
@@ -88,11 +90,15 @@ function getDecorations({
 
 function CodeBlockView(props: NodeViewProps) {
   const { node, updateAttributes } = props;
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(
-    node.attrs?.language ?? 'plaintext'
-  );
-  const { listLanguages } = refractor;
+  const { listLanguages, register } = refractor;
+  register(hoon);
   const allLanguages = listLanguages().sort();
+  const providedLanguage: string | undefined = node.attrs?.language;
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(
+    providedLanguage && allLanguages.includes(providedLanguage)
+      ? providedLanguage
+      : 'plaintext'
+  );
   const options = allLanguages.map((l) => ({
     value: l,
     label: l.toUpperCase(),
