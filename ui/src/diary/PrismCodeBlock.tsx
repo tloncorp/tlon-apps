@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import CodeBlock, { CodeBlockOptions } from '@tiptap/extension-code-block';
 import { Plugin, PluginKey } from 'prosemirror-state';
-import { findChildren } from '@tiptap/core';
+import { findChildren, NodeViewProps } from '@tiptap/core';
 import { Node as ProsemirrorNode } from 'prosemirror-model';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import { refractor } from 'refractor/lib/all.js';
+import {
+  NodeViewContent,
+  NodeViewWrapper,
+  ReactNodeViewRenderer,
+} from '@tiptap/react';
 import './PrismCodeBlock.css';
 
 export interface CodeBlockPrismOptions extends CodeBlockOptions {
@@ -81,6 +86,44 @@ function getDecorations({
   return DecorationSet.create(doc, decorations);
 }
 
+function CodeBlockView(props: NodeViewProps) {
+  const { node, updateAttributes } = props;
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(
+    node.attrs?.language ?? 'plaintext'
+  );
+  const { listLanguages } = refractor;
+  const allLanguages = listLanguages().sort();
+  const options = allLanguages.map((l) => ({
+    value: l,
+    label: l.toUpperCase(),
+  }));
+  const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newValue = e.target.value;
+    if (newValue) {
+      setSelectedLanguage(newValue);
+      updateAttributes({ language: newValue });
+    }
+  };
+
+  return (
+    <NodeViewWrapper className={'relative'}>
+      <select
+        className="absolute top-1.5 right-1.5 w-[130px] rounded-md border border-solid border-gray-200 bg-gray-700 text-gray-50"
+        onChange={onChange}
+      >
+        {options.map((o) => (
+          <option value={o.value} selected={selectedLanguage === o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <pre>
+        <NodeViewContent as="code" />
+      </pre>
+    </NodeViewWrapper>
+  );
+}
+
 const PrismCodeBlock = CodeBlock.extend<CodeBlockPrismOptions>({
   addOptions() {
     return {
@@ -88,6 +131,9 @@ const PrismCodeBlock = CodeBlock.extend<CodeBlockPrismOptions>({
       languageClassPrefix: 'language-',
       defaultLanguage: 'plaintext',
     };
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(CodeBlockView);
   },
   addProseMirrorPlugins() {
     const { name, options } = this;
