@@ -48,6 +48,7 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import chatFavicon from '@/assets/chat.svg';
+import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { useHeapState } from './state/heap/heap';
 import { useDiaryState } from './state/diary';
 import useHarkState from './state/hark';
@@ -426,7 +427,9 @@ function RoutedApp() {
           />
           <meta name="theme-color" content={userThemeColor} />
         </Helmet>
-        <App />
+        <TooltipProvider skipDelayDuration={400}>
+          <App />
+        </TooltipProvider>
       </Router>
     </ErrorBoundary>
   );

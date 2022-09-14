@@ -77,7 +77,11 @@ const ChatMessage = React.memo<
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex">
             {hideOptions ? null : (
-              <ChatMessageOptions whom={whom} writ={writ} />
+              <ChatMessageOptions
+                hideReply={hideReplies}
+                whom={whom}
+                writ={writ}
+              />
             )}
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}

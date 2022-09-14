@@ -18,8 +18,9 @@ import CheckIcon from '@/components/icons/CheckIcon';
 export default function ChatMessageOptions(props: {
   whom: string;
   writ: ChatWrit;
+  hideReply?: boolean;
 }) {
-  const { whom, writ } = props;
+  const { whom, writ, hideReply } = props;
   const groupFlag = useRouteGroup();
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
@@ -49,7 +50,7 @@ export default function ChatMessageOptions(props: {
         showTooltip
         action={() => console.log('react')}
       /> */}
-      {!writ.memo.replying ? (
+      {!writ.memo.replying && writ.memo.replying?.length !== 0 && !hideReply ? (
         <>
           {/*
           TODO: Add replies back in post-demo.
