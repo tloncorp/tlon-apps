@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
+import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
 import { ViewProps } from '@/types/groups';
@@ -79,7 +80,9 @@ function HeapChannel({ title }: ViewProps) {
         onClick={() => navigateToDetail(time)}
       >
         {displayMode === GRID ? (
-          <HeapBlock curio={curio} time={time.toString()} />
+          <div className="aspect-h-1 aspect-w-1">
+            <HeapBlock curio={curio} time={time.toString()} />
+          </div>
         ) : (
           <HeapRow key={time.toString()} curio={curio} time={time.toString()} />
         )}
@@ -112,7 +115,12 @@ function HeapChannel({ title }: ViewProps) {
         </title>
       </Helmet>
       <div className="p-4">
-        <div className={`heap-${displayMode}`}>
+        <div
+          className={cn(
+            `heap-${displayMode}`,
+            displayMode === 'grid' && 'grid-cols-minmax'
+          )}
+        >
           <NewCurioForm />
           {
             // Here, we sort the array by recently added and then filter out curios with a "replying" property
