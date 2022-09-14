@@ -205,74 +205,83 @@ export default function HeapBlock({
 
   if (isText) {
     return (
-      <div className={refToken ? '' : 'heap-block group'}>
-        <TopBar hasIcon time={time} refToken={refToken} />
-        <HeapContent className="h-full max-h-24 leading-6" content={content} />
-        {refToken ? (
-          <div />
-        ) : (
-          <BottomBar
-            provider="Text"
-            prettySent={prettySent}
-            url={url}
-            replyCount={replyCount}
-            // first three words.
-            title={
-              curio.heart.title ||
-              content.toString().split(' ').slice(0, 3).join(' ')
-            }
+      <div className="aspect-h-1 aspect-w-1">
+        <div className={refToken ? '' : 'heap-block group'}>
+          <TopBar hasIcon time={time} refToken={refToken} />
+          <HeapContent
+            className="h-full max-h-24 leading-6"
+            content={content}
           />
-        )}
+          {refToken ? (
+            <div />
+          ) : (
+            <BottomBar
+              provider="Text"
+              prettySent={prettySent}
+              url={url}
+              replyCount={replyCount}
+              // first three words.
+              title={
+                curio.heart.title ||
+                content.toString().split(' ').slice(0, 3).join(' ')
+              }
+            />
+          )}
+        </div>
       </div>
     );
   }
 
   if (isImage) {
     return (
-      <div
-        className={
-          refToken
-            ? 'h-full w-full bg-cover bg-center bg-no-repeat'
-            : 'heap-block group'
-        }
-        style={{
-          backgroundImage: `url(${url})`,
-        }}
-      >
-        <TopBar time={time} refToken={refToken} />
-        {refToken ? (
-          <div />
-        ) : (
-          <BottomBar
-            provider="Image"
-            prettySent={prettySent}
-            url={url}
-            replyCount={replyCount}
-            title={curio.heart.title || undefined}
-          />
-        )}
+      <div className="aspect-h-1 aspect-w-1">
+        <div
+          className={
+            refToken
+              ? 'h-full w-full bg-cover bg-center bg-no-repeat'
+              : 'heap-block group'
+          }
+          style={{
+            backgroundImage: `url(${url})`,
+          }}
+        >
+          <TopBar time={time} refToken={refToken} />
+          {refToken ? (
+            <div />
+          ) : (
+            <BottomBar
+              provider="Image"
+              prettySent={prettySent}
+              url={url}
+              replyCount={replyCount}
+              title={curio.heart.title || undefined}
+            />
+          )}
+        </div>
       </div>
     );
   }
 
   if (isAudio) {
     return (
-      <div className={refToken ? '' : 'heap-block group'}>
-        <TopBar hasIcon time={time} refToken={refToken} />
-        <div className="flex flex-col items-center justify-center">
-          <MusicLargeIcon className="h-16 w-16 text-gray-300" />
+      <div className="aspect-h-1 aspect-w-1">
+        <div className={refToken ? '' : 'heap-block group'}>
+          <TopBar hasIcon time={time} refToken={refToken} />
+          <div className="flex flex-col items-center justify-center">
+            <MusicLargeIcon className="h-16 w-16 text-gray-300" />
+          </div>
+          {refToken ? (
+            <div />
+          ) : (
+            <BottomBar
+              provider="Audio"
+              prettySent={prettySent}
+              url={url}
+              replyCount={replyCount}
+              title={curio.heart.title || undefined}
+            />
+          )}
         </div>
-        {refToken ? (
-          <div />
-        ) : (
-          <BottomBar
-            provider="Audio"
-            prettySent={prettySent}
-            url={url}
-            replyCount={replyCount}
-            title={curio.heart.title || undefined}
-          />
-        )}
       </div>
     );
   }
@@ -284,28 +293,30 @@ export default function HeapBlock({
 
     if (thumbnail) {
       return (
-        <div
-          className={
-            refToken
-              ? 'h-full w-full bg-cover bg-center bg-no-repeat'
-              : 'heap-block group'
-          }
-          style={{
-            backgroundImage: `url(${thumbnail})`,
-          }}
-        >
-          <TopBar time={time} refToken={refToken} />
-          {refToken ? (
-            <div />
-          ) : (
-            <BottomBar
-              url={url}
-              provider={provider}
-              prettySent={prettySent}
-              replyCount={replyCount}
-              title={curio.heart.title || title}
-            />
-          )}
+        <div className="aspect-h-1 aspect-w-1">
+          <div
+            className={
+              refToken
+                ? 'h-full w-full bg-cover bg-center bg-no-repeat'
+                : 'heap-block group'
+            }
+            style={{
+              backgroundImage: `url(${thumbnail})`,
+            }}
+          >
+            <TopBar time={time} refToken={refToken} />
+            {refToken ? (
+              <div />
+            ) : (
+              <BottomBar
+                url={url}
+                provider={provider}
+                prettySent={prettySent}
+                replyCount={replyCount}
+                title={curio.heart.title || title}
+              />
+            )}
+          </div>
         </div>
       );
     }
@@ -314,32 +325,58 @@ export default function HeapBlock({
       const twitterHandle = embed.author_url.split('/').pop();
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
+        <div className="aspect-h-1 aspect-w-1">
+          <div className={refToken ? '' : 'heap-block group'}>
+            <TopBar isTwitter time={time} refToken={refToken} />
+            <div className="flex flex-col items-center justify-center">
+              <img
+                className="h-[46px] w-[46px] rounded-full"
+                src={twitterProfilePic}
+                alt={author}
+              />
+              <span className="font-semibold text-black">{author}</span>
+              <span className="text-gray-300">@{twitterHandle}</span>
+            </div>
+            {refToken ? (
+              <div />
+            ) : (
+              <BottomBar
+                url={url}
+                provider={provider}
+                prettySent={prettySent}
+                replyCount={replyCount}
+                title={curio.heart.title || undefined}
+              />
+            )}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="aspect-h-1 aspect-w-1">
         <div className={refToken ? '' : 'heap-block group'}>
-          <TopBar isTwitter time={time} refToken={refToken} />
+          <TopBar hasIcon time={time} refToken={refToken} />
           <div className="flex flex-col items-center justify-center">
-            <img
-              className="h-[46px] w-[46px] rounded-full"
-              src={twitterProfilePic}
-              alt={author}
-            />
-            <span className="font-semibold text-black">{author}</span>
-            <span className="text-gray-300">@{twitterHandle}</span>
+            <LinkIcon className="h-16 w-16 text-gray-300" />
           </div>
           {refToken ? (
             <div />
           ) : (
             <BottomBar
               url={url}
-              provider={provider}
+              provider={provider ? provider : 'Link'}
               prettySent={prettySent}
               replyCount={replyCount}
               title={curio.heart.title || undefined}
             />
           )}
         </div>
-      );
-    }
-    return (
+      </div>
+    );
+  }
+
+  return (
+    <div className="aspect-h-1 aspect-w-1">
       <div className={refToken ? '' : 'heap-block group'}>
         <TopBar hasIcon time={time} refToken={refToken} />
         <div className="flex flex-col items-center justify-center">
@@ -350,33 +387,13 @@ export default function HeapBlock({
         ) : (
           <BottomBar
             url={url}
-            provider={provider ? provider : 'Link'}
+            provider={'Link'}
             prettySent={prettySent}
             replyCount={replyCount}
             title={curio.heart.title || undefined}
           />
         )}
       </div>
-    );
-  }
-
-  return (
-    <div className={refToken ? '' : 'heap-block group'}>
-      <TopBar hasIcon time={time} refToken={refToken} />
-      <div className="flex flex-col items-center justify-center">
-        <LinkIcon className="h-16 w-16 text-gray-300" />
-      </div>
-      {refToken ? (
-        <div />
-      ) : (
-        <BottomBar
-          url={url}
-          provider={'Link'}
-          prettySent={prettySent}
-          replyCount={replyCount}
-          title={curio.heart.title || undefined}
-        />
-      )}
     </div>
   );
 }
