@@ -109,7 +109,7 @@
 }
 
 .heap-grid {
-  @apply grid grid-cols-1 justify-center justify-items-center gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))];
+  @apply grid grid-cols-1 justify-center justify-items-center gap-4 sm:grid-cols-[repeat(auto-fill,minmax(auto,250px))];
 }
 
 .heap-list {
