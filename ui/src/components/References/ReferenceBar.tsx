@@ -56,8 +56,12 @@ export default function ReferenceBar({
         >
           <ChannelIcon nest={nest} className="-mr-1 h-4 w-4" />
           <span className="font-semibold">{channelTitle}</span>
-          <span className="font-bold">•</span>
-          <span className="font-semibold">{groupTitle}</span>
+          {groupTitle ? (
+            <>
+              <span className="font-bold">•</span>
+              <span className="font-semibold">{groupTitle}</span>
+            </>
+          ) : null}
         </div>
       )}
     </div>
