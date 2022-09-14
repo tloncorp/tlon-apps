@@ -16,7 +16,9 @@ export default function GroupMembers({ title }: ViewProps) {
   return (
     <div className="card">
       <Helmet>
-        <title>{group ? `${title} of ${group.meta.title}` : title} </title>
+        <title>
+          {group ? `Members of ${group.meta.title} ${title}` : title}{' '}
+        </title>
       </Helmet>
       <nav>
         <ul className="flex items-center space-x-3 text-lg font-bold text-gray-400">

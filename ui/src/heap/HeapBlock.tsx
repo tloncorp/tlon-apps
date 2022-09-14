@@ -18,17 +18,24 @@ import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CheckIcon from '@/components/icons/CheckIcon';
 import useCurioActions from './useCurioActions';
 
+interface CurioDisplayProps {
+  time: string;
+  asRef?: boolean;
+  refToken?: string;
+}
+
+interface TopBarProps extends CurioDisplayProps {
+  isTwitter?: boolean;
+  hasIcon?: boolean;
+}
+
 function TopBar({
   hasIcon = false,
   isTwitter = false,
   refToken = undefined,
+  asRef = false,
   time,
-}: {
-  isTwitter?: boolean;
-  hasIcon?: boolean;
-  refToken?: string;
-  time: string;
-}) {
+}: TopBarProps) {
   const nest = useNest();
   const {
     justCopied,
@@ -53,13 +60,13 @@ function TopBar({
       {hasIcon ? <div className="m-2 h-6 w-6" /> : null}
       <div
         className={cn('flex space-x-2 text-sm text-gray-600', {
-          'mt-2': refToken,
-          'mr-2': refToken,
+          'mt-2': asRef,
+          'mr-2': asRef,
         })}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="hidden group-hover:block">
-          {refToken ? (
+          {asRef ? (
             <button
               onClick={navigateToCurio}
               className="small-menu-button border border-gray-100 bg-white px-2 py-1"
@@ -82,7 +89,7 @@ function TopBar({
           )}
         </div>
         <div className="relative hidden group-hover:block">
-          {refToken ? (
+          {asRef ? (
             <IconButton
               icon={<ElipsisSmallIcon className="h-4 w-4" />}
               action={() => setMenuOpen(true)}
@@ -105,7 +112,7 @@ function TopBar({
             )}
             onMouseLeave={() => setMenuOpen(false)}
           >
-            {refToken ? (
+            {asRef ? (
               <button
                 className="small-menu-button"
                 onClick={onCopy}
@@ -134,20 +141,22 @@ function TopBar({
 }
 
 interface BottomBarProps {
+  curio: HeapCurio;
   provider: string;
-  prettySent: string;
-  url: string;
-  replyCount: number;
   title?: string;
+  asRef?: boolean;
 }
 
-function BottomBar({
-  provider,
-  prettySent,
-  url,
-  replyCount,
-  title,
-}: BottomBarProps) {
+function BottomBar({ curio, provider, title, asRef }: BottomBarProps) {
+  const { content, sent } = curio.heart;
+  const replyCount = curio.seal.replied.length;
+  const url = content.length > 0 ? content[0].toString() : '';
+  const prettySent = formatDistanceToNow(sent);
+
+  if (asRef) {
+    return <div />;
+  }
+
   return (
     <div className="-m-2 h-[50px]">
       <div className="hidden h-[50px] w-full border-t-2 border-gray-100 bg-white p-2 group-hover:block">
@@ -172,20 +181,19 @@ function BottomBar({
   );
 }
 
+interface HeapBlockProps extends CurioDisplayProps {
+  curio: HeapCurio;
+}
+
 export default function HeapBlock({
   curio,
   time,
+  asRef = false,
   refToken = undefined,
-}: {
-  curio: HeapCurio;
-  time: string;
-  refToken?: string;
-}) {
-  const { content, sent } = curio.heart;
+}: HeapBlockProps) {
   const [embed, setEmbed] = useState<any>();
-  const replyCount = curio.seal.replied.length;
+  const { content } = curio.heart;
   const url = content.length > 0 ? content[0].toString() : '';
-  const prettySent = formatDistanceToNow(sent);
 
   const { isImage, isAudio, isText } = useHeapContentType(url);
 
@@ -203,26 +211,24 @@ export default function HeapBlock({
     return <HeapLoadingBlock />;
   }
 
+  const cnm = (refClass?: string) =>
+    asRef ? refClass || '' : 'heap-block group';
+  const topBar = { time, refToken };
+  const botBar = { curio, asRef };
+
   if (isText) {
     return (
-      <div className={refToken ? '' : 'heap-block group'}>
-        <TopBar hasIcon time={time} refToken={refToken} />
+      <div className={cnm()}>
+        <TopBar hasIcon {...topBar} />
         <HeapContent className="h-full max-h-24 leading-6" content={content} />
-        {refToken ? (
-          <div />
-        ) : (
-          <BottomBar
-            provider="Text"
-            prettySent={prettySent}
-            url={url}
-            replyCount={replyCount}
-            // first three words.
-            title={
-              curio.heart.title ||
-              content.toString().split(' ').slice(0, 3).join(' ')
-            }
-          />
-        )}
+        <BottomBar
+          {...botBar}
+          provider="Text"
+          title={
+            curio.heart.title ||
+            content.toString().split(' ').slice(0, 3).join(' ')
+          }
+        />
       </div>
     );
   }
@@ -230,49 +236,35 @@ export default function HeapBlock({
   if (isImage) {
     return (
       <div
-        className={
-          refToken
-            ? 'h-full w-full bg-cover bg-center bg-no-repeat'
-            : 'heap-block group'
-        }
+        className={cnm(
+          'h-full w-full bg-gray-50 bg-contain bg-center bg-no-repeat'
+        )}
         style={{
           backgroundImage: `url(${url})`,
         }}
       >
-        <TopBar time={time} refToken={refToken} />
-        {refToken ? (
-          <div />
-        ) : (
-          <BottomBar
-            provider="Image"
-            prettySent={prettySent}
-            url={url}
-            replyCount={replyCount}
-            title={curio.heart.title || undefined}
-          />
-        )}
+        <TopBar {...topBar} />
+        <BottomBar
+          {...botBar}
+          provider="Image"
+          title={curio.heart.title || undefined}
+        />
       </div>
     );
   }
 
   if (isAudio) {
     return (
-      <div className={refToken ? '' : 'heap-block group'}>
-        <TopBar hasIcon time={time} refToken={refToken} />
+      <div className={cnm()}>
+        <TopBar hasIcon {...topBar} />
         <div className="flex flex-col items-center justify-center">
           <MusicLargeIcon className="h-16 w-16 text-gray-300" />
         </div>
-        {refToken ? (
-          <div />
-        ) : (
-          <BottomBar
-            provider="Audio"
-            prettySent={prettySent}
-            url={url}
-            replyCount={replyCount}
-            title={curio.heart.title || undefined}
-          />
-        )}
+        <BottomBar
+          {...botBar}
+          provider="Audio"
+          title={curio.heart.title || undefined}
+        />
       </div>
     );
   }
@@ -285,27 +277,17 @@ export default function HeapBlock({
     if (thumbnail) {
       return (
         <div
-          className={
-            refToken
-              ? 'h-full w-full bg-cover bg-center bg-no-repeat'
-              : 'heap-block group'
-          }
+          className={cnm('h-full w-full bg-cover bg-center bg-no-repeat')}
           style={{
             backgroundImage: `url(${thumbnail})`,
           }}
         >
-          <TopBar time={time} refToken={refToken} />
-          {refToken ? (
-            <div />
-          ) : (
-            <BottomBar
-              url={url}
-              provider={provider}
-              prettySent={prettySent}
-              replyCount={replyCount}
-              title={curio.heart.title || title}
-            />
-          )}
+          <TopBar {...topBar} />
+          <BottomBar
+            {...botBar}
+            provider={provider}
+            title={curio.heart.title || title}
+          />
         </div>
       );
     }
@@ -314,8 +296,8 @@ export default function HeapBlock({
       const twitterHandle = embed.author_url.split('/').pop();
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
-        <div className={refToken ? '' : 'heap-block group'}>
-          <TopBar isTwitter time={time} refToken={refToken} />
+        <div className={cnm()}>
+          <TopBar isTwitter {...topBar} />
           <div className="flex flex-col items-center justify-center">
             <img
               className="h-[46px] w-[46px] rounded-full"
@@ -325,58 +307,40 @@ export default function HeapBlock({
             <span className="font-semibold text-black">{author}</span>
             <span className="text-gray-300">@{twitterHandle}</span>
           </div>
-          {refToken ? (
-            <div />
-          ) : (
-            <BottomBar
-              url={url}
-              provider={provider}
-              prettySent={prettySent}
-              replyCount={replyCount}
-              title={curio.heart.title || undefined}
-            />
-          )}
+          <BottomBar
+            {...botBar}
+            provider={provider}
+            title={curio.heart.title || undefined}
+          />
         </div>
       );
     }
     return (
-      <div className={refToken ? '' : 'heap-block group'}>
-        <TopBar hasIcon time={time} refToken={refToken} />
+      <div className={cnm()}>
+        <TopBar hasIcon {...topBar} />
         <div className="flex flex-col items-center justify-center">
           <LinkIcon className="h-16 w-16 text-gray-300" />
         </div>
-        {refToken ? (
-          <div />
-        ) : (
-          <BottomBar
-            url={url}
-            provider={provider ? provider : 'Link'}
-            prettySent={prettySent}
-            replyCount={replyCount}
-            title={curio.heart.title || undefined}
-          />
-        )}
+        <BottomBar
+          {...botBar}
+          provider={provider ? provider : 'Link'}
+          title={curio.heart.title || undefined}
+        />
       </div>
     );
   }
 
   return (
-    <div className={refToken ? '' : 'heap-block group'}>
-      <TopBar hasIcon time={time} refToken={refToken} />
+    <div className={cnm()}>
+      <TopBar hasIcon {...topBar} />
       <div className="flex flex-col items-center justify-center">
         <LinkIcon className="h-16 w-16 text-gray-300" />
       </div>
-      {refToken ? (
-        <div />
-      ) : (
-        <BottomBar
-          url={url}
-          provider={'Link'}
-          prettySent={prettySent}
-          replyCount={replyCount}
-          title={curio.heart.title || undefined}
-        />
-      )}
+      <BottomBar
+        {...botBar}
+        provider="Link"
+        title={curio.heart.title || undefined}
+      />
     </div>
   );
 }

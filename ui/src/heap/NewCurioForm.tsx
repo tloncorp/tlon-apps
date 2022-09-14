@@ -127,7 +127,7 @@ export default function NewCurioForm() {
   );
 
   return (
-    <div>
+    <div className={cn(isGridMode && 'aspect-h-1 aspect-w-1')}>
       {isListMode ? modeToggle() : null}
       <div
         className={cn(

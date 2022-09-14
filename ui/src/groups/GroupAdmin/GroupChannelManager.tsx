@@ -11,7 +11,9 @@ export default function GroupChannelManager({ title }: ViewProps) {
   return (
     <>
       <Helmet>
-        <title>{group ? `${title} in ${group.meta.title}` : title}</title>
+        <title>
+          {group ? `Channels in ${group.meta.title} ${title}` : title}
+        </title>
       </Helmet>
       <AdminChannelList />
     </>

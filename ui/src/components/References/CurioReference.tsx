@@ -6,6 +6,7 @@ import { useGroupPreviewByNest } from '@/state/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import ReferenceBar from './ReferenceBar';
+import UnavailableReference from './UnavailableReference';
 
 export default function CurioReference({
   chFlag,
@@ -35,18 +36,7 @@ export default function CurioReference({
   if (scryError !== undefined) {
     // TODO handle requests for single curios like we do for single writs.
     const time = bigInt(udToDec(idCurio));
-    return (
-      <div className="heap-inline-block group">
-        This content is unavailable to you.
-        <ReferenceBar
-          nest={nest}
-          time={time}
-          groupFlag={preview?.group.flag}
-          groupTitle={preview?.group.meta.title}
-          channelTitle={preview?.meta?.title}
-        />
-      </div>
-    );
+    return <UnavailableReference time={time} nest={nest} preview={preview} />;
   }
 
   if (!curioObject) {
@@ -59,7 +49,7 @@ export default function CurioReference({
   }
   return (
     <div className="heap-inline-block group">
-      <HeapBlock curio={curio} time={idCurio} refToken={refToken} />
+      <HeapBlock curio={curio} time={idCurio} refToken={refToken} asRef />
       <ReferenceBar
         nest={nest}
         time={time}

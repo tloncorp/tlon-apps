@@ -3,6 +3,7 @@ import React from 'react';
 import { MemoryRouter } from 'react-router';
 import { render } from '@testing-library/react';
 import { unixToDa } from '@urbit/api';
+import { TooltipProvider } from '@radix-ui/react-tooltip';
 import ChatMessage from './ChatMessage';
 import { makeFakeChatWrit } from '../../mocks/chat';
 
@@ -28,7 +29,15 @@ describe('ChatMessage', () => {
     const da = unixToDa(date.valueOf());
     const { asFragment } = render(
       <MemoryRouter>
-        <ChatMessage time={da} whom="~zod/test" writ={writ} newAuthor newDay />
+        <TooltipProvider>
+          <ChatMessage
+            time={da}
+            whom="~zod/test"
+            writ={writ}
+            newAuthor
+            newDay
+          />
+        </TooltipProvider>
       </MemoryRouter>
     );
     expect(asFragment()).toMatchSnapshot();

@@ -24,7 +24,7 @@ export default function GroupInfo({ title }: ViewProps) {
     <>
       <Helmet>
         <title>
-          {group?.meta ? `${title} for ${group.meta.title}` : title}
+          {group?.meta ? `Info for ${group.meta.title} ${title}` : title}
         </title>
       </Helmet>
       <div className="card mb-4 flex flex-col items-center">
