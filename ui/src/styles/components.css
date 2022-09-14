@@ -89,7 +89,7 @@
 }
 
 .heap-block {
-  @apply absolute flex h-full w-full object-cover object-center cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat p-2 shadow;
+  @apply absolute flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat object-cover object-center p-2 shadow;
 }
 
 .heap-inline-block {
@@ -108,10 +108,10 @@
   @apply flex h-14 w-full items-center justify-between space-x-2 rounded-lg bg-white;
 }
 
-.heap-grid { 
+.heap-grid {
   @apply grid gap-4;
   /* tailwind crashes when i try to fill grid-cols in with the custom property brackets */
-  grid-template-columns: repeat(auto-fill,minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
 .heap-list {
