@@ -93,11 +93,11 @@
 }
 
 .heap-inline-block {
-  @apply relative flex h-[300px] w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat p-2;
+  @apply relative flex h-[300px] w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat;
 }
 
 .note-inline-block {
-  @apply relative flex h-full w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat p-2 p-2;
+  @apply relative flex h-full w-full flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat;
 }
 
 .writ-inline-block {
