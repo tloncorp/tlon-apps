@@ -1,30 +1,20 @@
 ;>
-- **Developer:** Tlon Corporation
-  - **Contributors:**
-    - ~datder-sonnet
-    - ~fabled-faster
-    - ~fallyn-balfus
-    - ~famhut-wolpyx
-    - ~finned-palmer
-    - ~hastuc-dibtux
-    - ~nocsyx-lassul
-    - ~rilfun-lidlen
-    - ~riprud-tidmel
-    - ~tocref-ripmyr
-- **License:** MIT
-- **App link:** [~marnec-dozzod-marzod/groups](web+urbitgraph://~marnec-dozzod-marzod/groups)
-- **Source repo:** [https://github.com/tloncorp/homestead](https://github.com/tloncorp/homestead)
-- **Bug reports:** [https://github.com/tloncorp/homestead/issues](https://github.com/tloncorp/homestead/issues)
+- *Developer:* Tlon Corporation
+- *Contributors:* ~datder-sonnet, ~fabled-faster, ~fallyn-balfus, ~famhut-wolpyx, ~finned-palmer, ~hastuc-dibtux, ~nocsyx-lassul, ~rilfun-lidlen, ~riprud-tidmel, ~tocref-ripmyr
+- *License:* MIT
+- *App link:* [~marnec-dozzod-marzod/groups](web+urbitgraph://~marnec-dozzod-marzod/groups)
+- *Source repo:* [https://github.com/tloncorp/homestead](https://github.com/tloncorp/homestead)
+- *Bug reports:* [https://github.com/tloncorp/homestead/issues](https://github.com/tloncorp/homestead/issues)
 
 Groups is an app for organizing and coming together with your friends.
 
 It currently provides five agents:
-- %groups: facilitates forming, managing, and joining groups
-- %chat: allows for creating chat channels, in addition supports the
+- *%groups:* facilitates forming, managing, and joining groups
+- *%chat:* allows for creating chat channels, in addition supports the
   ability to create 1:1 and 1:many direct messages
-- %heap: allows for creating a channel with collections of links and 
+- *%heap:* allows for creating a channel with collections of links and 
   text snippets, and the ability to comment on those items
-- %diary: allows for creating a channel for longform communication, 
+- *%diary:* allows for creating a channel for longform communication, 
   supports different display modes and commenting
-- %hark: allows for creating generic notifications and also notifications
+- *%hark:* allows for creating generic notifications and also notifications
   about specific groups/channels, and sourcing where they came from

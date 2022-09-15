@@ -4,38 +4,39 @@ manner and with as much shared structure as we could muster to both speed
 development and make each agent feel familiar. To reiterate these are the
 agents:
 
-- %groups: facilitates forming, managing, and joining groups
-- %chat: allows for creating chat channels, in addition supports the
+- *%groups:* facilitates forming, managing, and joining groups
+- *%chat:* allows for creating chat channels, in addition supports the
   ability to create 1:1 and 1:many direct messages
-- %heap: allows for creating a channel with collections of links and 
+- *%heap:* allows for creating a channel with collections of links and 
   text snippets, and the ability to comment on those items
-- %diary: allows for creating a channel for longform communication, 
+- *%diary:* allows for creating a channel for longform communication, 
   supports different display modes and commenting
-- %hark: allows for creating generic notifications and also notifications
+- *%hark:* allows for creating generic notifications and also notifications
   about specific groups/channels, and sourcing where they came from
 
 ## General Structure
 
 The general structure of the desk is as follows:
 
-- /app: the agents
-- /doc: the docs
-- /gen: generators for testing and manipulating the agents from the dojo
-- /lib: helper libraries
-  - *-json: formatters for converting to and from JSON
-- /mar: marks, agent specific marks are generally separated into their
+- `/app:` the agents
+- `/doc:` the docs
+- `/gen:` generators for testing and manipulating the agents from the dojo
+- `/lib:` helper libraries
+  - `*-json:` formatters for converting to and from JSON
+- `/mar:` marks, agent specific marks are generally separated into their
   own folders
-- /sur: the types for each agent
-- /tests: the tests
+- `/sur:` the types for each agent
+- `/tests:` the tests
 
-Each agent follows the **abet-abed** pattern with domain specific "cores" 
+Each agent follows the *abet-abed* pattern with domain specific "cores" 
 separated from the actual gall agent arms.
 
-**abet-abed**
+*abet-abed*
+
 Generally most of the data we access is put into maps. In this pattern you
 use two arms in your domain specific core, something like this:
 
-```hoon
+```
 ++  ca-core
   |_  [=flag:c =chat:c gone=_|]
   ++  ca-core  .

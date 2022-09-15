@@ -2,6 +2,7 @@
 The %chat agent is entirely concerned with creating chat channels, in addition supports the ability to create 1:1 and 1:many direct messages.
 
 ## types
+
 All types are located in `/sur/chat`
 
 - $whom: a polymorphic identifier for chats
@@ -33,12 +34,13 @@ All types are located in `/sur/chat`
   back to the group it belongs to.
 - $leave: a flag to pass for a channel leave
 - $create: represents a request to create a channel, also gets sent to
-    groups to finish creation
+  groups to finish creation
 
 
 ## api
 
 ### pokes
+
 Each poke is organized by mark
 
 - `%chat-action` the main mark for acting on a chat
@@ -72,42 +74,44 @@ Each poke is organized by mark
   appropriate channel/dm/multi-dm
 
 ### scries
+
 Each scry is organized by path
 
-- `x/{dm|chat|club}/{whom}/writs`
-  - `/newest/{count}` grabs the last `count` messages
-  - `/older/{start}/{count}` grabs `count` number of messages previous, 
+- `x/\{dm|chat|club}/\{whom}/writs`
+  - `/newest/\{count}` grabs the last `count` messages
+  - `/older/\{start}/\{count}` grabs `count` number of messages previous, 
     starting from `start`
-  - `/newer/{start}/{count}` grabs `count` number of messages ahead, 
+  - `/newer/\{start}/\{count}` grabs `count` number of messages ahead, 
     starting from `start`
-  - `/writ/id/{ship}/{time}` grabs the message at the id
+  - `/writ/id/\{ship}/\{time}` grabs the message at the id
 - `x/chat` grabs the set of flags that index our chat channels
 - `x/chats` grabs the full map of chats on our ship
-- `x/chat/{ship}/{name}/perm` returns the permissions for a chat
+- `x/chat/\{ship}/\{name}/perm` returns the permissions for a chat
 - `x/dm` gives us the set of ships we've accepted dms from
 - `x/dm/invited` gives us the set of ships who've yet to accept our dms
 - `x/dm/archive` currently unused, this gives us the set of ship's dms 
   that we've archived
-- `x/club/{id}/crew` returns the metadata for the club
+- `x/club/\{id}/crew` returns the metadata for the club
 - `x/pins` gives the full set of chats/dms/clubs pinned
 - `x/briefs` gives us the full map of briefs for all chats
-- `x/draft/{whom}` retrieves the draft for the associated chat
+- `x/draft/\{whom}` retrieves the draft for the associated chat
 
 ### subscriptions
+
 Each subscription is organized by path
 
 - `/ui` sends general updates about chat channels to the UI
 - `/briefs` sends updates about read messages
 - `/club/new` sends new club invitations to the UI
 - `/dm/invited` sends new dm invitations to the UI
-- `/chat/{ship}/{name}`
+- `/chat/\{ship}/\{name}`
   - `/ui` updates to the UI generally actions
   - `/ui/writs` updates to the UI for writs specifically
-  - `/updates/{time}?` if time, pass the logs from this chat starting from
+  - `/updates/\{time}?` if time, pass the logs from this chat starting from
     time, otherwise pass the whole log
-- `/dm/{ship}`
+- `/dm/\{ship}`
   - `/ui` updates to the UI generally actions
   - `/ui/writs` updates to the UI for writs specifically
-- `/club/{id}`
+- `/club/\{id}`
   - `/ui` updates to the UI generally actions
   - `/ui/writs` updates to the UI for writs specifically
