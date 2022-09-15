@@ -1,7 +1,7 @@
 :~  title+'Talk'
     info+'An Urbit app for chatting with friends'
     color+0xd5.6f4f
-    glob-http+['https://bootstrap.urbit.org/glob-0v1.eja6s.6fs0i.r2ln5.d4hhi.mrbsd.glob' 0v1.eja6s.6fs0i.r2ln5.d4hhi.mrbsd]
+    glob-http+['https://bootstrap.urbit.org/glob-0v7.r1mrp.fuhc0.aqp0b.ce3o0.d66en.glob' 0v7.r1mrp.fuhc0.aqp0b.ce3o0.d66en]
     base+'talk'
     version+[0 1 0]
     website+'https://tlon.io'
