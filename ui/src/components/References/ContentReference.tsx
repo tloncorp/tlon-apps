@@ -8,7 +8,7 @@ import WritReference from './WritReference';
 import GroupReference from './GroupReference';
 import NoteReference from './NoteReference';
 
-export default function ContentReference({ cite }: { cite: Cite }) {
+function ContentReference({ cite }: { cite: Cite }) {
   if ('group' in cite) {
     return <GroupReference flag={cite.group} />;
   }
@@ -34,3 +34,5 @@ export default function ContentReference({ cite }: { cite: Cite }) {
 
   return null;
 }
+
+export default React.memo(ContentReference);

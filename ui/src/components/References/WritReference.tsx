@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useWrit, useChatState, useWritByFlagAndWritId } from '@/state/chat';
-import { useGroupPreviewByNest } from '@/state/groups';
+import { useChannelPreview } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { udToDec } from '@urbit/api';
@@ -69,7 +69,7 @@ export default function WritReference({
   idWrit: string;
 }) {
   const writObject = useWrit(chFlag, idWrit);
-  const preview = useGroupPreviewByNest(nest);
+  const preview = useChannelPreview(nest);
   const [scryError, setScryError] = useState<string>();
 
   useEffect(() => {

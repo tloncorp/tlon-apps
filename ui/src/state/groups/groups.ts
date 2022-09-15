@@ -13,9 +13,9 @@ import {
   GroupPreview,
   GroupIndex,
   ChannelPreview,
-  ChannelPrivacyType,
 } from '@/types/groups';
 import api from '@/api';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import groupsReducer from './groupsReducer';
 import { GroupState } from './type';
 
@@ -47,6 +47,7 @@ function subscribeOnce<T>(app: string, path: string) {
 
 export const useGroupState = create<GroupState>((set, get) => ({
   initialized: false,
+  channelPreviews: {},
   groups: {},
   gangs: {},
   banShips: async (flag, ships) => {
@@ -126,6 +127,22 @@ export const useGroupState = create<GroupState>((set, get) => ({
           };
           gang.preview = res;
           draft.gangs[flag] = gang;
+        });
+      }
+    } catch (e) {
+      // TODO: fix error handling
+      console.error(e);
+    }
+  },
+  channelPreview: async (nest) => {
+    try {
+      const res = await subscribeOnce<ChannelPreview>(
+        'groups',
+        `/chan/${nest}`
+      );
+      if (res) {
+        get().batchSet((draft) => {
+          draft.channelPreviews[nest] = res;
         });
       }
     } catch (e) {
@@ -607,15 +624,25 @@ export function useGroupsInitialized() {
   return useGroupState(selInit);
 }
 
-export function useGroupPreviewByNest(nest: string) {
-  const [res, setRes] = useState(null as ChannelPreview | null);
-  useEffect(() => {
-    subscribeOnce<ChannelPreview>('groups', `/chan/${nest}`).then(setRes);
-    return () => {
-      setRes(null);
-    };
+export function useChannelPreview(nest: string) {
+  const preview = useGroupState(
+    useCallback((s) => s.channelPreviews[nest], [nest])
+  );
+
+  const getChannelPreview = useCallback(async () => {
+    await asyncCallWithTimeout(
+      useGroupState.getState().channelPreview(nest),
+      10 * 1000
+    );
   }, [nest]);
-  return res;
+
+  useEffect(() => {
+    if (preview) return;
+
+    getChannelPreview();
+  }, [getChannelPreview, preview]);
+
+  return preview;
 }
 
 (window as any).groups = useGroupState.getState;

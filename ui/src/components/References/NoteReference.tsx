@@ -3,13 +3,12 @@ import _ from 'lodash';
 import { Link } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useDiaryState, useNote, useQuips } from '@/state/diary';
-import { useGroupPreviewByNest } from '@/state/groups';
+import { useChannelPreview } from '@/state/groups';
 import { makePrettyDate } from '@/logic/utils';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
 import ReferenceBar from './ReferenceBar';
-import ExclamationPoint from '../icons/ExclamationPoint';
 import UnavailableReference from './UnavailableReference';
 
 export default function NoteReference({
@@ -21,7 +20,7 @@ export default function NoteReference({
   nest: string;
   id: string;
 }) {
-  const preview = useGroupPreviewByNest(nest);
+  const preview = useChannelPreview(nest);
   const [scryError, setScryError] = useState<string>();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const noteObject = useNote(chFlag, id);

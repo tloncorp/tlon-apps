@@ -5,12 +5,16 @@ import {
   GroupMeta,
   GroupChannel,
   GroupIndex,
+  ChannelPreview,
 } from '../../types/groups';
 
 export interface GroupState {
   set: (fn: (sta: GroupState) => void) => void;
   batchSet: (fn: (sta: GroupState) => void) => void;
   initialized: boolean;
+  channelPreviews: {
+    [nest: string]: ChannelPreview;
+  };
   groups: {
     [flag: string]: Group;
   };
@@ -44,6 +48,7 @@ export interface GroupState {
   edit: (flag: string, metadata: GroupMeta) => Promise<void>;
   delete: (flag: string) => Promise<void>;
   start: () => Promise<void>;
+  channelPreview: (nest: string) => Promise<void>;
   search: (flag: string) => Promise<void>;
   index: (ship: string) => Promise<GroupIndex>;
   join: (flag: string, joinAll: boolean) => Promise<void>;
