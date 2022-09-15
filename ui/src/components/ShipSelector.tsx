@@ -230,7 +230,7 @@ function ShipDropDownMenuList({
 }: MenuListProps<ShipOption, true>) {
   return (
     <components.MenuList
-      className="hide-scroll rounded-lg bg-white p-3"
+      className="hide-scroll rounded-lg bg-white p-2"
       {...props}
     >
       {children}
