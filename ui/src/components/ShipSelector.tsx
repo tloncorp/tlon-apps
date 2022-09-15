@@ -103,7 +103,7 @@ function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
   return (
     <components.Option
       data={data}
-      className="rounded-lg p-3 hover:cursor-pointer"
+      className="rounded-lg p-2 hover:cursor-pointer"
       {...props}
     >
       <div className="flex items-center space-x-2">
