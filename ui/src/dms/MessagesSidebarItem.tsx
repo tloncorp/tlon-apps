@@ -96,7 +96,11 @@ export function MultiDMSidebarItem({
         pending ? (
           <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue md:h-6 md:w-6" />
         ) : (
-          <MultiDmAvatar {...club?.meta} size={isMobile ? 'default' : 'xs'} />
+          <MultiDmAvatar
+            {...club?.meta}
+            title={groupName}
+            size={isMobile ? 'default' : 'xs'}
+          />
         )
       }
       actions={<DmOptions whom={whom} pending={!!pending} isMulti />}

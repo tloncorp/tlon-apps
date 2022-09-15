@@ -4,7 +4,7 @@ import ob from 'urbit-ob';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
-import { newUv } from '@/logic/utils';
+import { newUv, preSig } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
 import useSendMultiDm from '@/state/chat/useSendMultiDm';
@@ -34,7 +34,7 @@ export default function NewDM() {
         await useChatState.getState().sendMessage(whom, memo);
       }
 
-      navigate(`/dm/${whom}`);
+      navigate(`/dm/${preSig(whom)}`);
     },
     [navigate, sendMultiDm, isMultiDm]
   );
@@ -48,7 +48,7 @@ export default function NewDM() {
         );
         navigate(`/dm/${newClubId}`);
       } else {
-        navigate(`/dm/${invites[0].value}`);
+        navigate(`/dm/${preSig(invites[0].value)}`);
       }
     },
     [newClubId, isMultiDm, navigate]
