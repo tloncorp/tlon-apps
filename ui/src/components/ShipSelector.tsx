@@ -101,7 +101,11 @@ function ShipItem({ data, ...props }: OptionProps<ShipOption, true>) {
   const { value: rawValue, label } = data;
   const value = preSig(rawValue);
   return (
-    <components.Option data={data} className="hover:cursor-pointer" {...props}>
+    <components.Option
+      data={data}
+      className="rounded-lg p-2 hover:cursor-pointer"
+      {...props}
+    >
       <div className="flex items-center space-x-2">
         {
           // Case when user has entered an invite link (e.g., ~zod/group-name)
@@ -212,7 +216,7 @@ function ShipTagRemove(props: MultiValueRemoveProps<ShipOption, true>) {
 function ShipDropDownMenu({ children, ...props }: MenuProps<ShipOption, true>) {
   return (
     <components.Menu
-      className="rounded-lg outline outline-2 outline-gray-100"
+      className="rounded-lg outline outline-0 outline-gray-100 dark:outline-2"
       {...props}
     >
       {children}
@@ -225,7 +229,10 @@ function ShipDropDownMenuList({
   ...props
 }: MenuListProps<ShipOption, true>) {
   return (
-    <components.MenuList className="rounded-lg bg-white" {...props}>
+    <components.MenuList
+      className="hide-scroll rounded-lg bg-white p-2"
+      {...props}
+    >
       {children}
     </components.MenuList>
   );
@@ -405,11 +412,11 @@ export default function ShipSelector({
         styles={{
           control: (base) => ({}),
           menu: ({ width, borderRadius, ...base }) => ({
+            ...base,
             borderWidth: '',
             borderColor: '',
             zIndex: 50,
             backgroundColor: 'inherit',
-            ...base,
           }),
           input: (base) => ({
             ...base,
@@ -485,12 +492,22 @@ export default function ShipSelector({
       isMulti
       styles={{
         control: (base) => ({}),
-        menu: ({ width, borderRadius, ...base }) => ({
+        menuList: ({ padding, paddingTop, paddingBottom, ...base }) => ({
+          ...base,
+        }),
+        menu: ({
+          paddingTop,
+          paddingBottom,
+          padding,
+          width,
+          borderRadius,
+          ...base
+        }) => ({
+          ...base,
           borderWidth: '',
           borderColor: '',
           zIndex: 50,
           backgroundColor: 'inherit',
-          ...base,
         }),
         input: (base) => ({
           ...base,
@@ -513,7 +530,7 @@ export default function ShipSelector({
             backgroundColor: 'inherit',
           },
         }),
-        option: (base, state) => ({
+        option: ({ padding, ...base }, state) => ({
           ...base,
           backgroundColor: state.isFocused ? 'rgb(var(--colors-gray-50))' : '',
         }),
