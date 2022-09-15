@@ -22,7 +22,9 @@ export default function Layout({
   return (
     <div className={cn(className, 'layout', stickyHeader ? 'relative' : '')}>
       {header && (
-        <header className={cn('header', stickyHeader ? ' sticky top-0' : '')}>
+        <header
+          className={cn('header z-50', stickyHeader ? ' sticky top-0' : '')}
+        >
           {header}
         </header>
       )}
