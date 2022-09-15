@@ -216,7 +216,7 @@ function ShipTagRemove(props: MultiValueRemoveProps<ShipOption, true>) {
 function ShipDropDownMenu({ children, ...props }: MenuProps<ShipOption, true>) {
   return (
     <components.Menu
-      className="rounded-lg outline outline-2 outline-gray-100"
+      className="rounded-lg outline outline-0 outline-gray-100 dark:outline-2"
       {...props}
     >
       {children}
@@ -412,11 +412,11 @@ export default function ShipSelector({
         styles={{
           control: (base) => ({}),
           menu: ({ width, borderRadius, ...base }) => ({
+            ...base,
             borderWidth: '',
             borderColor: '',
             zIndex: 50,
             backgroundColor: 'inherit',
-            ...base,
           }),
           input: (base) => ({
             ...base,
@@ -503,11 +503,11 @@ export default function ShipSelector({
           borderRadius,
           ...base
         }) => ({
+          ...base,
           borderWidth: '',
           borderColor: '',
           zIndex: 50,
           backgroundColor: 'inherit',
-          ...base,
         }),
         input: (base) => ({
           ...base,
