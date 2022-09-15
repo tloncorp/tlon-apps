@@ -10,13 +10,34 @@ import { useIsMobile } from '@/logic/useMedia';
 import { useRouteGroup } from '@/state/groups';
 import useNavStore from './useNavStore';
 
-function MobileGroupsNav({ navLocation }: { navLocation: string }) {
+function MobileNav() {
   let selectedSidebar: ReactElement | null = <Sidebar />;
+  const navLocation = useNavStore((s) => s.primary) as string;
+  const flag = useRouteGroup();
+  const inChannel = useMatch('/groups/:ship/:name/channels/*');
+  const isChat = useIsChat();
+
+  useEffect(() => {
+    if (flag && inChannel) {
+      useNavStore.getState().navigatePrimary('hidden');
+      return;
+    }
+
+    if (isChat) {
+      useNavStore.getState().navigatePrimary('dm');
+    } else if (flag) {
+      useNavStore.getState().navigatePrimary('group', flag);
+    } else {
+      useNavStore.getState().navigatePrimary('main');
+    }
+  }, [isChat, flag, inChannel]);
 
   if (navLocation === 'main') {
     selectedSidebar = <Sidebar />;
   } else if (navLocation === 'group') {
     selectedSidebar = <GroupSidebar />;
+  } else if (navLocation === 'dm') {
+    selectedSidebar = <MessagesSidebar />;
   } else {
     selectedSidebar = null;
   }
@@ -24,12 +45,10 @@ function MobileGroupsNav({ navLocation }: { navLocation: string }) {
   return selectedSidebar;
 }
 
-export function ActualNav() {
+export function DesktopNav() {
   const navLocation = useNavStore((s) => s.primary) as string;
-  const isMobile = useIsMobile();
   const isChat = useIsChat();
   const flag = useRouteGroup();
-  const inChannel = useMatch('/groups/:ship/:name/channels*');
   const firstRender = useIsFirstRender();
   const animationConfig = {
     type: 'spring',
@@ -38,10 +57,6 @@ export function ActualNav() {
   };
 
   useEffect(() => {
-    if (flag && isMobile && inChannel) {
-      useNavStore.getState().navigatePrimary('hidden');
-    }
-
     if (!firstRender) {
       return;
     }
@@ -53,14 +68,10 @@ export function ActualNav() {
     } else {
       useNavStore.getState().navigatePrimary('main');
     }
-  }, [flag, firstRender, isMobile, isChat, inChannel]);
+  }, [flag, firstRender, isChat]);
 
   if (navLocation === 'dm') {
     return <MessagesSidebar />;
-  }
-
-  if (isMobile) {
-    return <MobileGroupsNav navLocation={navLocation} />;
   }
 
   if (navLocation === 'group' || navLocation === 'main') {
@@ -99,9 +110,10 @@ export function ActualNav() {
 }
 
 export default function Nav() {
+  const isMobile = useIsMobile();
   return (
     <div className="flex h-full w-full">
-      <ActualNav />
+      {isMobile ? <MobileNav /> : <DesktopNav />}
       <Outlet />
     </div>
   );
