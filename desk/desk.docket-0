@@ -1,5 +1,5 @@
 :~  title+'Groups'
-    info+'An Urbit app for gathering together'
+    info+'Start, host, and cultivate communities. Own your communications, organize your resources, and share documents. Groups is a decentralized platform that integrates with Talk, Notebook, and Gallery for a full, communal suite of tools.'
     color+0x60.94d2
     glob-http+['https://bootstrap.urbit.org/glob-0v6.650ad.akon7.6kpj6.2ie86.rqqkc.glob' 0v6.650ad.akon7.6kpj6.2ie86.rqqkc]
     base+'groups'

@@ -1,5 +1,5 @@
 :~  title+'Talk'
-    info+'An Urbit app for chatting with friends'
+    info+'Send encrypted direct messages to one or many friends. Talk is a simple chat tool for catching up, getting work done, and everything in between.'
     color+0xd5.6f4f
     glob-http+['https://bootstrap.urbit.org/glob-0v7.r1mrp.fuhc0.aqp0b.ce3o0.d66en.glob' 0v7.r1mrp.fuhc0.aqp0b.ce3o0.d66en]
     base+'talk'
