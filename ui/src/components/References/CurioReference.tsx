@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useCurio, useHeapState } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import HeapBlock from '@/heap/HeapBlock';
-import { useGroupPreviewByNest } from '@/state/groups';
+import { useChannelPreview } from '@/state/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import ReferenceBar from './ReferenceBar';
@@ -18,7 +18,7 @@ export default function CurioReference({
   idCurio: string;
 }) {
   const curioObject = useCurio(chFlag, idCurio);
-  const preview = useGroupPreviewByNest(nest);
+  const preview = useChannelPreview(nest);
   const [scryError, setScryError] = useState<string>();
   const refToken = preview?.group
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`

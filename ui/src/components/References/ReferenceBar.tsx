@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import cn from 'classnames';
-import { useChannel, useGroup, useGroupPreviewByNest } from '@/state/groups';
 import Author from '@/chat/ChatMessage/Author';
 import { useNavigate } from 'react-router';
 import { daToUnix } from '@urbit/api';

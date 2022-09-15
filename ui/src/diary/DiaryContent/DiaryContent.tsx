@@ -120,7 +120,7 @@ export function InlineContent({ story }: InlineContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export function BlockContent({ story }: BlockContentProps) {
+export const BlockContent = React.memo(({ story }: BlockContentProps) => {
   if (isDiaryImage(story)) {
     return (
       <DiaryContentImage
@@ -141,7 +141,7 @@ export function BlockContent({ story }: BlockContentProps) {
   }
 
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
-}
+});
 
 export default function DiaryContent({ content }: DiaryContentProps) {
   return (
