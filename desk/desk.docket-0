@@ -1,7 +1,7 @@
 :~  title+'Groups'
     info+'An Urbit app for gathering together'
     color+0x60.94d2
-    glob-http+['https://bootstrap.urbit.org/glob-0v5.heeaj.bierp.9lkqf.29vv4.u5rgb.glob' 0v5.heeaj.bierp.9lkqf.29vv4.u5rgb]
+    glob-http+['https://bootstrap.urbit.org/glob-0v3.20861.2jr2n.jh9j3.oeo2e.v8cbo.glob' 0v3.20861.2jr2n.jh9j3.oeo2e.v8cbo]
     base+'groups'
     version+[0 1 0]
     website+'https://tlon.io'
