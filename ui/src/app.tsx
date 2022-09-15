@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
@@ -57,12 +57,28 @@ import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
 import DiaryNote from './diary/DiaryNote';
-import DiaryAddNote from './diary/DiaryAddNote';
+// import DiaryAddNote from './diary/DiaryAddNote';
 import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
+import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
+
+const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
+const SuspendedDiaryAddNote = (
+  <Suspense
+    fallback={
+      <div className="h-screen w-full flex-1">
+        <div className="align-center flex h-full w-full justify-center">
+          <LoadingSpinner />
+        </div>
+      </div>
+    }
+  >
+    <DiaryAddNote />
+  </Suspense>
+);
 
 const appHead = (appName: string) => {
   switch (appName) {
@@ -253,8 +269,8 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               <Route index element={<DiaryChannel />} />
               <Route path="note/:noteId" element={<DiaryNote />} />
               <Route path="edit">
-                <Route index element={<DiaryAddNote />} />
-                <Route path=":id" element={<DiaryAddNote />} />
+                <Route index element={SuspendedDiaryAddNote} />
+                <Route path=":id" element={SuspendedDiaryAddNote} />
               </Route>
             </Route>
             <Route
