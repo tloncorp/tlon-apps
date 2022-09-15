@@ -41,10 +41,26 @@ export default function HeapDetail() {
   }, [chFlag]);
 
   useEventListener('keydown', (e) => {
-    if (hasPrev && e.key === 'ArrowRight') {
-      navigate(curioHref(prevCurio?.[0]));
-    } else if (hasNext && e.key === 'ArrowLeft') {
-      navigate(curioHref(nextCurio?.[0]));
+    switch (e.key) {
+      case 'Escape': {
+        navigate('..');
+        break;
+      }
+      case 'ArrowRight': {
+        if (hasPrev) {
+          navigate(curioHref(prevCurio?.[0]));
+        }
+        break;
+      }
+      case 'ArrowLeft': {
+        if (hasNext) {
+          navigate(curioHref(nextCurio?.[0]));
+        }
+        break;
+      }
+      default: {
+        break;
+      }
     }
   });
 
