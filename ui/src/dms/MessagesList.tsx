@@ -2,7 +2,7 @@ import useMessageSort from '@/logic/useMessageSort';
 import cn from 'classnames';
 import React from 'react';
 import { RECENT } from '../logic/useSidebarSort';
-import { whomIsDm } from '../logic/utils';
+import { whomIsDm, whomIsMultiDm } from '../logic/utils';
 import {
   usePendingDms,
   useBriefs,
@@ -36,7 +36,7 @@ export default function MessagesList({ filter }: MessagesListProps) {
         return false;
       }
 
-      if (filter === filters.groups && whomIsDm(b)) {
+      if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
         return false;
       }
 

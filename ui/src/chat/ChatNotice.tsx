@@ -1,7 +1,7 @@
 import React from 'react';
-import PersonIcon from '../components/icons/PersonIcon';
-import ShipName from '../components/ShipName';
-import { ChatWrit } from '../types/chat';
+import AddPersonIcon from '@/components/icons/AddPersonIcon';
+import ShipName from '@/components/ShipName';
+import { ChatWrit } from '@/types/chat';
 
 const sp = '\u0020';
 export default function ChatNotice(props: { writ: ChatWrit }) {
@@ -13,9 +13,11 @@ export default function ChatNotice(props: { writ: ChatWrit }) {
   const { notice } = writ.memo.content;
 
   return (
-    <div className="flex items-center space-x-3 py-2">
-      <PersonIcon className="h-6 w-6" />
-      <p className="italic">
+    <div className="flex items-center space-x-3 py-2 pl-10 pr-2">
+      <div className="flex items-center justify-center rounded bg-gray-50 p-0.5">
+        <AddPersonIcon className="h-6 w-6 text-gray-600" />
+      </div>
+      <p className="font-semibold text-gray-400">
         {notice.pfix.length > 0 ? (
           <>
             {notice.pfix}
