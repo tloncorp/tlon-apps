@@ -6,29 +6,29 @@ The %groups agent is entirely concerned with forming, managing, and joining grou
 
 All types are located in `/sur/groups`
 
-- $flag: ID for a group
-- $group: collection of people and the pathways in which they interact, group holds all data around members, permissions, and channels
-- $nest: ID for a channel, \{app}/\{ship}/\{name}
-- $channel: a medium for interaction, the channel type is a collection of metadata about a specific agent integration organization, and its own metadata to represent the group
-- $fleet: group members and their associated metadata
-- $sect: ID for cabal, similar to a role
-- $cabal: metadata representing a $sect or role
-- $cordon: group entry and visibility permissions
-- $bloc: superuser sects, allowed to make modifications to the group itself
-- $zone: channel grouping and ordering
-- $diff: the general set of changes that can be made to a group
-- $action: the complete set of data required to edit a group
-- $update: a representation in time of a modification of a group
-- $create: a request to make a group
-- $log: a time ordered map of all modifications to groups
-- $net: an indicator of whether I'm a host or subscriber
-- $join: a join request, can elect to join all channels
-- $knock: a request to enter a closed group
-- $gang: view of foreign group
-- $progress: the state of a group join 
-- $claim: a mark for gangs to represent a join in progress
-- $preview: the metadata and entry policy for a group
-- $invite: a marker to show you've been invited to a group
+- `$flag`: ID for a group
+- `$group`: collection of people and the pathways in which they interact, group holds all data around members, permissions, and channels
+- `$nest`: ID for a channel, \{app}/\{ship}/\{name}
+- `$channel`: a medium for interaction, the channel type is a collection of metadata about a specific agent integration organization, and its own metadata to represent the group
+- `$fleet`: group members and their associated metadata
+- `$sect`: ID for cabal, similar to a role
+- `$cabal`: metadata representing a $sect or role
+- `$cordon`: group entry and visibility permissions
+- `$bloc`: superuser sects, allowed to make modifications to the group itself
+- `$zone`: channel grouping and ordering
+- `$diff`: the general set of changes that can be made to a group
+- `$action`: the complete set of data required to edit a group
+- `$update`: a representation in time of a modification of a group
+- `$create`: a request to make a group
+- `$log`: a time ordered map of all modifications to groups
+- `$net`: an indicator of whether I'm a host or subscriber
+- `$join`: a join request, can elect to join all channels
+- `$knock`: a request to enter a closed group
+- `$gang`: view of foreign group
+- `$progress`: the state of a group join 
+- `$claim`: a mark for gangs to represent a join in progress
+- `$preview`: the metadata and entry policy for a group
+- `$invite`: a marker to show you've been invited to a group
 
 ## api
 

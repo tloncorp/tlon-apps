@@ -5,35 +5,35 @@ The %chat agent is entirely concerned with creating chat channels, in addition s
 
 All types are located in `/sur/chat`
 
-- $whom: a polymorphic identifier for chats
-- $flag: an identifier for a $chat channel
-- $chat: a group based channel for communicating
-- $dm: a direct line of communication between two ships
-- $club: a direct line of communication between multiple parties
-- $index: a map of chat message id to server received message time
-- $id: an identifier for chat messages
-- $pact: a double indexed map of chat messages, id -> time -> message
-- $writs: a set of time ordered chat messages
-- $writ: a chat message
-- $seal: the id of a chat and its meta-responses
-- $feel: either an emoji identifier like :wave: or a URL for custom
-- $memo: a chat message with metadata
-- $content: the contents of a message whether handwritten or automated
-- $story: handwritten contents of a message
-- $notice: the contents of an automated message
-- $block: content which stands on it's own outside of inline content
-- $inline: a representation of text with or without formatting
-- $action: the complete set of data required to edit a chat
-- $update: a representation in time of a modification of a chat
-- $diff: represents an update to state
-- $briefs: a map of chat/club/dm unread information
-- $log: a time ordered map of all modifications to a chat
-- $net: an indicator of whether I'm a host or subscriber
-- $draft: the contents of an unsent message at a particular $whom
-- $perm: represents the permissions for a channel and gives a pointer
+- `$whom`: a polymorphic identifier for chats
+- `$flag`: an identifier for a $chat channel
+- `$chat`: a group based channel for communicating
+- `$dm`: a direct line of communication between two ships
+- `$club`: a direct line of communication between multiple parties
+- `$index`: a map of chat message id to server received message time
+- `$id`: an identifier for chat messages
+- `$pact`: a double indexed map of chat messages, id -> time -> message
+- `$writs`: a set of time ordered chat messages
+- `$writ`: a chat message
+- `$seal`: the id of a chat and its meta-responses
+- `$feel`: either an emoji identifier like :wave: or a URL for custom
+- `$memo`: a chat message with metadata
+- `$content`: the contents of a message whether handwritten or automated
+- `$story`: handwritten contents of a message
+- `$notice`: the contents of an automated message
+- `$block`: content which stands on it's own outside of inline content
+- `$inline`: a representation of text with or without formatting
+- `$action`: the complete set of data required to edit a chat
+- `$update`: a representation in time of a modification of a chat
+- `$diff`: represents an update to state
+- `$briefs`: a map of chat/club/dm unread information
+- `$log`: a time ordered map of all modifications to a chat
+- `$net`: an indicator of whether I'm a host or subscriber
+- `$draft`: the contents of an unsent message at a particular $whom
+- `$perm`: represents the permissions for a channel and gives a pointer
   back to the group it belongs to.
-- $leave: a flag to pass for a channel leave
-- $create: represents a request to create a channel, also gets sent to
+- `$leave`: a flag to pass for a channel leave
+- `$create`: represents a request to create a channel, also gets sent to
   groups to finish creation
 
 

@@ -1,8 +1,11 @@
 ;>
 Groups and the agents it contains were intentionally built in a simplified
 manner and with as much shared structure as we could muster to both speed
-development and make each agent feel familiar. To reiterate these are the
-agents:
+development and make each agent feel familiar. We avoided centralizing and
+normalizing types/state so that each agent can develop independently as
+new product requirements arise.
+
+To reiterate these are the agents:
 
 - *%groups:* facilitates forming, managing, and joining groups
 - *%chat:* allows for creating chat channels, in addition supports the
@@ -63,3 +66,5 @@ We conventionally also always return the core at the end of each arm that
 would be called like this so that we can finally call `ca-abet` like:
 `ca-abet:(ca-update:(ca-core:ca-abed flag) action)` This will then update
 state with the new state of the chat as a final step.
+
+What follows is a reference for each agent and it's associated types and api.
