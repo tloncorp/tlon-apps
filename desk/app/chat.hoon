@@ -520,7 +520,8 @@
   ::
   ++  cu-spin  
     |=  [con=(list content:ha) but=(unit button:ha)]
-    =/  rope  [~ ~ q.byk.bowl /club/(scot %uv id)]
+    ::  hard coded desk because these shouldn't appear in groups
+    =/  rope  [~ ~ %talk /club/(scot %uv id)]
     =/  link  /dm/(scot %uv id)
     (spin rope con link but)
   ::
@@ -1083,7 +1084,8 @@
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin  
     |=  [con=(list content:ha) but=(unit button:ha)]
-    =/  rope  [~ ~ q.byk.bowl /dm/(scot %p ship)]
+    ::  hard coded desk because these shouldn't appear in groups
+    =/  rope  [~ ~ %talk /dm/(scot %p ship)]
     =/  link  /dm/(scot %p ship)
     (spin rope con link but)
   ::
