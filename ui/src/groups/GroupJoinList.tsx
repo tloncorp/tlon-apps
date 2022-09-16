@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Gang, Gangs } from '@/types/groups';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GroupSummary from './GroupSummary';
 import useGroupJoin from './useGroupJoin';
 
@@ -9,7 +10,13 @@ interface GroupJoinItemProps {
 }
 
 function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
-  const { open, reject, button } = useGroupJoin(flag, gang);
+  const [hasBeenClicked, setHasBeenClicked] = useState(false);
+  const { open, reject, button, privacy, requested } = useGroupJoin(flag, gang);
+
+  const onClick = useCallback((buttonAction: () => void) => {
+    setHasBeenClicked(true);
+    buttonAction();
+  }, []);
 
   return (
     <li className="relative flex items-center">
@@ -30,10 +37,14 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
         ) : null}
         <button
           className="button ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100"
-          onClick={button.action}
+          onClick={() => onClick(button.action)}
           disabled={button.disabled}
         >
-          {button.text}
+          {hasBeenClicked && privacy === 'private' && !requested ? (
+            <LoadingSpinner />
+          ) : (
+            button.text
+          )}
         </button>
       </div>
     </li>

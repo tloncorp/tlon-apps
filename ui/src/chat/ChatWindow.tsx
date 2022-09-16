@@ -26,7 +26,7 @@ export default function ChatWindow({
   return (
     <div className="relative h-full">
       <ChatUnreadAlerts brief={brief} whom={whom} />
-      <div className="flex h-full w-full flex-col overflow-hidden p-2">
+      <div className="flex h-full w-full flex-col overflow-hidden px-2">
         <ChatScroller
           messages={messages}
           whom={whom}
