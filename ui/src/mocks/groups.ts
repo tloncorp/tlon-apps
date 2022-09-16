@@ -270,8 +270,8 @@ const mockGroupTwo: Group = {
     },
     'heap/~zod/testHeap': {
       meta: {
-        title: 'Martini Collection',
-        description: 'Martini Maker Collection',
+        title: 'Martini Gallery',
+        description: 'Martini Maker Gallery',
         image: '',
         cover: '',
       },

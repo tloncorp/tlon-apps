@@ -22,7 +22,7 @@ const CHANNEL_TYPE: Record<ChannelType, ChannelTypeMetadata> = {
   },
   heap: {
     icon: <ShapesIcon className="h-6 w-6 text-gray-600" />,
-    title: 'Collection',
+    title: 'Gallery',
     description: 'Gather, connect, and arrange rich media',
     color: 'bg-green-soft',
   },
