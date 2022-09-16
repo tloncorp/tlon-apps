@@ -52,8 +52,8 @@ function TopBar({
       onClick={(e) => e.stopPropagation()}
       className={
         hasIcon || isTwitter
-          ? 'flex items-center justify-between'
-          : 'flex items-center justify-end'
+          ? 'absolute hidden w-full items-center justify-between px-4 group-hover:flex'
+          : 'absolute hidden w-full items-center justify-end px-4 group-hover:flex'
       }
     >
       {isTwitter ? <TwitterIcon className="m-2 h-6 w-6" /> : null}
@@ -158,7 +158,7 @@ function BottomBar({ curio, provider, title, asRef }: BottomBarProps) {
   }
 
   return (
-    <div className="-m-2 h-[50px]">
+    <div className="absolute bottom-0 -mx-2 h-[50px] w-full">
       <div className="hidden h-[50px] w-full border-t-2 border-gray-100 bg-white p-2 group-hover:block">
         <div className="flex flex-col">
           <span className="truncate font-semibold text-gray-800">
@@ -220,7 +220,11 @@ export default function HeapBlock({
     return (
       <div className={cnm()}>
         <TopBar hasIcon {...topBar} />
-        <HeapContent className="h-full max-h-24 leading-6" content={content} />
+        <HeapContent
+          className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
+          leading-6
+          content={content}
+        />
         <BottomBar
           {...botBar}
           provider="Text"
@@ -318,7 +322,7 @@ export default function HeapBlock({
     return (
       <div className={cnm()}>
         <TopBar hasIcon {...topBar} />
-        <div className="flex flex-col items-center justify-center">
+        <div className="flex grow flex-col items-center justify-center">
           <LinkIcon className="h-16 w-16 text-gray-300" />
         </div>
         <BottomBar
@@ -333,7 +337,7 @@ export default function HeapBlock({
   return (
     <div className={cnm()}>
       <TopBar hasIcon {...topBar} />
-      <div className="flex flex-col items-center justify-center">
+      <div className="flex grow flex-col items-center justify-center">
         <LinkIcon className="h-16 w-16 text-gray-300" />
       </div>
       <BottomBar
