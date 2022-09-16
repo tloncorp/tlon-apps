@@ -27,7 +27,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
 
   if (isText) {
     return (
-      <div className="mx-auto mt-3 max-w-prose">
+      <div className="mx-auto mt-3 flex h-full max-w-prose flex-col justify-center p-8 text-[18px] leading-[26px]">
         <HeapContent content={content} />
       </div>
     );
