@@ -220,7 +220,11 @@ export default function HeapBlock({
     return (
       <div className={cnm()}>
         <TopBar hasIcon {...topBar} />
-        <HeapContent className="leading-6" content={content} />
+        <HeapContent
+          className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
+          leading-6
+          content={content}
+        />
         <BottomBar
           {...botBar}
           provider="Text"
