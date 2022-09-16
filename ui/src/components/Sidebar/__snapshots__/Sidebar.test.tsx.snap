@@ -46,7 +46,7 @@ exports[`Sidebar > renders as expected 1`] = `
         >
           <div
             class="relative flex flex-none items-center justify-center rounded bg-black w-6 h-6 rounded p-1.5"
-            style="background-color: rgb(0, 0, 0);"
+            style="background-color: rgb(204, 204, 204);"
           >
             <svg
               class=""
@@ -56,7 +56,7 @@ exports[`Sidebar > renders as expected 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <rect
-                fill="#000000"
+                fill="hsla(0, 0%, 80%, 1)"
                 height="12px"
                 width="12px"
                 x="0px"
@@ -73,7 +73,7 @@ exports[`Sidebar > renders as expected 1`] = `
                     dataisgeon="true"
                     fill="white"
                     height="128"
-                    stroke="#000000"
+                    stroke="hsla(0, 0%, 80%, 1)"
                     stroke-linecap="square"
                     stroke-width="0.8px"
                     vector-effect="non-scaling-stroke"
@@ -90,7 +90,7 @@ exports[`Sidebar > renders as expected 1`] = `
                     dataisgeon="true"
                     fill="white"
                     r="64"
-                    stroke="#000000"
+                    stroke="hsla(0, 0%, 80%, 1)"
                     stroke-linecap="square"
                     stroke-width="0.8px"
                     vector-effect="non-scaling-stroke"
@@ -104,7 +104,7 @@ exports[`Sidebar > renders as expected 1`] = `
                     d="M0.0541 0C70.7217 0.0292317 128 57.3256 128 128C57.3177 128 0.0164917 70.7089 7.62806e-06 0.0305091C7.62851e-06 0.0203397 -4.44317e-10 0.01017 0 0H0.0541Z"
                     dataisgeon="true"
                     fill="white"
-                    stroke="#000000"
+                    stroke="hsla(0, 0%, 80%, 1)"
                     stroke-linecap="square"
                     stroke-width="0.8px"
                     vector-effect="non-scaling-stroke"
@@ -118,7 +118,7 @@ exports[`Sidebar > renders as expected 1`] = `
                     d="M64 128H0L5.59506e-06 0L64 5.59506e-06C99.3462 8.68512e-06 128 28.6538 128 64C128 99.3462 99.3462 128 64 128Z"
                     dataisgeon="true"
                     fill="white"
-                    stroke="#000000"
+                    stroke="hsla(0, 0%, 80%, 1)"
                     stroke-linecap="square"
                     stroke-width="0.8px"
                     vector-effect="non-scaling-stroke"
@@ -306,8 +306,39 @@ exports[`Sidebar > renders as expected 1`] = `
       </li>
     </ul>
     <ul
-      class="h-full space-y-3 p-2 sm:space-y-0 flex-1 overflow-x-hidden overflow-y-scroll pr-0 pt-0"
-    />
+      class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"
+    >
+      <li
+        class="relative flex w-full items-center justify-between rounded-lg"
+      >
+        <div
+          class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
+        >
+          <div
+            class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
+          />
+          <div
+            class="bg-gray-100 h-4 rounded-md"
+            style="width: 100px;"
+          />
+        </div>
+      </li>
+      <li
+        class="relative flex w-full items-center justify-between rounded-lg"
+      >
+        <div
+          class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
+        >
+          <div
+            class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
+          />
+          <div
+            class="bg-gray-100 h-4 rounded-md"
+            style="width: 100px;"
+          />
+        </div>
+      </li>
+    </ul>
   </nav>
 </DocumentFragment>
 `;

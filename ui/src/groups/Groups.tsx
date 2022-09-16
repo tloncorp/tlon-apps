@@ -9,7 +9,6 @@ import {
 } from '../state/groups/groups';
 import useNavStore from '../components/Nav/useNavStore';
 import api from '../api';
-import { useIsMobile } from '../logic/useMedia';
 
 function Groups() {
   const navigate = useNavigate();
