@@ -240,9 +240,9 @@ exports[`Sidebar > renders as expected 1`] = `
           </svg>
           <div
             class="max-w-full flex-1 truncate text-left"
-            title="Create Groups"
+            title="Create Group"
           >
-            Create Groups
+            Create Group
           </div>
         </a>
       </li>

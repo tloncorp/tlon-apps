@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
 import ChatInput from '@/chat/ChatInput/ChatInput';
@@ -9,6 +9,7 @@ import {
   useMultiDmIsPending,
   useMultiDmMessages,
 } from '@/state/chat';
+import { ChatMemo } from '@/types/chat';
 import ChatWindow from '@/chat/ChatWindow';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';

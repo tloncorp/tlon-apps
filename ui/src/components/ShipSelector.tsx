@@ -28,8 +28,8 @@ import Avatar from '@/components/Avatar';
 import { useMemoizedContacts } from '@/state/contact';
 import { MAX_DISPLAYED_OPTIONS } from '@/constants';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipName from './ShipName';
-import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
 
 export interface ShipOption {

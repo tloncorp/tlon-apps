@@ -10,7 +10,7 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import { useNotifications } from '@/notifications/useNotifications';
-import BubbleIcon from '@/components/icons/BubbleIcon';
+import TalkIcon from '@/components/icons/TalkIcon';
 import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import useMessagesFilter, { filters } from './useMessagesFilter';
@@ -33,7 +33,7 @@ export default function MessagesSidebar() {
           div
           className="text-black"
           to="/"
-          icon={<BubbleIcon className="h-6 w-6" />}
+          icon={<TalkIcon className="h-6 w-6" />}
         >
           Talk
         </SidebarItem>

@@ -92,6 +92,7 @@ export default function useGroupJoin(
   return {
     group,
     privacy,
+    requested,
     dismiss,
     open,
     join,

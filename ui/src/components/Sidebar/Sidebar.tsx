@@ -80,7 +80,7 @@ export default function Sidebar() {
           to="/groups/new"
           state={{ backgroundLocation: location }}
         >
-          Create Groups
+          Create Group
         </SidebarItem>
         {hasKeys(pinnedGroups) ? (
           <GroupList

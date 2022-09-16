@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useGroupState } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
-import TemplateOrScratch from '@/groups/NewGroup/TemplateOrScratch';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
 import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
@@ -20,13 +19,13 @@ interface ShipWithRoles {
   roles: Role[];
 }
 
-type TemplateTypes = 'none' | 'small' | 'medium' | 'large';
+// type TemplateTypes = 'none' | 'small' | 'medium' | 'large';
 
 export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
-  const [templateType, setTemplateType] = useState<TemplateTypes>('none');
+  // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -34,7 +33,7 @@ export default function NewGroup() {
     }
   };
 
-  const maxStep = 4;
+  const maxStep = 3;
   const [currentStep, { goToNextStep, goToPrevStep, setStep }] =
     useStep(maxStep);
 
@@ -81,27 +80,28 @@ export default function NewGroup() {
     navigate(`/groups/${flag}`);
   }, [shipsToInvite, navigate, form]);
 
-  const nextWithTemplate = (template?: string) => {
-    setTemplateType(template ? (template as TemplateTypes) : 'none');
-    goToNextStep();
-  };
+  // const nextWithTemplate = (template?: string) => {
+  //   setTemplateType(template ? (template as TemplateTypes) : 'none');
+  //   goToNextStep();
+  // };
 
   let currentStepComponent: ReactElement;
 
   switch (currentStep) {
+    // TODO: implement group templates
+    // case 1:
+    // currentStepComponent = <TemplateOrScratch next={nextWithTemplate} />;
+    // break;
     case 1:
-      currentStepComponent = <TemplateOrScratch next={nextWithTemplate} />;
-      break;
-    case 2:
       currentStepComponent = (
         <NewGroupForm
           isValid={form.formState.isValid}
-          goToPrevStep={goToPrevStep}
+          // goToPrevStep={goToPrevStep}
           goToNextStep={goToNextStep}
         />
       );
       break;
-    case 3:
+    case 2:
       currentStepComponent = (
         <NewGroupPrivacy
           groupName={form.getValues('title')}
@@ -110,7 +110,7 @@ export default function NewGroup() {
         />
       );
       break;
-    case 4:
+    case 3:
       currentStepComponent = (
         <NewGroupInvite
           groupName={form.getValues('title')}
