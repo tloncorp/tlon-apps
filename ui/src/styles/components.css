@@ -104,10 +104,6 @@
   @apply relative flex h-full w-full flex-col justify-center overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat;
 }
 
-.heap-row {
-  @apply flex h-14 w-full items-center justify-between space-x-2 rounded-lg bg-white;
-}
-
 .heap-grid {
   @apply grid gap-4;
   /* tailwind crashes when i try to fill grid-cols in with the custom property brackets */

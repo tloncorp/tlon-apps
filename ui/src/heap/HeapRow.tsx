@@ -14,6 +14,8 @@ import HeapContent from '@/heap/HeapContent';
 import useNest from '@/logic/useNest';
 import HeapLoadingRow from '@/heap/HeapLoadingRow';
 import CheckIcon from '@/components/icons/CheckIcon';
+import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
+import TextIcon from '@/components/icons/Text16Icon';
 import useCurioActions from './useCurioActions';
 
 export default function HeapRow({
@@ -32,7 +34,7 @@ export default function HeapRow({
   // TODO: improve this
   const contentString = content.length > 0 ? content[0].toString() : '';
 
-  const { isImage, isUrl, isAudio, description } =
+  const { isText, isImage, isUrl, isAudio, description } =
     useHeapContentType(contentString);
 
   useEffect(() => {
@@ -68,8 +70,12 @@ export default function HeapRow({
         return <MusicLargeIcon className="m-2 h-6 w-6 text-gray-300" />;
       case isUrl:
         return <LinkIcon16 className="m-2 h-8 w-8 text-gray-300" />;
+      case isText:
+        return <TextIcon className="m-2 h-6 w-6 text-gray-300" />;
       default:
-        return null;
+        return (
+          <ColorBoxIcon className="m-2 h-8 w-8" color="transparent" letter="" />
+        );
     }
   };
 
@@ -85,27 +91,26 @@ export default function HeapRow({
   };
 
   return (
-    <div className="flex h-14 w-full items-center justify-between space-x-2 rounded-lg bg-white">
+    <div className="flex w-full items-center justify-between space-x-2 rounded-lg bg-white">
       <div className="flex space-x-2">
-        {isImage ? (
-          <div
-            className="relative inline-block h-14 w-14 cursor-pointer overflow-hidden rounded-l-lg bg-cover bg-no-repeat"
-            style={{ backgroundImage: `url(${contentString})` }}
-          />
-        ) : (
-          <div className="flex h-14 w-14 flex-col items-center justify-center rounded-l-lg bg-gray-200">
-            {otherImage()}
-          </div>
-        )}
-        <div className="flex flex-col justify-end p-2">
-          <div className="font-semibold text-gray-800">
+        <div>
+          {isImage ? (
+            <div
+              className="relative inline-block h-14 w-14 cursor-pointer overflow-hidden rounded-l-lg bg-cover bg-no-repeat"
+              style={{ backgroundImage: `url(${contentString})` }}
+            />
+          ) : (
+            <div className="flex h-14 w-14 flex-col items-center justify-center rounded-l-lg bg-gray-200">
+              {otherImage()}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col justify-center space-y-1">
+          <div className="">
             {isUrl ? (
               contentDisplayed()
             ) : (
-              <HeapContent
-                className="leading-6 line-clamp-1"
-                content={content}
-              />
+              <HeapContent className="line-clamp-1" content={content} />
             )}
           </div>
           <div className="text-sm font-semibold text-gray-600">
