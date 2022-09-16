@@ -29,6 +29,7 @@ import { Inline } from '@/types/content';
 interface ChatInputProps {
   whom: string;
   replying?: string;
+  autoFocus?: boolean;
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
@@ -37,9 +38,10 @@ interface ChatInputProps {
 
 export default function ChatInput({
   whom,
-  showReply = false,
   replying,
+  autoFocus,
   className = '',
+  showReply = false,
   sendDisabled = false,
   sendMessage,
 }: ChatInputProps) {
@@ -129,10 +131,10 @@ export default function ChatInput({
   }, [whom, messageEditor]);
 
   useEffect(() => {
-    if (reply && messageEditor && !messageEditor.isDestroyed) {
+    if ((autoFocus || reply) && messageEditor && !messageEditor.isDestroyed) {
       messageEditor.commands.focus();
     }
-  }, [reply, messageEditor]);
+  }, [autoFocus, reply, messageEditor]);
 
   useEffect(() => {
     const draftEmpty = draft.inline.length === 0 && draft.block.length === 0;
