@@ -10,6 +10,7 @@ import {
   useGang,
   useGangList,
   useGroup,
+  useGroupsInitialized,
   useGroupState,
 } from '@/state/groups/groups';
 import { SettingsState, useSettingsState } from '@/state/settings';
@@ -18,6 +19,7 @@ import GroupActions from '@/groups/GroupActions';
 import { Group } from '@/types/groups';
 import useNavStore from '../Nav/useNavStore';
 import SidebarItem from './SidebarItem';
+import GroupListPlaceholder from './GroupListPlaceholder';
 
 const dragTypes = {
   GROUP: 'group',
@@ -225,6 +227,7 @@ export default function GroupList({
 }: GroupListProps) {
   const isMobile = useIsMobile();
   const gangs = useGangList();
+  const initialized = useGroupsInitialized();
   const { order, loaded } = useSettingsState(selOrderedPins);
 
   useEffect(() => {
@@ -256,6 +259,10 @@ export default function GroupList({
         );
     }
   }, [pinnedGroups, order, loaded]);
+
+  if (!initialized) {
+    return <GroupListPlaceholder count={groups.length || 5} />;
+  }
 
   return pinned ? (
     <DndProvider

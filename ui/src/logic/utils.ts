@@ -236,6 +236,10 @@ export function randomElement<T>(a: T[]) {
   return a[Math.floor(Math.random() * a.length)];
 }
 
+export function randomIntInRange(min: number, max: number) {
+  return Math.round(Math.random() * (max - min) + min);
+}
+
 export function hasKeys(obj: Record<string, unknown>) {
   return Object.keys(obj).length > 0;
 }
