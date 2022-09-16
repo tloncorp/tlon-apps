@@ -112,7 +112,10 @@ function limitBreaks(
   ).result;
 }
 
-export function JSONToInlines(json: JSONContent): (Inline | DiaryBlock)[] {
+export function JSONToInlines(
+  json: JSONContent,
+  limitNewlines = true
+): (Inline | DiaryBlock)[] {
   switch (json.type) {
     case 'text': {
       // unstyled / marks base case
@@ -152,7 +155,7 @@ export function JSONToInlines(json: JSONContent): (Inline | DiaryBlock)[] {
 
       return [
         {
-          [convertMarkType(first.type)]: JSONToInlines(json),
+          [convertMarkType(first.type)]: JSONToInlines(json, limitNewlines),
         },
       ] as unknown as (Inline | DiaryBlock)[];
     }
@@ -163,10 +166,11 @@ export function JSONToInlines(json: JSONContent): (Inline | DiaryBlock)[] {
       }
 
       const inlines = json.content.reduce(
-        (memo, c) => memo.concat(JSONToInlines(c)),
+        (memo, c) =>
+          memo.concat(JSONToInlines(c, limitNewlines), [{ break: null }]),
         [] as (Inline | DiaryBlock)[]
       );
-      return limitBreaks(inlines);
+      return limitNewlines ? limitBreaks(inlines) : inlines;
     }
     case 'doc': {
       if (!json.content) {
@@ -174,15 +178,15 @@ export function JSONToInlines(json: JSONContent): (Inline | DiaryBlock)[] {
       }
 
       const inlines = json.content.reduce(
-        (memo, c) => memo.concat(JSONToInlines(c)),
+        (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
         [] as (Inline | DiaryBlock)[]
       );
-      return limitBreaks(inlines);
+      return limitNewlines ? limitBreaks(inlines) : inlines;
     }
     case 'blockquote': {
       const inlines =
         json.content?.reduce(
-          (memo, c) => memo.concat(JSONToInlines(c)),
+          (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
           [] as (Inline | DiaryBlock)[]
         ) ?? [];
       return [
@@ -389,7 +393,7 @@ export function inlinesToJSON(message: Inline[]): JSONContent {
   };
 }
 
-export function diaryInlinesToJSON(note: NoteContent): JSONContent {
+export function diaryMixedToJSON(note: NoteContent): JSONContent {
   const parsedContent = note.map((c) => {
     if ('inline' in c) {
       return wrapParagraphs(c.inline.map((i) => inlineToContent(i)));

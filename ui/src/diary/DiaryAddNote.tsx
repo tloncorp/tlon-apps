@@ -7,7 +7,7 @@ import _ from 'lodash';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import Layout from '@/components/Layout/Layout';
-import { diaryInlinesToJSON, JSONToInlines } from '@/logic/tiptap';
+import { diaryMixedToJSON, JSONToInlines } from '@/logic/tiptap';
 import { useDiaryState, useNote } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
 import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
@@ -23,9 +23,7 @@ export default function DiaryAddNote() {
   const [, note] = useNote(chFlag, id || '');
   const content = useMemo(
     () =>
-      note.essay.content.length > 0
-        ? diaryInlinesToJSON(note.essay.content)
-        : '',
+      note.essay.content.length > 0 ? diaryMixedToJSON(note.essay.content) : '',
     [note.essay.content]
   );
 
@@ -49,7 +47,7 @@ export default function DiaryAddNote() {
       return;
     }
 
-    const data = JSONToInlines(editor?.getJSON());
+    const data = JSONToInlines(editor?.getJSON(), false);
     const values = getValues();
 
     const sent = Date.now();
