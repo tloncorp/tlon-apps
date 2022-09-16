@@ -66,13 +66,19 @@ function DiaryChannel() {
   }, [chFlag]);
 
   useEffect(() => {
+    let timeout: any;
+
     if (newNote) {
       setShowToast(true);
-      setTimeout(() => {
+      timeout = setTimeout(() => {
         setShowToast(false);
         navigate(location.pathname, { replace: true });
       }, 3000);
     }
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, [newNote, location, navigate]);
 
   useDismissChannelNotifications({
