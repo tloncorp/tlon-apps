@@ -26,7 +26,7 @@ export default function AdminChannelList() {
           channel: group.channels[idx],
         }));
         sectionedChannels[key].channels = orderedChannels.filter(
-          (channelItem) => key === channelItem.channel.zone
+          (channelItem) => key === channelItem.channel?.zone
         );
       });
     }
