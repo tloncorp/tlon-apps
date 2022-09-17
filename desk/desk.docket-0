@@ -1,6 +1,7 @@
 :~  title+'Groups'
     info+'Start, host, and cultivate communities. Own your communications, organize your resources, and share documents. Groups is a decentralized platform that integrates with Talk, Notebook, and Gallery for a full, communal suite of tools.'
     color+0x60.94d2
+    image+'https://hole.nerveharp.net/rilfun-lidlen/2022.9.17..14.34.43-icon-groups.svg'
     glob-http+['https://bootstrap.urbit.org/glob-0v5.amrvl.201ro.cn1s8.gl4rc.02sgp.glob' 0v5.amrvl.201ro.cn1s8.gl4rc.02sgp]
     base+'groups'
     version+[0 1 0]
