@@ -1,7 +1,7 @@
 :~  title+'Talk'
     info+'Send encrypted direct messages to one or many friends. Talk is a simple chat tool for catching up, getting work done, and everything in between.'
     color+0xd5.6f4f
-    image+'https://hole.nerveharp.net/rilfun-lidlen/2022.9.17..16.09.40-icon-talk.svg'
+    image+'https://bootstrap.urbit.org/icon-talk.svg'
     glob-http+['https://bootstrap.urbit.org/glob-0v1.ftsl7.m3mvq.o8d0p.vup0q.5n3ft.glob' 0v1.ftsl7.m3mvq.o8d0p.vup0q.5n3ft]
     base+'talk'
     version+[0 1 0]
