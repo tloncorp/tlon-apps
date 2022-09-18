@@ -47,7 +47,7 @@ import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
-import chatFavicon from '@/assets/chat.svg';
+import talkFavicon from '@/assets/talk.svg';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { useHeapState } from './state/heap/heap';
 import { useDiaryState } from './state/diary';
@@ -85,7 +85,7 @@ const appHead = (appName: string) => {
     case 'chat':
       return {
         title: 'Talk',
-        icon: chatFavicon,
+        icon: talkFavicon,
       };
     default:
       return {
