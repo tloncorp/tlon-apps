@@ -182,6 +182,7 @@
       %add       (memo p.delta)
       %del       ~
       %add-feel  (add-feel +.delta)
+      %del-feel  (ship +.delta)
     ==
   ++  add-feel
     |=  [her=@p =feel:c]
@@ -476,6 +477,7 @@
     :~  add/memo
         del/ul
         add-feel/add-feel
+        del-feel/ship
     ==
   ::
   ++  add-sects  (as (se %tas))

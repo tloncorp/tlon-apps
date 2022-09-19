@@ -14,6 +14,7 @@ import XIcon from '@/components/icons/XIcon';
 import { useChatStore } from '@/chat/useChatStore';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
+import EmojiPicker from '@/components/EmojiPicker';
 
 export default function ChatMessageOptions(props: {
   whom: string;
@@ -24,6 +25,7 @@ export default function ChatMessageOptions(props: {
   const groupFlag = useRouteGroup();
   const [_copied, doCopy] = useCopyToClipboard();
   const [justCopied, setJustCopied] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const onDelete = () => {
     useChatState.getState().delMessage(whom, writ.seal.id);
@@ -41,15 +43,30 @@ export default function ChatMessageOptions(props: {
     useChatStore.getState().reply(whom, writ.seal.id);
   }, [writ, whom]);
 
+  const onEmoji = useCallback(
+    (emoji: { shortcodes: string }) => {
+      useChatState.getState().addFeel(whom, writ.seal.id, emoji.shortcodes);
+      setPickerOpen(false);
+    },
+    [whom, writ]
+  );
+
+  const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
+
   const navigate = useNavigate();
   return (
     <div className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle opacity-0 group-one-hover:opacity-100">
-      {/* <IconButton
+      <IconButton
         icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
         label="React"
         showTooltip
-        action={() => console.log('react')}
-      /> */}
+        action={openPicker}
+      />
+      <EmojiPicker
+        open={pickerOpen}
+        setOpen={setPickerOpen}
+        onEmojiSelect={onEmoji}
+      />
       {!writ.memo.replying && writ.memo.replying?.length !== 0 && !hideReply ? (
         <>
           {/*

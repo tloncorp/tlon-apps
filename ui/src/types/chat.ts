@@ -113,10 +113,13 @@ interface WritDeltaDel {
 
 interface WritDeltaAddFeel {
   'add-feel': {
-    time: string;
     feel: string;
     ship: string;
   };
+}
+
+interface WritDeltaDelFeel {
+  'del-feel': string;
 }
 
 interface ChatDiffAddSects {
@@ -127,7 +130,11 @@ interface ChatDiffDelSects {
   'del-sects': string[];
 }
 
-export type WritDelta = WritDeltaAdd | WritDeltaDel | WritDeltaAddFeel;
+export type WritDelta =
+  | WritDeltaAdd
+  | WritDeltaDel
+  | WritDeltaAddFeel
+  | WritDeltaDelFeel;
 
 export interface WritDiff {
   id: string;
@@ -247,13 +254,8 @@ interface ClubDeltaRsvp {
   };
 }
 
-interface ClubDeltaSend {
-  writ: {
-    id: string; // note this is the Chat ID, *not* the Club ID
-    delta: {
-      add: ChatMemo;
-    };
-  };
+interface ClubDeltaWrit {
+  writ: WritDiff;
 }
 
 export type ClubDelta =
@@ -261,7 +263,7 @@ export type ClubDelta =
   | ClubDeltaAddHive
   | ClubDeltaRemoveHive
   | ClubDeltaRsvp
-  | ClubDeltaSend;
+  | ClubDeltaWrit;
 
 export type ClubDiff = {
   echo: number;
