@@ -114,7 +114,7 @@ function HeapChannel({ title }: ViewProps) {
             : title}
         </title>
       </Helmet>
-      <div className="p-4">
+      <div className="h-full overflow-y-scroll p-4">
         <div
           className={cn(
             `heap-${displayMode}`,
