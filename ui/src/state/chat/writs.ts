@@ -95,6 +95,14 @@ export default function makeWritsStore(
               });
             } else if ('del-feel' in delta && pact.index[id]) {
               const time = pact.index[id];
+              const msg = pact.writs.get(time);
+              const ship = delta['del-feel'];
+              delete msg.seal.feels[ship];
+
+              pact.writs = pact.writs.set(time, {
+                ...msg,
+                seal: msg.seal,
+              });
             }
             draft.pacts[whom] = pact;
           });

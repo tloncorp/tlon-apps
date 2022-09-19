@@ -178,11 +178,11 @@
   ++  writs-delta
     |=  =delta:writs:c
     %+  frond  -.delta
-    ?+  -.delta  ~
+    ?-  -.delta
       %add       (memo p.delta)
       %del       ~
       %add-feel  (add-feel +.delta)
-      %del-feel  (ship +.delta)
+      %del-feel  (ship p.delta)
     ==
   ++  add-feel
     |=  [her=@p =feel:c]
