@@ -96,7 +96,7 @@ const ChatMessage = React.memo<
                 <ChatContent story={memo.content.story} />
               ) : null}
               {Object.keys(seal.feels).length > 0 && (
-                <ChatReactions seal={seal} />
+                <ChatReactions seal={seal} whom={whom} />
               )}
               {numReplies > 0 && !hideReplies ? (
                 <NavLink

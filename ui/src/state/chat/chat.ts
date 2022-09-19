@@ -443,6 +443,44 @@ export const useChatState = create<ChatState>(
           api.poke(chatWritDiff(whom, id, diff));
         }
       },
+      addFeel: async (whom, id, feel) => {
+        const delta: WritDelta = {
+          'add-feel': { feel, ship: window.our },
+        };
+
+        if (whomIsDm(whom)) {
+          api.poke(dmAction(whom, delta, id));
+        } else if (whomIsMultiDm(whom)) {
+          api.poke(
+            multiDmAction(whom, {
+              writ: {
+                id,
+                delta,
+              },
+            })
+          );
+        } else {
+          api.poke(chatWritDiff(whom, id, delta));
+        }
+      },
+      delFeel: async (whom, id) => {
+        const delta: WritDelta = { 'del-feel': window.our };
+
+        if (whomIsDm(whom)) {
+          api.poke(dmAction(whom, delta, id));
+        } else if (whomIsMultiDm(whom)) {
+          api.poke(
+            multiDmAction(whom, {
+              writ: {
+                id,
+                delta,
+              },
+            })
+          );
+        } else {
+          api.poke(chatWritDiff(whom, id, delta));
+        }
+      },
       create: async (req) => {
         await api.poke({
           app: 'chat',

@@ -50,7 +50,7 @@ export default function IconButton({
             </Tooltip.Content>
           </Tooltip.Portal>
         ) : null}
-        <Tooltip.Trigger>
+        <Tooltip.Trigger asChild>
           <button
             className={cn(
               'flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50',

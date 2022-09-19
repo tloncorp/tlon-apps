@@ -78,15 +78,31 @@ export default function makeWritsStore(
               }
               // const time = bigInt(udToDec(delta.del));
               // draft.dms[ship].writs = draft.dms[ship].writs.delete(time);
-            } else if ('add-feel' in delta) {
-              // TODO: map from rcv -> id
-              /*
-             * const d = delta['add-feel'];
-            const time = bigInt(udToDec(d.time));
-            const writ = draft.dms[ship].writs.get(time);
-            writ.seal.feels[d.ship] = d.feel;
-            draft.dms[ship].writs = draft.dms[ship].writs.set(time, writ);
-            */
+            } else if ('add-feel' in delta && pact.index[id]) {
+              const time = pact.index[id];
+              const msg = pact.writs.get(time);
+              const { ship, feel } = delta['add-feel'];
+
+              pact.writs = pact.writs.set(time, {
+                ...msg,
+                seal: {
+                  ...msg.seal,
+                  feels: {
+                    ...msg.seal.feels,
+                    [ship]: feel,
+                  },
+                },
+              });
+            } else if ('del-feel' in delta && pact.index[id]) {
+              const time = pact.index[id];
+              const msg = pact.writs.get(time);
+              const ship = delta['del-feel'];
+              delete msg.seal.feels[ship];
+
+              pact.writs = pact.writs.set(time, {
+                ...msg,
+                seal: msg.seal,
+              });
             }
             draft.pacts[whom] = pact;
           });

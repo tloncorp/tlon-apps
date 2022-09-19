@@ -53,6 +53,8 @@ export interface ChatState {
   unarchiveDm: (ship: string) => Promise<void>;
   sendMessage: (whom: string, memo: ChatMemo) => void;
   delMessage: (flag: string, time: string) => void;
+  addFeel: (whom: string, id: string, feel: string) => Promise<void>;
+  delFeel: (whom: string, id: string) => Promise<void>;
   addSects: (flag: string, writers: string[]) => Promise<void>;
   delSects: (flag: string, writers: string[]) => Promise<void>;
   create: (req: ChatCreate) => Promise<void>;

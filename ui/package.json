@@ -39,6 +39,8 @@
     ]
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.0.6",
+    "@emoji-mart/react": "^1.0.1",
     "@faker-js/faker": "^6.3.1",
     "@radix-ui/react-dialog": "^0.1.7",
     "@radix-ui/react-dropdown-menu": "^0.1.6",
@@ -78,6 +80,7 @@
     "color2k": "^2.0.0",
     "cross-fetch": "^3.1.5",
     "date-fns": "^2.28.0",
+    "emoji-mart": "^5.2.2",
     "fast-average-color": "^9.1.1",
     "framer-motion": "^6.5.1",
     "fuzzy": "^0.1.3",
