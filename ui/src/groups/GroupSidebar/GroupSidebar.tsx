@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
@@ -25,6 +26,7 @@ function GroupHeader() {
   const [coverImgColor, setCoverImgColor] = useState('');
   const cover = useRef(null);
   const fac = new FastAverageColor();
+  const averageSucceeded = isColor(coverImgColor);
   const dark = useMedia('(prefers-color-scheme: dark)');
   const hoverFallbackForeground = dark ? 'white' : 'black';
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
@@ -37,7 +39,7 @@ function GroupHeader() {
     fac
       .getColorAsync(cover.current)
       .then((color) => {
-        setCoverImgColor(color.hex);
+        setCoverImgColor('');
       })
       .catch(() => null);
   };
@@ -62,15 +64,13 @@ function GroupHeader() {
     // debugger;
     if (group && !isColor(group.meta.cover)) {
       return {
-        color: isColor(coverImgColor)
+        color: averageSucceeded
           ? foregroundFromBackground(coverImgColor)
           : hoverFallbackForeground,
         backgroundColor:
           groupCoverHover === true
             ? transparentize(
-                isColor(coverImgColor)
-                  ? coverImgColor
-                  : hoverFallbackBackground,
+                averageSucceeded ? coverImgColor : hoverFallbackBackground,
                 0.33
               )
             : 'transparent',
@@ -84,7 +84,11 @@ function GroupHeader() {
       return {
         color: foregroundFromBackground(group.meta.cover),
       };
-    return { color: foregroundFromBackground(coverImgColor) };
+    return {
+      color: averageSucceeded
+        ? foregroundFromBackground(coverImgColor)
+        : hoverFallbackForeground,
+    };
   };
 
   return (
@@ -104,7 +108,16 @@ function GroupHeader() {
         className="group relative mb-2 flex w-full flex-col justify-between text-lg font-semibold text-gray-600 sm:text-base"
       >
         <SidebarItem
-          icon={<CaretLeft16Icon className="m-1 h-4 w-4" />}
+          icon={
+            <CaretLeft16Icon
+              className={cn(
+                'm-1 h-4 w-4',
+                !averageSucceeded &&
+                  dark &&
+                  'drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]'
+              )}
+            />
+          }
           to="/"
           onClick={() => navPrimary('main')}
           onMouseEnter={() => setGroupCoverHover(true)}
@@ -121,7 +134,12 @@ function GroupHeader() {
             <div
               title={group?.meta.title}
               style={coverTitleStyles()}
-              className="max-w-full flex-1 truncate text-left"
+              className={cn(
+                'max-w-full flex-1 truncate text-left',
+                !averageSucceeded &&
+                  dark &&
+                  'drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]'
+              )}
             >
               {group?.meta.title}
             </div>
