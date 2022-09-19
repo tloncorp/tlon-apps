@@ -79,7 +79,7 @@ export default function HeapDetail() {
         />
       }
     >
-      <div className="flex flex-wrap lg:h-full lg:flex-nowrap">
+      <div className="flex h-full w-full flex-col overflow-y-auto lg:flex-row">
         <div className="group relative flex-1">
           {hasNext ? (
             <Link
@@ -107,7 +107,7 @@ export default function HeapDetail() {
             </Link>
           ) : null}
         </div>
-        <div className="mt-5 flex h-full w-full flex-col border-gray-50 bg-white lg:mt-0 lg:w-72 lg:border-l-2 xl:w-96">
+        <div className="flex w-full flex-col border-gray-50 bg-white sm:mt-5 lg:mt-0 lg:h-full lg:w-72 lg:border-l-2 xl:w-96">
           <HeapDetailSidebarInfo curio={curio} />
           <HeapDetailComments time={time} />
         </div>
