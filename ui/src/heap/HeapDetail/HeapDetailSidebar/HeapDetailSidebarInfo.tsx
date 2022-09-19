@@ -31,7 +31,7 @@ export default function HeapDetailSidebarInfo({
             href={stringContent}
             target="_blank"
             rel="noreferrer"
-            className="text-ellipsis font-semibold text-gray-600 underline line-clamp-1"
+            className="text-ellipsis break-all font-semibold text-gray-600 underline line-clamp-1"
           >
             {stringContent}
           </a>
