@@ -46,6 +46,9 @@ export default function ChatReaction({
         <button
           onClick={editFeel}
           className="group relative flex items-center space-x-2 rounded border border-solid border-transparent bg-gray-50 px-2 py-1 text-sm font-semibold leading-4 text-gray-600 group-one-hover:border-gray-100"
+          aria-label={
+            isMine ? 'Remove reaction' : `Add ${feel.replaceAll(':', '')}`
+          }
         >
           <em-emoji shortcodes={feel} />
           <span className={cn(isMine && 'group-hover:opacity-0')}>{count}</span>
