@@ -7,7 +7,6 @@ import { ChatBlock, ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
-import AddIcon from '@/components/icons/AddIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import {
   fetchChatBlocks,
@@ -16,8 +15,6 @@ import {
 } from '@/chat/useChatStore';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { randomElement } from '@/logic/utils';
-import { Image, PLACEHOLDER_IMAGES } from '@/constants';
 import {
   normalizeInline,
   inlinesToJSON,
@@ -187,7 +184,7 @@ export default function ChatInput({
           <div className="flex items-center justify-end">
             <Avatar size="xs" ship={window.our} className="mr-2" />
             <MessageEditor editor={messageEditor} className="w-full" />
-            <button
+            {/* <button
               // this is not contained by relative because of a bug in radix popovers
               title={'Insert Test Image'}
               className="absolute mr-2 text-gray-600 hover:text-gray-800"
@@ -211,7 +208,7 @@ export default function ChatInput({
               }}
             >
               <AddIcon className="h-6 w-4" />
-            </button>
+            </button> */}
           </div>
         </div>
         <button
