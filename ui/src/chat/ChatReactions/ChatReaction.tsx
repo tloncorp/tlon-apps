@@ -11,26 +11,22 @@ interface ChatReactionProps {
   whom: string;
   seal: ChatSeal;
   feel: string;
-  ship: string;
+  ships: string[];
 }
 
 export default function ChatReaction({
   whom,
   seal,
   feel,
-  ship,
+  ships,
 }: ChatReactionProps) {
   const { load } = useEmoji();
-  const isMine = ship === window.our;
+  const isMine = ships.includes(window.our);
+  const count = ships.length;
 
   useEffect(() => {
     load();
   }, [load]);
-
-  const count = _.flow(
-    f.pickBy((fe: string) => fe === feel),
-    f.keys
-  )(seal.feels).length;
 
   const editFeel = useCallback(() => {
     if (isMine) {
