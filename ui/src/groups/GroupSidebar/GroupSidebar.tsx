@@ -39,7 +39,7 @@ function GroupHeader() {
     fac
       .getColorAsync(cover.current)
       .then((color) => {
-        setCoverImgColor('');
+        setCoverImgColor(color.hex);
       })
       .catch(() => null);
   };
