@@ -1,7 +1,7 @@
 :~  title+'Groups'
     info+'Start, host, and cultivate communities. Own your communications, organize your resources, and share documents. Groups is a decentralized platform that integrates with Talk, Notebook, and Gallery for a full, communal suite of tools.'
-    color+0x60.94d2
-    image+'https://bootstrap.urbit.org/icon-groups.svg'
+    color+0xef.f0f4
+    image+'https://bootstrap.urbit.org/icon-groups.svg?v=1'
     glob-http+['https://bootstrap.urbit.org/glob-0v7.se1s7.cbv8t.6c6vb.naoi7.7n23b.glob' 0v7.se1s7.cbv8t.6c6vb.naoi7.7n23b]
     base+'groups'
     version+[0 1 0]
