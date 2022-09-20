@@ -10,27 +10,28 @@ All types are located in `/sur/heap`
 
 - `$flag`: identifier for a heap channel
 - `$heap`: a collection of curiosities, otherwise known as a gallery,
-  used for collecting links, images, text snippets
+  used for collecting links, images, and text snippets
 - `$view`: the persisted display format for a heap
-- `$perm`: represents the permissions for a heap channel and gives a
-  pointer back to the group it belongs to.
+- `$perm`: represents the permissions for a heap channel with a pointer
+  back to the enclosing group.
 - `$stash`: heaps I've joined
 - `$curio`: an item in the collection or a comment about an item
 - `$curios`: a set of time ordered heap items
-- `$feel`: either an emoji identifier like :wave or a URL for custom
+- `$feel`: either an emoji identifier like :wave or a URL for custom identifiers
 - `$seal`: the id of a curio and its meta-responses
 - `$heart`: the curio data itself
 - `$inline`: curio content that flows within a paragraph
 - `$action`: the complete set of data required to modify a heap
-- `$update`: a representation in time of a modification to a heap
+- `$update`: a time representation of a modification to a heap
 - `$diff`: the full suite of modifications that can be made to a heap
 - `$log`: a time ordered history of modifications to a heap
-- `$net`: an indicator of whether I'm a host or subscriber
+- `$net`: host or subscriber indicator
 - `$briefs`: a map of heap unread information
 - `$remark`: a marker representing the last note I've read
 - `$leave`: a flag to pass for a channel leave
-- `$create`: represents a request to create a channel, also gets sent to
+- `$create`: represents a channel creation request - gets sent to
   groups to finish creation
+
 
 ## api
 

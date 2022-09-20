@@ -8,13 +8,13 @@
 
 Groups is an app for organizing and coming together with your friends.
 
-It currently provides five agents:
+It currently defines five agents:
 - *%groups:* facilitates forming, managing, and joining groups
-- *%chat:* allows for creating chat channels, in addition supports the
+- *%chat:* allows for the creation of chat channels and the
   ability to create 1:1 and 1:many direct messages
-- *%heap:* allows for creating a channel with collections of links and 
-  text snippets, and the ability to comment on those items
-- *%diary:* allows for creating a channel for longform communication, 
-  supports different display modes and commenting
-- *%hark:* allows for creating generic notifications and also notifications
-  about specific groups/channels, and sourcing where they came from
+- *%heap:* allows for the creation of channels with collections of links and
+  text snippets. Supports comments on items in those channels.
+- *%diary:* allows for the creation of channels for longform communication.
+  Supports commenting and multiple display modes.
+- *%hark:* allows for the creation of generic notifications and notifications
+  about specific groups/channels. Tracks provenance.
