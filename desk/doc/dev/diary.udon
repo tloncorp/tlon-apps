@@ -1,6 +1,6 @@
 ;>
 The diary agent is entirely concerned with creating a channel for longform 
-communication. It supports different display modes and commenting.
+communication. It supports commenting and different display modes.
 
 ## types
 
@@ -17,18 +17,18 @@ All types are located in `/sur/diary`
 - `$notes`: a set of time ordered diary posts
 - `$quip`: a post comment
 - `$quips`: a set of time ordered note comments
-- `$feel`: either an emoji identifier like :wave or a URL for custom
+- `$feel`: either an emoji identifier like :wave or a URL for custom identifiers
 - `$seal`: the id and reactions to a post
 - `$essay`: the post data itself
 - `$memo`: the comment data itself
 - `$verse`: a chunk of post content
-- `$block`: post content that sits outside of the normal text
+- `$block`: content which stands on its own (outside of normal text)
 - `$inline`: post content that flows within a paragraph
 - `$action`: the complete set of data required to modify a diary
-- `$update`: a representation in time of a modification to a diary
+- `$update`: a time representation of a modification to a diary
 - `$diff`: the full suite of modifications that can be made to a diary
 - `$log`: a time ordered history of modifications to a diary
-- `$net`: an indicator of whether I'm a host or subscriber
+- `$net`: host or subscriber indicator
 - `$briefs`: a map of diary unread information
 - `$remark`: a marker representing the last note I've read
 - `$leave`: a flag to pass for a channel leave
@@ -63,15 +63,15 @@ Each scry is organized by path
   - `/perm` grabs the permissions for the channel
   - `/notes`
     - `/newest/\{count}` grabs the last `count` notes
-    - `/older/\{start}/\{count}` grabs `count` number of notes previous, 
+    - `/older/\{start}/\{count}` grabs `count` number of notes before, 
     starting from `start`
     - `/newer/\{start}/\{count}` grabs `count` number of notes ahead, 
     starting from `start`
-    - `/note/id/\{time}` grabs the note at the time
+    - `/note/id/\{time}` grabs the note at the given time
   - `/quips` 
     - `/all` grabs all the comments in the map
     - `/newest/\{count}` grabs the last `count` comments
-    - `/older/\{start}/\{count}` grabs `count` number of comments previous, 
+    - `/older/\{start}/\{count}` grabs `count` number of comments before, 
     starting from `start`
     - `/newer/\{start}/\{count}` grabs `count` number of comments ahead, 
     starting from `start`
