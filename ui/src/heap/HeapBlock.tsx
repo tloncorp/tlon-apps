@@ -3,6 +3,7 @@ import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import useEmbedState from '@/state/embed';
+import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import { formatDistanceToNow } from 'date-fns';
@@ -27,6 +28,7 @@ interface CurioDisplayProps {
 interface TopBarProps extends CurioDisplayProps {
   isTwitter?: boolean;
   hasIcon?: boolean;
+  canEdit: boolean;
 }
 
 function TopBar({
@@ -35,6 +37,7 @@ function TopBar({
   refToken = undefined,
   asRef = false,
   time,
+  canEdit,
 }: TopBarProps) {
   const nest = useNest();
   const {
@@ -120,7 +123,8 @@ function TopBar({
               >
                 {justCopied ? 'Copied' : 'Share'}
               </button>
-            ) : (
+            ) : null}
+            {!asRef && canEdit ? (
               <>
                 <button onClick={onEdit} className="small-menu-button">
                   Edit
@@ -132,7 +136,7 @@ function TopBar({
                   Delete
                 </button>
               </>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -197,6 +201,10 @@ export default function HeapBlock({
 
   const { isImage, isAudio, isText } = useHeapContentType(url);
 
+  const flag = useRouteGroup();
+  const isAdmin = useAmAdmin(flag);
+  const canEdit = isAdmin || window.our === curio.heart.author;
+
   useEffect(() => {
     const getOembed = async () => {
       if (isValidUrl(url)) {
@@ -219,7 +227,7 @@ export default function HeapBlock({
   if (isText) {
     return (
       <div className={cnm()}>
-        <TopBar hasIcon {...topBar} />
+        <TopBar hasIcon canEdit={canEdit} {...topBar} />
         <HeapContent
           className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
           leading-6
@@ -247,7 +255,7 @@ export default function HeapBlock({
           backgroundImage: `url(${url})`,
         }}
       >
-        <TopBar {...topBar} />
+        <TopBar canEdit {...topBar} />
         <BottomBar
           {...botBar}
           provider="Image"
@@ -260,7 +268,7 @@ export default function HeapBlock({
   if (isAudio) {
     return (
       <div className={cnm()}>
-        <TopBar hasIcon {...topBar} />
+        <TopBar hasIcon canEdit {...topBar} />
         <div className="flex flex-col items-center justify-center">
           <MusicLargeIcon className="h-16 w-16 text-gray-300" />
         </div>
@@ -286,7 +294,7 @@ export default function HeapBlock({
             backgroundImage: `url(${thumbnail})`,
           }}
         >
-          <TopBar {...topBar} />
+          <TopBar canEdit={canEdit} {...topBar} />
           <BottomBar
             {...botBar}
             provider={provider}
@@ -301,7 +309,7 @@ export default function HeapBlock({
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
         <div className={cnm()}>
-          <TopBar isTwitter {...topBar} />
+          <TopBar isTwitter canEdit={canEdit} {...topBar} />
           <div className="flex flex-col items-center justify-center">
             <img
               className="h-[46px] w-[46px] rounded-full"
@@ -321,7 +329,7 @@ export default function HeapBlock({
     }
     return (
       <div className={cnm()}>
-        <TopBar hasIcon {...topBar} />
+        <TopBar hasIcon canEdit={canEdit} {...topBar} />
         <div className="flex grow flex-col items-center justify-center">
           <LinkIcon className="h-16 w-16 text-gray-300" />
         </div>
@@ -336,7 +344,7 @@ export default function HeapBlock({
 
   return (
     <div className={cnm()}>
-      <TopBar hasIcon {...topBar} />
+      <TopBar hasIcon canEdit={canEdit} {...topBar} />
       <div className="flex grow flex-col items-center justify-center">
         <LinkIcon className="h-16 w-16 text-gray-300" />
       </div>
