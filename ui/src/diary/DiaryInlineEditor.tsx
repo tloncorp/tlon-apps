@@ -289,7 +289,7 @@ export function useDiaryInlineEditor({
         Paragraph,
         Placeholder.configure({
           placeholder:
-            'Start writing here, or click the menu to add a link block',
+            'Start writing here. Highlight text to add formatting, or type the forward slash (/) to insert block content.',
           showOnlyCurrent: false,
           showOnlyWhenEditable: false,
           includeChildren: true,
