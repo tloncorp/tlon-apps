@@ -206,15 +206,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               <FindGroups title={`Find Groups • ${appHead('').title}`} />
             }
           />
-          <Route
-            path="/groups/:ship/:name"
-            element={
-              <Notifications
-                child={GroupNotification}
-                title={`• ${appHead('').title}`}
-              />
-            }
-          />
+          <Route path="/groups/:ship/:name" element={<Groups />} />
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
             <Route
               path="activity"
