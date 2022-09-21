@@ -1,7 +1,15 @@
+import _ from 'lodash';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import { pluralize } from '@/logic/utils';
-import { useBrief, useDiaryState, useNote, useQuips } from '@/state/diary';
+import {
+  useBrief,
+  useDiaryState,
+  useNote,
+  useQuips,
+  useDiaryPerms,
+} from '@/state/diary';
+import { useRouteGroup, useVessel } from '@/state/groups/groups';
 import { DiaryBrief, DiaryQuip } from '@/types/diary';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -79,7 +87,9 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 export default function DiaryNote() {
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
+  const flag = useRouteGroup();
   const [, note] = useNote(chFlag, noteId)!;
+  const vessel = useVessel(flag, window.our);
   const quips = useQuips(chFlag, noteId);
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const brief = useBrief(chFlag);
@@ -94,6 +104,11 @@ export default function DiaryNote() {
       return b.localeCompare(a);
     })
   );
+
+  const perms = useDiaryPerms(chFlag);
+  const canWrite =
+    perms.writers.length === 0 ||
+    _.intersection(perms.writers, vessel.sects).length !== 0;
 
   const setSort = useCallback(
     (setting: 'asc' | 'dsc') => {
@@ -155,7 +170,9 @@ export default function DiaryNote() {
                 </Dropdown.Content>
               </Dropdown.Root>
             </div>
-            <DiaryCommentField flag={chFlag} replyTo={noteId} />
+            {canWrite ? (
+              <DiaryCommentField flag={chFlag} replyTo={noteId} />
+            ) : null}
             <ul className="mt-12">
               {groupedQuips.map(([t, group]) =>
                 group.map((props) => (
