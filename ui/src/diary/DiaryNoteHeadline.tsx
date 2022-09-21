@@ -11,6 +11,7 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import DiaryNoteOptionsDropdown from '@/diary/DiaryNoteOptionsDropdown';
+import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import { useGroupFlag } from '@/state/groups';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { useNavigate } from 'react-router-dom';
@@ -29,6 +30,7 @@ export default function DiaryNoteHeadline({
   isInList,
 }: DiaryListItemProps) {
   const chFlag = useChannelFlag();
+  const flag = useRouteGroup();
   const navigate = useNavigate();
   const quips = useQuips(chFlag || '', time.toString());
   const { justCopied, onCopy } = useDiaryActions({
@@ -41,6 +43,8 @@ export default function DiaryNoteHeadline({
     f.uniq,
     f.take(3)
   )([...quips].map(([, v]) => v.memo.author));
+
+  const isAdmin = useAmAdmin(flag);
 
   return (
     <>
@@ -97,6 +101,7 @@ export default function DiaryNoteHeadline({
                 <DiaryNoteOptionsDropdown
                   time={time.toString()}
                   flag={chFlag || ''}
+                  canEdit={isAdmin || window.our === note.essay.author}
                 >
                   <IconButton
                     className="h-8 w-8"

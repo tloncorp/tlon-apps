@@ -9,7 +9,7 @@ import {
   useQuips,
   useDiaryPerms,
 } from '@/state/diary';
-import { useRouteGroup, useVessel } from '@/state/groups/groups';
+import { useRouteGroup, useVessel, useAmAdmin } from '@/state/groups/groups';
 import { DiaryBrief, DiaryQuip } from '@/types/diary';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -90,6 +90,7 @@ export default function DiaryNote() {
   const flag = useRouteGroup();
   const [, note] = useNote(chFlag, noteId)!;
   const vessel = useVessel(flag, window.our);
+  const isAdmin = useAmAdmin(flag);
   const quips = useQuips(chFlag, noteId);
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const brief = useBrief(chFlag);
@@ -133,7 +134,12 @@ export default function DiaryNote() {
     <Layout
       className="h-full flex-1 bg-white"
       header={
-        <DiaryNoteHeader title={note.essay.title} flag={chFlag} time={noteId} />
+        <DiaryNoteHeader
+          title={note.essay.title}
+          flag={chFlag}
+          time={noteId}
+          canEdit={isAdmin || window.our === note.essay.author}
+        />
       }
     >
       <div className="h-full overflow-y-scroll p-6">
