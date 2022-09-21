@@ -2,6 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
+import { useLocalStorage } from 'usehooks-ts';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup, useChannel, useGroup } from '@/state/groups/groups';
@@ -21,6 +22,7 @@ import {
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
+import { createStorageKey } from '@/logic/utils';
 import { GRID, HeapCurio, HeapDisplayMode } from '@/types/heap';
 import bigInt from 'big-integer';
 import NewCurioForm from './NewCurioForm';
@@ -32,6 +34,10 @@ function HeapChannel({ title }: ViewProps) {
   const flag = useRouteGroup();
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
+  const [, setRecent] = useLocalStorage(
+    createStorageKey(`recent-chan:${flag}`),
+    ''
+  );
 
   const navigate = useNavigate();
   const displayMode = useHeapDisplayMode(chFlag);
@@ -65,7 +71,8 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     useHeapState.getState().initialize(chFlag);
-  }, [chFlag]);
+    setRecent(nest);
+  }, [chFlag, nest, setRecent]);
 
   useDismissChannelNotifications({
     markRead: useHeapState.getState().markRead,

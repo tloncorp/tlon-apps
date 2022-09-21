@@ -15,16 +15,23 @@ import {
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
+import { createStorageKey } from '@/logic/utils';
+import { useLocalStorage } from 'usehooks-ts';
 
 function ChatChannel({ title }: ViewProps) {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
   const flag = useRouteGroup();
+  const [, setRecent] = useLocalStorage(
+    createStorageKey(`recent-chan:${flag}`),
+    ''
+  );
 
   useEffect(() => {
     useChatState.getState().initialize(chFlag);
-  }, [chFlag]);
+    setRecent(nest);
+  }, [chFlag, nest, setRecent]);
 
   const messages = useMessagesForChat(chFlag);
   const perms = useChatPerms(chFlag);

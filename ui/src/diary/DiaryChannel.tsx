@@ -19,7 +19,9 @@ import useDismissChannelNotifications from '@/logic/useDismissChannelNotificatio
 import { DiaryDisplayMode } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
+import { useLocalStorage } from 'usehooks-ts';
 import * as Toast from '@radix-ui/react-toast';
+import { createStorageKey } from '@/logic/utils';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
@@ -31,6 +33,10 @@ function DiaryChannel() {
   const notes = useNotesForDiary(chFlag);
   const location = useLocation();
   const navigate = useNavigate();
+  const [, setRecent] = useLocalStorage(
+    createStorageKey(`recent-chan:${flag}`),
+    ''
+  );
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
   const { justCopied, onCopy } = useDiaryActions({
@@ -63,7 +69,8 @@ function DiaryChannel() {
 
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
-  }, [chFlag]);
+    setRecent(nest);
+  }, [chFlag, nest, setRecent]);
 
   useEffect(() => {
     let timeout: any;
