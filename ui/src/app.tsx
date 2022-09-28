@@ -64,6 +64,8 @@ import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
+import AlphaNotice from './components/AlphaNotice';
+import useAppName from './logic/useAppName';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -346,6 +348,7 @@ function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
   const isChat = useIsChat();
+  const app = useAppName();
 
   useEffect(() => {
     handleError(() => {
@@ -376,7 +379,8 @@ function App() {
   const state = location.state as { backgroundLocation?: Location } | null;
 
   return (
-    <div className="flex h-full w-full">
+    <div className="flex h-full w-full flex-col">
+      <AlphaNotice app={app} />
       {isChat ? (
         <ChatRoutes state={state} location={location} />
       ) : (
