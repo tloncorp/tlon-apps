@@ -3,6 +3,7 @@ import f from 'lodash/fp';
 import React from 'react';
 import { useNavigate } from 'react-router';
 import { DiaryNote } from '@/types/diary';
+import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import IconButton from '@/components/IconButton';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
@@ -31,6 +32,10 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
     flag: chFlag || '',
     time: time.toString(),
   });
+
+  const flag = useRouteGroup();
+  const isAdmin = useAmAdmin(flag);
+  const canEdit = isAdmin || window.our === note.essay.author;
 
   const commenters = _.flow(
     f.compact,
@@ -86,7 +91,11 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
             )
           }
         />
-        <DiaryNoteOptionsDropdown time={time.toString()} flag={chFlag || ''}>
+        <DiaryNoteOptionsDropdown
+          canEdit={canEdit}
+          time={time.toString()}
+          flag={chFlag || ''}
+        >
           <IconButton
             className="h-8 w-8"
             label="Options"

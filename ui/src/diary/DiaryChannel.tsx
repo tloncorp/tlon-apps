@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup } from '@/state/groups/groups';
+import { useRouteGroup, useVessel } from '@/state/groups/groups';
 import {
   useNotesForDiary,
   useDiaryState,
   useDiaryDisplayMode,
+  useDiaryPerms,
 } from '@/state/diary';
 import {
   DiarySetting,
@@ -28,6 +30,7 @@ function DiaryChannel() {
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
+  const vessel = useVessel(flag, window.our);
   const notes = useNotesForDiary(chFlag);
   const location = useLocation();
   const navigate = useNavigate();
@@ -60,6 +63,12 @@ function DiaryChannel() {
       .getState()
       .putEntry('diary', 'settings', JSON.stringify(newSettings));
   };
+
+  const perms = useDiaryPerms(chFlag);
+
+  const canWrite =
+    perms.writers.length === 0 ||
+    _.intersection(perms.writers, vessel.sects).length !== 0;
 
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
@@ -118,9 +127,14 @@ function DiaryChannel() {
           sortMode={sortMode}
           setSortMode={setSortMode}
         >
-          <Link to="edit" className="button bg-blue text-white dark:text-black">
-            Add Note
-          </Link>
+          {canWrite ? (
+            <Link
+              to="edit"
+              className="button bg-blue text-white dark:text-black"
+            >
+              Add Note
+            </Link>
+          ) : null}
         </ChannelHeader>
       }
     >
