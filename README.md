@@ -4,6 +4,8 @@ Start, host, and cultivate communities with Groups. Own your communications, org
 
 Send encrypted direct messages to one or many friends with Talk. Talk is a simple chat tool for catching up, getting work done, and everything in between.
 
+![image](https://user-images.githubusercontent.com/16504501/192852371-bbe4b410-c981-42bb-b8ac-79fd18edda43.png)
+
 - [Learn more about Tlon Corporation →](https://tlon.io/)
 - [Learn more about Urbit →](https://urbit.org/)
 
@@ -30,48 +32,16 @@ Groups and Talk are under active development with a full 1.0 release date in sig
 
 ---
 
-## Glossary
+## Getting Started
 
-_brief_
-: a representation of the last thing we've seen, and how many new items since
+1. From the home view in your Urbit, search for `~marnec-dozzod-marzod`
 
-_cabal_
-: contains the metadata for a role
+![Screenshot from 2022-09-28 10-46-48](https://user-images.githubusercontent.com/16504501/192852855-3cfa9058-4549-42cd-8b7d-d934050c4f2f.png)
 
-_chat_
-: backend term for a group chat
+2. Select **Groups**
 
-_club_
-: backend term for a multi-DM group (distinct from a `chat` and a `dm`)
+![Screenshot from 2022-09-28 11-10-19](https://user-images.githubusercontent.com/16504501/192857107-c022dd24-2972-4cee-90d2-a9325ca09112.png)
 
-_cordon_
-: represents a group's permissions. `open` allows anyone to enter but
-those banned, `shut` requires requesting to join, `afar` is a custom policy
-determined by another agent
+3. Click **Get App**
 
-_curio_
-: represents an item in a collection
-
-_dm_
-: backend term for a 1:1 message
-
-_flag_
-: composite identifier consisting of `ship/group-name` used to key state and in routes
-
-_fleet_
-: the map of ships that are part of a group
-
-_gang_
-: a group invite
-
-_heap_
-: a collection
-
-_sect_
-: a term representing a role
-
-_stash_
-: all heaps we are a part of
-
-_vessel_
-: represents the roles a group member has and their join time
+![Screenshot from 2022-09-28 11-11-03](https://user-images.githubusercontent.com/16504501/192857238-c70f3d6b-16c2-4893-a11e-ebde5eb4dbaf.png)
