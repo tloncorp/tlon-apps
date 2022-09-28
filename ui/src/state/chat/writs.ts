@@ -139,7 +139,7 @@ export default function makeWritsStore(
           pact.writs = pact.writs.set(tim, writ);
           pact.index[writ.seal.id] = tim;
         });
-        draft.pacts[whom] = pact;
+        draft.pacts[whom] = { ...pact };
       });
 
       const newMessageSize = get().pacts[whom].writs.size;
@@ -147,7 +147,7 @@ export default function makeWritsStore(
     },
     getOlder: async (count: string) => {
       // TODO: fix for group chats
-      const { pacts } = get();
+      const { pacts, batchSet } = get();
       const pact = pacts[whom];
 
       const oldMessagesSize = pact.writs.size ?? 0;
@@ -168,14 +168,14 @@ export default function makeWritsStore(
         path: `${scryPath}/older/${fetchStart}/${count}`,
       });
 
-      get().batchSet((draft) => {
+      batchSet((draft) => {
         Object.keys(writs).forEach((key) => {
           const writ = writs[key];
           const tim = bigInt(udToDec(key));
           pact.writs = pact.writs.set(tim, writ);
           pact.index[writ.seal.id] = tim;
         });
-        draft.pacts[whom] = pact;
+        draft.pacts[whom] = { ...pact };
       });
 
       const newMessageSize = get().pacts[whom].writs.size;
