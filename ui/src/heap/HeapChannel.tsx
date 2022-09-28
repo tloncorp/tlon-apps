@@ -1,15 +1,22 @@
 import React, { useCallback, useEffect } from 'react';
+import _ from 'lodash';
 import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
 import { useLocalStorage } from 'usehooks-ts';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup, useChannel, useGroup } from '@/state/groups/groups';
+import {
+  useRouteGroup,
+  useChannel,
+  useGroup,
+  useVessel,
+} from '@/state/groups/groups';
 import {
   useCuriosForHeap,
   useHeapDisplayMode,
   useHeapState,
+  useHeapPerms,
 } from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
@@ -46,6 +53,11 @@ function HeapChannel({ title }: ViewProps) {
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
   const curios = useCuriosForHeap(chFlag);
+  const perms = useHeapPerms(chFlag);
+  const vessel = useVessel(flag, window.our);
+  const canWrite =
+    perms.writers.length === 0 ||
+    _.intersection(perms.writers, vessel.sects).length !== 0;
 
   const setDisplayMode = (setting: HeapDisplayMode) => {
     useHeapState.getState().viewHeap(chFlag, setting);
@@ -128,7 +140,7 @@ function HeapChannel({ title }: ViewProps) {
             displayMode === 'grid' && 'grid-cols-minmax'
           )}
         >
-          <NewCurioForm />
+          {canWrite ? <NewCurioForm /> : null}
           {
             // Here, we sort the array by recently added and then filter out curios with a "replying" property
             // as those are comments and shouldn't show up in the main view

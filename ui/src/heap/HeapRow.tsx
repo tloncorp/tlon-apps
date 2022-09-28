@@ -16,6 +16,7 @@ import HeapLoadingRow from '@/heap/HeapLoadingRow';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import TextIcon from '@/components/icons/Text16Icon';
+import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import useCurioActions from './useCurioActions';
 
 export default function HeapRow({
@@ -33,6 +34,9 @@ export default function HeapRow({
   const { replied } = curio.seal;
   // TODO: improve this
   const contentString = content.length > 0 ? content[0].toString() : '';
+  const flag = useRouteGroup();
+  const isAdmin = useAmAdmin(flag);
+  const canEdit = isAdmin || window.our === curio.heart.author;
 
   const { isText, isImage, isUrl, isAudio, description } =
     useHeapContentType(contentString);
@@ -123,33 +127,40 @@ export default function HeapRow({
         className="flex space-x-1 text-gray-400"
         onClick={(e) => e.stopPropagation()}
       >
-        <button onClick={onCopy} className="icon-button bg-transparent">
+        <button
+          onClick={onCopy}
+          className={cn('icon-button bg-transparent', !canEdit ? 'mr-3' : '')}
+        >
           {justCopied ? (
             <CheckIcon className="h-6 w-6" />
           ) : (
             <CopyIcon className="h-6 w-6" />
           )}
         </button>
-        <button
-          className="icon-button bg-transparent"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          <ElipsisIcon className="h-6 w-6" />
-        </button>
-        <div
-          className={cn(
-            'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
-            { hidden: !menuOpen }
-          )}
-          onMouseLeave={() => setMenuOpen(false)}
-        >
-          <button onClick={onEdit} className="small-menu-button">
-            Edit
-          </button>
-          <button className="small-menu-button text-red" onClick={onDelete}>
-            Delete
-          </button>
-        </div>
+        {canEdit ? (
+          <>
+            <button
+              className="icon-button bg-transparent"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              <ElipsisIcon className="h-6 w-6" />
+            </button>
+            <div
+              className={cn(
+                'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
+                { hidden: !menuOpen }
+              )}
+              onMouseLeave={() => setMenuOpen(false)}
+            >
+              <button onClick={onEdit} className="small-menu-button">
+                Edit
+              </button>
+              <button className="small-menu-button text-red" onClick={onDelete}>
+                Delete
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
