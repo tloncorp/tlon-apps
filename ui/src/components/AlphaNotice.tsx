@@ -1,7 +1,10 @@
 import React from 'react';
+import useAppName from '@/logic/useAppName';
 import ButterBar from './ButterBar';
 
-export default function AlphaNotice({ app }: { app: string }) {
+export default function AlphaNotice() {
+  const app = useAppName();
+
   return (
     <ButterBar
       dismissKey={`${app}-alpha-notice-dismissed`}

@@ -2,7 +2,6 @@ import cn from 'classnames';
 import React, { useCallback } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
-// import useFilterUnjoinedChannels from '@/logic/useFilterUnjoinedChannels';
 import { channelHref, nestToFlag, filterJoinedChannels } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups';
