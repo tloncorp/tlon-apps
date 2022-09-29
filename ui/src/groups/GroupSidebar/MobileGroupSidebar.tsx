@@ -1,18 +1,15 @@
-import cn from 'classnames';
 import React from 'react';
-import { Routes, Route } from 'react-router';
-import { useGroup } from '../../state/groups/groups';
-import GroupAvatar from '../GroupAvatar';
-import CaretLeftIcon from '../../components/icons/CaretLeftIcon';
-import HashIcon from '../../components/icons/HashIcon';
-import MagnifyingGlass from '../../components/icons/MagnifyingGlassIcon';
-import AsteriskIcon from '../../components/icons/Asterisk16Icon';
-import useNavStore from '../../components/Nav/useNavStore';
-import NavTab from '../../components/NavTab';
-import ActivityIndicator from '../../components/Sidebar/ActivityIndicator';
+import cn from 'classnames';
+import { useGroup } from '@/state/groups/groups';
+import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import HashIcon from '@/components/icons/HashIcon';
+import AsteriskIcon from '@/components/icons/Asterisk16Icon';
+import useNavStore from '@/components/Nav/useNavStore';
+import NavTab from '@/components/NavTab';
+import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import ChannelList from './ChannelList';
 import MobileGroupActions from '../MobileGroupActions';
-import GroupAdmin from '../GroupAdmin/GroupAdmin';
+import GroupAvatar from '../GroupAvatar';
 
 export default function MobileGroupSidebar() {
   const { navPrimary, flag, secondary } = useNavStore((state) => ({
@@ -73,10 +70,6 @@ export default function MobileGroupSidebar() {
               <ActivityIndicator count={activityCount} className="mb-0.5" />
               Activity
             </NavTab>
-            {/* <NavTab loc="search">
-              <MagnifyingGlass className="mb-0.5 h-6 w-6" />
-              Find
-            </NavTab> */}
             <a
               className="flex-1 no-underline"
               href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"
