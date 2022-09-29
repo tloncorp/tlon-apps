@@ -114,6 +114,10 @@ export default function makeWritsStore(
       const { pacts } = get();
       const pact = pacts[whom];
 
+      if (!pact) {
+        return false;
+      }
+
       const oldMessagesSize = pact.writs.size ?? 0;
       if (oldMessagesSize === 0) {
         // already loading the graph
@@ -149,6 +153,10 @@ export default function makeWritsStore(
       // TODO: fix for group chats
       const { pacts, batchSet } = get();
       const pact = pacts[whom];
+
+      if (!pact) {
+        return false;
+      }
 
       const oldMessagesSize = pact.writs.size ?? 0;
       if (oldMessagesSize === 0) {

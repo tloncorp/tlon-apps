@@ -9,15 +9,15 @@ import { differenceInDays } from 'date-fns';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
-import ChatWritScroller from './ChatWritScroller';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { ChatState } from '@/state/chat/type';
+import { useChatState } from '@/state/chat/chat';
+import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import { ChatBrief, ChatWrit } from '@/types/chat';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import { ChatInfo, useChatInfo } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
-import { ChatState } from '../../state/chat/type';
-import { useChatState } from '../../state/chat/chat';
-import { MESSAGE_FETCH_PAGE_SIZE } from '../../constants';
-import { ChatBrief, ChatWrit } from '../../types/chat';
 
 interface CreateRendererParams {
   messages: BigIntOrderedMap<ChatWrit>;
@@ -99,7 +99,17 @@ function createRenderer({
   );
 }
 
+function Loader({ show }: { show: boolean }) {
+  return show ? (
+    <div className="align-center flex h-8 w-full justify-center p-1">
+      <LoadingSpinner primary="fill-gray-50" secondary="fill-white" />
+    </div>
+  ) : null;
+}
+
 const FIRST_INDEX = 99999;
+
+type FetchingState = 'top' | 'bottom' | 'initial';
 
 export default function ChatScroller({
   whom,
@@ -110,6 +120,7 @@ export default function ChatScroller({
 }: IChatScroller) {
   const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
+  const [fetching, setFetching] = useState<FetchingState>('initial');
 
   const keys = messages
     .keys()
@@ -127,23 +138,21 @@ export default function ChatScroller({
 
   const [indexData, setIndexData] = useState<{
     firstItemIndex: number;
-    totalCount: number;
+    data: bigInt.BigInteger[];
   }>({
     firstItemIndex: FIRST_INDEX,
-    totalCount: mess.size,
+    data: keys,
   });
 
-  console.log(indexData);
-
   useEffect(() => {
-    const diff = mess.size - indexData.totalCount;
+    const diff = mess.size - indexData.data.length;
     if (diff !== 0) {
       setIndexData({
         firstItemIndex: indexData.firstItemIndex - diff,
-        totalCount: mess.size,
+        data: keys,
       });
     }
-  }, [mess, indexData]);
+  }, [keys, mess, indexData]);
 
   const Message = useMemo(
     () =>
@@ -158,43 +167,52 @@ export default function ChatScroller({
     [messages, keys, whom, brief, chatInfo, prefixedElement]
   );
 
+  const TopLoader = useMemo(
+    () => <Loader show={fetching === 'top'} />,
+    [fetching]
+  );
+  const BottomLoader = useMemo(
+    () => <Loader show={fetching === 'bottom'} />,
+    [fetching]
+  );
+
   const fetchMessages = useCallback(
     async (newer: boolean) => {
+      setFetching(newer ? 'bottom' : 'top');
+
       if (newer) {
-        return useChatState
+        await useChatState
           .getState()
           .fetchNewer(whom, MESSAGE_FETCH_PAGE_SIZE.toString());
+      } else {
+        await useChatState
+          .getState()
+          .fetchOlder(whom, MESSAGE_FETCH_PAGE_SIZE.toString());
       }
 
-      return useChatState
-        .getState()
-        .fetchOlder(whom, MESSAGE_FETCH_PAGE_SIZE.toString());
+      setFetching('initial');
     },
     [whom]
   );
 
   return (
-    <div className="relative h-full flex-1">
+    <div className="relative h-full flex-1 p-2">
       <Virtuoso
+        {...indexData}
         followOutput
         alignToBottom
         className="h-full"
-        computeItemKey={(index) => keys[index]?.toString() || index}
-        {...indexData}
-        initialTopMostItemIndex={mess.size - 1}
-        // we've memoized message so it should be stable
-        // eslint-disable-next-line
-        itemContent={(index) =>
-          keys[index] ? (
-            <Message index={keys[index]} />
-          ) : (
-            <div className="h-4" />
-          )
-        }
         atBottomThreshold={250}
         atTopThreshold={250}
         atTopStateChange={(top) => top && fetchMessages(false)}
         atBottomStateChange={(bot) => bot && fetchMessages(true)}
+        itemContent={(i, realIndex) =>
+          realIndex ? <Message index={realIndex} /> : <div className="h-4" />
+        }
+        components={{
+          Header: () => TopLoader,
+          Footer: () => BottomLoader,
+        }}
       />
     </div>
   );
