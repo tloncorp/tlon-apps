@@ -21,7 +21,6 @@ export default function ChatThread({ whom, children }: ChatThreadProps) {
   const id = `${idShip!}/${idTime!}`;
   const maybeWrit = useWrit(whom, id);
   const replies = useReplies(whom, id);
-  console.log(replies);
 
   if (!maybeWrit) {
     return null;
