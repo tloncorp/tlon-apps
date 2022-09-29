@@ -1,7 +1,14 @@
-import React, { ReactNode, useCallback, useEffect, useMemo } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { differenceInDays } from 'date-fns';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
+import { Virtuoso } from 'react-virtuoso';
 import ChatWritScroller from './ChatWritScroller';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
@@ -92,6 +99,8 @@ function createRenderer({
   );
 }
 
+const FIRST_INDEX = 99999;
+
 export default function ChatScroller({
   whom,
   messages,
@@ -116,7 +125,27 @@ export default function ChatScroller({
     new BigIntOrderedMap<ChatWrit>()
   );
 
-  const renderer = useMemo(
+  const [indexData, setIndexData] = useState<{
+    firstItemIndex: number;
+    totalCount: number;
+  }>({
+    firstItemIndex: FIRST_INDEX,
+    totalCount: mess.size,
+  });
+
+  console.log(indexData);
+
+  useEffect(() => {
+    const diff = mess.size - indexData.totalCount;
+    if (diff !== 0) {
+      setIndexData({
+        firstItemIndex: indexData.firstItemIndex - diff,
+        totalCount: mess.size,
+      });
+    }
+  }, [mess, indexData]);
+
+  const Message = useMemo(
     () =>
       createRenderer({
         messages,
@@ -146,20 +175,27 @@ export default function ChatScroller({
 
   return (
     <div className="relative h-full flex-1">
-      {messages.size > 0 ? (
-        <ChatWritScroller
-          key={whom}
-          origin="bottom"
-          style={{ height: '100%', padding: '0.5rem' }}
-          data={mess}
-          size={mess.size}
-          pendingSize={0} // TODO
-          scrollTo={scrollTo}
-          averageHeight={48}
-          renderer={renderer}
-          loadRows={fetchMessages}
-        />
-      ) : null}
+      <Virtuoso
+        followOutput
+        alignToBottom
+        className="h-full"
+        computeItemKey={(index) => keys[index]?.toString() || index}
+        {...indexData}
+        initialTopMostItemIndex={mess.size - 1}
+        // we've memoized message so it should be stable
+        // eslint-disable-next-line
+        itemContent={(index) =>
+          keys[index] ? (
+            <Message index={keys[index]} />
+          ) : (
+            <div className="h-4" />
+          )
+        }
+        atBottomThreshold={250}
+        atTopThreshold={250}
+        atTopStateChange={(top) => top && fetchMessages(false)}
+        atBottomStateChange={(bot) => bot && fetchMessages(true)}
+      />
     </div>
   );
 }
