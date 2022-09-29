@@ -86,10 +86,10 @@
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    =/  subset  (gas:rev *writs:c (tap:on wit.pac))
+    =/  inverse  (gas:rev *writs:c (tap:on wit.pac))
     =-  ``chat-writs+!>(-)
     %+  gas:on  *writs:c
-    (tab:rev subset `start count)
+    (tab:rev inverse `start count)
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
