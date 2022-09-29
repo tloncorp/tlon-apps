@@ -86,7 +86,7 @@ export default function HeapDetail() {
               <Link
                 to={curioHref(nextCurio?.[0])}
                 className={
-                  'z-50 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
+                  'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
                 }
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
@@ -101,7 +101,7 @@ export default function HeapDetail() {
               <Link
                 to={curioHref(prevCurio?.[0])}
                 className={
-                  'z-50 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
+                  'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
                 }
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
