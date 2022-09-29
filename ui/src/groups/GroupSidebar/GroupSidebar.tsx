@@ -61,7 +61,6 @@ function GroupHeader() {
             : 'transparent',
         color: foregroundFromBackground(group.meta.cover),
       };
-    // debugger;
     if (group && !isColor(group.meta.cover)) {
       return {
         color: averageSucceeded

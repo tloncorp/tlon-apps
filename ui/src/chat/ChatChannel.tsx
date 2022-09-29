@@ -2,6 +2,7 @@ import _ from 'lodash';
 import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
+import cn from 'classnames';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
@@ -52,12 +53,10 @@ function ChatChannel({ title }: ViewProps) {
       aside={<Outlet />}
       header={<ChannelHeader flag={flag} nest={nest} />}
       footer={
-        <div className="border-t-2 border-gray-50 p-4">
+        <div className={cn(canWrite ? 'border-t-2 border-gray-50 p-4' : '')}>
           {canWrite ? (
             <ChatInput whom={chFlag} sendMessage={sendMessage} showReply />
-          ) : (
-            <span>Cannot write to this channel</span>
-          )}
+          ) : null}
         </div>
       }
     >

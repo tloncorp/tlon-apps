@@ -7,6 +7,7 @@ import useDiaryActions from './useDiaryActions';
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
   time: string;
   flag: string;
+  canEdit: boolean;
   triggerClassName?: string;
 }>;
 
@@ -15,6 +16,7 @@ export default function DiaryNoteOptionsDropdown({
   flag,
   time,
   triggerClassName,
+  canEdit,
 }: DiaryNoteOptionsDropdownProps) {
   const { isOpen, justCopied, onCopy, delNote, setIsOpen } = useDiaryActions({
     flag,
@@ -57,13 +59,20 @@ export default function DiaryNoteOptionsDropdown({
         >
           Mute
         </Dropdown.Item>
-        <Divider />
-        <Dropdown.Item className="dropdown-item" asChild>
-          <Link to={`../edit/${time}`}>Edit Note</Link>
-        </Dropdown.Item>
-        <Dropdown.Item className="dropdown-item text-red" onSelect={delNote}>
-          Delete Note
-        </Dropdown.Item>
+        {canEdit ? (
+          <>
+            <Divider />
+            <Dropdown.Item className="dropdown-item" asChild>
+              <Link to={`../edit/${time}`}>Edit Note</Link>
+            </Dropdown.Item>
+            <Dropdown.Item
+              className="dropdown-item text-red"
+              onSelect={delNote}
+            >
+              Delete Note
+            </Dropdown.Item>
+          </>
+        ) : null}
       </Dropdown.Content>
     </Dropdown.Root>
   );
