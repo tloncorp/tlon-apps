@@ -34,7 +34,7 @@ export default function NewDM() {
         await useChatState.getState().sendMessage(whom, memo);
       }
 
-      navigate(`/dm/${preSig(whom)}`);
+      navigate(`/dm/${isMultiDm ? whom : preSig(whom)}`);
     },
     [navigate, sendMultiDm, isMultiDm]
   );
