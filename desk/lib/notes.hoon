@@ -68,18 +68,22 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   =*  on   on:notes:d
+  =*  rev  ((^on time note:d) gte)
   ?+    pole  [~ ~]
   ::
   ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  ls    (scag count (tap:on not))
+    =/  ls    (scag count (bap:on not))
     ``diary-notes+!>((gas:on *notes:d ls))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``diary-notes+!>((tab:on not `start count))
+    =/  inverse  (gas:rev *notes:d (tap:on not))
+    =-  ``diary-notes+!>(-)
+    %+  gas:on  *notes:d
+    (tab:rev inverse `start count)
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)

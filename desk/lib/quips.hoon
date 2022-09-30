@@ -52,6 +52,7 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   =*  on   on:quips:d
+  =*  rev  ((^on time quip:d) gte)
   ?+    pole  [~ ~]
       [%all ~]
     ``diary-quips+!>(qup)
@@ -59,13 +60,16 @@
   ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  ls    (scag count (tap:on qup))
+    =/  ls    (scag count (bap:on qup))
     ``diary-quips+!>((gas:on *quips:d ls))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``diary-quips+!>((tab:on qup `start count))
+    =/  inverse  (gas:rev *quips:d (tap:on qup))
+    =-  ``diary-quips+!>(-)
+    %+  gas:on  *quips:d
+    (tab:rev inverse `start count)
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)

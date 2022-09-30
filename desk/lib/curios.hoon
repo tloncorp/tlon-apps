@@ -74,18 +74,22 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   =*  on   on:curios:h
+  =*  rev  ((^on time curio:h) gte)
   ?+    pole  [~ ~]
   ::
   ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  ls    (scag count (tap:on cur))
+    =/  ls    (scag count (bap:on cur))
     ``heap-curios+!>((gas:on *curios:h ls))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``heap-curios+!>((tab:on cur `start count))
+    =/  inverse  (gas:rev *curios:h (tap:on cur))
+    =-  ``heap-curios+!>(-)
+    %+  gas:on  *curios:h
+    (tab:rev inverse `start count)
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
