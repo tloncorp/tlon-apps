@@ -1,7 +1,8 @@
 import classNames from 'classnames';
 import React, { PropsWithChildren } from 'react';
 import { Contact } from '@urbit/api';
-import { useContact } from '../state/contact';
+import { useContact } from '@/state/contact';
+import { useCalm } from '@/state/settings';
 
 type CoverProps = PropsWithChildren<{
   ship: string;
@@ -25,7 +26,8 @@ export default function ProfileCoverImage({
   children,
 }: CoverProps) {
   const contact = useContact(ship);
-  const { cover } = contact || emptyContact;
+  const calm = useCalm();
+  const cover = !calm.disableRemoteContent || contact || emptyContact;
 
   return (
     <div

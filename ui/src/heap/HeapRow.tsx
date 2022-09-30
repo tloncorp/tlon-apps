@@ -3,6 +3,7 @@ import cn from 'classnames';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
+import { useCalm } from '@/state/settings';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useEmbedState from '@/state/embed';
@@ -32,6 +33,7 @@ export default function HeapRow({
   const [embed, setEmbed] = useState<any>();
   const { content, sent, title } = curio.heart;
   const { replied } = curio.seal;
+  const calm = useCalm();
   // TODO: improve this
   const contentString = content.length > 0 ? content[0].toString() : '';
   const flag = useRouteGroup();
@@ -98,7 +100,7 @@ export default function HeapRow({
     <div className="flex w-full items-center justify-between space-x-2 rounded-lg bg-white">
       <div className="flex space-x-2">
         <div>
-          {isImage ? (
+          {isImage && !calm?.disableRemoteContent ? (
             <div
               className="relative inline-block h-14 w-14 cursor-pointer overflow-hidden rounded-l-lg bg-cover bg-no-repeat"
               style={{ backgroundImage: `url(${contentString})` }}

@@ -16,3 +16,5 @@ export const AUTHORS = [
   '~rovnys-ricfer',
   '~mister-dister-dozzod-dozzod',
 ];
+
+export const lsDesk = 'garden';

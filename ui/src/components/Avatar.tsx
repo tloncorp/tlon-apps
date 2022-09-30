@@ -5,6 +5,7 @@ import { sigil as sigilRaw, reactRenderer } from '@tlon/sigil-js';
 import { deSig, Contact, cite } from '@urbit/api';
 import _ from 'lodash';
 import { darken, lighten, parseToHsla } from 'color2k';
+import { useCalm } from '@/state/settings';
 import { useCurrentTheme } from '../state/local';
 import { normalizeUrbitColor, isValidUrl } from '../logic/utils';
 import { useContact } from '../state/contact';
@@ -138,6 +139,7 @@ export default function Avatar({
 }: AvatarProps) {
   const currentTheme = useCurrentTheme();
   const contact = useContact(ship);
+  const calm = useCalm();
   const { previewColor, previewAvatar } = previewData ?? {};
   const previewAvatarIsValid =
     previewAvatar && previewAvatar !== null && isValidUrl(previewAvatar);
@@ -156,7 +158,11 @@ export default function Avatar({
     foregroundColor
   );
 
-  if (previewAvatarIsValid) {
+  if (
+    previewAvatarIsValid &&
+    !calm.disableRemoteContent &&
+    !calm.disableAvatars
+  ) {
     return (
       <img
         className={classNames(className, classes)}
@@ -167,7 +173,7 @@ export default function Avatar({
     );
   }
 
-  if (avatar) {
+  if (avatar && !calm.disableRemoteContent && !calm.disableAvatars) {
     return (
       <img
         className={classNames(className, classes)}
