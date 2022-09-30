@@ -135,8 +135,7 @@ function GroupHeader() {
               style={coverTitleStyles()}
               className={cn(
                 'max-w-full flex-1 truncate text-left',
-                !averageSucceeded &&
-                  dark &&
+                coverTitleStyles().color === 'white' &&
                   'drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]'
               )}
             >
