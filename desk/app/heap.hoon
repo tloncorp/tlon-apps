@@ -106,7 +106,7 @@
     =+  !<(req=create:h vase)
     (create req)
   ::
-      %heap-action
+      %heap-action-0
     =+  !<(=action:h vase)
     =.  p.q.action  now.bowl
     =/  heap-core  (he-abed:he-core p.action)
@@ -388,8 +388,8 @@
         %fact
       =*  cage  cage.sign 
       ?+  p.cage  he-core
-        %heap-logs    (he-apply-logs !<(log:h q.cage))
-        %heap-update  (he-update !<(update:h q.cage))
+        %heap-logs-0    (he-apply-logs !<(log:h q.cage))
+        %heap-update-0  (he-update !<(update:h q.cage))
       ==
     ==
   ++  he-proxy
@@ -397,7 +397,7 @@
     ^+  he-core
     ?>  he-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  heap-action+!>([flag update])
+    =/  =cage  heap-action-0+!>([flag update])
     =.  cor
       (emit %pass he-area %agent dock %poke cage)
     he-core
@@ -430,7 +430,7 @@
       ?~  path  log.heap
       =/  =time  (slav %da i.path)
       (lot:log-on:h log.heap `time ~)
-    =/  =cage  heap-logs+!>(log)
+    =/  =cage  heap-logs-0+!>(log)
     =.  cor  (give %fact ~ cage)
     he-core
   ::
@@ -486,10 +486,10 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in he-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc he-area %ui))
-    =/  cag=cage  heap-update+!>([time d])
+    =/  cag=cage  heap-update-0+!>([time d])
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] heap-action+!>([flag [time d]]))
+    =.  cor  (give %fact ~[/ui] heap-action-0+!>([flag [time d]]))
     =?  cor  ?=(%curios -.d)
       =/  =cage  curios-diff+!>(p.d)
       (give %fact ~[(welp he-area /ui/curios)] cage)
