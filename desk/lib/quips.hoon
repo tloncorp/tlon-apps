@@ -60,7 +60,7 @@
   ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  ls    (scag count (flop (tap:on qup)))
+    =/  ls    (scag count (bap:on qup))
     ``diary-quips+!>((gas:on *quips:d ls))
   ::
       [%older start=@ count=@ ~]

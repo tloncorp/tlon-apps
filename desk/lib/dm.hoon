@@ -80,7 +80,7 @@
   ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  ls    (scag count (flop (tap:on wit.pac)))
+    =/  ls    (scag count (bap:on wit.pac))
     ``chat-writs+!>((gas:on *writs:c ls))
   ::
       [%older start=@ count=@ ~]

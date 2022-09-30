@@ -80,7 +80,7 @@
   ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  ls    (scag count (flop (tap:on cur)))
+    =/  ls    (scag count (bap:on cur))
     ``heap-curios+!>((gas:on *curios:h ls))
   ::
       [%older start=@ count=@ ~]
