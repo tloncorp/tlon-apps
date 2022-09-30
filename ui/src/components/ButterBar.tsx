@@ -20,7 +20,9 @@ function ButterBar({ dismissKey, message }: ButterBarProps) {
         <AsteriskIcon className="mr-3 h-4 w-4" />
         {message}
       </div>
-      <button className="py-1 px-2" onClick={onClick}>Dismiss</button>
+      <button className="py-1 px-2" onClick={onClick}>
+        Dismiss
+      </button>
     </div>
   );
 }
