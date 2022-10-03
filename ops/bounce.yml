@@ -15,7 +15,7 @@ script:
     - cmd: 'mount %groups'
       type: 'urbit:app'
   - sync:
-    - cmd: './apps/landscape/sync.sh'
+    - cmd: '~/dev/urbit/landscape-apps/ops/sync.sh'
       type: 'system'
   - commit:
     - cmd: 'commit %garden'
