@@ -26,8 +26,8 @@ export default function ProfileCoverImage({
   children,
 }: CoverProps) {
   const contact = useContact(ship);
-  const calm = useCalm();
-  const cover = !calm.disableRemoteContent || contact || emptyContact;
+  const { disableRemoteContent } = useCalm();
+  const cover = contact || emptyContact;
 
   return (
     <div
@@ -35,7 +35,11 @@ export default function ProfileCoverImage({
         'relative h-36 w-full rounded-t-lg bg-gray-100 bg-cover bg-center px-4',
         className
       )}
-      style={cover ? { backgroundImage: `url(${cover})` } : {}}
+      style={
+        cover && !disableRemoteContent
+          ? { backgroundImage: `url(${cover})` }
+          : {}
+      }
     >
       {children}
     </div>
