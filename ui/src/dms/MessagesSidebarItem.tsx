@@ -21,7 +21,11 @@ interface MessagesSidebarItemProps {
   pending?: boolean; // eslint-disable-line
 }
 
-function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
+function ChannelSidebarItem({
+  whom,
+  brief,
+  pending,
+}: MessagesSidebarItemProps) {
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const groups = useGroupState((s) => s.groups);
@@ -39,14 +43,7 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
     <SidebarItem
       to={`/groups/${groupFlag}/channels/${whom}`}
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
-      actions={
-        (brief?.count ?? 0) > 0 ? (
-          <BulletIcon
-            className="h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-            aria-label="Has Activity"
-          />
-        ) : null
-      }
+      actions={<DmOptions whom={whom} pending={!!pending} />}
       onClick={() => isMobile && navPrimary('hidden')}
     >
       {channel.meta.title}
@@ -126,5 +123,7 @@ export default function MessagesSidebarItem({
     return <MultiDMSidebarItem whom={whom} brief={brief} pending={pending} />;
   }
 
-  return <ChannelSidebarItem whom={channelWhom} brief={brief} />;
+  return (
+    <ChannelSidebarItem whom={channelWhom} brief={brief} pending={pending} />
+  );
 }
