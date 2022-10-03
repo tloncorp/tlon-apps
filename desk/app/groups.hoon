@@ -105,7 +105,7 @@
       ^-  vessel:fleet:g
       [sects *time]
     =/  =group:g
-      [fleet ~ ~ ~ ~ ~ cordon.create title.create description.create image.create cover.create] 
+      [fleet ~ ~ ~ ~ ~ cordon.create | title.create description.create image.create cover.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:go-init:(go-abed:group-core flag)
@@ -352,7 +352,8 @@
     =-  (fall - [(crip "{(scow %p p.flag)}/{(scow %ta q.flag)}") '' '' ''])
     (bind (~(get by om) [%groups flag]) old-assoc-to-new-meta)
   =/  =group:g
-    [fleet cabals zones zone-ord bloc channels cordon meta]
+    :: TODO: rework migration for secret group
+    [fleet cabals zones zone-ord bloc channels cordon | meta]
   =|  =log:g
   =.  log     (put:log-on:g log now.bowl create/group)
   =/  =net:g  pub/log
@@ -531,6 +532,13 @@
     ==
   ::
   ++  go-preview
+    :: TODO: if user is in the allowed to join list, they should see a preview
+
+    ?>  ?|(!secret.group (~(has by fleet.group) src.bowl))
+    :: ?>  ?|  =(p.flag our.bowl) :: self
+    ::     =(p.flag src.bowl) :: subscription
+    ::     &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
+
     =/  =preview:g
       =,  group
       [flag meta cordon now.bowl]
@@ -685,9 +693,14 @@
       %create   go-core(group p.diff)
       %zone     (go-zone-update +.diff)
       %meta     (go-meta-update p.diff)
+      %secret   (go-secret-update p.diff)
       %del      go-core(gone &)
     ==
   ::
+  ++  go-secret-update
+    |=  secret=?
+    =.  secret.group  secret
+    go-core
   ++  go-meta-update
     |=  meta=data:meta
     =.  meta.group  meta

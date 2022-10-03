@@ -61,6 +61,7 @@
       %create   (group p.d)
       %zone     (zone-diff p.d)
       %meta     (meta p.d)
+      %secret   b/p.d
       %del      ~
     ==
   ::
@@ -203,6 +204,7 @@
         bloc/a/(turn ~(tap in bloc.gr) (lead %s))
         cordon/(cordon cordon.gr)
         meta/(meta meta.gr)
+        secret/b/secret.gr
     ==
   ++  fleet
     |=  fl=fleet:g
@@ -348,6 +350,7 @@
         channel/(ot nest/nest diff/channel-diff ~)
         zone/zone-diff
         meta/meta
+        secret/bo
         del/ul
     ==
   ::
