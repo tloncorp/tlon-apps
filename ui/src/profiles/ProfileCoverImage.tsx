@@ -27,7 +27,7 @@ export default function ProfileCoverImage({
 }: CoverProps) {
   const contact = useContact(ship);
   const { disableRemoteContent } = useCalm();
-  const cover = contact || emptyContact;
+  const { cover } = contact || emptyContact;
 
   return (
     <div
