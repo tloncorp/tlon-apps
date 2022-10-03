@@ -1,0 +1,29 @@
+env:
+  desk: 'groups'
+  urbit_path: '~/dev/urbit/urbit'
+  repo_path: '~/dev/urbit/landscape-apps'
+  ship_path: '~/dev/urbit/ships'
+script:
+  - merge:
+    - cmd: 'merge %garden our %base'
+      type: 'urbit:app'
+    - cmd: 'merge %groups our %base'
+      type: 'urbit:app'
+  - mount:
+    - cmd: 'mount %garden'
+      type: 'urbit:app'
+    - cmd: 'mount %groups'
+      type: 'urbit:app'
+  - sync:
+    - cmd: './apps/landscape/sync.sh'
+      type: 'system'
+  - commit:
+    - cmd: 'commit %garden'
+      type: 'urbit:app'
+    - cmd: 'commit %groups'
+      type: 'urbit:app'
+  - install:
+    - cmd: 'install our %garden'
+      type: 'urbit:app'
+    - cmd: 'install our %groups'
+      type: 'urbit:app'

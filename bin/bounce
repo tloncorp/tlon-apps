@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+ruby ~/dev/urbit/bouncer/bouncer.rb -c ~/dev/hodl/ops/bounce.yml
