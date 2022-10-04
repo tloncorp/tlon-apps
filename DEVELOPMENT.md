@@ -121,5 +121,5 @@ _stash_
 _vessel_
 : represents the roles a group member has and their join time
 
-
-bloc: roles that hvae superuser perms (default is admin)
+_bloc_
+: roles that have superuser perms (default is admin)
