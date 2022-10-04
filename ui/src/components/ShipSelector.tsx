@@ -240,7 +240,7 @@ function ShipDropDownMenuList({
 
 function Input({ children, ...props }: InputProps<ShipOption, true>) {
   return (
-    <components.Input className="text-gray-800" {...props}>
+    <components.Input className="py-0.5 text-gray-800" {...props}>
       {children}
     </components.Input>
   );
