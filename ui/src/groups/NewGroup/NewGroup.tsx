@@ -75,7 +75,13 @@ export default function NewGroup() {
             },
           };
 
-    await useGroupState.getState().create({ ...values, name, members, cordon });
+    await useGroupState.getState().create({
+      ...values,
+      name,
+      members,
+      cordon,
+      secret: privacy === 'secret',
+    });
     const flag = `${window.our}/${name}`;
     navigate(`/groups/${flag}`);
   }, [shipsToInvite, navigate, form]);

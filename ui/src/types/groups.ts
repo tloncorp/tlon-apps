@@ -254,6 +254,10 @@ export interface GroupDelDiff {
   del: null;
 }
 
+export interface SecretDiff {
+  secret: boolean;
+}
+
 // TODO: elaborate
 export type GroupDiff =
   | GroupDelDiff
@@ -263,6 +267,7 @@ export type GroupDiff =
   | CabalDiff
   | ChannelDiff
   | CordonDiff
+  | SecretDiff
   | ZoneDiff;
 
 export interface GroupUpdate {

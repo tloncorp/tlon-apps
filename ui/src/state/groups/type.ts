@@ -43,6 +43,7 @@ export interface GroupState {
     description: string;
     members: Record<string, string[]>;
     cordon: Record<string, any>;
+    secret: boolean;
   }) => Promise<void>;
   leave: (flag: string) => Promise<void>;
   edit: (flag: string, metadata: GroupMeta) => Promise<void>;

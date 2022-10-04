@@ -263,7 +263,7 @@
       cover=cord
       =cordon
       members=(jug ship sect)
-      :: secret=?
+      secret=?
   ==
 ::
 +$  init  [=time =group]

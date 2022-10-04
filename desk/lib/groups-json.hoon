@@ -315,6 +315,7 @@
         cover+so
         cordon+cordon
         members+(op ;~(pfix sig fed:ag) (as sym))
+        secret+bo
     ==
   ::
   ++  join
