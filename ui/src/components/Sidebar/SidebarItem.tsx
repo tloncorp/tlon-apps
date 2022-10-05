@@ -102,14 +102,16 @@ export default function SidebarItem({
       }}
       style={
         {
-          ...(hasHoverColor() && hover ? customHoverHiglightStyles() : null),
+          ...(hasHoverColor() && hover && !active
+            ? customHoverHiglightStyles()
+            : null),
           ...(hasHoverColor() && active ? customActiveHiglightStyles() : null),
         } as React.CSSProperties
       }
       className={cn(
         'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base',
         color,
-        !hasHoverColor() ? `hover:${highlight}` : null,
+        !hasHoverColor() && !active ? `hover:${highlight}` : null,
         !hasHoverColor() && active && to !== '/' ? 'bg-gray-100' : null
       )}
     >
