@@ -7,15 +7,10 @@ import Dialog, {
   DialogTrigger,
 } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
-import {
-  GroupFormSchema,
-  GroupMeta,
-  PrivacyType,
-  ViewProps,
-} from '@/types/groups';
+import { GroupFormSchema, GroupMeta, ViewProps } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import useNavStore from '@/components/Nav/useNavStore';
-import { getGroupPrivacy } from '@/logic/utils';
+import { getPrivacyFromGroup } from '@/logic/utils';
 import GroupInfoFields from '../GroupInfoFields';
 import PrivacySelector from '../PrivacySelector';
 
@@ -40,7 +35,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     defaultValues: {
       ...emptyMeta,
       ...group?.meta,
-      privacy: (group && getGroupPrivacy(group.cordon)) || 'public',
+      privacy: group ? getPrivacyFromGroup(group) : 'public',
     },
   });
 
@@ -48,7 +43,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     form.reset({
       ...emptyMeta,
       ...group?.meta,
-      privacy: (group && getGroupPrivacy(group.cordon)) || 'public',
+      privacy: group ? getPrivacyFromGroup(group) : 'public',
     });
   }, [group, form]);
 

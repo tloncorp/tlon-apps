@@ -161,6 +161,7 @@ export function createMockGroup(title: string): Group {
     },
     bloc: [],
     'zone-ord': ['default'],
+    secret: false,
   };
 }
 const mockGroupOne: Group = {
@@ -231,6 +232,7 @@ const mockGroupOne: Group = {
   },
   bloc: [],
   'zone-ord': ['default'],
+  secret: false,
 };
 
 const mockGroupTwo: Group = {
@@ -306,6 +308,7 @@ const mockGroupTwo: Group = {
   },
   bloc: [],
   'zone-ord': ['default'],
+  secret: false,
 };
 
 const mockGroups: { [flag: string]: Group } = {

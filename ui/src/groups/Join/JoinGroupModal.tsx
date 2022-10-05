@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import { useGang, useRouteGroup } from '@/state/groups';
-import { useNavigate } from 'react-router';
 import GroupSummary from '../GroupSummary';
 import useGroupJoin from '../useGroupJoin';
 

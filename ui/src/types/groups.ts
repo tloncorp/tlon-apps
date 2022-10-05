@@ -79,6 +79,7 @@ export interface Group {
   zones: Zones;
   'zone-ord': Zone[];
   bloc: string[];
+  secret: boolean;
 }
 
 export interface Fleet {

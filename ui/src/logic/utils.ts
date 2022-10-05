@@ -4,6 +4,7 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
+import { parseToRgba } from 'color2k';
 import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
@@ -12,10 +13,10 @@ import {
   Cordon,
   PrivacyType,
   Rank,
+  Group,
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief } from '@/types/diary';
-import { parseToRgba } from 'color2k';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -191,16 +192,20 @@ export function getFlagParts(flag: string) {
   };
 }
 
-export function getGroupPrivacy(cordon: Cordon): PrivacyType {
-  if ('open' in cordon) {
-    return 'public';
-  }
-
+export function getPrivacyFromCordon(cordon: Cordon): PrivacyType {
   if ('shut' in cordon) {
     return 'private';
   }
 
-  return 'secret';
+  return 'public';
+}
+
+export function getPrivacyFromGroup(group: Group): PrivacyType {
+  if (group.secret) {
+    return 'secret';
+  }
+
+  return getPrivacyFromCordon(group.cordon);
 }
 
 export function getPrivacyFromChannel(
