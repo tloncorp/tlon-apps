@@ -82,7 +82,7 @@ export default function MessagesSidebar() {
               </span>
               <CaretDown16Icon className="w-4 text-gray-400" />
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content className="dropdown text-gray-600">
+            <DropdownMenu.Content className="dropdown w-56 text-gray-600">
               <DropdownMenu.Item
                 className={cn(
                   'dropdown-item flex items-center space-x-2 rounded-none',
