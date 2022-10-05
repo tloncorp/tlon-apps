@@ -74,11 +74,35 @@ export interface DiaryImage {
   };
 }
 
+export interface DiaryList {
+  list: {
+    type: 'ordered' | 'unordered';
+    items: DiaryListing[];
+  };
+}
+
+export interface DiarySublist {
+  sublist: {
+    contents: Inline[];
+    list: DiaryListing;
+  };
+}
+
+export type DiaryListItem = {
+  item: Inline[];
+};
+
+export type DiaryListing = DiaryList | DiarySublist | DiaryListItem;
+
+export interface DiaryListingBlock {
+  listing: DiaryListing;
+}
+
 export function isDiaryImage(item: unknown): item is DiaryImage {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
 
-export type DiaryBlock = DiaryImage | DiaryCite;
+export type DiaryBlock = DiaryImage | DiaryCite | DiaryListingBlock;
 
 export interface VerseBlock {
   block: DiaryBlock;

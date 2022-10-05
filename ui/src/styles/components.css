@@ -48,6 +48,14 @@
   @apply pointer-events-none float-left h-0 text-gray-400;
 }
 
+.ProseMirror ol {
+  @apply list-decimal pl-4;
+}
+
+.ProseMirror ul {
+  @apply list-disc pl-4;
+}
+
 .dialog-container {
   @apply fixed top-1/2 left-1/2 z-40 -translate-x-1/2 -translate-y-1/2 transform p-4;
 }

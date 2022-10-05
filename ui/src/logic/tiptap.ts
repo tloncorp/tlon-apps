@@ -8,7 +8,7 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { Cite } from '@/types/chat';
-import { DiaryBlock, NoteContent } from '@/types/diary';
+import { DiaryBlock, DiaryListing, NoteContent } from '@/types/diary';
 import { citeToPath, pathToCite } from './utils';
 
 export interface EditorOnUpdateProps {
@@ -112,6 +112,58 @@ function limitBreaks(
   ).result;
 }
 
+const isList = (c: JSONContent) =>
+  c.type === 'orderedList' || c.type === 'bulletedList';
+
+export function JSONToListing(
+  json: JSONContent,
+  limitNewlines = true
+): DiaryListing {
+  switch (json.type) {
+    case 'orderedList': {
+      return {
+        list: {
+          type: 'ordered',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+        },
+      };
+    }
+    case 'bulletList': {
+      return {
+        list: {
+          type: 'unordered',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+        },
+      };
+    }
+    case 'listItem': {
+      const list = json.content?.find(isList);
+      const para = json.content?.find((c) => !isList(c));
+      const contents = para
+        ? // eslint-disable-next-line @typescript-eslint/no-use-before-define
+          (JSONToInlines(para, limitNewlines) as Inline[])
+        : [];
+
+      if (list) {
+        return {
+          sublist: {
+            contents,
+            list: JSONToListing(list, limitNewlines),
+          },
+        };
+      }
+
+      return {
+        item: contents,
+      };
+    }
+    default:
+      return { item: [''] };
+  }
+}
+
 export function JSONToInlines(
   json: JSONContent,
   limitNewlines = true
@@ -202,6 +254,20 @@ export function JSONToInlines(
       return [
         {
           code: json.content[0].text ?? '',
+        },
+      ];
+    }
+    case 'orderedList': {
+      return [
+        {
+          listing: JSONToListing(json, limitNewlines),
+        },
+      ];
+    }
+    case 'bulletList': {
+      return [
+        {
+          listing: JSONToListing(json, limitNewlines),
         },
       ];
     }
