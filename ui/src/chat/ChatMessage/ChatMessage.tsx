@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unused-prop-types */
-import React from 'react';
+import React, { useEffect } from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import f from 'lodash/fp';
@@ -7,6 +7,7 @@ import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink } from 'react-router-dom';
+import { useInView } from 'react-intersection-observer';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
@@ -14,7 +15,7 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
-import { usePact } from '@/state/chat';
+import { usePact, useChatState } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 
 export interface ChatMessageProps {
@@ -48,6 +49,17 @@ const ChatMessage = React.memo<
       ref
     ) => {
       const { seal, memo } = writ;
+      const { markRead } = useChatState.getState();
+      const [viewRef, inView, entry] = useInView({
+        threshold: 1,
+        triggerOnce: true,
+      });
+
+      useEffect(() => {
+        if (inView === true) {
+          markRead(whom);
+        }
+      }, [inView, markRead, whom]);
 
       const unix = new Date(daToUnix(time));
 
@@ -71,7 +83,11 @@ const ChatMessage = React.memo<
       return (
         <div ref={ref} className="flex flex-col">
           {unread && unread.count > 0 ? (
-            <DateDivider date={unix} unreadCount={unread.count} />
+            <DateDivider
+              date={unix}
+              unreadCount={unread.count}
+              viewRef={viewRef}
+            />
           ) : null}
           {newDay && !unread ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
