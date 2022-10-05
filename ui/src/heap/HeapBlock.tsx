@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
+import { useCalm } from '@/state/settings';
 import useEmbedState from '@/state/embed';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import HeapContent from '@/heap/HeapContent';
@@ -198,7 +199,7 @@ export default function HeapBlock({
   const [embed, setEmbed] = useState<any>();
   const { content } = curio.heart;
   const url = content.length > 0 ? content[0].toString() : '';
-
+  const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
 
   const flag = useRouteGroup();
@@ -245,7 +246,7 @@ export default function HeapBlock({
     );
   }
 
-  if (isImage) {
+  if (isImage && !calm?.disableRemoteContent) {
     return (
       <div
         className={cnm(
@@ -265,11 +266,11 @@ export default function HeapBlock({
     );
   }
 
-  if (isAudio) {
+  if (isAudio && !calm?.disableRemoteContent) {
     return (
       <div className={cnm()}>
         <TopBar hasIcon canEdit {...topBar} />
-        <div className="flex flex-col items-center justify-center">
+        <div className="flex grow flex-col items-center justify-center">
           <MusicLargeIcon className="h-16 w-16 text-gray-300" />
         </div>
         <BottomBar
@@ -283,7 +284,7 @@ export default function HeapBlock({
 
   const isOembed = validOembedCheck(embed, url);
 
-  if (isOembed) {
+  if (isOembed && !calm?.disableRemoteContent) {
     const { title, thumbnail_url: thumbnail, provider_name: provider } = embed;
 
     if (thumbnail) {
@@ -310,7 +311,7 @@ export default function HeapBlock({
       return (
         <div className={cnm()}>
           <TopBar isTwitter canEdit={canEdit} {...topBar} />
-          <div className="flex flex-col items-center justify-center">
+          <div className="flex grow flex-col items-center justify-center space-y-2">
             <img
               className="h-[46px] w-[46px] rounded-full"
               src={twitterProfilePic}
