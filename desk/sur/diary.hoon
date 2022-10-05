@@ -120,14 +120,25 @@
   $%  [%block p=block]
       [%inline p=(list inline)]
   ==
+::  $listing: recursive type for infinitely nested <ul> or <ol>
++$  listing
+  $%  [%list p=?(%ordered %unordered) q=(list listing)]
+      [%sublist p=(list inline) q=listing]
+      [%item p=(list inline)]
+  ==
 ::  $block: post content that sits outside of the normal text
 ::
 ::    %image: a visual, we record dimensions for better rendering
 ::    %cite: an Urbit reference
+::    %header: a traditional HTML heading, h1-h6
+::    %listing: a traditional HTML list, ul and ol
 ::
 +$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
+      [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=inline]
+      [%listing p=listing]
+      [%rule ~]
   ==
 ::  $inline: post content that flows within a paragraph
 ::
@@ -258,4 +269,61 @@
       readers=(set sect:g)
       writers=(set sect:g)
   ==
+::  $state-0: initial version
++$  state-0
+  $:  %0
+      =shelf
+  ==
+::  $state-1: version for launch
+:: +$  state-1
+::   $:  %1
+::       =shelf
+::   ==
+:: ++  diary-zero
+::   |%
+::   +$  shelf  (map flag:g diary)
+::   +$  diary
+::     $:  =net
+::         =log
+::         =perm
+::         =view
+::         =sort
+::         =notes
+::         =remark
+::         banter=(map time quips)
+::     ==
+::   ++  notes
+::     =<  notes
+::     |%
+::     +$  notes
+::       ((mop time note) lte)
+::     ++  on
+::       ((^on time note) lte)
+::     +$  diff
+::       (pair time delta)
+::     +$  delta
+::       $%  [%add p=essay]
+::           [%edit p=essay]
+::           [%del ~]
+::           [%add-feel p=ship q=feel]
+::           [%del-feel p=ship]
+::       ==
+::     --
+::   +$  note  [seal essay]
+::   +$  essay
+::     $:  title=@t
+::         image=@t
+::         content=(list verse)
+::         author=ship
+::         sent=time      
+::     ==
+::   +$  verse  
+::     $%  [%block p=block]
+::         [%inline p=(list inline)]
+::     ==
+::   +$  block
+::     $%  [%image src=cord height=@ud width=@ud alt=cord]
+::         [%cite =cite:c]
+::     ==
+::   --
 --

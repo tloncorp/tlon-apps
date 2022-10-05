@@ -8,12 +8,11 @@
 =>
   |%
   +$  card  card:agent:gall
-  +$  state-0
-    $:  %0
-        =shelf:d
+  +$  version
+    $%  state-0:d
     ==
   --
-=|  state-0
+=|  state-0:d
 =*  state  -
 =< 
   %+  verb  &
@@ -32,17 +31,10 @@
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
-    =/  old=(unit state-0)
-      (mole |.(!<(state-0 vase)))  
-    ?^  old  `this(state u.old)
-    ~&  >>>  "Incompatible load, nuking"
-    =^  cards  this  on-init
-    :_  this
-    =-  (welp - cards)
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
+    =/  old  !<(version vase)
+    ?-  -.old
+      %0  `this(state old)
+    ==
   ::
   ++  on-poke
     |=  [=mark =vase]
