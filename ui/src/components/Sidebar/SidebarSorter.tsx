@@ -40,7 +40,7 @@ export default function SidebarSorter({
           <CaretDown16Icon className="h-4 w-4 text-gray-400" />
         </DropdownMenu.Trigger>
       )}
-      <DropdownMenu.Content className="dropdown">
+      <DropdownMenu.Content className="dropdown w-56">
         <DropdownMenu.Item
           disabled
           className="dropdown-item flex cursor-default items-center space-x-2 text-gray-300 hover:bg-transparent"
