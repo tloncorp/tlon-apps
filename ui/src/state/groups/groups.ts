@@ -253,6 +253,9 @@ export const useGroupState = create<GroupState>(
           json: flag,
         });
       },
+      setSecret: async (flag: string, isSecret: boolean) => {
+        await api.poke(groupAction(flag, { secret: isSecret }));
+      },
       addSects: async (flag, ship, sects) => {
         const diff = {
           fleet: {

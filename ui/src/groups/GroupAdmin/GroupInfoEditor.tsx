@@ -7,7 +7,12 @@ import Dialog, {
   DialogTrigger,
 } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
-import { GroupFormSchema, GroupMeta, ViewProps } from '@/types/groups';
+import {
+  GroupFormSchema,
+  GroupMeta,
+  PrivacyType,
+  ViewProps,
+} from '@/types/groups';
 import { useNavigate } from 'react-router';
 import useNavStore from '@/components/Nav/useNavStore';
 import { getPrivacyFromGroup } from '@/logic/utils';
@@ -35,17 +40,17 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     defaultValues: {
       ...emptyMeta,
       ...group?.meta,
-      privacy: group ? getPrivacyFromGroup(group) : 'public',
+      privacy: group ? getPrivacyFromGroup(group) : undefined,
     },
   });
 
-  useEffect(() => {
-    form.reset({
-      ...emptyMeta,
-      ...group?.meta,
-      privacy: group ? getPrivacyFromGroup(group) : 'public',
-    });
-  }, [group, form]);
+  // useEffect(() => {
+  //   form.reset({
+  //     ...emptyMeta,
+  //     ...group?.meta,
+  //     privacy: group ? getPrivacyFromGroup(group) : ,
+  //   });
+  // }, [group, form]);
 
   const onDeleteChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -62,8 +67,11 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   }, [groupFlag, navigate]);
 
   const onSubmit = useCallback(
-    (values: GroupMeta) => {
-      useGroupState.getState().edit(groupFlag, values);
+    async (values: GroupMeta & { privacy: PrivacyType }) => {
+      await useGroupState.getState().edit(groupFlag, values);
+      await useGroupState
+        .getState()
+        .setSecret(groupFlag, values.privacy === 'secret');
     },
     [groupFlag]
   );
