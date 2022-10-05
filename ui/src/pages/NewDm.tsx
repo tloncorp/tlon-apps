@@ -83,7 +83,7 @@ export default function NewDM() {
             isMulti={true}
           />
         </div>
-        <Link className="secondary-button" to="/">
+        <Link className="secondary-button py-2.5" to="/">
           Cancel
         </Link>
       </div>
