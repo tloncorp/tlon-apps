@@ -12,6 +12,7 @@ import { daToUnix } from '@urbit/api';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import { useChannelFlag } from '@/hooks';
 import CheckIcon from '@/components/icons/CheckIcon';
+import { useCalm } from '@/state/settings';
 import DiaryNoteOptionsDropdown from '../DiaryNoteOptionsDropdown';
 import useDiaryActions from '../useDiaryActions';
 
@@ -39,6 +40,7 @@ export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
     isAdmin ||
     window.our ===
       (letter.type === 'note' ? letter.essay.author : letter.author);
+  const calm = useCalm();
 
   const commenters =
     letter.type === 'outline'
@@ -59,7 +61,7 @@ export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
         'flex w-full cursor-pointer flex-col space-y-8 rounded-xl bg-white bg-cover bg-center p-8'
       }
       style={
-        hasImage
+        hasImage && !calm?.disableRemoteContent
           ? {
               backgroundImage: `linear-gradient(0deg, rgba(0, 0, 0, 0.33), rgba(0, 0, 0, 0.33)), url(${essay.image})`,
               color: '#ffffff',

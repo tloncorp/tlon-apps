@@ -24,6 +24,7 @@ import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { refPasteRule, Shortcuts } from '@/logic/tiptap';
 import { ChatBlock, Cite } from '@/types/chat';
 import { useChatStore } from '@/chat/useChatStore';
+import { useCalm } from '@/state/settings';
 
 interface HandlerParams {
   editor: Editor;
@@ -46,6 +47,8 @@ export function useMessageEditor({
   onEnter,
   onUpdate,
 }: useMessageEditorParams) {
+  const calm = useCalm();
+
   const onReference = useCallback(
     (r) => {
       if (!whom) {
@@ -101,6 +104,7 @@ export function useMessageEditor({
         attributes: {
           class: cn('input-inner', editorClass),
           'aria-label': 'Message editor with formatting menu',
+          spellcheck: `${!calm.disableSpellcheck}`,
         },
       },
       onUpdate: ({ editor }) => {

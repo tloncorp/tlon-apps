@@ -7,6 +7,7 @@ import {
 } from '@urbit/api';
 import _ from 'lodash';
 import { DiaryDisplayMode } from '@/types/diary';
+import { lsDesk } from '@/constants';
 import {
   BaseState,
   createState,
@@ -32,6 +33,13 @@ export interface DiarySetting extends ChannelSetting {
 interface BaseSettingsState {
   display: {
     theme: 'light' | 'dark' | 'auto';
+  };
+  calmEngine: {
+    disableAppTileUnreads: boolean;
+    disableAvatars: boolean;
+    disableRemoteContent: boolean;
+    disableSpellcheck: boolean;
+    disableNicknames: boolean;
   };
   heaps: {
     heapSettings: Stringified<HeapSetting[]>;
@@ -93,6 +101,13 @@ export const useSettingsState = createState<BaseSettingsState>(
     display: {
       theme: 'auto',
     },
+    calmEngine: {
+      disableAppTileUnreads: false,
+      disableAvatars: false,
+      disableRemoteContent: false,
+      disableSpellcheck: false,
+      disableNicknames: false,
+    },
     heaps: {
       heapSettings: '' as Stringified<HeapSetting[]>,
     },
@@ -108,10 +123,11 @@ export const useSettingsState = createState<BaseSettingsState>(
       await pokeOptimisticallyN(useSettingsState, poke, reduceUpdate);
     },
     fetchAll: async () => {
-      const result = (await api.scry<DeskData>(getDeskSettings(window.desk)))
+      const grResult = (await api.scry<DeskData>(getDeskSettings(window.desk)))
         .desk;
+      const lsResult = (await api.scry<DeskData>(getDeskSettings(lsDesk))).desk;
       const newState = {
-        ..._.mergeWith(get(), result, (obj, src) =>
+        ..._.mergeWith(get(), grResult, lsResult, (obj, src) =>
           _.isArray(src) ? src : undefined
         ),
         loaded: true,
@@ -129,12 +145,25 @@ export const useSettingsState = createState<BaseSettingsState>(
           set({ loaded: true });
         }
       }),
+    (set, get) =>
+      createSubscription('settings-store', `/desk/${lsDesk}`, (e) => {
+        const data = _.get(e, 'settings-event', false);
+        if (data) {
+          reduceStateN(get(), data, reduceUpdate);
+          set({ loaded: true });
+        }
+      }),
   ]
 );
 
 const selTheme = (s: SettingsState) => s.display.theme;
 export function useTheme() {
   return useSettingsState(selTheme);
+}
+
+const selCalm = (s: SettingsState) => s.calmEngine;
+export function useCalm() {
+  return useSettingsState(selCalm);
 }
 
 export function parseSettings<T>(settings: Stringified<T[]>): T[] {

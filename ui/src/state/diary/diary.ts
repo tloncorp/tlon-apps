@@ -39,7 +39,7 @@ setAutoFreeze(false);
 function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
   return {
     app: 'diary',
-    mark: 'diary-action',
+    mark: 'diary-action-0',
     json: {
       flag,
       update: {

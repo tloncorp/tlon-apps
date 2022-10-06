@@ -38,10 +38,20 @@ export default function GroupMemberManager() {
   const modalNavigate = useModalNavigate();
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
-  const members = useMemo(
-    () => (group && Object.keys(group.fleet)) || [],
-    [group]
-  );
+  const members = useMemo(() => {
+    if (!group) {
+      return [];
+    }
+    return Object.keys(group.fleet).filter((k) => {
+      if ('shut' in group.cordon) {
+        return (
+          !group.cordon.shut.ask.includes(k) &&
+          !group.cordon.shut.pending.includes(k)
+        );
+      }
+      return true;
+    });
+  }, [group]);
 
   const results = useMemo(
     () =>

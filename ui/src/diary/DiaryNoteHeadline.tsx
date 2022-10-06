@@ -11,6 +11,7 @@ import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import DiaryNoteOptionsDropdown from '@/diary/DiaryNoteOptionsDropdown';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
+import { useCalm } from '@/state/settings';
 import { useGroupFlag } from '@/state/groups';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { useNavigate } from 'react-router-dom';
@@ -42,14 +43,15 @@ export default function DiaryNoteHeadline({
   });
 
   const commenters = quippers;
+  const calm = useCalm();
 
   const isAdmin = useAmAdmin(flag);
 
   return (
     <>
-      {essay.image && (
+      {essay.image && !calm.disableRemoteContent ? (
         <img src={essay.image} alt="" className="h-auto w-full rounded-xl" />
-      )}
+      ) : null}
       <header className="mt-8 space-y-8">
         <h1 className="text-3xl font-semibold leading-10">{essay.title}</h1>
         <p className="font-semibold text-gray-400">
