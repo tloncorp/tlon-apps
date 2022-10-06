@@ -107,7 +107,7 @@
     =+  !<(req=create:d vase)
     (create req)
   ::
-      %diary-action-0
+      ?(%diary-action-0 %diary-action)
     =+  !<(=action:d vase)
     =.  p.q.action  now.bowl
     =/  diary-core  (di-abed:di-core p.action)
@@ -393,8 +393,8 @@
         %fact
       =*  cage  cage.sign 
       ?+  p.cage  di-core
-        %diary-logs-0    (di-apply-logs !<(log:d q.cage))
-        %diary-update-0  (di-update !<(update:d q.cage))
+        ?(%diary-logs %diary-logs-0)      (di-apply-logs !<(log:d q.cage))
+        ?(%diary-update %diary-update-0)  (di-update !<(update:d q.cage))
       ==
     ==
   ++  di-proxy
@@ -402,7 +402,7 @@
     ^+  di-core
     ?>  di-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  diary-action-0+!>([flag update])
+    =/  =cage  diary-action+!>([flag update])
     =.  cor
       (emit %pass di-area %agent dock %poke cage)
     di-core
@@ -435,7 +435,7 @@
       ?~  path  log.diary
       =/  =time  (slav %da i.path)
       (lot:log-on:d log.diary `time ~)
-    =/  =cage  diary-logs-0+!>(log)
+    =/  =cage  diary-logs+!>(log)
     =.  cor  (give %fact ~ cage)
     di-core
   ::
@@ -492,8 +492,8 @@
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
     ~&  [flag [time d]]
-    =.  cor  (give %fact ~[/ui] diary-action-0+!>([flag [time d]]))
-    =/  cag=cage  diary-update-0+!>([time d])
+    =.  cor  (give %fact ~[/ui] diary-action+!>([flag [time d]]))
+    =/  cag=cage  diary-update+!>([time d])
     =.  cor
       (give %fact ~(tap in paths) cag)
     di-core
