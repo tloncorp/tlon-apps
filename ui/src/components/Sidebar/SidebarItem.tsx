@@ -70,13 +70,24 @@ export default function SidebarItem({
     }
   };
 
-  const customHiglightStyles = () => {
+  const customHoverHiglightStyles = () => {
     if (hasHoverColor() && isColor(highlight))
       return {
         backgroundColor:
           currentTheme === 'dark'
             ? mix(highlight, 'black', 0.7)
             : mix(highlight, 'white', 0.85),
+      };
+    return null;
+  };
+
+  const customActiveHiglightStyles = () => {
+    if (hasHoverColor() && isColor(highlight))
+      return {
+        backgroundColor:
+          currentTheme === 'dark'
+            ? mix(highlight, 'black', 0.6)
+            : mix(highlight, 'white', 0.75),
       };
     return null;
   };
@@ -91,15 +102,17 @@ export default function SidebarItem({
       }}
       style={
         {
-          ...(hasHoverColor() && hover ? customHiglightStyles() : null),
-          ...(hasHoverColor() && active ? customHiglightStyles() : null),
+          ...(hasHoverColor() && hover && !active
+            ? customHoverHiglightStyles()
+            : null),
+          ...(hasHoverColor() && active ? customActiveHiglightStyles() : null),
         } as React.CSSProperties
       }
       className={cn(
         'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base',
         color,
-        !hasHoverColor() ? `hover:${highlight}` : null,
-        !hasHoverColor() && active && to !== '/' ? highlight : null
+        !hasHoverColor() && !active ? `hover:${highlight}` : null,
+        !hasHoverColor() && active && to !== '/' ? 'bg-gray-100' : null
       )}
     >
       <Action

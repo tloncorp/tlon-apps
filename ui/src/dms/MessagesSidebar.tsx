@@ -28,7 +28,7 @@ export default function MessagesSidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
-      <ul className="flex w-full flex-col px-2 pt-2">
+      <ul className="flex w-full flex-col space-y-1 px-2 pt-2">
         <SidebarItem
           div
           className="text-black"

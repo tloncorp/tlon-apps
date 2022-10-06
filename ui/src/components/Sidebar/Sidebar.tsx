@@ -38,7 +38,7 @@ export default function Sidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-col bg-white">
-      <ul className="flex w-full flex-col px-2 pt-2">
+      <ul className="flex w-full flex-col space-y-1 px-2 pt-2">
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
         <SidebarItem
           div
