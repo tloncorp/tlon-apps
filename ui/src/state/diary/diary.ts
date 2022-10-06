@@ -181,29 +181,6 @@ export const useDiaryState = create<DiaryState>(
           },
         });
       },
-      fetchQuips: async (flag, noteId) => {
-        const id = decToUd(noteId);
-        const res = await api.scry<DiaryQuips>({
-          app: 'diary',
-          path: `/diary/${flag}/quips/${id}/all`,
-        });
-
-        get().batchSet((draft) => {
-          const map = new BigIntOrderedMap<DiaryQuip>().gas(
-            _.map(res, (val, key) => {
-              const k = bigInt(udToDec(key));
-              return [k, val];
-            })
-          );
-
-          if (!(flag in draft.banter)) {
-            draft.banter[flag] = {};
-          }
-
-          draft.banter[flag][noteId] = map;
-        });
-      },
-
       fetchNote: async (flag, noteId) => {
         const note = await api.scry<DiaryNote>({
           app: 'diary',
@@ -420,18 +397,6 @@ export function useBrief(flag: string) {
   return useDiaryState(useCallback((s: DiaryState) => s.briefs[flag], [flag]));
 }
 
-export function useQuips(flag: string, noteId: string): DiaryQuipMap {
-  useEffect(() => {
-    useDiaryState.getState().fetchQuips(flag, noteId);
-  }, [flag, noteId]);
-
-  return useDiaryState(
-    useCallback(
-      (s) => s.banter[flag]?.[noteId] || new BigIntOrderedMap(),
-      [flag, noteId]
-    )
-  );
-}
 // TODO: this is a WIP part of implementing sorting by most recent comment
 // export function useDiaryQuips(flag: string): [bigInt.BigInteger, DiaryQuipMap][] {
 //   const def = useMemo(() => new BigIntOrderedMap<DiaryQuipMap>(), []);

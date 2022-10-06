@@ -20,15 +20,9 @@ export interface DiaryState {
   notes: {
     [flag: DiaryFlag]: DiaryNoteMap;
   };
-  banter: {
-    [flag: DiaryFlag]: {
-      [noteId: string]: DiaryQuipMap;
-    };
-  };
   briefs: DiaryBriefs;
   create: (req: DiaryCreate) => Promise<void>;
   start: () => Promise<void>;
-  fetchQuips: (flag: DiaryFlag, noteId: string) => Promise<void>;
   fetchNote: (flag: DiaryFlag, noteId: string) => Promise<void>;
   initialize: (flag: DiaryFlag) => Promise<void>;
   joinDiary: (flag: DiaryFlag) => Promise<void>;

@@ -11,7 +11,6 @@ import { makePrettyDate } from '@/logic/utils';
 import { daToUnix } from '@urbit/api';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import { useChannelFlag } from '@/hooks';
-import { useQuips } from '@/state/diary';
 import CheckIcon from '@/components/icons/CheckIcon';
 import DiaryNoteOptionsDropdown from '../DiaryNoteOptionsDropdown';
 import useDiaryActions from '../useDiaryActions';
@@ -24,7 +23,6 @@ interface DiaryGridItemProps {
 export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
   const chFlag = useChannelFlag();
   const essay: NoteEssay = letter.type === 'outline' ? letter : letter.essay;
-  const quips = useQuips(chFlag || '', time.toString());
   const unix = new Date(daToUnix(time));
   const date = makePrettyDate(unix);
   const navigate = useNavigate();
@@ -49,7 +47,7 @@ export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
           f.compact,
           f.uniq,
           f.take(3)
-        )([...quips].map(([, v]) => v.memo.author));
+        )([...letter.seal.quips].map(([, v]) => v.memo.author));
   const quipCount =
     letter.type === 'outline' ? letter.quipCount : letter.seal.quips.size;
 
@@ -81,7 +79,7 @@ export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
         <div role="button" onClick={() => navigate(`note/${time.toString()}`)}>
           <DiaryCommenters
             commenters={commenters}
-            quipCount={quips.size}
+            quipCount={quipCount}
             fullSize={false}
             gridItemHasImage={hasImage}
           />

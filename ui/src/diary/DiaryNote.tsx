@@ -2,13 +2,7 @@ import _ from 'lodash';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import { pluralize, sampleQuippers } from '@/logic/utils';
-import {
-  useBrief,
-  useDiaryState,
-  useNote,
-  useQuips,
-  useDiaryPerms,
-} from '@/state/diary';
+import { useBrief, useDiaryState, useNote, useDiaryPerms } from '@/state/diary';
 import { useRouteGroup, useVessel, useAmAdmin } from '@/state/groups/groups';
 import { DiaryBrief, DiaryQuip } from '@/types/diary';
 import { daToUnix } from '@urbit/api';

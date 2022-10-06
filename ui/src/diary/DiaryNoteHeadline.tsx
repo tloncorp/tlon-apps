@@ -1,10 +1,9 @@
 import _ from 'lodash';
 import React, { useCallback, useState } from 'react';
 import f from 'lodash/fp';
-import { DiaryNote, NoteEssay } from '@/types/diary';
+import { DiaryLetter, DiaryNote, NoteEssay } from '@/types/diary';
 import { format } from 'date-fns';
 import { useChannelFlag } from '@/hooks';
-import { useQuips } from '@/state/diary';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import IconButton from '@/components/IconButton';
 import CheckIcon from '@/components/icons/CheckIcon';
@@ -16,6 +15,7 @@ import { useGroupFlag } from '@/state/groups';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { useNavigate } from 'react-router-dom';
 import Author from '@/chat/ChatMessage/Author';
+import { sampleQuippers } from '@/logic/utils';
 import useDiaryActions from './useDiaryActions';
 
 interface DiaryListItemProps {
@@ -36,17 +36,12 @@ export default function DiaryNoteHeadline({
   const chFlag = useChannelFlag();
   const flag = useRouteGroup();
   const navigate = useNavigate();
-  const quips = useQuips(chFlag || '', time.toString());
   const { justCopied, onCopy } = useDiaryActions({
     flag: chFlag || '',
     time: time.toString(),
   });
 
-  const commenters = _.flow(
-    f.compact,
-    f.uniq,
-    f.take(3)
-  )([...quips].map(([, v]) => v.memo.author));
+  const commenters = quippers;
 
   const isAdmin = useAmAdmin(flag);
 
@@ -80,7 +75,7 @@ export default function DiaryNoteHeadline({
                 >
                   <DiaryCommenters
                     commenters={commenters}
-                    quipCount={quips.size}
+                    quipCount={quipCount}
                     fullSize={!isInList}
                   />
                 </span>
@@ -112,7 +107,7 @@ export default function DiaryNoteHeadline({
               <a href="#comments" className="no-underline">
                 <DiaryCommenters
                   commenters={commenters}
-                  quipCount={quips.size}
+                  quipCount={quipCount}
                   fullSize={!isInList}
                 />
               </a>
