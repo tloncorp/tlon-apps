@@ -14,6 +14,7 @@ import {
   PrivacyType,
   Rank,
   Group,
+  GroupPreview,
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief } from '@/types/diary';
@@ -198,6 +199,14 @@ export function getPrivacyFromCordon(cordon: Cordon): PrivacyType {
   }
 
   return 'public';
+}
+
+export function getPrivacyFromPreview(preview: GroupPreview) {
+  if (preview.secret) {
+    return 'secret';
+  }
+
+  return getPrivacyFromCordon(preview.cordon);
 }
 
 export function getPrivacyFromGroup(group: Group): PrivacyType {

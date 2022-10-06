@@ -290,6 +290,7 @@ export interface GroupPreview {
   meta: GroupMeta;
   cordon: Cordon;
   time: number;
+  secret: boolean;
 }
 
 export interface GroupIndex {

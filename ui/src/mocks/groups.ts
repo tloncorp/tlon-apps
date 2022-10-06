@@ -67,6 +67,7 @@ export function makeGroupPreview(privacy = 'public'): GroupPreview {
       image: `#${randomColor()}`,
       cover: `#${randomColor()}`,
     },
+    secret: false,
   };
 }
 
@@ -370,6 +371,7 @@ export const mockGangs: Gangs = {
           'https://fabled-faster.nyc3.digitaloceanspaces.com/fabled-faster/2022.1.27..17.59.43-image.png',
         cover: '',
       },
+      secret: false,
     },
   },
 };

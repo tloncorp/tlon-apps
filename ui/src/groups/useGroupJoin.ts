@@ -3,9 +3,9 @@ import { useCallback } from 'react';
 import useNavStore from '@/components/Nav/useNavStore';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
 import useHarkState from '@/state/hark';
-import { getPrivacyFromCordon } from '@/logic/utils';
 import { useGroup, useGroupState } from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
 
 function getButtonText(
   privacy: PrivacyType,
@@ -35,9 +35,7 @@ export default function useGroupJoin(
   const modalNavigate = useModalNavigate();
   const dismiss = useDismissNavigate();
   const group = useGroup(flag);
-  const privacy = gang.preview?.cordon
-    ? getPrivacyFromCordon(gang.preview?.cordon)
-    : 'public';
+  const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
   const navPrimary = useNavStore((state) => state.navigatePrimary);

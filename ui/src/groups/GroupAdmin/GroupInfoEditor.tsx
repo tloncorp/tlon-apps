@@ -44,6 +44,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     },
   });
 
+  // TODO: is this still needed? don't want to get Chesterton's Fence'd
   // useEffect(() => {
   //   form.reset({
   //     ...emptyMeta,

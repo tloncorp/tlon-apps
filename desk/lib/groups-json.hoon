@@ -40,6 +40,7 @@
         time+(time time.p)
         meta+(meta meta.p)
         cordon+(cordon cordon.p)
+        secret+b+secret.p
     ==
   ::
   ++  update

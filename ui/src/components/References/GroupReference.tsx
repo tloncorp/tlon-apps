@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useGang, useGroupState } from '@/state/groups';
+import { useGang, useGangs, useGroupState } from '@/state/groups';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { getFlagParts } from '@/logic/utils';
 import ShipName from '@/components/ShipName';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
 
 interface GroupReferenceProps {
   flag: string;
@@ -12,10 +13,12 @@ interface GroupReferenceProps {
 
 export default function GroupReference({ flag }: GroupReferenceProps) {
   const gang = useGang(flag);
-  const { group, privacy, open, join, reject } = useGroupJoin(flag, gang);
+  const { group, open, join, reject } = useGroupJoin(flag, gang);
   const { ship } = getFlagParts(flag);
 
   const meta = group?.meta || gang?.preview?.meta;
+
+  const { privacy } = useGroupPrivacy(flag);
 
   useEffect(() => {
     if (!gang?.preview && !group) {
@@ -23,7 +26,7 @@ export default function GroupReference({ flag }: GroupReferenceProps) {
     }
   }, [gang, group, flag]);
 
-  if (privacy === 'secret') {
+  if (!group && privacy === 'secret') {
     return (
       <div className="relative flex h-16 items-center space-x-3 rounded-lg border-2 border-gray-50 bg-gray-50 p-2 text-base font-semibold text-gray-600">
         <ExclamationPoint className="h-8 w-8 text-gray-400" />

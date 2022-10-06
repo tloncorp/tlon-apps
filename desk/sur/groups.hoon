@@ -318,6 +318,7 @@
       meta=data:meta
       =cordon
       =time
+      secret=?
   ==
 ::
 +$  previews  (map flag preview)

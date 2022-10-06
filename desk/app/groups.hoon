@@ -257,7 +257,7 @@
     =,  group
     :*  nest
         meta:(~(got by channels.group) nest)
-        flag  meta  cordon  now.bowl
+        flag  meta  cordon  now.bowl  secret.group
     ==
   =.  cor  (emit %give %fact ~ channel-preview+!>(preview))
   (emit %give %kick ~ ~)
@@ -532,16 +532,17 @@
     ==
   ::
   ++  go-preview
-    :: TODO: if user is in the allowed to join list, they should see a preview
-
-    ?>  ?|(!secret.group (~(has by fleet.group) src.bowl))
+    :: TODO: either use ?> to enforce request permissions; or return a preview
+    ::   with limited info? for rendering a secret group reference
+    :: ?>  (~(has by fleet.group) src.bowl)
+    :: TODO: if user is in the allowed to join list, they should see a preview;
+    ::   reusing some of the below logic
     :: ?>  ?|  =(p.flag our.bowl) :: self
     ::     =(p.flag src.bowl) :: subscription
     ::     &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
-
     =/  =preview:g
       =,  group
-      [flag meta cordon now.bowl]
+      [flag meta cordon now.bowl secret.group]
     =.  cor
       (emit %give %fact ~ group-preview+!>(preview))
     =.  cor
@@ -1102,7 +1103,7 @@
   ^-  (unit [flag:g preview:g])
   ?.  &(=(our.bowl p.flag) !secret.group)
     ~
-  `[flag =,(group [flag meta cordon now.bowl])]
+  `[flag =,(group [flag meta cordon now.bowl |])]
 ::
 ++  req-gang-index
   |=  =ship

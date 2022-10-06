@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Gang, Gangs } from '@/types/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import GroupSummary from './GroupSummary';
 import useGroupJoin from './useGroupJoin';
 
@@ -11,7 +12,8 @@ interface GroupJoinItemProps {
 
 function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
   const [hasBeenClicked, setHasBeenClicked] = useState(false);
-  const { open, reject, button, privacy, requested } = useGroupJoin(flag, gang);
+  const { open, reject, button, requested } = useGroupJoin(flag, gang);
+  const { privacy } = useGroupPrivacy(flag);
 
   const onClick = useCallback((buttonAction: () => void) => {
     setHasBeenClicked(true);
@@ -24,7 +26,7 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
         className="flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50"
         onClick={open}
       >
-        <GroupSummary flag={flag} {...gang.preview} size={'small'} />
+        <GroupSummary flag={flag} preview={gang.preview} size={'small'} />
       </button>
       <div className="absolute right-2 flex flex-row">
         {gang.invite ? (
