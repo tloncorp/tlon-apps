@@ -258,24 +258,6 @@
   ^-  yarn:ha
   =/  id  (end [7 1] (shax eny.bowl))
   [id rope now.bowl con wer but]
-++  flatten
-  |=  content=(list inline:d)
-  ^-  cord
-  %-  crip
-  %-  zing
-  %+  turn
-    content
-  |=  c=inline:d
-  ^-  tape
-  ?@  c  (trip c)
-  ?-  -.c
-      %break  ""
-      %tag    (trip p.c)
-      %link   (trip q.c)
-      %block   (trip q.c)
-      ?(%code %inline-code)  ""
-      ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
-  ==
 ++  from-self  =(our src):bowl
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -359,9 +341,6 @@
     ?+  pole  [~ ~]
         [%notes rest=*]  (peek:di-notes rest.pole)
         [%perm ~]        ``diary-perm+!>(perm.diary)
-        [%quips time=@ rest=*]  
-      =/  =time  (slav %ud time.pole)
-      (~(peek qup (~(gut by banter.diary) time *quips:d)) rest.pole)
     ==
   ::
   ++  di-revoke
@@ -525,38 +504,15 @@
       (di-give-updates time dif)
     ?-    -.dif
         %notes
-      di-core(notes.diary (reduce:di-notes time p.dif))
-    ::
-        %quips
-      =/  =quips:d      (~(gut by banter.diary) p.dif *quips:d)
-      =.  quips         (~(reduce qup quips) time q.dif)
-      =.  banter.diary  (~(put by banter.diary) p.dif quips)
-      ?-  -.q.q.dif
-          ?(%del %add-feel %del-feel)  di-core
-          %add
-        =/  =memo:d  p.q.q.dif
-        =/  [ti=^time =note:d]  (~(got not notes.diary) p.dif)        
-        =/  in-replies
-          %+  lien
-            (tap:on:quips:d quips)
-          |=  [=^time =quip:d]
-          =(author.quip our.bowl)
-        ?:  |(=(author.memo our.bowl) !in-replies)  di-core
-        =/  yarn
-          %^  di-spin
-            /note/(rsh 4 (scot %ui replying.memo))
-            :~  [%ship author.memo]
-                ' commented on '
-                [%emph title.note]
-                ': '
-                [%ship author.memo]
-                ': '
-                (flatten content.memo)
-            ==
-          ~  
-        =.  cor  (emit (pass-hark & & yarn))
-        di-core
-      ==
+      =.  notes.diary  (reduce:di-notes time p.dif)
+      =/  cons=(list (list content:ha))
+        (hark:di-notes our.bowl p.dif)
+      =.  cor
+        %-  emil
+        %+  turn  cons
+        |=  cs=(list content:ha)
+        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui time)) cs ~))
+      di-core
     ::
         %add-sects
       =*  p  perm.diary

@@ -30,7 +30,6 @@
       =sort
       =notes
       =remark
-      banter=(map time quips)
   ==
 ::
 ::  $notes: a set of time ordered diary posts
@@ -48,6 +47,7 @@
     $%  [%add p=essay]
         [%edit p=essay]
         [%del ~]
+        [%quips p=diff:quips]
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
     ==
@@ -76,10 +76,19 @@
 +$  note  [seal essay]
 ::  $quip: a post comment
 ::
-+$  quip  [seal memo]
-::  $seal: the id and reactions to a post
++$  quip  [cork memo]
+::
+::  $seal: host-side data for a note
 ::
 +$  seal
+  $:  =time
+      =quips
+      feels=(map ship feel)
+  ==
+::
+::  $cork: host-side data for a quip
+::
++$  cork
   $:  =time
       feels=(map ship feel)
   ==
@@ -177,7 +186,6 @@
 ::
 +$  diff
   $%  [%notes p=diff:notes]
-      [%quips p=time q=diff:quips]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]

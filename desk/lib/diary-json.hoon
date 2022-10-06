@@ -90,7 +90,6 @@
       %view       s/p.diff
       %sort       s/p.diff
       %notes     (notes-diff p.diff)
-      %quips     (pairs id/s/(scot %ud p.diff) diff/(quips-diff q.diff) ~)
       %add-sects  a/(turn ~(tap in p.diff) (lead %s))
       %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
@@ -109,6 +108,7 @@
       %add       (essay p.delta)
       %edit      (essay p.delta)
       %del       ~
+      %quips     (quips-diff p.delta)
       %add-feel  (add-feel +.delta)
     ==
   ::
@@ -201,7 +201,7 @@
     |=  q=quip:d
     ^-  json
     %-  pairs
-    :~  seal+(seal -.q)
+    :~  cork+(cork -.q)
         memo+(memo +.q)
     ==
   ::
@@ -222,10 +222,28 @@
         essay+(essay +.note)
     ==
   ::
+  ++  cork
+    |=  =cork:d
+    %-  pairs
+    :~  time+(time time.cork)
+    ::
+        :-  %feels
+        %-  pairs
+        %+  turn  ~(tap by feels.cork)
+        |=  [her=@p =feel:d]
+        [(scot %p her) s+feel]
+    ==
+
+  ::
   ++  seal
     |=  =seal:d
     %-  pairs
     :~  time+(time time.seal)
+    ::
+        :-  %quips
+        %-  pairs
+        :~  foo/s/'foo'
+        ==
     ::
         :-  %feels
         %-  pairs
@@ -285,7 +303,6 @@
     :~  notes/notes-diff
         view/(su (perk %grid %list ~))
         sort/(su (perk %time %alpha ~))
-        quips/(ot id/(se %ud) diff/quips-diff ~)
         add-sects/add-sects
         del-sects/del-sects
     ==
@@ -323,6 +340,7 @@
     :~  add/essay
         edit/essay
         del/ul
+        quips/quips-diff
         add-feel/add-feel
     ==
   ::
