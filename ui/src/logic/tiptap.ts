@@ -113,7 +113,7 @@ function limitBreaks(
 }
 
 const isList = (c: JSONContent) =>
-  c.type === 'orderedList' || c.type === 'bulletedList';
+  c.type === 'orderedList' || c.type === 'bulletList';
 
 export function JSONToListing(
   json: JSONContent,
