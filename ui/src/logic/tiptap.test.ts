@@ -662,6 +662,19 @@ describe('JSONToInlines', () => {
     expect(output).toEqual(expected);
   });
 
+  it('horizontal rules', () => {
+    const input: JSONContent = {
+      type: 'horizontalRule',
+    };
+    const output = JSONToInlines(input);
+    const expected: DiaryBlock[] = [
+      {
+        rule: null,
+      },
+    ];
+    expect(output).toEqual(expected);
+  });
+
   it('basic list', () => {
     const input: JSONContent = {
       type: 'orderedList',

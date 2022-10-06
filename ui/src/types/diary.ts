@@ -101,6 +101,10 @@ export interface DiaryHeader {
   };
 }
 
+export interface DiaryRule {
+  rule: null;
+}
+
 export function isDiaryImage(item: unknown): item is DiaryImage {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
@@ -109,7 +113,8 @@ export type DiaryBlock =
   | DiaryImage
   | DiaryCite
   | DiaryListingBlock
-  | DiaryHeader;
+  | DiaryHeader
+  | DiaryRule;
 
 export interface VerseBlock {
   block: DiaryBlock;

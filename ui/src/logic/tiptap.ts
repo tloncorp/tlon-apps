@@ -294,6 +294,13 @@ export function JSONToInlines(
         },
       ];
     }
+    case 'horizontalRule': {
+      return [
+        {
+          rule: null,
+        },
+      ];
+    }
     case 'diary-image': {
       if (!json.attrs) {
         return [];

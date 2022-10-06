@@ -187,6 +187,10 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     );
   }
 
+  if ('rule' in story) {
+    return <hr />;
+  }
+
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 });
 
