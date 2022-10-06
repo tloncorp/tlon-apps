@@ -107,16 +107,15 @@
       author=ship
       sent=time      
   ==
++$  story  (pair (list block) (list inline))
 ::  $memo: the comment data itself
 ::
-::    replying: which post we're replying to
 ::    content: the body of the comment
 ::    author: the ship that wrote the comment
 ::    sent: the client-side time the comment was made
 ::
 +$  memo
-  $:  replying=time
-      content=(list inline)
+  $:  content=story
       author=ship
       sent=time
   ==

@@ -111,7 +111,7 @@
       ': '
       [%ship author.memo]
       ': '
-      (flatten content.memo)
+      (flatten q.content.memo)
   ==
 ::
 ++  peek

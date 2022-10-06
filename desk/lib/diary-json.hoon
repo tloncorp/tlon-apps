@@ -204,13 +204,19 @@
     :~  cork+(cork -.q)
         memo+(memo +.q)
     ==
+  ++  story
+    |=  s=story:d
+    ^-  json
+    %-  pairs
+    :~  block/a/(turn p.s block)
+        inline/a/(turn q.s inline)
+    ==
   ::
   ++  memo
     |=  m=memo:d
     ^-  json
     %-  pairs
-    :~  replying/s/(scot %ud replying.m)
-        content/a/(turn content.m inline)
+    :~  content/(story content.m)
         author/(ship author.m)
         sent/(time sent.m)
     ==
@@ -320,10 +326,15 @@
         add-feel/add-feel
     ==
   ::
+  ++  story
+    %-  ot
+    :~  block/(ar block)
+        inline/(ar inline)
+    ==
+  ::
   ++  memo
     %-  ot
-    :~  replying/(se %ud)
-        content/(ar inline)
+    :~  content/story
         author/(se %p)
         sent/di
     ==
