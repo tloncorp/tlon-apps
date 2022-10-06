@@ -83,11 +83,7 @@ const ChatMessage = React.memo<
       return (
         <div ref={ref} className="flex flex-col">
           {unread && unread.count > 0 ? (
-            <DateDivider
-              date={unix}
-              unreadCount={unread.count}
-              viewRef={viewRef}
-            />
+            <DateDivider date={unix} unreadCount={unread.count} ref={viewRef} />
           ) : null}
           {newDay && !unread ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
