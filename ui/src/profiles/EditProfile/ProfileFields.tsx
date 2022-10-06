@@ -9,7 +9,7 @@ import LinkIcon from '@/components/icons/LinkIcon';
 import { useCalm } from '@/state/settings';
 
 interface ProfileFormSchema extends ContactEditField {
-  isContactPublic: boolean;
+  isContactPrivate: boolean;
 }
 
 export default function ProfileFields() {
@@ -23,7 +23,8 @@ export default function ProfileFields() {
   const avatarHasLength = watchAvatar?.length;
   const coverHasLength = watchCover?.length;
   const watchSigilColor = watch('color');
-  const isPublicSelected = watch('isContactPublic') === true;
+  // we're flipping this logic because G1 expects the value to be "true" if it's private
+  const isPrivateSelected = watch('isContactPrivate') === true;
   const calm = useCalm();
 
   const setColor = (newColor: string) => {
@@ -152,7 +153,7 @@ export default function ProfileFields() {
         }
       >
         <div className="flex items-center">
-          {isPublicSelected ? (
+          {isPrivateSelected ? (
             <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
               <CheckIcon className="h-3 w-3 fill-gray-400" />
             </div>
@@ -173,7 +174,7 @@ export default function ProfileFields() {
         </div>
 
         <input
-          {...register('isContactPublic')}
+          {...register('isContactPrivate')}
           className="sr-only"
           type="checkbox"
         />
