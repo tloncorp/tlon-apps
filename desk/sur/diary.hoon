@@ -2,7 +2,7 @@
 |%
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)
-::  $feel: either an emoji identifier like :wave or a URL for custom
+::  $feel: either an emoji identifier like :diff or a URL for custom
 +$  feel  @ta
 ::  $view: the persisted display format for a diary
 +$  view  ?(%grid %list)
@@ -35,9 +35,9 @@
 ::  $notes: a set of time ordered diary posts
 ::
 ++  notes
-  =<  notes
+  =<  rock
   |%
-  +$  notes
+  +$  rock
     ((mop time note) lte)
   ++  on
     ((^on time note) lte)
@@ -56,9 +56,9 @@
 ::  $quips: a set of time ordered note comments
 ::
 ++  quips
-  =<  quips
+  =<  rock
   |%
-  +$  quips
+  +$  rock
     ((mop time quip) lte)
   ++  on
     ((^on time quip) lte)
@@ -71,6 +71,20 @@
         [%del-feel p=ship]
     ==
   --
+::
+::  $outline: abridged $note
+::    .quips: number of comments
+::
++$  outline
+  [quips=@ud quippers=(set ship) essay]
+::
+++  outlines
+  =<  outlines
+  |%
+  +$  outlines  ((mop time outline) lte)
+  ++  on        ((^on time outline) lte)
+  --
+::
 ::  $note: a diary post
 ::
 +$  note  [seal essay]

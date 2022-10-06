@@ -113,6 +113,20 @@
       ': '
       (flatten q.content.memo)
   ==
+::  +trace: turn note into outline
+::
+::    XX: should trim actual note contents, probably
+::
+++  trace
+  |=  =note:d
+  ^-  outline:d
+  =;  quippers=(set ship)
+    [~(wyt by quips.note) quippers +.note]
+  =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
+  %-  ~(gas in *(set ship))
+  %+  turn  (tap:on:quips:d quips.note)
+  |=  [@ =quip:d]
+  author.quip
 ::
 ++  peek
   |=  =(pole knot)
@@ -122,10 +136,14 @@
   ?+    pole  [~ ~]
   ::
   ::  TODO: less iterations?
-      [%newest count=@ ~]
+      [%newest count=@ mode=?(%outline %note) ~]
     =/  count  (slav %ud count.pole)
     =/  ls    (scag count (bap:on not))
-    ``diary-notes+!>((gas:on *notes:d ls))
+    ?:  =(mode.pole %note)
+      ``diary-notes+!>((gas:on *notes:d ls))
+    =-  ``diary-outlines+!>(-)
+    %+  gas:on:outlines:d  *outlines:d
+    (turn ls |=([=time =note:d] [time (trace note)]))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
@@ -143,9 +161,9 @@
     (scag count (tap:on (lot:on not `start ~)))
 
   ::
-      [%note %id time=@ ~]
+      [%note time=@ ~]
     =/  time  (slav %ud time.pole)
-    ``note+!>((got `@da`time))
+    ``diary-note+!>(+:(got `@da`time))
   ::
       [%note %id time=@ %quips rest=*]
     =/  time  (slav %ud time.pole)

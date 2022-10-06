@@ -5,6 +5,26 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  outline
+    |=  o=outline:d
+    %-  pairs
+    :~  title/s/title.o
+        image/s/image.o
+        content/a/(turn content.o verse)
+        author+(ship author.o)
+        sent+(time sent.o)
+        'quipCount'^(numb quips.o)
+        quippers/a/(turn ~(tap in quippers.o) ship)
+    ==
+  ::
+  ++  outlines
+    |=  os=outlines:d
+    %-  pairs
+    %+  turn  (tap:on:outlines:d os)
+    |=  [t=@da o=outline:d]
+    ^-  [cord json]
+    [(scot %ud t) (outline o)]
+  ::
   ++  quips-diff
     |=  d=diff:quips:d
     %-  pairs
@@ -248,8 +268,9 @@
     ::
         :-  %quips
         %-  pairs
-        :~  foo/s/'foo'
-        ==
+        %+  turn  (tap:on:quips:d quips.seal)
+        |=  [t=@da q=quip:d]
+        [(scot %ud t) (quip q)]
     ::
         :-  %feels
         %-  pairs
