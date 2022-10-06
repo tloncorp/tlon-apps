@@ -317,7 +317,6 @@ export function useDiaryInlineEditor({
       content: content || '',
       editorProps: {
         attributes: {
-          class: 'input-transparent',
           'aria-label': 'Note editor with formatting menu',
         },
       },
@@ -358,7 +357,10 @@ export default function DiaryInlineEditor({
   return (
     <div className={classNames('input-transparent block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
-      <EditorContent className="w-full" editor={editor} />
+      <EditorContent
+        className="prose-lg prose w-full dark:prose-invert"
+        editor={editor}
+      />
       {!isMobile ? <ChatInputMenu editor={editor} /> : null}
     </div>
   );

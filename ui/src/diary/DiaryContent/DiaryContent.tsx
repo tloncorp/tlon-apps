@@ -183,7 +183,7 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
 
 export default function DiaryContent({ content }: DiaryContentProps) {
   return (
-    <article className="text-[18px] leading-[26px]">
+    <article className="prose-lg prose dark:prose-invert">
       {content.map((c, index) => {
         if ('block' in c) {
           return <BlockContent key={index} story={c.block} />;

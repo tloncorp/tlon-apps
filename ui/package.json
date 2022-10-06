@@ -131,6 +131,7 @@
     "@storybook/react": "^6.4.22",
     "@storybook/testing-library": "0.0.9",
     "@tailwindcss/aspect-ratio": "^0.4.0",
+    "@tailwindcss/typography": "^0.5.7",
     "@testing-library/jest-dom": "^5.16.4",
     "@tloncorp/eslint-config": "^0.0.6",
     "@types/lodash": "^4.14.181",
