@@ -162,11 +162,7 @@
       %-  pairs
       :~  type+s+p.l
           items+a+(turn q.l listing)
-      ==
-        %sublist
-      %-  pairs
-      :~  contents+a+(turn p.l inline)
-          list+(listing l)
+          contents+a+(turn r.l inline)
       ==
     ==
   ::
@@ -407,11 +403,7 @@
       %-  ot
       :~  type/(su (perk %ordered %unordered ~))
           items/(ar listing)
-      ==
-      :-  %sublist
-      %-  ot
-      :~  contents/(ar inline)
-          list/listing
+          contents/(ar inline)
       ==
     ==
   ::

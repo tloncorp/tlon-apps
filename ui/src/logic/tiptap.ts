@@ -126,6 +126,7 @@ export function JSONToListing(
           type: 'ordered',
           items:
             json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
         },
       };
     }
@@ -135,6 +136,7 @@ export function JSONToListing(
           type: 'unordered',
           items:
             json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
         },
       };
     }
@@ -148,9 +150,12 @@ export function JSONToListing(
 
       if (list) {
         return {
-          sublist: {
+          list: {
             contents,
-            list: JSONToListing(list, limitNewlines),
+            items: list.content
+              ? list.content.map((c) => JSONToListing(c, limitNewlines))
+              : ([] as DiaryListing[]),
+            type: list.type === 'bulletList' ? 'unordered' : 'ordered',
           },
         };
       }

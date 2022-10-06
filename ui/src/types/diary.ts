@@ -78,13 +78,7 @@ export interface DiaryList {
   list: {
     type: 'ordered' | 'unordered';
     items: DiaryListing[];
-  };
-}
-
-export interface DiarySublist {
-  sublist: {
     contents: Inline[];
-    list: DiaryListing;
   };
 }
 
@@ -92,7 +86,7 @@ export type DiaryListItem = {
   item: Inline[];
 };
 
-export type DiaryListing = DiaryList | DiarySublist | DiaryListItem;
+export type DiaryListing = DiaryList | DiaryListItem;
 
 export interface DiaryListingBlock {
   listing: DiaryListing;

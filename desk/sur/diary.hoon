@@ -122,8 +122,7 @@
   ==
 ::  $listing: recursive type for infinitely nested <ul> or <ol>
 +$  listing
-  $%  [%list p=?(%ordered %unordered) q=(list listing)]
-      [%sublist p=(list inline) q=listing]
+  $%  [%list p=?(%ordered %unordered) q=(list listing) r=(list inline)]
       [%item p=(list inline)]
   ==
 ::  $block: post content that sits outside of the normal text
