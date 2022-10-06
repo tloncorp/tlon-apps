@@ -54,7 +54,7 @@ function subscribeOnce<T>(app: string, path: string) {
 function chatAction(whom: string, diff: ChatDiff) {
   return {
     app: 'chat',
-    mark: 'chat-action',
+    mark: 'chat-action-0',
     json: {
       flag: whom,
       update: {

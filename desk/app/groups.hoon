@@ -423,7 +423,7 @@
       (~(put by groups) flag net group)
     ?.  gone  cor
     =/  =action:g  [flag now.bowl %del ~]
-    (give %fact ~[/groups/ui] group-action+!>(action))
+    (give %fact ~[/groups/ui] group-action-0+!>(action))
   ++  go-abed
     |=  f=flag:g
     ^+  go-core
@@ -459,7 +459,7 @@
       =/  =wire  (snoc go-area %proxy)
       =/  =dock  [p.flag dap.bowl]
       =/  =cage
-        :-  %group-action
+        :-  %group-action-0
         !>  ^-  action:g
         [flag now.bowl %fleet (silt our.bowl ~) %del ~]
       [%pass wire %agent dock %poke cage]
@@ -600,10 +600,11 @@
     ::
         %fact
       =*  cage  cage.sign 
+      ::  XX: does init need to be handled specially?
       ?+  p.cage  go-core
-        %group-log     (go-apply-log !<(log:g q.cage))
-        %group-update  (go-update !<(update:g q.cage))
-        %group-init    (go-fact-init !<(init:g q.cage))
+        %group-log-0     (go-apply-log !<(log:g q.cage))
+        %group-update-0  (go-update !<(update:g q.cage))
+        %group-init-0    (go-fact-init !<(init:g q.cage))
       ==
     ==
   ::
@@ -621,7 +622,7 @@
     =/  =time  (slav %da i.path)
     =/  =log:g
       (lot:log-on:g p.net `time ~)
-    group-log+!>(log)
+    group-log-0+!>(log)
   ::
   ++  go-apply-log
     |=  =log:g
@@ -637,7 +638,7 @@
     =.  net  [%sub time] 
     =/  create=diff:g  [%create group]
     =.  cor  
-      (give %fact ~[/groups /groups/ui] group-action+!>(`action:g`[flag now.bowl create]))
+      (give %fact ~[/groups /groups/ui] group-action-0+!>(`action:g`[flag now.bowl create]))
     =.  cor
       (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
     =.  cor
@@ -655,9 +656,9 @@
       (~(put in out) path)
     =.  paths  (~(put in paths) (snoc go-area %ui))
     =.  cor
-      (give %fact ~(tap in paths) group-update+!>(`update:g`[time diff]))
+      (give %fact ~(tap in paths) group-update-0+!>(`update:g`[time diff]))
     =.  cor
-      (give %fact ~[/groups /groups/ui] group-action+!>(`action:g`[flag time diff]))
+      (give %fact ~[/groups /groups/ui] group-action-0+!>(`action:g`[flag time diff]))
     go-core
   ::
   ++  go-tell-update
@@ -1144,16 +1145,16 @@
     ++  add-self
       =/  =vessel:fleet:g  [~ now.bowl]
       =/  =action:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
-      (poke-host /join/add group-action+!>(action))
+      (poke-host /join/add group-action-0+!>(action))
     ::
     ++  knock
       =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
       =/  =action:g  [flag now.bowl %cordon %shut %add-ships %ask ships]
-      (poke-host /knock group-action+!>(action))
+      (poke-host /knock group-action-0+!>(action))
     ++  rescind
       =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
       =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
-      (poke-host /rescind group-action+!>(action))
+      (poke-host /rescind group-action-0+!>(action))
     ++  get-preview
       =/  =task:agent:gall  [%watch /groups/(scot %p p.flag)/[q.flag]/preview]
       (pass-host /preview task)
