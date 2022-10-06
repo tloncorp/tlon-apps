@@ -31,7 +31,7 @@ export interface GroupCite {
 
 export interface DeskCite {
   desk: {
-    flag: string;
+    desk: string;
     where: string;
   };
 }
