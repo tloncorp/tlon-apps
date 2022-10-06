@@ -1,17 +1,20 @@
-import React from 'react';
+import React, { Ref } from 'react';
 import cn from 'classnames';
-import { makePrettyDay, pluralize } from '../../logic/utils';
+import { makePrettyDay, pluralize } from '@/logic/utils';
 
 interface DateDividerProps {
   date: Date;
   unreadCount?: number;
 }
 
-export default function DateDivider({ date, unreadCount }: DateDividerProps) {
+function DateDividerComponent(
+  { date, unreadCount }: DateDividerProps,
+  ref: Ref<HTMLDivElement>
+) {
   const prettyDay = makePrettyDay(date);
 
   return (
-    <div className="flex w-full items-center py-4">
+    <div ref={ref} className="flex w-full items-center py-4">
       <div
         className={cn(
           'h-[2px] w-8 rounded-sm',
@@ -45,3 +48,7 @@ export default function DateDivider({ date, unreadCount }: DateDividerProps) {
     </div>
   );
 }
+
+const DateDivider = React.forwardRef(DateDividerComponent);
+
+export default DateDivider;
