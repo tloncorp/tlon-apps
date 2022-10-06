@@ -92,11 +92,24 @@ export interface DiaryListingBlock {
   listing: DiaryListing;
 }
 
+export type DiaryHeaderLevel = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+
+export interface DiaryHeader {
+  header: {
+    tag: DiaryHeaderLevel;
+    content: Inline;
+  };
+}
+
 export function isDiaryImage(item: unknown): item is DiaryImage {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
 
-export type DiaryBlock = DiaryImage | DiaryCite | DiaryListingBlock;
+export type DiaryBlock =
+  | DiaryImage
+  | DiaryCite
+  | DiaryListingBlock
+  | DiaryHeader;
 
 export interface VerseBlock {
   block: DiaryBlock;

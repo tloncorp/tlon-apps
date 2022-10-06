@@ -55,7 +55,9 @@ export default function DiaryAddNote() {
     const sent = Date.now();
 
     const isBlock = (c: Inline | DiaryBlock) =>
-      ['image', 'cite', 'listing'].some((k) => typeof c !== 'string' && k in c);
+      ['image', 'cite', 'listing', 'header'].some(
+        (k) => typeof c !== 'string' && k in c
+      );
     const noteContent: NoteContent = [];
     let index = 0;
     data.forEach((c, i) => {

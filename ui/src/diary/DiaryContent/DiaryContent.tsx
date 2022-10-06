@@ -178,6 +178,15 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     return <ListingContent content={story.listing} />;
   }
 
+  if ('header' in story) {
+    const Tag = story.header.tag;
+    return (
+      <Tag>
+        <InlineContent story={story.header.content} />
+      </Tag>
+    );
+  }
+
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 });
 

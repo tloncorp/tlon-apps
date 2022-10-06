@@ -8,7 +8,12 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { Cite } from '@/types/chat';
-import { DiaryBlock, DiaryListing, NoteContent } from '@/types/diary';
+import {
+  DiaryBlock,
+  DiaryHeaderLevel,
+  DiaryListing,
+  NoteContent,
+} from '@/types/diary';
 import { citeToPath, pathToCite } from './utils';
 
 export interface EditorOnUpdateProps {
@@ -273,6 +278,19 @@ export function JSONToInlines(
       return [
         {
           listing: JSONToListing(json, limitNewlines),
+        },
+      ];
+    }
+    case 'heading': {
+      const first = json.content ? json.content[0] : undefined;
+      return [
+        {
+          header: {
+            tag: `h${json.attrs?.level || 2}` as DiaryHeaderLevel,
+            content: (first
+              ? JSONToInlines(first, limitNewlines)[0]
+              : '') as Inline,
+          },
         },
       ];
     }
