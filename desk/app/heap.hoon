@@ -106,7 +106,7 @@
     =+  !<(req=create:h vase)
     (create req)
   ::
-      %heap-action
+      ?(%heap-action-0 %heap-action)
     =+  !<(=action:h vase)
     =.  p.q.action  now.bowl
     =/  heap-core  (he-abed:he-core p.action)
@@ -388,8 +388,8 @@
         %fact
       =*  cage  cage.sign 
       ?+  p.cage  he-core
-        %heap-logs    (he-apply-logs !<(log:h q.cage))
-        %heap-update  (he-update !<(update:h q.cage))
+        ?(%heap-logs-0 %heap-logs)      (he-apply-logs !<(log:h q.cage))
+        ?(%heap-update-0 %heap-update)  (he-update !<(update:h q.cage))
       ==
     ==
   ++  he-proxy

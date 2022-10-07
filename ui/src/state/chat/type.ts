@@ -9,11 +9,12 @@ import {
   Hive,
   ChatCreate,
 } from '../../types/chat';
+import { BaseState } from '../base';
 import { GroupMeta } from '../../types/groups';
 
 export interface ChatState {
-  set: (fn: (sta: ChatState) => void) => void;
-  batchSet: (fn: (sta: ChatState) => void) => void;
+  set: (fn: (sta: BasedChatState) => void) => void;
+  batchSet: (fn: (sta: BasedChatState) => void) => void;
   chats: {
     [flag: string]: Chat;
   };
@@ -28,6 +29,8 @@ export interface ChatState {
   };
   chatSubs: string[];
   dmSubs: string[];
+  sentMessages: string[];
+  postedMessages: string[];
   multiDmSubs: string[];
   pins: ChatWhom[];
   dmArchive: string[];
@@ -81,4 +84,7 @@ export interface ChatState {
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;
   initializeMultiDm: (id: string) => Promise<void>; // id is `@uw`, the Club ID
+  [key: string]: unknown;
 }
+
+export type BasedChatState = ChatState & BaseState<ChatState>;

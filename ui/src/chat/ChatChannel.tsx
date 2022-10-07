@@ -15,7 +15,6 @@ import {
   useChannel,
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
-import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { createStorageKey } from '@/logic/utils';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -40,12 +39,10 @@ function ChatChannel({ title }: ViewProps) {
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
-  const { sendMessage, markRead } = useChatState.getState();
+  const { sendMessage } = useChatState.getState();
 
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
-
-  useDismissChannelNotifications({ markRead });
 
   return (
     <Layout

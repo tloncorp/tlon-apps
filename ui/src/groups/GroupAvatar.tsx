@@ -3,6 +3,7 @@ import React from 'react';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import { isColor } from '@/logic/utils';
 import useMedia from '@/logic/useMedia';
+import { useCalm } from '@/state/settings';
 
 interface GroupAvatarProps {
   image?: string;
@@ -38,9 +39,16 @@ export default function GroupAvatar({
   title,
 }: GroupAvatarProps) {
   const dark = useMedia('(prefers-color-scheme: dark)');
-  const background = image || (dark ? '#333333' : '#E5E5E5');
+  const calm = useCalm();
+  let background;
 
-  return image && !isColor(image) ? (
+  if (!calm.disableRemoteContent) {
+    background = image || (dark ? '#333333' : '#E5E5E5');
+  } else {
+    background = dark ? '#333333' : '#E5E5E5';
+  }
+
+  return image && !calm.disableRemoteContent && !isColor(image) ? (
     <img className={cn('rounded', size, className)} src={image} />
   ) : (
     <ColorBoxIcon

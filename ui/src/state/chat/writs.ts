@@ -1,8 +1,15 @@
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import api from '../../api';
-import { ChatWrit, ChatWrits, Pact, WritDiff } from '../../types/chat';
-import { ChatState } from './type';
+import {
+  ChatWrit,
+  ChatWrits,
+  Pact,
+  WritDiff,
+  ChatAction,
+  WritDelta,
+} from '../../types/chat';
+import { ChatState, BasedChatState } from './type';
 
 interface WritsStore {
   initialize: () => Promise<void>;
@@ -10,9 +17,92 @@ interface WritsStore {
   getOlder: (count: string) => Promise<boolean>;
 }
 
+export function writsReducer(whom: string) {
+  return (
+    json: ChatAction | WritDiff,
+    draft: BasedChatState
+  ): BasedChatState => {
+    let id;
+    let delta;
+    if ('update' in json) {
+      if ('writs' in json.update.diff) {
+        id = json.update.diff.writs.id;
+        delta = json.update.diff.writs.delta;
+      }
+    } else {
+      id = json.id;
+      delta = json.delta;
+    }
+    if (!delta || !id) {
+      return draft;
+    }
+
+    const pact = draft.pacts[whom];
+
+    if ('add' in delta && !pact.index[id]) {
+      const time = bigInt(unixToDa(Date.now()));
+      pact.index[id] = time;
+      const seal = { id, feels: {}, replied: [] };
+      const writ = { seal, memo: delta.add };
+      pact.writs = pact.writs.set(time, writ);
+      if (delta.add.replying) {
+        const replyTime = pact.index[delta.add.replying];
+        if (replyTime) {
+          const ancestor = pact.writs.get(replyTime);
+          ancestor.seal.replied = [...ancestor.seal.replied, id];
+          pact.writs.set(replyTime, ancestor);
+        }
+      }
+    } else if ('del' in delta && pact.index[id]) {
+      const time = pact.index[id];
+      const old = pact.writs.get(time);
+      pact.writs = pact.writs.delete(time);
+      delete pact.index[id];
+      if (old.memo.replying) {
+        const replyTime = pact.index[old.memo.replying];
+        if (replyTime) {
+          const ancestor = pact.writs.get(replyTime);
+          ancestor.seal.replied = ancestor.seal.replied.filter(
+            (r) => r !== old.memo.replying
+          );
+          pact.writs.set(replyTime, ancestor);
+        }
+      }
+    } else if ('add-feel' in delta && pact.index[id]) {
+      const time = pact.index[id];
+      const msg = pact.writs.get(time);
+      const { ship, feel } = delta['add-feel'];
+
+      pact.writs = pact.writs.set(time, {
+        ...msg,
+        seal: {
+          ...msg.seal,
+          feels: {
+            ...msg.seal.feels,
+            [ship]: feel,
+          },
+        },
+      });
+    } else if ('del-feel' in delta && pact.index[id]) {
+      const time = pact.index[id];
+      const msg = pact.writs.get(time);
+      const ship = delta['del-feel'];
+      delete msg.seal.feels[ship];
+
+      pact.writs = pact.writs.set(time, {
+        ...msg,
+        seal: msg.seal,
+      });
+    }
+    draft.pacts[whom] = pact;
+
+    return draft;
+  };
+}
+
 export default function makeWritsStore(
   whom: string,
-  get: () => ChatState,
+  get: () => BasedChatState,
   scryPath: string,
   subPath: string
 ): WritsStore {
@@ -42,69 +132,12 @@ export default function makeWritsStore(
       api.subscribe({
         app: 'chat',
         path: subPath,
-        event: (data: unknown) => {
-          const { id, delta } = data as WritDiff;
-          const s = get();
-          s.batchSet((draft) => {
-            const pact = draft.pacts[whom];
-            if ('add' in delta && !pact.index[id]) {
-              const time = bigInt(unixToDa(Date.now()));
-              pact.index[id] = time;
-              const seal = { id, feels: {}, replied: [] };
-              const writ = { seal, memo: delta.add };
-              pact.writs = pact.writs.set(time, writ);
-              if (delta.add.replying) {
-                const replyTime = pact.index[delta.add.replying];
-                if (replyTime) {
-                  const ancestor = pact.writs.get(replyTime);
-                  ancestor.seal.replied = [...ancestor.seal.replied, id];
-                  pact.writs.set(replyTime, ancestor);
-                }
-              }
-            } else if ('del' in delta && pact.index[id]) {
-              const time = pact.index[id];
-              const old = pact.writs.get(time);
-              pact.writs = pact.writs.delete(time);
-              delete pact.index[id];
-              if (old.memo.replying) {
-                const replyTime = pact.index[old.memo.replying];
-                if (replyTime) {
-                  const ancestor = pact.writs.get(replyTime);
-                  ancestor.seal.replied = ancestor.seal.replied.filter(
-                    (r) => r !== old.memo.replying
-                  );
-                  pact.writs.set(replyTime, ancestor);
-                }
-              }
-              // const time = bigInt(udToDec(delta.del));
-              // draft.dms[ship].writs = draft.dms[ship].writs.delete(time);
-            } else if ('add-feel' in delta && pact.index[id]) {
-              const time = pact.index[id];
-              const msg = pact.writs.get(time);
-              const { ship, feel } = delta['add-feel'];
-
-              pact.writs = pact.writs.set(time, {
-                ...msg,
-                seal: {
-                  ...msg.seal,
-                  feels: {
-                    ...msg.seal.feels,
-                    [ship]: feel,
-                  },
-                },
-              });
-            } else if ('del-feel' in delta && pact.index[id]) {
-              const time = pact.index[id];
-              const msg = pact.writs.get(time);
-              const ship = delta['del-feel'];
-              delete msg.seal.feels[ship];
-
-              pact.writs = pact.writs.set(time, {
-                ...msg,
-                seal: msg.seal,
-              });
-            }
-            draft.pacts[whom] = pact;
+        event: (data: WritDiff) => {
+          get().batchSet((draft) => {
+            writsReducer(whom)(data, draft);
+            draft.sentMessages = draft.sentMessages.filter(
+              (id) => id !== data.id
+            );
           });
         },
       });

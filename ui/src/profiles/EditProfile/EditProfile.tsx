@@ -17,7 +17,7 @@ import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
 
 interface ProfileFormSchema extends ContactEditField {
-  isContactPublic: boolean;
+  isContactPrivate: boolean;
   groups: GroupOption[];
 }
 
@@ -29,7 +29,7 @@ const emptyContact = {
   avatar: null,
   cover: null,
   groups: [] as GroupOption[],
-  isContactPublic: true,
+  isContactPrivate: false,
 };
 
 const onFormSubmit = (
@@ -54,8 +54,9 @@ const onFormSubmit = (
     const [key, value] = formValue;
     const newValue = key !== 'color' ? value : uxToHex(value.replace('#', ''));
     if (value !== contact[key as keyof Contact]) {
-      if (key === 'isContactPublic') {
-        useContactState.getState().setContactPublic(newValue);
+      if (key === 'isContactPrivate') {
+        // We're flipping the value here, Contact-store expects a checkbox called "Make Public" and Here we're using "Make Private"
+        useContactState.getState().setContactPublic(!newValue);
       } else if (key === 'groups') {
         const toRemove: string[] = _.difference(
           contact?.groups || [],
@@ -112,7 +113,7 @@ function EditProfileContent() {
       ...emptyContact,
       ...contact,
       groups: objectifyGroups(contact?.groups || []),
-      isContactPublic: isPublic,
+      isContactPrivate: !isPublic,
     },
   });
 
@@ -126,7 +127,7 @@ function EditProfileContent() {
       ...emptyContact,
       ...contact,
       groups: objectifyGroups(contact?.groups || []),
-      isContactPublic: isPublic,
+      isContactPrivate: !isPublic,
     });
   }, [form, contact, objectifyGroups, isPublic]);
 

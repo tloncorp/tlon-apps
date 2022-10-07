@@ -5,6 +5,7 @@ import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import ImageOrColorField, {
   ImageOrColorFieldState,
 } from '@/components/ImageOrColorField';
+import { useCalm } from '@/state/settings';
 import { isValidUrl } from '@/logic/utils';
 import { GroupMeta } from '@/types/groups';
 import GroupAvatar from './GroupAvatar';
@@ -17,6 +18,7 @@ export default function GroupInfoFields() {
   const watchTitle = watch('title');
   const showEmpty =
     iconType === 'initial' || (iconType === 'image' && !isValidUrl(watchImage));
+  const calm = useCalm();
 
   useEffect(() => {
     if (iconType === 'color' && watchTitle !== '') {
@@ -73,6 +75,7 @@ export default function GroupInfoFields() {
           // TODO: set sane maxLength
           {...register('description', { maxLength: 300 })}
           className="input"
+          spellCheck={`${!calm.disableSpellcheck}`}
         />
       </div>
     </>

@@ -1,5 +1,6 @@
 import { cite } from '@urbit/api';
 import React, { HTMLAttributes } from 'react';
+import { useCalm } from '@/state/settings';
 import { useContact } from '../state/contact';
 
 type ShipNameProps = {
@@ -15,6 +16,7 @@ export default function ShipName({
   const contact = useContact(name);
   const separator = /([_^-])/;
   const citedName = cite(name);
+  const calm = useCalm();
 
   if (!citedName) {
     return null;
@@ -25,7 +27,7 @@ export default function ShipName({
 
   return (
     <span {...props}>
-      {contact?.nickname && showAlias ? (
+      {contact?.nickname && !calm.disableNicknames && showAlias ? (
         <span title={citedName}>{contact.nickname}</span>
       ) : (
         <>

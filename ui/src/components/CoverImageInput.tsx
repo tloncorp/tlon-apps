@@ -2,6 +2,7 @@ import React from 'react';
 import cn from 'classnames';
 import { useFormContext } from 'react-hook-form';
 import { NoteEssay } from '@/types/diary';
+import { useCalm } from '@/state/settings';
 
 interface CoverImageInputProps {
   className?: string;
@@ -15,6 +16,7 @@ export default function CoverImageInput({
   const { register, watch } =
     useFormContext<Pick<NoteEssay, 'title' | 'image'>>();
   const image = watch('image');
+  const calm = useCalm();
 
   return (
     <div
@@ -22,7 +24,11 @@ export default function CoverImageInput({
         'relative h-36 w-full rounded-lg bg-gray-100 bg-cover bg-center px-4',
         className
       )}
-      style={image ? { backgroundImage: `url(${image})` } : {}}
+      style={
+        image && !calm.disableRemoteContent
+          ? { backgroundImage: `url(${image})` }
+          : {}
+      }
     >
       <div className="absolute bottom-0 left-0 w-full p-4">
         {!image && (

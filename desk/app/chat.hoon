@@ -172,7 +172,7 @@
     =+  !<(req=create:c vase)
     (create req)
   ::
-      %chat-action
+      ?(%chat-action-0 %chat-action)
     =+  !<(=action:c vase)
     =.  p.q.action  now.bowl
     =/  chat-core  (ca-abed:ca-core p.action)
@@ -902,9 +902,9 @@
         %fact
       =*  cage  cage.sign 
       ?+  p.cage  ca-core
-        %epic         (ca-take-epic !<(epic:e q.cage))
-        %chat-logs    (ca-apply-logs !<(logs:c q.cage))
-        %chat-update  (ca-update !<(update:c q.cage))
+        %epic                           (ca-take-epic !<(epic:e q.cage))
+        ?(%chat-logs %chat-logs-0)      (ca-apply-logs !<(logs:c q.cage))
+        ?(%chat-update %chat-update-0)  (ca-update !<(update:c q.cage))
       ==
     ==
   ::
