@@ -1,33 +1,24 @@
 import fetch from 'cross-fetch';
-import { describe, it, expect, beforeEach } from 'vitest';
-import React from 'react';
-import { rest } from 'msw';
-import { MemoryRouter } from 'react-router';
-import { render } from '@testing-library/react';
-import { unixToDa } from '@urbit/api';
-import { TooltipProvider } from '@radix-ui/react-tooltip';
-import { setupServer } from 'msw/node';
-import ChatMessage from './ChatMessage';
-import { makeFakeChatWrit } from '../../mocks/chat';
 
 vi.stubGlobal('fetch', (url: string, init: any) =>
   fetch(`http://localhost:3000${url}`, init)
 );
 
-// declare which API requests to mock
+/* eslint-disable import/first */
+import { describe, it, expect, beforeEach } from 'vitest';
+import React from 'react';
+import { rest } from 'msw';
+import { MemoryRouter } from 'react-router';
+import { unixToDa } from '@urbit/api';
+import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { setupServer } from 'msw/node';
+import { render } from '@testing-library/react';
+import ChatMessage from './ChatMessage';
+import { makeFakeChatWrit } from '../../mocks/chat';
+
 const server = setupServer(
-  // capture "GET /greeting" requests
-  rest.get('/~/scry/chat/draft/*', (req, res, ctx) =>
-    // respond using a mocked JSON body
-    res(
-      ctx.json({
-        whom: '~zod/test',
-        story: {
-          inline: ['test'],
-          block: [],
-        },
-      })
-    )
+  rest.put('/~/channel/*', (req, res, ctx) =>
+    res(ctx.status(204), ctx.body(''))
   )
 );
 
