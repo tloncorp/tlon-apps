@@ -141,7 +141,7 @@
     =+  !<(req=create:c vase)
     (create req)
   ::
-      %chat-action-0
+      ?(%chat-action-0 %chat-action)
     =+  !<(=action:c vase)
     =.  p.q.action  now.bowl
     =/  chat-core  (ca-abed:ca-core p.action)
@@ -835,8 +835,8 @@
         %fact
       =*  cage  cage.sign 
       ?+  p.cage  ca-core
-        %chat-logs-0    (ca-apply-logs !<(logs:c q.cage))
-        %chat-update-0  (ca-update !<(update:c q.cage))
+        ?(%chat-logs %chat-logs-0)      (ca-apply-logs !<(logs:c q.cage))
+        ?(%chat-update %chat-update-0)  (ca-update !<(update:c q.cage))
       ==
     ==
   ++  ca-proxy
@@ -844,7 +844,7 @@
     ^+  ca-core
     ?>  ca-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  chat-action-0+!>([flag update])
+    =/  =cage  chat-action+!>([flag update])
     =.  cor
       (emit %pass ca-area %agent dock %poke cage)
     ca-core
@@ -877,7 +877,7 @@
       ?~  path  log.chat
       =/  =time  (slav %da i.path)
       (lot:log-on:c log.chat `time ~)
-    =/  =cage  chat-logs-0+!>(logs)
+    =/  =cage  chat-logs+!>(logs)
     =.  cor  (give %fact ~ cage)
     ca-core
   ::
@@ -933,10 +933,10 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in ca-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc ca-area %ui))
-    =/  cag=cage  chat-update-0+!>([time d])
+    =/  cag=cage  chat-update+!>([time d])
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] chat-action-0+!>([flag [time d]]))
+    =.  cor  (give %fact ~[/ui] chat-action+!>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
       =/  =cage  writ-diff+!>(p.d)
       (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
