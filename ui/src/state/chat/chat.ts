@@ -629,15 +629,6 @@ export const useChatState = createState<ChatState>(
       ).initialize();
     },
   }),
-  // {
-  //   name: createStorageKey('chat'),
-  //   version: storageVersion,
-  //   migrate: clearStorageMigration,
-  //   partialize: (state) => ({
-  //     multiDms: state.multiDms,
-  //     pins: state.pins,
-  //   }),
-  // },
   ['multiDms', 'pins'],
   []
 );
@@ -645,12 +636,7 @@ export const useChatState = createState<ChatState>(
 export function useMessagesForChat(whom: string) {
   const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
   return useChatState(
-    useCallback(
-      (s) =>
-        // debugger;
-        s.pacts[whom]?.writs || def,
-      [whom, def]
-    )
+    useCallback((s) => s.pacts[whom]?.writs || def, [whom, def])
   );
 }
 
