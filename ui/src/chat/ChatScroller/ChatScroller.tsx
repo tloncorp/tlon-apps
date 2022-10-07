@@ -111,6 +111,10 @@ const FIRST_INDEX = 99999;
 
 type FetchingState = 'top' | 'bottom' | 'initial';
 
+function computeItemKey(index: number, item: bigInt.BigInteger, context: any) {
+  return item.toString();
+}
+
 export default function ChatScroller({
   whom,
   messages,
@@ -209,6 +213,7 @@ export default function ChatScroller({
         itemContent={(i, realIndex) =>
           realIndex ? <Message index={realIndex} /> : <div className="h-4" />
         }
+        computeItemKey={computeItemKey}
         components={{
           Header: () => TopLoader,
           Footer: () => BottomLoader,
