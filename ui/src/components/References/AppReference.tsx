@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ShipName from '@/components/ShipName';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
-import { useTreaty } from '@/state/docket';
+import useDocketState, { useTreaty } from '@/state/docket';
 import { useCalm } from '@/state/settings';
 
 interface AppReferenceProps {
@@ -13,6 +13,12 @@ export default function AppReference({ desk }: AppReferenceProps) {
   const treaty = useTreaty(ship, deskId);
   const calm = useCalm();
   const href = `/apps/grid/leap/search/${ship}/apps/${ship}/${deskId}`;
+
+  useEffect(() => {
+    if (!treaty) {
+      useDocketState.getState().requestTreaty(ship, desk);
+    }
+  }, [treaty, ship, desk]);
 
   function openLink() {
     window.open(`${window.location.origin}${href}`);
