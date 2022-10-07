@@ -15,8 +15,9 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
-import { usePact, useChatState } from '@/state/chat';
+import { usePact, useChatState, useIsMessageDelivered } from '@/state/chat';
 import Avatar from '@/components/Avatar';
+import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 
 export interface ChatMessageProps {
   whom: string;
@@ -54,6 +55,7 @@ const ChatMessage = React.memo<
         threshold: 1,
         triggerOnce: true,
       });
+      const isMessageDelivered = useIsMessageDelivered(seal.id);
 
       useEffect(() => {
         if (inView === true) {
@@ -102,6 +104,7 @@ const ChatMessage = React.memo<
               className={cn(
                 'flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50',
                 isReplyOp && 'bg-gray-50'
+                // sendStatus === 'sent' && 'text-gray-400'
               )}
             >
               {'story' in memo.content ? (
@@ -138,6 +141,9 @@ const ChatMessage = React.memo<
                 </NavLink>
               ) : null}
             </div>
+          </div>
+          <div>
+            {/* <DoubleCaretRightIcon className='h-6 w-6 text-gray-400' primary='text-gray-400' secondary='text-gray-400' /> */}
           </div>
         </div>
       );
