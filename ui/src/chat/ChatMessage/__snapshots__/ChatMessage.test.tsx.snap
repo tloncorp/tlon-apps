@@ -251,23 +251,29 @@ exports[`ChatMessage > renders as expected 1`] = `
         13:00
       </div>
       <div
-        class="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50"
+        class="flex w-full"
       >
         <div
-          class="leading-6"
+          class="flex w-full grow flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50"
         >
-          <strong>
+          <div
+            class="leading-6"
+          >
+            <strong>
+              <span>
+                A bold test message
+              </span>
+            </strong>
             <span>
-              A bold test message
+              with some more text
             </span>
-          </strong>
-          <span>
-            with some more text
-          </span>
+          </div>
         </div>
+        <div
+          class="flex items-end rounded-r group-one-hover:bg-gray-50"
+        />
       </div>
     </div>
-    <div />
   </div>
 </DocumentFragment>
 `;
