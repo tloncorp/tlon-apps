@@ -30,6 +30,7 @@ export interface ChatState {
   chatSubs: string[];
   dmSubs: string[];
   sentMessages: string[];
+  postedMessages: string[];
   multiDmSubs: string[];
   pins: ChatWhom[];
   dmArchive: string[];

@@ -15,7 +15,12 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
-import { usePact, useChatState, useIsMessageDelivered } from '@/state/chat';
+import {
+  usePact,
+  useChatState,
+  useIsMessageDelivered,
+  useIsMessagePosted,
+} from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 
@@ -56,6 +61,7 @@ const ChatMessage = React.memo<
         triggerOnce: true,
       });
       const isMessageDelivered = useIsMessageDelivered(seal.id);
+      const isMessagePosted = useIsMessagePosted(seal.id);
 
       useEffect(() => {
         if (inView === true) {
@@ -105,7 +111,7 @@ const ChatMessage = React.memo<
                 className={cn(
                   'flex w-full grow flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  !isMessageDelivered && 'text-gray-400'
+                  !isMessageDelivered && !isMessagePosted && 'text-gray-400'
                 )}
               >
                 {'story' in memo.content ? (
@@ -146,7 +152,7 @@ const ChatMessage = React.memo<
                 {!isMessageDelivered && (
                   <DoubleCaretRightIcon
                     className="h-5 w-5"
-                    primary="text-gray-200"
+                    primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
                 )}

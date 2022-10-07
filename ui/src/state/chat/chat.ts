@@ -134,6 +134,7 @@ export const useChatState = createState<ChatState>(
     pendingDms: [],
     pins: [],
     sentMessages: [],
+    postedMessages: [],
     briefs: {},
     togglePin: async (whom, pin) => {
       const { pins } = get();
@@ -422,7 +423,7 @@ export const useChatState = createState<ChatState>(
       if (isDM) {
         pokeOptimisticallyN(useChatState, dmAction(whom, { add: memo }, id), [
           writsReducer(whom),
-        ]);
+        ]).then(() => set((draft) => draft.postedMessages.push(id)));
       } else if (isMultiDm) {
         pokeOptimisticallyN(
           useChatState,
@@ -433,11 +434,11 @@ export const useChatState = createState<ChatState>(
             },
           }),
           [writsReducer(whom)]
-        );
+        ).then(() => set((draft) => draft.postedMessages.push(id)));
       } else {
         pokeOptimisticallyN(useChatState, chatWritDiff(whom, id, diff), [
           writsReducer(whom),
-        ]);
+        ]).then(() => set((draft) => draft.postedMessages.push(id)));
       }
       set((draft) => draft.sentMessages.push(id));
     },
@@ -655,6 +656,10 @@ export function useMessagesForChat(whom: string) {
 
 export function useIsMessageDelivered(id: string) {
   return useChatState(useCallback((s) => !s.sentMessages.includes(id), [id]));
+}
+
+export function useIsMessagePosted(id: string) {
+  return useChatState(useCallback((s) => s.postedMessages.includes(id), [id]));
 }
 
 const defaultPerms = {
