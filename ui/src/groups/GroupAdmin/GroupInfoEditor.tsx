@@ -44,14 +44,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     },
   });
 
-  // TODO: is this still needed? don't want to get Chesterton's Fence'd
-  // useEffect(() => {
-  //   form.reset({
-  //     ...emptyMeta,
-  //     ...group?.meta,
-  //     privacy: group ? getPrivacyFromGroup(group) : ,
-  //   });
-  // }, [group, form]);
+  useEffect(() => {
+    form.reset({
+      ...emptyMeta,
+      ...group?.meta,
+      privacy: group ? getPrivacyFromGroup(group) : undefined,
+    });
+  }, [group, form]);
 
   const onDeleteChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {

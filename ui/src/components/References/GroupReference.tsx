@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useGang, useGangs, useGroupState } from '@/state/groups';
+import { useGang, useGroupState } from '@/state/groups';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { getFlagParts } from '@/logic/utils';
 import ShipName from '@/components/ShipName';
@@ -26,7 +26,7 @@ export default function GroupReference({ flag }: GroupReferenceProps) {
     }
   }, [gang, group, flag]);
 
-  if (!group && privacy === 'secret') {
+  if (privacy === 'secret') {
     return (
       <div className="relative flex h-16 items-center space-x-3 rounded-lg border-2 border-gray-50 bg-gray-50 p-2 text-base font-semibold text-gray-600">
         <ExclamationPoint className="h-8 w-8 text-gray-400" />
