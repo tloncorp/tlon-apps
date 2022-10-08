@@ -8,6 +8,7 @@ import Dialog, {
 } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
 import {
+  Cordon,
   GroupFormSchema,
   GroupMeta,
   PrivacyType,
@@ -15,7 +16,7 @@ import {
 } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import useNavStore from '@/components/Nav/useNavStore';
-import { getPrivacyFromGroup } from '@/logic/utils';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import GroupInfoFields from '../GroupInfoFields';
 import PrivacySelector from '../PrivacySelector';
 
@@ -35,12 +36,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const [deleteField, setDeleteField] = useState('');
+  const { privacy } = useGroupPrivacy(groupFlag);
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
       ...emptyMeta,
       ...group?.meta,
-      privacy: group ? getPrivacyFromGroup(group) : undefined,
+      privacy,
     },
   });
 
@@ -48,9 +50,9 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     form.reset({
       ...emptyMeta,
       ...group?.meta,
-      privacy: group ? getPrivacyFromGroup(group) : undefined,
+      privacy,
     });
-  }, [group, form]);
+  }, [group, form, privacy]);
 
   const onDeleteChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -69,11 +71,31 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const onSubmit = useCallback(
     async (values: GroupMeta & { privacy: PrivacyType }) => {
       await useGroupState.getState().edit(groupFlag, values);
-      await useGroupState
-        .getState()
-        .setSecret(groupFlag, values.privacy === 'secret');
+
+      const privacyChanged = values.privacy !== privacy;
+      if (privacyChanged) {
+        await useGroupState.getState().swapCordon(
+          groupFlag,
+          values.privacy === 'public'
+            ? {
+                open: {
+                  ships: [],
+                  ranks: [],
+                },
+              }
+            : {
+                shut: {
+                  pending: [],
+                  ask: [],
+                },
+              }
+        );
+        await useGroupState
+          .getState()
+          .setSecret(groupFlag, values.privacy === 'secret');
+      }
     },
-    [groupFlag]
+    [groupFlag, privacy]
   );
 
   return (

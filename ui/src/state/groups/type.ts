@@ -6,6 +6,7 @@ import {
   GroupChannel,
   GroupIndex,
   ChannelPreview,
+  Cordon,
 } from '../../types/groups';
 
 export interface GroupState {
@@ -62,6 +63,7 @@ export interface GroupState {
     kind: 'ask' | 'pending'
   ) => Promise<void>;
   reject: (flag: string) => Promise<void>;
+  swapCordon: (flag: string, cordon: Cordon) => Promise<void>;
   setSecret: (flag: string, isSecret: boolean) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   editZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;

@@ -1,6 +1,7 @@
 import React, { ReactElement, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { FormProvider, useForm } from 'react-hook-form';
+import { useStep } from 'usehooks-ts';
 import { useGroupState } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
@@ -10,7 +11,6 @@ import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
-import { useStep } from 'usehooks-ts';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 

@@ -14,6 +14,7 @@ import {
   GroupPreview,
   GroupIndex,
   ChannelPreview,
+  Cordon,
 } from '@/types/groups';
 import api from '@/api';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
@@ -252,6 +253,15 @@ export const useGroupState = create<GroupState>(
           mark: 'group-leave',
           json: flag,
         });
+      },
+      swapCordon: async (flag: string, cordon: Cordon) => {
+        await api.poke(
+          groupAction(flag, {
+            cordon: {
+              swap: cordon,
+            },
+          })
+        );
       },
       setSecret: async (flag: string, isSecret: boolean) => {
         await api.poke(groupAction(flag, { secret: isSecret }));
