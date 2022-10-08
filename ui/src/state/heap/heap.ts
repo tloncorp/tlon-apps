@@ -36,7 +36,7 @@ setAutoFreeze(false);
 function heapAction(flag: HeapFlag, diff: HeapDiff) {
   return {
     app: 'heap',
-    mark: 'heap-action',
+    mark: 'heap-action-0',
     json: {
       flag,
       update: {

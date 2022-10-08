@@ -31,7 +31,7 @@ export const GROUP_ADMIN = 'admin';
 function groupAction(flag: string, diff: GroupDiff) {
   return {
     app: 'groups',
-    mark: 'group-action',
+    mark: 'group-action-0',
     json: {
       flag,
       update: {

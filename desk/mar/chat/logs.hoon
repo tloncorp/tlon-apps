@@ -1,12 +1,2 @@
-/-  c=chat
-|_  =logs:c
-++  grad  %noun
-++  grow
-  |%
-  ++  noun  logs
-  --
-++  grab
-  |%
-  ++  noun  logs:c
-  --
---
+/=  mark  /mar/chat/logs-0
+mark

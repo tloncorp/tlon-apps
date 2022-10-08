@@ -107,7 +107,7 @@
     =+  !<(req=create:d vase)
     (create req)
   ::
-      %diary-action
+      ?(%diary-action-0 %diary-action)
     =+  !<(=action:d vase)
     =.  p.q.action  now.bowl
     =/  diary-core  (di-abed:di-core p.action)
@@ -393,8 +393,8 @@
         %fact
       =*  cage  cage.sign 
       ?+  p.cage  di-core
-        %diary-logs    (di-apply-logs !<(log:d q.cage))
-        %diary-update  (di-update !<(update:d q.cage))
+        ?(%diary-logs %diary-logs-0)      (di-apply-logs !<(log:d q.cage))
+        ?(%diary-update %diary-update-0)  (di-update !<(update:d q.cage))
       ==
     ==
   ++  di-proxy
