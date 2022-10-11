@@ -6,6 +6,9 @@ import {
   DiaryFlag,
   DiaryDiff,
   DiaryUpdate,
+  DiaryOutlines,
+  DiaryLetter,
+  DiaryQuip,
 } from '@/types/diary';
 import { BigIntOrderedMap, decToUd, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -72,13 +75,14 @@ export default function makeNotesStore(
 
   return {
     initialize: async () => {
-      const notes = await scry<DiaryNotes>(`/newest/100`);
+      const notes = await scry<DiaryOutlines>(`/newest/100/outline`);
       const sta = get();
       sta.batchSet((draft) => {
-        let noteMap = new BigIntOrderedMap<DiaryNote>();
+        let noteMap = new BigIntOrderedMap<DiaryLetter>();
 
         Object.keys(notes).forEach((key) => {
           const note = notes[key];
+          note.type = 'outline';
           const tim = bigInt(udToDec(key));
           noteMap = noteMap.set(tim, note);
         });
@@ -90,58 +94,74 @@ export default function makeNotesStore(
         app: 'diary',
         path: subPath,
         event: (data: DiaryUpdate) => {
-          const { diff: d, time } = data;
+          const { diff: d } = data;
           if ('notes' in d) {
-            const { time: noteId, delta } = d.notes;
-            const bigTime = bigInt(udToDec(noteId));
+            const { time, delta } = d.notes;
+            const noteId = udToDec(time);
+            const bigTime = bigInt(noteId);
             const s = get();
             s.batchSet((draft) => {
               let noteMap = draft.notes[flag];
-              if ('add' in delta && !noteMap.has(bigTime)) {
-                const seal: NoteSeal = { time: noteId, feels: {} };
-                const note: DiaryNote = { seal, essay: delta.add };
+              if ('add' in delta) {
+                const seal: NoteSeal = {
+                  time: noteId,
+                  feels: {},
+                  quips: new BigIntOrderedMap<DiaryQuip>(),
+                };
+                const note: DiaryNote = {
+                  type: 'note',
+                  seal,
+                  essay: delta.add,
+                };
                 noteMap = noteMap.set(bigTime, note);
               } else if ('edit' in delta && noteMap.has(bigTime)) {
                 const note = noteMap.get(bigTime);
+                if (!note) {
+                  return;
+                }
+                if (note.type === 'outline') {
+                  return;
+                }
                 noteMap = noteMap.set(bigTime, { ...note, essay: delta.edit });
               } else if ('del' in delta && noteMap.has(bigTime)) {
                 noteMap = noteMap.delete(bigTime);
+              } else if ('quips' in delta) {
+                const { time: quipId, delta: quipDel } = delta.quips;
+                // const { delta, time: quipId } = diff;
+                const k = bigInt(udToDec(time));
+
+                const diary = draft.notes[flag];
+                const note = diary.get(bigTime);
+                if (!note) {
+                  return;
+                }
+
+                // TODO: check consistency if comments are unloaded?
+                if ('add' in quipDel) {
+                  if (note.type === 'outline') {
+                    note.quipCount += 1;
+                    diary.set(bigTime, note);
+                  } else {
+                    const quip = {
+                      cork: {
+                        time: quipId,
+                        feels: {},
+                      },
+                      memo: quipDel.add,
+                    };
+                    note.seal.quips = note.seal.quips.set(k, quip);
+                    diary.set(bigTime, note);
+                  }
+                } else if ('del' in delta) {
+                  if (note.type === 'outline') {
+                    note.quipCount -= 1;
+                    diary.set(bigTime, note);
+                  } else {
+                    note.seal.quips.delete(k);
+                  }
+                }
               }
-              draft.notes[flag] = noteMap;
             });
-          } else if ('quips' in d) {
-            const { id: noteIdDec, diff } = d.quips;
-            const noteId = udToDec(noteIdDec);
-            const { delta, time: quipId } = diff;
-            const k = bigInt(udToDec(quipId));
-            const s = get();
-            // TODO: check consistency if comments are unloaded?
-            if ('add' in delta) {
-              s.batchSet((draft) => {
-                if (!(flag in draft.banter)) {
-                  draft.banter[flag] = {};
-                }
-                if (!(noteId in draft.banter[flag])) {
-                  draft.banter[flag][noteId] = new BigIntOrderedMap();
-                }
-                const quip = {
-                  seal: {
-                    time: quipId,
-                    feels: {},
-                  },
-                  memo: delta.add,
-                };
-                draft.banter[flag][noteId] = draft.banter[flag][noteId].set(
-                  k,
-                  quip
-                );
-              });
-            } else if ('del' in delta) {
-              s.batchSet((draft) => {
-                draft.banter[flag][noteId] =
-                  draft.banter[flag][noteId].delete(k);
-              });
-            }
           }
         },
       });

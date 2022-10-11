@@ -1,15 +1,25 @@
 import React from 'react';
-import { DiaryNote } from '@/types/diary';
+import _ from 'lodash';
+import f from 'lodash/fp';
+import { DiaryLetter, DiaryNote } from '@/types/diary';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
+import { sampleQuippers } from '@/logic/utils';
 
 interface DiaryListItemProps {
-  note: DiaryNote;
+  letter: DiaryLetter;
   time: bigInt.BigInteger;
 }
 
-export default function DiaryListItem({ note, time }: DiaryListItemProps) {
+export default function DiaryListItem({ letter, time }: DiaryListItemProps) {
   const navigate = useNavigate();
+  const essay = letter.type === 'outline' ? letter : letter.essay;
+  const quippers =
+    letter.type === 'outline'
+      ? letter.quippers
+      : sampleQuippers(letter.seal.quips);
+  const quipCount =
+    letter.type === 'outline' ? letter.quipCount : letter.seal.quips.size;
 
   return (
     <div
@@ -18,7 +28,13 @@ export default function DiaryListItem({ note, time }: DiaryListItemProps) {
       tabIndex={0}
       onClick={() => navigate(`note/${time.toString()}`)}
     >
-      <DiaryNoteHeadline note={note} time={time} isInList />
+      <DiaryNoteHeadline
+        quippers={quippers}
+        quipCount={quipCount}
+        essay={essay}
+        time={time}
+        isInList
+      />
     </div>
   );
 }
