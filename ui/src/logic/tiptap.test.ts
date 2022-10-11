@@ -655,7 +655,7 @@ describe('JSONToInlines', () => {
       {
         header: {
           tag: 'h2',
-          content: 'yoooo',
+          content: ['yoooo'],
         },
       },
     ];
