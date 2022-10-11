@@ -1,16 +1,16 @@
 import React from 'react';
 import { Masonry, RenderComponentProps } from 'masonic';
 import DiaryGridItem from '@/diary/DiaryList/DiaryGridItem';
-import { DiaryNote } from '@/types/diary';
+import { DiaryLetter, DiaryNote } from '@/types/diary';
 
 interface DiaryGridProps {
-  notes: [bigInt.BigInteger, DiaryNote][];
+  notes: [bigInt.BigInteger, DiaryLetter][];
 }
 
 const masonryItem = ({
   data,
-}: RenderComponentProps<[bigInt.BigInteger, DiaryNote]>) => (
-  <DiaryGridItem time={data[0]} note={data[1]} />
+}: RenderComponentProps<[bigInt.BigInteger, DiaryLetter]>) => (
+  <DiaryGridItem time={data[0]} letter={data[1]} />
 );
 
 export default function DiaryGridView({ notes }: DiaryGridProps) {

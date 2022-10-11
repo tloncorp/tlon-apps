@@ -2,7 +2,7 @@ import _ from 'lodash';
 import f from 'lodash/fp';
 import React from 'react';
 import { useNavigate } from 'react-router';
-import { DiaryNote } from '@/types/diary';
+import { DiaryLetter, DiaryNote, NoteEssay } from '@/types/diary';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import IconButton from '@/components/IconButton';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
@@ -11,24 +11,24 @@ import { makePrettyDate } from '@/logic/utils';
 import { daToUnix } from '@urbit/api';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import { useChannelFlag } from '@/hooks';
-import { useQuips } from '@/state/diary';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { useCalm } from '@/state/settings';
 import DiaryNoteOptionsDropdown from '../DiaryNoteOptionsDropdown';
 import useDiaryActions from '../useDiaryActions';
 
 interface DiaryGridItemProps {
-  note: DiaryNote;
+  letter: DiaryLetter;
   time: bigInt.BigInteger;
 }
 
-export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
+export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
   const chFlag = useChannelFlag();
-  const quips = useQuips(chFlag || '', time.toString());
+  const essay: NoteEssay = letter.type === 'outline' ? letter : letter.essay;
   const unix = new Date(daToUnix(time));
   const date = makePrettyDate(unix);
   const navigate = useNavigate();
-  const hasImage = note.essay.image.length !== 0;
+  const hasImage =
+    (letter.type === 'note' ? letter.essay.image : letter.image).length !== 0;
   const { justCopied, onCopy } = useDiaryActions({
     flag: chFlag || '',
     time: time.toString(),
@@ -36,14 +36,22 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
-  const canEdit = isAdmin || window.our === note.essay.author;
+  const canEdit =
+    isAdmin ||
+    window.our ===
+      (letter.type === 'note' ? letter.essay.author : letter.author);
   const calm = useCalm();
 
-  const commenters = _.flow(
-    f.compact,
-    f.uniq,
-    f.take(3)
-  )([...quips].map(([, v]) => v.memo.author));
+  const commenters =
+    letter.type === 'outline'
+      ? letter.quippers
+      : _.flow(
+          f.compact,
+          f.uniq,
+          f.take(3)
+        )([...letter.seal.quips].map(([, v]) => v.memo.author));
+  const quipCount =
+    letter.type === 'outline' ? letter.quipCount : letter.seal.quips.size;
 
   return (
     <div
@@ -55,7 +63,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
       style={
         hasImage && !calm?.disableRemoteContent
           ? {
-              backgroundImage: `linear-gradient(0deg, rgba(0, 0, 0, 0.33), rgba(0, 0, 0, 0.33)), url(${note.essay.image})`,
+              backgroundImage: `linear-gradient(0deg, rgba(0, 0, 0, 0.33), rgba(0, 0, 0, 0.33)), url(${essay.image})`,
               color: '#ffffff',
             }
           : undefined
@@ -63,7 +71,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
       onClick={() => navigate(`note/${time.toString()}`)}
     >
       <h2 className="break-words text-2xl font-bold line-clamp-[7]">
-        {note.essay.title}
+        {essay.title}
       </h2>
       <h3 className="text-lg font-semibold">{date}</h3>
       <div
@@ -73,7 +81,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
         <div role="button" onClick={() => navigate(`note/${time.toString()}`)}>
           <DiaryCommenters
             commenters={commenters}
-            quipCount={quips.size}
+            quipCount={quipCount}
             fullSize={false}
             gridItemHasImage={hasImage}
           />

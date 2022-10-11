@@ -25,7 +25,7 @@ const DiaryComment = React.memo<
       { time, quip, unreadCount, newAuthor, newDay }: DiaryCommentProps,
       ref
     ) => {
-      const { seal, memo } = quip;
+      const { cork, memo } = quip;
       const unix = new Date(daToUnix(time));
 
       return (
@@ -43,9 +43,9 @@ const DiaryComment = React.memo<
               {format(unix, 'HH:mm')}
             </div>
             <div className="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50">
-              <ChatContent story={{ block: [], inline: memo.content }} />
-              {/* {Object.keys(seal.feels).length > 0 && (
-                <ChatReactions seal={seal} />
+              <ChatContent story={memo.content} />
+              {/* {Object.keys(cork.feels).length > 0 && (
+                <ChatReactions cork={cork} />
               )} */}
             </div>
           </div>
