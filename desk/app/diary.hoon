@@ -8,11 +8,12 @@
 =>
   |%
   +$  card  card:agent:gall
-  +$  version
-    $%  state-0:d
+  +$  current-state
+    $:  %1
+        =shelf:d
     ==
   --
-=|  state-0:d
+=|  current-state
 =*  state  -
 =< 
   %+  verb  &
@@ -30,11 +31,90 @@
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
-    ^-  (quip card _this)
-    =/  old  !<(version vase)
+    =|  cards=(list card)
+    |^  ^-  (quip card _this)
+    =+  !<(old=versioned-state vase)
+    |-
     ?-  -.old
-      %0  `this(state old)
+      %1  [cards this(state old)]
+    ::
+        %0
+      %=  $
+        old  (state-0-to-1 old)
+      ==
     ==
+    ::
+    +$  versioned-state
+      $%  state-0
+          state-1
+      ==
+    +$  state-0  [%0 =shelf:zero]
+    ++  zero     zero:old:d
+    +$  state-1  current-state
+    ++  one      d
+    ++  state-0-to-1
+      |=  sta=state-0
+      ^-  state-1
+      :-  %1
+      %-  ~(run by shelf.sta)
+      |=  =diary:zero
+      ^-  diary:one
+      %*  .  *diary:one
+        net    net.diary
+        log    (log-0-to-1 log.diary)
+        perm   perm.diary
+        view   view.diary
+        sort   sort.diary
+        notes  (notes-0-to-1 notes.diary banter.diary)
+        remark  remark.diary
+      ==
+    ::
+    ++  log-0-to-1
+      |=  =log:zero
+      ^-  log:one
+      %+  gas:log-on:one  *log:one
+      %+  turn  (tap:log-on:zero log)
+      |=  [=time =diff:zero]
+      ^-  [_time diff:one]
+      :-  time
+      ^-  diff:one
+      ?.  ?=(%quips -.diff)  diff
+      ^-  diff:one
+      [%notes p.diff %quips (quips-diff-0-to-1 q.diff)]
+    ::
+    ++  quips-diff-0-to-1
+      |=  =diff:quips:zero
+      ^-  diff:quips:one
+      :-  p.diff
+      ?.  ?=(%add -.q.diff)  q.diff
+      add/(memo-0-to-1 p.q.diff)
+    ::
+    ++  notes-0-to-1
+      |=  [=notes:zero banter=(map time quips:zero)] 
+      ^-  notes:one
+      %+  gas:on:notes:one  *notes:one
+      %+  turn  (tap:on:notes:zero notes)
+      |=  [=time =note:zero]
+      ^-  [_time note:one]
+      :-  time
+      :_  +.note
+      ^-  seal:one
+      [time (quips-0-to-1 (~(gut by banter) time *quips:zero)) feels.note]
+    ::
+    ++  quips-0-to-1
+      |=  =quips:zero
+      ^-  quips:one
+      %+  gas:on:quips:one  *quips:one
+      ^-  (list [time quip:one])
+      %+  turn  (tap:on:quips:zero quips)
+      |=  [=time =quip:zero]
+      [time -.quip (memo-0-to-1 +.quip)]
+    ::
+    ++  memo-0-to-1
+      |=  =memo:zero
+      ^-  memo:one
+      [`content author sent]:memo
+    --
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -250,24 +330,6 @@
   ^-  yarn:ha
   =/  id  (end [7 1] (shax eny.bowl))
   [id rope now.bowl con wer but]
-++  flatten
-  |=  content=(list inline:d)
-  ^-  cord
-  %-  crip
-  %-  zing
-  %+  turn
-    content
-  |=  c=inline:d
-  ^-  tape
-  ?@  c  (trip c)
-  ?-  -.c
-      %break  ""
-      %tag    (trip p.c)
-      %link   (trip q.c)
-      %block   (trip q.c)
-      ?(%code %inline-code)  ""
-      ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
-  ==
 ++  from-self  =(our src):bowl
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -351,9 +413,6 @@
     ?+  pole  [~ ~]
         [%notes rest=*]  (peek:di-notes rest.pole)
         [%perm ~]        ``diary-perm+!>(perm.diary)
-        [%quips time=@ rest=*]  
-      =/  =time  (slav %ud time.pole)
-      (~(peek qup (~(gut by banter.diary) time *quips:d)) rest.pole)
     ==
   ::
   ++  di-revoke
@@ -517,38 +576,15 @@
       (di-give-updates time dif)
     ?-    -.dif
         %notes
-      di-core(notes.diary (reduce:di-notes time p.dif))
-    ::
-        %quips
-      =/  =quips:d      (~(gut by banter.diary) p.dif *quips:d)
-      =.  quips         (~(reduce qup quips) time q.dif)
-      =.  banter.diary  (~(put by banter.diary) p.dif quips)
-      ?-  -.q.q.dif
-          ?(%del %add-feel %del-feel)  di-core
-          %add
-        =/  =memo:d  p.q.q.dif
-        =/  [ti=^time =note:d]  (~(got not notes.diary) p.dif)        
-        =/  in-replies
-          %+  lien
-            (tap:on:quips:d quips)
-          |=  [=^time =quip:d]
-          =(author.quip our.bowl)
-        ?:  |(=(author.memo our.bowl) !in-replies)  di-core
-        =/  yarn
-          %^  di-spin
-            /note/(rsh 4 (scot %ui replying.memo))
-            :~  [%ship author.memo]
-                ' commented on '
-                [%emph title.note]
-                ': '
-                [%ship author.memo]
-                ': '
-                (flatten content.memo)
-            ==
-          ~  
-        =.  cor  (emit (pass-hark & & yarn))
-        di-core
-      ==
+      =.  notes.diary  (reduce:di-notes time p.dif)
+      =/  cons=(list (list content:ha))
+        (hark:di-notes our.bowl p.dif)
+      =.  cor
+        %-  emil
+        %+  turn  cons
+        |=  cs=(list content:ha)
+        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui time)) cs ~))
+      di-core
     ::
         %add-sects
       =*  p  perm.diary

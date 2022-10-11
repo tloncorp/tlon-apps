@@ -32,6 +32,14 @@ export type DiaryInline =
 
 export interface NoteSeal {
   time: string;
+  quips: DiaryQuipMap;
+  feels: {
+    [ship: Ship]: string;
+  };
+}
+
+export interface NoteCork {
+  time: string;
   feels: {
     [ship: Ship]: string;
   };
@@ -133,24 +141,43 @@ export interface NoteEssay {
 }
 
 export interface DiaryNote {
+  type: 'note';
   seal: NoteSeal;
   essay: NoteEssay;
 }
 
-export interface DiaryNotes {
-  [time: string]: DiaryNote;
+export interface DiaryOutline extends NoteEssay {
+  type: 'outline';
+  quipCount: number;
+  quippers: Ship[];
 }
 
-export type DiaryNoteMap = BigIntOrderedMap<DiaryNote>;
+export interface DiaryOutlines {
+  [time: string]: DiaryOutline;
+}
+
+export type DiaryOutlinesMap = BigIntOrderedMap<DiaryOutline>;
+
+export type DiaryLetter = DiaryOutline | DiaryNote;
+
+export interface DiaryNotes {
+  [time: string]: DiaryLetter;
+}
+
+export type DiaryNoteMap = BigIntOrderedMap<DiaryLetter>;
 
 export interface DiaryQuip {
-  seal: NoteSeal;
+  cork: NoteCork;
   memo: DiaryMemo;
 }
 
+export interface DiaryStory {
+  block: DiaryBlock[];
+  inline: Inline[];
+}
+
 export interface DiaryMemo {
-  replying: string;
-  content: Inline[];
+  content: DiaryStory;
   author: string;
   sent: number;
 }
@@ -189,18 +216,16 @@ interface DiaryDiffDelSects {
   'del-sects': string[];
 }
 
-interface DiaryDiffQuips {
-  quips: {
-    id: string;
-    diff: QuipDiff;
-  };
+interface NoteDeltaQuips {
+  quips: QuipDiff;
 }
 
 export type NoteDelta =
   | NoteDeltaAdd
   | NoteDeltaEdit
   | NoteDeltaDel
-  | NoteDeltaAddFeel;
+  | NoteDeltaAddFeel
+  | NoteDeltaQuips;
 
 export interface NoteDiff {
   time: string;
@@ -215,8 +240,7 @@ export type DiaryDiff =
   | { notes: NoteDiff }
   | DiaryDiffView
   | DiaryDiffAddSects
-  | DiaryDiffDelSects
-  | DiaryDiffQuips;
+  | DiaryDiffDelSects;
 
 export interface DiaryUpdate {
   time: string;

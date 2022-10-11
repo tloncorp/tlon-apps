@@ -1,12 +1,8 @@
-/-  g=groups, c=cite, zer=diary-0
+/-  g=groups, c=cite
 |%
-++  old
-  |%
-  ++  zero  zer
-  --
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)
-::  $feel: either an emoji identifier like :diff or a URL for custom
+::  $feel: either an emoji identifier like :wave or a URL for custom
 +$  feel  @ta
 ::  $view: the persisted display format for a diary
 +$  view  ?(%grid %list)
@@ -34,14 +30,15 @@
       =sort
       =notes
       =remark
+      banter=(map time quips)
   ==
 ::
 ::  $notes: a set of time ordered diary posts
 ::
 ++  notes
-  =<  rock
+  =<  notes
   |%
-  +$  rock
+  +$  notes
     ((mop time note) lte)
   ++  on
     ((^on time note) lte)
@@ -51,7 +48,6 @@
     $%  [%add p=essay]
         [%edit p=essay]
         [%del ~]
-        [%quips p=diff:quips]
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
     ==
@@ -60,9 +56,9 @@
 ::  $quips: a set of time ordered note comments
 ::
 ++  quips
-  =<  rock
+  =<  quips
   |%
-  +$  rock
+  +$  quips
     ((mop time quip) lte)
   ++  on
     ((^on time quip) lte)
@@ -75,38 +71,15 @@
         [%del-feel p=ship]
     ==
   --
-::
-::  $outline: abridged $note
-::    .quips: number of comments
-::
-+$  outline
-  [quips=@ud quippers=(set ship) essay]
-::
-++  outlines
-  =<  outlines
-  |%
-  +$  outlines  ((mop time outline) lte)
-  ++  on        ((^on time outline) lte)
-  --
-::
 ::  $note: a diary post
 ::
 +$  note  [seal essay]
 ::  $quip: a post comment
 ::
-+$  quip  [cork memo]
-::
-::  $seal: host-side data for a note
++$  quip  [seal memo]
+::  $seal: the id and reactions to a post
 ::
 +$  seal
-  $:  =time
-      =quips
-      feels=(map ship feel)
-  ==
-::
-::  $cork: host-side data for a quip
-::
-+$  cork
   $:  =time
       feels=(map ship feel)
   ==
@@ -125,15 +98,16 @@
       author=ship
       sent=time      
   ==
-+$  story  (pair (list block) (list inline))
 ::  $memo: the comment data itself
 ::
+::    replying: which post we're replying to
 ::    content: the body of the comment
 ::    author: the ship that wrote the comment
 ::    sent: the client-side time the comment was made
 ::
 +$  memo
-  $:  content=story
+  $:  replying=time
+      content=(list inline)
       author=ship
       sent=time
   ==
@@ -146,24 +120,14 @@
   $%  [%block p=block]
       [%inline p=(list inline)]
   ==
-::  $listing: recursive type for infinitely nested <ul> or <ol>
-+$  listing
-  $%  [%list p=?(%ordered %unordered) q=(list listing) r=(list inline)]
-      [%item p=(list inline)]
-  ==
 ::  $block: post content that sits outside of the normal text
 ::
 ::    %image: a visual, we record dimensions for better rendering
 ::    %cite: an Urbit reference
-::    %header: a traditional HTML heading, h1-h6
-::    %listing: a traditional HTML list, ul and ol
 ::
 +$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
-      [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
-      [%listing p=listing]
-      [%rule ~]
   ==
 ::  $inline: post content that flows within a paragraph
 ::
@@ -213,6 +177,7 @@
 ::
 +$  diff
   $%  [%notes p=diff:notes]
+      [%quips p=time q=diff:quips]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
@@ -292,10 +257,5 @@
       description=cord
       readers=(set sect:g)
       writers=(set sect:g)
-  ==
-::  $state-0: initial version
-+$  state-0
-  $:  %0
-      =shelf
   ==
 --
