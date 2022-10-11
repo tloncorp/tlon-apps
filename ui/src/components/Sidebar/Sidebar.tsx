@@ -35,11 +35,7 @@ export function GroupsAppMenu() {
       icon={
         <DropdownMenu.Root onOpenChange={() => setMenuOpen(!menuOpen)}>
           <DropdownMenu.Trigger asChild className="appearance-none">
-            <div
-              className={cn(
-                'h-6 w-6 rounded group-hover:bg-gray-100'
-              )}
-            >
+            <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
               <AppGroupsIcon
                 className={cn(
                   'h-6 w-6',
