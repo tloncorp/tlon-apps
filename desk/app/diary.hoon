@@ -8,12 +8,12 @@
 =>
   |%
   +$  card  card:agent:gall
-  +$  state-0
-    $:  %0
+  +$  current-state
+    $:  %1
         =shelf:d
     ==
   --
-=|  state-0
+=|  current-state
 =*  state  -
 =< 
   %+  verb  &
@@ -31,18 +31,90 @@
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
-    ^-  (quip card _this)
-    =/  old=(unit state-0)
-      (mole |.(!<(state-0 vase)))  
-    ?^  old  `this(state u.old)
-    ~&  >>>  "Incompatible load, nuking"
-    =^  cards  this  on-init
-    :_  this
-    =-  (welp - cards)
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
+    =|  cards=(list card)
+    |^  ^-  (quip card _this)
+    =+  !<(old=versioned-state vase)
+    |-
+    ?-  -.old
+      %1  [cards this(state old)]
+    ::
+        %0
+      %=  $
+        old  (state-0-to-1 old)
+      ==
+    ==
+    ::
+    +$  versioned-state
+      $%  state-0
+          state-1
+      ==
+    +$  state-0  [%0 =shelf:zero]
+    ++  zero     zero:old:d
+    +$  state-1  current-state
+    ++  one      d
+    ++  state-0-to-1
+      |=  sta=state-0
+      ^-  state-1
+      :-  %1
+      %-  ~(run by shelf.sta)
+      |=  =diary:zero
+      ^-  diary:one
+      %*  .  *diary:one
+        net    net.diary
+        log    (log-0-to-1 log.diary)
+        perm   perm.diary
+        view   view.diary
+        sort   sort.diary
+        notes  (notes-0-to-1 notes.diary banter.diary)
+        remark  remark.diary
+      ==
+    ::
+    ++  log-0-to-1
+      |=  =log:zero
+      ^-  log:one
+      %+  gas:log-on:one  *log:one
+      %+  turn  (tap:log-on:zero log)
+      |=  [=time =diff:zero]
+      ^-  [_time diff:one]
+      :-  time
+      ^-  diff:one
+      ?.  ?=(%quips -.diff)  diff
+      ^-  diff:one
+      [%notes p.diff %quips (quips-diff-0-to-1 q.diff)]
+    ::
+    ++  quips-diff-0-to-1
+      |=  =diff:quips:zero
+      ^-  diff:quips:one
+      :-  p.diff
+      ?.  ?=(%add -.q.diff)  q.diff
+      add/(memo-0-to-1 p.q.diff)
+    ::
+    ++  notes-0-to-1
+      |=  [=notes:zero banter=(map time quips:zero)] 
+      ^-  notes:one
+      %+  gas:on:notes:one  *notes:one
+      %+  turn  (tap:on:notes:zero notes)
+      |=  [=time =note:zero]
+      ^-  [_time note:one]
+      :-  time
+      :_  +.note
+      ^-  seal:one
+      [time (quips-0-to-1 (~(gut by banter) time *quips:zero)) feels.note]
+    ::
+    ++  quips-0-to-1
+      |=  =quips:zero
+      ^-  quips:one
+      %+  gas:on:quips:one  *quips:one
+      ^-  (list [time quip:one])
+      %+  turn  (tap:on:quips:zero quips)
+      |=  [=time =quip:zero]
+      [time -.quip (memo-0-to-1 +.quip)]
+    ::
+    ++  memo-0-to-1
+      |=  =memo:zero
+      ^-  memo:one
+      [`content author sent]:memo
+    --
   ::
   ++  on-poke
     |=  [=mark =vase]
