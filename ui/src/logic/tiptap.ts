@@ -282,14 +282,14 @@ export function JSONToInlines(
       ];
     }
     case 'heading': {
-      const first = json.content ? json.content[0] : undefined;
       return [
         {
           header: {
             tag: `h${json.attrs?.level || 2}` as DiaryHeaderLevel,
-            content: (first
-              ? JSONToInlines(first, limitNewlines)[0]
-              : '') as Inline,
+            content: (json.content || []).reduce(
+              (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
+              [] as (Inline | DiaryBlock)[]
+            ) as Inline[],
           },
         },
       ];

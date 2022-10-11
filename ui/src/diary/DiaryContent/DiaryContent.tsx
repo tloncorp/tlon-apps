@@ -182,7 +182,9 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     const Tag = story.header.tag;
     return (
       <Tag>
-        <InlineContent story={story.header.content} />
+        {story.header.content.map((con, i) => (
+          <InlineContent key={i} story={con} />
+        ))}
       </Tag>
     );
   }

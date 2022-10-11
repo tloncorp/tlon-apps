@@ -135,7 +135,7 @@
 +$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
-      [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=inline]
+      [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
       [%listing p=listing]
       [%rule ~]
   ==
