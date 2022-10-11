@@ -37,7 +37,7 @@ export function GroupsAppMenu() {
           <DropdownMenu.Trigger asChild className="appearance-none">
             <div
               className={cn(
-                'h-6 w-6 rounded mix-blend-multiply group-hover:bg-gray-100'
+                'h-6 w-6 rounded group-hover:bg-gray-100'
               )}
             >
               <AppGroupsIcon
