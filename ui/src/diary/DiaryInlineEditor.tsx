@@ -34,6 +34,7 @@ import cn from 'classnames';
 import History from '@tiptap/extension-history';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
+import { useCalm } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { Shortcuts } from '@/logic/tiptap';
@@ -277,6 +278,8 @@ export function useDiaryInlineEditor({
   onEnter,
   onUpdate,
 }: useDiaryInlineEditorParams) {
+  const calm = useCalm();
+
   const ed = useEditor(
     {
       extensions: [
@@ -318,6 +321,7 @@ export function useDiaryInlineEditor({
       editorProps: {
         attributes: {
           'aria-label': 'Note editor with formatting menu',
+          spellcheck: `${!calm.disableSpellcheck}`,
         },
       },
       onUpdate: onUpdate || (() => false),

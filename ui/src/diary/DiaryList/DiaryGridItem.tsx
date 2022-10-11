@@ -13,6 +13,7 @@ import DiaryCommenters from '@/diary/DiaryCommenters';
 import { useChannelFlag } from '@/hooks';
 import { useQuips } from '@/state/diary';
 import CheckIcon from '@/components/icons/CheckIcon';
+import { useCalm } from '@/state/settings';
 import DiaryNoteOptionsDropdown from '../DiaryNoteOptionsDropdown';
 import useDiaryActions from '../useDiaryActions';
 
@@ -36,6 +37,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit = isAdmin || window.our === note.essay.author;
+  const calm = useCalm();
 
   const commenters = _.flow(
     f.compact,
@@ -51,7 +53,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
         'flex w-full cursor-pointer flex-col space-y-8 rounded-xl bg-white bg-cover bg-center p-8'
       }
       style={
-        hasImage
+        hasImage && !calm?.disableRemoteContent
           ? {
               backgroundImage: `linear-gradient(0deg, rgba(0, 0, 0, 0.33), rgba(0, 0, 0, 0.33)), url(${note.essay.image})`,
               color: '#ffffff',

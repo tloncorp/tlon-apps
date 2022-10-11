@@ -9,6 +9,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useHarkState from '@/state/hark';
+import { useCalm } from '@/state/settings';
 import { isColor } from '@/logic/utils';
 import { foregroundFromBackground } from '@/components/Avatar';
 import Sidebar from '@/components/Sidebar/Sidebar';
@@ -30,6 +31,7 @@ function GroupHeader() {
   const dark = useMedia('(prefers-color-scheme: dark)');
   const hoverFallbackForeground = dark ? 'white' : 'black';
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
+  const calm = useCalm();
 
   const onError = useCallback(() => {
     setNoCors(true);
@@ -92,7 +94,7 @@ function GroupHeader() {
 
   return (
     <li className="relative mb-2 w-full rounded-lg" style={coverStyles()}>
-      {group && !isColor(group?.meta.cover) && (
+      {group && !calm?.disableRemoteContent && !isColor(group?.meta.cover) && (
         <img
           {...(noCors ? {} : { crossOrigin: 'anonymous' })}
           src={group?.meta.cover}
@@ -101,6 +103,9 @@ function GroupHeader() {
           onLoad={() => getCoverImageColor()}
           className="absolute h-full w-full flex-none rounded-lg object-cover"
         />
+      )}
+      {group && calm.disableRemoteContent && !isColor(group?.meta.cover) && (
+        <div className="absolute h-full w-full flex-none rounded-lg bg-gray-400" />
       )}
       <div
         style={group && !isColor(group?.meta.cover) ? { height: '240px' } : {}}
@@ -135,8 +140,7 @@ function GroupHeader() {
               style={coverTitleStyles()}
               className={cn(
                 'max-w-full flex-1 truncate text-left',
-                !averageSucceeded &&
-                  dark &&
+                coverTitleStyles().color === 'white' &&
                   'drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]'
               )}
             >

@@ -7,10 +7,16 @@ import CurioReference from './CurioReference';
 import WritReference from './WritReference';
 import GroupReference from './GroupReference';
 import NoteReference from './NoteReference';
+import AppReference from './AppReference';
 
 function ContentReference({ cite }: { cite: Cite }) {
   if ('group' in cite) {
     return <GroupReference flag={cite.group} />;
+  }
+
+  if ('desk' in cite) {
+    const { desk } = cite.desk;
+    return <AppReference desk={desk} />;
   }
 
   if ('chan' in cite) {

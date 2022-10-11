@@ -110,6 +110,23 @@ function HeapChannel({ title }: ViewProps) {
     [displayMode, navigateToDetail]
   );
 
+  const getCurioTitle = (curio: HeapCurio) =>
+    curio.heart.title ||
+    curio.heart.content.toString().split(' ').slice(0, 3).join(' ');
+
+  const sortedCurios = Array.from(curios).sort(([a], [b]) => {
+    if (sortMode === 'time') {
+      return b.compare(a);
+    }
+    if (sortMode === 'alpha') {
+      const curioA = curios.get(a);
+      const curioB = curios.get(b);
+
+      return getCurioTitle(curioA).localeCompare(getCurioTitle(curioB));
+    }
+    return b.compare(a);
+  });
+
   return (
     <Layout
       className="flex-1 bg-gray-50"
@@ -144,8 +161,7 @@ function HeapChannel({ title }: ViewProps) {
           {
             // Here, we sort the array by recently added and then filter out curios with a "replying" property
             // as those are comments and shouldn't show up in the main view
-            Array.from(curios)
-              .sort(([a], [b]) => b.compare(a))
+            sortedCurios
               .filter(([, c]) => !c.heart.replying)
               .map(([time, curio]) => renderCurio(curio, time))
           }

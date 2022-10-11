@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 import { MemoryRouter } from 'react-router';
-import { render } from '@testing-library/react';
 import { unixToDa } from '@urbit/api';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { render } from '@testing-library/react';
 import ChatMessage from './ChatMessage';
 import { makeFakeChatWrit } from '../../mocks/chat';
 

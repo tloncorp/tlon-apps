@@ -56,10 +56,7 @@ export default function GroupPendingManager() {
     );
 
     if ('shut' in group.cordon) {
-      members = members.concat(
-        group.cordon.shut.ask,
-        group.cordon.shut.pending
-      );
+      members = group.cordon.shut.ask.concat(group.cordon.shut.pending);
     }
 
     return members;

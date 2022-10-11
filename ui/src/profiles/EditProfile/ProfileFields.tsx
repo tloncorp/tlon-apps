@@ -6,9 +6,10 @@ import ColorPicker from '@/components/ColorPicker';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isValidUrl, normalizeUrbitColor } from '@/logic/utils';
 import LinkIcon from '@/components/icons/LinkIcon';
+import { useCalm } from '@/state/settings';
 
 interface ProfileFormSchema extends ContactEditField {
-  isContactPublic: boolean;
+  isContactPrivate: boolean;
 }
 
 export default function ProfileFields() {
@@ -22,7 +23,9 @@ export default function ProfileFields() {
   const avatarHasLength = watchAvatar?.length;
   const coverHasLength = watchCover?.length;
   const watchSigilColor = watch('color');
-  const isPublicSelected = watch('isContactPublic') === true;
+  // we're flipping this logic because G1 expects the value to be "true" if it's private
+  const isPrivateSelected = watch('isContactPrivate') === true;
+  const calm = useCalm();
 
   const setColor = (newColor: string) => {
     setValue('color', normalizeUrbitColor(newColor), {
@@ -71,7 +74,16 @@ export default function ProfileFields() {
           ) : null}
         </div>
         <div className="mt-1 text-sm font-semibold text-gray-600">
-          Overlay avatars may be hidden by other users
+          {calm.disableAvatars || calm.disableRemoteContent ? (
+            <span>
+              You are hiding {calm.disableAvatars && 'avatars'}
+              {calm.disableAvatars && calm.disableRemoteContent ? ' and ' : ''}
+              {calm.disableRemoteContent && 'remote content'} in your Landscape
+              settings, but your avatar may be visible to others.
+            </span>
+          ) : (
+            <span>Overlay avatars may be hidden by other users.</span>
+          )}
         </div>
       </div>
       <div className="flex flex-col">
@@ -95,6 +107,14 @@ export default function ProfileFields() {
             </div>
           ) : null}
         </div>
+        <div className="mt-1 text-sm font-semibold text-gray-600">
+          {calm.disableRemoteContent ? (
+            <span>
+              You are hiding remote content in your Landscape settings, but your
+              header image may be visible to others.
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="flex flex-col">
         <label htmlFor="nickname" className="pb-2 font-bold">
@@ -107,6 +127,13 @@ export default function ProfileFields() {
           type="text"
           placeholder="Name"
         />
+
+        {calm.disableNicknames ? (
+          <div className="mt-1 text-sm font-semibold text-gray-600">
+            You are hiding display names in your Landscape settings, but your
+            display name may be visible to others.
+          </div>
+        ) : null}
       </div>
       <div className="flex flex-col">
         <label htmlFor="bio" className="pb-2 font-bold">
@@ -117,6 +144,7 @@ export default function ProfileFields() {
           {...register('bio', { maxLength: 1000 })}
           className="input"
           placeholder="Add a bio"
+          spellCheck={`${!calm.disableSpellcheck}`}
         />
       </div>
       <label
@@ -125,7 +153,7 @@ export default function ProfileFields() {
         }
       >
         <div className="flex items-center">
-          {isPublicSelected ? (
+          {isPrivateSelected ? (
             <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
               <CheckIcon className="h-3 w-3 fill-gray-400" />
             </div>
@@ -146,7 +174,7 @@ export default function ProfileFields() {
         </div>
 
         <input
-          {...register('isContactPublic')}
+          {...register('isContactPrivate')}
           className="sr-only"
           type="checkbox"
         />
