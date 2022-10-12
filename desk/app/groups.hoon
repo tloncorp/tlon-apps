@@ -10,13 +10,13 @@
 =>
   |%
   +$  card  card:agent:gall
-  +$  state-0
-    $:  %0
+  +$  current-state
+    $:  %1
         groups=(map flag:g [net:g group:g])
         xeno=(map flag:g gang:g)
     ==
   --
-=|  state-0
+=|  current-state
 =*  state  -
 =< 
   %+  verb  &
@@ -32,14 +32,47 @@
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
-    ^-  (quip card _this)
-    =/  old=(unit state-0)
-      (mole |.(!<(state-0 vase)))  
-    ?^  old  `this(state u.old)
-    ~&  >>>  "Incompatible load, nuking"
-    =^  cards  state
-      abet:(holt:cor &)
-    [cards this]
+    =|  cards=(list card)
+    |^  ^-  (quip card _this)
+    =+  !<(old=versioned-state vase)
+    |-
+    ?-  -.old
+      %1  [cards this(state old)]
+    ::
+        %0
+      %=  $
+        old  (state-0-to-1 old)
+      ==
+    ==
+    ::
+    +$  versioned-state
+      $%  state-0
+          state-1
+      ==
+    +$  state-0  
+      $:  %0
+          groups=(map flag:zero group:groups:zero)
+          xeno=(map flag:zero gang:zero)
+      ==
+    ++  zero     zero:old:g
+    +$  state-1  current-state
+    ++  one      g
+    ++  state-0-to-1
+      |=  sta=state-0
+      ^-  state-1
+      :-  %1
+      %-  ~(run by groups.sta)
+      |=  =groups:zero
+      ^-  groups:one
+      %*  .  *groups:one
+        groups    (groups-0-to-1 groups.groups)
+      ==
+    ::
+    ++  groups-0-to-1
+      |=  =groups:zero
+      ^-  groups:one
+      :: TODO: for each group in existing map of groups, add secret boolean
+    --
   ::
   ++  on-poke
     |=  [=mark =vase]
