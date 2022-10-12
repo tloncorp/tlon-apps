@@ -16,9 +16,8 @@ import Channel from '@/channels/Channel';
 import { useGroupState } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import api, { IS_MOCK } from '@/api';
-import Dms from '@/pages/Dms';
-import Search from '@/pages/Search';
-import NewDM from '@/pages/NewDm';
+import Dms from '@/dms/Dms';
+import NewDM from '@/dms/NewDm';
 import { DmThread, GroupChatThread } from '@/chat/ChatThread/ChatThread';
 import useMedia from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
@@ -28,7 +27,7 @@ import { useLocalState } from '@/state/local';
 import useContactState from '@/state/contact';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
-import Nav from '@/components/Nav/Nav';
+import Nav from '@/nav/Nav';
 import GroupInviteDialog from '@/groups/GroupInviteDialog';
 import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
@@ -119,7 +118,6 @@ function ChatRoutes({ state, location }: RoutesProps) {
             <Route index element={<DMHome />} />
             <Route path="new" element={<NewDM />} />
             <Route path=":ship" element={<Message />}>
-              <Route path="search" element={<Search />} />
               <Route path="message/:idShip/:idTime" element={<DmThread />} />
             </Route>
           </Route>

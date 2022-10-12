@@ -7,7 +7,7 @@ import {
   useGroupState,
   useRouteGroup,
 } from '@/state/groups/groups';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import api from '@/api';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';

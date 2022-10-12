@@ -4,7 +4,7 @@ import { useGroup } from '@/state/groups/groups';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import HashIcon from '@/components/icons/HashIcon';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import NavTab from '@/components/NavTab';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import ChannelList from './ChannelList';

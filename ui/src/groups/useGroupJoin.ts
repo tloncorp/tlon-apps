@@ -1,4 +1,4 @@
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
 import useHarkState from '@/state/hark';
 import { getGroupPrivacy } from '@/logic/utils';

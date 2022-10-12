@@ -6,7 +6,7 @@ import PersonIcon from '@/components/icons/PersonIcon';
 import SlidersIcon from '@/components/icons/SlidersIcon';
 import { useGroupActions } from '@/groups/GroupActions';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 
 interface MobileGroupActionsProps {

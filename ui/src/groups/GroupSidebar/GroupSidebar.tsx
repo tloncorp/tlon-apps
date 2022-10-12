@@ -4,7 +4,7 @@ import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups/groups';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
 import SidebarItem from '@/components/Sidebar/SidebarItem';

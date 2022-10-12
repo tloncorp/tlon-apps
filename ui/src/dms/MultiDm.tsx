@@ -13,7 +13,7 @@ import { ChatMemo } from '@/types/chat';
 import ChatWindow from '@/chat/ChatWindow';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import { pluralize } from '@/logic/utils';
 import useSendMultiDm from '@/state/chat/useSendMultiDm';
 import MultiDmInvite from './MultiDmInvite';

@@ -17,7 +17,7 @@ import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 import { Group } from '@/types/groups';
-import useNavStore from '../Nav/useNavStore';
+import useNavStore from '../../nav/useNavStore';
 import SidebarItem from './SidebarItem';
 import GroupListPlaceholder from './GroupListPlaceholder';
 

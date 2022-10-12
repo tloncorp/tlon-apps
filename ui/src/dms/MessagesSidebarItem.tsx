@@ -8,7 +8,7 @@ import { ChatBrief } from '../types/chat';
 import { useMultiDm } from '../state/chat';
 import { useChannel, useGroup, useGroupState } from '../state/groups/groups';
 import { useIsMobile } from '../logic/useMedia';
-import useNavStore from '../components/Nav/useNavStore';
+import useNavStore from '../nav/useNavStore';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 import BulletIcon from '../components/icons/BulletIcon';

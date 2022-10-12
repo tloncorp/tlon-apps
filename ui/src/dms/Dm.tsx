@@ -13,7 +13,7 @@ import { useContact } from '@/state/contact';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import DMHero from '@/dms/DMHero';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 
 function BackLink({
   children,

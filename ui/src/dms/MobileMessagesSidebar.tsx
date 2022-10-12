@@ -7,7 +7,7 @@ import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import NewMessageIcon from '@/components/icons/NewMessageIcon';
 import { useBriefs, usePinned } from '@/state/chat';
 import MessagesList from './MessagesList';

@@ -5,7 +5,7 @@ import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import GridIcon from '@/components/icons/GridIcon';
 import SortIcon from '@/components/icons/SortIcon';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useGroup,

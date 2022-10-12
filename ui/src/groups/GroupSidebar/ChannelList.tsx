@@ -5,7 +5,7 @@ import useAllBriefs from '@/logic/useAllBriefs';
 import { channelHref, nestToFlag, filterJoinedChannels } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import CaretDown16Icon from '@/components/icons/CaretDownIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';

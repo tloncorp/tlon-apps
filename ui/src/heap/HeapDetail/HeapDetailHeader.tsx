@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import React from 'react';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
-import useNavStore from '@/components/Nav/useNavStore';
+import useNavStore from '@/nav/useNavStore';
 import { useIsMobile } from '@/logic/useMedia';
 import { Link } from 'react-router-dom';
 import CopyIcon from '@/components/icons/CopyIcon';

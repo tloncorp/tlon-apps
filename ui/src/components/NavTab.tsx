@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import React, { PropsWithChildren } from 'react';
-import useNavStore, { NavSecondaryLocation } from './Nav/useNavStore';
+import useNavStore, { NavSecondaryLocation } from '../nav/useNavStore';
 
 type NavTabProps = PropsWithChildren<{
   loc?: NavSecondaryLocation;
