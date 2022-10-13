@@ -8,7 +8,12 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { Cite } from '@/types/chat';
-import { DiaryBlock, NoteContent } from '@/types/diary';
+import {
+  DiaryBlock,
+  DiaryHeaderLevel,
+  DiaryListing,
+  NoteContent,
+} from '@/types/diary';
 import { citeToPath, pathToCite } from './utils';
 
 export interface EditorOnUpdateProps {
@@ -112,6 +117,63 @@ function limitBreaks(
   ).result;
 }
 
+const isList = (c: JSONContent) =>
+  c.type === 'orderedList' || c.type === 'bulletList';
+
+export function JSONToListing(
+  json: JSONContent,
+  limitNewlines = true
+): DiaryListing {
+  switch (json.type) {
+    case 'orderedList': {
+      return {
+        list: {
+          type: 'ordered',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
+        },
+      };
+    }
+    case 'bulletList': {
+      return {
+        list: {
+          type: 'unordered',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
+        },
+      };
+    }
+    case 'listItem': {
+      const list = json.content?.find(isList);
+      const para = json.content?.find((c) => !isList(c));
+      const contents = para
+        ? // eslint-disable-next-line @typescript-eslint/no-use-before-define
+          (JSONToInlines(para, limitNewlines) as Inline[])
+        : [];
+
+      if (list) {
+        return {
+          list: {
+            contents,
+            items: list.content
+              ? list.content.map((c) => JSONToListing(c, limitNewlines))
+              : ([] as DiaryListing[]),
+            type: list.type === 'bulletList' ? 'unordered' : 'ordered',
+          },
+        };
+      }
+
+      return {
+        item: contents,
+      };
+    }
+    default:
+      return { item: [''] };
+  }
+}
+
 export function JSONToInlines(
   json: JSONContent,
   limitNewlines = true
@@ -210,6 +272,40 @@ export function JSONToInlines(
       return [
         {
           code: json.content[0].text ?? '',
+        },
+      ];
+    }
+    case 'orderedList': {
+      return [
+        {
+          listing: JSONToListing(json, limitNewlines),
+        },
+      ];
+    }
+    case 'bulletList': {
+      return [
+        {
+          listing: JSONToListing(json, limitNewlines),
+        },
+      ];
+    }
+    case 'heading': {
+      return [
+        {
+          header: {
+            tag: `h${json.attrs?.level || 2}` as DiaryHeaderLevel,
+            content: (json.content || []).reduce(
+              (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
+              [] as (Inline | DiaryBlock)[]
+            ) as Inline[],
+          },
+        },
+      ];
+    }
+    case 'horizontalRule': {
+      return [
+        {
+          rule: null,
         },
       ];
     }

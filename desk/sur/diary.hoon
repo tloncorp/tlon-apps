@@ -146,14 +146,24 @@
   $%  [%block p=block]
       [%inline p=(list inline)]
   ==
+::  $listing: recursive type for infinitely nested <ul> or <ol>
++$  listing
+  $%  [%list p=?(%ordered %unordered) q=(list listing) r=(list inline)]
+      [%item p=(list inline)]
+  ==
 ::  $block: post content that sits outside of the normal text
 ::
 ::    %image: a visual, we record dimensions for better rendering
 ::    %cite: an Urbit reference
+::    %header: a traditional HTML heading, h1-h6
+::    %listing: a traditional HTML list, ul and ol
 ::
 +$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
+      [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
+      [%listing p=listing]
+      [%rule ~]
   ==
 ::  $inline: post content that flows within a paragraph
 ::
@@ -282,5 +292,10 @@
       description=cord
       readers=(set sect:g)
       writers=(set sect:g)
+  ==
+::  $state-0: initial version
++$  state-0
+  $:  %0
+      =shelf
   ==
 --

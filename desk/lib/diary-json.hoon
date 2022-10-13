@@ -155,13 +155,34 @@
     ^-  json
     %+  frond  -.b
     ?-  -.b
+        %rule  ~
         %cite  (enjs:cite cite.b)
+        %listing  (listing p.b)
+        %header
+      %-  pairs
+      :~  tag+s+p.b
+          content+a+(turn q.b inline)
+      ==
         %image
       %-  pairs
       :~  src+s+src.b
           height+(numb height.b)
           width+(numb width.b)
           alt+s+alt.b
+      ==
+    ==
+  ::
+  ++  listing
+    |=  l=listing:d
+    ^-  json
+    %+  frond  -.l
+    ?-  -.l  
+        %item  a+(turn p.l inline)
+        %list
+      %-  pairs
+      :~  type+s+p.l
+          items+a+(turn q.l listing)
+          contents+a+(turn r.l inline)
       ==
     ==
   ::
@@ -402,7 +423,15 @@
     ^-  block:d
     %.  j
     %-  of
-    :~  cite/dejs:cite
+    :~  rule/ul
+        cite/dejs:cite
+        listing/listing
+    ::
+      :-  %header
+      %-  ot
+      :~  tag/(su (perk %h1 %h2 %h3 %h4 %h5 %h6 ~))
+          content/(ar inline)
+      ==
     ::
       :-  %image
       %-  ot
@@ -410,6 +439,21 @@
           height/ni
           width/ni
           alt/so
+      ==
+    ==
+  ::
+  ++  listing
+    |=  j=json
+    ^-  listing:d
+    %.  j
+    %-  of
+    :~
+      item/(ar inline)
+      :-  %list
+      %-  ot
+      :~  type/(su (perk %ordered %unordered ~))
+          items/(ar listing)
+          contents/(ar inline)
       ==
     ==
   ::
