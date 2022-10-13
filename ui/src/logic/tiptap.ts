@@ -165,11 +165,19 @@ export function JSONToInlines(
         return [{ break: null }];
       }
 
-      const inlines = json.content.reduce(
-        (memo, c) =>
-          memo.concat(JSONToInlines(c, limitNewlines), [{ break: null }]),
-        [] as (Inline | DiaryBlock)[]
-      );
+      const inlines = json.content.reduce((memo, c, idx) => {
+        // this check is here again, for typescript "null" detection
+        if (!json.content) {
+          return [{ break: null }];
+        }
+        const isContentFinal = idx === json.content.length - 1;
+        if (isContentFinal) {
+          return memo.concat(JSONToInlines(c, limitNewlines), [
+            { break: null },
+          ]);
+        }
+        return memo.concat(JSONToInlines(c, limitNewlines));
+      }, [] as (Inline | DiaryBlock)[]);
       return limitNewlines ? limitBreaks(inlines) : inlines;
     }
     case 'doc': {
