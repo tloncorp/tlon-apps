@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
+import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import {
@@ -9,11 +10,9 @@ import {
   useMultiDmIsPending,
   useMultiDmMessages,
 } from '@/state/chat';
-import { ChatMemo } from '@/types/chat';
 import ChatWindow from '@/chat/ChatWindow';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
-import useNavStore from '@/nav/useNavStore';
 import { pluralize } from '@/logic/utils';
 import useSendMultiDm from '@/state/chat/useSendMultiDm';
 import MultiDmInvite from './MultiDmInvite';
@@ -26,13 +25,6 @@ export default function MultiDm() {
   const isMobile = useIsMobile();
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
-
-  useEffect(() => {
-    if (isMobile) {
-      navPrimary('hidden');
-    }
-  }, [navPrimary, isMobile]);
 
   useEffect(() => {
     if (clubId) {
@@ -51,19 +43,20 @@ export default function MultiDm() {
   const pendingCount = club.hive.length;
   const hasPending = pendingCount > 0;
   const groupName = club.meta.title || club.team.concat(club.hive).join(', ');
+  const BackButton = isMobile ? Link : 'div';
 
   return (
     <Layout
       className="h-full grow"
       header={
         <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
-          <button
+          <BackButton
+            to="/"
             className={cn(
               'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
               isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
             )}
-            onClick={() => isMobile && navPrimary('dm')}
-            aria-label="Open Messages Menu"
+            aria-label={isMobile ? 'Open Messages Menu' : undefined}
           >
             {isMobile ? (
               <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
@@ -82,7 +75,7 @@ export default function MultiDm() {
                 </div>
               </div>
             </div>
-          </button>
+          </BackButton>
           <DmOptions
             whom={clubId}
             pending={!isAccepted}

@@ -1,30 +1,26 @@
 import cn from 'classnames';
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import CaretLeftIcon from '../../components/icons/CaretLeftIcon';
-import useNavStore from '../../nav/useNavStore';
-import { useIsMobile } from '../../logic/useMedia';
-import { useAmAdmin, useRouteGroup } from '../../state/groups/groups';
+import { Link, NavLink, Outlet } from 'react-router-dom';
+import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import { useIsMobile } from '@/logic/useMedia';
+import { useAmAdmin, useRouteGroup } from '@/state/groups/groups';
 
 export default function GroupAdmin() {
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const isMobile = useIsMobile();
-  const { navPrimary } = useNavStore((state) => ({
-    navPrimary: state.navigatePrimary,
-  }));
 
   return (
     <section className="w-full overflow-y-scroll">
       {isMobile ? (
         <div className="px-2 py-1">
-          <button
+          <Link
+            to="../"
             className="default-focus inline-flex items-center rounded-lg p-2 text-xl font-medium text-gray-800 hover:bg-gray-50"
-            onClick={() => navPrimary('group')}
           >
             <CaretLeftIcon className="mr-4 h-6 w-6 text-gray-600" />
             Group Info
-          </button>
+          </Link>
         </div>
       ) : null}
       <div className="m-4 sm:my-5 sm:mx-8">

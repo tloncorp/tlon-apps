@@ -5,7 +5,6 @@ import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import GridIcon from '@/components/icons/GridIcon';
 import SortIcon from '@/components/icons/SortIcon';
-import useNavStore from '@/nav/useNavStore';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useGroup,
@@ -260,9 +259,9 @@ export default function ChannelHeader({
 }: ChannelHeaderProps) {
   const group = useGroup(flag);
   const isMobile = useIsMobile();
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
   const channel = useChannel(flag, nest);
   const groupName = group?.meta.title;
+  const BackButton = isMobile ? Link : 'div';
 
   return (
     <div
@@ -270,13 +269,13 @@ export default function ChannelHeader({
         'flex h-full items-center justify-between border-b-2 border-gray-50 bg-white p-2'
       )}
     >
-      <button
+      <BackButton
+        to="../"
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
           isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
         )}
         aria-label="Open Channels Menu"
-        onClick={() => isMobile && navPrimary('group', flag)}
       >
         {isMobile ? (
           <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
@@ -292,7 +291,7 @@ export default function ChannelHeader({
             </span>
           </div>
         </div>
-      </button>
+      </BackButton>
 
       {showControls && displayMode && setDisplayMode && setSortMode ? (
         <div className="flex items-center space-x-3">

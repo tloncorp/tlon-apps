@@ -17,7 +17,6 @@ import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 import { Group } from '@/types/groups';
-import useNavStore from '../../nav/useNavStore';
 import SidebarItem from './SidebarItem';
 import GroupListPlaceholder from './GroupListPlaceholder';
 
@@ -32,7 +31,6 @@ const selOrderedPins = (s: SettingsState) => ({
 
 function DraggableGroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   const [{ isDragging }, drag] = useDrag(() => ({
     type: dragTypes.GROUP,
@@ -55,7 +53,6 @@ function DraggableGroupItem({ flag }: { flag: string }) {
         icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
         actions={<GroupActions flag={flag} />}
         to={`/groups/${flag}`}
-        onClick={() => navPrimary('group', flag)}
       >
         {group?.meta.title}
       </SidebarItem>
@@ -65,14 +62,12 @@ function DraggableGroupItem({ flag }: { flag: string }) {
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   return (
     <SidebarItem
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
       actions={<GroupActions flag={flag} />}
       to={`/groups/${flag}`}
-      onClick={() => navPrimary('group', flag)}
     >
       {group?.meta.title}
     </SidebarItem>

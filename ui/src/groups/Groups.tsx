@@ -7,13 +7,13 @@ import {
   useGroupState,
   useRouteGroup,
 } from '@/state/groups/groups';
-import useNavStore from '@/nav/useNavStore';
 import api from '@/api';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import { createStorageKey, nestToFlag } from '@/logic/utils';
 import { useLocalStorage } from 'usehooks-ts';
+import { useIsMobile } from '@/logic/useMedia';
 
 function Groups() {
   const navigate = useNavigate();
@@ -21,6 +21,7 @@ function Groups() {
   const initialized = useGroupsInitialized();
   const group = useGroup(flag);
   const gang = useGang(flag);
+  const isMobile = useIsMobile();
   const root = useMatch('/groups/:ship/:name');
   const [recentChannel] = useLocalStorage(
     createStorageKey(`recent-chan:${flag}`),
@@ -29,10 +30,9 @@ function Groups() {
 
   useEffect(() => {
     if (initialized && !group && !gang) {
-      useNavStore.getState().navigatePrimary('main');
       navigate('/');
     } else if (initialized && group && root) {
-      if (recentChannel) {
+      if (recentChannel && !isMobile) {
         navigate(`./channels/${recentChannel}`);
         return;
       }
@@ -48,13 +48,13 @@ function Groups() {
         return chFlag in allBriefs;
       });
 
-      if (channel) {
+      if (channel && !isMobile) {
         navigate(`./channels/${channel[0]}`);
-      } else {
+      } else if (!isMobile) {
         navigate('./activity');
       }
     }
-  }, [root, gang, group, initialized, recentChannel, navigate]);
+  }, [root, gang, group, isMobile, initialized, recentChannel, navigate]);
 
   useEffect(() => {
     let id = null as number | null;
