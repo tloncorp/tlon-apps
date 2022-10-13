@@ -274,6 +274,8 @@
 ::
 +$  groups
   (map flag group)
++$  net-groups
+  (map flag [net group])
 ::
 ::  $log: a time ordered map of all modifications to groups
 ::

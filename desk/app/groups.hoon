@@ -12,8 +12,8 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %1
-        groups=(map flag:g [net:g group:g])
-        xeno=(map flag:g gang:g)
+        groups=net-groups:g
+        xeno=gangs:g
     ==
   --
 =|  current-state
@@ -51,8 +51,8 @@
       ==
     +$  state-0
       $:  %0
-          groups=(map flag:zero [net:zero group:zero])
-          xeno=(map flag:zero gang:zero)
+          groups=net-groups:zero
+          xeno=gangs:zero
       ==
     ++  zero  zero:old:g
     +$  state-1  current-state
@@ -61,18 +61,17 @@
       |=  sta=state-0
       ^-  state-1
       :-  %1
-      %*  .  *groups:one
-        groups  (groups-0-to-1 groups.sta)
-        xeno    (xeno-0-to-1 xeno.sta)
+      :*  (groups-0-to-1 groups.sta)
+          (xeno-0-to-1 xeno.sta)
       ==
     ::
     ++  groups-0-to-1
-      |=  =groups:zero
-      ^-  groups:one
+      |=  groups=net-groups:zero
+      ^-  net-groups:one
       %-  ~(run by groups) 
       |=  [=net:zero =group:zero]
       ^-  [net:one group:one]
-      :-  net
+      :-  (net-0-to-1 net)
       %*  .  *group:one
         fleet  fleet.group
         cabals  cabals.group
@@ -84,6 +83,36 @@
         secret  |
         meta  meta.group
       ==
+    ++  net-0-to-1
+      |=  =net:zero
+      ^-  net:one
+      ?-  -.net
+        %sub  net
+        %load  net
+        ::
+          %pub
+        :-  %pub
+        %+  run:log-on:zero  p.net
+        |=  =diff:zero
+        ^-  diff:one
+        ?-  -.diff
+          ?(%fleet %cabal %channel %bloc %cordon %zone %meta %del)  diff
+          ::
+            %create
+          =/  c  p.diff
+          :-  %create
+          :*  fleet.c
+              cabals.c
+              zones.c
+              zone-ord.c
+              bloc.c
+              channels.c
+              cordon.c
+              |
+              meta.c
+          ==
+        ==
+      ==
     ++  xeno-0-to-1
       |=  =gangs:zero
       ^-  gangs:one
@@ -92,8 +121,19 @@
       ^-  gang:one
       %*  .  *gang:one
         cam  cam.gang
-        pev  pev.gang
         vit  vit.gang
+          pev
+        ?~  pev.gang  ~  
+        `(preview-0-to-1 u.pev.gang)
+      ==
+    ++  preview-0-to-1
+      |=  =preview:zero
+      ^-  preview:one
+      :*  flag.preview
+          meta.preview
+          cordon.preview
+          time.preview
+          |
       ==
     --
   ::
