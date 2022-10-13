@@ -26,10 +26,26 @@
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
+    ==
+  +$  state-1
+    $:  %1
+        chats=(map flag:c chat:c)
+        dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
+        drafts=(map whom:c story:c)
+        pins=(list whom:c)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:c id:c] (unit said:c))
         old-epic=epic:e
     ==
+  +$  versioned-state
+    $%  state-0
+        state-1
+    ==
+
   --
-=|  state-0
+=|  state-1
 =*  state  -
 =< 
   %+  verb  &
@@ -44,25 +60,12 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>(state(old-epic our-epic))
+  ++  on-save  !>([state our-epic])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
-    ?:  =(1 2)
-      =^  cards  state
-        abet:(load:cor vase)
-      [cards this]
-    =/  old=(unit state-0)
-      (mole |.(!<(state-0 vase)))  
-    ?^  old  
-      =.  dms.u.old
-        %-  ~(run by dms.u.old)
-        |=  =dm:c
-        dm(watching.remark &)
-      `this(state u.old)
-    ~&  >>>  "Incompatible load, nuking"
     =^  cards  state
-      abet:(holt:cor &)
+      abet:(load:cor vase)
     [cards this]
   ::
   ++  on-poke
@@ -110,7 +113,10 @@
 ++  load
   |=  =vase
   ^+  cor
-  =+  !<(old=state-0 vase)
+  =+  !<(old=versioned-state vase)
+  =?  old   ?=(%0 -.old)
+    [%1 chats dms clubs drafts pins bad inv voc 0]
+  ?>  ?=(%1 -.old)
   =.  state  old
   ?:  =(our-epic old-epic)
     cor
@@ -505,7 +511,7 @@
 ++  holt
   |=  tell=?
   ^+  cor
-  =.  state  *state-0
+  =.  state  *state-1
   =.  cor
     %-  emil
     %+  turn  ~(tap in ~(key by wex.bowl))
