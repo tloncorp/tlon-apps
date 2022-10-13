@@ -1,6 +1,7 @@
 /-  g=groups
 /-  meta
 /-  cite
+/+  e=epic
 |%
 ::  $writ: a chat message
 +$  writ   [seal memo]
@@ -282,7 +283,7 @@
 ::
 +$  net
   $~  [%load ~]
-  $%  [%sub p=ship]
+  $%  [%sub host=ship =saga:e]
       [%pub ~]
       [%load ~]
   ==
