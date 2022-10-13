@@ -49,29 +49,52 @@
       $%  state-0
           state-1
       ==
-    +$  state-0  
+    +$  state-0
       $:  %0
-          groups=(map flag:zero group:groups:zero)
+          groups=(map flag:zero [net:zero group:zero])
           xeno=(map flag:zero gang:zero)
       ==
-    ++  zero     zero:old:g
+    ++  zero  zero:old:g
     +$  state-1  current-state
     ++  one      g
     ++  state-0-to-1
       |=  sta=state-0
       ^-  state-1
       :-  %1
-      %-  ~(run by groups.sta)
-      |=  =groups:zero
-      ^-  groups:one
       %*  .  *groups:one
-        groups    (groups-0-to-1 groups.groups)
+        groups  (groups-0-to-1 groups.sta)
+        xeno    (xeno-0-to-1 xeno.sta)
       ==
     ::
     ++  groups-0-to-1
       |=  =groups:zero
       ^-  groups:one
-      :: TODO: for each group in existing map of groups, add secret boolean
+      %-  ~(run by groups) 
+      |=  [=net:zero =group:zero]
+      ^-  [net:one group:one]
+      :-  net
+      %*  .  *group:one
+        fleet  fleet.group
+        cabals  cabals.group
+        zones  zones.group
+        zone-ord   zone-ord.group
+        bloc   bloc.group
+        channels   channels.group
+        cordon  cordon.group
+        secret  |
+        meta  meta.group
+      ==
+    ++  xeno-0-to-1
+      |=  =gangs:zero
+      ^-  gangs:one
+      %-  ~(run by gangs) 
+      |=  =gang:zero
+      ^-  gang:one
+      %*  .  *gang:one
+        cam  cam.gang
+        pev  pev.gang
+        vit  vit.gang
+      ==
     --
   ::
   ++  on-poke
@@ -257,7 +280,7 @@
 ++  holt
   |=  tell=?
   ^+  cor
-  =.  state  *state-0
+  =.  state  *current-state
   =.  cor
     %-  emil
     %+  turn  ~(tap in ~(key by wex.bowl))
