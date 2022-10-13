@@ -16,7 +16,7 @@ exports[`Sidebar > renders as expected 1`] = `
         >
           <div
             aria-haspopup="menu"
-            class="appearance-none h-6 w-6 rounded mix-blend-multiply group-hover:bg-gray-100"
+            class="appearance-none h-6 w-6 rounded group-hover:bg-gray-100"
             data-state="closed"
             id="radix-0"
             type="button"

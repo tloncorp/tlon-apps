@@ -1,4 +1,6 @@
 /-  d=diary
+/-  ha=hark
+/+  qip=quips
 |_  not=notes:d
 ++  brief
   |=  [our=ship last-read=time]
@@ -38,7 +40,7 @@
   ^+  not
   ?-  -.del
       %add
-    =/  =seal:d  [time ~]
+    =/  =seal:d  [time ~ ~]
     ?:  (~(has by not) time)
       not
     (put:on:notes:d not time [seal p.del])
@@ -53,6 +55,11 @@
       (del:on:notes:d not time)
     not
   ::
+      %quips
+    %+  jab  time
+    |=  =note:d
+    note(quips (~(reduce qip quips.note) now p.p.del q.p.del))
+  ::
       %add-feel
     %+  jab  time
     |=  =note:d
@@ -63,6 +70,63 @@
     |=  =note:d
     note(feels (~(del by feels.note) p.del))
   ==
+++  flatten
+  |=  content=(list inline:d)
+  ^-  cord
+  %-  crip
+  %-  zing
+  %+  turn
+    content
+  |=  c=inline:d
+  ^-  tape
+  ?@  c  (trip c)
+  ?-  -.c
+      %break  ""
+      %tag    (trip p.c)
+      %link   (trip q.c)
+      %block   (trip q.c)
+      ?(%code %inline-code)  ""
+      ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
+  ==
+::
+++  hark
+  |=  [our=ship =time =delta:notes:d]
+  ^-  (list (list content:ha))
+  ?.  ?=(%quips -.delta)
+    ~
+  =/  [@ =note:d]  (got time)
+  ~!  q.p.delta
+  ?.  ?=(%add -.q.p.delta)
+    ~
+  =/  =memo:d  p.q.p.delta
+  =/  in-replies
+    %+  lien  (tap:on:quips:d quips.note)
+    |=  [=^time =quip:d]
+    =(author.quip our)
+  ?:  |(=(author.memo our) !in-replies)  ~
+  =-  ~[-]
+  :~  [%ship author.memo]
+      ' commented on '
+      [%emph title.note]
+      ': '
+      [%ship author.memo]
+      ': '
+      (flatten q.content.memo)
+  ==
+::  +trace: turn note into outline
+::
+::    XX: should trim actual note contents, probably
+::
+++  trace
+  |=  =note:d
+  ^-  outline:d
+  =;  quippers=(set ship)
+    [~(wyt by quips.note) quippers +.note]
+  =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
+  %-  ~(gas in *(set ship))
+  %+  turn  (tap:on:quips:d quips.note)
+  |=  [@ =quip:d]
+  author.quip
 ::
 ++  peek
   |=  =(pole knot)
@@ -72,10 +136,14 @@
   ?+    pole  [~ ~]
   ::
   ::  TODO: less iterations?
-      [%newest count=@ ~]
+      [%newest count=@ mode=?(%outline %note) ~]
     =/  count  (slav %ud count.pole)
     =/  ls    (scag count (bap:on not))
-    ``diary-notes+!>((gas:on *notes:d ls))
+    ?:  =(mode.pole %note)
+      ``diary-notes+!>((gas:on *notes:d ls))
+    =-  ``diary-outlines+!>(-)
+    %+  gas:on:outlines:d  *outlines:d
+    (turn ls |=([=time =note:d] [time (trace note)]))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
@@ -93,8 +161,12 @@
     (scag count (tap:on (lot:on not `start ~)))
 
   ::
-      [%note %id time=@ ~]
+      [%note time=@ ~]
     =/  time  (slav %ud time.pole)
-    ``note+!>((got `@da`time))
+    ``diary-note+!>(+:(got `@da`time))
+  ::
+      [%note %id time=@ %quips rest=*]
+    =/  time  (slav %ud time.pole)
+    (~(peek qip quips:note:(got `@da`time)) rest.pole)
   ==
 --

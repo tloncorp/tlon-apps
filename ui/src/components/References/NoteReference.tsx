@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
 import { Link } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useDiaryState, useNote, useQuips } from '@/state/diary';
+import { useDiaryState, useNote } from '@/state/diary';
 import { useChannelPreview } from '@/state/groups';
 import { makePrettyDate } from '@/logic/utils';
 import { udToDec } from '@urbit/api';
@@ -24,7 +24,7 @@ export default function NoteReference({
   const [scryError, setScryError] = useState<string>();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const noteObject = useNote(chFlag, id);
-  const quips = useQuips(chFlag, id);
+  const { quips } = noteObject[1].seal;
   const commentAuthors = _.uniq(
     Array.from(quips).map(([, quip]) => quip.memo.author)
   );

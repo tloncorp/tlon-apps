@@ -408,10 +408,17 @@ describe('JSONToInlines', () => {
   it('styled paragraph', () => {
     const input: JSONContent = {
       type: 'paragraph',
-      content: [{ type: 'text', text: 'foobar', marks: [{ type: 'bold' }] }],
+      content: [
+        { type: 'text', text: 'the following should be bold:' },
+        { type: 'text', text: 'foobar', marks: [{ type: 'bold' }] },
+      ],
     };
     const output = JSONToInlines(input);
-    const expected: Inline[] = [{ bold: ['foobar'] }, { break: null }];
+    const expected: Inline[] = [
+      'the following should be bold:',
+      { bold: ['foobar'] },
+      { break: null },
+    ];
     expect(output).toEqual(expected);
   });
 
@@ -632,6 +639,134 @@ describe('JSONToInlines', () => {
           { bold: ['bold statement'] },
           { break: null },
         ],
+      },
+    ];
+    expect(output).toEqual(expected);
+  });
+
+  it('heading', () => {
+    const input: JSONContent = {
+      type: 'heading',
+      attrs: {
+        level: 2,
+      },
+      content: [
+        {
+          type: 'text',
+          text: 'yoooo',
+        },
+      ],
+    };
+    const output = JSONToInlines(input);
+    const expected: DiaryBlock[] = [
+      {
+        header: {
+          tag: 'h2',
+          content: ['yoooo'],
+        },
+      },
+    ];
+    expect(output).toEqual(expected);
+  });
+
+  it('horizontal rules', () => {
+    const input: JSONContent = {
+      type: 'horizontalRule',
+    };
+    const output = JSONToInlines(input);
+    const expected: DiaryBlock[] = [
+      {
+        rule: null,
+      },
+    ];
+    expect(output).toEqual(expected);
+  });
+
+  it('basic list', () => {
+    const input: JSONContent = {
+      type: 'orderedList',
+      content: [
+        { type: 'listItem', content: [{ type: 'text', text: 'one' }] },
+        {
+          type: 'listItem',
+          content: [
+            {
+              type: 'text',
+              text: 'two',
+              marks: [{ type: 'bold' }, { type: 'italic' }],
+            },
+          ],
+        },
+      ],
+    };
+    const output = JSONToInlines(input);
+    const expected: DiaryBlock[] = [
+      {
+        listing: {
+          list: {
+            type: 'ordered',
+            contents: [],
+            items: [
+              { item: ['one'] },
+              {
+                item: [
+                  {
+                    italics: [{ bold: ['two'] }],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    ];
+    expect(output).toEqual(expected);
+  });
+
+  it('mixed nested list', () => {
+    const input: JSONContent = {
+      type: 'orderedList',
+      content: [
+        { type: 'listItem', content: [{ type: 'text', text: 'one' }] },
+        {
+          type: 'listItem',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'two' }],
+            },
+            {
+              type: 'bulletList',
+              content: [
+                {
+                  type: 'listItem',
+                  content: [{ type: 'text', text: 'three' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const output = JSONToInlines(input);
+    const expected: DiaryBlock[] = [
+      {
+        listing: {
+          list: {
+            type: 'ordered',
+            contents: [],
+            items: [
+              { item: ['one'] },
+              {
+                list: {
+                  type: 'unordered',
+                  contents: ['two', { break: null }],
+                  items: [{ item: ['three'] }],
+                },
+              },
+            ],
+          },
+        },
       },
     ];
     expect(output).toEqual(expected);

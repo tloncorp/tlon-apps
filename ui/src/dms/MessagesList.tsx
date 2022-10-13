@@ -46,7 +46,8 @@ export default function MessagesList({ filter }: MessagesListProps) {
 
       return true; // is all
     })
-    .sort(sortOptions[RECENT]);
+    .sort(sortOptions[RECENT])
+    .reverse();
 
   return (
     <ul
