@@ -7,6 +7,7 @@
 /+  ch=chat-hark
 /+  gra=graph-store
 /+  mig=chat-graph
+/+  e=epic
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -14,6 +15,7 @@
   +$  card  card:agent:gall
   ++  def-flag  `flag:c`[~zod %test]
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
+  ++  our-epic  0
   +$  state-0
     $:  %0
         chats=(map flag:c chat:c)
@@ -25,8 +27,25 @@
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
     ==
+  +$  state-1
+    $:  %1
+        chats=(map flag:c chat:c)
+        dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
+        drafts=(map whom:c story:c)
+        pins=(list whom:c)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:c id:c] (unit said:c))
+        old-epic=epic:e
+    ==
+  +$  versioned-state
+    $%  state-0
+        state-1
+    ==
+
   --
-=|  state-0
+=|  state-1
 =*  state  -
 =< 
   %+  verb  &
@@ -41,21 +60,12 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>([state our-epic])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
-    =/  old=(unit state-0)
-      (mole |.(!<(state-0 vase)))  
-    ?^  old  
-      =.  dms.u.old
-        %-  ~(run by dms.u.old)
-        |=  =dm:c
-        dm(watching.remark &)
-      `this(state u.old)
-    ~&  >>>  "Incompatible load, nuking"
     =^  cards  state
-      abet:(holt:cor &)
+      abet:(load:cor vase)
     [cards this]
   ::
   ++  on-poke
@@ -99,10 +109,37 @@
 ++  init
   ^+  cor
   watch-groups
+::  +load: load next state
+++  load
+  |=  =vase
+  ^+  cor
+  =+  !<(old=versioned-state vase)
+  =?  old   ?=(%0 -.old)
+    [%1 chats dms clubs drafts pins bad inv voc 0]
+  ?>  ?=(%1 -.old)
+  =.  state  old
+  ?:  =(our-epic old-epic)
+    cor
+  =-  (give %fact ~(tap in -) epic+!>(our-epic))
+  %-  ~(gas in *(set path))
+  %+  murn  ~(val by sup.bowl)
+  |=  [=ship =path]
+  ^-  (unit _path)
+  ?.  |(=(/epic path) ?=([%chat @ @ %updates *] path))  ~
+  `path
 ::
 ++  watch-groups
   ^+  cor
   (emit %pass /groups %agent [our.bowl %groups] %watch /groups)
+::
+++  watch-epic
+  |=  her=ship
+  ^+  cor
+  =/  =wire  /epic
+  =/  =dock  [her dap.bowl]
+  ?:  (~(has by wex.bowl) [wire dock])
+    cor
+  (emit %pass wire %agent [her dap.bowl] %watch /epic)
 ::
 ++  poke
   |=  [=mark =vase]
@@ -220,6 +257,9 @@
       [%ui ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
     ::
+      [%epic ~]
+    (give %fact ~ epic+!>(our-epic))
+    ::
       [%said host=@ name=@ %msg sender=@ time=@ ~]
     =/  host=ship  (slav %p host.pole)
     =/  =flag:c     [host name.pole]
@@ -245,6 +285,9 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
+  ::
+      [%epic ~]
+    (take-epic sign)
   ::
       [%said host=@ name=@ %msg sender=@ time=@ ~]
     =/  host=ship    (slav %p host.pole)
@@ -332,7 +375,31 @@
   =/  wire  (said-wire flag id)
   =/  =card  [%pass wire %agent dock %watch wire]
   (emit card)
-
+::
+++  take-epic
+  |=  =sign:agent:gall
+  ^+  cor
+  ?+    -.sign  cor
+      %kick
+    ~&  'todo: check that sub is removed before ingesting kick'^wex.bowl
+    (watch-epic src.bowl)
+  ::
+      %fact
+    ?:  =(%epic p.cage.sign)
+      ~&  '!!! weird fact on /epic'
+      cor
+    =+  !<(=epic:e q.cage.sign)
+    ?.  =(epic our-epic)  :: is now our guy
+      cor
+    %+  roll  ~(tap by chats)
+    |=  [[=flag:g =chat:c] out=_cor]
+    ca-abet:ca-sub:(ca-abed:ca-core:out flag)
+  ::
+      %watch-ack
+    %.  cor
+    ?~  p.sign  same
+    (slog leaf/"weird watch nack" u.p.sign)
+  ==
 ::  TODO: more efficient?
 ::    perhaps a cached index of (jug group=flag chat=flag)
 ++  take-groups
@@ -444,7 +511,7 @@
 ++  holt
   |=  tell=?
   ^+  cor
-  =.  state  *state-0
+  =.  state  *state-1
   =.  cor
     %-  emil
     %+  turn  ~(tap in ~(key by wex.bowl))
@@ -823,10 +890,16 @@
     |=  =sign:agent:gall
     ^+  ca-core
     ?+    -.sign  ca-core
-      %kick  ca-sub
+        %kick
+      ?>  ?=(%sub -.net.chat)
+      ?-  -.saga.net.chat
+        %chi  ca-sub
+        %dex  ca-core
+        %lev  ca-core
+      ==
     ::
         %watch-ack
-      =.  net.chat  [%sub src.bowl]
+      =.  net.chat  [%sub src.bowl %chi ~]
       ?~  p.sign  ca-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       =.  gone  &
@@ -835,10 +908,25 @@
         %fact
       =*  cage  cage.sign 
       ?+  p.cage  ca-core
+        %epic                           (ca-take-epic !<(epic:e q.cage))
         ?(%chat-logs %chat-logs-0)      (ca-apply-logs !<(logs:c q.cage))
         ?(%chat-update %chat-update-0)  (ca-update !<(update:c q.cage))
       ==
     ==
+  ::
+  ++  ca-take-epic
+    |=  her=epic:e
+    ^+  ca-core
+    ?>  ?=(%sub -.net.chat)
+    ?:  =(her our-epic)
+      ca-core
+    ?:  (gth her our-epic)
+      =.  saga.net.chat  dex/her
+      ca-core
+    =.  saga.net.chat  lev/~ 
+    =.  cor  (watch-epic p.flag)
+    ca-core
+  ::
   ++  ca-proxy
     |=  =update:c
     ^+  ca-core
