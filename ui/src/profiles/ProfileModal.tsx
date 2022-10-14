@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { useCopyToClipboard } from 'usehooks-ts';
 import { useNavigate, useParams } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
+import { useCopy } from '@/logic/utils';
 import { useContact } from '@/state/contact';
 import Avatar from '@/components/Avatar';
 import Dialog, { DialogContent } from '@/components/Dialog';
@@ -11,20 +11,15 @@ import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
 
 export default function ProfileModal() {
-  const [_copied, doCopy] = useCopyToClipboard();
-  const [copyButtonText, setCopyButtonText] = useState('Copy Name');
   const { ship } = useParams();
+  const { doCopy, didCopy } = useCopy(ship || '');
   const navigate = useNavigate();
   const contact = useContact(ship ? ship : '');
   const dismiss = useDismissNavigate();
 
   const onCopy = useCallback(() => {
-    doCopy(ship || '');
-    setCopyButtonText('Copied!');
-    setTimeout(() => {
-      setCopyButtonText('Copy Group Link');
-    }, 1000);
-  }, [doCopy, ship]);
+    doCopy();
+  }, [doCopy]);
 
   if (!ship) {
     return null;
@@ -64,7 +59,7 @@ export default function ProfileModal() {
               className="secondary-button ml-auto"
               onClick={handleCopyClick}
             >
-              {copyButtonText}
+              {didCopy ? 'Copied!' : 'Copy Name'}
             </button>
             <button className="button ml-2" onClick={handleMessageClick}>
               Message
@@ -104,7 +99,7 @@ export default function ProfileModal() {
             className="secondary-button ml-auto"
             onClick={handleCopyClick}
           >
-            {copyButtonText}
+            {didCopy ? 'Copied!' : 'Copy Name'}
           </button>
           <button className="button ml-2" onClick={handleMessageClick}>
             Message

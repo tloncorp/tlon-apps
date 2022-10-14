@@ -13,7 +13,6 @@ import DiaryNoteOptionsDropdown from '@/diary/DiaryNoteOptionsDropdown';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
 import { useGroupFlag } from '@/state/groups';
-import { useCopyToClipboard } from 'usehooks-ts';
 import { useNavigate } from 'react-router-dom';
 import Author from '@/chat/ChatMessage/Author';
 import { sampleQuippers } from '@/logic/utils';
@@ -37,7 +36,7 @@ export default function DiaryNoteHeadline({
   const chFlag = useChannelFlag();
   const flag = useRouteGroup();
   const navigate = useNavigate();
-  const { justCopied, onCopy } = useDiaryActions({
+  const { didCopy, onCopy } = useDiaryActions({
     flag: chFlag || '',
     time: time.toString(),
   });
@@ -86,7 +85,7 @@ export default function DiaryNoteHeadline({
                   className="h-8 w-8"
                   label="Share"
                   icon={
-                    justCopied ? (
+                    didCopy ? (
                       <CheckIcon className={`h-5 w-5`} />
                     ) : (
                       <CopyIcon className={`h-5 w-5`} />

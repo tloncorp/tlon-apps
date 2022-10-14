@@ -2,7 +2,6 @@ import cn from 'classnames';
 import React, { PropsWithChildren, useCallback, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link, useLocation } from 'react-router-dom';
-import { useCopyToClipboard } from 'usehooks-ts';
 import InviteIcon16 from '@/components/icons/InviteIcon16';
 import LinkIcon16 from '@/components/icons/LinkIcon16';
 import PinIcon16 from '@/components/icons/PinIcon16';
@@ -13,25 +12,25 @@ import { useChatState, usePinnedGroups } from '@/state/chat';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import { citeToPath } from '@/logic/utils';
+import { citeToPath, useCopy } from '@/logic/utils';
 
 const { ship } = window;
 
 export function useGroupActions(flag: string) {
-  const [_copied, doCopy] = useCopyToClipboard();
+  const { doCopy } = useCopy(citeToPath({ group: flag }));
   const [isOpen, setIsOpen] = useState(false);
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
   const pinned = usePinnedGroups();
   const isPinned = Object.keys(pinned).includes(flag);
 
   const onCopy = useCallback(() => {
-    doCopy(citeToPath({ group: flag }));
+    doCopy();
     setCopyItemText('Copied!');
     setTimeout(() => {
       setCopyItemText('Copy Group Link');
       setIsOpen(false);
-    }, 1000);
-  }, [doCopy, flag]);
+    }, 2000);
+  }, [doCopy]);
 
   const onPinClick = useCallback(
     // eslint-disable-next-line prefer-arrow-callback

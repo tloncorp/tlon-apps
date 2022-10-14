@@ -28,7 +28,7 @@ export default function HeapRow({
   time: string;
 }) {
   const nest = useNest();
-  const { justCopied, menuOpen, setMenuOpen, onDelete, onEdit, onCopy } =
+  const { didCopy, menuOpen, setMenuOpen, onDelete, onEdit, onCopy } =
     useCurioActions({ nest, time });
   const [embed, setEmbed] = useState<any>();
   const { content, sent, title } = curio.heart;
@@ -133,7 +133,7 @@ export default function HeapRow({
           onClick={onCopy}
           className={cn('icon-button bg-transparent', !canEdit ? 'mr-3' : '')}
         >
-          {justCopied ? (
+          {didCopy ? (
             <CheckIcon className="h-6 w-6" />
           ) : (
             <CopyIcon className="h-6 w-6" />
