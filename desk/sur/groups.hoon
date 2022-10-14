@@ -1,4 +1,4 @@
-/-  meta
+/-  meta, e=epic
 |%
 ::  $flag: ID for a group
 ::
@@ -281,7 +281,7 @@
 +$  net
   $~  [%pub ~]
   $%  [%pub p=log]
-      [%sub p=time]
+      [%sub p=time =saga:e]
       [%load ~]
   ==
 ::

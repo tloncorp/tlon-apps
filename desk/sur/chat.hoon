@@ -1,7 +1,7 @@
 /-  g=groups, zer=chat-0
 /-  meta
 /-  cite
-/+  e=epic
+/-  e=epic
 |%
 ++  old
   |%
