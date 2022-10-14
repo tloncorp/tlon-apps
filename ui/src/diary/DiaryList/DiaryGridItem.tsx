@@ -29,7 +29,7 @@ export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
   const navigate = useNavigate();
   const hasImage =
     (letter.type === 'note' ? letter.essay.image : letter.image).length !== 0;
-  const { justCopied, onCopy } = useDiaryActions({
+  const { didCopy, onCopy } = useDiaryActions({
     flag: chFlag || '',
     time: time.toString(),
   });
@@ -92,7 +92,7 @@ export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
           className="h-8 w-8"
           label="Share"
           icon={
-            justCopied ? (
+            didCopy ? (
               <CheckIcon
                 className={`h-5 w-5 ${!hasImage && 'text-gray-600'}`}
               />
