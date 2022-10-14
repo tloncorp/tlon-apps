@@ -1,38 +1,12 @@
-import React from 'react';
+import { S3Credentials } from '@urbit/api';
 import { S3Client } from '@aws-sdk/client-s3';
-import { S3Credentials, S3Configuration } from '@urbit/api';
 import create from 'zustand';
 import produce from 'immer';
-
-export interface Upload {
-  file: File;
-  status: 'initial' | 'loading' | 'success' | 'error';
-}
-
-export interface FileStore {
-  client: S3Client | null;
-  status: 'initial' | 'loading' | 'success' | 'error';
-  files: Array<Upload>;
-  createClient: (s3: S3Credentials) => void;
-  setStatus: (status: string) => void;
-  setFiles: (files: object) => void;
-  setFileStatus: (file: Array<number | string>) => void;
-}
+import { FileStore } from '@/types/storage';
 
 export function prefixEndpoint(endpoint: string) {
   return endpoint.match(/https?:\/\//) ? endpoint : `https://${endpoint}`;
 }
-
-export const useS3Creds = create<S3Credentials>(() => ({
-  endpoint: '',
-  accessKeyId: '',
-  secretAccessKey: '',
-}));
-
-export const useS3Config = create<S3Configuration>(() => ({
-  buckets: new Set(['']),
-  currentBucket: '',
-}));
 
 export const useFileStore = create<FileStore>((set) => ({
   client: null,
