@@ -33,6 +33,7 @@ export default function NewChannelForm() {
 
   const form = useForm<NewChannelFormSchema>({
     defaultValues,
+    mode: 'onChange',
   });
 
   const onSubmit = useCallback(
@@ -91,7 +92,7 @@ export default function NewChannelForm() {
         <label className="mb-3 font-semibold">
           Channel Name*
           <input
-            {...form.register('meta.title')}
+            {...form.register('meta.title', { required: true })}
             className="input my-2 block w-full p-1"
             type="text"
           />
@@ -110,7 +111,7 @@ export default function NewChannelForm() {
             <button
               type="submit"
               className="button"
-              disabled={!form.formState.isDirty}
+              disabled={!form.formState.isValid || !form.formState.isDirty}
             >
               Add Channel
             </button>
