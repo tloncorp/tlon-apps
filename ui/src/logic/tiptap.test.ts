@@ -299,7 +299,6 @@ describe('inlinesToJSON', () => {
         { type: 'paragraph' },
         { type: 'paragraph' },
         { type: 'paragraph', content: [{ type: 'text', text: 'foo' }] },
-        { type: 'paragraph' },
       ],
     };
     expect(output).toEqual(expected);
@@ -373,7 +372,6 @@ describe('inlinesToJSON', () => {
             { type: 'text', text: 'style', marks: [{ type: 'bold' }] },
           ],
         },
-        { type: 'paragraph' },
       ],
     };
     expect(output).toEqual(expected);
