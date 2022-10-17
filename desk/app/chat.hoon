@@ -16,8 +16,8 @@
   ++  def-flag  `flag:c`[~zod %test]
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   ++  our-epic  0
-  +$  state-0
-    $:  %0
+  +$  current-state
+    $:  %1
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
@@ -29,7 +29,7 @@
         old-epic=epic:e
     ==
   --
-=|  state-0
+=|  current-state
 =*  state  -
 =< 
   %+  verb  &
@@ -44,25 +44,12 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>(state(old-epic our-epic))
+  ++  on-save  !>([state our-epic])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
-    ?:  =(1 2)
-      =^  cards  state
-        abet:(load:cor vase)
-      [cards this]
-    =/  old=(unit state-0)
-      (mole |.(!<(state-0 vase)))  
-    ?^  old  
-      =.  dms.u.old
-        %-  ~(run by dms.u.old)
-        |=  =dm:c
-        dm(watching.remark &)
-      `this(state u.old)
-    ~&  >>>  "Incompatible load, nuking"
     =^  cards  state
-      abet:(holt:cor &)
+      abet:(load:cor vase)
     [cards this]
   ::
   ++  on-poke
@@ -109,8 +96,12 @@
 ::  +load: load next state
 ++  load
   |=  =vase
-  ^+  cor
-  =+  !<(old=state-0 vase)
+  |^  ^+  cor
+  =+  !<(old=versioned-state vase)
+  |-
+  =?  old   ?=(%0 -.old)
+    (state-0-to-1 old)
+  ?>  ?=(%1 -.old)
   =.  state  old
   ?:  =(our-epic old-epic)
     cor
@@ -121,6 +112,56 @@
   ^-  (unit _path)
   ?.  |(=(/epic path) ?=([%chat @ @ %updates *] path))  ~
   `path
+  +$  versioned-state
+    $%  state-0
+        state-1
+    ==
+  +$  state-0
+    $:  %0
+        chats=(map flag:zero chat:zero)
+        dms=(map ship dm:zero)
+        clubs=(map id:club:zero club:zero)
+        drafts=(map whom:zero story:zero)
+        pins=(list whom:zero)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:zero id:zero] (unit said:zero))
+    ==
+  ++  zero     zero:old:c
+  +$  state-1  current-state
+  ++  one      c
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    %*  .  *state-1
+      dms     dms.s
+      clubs   clubs.s
+      drafts  drafts.s
+      pins    pins.s
+      bad     bad.s
+      inv     inv.s
+      voc     voc.s
+      chats   (chats-0-to-1 chats.s)
+      old-epic  0
+    ==
+  ++  chats-0-to-1
+    |=  chats=(map flag:zero chat:zero)
+    ^-  (map flag:one chat:one)
+    %-  ~(run by chats)
+    |=  =chat:zero
+    %*  .  *chat:one
+      remark  remark.chat
+      log     log.chat
+      perm    perm.chat
+      pact    pact.chat
+      ::
+        net
+      ?-  -.net.chat
+        ?(%load %pub)  net.chat
+        %sub  [%sub p.net.chat *saga:e]
+      ==
+    ==
+  --
 ::
 ++  watch-groups
   ^+  cor
@@ -505,7 +546,7 @@
 ++  holt
   |=  tell=?
   ^+  cor
-  =.  state  *state-0
+  =.  state  *current-state
   =.  cor
     %-  emil
     %+  turn  ~(tap in ~(key by wex.bowl))

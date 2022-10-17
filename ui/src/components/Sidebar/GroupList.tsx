@@ -142,7 +142,7 @@ function GangItem(props: { flag: string }) {
   const { preview, claim } = useGang(flag);
   const isMobile = useIsMobile();
 
-  if (!claim) {
+  if (!claim || claim.progress === 'error') {
     return null;
   }
 

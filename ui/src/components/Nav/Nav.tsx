@@ -76,7 +76,7 @@ export function DesktopNav() {
 
   if (navLocation === 'group' || navLocation === 'main') {
     return (
-      <div className="relative flex h-full w-64 flex-none overflow-hidden border-r-2 border-gray-50 bg-white">
+      <div className="relative flex h-full w-64 flex-none overflow-y-auto overflow-x-hidden border-r-2 border-gray-50 bg-white">
         <AnimatePresence initial={false}>
           {navLocation === 'group' ? (
             <motion.div
@@ -114,7 +114,9 @@ export default function Nav() {
   return (
     <div className="flex h-full w-full">
       {isMobile ? <MobileNav /> : <DesktopNav />}
-      <Outlet />
+      <div className="flex h-screen w-full overflow-y-scroll">
+        <Outlet />
+      </div>
     </div>
   );
 }
