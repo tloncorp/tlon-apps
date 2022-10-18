@@ -18,6 +18,7 @@ import {
   isDiaryImage,
   NoteContent,
 } from '@/types/diary';
+import _ from 'lodash';
 import DiaryContentImage from './DiaryContentImage';
 
 interface DiaryContentProps {
@@ -33,6 +34,15 @@ interface BlockContentProps {
 }
 
 export function InlineContent({ story }: InlineContentProps) {
+  if (_.isArray(story)) {
+    return (
+      <>
+        {story.map((s) => (
+          <InlineContent story={s} />
+        ))}
+      </>
+    );
+  }
   if (typeof story === 'string') {
     return <span>{story}</span>;
   }
