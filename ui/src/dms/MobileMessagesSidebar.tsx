@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
@@ -10,15 +10,29 @@ import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
 import useNavStore from '@/components/Nav/useNavStore';
 import NewMessageIcon from '@/components/icons/NewMessageIcon';
 import { useBriefs, usePinned } from '@/state/chat';
+import {
+  filters,
+  SettingsState,
+  SidebarFilter,
+  useSettingsState,
+} from '@/state/settings';
 import MessagesList from './MessagesList';
-import useMessagesFilter, { filters } from './useMessagesFilter';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
+const selMessagesFilter = (s: SettingsState) => ({
+  messagesFilter: s.talk.messagesFilter,
+});
+
 export default function MobileMessagesSidebar() {
-  const { filter, setFilter } = useMessagesFilter();
+  // const { filter, setFilter } = useMessagesFilter();
+  const { messagesFilter } = useSettingsState(selMessagesFilter);
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const briefs = useBriefs();
   const pinned = usePinned();
+
+  const setFilterMode = (mode: SidebarFilter) => {
+    useSettingsState.getState().putEntry('talk', 'messagesFilter', mode);
+  };
 
   return (
     <nav
@@ -51,16 +65,16 @@ export default function MobileMessagesSidebar() {
             }
             aria-label="Groups Filter Options"
           >
-            <h1 className="mr-4 text-xl font-medium">{filter}</h1>
+            <h1 className="mr-4 text-xl font-medium">{messagesFilter}</h1>
             <CaretDown16Icon className="h-4 w-4 text-gray-400" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Content className="dropdown text-gray-600">
             <DropdownMenu.Item
               className={cn(
                 'dropdown-item flex items-center space-x-2 rounded-none',
-                filter === filters.all && 'bg-gray-50 text-gray-800'
+                messagesFilter === filters.all && 'bg-gray-50 text-gray-800'
               )}
-              onClick={() => setFilter(filters.all)}
+              onClick={() => setFilterMode(filters.all)}
             >
               <ChatSmallIcon className="mr-2 h-4 w-4" />
               All Messages
@@ -68,9 +82,9 @@ export default function MobileMessagesSidebar() {
             <DropdownMenu.Item
               className={cn(
                 'dropdown-item flex items-center space-x-2 rounded-none',
-                filter === filters.dms && 'bg-gray-50 text-gray-800'
+                messagesFilter === filters.dms && 'bg-gray-50 text-gray-800'
               )}
-              onClick={() => setFilter(filters.dms)}
+              onClick={() => setFilterMode(filters.dms)}
             >
               <PersonSmallIcon className="mr-2 h-4 w-4" />
               Direct Messages
@@ -78,9 +92,9 @@ export default function MobileMessagesSidebar() {
             <DropdownMenu.Item
               className={cn(
                 'dropdown-item flex items-center space-x-2 rounded-none',
-                filter === filters.groups && 'bg-gray-50 text-gray-800'
+                messagesFilter === filters.groups && 'bg-gray-50 text-gray-800'
               )}
-              onClick={() => setFilter(filters.groups)}
+              onClick={() => setFilterMode(filters.groups)}
             >
               <CmdSmallIcon className="mr-2 h-4 w-4" />
               Group Talk Channels
@@ -96,7 +110,7 @@ export default function MobileMessagesSidebar() {
           <NewMessageIcon className="h-6 w-6 text-blue" />
         </Link>
       </header>
-      <MessagesList filter={filter} />
+      <MessagesList filter={messagesFilter} />
     </nav>
   );
 }
