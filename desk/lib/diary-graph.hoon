@@ -1,4 +1,6 @@
 /-  d=diary
+/-  graph=graph-store
+=<  migrate
 |%
 +$  errata  (each tape block:d)
 ++  trace
@@ -233,6 +235,21 @@
   ^-  (list verse:d)
   %-  squeeze
   abet:~(main sing [[1 1] (trip str)] ~)
+::  TODO: squeeze after parsing?
+++  migrate
+  |=  ls=(list content:post)
+  ^-  (list verse:d)
+  %-  zing
+  %+  turn  ls
+  |=  con=content:post
+  ^-  (list verse:d)
+  ?-  -.con
+    %text       (ran text.con)
+    %mention    [%inline ~[text/(scot %p ship.con)]]~  :: TODO: i swear I PR'd ships
+    %url        [%inline ~[link/[url.con '']]]~
+    %code       [%inline ~[code/p.cord]]~
+    %reference  ~  :: TODO: think about?
+  ==
 ::
 ++  squeeze
   |=  ls=(list verse:d)

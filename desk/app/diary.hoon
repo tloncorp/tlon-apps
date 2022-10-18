@@ -4,6 +4,7 @@
 /+  not=notes
 /+  qup=quips
 /+  diary-json
+/+  migrate=diary-graph
 ^-  agent:gall
 =>
   |%
@@ -85,6 +86,12 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
+  ::
+      %graph-imports
+    =+  !<(=imports:graph vase)
+    (graph-imports imports)
+
+
       ?(%flag %channel-join)
     =+  !<(=flag:d vase)
     ?<  =(our.bowl p.flag)
@@ -127,7 +134,70 @@
     =.  net.diary  [%pub ~]
     =.  shelf  (~(put by shelf) flag diary)
     di-abet:(di-init:(di-abed:di-core flag) req)
+  
+
   --
+::
+++  import
+  |=  =imports:d
+  ^+  cor
+  %+  roll  ~(tap by imports)
+  |=  $:  $:  =flag:d
+              writers=(set ship) 
+              =association:met:d
+              =update-log:gra:d
+              =graph:gra:d
+          ==
+          out=_cor
+      ==
+  |^
+  =/  =net:d  
+  =/  =log:d  (import-log log)
+  =/  =perm:d
+    :_  group.association
+    ?:(=(~ writers) ~ (silt (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~) ~))
+  =/  =diary:d
+    :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
+        log=(import-log log)
+        perm
+        %grid  :: TODO: check defaults with design
+        %time
+        graph-to-nodes
+        *banter:d  :: TODO: pull in latest quips changes
+    ==
+  =.  diary  (~(put by diary) flag diary)
+  di-abet:(di-import:(di-abed:di-core flag) association)
+  ::
+  ++  graph-to-notes
+    %+  gas:on:notes:d  *notes:d
+    %+  turn  (tap:orm-gra:d graph)
+    |=  [=time =node:gra:d]
+    ^-  [_time note:d]
+    [time (node-to-note node)]
+  ++  orm  orm-gra:d
+  ::  TODO: review crashing semantics
+  ::        check graph ordering (backwards iirc)
+  ++  node-to-note
+    |=  [=time =node:gra:d]
+    =/  =seal:d  [time ~]
+    ?>  ?=(%& -.children.node)
+    ?>  ?=(%& -.post.node)
+    =/  pos=node:gra:d
+      (need (pry:orm (need (get:orm p.children.node 1))))
+    =/  =com=node:gra:d
+      (need (get:orm p.children.node 2))
+    ::  =/  comments  (node-to-comments com-node)
+    ?>  ?=([@ *] contents.pos)
+    =/  con=(list verse:d)  (migrate t.contents.pos)
+    =/  =essay:d
+      [i.contents '' author time-sent]:pos
+    [seal essay]
+  ::
+  ++  node-to-quips
+    |=  =quips
+    !!
+  --
+
 ++  watch
   |=  =path
   ^+  cor
@@ -291,6 +361,16 @@
     =/  link  
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
+  ::  TODO: add metadata
+  ::        maybe delay the watch?
+  ++  di-import
+    |=  =association:met:d
+    ^+  di-core
+    =?  di-core  ?=(%sub -.net.diary)
+      di-sub
+    =?  di-core  ?=(%pub -.net.diary)
+      (import-channel:di-pass association)
+    di-core
   ::
   ++  di-watch
     |=  =path
@@ -303,20 +383,31 @@
     ==
   ++  di-pass
     |%
-    ++  add-channel
-      |=  req=create:d
+    ++  act-group
+      |=  [=term =action:g]
+      ^+  di-core
       =/  =dock      [p.group.req %groups]
       =/  =nest:g    [dap.bowl flag]
+      =/  =wire      (snoc di-area term)
+      =.  cor
+        (emit %pass wire %agent dock %poke group-action+!>(action))
+      di-core
+    ::
+    ++  import-channel
+      |=  =association:met:d
+      =/  meta=data:meta:g
+        [title description '' '']
+      =/  =channel:g  
+        [meta now.bowl zone=%default %| ~]
+      %+  act-group  %import
+      [group.req now.bowl %channel nest %add channel]
+    ::
+    ++  add-channel
+      |=  req=create:d
       =/  =channel:g  
         =,(req [[title description '' ''] now.bowl %default | readers])
-      =/  =action:g  [group.req now.bowl %channel nest %add channel]
-      =/  =cage      group-action+!>(action)
-      =/  =wire      (snoc di-area %create)
-      =/  =card
-        [%pass di-area %agent dock %poke cage]
-      =.  cor
-        (emit card)
-      di-core
+      %+  act-group  %create
+      [group.req now.bowl %channel nest %add channel]
     --
   ++  di-init
     |=  req=create:d
@@ -444,6 +535,7 @@
       [%pass base %agent [p.flag dap.bowl] %watch path]
     =.  cor  (emit card)
     di-core
+  ::
   ++  di-join
     |=  f=flag:d
     ^+  di-core
