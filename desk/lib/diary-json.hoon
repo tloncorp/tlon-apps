@@ -141,7 +141,7 @@
         %header
       %-  pairs
       :~  tag+s+p.b
-          content+(inline q.b)
+          content+a+(turn q.b inline)
       ==
         %image
       %-  pairs
@@ -380,7 +380,7 @@
       :-  %header
       %-  ot
       :~  tag/(su (perk %h1 %h2 %h3 %h4 %h5 %h6 ~))
-          content/inline
+          content/(ar inline)
       ==
     ::
       :-  %image
