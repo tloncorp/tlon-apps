@@ -97,7 +97,7 @@ export default function useSidebarSort({
   const sortFn = groupSideBarSort[flag] || sideBarSort;
 
   return {
-    setSortFn: flag ? setGroupSideBarSort : setSideBarSort,
+    setSortFn: flag !== '~' ? setGroupSideBarSort : setSideBarSort,
     sortFn,
     sortOptions,
     sortRecordsBy,
