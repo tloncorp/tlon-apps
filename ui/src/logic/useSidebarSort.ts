@@ -61,11 +61,11 @@ export default function useSidebarSort({
   const { sideBarSort } = useSettingsState(selSideBarSort);
   const groupSideBarSort = useGroupSideBarSort();
 
-  const setSideBarSort = (mode: SortMode) => {
+  const setSideBarSort = (mode: string) => {
     useSettingsState.getState().putEntry('groups', 'sideBarSort', mode);
   };
 
-  const setGroupSideBarSort = (mode: SortMode) => {
+  const setGroupSideBarSort = (mode: string) => {
     useSettingsState
       .getState()
       .putEntry('groups', 'groupSideBarSort', JSON.stringify({ [flag]: mode }));
