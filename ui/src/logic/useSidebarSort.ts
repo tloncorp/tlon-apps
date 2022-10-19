@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useBriefs } from '@/state/chat';
 import { ChatWhom } from '@/types/chat';
 import {
@@ -58,7 +58,6 @@ export default function useSidebarSort({
   sortOptions,
   flag = '~',
 }: UseSidebarSort) {
-  // const [sortFn, setSortFn] = useState<string>(defaultSort || ALPHABETICAL);
   const { sideBarSort } = useSettingsState(selSideBarSort);
   const groupSideBarSort = useGroupSideBarSort();
 
