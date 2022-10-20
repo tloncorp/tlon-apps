@@ -122,6 +122,7 @@ export default function Sidebar() {
         <SidebarItem
           icon={<ActivityIndicator count={count} />}
           to={`/notifications`}
+          defaultRoute
         >
           Notifications
         </SidebarItem>
