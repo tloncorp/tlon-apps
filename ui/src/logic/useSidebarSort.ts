@@ -60,6 +60,7 @@ export default function useSidebarSort({
 }: UseSidebarSort) {
   const { sideBarSort } = useSettingsState(selSideBarSort);
   const groupSideBarSort = useGroupSideBarSort();
+  const sortFn = groupSideBarSort[flag] || sideBarSort;
 
   const setSideBarSort = (mode: string) => {
     useSettingsState.getState().putEntry('groups', 'sideBarSort', mode);
@@ -88,13 +89,11 @@ export default function useSidebarSort({
       const aVal = accessor(aKey, aObj);
       const bVal = accessor(bKey, bObj);
 
-      return sortOptions[sideBarSort ?? 'A → Z'](aVal, bVal);
+      return sortOptions[sortFn ?? 'A → Z'](aVal, bVal);
     });
 
     return reverse ? entries.reverse() : entries;
   }
-
-  const sortFn = groupSideBarSort[flag] || sideBarSort;
 
   return {
     setSortFn: flag !== '~' ? setGroupSideBarSort : setSideBarSort,
