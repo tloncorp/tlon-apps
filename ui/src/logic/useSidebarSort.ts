@@ -1,6 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useBriefs } from '@/state/chat';
 import { ChatWhom } from '@/types/chat';
+import {
+  SettingsState,
+  useSettingsState,
+  useGroupSideBarSort,
+} from '@/state/settings';
 
 export const ALPHABETICAL = 'A → Z';
 export const DEFAULT = 'Arranged';
@@ -13,10 +18,15 @@ export interface Sorter {
 interface UseSidebarSort {
   defaultSort?: SortMode;
   sortOptions: Record<string, Sorter>;
+  flag?: string;
 }
 
 export const sortAlphabetical = (a: ChatWhom, b: ChatWhom) =>
   a.localeCompare(b);
+
+const selSideBarSort = (s: SettingsState) => ({
+  sideBarSort: s.groups.sideBarSort,
+});
 
 export function useRecentSort() {
   const briefs = useBriefs();
@@ -42,14 +52,25 @@ export function useRecentSort() {
  * This hook implements a few sorting primitives that are consumed via
  * composition in higher order hooks: useChannelSort and useGroupSort
  *
- * @param defaultSort (optional) the initial sorting algorithm; defaults to A-Z
  * @returns an object with sorting functions to be consumed in view components
  */
 export default function useSidebarSort({
-  defaultSort,
   sortOptions,
+  flag = '~',
 }: UseSidebarSort) {
-  const [sortFn, setSortFn] = useState<string>(defaultSort || ALPHABETICAL);
+  const { sideBarSort } = useSettingsState(selSideBarSort);
+  const groupSideBarSort = useGroupSideBarSort();
+  const sortFn = groupSideBarSort[flag] || sideBarSort;
+
+  const setSideBarSort = (mode: string) => {
+    useSettingsState.getState().putEntry('groups', 'sideBarSort', mode);
+  };
+
+  const setGroupSideBarSort = (mode: string) => {
+    useSettingsState
+      .getState()
+      .putEntry('groups', 'groupSideBarSort', JSON.stringify({ [flag]: mode }));
+  };
 
   /**
    * Sorts a Record object by an accessed value of T, returns an array of entries
@@ -68,14 +89,14 @@ export default function useSidebarSort({
       const aVal = accessor(aKey, aObj);
       const bVal = accessor(bKey, bObj);
 
-      return sortOptions[sortFn](aVal, bVal);
+      return sortOptions[sortFn ?? 'A → Z'](aVal, bVal);
     });
 
     return reverse ? entries.reverse() : entries;
   }
 
   return {
-    setSortFn,
+    setSortFn: flag !== '~' ? setGroupSideBarSort : setSideBarSort,
     sortFn,
     sortOptions,
     sortRecordsBy,

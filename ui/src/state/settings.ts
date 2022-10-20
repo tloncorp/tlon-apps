@@ -29,6 +29,14 @@ export interface DiarySetting extends ChannelSetting {
   commentSortMode: 'asc' | 'dsc';
 }
 
+interface GroupSideBarSort {
+  [flag: string]: typeof ALPHABETICAL | typeof RECENT | typeof DEFAULT;
+}
+
+const ALPHABETICAL = 'A → Z';
+const DEFAULT = 'Arranged';
+const RECENT = 'Recent';
+
 export type SidebarFilter =
   | 'Direct Messages'
   | 'All Messages'
@@ -39,6 +47,7 @@ export const filters: Record<string, SidebarFilter> = {
   all: 'All Messages',
   groups: 'Group Channels',
 };
+
 
 interface BaseSettingsState {
   display: {
@@ -62,6 +71,8 @@ interface BaseSettingsState {
   };
   groups: {
     orderedGroupPins: string[];
+    sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
+    groupSideBarSort: Stringified<GroupSideBarSort>;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -129,6 +140,8 @@ export const useSettingsState = createState<BaseSettingsState>(
     },
     groups: {
       orderedGroupPins: [],
+      sideBarSort: ALPHABETICAL,
+      groupSideBarSort: '{"~": "A → Z"}' as Stringified<GroupSideBarSort>,
     },
     talk: {
       messagesFilter: filters.dms,
@@ -245,4 +258,11 @@ export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
   const settings = useDiarySettings();
   const setting = getSetting(settings, flag);
   return setting?.commentSortMode ?? 'dsc';
+}
+
+const selGroupSideBarSort = (s: SettingsState) => s.groups.groupSideBarSort;
+
+export function useGroupSideBarSort() {
+  const settings = useSettingsState(selGroupSideBarSort);
+  return JSON.parse(settings ?? '{"~": "A → Z"}');
 }
