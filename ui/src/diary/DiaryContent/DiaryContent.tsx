@@ -12,7 +12,12 @@ import {
 } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
-import { DiaryBlock, isDiaryImage, NoteContent } from '@/types/diary';
+import {
+  DiaryBlock,
+  DiaryListing,
+  isDiaryImage,
+  NoteContent,
+} from '@/types/diary';
 import DiaryContentImage from './DiaryContentImage';
 
 interface DiaryContentProps {
@@ -120,6 +125,35 @@ export function InlineContent({ story }: InlineContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
+export function ListingContent({ content }: { content: DiaryListing }) {
+  if ('item' in content) {
+    return (
+      <>
+        {content.item.map((con, i) => (
+          <InlineContent key={i} story={con} />
+        ))}
+      </>
+    );
+  }
+
+  const List = content.list.type === 'ordered' ? 'ol' : 'ul';
+
+  return (
+    <>
+      {content.list.contents.map((con, i) => (
+        <InlineContent key={i} story={con} />
+      ))}
+      <List>
+        {content.list.items.map((i) => (
+          <li>
+            <ListingContent content={i} />
+          </li>
+        ))}
+      </List>
+    </>
+  );
+}
+
 export const BlockContent = React.memo(({ story }: BlockContentProps) => {
   if (isDiaryImage(story)) {
     return (
@@ -140,12 +174,31 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     );
   }
 
+  if ('listing' in story) {
+    return <ListingContent content={story.listing} />;
+  }
+
+  if ('header' in story) {
+    const Tag = story.header.tag;
+    return (
+      <Tag>
+        {story.header.content.map((con, i) => (
+          <InlineContent key={i} story={con} />
+        ))}
+      </Tag>
+    );
+  }
+
+  if ('rule' in story) {
+    return <hr />;
+  }
+
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 });
 
 export default function DiaryContent({ content }: DiaryContentProps) {
   return (
-    <article className="text-[18px] leading-[26px]">
+    <article className="prose-lg prose dark:prose-invert">
       {content.map((c, index) => {
         if ('block' in c) {
           return <BlockContent key={index} story={c.block} />;

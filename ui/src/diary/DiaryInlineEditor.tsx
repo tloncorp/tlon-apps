@@ -40,10 +40,15 @@ import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { Shortcuts } from '@/logic/tiptap';
 import Suggestion, { SuggestionOptions } from '@tiptap/suggestion';
 import tippy from 'tippy.js';
-import DiaryImageNode from './DiaryImageNode';
-import DiaryLinkNode from './DiaryLinkNode';
-import DiaryCiteNode from './DiaryCiteNode';
+import BulletList from '@tiptap/extension-bullet-list';
+import OrderedList from '@tiptap/extension-ordered-list';
+import ListItem from '@tiptap/extension-list-item';
+import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import Heading from '@tiptap/extension-heading';
 import PrismCodeBlock from './PrismCodeBlock';
+import DiaryCiteNode from './DiaryCiteNode';
+import DiaryLinkNode from './DiaryLinkNode';
+import DiaryImageNode from './DiaryImageNode';
 
 EditorView.prototype.updateState = function updateState(state) {
   if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
@@ -280,15 +285,20 @@ export function useDiaryInlineEditor({
       extensions: [
         Blockquote,
         Bold,
+        BulletList,
         Code.extend({ excludes: undefined }),
         PrismCodeBlock,
         Document,
         HardBreak,
+        Heading,
         History.configure({ newGroupDelay: 100 }),
+        HorizontalRule,
         Italic,
         Link.configure({
           openOnClick: false,
         }),
+        ListItem,
+        OrderedList,
         Paragraph,
         Placeholder.configure({
           placeholder:
@@ -310,7 +320,6 @@ export function useDiaryInlineEditor({
       content: content || '',
       editorProps: {
         attributes: {
-          class: 'input-transparent',
           'aria-label': 'Note editor with formatting menu',
           spellcheck: `${!calm.disableSpellcheck}`,
         },
@@ -352,7 +361,10 @@ export default function DiaryInlineEditor({
   return (
     <div className={classNames('input-transparent block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
-      <EditorContent className="w-full" editor={editor} />
+      <EditorContent
+        className="prose-lg prose w-full dark:prose-invert"
+        editor={editor}
+      />
       {!isMobile ? <ChatInputMenu editor={editor} /> : null}
     </div>
   );

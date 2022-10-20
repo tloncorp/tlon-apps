@@ -32,7 +32,7 @@ export default function HeapDetailHeader({
     new Date(curio?.heart.sent || Date.now())
   );
   const curioTitle = curio?.heart.title || prettyDayAndTime;
-  const { onCopy, justCopied } = useCurioActions({
+  const { onCopy, didCopy } = useCurioActions({
     nest: `heap/${chFlag}`,
     time: idCurio,
   });
@@ -77,7 +77,7 @@ export default function HeapDetailHeader({
           aria-controls="copy"
           onClick={onCopy}
         >
-          {justCopied ? (
+          {didCopy ? (
             <CheckIcon className="h-6 w-6" />
           ) : (
             <CopyIcon className="h-6 w-6" />

@@ -42,7 +42,7 @@ function DiaryChannel() {
   );
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
-  const { justCopied, onCopy } = useDiaryActions({
+  const { didCopy, onCopy } = useDiaryActions({
     flag: chFlag,
     time: newNote || '',
   });
@@ -155,7 +155,7 @@ function DiaryChannel() {
                   onClick={onCopy}
                   className="-mx-4 -my-2 w-[135px] rounded-r-lg bg-blue py-2 px-4 text-white dark:text-black"
                 >
-                  {justCopied ? 'Copied' : 'Copy Note Link'}
+                  {didCopy ? 'Copied' : 'Copy Note Link'}
                 </button>
               </div>
             </Toast.Description>

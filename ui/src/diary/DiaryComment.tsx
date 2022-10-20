@@ -8,6 +8,7 @@ import Author from '@/chat/ChatMessage/Author';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import { DiaryQuip } from '@/types/diary';
+import { ChatBlock, ChatStory } from '@/types/chat';
 
 export interface DiaryCommentProps {
   time: BigInteger;
@@ -27,6 +28,12 @@ const DiaryComment = React.memo<
     ) => {
       const { cork, memo } = quip;
       const unix = new Date(daToUnix(time));
+      const normalizedContent: ChatStory = {
+        ...memo.content,
+        block: memo.content.block.filter(
+          (b) => 'image' in b || 'cite' in b
+        ) as ChatBlock[],
+      };
 
       return (
         <div ref={ref} className="flex flex-col">
@@ -43,7 +50,7 @@ const DiaryComment = React.memo<
               {format(unix, 'HH:mm')}
             </div>
             <div className="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50">
-              <ChatContent story={memo.content} />
+              <ChatContent story={normalizedContent} />
               {/* {Object.keys(cork.feels).length > 0 && (
                 <ChatReactions cork={cork} />
               )} */}
