@@ -6,7 +6,6 @@ import {
   DeskData,
 } from '@urbit/api';
 import _ from 'lodash';
-import { DiaryDisplayMode } from '@/types/diary';
 import { lsDesk } from '@/constants';
 import {
   BaseState,
@@ -30,6 +29,17 @@ export interface DiarySetting extends ChannelSetting {
   commentSortMode: 'asc' | 'dsc';
 }
 
+export type SidebarFilter =
+  | 'Direct Messages'
+  | 'All Messages'
+  | 'Group Channels';
+
+export const filters: Record<string, SidebarFilter> = {
+  dms: 'Direct Messages',
+  all: 'All Messages',
+  groups: 'Group Channels',
+};
+
 interface BaseSettingsState {
   display: {
     theme: 'light' | 'dark' | 'auto';
@@ -46,6 +56,9 @@ interface BaseSettingsState {
   };
   diary: {
     settings: Stringified<DiarySetting[]>;
+  };
+  talk: {
+    messagesFilter: SidebarFilter;
   };
   groups: {
     orderedGroupPins: string[];
@@ -116,6 +129,9 @@ export const useSettingsState = createState<BaseSettingsState>(
     },
     groups: {
       orderedGroupPins: [],
+    },
+    talk: {
+      messagesFilter: filters.dms,
     },
     loaded: false,
     putEntry: async (bucket, key, val) => {
