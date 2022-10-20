@@ -142,7 +142,7 @@ function GangItem(props: { flag: string }) {
   const { preview, claim } = useGang(flag);
   const isMobile = useIsMobile();
 
-  if (!claim) {
+  if (!claim || claim.progress === 'error') {
     return null;
   }
 
@@ -291,7 +291,7 @@ export default function GroupList({
       ))}
     </DndProvider>
   ) : (
-    <ul className={cn('h-full space-y-3 p-2 sm:space-y-0', className)}>
+    <ul className={cn('h-full space-y-3 p-2 sm:space-y-1', className)}>
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />
       ))}

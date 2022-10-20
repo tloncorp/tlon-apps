@@ -1,9 +1,8 @@
-import { citeToPath } from '@/logic/utils';
+import { citeToPath, useCopy } from '@/logic/utils';
 import { useDiaryState } from '@/state/diary';
 import { decToUd } from '@urbit/api';
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { useCopyToClipboard } from 'usehooks-ts';
 
 interface useDiaryActionsParams {
   flag: string;
@@ -13,8 +12,14 @@ interface useDiaryActionsParams {
 export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-  const [_copied, doCopy] = useCopyToClipboard();
-  const [justCopied, setJustCopied] = useState(false);
+  const { doCopy, didCopy } = useCopy(
+    citeToPath({
+      chan: {
+        nest: `diary/${flag}`,
+        where: `/note/${time}`,
+      },
+    })
+  );
 
   const delNote = useCallback(async () => {
     await useDiaryState.getState().delNote(flag, decToUd(time));
@@ -24,26 +29,14 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   const onCopy = useCallback(
     (e) => {
       e.preventDefault();
-      doCopy(
-        citeToPath({
-          chan: {
-            nest: `diary/${flag}`,
-            where: `/note/${time}`,
-          },
-        })
-      );
-      setJustCopied(true);
-      setTimeout(() => {
-        setJustCopied(false);
-        setIsOpen(false);
-      }, 1000);
+      doCopy();
     },
-    [doCopy, time, flag]
+    [doCopy]
   );
 
   return {
     isOpen,
-    justCopied,
+    didCopy,
     setIsOpen,
     onCopy,
     delNote,

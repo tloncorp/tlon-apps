@@ -57,13 +57,13 @@ import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
 import DiaryNote from './diary/DiaryNote';
-// import DiaryAddNote from './diary/DiaryAddNote';
 import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
+import AlphaNotice from './components/AlphaNotice';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -206,15 +206,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
               <FindGroups title={`Find Groups • ${appHead('').title}`} />
             }
           />
-          <Route
-            path="/groups/:ship/:name"
-            element={
-              <Notifications
-                child={GroupNotification}
-                title={`• ${appHead('').title}`}
-              />
-            }
-          />
+          <Route path="/groups/:ship/:name" element={<Groups />} />
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
             <Route
               path="activity"
@@ -384,7 +376,8 @@ function App() {
   const state = location.state as { backgroundLocation?: Location } | null;
 
   return (
-    <div className="flex h-full w-full">
+    <div className="flex h-full w-full flex-col">
+      <AlphaNotice />
       {isChat ? (
         <ChatRoutes state={state} location={location} />
       ) : (

@@ -9,12 +9,14 @@ export interface DiaryNoteHeaderProps {
   title: string;
   flag: string;
   time: string;
+  canEdit: boolean;
 }
 
 export default function DiaryNoteHeader({
   title,
   flag,
   time,
+  canEdit,
 }: DiaryNoteHeaderProps) {
   return (
     <div
@@ -32,15 +34,18 @@ export default function DiaryNoteHeader({
       <h1 className="mx-2 ml-3 grow-0 truncate font-semibold">{title}</h1>
 
       <div className="ml-auto flex min-w-fit items-center space-x-3">
-        <Link to={`../edit/${time}`} className="secondary-button">
-          Edit Post
-        </Link>
+        {canEdit ? (
+          <Link to={`../edit/${time}`} className="secondary-button">
+            Edit Post
+          </Link>
+        ) : null}
         <button className="secondary-button" disabled>
           Share
         </button>
         <DiaryNoteOptionsDropdown
           time={time}
           flag={flag}
+          canEdit={canEdit}
           triggerClassName={'secondary-button'}
         >
           <EllipsisIcon className="h-6 w-6" />

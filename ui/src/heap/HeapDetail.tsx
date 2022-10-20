@@ -79,14 +79,14 @@ export default function HeapDetail() {
         />
       }
     >
-      <div className="flex flex-wrap lg:h-full lg:flex-nowrap">
+      <div className="flex h-full w-full flex-col overflow-y-auto lg:flex-row">
         <div className="group relative flex-1">
           {hasNext ? (
             <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
               <Link
                 to={curioHref(nextCurio?.[0])}
                 className={
-                  'z-50 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
+                  'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
                 }
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
@@ -101,7 +101,7 @@ export default function HeapDetail() {
               <Link
                 to={curioHref(prevCurio?.[0])}
                 className={
-                  'z-50 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
+                  'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
                 }
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
@@ -111,7 +111,7 @@ export default function HeapDetail() {
             </div>
           ) : null}
         </div>
-        <div className="mt-5 flex h-full w-full flex-col border-gray-50 bg-white lg:mt-0 lg:w-72 lg:border-l-2 xl:w-96">
+        <div className="flex w-full flex-col border-gray-50 bg-white sm:mt-5 lg:mt-0 lg:h-full lg:w-72 lg:border-l-2 xl:w-96">
           <HeapDetailSidebarInfo curio={curio} />
           <HeapDetailComments time={time} />
         </div>

@@ -6,7 +6,7 @@ import {
   DeskData,
 } from '@urbit/api';
 import _ from 'lodash';
-import { DiaryDisplayMode } from '@/types/diary';
+import { lsDesk } from '@/constants';
 import {
   BaseState,
   createState,
@@ -29,9 +29,36 @@ export interface DiarySetting extends ChannelSetting {
   commentSortMode: 'asc' | 'dsc';
 }
 
+interface GroupSideBarSort {
+  [flag: string]: typeof ALPHABETICAL | typeof RECENT | typeof DEFAULT;
+}
+
+const ALPHABETICAL = 'A → Z';
+const DEFAULT = 'Arranged';
+const RECENT = 'Recent';
+
+export type SidebarFilter =
+  | 'Direct Messages'
+  | 'All Messages'
+  | 'Group Channels';
+
+export const filters: Record<string, SidebarFilter> = {
+  dms: 'Direct Messages',
+  all: 'All Messages',
+  groups: 'Group Channels',
+};
+
+
 interface BaseSettingsState {
   display: {
     theme: 'light' | 'dark' | 'auto';
+  };
+  calmEngine: {
+    disableAppTileUnreads: boolean;
+    disableAvatars: boolean;
+    disableRemoteContent: boolean;
+    disableSpellcheck: boolean;
+    disableNicknames: boolean;
   };
   heaps: {
     heapSettings: Stringified<HeapSetting[]>;
@@ -39,8 +66,13 @@ interface BaseSettingsState {
   diary: {
     settings: Stringified<DiarySetting[]>;
   };
+  talk: {
+    messagesFilter: SidebarFilter;
+  };
   groups: {
     orderedGroupPins: string[];
+    sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
+    groupSideBarSort: Stringified<GroupSideBarSort>;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -93,6 +125,13 @@ export const useSettingsState = createState<BaseSettingsState>(
     display: {
       theme: 'auto',
     },
+    calmEngine: {
+      disableAppTileUnreads: false,
+      disableAvatars: false,
+      disableRemoteContent: false,
+      disableSpellcheck: false,
+      disableNicknames: false,
+    },
     heaps: {
       heapSettings: '' as Stringified<HeapSetting[]>,
     },
@@ -101,6 +140,11 @@ export const useSettingsState = createState<BaseSettingsState>(
     },
     groups: {
       orderedGroupPins: [],
+      sideBarSort: ALPHABETICAL,
+      groupSideBarSort: '{"~": "A → Z"}' as Stringified<GroupSideBarSort>,
+    },
+    talk: {
+      messagesFilter: filters.dms,
     },
     loaded: false,
     putEntry: async (bucket, key, val) => {
@@ -108,10 +152,11 @@ export const useSettingsState = createState<BaseSettingsState>(
       await pokeOptimisticallyN(useSettingsState, poke, reduceUpdate);
     },
     fetchAll: async () => {
-      const result = (await api.scry<DeskData>(getDeskSettings(window.desk)))
+      const grResult = (await api.scry<DeskData>(getDeskSettings(window.desk)))
         .desk;
+      const lsResult = (await api.scry<DeskData>(getDeskSettings(lsDesk))).desk;
       const newState = {
-        ..._.mergeWith(get(), result, (obj, src) =>
+        ..._.mergeWith(get(), grResult, lsResult, (obj, src) =>
           _.isArray(src) ? src : undefined
         ),
         loaded: true,
@@ -129,12 +174,25 @@ export const useSettingsState = createState<BaseSettingsState>(
           set({ loaded: true });
         }
       }),
+    (set, get) =>
+      createSubscription('settings-store', `/desk/${lsDesk}`, (e) => {
+        const data = _.get(e, 'settings-event', false);
+        if (data) {
+          reduceStateN(get(), data, reduceUpdate);
+          set({ loaded: true });
+        }
+      }),
   ]
 );
 
 const selTheme = (s: SettingsState) => s.display.theme;
 export function useTheme() {
   return useSettingsState(selTheme);
+}
+
+const selCalm = (s: SettingsState) => s.calmEngine;
+export function useCalm() {
+  return useSettingsState(selCalm);
 }
 
 export function parseSettings<T>(settings: Stringified<T[]>): T[] {
@@ -200,4 +258,11 @@ export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
   const settings = useDiarySettings();
   const setting = getSetting(settings, flag);
   return setting?.commentSortMode ?? 'dsc';
+}
+
+const selGroupSideBarSort = (s: SettingsState) => s.groups.groupSideBarSort;
+
+export function useGroupSideBarSort() {
+  const settings = useSettingsState(selGroupSideBarSort);
+  return JSON.parse(settings ?? '{"~": "A → Z"}');
 }

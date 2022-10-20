@@ -83,3 +83,7 @@ button,
 [type='submit'] {
   -webkit-appearance: initial;
 }
+
+iframe {
+  @apply max-w-full;
+}

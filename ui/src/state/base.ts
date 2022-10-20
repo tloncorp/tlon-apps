@@ -138,7 +138,7 @@ export const createState = <T extends Record<string, unknown>>(
   properties:
     | T
     | ((set: SetState<T & BaseState<T>>, get: GetState<T & BaseState<T>>) => T),
-  blacklist: (keyof BaseState<T> | keyof T)[] = [],
+  whitelist: (keyof BaseState<T> | keyof T)[] = [],
   subscriptions: ((
     set: SetState<T & BaseState<T>>,
     get: GetState<T & BaseState<T>>
@@ -175,7 +175,7 @@ export const createState = <T extends Record<string, unknown>>(
           : properties),
       }),
       {
-        blacklist,
+        whitelist,
         name: stateStorageKey(name),
         version: storageVersion,
         migrate: clearStorageMigration,

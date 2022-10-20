@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
@@ -8,6 +9,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useHarkState from '@/state/hark';
+import { useCalm } from '@/state/settings';
 import { isColor } from '@/logic/utils';
 import { foregroundFromBackground } from '@/components/Avatar';
 import Sidebar from '@/components/Sidebar/Sidebar';
@@ -25,9 +27,11 @@ function GroupHeader() {
   const [coverImgColor, setCoverImgColor] = useState('');
   const cover = useRef(null);
   const fac = new FastAverageColor();
+  const averageSucceeded = isColor(coverImgColor);
   const dark = useMedia('(prefers-color-scheme: dark)');
   const hoverFallbackForeground = dark ? 'white' : 'black';
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
+  const calm = useCalm();
 
   const onError = useCallback(() => {
     setNoCors(true);
@@ -59,18 +63,15 @@ function GroupHeader() {
             : 'transparent',
         color: foregroundFromBackground(group.meta.cover),
       };
-    // debugger;
     if (group && !isColor(group.meta.cover)) {
       return {
-        color: isColor(coverImgColor)
+        color: averageSucceeded
           ? foregroundFromBackground(coverImgColor)
           : hoverFallbackForeground,
         backgroundColor:
           groupCoverHover === true
             ? transparentize(
-                isColor(coverImgColor)
-                  ? coverImgColor
-                  : hoverFallbackBackground,
+                averageSucceeded ? coverImgColor : hoverFallbackBackground,
                 0.33
               )
             : 'transparent',
@@ -84,12 +85,16 @@ function GroupHeader() {
       return {
         color: foregroundFromBackground(group.meta.cover),
       };
-    return { color: foregroundFromBackground(coverImgColor) };
+    return {
+      color: averageSucceeded
+        ? foregroundFromBackground(coverImgColor)
+        : hoverFallbackForeground,
+    };
   };
 
   return (
     <li className="relative mb-2 w-full rounded-lg" style={coverStyles()}>
-      {group && !isColor(group?.meta.cover) && (
+      {group && !calm?.disableRemoteContent && !isColor(group?.meta.cover) && (
         <img
           {...(noCors ? {} : { crossOrigin: 'anonymous' })}
           src={group?.meta.cover}
@@ -99,12 +104,24 @@ function GroupHeader() {
           className="absolute h-full w-full flex-none rounded-lg object-cover"
         />
       )}
+      {group && calm.disableRemoteContent && !isColor(group?.meta.cover) && (
+        <div className="absolute h-full w-full flex-none rounded-lg bg-gray-400" />
+      )}
       <div
         style={group && !isColor(group?.meta.cover) ? { height: '240px' } : {}}
         className="group relative mb-2 flex w-full flex-col justify-between text-lg font-semibold text-gray-600 sm:text-base"
       >
         <SidebarItem
-          icon={<CaretLeft16Icon className="m-1 h-4 w-4" />}
+          icon={
+            <CaretLeft16Icon
+              className={cn(
+                'm-1 h-4 w-4',
+                !averageSucceeded &&
+                  dark &&
+                  'drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]'
+              )}
+            />
+          }
           to="/"
           onClick={() => navPrimary('main')}
           onMouseEnter={() => setGroupCoverHover(true)}
@@ -121,7 +138,11 @@ function GroupHeader() {
             <div
               title={group?.meta.title}
               style={coverTitleStyles()}
-              className="max-w-full flex-1 truncate text-left"
+              className={cn(
+                'max-w-full flex-1 truncate text-left',
+                coverTitleStyles().color === 'white' &&
+                  'drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]'
+              )}
             >
               {group?.meta.title}
             </div>

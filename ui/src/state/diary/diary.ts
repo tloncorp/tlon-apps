@@ -22,6 +22,8 @@ import {
   DiaryQuip,
   DiaryAction,
   DiaryDisplayMode,
+  DiaryLetter,
+  DiaryStory,
 } from '@/types/diary';
 import api from '@/api';
 import {
@@ -37,7 +39,7 @@ setAutoFreeze(false);
 function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
   return {
     app: 'diary',
-    mark: 'diary-action',
+    mark: 'diary-action-0',
     json: {
       flag,
       update: {
@@ -89,19 +91,21 @@ export const useDiaryState = create<DiaryState>(
       },
       addQuip: async (flag, noteId, content) => {
         const replying = decToUd(noteId);
+        const story: DiaryStory = { block: [], inline: content };
         const memo: DiaryMemo = {
-          replying,
-          content,
+          content: story,
           author: window.our,
           sent: Date.now(),
         };
         const diff: DiaryDiff = {
-          quips: {
-            id: replying,
-            diff: {
-              time: decToUd(unixToDa(Date.now()).toString()),
-              delta: {
-                add: memo,
+          notes: {
+            time: replying,
+            delta: {
+              quips: {
+                time: decToUd(unixToDa(Date.now()).toString()),
+                delta: {
+                  add: memo,
+                },
               },
             },
           },
@@ -177,26 +181,20 @@ export const useDiaryState = create<DiaryState>(
           },
         });
       },
-      fetchQuips: async (flag, noteId) => {
-        const id = decToUd(noteId);
-        const res = await api.scry<DiaryQuips>({
+      fetchNote: async (flag, noteId) => {
+        const note = await api.scry<DiaryNote>({
           app: 'diary',
-          path: `/diary/${flag}/quips/${id}/all`,
+          path: `/diary/${flag}/notes/note/${decToUd(noteId)}`,
         });
-
+        note.type = 'note';
+        note.seal.quips = new BigIntOrderedMap<DiaryQuip>().gas(
+          Object.entries(note.seal.quips).map(([t, q]: any) => [
+            bigInt(udToDec(t)),
+            q,
+          ])
+        );
         get().batchSet((draft) => {
-          const map = new BigIntOrderedMap<DiaryQuip>().gas(
-            _.map(res, (val, key) => {
-              const k = bigInt(udToDec(key));
-              return [k, val];
-            })
-          );
-
-          if (!(flag in draft.banter)) {
-            draft.banter[flag] = {};
-          }
-
-          draft.banter[flag][noteId] = map;
+          draft.notes[flag] = draft.notes[flag].set(bigInt(noteId), note);
         });
       },
       joinDiary: async (flag) => {
@@ -294,8 +292,10 @@ export const useDiaryState = create<DiaryState>(
   )
 );
 
-export function useNotesForDiary(flag: DiaryFlag) {
-  const def = useMemo(() => new BigIntOrderedMap<DiaryNote>(), []);
+export function useNotesForDiary(
+  flag: DiaryFlag
+): BigIntOrderedMap<DiaryLetter> {
+  const def = useMemo(() => new BigIntOrderedMap<DiaryLetter>(), []);
   return useDiaryState(useCallback((s) => s.notes[flag] || def, [flag, def]));
 }
 
@@ -346,7 +346,8 @@ export function useCurrentNotesSize(flag: DiaryFlag) {
 // }
 
 const emptyNote: DiaryNote = {
-  seal: { time: '', feels: {} },
+  type: 'note',
+  seal: { time: '', feels: {}, quips: new BigIntOrderedMap<DiaryQuip>() },
   essay: {
     title: '',
     image: '',
@@ -364,12 +365,20 @@ export function useNote(
     useCallback(
       (s) => {
         const notes = s.notes[flag];
+        const fallback = [bigInt(0), emptyNote] as const;
         if (!notes) {
-          return [bigInt(0), emptyNote];
+          return fallback;
         }
 
         const t = bigInt(time);
-        return [t, notes.get(t) || emptyNote] as const;
+        const note = notes.get(t);
+        if (!note) {
+          return fallback;
+        }
+        if (note.type === 'outline') {
+          return fallback;
+        }
+        return [t, note] as const;
       },
       [flag, time]
     )
@@ -388,18 +397,6 @@ export function useBrief(flag: string) {
   return useDiaryState(useCallback((s: DiaryState) => s.briefs[flag], [flag]));
 }
 
-export function useQuips(flag: string, noteId: string): DiaryQuipMap {
-  useEffect(() => {
-    useDiaryState.getState().fetchQuips(flag, noteId);
-  }, [flag, noteId]);
-
-  return useDiaryState(
-    useCallback(
-      (s) => s.banter[flag]?.[noteId] || new BigIntOrderedMap(),
-      [flag, noteId]
-    )
-  );
-}
 // TODO: this is a WIP part of implementing sorting by most recent comment
 // export function useDiaryQuips(flag: string): [bigInt.BigInteger, DiaryQuipMap][] {
 //   const def = useMemo(() => new BigIntOrderedMap<DiaryQuipMap>(), []);

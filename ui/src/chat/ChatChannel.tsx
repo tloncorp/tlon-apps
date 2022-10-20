@@ -2,6 +2,7 @@ import _ from 'lodash';
 import React, { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
+import cn from 'classnames';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
@@ -14,17 +15,23 @@ import {
   useChannel,
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
-import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
+import { createStorageKey } from '@/logic/utils';
+import { useLocalStorage } from 'usehooks-ts';
 
 function ChatChannel({ title }: ViewProps) {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
   const flag = useRouteGroup();
+  const [, setRecent] = useLocalStorage(
+    createStorageKey(`recent-chan:${flag}`),
+    ''
+  );
 
   useEffect(() => {
     useChatState.getState().initialize(chFlag);
-  }, [chFlag]);
+    setRecent(nest);
+  }, [chFlag, nest, setRecent]);
 
   const messages = useMessagesForChat(chFlag);
   const perms = useChatPerms(chFlag);
@@ -32,12 +39,10 @@ function ChatChannel({ title }: ViewProps) {
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
-  const { sendMessage, markRead } = useChatState.getState();
+  const { sendMessage } = useChatState.getState();
 
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
-
-  useDismissChannelNotifications({ markRead });
 
   return (
     <Layout
@@ -45,12 +50,10 @@ function ChatChannel({ title }: ViewProps) {
       aside={<Outlet />}
       header={<ChannelHeader flag={flag} nest={nest} />}
       footer={
-        <div className="border-t-2 border-gray-50 p-4">
+        <div className={cn(canWrite ? 'border-t-2 border-gray-50 p-4' : '')}>
           {canWrite ? (
             <ChatInput whom={chFlag} sendMessage={sendMessage} showReply />
-          ) : (
-            <span>Cannot write to this channel</span>
-          )}
+          ) : null}
         </div>
       }
     >

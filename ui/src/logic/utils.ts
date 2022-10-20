@@ -1,9 +1,12 @@
+import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
+import { BigInteger } from 'big-integer';
 import { unixToDa } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
+import f from 'lodash/fp';
 import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
@@ -14,13 +17,22 @@ import {
   Rank,
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
-import { DiaryBrief } from '@/types/diary';
+import { DiaryBrief, DiaryQuip, DiaryQuipMap, DiaryQuips } from '@/types/diary';
 import { parseToRgba } from 'color2k';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
 
   return [app, rest.join('/')];
+}
+
+export function sampleQuippers(quips: DiaryQuipMap) {
+  return _.flow(
+    f.map(([, q]: [BigInteger, DiaryQuip]) => q.memo.author),
+    f.compact,
+    f.uniq,
+    f.take(3)
+  )([...quips]);
 }
 
 export function renderRank(rank: Rank, plural = false) {
@@ -321,7 +333,7 @@ export function linkFromCurioContent(content: CurioContent) {
 
 export function citeToPath(cite: Cite) {
   if ('desk' in cite) {
-    return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
+    return `/1/desk/${cite.desk.desk}${cite.desk.where}`;
   }
   if ('chan' in cite) {
     return `/1/chan/${cite.chan.nest}${cite.chan.where}`;
@@ -354,10 +366,10 @@ export function pathToCite(path: string): Cite | undefined {
     if (rest.length < 2) {
       return undefined;
     }
-    const flag = rest.slice(0, 2).join('/');
+    const desk = rest.slice(0, 2).join('/');
     return {
       desk: {
-        flag,
+        desk,
         where: `/${rest.slice(2).join('/')}` || '/',
       },
     };
@@ -371,4 +383,45 @@ export function pathToCite(path: string): Cite | undefined {
     };
   }
   return undefined;
+}
+
+export function writeText(str: string | null): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const range = document.createRange();
+    range.selectNodeContents(document.body);
+    document?.getSelection()?.addRange(range);
+
+    let success = false;
+    function listener(e: any) {
+      e.clipboardData.setData('text/plain', str);
+      e.preventDefault();
+      success = true;
+    }
+    document.addEventListener('copy', listener);
+    document.execCommand('copy');
+    document.removeEventListener('copy', listener);
+
+    document?.getSelection()?.removeAllRanges();
+
+    if (success) {
+      resolve();
+    } else {
+      reject();
+    }
+  }).catch((error) => {
+    console.error(error);
+  });
+}
+
+export function useCopy(copied: string) {
+  const [didCopy, setDidCopy] = useState(false);
+  const doCopy = useCallback(() => {
+    writeText(copied);
+    setDidCopy(true);
+    setTimeout(() => {
+      setDidCopy(false);
+    }, 2000);
+  }, [copied]);
+
+  return { doCopy, didCopy };
 }

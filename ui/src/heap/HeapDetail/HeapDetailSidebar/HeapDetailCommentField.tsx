@@ -14,7 +14,7 @@ export default function HeapDetailCommentField() {
   const replyToTime = idCurio ? decToUd(idCurio) : undefined;
 
   return (
-    <div className="flex-end flex h-24 w-full">
+    <div className="flex-end flex h-32 w-full flex-col sm:h-24 sm:flex-row">
       <HeapTextInput
         flag={chFlag}
         draft={draftText}

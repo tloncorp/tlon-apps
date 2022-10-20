@@ -16,6 +16,9 @@ inputs:
   ssh-pub-key:
     description: "The corresponding base64-encoded SSH public key"
     required: true
+  ref:
+    description: "The github reference to checkout when deploying"
+    required: false
 
 runs:
   using: 'docker'
@@ -26,3 +29,4 @@ runs:
     - ${{ inputs.credentials }}
     - ${{ inputs.ssh-sec-key }}
     - ${{ inputs.ssh-pub-key }}
+    - ${{ inputs.ref }}

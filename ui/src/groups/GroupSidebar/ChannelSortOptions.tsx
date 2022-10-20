@@ -10,7 +10,7 @@ export default function ChannelSortOptions({
   'sortFn' | 'sortChannels' | 'sortGroups' | 'sortRecordsBy'
 >) {
   return (
-    <DropdownMenu.Content className="dropdown">
+    <DropdownMenu.Content className="dropdown w-56">
       <DropdownMenu.Item
         disabled
         className="dropdown-item flex cursor-default items-center space-x-2 text-gray-300 hover:bg-transparent"

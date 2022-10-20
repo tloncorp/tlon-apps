@@ -1,7 +1,9 @@
+import _ from 'lodash';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import { pluralize } from '@/logic/utils';
-import { useBrief, useDiaryState, useNote, useQuips } from '@/state/diary';
+import { pluralize, sampleQuippers } from '@/logic/utils';
+import { useBrief, useDiaryState, useNote, useDiaryPerms } from '@/state/diary';
+import { useRouteGroup, useVessel, useAmAdmin } from '@/state/groups/groups';
 import { DiaryBrief, DiaryQuip } from '@/types/diary';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -36,7 +38,7 @@ function groupQuips(
     const time = t.toString();
     const newAuthor = author !== prev?.[1].memo.author;
     const unreadBrief =
-      brief && brief['read-id'] === q.seal.time ? brief : undefined;
+      brief && brief['read-id'] === q.cork.time ? brief : undefined;
 
     if (newAuthor) {
       currentTime = time;
@@ -79,8 +81,11 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 export default function DiaryNote() {
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
-  const [, note] = useNote(chFlag, noteId)!;
-  const quips = useQuips(chFlag, noteId);
+  const flag = useRouteGroup();
+  const [id, note] = useNote(chFlag, noteId)!;
+  const vessel = useVessel(flag, window.our);
+  const isAdmin = useAmAdmin(flag);
+  const { quips } = note.seal;
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const brief = useBrief(chFlag);
   const settings = useDiarySettings();
@@ -94,6 +99,11 @@ export default function DiaryNote() {
       return b.localeCompare(a);
     })
   );
+
+  const perms = useDiaryPerms(chFlag);
+  const canWrite =
+    perms.writers.length === 0 ||
+    _.intersection(perms.writers, vessel.sects).length !== 0;
 
   const setSort = useCallback(
     (setting: 'asc' | 'dsc') => {
@@ -109,64 +119,83 @@ export default function DiaryNote() {
     },
     [settings, chFlag]
   );
+  const loading = id.isZero();
 
   useEffect(() => {
-    useDiaryState.getState().initialize(chFlag);
-  }, [chFlag]);
+    if (loading) {
+      useDiaryState.getState().fetchNote(chFlag, noteId);
+    }
+  }, [chFlag, noteId, loading]);
 
   return (
     <Layout
       className="h-full flex-1 bg-white"
       header={
-        <DiaryNoteHeader title={note.essay.title} flag={chFlag} time={noteId} />
+        <DiaryNoteHeader
+          title={note.essay.title}
+          flag={chFlag}
+          time={noteId}
+          canEdit={isAdmin || window.our === note.essay.author}
+        />
       }
     >
       <div className="h-full overflow-y-scroll p-6">
-        <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
-          <DiaryNoteHeadline note={note} time={bigInt(noteId)} />
-          <DiaryContent content={note.essay.content} />
-          <footer id="comments">
-            <div className="mb-3 flex items-center py-3">
-              <Divider className="flex-1">
-                <h2 className="font-semibold text-gray-400">
-                  {quips.size > 0
-                    ? `${quips.size} ${pluralize('comment', quips.size)}`
-                    : 'No comments'}
-                </h2>
-              </Divider>
-              <Dropdown.Root>
-                <Dropdown.Trigger className="secondary-button">
-                  {sort === 'asc' ? 'Oldest' : 'Newest'}
-                  <CaretDown16Icon className="ml-2 h-4 w-4 text-gray-600" />
-                </Dropdown.Trigger>
-                <Dropdown.Content className="dropdown">
-                  <Dropdown.Item
-                    className="dropdown-item"
-                    onSelect={() => setSort('dsc')}
-                  >
-                    Newest
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    className="dropdown-item"
-                    onSelect={() => setSort('asc')}
-                  >
-                    Oldest
-                  </Dropdown.Item>
-                </Dropdown.Content>
-              </Dropdown.Root>
-            </div>
-            <DiaryCommentField flag={chFlag} replyTo={noteId} />
-            <ul className="mt-12">
-              {groupedQuips.map(([t, group]) =>
-                group.map((props) => (
-                  <li key={props.time.toString()}>
-                    <DiaryComment {...props} />
-                  </li>
-                ))
-              )}
-            </ul>
-          </footer>
-        </section>
+        {loading ? (
+          <div>Loading...</div>
+        ) : (
+          <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
+            <DiaryNoteHeadline
+              quipCount={note.seal.quips.size}
+              quippers={sampleQuippers(note.seal.quips)}
+              essay={note.essay}
+              time={bigInt(noteId)}
+            />
+            <DiaryContent content={note.essay.content} />
+            <footer id="comments">
+              <div className="mb-3 flex items-center py-3">
+                <Divider className="flex-1">
+                  <h2 className="font-semibold text-gray-400">
+                    {quips.size > 0
+                      ? `${quips.size} ${pluralize('comment', quips.size)}`
+                      : 'No comments'}
+                  </h2>
+                </Divider>
+                <Dropdown.Root>
+                  <Dropdown.Trigger className="secondary-button">
+                    {sort === 'asc' ? 'Oldest' : 'Newest'}
+                    <CaretDown16Icon className="ml-2 h-4 w-4 text-gray-600" />
+                  </Dropdown.Trigger>
+                  <Dropdown.Content className="dropdown">
+                    <Dropdown.Item
+                      className="dropdown-item"
+                      onSelect={() => setSort('dsc')}
+                    >
+                      Newest
+                    </Dropdown.Item>
+                    <Dropdown.Item
+                      className="dropdown-item"
+                      onSelect={() => setSort('asc')}
+                    >
+                      Oldest
+                    </Dropdown.Item>
+                  </Dropdown.Content>
+                </Dropdown.Root>
+              </div>
+              {canWrite ? (
+                <DiaryCommentField flag={chFlag} replyTo={noteId} />
+              ) : null}
+              <ul className="mt-12">
+                {groupedQuips.map(([t, group]) =>
+                  group.map((props) => (
+                    <li key={props.time.toString()}>
+                      <DiaryComment {...props} />
+                    </li>
+                  ))
+                )}
+              </ul>
+            </footer>
+          </section>
+        )}
       </div>
     </Layout>
   );

@@ -5,6 +5,26 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  outline
+    |=  o=outline:d
+    %-  pairs
+    :~  title/s/title.o
+        image/s/image.o
+        content/a/(turn content.o verse)
+        author+(ship author.o)
+        sent+(time sent.o)
+        'quipCount'^(numb quips.o)
+        quippers/a/(turn ~(tap in quippers.o) ship)
+    ==
+  ::
+  ++  outlines
+    |=  os=outlines:d
+    %-  pairs
+    %+  turn  (tap:on:outlines:d os)
+    |=  [t=@da o=outline:d]
+    ^-  [cord json]
+    [(scot %ud t) (outline o)]
+  ::
   ++  quips-diff
     |=  d=diff:quips:d
     %-  pairs
@@ -90,7 +110,6 @@
       %view       s/p.diff
       %sort       s/p.diff
       %notes     (notes-diff p.diff)
-      %quips     (pairs id/s/(scot %ud p.diff) diff/(quips-diff q.diff) ~)
       %add-sects  a/(turn ~(tap in p.diff) (lead %s))
       %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
@@ -109,6 +128,7 @@
       %add       (essay p.delta)
       %edit      (essay p.delta)
       %del       ~
+      %quips     (quips-diff p.delta)
       %add-feel  (add-feel +.delta)
     ==
   ::
@@ -135,13 +155,34 @@
     ^-  json
     %+  frond  -.b
     ?-  -.b
+        %rule  ~
         %cite  (enjs:cite cite.b)
+        %listing  (listing p.b)
+        %header
+      %-  pairs
+      :~  tag+s+p.b
+          content+a+(turn q.b inline)
+      ==
         %image
       %-  pairs
       :~  src+s+src.b
           height+(numb height.b)
           width+(numb width.b)
           alt+s+alt.b
+      ==
+    ==
+  ::
+  ++  listing
+    |=  l=listing:d
+    ^-  json
+    %+  frond  -.l
+    ?-  -.l  
+        %item  a+(turn p.l inline)
+        %list
+      %-  pairs
+      :~  type+s+p.l
+          items+a+(turn q.l listing)
+          contents+a+(turn r.l inline)
       ==
     ==
   ::
@@ -201,16 +242,22 @@
     |=  q=quip:d
     ^-  json
     %-  pairs
-    :~  seal+(seal -.q)
+    :~  cork+(cork -.q)
         memo+(memo +.q)
+    ==
+  ++  story
+    |=  s=story:d
+    ^-  json
+    %-  pairs
+    :~  block/a/(turn p.s block)
+        inline/a/(turn q.s inline)
     ==
   ::
   ++  memo
     |=  m=memo:d
     ^-  json
     %-  pairs
-    :~  replying/s/(scot %ud replying.m)
-        content/a/(turn content.m inline)
+    :~  content/(story content.m)
         author/(ship author.m)
         sent/(time sent.m)
     ==
@@ -222,10 +269,29 @@
         essay+(essay +.note)
     ==
   ::
+  ++  cork
+    |=  =cork:d
+    %-  pairs
+    :~  time+(time time.cork)
+    ::
+        :-  %feels
+        %-  pairs
+        %+  turn  ~(tap by feels.cork)
+        |=  [her=@p =feel:d]
+        [(scot %p her) s+feel]
+    ==
+
+  ::
   ++  seal
     |=  =seal:d
     %-  pairs
     :~  time+(time time.seal)
+    ::
+        :-  %quips
+        %-  pairs
+        %+  turn  (tap:on:quips:d quips.seal)
+        |=  [t=@da q=quip:d]
+        [(scot %ud t) (quip q)]
     ::
         :-  %feels
         %-  pairs
@@ -285,7 +351,6 @@
     :~  notes/notes-diff
         view/(su (perk %grid %list ~))
         sort/(su (perk %time %alpha ~))
-        quips/(ot id/(se %ud) diff/quips-diff ~)
         add-sects/add-sects
         del-sects/del-sects
     ==
@@ -303,10 +368,15 @@
         add-feel/add-feel
     ==
   ::
+  ++  story
+    %-  ot
+    :~  block/(ar block)
+        inline/(ar inline)
+    ==
+  ::
   ++  memo
     %-  ot
-    :~  replying/(se %ud)
-        content/(ar inline)
+    :~  content/story
         author/(se %p)
         sent/di
     ==
@@ -323,6 +393,7 @@
     :~  add/essay
         edit/essay
         del/ul
+        quips/quips-diff
         add-feel/add-feel
     ==
   ::
@@ -352,7 +423,15 @@
     ^-  block:d
     %.  j
     %-  of
-    :~  cite/dejs:cite
+    :~  rule/ul
+        cite/dejs:cite
+        listing/listing
+    ::
+      :-  %header
+      %-  ot
+      :~  tag/(su (perk %h1 %h2 %h3 %h4 %h5 %h6 ~))
+          content/(ar inline)
+      ==
     ::
       :-  %image
       %-  ot
@@ -360,6 +439,21 @@
           height/ni
           width/ni
           alt/so
+      ==
+    ==
+  ::
+  ++  listing
+    |=  j=json
+    ^-  listing:d
+    %.  j
+    %-  of
+    :~
+      item/(ar inline)
+      :-  %list
+      %-  ot
+      :~  type/(su (perk %ordered %unordered ~))
+          items/(ar listing)
+          contents/(ar inline)
       ==
     ==
   ::

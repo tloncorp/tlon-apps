@@ -34,7 +34,7 @@ export default function NewDM() {
         await useChatState.getState().sendMessage(whom, memo);
       }
 
-      navigate(`/dm/${preSig(whom)}`);
+      navigate(`/dm/${isMultiDm ? whom : preSig(whom)}`);
     },
     [navigate, sendMultiDm, isMultiDm]
   );
@@ -83,7 +83,7 @@ export default function NewDM() {
             isMulti={true}
           />
         </div>
-        <Link className="secondary-button" to="/">
+        <Link className="secondary-button py-2.5" to="/">
           Cancel
         </Link>
       </div>

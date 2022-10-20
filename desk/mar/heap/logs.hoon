@@ -1,12 +1,2 @@
-/-  h=heap
-|_  =log:h
-++  grad  %noun
-++  grow
-  |%
-  ++  noun  log
-  --
-++  grab
-  |%
-  ++  noun  log:h
-  --
---
+/=  mark  /mar/heap/logs-0
+mark

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup } from '@/state/groups/groups';
+import { useRouteGroup, useVessel } from '@/state/groups/groups';
 import {
   useNotesForDiary,
   useDiaryState,
   useDiaryDisplayMode,
+  useDiaryPerms,
 } from '@/state/diary';
 import {
   DiarySetting,
@@ -19,7 +21,9 @@ import useDismissChannelNotifications from '@/logic/useDismissChannelNotificatio
 import { DiaryDisplayMode } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
+import { useLocalStorage } from 'usehooks-ts';
 import * as Toast from '@radix-ui/react-toast';
+import { createStorageKey } from '@/logic/utils';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
@@ -28,12 +32,17 @@ function DiaryChannel() {
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
-  const notes = useNotesForDiary(chFlag);
+  const vessel = useVessel(flag, window.our);
+  const letters = useNotesForDiary(chFlag);
   const location = useLocation();
   const navigate = useNavigate();
+  const [, setRecent] = useLocalStorage(
+    createStorageKey(`recent-chan:${flag}`),
+    ''
+  );
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
-  const { justCopied, onCopy } = useDiaryActions({
+  const { didCopy, onCopy } = useDiaryActions({
     flag: chFlag,
     time: newNote || '',
   });
@@ -61,9 +70,16 @@ function DiaryChannel() {
       .putEntry('diary', 'settings', JSON.stringify(newSettings));
   };
 
+  const perms = useDiaryPerms(chFlag);
+
+  const canWrite =
+    perms.writers.length === 0 ||
+    _.intersection(perms.writers, vessel.sects).length !== 0;
+
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
-  }, [chFlag]);
+    setRecent(nest);
+  }, [chFlag, nest, setRecent]);
 
   useEffect(() => {
     let timeout: any;
@@ -85,7 +101,7 @@ function DiaryChannel() {
     markRead: useDiaryState.getState().markRead,
   });
 
-  const sortedNotes = Array.from(notes).sort(([a], [b]) => {
+  const sortedNotes = Array.from(letters).sort(([a], [b]) => {
     if (sortMode === 'time-dsc') {
       return b.compare(a);
     }
@@ -118,9 +134,14 @@ function DiaryChannel() {
           sortMode={sortMode}
           setSortMode={setSortMode}
         >
-          <Link to="edit" className="button bg-blue text-white dark:text-black">
-            Add Note
-          </Link>
+          {canWrite ? (
+            <Link
+              to="edit"
+              className="button bg-blue text-white dark:text-black"
+            >
+              Add Note
+            </Link>
+          ) : null}
         </ChannelHeader>
       }
     >
@@ -134,7 +155,7 @@ function DiaryChannel() {
                   onClick={onCopy}
                   className="-mx-4 -my-2 w-[135px] rounded-r-lg bg-blue py-2 px-4 text-white dark:text-black"
                 >
-                  {justCopied ? 'Copied' : 'Copy Note Link'}
+                  {didCopy ? 'Copied' : 'Copy Note Link'}
                 </button>
               </div>
             </Toast.Description>
@@ -148,8 +169,12 @@ function DiaryChannel() {
         ) : (
           <div className="h-full p-6">
             <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
-              {sortedNotes.map(([time, note]) => (
-                <DiaryListItem key={time.toString()} time={time} note={note} />
+              {sortedNotes.map(([time, letter]) => (
+                <DiaryListItem
+                  key={time.toString()}
+                  time={time}
+                  letter={letter}
+                />
               ))}
             </div>
           </div>

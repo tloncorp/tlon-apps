@@ -3,6 +3,7 @@ import cn from 'classnames';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { HeapCurio } from '@/types/heap';
+import { useCalm } from '@/state/settings';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useEmbedState from '@/state/embed';
@@ -16,6 +17,7 @@ import HeapLoadingRow from '@/heap/HeapLoadingRow';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import TextIcon from '@/components/icons/Text16Icon';
+import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import useCurioActions from './useCurioActions';
 
 export default function HeapRow({
@@ -26,13 +28,17 @@ export default function HeapRow({
   time: string;
 }) {
   const nest = useNest();
-  const { justCopied, menuOpen, setMenuOpen, onDelete, onEdit, onCopy } =
+  const { didCopy, menuOpen, setMenuOpen, onDelete, onEdit, onCopy } =
     useCurioActions({ nest, time });
   const [embed, setEmbed] = useState<any>();
   const { content, sent, title } = curio.heart;
   const { replied } = curio.seal;
+  const calm = useCalm();
   // TODO: improve this
   const contentString = content.length > 0 ? content[0].toString() : '';
+  const flag = useRouteGroup();
+  const isAdmin = useAmAdmin(flag);
+  const canEdit = isAdmin || window.our === curio.heart.author;
 
   const { isText, isImage, isUrl, isAudio, description } =
     useHeapContentType(contentString);
@@ -94,7 +100,7 @@ export default function HeapRow({
     <div className="flex w-full items-center justify-between space-x-2 rounded-lg bg-white">
       <div className="flex space-x-2">
         <div>
-          {isImage ? (
+          {isImage && !calm?.disableRemoteContent ? (
             <div
               className="relative inline-block h-14 w-14 cursor-pointer overflow-hidden rounded-l-lg bg-cover bg-no-repeat"
               style={{ backgroundImage: `url(${contentString})` }}
@@ -123,33 +129,40 @@ export default function HeapRow({
         className="flex space-x-1 text-gray-400"
         onClick={(e) => e.stopPropagation()}
       >
-        <button onClick={onCopy} className="icon-button bg-transparent">
-          {justCopied ? (
+        <button
+          onClick={onCopy}
+          className={cn('icon-button bg-transparent', !canEdit ? 'mr-3' : '')}
+        >
+          {didCopy ? (
             <CheckIcon className="h-6 w-6" />
           ) : (
             <CopyIcon className="h-6 w-6" />
           )}
         </button>
-        <button
-          className="icon-button bg-transparent"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          <ElipsisIcon className="h-6 w-6" />
-        </button>
-        <div
-          className={cn(
-            'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
-            { hidden: !menuOpen }
-          )}
-          onMouseLeave={() => setMenuOpen(false)}
-        >
-          <button onClick={onEdit} className="small-menu-button">
-            Edit
-          </button>
-          <button className="small-menu-button text-red" onClick={onDelete}>
-            Delete
-          </button>
-        </div>
+        {canEdit ? (
+          <>
+            <button
+              className="icon-button bg-transparent"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              <ElipsisIcon className="h-6 w-6" />
+            </button>
+            <div
+              className={cn(
+                'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
+                { hidden: !menuOpen }
+              )}
+              onMouseLeave={() => setMenuOpen(false)}
+            >
+              <button onClick={onEdit} className="small-menu-button">
+                Edit
+              </button>
+              <button className="small-menu-button text-red" onClick={onDelete}>
+                Delete
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
