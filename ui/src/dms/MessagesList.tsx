@@ -1,4 +1,5 @@
 import useMessageSort from '@/logic/useMessageSort';
+import { filters, SidebarFilter } from '@/state/settings';
 import cn from 'classnames';
 import React from 'react';
 import { RECENT } from '../logic/useSidebarSort';
@@ -11,7 +12,6 @@ import {
   usePinned,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
-import { filters, SidebarFilter } from './useMessagesFilter';
 
 interface MessagesListProps {
   filter: SidebarFilter;

@@ -34,7 +34,11 @@ export default function ChannelJoinSelector() {
         </div>
       </div>
 
-      <input {...register('join')} className="sr-only" type="checkbox" />
+      <input
+        {...register('join', { required: false })}
+        className="sr-only"
+        type="checkbox"
+      />
     </label>
   );
 }
