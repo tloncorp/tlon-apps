@@ -270,7 +270,7 @@ export default function ChannelHeader({
       )}
     >
       <BackButton
-        to="../"
+        to="../../"
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
           isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'

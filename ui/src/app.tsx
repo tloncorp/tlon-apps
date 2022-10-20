@@ -274,10 +274,11 @@ function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
               path="channels/join/:app/:chShip/:chName"
               element={<Channel />}
             />
-            <Route
-              path="channels/chat/:chShip/:chName"
-              element={<ChatChannel title={` • ${appHead('').title}`} />}
-            >
+            <Route path="channels/chat/:chShip/:chName">
+              <Route
+                index
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
+              />
               <Route
                 path="message/:idShip/:idTime"
                 element={<GroupChatThread />}
