@@ -7,7 +7,6 @@ import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
-import useNavStore from '@/components/Nav/useNavStore';
 import NewMessageIcon from '@/components/icons/NewMessageIcon';
 import { useBriefs, usePinned } from '@/state/chat';
 import {
@@ -24,9 +23,7 @@ const selMessagesFilter = (s: SettingsState) => ({
 });
 
 export default function MobileMessagesSidebar() {
-  // const { filter, setFilter } = useMessagesFilter();
   const { messagesFilter } = useSettingsState(selMessagesFilter);
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
   const briefs = useBriefs();
   const pinned = usePinned();
 
@@ -37,7 +34,7 @@ export default function MobileMessagesSidebar() {
   return (
     <nav
       className={cn(
-        'fixed top-0 left-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white'
+        'flex h-full w-full flex-col border-r-2 border-gray-50 bg-white'
       )}
     >
       {pinned && pinned.length > 0 ? (
@@ -101,12 +98,7 @@ export default function MobileMessagesSidebar() {
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
-        <Link
-          to="/dm/new"
-          onClick={() => navPrimary('hidden')}
-          aria-label="New Direct Message"
-          className="mr-2"
-        >
+        <Link to="/dm/new" aria-label="New Direct Message" className="mr-2">
           <NewMessageIcon className="h-6 w-6 text-blue" />
         </Link>
       </header>
