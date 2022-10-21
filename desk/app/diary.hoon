@@ -200,6 +200,10 @@
   ++  create
     |=  req=create:d
     ^+  cor
+    |^
+    ?.  can-nest
+      %.  cor
+      (slog 'Create failed: group not found' ~)
     =/  =flag:d  [our.bowl name.req]
     =|  =diary:d
     =/  =perm:d  [writers.req group.req]
@@ -207,6 +211,14 @@
     =.  net.diary  [%pub ~]
     =.  shelf  (~(put by shelf) flag diary)
     di-abet:(di-init:(di-abed:di-core flag) req)
+    ++  can-nest
+      ^-  ?
+      =-  (~(has by -) group.req)
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
   --
 ++  watch
   |=  =path

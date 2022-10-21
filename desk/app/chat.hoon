@@ -256,6 +256,10 @@
   ++  create
     |=  req=create:c
     ^+  cor
+    |^
+    ?.  can-nest
+      %.  cor
+      (slog 'Create failed: group not found' ~)
     =/  =flag:c  [our.bowl name.req]
     =|  =chat:c
     =/  =perm:c  [writers.req group.req]
@@ -263,6 +267,14 @@
     =.  net.chat  [%pub ~]
     =.  chats  (~(put by chats) flag chat)
     ca-abet:(ca-init:(ca-abed:ca-core flag) req)
+    ++  can-nest
+      ^-  ?
+      =-  (~(has by -) group.req)
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
   ++  pin
     |=  ps=(list whom:c)
     =.  pins  ps
