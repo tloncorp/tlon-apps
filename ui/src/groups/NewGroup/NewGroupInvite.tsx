@@ -6,6 +6,8 @@ import Avatar from '@/components/Avatar';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import ShipName from '@/components/ShipName';
 import CaretDownIcon from '@/components/icons/CaretDownIcon';
+import IconButton from '@/components/IconButton';
+import XIcon from '@/components/icons/XIcon';
 
 interface NewGroupInviteProps {
   groupName: string;
@@ -122,6 +124,15 @@ function GroupMemberRoleList({
           key={ship.patp}
         >
           <div className="flex items-center space-x-2">
+            <IconButton
+              icon={<XIcon className="h-4 w-4" />}
+              label="Remove"
+              action={() =>
+                setShipsToInvite((prevState) =>
+                  prevState.filter((prevShip) => prevShip.patp !== ship.patp)
+                )
+              }
+            />
             <Avatar ship={ship.patp} size="xs" />
             <ShipName className="font-semibold" name={ship.patp} showAlias />
           </div>
