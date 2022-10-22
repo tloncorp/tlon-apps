@@ -200,8 +200,8 @@
   ++  create
     |=  req=create:d
     ^+  cor
-    ~_  leaf+'Create failed: check group permissions'
     |^
+    ~_  leaf+"Create failed: check group permissions"
     ?>  can-nest
     =/  =flag:d  [our.bowl name.req]
     =|  =diary:d
