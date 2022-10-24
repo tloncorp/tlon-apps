@@ -1,4 +1,4 @@
-import React, { useCallback, ChangeEvent, useRef, useEffect } from 'react';
+import React, { useCallback, ChangeEvent, useEffect } from 'react';
 import _ from 'lodash';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -43,31 +43,27 @@ const UploadInput = React.forwardRef<HTMLInputElement, UploadInputProps>(
     }, [createClient, setStatus, credentials]);
 
     const uploadFile = useCallback(
-      async (upload: Upload, idx: number) => {
-        const timestamp = deSig(dateToDa(new Date()));
-        const { file } = upload;
+      async (upload) => {
+        const { file, key } = upload;
         if (fs.client) {
-          setFileStatus([idx, 'loading']);
-
+          setFileStatus([key, 'loading']);
           const command = new PutObjectCommand({
             Bucket: s3.configuration.currentBucket,
-            Key: `${window.ship}/${timestamp}-${encodeURIComponent(file.name)}`,
+            Key: key,
             Body: file,
             ContentType: file.type,
             ContentLength: file.size,
             ACL: 'public-read',
           });
-
           const url = await getSignedUrl(fs.client, command);
-
           const uploadData = fs.client
             .send(command)
             .then(() => {
-              setFileStatus([idx, 'success']);
-              setFileURL([idx, url.split('?')[0]]);
+              setFileStatus([key, 'success']);
+              setFileURL([key, url.split('?')[0]]);
             })
             .catch((error: unknown) => {
-              setFileStatus([idx, 'error']);
+              setFileStatus([key, 'error']);
               console.error(error);
             });
           return uploadData;
@@ -81,14 +77,22 @@ const UploadInput = React.forwardRef<HTMLInputElement, UploadInputProps>(
     const onFiles = useCallback(
       (e: ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
-        const newFiles = [...e.target.files].map((file) => ({
-          file,
-          status: 'initial',
-        }));
-        setFiles(newFiles);
-        _.map(newFiles, (file: Upload, idx: number) => uploadFile(file, idx));
+        const newFiles = _.keyBy(
+          [...e.target.files].map((file) => ({
+            file,
+            key: `${window.ship}/${deSig(
+              dateToDa(new Date())
+            )}-${encodeURIComponent(file.name)}`,
+            for: e.target.id,
+            status: 'initial',
+            url: '',
+          })),
+          'key'
+        );
+        _.map(newFiles, (file: Upload) => setFiles(file));
+        _.map(newFiles, (file) => uploadFile(file));
       },
-      [uploadFile, setFiles]
+      [setFiles, uploadFile]
     );
 
     if (storage.loaded)

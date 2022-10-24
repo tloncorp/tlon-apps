@@ -11,7 +11,7 @@ export function prefixEndpoint(endpoint: string) {
 export const useFileStore = create<FileStore>((set) => ({
   client: null,
   status: 'initial',
-  files: [],
+  files: {},
   createClient: (credentials: S3Credentials) => {
     const endpoint = new URL(prefixEndpoint(credentials.endpoint));
     const client = new S3Client({
@@ -32,24 +32,24 @@ export const useFileStore = create<FileStore>((set) => ({
         draft.status = status;
       })
     ),
-  setFiles: (files) =>
+  setFiles: (file) =>
     set(
       produce((draft) => {
-        draft.files = files;
+        draft.files[file.key] = file;
       })
     ),
   setFileStatus: (file) =>
     set(
       produce((draft) => {
-        const [idx, status] = file;
-        draft.files[idx].status = status;
+        const [key, status] = file;
+        draft.files[key].status = status;
       })
     ),
   setFileURL: (file) =>
     set(
       produce((draft) => {
-        const [idx, url] = file;
-        draft.files[idx].url = url;
+        const [key, url] = file;
+        draft.files[key].url = url;
       })
     ),
 }));
