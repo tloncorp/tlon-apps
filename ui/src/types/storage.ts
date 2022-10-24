@@ -28,6 +28,7 @@ export interface BaseStorageState {
 export interface Upload {
   file: File;
   status: 'initial' | 'loading' | 'success' | 'error';
+  url: string;
 }
 
 export interface FileStore {
@@ -38,6 +39,7 @@ export interface FileStore {
   setStatus: (status: string) => void;
   setFiles: (files: object) => void;
   setFileStatus: (file: Array<number | string>) => void;
+  setFileURL: (file: Array<number | string>) => void;
 }
 
 export interface UploadInputProps {

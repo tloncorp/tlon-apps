@@ -45,4 +45,11 @@ export const useFileStore = create<FileStore>((set) => ({
         draft.files[idx].status = status;
       })
     ),
+  setFileURL: (file) =>
+    set(
+      produce((draft) => {
+        const [idx, url] = file;
+        draft.files[idx].url = url;
+      })
+    ),
 }));

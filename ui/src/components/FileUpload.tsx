@@ -1,6 +1,7 @@
 import React, { useCallback, ChangeEvent, useRef, useEffect } from 'react';
 import _ from 'lodash';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { dateToDa, deSig } from '@urbit/api';
 import { useFileStore, useStorage } from '@/state/storage';
 import { Upload, UploadInputProps } from '@/types/storage';
@@ -11,7 +12,14 @@ const UploadInput = React.forwardRef<HTMLInputElement, UploadInputProps>(
     const { multiple, ...rest } = props;
     const { s3, ...storage } = useStorage();
     const { credentials } = s3;
-    const { setFiles, createClient, setStatus, ...fs } = useFileStore();
+    const {
+      setFiles,
+      createClient,
+      setStatus,
+      setFileStatus,
+      setFileURL,
+      ...fs
+    } = useFileStore();
 
     useEffect(() => {
       useStorage.getState().initialize(api);
@@ -39,23 +47,27 @@ const UploadInput = React.forwardRef<HTMLInputElement, UploadInputProps>(
         const timestamp = deSig(dateToDa(new Date()));
         const { file } = upload;
         if (fs.client) {
-          fs.setFileStatus([idx, 'loading']);
+          setFileStatus([idx, 'loading']);
+
+          const command = new PutObjectCommand({
+            Bucket: s3.configuration.currentBucket,
+            Key: `${window.ship}/${timestamp}-${encodeURIComponent(file.name)}`,
+            Body: file,
+            ContentType: file.type,
+            ContentLength: file.size,
+            ACL: 'public-read',
+          });
+
+          const url = await getSignedUrl(fs.client, command);
+
           const uploadData = fs.client
-            .send(
-              new PutObjectCommand({
-                Bucket: s3.configuration.currentBucket,
-                Key: `${window.ship}/${timestamp}-${file.name}`,
-                Body: file,
-                ContentType: file.type,
-                ContentLength: file.size,
-                ACL: 'public-read',
-              })
-            )
+            .send(command)
             .then(() => {
-              fs.setFileStatus([idx, 'success']);
+              setFileStatus([idx, 'success']);
+              setFileURL([idx, url.split('?')[0]]);
             })
             .catch((error: unknown) => {
-              fs.setFileStatus([idx, 'error']);
+              setFileStatus([idx, 'error']);
               console.error(error);
             });
           return uploadData;
@@ -63,7 +75,7 @@ const UploadInput = React.forwardRef<HTMLInputElement, UploadInputProps>(
         setStatus('error');
         return false;
       },
-      [fs, s3, setStatus]
+      [fs, s3, setStatus, setFileStatus, setFileURL]
     );
 
     const onFiles = useCallback(
