@@ -77,7 +77,7 @@ export default function Notification({
             </span>
             <CaretDown16Icon className="h-4 w-4 text-gray-400" />
           </Dropdown.Trigger>
-          <Dropdown.Content className="dropdown">
+          <Dropdown.Content className="dropdown" portalled={false}>
             {bin.unread ? (
               <Dropdown.Item className="dropdown-item" onSelect={onClick}>
                 Mark Read
