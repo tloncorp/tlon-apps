@@ -66,7 +66,7 @@ export default function Notifications({
   const { notifications } = useNotifications(flag);
 
   return (
-    <section className="w-full bg-white p-6">
+    <section className="h-full w-full overflow-y-auto bg-white p-6">
       <Helmet>
         <title>
           {group
