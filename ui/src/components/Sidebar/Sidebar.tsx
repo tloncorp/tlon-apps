@@ -128,7 +128,7 @@ export default function Sidebar() {
         </SidebarItem>
         <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
-          to="/groups/find"
+          to="/find"
         >
           <div className="flex items-center">
             Find Groups
