@@ -48,7 +48,6 @@ export const filters: Record<string, SidebarFilter> = {
   groups: 'Group Channels',
 };
 
-
 interface BaseSettingsState {
   display: {
     theme: 'light' | 'dark' | 'auto';
