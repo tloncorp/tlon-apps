@@ -1,9 +1,9 @@
 import { Editor } from '@tiptap/react';
-import { debounce } from 'lodash';
+import { debounce, isEqual } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
-import { ChatBlock, ChatMemo } from '@/types/chat';
+import { ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -64,12 +64,16 @@ export default function ChatInput({
         const data = normalizeInline(
           JSONToInlines(editor?.getJSON()) as Inline[]
         );
-        useChatState.getState().draft(whom, {
+        const newDraft = {
           inline: Array.isArray(data) ? data : [data],
           block: [],
-        });
+        };
+        // if the new draft is the same as the old one, don't update
+        if (!isEqual(newDraft, draft)) {
+          useChatState.getState().draft(whom, newDraft);
+        }
       }, 1000),
-    [whom]
+    [whom, draft]
   );
 
   useEffect(() => () => onUpdate.cancel(), [onUpdate]);
@@ -134,11 +138,28 @@ export default function ChatInput({
   }, [autoFocus, reply, messageEditor]);
 
   useEffect(() => {
-    const draftEmpty = draft.inline.length === 0 && draft.block.length === 0;
+    const draftIsJustBreak =
+      // backend will sometimes send a draft with just a break if there is no draft
+      draft.inline.length === 1 && isEqual(draft.inline[0], { break: null });
+    const draftEmpty =
+      (draft.inline.length === 0 || draftIsJustBreak) &&
+      draft.block.length === 0;
+
+    if (draftEmpty && messageEditor && !messageEditor.isDestroyed) {
+      // if the draft is empty, clear the editor
+      messageEditor.commands.setContent(null, true);
+    }
+
     if (!draftEmpty && messageEditor) {
       const current = tipTapToString(messageEditor.getJSON());
+      const draftString = tipTapToString(inlinesToJSON(draft.inline));
 
-      if (current === '' && !messageEditor.isDestroyed) {
+      if (
+        // if the draft is not empty, and the editor is not empty,
+        // and the editor is not the draft, set the editor to the draft
+        (current === '' || current !== draftString) &&
+        !messageEditor.isDestroyed
+      ) {
         messageEditor.commands.setContent(inlinesToJSON(draft.inline), true);
       }
     }
