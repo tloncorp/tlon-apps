@@ -1,4 +1,7 @@
+/-  graph-store
 /-  g=groups
+/-  metadata-store
+/+  lib-graph=graph-store
 |%
 ::  $flag: identifier for a heap channel
 +$  flag  (pair ship term)
@@ -95,7 +98,9 @@
       [%strike p=(list inline)]
       [%blockquote p=(list inline)]
       [%inline-code p=cord]
+      [%ship p=ship]
       [%code p=cord]
+      [%block p=@ud q=cord]
       [%tag p=cord]
       [%link p=cord q=cord]
       [%break ~]
@@ -198,4 +203,12 @@
       writers=(set sect:g)
   ==
 ::
+++  met     metadata-store
+::
++$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
+::
++$  imports  (map flag import)
+::
+++  gra  graph-store
+++  orm-gra  orm:lib-graph
 --

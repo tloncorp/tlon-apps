@@ -3,6 +3,7 @@
 /+  default-agent, verb, dbug
 /+  cur=curios
 /+  heap-json
+/+  chat-migrate=chat-graph
 ^-  agent:gall
 =>
   |%
@@ -92,6 +93,9 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
+  ::
+      %graph-imports  (import-graphs !<(imports:h vase))
+  ::
       ?(%flag %channel-join)
     =+  !<(=flag:h vase)
     ?<  =(our.bowl p.flag)
@@ -241,6 +245,107 @@
     he-brief:(he-abed:he-core flag)
   ==
 ::
+++  import-graphs
+  |=  =imports:h
+  ^+  cor
+  =/  imports  ~(tap by imports)
+  |-  =*  loop  $
+  ?~  imports  cor
+  =/  [=flag:h writers=(set ship) =association:met:h =update-log:gra:h =graph:gra:h]
+    i.imports
+  |^
+  =/  =perm:h
+    :_  group.association
+    ?:(=(~ writers) ~ (silt (rap 3 %heap '-' (scot %p p.flag) '-' q.flag ~) ~))
+  =.  stash
+    %+  ~(put by stash)  flag
+    :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
+      log=(import-log update-log)
+      perm
+      %grid :: XX: check defaults with design
+      graph-to-curios
+      *remark:h
+    ==
+  =.  cor
+    he-abet:(he-import:(he-abed:he-core flag) writers association)
+  loop(imports t.imports)
+  ::
+  ++  import-log
+    |=  =update-log:gra:h
+    ^-  log:h
+    *log:h
+  ++  orm  orm-gra:h
+  ::
+  ++  graph-to-curios
+    %+  roll  (tap:orm graph)
+    |=  [[=time =node:gra:h] out=curios:h]
+    ^+  out
+    =/  curs  (node-to-curio time node)
+    (uni:on:curios:h out curs)
+  ::
+  ++  node-to-curio
+    |=  [=time =node:gra:h]
+    ^-  curios:h
+    =/  =curios:h  (node-to-quips time node)
+    =/  replies   ~(key by curios)
+    =/  =seal:h  [time ~ replies]
+    ?~  pos=(node-to-post node)
+     :: discard comments on deleted 
+     :: XX: review
+      *curios:h 
+    =*  con  contents.u.pos
+    ?.  ?=([[%text @] $%([%url @] [%reference *]) ~] con)
+      :: invariant
+      *curios:h
+    =-  (put:on:curios:h curios time [seal `text.i.con - author.u.pos time-sent.u.pos ~])
+    ?-  -.i.t.con
+      %reference  ~
+      %url        [%link url.i.t.con '']~
+    ==
+  ::
+  ++  node-to-quips
+    |=  [id=time =node:gra:h]
+    ^-  curios:h
+    =/  coms=(unit graph:gra:h)
+      ;<  =graph:gra:h      _biff  (node-to-children node)
+      ;<  coms=node:gra:h   _biff  (get:orm graph 2)
+      (node-to-children coms)
+    %+  gas:on:curios:h  *curios:h
+    %+  murn  ?~(coms ~ (tap:orm u.coms))
+    |=  [=time =node:gra:h]
+    ?~  qup=(node-to-quip id time node)
+      ~
+    `[time u.qup]
+  ::
+  ++  node-to-quip
+    |=  [reply=time =time =node:gra:h]
+    ^-  (unit curio:h)
+    ;<  =graph:gra:h           _biff  (node-to-children node)
+    ;<  [@ latest=node:gra:h]  _biff  (pry:orm graph)
+    ;<  =post:gra:h            _biff  (node-to-post latest)
+    =/  =seal:h  [time ~ ~]
+    =/  con=(list inline:h)  (inline:chat-migrate contents.post)
+    =/  =heart:h  
+      =,(post [~ con author time-sent `reply])
+    `[seal heart]
+  ::
+  ++  node-to-children
+    |=  =node:gra:h
+    ^-  (unit graph:gra:h)
+    ?.  ?=(%graph -.children.node)
+      ~
+    `p.children.node
+  ::
+  ++  node-to-post
+    |=  =node:gra:h
+    ^-  (unit post:gra:h)
+    ?.  ?=(%& -.post.node)
+      ~
+    `p.post.node
+  --
+      
+
+::
 ++  give-brief
   |=  [=flag:h =brief:briefs:h]
   (give %fact ~[/briefs] heap-brief-update+!>([flag brief]))
@@ -268,10 +373,11 @@
   ^-  tape
   ?@  c  (trip c)
   ?-  -.c
-      %break  ""
+      ?(%break %block)  ""
       %tag    (trip p.c)
       %link   (trip q.c)
       ?(%code %inline-code)  ""
+      %ship                  (scow %p p.c)
       ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
   ==
 ++  from-self  =(our src):bowl
@@ -309,21 +415,56 @@
     ==
   ++  he-pass
     |%
+    ++  writer-sect
+      |=  [ships=(set ship) =association:met:h]
+      =/  =sect:g
+        (rap 3 %heap '-' (scot %p p.flag) '-' q.flag ~)
+      =/  title=@t
+        (rap 3 'Writers: ' title.metadatum.association ~)
+      =/  desc=@t
+        (rap 3 'The writers role for the ' title.metadatum.association ' chat' ~)
+      %+  poke-group  %import-writers
+      :+  group.association   now.bowl
+      [%cabal sect %add title desc '' '']
+    ::
+    ++  poke-group
+      |=  [=term =action:g]
+      ^+  he-core
+      =/  =dock      [p.p.action %groups]
+      =/  =wire      (snoc he-area term)
+      =.  cor
+        (emit %pass wire %agent dock %poke group-action+!>(action))
+      he-core
+    ::
+    ++  create-channel
+      |=  [=term group=flag:g =channel:g]
+      ^+  he-core
+      =/  =nest:g  [dap.bowl flag]
+      (poke-group term group now.bowl %channel nest %add channel)
+    ::
+    ++  import-channel
+      |=  =association:met:h
+      =/  meta=data:meta:g
+        [title description '' '']:metadatum.association
+      (create-channel %import group.association meta now.bowl zone=%default %| ~)
+    ::
     ++  add-channel
       |=  req=create:h
-      =/  =dock      [p.group.req %groups]
-      =/  =nest:g    [dap.bowl flag]
-      =/  =channel:g  
-        =,(req [[title description '' ''] now.bowl %default | readers])
-      =/  =action:g  [group.req now.bowl %channel nest %add channel]
-      =/  =cage      group-action+!>(action)
-      =/  =wire      (snoc he-area %create)
-      =/  =card
-        [%pass he-area %agent dock %poke cage]
-      =.  cor
-        (emit card)
-      he-core
+      %+  create-channel  %create
+      [group.req =,(req [[title description '' ''] now.bowl %default | readers])]
     --
+  ::
+  ++  he-import
+    |=  [writers=(set ship) =association:met:h]
+    ^+  he-core
+    =?  he-core  ?=(%sub -.net.heap)
+      he-sub
+    =?  he-core  ?=(%pub -.net.heap)
+      (import-channel:he-pass association)
+    =?  he-core  &(?=(%pub -.net.heap) !=(writers ~))
+      (writer-sect:he-pass writers association)
+    he-core
+  ::
   ++  he-init
     |=  req=create:h
     =/  =perm:h  [writers.req group.req]

@@ -219,15 +219,11 @@
 ++  import
   |=  =imports:d
   ^+  cor
-  %+  roll  ~(tap by imports)
-  |=  $:  $:  =flag:d
-              writers=(set ship) 
-              =association:met:d
-              =update-log:gra:d
-              =graph:gra:d
-          ==
-          out=_cor
-      ==
+  =/  imports  ~(tap by imports)
+  |-  =*  loop  $
+  ?~  imports  cor
+  =/  [=flag:d writers=(set ship) =association:met:d =update-log:gra:d =graph:gra:d]
+    i.imports
   |^
   =/  =perm:d
     :_  group.association
@@ -242,7 +238,9 @@
         *remark:d
     ==
   =.  shelf  (~(put by shelf) flag diary)
-  di-abet:(di-import:(di-abed:di-core:out flag) writers association) ::
+  =.  cor  di-abet:(di-import:(di-abed:di-core flag) writers association)
+  loop(imports t.imports)
+  ::
   ++  import-log  
     |=  log=update-log:gra:d
     ^-  log:d
@@ -554,6 +552,12 @@
       %.  di-core  :: TODO rollback creation if poke fails?
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
+    ::
+        [%import ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  di-core
+      =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
+      di-core
     ==
   ::
   ++  di-brief  (brief:di-notes our.bowl last-read.remark.diary)

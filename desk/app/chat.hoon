@@ -184,6 +184,8 @@
   ::
       %graph-imports  (import !<(imports:c vase))
   ::
+      %dm-imports     (import-dms !<(graph:gra:c vase))
+  ::
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
@@ -402,7 +404,7 @@
   |-  =*  loop  $
   ?~  imports  cor
   =/  [=flag:c writers=(set ship) =association:met:c =update-log:gra:c =graph:gra:c]
-      i.imports
+    i.imports
   |^
   =/  =perm:c
     :_  group.association

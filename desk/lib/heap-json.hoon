@@ -114,6 +114,10 @@
         ?(%code %tag %inline-code)
       s+p.i
     ::
+        %ship  s/(scot %p p.i)
+    ::
+        %block  ~
+    ::
         ?(%italics %bold %strike %blockquote)
       :-  %a
       (turn p.i inline)
