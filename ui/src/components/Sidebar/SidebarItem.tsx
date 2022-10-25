@@ -12,6 +12,7 @@ import { isColor } from '@/logic/utils';
 type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   to?: string;
+  defaultRoute?: boolean;
   actions?: React.ReactNode;
   // This is used for links we want to keep in an
   // "active" state even if the route is deeper than
@@ -50,11 +51,12 @@ export default function SidebarItem({
   children,
   inexact = false,
   div = false,
+  defaultRoute = false,
   ...rest
 }: SidebarProps) {
   const matchString = to && inexact ? `${to}/*` : to;
   const [hover, setHover] = useState(false);
-  const matches = useMatch(matchString || 'DONT_MATCH');
+  const matches = useMatch((defaultRoute ? '/' : matchString) || 'DONT_MATCH');
   const active = !!matches;
   const Wrapper = div ? 'div' : 'li';
   const currentTheme = useCurrentTheme();
@@ -70,13 +72,24 @@ export default function SidebarItem({
     }
   };
 
-  const customHiglightStyles = () => {
+  const customHoverHiglightStyles = () => {
     if (hasHoverColor() && isColor(highlight))
       return {
         backgroundColor:
           currentTheme === 'dark'
             ? mix(highlight, 'black', 0.7)
             : mix(highlight, 'white', 0.85),
+      };
+    return null;
+  };
+
+  const customActiveHiglightStyles = () => {
+    if (hasHoverColor() && isColor(highlight))
+      return {
+        backgroundColor:
+          currentTheme === 'dark'
+            ? mix(highlight, 'black', 0.6)
+            : mix(highlight, 'white', 0.75),
       };
     return null;
   };
@@ -91,15 +104,17 @@ export default function SidebarItem({
       }}
       style={
         {
-          ...(hasHoverColor() && hover ? customHiglightStyles() : null),
-          ...(hasHoverColor() && active ? customHiglightStyles() : null),
+          ...(hasHoverColor() && hover && !active
+            ? customHoverHiglightStyles()
+            : null),
+          ...(hasHoverColor() && active ? customActiveHiglightStyles() : null),
         } as React.CSSProperties
       }
       className={cn(
         'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base',
         color,
-        !hasHoverColor() ? `hover:${highlight}` : null,
-        !hasHoverColor() && active && to !== '/' ? highlight : null
+        !hasHoverColor() && !active ? `hover:${highlight}` : null,
+        !hasHoverColor() && active && to !== '/' ? 'bg-gray-100' : null
       )}
     >
       <Action

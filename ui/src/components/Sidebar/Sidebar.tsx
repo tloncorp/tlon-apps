@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import cn from 'classnames';
 import { useLocation } from 'react-router';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useGroups, usePendingInvites } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
@@ -16,6 +18,74 @@ import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
+import ArrowNWIcon from '../icons/ArrowNWIcon';
+import MenuIcon from '../icons/MenuIcon';
+
+export function GroupsAppMenu() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return (
+    <SidebarItem
+      div
+      className={cn(
+        menuOpen
+          ? 'bg-gray-100 text-gray-800'
+          : 'text-black hover:text-gray-800',
+        'group'
+      )}
+      icon={
+        <DropdownMenu.Root onOpenChange={() => setMenuOpen(!menuOpen)}>
+          <DropdownMenu.Trigger asChild className="appearance-none">
+            <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
+              <AppGroupsIcon
+                className={cn(
+                  'h-6 w-6',
+                  menuOpen ? 'hidden' : 'group-hover:hidden'
+                )}
+              />
+              <MenuIcon
+                aria-label="Open Menu"
+                className={cn(
+                  'm-1 h-4 w-4 text-gray-800',
+                  menuOpen ? 'block' : 'hidden group-hover:block'
+                )}
+              />
+            </div>
+          </DropdownMenu.Trigger>
+
+          <DropdownMenu.Content className="dropdown mt-2 -ml-2 w-60">
+            <a
+              className="no-underline"
+              href="https://airtable.com/shrflFkf5UyDFKhmW"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
+                Submit Feedback
+              </DropdownMenu.Item>
+            </a>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      }
+    >
+      <div className="flex items-center justify-between">
+        Groups
+        <a
+          title="Back to Landscape"
+          aria-label="Back to Landscape"
+          href="/apps/grid"
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            'h-6 w-6 no-underline',
+            menuOpen ? 'block' : 'hidden group-hover:block'
+          )}
+        >
+          <ArrowNWIcon className="text-gray-400" />
+        </a>
+      </div>
+    </SidebarItem>
+  );
+}
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
@@ -38,16 +108,9 @@ export default function Sidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-col bg-white">
-      <ul className="flex w-full flex-col px-2 pt-2">
+      <ul className="flex w-full flex-col space-y-1 px-2 pt-2">
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
-        <SidebarItem
-          div
-          className="text-black"
-          to="/"
-          icon={<AppGroupsIcon className="h-6 w-6" />}
-        >
-          Groups
-        </SidebarItem>
+        <GroupsAppMenu />
         <div className="h-5" />
         <SidebarItem
           highlight={shipColor}
@@ -59,12 +122,13 @@ export default function Sidebar() {
         <SidebarItem
           icon={<ActivityIndicator count={count} />}
           to={`/notifications`}
+          defaultRoute
         >
           Notifications
         </SidebarItem>
         <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
-          to="/groups/find"
+          to="/find"
         >
           <div className="flex items-center">
             Find Groups

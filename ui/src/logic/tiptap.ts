@@ -1,5 +1,5 @@
 import { Inline, InlineKey } from '@/types/content';
-import { reduce } from 'lodash';
+import { reduce, isEqual } from 'lodash';
 import { JSONContent } from '@tiptap/react';
 import {
   Editor,
@@ -227,11 +227,19 @@ export function JSONToInlines(
         return [{ break: null }];
       }
 
-      const inlines = json.content.reduce(
-        (memo, c) =>
-          memo.concat(JSONToInlines(c, limitNewlines), [{ break: null }]),
-        [] as (Inline | DiaryBlock)[]
-      );
+      const inlines = json.content.reduce((memo, c, idx) => {
+        // this check is here again, for typescript "null" detection
+        if (!json.content) {
+          return [{ break: null }];
+        }
+        const isContentFinal = idx === json.content.length - 1;
+        if (isContentFinal) {
+          return memo.concat(JSONToInlines(c, limitNewlines), [
+            { break: null },
+          ]);
+        }
+        return memo.concat(JSONToInlines(c, limitNewlines));
+      }, [] as (Inline | DiaryBlock)[]);
       return limitNewlines ? limitBreaks(inlines) : inlines;
     }
     case 'doc': {
@@ -282,14 +290,14 @@ export function JSONToInlines(
       ];
     }
     case 'heading': {
-      const first = json.content ? json.content[0] : undefined;
       return [
         {
           header: {
             tag: `h${json.attrs?.level || 2}` as DiaryHeaderLevel,
-            content: (first
-              ? JSONToInlines(first, limitNewlines)[0]
-              : '') as Inline,
+            content: (json.content || []).reduce(
+              (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
+              [] as (Inline | DiaryBlock)[]
+            ) as Inline[],
           },
         },
       ];
@@ -481,7 +489,23 @@ export const blockToContent = (content: DiaryBlock): JSONContent => {
  * @returns A JSONContent object (consumed by TipTap Editor to render rich text)
  */
 export function inlinesToJSON(message: Inline[]): JSONContent {
-  const parsedContent = message.map((m) => inlineToContent(m));
+  const contentIsEmpty = (m: Inline) => isEqual(m, { break: null });
+
+  const parsedContent = message
+    // remove empty paragraphs from the end of the message
+    .filter((m, i) => !(contentIsEmpty(m) && i === message.length - 1))
+    // remove empty paragraphs from the end of blockquotes
+    .map((m) => {
+      if (typeof m === 'object' && 'blockquote' in m) {
+        return {
+          blockquote: m.blockquote.filter(
+            (bq, i) => !(contentIsEmpty(bq) && i === m.blockquote.length - 1)
+          ),
+        };
+      }
+      return m;
+    })
+    .map((m) => inlineToContent(m));
 
   return {
     type: 'doc',

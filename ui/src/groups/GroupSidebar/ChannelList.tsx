@@ -5,7 +5,6 @@ import useAllBriefs from '@/logic/useAllBriefs';
 import { channelHref, nestToFlag, filterJoinedChannels } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup } from '@/state/groups';
-import useNavStore from '@/components/Nav/useNavStore';
 import CaretDown16Icon from '@/components/icons/CaretDownIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
@@ -32,14 +31,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels, sections } = useChannelSections(flag);
   const isMobile = useIsMobile();
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
   const { isChannelUnread } = useIsChannelUnread(flag);
-
-  const hide = useCallback(() => {
-    if (isMobile) {
-      navPrimary('hidden');
-    }
-  }, [navPrimary, isMobile]);
 
   if (!group) {
     return null;
@@ -69,7 +61,6 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
           key={nest}
           icon={icon}
           to={channelHref(flag, nest)}
-          onClick={hide}
           actions={isChannelUnread(chFlag) ? <UnreadIndicator /> : null}
         >
           {channel.meta.title || nest}
@@ -99,10 +90,10 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
         </div>
         <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
       </DropdownMenu.Root>
-      <ul className={cn(isMobile && 'flex-none space-y-3')}>
+      <ul className={cn('space-y-1', isMobile && 'flex-none space-y-3')}>
         {isDefaultSort
           ? sections.map((s) => (
-              <div key={s}>
+              <div className="space-y-1" key={s}>
                 {s !== UNZONED ? (
                   <Divider>
                     {s in group.zones ? group.zones[s].meta.title : ''}

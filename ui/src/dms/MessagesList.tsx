@@ -1,4 +1,5 @@
 import useMessageSort from '@/logic/useMessageSort';
+import { filters, SidebarFilter } from '@/state/settings';
 import cn from 'classnames';
 import React from 'react';
 import { RECENT } from '../logic/useSidebarSort';
@@ -11,7 +12,6 @@ import {
   usePinned,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
-import { filters, SidebarFilter } from './useMessagesFilter';
 
 interface MessagesListProps {
   filter: SidebarFilter;
@@ -46,12 +46,13 @@ export default function MessagesList({ filter }: MessagesListProps) {
 
       return true; // is all
     })
-    .sort(sortOptions[RECENT]);
+    .sort(sortOptions[RECENT])
+    .reverse();
 
   return (
     <ul
       className={cn(
-        'flex w-full flex-col space-y-3 overflow-x-hidden overflow-y-scroll px-2 pr-0 sm:space-y-0'
+        'flex w-full flex-col space-y-3 overflow-x-hidden overflow-y-scroll px-2 pr-0 sm:space-y-1'
       )}
     >
       {allPending &&

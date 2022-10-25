@@ -2,25 +2,22 @@ import cn from 'classnames';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
-import { useGroup } from '@/state/groups/groups';
-import useNavStore from '@/components/Nav/useNavStore';
+import useMedia from '@/logic/useMedia';
+import { useGroup, useGroupFlag } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useHarkState from '@/state/hark';
+import { useCalm } from '@/state/settings';
 import { isColor } from '@/logic/utils';
 import { foregroundFromBackground } from '@/components/Avatar';
-import Sidebar from '@/components/Sidebar/Sidebar';
-import MobileGroupSidebar from '@/groups/GroupSidebar/MobileGroupSidebar';
 import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 
 function GroupHeader() {
-  const flag = useNavStore((state) => state.flag);
+  const flag = useGroupFlag();
   const group = useGroup(flag);
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
   const [groupCoverHover, setGroupCoverHover] = useState(false);
   const [noCors, setNoCors] = useState(false);
   const [coverImgColor, setCoverImgColor] = useState('');
@@ -30,6 +27,7 @@ function GroupHeader() {
   const dark = useMedia('(prefers-color-scheme: dark)');
   const hoverFallbackForeground = dark ? 'white' : 'black';
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
+  const calm = useCalm();
 
   const onError = useCallback(() => {
     setNoCors(true);
@@ -92,7 +90,7 @@ function GroupHeader() {
 
   return (
     <li className="relative mb-2 w-full rounded-lg" style={coverStyles()}>
-      {group && !isColor(group?.meta.cover) && (
+      {group && !calm?.disableRemoteContent && !isColor(group?.meta.cover) && (
         <img
           {...(noCors ? {} : { crossOrigin: 'anonymous' })}
           src={group?.meta.cover}
@@ -101,6 +99,9 @@ function GroupHeader() {
           onLoad={() => getCoverImageColor()}
           className="absolute h-full w-full flex-none rounded-lg object-cover"
         />
+      )}
+      {group && calm.disableRemoteContent && !isColor(group?.meta.cover) && (
+        <div className="absolute h-full w-full flex-none rounded-lg bg-gray-400" />
       )}
       <div
         style={group && !isColor(group?.meta.cover) ? { height: '240px' } : {}}
@@ -118,7 +119,6 @@ function GroupHeader() {
             />
           }
           to="/"
-          onClick={() => navPrimary('main')}
           onMouseEnter={() => setGroupCoverHover(true)}
           onMouseLeave={() => setGroupCoverHover(false)}
           highlight="hover:bg-transparent"
@@ -135,8 +135,7 @@ function GroupHeader() {
               style={coverTitleStyles()}
               className={cn(
                 'max-w-full flex-1 truncate text-left',
-                !averageSucceeded &&
-                  dark &&
+                coverTitleStyles().color === 'white' &&
                   'drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]'
               )}
             >
@@ -150,9 +149,7 @@ function GroupHeader() {
 }
 
 export default function GroupSidebar() {
-  const flag = useNavStore((state) => state.flag);
-  const group = useGroup(flag);
-  const isMobile = useIsMobile();
+  const flag = useGroupFlag();
 
   useEffect(() => {
     useHarkState.getState().retrieveGroup(flag);
@@ -161,36 +158,28 @@ export default function GroupSidebar() {
     };
   }, [flag]);
 
-  if (isMobile) {
-    return <MobileGroupSidebar />;
-  }
-
-  if (group) {
-    return (
-      <nav className="flex h-full w-64 flex-none flex-col bg-white">
-        <div className="h-5" />
-        <div className="flex min-h-0 flex-col px-2">
-          <ul>
-            <GroupHeader />
-            <SidebarItem
-              icon={<HashIcon16 className="m-1 h-4 w-4" />}
-              to={`/groups/${flag}/channels`}
-            >
-              All Channels
-            </SidebarItem>
-          </ul>
-        </div>
-        <div className="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2">
-          <span className="ml-4 text-sm font-semibold text-gray-400">
-            Channels
-          </span>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <ChannelList className="p-2 pt-0" flag={flag} />
-        </div>
-      </nav>
-    );
-  }
-
-  return <Sidebar />;
+  return (
+    <nav className="flex h-full w-64 flex-none flex-col bg-white">
+      <div className="h-5" />
+      <div className="flex min-h-0 flex-col px-2">
+        <ul>
+          <GroupHeader />
+          <SidebarItem
+            icon={<HashIcon16 className="m-1 h-4 w-4" />}
+            to={`/groups/${flag}/channels`}
+          >
+            All Channels
+          </SidebarItem>
+        </ul>
+      </div>
+      <div className="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2">
+        <span className="ml-4 text-sm font-semibold text-gray-400">
+          Channels
+        </span>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <ChannelList className="p-2 pt-0" flag={flag} />
+      </div>
+    </nav>
+  );
 }

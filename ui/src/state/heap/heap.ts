@@ -36,7 +36,7 @@ setAutoFreeze(false);
 function heapAction(flag: HeapFlag, diff: HeapDiff) {
   return {
     app: 'heap',
-    mark: 'heap-action',
+    mark: 'heap-action-0',
     json: {
       flag,
       update: {
@@ -325,11 +325,6 @@ export function useHeap(flag: HeapFlag): Heap | undefined {
 
 export function useBriefs() {
   return useHeapState(useCallback((s: HeapState) => s.briefs, []));
-}
-
-export function useHeapDisplayMode(flag: string): HeapDisplayMode {
-  const heap = useHeap(flag);
-  return heap?.view ?? GRID;
 }
 
 export function useOrderedCurios(

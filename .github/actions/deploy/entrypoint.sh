@@ -23,4 +23,5 @@ janeway \
     --ssh-key /id_ssh \
     release ota \
     "$1" "$2" \
+    ${6:+"--ref $6"} \
   | bash

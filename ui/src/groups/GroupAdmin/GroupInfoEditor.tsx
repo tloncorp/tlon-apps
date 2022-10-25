@@ -14,7 +14,6 @@ import {
   ViewProps,
 } from '@/types/groups';
 import { useNavigate } from 'react-router';
-import useNavStore from '@/components/Nav/useNavStore';
 import { getGroupPrivacy } from '@/logic/utils';
 import GroupInfoFields from '../GroupInfoFields';
 import PrivacySelector from '../PrivacySelector';
@@ -63,7 +62,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const onDelete = useCallback(() => {
     useGroupState.getState().delete(groupFlag);
     navigate('/');
-    useNavStore.getState().navigatePrimary('main');
   }, [groupFlag, navigate]);
 
   const onSubmit = useCallback(

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useCalm } from '@/state/settings';
 
 interface DiaryContentImage {
   src: string;
@@ -15,19 +16,25 @@ export default function DiaryContentImage({
 }: DiaryContentImage) {
   const h = height === 0 ? undefined : height;
   const w = width === 0 ? undefined : width;
+  const calm = useCalm();
+
   return (
     <div
       className="group relative w-full py-2"
       style={{ maxWidth: width ? (width > 600 ? 600 : w) : 600 }}
     >
       <a href={src} target="_blank" rel="noreferrer">
-        <img
-          src={src}
-          className="max-w-full rounded"
-          height={h}
-          width={w}
-          alt={altText ? altText : 'A Diary image'}
-        />
+        {calm?.disableRemoteContent ? (
+          <span>{src}</span>
+        ) : (
+          <img
+            src={src}
+            className="max-w-full rounded"
+            height={h}
+            width={w}
+            alt={altText ? altText : 'A Diary image'}
+          />
+        )}
       </a>
       {/*
         TODO: put these icons back in after they've been finalized by design.

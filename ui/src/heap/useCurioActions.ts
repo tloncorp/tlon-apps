@@ -1,8 +1,7 @@
-import { nestToFlag, citeToPath } from '@/logic/utils';
+import { nestToFlag, citeToPath, useCopy } from '@/logic/utils';
 import { useHeapState } from '@/state/heap/heap';
 import { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { useCopyToClipboard } from 'usehooks-ts';
 
 interface useCurioActionsProps {
   nest: string;
@@ -18,8 +17,14 @@ export default function useCurioActions({
   const navigate = useNavigate();
   const location = useLocation();
   const [, chFlag] = nestToFlag(nest);
-  const [, doCopy] = useCopyToClipboard();
-  const [justCopied, setJustCopied] = useState(false);
+  const chanPath = citeToPath({
+    chan: {
+      nest: `heap/${chFlag}`,
+      where: `/curio/${time}`,
+    },
+  });
+  const { doCopy, didCopy } = useCopy(refToken ? refToken : chanPath);
+
   const [menuOpen, setMenuOpen] = useState(false);
 
   const onDelete = useCallback(() => {
@@ -39,26 +44,11 @@ export default function useCurioActions({
   }, [navigate, refToken]);
 
   const onCopy = useCallback(() => {
-    if (refToken) {
-      doCopy(refToken);
-    } else {
-      doCopy(
-        citeToPath({
-          chan: {
-            nest: `heap/${chFlag}`,
-            where: `/curio/${time}`,
-          },
-        })
-      );
-    }
-    setJustCopied(true);
-    setTimeout(() => {
-      setJustCopied(false);
-    }, 1000);
-  }, [doCopy, time, chFlag, refToken]);
+    doCopy();
+  }, [doCopy]);
 
   return {
-    justCopied,
+    didCopy,
     menuOpen,
     setMenuOpen,
     onDelete,

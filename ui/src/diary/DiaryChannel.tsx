@@ -33,7 +33,7 @@ function DiaryChannel() {
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
-  const notes = useNotesForDiary(chFlag);
+  const letters = useNotesForDiary(chFlag);
   const location = useLocation();
   const navigate = useNavigate();
   const [, setRecent] = useLocalStorage(
@@ -42,7 +42,7 @@ function DiaryChannel() {
   );
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
-  const { justCopied, onCopy } = useDiaryActions({
+  const { didCopy, onCopy } = useDiaryActions({
     flag: chFlag,
     time: newNote || '',
   });
@@ -101,7 +101,7 @@ function DiaryChannel() {
     markRead: useDiaryState.getState().markRead,
   });
 
-  const sortedNotes = Array.from(notes).sort(([a], [b]) => {
+  const sortedNotes = Array.from(letters).sort(([a], [b]) => {
     if (sortMode === 'time-dsc') {
       return b.compare(a);
     }
@@ -155,7 +155,7 @@ function DiaryChannel() {
                   onClick={onCopy}
                   className="-mx-4 -my-2 w-[135px] rounded-r-lg bg-blue py-2 px-4 text-white dark:text-black"
                 >
-                  {justCopied ? 'Copied' : 'Copy Note Link'}
+                  {didCopy ? 'Copied' : 'Copy Note Link'}
                 </button>
               </div>
             </Toast.Description>
@@ -169,8 +169,12 @@ function DiaryChannel() {
         ) : (
           <div className="h-full p-6">
             <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
-              {sortedNotes.map(([time, note]) => (
-                <DiaryListItem key={time.toString()} time={time} note={note} />
+              {sortedNotes.map(([time, letter]) => (
+                <DiaryListItem
+                  key={time.toString()}
+                  time={time}
+                  letter={letter}
+                />
               ))}
             </div>
           </div>

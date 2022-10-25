@@ -33,7 +33,7 @@ exports[`ChannelList > renders as expected 1`] = `
           <span
             class="mr-2 pl-1"
           >
-            Sort: Arranged
+            Sort: A → Z
           </span>
         </span>
         <svg
@@ -53,10 +53,8 @@ exports[`ChannelList > renders as expected 1`] = `
       </button>
     </div>
     <ul
-      class=""
-    >
-      <div />
-    </ul>
+      class="space-y-1"
+    />
   </div>
 </DocumentFragment>
 `;

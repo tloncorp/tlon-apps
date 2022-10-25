@@ -299,7 +299,6 @@ describe('inlinesToJSON', () => {
         { type: 'paragraph' },
         { type: 'paragraph' },
         { type: 'paragraph', content: [{ type: 'text', text: 'foo' }] },
-        { type: 'paragraph' },
       ],
     };
     expect(output).toEqual(expected);
@@ -373,7 +372,6 @@ describe('inlinesToJSON', () => {
             { type: 'text', text: 'style', marks: [{ type: 'bold' }] },
           ],
         },
-        { type: 'paragraph' },
       ],
     };
     expect(output).toEqual(expected);
@@ -408,10 +406,17 @@ describe('JSONToInlines', () => {
   it('styled paragraph', () => {
     const input: JSONContent = {
       type: 'paragraph',
-      content: [{ type: 'text', text: 'foobar', marks: [{ type: 'bold' }] }],
+      content: [
+        { type: 'text', text: 'the following should be bold:' },
+        { type: 'text', text: 'foobar', marks: [{ type: 'bold' }] },
+      ],
     };
     const output = JSONToInlines(input);
-    const expected: Inline[] = [{ bold: ['foobar'] }, { break: null }];
+    const expected: Inline[] = [
+      'the following should be bold:',
+      { bold: ['foobar'] },
+      { break: null },
+    ];
     expect(output).toEqual(expected);
   });
 
@@ -655,7 +660,7 @@ describe('JSONToInlines', () => {
       {
         header: {
           tag: 'h2',
-          content: 'yoooo',
+          content: ['yoooo'],
         },
       },
     ];

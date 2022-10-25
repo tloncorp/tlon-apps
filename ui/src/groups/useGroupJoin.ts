@@ -1,4 +1,3 @@
-import useNavStore from '@/components/Nav/useNavStore';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
 import useHarkState from '@/state/hark';
 import { getGroupPrivacy } from '@/logic/utils';
@@ -40,18 +39,16 @@ export default function useGroupJoin(
     : 'public';
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   const open = useCallback(() => {
     if (group) {
-      navPrimary('group', flag);
       return navigate(`/groups/${flag}`);
     }
 
     return navigate(`/gangs/${flag}`, {
       state: { backgroundLocation: location },
     });
-  }, [flag, group, location, navPrimary, navigate]);
+  }, [flag, group, location, navigate]);
 
   const join = useCallback(async () => {
     if (privacy === 'public' || (privacy === 'private' && invited)) {
@@ -62,12 +59,11 @@ export default function useGroupJoin(
         group: flag,
         thread: `/${flag}/invite`,
       });
-      navPrimary('group', flag);
       navigate(`/groups/${flag}`);
     } else {
       await useGroupState.getState().knock(flag);
     }
-  }, [privacy, invited, flag, navPrimary, navigate]);
+  }, [privacy, invited, flag, navigate]);
 
   const reject = useCallback(async () => {
     /**

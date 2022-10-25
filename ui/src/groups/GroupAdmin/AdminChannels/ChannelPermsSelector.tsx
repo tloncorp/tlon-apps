@@ -63,7 +63,7 @@ function PrivacySettingRow({ type }: PrivacySettingRowProps) {
         </div>
       </div>
       <input
-        {...register('privacy')}
+        {...register('privacy', { required: false })}
         className="sr-only"
         type="radio"
         value={type}

@@ -1,3 +1,4 @@
+import { useCalm } from '@/state/settings';
 import LinkIcon from '@/components/icons/LinkIcon';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { Node, NodeViewProps } from '@tiptap/core';
@@ -13,6 +14,7 @@ function DiaryImageComponent(props: NodeViewProps) {
   const [error, setError] = useState(false);
   const [src, setSrc] = useState(null as string | null);
   const image = useRef<HTMLImageElement>(null);
+  const calm = useCalm();
   const onError = () => {
     setError(true);
   };
@@ -72,7 +74,7 @@ function DiaryImageComponent(props: NodeViewProps) {
             </div>
           ) : null}
         </div>
-        {src && !error ? (
+        {src && !error && !calm?.disableRemoteContent ? (
           <img
             ref={image}
             className="rounded-xl"

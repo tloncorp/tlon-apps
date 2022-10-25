@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useCopyToClipboard } from 'usehooks-ts';
+import { useCopy } from '@/logic/utils';
 import { useRouteGroup } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import { ChatWrit } from '@/types/chat';
@@ -23,8 +23,9 @@ export default function ChatMessageOptions(props: {
 }) {
   const { whom, writ, hideReply } = props;
   const groupFlag = useRouteGroup();
-  const [_copied, doCopy] = useCopyToClipboard();
-  const [justCopied, setJustCopied] = useState(false);
+  const { didCopy, doCopy } = useCopy(
+    `/1/chan/chat/${whom}/msg/${writ.seal.id}`
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const onDelete = () => {
@@ -32,12 +33,8 @@ export default function ChatMessageOptions(props: {
   };
 
   const onCopy = useCallback(() => {
-    doCopy(`/1/chan/chat/${whom}/msg/${writ.seal.id}`);
-    setJustCopied(true);
-    setTimeout(() => {
-      setJustCopied(false);
-    }, 1000);
-  }, [doCopy, whom, writ]);
+    doCopy();
+  }, [doCopy]);
 
   const reply = useCallback(() => {
     useChatStore.getState().reply(whom, writ.seal.id);
@@ -89,7 +86,7 @@ export default function ChatMessageOptions(props: {
       ) : null}
       <IconButton
         icon={
-          justCopied ? (
+          didCopy ? (
             <CheckIcon className="h-6 w-6 text-gray-400" />
           ) : (
             <CopyIcon className="h-6 w-6 text-gray-400" />

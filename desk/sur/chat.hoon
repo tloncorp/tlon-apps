@@ -1,9 +1,14 @@
-/-  g=groups, graph-store
+/-  g=groups, zer=chat-0, graph-store
 /-  meta
 /-  metadata-store
 /-  cite
 /+  lib-graph=graph-store
+/+  e=epic
 |%
+++  old
+  |%
+  ++  zero  zer
+  --
 ::  $writ: a chat message
 +$  writ   [seal memo]
 ::  $id: an identifier for chat messages
@@ -284,7 +289,7 @@
 ::
 +$  net
   $~  [%load ~]
-  $%  [%sub p=ship]
+  $%  [%sub host=ship =saga:e]
       [%pub ~]
       [%load ~]
   ==

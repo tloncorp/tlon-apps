@@ -14,7 +14,6 @@ import {
 } from '@/state/groups/groups';
 import {
   useCuriosForHeap,
-  useHeapDisplayMode,
   useHeapState,
   useHeapPerms,
 } from '@/state/heap/heap';
@@ -24,13 +23,14 @@ import {
   setSetting,
   useHeapSettings,
   useHeapSortMode,
+  useHeapDisplayMode,
   useSettingsState,
 } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { createStorageKey } from '@/logic/utils';
-import { GRID, HeapCurio, HeapDisplayMode } from '@/types/heap';
+import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import bigInt from 'big-integer';
 import NewCurioForm from './NewCurioForm';
 
@@ -60,10 +60,17 @@ function HeapChannel({ title }: ViewProps) {
     _.intersection(perms.writers, vessel.sects).length !== 0;
 
   const setDisplayMode = (setting: HeapDisplayMode) => {
-    useHeapState.getState().viewHeap(chFlag, setting);
+    const newSettings = setSetting<HeapSetting>(
+      settings,
+      { displayMode: setting },
+      chFlag
+    );
+    useSettingsState
+      .getState()
+      .putEntry('heaps', 'heapSettings', JSON.stringify(newSettings));
   };
 
-  const setSortMode = (setting: 'time' | 'alpha') => {
+  const setSortMode = (setting: HeapSortMode) => {
     const newSettings = setSetting<HeapSetting>(
       settings,
       { sortMode: setting },
@@ -110,6 +117,23 @@ function HeapChannel({ title }: ViewProps) {
     [displayMode, navigateToDetail]
   );
 
+  const getCurioTitle = (curio: HeapCurio) =>
+    curio.heart.title ||
+    curio.heart.content.toString().split(' ').slice(0, 3).join(' ');
+
+  const sortedCurios = Array.from(curios).sort(([a], [b]) => {
+    if (sortMode === 'time') {
+      return b.compare(a);
+    }
+    if (sortMode === 'alpha') {
+      const curioA = curios.get(a);
+      const curioB = curios.get(b);
+
+      return getCurioTitle(curioA).localeCompare(getCurioTitle(curioB));
+    }
+    return b.compare(a);
+  });
+
   return (
     <Layout
       className="flex-1 bg-gray-50"
@@ -144,8 +168,7 @@ function HeapChannel({ title }: ViewProps) {
           {
             // Here, we sort the array by recently added and then filter out curios with a "replying" property
             // as those are comments and shouldn't show up in the main view
-            Array.from(curios)
-              .sort(([a], [b]) => b.compare(a))
+            sortedCurios
               .filter(([, c]) => !c.heart.replying)
               .map(([time, curio]) => renderCurio(curio, time))
           }
