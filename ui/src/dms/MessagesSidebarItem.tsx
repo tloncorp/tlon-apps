@@ -29,10 +29,11 @@ function ChannelSidebarItem({
   const isMobile = useIsMobile();
   const navPrimary = useNavStore((state) => state.navigatePrimary);
   const groups = useGroupState((s) => s.groups);
+  const nest = `chat/${whom}`;
   const groupFlag = Object.entries(groups).find(
-    ([k, v]) => whom in v.channels
+    ([k, v]) => nest in v.channels
   )?.[0];
-  const channel = useChannel(groupFlag || '', whom);
+  const channel = useChannel(groupFlag || '', nest);
   const group = useGroup(groupFlag || '');
 
   if (!channel) {
@@ -113,8 +114,6 @@ export default function MessagesSidebarItem({
   brief,
   pending,
 }: MessagesSidebarItemProps) {
-  const channelWhom = `chat/${whom}`;
-
   if (whomIsDm(whom)) {
     return <DMSidebarItem pending={pending} whom={whom} brief={brief} />;
   }
@@ -123,7 +122,5 @@ export default function MessagesSidebarItem({
     return <MultiDMSidebarItem whom={whom} brief={brief} pending={pending} />;
   }
 
-  return (
-    <ChannelSidebarItem whom={channelWhom} brief={brief} pending={pending} />
-  );
+  return <ChannelSidebarItem whom={whom} brief={brief} pending={pending} />;
 }
