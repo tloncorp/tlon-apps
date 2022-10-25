@@ -44,7 +44,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state our-epic])
+  ++  on-save  !>(state(old-epic our-epic))
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -397,15 +397,11 @@
 ++  import
   |=  =imports:c
   ^+  cor
-  %+  roll  ~(tap by imports)
-  |=  $:  $:  =flag:c
-              writers=(set ship) 
-              =association:met:c
-              =update-log:gra:c
-              =graph:gra:c
-          ==
-          out=_cor
-      ==
+  =/  imports  ~(tap by imports)
+  |-  =*  loop  $
+  ?~  imports  cor
+  =/  [=flag:c writers=(set ship) =association:met:c =update-log:gra:c =graph:gra:c]
+      i.imports
   |^
   =/  =perm:c
     :_  group.association
@@ -418,7 +414,9 @@
         (graph-to-pact graph)
     ==
   =.  chats  (~(put by chats) flag chat)
-  ca-abet:(ca-import:(ca-abed:ca-core:out flag) writers association)
+  =.  cor
+    ca-abet:(ca-import:(ca-abed:ca-core flag) writers association)
+  loop(imports t.imports)
   ::
   ++  import-log  
     |=  log=update-log:gra:c
@@ -1005,6 +1003,13 @@
       %.  ca-core  :: TODO rollback creation if poke fails?
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
+    ::
+        [%import ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign
+        ca-core
+      =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
+      ca-core
     ::
     ==
   ::
