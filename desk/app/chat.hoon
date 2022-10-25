@@ -6,7 +6,7 @@
 /+  pac=dm
 /+  ch=chat-hark
 /+  gra=graph-store
-/+  mig=chat-graph
+/+  migrate=chat-graph
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -108,9 +108,9 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
-      %holt  (holt |)
-      %graph-import
-    (import-graph !<([flag:g flag:g graph:gra] vase))
+      %holt           (holt |)
+  ::
+      %graph-imports  (import !<(imports:c vase))
   ::
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
@@ -195,21 +195,6 @@
     |=  ps=(list whom:c)
     =.  pins  ps
     cor
-  ::
-  ++  import-graph
-    |=  [grp=flag:g =flag:g =graph:gra]
-    ^+  cor
-    =/  =pact:c  (convert:mig graph)
-    =/  =net:c   pub/~
-    =|  =remark:c
-    =/  =perm:c  `grp
-    =/  =diff:c  create/[perm `pact]
-    =|  =log:c
-    =.  log  (put:log-on:c log now.bowl diff)
-    =/  =chat:c
-      [net remark log perm pact]
-    =.  chats  (~(put by chats) flag chat)
-    cor  :: TODO: initialise? 
   --
 ++  watch
   |=  =(pole knot)
@@ -287,6 +272,96 @@
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
+::
+++  import-clubs
+  |=  cus=club-imports:c
+  ^+  cor
+  %+  roll  ~(tap by cus)
+  |=  [[=flag:c ships=(set ship) =association:met:c =graph:gra:c] out=_cor]
+  =/  =id:club:c  (shax (jam flag))  :: TODO: determinstic, but collisions ig?
+  =/  meta=data:meta
+    [title description '' '']:metadatum.association
+  =.  clubs  (~(put by clubs) id (graph-to-pact graph) ships ~ meta %done |)
+  out
+::
+++  import-dms
+  |=  =graph:gra:c
+  ^+  cor
+  %+  roll  (tap:orm-gra:c graph)
+  |=  [[ship=@ =node:gra:c] out=_cor]
+  ?.  ?=(%graph -.children.node)
+    out
+  =.  dms  
+    (~(put by dms) ship (graph-to-pact p.children.node) *remark:c %done |)
+  out
+++  graph-to-pact
+  |=  =graph:gra:c
+  ^-  pact:c
+  %-  ~(gas pac *pact:c)
+  %+  turn  (tap:orm-gra:c graph)
+  |=  [=time =node:gra:c]
+  ^-  [_time writ:c]
+  [time (node-to-writ time node)]
+::  TODO: review crashing semantics
+::        check graph ordering (backwards iirc)
+++  node-to-writ
+  |=  [=time =node:gra:c]
+  ^-  writ:c
+  ?>  ?=(%& -.post.node)
+  =*  pos  p.post.node
+  :: using the received timestamp 
+  :: defends against shitty clients, bc we didn't enforce uniqueness last time
+  :: but breaks referential transparency, so you can't quote migrated
+  :: messages
+  :-  [[author.pos time] ~ ~]
+  [~ author.pos time-sent.pos (con:migrate contents.pos)]
+::
+++  import
+  |=  =imports:c
+  ^+  cor
+  %+  roll  ~(tap by imports)
+  |=  $:  $:  =flag:c
+              writers=(set ship) 
+              =association:met:c
+              =update-log:gra:c
+              =graph:gra:c
+          ==
+          out=_cor
+      ==
+  |^
+  =/  =perm:c
+    :_  group.association
+    ?:(=(~ writers) ~ (silt (rap 3 %chat '-' (scot %p p.flag) '-' q.flag ~) ~))
+  =/  =chat:c
+    :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
+        *remark:c  ::  TODO:
+        log=(import-log update-log)
+        perm
+        (graph-to-pact graph)
+    ==
+  =.  chats  (~(put by chats) flag chat)
+  ca-abet:(ca-import:(ca-abed:ca-core:out flag) writers association)
+  ::
+  ++  import-log  
+    |=  log=update-log:gra:c
+    ^-  log:c
+    *log:c ::TODO fix
+  ++  orm  orm-gra:c
+  --
+::
+++  import-graph
+  |=  [grp=flag:g =flag:g =graph:gra]
+  ^+  cor
+  =.  chats
+    %+  ~(put by chats)  flag
+    :*  net=?:(=(p.flag our.bowl) pub/~ sub/p.flag)
+        *remark:c
+        *log:c  :: TODO:
+        perm=`grp
+        (convert:migrate graph)
+    ==
+  cor  :: TODO: initialise? 
+
 ++  watch-said
   |=  [=flag:c =id:c]
   ?.  (~(has by chats) flag)
@@ -713,6 +788,19 @@
     |=  f=flag:c
     ca-core(flag f, chat (~(got by chats) f))
   ++  ca-area  `path`/chat/(scot %p p.flag)/[q.flag]
+  ::  TODO: add metadata
+  ::        maybe delay the watch?
+  ++  ca-import
+    |=  [writers=(set ship) =association:met:c]
+    ^+  ca-core
+    =?  ca-core  ?=(%sub -.net.chat)
+      ca-sub
+    =?  ca-core  ?=(%pub -.net.chat)
+      (import-channel:ca-pass association)
+    =?  ca-core  &(?=(%pub -.net.chat) !=(writers ~))
+      (writer-sect:ca-pass writers association)
+    ca-core
+  ::
   ++  ca-spin  
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     =*  group  group.perm.chat
@@ -754,21 +842,43 @@
     --
   ++  ca-pass
     |%
-    ++  add-channel
-      |=  req=create:c
-      =/  =dock      [p.group.req %groups]
-      =/  =nest:g    [dap.bowl flag]
-      =/  =channel:g  
-        =,(req [[title description '' ''] now.bowl %default | readers])
-      =/  =action:g  [group.req now.bowl %channel nest %add channel]
-      =/  =cage      group-action+!>(action)
-      =/  =wire      (snoc ca-area %create)
-      =/  =card
-        [%pass ca-area %agent dock %poke cage]
+    ++  writer-sect
+      |=  [ships=(set ship) =association:met:c]
+      =/  =sect:g
+        (rap 3 %chat '-' (scot %p p.flag) '-' q.flag ~)
+      =/  title=@t
+        (rap 3 'Writers: ' title.metadatum.association ~)
+      =/  desc=@t
+        (rap 3 'The writers role for the ' title.metadatum.association ' chat' ~)
+      %+  poke-group  %import-writers
+      :+  group.association   now.bowl
+      [%cabal sect %add title desc '' '']
+    ::
+    ++  poke-group
+      |=  [=term =action:g]
+      ^+  ca-core
+      =/  =dock      [p.p.action %groups]
+      =/  =wire      (snoc ca-area term)
       =.  cor
-        (emit card)
+        (emit %pass wire %agent dock %poke group-action+!>(action))
       ca-core
     ::
+    ++  create-channel
+      |=  [=term group=flag:g =channel:g]
+      ^+  ca-core
+      =/  =nest:g  [dap.bowl flag]
+      (poke-group term group now.bowl %channel nest %add channel)
+    ::
+    ++  import-channel
+      |=  =association:met:c
+      =/  meta=data:meta:g
+        [title description '' '']:metadatum.association
+      (create-channel %import group.association meta now.bowl zone=%default %| ~)
+    ::
+    ++  add-channel
+      |=  req=create:c
+      %+  create-channel  %create
+      [group.req =,(req [[title description '' ''] now.bowl %default | readers])]
     --
   ++  ca-init
     |=  req=create:c

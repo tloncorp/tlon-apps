@@ -28,9 +28,9 @@
   :*  replying=~
       author=author.p
       sent=time-sent.p
-      contents=(contents-to-content contents.p)
+      contents=(con contents.p)
   ==
-++  contents-to-content
+++  con
   |=  cs=(list content:gra)
   ^-  content:c
   =;  mes=(list inline:c)

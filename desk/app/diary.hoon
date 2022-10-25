@@ -87,11 +87,8 @@
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
   ::
-      %graph-imports
-    =+  !<(=imports:graph vase)
-    (graph-imports imports)
-
-
+      %graph-imports  (import !<(imports:d vase))
+  ::
       ?(%flag %channel-join)
     =+  !<(=flag:d vase)
     ?<  =(our.bowl p.flag)
@@ -151,50 +148,58 @@
           out=_cor
       ==
   |^
-  =/  =net:d  
-  =/  =log:d  (import-log log)
   =/  =perm:d
     :_  group.association
     ?:(=(~ writers) ~ (silt (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~) ~))
   =/  =diary:d
     :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
-        log=(import-log log)
+        log=(import-log update-log)
         perm
         %grid  :: TODO: check defaults with design
         %time
-        graph-to-nodes
-        *banter:d  :: TODO: pull in latest quips changes
+        graph-to-notes
+        *remark:d
+        banter=*(map time quips:d)
     ==
-  =.  diary  (~(put by diary) flag diary)
-  di-abet:(di-import:(di-abed:di-core flag) association)
+  =.  shelf  (~(put by shelf) flag diary)
+  di-abet:(di-import:(di-abed:di-core:out flag) writers association) ::
+  ++  import-log  
+    |=  log=update-log:gra:d
+    ^-  log:d
+    *log:d ::TODO fix
   ::
   ++  graph-to-notes
     %+  gas:on:notes:d  *notes:d
     %+  turn  (tap:orm-gra:d graph)
     |=  [=time =node:gra:d]
     ^-  [_time note:d]
-    [time (node-to-note node)]
+    [time (node-to-note time node)]
   ++  orm  orm-gra:d
   ::  TODO: review crashing semantics
   ::        check graph ordering (backwards iirc)
   ++  node-to-note
     |=  [=time =node:gra:d]
+    ^-  note:d
     =/  =seal:d  [time ~]
-    ?>  ?=(%& -.children.node)
+    ?>  ?=(%graph -.children.node)
     ?>  ?=(%& -.post.node)
-    =/  pos=node:gra:d
-      (need (pry:orm (need (get:orm p.children.node 1))))
+    =/  pos=post:gra:d
+      =/  post-outer  (need (get:orm p.children.node 1))
+      ?>  ?=(%graph -.children.post-outer)
+      =/  nod  val:(need (pry:orm p.children.post-outer))
+      ?>  ?=(%& -.post.nod)
+      p.post.nod
     =/  =com=node:gra:d
       (need (get:orm p.children.node 2))
     ::  =/  comments  (node-to-comments com-node)
-    ?>  ?=([@ *] contents.pos)
+    ?>  ?=([[%text *] *] contents.pos)
     =/  con=(list verse:d)  (migrate t.contents.pos)
     =/  =essay:d
-      [i.contents '' author time-sent]:pos
+      =,(pos [text.i.contents '' con author time-sent])
     [seal essay]
   ::
   ++  node-to-quips
-    |=  =quips
+    |=  =quips:d
     !!
   --
 
@@ -364,12 +369,14 @@
   ::  TODO: add metadata
   ::        maybe delay the watch?
   ++  di-import
-    |=  =association:met:d
+    |=  [writers=(set ship) =association:met:d]
     ^+  di-core
     =?  di-core  ?=(%sub -.net.diary)
       di-sub
     =?  di-core  ?=(%pub -.net.diary)
       (import-channel:di-pass association)
+    =?  di-core  &(?=(%pub -.net.diary) !=(writers ~))
+      (writer-sect:di-pass writers association)
     di-core
   ::
   ++  di-watch
@@ -383,31 +390,46 @@
     ==
   ++  di-pass
     |%
-    ++  act-group
+    ++  writer-sect
+      |=  [ships=(set ship) =association:met:d]
+      =/  =sect:g
+        (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~)
+      =/  title=@t
+        (rap 3 'Writers: ' title.metadatum.association ~)
+      =/  desc=@t
+        (rap 3 'The writers role for the ' title.metadatum.association ' notebook' ~)
+      %+  poke-group  %import-writers
+      :+  group.association   now.bowl
+      [%cabal sect %add title desc '' '']
+    ::
+    ++  poke-group
       |=  [=term =action:g]
       ^+  di-core
-      =/  =dock      [p.group.req %groups]
-      =/  =nest:g    [dap.bowl flag]
+      =/  =dock      [p.p.action %groups]
       =/  =wire      (snoc di-area term)
       =.  cor
         (emit %pass wire %agent dock %poke group-action+!>(action))
       di-core
     ::
+    ++  create-channel
+      |=  [=term group=flag:g =channel:g]
+      ^+  di-core
+      %+  poke-group  term
+      ^-  action:g
+      :+  group  now.bowl
+      [%channel [dap.bowl flag] %add channel]
+    ::
     ++  import-channel
       |=  =association:met:d
       =/  meta=data:meta:g
-        [title description '' '']
-      =/  =channel:g  
-        [meta now.bowl zone=%default %| ~]
-      %+  act-group  %import
-      [group.req now.bowl %channel nest %add channel]
+        [title description '' '']:metadatum.association
+      (create-channel %import group.association meta now.bowl zone=%default %| ~)
     ::
     ++  add-channel
       |=  req=create:d
-      =/  =channel:g  
-        =,(req [[title description '' ''] now.bowl %default | readers])
-      %+  act-group  %create
-      [group.req now.bowl %channel nest %add channel]
+      %+  create-channel  %create
+      [group.req =,(req [[title description '' ''] now.bowl %default | readers])]
+    ::
     --
   ++  di-init
     |=  req=create:d

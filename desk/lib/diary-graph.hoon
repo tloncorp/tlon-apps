@@ -237,17 +237,17 @@
   abet:~(main sing [[1 1] (trip str)] ~)
 ::  TODO: squeeze after parsing?
 ++  migrate
-  |=  ls=(list content:post)
+  |=  ls=(list content:post:gra:d)
   ^-  (list verse:d)
   %-  zing
   %+  turn  ls
-  |=  con=content:post
+  |=  con=content:post:gra:d
   ^-  (list verse:d)
   ?-  -.con
     %text       (ran text.con)
-    %mention    [%inline ~[text/(scot %p ship.con)]]~  :: TODO: i swear I PR'd ships
+    %mention    [%inline ~[`@t`(scot %p ship.con)]]~  :: TODO: i swear I PR'd ships
     %url        [%inline ~[link/[url.con '']]]~
-    %code       [%inline ~[code/p.cord]]~
+    %code       [%inline ~[code/expression.con]]~
     %reference  ~  :: TODO: think about?
   ==
 ::

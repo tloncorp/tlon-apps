@@ -1,4 +1,5 @@
 /-  g=groups, c=cite, graph-store
+/-  metadata-store
 /+  lib-graph=graph-store
 |%
 ::  $flag: identifier for a diary channel
@@ -274,7 +275,6 @@
   $:  %0
       =shelf
   ==
-++  met     metadata-store
 +$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
 ::
 +$  imports  (map flag import)
