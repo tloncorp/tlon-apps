@@ -159,7 +159,6 @@ export default function ChatScroller({
 
   useEffect(() => {
     const diff = mess.size - indexData.data.length;
-    // console.log(JSON.stringify(keys), JSON.stringify(mess), indexData, diff);
     if (diff !== 0) {
       setIndexData({
         firstItemIndex: indexData.firstItemIndex - diff,
