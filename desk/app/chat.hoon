@@ -391,6 +391,7 @@
   :: defends against shitty clients, bc we didn't enforce uniqueness last time
   :: but breaks referential transparency, so you can't quote migrated
   :: messages
+  :: XX: probably change?
   :-  [[author.pos time] ~ ~]
   [~ author.pos time-sent.pos (con:migrate contents.pos)]
 ::

@@ -84,10 +84,7 @@
   ?+    mark  ~|(bad-mark/mark !!)
       %holt  (holt |)
   ::
-      %group-import
-    =+  !<(=flag:g vase)
-    ?>  &(=(our.bowl p.flag) =(src our):bowl)
-    (group-import flag)
+      %group-import  (import-groups !<(imports:g vase))
 
   ::
       %group-leave
@@ -308,53 +305,39 @@
     =/  cage  group-invite+!>(`invite:g`[flag ship])
     =/  line  `wire`/gangs/(scot %p p.flag)/[q.flag]/invite
     [%pass line %agent [ship dap.bowl] %poke cage]
+
+++  import-groups
+  |=  =imports:g
+  ^+  cor
+  =/  imports  ~(tap by imports)
+  |-
+  ?~  imports  cor
+  =.  cor  (import-group i.imports)
+  $(imports t.imports)
 ::
-++  group-import
-  |=  =flag:g
+++  import-group
+  |=  [=flag:g =association:met:g =group:old:g]
   |^
   =/  =net:g  pub/~
-  =/  og=group:g-one  (need scry-group)
-  =/  om=associations:m-one  scry-meta
-  =/  =fleet:g
-    %-  ~(gas by *fleet:g)
-    %+  turn  ~(tap in members.og)
-    |=  =ship
-    ^-  [_ship vessel:fleet:g]
-    =-  [ship - now.bowl]
-    ?.  (~(has ju tags.og) %admin ship)
-      ~
-    (silt %admin ~)
   =|  cabals=(map sect:g cabal:g)
   =|  zones=(map zone:g realm:zone:g)
+  =|  =channels:channel:g
   =|  zone-ord=(list zone:g)
   =|  bloc=(set sect:g)  :: admin perms set up in +go-init at end
-  =/  =channels:channel:g
-    %-  ~(gas by *channels:channel:g)
-    %+  murn  ~(tap by om)
-    |=  [=md-resource:m-one =association:m-one]
-    ^-  (unit [nest:g channel:g])
-    ?:  =(%groups app-name.md-resource)
-      ~
-    ?~  dude=(graph-meta-to-agent metadatum.association)
-      ~
-    :-  ~
-    :-  [u.dude resource.md-resource]
-    =/  meta=data:meta
-      (old-to-new-meta metadatum.association)
-    :*  meta
-        added=date-created.metadatum.association
-        zone=%default
-        join=|
-        readers=~
-    ==
-  =/  =cordon:g  (policy-to-cordon policy.og)
+  =/  =cordon:g  (policy-to-cordon policy.group)
   =/  meta=data:meta
-    =-  (fall - [(crip "{(scow %p p.flag)}/{(scow %ta q.flag)}") '' '' ''])
-    (bind (~(get by om) [%groups flag]) old-assoc-to-new-meta)
+    (old-assoc-to-new-meta association)
+  =/  =fleet:g
+    %-  ~(gas by *fleet:g)
+    %+  turn  ~(tap in members.group)
+    |=  =ship
+    ^-  [_ship vessel:fleet:g]
+    [ship ~ now.bowl]
   =/  =group:g
     [fleet cabals zones zone-ord bloc channels cordon meta]
   =|  =log:g
   =.  log     (put:log-on:g log now.bowl create/group)
+  ~&  log
   =/  =net:g  pub/log
   =.  groups  (~(put by groups) flag [net group])
   go-abet:go-init:(go-abed:group-core flag) :: setup defaults
@@ -676,7 +659,9 @@
     ^+  go-core
     =.  go-core
       (go-tell-update time diff)
-    =?  net  ?=(?(%sub %load) -.net)  [%sub time]
+    =.  net  
+      ?:  ?=(?(%sub %load) -.net)  [%sub time]
+      pub/(put:log-on:g p.net time diff)
     ?-  -.diff
       %channel  (go-channel-update [p q]:diff)
       %fleet    (go-fleet-update [p q]:diff)
