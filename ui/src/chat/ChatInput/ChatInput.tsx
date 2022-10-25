@@ -1,5 +1,5 @@
 import { Editor } from '@tiptap/react';
-import { debounce, isEqual } from 'lodash';
+import { debounce, isEqual, findLast } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
@@ -22,6 +22,10 @@ import {
   tipTapToString,
 } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
+import AddIcon from '@/components/icons/AddIcon';
+import useFileUpload from '@/logic/useFileUpload';
+import { useFileStore } from '@/state/storage';
+import { isImageUrl } from '@/logic/utils';
 
 interface ChatInputProps {
   whom: string;
@@ -49,6 +53,11 @@ export default function ChatInput({
   const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
+  const { loaded, hasCredentials, promptUpload } = useFileUpload();
+  const fileId = 'chat-input';
+  const mostRecentFile = useFileStore((state) =>
+    findLast(state.files, ['for', fileId])
+  );
 
   const closeReply = useCallback(() => {
     useChatStore.getState().reply(whom, null);
@@ -89,25 +98,66 @@ export default function ChatInput({
         JSONToInlines(editor?.getJSON()) as Inline[]
       );
 
-      const memo: ChatMemo = {
-        replying: reply,
-        author: `~${window.ship || 'zod'}`,
-        sent: Date.now(),
-        content: {
-          story: {
-            inline: Array.isArray(data) ? data : [data],
-            block: blocks,
-          },
-        },
-      };
+      const text = editor.getText();
+      const textIsImageUrl = isImageUrl(text);
 
-      sendMessage(whom, memo);
+      if (textIsImageUrl) {
+        let url = text;
+        let name = 'chat-image';
+
+        if (mostRecentFile) {
+          url = mostRecentFile.url;
+          name = mostRecentFile.file.name;
+        }
+
+        const img = new Image();
+        img.src = url;
+
+        img.onload = () => {
+          const { width, height } = img;
+
+          sendMessage(whom, {
+            replying: reply,
+            author: `~${window.ship || 'zod'}`,
+            sent: Date.now(),
+            content: {
+              story: {
+                inline: [],
+                block: [
+                  {
+                    image: {
+                      src: url,
+                      alt: name,
+                      width,
+                      height,
+                    },
+                  },
+                ],
+              },
+            },
+          });
+        };
+      } else {
+        const memo: ChatMemo = {
+          replying: reply,
+          author: `~${window.ship || 'zod'}`,
+          sent: Date.now(),
+          content: {
+            story: {
+              inline: Array.isArray(data) ? data : [data],
+              block: blocks,
+            },
+          },
+        };
+
+        sendMessage(whom, memo);
+      }
       useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
       useChatStore.getState().setBlocks(whom, []);
     },
-    [reply, whom, sendMessage, closeReply]
+    [reply, whom, sendMessage, closeReply, mostRecentFile]
   );
 
   const messageEditor = useMessageEditor({
@@ -138,6 +188,14 @@ export default function ChatInput({
   }, [autoFocus, reply, messageEditor]);
 
   useEffect(() => {
+    if (mostRecentFile && messageEditor && !messageEditor.isDestroyed) {
+      const { url } = mostRecentFile;
+      messageEditor.commands.setContent(null);
+      messageEditor.commands.setContent(url);
+    }
+  }, [mostRecentFile, messageEditor]);
+
+  useEffect(() => {
     const draftIsJustBreak =
       // backend will sometimes send a draft with just a break if there is no draft
       draft.inline.length === 1 && isEqual(draft.inline[0], { break: null });
@@ -146,11 +204,18 @@ export default function ChatInput({
       draft.block.length === 0;
 
     if (draftEmpty && messageEditor && !messageEditor.isDestroyed) {
-      // if the draft is empty, clear the editor
-      messageEditor.commands.setContent(null, true);
+      if (mostRecentFile) {
+        // if there is a most recent file, we want to set the content to the url
+        const { url } = mostRecentFile;
+
+        messageEditor.commands.setContent(url);
+      } else {
+        // if the draft is empty, clear the editor
+        messageEditor.commands.setContent(null, true);
+      }
     }
 
-    if (!draftEmpty && messageEditor) {
+    if (!draftEmpty && messageEditor && !mostRecentFile) {
       const current = tipTapToString(messageEditor.getJSON());
       const draftString = tipTapToString(inlinesToJSON(draft.inline));
 
@@ -163,7 +228,7 @@ export default function ChatInput({
         messageEditor.commands.setContent(inlinesToJSON(draft.inline), true);
       }
     }
-  }, [draft, messageEditor]);
+  }, [draft, messageEditor, mostRecentFile]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -205,31 +270,17 @@ export default function ChatInput({
           <div className="flex items-center justify-end">
             <Avatar size="xs" ship={window.our} className="mr-2" />
             <MessageEditor editor={messageEditor} className="w-full" />
-            {/* <button
-              // this is not contained by relative because of a bug in radix popovers
-              title={'Insert Test Image'}
-              className="absolute mr-2 text-gray-600 hover:text-gray-800"
-              aria-label="Add attachment"
-              onClick={() => {
-                sendMessage(whom, {
-                  replying: null,
-                  author: `~${window.ship || 'zod'}`,
-                  sent: Date.now(),
-                  content: {
-                    story: {
-                      inline: [],
-                      block: [
-                        {
-                          image: randomElement<Image>(PLACEHOLDER_IMAGES),
-                        },
-                      ],
-                    },
-                  },
-                });
-              }}
-            >
-              <AddIcon className="h-6 w-4" />
-            </button> */}
+            {loaded && hasCredentials ? (
+              <button
+                // this is not contained by relative because of a bug in radix popovers
+                title={'Insert Test Image'}
+                className="absolute mr-2 text-gray-600 hover:text-gray-800"
+                aria-label="Add attachment"
+                onClick={() => promptUpload(fileId)}
+              >
+                <AddIcon className="h-6 w-4" />
+              </button>
+            ) : null}
           </div>
         </div>
         <button

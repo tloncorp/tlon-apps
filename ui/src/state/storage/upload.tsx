@@ -11,7 +11,7 @@ export function prefixEndpoint(endpoint: string) {
 export const useFileStore = create<FileStore>((set) => ({
   client: null,
   status: 'initial',
-  files: {},
+  files: null,
   createClient: (credentials: S3Credentials) => {
     const endpoint = new URL(prefixEndpoint(credentials.endpoint));
     const client = new S3Client({
@@ -20,7 +20,9 @@ export const useFileStore = create<FileStore>((set) => ({
         hostname: endpoint.host,
         path: endpoint.pathname || '/',
       },
-      region: 'global',
+      // this is necessary for compatibility with other S3 providers
+      region: 'us-east-1',
+      apiVersion: '2006-03-01',
       credentials,
       forcePathStyle: true,
     });
