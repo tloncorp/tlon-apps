@@ -16,9 +16,9 @@ export default function NewGroupForm({
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex flex-col">
-        <span className="text-lg font-bold">Group Info</span>
-        <span className="pt-1 font-bold text-gray-600">
-          Fill out information about your group
+        <span className="text-lg font-bold">New Group: Group Info</span>
+        <span className="pt-1 text-gray-600">
+          Provide basic details to distinguish your group
         </span>
       </div>
       <GroupInfoFields />
