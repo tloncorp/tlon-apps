@@ -327,11 +327,6 @@ export function useBriefs() {
   return useHeapState(useCallback((s: HeapState) => s.briefs, []));
 }
 
-export function useHeapDisplayMode(flag: string): HeapDisplayMode {
-  const heap = useHeap(flag);
-  return heap?.view ?? GRID;
-}
-
 export function useOrderedCurios(
   flag: HeapFlag,
   currentId: bigInt.BigInteger | string

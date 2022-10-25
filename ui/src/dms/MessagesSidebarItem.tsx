@@ -8,10 +8,8 @@ import { ChatBrief } from '../types/chat';
 import { useMultiDm } from '../state/chat';
 import { useChannel, useGroup, useGroupState } from '../state/groups/groups';
 import { useIsMobile } from '../logic/useMedia';
-import useNavStore from '../components/Nav/useNavStore';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
-import BulletIcon from '../components/icons/BulletIcon';
 import MultiDmAvatar from './MultiDmAvatar';
 import { whomIsDm, whomIsMultiDm } from '../logic/utils';
 
@@ -26,8 +24,6 @@ function ChannelSidebarItem({
   brief,
   pending,
 }: MessagesSidebarItemProps) {
-  const isMobile = useIsMobile();
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
   const groups = useGroupState((s) => s.groups);
   const nest = `chat/${whom}`;
   const groupFlag = Object.entries(groups).find(
@@ -45,7 +41,6 @@ function ChannelSidebarItem({
       to={`/groups/${groupFlag}/channels/${whom}`}
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
       actions={<DmOptions whom={whom} pending={!!pending} />}
-      onClick={() => isMobile && navPrimary('hidden')}
     >
       {channel.meta.title}
     </SidebarItem>
@@ -54,14 +49,12 @@ function ChannelSidebarItem({
 
 function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
   const isMobile = useIsMobile();
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
 
   return (
     <SidebarItem
       to={`/dm/${whom}`}
       icon={<Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />}
       actions={<DmOptions whom={whom} pending={!!pending} />}
-      onClick={() => isMobile && navPrimary('hidden')}
     >
       <ShipName
         className="w-full truncate font-semibold"
@@ -78,7 +71,6 @@ export function MultiDMSidebarItem({
   pending,
 }: MessagesSidebarItemProps) {
   const isMobile = useIsMobile();
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
   const club = useMultiDm(whom);
   const allMembers = club?.team.concat(club.hive);
   const groupName = club?.meta.title || allMembers?.join(', ') || whom;
@@ -102,7 +94,6 @@ export function MultiDMSidebarItem({
         )
       }
       actions={<DmOptions whom={whom} pending={!!pending} isMulti />}
-      onClick={() => isMobile && navPrimary('hidden')}
     >
       {groupName}
     </SidebarItem>

@@ -16,7 +16,10 @@ export type Ship = string;
 
 export const GRID = 'grid';
 export const LIST = 'list';
+export const TIME = 'time';
+export const ALPHA = 'alpha';
 export type HeapDisplayMode = typeof GRID | typeof LIST;
+export type HeapSortMode = typeof TIME | typeof ALPHA;
 
 export type HeapInline =
   | string

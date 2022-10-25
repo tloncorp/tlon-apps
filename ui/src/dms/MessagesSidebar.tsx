@@ -2,7 +2,6 @@ import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
-import { useIsMobile } from '@/logic/useMedia';
 import Filter16Icon from '@/components/icons/Filter16Icon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import { useBriefs, usePinned } from '@/state/chat';
@@ -16,7 +15,6 @@ import {
   SidebarFilter,
   SettingsState,
 } from '@/state/settings';
-import MobileMessagesSidebar from './MobileMessagesSidebar';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
@@ -25,7 +23,6 @@ const selMessagesFilter = (s: SettingsState) => ({
 });
 
 export default function MessagesSidebar() {
-  const isMobile = useIsMobile();
   const { messagesFilter } = useSettingsState(selMessagesFilter);
   const briefs = useBriefs();
   const pinned = usePinned();
@@ -33,10 +30,6 @@ export default function MessagesSidebar() {
   const setFilterMode = (mode: SidebarFilter) => {
     useSettingsState.getState().putEntry('talk', 'messagesFilter', mode);
   };
-
-  if (isMobile) {
-    return <MobileMessagesSidebar />;
-  }
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">

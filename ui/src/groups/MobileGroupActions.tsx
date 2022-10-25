@@ -6,7 +6,6 @@ import PersonIcon from '@/components/icons/PersonIcon';
 import SlidersIcon from '@/components/icons/SlidersIcon';
 import { useGroupActions } from '@/groups/GroupActions';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import useNavStore from '@/components/Nav/useNavStore';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 
 interface MobileGroupActionsProps {
@@ -18,9 +17,6 @@ const { ship } = window;
 export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
   const location = useLocation();
   const { onCopy, copyItemText } = useGroupActions(flag);
-  const { navPrimary } = useNavStore((state) => ({
-    navPrimary: state.navigatePrimary,
-  }));
 
   return (
     <nav>
@@ -55,7 +51,6 @@ export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
               <PersonIcon className="h-6 w-6" />
             </div>
           }
-          onClick={() => navPrimary('hidden')}
         >
           Members &amp; Group Info
         </SidebarItem>

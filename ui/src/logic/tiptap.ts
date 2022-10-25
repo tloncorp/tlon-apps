@@ -1,5 +1,5 @@
 import { Inline, InlineKey } from '@/types/content';
-import { reduce } from 'lodash';
+import { reduce, isEqual } from 'lodash';
 import { JSONContent } from '@tiptap/react';
 import {
   Editor,
@@ -489,7 +489,23 @@ export const blockToContent = (content: DiaryBlock): JSONContent => {
  * @returns A JSONContent object (consumed by TipTap Editor to render rich text)
  */
 export function inlinesToJSON(message: Inline[]): JSONContent {
-  const parsedContent = message.map((m) => inlineToContent(m));
+  const contentIsEmpty = (m: Inline) => isEqual(m, { break: null });
+
+  const parsedContent = message
+    // remove empty paragraphs from the end of the message
+    .filter((m, i) => !(contentIsEmpty(m) && i === message.length - 1))
+    // remove empty paragraphs from the end of blockquotes
+    .map((m) => {
+      if (typeof m === 'object' && 'blockquote' in m) {
+        return {
+          blockquote: m.blockquote.filter(
+            (bq, i) => !(contentIsEmpty(bq) && i === m.blockquote.length - 1)
+          ),
+        };
+      }
+      return m;
+    })
+    .map((m) => inlineToContent(m));
 
   return {
     type: 'doc',

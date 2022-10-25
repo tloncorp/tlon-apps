@@ -3,11 +3,7 @@ import cn from 'classnames';
 import { intersection } from 'lodash';
 import { useForm } from 'react-hook-form';
 import LinkIcon from '@/components/icons/LinkIcon';
-import {
-  useHeapDisplayMode,
-  useHeapPerms,
-  useHeapState,
-} from '@/state/heap/heap';
+import { useHeapPerms, useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import { isValidUrl, nestToFlag } from '@/logic/utils';
 import { useRouteGroup, useVessel } from '@/state/groups';
@@ -22,6 +18,7 @@ import {
   NewCurioFormSchema,
   TEXT,
 } from '@/types/heap';
+import { useHeapDisplayMode } from '@/state/settings';
 import HeapTextInput from './HeapTextInput';
 
 export default function NewCurioForm() {
