@@ -27,8 +27,16 @@
   ::
   ++  jack
     |=  v=versioned-state
+    =*  old  +.v
     ?-  -.v
-      %0  [%1 cool=*epic:e +.v]
+      %0
+        =.  groups.old  
+          %-  ~(run by groups.old) 
+          |=  [=net:g g=group:g] 
+          ?.  ?=(%sub -.net)  [net g]
+          [[%sub p.net [%chi ~]] g]
+        [%1 cool=*epic:e old]
+      ::
       %1  v
     ==
   ::
