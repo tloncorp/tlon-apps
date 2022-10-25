@@ -30,11 +30,15 @@
       sent=time-sent.p
       contents=(con contents.p)
   ==
+
 ++  con
   |=  cs=(list content:gra)
   ^-  content:c
-  =;  mes=(list inline:c)
-    story/[~ mes]
+  story/[~ (inline cs)]
+::
+++  inline
+  |=  cs=(list content:gra)
+  ^-  (list inline:c)
   %+  turn  cs
   |=  con=content:gra
   ^-  inline:c

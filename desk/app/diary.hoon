@@ -5,6 +5,7 @@
 /+  qup=quips
 /+  diary-json
 /+  migrate=diary-graph
+/+  chat-migrate=chat-graph
 ^-  agent:gall
 =>
   |%
@@ -239,7 +240,6 @@
         %time
         graph-to-notes
         *remark:d
-        banter=*(map time quips:d)
     ==
   =.  shelf  (~(put by shelf) flag diary)
   di-abet:(di-import:(di-abed:di-core:out flag) writers association) ::
@@ -250,39 +250,77 @@
   ::
   ++  graph-to-notes
     %+  gas:on:notes:d  *notes:d
-    %+  turn  (tap:orm-gra:d graph)
+    %+  murn  (tap:orm-gra:d graph)
     |=  [=time =node:gra:d]
-    ^-  [_time note:d]
-    [time (node-to-note time node)]
+    ^-  (unit [_time note:d])
+    ?~  not=(node-to-note time node)
+      ~
+    `[time u.not]
   ++  orm  orm-gra:d
+  ++  node-to-children
+    |=  =node:gra:d
+    ^-  (unit graph:gra:d)
+    ?.  ?=(%graph -.children.node)
+      ~
+    `p.children.node
+  ::
+  ++  node-to-post
+    |=  =node:gra:d
+    ^-  (unit post:gra:d)
+    ?.  ?=(%& -.post.node)
+      ~
+    `p.post.node
+  ::
+  ++  get-latest-post
+    |=  =node:gra:d
+    ^-  (unit post:gra:d)
+    ;<  =graph:gra:d           _biff   (node-to-children node)
+    ;<  nod=node:gra:d         _biff   (get:orm graph 1)
+    ;<  revs=graph:gra:d       _biff   (node-to-children nod)
+    ;<  [@ recent=node:gra:d]  _biff   (pry:orm revs)
+    (node-to-post recent)
   ::  TODO: review crashing semantics
   ::        check graph ordering (backwards iirc)
   ++  node-to-note
     |=  [=time =node:gra:d]
-    ^-  note:d
-    =/  =seal:d  [time ~]
-    ?>  ?=(%graph -.children.node)
-    ?>  ?=(%& -.post.node)
-    =/  pos=post:gra:d
-      =/  post-outer  (need (get:orm p.children.node 1))
-      ?>  ?=(%graph -.children.post-outer)
-      =/  nod  val:(need (pry:orm p.children.post-outer))
-      ?>  ?=(%& -.post.nod)
-      p.post.nod
-    =/  =com=node:gra:d
-      (need (get:orm p.children.node 2))
+    ^-  (unit note:d)
+    ?~  pos=(get-latest-post node)
+      ~
+    ::  =/  coms=(note-to-quips)
+    =/  =seal:d  [time ~ ~]
     ::  =/  comments  (node-to-comments com-node)
-    ?>  ?=([[%text *] *] contents.pos)
-    =/  con=(list verse:d)  (migrate t.contents.pos)
+    ?.  ?=([[%text *] *] contents.u.pos)
+      ~  :: XX: should be invariant, don't want to risk it
+    =/  con=(list verse:d)  (migrate t.contents.u.pos)
     =/  =essay:d
-      =,(pos [text.i.contents '' con author time-sent])
-    [seal essay]
+      =,(u.pos [text.i.contents '' con author time-sent])
+    `[seal essay]
   ::
   ++  node-to-quips
-    |=  =quips:d
-    !!
+    |=  =node:gra:d
+    ^-  quips:d
+    =/  coms=(unit graph:gra:d)
+      ;<  =graph:gra:d      _biff  (node-to-children node)
+      ;<  coms=node:gra:d   _biff  (get:orm graph 2)
+      (node-to-children coms)
+    %+  gas:on:quips:d  *quips:d
+    %+  murn  ?~(coms ~ (tap:orm u.coms))
+    |=  [=time =node:gra:d]
+    ?~  qup=(node-to-quip time node)
+      ~
+    `[time u.qup]
+  ::
+  ++  node-to-quip
+    |=  [=time =node:gra:d]
+    ^-  (unit quip:d)
+    ;<  =graph:gra:d           _biff  (node-to-children node)
+    ;<  [@ latest=node:gra:d]  _biff  (pry:orm graph)
+    ;<  =post:gra:d            _biff  (node-to-post latest)
+    =/  =cork:d  [time ~]
+    =/  =memo:d  =,(post [[~ (inline:chat-migrate contents)] author time-sent])
+    `[cork memo]
   --
-
+::
 ++  watch
   |=  =path
   ^+  cor

@@ -188,6 +188,7 @@
       [%strike p=(list inline)]
       [%blockquote p=(list inline)]
       [%inline-code p=cord]
+      [%ship p=ship]
       [%block p=@ud q=cord]
       [%code p=cord]
       [%tag p=cord]

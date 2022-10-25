@@ -411,7 +411,7 @@
     :_  group.association
     ?:(=(~ writers) ~ (silt (rap 3 %chat '-' (scot %p p.flag) '-' q.flag ~) ~))
   =/  =chat:c
-    :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
+    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag chi/~])
         *remark:c  ::  TODO:
         log=(import-log update-log)
         perm
@@ -432,7 +432,7 @@
   ^+  cor
   =.  chats
     %+  ~(put by chats)  flag
-    :*  net=?:(=(p.flag our.bowl) pub/~ sub/p.flag)
+    :*  net=?:(=(p.flag our.bowl) pub/~ sub/[p.flag chi/~])
         *remark:c
         *log:c  :: TODO:
         perm=`grp
