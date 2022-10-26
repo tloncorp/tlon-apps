@@ -133,13 +133,11 @@ export default function NewGroup() {
           <div className="flex flex-col">{currentStepComponent}</div>
         </FormProvider>
         <div className="flex flex-col items-center pt-4">
-          {currentStep !== 1 ? (
-            <NavigationDots
-              maxStep={maxStep - 1}
-              currentStep={currentStep - 1}
-              setStep={(step) => setStep(step + 1)}
-            />
-          ) : null}
+          <NavigationDots
+            maxStep={maxStep}
+            currentStep={currentStep}
+            setStep={(step) => setStep(step + 1)}
+          />
         </div>
       </DialogContent>
     </Dialog>

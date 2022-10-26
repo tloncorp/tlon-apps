@@ -1,4 +1,5 @@
 import React from 'react';
+import { useDismissNavigate } from '@/logic/routing';
 import GroupInfoFields from '../GroupInfoFields';
 
 interface NewGroupFormProps {
@@ -13,6 +14,7 @@ export default function NewGroupForm({
   // goToPrevStep,
   goToNextStep,
 }: NewGroupFormProps) {
+  const cancel = useDismissNavigate();
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex flex-col">
@@ -23,11 +25,11 @@ export default function NewGroupForm({
       </div>
       <GroupInfoFields />
       <div className="flex justify-end space-x-2 pt-4">
-        {/* <button className="secondary-button" onClick={goToPrevStep}>
-          Back
-        </button> */}
+        <button className="secondary-button" onClick={cancel}>
+          Cancel
+        </button>
         <button disabled={!isValid} className="button" onClick={goToNextStep}>
-          Next
+          Next: Privacy
         </button>
       </div>
     </div>

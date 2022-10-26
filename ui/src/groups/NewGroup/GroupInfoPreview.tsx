@@ -29,7 +29,6 @@ export default function GroupInfoPreview({
   iconLetter,
   showCoverEmpty,
 }: GroupInfoPreviewProps) {
-  console.log(watchCover);
   return (
     <div
       className={cn(
@@ -48,22 +47,26 @@ export default function GroupInfoPreview({
         />
       ) : null}
       <div className="relative flex w-full flex-col justify-between p-2 text-lg sm:text-base">
-        <div className="flex w-full items-center">
-          {iconType === 'color' ? (
-            <ColorBoxIcon
-              className="h-6 w-6 text-lg"
-              color={watchImage ? watchImage : '#000000'}
-              letter={iconLetter ? iconLetter : 'T'}
-            />
-          ) : null}
-          {iconType === 'image' && isValidUrl(watchImage) ? (
-            <GroupAvatar size=" h-6 w-6" image={watchImage} />
-          ) : null}
-          {showEmpty ? (
-            <EmptyIconBox className=" h-6 w-6 text-gray-300" />
-          ) : null}
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center">
+            {iconType === 'color' ? (
+              <ColorBoxIcon
+                className="h-6 w-6 text-lg"
+                color={watchImage ? watchImage : '#000000'}
+                letter={iconLetter ? iconLetter : 'T'}
+              />
+            ) : null}
+            {iconType === 'image' && isValidUrl(watchImage) ? (
+              <GroupAvatar size=" h-6 w-6" image={watchImage} />
+            ) : null}
+            {showEmpty ? (
+              <EmptyIconBox className=" h-6 w-6 text-gray-300" />
+            ) : null}
+          </div>
+          <div className="w-full truncate text-left font-semibold text-gray-500">
+            {watchTitle}
+          </div>
         </div>
-        <div className="text-gray-500">{watchTitle}</div>
       </div>
     </div>
   );
