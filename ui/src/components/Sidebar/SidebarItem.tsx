@@ -12,6 +12,7 @@ import { isColor } from '@/logic/utils';
 type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   to?: string;
+  defaultRoute?: boolean;
   actions?: React.ReactNode;
   // This is used for links we want to keep in an
   // "active" state even if the route is deeper than
@@ -50,11 +51,12 @@ export default function SidebarItem({
   children,
   inexact = false,
   div = false,
+  defaultRoute = false,
   ...rest
 }: SidebarProps) {
   const matchString = to && inexact ? `${to}/*` : to;
   const [hover, setHover] = useState(false);
-  const matches = useMatch(matchString || 'DONT_MATCH');
+  const matches = useMatch((defaultRoute ? '/' : matchString) || 'DONT_MATCH');
   const active = !!matches;
   const Wrapper = div ? 'div' : 'li';
   const currentTheme = useCurrentTheme();

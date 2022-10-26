@@ -2,29 +2,34 @@ import React from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
-import { useIsMobile } from '@/logic/useMedia';
 import Filter16Icon from '@/components/icons/Filter16Icon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import { useBriefs, usePinned } from '@/state/chat';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
-import { useNotifications } from '@/notifications/useNotifications';
 import TalkIcon from '@/components/icons/TalkIcon';
-import MobileMessagesSidebar from './MobileMessagesSidebar';
+import {
+  filters,
+  useSettingsState,
+  SidebarFilter,
+  SettingsState,
+} from '@/state/settings';
 import MessagesList from './MessagesList';
-import useMessagesFilter, { filters } from './useMessagesFilter';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
+const selMessagesFilter = (s: SettingsState) => ({
+  messagesFilter: s.talk.messagesFilter,
+});
+
 export default function MessagesSidebar() {
-  const isMobile = useIsMobile();
-  const { filter, setFilter } = useMessagesFilter();
+  const { messagesFilter } = useSettingsState(selMessagesFilter);
   const briefs = useBriefs();
   const pinned = usePinned();
 
-  if (isMobile) {
-    return <MobileMessagesSidebar />;
-  }
+  const setFilterMode = (mode: SidebarFilter) => {
+    useSettingsState.getState().putEntry('talk', 'messagesFilter', mode);
+  };
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
@@ -78,7 +83,7 @@ export default function MessagesSidebar() {
             >
               <span className="flex items-center">
                 <Filter16Icon className="w-4 text-gray-400" />
-                <span className="pl-1">Filter: {filter}</span>
+                <span className="pl-1">Filter: {messagesFilter}</span>
               </span>
               <CaretDown16Icon className="w-4 text-gray-400" />
             </DropdownMenu.Trigger>
@@ -86,27 +91,28 @@ export default function MessagesSidebar() {
               <DropdownMenu.Item
                 className={cn(
                   'dropdown-item flex items-center space-x-2 rounded-none',
-                  filter === filters.all && 'bg-gray-50 text-gray-800'
+                  messagesFilter === filters.all && 'bg-gray-50 text-gray-800'
                 )}
-                onClick={() => setFilter(filters.all)}
+                onClick={() => setFilterMode(filters.all)}
               >
                 All Messages
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 className={cn(
                   'dropdown-item flex items-center space-x-2 rounded-none',
-                  filter === filters.dms && 'bg-gray-50 text-gray-800'
+                  messagesFilter === filters.dms && 'bg-gray-50 text-gray-800'
                 )}
-                onClick={() => setFilter(filters.dms)}
+                onClick={() => setFilterMode(filters.dms)}
               >
                 Direct Messages
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 className={cn(
                   'dropdown-item flex items-center space-x-2 rounded-none',
-                  filter === filters.groups && 'bg-gray-50 text-gray-800'
+                  messagesFilter === filters.groups &&
+                    'bg-gray-50 text-gray-800'
                 )}
-                onClick={() => setFilter(filters.groups)}
+                onClick={() => setFilterMode(filters.groups)}
               >
                 Group Channels
               </DropdownMenu.Item>
@@ -114,7 +120,7 @@ export default function MessagesSidebar() {
           </DropdownMenu.Root>
         </li>
       </ul>
-      <MessagesList filter={filter} />
+      <MessagesList filter={messagesFilter} />
     </nav>
   );
 }

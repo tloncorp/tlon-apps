@@ -126,18 +126,27 @@ export default function ChatScroller({
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
   const [fetching, setFetching] = useState<FetchingState>('initial');
 
-  const keys = messages
-    .keys()
-    .reverse()
-    .filter((k) => {
-      if (replying) {
-        return true;
-      }
-      return messages.get(k)?.memo.replying === null;
-    });
-  const mess = keys.reduce(
-    (acc, val) => acc.set(val, messages.get(val)),
-    new BigIntOrderedMap<ChatWrit>()
+  const keys = useMemo(
+    () =>
+      messages
+        .keys()
+        .reverse()
+        .filter((k) => {
+          if (replying) {
+            return true;
+          }
+          return messages.get(k)?.memo.replying === null;
+        }),
+    [messages, replying]
+  );
+
+  const mess = useMemo(
+    () =>
+      keys.reduce(
+        (acc, val) => acc.set(val, messages.get(val)),
+        new BigIntOrderedMap<ChatWrit>()
+      ),
+    [keys, messages]
   );
 
   const [indexData, setIndexData] = useState<{

@@ -1,6 +1,7 @@
 import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router';
 import Dialog, {
   DialogClose,
   DialogContent,
@@ -8,14 +9,11 @@ import Dialog, {
 } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
 import {
-  Cordon,
   GroupFormSchema,
   GroupMeta,
   PrivacyType,
   ViewProps,
 } from '@/types/groups';
-import { useNavigate } from 'react-router';
-import useNavStore from '@/components/Nav/useNavStore';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import GroupInfoFields from '../GroupInfoFields';
 import PrivacySelector from '../PrivacySelector';
@@ -65,7 +63,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const onDelete = useCallback(() => {
     useGroupState.getState().delete(groupFlag);
     navigate('/');
-    useNavStore.getState().navigatePrimary('main');
   }, [groupFlag, navigate]);
 
   const onSubmit = useCallback(

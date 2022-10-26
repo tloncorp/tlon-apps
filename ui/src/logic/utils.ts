@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
 import { BigInteger } from 'big-integer';
 import { unixToDa } from '@urbit/api';
@@ -396,4 +397,45 @@ export function pathToCite(path: string): Cite | undefined {
     };
   }
   return undefined;
+}
+
+export function writeText(str: string | null): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const range = document.createRange();
+    range.selectNodeContents(document.body);
+    document?.getSelection()?.addRange(range);
+
+    let success = false;
+    function listener(e: any) {
+      e.clipboardData.setData('text/plain', str);
+      e.preventDefault();
+      success = true;
+    }
+    document.addEventListener('copy', listener);
+    document.execCommand('copy');
+    document.removeEventListener('copy', listener);
+
+    document?.getSelection()?.removeAllRanges();
+
+    if (success) {
+      resolve();
+    } else {
+      reject();
+    }
+  }).catch((error) => {
+    console.error(error);
+  });
+}
+
+export function useCopy(copied: string) {
+  const [didCopy, setDidCopy] = useState(false);
+  const doCopy = useCallback(() => {
+    writeText(copied);
+    setDidCopy(true);
+    setTimeout(() => {
+      setDidCopy(false);
+    }, 2000);
+  }, [copied]);
+
+  return { doCopy, didCopy };
 }

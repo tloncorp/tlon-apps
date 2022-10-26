@@ -39,8 +39,8 @@ export default function useChannelSort() {
   };
 
   const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({
-    defaultSort: DEFAULT,
     sortOptions,
+    flag: groupFlag,
   });
 
   function sortChannels(channels: Channels) {

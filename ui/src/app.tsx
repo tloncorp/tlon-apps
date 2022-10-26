@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { PropsWithChildren, Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
@@ -16,11 +16,10 @@ import Channel from '@/channels/Channel';
 import { useGroupState } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import api, { IS_MOCK } from '@/api';
-import Dms from '@/pages/Dms';
-import Search from '@/pages/Search';
-import NewDM from '@/pages/NewDm';
+import Dms from '@/dms/Dms';
+import NewDM from '@/dms/NewDm';
 import { DmThread, GroupChatThread } from '@/chat/ChatThread/ChatThread';
-import useMedia from '@/logic/useMedia';
+import useMedia, { useIsMobile } from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
@@ -28,7 +27,7 @@ import { useLocalState } from '@/state/local';
 import useContactState from '@/state/contact';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
-import Nav from '@/components/Nav/Nav';
+import GroupsNav from '@/nav/GroupsNav';
 import GroupInviteDialog from '@/groups/GroupInviteDialog';
 import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
@@ -52,7 +51,10 @@ import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { useHeapState } from './state/heap/heap';
 import { useDiaryState } from './state/diary';
 import useHarkState from './state/hark';
-import Notifications from './notifications/Notifications';
+import Notifications, {
+  GroupWrapper,
+  MainWrapper,
+} from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
@@ -64,6 +66,12 @@ import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 import AlphaNotice from './components/AlphaNotice';
+import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
+import TalkNav from './nav/TalkNav';
+import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
+import MobileSidebar from './components/Sidebar/MobileSidebar';
+import MobileGroupsNavHome from './nav/MobileRoot';
+import MobileGroupRoot from './nav/MobileGroupRoot';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -98,14 +106,18 @@ const appHead = (appName: string) => {
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
   location: Location;
+  isMobile: boolean;
 }
 
-function ChatRoutes({ state, location }: RoutesProps) {
+function ChatRoutes({ state, location, isMobile }: RoutesProps) {
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
-        <Route element={<Nav />}>
-          <Route index element={<DMHome />} />
+        <Route element={<TalkNav />}>
+          <Route
+            index
+            element={isMobile ? <MobileMessagesSidebar /> : <DMHome />}
+          />
           <Route
             path="/notifications"
             element={
@@ -119,7 +131,6 @@ function ChatRoutes({ state, location }: RoutesProps) {
             <Route index element={<DMHome />} />
             <Route path="new" element={<NewDM />} />
             <Route path=":ship" element={<Message />}>
-              <Route path="search" element={<Search />} />
               <Route path="message/:idShip/:idTime" element={<DmThread />} />
             </Route>
           </Route>
@@ -163,88 +174,111 @@ function ChatRoutes({ state, location }: RoutesProps) {
   );
 }
 
-function GroupsRoutes({ state, location }: RoutesProps) {
+function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
-        <Route element={<Nav />}>
-          <Route
-            index
-            element={
-              <Notifications
-                child={GroupNotification}
-                title={`All Notifications • ${appHead('').title}`}
-              />
-            }
-          />
-          <Route
-            path="/notifications"
-            element={
-              <Notifications
-                child={GroupNotification}
-                title={`All Notifications • ${appHead('').title}`}
-              />
-            }
-          />
-          {/* Find by Invite URL */}
-          <Route
-            path="/groups/find/:ship/:name"
-            element={
-              <FindGroups title={`Find Groups • ${appHead('').title}`} />
-            }
-          />
-          {/* Find by Nickname or @p */}
-          <Route
-            path="/groups/find/:ship"
-            element={
-              <FindGroups title={`Find Groups • ${appHead('').title}`} />
-            }
-          />
-          <Route
-            path="/groups/find"
-            element={
-              <FindGroups title={`Find Groups • ${appHead('').title}`} />
-            }
-          />
-          <Route path="/groups/:ship/:name" element={<Groups />} />
-          <Route path="/groups/:ship/:name/*" element={<Groups />}>
+        <Route element={<GroupsNav />}>
+          <Route element={isMobile ? <MobileSidebar /> : undefined}>
             <Route
-              path="activity"
+              index
               element={
-                <Notifications
-                  child={GroupNotification}
-                  title={`• ${appHead('').title}`}
-                />
+                isMobile ? (
+                  <MobileGroupsNavHome />
+                ) : (
+                  <Notifications
+                    child={GroupNotification}
+                    title={`All Notifications • ${appHead('').title}`}
+                  />
+                )
               }
             />
-            <Route path="info" element={<GroupAdmin />}>
+            <Route
+              path="/notifications"
+              element={
+                <MainWrapper isMobile={isMobile}>
+                  <Notifications
+                    child={GroupNotification}
+                    title={`All Notifications • ${appHead('').title}`}
+                  />
+                </MainWrapper>
+              }
+            />
+            {/* Find by Invite URL */}
+            <Route
+              path="/find/:ship/:name"
+              element={
+                <FindGroups title={`Find Groups • ${appHead('').title}`} />
+              }
+            />
+            {/* Find by Nickname or @p */}
+            <Route
+              path="/find/:ship"
+              element={
+                <FindGroups title={`Find Groups • ${appHead('').title}`} />
+              }
+            />
+            <Route
+              path="/find"
+              element={
+                <FindGroups title={`Find Groups • ${appHead('').title}`} />
+              }
+            />
+            <Route
+              path="/profile/edit"
+              element={
+                <EditProfile title={`Edit Profile • ${appHead('').title}`} />
+              }
+            />
+          </Route>
+          <Route path="/groups/:ship/:name" element={<Groups />}>
+            <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
+              <Route index element={<MobileGroupRoot />} />
               <Route
-                index
-                element={<GroupInfo title={`• ${appHead('').title}`} />}
+                path="activity"
+                element={
+                  <GroupWrapper isMobile={isMobile}>
+                    <Notifications
+                      child={GroupNotification}
+                      title={`• ${appHead('').title}`}
+                    />
+                  </GroupWrapper>
+                }
               />
-              <Route
-                path="members"
-                element={<GroupMembers title={`• ${appHead('').title}`} />}
-              >
-                <Route index element={<GroupMemberManager />} />
-                <Route path="pending" element={<GroupPendingManager />} />
-                <Route path="banned" element={<div />} />
+              <Route path="info" element={<GroupAdmin />}>
+                <Route
+                  index
+                  element={<GroupInfo title={`• ${appHead('').title}`} />}
+                />
+                <Route
+                  path="members"
+                  element={<GroupMembers title={`• ${appHead('').title}`} />}
+                >
+                  <Route index element={<GroupMemberManager />} />
+                  <Route path="pending" element={<GroupPendingManager />} />
+                  <Route path="banned" element={<div />} />
+                </Route>
+                <Route
+                  path="channels"
+                  element={
+                    <GroupChannelManager title={`• ${appHead('').title}`} />
+                  }
+                />
               </Route>
               <Route
                 path="channels"
-                element={
-                  <GroupChannelManager title={`• ${appHead('').title}`} />
-                }
+                element={<ChannelIndex title={` • ${appHead('').title}`} />}
               />
             </Route>
             <Route
               path="channels/join/:app/:chShip/:chName"
               element={<Channel />}
             />
-            <Route
-              path="channels/chat/:chShip/:chName"
-              element={<ChatChannel title={` • ${appHead('').title}`} />}
-            >
+            <Route path="channels/chat/:chShip/:chName">
+              <Route
+                index
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
+              />
               <Route
                 path="message/:idShip/:idTime"
                 element={<GroupChatThread />}
@@ -265,17 +299,7 @@ function GroupsRoutes({ state, location }: RoutesProps) {
                 <Route path=":id" element={SuspendedDiaryAddNote} />
               </Route>
             </Route>
-            <Route
-              path="channels"
-              element={<ChannelIndex title={` • ${appHead('').title}`} />}
-            />
           </Route>
-          <Route
-            path="/profile/edit"
-            element={
-              <EditProfile title={`Edit Profile • ${appHead('').title}`} />
-            }
-          />
         </Route>
       </Routes>
       {state?.backgroundLocation ? (
@@ -346,6 +370,7 @@ function App() {
   const handleError = useErrorHandler();
   const location = useLocation();
   const isChat = useIsChat();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     handleError(() => {
@@ -379,9 +404,9 @@ function App() {
     <div className="flex h-full w-full flex-col">
       <AlphaNotice />
       {isChat ? (
-        <ChatRoutes state={state} location={location} />
+        <ChatRoutes state={state} location={location} isMobile={isMobile} />
       ) : (
-        <GroupsRoutes state={state} location={location} />
+        <GroupsRoutes state={state} location={location} isMobile={isMobile} />
       )}
     </div>
   );

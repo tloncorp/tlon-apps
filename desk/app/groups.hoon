@@ -1320,7 +1320,7 @@
           ?:  from-self  ga-core
           ?~  pev.gang   ga-core
           ?~  vit.gang   ga-core
-          =/  link  /groups/find
+          =/  link  /find
           =/  yarn
             %-  spin
             :*  [`flag ~ q.byk.bowl /(scot %p p.flag)/[q.flag]/invite]

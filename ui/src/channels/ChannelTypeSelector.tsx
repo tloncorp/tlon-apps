@@ -69,7 +69,7 @@ function ChannelTypeSelection({ type }: ChannelTypeSelectionProps) {
         </div>
       </div>
       <input
-        {...register('type')}
+        {...register('type', { required: false })}
         className="sr-only"
         type="radio"
         value={type}

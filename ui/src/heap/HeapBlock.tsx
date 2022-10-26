@@ -42,7 +42,7 @@ function TopBar({
 }: TopBarProps) {
   const nest = useNest();
   const {
-    justCopied,
+    didCopy,
     menuOpen,
     setMenuOpen,
     onDelete,
@@ -80,7 +80,7 @@ function TopBar({
           ) : (
             <IconButton
               icon={
-                justCopied ? (
+                didCopy ? (
                   <CheckIcon className="h-4 w-4" />
                 ) : (
                   <CopyIcon className="h-4 w-4" />
@@ -120,9 +120,9 @@ function TopBar({
               <button
                 className="small-menu-button"
                 onClick={onCopy}
-                disabled={justCopied}
+                disabled={didCopy}
               >
-                {justCopied ? 'Copied' : 'Share'}
+                {didCopy ? 'Copied' : 'Share'}
               </button>
             ) : null}
             {!asRef && canEdit ? (

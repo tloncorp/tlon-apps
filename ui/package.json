@@ -39,6 +39,8 @@
     ]
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.190.0",
+    "@aws-sdk/s3-request-presigner": "^3.190.0",
     "@emoji-mart/data": "^1.0.6",
     "@emoji-mart/react": "^1.0.1",
     "@faker-js/faker": "^6.3.1",

@@ -6,8 +6,8 @@ import {
   DeskData,
 } from '@urbit/api';
 import _ from 'lodash';
-import { DiaryDisplayMode } from '@/types/diary';
 import { lsDesk } from '@/constants';
+import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import {
   BaseState,
   createState,
@@ -22,13 +22,33 @@ interface ChannelSetting {
 }
 
 export interface HeapSetting extends ChannelSetting {
-  sortMode: 'time' | 'alpha';
+  sortMode: HeapSortMode;
+  displayMode: HeapDisplayMode;
 }
 
 export interface DiarySetting extends ChannelSetting {
   sortMode: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
   commentSortMode: 'asc' | 'dsc';
 }
+
+interface GroupSideBarSort {
+  [flag: string]: typeof ALPHABETICAL | typeof RECENT | typeof DEFAULT;
+}
+
+const ALPHABETICAL = 'A → Z';
+const DEFAULT = 'Arranged';
+const RECENT = 'Recent';
+
+export type SidebarFilter =
+  | 'Direct Messages'
+  | 'All Messages'
+  | 'Group Channels';
+
+export const filters: Record<string, SidebarFilter> = {
+  dms: 'Direct Messages',
+  all: 'All Messages',
+  groups: 'Group Channels',
+};
 
 interface BaseSettingsState {
   display: {
@@ -47,8 +67,13 @@ interface BaseSettingsState {
   diary: {
     settings: Stringified<DiarySetting[]>;
   };
+  talk: {
+    messagesFilter: SidebarFilter;
+  };
   groups: {
     orderedGroupPins: string[];
+    sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
+    groupSideBarSort: Stringified<GroupSideBarSort>;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -116,6 +141,11 @@ export const useSettingsState = createState<BaseSettingsState>(
     },
     groups: {
       orderedGroupPins: [],
+      sideBarSort: ALPHABETICAL,
+      groupSideBarSort: '{"~": "A → Z"}' as Stringified<GroupSideBarSort>,
+    },
+    talk: {
+      messagesFilter: filters.dms,
     },
     loaded: false,
     putEntry: async (bucket, key, val) => {
@@ -204,10 +234,16 @@ export function useHeapSettings(): HeapSetting[] {
   return parseSettings(settings ?? '');
 }
 
-export function useHeapSortMode(flag: string): 'time' | 'alpha' {
+export function useHeapSortMode(flag: string): HeapSortMode {
   const settings = useHeapSettings();
   const heapSetting = getSetting(settings, flag);
   return heapSetting?.sortMode ?? 'time';
+}
+
+export function useHeapDisplayMode(flag: string): HeapDisplayMode {
+  const settings = useHeapSettings();
+  const heapSetting = getSetting(settings, flag);
+  return heapSetting?.displayMode ?? 'list';
 }
 
 const selDiarySettings = (s: SettingsState) => s.diary.settings;
@@ -229,4 +265,11 @@ export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
   const settings = useDiarySettings();
   const setting = getSetting(settings, flag);
   return setting?.commentSortMode ?? 'dsc';
+}
+
+const selGroupSideBarSort = (s: SettingsState) => s.groups.groupSideBarSort;
+
+export function useGroupSideBarSort() {
+  const settings = useSettingsState(selGroupSideBarSort);
+  return JSON.parse(settings ?? '{"~": "A → Z"}');
 }

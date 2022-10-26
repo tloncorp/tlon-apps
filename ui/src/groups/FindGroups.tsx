@@ -133,12 +133,12 @@ export default function FindGroups({ title }: ViewProps) {
   // once a ship is selected, redirect to find/[selected query]
   useEffect(() => {
     if (selectedShip) {
-      navigate(`/groups/find/${selectedShip.value}`);
+      navigate(`/find/${selectedShip.value}`);
       return;
     }
 
     // user has cleared selection, redirect back to find root
-    navigate('/groups/find');
+    navigate('/find');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShip]);
 

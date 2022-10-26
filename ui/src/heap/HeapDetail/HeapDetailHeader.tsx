@@ -1,7 +1,6 @@
 import cn from 'classnames';
 import React from 'react';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
-import useNavStore from '@/components/Nav/useNavStore';
 import { useIsMobile } from '@/logic/useMedia';
 import { Link } from 'react-router-dom';
 import CopyIcon from '@/components/icons/CopyIcon';
@@ -28,16 +27,17 @@ export default function HeapDetailHeader({
   const isMobile = useIsMobile();
   const curio = curioObject ? curioObject[1] : null;
   const curioContent = curio?.heart.content[0].toString() || '';
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
   // TODO: a better title fallback
   const prettyDayAndTime = makePrettyDayAndTime(
     new Date(curio?.heart.sent || Date.now())
   );
   const curioTitle = curio?.heart.title || prettyDayAndTime;
-  const { onCopy, justCopied } = useCurioActions({
+  const { onCopy, didCopy } = useCurioActions({
     nest: `heap/${chFlag}`,
     time: idCurio,
   });
+
+  const BackButton = isMobile ? Link : 'div';
 
   return (
     <div
@@ -45,13 +45,13 @@ export default function HeapDetailHeader({
         'flex h-full w-full items-center justify-between border-b-2 border-gray-50 bg-white p-2'
       )}
     >
-      <button
+      <BackButton
+        to="../"
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
           isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
         )}
-        aria-label="Open Channels Menu"
-        onClick={() => isMobile && navPrimary('group', flag)}
+        aria-label={isMobile ? 'Open Channels Menu' : undefined}
       >
         {isMobile ? (
           <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
@@ -70,14 +70,14 @@ export default function HeapDetailHeader({
             <HeapDetailHeaderDescription url={curioContent} />
           </div>
         </div>
-      </button>
+      </BackButton>
       <div>
         <button
           className="icon-button h-8 w-8 bg-transparent"
           aria-controls="copy"
           onClick={onCopy}
         >
-          {justCopied ? (
+          {didCopy ? (
             <CheckIcon className="h-6 w-6" />
           ) : (
             <CopyIcon className="h-6 w-6" />

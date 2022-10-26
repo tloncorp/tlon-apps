@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { whomIsDm } from '../logic/utils';
-import Dm from '../pages/Dm';
+import Dm from './Dm';
 import MultiDm from './MultiDm';
 
 export default function Message() {

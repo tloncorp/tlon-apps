@@ -13,7 +13,6 @@ import { useContact } from '@/state/contact';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import DMHero from '@/dms/DMHero';
-import useNavStore from '@/components/Nav/useNavStore';
 
 function BackLink({
   children,
@@ -40,13 +39,6 @@ export default function Dm() {
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
-  const navPrimary = useNavStore((state) => state.navigatePrimary);
-
-  useEffect(() => {
-    if (isMobile) {
-      navPrimary('hidden');
-    }
-  }, [navPrimary, isMobile]);
 
   useEffect(() => {
     if (ship && canStart) {
@@ -55,20 +47,22 @@ export default function Dm() {
   }, [ship, canStart]);
   const messages = useDmMessages(ship);
 
+  const BackButton = isMobile ? Link : 'div';
+
   return (
     <Layout
       className="h-full grow"
       header={
         <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
           <BackLink mobile={isMobile}>
-            <button
+            <BackButton
+              to="/"
               className={cn(
                 'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
                 isMobile &&
                   '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
               )}
-              onClick={() => isMobile && navPrimary('dm')}
-              aria-label="Open Messages Menu"
+              aria-label={isMobile ? 'Open Messages Menu' : undefined}
             >
               {isMobile ? (
                 <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
@@ -86,7 +80,7 @@ export default function Dm() {
                   )}
                 </div>
               </div>
-            </button>
+            </BackButton>
           </BackLink>
           {canStart ? (
             <DmOptions whom={ship} pending={!isAccepted} alwaysShowEllipsis />
