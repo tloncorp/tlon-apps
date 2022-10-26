@@ -15,6 +15,7 @@ function useFileUpload() {
     createClient,
     setStatus,
     setFileStatus,
+    setErrorMessage,
     setFileURL,
     ...fs
   } = useFileStore();
@@ -62,8 +63,9 @@ function useFileUpload() {
             setFileStatus([key, 'success']);
             setFileURL([key, url.split('?')[0]]);
           })
-          .catch((error: unknown) => {
+          .catch((error: any) => {
             setFileStatus([key, 'error']);
+            setErrorMessage([key, `${error.toString()}`]);
             console.error(error);
           });
         return uploadData;
@@ -71,7 +73,7 @@ function useFileUpload() {
       setStatus('error');
       return false;
     },
-    [fs, s3, setStatus, setFileStatus, setFileURL]
+    [fs, s3, setStatus, setFileStatus, setFileURL, setErrorMessage]
   );
 
   const onFiles = useCallback(

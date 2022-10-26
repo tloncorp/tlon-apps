@@ -1,7 +1,7 @@
 import { Editor } from '@tiptap/react';
 import { debounce, isEqual, findLast } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
 import { ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
@@ -26,6 +26,9 @@ import AddIcon from '@/components/icons/AddIcon';
 import useFileUpload from '@/logic/useFileUpload';
 import { useFileStore } from '@/state/storage';
 import { isImageUrl } from '@/logic/utils';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import * as Popover from '@radix-ui/react-popover';
 
 interface ChatInputProps {
   whom: string;
@@ -37,6 +40,40 @@ interface ChatInputProps {
   sendMessage: (whom: string, memo: ChatMemo) => void;
 }
 
+function UploadErrorPopover({
+  errorMessage,
+  setUploadError,
+}: {
+  errorMessage: string;
+  setUploadError: (error: string | null) => void;
+}) {
+  return (
+    <Popover.Root>
+      <Popover.Anchor>
+        <Popover.Trigger asChild>
+          <button
+            onClick={() => {
+              setTimeout(() => {
+                setUploadError(null);
+              }, 2000);
+            }}
+            title={'Error uploading image'}
+            aria-label="Show error"
+          >
+            <ExclamationPoint className="h-4 w-4" />
+          </button>
+        </Popover.Trigger>
+      </Popover.Anchor>
+      <Popover.Content sideOffset={5}>
+        <div className="flex h-48 w-48 flex-col items-center justify-center rounded-lg bg-gray-100">
+          <ExclamationPoint className="h-8 w-8 text-red-500" />
+          <div className="mt-2 text-center text-red-500">{errorMessage}</div>
+        </div>
+      </Popover.Content>
+    </Popover.Root>
+  );
+}
+
 export default function ChatInput({
   whom,
   replying,
@@ -46,6 +83,7 @@ export default function ChatInput({
   sendDisabled = false,
   sendMessage,
 }: ChatInputProps) {
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const draft = useChatDraft(whom);
   const pact = usePact(whom);
   const chatInfo = useChatInfo(whom);
@@ -84,6 +122,16 @@ export default function ChatInput({
       }, 1000),
     [whom, draft]
   );
+
+  useEffect(() => {
+    if (
+      mostRecentFile &&
+      mostRecentFile.status === 'error' &&
+      mostRecentFile.errorMessage
+    ) {
+      setUploadError(mostRecentFile.errorMessage);
+    }
+  }, [mostRecentFile]);
 
   useEffect(() => () => onUpdate.cancel(), [onUpdate]);
 
@@ -270,16 +318,26 @@ export default function ChatInput({
           <div className="flex items-center justify-end">
             <Avatar size="xs" ship={window.our} className="mr-2" />
             <MessageEditor editor={messageEditor} className="w-full" />
-            {loaded && hasCredentials ? (
+            {loaded && hasCredentials && !uploadError ? (
               <button
-                // this is not contained by relative because of a bug in radix popovers
-                title={'Insert Test Image'}
+                title={'Upload an image'}
                 className="absolute mr-2 text-gray-600 hover:text-gray-800"
                 aria-label="Add attachment"
                 onClick={() => promptUpload(fileId)}
               >
                 <AddIcon className="h-6 w-4" />
               </button>
+            ) : null}
+            {mostRecentFile && mostRecentFile.status === 'loading' ? (
+              <LoadingSpinner className="absolute mr-2 h-4 w-4" />
+            ) : null}
+            {uploadError ? (
+              <div className="absolute mr-2">
+                <UploadErrorPopover
+                  errorMessage={uploadError}
+                  setUploadError={setUploadError}
+                />
+              </div>
             ) : null}
           </div>
         </div>

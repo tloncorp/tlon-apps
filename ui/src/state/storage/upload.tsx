@@ -20,9 +20,8 @@ export const useFileStore = create<FileStore>((set) => ({
         hostname: endpoint.host,
         path: endpoint.pathname || '/',
       },
-      // this is necessary for compatibility with other S3 providers
+      // this region is necessary for compatibility with other S3 providers (i.e., filebase)
       region: 'us-east-1',
-      apiVersion: '2006-03-01',
       credentials,
       forcePathStyle: true,
     });
@@ -45,6 +44,13 @@ export const useFileStore = create<FileStore>((set) => ({
       produce((draft) => {
         const [key, status] = file;
         draft.files[key].status = status;
+      })
+    ),
+  setErrorMessage: (file) =>
+    set(
+      produce((draft) => {
+        const [key, errorMessage] = file;
+        draft.files[key].errorMessage = errorMessage;
       })
     ),
   setFileURL: (file) =>
