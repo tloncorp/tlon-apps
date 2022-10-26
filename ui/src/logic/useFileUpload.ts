@@ -82,9 +82,7 @@ function useFileUpload() {
       const newFiles = _.keyBy(
         [...e.target.files].map((file) => ({
           file,
-          key: `${window.ship}/${deSig(
-            dateToDa(new Date())
-          )}-${encodeURIComponent(file.name)}`,
+          key: `${window.ship}/${deSig(dateToDa(new Date()))}-${file.name}`,
           for: e.target.id,
           status: 'initial',
           url: '',
