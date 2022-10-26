@@ -4,7 +4,7 @@ import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { dateToDa, deSig } from '@urbit/api';
 import { useFileStore, useStorage } from '@/state/storage';
-import { Upload, UploadInputProps } from '@/types/storage';
+import { Upload } from '@/types/storage';
 import api from '../api';
 
 function useFileUpload() {
