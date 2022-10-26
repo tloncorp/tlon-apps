@@ -1,9 +1,8 @@
-/-  g=groups, c=cite, e=epic, one=diary-1, zer=diary-0
+/-  g=groups, c=cite, e=epic, zer=diary-0
 |%
 ++  old
   |%
   ++  zero  zer
-  ++  unos  one
   --
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)
@@ -124,7 +123,7 @@
       image=@t
       content=(list verse)
       author=ship
-      sent=time      
+      sent=time
   ==
 +$  story  (pair (list block) (list inline))
 ::  $memo: the comment data itself
@@ -143,7 +142,7 @@
 ::    blocks stand on their own. inlines come in groups and get wrapped
 ::    into a paragraph
 ::
-+$  verse  
++$  verse
   $%  [%block p=block]
       [%inline p=(list inline)]
   ==
@@ -232,7 +231,7 @@
 ::
 +$  net
   $~  [%load ~]
-  $%  [%sub p=ship =saga:e]
+  $%  [%sub p=ship]
       [%pub ~] :: TODO: permissions?
       [%load ~]
   ==
@@ -244,7 +243,7 @@
 ::
 ++  briefs
   =<  briefs
-  |% 
+  |%
   +$  briefs
     (map flag brief)
   +$  brief
@@ -278,11 +277,11 @@
 +$  leave  flag:g
 ::
 ::  $create: represents a request to create a channel
-::    
+::
 ::    The name will be used as part of the flag which represents the
 ::    channel. $create is consumed by the diary agent first and then
 ::    passed to the groups agent to register the channel with the group.
-::  
+::
 ::    Write permission is stored with the specific agent in the channel,
 ::    read permission is stored with the group's data.
 ::
@@ -293,5 +292,10 @@
       description=cord
       readers=(set sect:g)
       writers=(set sect:g)
+  ==
+::  $state-0: initial version
++$  state-0
+  $:  %0
+      =shelf
   ==
 --

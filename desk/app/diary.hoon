@@ -1,5 +1,6 @@
 /-  d=diary, g=groups, ha=hark
 /-  meta
+/-  e=epic
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
@@ -7,9 +8,10 @@
 ^-  agent:gall
 =>
   |%
+  ++  okay  ^-  epic:e  0
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %2
         =shelf:d
     ==
   --
@@ -31,90 +33,10 @@
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
-    =|  cards=(list card)
-    |^  ^-  (quip card _this)
-    =+  !<(old=versioned-state vase)
-    |-
-    ?-  -.old
-      %1  [cards this(state old)]
-    ::
-        %0
-      %=  $
-        old  (state-0-to-1 old)
-      ==
-    ==
-    ::
-    +$  versioned-state
-      $%  state-0
-          state-1
-      ==
-    +$  state-0  [%0 =shelf:zero]
-    ++  zero     zero:old:d
-    +$  state-1  current-state
-    ++  one      d
-    ++  state-0-to-1
-      |=  sta=state-0
-      ^-  state-1
-      :-  %1
-      %-  ~(run by shelf.sta)
-      |=  =diary:zero
-      ^-  diary:one
-      %*  .  *diary:one
-        net    net.diary
-        log    (log-0-to-1 log.diary)
-        perm   perm.diary
-        view   view.diary
-        sort   sort.diary
-        notes  (notes-0-to-1 notes.diary banter.diary)
-        remark  remark.diary
-      ==
-    ::
-    ++  log-0-to-1
-      |=  =log:zero
-      ^-  log:one
-      %+  gas:log-on:one  *log:one
-      %+  turn  (tap:log-on:zero log)
-      |=  [=time =diff:zero]
-      ^-  [_time diff:one]
-      :-  time
-      ^-  diff:one
-      ?.  ?=(%quips -.diff)  diff
-      ^-  diff:one
-      [%notes p.diff %quips (quips-diff-0-to-1 q.diff)]
-    ::
-    ++  quips-diff-0-to-1
-      |=  =diff:quips:zero
-      ^-  diff:quips:one
-      :-  p.diff
-      ?.  ?=(%add -.q.diff)  q.diff
-      add/(memo-0-to-1 p.q.diff)
-    ::
-    ++  notes-0-to-1
-      |=  [=notes:zero banter=(map time quips:zero)] 
-      ^-  notes:one
-      %+  gas:on:notes:one  *notes:one
-      %+  turn  (tap:on:notes:zero notes)
-      |=  [=time =note:zero]
-      ^-  [_time note:one]
-      :-  time
-      :_  +.note
-      ^-  seal:one
-      [time (quips-0-to-1 (~(gut by banter) time *quips:zero)) feels.note]
-    ::
-    ++  quips-0-to-1
-      |=  =quips:zero
-      ^-  quips:one
-      %+  gas:on:quips:one  *quips:one
-      ^-  (list [time quip:one])
-      %+  turn  (tap:on:quips:zero quips)
-      |=  [=time =quip:zero]
-      [time -.quip (memo-0-to-1 +.quip)]
-    ::
-    ++  memo-0-to-1
-      |=  =memo:zero
-      ^-  memo:one
-      [`content author sent]:memo
-    --
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(load:cor vase)
+    [cards this]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -156,6 +78,157 @@
 ++  init
   ^+  cor
   watch-groups
+++  load
+  |=  =vase
+  |^  ^+  cor
+  =+  !<(old=versioned-state vase)
+  |-
+  ?-  -.old
+      %2
+    =.  state  old
+    cor
+  ::
+      %1
+    %=  $
+      old  (state-1-to-2 old)
+    ==
+      %0
+    %=  $
+      old  (state-0-to-1 old)
+    ==
+  ==
+  ::
+  +$  versioned-state
+    $%  state-0
+        state-1
+        state-2
+    ==
+  ++  zero     zero:old:d
+  ++  one      unos:old:d
+  ++  two      d
+  +$  state-0  [%0 =shelf:zero]
+  +$  state-1  [%1 =shelf:one]
+  +$  state-2  current-state
+  ++  state-0-to-1
+    |=  sta=state-0
+    ^-  state-1
+    :-  %1
+    %-  ~(run by shelf.sta)
+    |=  =diary:zero
+    ^-  diary:one
+    %*  .  *diary:one
+      net    net.diary
+      log    (log-0-to-1 log.diary)
+      perm   perm.diary
+      view   view.diary
+      sort   sort.diary
+      notes  (notes-0-to-1 notes.diary banter.diary)
+      remark  remark.diary
+    ==
+  ::
+  ++  log-0-to-1
+    |=  =log:zero
+    ^-  log:one
+    %+  gas:log-on:one  *log:one
+    %+  turn  (tap:log-on:zero log)
+    |=  [=time =diff:zero]
+    ^-  [_time diff:one]
+    :-  time
+    ^-  diff:one
+    ?.  ?=(%quips -.diff)  diff
+    ^-  diff:one
+    [%notes p.diff %quips (quips-diff-0-to-1 q.diff)]
+  ::
+  ++  quips-diff-0-to-1
+    |=  =diff:quips:zero
+    ^-  diff:quips:one
+    :-  p.diff
+    ?.  ?=(%add -.q.diff)  q.diff
+    add/(memo-0-to-1 p.q.diff)
+  ::
+  ++  notes-0-to-1
+    |=  [=notes:zero banter=(map time quips:zero)]
+    ^-  notes:one
+    %+  gas:on:notes:one  *notes:one
+    %+  turn  (tap:on:notes:zero notes)
+    |=  [=time =note:zero]
+    ^-  [_time note:one]
+    :-  time
+    :_  +.note
+    ^-  seal:one
+    [time (quips-0-to-1 (~(gut by banter) time *quips:zero)) feels.note]
+  ::
+  ++  quips-0-to-1
+    |=  =quips:zero
+    ^-  quips:one
+    %+  gas:on:quips:one  *quips:one
+    ^-  (list [time quip:one])
+    %+  turn  (tap:on:quips:zero quips)
+    |=  [=time =quip:zero]
+    [time -.quip (memo-0-to-1 +.quip)]
+  ::
+  ++  memo-0-to-1
+    |=  =memo:zero
+    ^-  memo:one
+    [`content author sent]:memo
+  ::
+  ++  state-1-to-2
+    |=  sta=state-1
+    ^-  state-2
+    :-  %2
+    %-  ~(run by shelf.sta)
+    |=  =diary:one
+    ^-  diary:two
+    %*  .  *diary:two
+      net    (net-1-to-2 net.diary)
+      log    log.diary
+      perm   perm.diary
+      view   view.diary
+      sort   sort.diary
+      notes  notes.diary
+      remark  remark.diary
+    ==
+  ::
+  ++  net-1-to-2
+    |=  =net:one
+    ^-  net:two
+    ?.  ?=(%sub -.net)  net
+    [%sub p.net [%chi ~]]
+  --
+::
+++  watch-epic
+  |=  her=ship
+  ^+  cor
+  =/  =wire  /epic
+  =/  =dock  [her dap.bowl]
+  ?:  (~(has by wex.bowl) [wire dock])
+    cor
+  (emit %pass wire %agent [her dap.bowl] %watch /epic)
+::
+++  take-epic
+  |=  =sign:agent:gall
+  ^+  cor
+  ?+    -.sign  cor
+      %kick
+    ~&  'todo: check that sub is removed before ingesting kick'^wex.bowl
+    (watch-epic src.bowl)
+  ::
+      %fact
+    ?:  =(%epic p.cage.sign)
+      ~&  '!!! weird fact on /epic'
+      cor
+    =+  !<(=epic:e q.cage.sign)
+    ?.  =(epic okay)
+      cor
+    ~&  >>  "good news everyone!"
+    %+  roll  ~(tap by shelf)
+    |=  [[=flag:g =diary:d] out=_cor]
+    di-abet:di-sub:(di-abed:di-core:out flag)
+      %watch-ack
+    %.  cor
+    ?~  p.sign  same
+    (slog leaf/"weird watch nack" u.p.sign)
+  ==
 ::
 ++  watch-groups
   ^+  cor
@@ -214,6 +287,8 @@
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
+    ::
+      [%epic ~]    (give %fact ~ epic+!>(okay))
     ::
       [%diary @ @ *]
     =/  =ship  (slav %p i.t.path)
@@ -428,14 +503,33 @@
     ?:  (di-can-read:di ship)  di
     di(cor (emit %give %kick ~[path] `ship))
   ::
-  ++  di-take-update
+  ++  di-take-epic
+    |=  her=epic:e
+    ^+  di-core
+    ?>  ?=(%sub -.net.diary)
+    ?:  =(her okay)
+      di-core
+    ?:  (gth her okay)
+      =.  saga.net.diary  dex+her
+      di-core
+    =.  saga.net.diary  lev+~
+    =.  cor  (watch-epic p.flag)
+    di-core
+  ::
+ ++  di-take-update
     |=  =sign:agent:gall
     ^+  di-core
     ?+    -.sign  di-core
-      %kick  di-sub
+        %kick
+      ?>  ?=(%sub -.net.diary)
+      ?-  -.saga.net.diary
+        %chi  di-sub
+        %dex  di-core
+        %lev  di-core
+      ==
     ::
         %watch-ack
-      =.  net.diary  [%sub src.bowl]
+      =.  net.diary  [%sub src.bowl [%chi ~]]
       ?~  p.sign  di-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       =.  gone  &
@@ -444,6 +538,7 @@
         %fact
       =*  cage  cage.sign 
       ?+  p.cage  di-core
+        %epic                             (di-take-epic !<(epic:e q.cage))
         ?(%diary-logs %diary-logs-0)      (di-apply-logs !<(log:d q.cage))
         ?(%diary-update %diary-update-0)  (di-update !<(update:d q.cage))
       ==
