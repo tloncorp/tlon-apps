@@ -318,7 +318,10 @@ export default function ChatInput({
           <div className="flex items-center justify-end">
             <Avatar size="xs" ship={window.our} className="mr-2" />
             <MessageEditor editor={messageEditor} className="w-full" />
-            {loaded && hasCredentials && !uploadError ? (
+            {loaded &&
+            hasCredentials &&
+            !uploadError &&
+            mostRecentFile?.status !== 'loading' ? (
               <button
                 title={'Upload an image'}
                 className="absolute mr-2 text-gray-600 hover:text-gray-800"
