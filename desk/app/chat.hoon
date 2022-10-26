@@ -1,13 +1,13 @@
 /-  c=chat, g=groups
 /-  meta
 /-  ha=hark
+/-  e=epic
 /+  default-agent, verb, dbug
 /+  chat-json
 /+  pac=dm
 /+  ch=chat-hark
 /+  gra=graph-store
 /+  mig=chat-graph
-/+  e=epic
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
