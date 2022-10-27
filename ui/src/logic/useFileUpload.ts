@@ -73,8 +73,11 @@ function useFileUpload() {
         })
         .catch((error: any) => {
           setFileStatus([key, 'error']);
-          setErrorMessage([key, `${error.toString()}`]);
-          console.error(error);
+          setErrorMessage([
+            key,
+            `S3 upload error: ${error.message}, check your S3 configuration.`,
+          ]);
+          console.log({ error });
         });
 
       return uploadData;

@@ -27,7 +27,6 @@ import useFileUpload from '@/logic/useFileUpload';
 import { useFileStore } from '@/state/storage';
 import { isImageUrl } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import * as Popover from '@radix-ui/react-popover';
 
 interface ChatInputProps {
@@ -48,26 +47,25 @@ function UploadErrorPopover({
   setUploadError: (error: string | null) => void;
 }) {
   return (
-    <Popover.Root>
+    <Popover.Root open>
       <Popover.Anchor>
-        <Popover.Trigger asChild>
-          <button
-            onClick={() => {
-              setTimeout(() => {
-                setUploadError(null);
-              }, 2000);
-            }}
-            title={'Error uploading image'}
-            aria-label="Show error"
-          >
-            <ExclamationPoint className="h-4 w-4" />
-          </button>
-        </Popover.Trigger>
+        <AddIcon className="h-6 w-4 text-gray-600" />
       </Popover.Anchor>
-      <Popover.Content sideOffset={5}>
-        <div className="flex h-48 w-48 flex-col items-center justify-center rounded-lg bg-gray-100">
-          <ExclamationPoint className="h-8 w-8 text-red-500" />
-          <div className="mt-2 text-center text-red-500">{errorMessage}</div>
+      <Popover.Content
+        sideOffset={5}
+        onEscapeKeyDown={() => setUploadError(null)}
+        onPointerDownOutside={() => setUploadError(null)}
+      >
+        <div className="flex w-[200px] flex-col items-center justify-center rounded-lg bg-white p-4 leading-5 drop-shadow-lg">
+          <span className="mb-2 font-semibold text-gray-800">
+            This file can't be posted.
+          </span>
+          <div className="flex flex-col justify-start">
+            <span className="mt-2 text-gray-800">{errorMessage}</span>
+            {/*
+              <button className="small-button mt-4 w-[84px]">Learn more</button>
+            */}
+          </div>
         </div>
       </Popover.Content>
     </Popover.Root>
