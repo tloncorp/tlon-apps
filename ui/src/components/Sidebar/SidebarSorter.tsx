@@ -3,7 +3,6 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import SortIcon from '@/components/icons/SortIcon';
 import useSidebarSort from '@/logic/useSidebarSort';
-import CaretDownIcon from '@/components/icons/CaretDownIcon';
 
 type SidebarSorterProps = Omit<
   ReturnType<typeof useSidebarSort>,
@@ -25,8 +24,8 @@ export default function SidebarSorter({
           className="default-focus flex items-center rounded-lg p-2 text-base font-semibold"
           aria-label="Groups Sort Options"
         >
-          <h1 className="mr-4 text-xl font-medium">All Groups</h1>
-          <CaretDownIcon className="h-6 w-6 text-gray-400" />
+          <h1 className="mr-4 text-base font-semibold">All Groups</h1>
+          <CaretDown16Icon className="h-4 w-4 text-gray-400" />
         </DropdownMenu.Trigger>
       ) : (
         <DropdownMenu.Trigger

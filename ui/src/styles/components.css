@@ -78,7 +78,7 @@
 }
 
 .card {
-  @apply w-full rounded-xl bg-white p-6;
+  @apply w-full rounded-lg bg-white p-4 sm:rounded-xl sm:p-6;
 }
 
 .switch {

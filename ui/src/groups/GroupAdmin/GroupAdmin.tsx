@@ -1,9 +1,9 @@
 import cn from 'classnames';
 import React from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useAmAdmin, useRouteGroup } from '@/state/groups/groups';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 
 export default function GroupAdmin() {
   const flag = useRouteGroup();
@@ -16,9 +16,9 @@ export default function GroupAdmin() {
         <div className="px-2 py-1">
           <Link
             to="../"
-            className="default-focus inline-flex items-center rounded-lg p-2 text-xl font-medium text-gray-800 hover:bg-gray-50"
+            className="default-focus inline-flex items-center rounded-lg p-2 text-base font-semibold text-gray-800 hover:bg-gray-50"
           >
-            <CaretLeftIcon className="mr-4 h-6 w-6 text-gray-600" />
+            <CaretLeft16Icon className="mr-1 h-4 w-4 text-gray-600" />
             Group Info
           </Link>
         </div>
