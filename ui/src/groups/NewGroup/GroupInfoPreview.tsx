@@ -36,7 +36,9 @@ export default function GroupInfoPreview({
         showCoverEmpty && 'bg-gray-200'
       )}
       style={
-        coverType === 'color' ? { backgroundColor: watchCover } : undefined
+        coverType === 'color'
+          ? { backgroundColor: watchCover ? watchCover : '#D9D9D9' }
+          : undefined
       }
     >
       {coverType === 'image' && isValidUrl(watchCover) ? (
@@ -52,7 +54,7 @@ export default function GroupInfoPreview({
             {iconType === 'color' ? (
               <ColorBoxIcon
                 className="h-6 w-6 text-lg"
-                color={watchImage ? watchImage : '#000000'}
+                color={watchImage ? watchImage : '#999999'}
                 letter={iconLetter ? iconLetter : 'T'}
               />
             ) : null}
