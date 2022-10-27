@@ -38,7 +38,7 @@ function ChannelSidebarItem({
 
   return (
     <SidebarItem
-      to={`/groups/${groupFlag}/channels/${whom}`}
+      to={`/groups/${groupFlag}/channels/${nest}`}
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
       actions={<DmOptions whom={whom} pending={!!pending} />}
     >
