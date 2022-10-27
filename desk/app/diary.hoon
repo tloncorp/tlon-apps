@@ -471,7 +471,7 @@
     ^+  di-core
     =?  di-core  ?=(%sub -.net.diary)
       di-sub
-    =?  di-core  ?=(%pub -.net.diary)
+    =?  di-core  &  :: ?=(%pub -.net.diary) TODO: hack for local testing
       (import-channel:di-pass association)
     =?  di-core  &(?=(%pub -.net.diary) !=(writers ~))
       (writer-sect:di-pass writers association)
@@ -503,7 +503,7 @@
     ++  poke-group
       |=  [=term =action:g]
       ^+  di-core
-      =/  =dock      [p.p.action %groups]
+      =/  =dock      [our.bowl %groups] :: [p.p.action %groups] XX: check?
       =/  =wire      (snoc di-area term)
       =.  cor
         (emit %pass wire %agent dock %poke group-action+!>(action))
@@ -593,7 +593,7 @@
       =.  net.diary  [%sub src.bowl]
       ?~  p.sign  di-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
-      =.  gone  &
+      :: =.  gone  &
       di-core
     ::
         %fact

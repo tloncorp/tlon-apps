@@ -378,22 +378,26 @@
   |=  =graph:gra:c
   ^-  pact:c
   %-  ~(gas pac *pact:c)
-  %+  turn  (tap:orm-gra:c graph)
+  %+  murn  (tap:orm-gra:c graph)
   |=  [=time =node:gra:c]
-  ^-  [_time writ:c]
-  [time (node-to-writ time node)]
+  ^-  (unit [_time writ:c])
+  ?~  wit=(node-to-writ time node)
+    ~
+  `[time u.wit]
 ::  TODO: review crashing semantics
 ::        check graph ordering (backwards iirc)
 ++  node-to-writ
   |=  [=time =node:gra:c]
-  ^-  writ:c
-  ?>  ?=(%& -.post.node)
+  ^-  (unit writ:c)
+  ?.  ?=(%& -.post.node)
+    ~
   =*  pos  p.post.node
   :: using the received timestamp 
   :: defends against shitty clients, bc we didn't enforce uniqueness last time
   :: but breaks referential transparency, so you can't quote migrated
   :: messages
   :: XX: probably change?
+  :-  ~
   :-  [[author.pos time] ~ ~]
   [~ author.pos time-sent.pos (con:migrate contents.pos)]
 ::
@@ -898,7 +902,7 @@
     ^+  ca-core
     =?  ca-core  ?=(%sub -.net.chat)
       ca-sub
-    =?  ca-core  ?=(%pub -.net.chat)
+    =.  ca-core
       (import-channel:ca-pass association)
     =?  ca-core  &(?=(%pub -.net.chat) !=(writers ~))
       (writer-sect:ca-pass writers association)
@@ -960,7 +964,7 @@
     ++  poke-group
       |=  [=term =action:g]
       ^+  ca-core
-      =/  =dock      [p.p.action %groups]
+      =/  =dock      [our.bowl %groups]  :: XX: which ship?
       =/  =wire      (snoc ca-area term)
       =.  cor
         (emit %pass wire %agent dock %poke group-action+!>(action))
@@ -1055,7 +1059,7 @@
       =.  net.chat  [%sub src.bowl %chi ~]
       ?~  p.sign  ca-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
-      =.  gone  &
+      ::  =.  gone  &
       ca-core
     ::
         %fact

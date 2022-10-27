@@ -337,7 +337,6 @@
     [fleet cabals zones zone-ord bloc channels cordon meta]
   =|  =log:g
   =.  log     (put:log-on:g log now.bowl create/group)
-  ~&  log
   =/  =net:g  pub/log
   =.  groups  (~(put by groups) flag [net group])
   go-abet:go-init:(go-abed:group-core flag) :: setup defaults

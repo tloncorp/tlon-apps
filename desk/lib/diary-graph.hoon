@@ -9,7 +9,7 @@
   ~?  dbug  [tag tub]
   =-  ~?(dbug [tag -] -)  (sef tub)
 ::
-++  dbug  |
+++  dbug  &
 ++  edict
   |$  [prod]
   $-(nail (like prod))
@@ -40,7 +40,7 @@
     =.  out   (welp out p.u.q.tub)
     [& sing]
   ++  by-line
-    (more ret (star ;~(less ret prn)))
+    (more ret (star ;~(less ret next)))
   ::
   ++  lift-blocks
     |=  txt=tape
@@ -95,7 +95,6 @@
   ::
   ++  hymn
     ^-  (edict verse:d)
-    %+  trace  %hymn
     ::  %+  cook  (late ~)
     %+  stag  %block
     ;~  pose
@@ -179,10 +178,10 @@
       ?:  ok  draw
       =^  o=?  draw
         (chew raw-line)
-      ~|  %should-never-crash-fallback-parsing
-      ?<(o draw)
+      ~|  should-never-crash-fallback-parsing/nail
+      ?>(o draw)
     ++  raw-line
-      (cook (cork crip (late ~)) (star prn))
+      (cook (cork crip (late ~)) (star next))
     ::
     ++  line
       %+  knee  *(list inline:d)

@@ -430,7 +430,7 @@
     ++  poke-group
       |=  [=term =action:g]
       ^+  he-core
-      =/  =dock      [p.p.action %groups]
+      =/  =dock      [our.bowl %groups] :: XX which ship
       =/  =wire      (snoc he-area term)
       =.  cor
         (emit %pass wire %agent dock %poke group-action+!>(action))
@@ -459,7 +459,7 @@
     ^+  he-core
     =?  he-core  ?=(%sub -.net.heap)
       he-sub
-    =?  he-core  ?=(%pub -.net.heap)
+    =.  he-core
       (import-channel:he-pass association)
     =?  he-core  &(?=(%pub -.net.heap) !=(writers ~))
       (writer-sect:he-pass writers association)
@@ -478,6 +478,13 @@
     ^+  he-core
     ?+  wire  !!
         ~  :: noop wire, should only send pokes
+      he-core
+    ::
+        [%import ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign
+        he-core
+      =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
       he-core
     ::
         [%updates ~]
@@ -523,7 +530,7 @@
       =.  net.heap  [%sub src.bowl]
       ?~  p.sign  he-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
-      =.  gone  &
+      ::  =.  gone  &
       he-core
     ::
         %fact
