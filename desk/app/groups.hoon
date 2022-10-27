@@ -32,110 +32,10 @@
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
-    =|  cards=(list card)
-    |^  ^-  (quip card _this)
-    =+  !<(old=versioned-state vase)
-    |-
-    ?-  -.old
-      %1  [cards this(state old)]
-    ::
-        %0
-      %=  $
-        old  (state-0-to-1 old)
-      ==
-    ==
-    ::
-    +$  versioned-state
-      $%  state-0
-          state-1
-      ==
-    +$  state-0
-      $:  %0
-          groups=net-groups:zero
-          xeno=gangs:zero
-      ==
-    ++  zero  zero:old:g
-    +$  state-1  current-state
-    ++  one      g
-    ++  state-0-to-1
-      |=  sta=state-0
-      ^-  state-1
-      :-  %1
-      :*  (groups-0-to-1 groups.sta)
-          (xeno-0-to-1 xeno.sta)
-      ==
-    ::
-    ++  groups-0-to-1
-      |=  groups=net-groups:zero
-      ^-  net-groups:one
-      %-  ~(run by groups) 
-      |=  [=net:zero =group:zero]
-      ^-  [net:one group:one]
-      :-  (net-0-to-1 net)
-      %*  .  *group:one
-        fleet  fleet.group
-        cabals  cabals.group
-        zones  zones.group
-        zone-ord   zone-ord.group
-        bloc   bloc.group
-        channels   channels.group
-        cordon  cordon.group
-        secret  |
-        meta  meta.group
-      ==
-    ++  net-0-to-1
-      |=  =net:zero
-      ^-  net:one
-      ?-  -.net
-        %sub  net
-        %load  net
-        ::
-          %pub
-        :-  %pub
-        %+  run:log-on:zero  p.net
-        |=  =diff:zero
-        ^-  diff:one
-        ?-  -.diff
-          ?(%fleet %cabal %channel %bloc %cordon %zone %meta %del)  diff
-          ::
-            %create
-          =/  c  p.diff
-          :-  %create
-          :*  fleet.c
-              cabals.c
-              zones.c
-              zone-ord.c
-              bloc.c
-              channels.c
-              cordon.c
-              |
-              meta.c
-          ==
-        ==
-      ==
-    ++  xeno-0-to-1
-      |=  =gangs:zero
-      ^-  gangs:one
-      %-  ~(run by gangs) 
-      |=  =gang:zero
-      ^-  gang:one
-      %*  .  *gang:one
-        cam  cam.gang
-        vit  vit.gang
-          pev
-        ?~  pev.gang  ~  
-        `(preview-0-to-1 u.pev.gang)
-      ==
-    ++  preview-0-to-1
-      |=  =preview:zero
-      ^-  preview:one
-      :*  flag.preview
-          meta.preview
-          cordon.preview
-          time.preview
-          |
-      ==
-    --
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(load:cor vase)
+    [cards this]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -174,6 +74,114 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  load
+  |=  =vase
+  |^  ^+  cor
+  =+  !<(old=versioned-state vase)
+  |-
+  ?-  -.old
+      %1
+    =.  state  old
+    cor
+  ::
+      %0
+    %=  $
+      old  (state-0-to-1 old)
+    ==
+  ==
+  ::
+  +$  versioned-state
+    $%  state-0
+        state-1
+    ==
+  +$  state-0
+    $:  %0
+        groups=net-groups:zero
+        xeno=gangs:zero
+    ==
+  ++  zero  zero:old:g
+  +$  state-1  current-state
+  ++  one      g
+  ++  state-0-to-1
+    |=  sta=state-0
+    ^-  state-1
+    :-  %1
+    :*  (groups-0-to-1 groups.sta)
+        (xeno-0-to-1 xeno.sta)
+    ==
+  ::
+  ++  groups-0-to-1
+    |=  groups=net-groups:zero
+    ^-  net-groups:one
+    %-  ~(run by groups) 
+    |=  [=net:zero =group:zero]
+    ^-  [net:one group:one]
+    :-  (net-0-to-1 net)
+    %*  .  *group:one
+      fleet  fleet.group
+      cabals  cabals.group
+      zones  zones.group
+      zone-ord   zone-ord.group
+      bloc   bloc.group
+      channels   channels.group
+      cordon  cordon.group
+      secret  |
+      meta  meta.group
+    ==
+  ++  net-0-to-1
+    |=  =net:zero
+    ^-  net:one
+    ?-  -.net
+      %sub  net
+      %load  net
+      ::
+        %pub
+      :-  %pub
+      %+  run:log-on:zero  p.net
+      |=  =diff:zero
+      ^-  diff:one
+      ?-  -.diff
+        ?(%fleet %cabal %channel %bloc %cordon %zone %meta %del)  diff
+        ::
+          %create
+        =/  c  p.diff
+        :-  %create
+        :*  fleet.c
+            cabals.c
+            zones.c
+            zone-ord.c
+            bloc.c
+            channels.c
+            cordon.c
+            |
+            meta.c
+        ==
+      ==
+    ==
+  ++  xeno-0-to-1
+    |=  =gangs:zero
+    ^-  gangs:one
+    %-  ~(run by gangs) 
+    |=  =gang:zero
+    ^-  gang:one
+    %*  .  *gang:one
+      cam  cam.gang
+      vit  vit.gang
+        pev
+      ?~  pev.gang  ~  
+      `(preview-0-to-1 u.pev.gang)
+    ==
+  ++  preview-0-to-1
+    |=  =preview:zero
+    ^-  preview:one
+    :*  flag.preview
+        meta.preview
+        cordon.preview
+        time.preview
+        |
+    ==
+  --
+  ::
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -202,18 +210,14 @@
       [sects *time]
     =/  =group:g
       :*  fleet
-          ~
-          ~
-          ~
-          ~
-          ~
+          ~  ~  ~  ~  ~
           cordon.create
           secret.create
           title.create
           description.create
           image.create
           cover.create
-      == 
+      ==
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:go-init:(go-abed:group-core flag)
