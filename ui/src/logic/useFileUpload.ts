@@ -46,32 +46,38 @@ function useFileUpload() {
   const uploadFile = useCallback(
     async (upload) => {
       const { file, key } = upload;
-      if (fs.client) {
-        setFileStatus([key, 'loading']);
-        const command = new PutObjectCommand({
-          Bucket: s3.configuration.currentBucket,
-          Key: key,
-          Body: file,
-          ContentType: file.type,
-          ContentLength: file.size,
-          ACL: 'public-read',
-        });
-        const url = await getSignedUrl(fs.client, command);
-        const uploadData = fs.client
-          .send(command)
-          .then(() => {
-            setFileStatus([key, 'success']);
-            setFileURL([key, url.split('?')[0]]);
-          })
-          .catch((error: any) => {
-            setFileStatus([key, 'error']);
-            setErrorMessage([key, `${error.toString()}`]);
-            console.error(error);
-          });
-        return uploadData;
+
+      if (!fs.client) {
+        setStatus('error');
+        return false;
       }
-      setStatus('error');
-      return false;
+
+      setFileStatus([key, 'loading']);
+
+      const command = new PutObjectCommand({
+        Bucket: s3.configuration.currentBucket,
+        Key: key,
+        Body: file,
+        ContentType: file.type,
+        ContentLength: file.size,
+        ACL: 'public-read',
+      });
+
+      const url = await getSignedUrl(fs.client, command);
+
+      const uploadData = fs.client
+        .send(command)
+        .then(() => {
+          setFileStatus([key, 'success']);
+          setFileURL([key, url.split('?')[0]]);
+        })
+        .catch((error: any) => {
+          setFileStatus([key, 'error']);
+          setErrorMessage([key, `${error.toString()}`]);
+          console.error(error);
+        });
+
+      return uploadData;
     },
     [fs, s3, setStatus, setFileStatus, setFileURL, setErrorMessage]
   );
