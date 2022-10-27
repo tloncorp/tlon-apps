@@ -135,6 +135,7 @@ export const useChatState = createState<ChatState>(
     pins: [],
     sentMessages: [],
     postedMessages: [],
+    loadedWrits: {},
     briefs: {},
     togglePin: async (whom, pin) => {
       const { pins } = get();
@@ -860,6 +861,19 @@ export function useWritByFlagAndWritId(chFlag: string, idWrit: string) {
     };
   }, [chFlag, idWrit]);
   return res;
+}
+
+export function useLoadedWrits(whom: string) {
+  return useChatState(
+    useCallback(
+      (s) =>
+        s.loadedWrits[whom] || {
+          oldest: unixToDa(Date.now()),
+          newest: unixToDa(0),
+        },
+      [whom]
+    )
+  );
 }
 
 (window as any).chat = useChatState.getState;

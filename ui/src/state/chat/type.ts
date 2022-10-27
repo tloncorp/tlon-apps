@@ -1,3 +1,4 @@
+import bigInt from 'big-integer';
 import {
   Chat,
   ChatWhom,
@@ -38,6 +39,12 @@ export interface ChatState {
   fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
   pacts: {
     [whom: ChatWhom]: Pact;
+  };
+  loadedWrits: {
+    [whom: ChatWhom]: {
+      oldest: bigInt.BigInteger;
+      newest: bigInt.BigInteger;
+    };
   };
   pendingDms: string[];
   briefs: ChatBriefs;

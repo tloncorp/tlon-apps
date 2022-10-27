@@ -162,7 +162,8 @@ export default function makeWritsStore(
         return false;
       }
 
-      const fetchStart = decToUd(pact.writs.peekLargest()[0].toString());
+      const newest = pact.writs.peekLargest()[0];
+      const fetchStart = decToUd(newest.toString());
 
       const writs = await api.scry<ChatWrits>({
         app: 'chat',
@@ -177,6 +178,11 @@ export default function makeWritsStore(
           pact.index[writ.seal.id] = tim;
         });
         draft.pacts[whom] = { ...pact };
+        const loaded = draft.loadedWrits[whom] || {
+          oldest: unixToDa(Date.now()),
+          newest: unixToDa(0),
+        };
+        draft.loadedWrits[whom] = { ...loaded, newest };
       });
 
       const newMessageSize = get().pacts[whom].writs.size;
@@ -202,7 +208,8 @@ export default function makeWritsStore(
         return false;
       }
 
-      const fetchStart = decToUd(pact.writs.peekSmallest()[0].toString());
+      const oldest = pact.writs.peekSmallest()[0];
+      const fetchStart = decToUd(oldest.toString());
 
       const writs = await api.scry<ChatWrits>({
         app: 'chat',
@@ -217,6 +224,11 @@ export default function makeWritsStore(
           pact.index[writ.seal.id] = tim;
         });
         draft.pacts[whom] = { ...pact };
+        const loaded = draft.loadedWrits[whom] || {
+          oldest: unixToDa(Date.now()),
+          newest: unixToDa(0),
+        };
+        draft.loadedWrits[whom] = { ...loaded, oldest };
       });
 
       const newMessageSize = get().pacts[whom].writs.size;

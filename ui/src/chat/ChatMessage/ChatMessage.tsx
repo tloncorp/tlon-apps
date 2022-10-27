@@ -64,10 +64,10 @@ const ChatMessage = React.memo<
       const isMessagePosted = useIsMessagePosted(seal.id);
 
       useEffect(() => {
-        if (inView === true) {
+        if (inView === true && unread) {
           markRead(whom);
         }
-      }, [inView, markRead, whom]);
+      }, [unread, inView, markRead, whom]);
 
       const unix = new Date(daToUnix(time));
 
