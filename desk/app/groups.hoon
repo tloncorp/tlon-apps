@@ -201,7 +201,19 @@
       ^-  vessel:fleet:g
       [sects *time]
     =/  =group:g
-      [fleet ~ ~ ~ ~ ~ cordon.create secret.create title.create description.create image.create cover.create] 
+      :*  fleet
+          ~
+          ~
+          ~
+          ~
+          ~
+          cordon.create
+          secret.create
+          title.create
+          description.create
+          image.create
+          cover.create
+      == 
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:go-init:(go-abed:group-core flag)
@@ -448,7 +460,6 @@
     =-  (fall - [(crip "{(scow %p p.flag)}/{(scow %ta q.flag)}") '' '' ''])
     (bind (~(get by om) [%groups flag]) old-assoc-to-new-meta)
   =/  =group:g
-    :: TODO: rework migration for secret group
     [fleet cabals zones zone-ord bloc channels cordon | meta]
   =|  =log:g
   =.  log     (put:log-on:g log now.bowl create/group)
