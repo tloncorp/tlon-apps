@@ -48,7 +48,7 @@ export interface FileStoreFile {
 export interface FileStore {
   client: S3Client | null;
   status: 'initial' | 'loading' | 'success' | 'error';
-  files: FileStoreFile[] | null;
+  files: Record<string, FileStoreFile>;
   createClient: (s3: S3Credentials) => void;
   setStatus: (status: string) => void;
   setErrorMessage: (file: Array<number | string>) => void;
