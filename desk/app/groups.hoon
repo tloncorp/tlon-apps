@@ -821,7 +821,6 @@
         ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
         =.  ask.cordon.group  (~(uni in ask.cordon) q.diff)
         =/  ships  q.diff
-        ~&  [src.bowl our.bowl]
         ?:  from-self  go-core
         =/  link  (go-link /info/members/pending)
         =/  yarn
@@ -839,7 +838,8 @@
                   [%emph title.meta.group]
               ==
           ==
-        =.  cor  (emit (pass-hark & & yarn))
+        =?  cor  go-is-bloc  
+          (emit (pass-hark & & yarn))
         go-core
       ::
           [%del-ships %ask]
@@ -912,7 +912,8 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =?  cor  go-is-bloc  
+        (emit (pass-hark & & yarn))
       ?-  -.cordon.group
           ?(%open %afar)  go-core
           %shut  
@@ -945,7 +946,8 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =?  cor  go-is-bloc  
+        (emit (pass-hark & & yarn))
       ?:  (~(has in ships) our.bowl)
         go-core(gone &)
       go-core
@@ -984,7 +986,8 @@
                 [%emph role-list]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =?  cor  go-is-bloc  
+        (emit (pass-hark & & yarn))
       go-core
     ::
         %del-sects
