@@ -15,7 +15,7 @@
   +$  card  card:agent:gall
   ++  def-flag  `flag:c`[~zod %test]
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
-  ++  our-epic  0
+  ++  okay  `epic:e`0
   +$  current-state
     $:  %1
         chats=(map flag:c chat:c)
@@ -26,7 +26,6 @@
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
-        old-epic=epic:e
     ==
   --
 =|  current-state
@@ -44,7 +43,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>(state(old-epic our-epic))
+  ++  on-save  !>([state okay])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -97,21 +96,24 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<(old=versioned-state vase)
+  =+  !<([old=versioned-state cool=epic:e] vase)
   |-
-  =?  old   ?=(%0 -.old)
-    (state-0-to-1 old)
-  ?>  ?=(%1 -.old)
-  =.  state  old
-  ?:  =(our-epic old-epic)
-    cor
-  =-  (give %fact ~(tap in -) epic+!>(our-epic))
-  %-  ~(gas in *(set path))
-  %+  murn  ~(val by sup.bowl)
-  |=  [=ship =path]
-  ^-  (unit _path)
-  ?.  |(=(/epic path) ?=([%chat @ @ %updates *] path))  ~
-  `path
+  ?-  -.old
+      %0
+    %=  $
+      old  (state-0-to-1 old)
+    ==
+      %1
+    ?:  =(okay cool)  cor  
+    =.  state  old
+    =-  (give %fact ~(tap in -) epic+!>(okay))
+    %-  ~(gas in *(set path))
+    %+  murn  ~(val by sup.bowl)
+    |=  [=ship =path]
+    ^-  (unit _path)
+    ?.  |(=(/epic path) ?=([%chat @ @ %updates *] path))  ~
+    `path
+  ==
   +$  versioned-state
     $%  state-0
         state-1
@@ -142,7 +144,6 @@
       inv     inv.s
       voc     voc.s
       chats   (chats-0-to-1 chats.s)
-      old-epic  0
     ==
   ++  chats-0-to-1
     |=  chats=(map flag:zero chat:zero)
@@ -293,7 +294,7 @@
       [%dm %invited ~]  ?>(from-self cor)
     ::
       [%epic ~]
-    (give %fact ~ epic+!>(our-epic))
+    (give %fact ~ epic+!>(okay))
     ::
       [%said host=@ name=@ %msg sender=@ time=@ ~]
     =/  host=ship  (slav %p host.pole)
@@ -424,7 +425,7 @@
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic our-epic)  :: is now our guy
+    ?.  =(epic okay)  :: is now our guy
       cor
     %+  roll  ~(tap by chats)
     |=  [[=flag:g =chat:c] out=_cor]
@@ -953,9 +954,9 @@
     |=  her=epic:e
     ^+  ca-core
     ?>  ?=(%sub -.net.chat)
-    ?:  =(her our-epic)
+    ?:  =(her okay)
       ca-core
-    ?:  (gth her our-epic)
+    ?:  (gth her okay)
       =.  saga.net.chat  dex/her
       ca-core
     =.  saga.net.chat  lev/~ 
