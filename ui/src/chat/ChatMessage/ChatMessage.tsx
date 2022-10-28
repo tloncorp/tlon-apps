@@ -64,7 +64,7 @@ const ChatMessage = React.memo<
       const isMessagePosted = useIsMessagePosted(seal.id);
 
       useEffect(() => {
-        if (inView === true && unread) {
+        if (inView && unread) {
           markRead(whom);
         }
       }, [unread, inView, markRead, whom]);
