@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet, useMatch, useNavigate } from 'react-router';
+import { Outlet, useLocation, useMatch, useNavigate } from 'react-router';
 import {
   useGang,
   useGroup,
@@ -22,7 +22,10 @@ function Groups() {
   const group = useGroup(flag);
   const gang = useGang(flag);
   const isMobile = useIsMobile();
-  const root = useMatch('/groups/:ship/:name');
+  const root = useMatch({
+    path: '/groups/:ship/:name',
+    end: true,
+  });
   const [recentChannel] = useLocalStorage(
     createStorageKey(`recent-chan:${flag}`),
     ''

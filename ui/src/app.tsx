@@ -206,20 +206,20 @@ function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
             />
             {/* Find by Invite URL */}
             <Route
-              path="/groups/find/:ship/:name"
+              path="/find/:ship/:name"
               element={
                 <FindGroups title={`Find Groups • ${appHead('').title}`} />
               }
             />
             {/* Find by Nickname or @p */}
             <Route
-              path="/groups/find/:ship"
+              path="/find/:ship"
               element={
                 <FindGroups title={`Find Groups • ${appHead('').title}`} />
               }
             />
             <Route
-              path="/groups/find"
+              path="/find"
               element={
                 <FindGroups title={`Find Groups • ${appHead('').title}`} />
               }

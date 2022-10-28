@@ -10,7 +10,6 @@ import { useChannel, useGroup, useGroupState } from '../state/groups/groups';
 import { useIsMobile } from '../logic/useMedia';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
-import BulletIcon from '../components/icons/BulletIcon';
 import MultiDmAvatar from './MultiDmAvatar';
 import { whomIsDm, whomIsMultiDm } from '../logic/utils';
 
@@ -20,12 +19,17 @@ interface MessagesSidebarItemProps {
   pending?: boolean; // eslint-disable-line
 }
 
-function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
+function ChannelSidebarItem({
+  whom,
+  brief,
+  pending,
+}: MessagesSidebarItemProps) {
   const groups = useGroupState((s) => s.groups);
+  const nest = `chat/${whom}`;
   const groupFlag = Object.entries(groups).find(
-    ([k, v]) => whom in v.channels
+    ([k, v]) => nest in v.channels
   )?.[0];
-  const channel = useChannel(groupFlag || '', whom);
+  const channel = useChannel(groupFlag || '', nest);
   const group = useGroup(groupFlag || '');
 
   if (!channel) {
@@ -34,16 +38,9 @@ function ChannelSidebarItem({ whom, brief }: MessagesSidebarItemProps) {
 
   return (
     <SidebarItem
-      to={`/groups/${groupFlag}/channels/${whom}`}
+      to={`/groups/${groupFlag}/channels/${nest}`}
       icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
-      actions={
-        (brief?.count ?? 0) > 0 ? (
-          <BulletIcon
-            className="h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-            aria-label="Has Activity"
-          />
-        ) : null
-      }
+      actions={<DmOptions whom={whom} pending={!!pending} />}
     >
       {channel.meta.title}
     </SidebarItem>
@@ -108,8 +105,6 @@ export default function MessagesSidebarItem({
   brief,
   pending,
 }: MessagesSidebarItemProps) {
-  const channelWhom = `chat/${whom}`;
-
   if (whomIsDm(whom)) {
     return <DMSidebarItem pending={pending} whom={whom} brief={brief} />;
   }
@@ -118,5 +113,5 @@ export default function MessagesSidebarItem({
     return <MultiDMSidebarItem whom={whom} brief={brief} pending={pending} />;
   }
 
-  return <ChannelSidebarItem whom={channelWhom} brief={brief} />;
+  return <ChannelSidebarItem whom={whom} brief={brief} pending={pending} />;
 }

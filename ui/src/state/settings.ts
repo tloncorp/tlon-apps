@@ -7,6 +7,7 @@ import {
 } from '@urbit/api';
 import _ from 'lodash';
 import { lsDesk } from '@/constants';
+import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import {
   BaseState,
   createState,
@@ -21,7 +22,8 @@ interface ChannelSetting {
 }
 
 export interface HeapSetting extends ChannelSetting {
-  sortMode: 'time' | 'alpha';
+  sortMode: HeapSortMode;
+  displayMode: HeapDisplayMode;
 }
 
 export interface DiarySetting extends ChannelSetting {
@@ -47,7 +49,6 @@ export const filters: Record<string, SidebarFilter> = {
   all: 'All Messages',
   groups: 'Group Channels',
 };
-
 
 interface BaseSettingsState {
   display: {
@@ -233,10 +234,16 @@ export function useHeapSettings(): HeapSetting[] {
   return parseSettings(settings ?? '');
 }
 
-export function useHeapSortMode(flag: string): 'time' | 'alpha' {
+export function useHeapSortMode(flag: string): HeapSortMode {
   const settings = useHeapSettings();
   const heapSetting = getSetting(settings, flag);
   return heapSetting?.sortMode ?? 'time';
+}
+
+export function useHeapDisplayMode(flag: string): HeapDisplayMode {
+  const settings = useHeapSettings();
+  const heapSetting = getSetting(settings, flag);
+  return heapSetting?.displayMode ?? 'list';
 }
 
 const selDiarySettings = (s: SettingsState) => s.diary.settings;

@@ -14,7 +14,6 @@ import {
 } from '@/state/groups/groups';
 import {
   useCuriosForHeap,
-  useHeapDisplayMode,
   useHeapState,
   useHeapPerms,
 } from '@/state/heap/heap';
@@ -24,13 +23,14 @@ import {
   setSetting,
   useHeapSettings,
   useHeapSortMode,
+  useHeapDisplayMode,
   useSettingsState,
 } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { createStorageKey } from '@/logic/utils';
-import { GRID, HeapCurio, HeapDisplayMode } from '@/types/heap';
+import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import bigInt from 'big-integer';
 import NewCurioForm from './NewCurioForm';
 
@@ -60,10 +60,17 @@ function HeapChannel({ title }: ViewProps) {
     _.intersection(perms.writers, vessel.sects).length !== 0;
 
   const setDisplayMode = (setting: HeapDisplayMode) => {
-    useHeapState.getState().viewHeap(chFlag, setting);
+    const newSettings = setSetting<HeapSetting>(
+      settings,
+      { displayMode: setting },
+      chFlag
+    );
+    useSettingsState
+      .getState()
+      .putEntry('heaps', 'heapSettings', JSON.stringify(newSettings));
   };
 
-  const setSortMode = (setting: 'time' | 'alpha') => {
+  const setSortMode = (setting: HeapSortMode) => {
     const newSettings = setSetting<HeapSetting>(
       settings,
       { sortMode: setting },
