@@ -30,7 +30,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([okay state])
+  ++  on-save  !>([state okay])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -81,7 +81,7 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<([okay=epic:e old=versioned-state] vase)
+  =+  !<([old=versioned-state okay=epic:e] vase)
   |-
   ?-  -.old
       %1
