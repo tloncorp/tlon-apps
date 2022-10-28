@@ -162,7 +162,7 @@
   ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
-  ?.  =(okay cool)  cor
+  ?:  =(okay cool)  cor
   ::  speak the good news
   =-  (give %fact ~(tap in -) epic+!>(okay))
   %-  ~(gas in *(set path))
