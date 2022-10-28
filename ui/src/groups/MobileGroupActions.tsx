@@ -7,19 +7,17 @@ import SlidersIcon from '@/components/icons/SlidersIcon';
 import { useGroupActions } from '@/groups/GroupActions';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import LeaveIcon from '@/components/icons/LeaveIcon';
-
-interface MobileGroupActionsProps {
-  flag: string;
-}
+import { useGroupFlag } from '@/state/groups';
 
 const { ship } = window;
 
-export default function MobileGroupActions({ flag }: MobileGroupActionsProps) {
+export default function MobileGroupActions() {
+  const flag = useGroupFlag();
   const location = useLocation();
   const { onCopy, copyItemText } = useGroupActions(flag);
 
   return (
-    <nav>
+    <nav className="p-2">
       <ul className="space-y-3">
         <SidebarItem
           to={`/groups/${flag}/invite`}

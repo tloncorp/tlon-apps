@@ -72,6 +72,7 @@ import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
 import MobileGroupRoot from './nav/MobileGroupRoot';
+import MobileGroupActions from './groups/MobileGroupActions';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -269,6 +270,7 @@ function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
                 path="channels"
                 element={<ChannelIndex title={` • ${appHead('').title}`} />}
               />
+              <Route path="actions" element={<MobileGroupActions />} />
             </Route>
             <Route
               path="channels/join/:app/:chShip/:chName"
