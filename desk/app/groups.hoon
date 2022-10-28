@@ -10,39 +10,18 @@
 ^-  agent:gall
 =>
   |%
-  ++  okay  ^-  epic:e  0
+  ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  state-0
     $:  %0
         groups=(map flag:g [net:g group:g])
         xeno=(map flag:g gang:g)
     ==
-  +$  state-1
-    $:  %1
-        cool=epic:e
-        groups=(map flag:g [net:g group:g])
-        xeno=(map flag:g gang:g)
-    ==
-  +$  versioned-state  $%(state-0 state-1)
+  ++  versioned-state  $%(state-0)
   ::
-  ++  jack
-    |=  v=versioned-state
-    =*  old  +.v
-    ?-  -.v
-      %0
-        =.  groups.old  
-          %-  ~(run by groups.old) 
-          |=  [=net:g g=group:g] 
-          ?.  ?=(%sub -.net)  [net g]
-          [[%sub p.net [%chi ~]] g]
-        [%1 cool=*epic:e old]
-      ::
-      %1  v
-    ==
-  ::
-  +$  adapted-state  $&(versioned-state jack)
+  +$  current-state  state-0
   --
-=|  adapted-state
+=|  current-state
 =*  state  -
 =< 
   %+  verb  &
@@ -55,7 +34,7 @@
     ^-  (quip card _this)
     `this
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>([state okay])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -181,10 +160,7 @@
 ++  load
   |=  =vase
   ^+  cor
-  =+  !<(old=versioned-state vase)
-  =?  old  ?=(%0 -.old)
-    ;;(adapted-state !<(versioned-state vase))
-  ?>  ?=(%1 -.old)
+  =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   ?.  =(okay cool)  cor
   ::  speak the good news
@@ -196,7 +172,6 @@
   ?.  |(=(/epic path) ?=([%groups @ @ %updates *] path))  ~
   `path
 ::
-
 ++  watch
   |=  =(pole knot)
   ^+  cor
@@ -241,8 +216,9 @@
     =/  ship  (slav %p ship.pole)
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ==
-
+::
 ++  agent
+
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
@@ -277,7 +253,7 @@
 ++  holt
   |=  tell=?
   ^+  cor
-  =.  state  *adapted-state
+  =.  state  *versioned-state
   =.  cor
     %-  emil
     %+  turn  ~(tap in ~(key by wex.bowl))
@@ -307,7 +283,6 @@
   ^+  cor
   ?+    -.sign  cor
       %kick
-    ~&  'todo: check that sub is removed before ingesting kick'^wex.bowl
     (watch-epic src.bowl)
   ::
       %fact
@@ -315,15 +290,16 @@
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay)
-      cor
+    ?.  =(epic okay)  cor
     ~&  >>  "good news everyone!"
     %+  roll  ~(tap by groups)
     |=  [[=flag:g =net:g =group:g] out=_cor]
+    ?:  =(our.bowl p.flag)  out
     go-abet:go-sub:(go-abed:group-core:out flag)
       %watch-ack
+    ?~  p.sign
+      (give %fact ~ epic+!>(okay))
     %.  cor
-    ?~  p.sign  same
     (slog leaf/"weird watch nack" u.p.sign)
   ==
 ::
