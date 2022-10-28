@@ -437,6 +437,8 @@
   ++  go-link
     |=  link=path 
     (welp /groups/(scot %p p.flag)/[q.flag] link)
+  ++  go-is-our-bloc
+    (~(has in go-bloc-who) our.bowl)
   ++  go-is-bloc
     |(=(src.bowl p.flag) (~(has in go-bloc-who) src.bowl))
   ++  go-bloc-who
@@ -838,7 +840,7 @@
                   [%emph title.meta.group]
               ==
           ==
-        =?  cor  go-is-bloc  
+        =?  cor  go-is-our-bloc
           (emit (pass-hark & & yarn))
         go-core
       ::
@@ -912,7 +914,7 @@
                 [%emph title.meta.group]
             ==
         ==
-      =?  cor  go-is-bloc  
+      =?  cor  go-is-our-bloc
         (emit (pass-hark & & yarn))
       ?-  -.cordon.group
           ?(%open %afar)  go-core
@@ -946,7 +948,7 @@
                 [%emph title.meta.group]
             ==
         ==
-      =?  cor  go-is-bloc  
+      =?  cor  go-is-our-bloc
         (emit (pass-hark & & yarn))
       ?:  (~(has in ships) our.bowl)
         go-core(gone &)
@@ -986,7 +988,7 @@
                 [%emph role-list]
             ==
         ==
-      =?  cor  go-is-bloc  
+      =?  cor  go-is-our-bloc
         (emit (pass-hark & & yarn))
       go-core
     ::
