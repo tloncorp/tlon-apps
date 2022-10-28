@@ -44,7 +44,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state our-epic])
+  ++  on-save  !>(state(old-epic our-epic))
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
