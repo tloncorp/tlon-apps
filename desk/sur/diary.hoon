@@ -1,9 +1,8 @@
-/-  g=groups, c=cite, e=epic, one=diary-1, zer=diary-0
+/-  g=groups, c=cite, e=epic, zer=diary-0
 |%
 ++  old
   |%
   ++  zero  zer
-  ++  unos  one
   --
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)

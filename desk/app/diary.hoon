@@ -8,10 +8,10 @@
 ^-  agent:gall
 =>
   |%
-  ++  okay  ^-  epic:e  0
+  ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  current-state
-    $:  %2
+    $:  %1
         =shelf:d
     ==
   --
@@ -30,7 +30,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>([okay state])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -81,17 +81,18 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<(old=versioned-state vase)
+  =+  !<([okay=epic:e old=versioned-state] vase)
   |-
   ?-  -.old
-      %2
-    =.  state  old
-    cor
-  ::
       %1
-    %=  $
-      old  (state-1-to-2 old)
-    ==
+    =.  state  old
+    =-  (give %fact ~(tap in -) epic+!>(okay))
+    %-  ~(gas in *(set path))
+    %+  murn  ~(val by sup.bowl)
+    |=  [=ship =path]
+    ^-  (unit _path)
+    ?.  |(=(/epic path) ?=([%diary @ @ %updates *] path))  ~
+  `path
       %0
     %=  $
       old  (state-0-to-1 old)
@@ -101,14 +102,11 @@
   +$  versioned-state
     $%  state-0
         state-1
-        state-2
     ==
   ++  zero     zero:old:d
-  ++  one      unos:old:d
-  ++  two      d
+  ++  one      d
   +$  state-0  [%0 =shelf:zero]
-  +$  state-1  [%1 =shelf:one]
-  +$  state-2  current-state
+  +$  state-1  current-state
   ++  state-0-to-1
     |=  sta=state-0
     ^-  state-1
@@ -117,7 +115,7 @@
     |=  =diary:zero
     ^-  diary:one
     %*  .  *diary:one
-      net    net.diary
+      net    (net-0-to-1 net.diary)
       log    (log-0-to-1 log.diary)
       perm   perm.diary
       view   view.diary
@@ -172,26 +170,9 @@
     ^-  memo:one
     [`content author sent]:memo
   ::
-  ++  state-1-to-2
-    |=  sta=state-1
-    ^-  state-2
-    :-  %2
-    %-  ~(run by shelf.sta)
-    |=  =diary:one
-    ^-  diary:two
-    %*  .  *diary:two
-      net    (net-1-to-2 net.diary)
-      log    log.diary
-      perm   perm.diary
-      view   view.diary
-      sort   sort.diary
-      notes  notes.diary
-      remark  remark.diary
-    ==
-  ::
-  ++  net-1-to-2
-    |=  =net:one
-    ^-  net:two
+  ++  net-0-to-1
+    |=  =net:zero
+    ^-  net:one
     ?.  ?=(%sub -.net)  net
     [%sub p.net [%chi ~]]
   --
@@ -210,7 +191,6 @@
   ^+  cor
   ?+    -.sign  cor
       %kick
-    ~&  'todo: check that sub is removed before ingesting kick'^wex.bowl
     (watch-epic src.bowl)
   ::
       %fact
@@ -223,6 +203,7 @@
     ~&  >>  "good news everyone!"
     %+  roll  ~(tap by shelf)
     |=  [[=flag:g =diary:d] out=_cor]
+    ?>  =(src.bowl p.flag)
     di-abet:di-sub:(di-abed:di-core:out flag)
       %watch-ack
     %.  cor
@@ -317,11 +298,11 @@
       %kick  watch-groups
     ::
         %watch-ack
-      %.  cor
-      ?~  p.sign  same
+      ?~  p.sign
+       (give %fact ~ epic+!>(okay))
       =/  =tank
         leaf/"Failed groups subscription in {<dap.bowl>}, unexpected"
-      (slog tank u.p.sign)
+      ((slog tank u.p.sign) cor)
     ::
         %fact
       ?.  =(%group-action p.cage.sign)  cor
@@ -522,11 +503,8 @@
     ?+    -.sign  di-core
         %kick
       ?>  ?=(%sub -.net.diary)
-      ?-  -.saga.net.diary
-        %chi  di-sub
-        %dex  di-core
-        %lev  di-core
-      ==
+      ?:  =(%chi -.saga.net.diary)  di-sub
+      di-core
     ::
         %watch-ack
       =.  net.diary  [%sub src.bowl [%chi ~]]
