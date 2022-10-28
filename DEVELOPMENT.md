@@ -77,6 +77,11 @@ This project uses husky to run git pre-commit hooks. You may disable Husky by ad
 
 ## Glossary
 
+_bloc_
+: superuser sects
+
+sects in the bloc set are allowed to make modifications to the group, and its various metadata and permissions
+
 _brief_
 : a representation of the last thing we've seen, and how many new items since
 
