@@ -81,10 +81,11 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<([old=versioned-state okay=epic:e] vase)
+  =+  !<([old=versioned-state cool=epic:e] vase)
   |-
   ?-  -.old
       %1
+    ?:  =(okay cool)  cor
     =.  state  old
     =-  (give %fact ~(tap in -) epic+!>(okay))
     %-  ~(gas in *(set path))
