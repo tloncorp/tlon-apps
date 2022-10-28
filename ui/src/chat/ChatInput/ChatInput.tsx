@@ -1,7 +1,13 @@
 import { Editor } from '@tiptap/react';
 import { debounce, isEqual, findLast } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useChatState, useChatDraft, usePact } from '@/state/chat';
 import { ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
@@ -90,9 +96,9 @@ export default function ChatInput({
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
   const { loaded, hasCredentials, promptUpload } = useFileUpload();
-  const fileId = 'chat-input';
+  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
   const mostRecentFile = useFileStore((state) =>
-    findLast(state.files, ['for', fileId])
+    findLast(state.files, ['for', fileId.current])
   );
 
   const closeReply = useCallback(() => {
@@ -183,6 +189,8 @@ export default function ChatInput({
             },
           });
         };
+
+        fileId.current = `chat-input-${Math.floor(Math.random() * 1000000)}`;
       } else {
         const memo: ChatMemo = {
           replying: reply,
@@ -324,7 +332,7 @@ export default function ChatInput({
                 title={'Upload an image'}
                 className="absolute mr-2 text-gray-600 hover:text-gray-800"
                 aria-label="Add attachment"
-                onClick={() => promptUpload(fileId)}
+                onClick={() => promptUpload(fileId.current)}
               >
                 <AddIcon className="h-6 w-4" />
               </button>
