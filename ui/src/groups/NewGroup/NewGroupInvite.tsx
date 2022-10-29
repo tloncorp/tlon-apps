@@ -80,8 +80,8 @@ function GroupMemberRoleList({
   const sortedMemberList = shipsToInvite.reduce<{
     [role: string]: ShipWithRoles[];
   }>((memo, x) => {
-    // eslint-disable-next-line no-param-reassign
     if (!memo[x.roles[0].toString()]) {
+      // eslint-disable-next-line no-param-reassign
       memo[x.roles[0].toString()] = [];
     }
     memo[x.roles[0].toString()].push(x);
