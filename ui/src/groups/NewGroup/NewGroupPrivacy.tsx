@@ -15,8 +15,8 @@ export default function NewGroupPrivacy({
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex flex-col">
-        <span className="text-lg font-bold">Group Privacy</span>
-        <span className="pt-1 font-bold text-gray-600">
+        <span className="text-lg font-bold">New Group: Group Privacy</span>
+        <span className="pt-1 text-gray-600">
           Set how people can find and join{' '}
           <span className="text-black">{groupName}</span>
         </span>
