@@ -257,9 +257,8 @@
     |=  req=create:c
     ^+  cor
     |^
-    ?.  can-nest
-      %.  cor
-      (slog 'Create failed: group not found' ~)
+    ~_  leaf+"Create failed: check group permissions"
+    ?>  can-nest
     =/  =flag:c  [our.bowl name.req]
     =|  =chat:c
     =/  =perm:c  [writers.req group.req]
@@ -269,11 +268,22 @@
     ca-abet:(ca-init:(ca-abed:ca-core flag) req)
     ++  can-nest
       ^-  ?
-      =-  (~(has by -) group.req)
+      =/  gop  (~(got by groups) group.req)
+      %-  ~(any in bloc.gop)
+      ~(has in sects:(~(got by fleet.gop) our.bowl))    ::  XX: is this right?
+    ::  +groups:
+    ::
+    ::  this has to be duplicated because
+    ::  +di-groups-scry does not allow me
+    ::  to properly adjust for a possible
+    ::  group.
+    ::
+    ++  groups
       .^  groups:g
         %gx
         /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
       ==
+    --
     --
   ++  pin
     |=  ps=(list whom:c)

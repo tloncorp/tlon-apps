@@ -214,7 +214,7 @@
     ::
     ++  can-nest
       ^-  ?
-      =/  gop  (~(got by groups) [our.bowl name.req])
+      =/  gop  (~(got by groups) group.req)
       %-  ~(any in bloc.gop)
       ~(has in sects:(~(got by fleet.gop) our.bowl))    ::  XX: is this right?
     ::  +groups:
