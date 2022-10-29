@@ -255,35 +255,27 @@
   ::
   ++  create
     |=  req=create:c
-    ^+  cor
-    |^
-    ~_  leaf+"Create failed: check group permissions"
-    ?>  can-nest
-    =/  =flag:c  [our.bowl name.req]
-    =|  =chat:c
-    =/  =perm:c  [writers.req group.req]
-    =.  perm.chat  perm
-    =.  net.chat  [%pub ~]
-    =.  chats  (~(put by chats) flag chat)
-    ca-abet:(ca-init:(ca-abed:ca-core flag) req)
+    |^  ^+  cor
+      ~_  leaf+"Create failed: check group permissions"
+      ?>  can-nest
+      =/  =flag:c  [our.bowl name.req]
+      =|  =chat:c
+      =/  =perm:c  [writers.req group.req]
+      =.  perm.chat  perm
+      =.  net.chat  [%pub ~]
+      =.  chats  (~(put by chats) flag chat)
+      ca-abet:(ca-init:(ca-abed:ca-core flag) req)
     ++  can-nest
       ^-  ?
       =/  gop  (~(got by groups) group.req)
       %-  ~(any in bloc.gop)
       ~(has in sects:(~(got by fleet.gop) our.bowl))    ::  XX: is this right?
-    ::  +groups:
-    ::
-    ::  this has to be duplicated because
-    ::  +di-groups-scry does not allow me
-    ::  to properly adjust for a possible
-    ::  group.
     ::
     ++  groups
       .^  groups:g
         %gx
         /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
       ==
-    --
     --
   ++  pin
     |=  ps=(list whom:c)

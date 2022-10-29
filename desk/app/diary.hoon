@@ -199,17 +199,16 @@
   ::
   ++  create
     |=  req=create:d
-    ^+  cor
-    |^
+    |^  ^+  cor
     ~_  leaf+"Create failed: check group permissions"
-    ?>  can-nest
-    =/  =flag:d  [our.bowl name.req]
-    =|  =diary:d
-    =/  =perm:d  [writers.req group.req]
-    =.  perm.diary  perm
-    =.  net.diary  [%pub ~]
-    =.  shelf  (~(put by shelf) flag diary)
-    di-abet:(di-init:(di-abed:di-core flag) req)
+      ?>  can-nest
+      =/  =flag:d  [our.bowl name.req]
+      =|  =diary:d
+      =/  =perm:d  [writers.req group.req]
+      =.  perm.diary  perm
+      =.  net.diary  [%pub ~]
+      =.  shelf  (~(put by shelf) flag diary)
+      di-abet:(di-init:(di-abed:di-core flag) req)
     ::  +can-nest: does group exist, are we allowed
     ::
     ++  can-nest
