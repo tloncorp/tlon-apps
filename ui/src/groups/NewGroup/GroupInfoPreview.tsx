@@ -1,12 +1,10 @@
 import React from 'react';
 import cn from 'classnames';
-import { useFormContext } from 'react-hook-form';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { isValidUrl } from '@/logic/utils';
 import { ImageOrColorFieldState } from '@/components/ImageOrColorField';
-import { GroupMeta } from '@/types/groups';
 
 interface GroupInfoPreviewProps {
   iconType: ImageOrColorFieldState;

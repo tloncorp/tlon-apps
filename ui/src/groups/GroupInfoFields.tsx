@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
-import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import GroupInfoPreview from '@/groups/NewGroup/GroupInfoPreview';
 import ImageOrColorField, {
   ImageOrColorFieldState,
@@ -9,7 +7,6 @@ import ImageOrColorField, {
 import { useCalm } from '@/state/settings';
 import { isValidUrl } from '@/logic/utils';
 import { GroupMeta } from '@/types/groups';
-import GroupAvatar from './GroupAvatar';
 
 export default function GroupInfoFields() {
   const { register, watch } = useFormContext<GroupMeta>();
