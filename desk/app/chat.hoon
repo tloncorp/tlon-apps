@@ -367,13 +367,15 @@
 ++  import-dms
   |=  =graph:gra:c
   ^+  cor
-  %+  roll  (tap:orm-gra:c graph)
-  |=  [[ship=@ =node:gra:c] out=_cor]
+  =/  old-dms  (tap:orm-gra:c graph)
+  |-  =*  loop  $
+  ?~  old-dms  cor
+  =/  [ship=@ =node:gra:c]  i.old-dms
   ?.  ?=(%graph -.children.node)
-    out
+    loop(old-dms t.old-dms)
   =.  dms  
     (~(put by dms) ship (graph-to-pact p.children.node) *remark:c %done |)
-  out
+  loop(old-dms t.old-dms)
 ++  graph-to-pact
   |=  =graph:gra:c
   ^-  pact:c
