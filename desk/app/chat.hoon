@@ -96,7 +96,11 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<([old=versioned-state cool=epic:e] vase)
+  =/  maybe-old=(each [versioned-state epic:e] tang)
+    (mule |.(!<([versioned-state epic:e] vase)))
+  =/  [old=versioned-state cool=epic:e]
+    ?.  ?=(%| -.maybe-old)  p.maybe-old
+    [!<(versioned-state vase) okay]
   |-
   ?-  -.old
       %0
