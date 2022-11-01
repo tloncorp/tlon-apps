@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { PropsWithChildren, Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
@@ -23,7 +23,11 @@ import useMedia, { useIsMobile } from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
-import { useLocalState } from '@/state/local';
+import {
+  useErrorCount,
+  useLocalState,
+  useSubscriptionStatus,
+} from '@/state/local';
 import useContactState from '@/state/contact';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -66,6 +70,7 @@ import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 import AlphaNotice from './components/AlphaNotice';
+import DisconnectNotice from './components/DisconnectNotice';
 import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
 import TalkNav from './nav/TalkNav';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
@@ -373,6 +378,8 @@ function App() {
   const location = useLocation();
   const isChat = useIsChat();
   const isMobile = useIsMobile();
+  const subscription = useSubscriptionStatus();
+  const errorCount = useErrorCount();
 
   useEffect(() => {
     handleError(() => {
@@ -404,6 +411,9 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
+      {subscription === 'disconnected' || subscription === 'reconnecting' ? (
+        <DisconnectNotice />
+      ) : null}
       <AlphaNotice />
       {isChat ? (
         <ChatRoutes state={state} location={location} isMobile={isMobile} />
