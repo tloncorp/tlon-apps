@@ -89,8 +89,8 @@
   |-
   ?-  -.old
       %1
-    ?:  =(okay cool)  cor
     =.  state  old
+    ?:  =(okay cool)  cor
     =-  (give %fact ~(tap in -) epic+!>(okay))
     %-  ~(gas in *(set path))
     %+  murn  ~(val by sup.bowl)
