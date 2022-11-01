@@ -1,5 +1,4 @@
 import React from 'react';
-// import { useReconnect } from '@/state/local';
 import api from '@/api';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { useGroupState } from '@/state/groups';
