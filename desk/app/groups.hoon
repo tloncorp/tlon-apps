@@ -660,11 +660,8 @@
     ?+    -.sign  (go-sub |)
         %kick
       ?>  ?=(%sub -.net)
-      ?-  -.saga.net
-        %chi  (go-sub load.net)
-        %dex  go-core
-        %lev  go-core
-      ==
+      ?.  ?=(%chi -.saga.net)  go-core
+      (go-sub load.net)
     ::
         %watch-ack
       =?  cor  (~(has by xeno) flag)
