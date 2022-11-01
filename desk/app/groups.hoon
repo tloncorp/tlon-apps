@@ -185,8 +185,7 @@
     [%groups ~]           cor
     [%gangs %updates ~]   cor
     ::
-      [%epic ~]
-    (give %fact ~ epic+!>(okay))
+      [%epic ~]  (give %fact ~ epic+!>(okay))
   ::
       [%groups ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
@@ -227,8 +226,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
-      [%epic ~]
-    (take-epic sign)
+      [%epic ~]  (take-epic sign)
       [%hark ~]  cor
   ::
       [%groups ship=@ name=@ rest=*]
