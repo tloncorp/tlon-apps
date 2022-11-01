@@ -131,7 +131,8 @@ export default function NewGroup() {
     <Dialog defaultOpen modal={true} onOpenChange={onOpenChange}>
       <DialogContent
         onInteractOutside={(e) => e.preventDefault()}
-        containerClass="w-full sm:max-w-lg"
+        className="inset-y-24"
+        containerClass="w-full h-full sm:max-w-lg"
       >
         <FormProvider {...form}>
           <div className="flex flex-col">{currentStepComponent}</div>
