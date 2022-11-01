@@ -567,14 +567,6 @@
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
-  ++  go-start-sub
-    ^+  go-core
-    =/  base=wire  (snoc go-area %updates)
-    =/  =path      (snoc base %init)
-    =/  =card
-      [%pass base %agent [p.flag dap.bowl] %watch path]
-    =.  cor  (emit card)
-    go-core
   ::
   ++  go-sub
     |=  init=_|
@@ -671,7 +663,7 @@
         %kick
       ?>  ?=(%sub -.net)
       ?-  -.saga.net
-        %chi  go-start-sub
+        %chi  (go-sub load.net)
         %dex  go-core
         %lev  go-core
       ==
