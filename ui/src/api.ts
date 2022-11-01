@@ -16,7 +16,7 @@ let client = undefined as unknown as Urbit | UrbitMock;
 
 const { errorCount } = useLocalState.getState();
 
-export async function setupAPI() {
+async function setupAPI() {
   if (IS_MOCK) {
     window.ship = 'finned-palmer';
     window.our = `~${window.ship}`;
