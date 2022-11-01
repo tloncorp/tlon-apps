@@ -225,15 +225,12 @@
 ::
 ::  $net: an indicator of whether I'm a host or subscriber
 ::
-::    %load: initiating diary join
 ::    %pub: am publisher/host with fresh log
 ::    %sub: subscribed to the ship at saga
 ::
 +$  net
-  $~  [%load ~]
-  $%  [%sub p=ship =saga:e]
+  $%  [%sub p=ship load=_| =saga:e]
       [%pub ~] :: TODO: permissions?
-      [%load ~]
   ==
 ::
 ::  $briefs: a map of diary unread information

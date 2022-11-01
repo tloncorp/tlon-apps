@@ -281,8 +281,7 @@
 +$  net
   $~  [%pub ~]
   $%  [%pub p=log]
-      [%sub p=time =saga:e]
-      [%load ~]
+      [%sub p=time load=_| =saga:e]
   ==
 ::
 ::  $join: a join request, can elect to join all channels

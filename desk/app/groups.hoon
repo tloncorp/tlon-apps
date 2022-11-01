@@ -160,7 +160,11 @@
 ++  load
   |=  =vase
   ^+  cor
-  =+  !<([old=versioned-state cool=epic:e] vase)
+   =/  maybe-old=(each [versioned-state epic:e] tang)
+    (mule |.(!<([versioned-state epic:e] vase)))
+  =/  [old=versioned-state cool=epic:e]
+    ?.  ?=(%| -.maybe-old)  p.maybe-old
+    [!<(versioned-state vase) okay]
   =.  state  old
   ?:  =(okay cool)  cor
   ::  speak the good news
@@ -717,7 +721,7 @@
   ++  go-fact-init
     |=  [=time gr=group:g]
     =.  group  gr
-    =.  net  [%sub time %chi ~]
+    =.  net  [%sub time | %chi ~]
     =/  create=diff:g  [%create group]
     =.  cor  
       (give %fact ~[/groups /groups/ui] group-action+!>(`action:g`[flag now.bowl create]))
@@ -758,7 +762,9 @@
     ^+  go-core
     =.  go-core
       (go-tell-update time diff)
-    =?  net  ?=(?(%sub %load) -.net)  [%sub time %chi ~]
+    =?  net  ?=(%sub -.net)
+      ?>  =(%sub -.net)
+      [%sub time load.net %chi ~]
     ?-  -.diff
       %channel  (go-channel-update [p q]:diff)
       %fleet    (go-fleet-update [p q]:diff)
@@ -1207,7 +1213,7 @@
     =.  xeno  (~(put by xeno) flag gang)
     ?.  (~(has by groups) flag)  cor
     =/  [=net:g =group:g]  (~(got by groups) flag)
-    ?.  ?=(%load -.net)  cor
+    ?.  &(?=(%sub -.net) load.net)  cor
     =.  xeno  (~(del by xeno) flag)
     ga-give-update
   ::
@@ -1319,7 +1325,7 @@
           %-  (slog leaf/"Joining failed" u.p.sign)
           ga-core
         =.  progress.u.cam.gang  %watching
-        =/  =net:g  [%load ~]
+        =/  =net:g  [%sub now.bowl | %chi ~]
         =|  =group:g
         =.  groups  (~(put by groups) flag net group)
         ::

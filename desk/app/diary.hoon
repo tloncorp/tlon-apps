@@ -81,7 +81,11 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<([old=versioned-state cool=epic:e] vase)
+   =/  maybe-old=(each [versioned-state epic:e] tang)
+    (mule |.(!<([versioned-state epic:e] vase)))
+  =/  [old=versioned-state cool=epic:e]
+    ?.  ?=(%| -.maybe-old)  p.maybe-old
+    [!<(versioned-state vase) okay]
   |-
   ?-  -.old
       %1
@@ -174,8 +178,11 @@
   ++  net-0-to-1
     |=  =net:zero
     ^-  net:one
+    ?:  ?=(%load -.net)
+    ::  XX should we remove uninitialized subs from state-0?
+       [%pub ~]
     ?.  ?=(%sub -.net)  net
-    [%sub p.net [%chi ~]]
+    [%sub p.net & [%chi ~]]
   --
 ::
 ++  watch-epic
@@ -508,7 +515,7 @@
       di-core
     ::
         %watch-ack
-      =.  net.diary  [%sub src.bowl [%chi ~]]
+      =.  net.diary  [%sub src.bowl & [%chi ~]]
       ?~  p.sign  di-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       =.  gone  &
