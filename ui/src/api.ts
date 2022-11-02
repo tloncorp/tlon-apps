@@ -44,20 +44,11 @@ async function setupAPI() {
 
 const api = {
   async scry<T>(params: Scry) {
-    try {
-      if (!client) {
-        await setupAPI();
-      }
-
-      const clientScry = await client.scry<T>(params);
-      useLocalState.setState({ subscription: 'connected' });
-      useLocalState.setState({ errorCount: 0 });
-      return clientScry;
-    } catch (e) {
-      useLocalState.setState({ subscription: 'disconnected' });
-      useLocalState.setState({ errorCount: errorCount + 1 });
-      throw e;
+    if (!client) {
+      await setupAPI();
     }
+
+    return client.scry<T>(params);
   },
   async poke<T>(params: PokeInterface<T>) {
     try {

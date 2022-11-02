@@ -23,11 +23,7 @@ import useMedia, { useIsMobile } from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
-import {
-  useErrorCount,
-  useLocalState,
-  useSubscriptionStatus,
-} from '@/state/local';
+import { useLocalState, useSubscriptionStatus } from '@/state/local';
 import useContactState from '@/state/contact';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -379,7 +375,6 @@ function App() {
   const isChat = useIsChat();
   const isMobile = useIsMobile();
   const subscription = useSubscriptionStatus();
-  const errorCount = useErrorCount();
 
   useEffect(() => {
     handleError(() => {
