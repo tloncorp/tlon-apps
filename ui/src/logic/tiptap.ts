@@ -1,4 +1,14 @@
-import { Inline, InlineKey } from '@/types/content';
+import {
+  Inline,
+  InlineKey,
+  isBlockquote,
+  isBold,
+  isBreak,
+  isInlineCode,
+  isItalics,
+  isLink,
+  isStrikethrough,
+} from '@/types/content';
 import { reduce, isEqual } from 'lodash';
 import { JSONContent } from '@tiptap/react';
 import {
@@ -91,6 +101,42 @@ export function tipTapToString(json: JSONContent): string {
   }
 
   return json.text || '';
+}
+
+export function inlineToString(inline: Inline): any {
+  if (typeof inline === 'string') {
+    return inline;
+  }
+
+  if (isBold(inline)) {
+    return inline.bold.map((i: Inline) => inlineToString(i)).join(' ');
+  }
+
+  if (isItalics(inline)) {
+    return inline.italics.map((i: Inline) => inlineToString(i));
+  }
+
+  if (isStrikethrough(inline)) {
+    return inline.strike.map((i: Inline) => inlineToString(i));
+  }
+
+  if (isLink(inline)) {
+    return inline.link.content;
+  }
+
+  if (isBlockquote(inline)) {
+    return Array.isArray(inline.blockquote)
+      ? inline.blockquote.map((i) => inlineToString(i)).join(' ')
+      : inline.blockquote;
+  }
+
+  if (isInlineCode(inline)) {
+    return typeof inline['inline-code'] === 'object'
+      ? inlineToString(inline['inline-code'])
+      : inline['inline-code'];
+  }
+
+  return '';
 }
 
 // Limits the amount of consecutive breaks to 2 or less
