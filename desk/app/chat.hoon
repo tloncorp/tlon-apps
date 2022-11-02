@@ -99,6 +99,7 @@
   =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
   (mule |.(!<([versioned-state epic:e] vase)))
   =/  [old=versioned-state cool=epic:e bad=?]
+    ::  XX illustrative, won't save unless not okay cool
     ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
     =;  [sta=versioned-state ba=?]  [sta okay ba]
     =-  %+  fall  -  ~&  >  %bad-load  [state &]
