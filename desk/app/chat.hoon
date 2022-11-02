@@ -161,10 +161,11 @@
       pact    pact.chat
       ::
         net
-      ?-  -.net.chat
-        ?(%load %pub)  net.chat
-        %sub  [%sub p.net.chat *saga:e]
-      ==
+      ?:  ?=(%load -.net.chat)
+      ::  XX maybe should p.net be a (unit @p)?
+        [%pub ~]
+      ?.  ?=(%sub -.net.chat)  net.chat
+      [%sub p.net.chat & [%chi ~]]
     ==
   --
 ::
@@ -421,7 +422,6 @@
   ^+  cor
   ?+    -.sign  cor
       %kick
-    ~&  'todo: check that sub is removed before ingesting kick'^wex.bowl
     (watch-epic src.bowl)
   ::
       %fact
@@ -932,14 +932,11 @@
     ?+    -.sign  ca-core
         %kick
       ?>  ?=(%sub -.net.chat)
-      ?-  -.saga.net.chat
-        %chi  ca-sub
-        %dex  ca-core
-        %lev  ca-core
-      ==
+      ?:  =(%chi -.saga.net.chat)  ca-sub
+      ca-core
     ::
         %watch-ack
-      =.  net.chat  [%sub src.bowl %chi ~]
+      =.  net.chat  [%sub src.bowl & %chi ~]
       ?~  p.sign  ca-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       =.  gone  &
