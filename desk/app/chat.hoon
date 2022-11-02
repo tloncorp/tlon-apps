@@ -944,7 +944,6 @@
       ?>  ?=(%sub -.net.chat)
       ?:  =(%chi -.saga.net.chat)  ca-sub
       ca-core
-    ==
     ::
         %watch-ack
       =.  net.chat  [%sub src.bowl & %chi ~]
