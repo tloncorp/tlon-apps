@@ -286,10 +286,8 @@
 ::    %sub: subscribed to the ship
 ::
 +$  net
-  $~  [%load ~]
-  $%  [%sub host=ship =saga:e]
+  $%  [%sub host=ship load=_| =saga:e]
       [%pub ~]
-      [%load ~]
   ==
 ::
 ::  $action: the complete set of data required to edit a chat

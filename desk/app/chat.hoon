@@ -96,11 +96,13 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =/  maybe-old=(each [versioned-state epic:e] tang)
-    (mule |.(!<([versioned-state epic:e] vase)))
-  =/  [old=versioned-state cool=epic:e]
-    ?.  ?=(%| -.maybe-old)  p.maybe-old
-    [!<(versioned-state vase) okay]
+  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
+  (mule |.(!<([versioned-state epic:e] vase)))
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
   |-
   ?-  -.old
       %0
@@ -110,6 +112,7 @@
       %1
     =.  state  old
     ?:  =(okay cool)  cor
+    =?  cor  bad  (emit (keep !>(old)))
     =-  (give %fact ~(tap in -) epic+!>(okay))
     %-  ~(gas in *(set path))
     %+  murn  ~(val by sup.bowl)
@@ -118,7 +121,14 @@
     ?.  |(=(/epic path) ?=([%chat @ @ %updates *] path))  ~
     `path
   ==
-  +$  versioned-state
+  ::
+  ++  keep
+    |=  bad=^vase
+    ^-  card
+    ~&  >  %keep
+    [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
+ ::
+ +$  versioned-state
     $%  state-0
         state-1
     ==
@@ -161,10 +171,11 @@
       pact    pact.chat
       ::
         net
-      ?-  -.net.chat
-        ?(%load %pub)  net.chat
-        %sub  [%sub p.net.chat *saga:e]
-      ==
+      ?:  ?=(%load -.net.chat)
+      ::  XX maybe should p.net be a (unit @p)?
+        [%pub ~]
+      ?.  ?=(%sub -.net.chat)  net.chat
+      [%sub p.net.chat & [%chi ~]]
     ==
   --
 ::
@@ -421,7 +432,6 @@
   ^+  cor
   ?+    -.sign  cor
       %kick
-    ~&  'todo: check that sub is removed before ingesting kick'^wex.bowl
     (watch-epic src.bowl)
   ::
       %fact
@@ -932,14 +942,12 @@
     ?+    -.sign  ca-core
         %kick
       ?>  ?=(%sub -.net.chat)
-      ?-  -.saga.net.chat
-        %chi  ca-sub
-        %dex  ca-core
-        %lev  ca-core
-      ==
+      ?:  =(%chi -.saga.net.chat)  ca-sub
+      ca-core
+    ==
     ::
         %watch-ack
-      =.  net.chat  [%sub src.bowl %chi ~]
+      =.  net.chat  [%sub src.bowl & %chi ~]
       ?~  p.sign  ca-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       =.  gone  &

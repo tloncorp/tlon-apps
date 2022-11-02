@@ -85,7 +85,8 @@
     (mule |.(!<([versioned-state epic:e] vase)))
   =/  [old=versioned-state cool=epic:e]
     ?.  ?=(%| -.maybe-old)  p.maybe-old
-    [!<(versioned-state vase) okay]
+    =-  ~&  >  %bad-load  (fall - [state.cor okay])
+    (mole |.([!<(versioned-state vase) okay]))
   |-
   ?-  -.old
       %1
