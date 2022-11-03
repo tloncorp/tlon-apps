@@ -114,6 +114,7 @@ export default function NewGroup() {
       currentStepComponent = (
         <NewGroupInvite
           groupName={form.getValues('title')}
+          groupPrivacy={form.getValues('privacy')}
           goToPrevStep={goToPrevStep}
           goToNextStep={onComplete}
           shipsToInvite={shipsToInvite}
@@ -127,19 +128,21 @@ export default function NewGroup() {
   }
 
   return (
-    <Dialog defaultOpen onOpenChange={onOpenChange}>
-      <DialogContent containerClass="w-full sm:max-w-lg">
+    <Dialog defaultOpen modal={true} onOpenChange={onOpenChange}>
+      <DialogContent
+        onInteractOutside={(e) => e.preventDefault()}
+        className="inset-y-24"
+        containerClass="w-full h-full sm:max-w-lg"
+      >
         <FormProvider {...form}>
           <div className="flex flex-col">{currentStepComponent}</div>
         </FormProvider>
         <div className="flex flex-col items-center pt-4">
-          {currentStep !== 1 ? (
-            <NavigationDots
-              maxStep={maxStep - 1}
-              currentStep={currentStep - 1}
-              setStep={(step) => setStep(step + 1)}
-            />
-          ) : null}
+          <NavigationDots
+            maxStep={maxStep}
+            currentStep={currentStep}
+            setStep={(step) => setStep(step + 1)}
+          />
         </div>
       </DialogContent>
     </Dialog>

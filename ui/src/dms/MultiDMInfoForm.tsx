@@ -19,7 +19,7 @@ interface MultiDMInfoFormProps {
 export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
   const clubId = useParams<{ id: string }>().id!;
   const club = useMultiDm(clubId);
-  const [iconType, setIconType] = useState<ImageOrColorFieldState>('initial');
+  const [iconType, setIconType] = useState<ImageOrColorFieldState>('color');
   const defaultValues: GroupMeta = {
     title: club?.meta.title || '',
     cover: club?.meta.cover || '',
@@ -36,8 +36,7 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
   const watchImage = watch('image');
   const watchTitle = watch('title');
   const letter = watchTitle.slice(0, 1);
-  const showEmpty =
-    iconType === 'initial' || (iconType === 'image' && !isValidUrl(watchImage));
+  const showEmpty = iconType === 'image' && !isValidUrl(watchImage);
 
   const onSubmit = useCallback(
     (values: GroupMeta) => {

@@ -45,6 +45,7 @@ interface ShipSelectorProps {
   isClearable?: boolean;
   isLoading?: boolean;
   hasPrompt?: boolean;
+  inner?: boolean;
   placeholder?: string;
   isValidNewOption?: (value: string) => boolean;
 }
@@ -56,6 +57,17 @@ function Control({ children, ...props }: ControlProps<ShipOption, true>) {
       className="input cursor-text items-center text-gray-800"
     >
       <MagnifyingGlass16Icon className="h-4 w-4 text-gray-300" />
+      {children}
+    </components.Control>
+  );
+}
+
+function InnerControl({ children, ...props }: ControlProps<ShipOption, true>) {
+  return (
+    <components.Control
+      {...props}
+      className="input-inner cursor-text items-center px-0 text-gray-800"
+    >
       {children}
     </components.Control>
   );
@@ -252,6 +264,7 @@ export default function ShipSelector({
   onEnter,
   isMulti = true,
   isClearable = false,
+  inner = false,
   isLoading = false,
   hasPrompt = true,
   placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
@@ -467,7 +480,7 @@ export default function ShipSelector({
         onClear={onClear}
         hasPrompt={hasPrompt}
         components={{
-          Control,
+          Control: inner ? InnerControl : Control,
           Menu: ShipDropDownMenu,
           MenuList: ShipDropDownMenuList,
           Input,
@@ -553,7 +566,7 @@ export default function ShipSelector({
       isClearable={isClearable}
       isLoading={isLoading}
       components={{
-        Control,
+        Control: inner ? InnerControl : Control,
         Menu: ShipDropDownMenu,
         MenuList: ShipDropDownMenuList,
         Input,
