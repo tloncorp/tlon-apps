@@ -524,7 +524,7 @@
       (he-give-updates time d)
     ?-    -.d
         %curios
-      =.  curios.heap  (reduce:he-curios time p.d)
+      =.  curios.heap  (reduce:he-curios time q.p.d)
       ?-  -.q.p.d
           ?(%edit %del %add-feel %del-feel)  he-core
           %add
