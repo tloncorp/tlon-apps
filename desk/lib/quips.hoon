@@ -30,7 +30,7 @@
     =/  =cork:d  [time ~]
     ?:  (~(has by qup) time)
       qup
-    (put:on:quips:d qup now [cork p.del])
+    (put:on:quips:d qup time [cork p.del])
   ::
       %del
     =^  no=(unit quip:d)  qup

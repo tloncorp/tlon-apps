@@ -34,7 +34,7 @@
   (need (get time))
 ::
 ++  reduce
-  |=  [now=time =time del=delta:curios:h]
+  |=  [=time del=delta:curios:h]
   ^+  cur
   ?-  -.del
       %add
@@ -42,10 +42,10 @@
     ?:  (~(has by cur) time)
       cur
     =.  cur
-      (put:on:curios:h cur now [seal p.del])
+      (put:on:curios:h cur time [seal p.del])
     ?~  replying.p.del  cur
     =*  replying  u.replying.p.del
-    (jab replying |=(curio:h +<(replied (~(put in replied) now))))
+    (jab replying |=(curio:h +<(replied (~(put in replied) time))))
   ::
       %edit
     =/  curio  (get time)
