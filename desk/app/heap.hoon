@@ -514,8 +514,10 @@
   ::
   ++  he-update
     |=  [=time d=diff:h]
-    ?>  he-can-write
     ^+  he-core
+    ?>  he-can-write
+    =?  time  =(p.flag our.bowl)
+      now.bowl
     =.  log.heap
       (put:log-on:h log.heap time d)
     =.  he-core
