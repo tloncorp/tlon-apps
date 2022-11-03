@@ -178,7 +178,7 @@ export const useGroupState = create<GroupState>(
           };
         });
 
-        api.poke({
+        await api.poke({
           app: 'groups',
           mark: 'group-join',
           json: {

@@ -137,6 +137,11 @@ export default function FindGroups({ title }: ViewProps) {
       return;
     }
 
+    if (ship && name) {
+      navigate(`/find/${ship}/${name}`);
+      return;
+    }
+
     // user has cleared selection, redirect back to find root
     navigate('/find');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,7 +152,9 @@ export default function FindGroups({ title }: ViewProps) {
       return (
         <>
           <span>Searching for groups hosted by&nbsp;</span>
-          <span className="text-gray-800">{presentedShip}</span>
+          <span className="text-gray-800">
+            {presentedShip === '' ? ship : presentedShip}
+          </span>
           <span>&nbsp;...</span>
         </>
       );
@@ -158,7 +165,9 @@ export default function FindGroups({ title }: ViewProps) {
         return (
           <>
             <span>Groups hosted by&nbsp;</span>
-            <span className="text-gray-800">{presentedShip}</span>
+            <span className="text-gray-800">
+              {presentedShip === '' ? ship : presentedShip}
+            </span>
             <span>:</span>
           </>
         );
@@ -199,7 +208,7 @@ export default function FindGroups({ title }: ViewProps) {
               />
             </div>
           </div>
-          {selectedShip ? (
+          {selectedShip || (ship && name) ? (
             <section className="space-y-3">
               <p className="font-semibold text-gray-400">{resultsTitle()}</p>
               {isPending ? (
