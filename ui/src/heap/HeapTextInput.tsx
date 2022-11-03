@@ -145,7 +145,10 @@ export default function HeapTextInput({
   // TODO: Set a sane length limit for comments
   return (
     <>
-      <div className={cn('relative', className)}>
+      <div
+        className={cn('relative', className)}
+        onClick={() => messageEditor.commands.focus()}
+      >
         <MessageEditor
           editor={messageEditor}
           className={cn('h-full w-full rounded-lg', inputClass)}
