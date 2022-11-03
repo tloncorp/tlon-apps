@@ -1081,7 +1081,7 @@
         %unwatch  remark.chat(watching |)
         %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
       ::
-          %read   remark.chat(last-read now.bowl)
+          %read   remark.chat(last-read (add [act now]:bowl))
   ::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
   ::    =.  last-read.remark.chat  time
   ::    ca-core
