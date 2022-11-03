@@ -1017,7 +1017,8 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign
         ca-core
-      =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
+      %-  (slog u.p.sign)
+      :: =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
       ca-core
     ::
     ==

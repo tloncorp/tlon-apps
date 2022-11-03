@@ -484,7 +484,8 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign
         he-core
-      =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
+      %-  (slog u.p.sign)
+      ::  =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
       he-core
     ::
         [%updates ~]
