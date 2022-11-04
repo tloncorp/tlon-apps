@@ -18,6 +18,7 @@ import {
   ClearIndicatorProps,
   InputActionMeta,
 } from 'react-select';
+import { includes } from 'lodash';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
 import { deSig } from '@urbit/api';
@@ -469,7 +470,14 @@ export default function ShipSelector({
         // @ts-expect-error this error is irrelevant
         onChange={singleOnChange}
         onInputChange={onInputChange}
-        isValidNewOption={isValidNewOption}
+        isValidNewOption={(val) =>
+          includes(
+            slicedOptions.map((o) => o.value),
+            val
+          )
+            ? false
+            : isValidNewOption(val)
+        }
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         hideSelectedOptions
