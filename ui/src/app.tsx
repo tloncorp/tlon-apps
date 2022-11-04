@@ -109,9 +109,10 @@ interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
   location: Location;
   isMobile: boolean;
+  isSmall: boolean;
 }
 
-function ChatRoutes({ state, location, isMobile }: RoutesProps) {
+function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -142,14 +143,28 @@ function ChatRoutes({ state, location, isMobile }: RoutesProps) {
               path="channels/join/:app/:chShip/:chName"
               element={<Channel />}
             />
-            <Route
-              path="channels/chat/:chShip/:chName"
-              element={<ChatChannel title={`• ${appHead('chat').title}`} />}
-            >
+            <Route path="channels/chat/:chShip/:chName">
               <Route
-                path="message/:idShip/:idTime"
-                element={<GroupChatThread />}
+                index
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
               />
+              <Route
+                path="*"
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
+              >
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<GroupChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall ? (
+                <Route
+                  path="message/:idShip/:idTime"
+                  element={<GroupChatThread />}
+                />
+              ) : null}
             </Route>
           </Route>
 
@@ -176,7 +191,7 @@ function ChatRoutes({ state, location, isMobile }: RoutesProps) {
   );
 }
 
-function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
+function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -283,9 +298,22 @@ function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
               />
               <Route
-                path="message/:idShip/:idTime"
-                element={<GroupChatThread />}
-              />
+                path="*"
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
+              >
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<GroupChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall ? (
+                <Route
+                  path="message/:idShip/:idTime"
+                  element={<GroupChatThread />}
+                />
+              ) : null}
             </Route>
             <Route path="channels/heap/:chShip/:chName">
               <Route
@@ -374,6 +402,7 @@ function App() {
   const location = useLocation();
   const isChat = useIsChat();
   const isMobile = useIsMobile();
+  const isSmall = useMedia('(max-width: 1023px');
   const subscription = useSubscriptionStatus();
 
   useEffect(() => {
@@ -411,9 +440,19 @@ function App() {
       ) : null}
       <AlphaNotice />
       {isChat ? (
-        <ChatRoutes state={state} location={location} isMobile={isMobile} />
+        <ChatRoutes
+          state={state}
+          location={location}
+          isMobile={isMobile}
+          isSmall={isSmall}
+        />
       ) : (
-        <GroupsRoutes state={state} location={location} isMobile={isMobile} />
+        <GroupsRoutes
+          state={state}
+          location={location}
+          isMobile={isMobile}
+          isSmall={isSmall}
+        />
       )}
     </div>
   );
