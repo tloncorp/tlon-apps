@@ -52,18 +52,28 @@ export default function useGroupJoin(
 
   const join = useCallback(async () => {
     if (privacy === 'public' || (privacy === 'private' && invited)) {
-      await useGroupState.getState().join(flag, true);
-      useHarkState.getState().sawRope({
-        channel: null,
-        desk: window.desk,
-        group: flag,
-        thread: `/${flag}/invite`,
-      });
-      navigate(`/groups/${flag}`);
+      try {
+        await useGroupState.getState().join(flag, true);
+        await useHarkState.getState().sawRope({
+          channel: null,
+          desk: window.desk,
+          group: flag,
+          thread: `/${flag}/invite`,
+        });
+        navigate(`/groups/${flag}`);
+      } catch (e) {
+        navigate(`/find/${flag}`);
+        if (requested) {
+          await useGroupState.getState().rescind(flag);
+        } else {
+          await useGroupState.getState().reject(flag);
+        }
+        console.error(e);
+      }
     } else {
       await useGroupState.getState().knock(flag);
     }
-  }, [privacy, invited, flag, navigate]);
+  }, [privacy, invited, flag, navigate, requested]);
 
   const reject = useCallback(async () => {
     /**
