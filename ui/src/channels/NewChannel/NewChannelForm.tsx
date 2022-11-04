@@ -3,7 +3,7 @@ import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
 import { useNavigate, useParams } from 'react-router';
-import { useGroupState, useRouteGroup } from '@/state/groups';
+import { useChannel, useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym, channelHref } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
@@ -39,7 +39,22 @@ export default function NewChannelForm() {
   const onSubmit = useCallback(
     async (values: NewChannelFormSchema) => {
       const { privacy, type, ...nextChannel } = values;
-      const channelName = strToSym(values.meta.title);
+      /*
+        For now channel names are used as keys for pacts. Therefore we need to
+        check if a channel with the same name already exists in the chat store. If it does, we
+        need to append a timestamp to the end of the name of the new channel.
+
+        Timestamps are used because they are virtually guaranteed to be unique.
+
+        In the future, we will index channels by their full path (including group name), and this will no
+        longer be necessary. That change will require a migration of existing channels.
+       */
+      const tempChannelName = strToSym(values.meta.title);
+      const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
+      const existingChannel = useChatState.getState().pacts[tempNewChannelFlag];
+      const channelName = existingChannel
+        ? `${tempChannelName}-${Date.now()}`
+        : tempChannelName;
       const newChannelFlag = `${window.our}/${channelName}`;
       const newChannelNest = `${type}/${newChannelFlag}`;
 
