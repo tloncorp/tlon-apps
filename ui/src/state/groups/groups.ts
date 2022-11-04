@@ -246,6 +246,17 @@ export const useGroupState = create<GroupState>(
           draft.gangs[flag].invite = null;
         });
       },
+      cancel: async (flag) => {
+        await api.poke({
+          app: 'groups',
+          mark: 'group-cancel',
+          json: flag,
+        });
+
+        get().batchSet((draft) => {
+          draft.gangs[flag].claim = null;
+        });
+      },
       leave: async (flag: string) => {
         await api.poke({
           app: 'groups',
@@ -627,7 +638,12 @@ export function usePendingGangsWithoutClaim() {
 
   Object.entries(gangs)
     .filter(([flag, g]) => g.invite !== null && !(flag in groups))
-    .filter(([_, gang]) => !gang.claim || gang.claim.progress === 'knocking')
+    .filter(
+      ([_, gang]) =>
+        !gang.claim ||
+        gang.claim.progress === 'error' ||
+        gang.claim.progress === 'knocking'
+    )
     .forEach(([flag, gang]) => {
       pendingGangs[flag] = gang;
     });

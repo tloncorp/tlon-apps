@@ -137,16 +137,17 @@ function GangItem(props: { flag: string }) {
   const { preview, claim } = useGang(flag);
   const isMobile = useIsMobile();
 
-  if (!claim || claim.progress === 'error') {
+  if (!claim) {
     return null;
   }
 
   const requested = claim.progress === 'knocking';
+  const errored = claim.progress === 'error';
   const handleCancel = async () => {
     if (requested) {
       await useGroupState.getState().rescind(flag);
     } else {
-      await useGroupState.getState().reject(flag);
+      await useGroupState.getState().cancel(flag);
     }
   };
 
@@ -182,6 +183,14 @@ function GangItem(props: { flag: string }) {
                 receive an invitation to join.
               </span>
             </>
+          ) : errored ? (
+            <>
+              <span>You were unable to join the group.</span>
+              <span>
+                The group may not exist or they may be running an incompatible
+                version.
+              </span>
+            </>
           ) : (
             <>
               <span>You are currently joining this group.</span>
@@ -191,16 +200,18 @@ function GangItem(props: { flag: string }) {
               </span>
             </>
           )}
-          <div className="flex">
-            <Popover.Close>
-              <button
-                className="small-button bg-gray-50 text-gray-800"
-                onClick={handleCancel}
-              >
-                {requested ? 'Cancel Request' : 'Cancel Join'}
-              </button>
-            </Popover.Close>
-          </div>
+          {(errored || requested) && (
+            <div className="flex">
+              <Popover.Close>
+                <button
+                  className="small-button bg-gray-50 text-gray-800"
+                  onClick={handleCancel}
+                >
+                  {requested ? 'Cancel Request' : 'Cancel Join'}
+                </button>
+              </Popover.Close>
+            </div>
+          )}
         </div>
       </Popover.Content>
     </Popover.Root>
