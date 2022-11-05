@@ -750,7 +750,6 @@
     =.  go-core
       (go-tell-update time diff)
     =.  net
-      ?>  =(%sub -.net)
       ?:    ?=(%pub -.net)
         pub/(put:log-on:g p.net time diff)
       [%sub time load.net %chi ~]
