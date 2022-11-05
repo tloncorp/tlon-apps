@@ -51,8 +51,23 @@ export default function NewChannelForm() {
        */
       const tempChannelName = strToSym(values.meta.title);
       const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
-      const existingChannel = useChatState.getState().pacts[tempNewChannelFlag];
-      const channelName = existingChannel
+      const existingChannel = () => {
+        if (type === 'chat') {
+          return useChatState.getState().chats[tempNewChannelFlag];
+        }
+
+        if (type === 'diary') {
+          return useDiaryState.getState().notes[tempNewChannelFlag];
+        }
+
+        if (type === 'heap') {
+          return useHeapState.getState().stash[tempNewChannelFlag];
+        }
+
+        return false;
+      };
+
+      const channelName = existingChannel()
         ? `${tempChannelName}-${Date.now()}`
         : tempChannelName;
       const newChannelFlag = `${window.our}/${channelName}`;
