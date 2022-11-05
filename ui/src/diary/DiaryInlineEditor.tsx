@@ -107,13 +107,18 @@ const ActionMenuBar = forwardRef<
     },
   }));
 
+  const onClick = (idx: number) => {
+    selectItem(idx);
+  };
+
   return (
     <ul className="w-32 border border-black bg-white" ref={ref}>
       {items.map((s: ActionMenuItemProps, idx: number) => (
         <li
           key={s.title}
+          onClick={() => selectItem(idx)}
           className={cn(
-            'w-100 p-2',
+            'w-100 cursor-pointer p-2 hover:bg-gray-50',
             selected === idx ? 'bg-gray-100' : 'bg-white'
           )}
         >
