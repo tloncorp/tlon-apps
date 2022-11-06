@@ -28,7 +28,7 @@ export default function ChatThread({ whom, children }: ChatThreadProps) {
   const [time, writ] = maybeWrit;
 
   return (
-    <div className="fixed inset-0 z-40 flex h-full w-full flex-col overflow-y-auto bg-white sm:absolute lg:static lg:w-72 lg:border-l xl:w-96">
+    <div className="flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l">
       <div className="space-y-2 p-4">
         <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
           {children}
