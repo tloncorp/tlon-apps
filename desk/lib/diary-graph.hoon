@@ -242,12 +242,20 @@
   %+  turn  ls
   |=  con=content:post:gra:d
   ^-  (list verse:d)
-  ?-  -.con
-    %text       (ran text.con)
-    %mention    [%inline ~[`@t`(scot %p ship.con)]]~  :: TODO: i swear I PR'd ships
-    %url        [%inline ~[link/[url.con '']]]~
-    %code       [%inline ~[code/expression.con]]~
-    %reference  ~  :: TODO: think about?
+  ?-    -.con
+      %text       (ran text.con)
+      %mention    [%inline ~[`@t`(scot %p ship.con)]]~  :: TODO: i swear I PR'd ships
+      %code       [%inline ~[code/expression.con]]~
+      %reference  ~  :: TODO: think about?
+  ::
+      %url        
+    =/  def=(list verse:d)
+      [%inline ~[link/[url.con '']]]~
+    ?~  ext=(rush url.con (cook rear (most dot (cook crip (plus ;~(less dot prn))))))
+      def
+    ?:  ?=(?(%png %jpeg %jpeg) u.ext)
+      [%block %image url.con 0 0 '']~
+    def
   ==
 ::
 ++  squeeze
@@ -326,9 +334,9 @@
 ::
 ++  hr
   (jest '----')
-
+::
 ++  word
-  (cook crip (plus ;~(less ret tar tic sel prn)))
+  (cook crip (plus ;~(less cab ret tar tic sel next)))
 ++  fzing
   |*  rul=rule
   (cook |*(a=(list) (zing a)) rul)
@@ -346,6 +354,7 @@
     :: (ifix [;~(plug tar tar) ;~(plug tar tar)] (stag %italics line))
     (parse-wrapped %italics ;~(plug tar tar))
     (parse-wrapped %bold tar)
+    (parse-wrapped %italics cab)
     code
     ::(sear (ifix [tar tar] (stag %bold line))) 
     :: (parse-wrapped tar (stag %bold line))
