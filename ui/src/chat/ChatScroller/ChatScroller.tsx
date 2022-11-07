@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { differenceInDays, isSameDay } from 'date-fns';
+import { isSameDay } from 'date-fns';
 import { BigIntOrderedMap, daToUnix, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
