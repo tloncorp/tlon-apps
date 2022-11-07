@@ -337,7 +337,7 @@
 +$  gangs  (map flag gang)
 ++  met     metadata-store
 ::
-+$  import  [self=association:met chan=(map flag [mark association:met]) roles=(set flag) =group:old]
++$  import  [self=association:met chan=(map flag =association:met) roles=(set flag) =group:old]
 ::
 +$  imports  (map flag import)
 --

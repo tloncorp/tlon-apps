@@ -322,7 +322,7 @@
 ++  import-group
   |=  $:  =flag:g
           =association:met:g
-          chan=(map flag:g [mark association:met:g])
+          chan=(map flag:g association:met:g)
           roles=(set flag:g)
           =group:old:g
       ==
@@ -345,9 +345,9 @@
   =/  =channels:channel:g
     %-  ~(gas by *channels:channel:g)
     %+  murn  ~(tap by chan)
-    |=  [=flag:g =mark =association:met:g]
+    |=  [=flag:g =association:met:g]
     ^-  (unit [nest:g channel:g])
-    ?~  dud=(graph-mark-to-agent mark)
+    ?~  dud=(graph-meta-to-agent metadatum.association)
       ~
     :-  ~
     :-  [u.dud flag]
@@ -404,7 +404,7 @@
     ?+  module.config.metadatum  ~
       %chat  `%chat
       %link  `%heap
-      %publish   ~  :: TODO
+      %publish   `%diary  :: TODO
     ==
   ::
   ++  old-assoc-to-new-meta
