@@ -88,13 +88,15 @@ export function InlineContent({ story }: InlineContentProps) {
 
   if (isInlineCode(story)) {
     return (
-      <code>
-        {typeof story['inline-code'] === 'object' ? (
-          <InlineContent story={story['inline-code']} />
-        ) : (
-          story['inline-code']
-        )}
-      </code>
+      <div className="w-full overflow-x-scroll">
+        <code>
+          {typeof story['inline-code'] === 'object' ? (
+            <InlineContent story={story['inline-code']} />
+          ) : (
+            story['inline-code']
+          )}
+        </code>
+      </div>
     );
   }
 
