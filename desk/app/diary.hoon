@@ -471,10 +471,6 @@
     ^+  di-core
     =?  di-core  ?=(%sub -.net.diary)
       di-sub
-    =?  di-core  &  :: ?=(%pub -.net.diary) TODO: hack for local testing
-      (import-channel:di-pass association)
-    =?  di-core  &(?=(%pub -.net.diary) !=(writers ~))
-      (writer-sect:di-pass writers association)
     di-core
   ::
   ++  di-watch

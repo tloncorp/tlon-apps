@@ -459,10 +459,6 @@
     ^+  he-core
     =?  he-core  ?=(%sub -.net.heap)
       he-sub
-    =.  he-core
-      (import-channel:he-pass association)
-    =?  he-core  &(?=(%pub -.net.heap) !=(writers ~))
-      (writer-sect:he-pass writers association)
     he-core
   ::
   ++  he-init

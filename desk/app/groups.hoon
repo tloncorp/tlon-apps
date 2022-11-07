@@ -316,12 +316,48 @@
   $(imports t.imports)
 ::
 ++  import-group
-  |=  [=flag:g =association:met:g =group:old:g]
+  |=  $:  =flag:g
+          =association:met:g
+          chan=(map flag:g [mark association:met:g])
+          roles=(set flag:g)
+          =group:old:g
+      ==
   |^
-  =/  =net:g  pub/~
-  =|  cabals=(map sect:g cabal:g)
+  =/  =net:g  load/~
+  =/  cabals=(map sect:g cabal:g)
+    %-  ~(gas by *(map sect:g cabal:g))
+    %+  turn  ~(tap by roles)
+    |=  =flag:g
+    ^-  [sect:g cabal:g]
+    :-  (sect-for-flag flag)
+    ?~  ass=(~(get by chan) flag)
+      *cabal:g
+    :_  ~
+    :*  (rap 3 'Writers: ' title.metadatum.u.ass ~)
+        (rap 3 'The writers role for the ' title.metadatum.u.ass ' channel' ~)
+        ''
+        ''
+    ==
+  =/  =channels:channel:g
+    %-  ~(gas by *channels:channel:g)
+    %+  murn  ~(tap by chan)
+    |=  [=flag:g =mark =association:met:g]
+    ^-  (unit [nest:g channel:g])
+    ?~  dud=(graph-mark-to-agent mark)
+      ~
+    :-  ~
+    :-  [u.dud flag]
+    ^-  channel:g
+    :*  (old-assoc-to-new-meta association)
+        date-created.metadatum.association
+        %default
+        |
+        ::
+        ^-  (set sect:g)
+        ?.  (~(has in roles) flag)  ~
+        (silt (sect-for-flag flag) ~)
+    ==
   =|  zones=(map zone:g realm:zone:g)
-  =|  =channels:channel:g
   =|  zone-ord=(list zone:g)
   =|  bloc=(set sect:g)  :: admin perms set up in +go-init at end
   =/  =cordon:g  (policy-to-cordon policy.group)
@@ -335,11 +371,26 @@
     [ship ~ now.bowl]
   =/  =group:g
     [fleet cabals zones zone-ord bloc channels cordon meta]
-  =|  =log:g
-  =.  log     (put:log-on:g log now.bowl create/group)
-  =/  =net:g  pub/log
+  =/  =net:g
+    ?:  =(p.flag our.bowl)
+      pub/(put:log-on:g *log:g now.bowl create/group)
+    sub/now.bowl
   =.  groups  (~(put by groups) flag [net group])
   go-abet:go-init:(go-abed:group-core flag) :: setup defaults
+  ::
+  ++  sect-for-flag
+    |=  =flag:g
+    `sect:g`(rap 3 'imports-' (scot %p p.flag) '/' q.flag ~)
+  ::
+  ++  graph-mark-to-agent
+  |=  =mark
+  ^-  (unit term)
+  ?+  mark  ~
+    %graph-validator-chat     `%chat
+    %graph-validator-link     `%heap
+    %graph-validator-publish  `%diary
+  ==
+
   ::
   ++  graph-meta-to-agent
     |=  =metadatum:m-one
@@ -471,7 +522,7 @@
     =|  our=vessel:fleet:g
     =.  sects.our  (~(put in sects.our) %admin)
     =.  fleet.group  (~(put by fleet.group) our.bowl our)
-    =.  bloc.group  (silt %admin ~)
+    =.  bloc.group  (~(put in bloc.group) %admin)
     =.  cabals.group
       %+  ~(put by cabals.group)  %admin
       :_  ~

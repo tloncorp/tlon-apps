@@ -904,10 +904,6 @@
     ^+  ca-core
     =?  ca-core  ?=(%sub -.net.chat)
       ca-sub
-    =.  ca-core
-      (import-channel:ca-pass association)
-    =?  ca-core  &(?=(%pub -.net.chat) !=(writers ~))
-      (writer-sect:ca-pass writers association)
     ca-core
   ::
   ++  ca-spin  
