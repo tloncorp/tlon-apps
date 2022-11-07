@@ -402,7 +402,7 @@ function App() {
   const location = useLocation();
   const isChat = useIsChat();
   const isMobile = useIsMobile();
-  const isSmall = useMedia('(max-width: 1023px');
+  const isSmall = useMedia('(max-width: 1023px)');
   const subscription = useSubscriptionStatus();
 
   useEffect(() => {
@@ -463,6 +463,8 @@ function RoutedApp() {
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
 
+  console.log('app wrapper rerender');
+
   const basename = (modeName: string, appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return '/';
@@ -482,10 +484,12 @@ function RoutedApp() {
   useEffect(() => {
     if ((isDarkMode && theme === 'auto') || theme === 'dark') {
       document.body.classList.add('dark');
+      console.log('setting dark theme');
       useLocalState.setState({ currentTheme: 'dark' });
       setUserThemeColor('#000000');
     } else {
       document.body.classList.remove('dark');
+      console.log('setting light theme');
       useLocalState.setState({ currentTheme: 'light' });
       setUserThemeColor('#ffffff');
     }

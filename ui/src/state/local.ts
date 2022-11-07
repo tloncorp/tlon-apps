@@ -47,10 +47,12 @@ export function useCurrentTheme() {
 export const setLocalState = (f: (s: LocalState) => void) =>
   useLocalState.getState().set(f);
 
+const selSubscription = (s: LocalState) => s.subscription;
 export function useSubscriptionStatus() {
-  return useLocalState((s) => s.subscription);
+  return useLocalState(selSubscription);
 }
 
+const selErrorCount = (s: LocalState) => s.errorCount;
 export function useErrorCount() {
-  return useLocalState((s) => s.errorCount);
+  return useLocalState(selErrorCount);
 }
