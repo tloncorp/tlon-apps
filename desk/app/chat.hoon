@@ -96,11 +96,14 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =/  maybe-old=(each [versioned-state epic:e] tang)
-    (mule |.(!<([versioned-state epic:e] vase)))
-  =/  [old=versioned-state cool=epic:e]
-    ?.  ?=(%| -.maybe-old)  p.maybe-old
-    [!<(versioned-state vase) okay]
+  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
+  (mule |.(!<([versioned-state epic:e] vase)))
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ::  XX illustrative, won't save unless not okay cool
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
   |-
   ?-  -.old
       %0
@@ -110,6 +113,7 @@
       %1
     =.  state  old
     ?:  =(okay cool)  cor
+    =?  cor  bad  (emit (keep !>(old)))
     =-  (give %fact ~(tap in -) epic+!>(okay))
     %-  ~(gas in *(set path))
     %+  murn  ~(val by sup.bowl)
@@ -118,7 +122,14 @@
     ?.  |(=(/epic path) ?=([%chat @ @ %updates *] path))  ~
     `path
   ==
-  +$  versioned-state
+  ::
+  ++  keep
+    |=  bad=^vase
+    ^-  card
+    ~&  >  %keep
+    [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
+ ::
+ +$  versioned-state
     $%  state-0
         state-1
     ==
