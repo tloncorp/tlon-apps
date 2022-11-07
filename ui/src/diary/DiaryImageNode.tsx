@@ -9,7 +9,7 @@ import useDiaryNode from './useDiaryNode';
 
 function DiaryImageComponent(props: NodeViewProps) {
   const className = '';
-  const { selected, editor } = props;
+  const { selected, getPos, editor } = props;
   const { clear, ...bind } = useDiaryNode('src', props);
   const [error, setError] = useState(false);
   const [src, setSrc] = useState(null as string | null);
@@ -27,6 +27,15 @@ function DiaryImageComponent(props: NodeViewProps) {
       setSrc(bind.value);
     }
   }, [selected, bind.value]);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowUp') {
+      editor.commands.focus(getPos() - 1);
+    } else if (e.key === 'ArrowDown') {
+      editor.commands.focus(getPos() + 1);
+    }
+  };
+
   const onCancel = () => {
     setSrc(null);
     clear();
@@ -59,6 +68,7 @@ function DiaryImageComponent(props: NodeViewProps) {
             className="input-transparent grow"
             type="text"
             {...bind}
+            onKeyDown={onKeyDown}
             placeholder="Enter an image/embed/web URL"
           />
           {error ? (
