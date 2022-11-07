@@ -533,7 +533,13 @@
       ['Admin' 'Admins can add and remove channels and edit metadata' '' '']
     =.  zones.group
       %+  ~(put by zones.group)  %default
-      [['Sectionless' '' '' ''] ~]
+      :-  ['Sectionless' '' '' '']
+      %+  murn  ~(tap by channels.group)
+      |=  [=nest:g =channel:g]
+      ^-  (unit nest:g)
+      ?.  =(zone.channel %default)
+        ~
+      `nest
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
