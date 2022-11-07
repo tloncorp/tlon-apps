@@ -79,7 +79,7 @@
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
     ::
-      [%create p=perm q=(unit pact)]
+      [%create p=perm q=pact]
   ==
 ::  $index: a map of chat message id to server received message time
 ::

@@ -156,7 +156,7 @@
     |=  =chat:zero
     %*  .  *chat:one
       remark  remark.chat
-      log     log.chat
+      ::  log     *log.chat
       perm    perm.chat
       pact    pact.chat
       ::
@@ -995,7 +995,7 @@
     =/  =perm:c  [writers.req group.req]
     =.  cor
       (give-brief flag/flag ca-brief)
-    =.  ca-core  (ca-update now.bowl %create perm ~)
+    =.  ca-core  (ca-update now.bowl %create perm *pact:c)
     (add-channel:ca-pass req)
   ::
   ++  ca-agent
@@ -1234,6 +1234,7 @@
     ::
         %create
       =.  perm.chat  p.d
+      =.  pact.chat  q.d
       ca-core
     ::
         %writs
