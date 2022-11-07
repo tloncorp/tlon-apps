@@ -80,9 +80,15 @@
       ^-  [_time diff:one]
       :-  time
       ^-  diff:one
-      ?.  ?=(%quips -.diff)  diff
-      ^-  diff:one
-      [%notes p.diff %quips (quips-diff-0-to-1 q.diff)]
+      ?+    -.diff  diff
+      ::
+          %create
+        [%create p.diff *notes:d]
+      ::
+          %quips
+        ^-  diff:one
+        [%notes p.diff %quips (quips-diff-0-to-1 q.diff)]
+      ==
     ::
     ++  quips-diff-0-to-1
       |=  =diff:quips:zero
@@ -530,7 +536,7 @@
     =/  =perm:d  [writers.req group.req]
     =.  cor
       (give-brief flag di-brief)
-    =.  di-core  (di-update now.bowl %create perm)
+    =.  di-core  (di-update now.bowl %create perm notes.diary)
     (add-channel:di-pass req)
   ::
   ++  di-agent
@@ -750,7 +756,9 @@
       di-core
     ::
         %create
-      =.  perm.diary  p.dif
+      =:  notes.diary  q.dif
+          perm.diary   p.dif
+        ==
       di-core
     ::
         %sort
