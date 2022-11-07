@@ -67,8 +67,9 @@ export default function NewChannelForm() {
         return false;
       };
 
+      const randomSmallNumber = Math.floor(Math.random() * 100);
       const channelName = existingChannel()
-        ? `${tempChannelName}-${Date.now()}`
+        ? `${tempChannelName}-${randomSmallNumber}`
         : tempChannelName;
       const newChannelFlag = `${window.our}/${channelName}`;
       const newChannelNest = `${type}/${newChannelFlag}`;
