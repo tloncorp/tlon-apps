@@ -466,7 +466,7 @@
     =/  =perm:h  [writers.req group.req]
     =.  cor
       (give-brief flag he-brief)
-    =.  he-core  (he-update now.bowl %create perm)
+    =.  he-core  (he-update now.bowl %create perm curios.heap)
     (add-channel:he-pass req)
   ::
   ++  he-agent
@@ -718,7 +718,9 @@
       he-core
     ::
         %create
-      =.  perm.heap  p.d
+      =:  perm.heap  p.d
+          curios.heap  q.d
+        ==
       he-core
     ::
         %view

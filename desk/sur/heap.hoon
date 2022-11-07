@@ -130,7 +130,7 @@
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
     ::
-      [%create p=perm]
+      [%create p=perm q=curios]
       [%view p=view]
   ==
 ::  $net: an indicator of whether I'm a host or subscriber
