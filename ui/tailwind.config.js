@@ -100,6 +100,10 @@ const dark = {
 module.exports = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class', // or 'media' or 'class'
+  // This disables CSS hovers on mobile, avoiding double-tap scenarios
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   theme: {
     fontFamily: {
       sans: [

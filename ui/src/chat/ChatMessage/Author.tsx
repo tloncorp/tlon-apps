@@ -3,6 +3,7 @@ import {
   makePrettyDayAndDateAndTime,
   makePrettyDayAndTime,
   makePrettyTime,
+  useCopy,
 } from '@/logic/utils';
 import { useLocation } from 'react-router';
 import { useModalNavigate } from '@/logic/routing';
@@ -22,6 +23,7 @@ export default function Author({
   hideTime,
 }: AuthorProps) {
   const location = useLocation();
+  const { didCopy, doCopy } = useCopy(ship);
   const modalNavigate = useModalNavigate();
   const prettyTime = date ? makePrettyTime(date) : undefined;
   const prettyDayAndTime = date ? makePrettyDayAndTime(date) : undefined;
@@ -41,7 +43,13 @@ export default function Author({
         <div onClick={handleProfileClick}>
           <Avatar ship={ship} size="xs" className="cursor-pointer" />
         </div>
-        <ShipName name={ship} showAlias className="text-md font-semibold" />
+        <div onClick={doCopy} className="text-md cursor-pointer font-semibold">
+          {didCopy ? (
+            'Copied!'
+          ) : (
+            <ShipName name={ship} showAlias className="text-md font-semibold" />
+          )}
+        </div>
       </div>
     );
   }
@@ -51,7 +59,14 @@ export default function Author({
       <div onClick={handleProfileClick}>
         <Avatar ship={ship} size="xs" className="cursor-pointer" />
       </div>
-      <ShipName name={ship} showAlias className="text-md font-semibold" />
+      <div onClick={doCopy} className="text-md cursor-pointer font-semibold">
+        {didCopy ? (
+          'Copied!'
+        ) : (
+          <ShipName name={ship} showAlias className="text-md font-semibold" />
+        )}
+      </div>
+
       {hideTime ? (
         <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
           {prettyDayAndTime}

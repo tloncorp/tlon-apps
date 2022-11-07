@@ -61,6 +61,7 @@ export interface GroupState {
     kind: 'ask' | 'pending'
   ) => Promise<void>;
   reject: (flag: string) => Promise<void>;
+  cancel: (flag: string) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   editZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   moveZone: (flag: string, zone: string, index: number) => Promise<void>;

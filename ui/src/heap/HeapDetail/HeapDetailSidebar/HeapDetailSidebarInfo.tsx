@@ -1,5 +1,7 @@
+import _ from 'lodash';
 import React from 'react';
 import { URL_REGEX } from '@/logic/utils';
+import { inlineToString } from '@/logic/tiptap';
 import { HeapCurio } from '@/types/heap';
 import Author from '@/chat/ChatMessage/Author';
 
@@ -13,7 +15,10 @@ export default function HeapDetailSidebarInfo({
   const { content, author, sent, title } = curio.heart;
   const unixDate = new Date(sent);
   const stringContent = content[0].toString();
-  const textPreview = content.toString().split(' ').slice(0, 3).join(' ');
+  const textPreview = content
+    .map((inline) => inlineToString(inline))
+    .join(' ')
+    .toString();
   const isURL = URL_REGEX.test(stringContent);
 
   return (
@@ -23,7 +28,9 @@ export default function HeapDetailSidebarInfo({
           (!isURL && (
             <h2 className="whitespace-normal text-lg font-semibold line-clamp-2">
               {title && title}
-              {!title && !isURL ? textPreview : null}
+              {!title && !isURL
+                ? _.truncate(textPreview, { length: 20 })
+                : null}
             </h2>
           ))}
         {isURL && (

@@ -142,6 +142,10 @@
     =+  !<(=flag:g vase)
     ga-abet:ga-rescind:(ga-abed:gang-core flag)
   ::
+      %group-cancel
+    =+  !<(=flag:g vase)
+    ga-abet:ga-cancel:(ga-abed:gang-core flag)
+  ::
       %invite-decline
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
@@ -1197,6 +1201,12 @@
   ++  ga-start-join
     ^+  ga-core
     =.  cor  (emit add-self:ga-pass)
+    ga-core
+  ::
+  ++  ga-cancel
+    ^+  ga-core
+    =.  cam.gang  ~
+    =.  cor  ga-give-update
     ga-core
   ::
   ++  ga-knock

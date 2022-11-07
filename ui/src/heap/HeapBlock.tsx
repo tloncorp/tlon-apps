@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import React, { useEffect, useState } from 'react';
 import { HeapCurio } from '@/types/heap';
 import cn from 'classnames';
@@ -18,6 +19,7 @@ import useNest from '@/logic/useNest';
 import useHeapContentType from '@/logic/useHeapContentType';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CheckIcon from '@/components/icons/CheckIcon';
+import { inlineToString } from '@/logic/tiptap';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -201,6 +203,10 @@ export default function HeapBlock({
   const url = content.length > 0 ? content[0].toString() : '';
   const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
+  const textFallbackTitle = content
+    .map((inline) => inlineToString(inline))
+    .join(' ')
+    .toString();
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
@@ -238,8 +244,7 @@ export default function HeapBlock({
           {...botBar}
           provider="Text"
           title={
-            curio.heart.title ||
-            content.toString().split(' ').slice(0, 3).join(' ')
+            curio.heart.title || _.truncate(textFallbackTitle, { length: 20 })
           }
         />
       </div>

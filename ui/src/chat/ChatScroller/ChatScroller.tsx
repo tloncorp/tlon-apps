@@ -1,4 +1,6 @@
+import cn from 'classnames';
 import React, {
+  HTMLAttributes,
   ReactNode,
   useCallback,
   useEffect,
@@ -6,12 +8,12 @@ import React, {
   useState,
 } from 'react';
 import { differenceInDays } from 'date-fns';
-import { BigIntOrderedMap, daToUnix } from '@urbit/api';
+import { BigIntOrderedMap, daToUnix, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { ChatState } from '@/state/chat/type';
-import { useChatState } from '@/state/chat/chat';
+import { useChatState, useLoadedWrits } from '@/state/chat/chat';
 import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import { IChatScroller } from './IChatScroller';
@@ -115,6 +117,12 @@ function computeItemKey(index: number, item: bigInt.BigInteger, context: any) {
   return item.toString();
 }
 
+const List = React.forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+  (props, ref) => (
+    <div {...props} className={cn('pr-4', props.className)} ref={ref} />
+  )
+);
+
 export default function ChatScroller({
   whom,
   messages,
@@ -124,20 +132,31 @@ export default function ChatScroller({
 }: IChatScroller) {
   const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
+  const loaded = useLoadedWrits(whom);
+  const [oldWhom, setOldWhom] = useState(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
 
-  const keys = messages
-    .keys()
-    .reverse()
-    .filter((k) => {
-      if (replying) {
-        return true;
-      }
-      return messages.get(k)?.memo.replying === null;
-    });
-  const mess = keys.reduce(
-    (acc, val) => acc.set(val, messages.get(val)),
-    new BigIntOrderedMap<ChatWrit>()
+  const keys = useMemo(
+    () =>
+      messages
+        .keys()
+        .reverse()
+        .filter((k) => {
+          if (replying) {
+            return true;
+          }
+          return messages.get(k)?.memo.replying === null;
+        }),
+    [messages, replying]
+  );
+
+  const mess = useMemo(
+    () =>
+      keys.reduce(
+        (acc, val) => acc.set(val, messages.get(val)),
+        new BigIntOrderedMap<ChatWrit>()
+      ),
+    [keys, messages]
   );
 
   const [indexData, setIndexData] = useState<{
@@ -149,6 +168,17 @@ export default function ChatScroller({
   });
 
   useEffect(() => {
+    if (whom !== oldWhom) {
+      setOldWhom(whom);
+    }
+  }, [oldWhom, whom]);
+
+  useEffect(() => {
+    if (oldWhom !== whom) {
+      setIndexData({ firstItemIndex: FIRST_INDEX, data: keys });
+      return;
+    }
+
     const diff = mess.size - indexData.data.length;
     if (diff !== 0) {
       setIndexData({
@@ -156,7 +186,7 @@ export default function ChatScroller({
         data: keys,
       });
     }
-  }, [keys, mess, indexData]);
+  }, [whom, oldWhom, keys, mess, indexData]);
 
   const Message = useMemo(
     () =>
@@ -182,6 +212,15 @@ export default function ChatScroller({
 
   const fetchMessages = useCallback(
     async (newer: boolean) => {
+      const newest = mess.peekLargest();
+      const seenNewest = newer && newest && loaded.newest.leq(newest[0]);
+      const oldest = mess.peekSmallest();
+      const seenOldest = !newer && oldest && loaded.oldest.geq(oldest[0]);
+
+      if (seenNewest || seenOldest) {
+        return;
+      }
+
       setFetching(newer ? 'bottom' : 'top');
 
       if (newer) {
@@ -196,27 +235,26 @@ export default function ChatScroller({
 
       setFetching('initial');
     },
-    [whom]
+    [whom, mess, loaded]
   );
 
   return (
-    <div className="relative h-full flex-1 p-2">
+    <div className="relative h-full flex-1">
       <Virtuoso
         {...indexData}
         followOutput
         alignToBottom
-        className="h-full"
+        className="h-full overflow-x-hidden p-4"
         atBottomThreshold={250}
         atTopThreshold={250}
         atTopStateChange={(top) => top && fetchMessages(false)}
         atBottomStateChange={(bot) => bot && fetchMessages(true)}
-        itemContent={(i, realIndex) =>
-          realIndex ? <Message index={realIndex} /> : <div className="h-4" />
-        }
+        itemContent={(i, realIndex) => <Message index={realIndex} />}
         computeItemKey={computeItemKey}
         components={{
           Header: () => TopLoader,
           Footer: () => BottomLoader,
+          List,
         }}
       />
     </div>

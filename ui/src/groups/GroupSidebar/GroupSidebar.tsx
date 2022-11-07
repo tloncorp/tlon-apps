@@ -152,7 +152,9 @@ export default function GroupSidebar() {
   const flag = useGroupFlag();
 
   useEffect(() => {
-    useHarkState.getState().retrieveGroup(flag);
+    if (flag !== '') {
+      useHarkState.getState().retrieveGroup(flag);
+    }
     return () => {
       useHarkState.getState().releaseGroup(flag);
     };

@@ -137,6 +137,11 @@ export default function FindGroups({ title }: ViewProps) {
       return;
     }
 
+    if (ship && name) {
+      navigate(`/find/${ship}/${name}`);
+      return;
+    }
+
     // user has cleared selection, redirect back to find root
     navigate('/find');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,7 +152,9 @@ export default function FindGroups({ title }: ViewProps) {
       return (
         <>
           <span>Searching for groups hosted by&nbsp;</span>
-          <span className="text-gray-800">{presentedShip}</span>
+          <span className="text-gray-800">
+            {presentedShip === '' ? ship : presentedShip}
+          </span>
           <span>&nbsp;...</span>
         </>
       );
@@ -158,7 +165,9 @@ export default function FindGroups({ title }: ViewProps) {
         return (
           <>
             <span>Groups hosted by&nbsp;</span>
-            <span className="text-gray-800">{presentedShip}</span>
+            <span className="text-gray-800">
+              {presentedShip === '' ? ship : presentedShip}
+            </span>
             <span>:</span>
           </>
         );
@@ -175,12 +184,12 @@ export default function FindGroups({ title }: ViewProps) {
     val ? ob.isValidPatp(preSig(val)) || whomIsFlag(val) : false;
 
   return (
-    <div className="flex grow bg-gray-50">
+    <div className="flex grow overflow-y-auto bg-gray-50">
       <Helmet>
         <title>{title ? title : document.title}</title>
       </Helmet>
       <div className="w-full p-4">
-        <section className="card mb-4 space-y-8 p-8">
+        <section className="card mb-4 space-y-8 sm:p-8">
           <h1 className="text-lg font-bold">Find Groups</h1>
           <div>
             <label htmlFor="flag" className="mb-1.5 block font-semibold">
@@ -199,7 +208,7 @@ export default function FindGroups({ title }: ViewProps) {
               />
             </div>
           </div>
-          {selectedShip ? (
+          {selectedShip || (ship && name) ? (
             <section className="space-y-3">
               <p className="font-semibold text-gray-400">{resultsTitle()}</p>
               {isPending ? (
@@ -211,7 +220,7 @@ export default function FindGroups({ title }: ViewProps) {
           ) : null}
         </section>
         {hasKeys(pendingGangs) ? (
-          <section className="card mb-4 space-y-8 p-8">
+          <section className="card mb-4 space-y-8 sm:p-8">
             <h1 className="text-lg font-bold">Pending Invites</h1>
             <GroupJoinList gangs={pendingGangs} />
           </section>

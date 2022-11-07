@@ -75,6 +75,12 @@ export default function NewChannelForm() {
           .addChannelToZone(section, groupFlag, newChannelNest);
       }
 
+      if (values.join === true) {
+        await useGroupState
+          .getState()
+          .setChannelJoin(groupFlag, newChannelNest, true);
+      }
+
       navigate(`/groups/${groupFlag}/info/channels`);
     },
     [section, groupFlag, navigate]

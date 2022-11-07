@@ -11,7 +11,7 @@ export function prefixEndpoint(endpoint: string) {
 export const useFileStore = create<FileStore>((set) => ({
   client: null,
   status: 'initial',
-  files: [],
+  files: {},
   createClient: (credentials: S3Credentials) => {
     const endpoint = new URL(prefixEndpoint(credentials.endpoint));
     const client = new S3Client({
@@ -20,7 +20,8 @@ export const useFileStore = create<FileStore>((set) => ({
         hostname: endpoint.host,
         path: endpoint.pathname || '/',
       },
-      region: 'global',
+      // this region is necessary for compatibility with other S3 providers (i.e., filebase)
+      region: 'us-east-1',
       credentials,
       forcePathStyle: true,
     });
@@ -32,17 +33,31 @@ export const useFileStore = create<FileStore>((set) => ({
         draft.status = status;
       })
     ),
-  setFiles: (files) =>
+  setFiles: (file) =>
     set(
       produce((draft) => {
-        draft.files = files;
+        draft.files[file.key] = file;
       })
     ),
   setFileStatus: (file) =>
     set(
       produce((draft) => {
-        const [idx, status] = file;
-        draft.files[idx].status = status;
+        const [key, status] = file;
+        draft.files[key].status = status;
+      })
+    ),
+  setErrorMessage: (file) =>
+    set(
+      produce((draft) => {
+        const [key, errorMessage] = file;
+        draft.files[key].errorMessage = errorMessage;
+      })
+    ),
+  setFileURL: (file) =>
+    set(
+      produce((draft) => {
+        const [key, url] = file;
+        draft.files[key].url = url;
       })
     ),
 }));

@@ -1,2 +1,2 @@
-/=  mark  /mar/diary/action-0
+/=  mark  /mar/diary/action-1
 mark

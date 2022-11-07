@@ -659,15 +659,17 @@
   ::
   ++  he-update
     |=  [=time d=diff:h]
-    ?>  he-can-write
     ^+  he-core
+    ?>  he-can-write
+    =?  time  =(p.flag our.bowl)
+      now.bowl
     =.  log.heap
       (put:log-on:h log.heap time d)
     =.  he-core
       (he-give-updates time d)
     ?-    -.d
         %curios
-      =.  curios.heap  (reduce:he-curios time p.d)
+      =.  curios.heap  (reduce:he-curios time q.p.d)
       ?-  -.q.p.d
           ?(%edit %del %add-feel %del-feel)  he-core
           %add

@@ -8,9 +8,11 @@ import ShipName from '@/components/ShipName';
 import CaretDownIcon from '@/components/icons/CaretDownIcon';
 import IconButton from '@/components/IconButton';
 import XIcon from '@/components/icons/XIcon';
+import { PrivacyType } from '@/types/groups';
 
 interface NewGroupInviteProps {
   groupName: string;
+  groupPrivacy: PrivacyType;
   goToPrevStep: () => void;
   goToNextStep: () => void;
   shipsToInvite: ShipWithRoles[];
@@ -27,13 +29,13 @@ interface ShipWithRoles {
 const roles: Role[] = ['Member', 'Admin', 'Moderator'];
 
 interface MemberRoleDropDownMenuProps {
-  ship: ShipWithRoles;
-  setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRoles[]>>;
+  selectedRole: Role;
+  setSelectedRole: React.Dispatch<React.SetStateAction<Role>>;
 }
 
 function MemberRoleDropDownMenu({
-  ship,
-  setShipsToInvite,
+  selectedRole,
+  setSelectedRole,
 }: MemberRoleDropDownMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   return (
@@ -42,19 +44,11 @@ function MemberRoleDropDownMenu({
         <DropdownMenu.Trigger asChild className="appearance-none">
           <button
             className={cn(
-              'default-focus flex items-center rounded-lg p-0.5 text-gray-600 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100'
+              'default-focus text-md mx-2 flex items-center rounded-lg bg-gray-400 py-0.5 px-2 font-bold text-black mix-blend-multiply transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 dark:mix-blend-screen'
             )}
             aria-label="Open Member Role Options"
           >
-            {ship.roles.map((role, index) => {
-              if (ship.roles.length === 1) {
-                return <span key={`${role}+{${index}}`}>{role}</span>;
-              }
-              if (ship.roles.length === index + 1) {
-                return <span key={`${role}+{${index}}`}>{role}</span>;
-              }
-              return <span key={`${role}+{${index}}`}>{role}, &nbsp; </span>;
-            })}
+            <span>{selectedRole}</span>
             <CaretDownIcon className="h-4 w-4" />
           </button>
         </DropdownMenu.Trigger>
@@ -63,40 +57,7 @@ function MemberRoleDropDownMenu({
             <DropdownMenu.Item
               key={role}
               className="dropdown-item flex items-center space-x-2"
-              onClick={() =>
-                setShipsToInvite((prevState) => {
-                  const currentRoles =
-                    prevState.find((prevShip) => prevShip.patp === ship.patp)
-                      ?.roles ?? [];
-                  const currentIncludesThisRole =
-                    currentRoles.find((currentRole) => currentRole === role) &&
-                    role !== 'Member';
-
-                  if (currentIncludesThisRole) {
-                    return [
-                      ...prevState.filter(
-                        (prevShip) => prevShip.patp !== ship.patp
-                      ),
-                      {
-                        patp: ship.patp,
-                        roles: ship.roles.filter(
-                          (prevRole) => prevRole !== role
-                        ),
-                      },
-                    ];
-                  }
-
-                  return [
-                    ...prevState.filter(
-                      (prevShip) => prevShip.patp !== ship.patp
-                    ),
-                    {
-                      patp: ship.patp,
-                      roles: _.uniq([...currentRoles, role]),
-                    },
-                  ];
-                })
-              }
+              onClick={() => setSelectedRole(role)}
             >
               {role}
             </DropdownMenu.Item>
@@ -116,30 +77,52 @@ function GroupMemberRoleList({
   shipsToInvite,
   setShipsToInvite,
 }: GroupMemberRoleListProps) {
+  const sortedMemberList = shipsToInvite.reduce<{
+    [role: string]: ShipWithRoles[];
+  }>((memo, x) => {
+    if (!memo[x.roles[0].toString()]) {
+      // eslint-disable-next-line no-param-reassign
+      memo[x.roles[0].toString()] = [];
+    }
+    memo[x.roles[0].toString()].push(x);
+    return memo;
+  }, {});
+
   return (
-    <div className="flex h-[132px] flex-col space-y-2 overflow-auto rounded-lg border-2 border-gray-100 p-2">
-      {_.sortBy(shipsToInvite, 'patp').map((ship: ShipWithRoles) => (
-        <div
-          className="flex w-full items-center justify-between"
-          key={ship.patp}
-        >
-          <div className="flex items-center space-x-2">
-            <IconButton
-              icon={<XIcon className="h-4 w-4" />}
-              label="Remove"
-              action={() =>
-                setShipsToInvite((prevState) =>
-                  prevState.filter((prevShip) => prevShip.patp !== ship.patp)
-                )
-              }
-            />
-            <Avatar ship={ship.patp} size="xs" />
-            <ShipName className="font-semibold" name={ship.patp} showAlias />
+    <div className="flex h-32 flex-col space-y-6 overflow-auto rounded-lg p-2">
+      {Object.keys(sortedMemberList).map((role: string) => (
+        <div className="w-full">
+          <div className="mb-2 text-gray-400">
+            Inviting {sortedMemberList[role].length} people as "{role}"
           </div>
-          <MemberRoleDropDownMenu
-            ship={ship}
-            setShipsToInvite={setShipsToInvite}
-          />
+          <div className="flex flex-wrap space-x-2">
+            {sortedMemberList[role].map((ship: ShipWithRoles) => (
+              <span
+                className="flex items-center space-x-1 rounded-lg bg-white p-1 pr-2"
+                key={ship.patp}
+              >
+                <IconButton
+                  className="p-0"
+                  icon={<XIcon className="h-4 w-4 fill-gray-400" />}
+                  small
+                  label="Remove"
+                  action={() =>
+                    setShipsToInvite((prevState) =>
+                      prevState.filter(
+                        (prevShip) => prevShip.patp !== ship.patp
+                      )
+                    )
+                  }
+                />
+                <Avatar ship={ship.patp} size="xs" />
+                <ShipName
+                  className="font-semibold"
+                  name={ship.patp}
+                  showAlias
+                />
+              </span>
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -150,10 +133,12 @@ export default function NewGroupInvite({
   groupName,
   goToNextStep,
   goToPrevStep,
+  groupPrivacy,
   shipsToInvite,
   setShipsToInvite,
 }: NewGroupInviteProps) {
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
+  const [selectedRole, setSelectedRole] = useState<Role>('Member');
 
   const handleEnter = (ships: ShipOption[]) => {
     setShipsToInvite((prevState) => [
@@ -165,7 +150,7 @@ export default function NewGroupInvite({
         .map((ship) => ({
           patp: ship.value,
           alias: ship.label,
-          roles: ['Member' as Role],
+          roles: [selectedRole],
         })),
     ]);
   };
@@ -173,39 +158,40 @@ export default function NewGroupInvite({
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex flex-col">
-        <span className="text-lg font-bold">Group Members</span>
-        <span className="pt-1 font-bold text-gray-600">
+        <span className="text-lg font-bold">
+          New {_.capitalize(groupPrivacy)} Group: Invite People
+        </span>
+        <span className="pt-1 text-gray-600">
           Invite members to <span className="text-black">{groupName}</span>
         </span>
       </div>
-      <div className="flex flex-col space-y-2">
+      <div className="input flex flex-col space-y-2">
         <ShipSelector
+          inner
+          placeholder={`Search for people or paste a list/.csv to invite as “${selectedRole}”`}
           ships={shipSelectorShips}
           setShips={setShipSelectorShips}
-          isMulti={false}
+          isMulti={true}
           onEnter={handleEnter}
+        />
+        <MemberRoleDropDownMenu
+          selectedRole={selectedRole}
+          setSelectedRole={setSelectedRole}
         />
         <GroupMemberRoleList
           shipsToInvite={shipsToInvite}
           setShipsToInvite={setShipsToInvite}
         />
       </div>
-      <div className="flex justify-between">
-        <button className="font-semibold text-gray-600" onClick={goToNextStep}>
-          Skip
+      <div className="flex justify-end space-x-2 py-4">
+        <button className="secondary-button" onClick={goToPrevStep}>
+          Back
         </button>
-        <div className="flex justify-end space-x-2 py-4">
-          <button className="secondary-button" onClick={goToPrevStep}>
-            Back
-          </button>
-          <button
-            disabled={shipsToInvite.length === 0}
-            className="button"
-            onClick={goToNextStep}
-          >
-            Invite
-          </button>
-        </div>
+        <button className="button" onClick={goToNextStep}>
+          {shipsToInvite.length > 0
+            ? 'Invite People & Create Group'
+            : 'Create Group'}
+        </button>
       </div>
     </div>
   );

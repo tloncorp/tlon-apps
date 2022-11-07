@@ -22,6 +22,8 @@ import { useDiaryState } from '@/state/diary';
 import useIsChannelHost from '@/logic/useIsChannelHost';
 import useIsChannelJoined from '@/logic/useIsChannelJoined';
 import useAllBriefs from '@/logic/useAllBriefs';
+import { useIsMobile } from '@/logic/useMedia';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 
 const UNZONED = 'default';
 
@@ -264,16 +266,30 @@ export default function ChannelIndex({ title }: ViewProps) {
   const navigate = useNavigate();
   const isAdmin = useAmAdmin(flag);
   const group = useGroup(flag);
+  const isMobile = useIsMobile();
+  const BackButton = isMobile ? Link : 'div';
 
   return (
-    <section className="w-full overflow-y-scroll p-4">
+    <section className="w-full sm:overflow-y-scroll">
       <Helmet>
         <title>
           {group ? `All Channels in ${group?.meta?.title} ${title}` : title}
         </title>
       </Helmet>
-      <div className="mb-4 flex flex-row justify-between">
-        <h1 className="text-lg font-bold">All Channels</h1>
+      <div className="flex flex-row items-center justify-between py-1 px-2 sm:p-4">
+        <BackButton
+          to="../"
+          className={cn(
+            'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
+            isMobile && 'flex items-center rounded-lg hover:bg-gray-50'
+          )}
+          aria-label="Back to Channels Menu"
+        >
+          {isMobile ? (
+            <CaretLeft16Icon className="mr-1 h-4 w-4 text-gray-400" />
+          ) : null}
+          <h1 className="text-base font-semibold sm:text-lg">All Channels</h1>
+        </BackButton>
         {isAdmin ? (
           <button
             onClick={() => navigate(`/groups/${flag}/info/channels`)}
@@ -283,21 +299,23 @@ export default function ChannelIndex({ title }: ViewProps) {
           </button>
         ) : null}
       </div>
-      {sections.map((section) =>
-        sectionedChannels[section] ? (
-          <div
-            key={section}
-            className="mb-2 w-full rounded-xl bg-white py-1 pl-4 pr-2"
-          >
-            <ChannelSection
-              channels={
-                section in sectionedChannels ? sectionedChannels[section] : []
-              }
-              zone={section}
-            />
-          </div>
-        ) : null
-      )}
+      <div className="p-4">
+        {sections.map((section) =>
+          sectionedChannels[section] ? (
+            <div
+              key={section}
+              className="mb-2 w-full rounded-xl bg-white py-1 pl-4 pr-2"
+            >
+              <ChannelSection
+                channels={
+                  section in sectionedChannels ? sectionedChannels[section] : []
+                }
+                zone={section}
+              />
+            </div>
+          ) : null
+        )}
+      </div>
     </section>
   );
 }

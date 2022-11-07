@@ -12,7 +12,7 @@ function Dot({
 }) {
   return (
     <div
-      onClick={() => setStep(thisStep)}
+      onClick={() => setStep(thisStep - 1)}
       className={cn('h-2 w-2 cursor-pointer rounded-full', {
         'bg-black': currentStep === thisStep,
         'bg-gray-100': currentStep !== thisStep,

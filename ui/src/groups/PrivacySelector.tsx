@@ -4,6 +4,7 @@ import { useFormContext } from 'react-hook-form';
 import GlobeIcon from '@/components/icons/GlobeIcon';
 import LockIcon from '@/components/icons/LockIcon';
 import PrivateIcon from '@/components/icons/PrivateIcon';
+import CheckIcon from '@/components/icons/CheckIcon';
 import { GroupFormSchema, PrivacyType } from '@/types/groups';
 
 interface PrivacySetting {
@@ -14,17 +15,17 @@ interface PrivacySetting {
 
 const PRIVACY_TYPE: Record<PrivacyType, PrivacySetting> = {
   public: {
-    icon: <GlobeIcon className="h-6 w-6 text-gray-600" />,
+    icon: <GlobeIcon className="h-7 w-7 text-gray-600" />,
     title: 'Public',
     description: 'Anyone can find and join',
   },
   private: {
-    icon: <LockIcon className="h-6 w-6 text-gray-600" />,
+    icon: <LockIcon className="h-7 w-7 text-gray-600" />,
     title: 'Private',
     description: 'Anyone can find, approval needed to join',
   },
   secret: {
-    icon: <PrivateIcon className="h-6 w-6 text-gray-600" />,
+    icon: <PrivateIcon className="h-7 w-7 text-gray-600" />,
     title: 'Secret',
     description: 'No one can find, only invited can join',
   },
@@ -42,8 +43,8 @@ function PrivacySettingRow({ type }: PrivacySettingRowProps) {
   return (
     <label
       className={cn(
-        'flex cursor-pointer items-center justify-between rounded-lg border-2 p-2',
-        selected ? 'border-gray-200 bg-gray-50' : 'border-gray-100 bg-white'
+        'flex cursor-pointer items-center justify-between rounded-lg px-2 py-1',
+        selected ? 'bg-gray-50' : 'bg-white'
       )}
     >
       <div className="flex w-full flex-col">
@@ -64,11 +65,7 @@ function PrivacySettingRow({ type }: PrivacySettingRowProps) {
         value={type}
       />
       <div className="flex items-center">
-        {selected ? (
-          <div className="h-4 w-4 rounded-xl border-4 border-gray-400" />
-        ) : (
-          <div className="h-4 w-4 rounded-xl border-2 border-gray-200" />
-        )}
+        {selected ? <CheckIcon className="h-5 w-5 fill-gray-400" /> : null}
       </div>
     </label>
   );

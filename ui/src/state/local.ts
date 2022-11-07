@@ -7,9 +7,13 @@ import {
   storageVersion,
 } from '../logic/utils';
 
+export type SubscriptionStatus = 'connected' | 'disconnected' | 'reconnecting';
+
 interface LocalState {
   browserId: string;
   currentTheme: 'light' | 'dark';
+  subscription: SubscriptionStatus;
+  errorCount: number;
   set: (f: (s: LocalState) => void) => void;
 }
 
@@ -19,6 +23,8 @@ export const useLocalState = create<LocalState>(
       set: (f) => set(produce(get(), f)),
       currentTheme: 'light',
       browserId: '',
+      subscription: 'connected',
+      errorCount: 0,
     }),
     {
       name: createStorageKey('local'),
@@ -40,3 +46,11 @@ export function useCurrentTheme() {
 
 export const setLocalState = (f: (s: LocalState) => void) =>
   useLocalState.getState().set(f);
+
+export function useSubscriptionStatus() {
+  return useLocalState((s) => s.subscription);
+}
+
+export function useErrorCount() {
+  return useLocalState((s) => s.errorCount);
+}
