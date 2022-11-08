@@ -543,6 +543,7 @@
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
+  ::
   ++  go-start-sub
     ^+  go-core
     =/  base=wire  (snoc go-area %updates)

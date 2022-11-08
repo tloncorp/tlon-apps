@@ -2,38 +2,24 @@
 /+  lib=diary-graph
 /+  *test
 |%
-++  test-basic
-  %+  expect-eq  !>(~[inline/~['foo bar']])
-  !>((ran:lib 'foo bar'))
+++  no-test-by-line
+  %+  expect-eq  !>(`(list tape)`~["foo" "bar"])
+  !>((by-line:lib "foo\0abar"))
 ::
-++  test-bold
-  %+  expect-eq  !>(`(list verse:d)`~[inline/~['foo ' bold/~['bold'] ' bar']])
-  !>((ran:lib 'foo *bold* bar'))
+++  no-test-by-code
+  %+  expect-eq  !>(`(list lang:lib)`~[%&^"foo" %|^"\0abar\0a" %&^"baz"])
+  !>((by-code:lib "foo```\0abar\0a```baz"))
 ::
-++  test-italics
-  %+  expect-eq  !>(`(list verse:d)`~[inline/~['foo ' italics/~['italics'] ' bar']])
-  !>((ran:lib 'foo **italics** bar'))
-::
-++  test-italics-and-bold
-  %+  expect-eq  !>(`(list verse:d)`~[inline/~['foo ' italics/~[bold/~['both']] ' bar']])
-  !>((ran:lib 'foo ***both*** bar'))
-::
-++  test-inline-code
-  %+  expect-eq  !>(`(list verse:d)`~[inline/~['foo ' inline-code/'do **not** markup' ' bar']])
-  !>((ran:lib 'foo `do **not** markup` bar'))
-::
-++  test-link
-  %+  expect-eq  !>(`(list verse:d)`~[inline/~['foo ' [%link 'https://tlon.io' 'Tlon Corporation']]])
-  !>((ran:lib 'foo [Tlon Corporation](https://tlon.io)'))
-
-::
-++  test-header
-  %+  expect-eq  !>(`(list verse:d)`~[block/[%header %h3 ~[' header']]])
-  !>((ran:lib '### header'))
-::
-++  test-justin
-  ~&  (ran:lib justin-example)
+++  no-test-start-example
+  ~&  start-ex/(ring:lib (trip start-example))
   (expect-eq *vase *vase)
+::
+++  test-mars
+  %+  expect-eq  !>([%inline ~['Christian Lorentzen is a critic and actor. He appears in the new play ' italics/~['Dimes Square']]])
+  !>  ^-  verse:d
+  %-  need
+  %+  rack:lib  "Christian Lorentzen is a critic and actor. He appears in the new play _Dimes Square_"
+  inline-verse:elem:lib
 ::
 ++  start-example
 '> "In the very heartland of wealth and liberation, you always hear the same question: ‘What are you doing after the orgy?’ What do you do when everything is available—sex, flowers, the stereotypes of life and death? This is America’s problem and, through America, it has become the whole world’s problem." —Baudrillard \0a Welcome to the Imperceptible Review'

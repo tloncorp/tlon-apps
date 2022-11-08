@@ -295,7 +295,7 @@
     ::  =/  comments  (node-to-comments com-node)
     ?.  ?=([[%text *] *] contents.u.pos)
       ~  :: XX: should be invariant, don't want to risk it
-    =/  con=(list verse:d)  (migrate t.contents.u.pos)
+    =/  con=(list verse:d)  (migrate flag `@ud`time t.contents.u.pos)
     =/  =essay:d
       =,(u.pos [text.i.contents '' con author time-sent])
     `[seal essay]

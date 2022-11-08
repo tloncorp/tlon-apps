@@ -1,15 +1,23 @@
 /-  d=diary
 /-  graph=graph-store
 =<  migrate
+=|  [=flag:d time=@ud]
 |%
 +$  errata  (each tape block:d)
++$  erratum
+  $%  [%prose =tape]
+      [%line =tape]
+      [%code =tape]
+      [%block =block:d]
+  ==
++$  lang    (each tape tape)
 ++  trace
   |*  [tag=@t sef=rule]
   |=  tub=nail
   ~?  dbug  [tag tub]
   =-  ~?(dbug [tag -] -)  (sef tub)
 ::
-++  dbug  &
+++  dbug  |
 ++  edict
   |$  [prod]
   $-(nail (like prod))
@@ -41,29 +49,6 @@
     [& sing]
   ++  by-line
     (more ret (star ;~(less ret next)))
-  ::
-  ++  lift-blocks
-    |=  txt=tape
-    ^-  (unit (list errata))
-    %+  rust  txt
-    %+  sear
-      |=  ls=(list errata)
-      ^-  (unit (list errata))
-      ?:  =(~ ls)  ~  `ls
-    %-  plus
-    ;~  pose
-      %+  cook
-        |=  [alt=tape src=tape]
-        ^-  errata
-        [%| [%image (crip src) 0 0 (crip alt)]]
-      =-  ;~(pfix zap -)
-      ;~  plug 
-        (ifix [sel ser] (star ;~(less ser prn)))
-        (ifix [pal par] (plus ;~(less par prn)))
-      ==
-    ::
-      (stag %& (plus ;~(less ;~(plug zap sel) prn)))
-    ==
   ++  main
     ^+  sing
     %+  roll  (scan q.nail by-line)
@@ -81,7 +66,7 @@
       ~!  bok
       si(out (snoc out u.bok))
     =/  erratum=(list errata)
-      (fall (lift-blocks txt) [%& txt]~)
+      ~
     |-  ^+  si  
     ?~  erratum  si(out out)
     ?:  ?=(%| -.i.erratum)
@@ -236,14 +221,18 @@
   abet:~(main sing [[1 1] (trip str)] ~)
 ::  TODO: squeeze after parsing?
 ++  migrate
-  |=  ls=(list content:post:gra:d)
+  |=  [f=flag:d atom=@ud ls=(list content:post:gra:d)]
   ^-  (list verse:d)
+  =:  flag  f
+      time  atom
+    ==
+  %-  squeeze
   %-  zing
   %+  turn  ls
   |=  con=content:post:gra:d
   ^-  (list verse:d)
   ?-    -.con
-      %text       (ran text.con)
+      %text       (ring (trip text.con))
       %mention    [%inline ~[`@t`(scot %p ship.con)]]~  :: TODO: i swear I PR'd ships
       %code       [%inline ~[code/expression.con]]~
       %reference  ~  :: TODO: think about?
@@ -373,4 +362,170 @@
     %-  star
     ;~(less tic prn)
   --
+:::
+++  lin
+  |=  txt=@t
+  ((plus ;~(less ret next)) [1 1] (trip txt))
+::
+++  by-line
+  |=  txt=tape
+  (split-rule txt ret)
+::
+++  log-fall
+  |*  [tag=@ta str=tape a=(unit) b=*]
+  ?~  a
+    b
+  u.a
+::
+++  infix
+  |*  [delim=rule inner=rule]
+  |=  tub=nail
+  =+  vex=(delim tub)
+  ?~  q.vex
+    (fail tub)
+  =/  but=nail  tub
+  =+  outer=(;~(sfix (plus ;~(less delim next)) delim) q.u.q.vex)
+  ?~  q.outer
+    (fail tub)
+  =+  in=(inner [1 1] p.u.q.outer)
+  ?~  q.in
+    (fail tub)
+  outer(p.u.q p.u.q.in) ::
+::
+++  split-rule
+  |*  [txt=tape delim=rule]
+  ^-  (list tape)
+  =-  (log-fall %split-rule tape - [txt ~])
+  (rust txt (more delim (star ;~(less delim next))))
+::
+++  by-code
+  |=  txt=tape
+  ^-  (list lang)
+  =<  +
+  %+  reel  (split-rule txt ;~(plug tic tic tic))
+  |=  [tap=tape count=@ud ls=(list lang)]
+  :-  +(count)
+  ?:  =(0 (mod count 2))
+    [[%& tap] ls]
+  [[%| tap] ls]
+::
+++  elem
+  |%
+  ++  head
+    %+  cook
+      |=  [a=(list) b=(list inline:d)]
+      ^-  verse:d
+      =/  len  (lent a)
+      =-  [%block %header - b]
+      ?+  len  !! :: forbidden by +stun
+        %1  %h1
+        %2  %h2
+        %3  %h3
+        %4  %h4
+        %5  %h5
+        %6  %h6
+      ==
+    ;~(plug (stun [1 6] hax) inline)
+  ++  blockquote  (stag %inline (listify (stag %blockquote ;~(pfix gar inline))))
+  ++  hr          (stag %block (cold `block:d`rule/~ (jest '---')))
+  ++  str         (tie (plus ;~(less cab tar next)))
+  ++  inline-verse  (stag %inline inline)
+  ++  inline
+    %+  knee  *(list inline:d)
+    |.  ~+
+    %+  trace  %inline
+    %-  plus
+    ;~  pose
+      (stag %italics (infix cab inline))
+      (stag %italics (infix tar inline))
+      str
+    ==
+  ::
+  ++  line-start
+    ^-  (edict verse:d)
+    :: =-  ;~(pfix (star whit) -)
+    ;~  pose
+      head
+      blockquote
+      hr
+      inline-verse
+    ==
+  --
+++  tie
+  |*  rul=rule
+  (cook crip rul)
+::
+++  whit  ;~(pose (jest '\09') ace)
+::
+++  lift-blocks
+  |=  txt=tape
+  ^-  (list erratum)
+  =-  (log-fall %lift-blocks txt - ~[prose/txt])
+  %+  rust  txt
+  %+  sear
+    |=  ls=(list erratum)
+    ^-  (unit (list erratum))
+    ?~  ls   ~
+    ?.  ?=(%prose -.i.ls)
+      `ls
+    `[[%line tape.i.ls] t.ls]
+  %-  plus
+  ;~  pose
+    %+  cook
+      |=  [alt=tape src=tape]
+      ^-  erratum
+      [%block [%image (crip src) 0 0 (crip alt)]]
+    =-  ;~(pfix zap -)
+    ;~  plug 
+      (ifix [sel ser] (star ;~(less ser prn)))
+      (ifix [pal par] (plus ;~(less par prn)))
+    ==
+  ::
+    (stag %prose (plus ;~(less ;~(plug zap sel) prn)))
+  ==
+::
+++  ring
+  |=  txt=tape
+  ^-  (list verse:d)
+  =/  langs  (by-code txt)
+  =/  lines=(list lang)
+    %-  zing
+    %+  turn  langs
+    |=  =lang
+    ^-  (list _lang)
+    ?.  ?=(%& -.lang)
+      ~[lang]
+    (turn (by-line p.lang) (lead %&))
+  =/  err=(list erratum)
+    %-  zing
+    %+  turn  lines
+    |=  =lang
+    ^-  (list erratum)
+    ?:  ?=(%| -.lang)
+      [%code p.lang]~
+    (lift-blocks p.lang)
+  =/  blocks=(list verse:d)
+    %+  turn  err
+    |=  e=erratum
+    ^-  verse:d
+    ?-  -.e
+    ::
+        %code   [%inline ~[code/(crip tape.e)]]
+        %block  [%block block.e]
+    ::
+        %prose
+      =/  def=verse:d  [%inline ~[(crip tape.e)]]
+      =-  (log-fall %prose-verse tape.e - def)
+      (rust tape.e inline-verse:elem)
+    ::
+        %line
+      =/  def=verse:d  [%inline ~[(crip tape.e)]]
+      =;  =verse:d
+        ?:  ?=(%inline -.verse)
+           [%inline break/~ p.verse]
+        verse
+      =-  (log-fall %line-verse tape.e - def)
+      (rust tape.e line-start:elem)
+    ==
+  (squeeze blocks)
 --
