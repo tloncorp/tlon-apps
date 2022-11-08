@@ -44,7 +44,7 @@
 }
 
 .ProseMirror {
-  @apply bg-transparent caret-blue-400 transition-colors focus-within:border-gray-100 focus-within:bg-white focus:outline-none focus-visible:border-gray-100;
+  @apply bg-transparent caret-blue-400 transition-colors focus-within:border-gray-100  focus:outline-none focus-visible:border-gray-100;
 }
 
 /* Placeholder (at the top) */
