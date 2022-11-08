@@ -94,6 +94,7 @@ function createRenderer({
           newDay={newDay}
           ref={ref}
           unread={unreadBrief}
+          isLast={keyIdx === keys.length - 1}
         />
       );
     }

@@ -34,6 +34,7 @@ export interface ChatMessageProps {
   unread?: ChatBrief;
   hideReplies?: boolean;
   hideOptions?: boolean;
+  isLast?: boolean;
 }
 
 const ChatMessage = React.memo<
@@ -51,6 +52,7 @@ const ChatMessage = React.memo<
         newDay = false,
         hideReplies = false,
         hideOptions = false,
+        isLast = false,
       }: ChatMessageProps,
       ref
     ) => {
@@ -93,6 +95,7 @@ const ChatMessage = React.memo<
           ref={ref}
           className={cn('flex flex-col', {
             'pt-2': newAuthor,
+            'pb-2': isLast,
           })}
         >
           {unread && unread.count > 0 ? (
