@@ -279,7 +279,8 @@ export function JSONToInlines(
           return [{ break: null }];
         }
         const isContentFinal = idx === json.content.length - 1;
-        if (isContentFinal) {
+        const isBreakDirectlyBefore = memo[idx - 1] && typeof memo[idx - 1] !== 'string' && 'break' in memo[idx-1];
+        if (isContentFinal && !isBreakDirectlyBefore) {
           return memo.concat(JSONToInlines(c, limitNewlines), [
             { break: null },
           ]);
