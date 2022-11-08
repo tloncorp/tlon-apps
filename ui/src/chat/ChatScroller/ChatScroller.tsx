@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { differenceInDays } from 'date-fns';
+import { isSameDay } from 'date-fns';
 import { BigIntOrderedMap, daToUnix, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
@@ -77,9 +77,7 @@ function createRenderer({
         ? new Date(daToUnix(lastWritKey))
         : undefined;
       const newDay =
-        lastWrit && lastWritDay
-          ? differenceInDays(writDay, lastWritDay) > 0
-          : false;
+        lastWrit && lastWritDay ? !isSameDay(writDay, lastWritDay) : !lastWrit;
       const unreadBrief =
         brief && brief['read-id'] === writ.seal.id ? brief : undefined;
 
