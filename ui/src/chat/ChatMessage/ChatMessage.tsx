@@ -89,7 +89,12 @@ const ChatMessage = React.memo<
       )(seal.replied);
 
       return (
-        <div ref={ref} className="flex flex-col">
+        <div
+          ref={ref}
+          className={cn('flex flex-col', {
+            'pt-2': newAuthor,
+          })}
+        >
           {unread && unread.count > 0 ? (
             <DateDivider date={unix} unreadCount={unread.count} ref={viewRef} />
           ) : null}
