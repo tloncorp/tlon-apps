@@ -12,7 +12,8 @@ interface GroupReferenceProps {
 
 export default function GroupReference({ flag }: GroupReferenceProps) {
   const gang = useGang(flag);
-  const { group, privacy, open, join, reject } = useGroupJoin(flag, gang);
+  const { group, privacy, open, join, reject, requested, button } =
+    useGroupJoin(flag, gang);
   const { ship } = getFlagParts(flag);
 
   const meta = group?.meta || gang?.preview?.meta;
@@ -64,7 +65,7 @@ export default function GroupReference({ flag }: GroupReferenceProps) {
           className="small-button ml-2 bg-blue text-white dark:text-black"
           onClick={group ? open : join}
         >
-          {group ? 'Go' : privacy === 'private' ? 'Request to Join' : 'Join'}
+          {button.text}
         </button>
       </div>
     </div>
