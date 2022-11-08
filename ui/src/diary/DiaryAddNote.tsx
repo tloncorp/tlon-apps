@@ -49,7 +49,7 @@ export default function DiaryAddNote() {
 
     const editorJSON = editor?.getJSON();
     const data = JSONToInlines(editor?.getJSON(), false);
-    console.log({editorJSON, data});
+    console.log({ editorJSON, data });
     const values = getValues();
 
     const sent = Date.now();
