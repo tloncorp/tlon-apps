@@ -452,6 +452,13 @@
   ::
   ++  go-pass
     |%
+    ++  update
+      |=  =action:g
+      ^-  card
+      =/  =wire  (snoc go-area %proxy)
+      =/  =dock  [p.flag dap.bowl]
+      =/  =cage  group-action+!>(action)
+      [%pass wire %agent dock %poke cage]
     ++  leave
       ^-  card
       =/  =wire  (snoc go-area %updates)
@@ -678,6 +685,9 @@
   ++  go-update
     |=  [=time =diff:g]
     ^+  go-core
+    ?:  &(!=(our.bowl p.flag) from-self) 
+      =.  cor  (emit (update:go-pass [flag [time diff]]))
+      go-core
     =.  go-core
       (go-tell-update time diff)
     =?  net  ?=(?(%sub %load) -.net)  [%sub time]
