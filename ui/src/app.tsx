@@ -402,7 +402,7 @@ function App() {
   const location = useLocation();
   const isChat = useIsChat();
   const isMobile = useIsMobile();
-  const isSmall = useMedia('(max-width: 1023px');
+  const isSmall = useMedia('(max-width: 1023px)');
   const subscription = useSubscriptionStatus();
 
   useEffect(() => {
