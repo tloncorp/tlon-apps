@@ -30,6 +30,7 @@ import { useMemoizedContacts } from '@/state/contact';
 import { MAX_DISPLAYED_OPTIONS } from '@/constants';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { useIsMobile } from '@/logic/useMedia';
 import ShipName from './ShipName';
 import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
 
@@ -276,6 +277,7 @@ export default function ShipSelector({
     true,
     GroupBase<ShipOption>
   > | null>(null);
+  const isMobile = useIsMobile();
   const contacts = useMemoizedContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
@@ -285,6 +287,7 @@ export default function ShipSelector({
   const validShips = ships
     ? ships.every((ship) => isValidNewOption(preSig(ship.value)))
     : false;
+  const mobilePlaceholder = 'Search by @p or nickname';
 
   const handleEnter = () => {
     const isInputting = !!(
@@ -479,7 +482,7 @@ export default function ShipSelector({
             : isValidNewOption(val)
         }
         onKeyDown={onKeyDown}
-        placeholder={placeholder}
+        placeholder={isMobile ? mobilePlaceholder : placeholder}
         hideSelectedOptions
         // TODO: create custom filter for sorting potential DM participants.
         filterOption={() => true} // disable the default filter
@@ -567,7 +570,7 @@ export default function ShipSelector({
       onInputChange={onInputChange}
       isValidNewOption={isValidNewOption}
       onKeyDown={onKeyDown}
-      placeholder={placeholder}
+      placeholder={isMobile ? mobilePlaceholder : placeholder}
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
       filterOption={() => true} // disable the default filter

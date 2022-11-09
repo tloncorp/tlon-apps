@@ -1,19 +1,19 @@
-import cn from 'classnames';
 import React from 'react';
-import { Outlet, useLocation, useMatch } from 'react-router';
+import cn from 'classnames';
+import { Outlet, useMatch } from 'react-router';
 import { useNotifications } from '@/notifications/useNotifications';
 import NavTab from '../NavTab';
-import GroupIcon from '../icons/GroupIcon';
-import ActivityIndicator from './ActivityIndicator';
-import AsteriskIcon from '../icons/Asterisk16Icon';
+import AppGroupsIcon from '../icons/AppGroupsIcon';
+import ElipsisIcon from '../icons/EllipsisIcon';
+import BellIcon from '../icons/BellIcon';
 import Avatar from '../Avatar';
-import AddIcon16 from '../icons/Add16Icon';
-import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
+
+import MagnifyingGlassIcon from '../icons/MagnifyingGlass16Icon';
 
 export default function MobileSidebar() {
+  const ship = window.our;
+  const profileMatch = useMatch('/profile/edit');
   const { count } = useNotifications();
-  const location = useLocation();
-  const isProfile = useMatch('/profile/*');
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
@@ -22,34 +22,31 @@ export default function MobileSidebar() {
         <nav>
           <ul className="flex justify-items-stretch">
             <NavTab to="/" aria-label="Groups">
-              <GroupIcon className="mb-0.5 h-6 w-6" />
+              <AppGroupsIcon className="mb-0.5 h-6 w-6" />
+              Groups
             </NavTab>
-            <NavTab to="/notifications" aria-label="Notifications">
-              <ActivityIndicator count={count} className="mb-0.5" />
+            <NavTab to="/notifications" aria-label="Activity">
+              <BellIcon className="mb-0.5 h-6 w-6" />
+              Activity
             </NavTab>
-            <NavTab to="/groups/new" state={{ backgroundLocation: location }}>
-              <div className="icon-button bg-blue text-white dark:bg-blue-900 dark:text-blue">
-                <AddIcon16 className="h-4 w-4" />
-              </div>
-            </NavTab>
-            <NavTab to="/find">
+            <NavTab to="/find" aria-label="Find">
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
+              Find Groups
             </NavTab>
-            <NavTab
-              linkClass="no-underline"
-              href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Submit Issue"
-            >
-              <AsteriskIcon className="mb-0.5 h-6 w-6" />
-            </NavTab>
-            <NavTab to="/profile/edit" aria-label="Profile">
+            <NavTab to="/profile/edit">
               <Avatar
                 size="xs"
-                ship={window.our}
-                className={cn('mb-0.5', !isProfile && 'opacity-70 grayscale')}
+                ship={ship}
+                className={cn(
+                  'mb-1 h-6 w-6',
+                  !profileMatch && 'opacity-50 grayscale'
+                )}
               />
+              Profile
+            </NavTab>
+            <NavTab to="/actions" aria-label="Options">
+              <ElipsisIcon className="mb-0.5 h-6 w-6" />
+              Options
             </NavTab>
           </ul>
         </nav>

@@ -278,12 +278,12 @@ export default function ChannelIndex({ title }: ViewProps) {
       </Helmet>
       <div className="flex flex-row items-center justify-between py-1 px-2 sm:p-4">
         <BackButton
-          to="../"
+          to="../actions"
           className={cn(
             'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
             isMobile && 'flex items-center rounded-lg hover:bg-gray-50'
           )}
-          aria-label="Back to Channels Menu"
+          aria-label="Back to Group Menu"
         >
           {isMobile ? (
             <CaretLeft16Icon className="mr-1 h-4 w-4 text-gray-400" />

@@ -19,9 +19,44 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
+
+type ChannelSorterProps = {
+  isMobile?: boolean;
+};
+
 interface ChannelListProps {
   flag: string;
   className?: string;
+}
+
+export function ChannelSorter({ isMobile }: ChannelSorterProps) {
+  const { sortFn, sortOptions, setSortFn } = useChannelSort();
+  return (
+    <DropdownMenu.Root>
+      {isMobile ? (
+        <DropdownMenu.Trigger
+          className="default-focus flex items-center rounded-lg p-0 text-base font-semibold"
+          aria-label="Groups Sort Options"
+        >
+          <SortIcon className="h-6 w-6 text-gray-400" />
+        </DropdownMenu.Trigger>
+      ) : (
+        <div className="p-2">
+          <DropdownMenu.Trigger
+            className="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
+            aria-label="Channels Sort Options"
+          >
+            <span className="flex items-center">
+              <SortIcon className="h-4 w-4 text-gray-400" />
+              <span className="mr-2 pl-1">{`Sort: ${sortFn}`}</span>
+            </span>
+            <CaretDown16Icon className="h-4 w-4 text-gray-400" />
+          </DropdownMenu.Trigger>
+        </div>
+      )}
+      <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
+    </DropdownMenu.Root>
+  );
 }
 
 export default function ChannelList({ flag, className }: ChannelListProps) {
@@ -75,21 +110,8 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
 
   return (
     <div className={className}>
-      <DropdownMenu.Root>
-        <div className="p-2">
-          <DropdownMenu.Trigger
-            className="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
-            aria-label="Channels Sort Options"
-          >
-            <span className="flex items-center">
-              <SortIcon className="h-4 w-4 text-gray-400" />
-              <span className="mr-2 pl-1">{`Sort: ${sortFn}`}</span>
-            </span>
-            <CaretDown16Icon className="h-4 w-4 text-gray-400" />
-          </DropdownMenu.Trigger>
-        </div>
-        <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
-      </DropdownMenu.Root>
+      {!isMobile && <ChannelSorter isMobile={false} />}
+
       <ul className={cn('space-y-1', isMobile && 'flex-none space-y-3')}>
         {isDefaultSort
           ? sections.map((s) => (

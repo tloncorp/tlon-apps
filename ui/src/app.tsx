@@ -72,6 +72,7 @@ import TalkNav from './nav/TalkNav';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
+import MobileGroupsActions from './groups/MobileGroupsActions';
 import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
 
@@ -247,6 +248,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 <EditProfile title={`Edit Profile • ${appHead('').title}`} />
               }
             />
+            <Route path="/actions" element={<MobileGroupsActions />} />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>

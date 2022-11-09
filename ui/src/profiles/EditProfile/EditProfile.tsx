@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import cn from 'classnames';
+import { Link } from 'react-router-dom';
 import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Contact, ContactEditField, uxToHex } from '@urbit/api';
 import { ViewProps } from '@/types/groups';
+import { useIsMobile } from '@/logic/useMedia';
 import useContactState, {
   useOurContact,
   isOurContactPublic,
@@ -185,6 +188,7 @@ function EditProfileContent() {
             <Avatar
               ship={ship}
               previewData={avatarPreviewData}
+              icon={false}
               size="huge"
               className="translate-y-9"
             />
@@ -253,6 +257,8 @@ function EditProfileContent() {
 }
 
 export default function EditProfile({ title }: ViewProps) {
+  const isMobile = useIsMobile();
+
   return (
     <div className="flex grow overflow-y-scroll bg-gray-50">
       <Helmet>

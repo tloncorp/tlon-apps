@@ -1,4 +1,6 @@
 import React, { useState, useCallback } from 'react';
+import cn from 'classnames';
+import { useIsMobile } from '@/logic/useMedia';
 import { Gang, Gangs } from '@/types/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GroupSummary from './GroupSummary';
@@ -12,6 +14,7 @@ interface GroupJoinItemProps {
 function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
   const [hasBeenClicked, setHasBeenClicked] = useState(false);
   const { open, reject, button, privacy, requested } = useGroupJoin(flag, gang);
+  const isMobile = useIsMobile();
 
   const onClick = useCallback((buttonAction: () => void) => {
     setHasBeenClicked(true);
@@ -21,7 +24,10 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
   return (
     <li className="relative flex items-center">
       <button
-        className="flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50"
+        className={cn(
+          'flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50',
+          isMobile && 'bg-gray-50'
+        )}
         onClick={open}
       >
         <GroupSummary flag={flag} {...gang.preview} size={'small'} />
