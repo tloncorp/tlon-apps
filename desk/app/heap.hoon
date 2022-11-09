@@ -134,12 +134,14 @@
 ++  load
   |=  =vase
   ^+  cor
-   =/  maybe-old=(each [versioned-state epic:e] tang)
+  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
     (mule |.(!<([versioned-state epic:e] vase)))
-  =/  [old=versioned-state cool=epic:e]
-    ?.  ?=(%| -.maybe-old)  p.maybe-old
-    =-  ~&  >  %bad-load  (fall - [state.cor okay])
-    (mole |.([!<(versioned-state vase) okay]))
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ::  XX only save when epic changes
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
   =.  state  old
   ?:  =(okay cool)  cor
   ::  speak the good news
