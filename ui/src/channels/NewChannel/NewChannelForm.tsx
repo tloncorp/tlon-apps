@@ -10,11 +10,13 @@ import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPerms
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
+import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '../ChannelTypeSelector';
 
 export default function NewChannelForm() {
   const { section } = useParams<{ section: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
@@ -111,10 +113,11 @@ export default function NewChannelForm() {
           .getState()
           .setChannelJoin(groupFlag, newChannelNest, true);
       }
-
-      navigate(`/groups/${groupFlag}/info/channels`);
+      navigate(
+        isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/info/channels`
+      );
     },
-    [section, groupFlag, navigate]
+    [section, groupFlag, navigate, isMobile]
   );
 
   return (

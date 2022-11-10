@@ -47,7 +47,12 @@ export default function ProfileModal() {
           containerClass="w-full sm:max-w-lg"
         >
           <ProfileCoverImage className="flex items-end" ship={ship}>
-            <Avatar ship={ship} size="huge" className="translate-y-9" />
+            <Avatar
+              ship={ship}
+              icon={false}
+              size="huge"
+              className="translate-y-9"
+            />
           </ProfileCoverImage>
           <div className="p-5 pt-14">
             <div className="text-lg font-bold">
@@ -77,7 +82,12 @@ export default function ProfileModal() {
         containerClass="w-full sm:max-w-lg"
       >
         <ProfileCoverImage className="flex items-end" ship={ship}>
-          <Avatar ship={ship} size="huge" className="translate-y-9" />
+          <Avatar
+            icon={false}
+            ship={ship}
+            size="huge"
+            className="translate-y-9"
+          />
         </ProfileCoverImage>
         <div className="p-5 pt-14">
           <div className="text-lg font-bold">

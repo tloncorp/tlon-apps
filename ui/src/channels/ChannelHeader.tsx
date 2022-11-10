@@ -16,7 +16,6 @@ import ListIcon from '@/components/icons/ListIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
 import * as Popover from '@radix-ui/react-popover';
 import Divider from '@/components/Divider';
-import BulletIcon from '@/components/icons/BulletIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import SlidersIcon from '@/components/icons/SlidersIcon';
 import useIsChannelHost from '@/logic/useIsChannelHost';
@@ -91,6 +90,7 @@ function ChannelActions({ nest }: { nest: string }) {
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const { ship, name } = getFlagParts(groupFlag);
+  const isMobile = useIsMobile();
 
   const leave = useCallback(
     (chFlag: string) => {
@@ -109,13 +109,17 @@ function ChannelActions({ nest }: { nest: string }) {
   const leaveChannel = useCallback(async () => {
     try {
       leave(flag);
-      navigate(`/groups/${ship}/${name}/channels`);
+      navigate(
+        isMobile
+          ? `/groups/${ship}/${name}`
+          : `/groups/${ship}/${name}/channels`
+      );
     } catch (error) {
       if (error) {
         console.error(`[ChannelIndex:LeaveError] ${error}`);
       }
     }
-  }, [flag, ship, name, navigate, leave]);
+  }, [flag, ship, name, navigate, leave, isMobile]);
 
   return (
     <Popover.Root>
@@ -126,30 +130,6 @@ function ChannelActions({ nest }: { nest: string }) {
       </Popover.Trigger>
       <Popover.Content>
         <div className="flex flex-col rounded-lg bg-white leading-5 drop-shadow-lg">
-          {/* TODO: Will need channel functionality for all these items
-              <ChannelHeaderMenuButton>
-                <BulletIcon className="h-5 w-5 text-blue-300" />
-                <span className="font-semibold text-blue">Invite to Channel</span>
-              </ChannelHeaderMenuButton>
-              <ChannelHeaderMenuButton>
-                <BulletIcon className="h-5 w-5 text-blue-300" />
-                <span className="font-semibold text-blue">Copy Channel Link</span>
-              </ChannelHeaderMenuButton>
-              <ChannelHeaderMenuButton>
-                <BulletIcon className="h-5 w-5 text-gray-400" />
-                <span className="font-semibold">Subscribed Members...</span>
-              </ChannelHeaderMenuButton>
-            */}
-          {/* TODO: Un-disable this once we have mute controls */}
-          <ChannelHeaderMenuButton className="hover:bg-transparent">
-            <BulletIcon className="h-6 w-6 text-gray-400" />
-            <span className="font-semibold text-gray-400">Mute Channel</span>
-          </ChannelHeaderMenuButton>
-          {/* TODO: Un-disable this once we have mentions and mutes */}
-          <ChannelHeaderMenuButton className="hover:bg-transparent">
-            <BulletIcon className="h-6 w-6 text-gray-400" />
-            <span className="font-semibold text-gray-400">Mute Mentions</span>
-          </ChannelHeaderMenuButton>
           {!isChannelHost ? (
             <ChannelHeaderMenuButton
               className="hover:bg-red-soft"
@@ -270,7 +250,7 @@ export default function ChannelHeader({
       )}
     >
       <BackButton
-        to="../../"
+        to="../.."
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
           isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
@@ -296,9 +276,6 @@ export default function ChannelHeader({
       {showControls && displayMode && setDisplayMode && setSortMode ? (
         <div className="flex items-center space-x-3">
           {children}
-          <ChannelHeaderButton onClick={() => console.log('share')}>
-            <span className="font-semibold">Share</span>
-          </ChannelHeaderButton>
           {/* TODO: Switch the popovers to dropdowns */}
           <Popover.Root>
             <Popover.Trigger asChild>
