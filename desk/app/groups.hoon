@@ -114,6 +114,8 @@
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
+    ?:  &(!=(our.bowl p.p.action) from-self)
+      go-abet:(go-proxy:group-core q.action)
     go-abet:(go-update:group-core q.action)
   ::
       %group-invite
@@ -452,13 +454,6 @@
   ::
   ++  go-pass
     |%
-    ++  update
-      |=  =action:g
-      ^-  card
-      =/  =wire  (snoc go-area %proxy)
-      =/  =dock  [p.flag dap.bowl]
-      =/  =cage  group-action+!>(action)
-      [%pass wire %agent dock %poke cage]
     ++  leave
       ^-  card
       =/  =wire  (snoc go-area %updates)
@@ -619,6 +614,16 @@
       ==
     ==
   ::
+  ++  go-proxy
+    |=  =update:g
+    ^+  go-core
+    ?>  go-is-bloc
+    =/  =wire  (snoc go-area %proxy)
+    =/  =dock  [p.flag dap.bowl]
+    =/  =cage  group-action+!>([flag update])
+    =.  cor  (emit %pass wire %agent dock %poke cage)
+    go-core
+  ::
   ++  go-pub
     |=  =path
     ^+  go-core
@@ -685,9 +690,6 @@
   ++  go-update
     |=  [=time =diff:g]
     ^+  go-core
-    ?:  &(!=(our.bowl p.flag) from-self) 
-      =.  cor  (emit (update:go-pass [flag [time diff]]))
-      go-core
     =.  go-core
       (go-tell-update time diff)
     =?  net  ?=(?(%sub %load) -.net)  [%sub time]
