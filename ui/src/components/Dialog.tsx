@@ -9,7 +9,7 @@ export default function Dialog({
 }: DialogPrimitive.DialogProps) {
   return (
     <DialogPrimitive.Root {...props}>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-30 transform-gpu bg-black opacity-30" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-40 transform-gpu bg-black opacity-30" />
       {children}
     </DialogPrimitive.Root>
   );
