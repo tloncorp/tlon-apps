@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { useCallback } from 'react';
+import React from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { channelHref, nestToFlag, filterJoinedChannels } from '@/logic/utils';
@@ -16,6 +16,7 @@ import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
 import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
+import usePrefetchGroupMessages from '@/logic/usePrefetchGroupMessages';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -67,6 +68,8 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const { sectionedChannels, sections } = useChannelSections(flag);
   const isMobile = useIsMobile();
   const { isChannelUnread } = useIsChannelUnread(flag);
+
+  usePrefetchGroupMessages(flag);
 
   if (!group) {
     return null;

@@ -7,9 +7,8 @@ import {
   Pact,
   WritDiff,
   ChatAction,
-  WritDelta,
 } from '../../types/chat';
-import { ChatState, BasedChatState } from './type';
+import { BasedChatState } from './type';
 
 interface WritsStore {
   initialize: () => Promise<void>;

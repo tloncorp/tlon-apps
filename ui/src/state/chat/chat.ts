@@ -1,10 +1,8 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
-import create from 'zustand';
-import { persist } from 'zustand/middleware';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
-import { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Groups } from '@/types/groups';
 import {
@@ -26,17 +24,10 @@ import {
   WritDelta,
 } from '@/types/chat';
 import api from '@/api';
-import {
-  createStorageKey,
-  clearStorageMigration,
-  storageVersion,
-  whomIsDm,
-  whomIsMultiDm,
-  whomIsFlag,
-} from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
-import { ChatState, BasedChatState } from './type';
+import { ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 
@@ -682,6 +673,11 @@ export function usePact(whom: string) {
   return useChatState(useCallback((s) => s.pacts[whom], [whom]));
 }
 
+const selPacts = (s: ChatState) => s.pacts;
+export function usePacts() {
+  return useChatState(selPacts);
+}
+
 export function useCurrentPactSize(whom: string) {
   return useChatState(
     useCallback((s) => s.pacts[whom]?.writs.size ?? 0, [whom])
@@ -874,6 +870,23 @@ export function useLoadedWrits(whom: string) {
       [whom]
     )
   );
+}
+
+export function useLatestMessage(chFlag: string) {
+  const messages = useMessagesForChat(chFlag);
+  return messages.size > 0 ? messages.peekLargest() : [bigInt(), null];
+}
+
+export function useGetLatestMessage() {
+  const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
+  const empty = [bigInt(), null];
+  const pacts = usePacts();
+
+  return (chFlag: string) => {
+    const pactFlag = chFlag.startsWith('~') ? chFlag : nestToFlag(chFlag)[1];
+    const messages = pacts[pactFlag]?.writs ?? def;
+    return messages.size > 0 ? messages.peekLargest() : empty;
+  };
 }
 
 (window as any).chat = useChatState.getState;

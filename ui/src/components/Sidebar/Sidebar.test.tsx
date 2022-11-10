@@ -1,8 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import React from 'react';
+import { describe, expect, it } from 'vitest';
 import { createMockGroup } from '@/mocks/groups';
 import { Group } from '@/types/groups';
-import { describe, expect, it } from 'vitest';
 import { render } from '../../../test/utils';
 import Sidebar from './Sidebar';
 
@@ -13,6 +13,7 @@ vi.mock('@/state/chat', () => ({
   useBriefs: () => ({}),
   usePinnedGroups: () => ({}),
   usePinned: () => [],
+  useGetLatestMessage: () => () => 0,
 }));
 
 vi.mock('@/state/groups', () => ({
