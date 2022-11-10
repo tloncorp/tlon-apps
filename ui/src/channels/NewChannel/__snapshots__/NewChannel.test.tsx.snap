@@ -4,7 +4,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
 <DocumentFragment>
   <div
     aria-hidden="true"
-    class="fixed inset-0 z-30 transform-gpu bg-black opacity-30"
+    class="fixed inset-0 z-40 transform-gpu bg-black opacity-30"
     data-aria-hidden="true"
     data-state="open"
     style="pointer-events: auto;"
