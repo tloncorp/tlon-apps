@@ -31,19 +31,18 @@ export default function ChatThread({ whom, children }: ChatThreadProps) {
   const id = `${idShip!}/${idTime!}`;
   const maybeWrit = useWrit(whom, id);
   const replies = useReplies(whom, id);
-  const returnURL = () => {
-    if (location.pathname.includes('groups')) {
-      return `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${udToDec(
-        idTime!
-      )}`;
-    }
-    return `/dm/${ship}?msg=${udToDec(idTime!)}`;
-  };
 
   if (!maybeWrit) {
     return null;
   }
   const [time, writ] = maybeWrit;
+
+  const returnURL = () => {
+    if (location.pathname.includes('groups')) {
+      return `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${time.toString()}`;
+    }
+    return `/dm/${ship}?msg=${time.toString()}`;
+  };
 
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l">
