@@ -5,12 +5,13 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { isSameDay } from 'date-fns';
-import { BigIntOrderedMap, daToUnix, unixToDa } from '@urbit/api';
+import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
-import { Virtuoso } from 'react-virtuoso';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { ChatState } from '@/state/chat/type';
 import { useChatState, useLoadedWrits } from '@/state/chat/chat';
@@ -93,6 +94,7 @@ function createRenderer({
           newDay={newDay}
           ref={ref}
           unread={unreadBrief}
+          isLast={keyIdx === keys.length - 1}
         />
       );
     }
@@ -133,6 +135,7 @@ export default function ChatScroller({
   const loaded = useLoadedWrits(whom);
   const [oldWhom, setOldWhom] = useState(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
+  const virtuoso = useRef<VirtuosoHandle>(null);
 
   const keys = useMemo(
     () =>
@@ -183,6 +186,19 @@ export default function ChatScroller({
         firstItemIndex: indexData.firstItemIndex - diff,
         data: keys,
       });
+    }
+
+    // Sometimes the virtuoso component doesn't scroll to the bottom when
+    // switching chats. Diff remains zero when it shouldn't.
+    // This is a hack to force it to scroll to the bottom.
+
+    if (indexData.firstItemIndex === FIRST_INDEX && diff === 0) {
+      // We need to wait to make sure the virtuoso component has been updated.
+      setTimeout(() => {
+        virtuoso?.current?.scrollToIndex({
+          index: indexData.data.length - 1,
+        });
+      }, 50);
     }
   }, [whom, oldWhom, keys, mess, indexData]);
 
@@ -240,6 +256,7 @@ export default function ChatScroller({
     <div className="relative h-full flex-1">
       <Virtuoso
         {...indexData}
+        ref={virtuoso}
         followOutput
         alignToBottom
         className="h-full overflow-x-hidden p-4"
