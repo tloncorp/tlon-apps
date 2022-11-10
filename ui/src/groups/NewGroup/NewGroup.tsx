@@ -11,6 +11,7 @@ import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
 import { useStep } from 'usehooks-ts';
+import { Status } from '@/logic/status';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
@@ -25,6 +26,7 @@ export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
+  const [status, setStatus] = useState<Status>('initial');
   // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
 
   const onOpenChange = (isOpen: boolean) => {
@@ -75,9 +77,19 @@ export default function NewGroup() {
             },
           };
 
-    await useGroupState.getState().create({ ...values, name, members, cordon });
-    const flag = `${window.our}/${name}`;
-    navigate(`/groups/${flag}`);
+    setStatus('loading');
+
+    try {
+      await useGroupState
+        .getState()
+        .create({ ...values, name, members, cordon });
+
+      setStatus('success');
+      const flag = `${window.our}/${name}`;
+      navigate(`/groups/${flag}`);
+    } catch (error) {
+      setStatus('error');
+    }
   }, [shipsToInvite, navigate, form]);
 
   // const nextWithTemplate = (template?: string) => {
@@ -113,6 +125,7 @@ export default function NewGroup() {
     case 3:
       currentStepComponent = (
         <NewGroupInvite
+          status={status}
           groupName={form.getValues('title')}
           groupPrivacy={form.getValues('privacy')}
           goToPrevStep={goToPrevStep}
