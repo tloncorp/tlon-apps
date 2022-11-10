@@ -192,7 +192,7 @@ export default function ChatScroller({
     // switching chats. Diff remains zero when it shouldn't.
     // This is a hack to force it to scroll to the bottom.
 
-    if (indexData.firstItemIndex === FIRST_INDEX && diff === 0) {
+    if (indexData.firstItemIndex === FIRST_INDEX && diff === 0 && !scrollTo) {
       // We need to wait to make sure the virtuoso component has been updated.
       setTimeout(() => {
         virtuoso?.current?.scrollToIndex({
@@ -200,7 +200,18 @@ export default function ChatScroller({
         });
       }, 50);
     }
-  }, [whom, oldWhom, keys, mess, indexData]);
+
+    if (scrollTo) {
+      const idx = keys.findIndex((k) => k.eq(scrollTo));
+      if (idx !== -1) {
+        setTimeout(() => {
+          virtuoso?.current?.scrollToIndex({
+            index: idx,
+          });
+        }, 50);
+      }
+    }
+  }, [whom, oldWhom, keys, mess, indexData, scrollTo]);
 
   const Message = useMemo(
     () =>
