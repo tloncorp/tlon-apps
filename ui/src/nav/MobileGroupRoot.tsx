@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useGroupFlag, useGroup, useAmAdmin } from '@/state/groups';
 import ChannelList, { ChannelSorter } from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
+import CaretLeftIcon from '@/components/icons/CaretLeft16Icon';
 import AddIcon from '@/components/icons/AddIcon';
 
 export default function MobileGroupRoot() {
@@ -20,7 +20,7 @@ export default function MobileGroupRoot() {
             to="/"
             className="default-focus inline-flex items-center text-base font-semibold text-gray-800 hover:bg-gray-50"
           >
-            <CaretLeft16Icon className="mr-2 h-6 w-6 text-gray-400" />
+            <CaretLeftIcon className="mr-2 h-6 w-6 text-gray-400" />
             <GroupAvatar {...group?.meta} size="h-8 w-8" className="mr-3" />
             <h1 className="truncate text-base font-bold">
               {group?.meta.title}

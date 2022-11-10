@@ -21,15 +21,15 @@ export default function MobileSidebar() {
       <footer className="flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex justify-items-stretch">
-            <NavTab to="/" aria-label="Groups">
+            <NavTab to="/">
               <AppGroupsIcon className="mb-0.5 h-6 w-6" />
               Groups
             </NavTab>
-            <NavTab to="/notifications" aria-label="Activity">
+            <NavTab to="/notifications">
               <BellIcon className="mb-0.5 h-6 w-6" />
               Activity
             </NavTab>
-            <NavTab to="/find" aria-label="Find">
+            <NavTab to="/find">
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
               Find Groups
             </NavTab>
@@ -44,7 +44,7 @@ export default function MobileSidebar() {
               />
               Profile
             </NavTab>
-            <NavTab to="/actions" aria-label="Options">
+            <NavTab to="/actions">
               <ElipsisIcon className="mb-0.5 h-6 w-6" />
               Options
             </NavTab>

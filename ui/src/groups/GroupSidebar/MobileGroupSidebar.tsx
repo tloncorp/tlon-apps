@@ -20,7 +20,7 @@ export default function MobileGroupSidebar() {
       <footer className="mt-auto flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex items-center">
-            <NavTab to="." end aria-label="Channels">
+            <NavTab to="." end>
               <HashIcon className="mb-0.5 h-6 w-6" />
               Channels
             </NavTab>
