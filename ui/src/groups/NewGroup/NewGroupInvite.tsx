@@ -9,6 +9,9 @@ import CaretDownIcon from '@/components/icons/CaretDownIcon';
 import IconButton from '@/components/IconButton';
 import XIcon from '@/components/icons/XIcon';
 import { PrivacyType } from '@/types/groups';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import X16Icon from '@/components/icons/X16Icon';
 
 interface NewGroupInviteProps {
   groupName: string;
@@ -17,6 +20,7 @@ interface NewGroupInviteProps {
   goToNextStep: () => void;
   shipsToInvite: ShipWithRoles[];
   setShipsToInvite: React.Dispatch<React.SetStateAction<ShipWithRoles[]>>;
+  status: Status;
 }
 
 type Role = 'Member' | 'Moderator' | 'Admin';
@@ -136,9 +140,13 @@ export default function NewGroupInvite({
   groupPrivacy,
   shipsToInvite,
   setShipsToInvite,
+  status,
 }: NewGroupInviteProps) {
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
   const [selectedRole, setSelectedRole] = useState<Role>('Member');
+  const submitText =
+    shipsToInvite.length > 0 ? 'Invite People & Create Group' : 'Create Group';
+  const ready = status === 'initial';
 
   const handleEnter = (ships: ShipOption[]) => {
     setShipsToInvite((prevState) => [
@@ -187,10 +195,20 @@ export default function NewGroupInvite({
         <button className="secondary-button" onClick={goToPrevStep}>
           Back
         </button>
-        <button className="button" onClick={goToNextStep}>
-          {shipsToInvite.length > 0
-            ? 'Invite People & Create Group'
-            : 'Create Group'}
+        <button className="button" onClick={goToNextStep} disabled={!ready}>
+          {ready ? (
+            submitText
+          ) : status === 'loading' ? (
+            <>
+              <LoadingSpinner className="mr-2 h-4 w-4" />
+              <span>Creating</span>
+            </>
+          ) : status === 'error' ? (
+            <>
+              <X16Icon className="mr-2 h-4 w-4" />
+              <span>Errored</span>
+            </>
+          ) : null}
         </button>
       </div>
     </div>
