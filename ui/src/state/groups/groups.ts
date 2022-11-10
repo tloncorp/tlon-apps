@@ -440,6 +440,7 @@ export const useGroupState = create<GroupState>(
           },
         };
         await api.poke(groupAction(flag, diff));
+        await useGroupState.getState().updateGroups();
       },
       setChannelPerm: async (flag, nest, sects) => {
         const currentReaders = get().groups[flag].channels[nest]?.readers || [];
@@ -472,6 +473,13 @@ export const useGroupState = create<GroupState>(
           },
         };
         await api.poke(groupAction(flag, diff));
+      },
+      updateGroups: async () => {
+        const groups = await api.scry<Groups>({
+          app: 'groups',
+          path: '/groups',
+        });
+        set(() => ({ groups }));
       },
       start: async () => {
         const [groups, gangs] = await Promise.all([

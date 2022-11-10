@@ -47,6 +47,7 @@ export interface GroupState {
   leave: (flag: string) => Promise<void>;
   edit: (flag: string, metadata: GroupMeta) => Promise<void>;
   delete: (flag: string) => Promise<void>;
+  updateGroups: () => Promise<void>;
   start: () => Promise<void>;
   channelPreview: (nest: string) => Promise<void>;
   search: (flag: string) => Promise<void>;
