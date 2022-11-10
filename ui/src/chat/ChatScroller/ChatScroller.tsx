@@ -260,6 +260,11 @@ export default function ChatScroller({
         followOutput
         alignToBottom
         className="h-full overflow-x-hidden p-4"
+        // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
+        // size of elements, triggering a reflow loop in virtual scroller
+        style={{
+          overflowY: 'scroll',
+        }}
         atBottomThreshold={250}
         atTopThreshold={250}
         atTopStateChange={(top) => top && fetchMessages(false)}
