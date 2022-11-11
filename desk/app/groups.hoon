@@ -195,8 +195,8 @@
     [%groups %ui ~]       cor
     [%groups ~]           cor
     [%gangs %updates ~]   cor
-    ::
-      [%epic ~]  (give %fact ~ epic+!>(okay))
+  ::
+    [%epic ~]  (give %fact ~ epic+!>(okay))
   ::
       [%groups ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
