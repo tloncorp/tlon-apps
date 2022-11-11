@@ -13,7 +13,9 @@ vi.mock('@/state/chat', () => ({
   useBriefs: () => ({}),
   usePinnedGroups: () => ({}),
   usePinned: () => [],
-  useGetLatestMessage: () => () => 0,
+  useGetLatestChat: () => () => 0,
+  useGetLatestCurio: () => () => 0,
+  useGetLatestNote: () => () => 0,
 }));
 
 vi.mock('@/state/groups', () => ({
