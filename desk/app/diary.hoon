@@ -108,6 +108,12 @@
     ==
   ==
   ::
+  ++  keep
+    |=  bad=^vase
+    ^-  card
+    ~&  >  %keep
+    [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
+  ::
   +$  versioned-state
     $%  state-0
         state-1
