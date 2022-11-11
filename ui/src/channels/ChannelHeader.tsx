@@ -106,6 +106,19 @@ function ChannelActions({
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const isChannelHost = useIsChannelHost(flag);
 
+  function prettyAppName() {
+    switch (_app) {
+      case 'diary':
+        return 'Notebook';
+      case 'chat':
+        return 'Chat';
+      case 'heap':
+        return 'Gallery';
+      default:
+        return 'Channel';
+    }
+  }
+
   const leave = useCallback(
     (chFlag: string) => {
       const leaver =
@@ -164,13 +177,13 @@ function ChannelActions({
                 className="dropdown-item"
                 onClick={() => setEditIsOpen(!editIsOpen)}
               >
-                Edit Channel
+                Edit {prettyAppName()}
               </Dropdown.Item>
               <Dropdown.Item
                 className="dropdown-item text-red"
                 onClick={() => setDeleteChannelIsOpen(!deleteChannelIsOpen)}
               >
-                Delete Channel
+                Delete {prettyAppName()}
               </Dropdown.Item>
             </>
           )}
@@ -179,7 +192,7 @@ function ChannelActions({
               className="dropdown-item text-red"
               onClick={leaveChannel}
             >
-              Leave Channel
+              Leave {prettyAppName()}
             </Dropdown.Item>
           )}
         </Dropdown.Content>
