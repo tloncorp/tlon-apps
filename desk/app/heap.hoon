@@ -144,6 +144,7 @@
     (mole |.([!<(versioned-state vase) |]))
   =.  state  old
   ?:  =(okay cool)  cor
+  =?  cor  bad  (emit (keep !>(old)))
   ::  speak the good news
   =-  (give %fact ~(tap in -) epic+!>(okay))
   %-  ~(gas in *(set path))

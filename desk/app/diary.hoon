@@ -94,6 +94,7 @@
       %1
     =.  state  old
     ?:  =(okay cool)  cor
+    =?  cor  bad  (emit (keep !>(old)))
     =-  (give %fact ~(tap in -) epic+!>(okay))
     %-  ~(gas in *(set path))
     %+  murn  ~(val by sup.bowl)
