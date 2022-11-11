@@ -23,6 +23,7 @@ import { nestToFlag, getFlagParts } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import { useDiaryState } from '@/state/diary';
 import { useHeapState } from '@/state/heap/heap';
+import useIsChat from '@/logic/useIsChat';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
@@ -241,6 +242,7 @@ export default function ChannelHeader({
   const isMobile = useIsMobile();
   const channel = useChannel(flag, nest);
   const groupName = group?.meta.title;
+  const isChat = useIsChat();
   const BackButton = isMobile ? Link : 'div';
 
   return (
@@ -250,7 +252,7 @@ export default function ChannelHeader({
       )}
     >
       <BackButton
-        to="../.."
+        to={isMobile && isChat ? '/' : '../..'}
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
           isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
