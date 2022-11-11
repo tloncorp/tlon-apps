@@ -19,13 +19,12 @@ export default function ChatWindow({
   messages,
   prefixedElement,
 }: ChatWindowProps) {
-  const brief = useChatState((s) => s.briefs[whom]);
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
 
   return (
     <div className="relative h-full">
-      <ChatUnreadAlerts brief={brief} whom={whom} />
+      <ChatUnreadAlerts whom={whom} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <ChatScroller
           messages={messages}

@@ -19,7 +19,7 @@ import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
-import { ChatInfo, useChatInfo } from '../useChatStore';
+import { ChatInfo, useChatInfo, useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
 
 interface CreateRendererParams {
@@ -39,8 +39,6 @@ function createRenderer({
   messages,
   keys,
   whom,
-  brief,
-  chatInfo,
   prefixedElement,
 }: CreateRendererParams) {
   const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
@@ -79,21 +77,17 @@ function createRenderer({
         : undefined;
       const newDay =
         lastWrit && lastWritDay ? !isSameDay(writDay, lastWritDay) : !lastWrit;
-      const unreadBrief =
-        brief && brief['read-id'] === writ.seal.id ? brief : undefined;
 
       return renderPrefix(
         index,
         <ChatMessage
           key={writ.seal.id}
           whom={whom}
-          isReplyOp={chatInfo?.replying === writ.seal.id}
           writ={writ}
           time={index}
           newAuthor={newAuthor}
           newDay={newDay}
           ref={ref}
-          unread={unreadBrief}
           isLast={keyIdx === keys.length - 1}
         />
       );
@@ -130,8 +124,6 @@ export default function ChatScroller({
   prefixedElement,
   scrollTo = undefined,
 }: IChatScroller) {
-  const chatInfo = useChatInfo(whom);
-  const brief = useChatState((s: ChatState) => s.briefs[whom]);
   const loaded = useLoadedWrits(whom);
   const [oldWhom, setOldWhom] = useState(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
@@ -208,11 +200,9 @@ export default function ChatScroller({
         messages,
         whom,
         keys,
-        brief,
-        chatInfo,
         prefixedElement,
       }),
-    [messages, keys, whom, brief, chatInfo, prefixedElement]
+    [messages, keys, whom, prefixedElement]
   );
 
   const TopLoader = useMemo(
@@ -263,7 +253,16 @@ export default function ChatScroller({
         atBottomThreshold={250}
         atTopThreshold={250}
         atTopStateChange={(top) => top && fetchMessages(false)}
-        atBottomStateChange={(bot) => bot && fetchMessages(true)}
+        atBottomStateChange={(bot) => {
+          const { bottom, delayedRead } = useChatStore.getState();
+          if (bot) {
+            fetchMessages(true);
+            bottom(whom, true);
+            delayedRead(whom, () => useChatState.getState().markRead(whom));
+          } else {
+            bottom(whom, false);
+          }
+        }}
         itemContent={(i, realIndex) => <Message index={realIndex} />}
         computeItemKey={computeItemKey}
         components={{

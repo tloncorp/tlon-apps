@@ -3,17 +3,23 @@ import React, { useCallback } from 'react';
 import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '../logic/utils';
 import { useChatState } from '../state/chat';
-import { ChatBrief } from '../types/chat';
+import { useChatInfo } from './useChatStore';
 
 interface ChatUnreadAlertsProps {
   whom: string;
-  brief: ChatBrief;
 }
 
-export default function ChatUnreadAlerts({
-  brief,
-  whom,
-}: ChatUnreadAlertsProps) {
+export default function ChatUnreadAlerts({ whom }: ChatUnreadAlertsProps) {
+  const chatInfo = useChatInfo(whom);
+  const markRead = useCallback(() => {
+    useChatState.getState().markRead(whom);
+  }, [whom]);
+
+  if (!chatInfo.unread || chatInfo.unread.seen) {
+    return null;
+  }
+
+  const { brief } = chatInfo.unread;
   const date = brief ? new Date(brief.last) : new Date();
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`
@@ -22,14 +28,6 @@ export default function ChatUnreadAlerts({
   const unreadMessage =
     brief &&
     `${brief.count} new ${pluralize('message', brief.count)} since ${since}`;
-
-  const markRead = useCallback(() => {
-    useChatState.getState().markRead(whom);
-  }, [whom]);
-
-  if (!brief || brief?.count === 0) {
-    return null;
-  }
 
   return (
     <>

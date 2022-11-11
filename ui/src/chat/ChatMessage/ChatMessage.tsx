@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import f from 'lodash/fp';
@@ -23,18 +23,21 @@ import {
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
+import { useChatInfo, useChatStore } from '../useChatStore';
 
 export interface ChatMessageProps {
   whom: string;
   time: BigInteger;
   writ: ChatWrit;
-  isReplyOp?: boolean;
   newAuthor?: boolean;
   newDay?: boolean;
-  unread?: ChatBrief;
   hideReplies?: boolean;
   hideOptions?: boolean;
   isLast?: boolean;
+}
+
+function briefMatches(brief: ChatBrief, id: string): boolean {
+  return brief['read-id'] === id;
 }
 
 const ChatMessage = React.memo<
@@ -46,8 +49,6 @@ const ChatMessage = React.memo<
         whom,
         time,
         writ,
-        unread,
-        isReplyOp = false,
         newAuthor = false,
         newDay = false,
         hideReplies = false,
@@ -57,19 +58,45 @@ const ChatMessage = React.memo<
       ref
     ) => {
       const { seal, memo } = writ;
-      const { markRead } = useChatState.getState();
-      const [viewRef, inView, entry] = useInView({
+      const chatInfo = useChatInfo(whom);
+      const unread = chatInfo?.unread;
+      const { ref: viewRef } = useInView({
         threshold: 1,
-        triggerOnce: true,
+        onChange: useCallback(
+          (inView) => {
+            if (!unread) {
+              return;
+            }
+
+            const { brief, seen } = unread;
+            if (!inView && !seen) {
+              return;
+            }
+
+            const {
+              seen: markSeen,
+              read,
+              delayedRead,
+            } = useChatStore.getState();
+            const { markRead } = useChatState.getState();
+
+            if (inView && briefMatches(brief, writ.seal.id) && !seen) {
+              markSeen(whom);
+              delayedRead(whom, () => markRead(whom));
+              return;
+            }
+
+            if (!inView && unread && seen) {
+              read(whom);
+              markRead(whom);
+            }
+          },
+          [unread, whom, writ.seal.id]
+        ),
       });
       const isMessageDelivered = useIsMessageDelivered(seal.id);
       const isMessagePosted = useIsMessagePosted(seal.id);
-
-      useEffect(() => {
-        if (inView && unread) {
-          markRead(whom);
-        }
-      }, [unread, inView, markRead, whom]);
+      const isReplyOp = chatInfo?.replying === writ.seal.id;
 
       const unix = new Date(daToUnix(time));
 
@@ -98,8 +125,12 @@ const ChatMessage = React.memo<
             'pb-2': isLast,
           })}
         >
-          {unread && unread.count > 0 ? (
-            <DateDivider date={unix} unreadCount={unread.count} ref={viewRef} />
+          {unread && briefMatches(unread.brief, writ.seal.id) ? (
+            <DateDivider
+              date={unix}
+              unreadCount={unread.brief.count}
+              ref={viewRef}
+            />
           ) : null}
           {newDay && !unread ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}

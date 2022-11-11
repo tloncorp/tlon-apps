@@ -25,6 +25,7 @@ import {
 } from '@/types/chat';
 import api from '@/api';
 import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
+import { useChatStore } from '@/chat/useChatStore';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { ChatState } from './type';
@@ -220,6 +221,15 @@ export const useChatState = createState<ChatState>(
           get().batchSet((draft) => {
             draft.briefs[whom] = brief;
           });
+
+          const { chats, unread } = useChatStore.getState();
+          const chat = chats[whom];
+          const isUnread = brief.count > 0 && brief['read-id'];
+          if (isUnread && !chat?.atBottom) {
+            unread(whom, brief);
+          } else if (isUnread) {
+            get().markRead(whom);
+          }
         },
       });
       api.subscribe({

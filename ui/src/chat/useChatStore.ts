@@ -1,4 +1,4 @@
-import { ChatBlock } from '@/types/chat';
+import { ChatBlock, ChatBrief } from '@/types/chat';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
@@ -6,6 +6,12 @@ import create from 'zustand';
 export interface ChatInfo {
   replying: string | null;
   blocks: ChatBlock[];
+  atBottom: boolean;
+  unread?: {
+    readTimeout: number;
+    seen: boolean;
+    brief: ChatBrief; // lags behind actual brief, only gets update if unread
+  };
 }
 
 interface ChatStore {
@@ -14,9 +20,21 @@ interface ChatStore {
   };
   reply: (flag: string, msgId: string | null) => void;
   setBlocks: (whom: string, blocks: ChatBlock[]) => void;
+  seen: (whom: string) => void;
+  read: (whom: string) => void;
+  delayedRead: (whom: string, callback: () => void) => void;
+  unread: (whom: string, brief: ChatBrief) => void;
+  bottom: (whom: string, atBottom: boolean) => void;
 }
 
-export const useChatStore = create<ChatStore>((set) => ({
+const emptyInfo: ChatInfo = {
+  atBottom: false,
+  replying: null,
+  blocks: [],
+  unread: undefined,
+};
+
+export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
   setBlocks: (whom, blocks) => {
     set(
@@ -37,6 +55,86 @@ export const useChatStore = create<ChatStore>((set) => ({
         } else {
           draft.chats[flag].replying = msgId;
         }
+      })
+    );
+  },
+  seen: (whom) => {
+    set(
+      produce((draft: ChatStore) => {
+        const chat = draft.chats[whom] || emptyInfo;
+        const unread = chat.unread || {
+          brief: { last: 0, count: 0, 'read-id': '' },
+          readTimeout: 0,
+        };
+
+        draft.chats[whom].unread = {
+          ...unread,
+          seen: true,
+        };
+      })
+    );
+  },
+  read: (whom) => {
+    set(
+      produce((draft) => {
+        const chat = draft.chats[whom];
+        if (!chat) {
+          return;
+        }
+
+        delete chat.unread;
+      })
+    );
+  },
+  delayedRead: (whom, cb) => {
+    const { chats, read } = get();
+    const chat = chats[whom] || emptyInfo;
+
+    if (!chat.unread || chat.unread.readTimeout) {
+      return;
+    }
+
+    const readTimeout = setTimeout(() => {
+      read(whom);
+      cb();
+    }, 15 * 1000); // 15 seconds
+
+    set(
+      produce((draft) => {
+        draft.chats[whom] = {
+          ...chat,
+          unread: {
+            ...chat.unread,
+            readTimeout,
+          },
+        };
+      })
+    );
+  },
+  unread: (whom, brief) => {
+    set(
+      produce((draft: ChatStore) => {
+        const chat = draft.chats[whom] || emptyInfo;
+
+        draft.chats[whom] = {
+          ...chat,
+          unread: {
+            seen: false,
+            readTimeout: 0,
+            brief,
+          },
+        };
+      })
+    );
+  },
+  bottom: (whom, atBottom) => {
+    set(
+      produce((draft) => {
+        const chat = draft.chats[whom] || emptyInfo;
+        draft.chats[whom] = {
+          ...chat,
+          atBottom,
+        };
       })
     );
   },
