@@ -78,6 +78,9 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  scry
+  |*  [=mold care=term =desk =path]
+  .^(mold care (scot %p our.bowl) desk (scot %da now.bowl) path)
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -171,6 +174,10 @@
       [%gangs %index ship=@ ~]
     =/  =ship  (slav %p ship.pole)
     ?:  =(our.bowl ship)  res-gang-index
+    ::  XX remove when ames fix is in, this will crash
+    ::  when a ship is not your peer
+    =+  (scry ,=ship-state:ames %ax %$ /peers/(scot %p ship))
+    ?.  ?=(%known -.ship-state)  cor
     (req-gang-index ship)
   ::
      [%gangs ship=@ name=@ rest=*]
