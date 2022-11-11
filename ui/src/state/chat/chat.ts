@@ -877,7 +877,7 @@ export function useLatestMessage(chFlag: string) {
   return messages.size > 0 ? messages.peekLargest() : [bigInt(), null];
 }
 
-export function useGetLatestMessage() {
+export function useGetLatestChat() {
   const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
   const empty = [bigInt(), null];
   const pacts = usePacts();

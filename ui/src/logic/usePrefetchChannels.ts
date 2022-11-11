@@ -2,6 +2,8 @@ import { useCallback, useEffect } from 'react';
 import { useGroup } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import { asyncForEach } from '@/lib';
+import { useHeapState } from '@/state/heap/heap';
+import { useDiaryState } from '@/state/diary';
 import { nestToFlag } from './utils';
 
 /**
@@ -10,16 +12,30 @@ import { nestToFlag } from './utils';
  *
  * @param flag The group's flag
  */
-export default function usePrefetchGroupMessages(flag: string) {
+export default function usePrefetchChannels(flag: string) {
   const group = useGroup(flag);
-  const { initialize } = useChatState.getState();
+  const { initialize: initializeChat } = useChatState.getState();
+  const { initialize: initializeDiary } = useDiaryState.getState();
+  const { initialize: initializeHeap } = useHeapState.getState();
 
   const fetchChannel = useCallback(
     async (channel) => {
-      const [, chFlag] = nestToFlag(channel);
-      initialize(chFlag);
+      const [chType, chFlag] = nestToFlag(channel);
+      switch (chType) {
+        case 'chat':
+          initializeChat(chFlag);
+          break;
+        case 'diary':
+          initializeDiary(chFlag);
+          break;
+        case 'heap':
+          initializeHeap(chFlag);
+          break;
+        default:
+          break;
+      }
     },
-    [initialize]
+    [initializeChat, initializeDiary, initializeHeap]
   );
 
   const fetchAll = useCallback(async () => {
