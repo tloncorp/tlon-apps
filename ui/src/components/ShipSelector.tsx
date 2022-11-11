@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import ob from 'urbit-ob';
+import ob, { isValidPatp } from 'urbit-ob';
 import fuzzy from 'fuzzy';
 import {
   components,
@@ -338,11 +338,17 @@ export default function ShipSelector({
       })
       .map((result) => contactNames[result.index]);
 
+    const validPatp = isValidNewOption(preSig(inputValue));
+
+    if (validPatp) {
+      fuzzyNames.unshift(preSig(inputValue));
+    }
+
     return fuzzyNames.map((contact) => ({
       value: contact,
-      label: contacts[contact].nickname,
+      label: contacts[contact] ? contacts[contact].nickname : '',
     }));
-  }, [contactNames, contactOptions, contacts, inputValue]);
+  }, [contactNames, contactOptions, contacts, inputValue, isValidNewOption]);
 
   const slicedOptions = useMemo(
     () => filteredOptions.slice(0, MAX_DISPLAYED_OPTIONS),
