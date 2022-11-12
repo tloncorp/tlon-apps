@@ -212,7 +212,7 @@
     (watch-epic src.bowl)
   ::
       %fact
-    ?:  =(%epic p.cage.sign)
+    ?.  =(%epic p.cage.sign)
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
