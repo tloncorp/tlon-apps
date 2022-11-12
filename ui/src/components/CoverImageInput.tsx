@@ -40,6 +40,7 @@ export default function CoverImageInput({
           type="url"
           {...register('image')}
           defaultValue={url}
+          placeholder="Insert URL Here..."
           className="input w-full"
         />
       </div>
