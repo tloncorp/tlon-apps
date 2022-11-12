@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
@@ -9,6 +9,8 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import TalkIcon from '@/components/icons/TalkIcon';
+import MenuIcon from '@/components/icons/MenuIcon';
+import ArrowNWIcon from '@/components/icons/ArrowNWIcon';
 import {
   filters,
   useSettingsState,
@@ -22,6 +24,72 @@ const selMessagesFilter = (s: SettingsState) => ({
   messagesFilter: s.talk.messagesFilter,
 });
 
+export function TalkAppMenu() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return (
+    <SidebarItem
+      div
+      className={cn(
+        menuOpen
+          ? 'bg-gray-100 text-gray-800'
+          : 'text-black hover:text-gray-800',
+        'group'
+      )}
+      icon={
+        <DropdownMenu.Root onOpenChange={() => setMenuOpen(!menuOpen)}>
+          <DropdownMenu.Trigger asChild className="appearance-none">
+            <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
+              <TalkIcon
+                className={cn(
+                  'h-6 w-6',
+                  menuOpen ? 'hidden' : 'group-hover:hidden'
+                )}
+              />
+              <MenuIcon
+                aria-label="Open Menu"
+                className={cn(
+                  'm-1 h-4 w-4 text-gray-800',
+                  menuOpen ? 'block' : 'hidden group-hover:block'
+                )}
+              />
+            </div>
+          </DropdownMenu.Trigger>
+
+          <DropdownMenu.Content className="dropdown mt-2 -ml-2 w-60">
+            <a
+              className="no-underline"
+              href="https://airtable.com/shrflFkf5UyDFKhmW"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
+                Submit Feedback
+              </DropdownMenu.Item>
+            </a>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      }
+    >
+      <div className="flex items-center justify-between">
+        Groups
+        <a
+          title="Back to Landscape"
+          aria-label="Back to Landscape"
+          href="/apps/grid"
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            'h-6 w-6 no-underline',
+            menuOpen ? 'block' : 'hidden group-hover:block'
+          )}
+        >
+          <ArrowNWIcon className="text-gray-400" />
+        </a>
+      </div>
+    </SidebarItem>
+  );
+}
+
 export default function MessagesSidebar() {
   const { messagesFilter } = useSettingsState(selMessagesFilter);
   const briefs = useBriefs();
@@ -34,14 +102,7 @@ export default function MessagesSidebar() {
   return (
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
       <ul className="flex w-full flex-col space-y-1 px-2 pt-2">
-        <SidebarItem
-          div
-          className="text-black"
-          to="/"
-          icon={<TalkIcon className="h-6 w-6" />}
-        >
-          Talk
-        </SidebarItem>
+        <TalkAppMenu />
         <div className="h-5" />
         <SidebarItem
           icon={<Avatar size="xs" ship={window.our} />}
