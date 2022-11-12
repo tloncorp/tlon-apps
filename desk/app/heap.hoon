@@ -133,7 +133,7 @@
   --
 ++  load
   |=  =vase
-  ^+  cor
+  |^  ^+  cor
   =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
     (mule |.(!<([versioned-state epic:e] vase)))
   =/  [old=versioned-state cool=epic:e bad=?]
@@ -153,6 +153,13 @@
   ^-  (unit _path)
   ?.  |(=(/epic path) ?=([%heap @ @ %updates *] path))  ~
   `path
+  ::
+  ++  keep
+    |=  bad=^vase
+    ^-  card
+    ~&  >  %keep
+    [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
+  --
 ::
 ++  watch
   |=  =path
