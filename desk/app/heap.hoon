@@ -126,14 +126,27 @@
   ::
   ++  create
     |=  req=create:h
-    ^+  cor
-    =/  =flag:h  [our.bowl name.req]
-    =|  =heap:h
-    =/  =perm:h  [writers.req group.req]
-    =.  perm.heap  perm
-    =.  net.heap  [%pub ~]
-    =.  stash  (~(put by stash) flag heap)
-    he-abet:(he-init:(he-abed:he-core flag) req)
+    |^  ^+  cor
+      ~_  leaf+"Create failed: check group permissions"
+      =/  =flag:h  [our.bowl name.req]
+      =|  =heap:h
+      =/  =perm:h  [writers.req group.req]
+      =.  perm.heap  perm
+      =.  net.heap  [%pub ~]
+      =.  stash  (~(put by stash) flag heap)
+      he-abet:(he-init:(he-abed:he-core flag) req)
+    ++  can-nest
+      ^-  ?
+      =/  gop  (~(got by groups) group.req)
+      %-  ~(any in bloc.gop)
+      ~(has in sects:(~(got by fleet.gop) our.bowl))    ::  XX: is this right?
+    ::
+    ++  groups
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
   --
 ++  watch
   |=  =path
