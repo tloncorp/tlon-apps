@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import React, { useEffect, useState } from 'react';
 import cn from 'classnames';
 import CopyIcon from '@/components/icons/CopyIcon';
@@ -11,13 +12,14 @@ import { formatDistanceToNow } from 'date-fns';
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import LinkIcon16 from '@/components/icons/LinkIcon16';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
-import HeapContent from '@/heap/HeapContent';
 import useNest from '@/logic/useNest';
 import HeapLoadingRow from '@/heap/HeapLoadingRow';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import TextIcon from '@/components/icons/Text16Icon';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
+import { inlineToString } from '@/logic/tiptap';
+import { useIsMobile } from '@/logic/useMedia';
 import useCurioActions from './useCurioActions';
 
 export default function HeapRow({
@@ -27,6 +29,7 @@ export default function HeapRow({
   curio: HeapCurio;
   time: string;
 }) {
+  const isMobile = useIsMobile();
   const nest = useNest();
   const { didCopy, menuOpen, setMenuOpen, onDelete, onEdit, onCopy } =
     useCurioActions({ nest, time });
@@ -39,6 +42,10 @@ export default function HeapRow({
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit = isAdmin || window.our === curio.heart.author;
+  const textFallbackTitle = content
+    .map((inline) => inlineToString(inline))
+    .join(' ')
+    .toString();
 
   const { isText, isImage, isUrl, isAudio, description } =
     useHeapContentType(contentString);
@@ -90,9 +97,9 @@ export default function HeapRow({
       case isOembed:
         return embed.title;
       case isUrl:
-        return title || contentString;
+        return title || textFallbackTitle;
       default:
-        return contentString.split(' ').slice(0, 5).join(' ');
+        return textFallbackTitle;
     }
   };
 
@@ -112,12 +119,8 @@ export default function HeapRow({
           )}
         </div>
         <div className="flex flex-col justify-center space-y-1">
-          <div className="">
-            {isUrl ? (
-              contentDisplayed()
-            ) : (
-              <HeapContent className="line-clamp-1" content={content} />
-            )}
+          <div className="min-w-0 break-words line-clamp-1">
+            {isMobile ? _.truncate(contentDisplayed()) : contentDisplayed()}
           </div>
           <div className="text-sm font-semibold text-gray-600">
             {description()} • {formatDistanceToNow(sent)} ago • {replied.length}{' '}

@@ -226,6 +226,8 @@
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
+    ?:  &(!=(our.bowl p.p.action) from-self)
+      go-abet:(go-proxy:group-core q.action)
     go-abet:(go-update:group-core q.action)
   ::
       %group-invite
@@ -256,6 +258,10 @@
       %group-rescind
     =+  !<(=flag:g vase)
     ga-abet:ga-rescind:(ga-abed:gang-core flag)
+  ::
+      %group-cancel
+    =+  !<(=flag:g vase)
+    ga-abet:ga-cancel:(ga-abed:gang-core flag)
   ::
       %invite-decline
     =+  !<(=flag:g vase)
@@ -727,6 +733,16 @@
         ?(%group-init-0 %group-init)      (go-fact-init !<(init:g q.cage))
       ==
     ==
+  ::
+  ++  go-proxy
+    |=  =update:g
+    ^+  go-core
+    ?>  go-is-bloc
+    =/  =wire  (snoc go-area %proxy)
+    =/  =dock  [p.flag dap.bowl]
+    =/  =cage  group-action+!>([flag update])
+    =.  cor  (emit %pass wire %agent dock %poke cage)
+    go-core
   ::
   ++  go-pub
     |=  =path
@@ -1287,6 +1303,12 @@
   ++  ga-start-join
     ^+  ga-core
     =.  cor  (emit add-self:ga-pass)
+    ga-core
+  ::
+  ++  ga-cancel
+    ^+  ga-core
+    =.  cam.gang  ~
+    =.  cor  ga-give-update
     ga-core
   ::
   ++  ga-knock

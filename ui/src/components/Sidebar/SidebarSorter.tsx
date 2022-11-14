@@ -3,7 +3,6 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import SortIcon from '@/components/icons/SortIcon';
 import useSidebarSort from '@/logic/useSidebarSort';
-import CaretDownIcon from '@/components/icons/CaretDownIcon';
 
 type SidebarSorterProps = Omit<
   ReturnType<typeof useSidebarSort>,
@@ -22,11 +21,10 @@ export default function SidebarSorter({
     <DropdownMenu.Root>
       {isMobile ? (
         <DropdownMenu.Trigger
-          className="default-focus flex items-center rounded-lg p-2 text-base font-semibold"
+          className="default-focus flex items-center rounded-lg p-0 text-base font-semibold"
           aria-label="Groups Sort Options"
         >
-          <h1 className="mr-4 text-xl font-medium">All Groups</h1>
-          <CaretDownIcon className="h-6 w-6 text-gray-400" />
+          <SortIcon className="h-6 w-6 text-gray-400" />
         </DropdownMenu.Trigger>
       ) : (
         <DropdownMenu.Trigger

@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { PropsWithChildren, Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
@@ -23,7 +23,7 @@ import useMedia, { useIsMobile } from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
-import { useLocalState } from '@/state/local';
+import { useLocalState, useSubscriptionStatus } from '@/state/local';
 import useContactState from '@/state/contact';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -66,12 +66,15 @@ import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 import AlphaNotice from './components/AlphaNotice';
+import DisconnectNotice from './components/DisconnectNotice';
 import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
 import TalkNav from './nav/TalkNav';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
+import MobileGroupsActions from './groups/MobileGroupsActions';
 import MobileGroupRoot from './nav/MobileGroupRoot';
+import MobileGroupActions from './groups/MobileGroupActions';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -107,9 +110,10 @@ interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
   location: Location;
   isMobile: boolean;
+  isSmall: boolean;
 }
 
-function ChatRoutes({ state, location, isMobile }: RoutesProps) {
+function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -140,14 +144,28 @@ function ChatRoutes({ state, location, isMobile }: RoutesProps) {
               path="channels/join/:app/:chShip/:chName"
               element={<Channel />}
             />
-            <Route
-              path="channels/chat/:chShip/:chName"
-              element={<ChatChannel title={`• ${appHead('chat').title}`} />}
-            >
+            <Route path="channels/chat/:chShip/:chName">
               <Route
-                path="message/:idShip/:idTime"
-                element={<GroupChatThread />}
+                index
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
               />
+              <Route
+                path="*"
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
+              >
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<GroupChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall ? (
+                <Route
+                  path="message/:idShip/:idTime"
+                  element={<GroupChatThread />}
+                />
+              ) : null}
             </Route>
           </Route>
 
@@ -174,7 +192,7 @@ function ChatRoutes({ state, location, isMobile }: RoutesProps) {
   );
 }
 
-function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
+function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -230,6 +248,7 @@ function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
                 <EditProfile title={`Edit Profile • ${appHead('').title}`} />
               }
             />
+            <Route path="/actions" element={<MobileGroupsActions />} />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
@@ -269,6 +288,7 @@ function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
                 path="channels"
                 element={<ChannelIndex title={` • ${appHead('').title}`} />}
               />
+              <Route path="actions" element={<MobileGroupActions />} />
             </Route>
             <Route
               path="channels/join/:app/:chShip/:chName"
@@ -280,9 +300,22 @@ function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
               />
               <Route
-                path="message/:idShip/:idTime"
-                element={<GroupChatThread />}
-              />
+                path="*"
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
+              >
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<GroupChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall ? (
+                <Route
+                  path="message/:idShip/:idTime"
+                  element={<GroupChatThread />}
+                />
+              ) : null}
             </Route>
             <Route path="channels/heap/:chShip/:chName">
               <Route
@@ -371,6 +404,8 @@ function App() {
   const location = useLocation();
   const isChat = useIsChat();
   const isMobile = useIsMobile();
+  const isSmall = useMedia('(max-width: 1023px)');
+  const subscription = useSubscriptionStatus();
 
   useEffect(() => {
     handleError(() => {
@@ -402,11 +437,24 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
+      {subscription === 'disconnected' || subscription === 'reconnecting' ? (
+        <DisconnectNotice />
+      ) : null}
       <AlphaNotice />
       {isChat ? (
-        <ChatRoutes state={state} location={location} isMobile={isMobile} />
+        <ChatRoutes
+          state={state}
+          location={location}
+          isMobile={isMobile}
+          isSmall={isSmall}
+        />
       ) : (
-        <GroupsRoutes state={state} location={location} isMobile={isMobile} />
+        <GroupsRoutes
+          state={state}
+          location={location}
+          isMobile={isMobile}
+          isSmall={isSmall}
+        />
       )}
     </div>
   );

@@ -37,7 +37,6 @@ export default function DmOptions({
   const hasActivity = (briefs[whom]?.count ?? 0) > 0 || pending;
   const [isOpen, setIsOpen] = useState(false);
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
-
   const onArchive = () => {
     navigate(-1);
     useChatState.getState().archiveDm(whom);

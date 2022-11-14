@@ -17,7 +17,7 @@ const useMediaMatchStore = create<MediaMatchStore>((set, get) => ({
   media: {},
   setQuery: (query, data) => {
     set((draft) => {
-      draft.media = { ...draft.media, [query]: data };
+      draft.media[query] = data;
     });
   },
 }));
@@ -41,11 +41,11 @@ export default function useMedia(mediaQuery: string) {
   const update = useCallback(
     (e: MediaQueryListEvent) => {
       useMediaMatchStore.getState().setQuery(mediaQuery, {
-        initialized,
+        initialized: true,
         value: e.matches,
       });
     },
-    [mediaQuery, initialized]
+    [mediaQuery]
   );
 
   useEffect(() => {

@@ -185,6 +185,7 @@ function EditProfileContent() {
             <Avatar
               ship={ship}
               previewData={avatarPreviewData}
+              icon={false}
               size="huge"
               className="translate-y-9"
             />

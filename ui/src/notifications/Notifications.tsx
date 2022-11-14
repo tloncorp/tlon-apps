@@ -3,7 +3,7 @@ import React, { ComponentType, PropsWithChildren } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { ViewProps } from '@/types/groups';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -22,8 +22,8 @@ export function MainWrapper({
 
   return (
     <>
-      <header className="flex-none px-2 py-1">
-        <h1 className="p-2 text-xl font-medium">Notifications</h1>
+      <header className="flex h-14 items-center justify-between px-5 py-4">
+        <h1 className="text-base font-bold">Notifications</h1>
       </header>
       <nav className="h-full flex-1 overflow-y-auto">{children}</nav>
     </>
@@ -43,10 +43,10 @@ export function GroupWrapper({
     <>
       <header className="flex-none px-2 py-1">
         <Link
-          to="/"
-          className="default-focus inline-flex items-center rounded-lg p-2 text-xl font-medium text-gray-800 hover:bg-gray-50"
+          to="../"
+          className="default-focus inline-flex items-center rounded-lg p-2 text-base font-semibold text-gray-800 hover:bg-gray-50"
         >
-          <CaretLeftIcon className="mr-4 h-6 w-6 text-gray-400" />
+          <CaretLeft16Icon className="mr-1 h-4 w-4 text-gray-400" />
           Activity
         </Link>
       </header>

@@ -11,6 +11,7 @@ import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
+import { Status } from '@/logic/status';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
@@ -25,6 +26,7 @@ export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
+  const [status, setStatus] = useState<Status>('initial');
   // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
 
   const onOpenChange = (isOpen: boolean) => {
@@ -75,15 +77,23 @@ export default function NewGroup() {
             },
           };
 
-    await useGroupState.getState().create({
-      ...values,
-      name,
-      members,
-      cordon,
-      secret: privacy === 'secret',
-    });
-    const flag = `${window.our}/${name}`;
-    navigate(`/groups/${flag}`);
+    setStatus('loading');
+
+    try {
+      await useGroupState.getState().create({
+        ...values,
+        name,
+        members,
+        cordon,
+        secret: privacy === 'secret',
+      });
+
+      setStatus('success');
+      const flag = `${window.our}/${name}`;
+      navigate(`/groups/${flag}`);
+    } catch (error) {
+      setStatus('error');
+    }
   }, [shipsToInvite, navigate, form]);
 
   // const nextWithTemplate = (template?: string) => {
@@ -119,7 +129,9 @@ export default function NewGroup() {
     case 3:
       currentStepComponent = (
         <NewGroupInvite
+          status={status}
           groupName={form.getValues('title')}
+          groupPrivacy={form.getValues('privacy')}
           goToPrevStep={goToPrevStep}
           goToNextStep={onComplete}
           shipsToInvite={shipsToInvite}
@@ -133,19 +145,21 @@ export default function NewGroup() {
   }
 
   return (
-    <Dialog defaultOpen onOpenChange={onOpenChange}>
-      <DialogContent containerClass="w-full sm:max-w-lg">
+    <Dialog defaultOpen modal={true} onOpenChange={onOpenChange}>
+      <DialogContent
+        onInteractOutside={(e) => e.preventDefault()}
+        className="sm:inset-y-24"
+        containerClass="w-full h-full sm:max-w-lg"
+      >
         <FormProvider {...form}>
           <div className="flex flex-col">{currentStepComponent}</div>
         </FormProvider>
         <div className="flex flex-col items-center pt-4">
-          {currentStep !== 1 ? (
-            <NavigationDots
-              maxStep={maxStep - 1}
-              currentStep={currentStep - 1}
-              setStep={(step) => setStep(step + 1)}
-            />
-          ) : null}
+          <NavigationDots
+            maxStep={maxStep}
+            currentStep={currentStep}
+            setStep={(step) => setStep(step + 1)}
+          />
         </div>
       </DialogContent>
     </Dialog>

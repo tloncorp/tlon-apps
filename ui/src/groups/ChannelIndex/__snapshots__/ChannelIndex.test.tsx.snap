@@ -3,16 +3,22 @@
 exports[`ChannelIndex > renders as expected 1`] = `
 <DocumentFragment>
   <section
-    class="w-full overflow-y-scroll p-4"
+    class="w-full sm:overflow-y-scroll"
   >
     <div
-      class="mb-4 flex flex-row justify-between"
+      class="flex flex-row items-center justify-between py-1 px-2 sm:p-4"
     >
-      <h1
-        class="text-lg font-bold"
+      <div
+        aria-label="Back to Group Menu"
+        class="cursor-pointer select-none p-2 sm:cursor-text sm:select-text"
+        to="../actions"
       >
-        All Channels
-      </h1>
+        <h1
+          class="text-base font-semibold sm:text-lg"
+        >
+          All Channels
+        </h1>
+      </div>
       <button
         class="rounded-md bg-gray-800 py-1 px-2 text-[12px] font-semibold leading-4 text-white"
       >
@@ -20,9 +26,13 @@ exports[`ChannelIndex > renders as expected 1`] = `
       </button>
     </div>
     <div
-      class="mb-2 w-full rounded-xl bg-white py-1 pl-4 pr-2"
+      class="p-4"
     >
-      <ul />
+      <div
+        class="mb-2 w-full rounded-xl bg-white py-1 pl-4 pr-2"
+      >
+        <ul />
+      </div>
     </div>
   </section>
 </DocumentFragment>

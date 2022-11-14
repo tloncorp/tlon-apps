@@ -51,11 +51,11 @@ export default function Notification({
     >
       <Link
         to={bin.topYarn?.wer || ''}
-        className="flex flex-1 space-x-3"
+        className="flex w-full min-w-0 flex-1 space-x-3"
         onClick={onClick}
       >
         <div className="relative flex-none self-start">{avatar}</div>
-        <div className="space-y-2 p-1">
+        <div className="min-w-0 grow-0 space-y-2 break-words p-1">
           {topLine}
           <p>{bin.topYarn && bin.topYarn.con.map(getContent)}</p>
           {moreCount > 0 ? (

@@ -25,6 +25,7 @@ import {
 } from '@/logic/utils';
 import groupsReducer from './groupsReducer';
 import { GroupState } from './type';
+import useSubscriptionState from '../subscription';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -160,13 +161,32 @@ export const useGroupState = create<GroupState>(
       edit: async (flag, metadata) => {
         await api.poke(groupAction(flag, { meta: metadata }));
       },
-      create: async (req) => {
-        await api.poke({
-          app: 'groups',
-          mark: 'group-create',
-          json: req,
-        });
-      },
+      create: async (req) =>
+        new Promise((resolve, reject) => {
+          api.poke({
+            app: 'groups',
+            mark: 'group-create',
+            json: req,
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { update } = event as GroupAction;
+                    return (
+                      'create' in update.diff &&
+                      req.title === update.diff.create.meta.title
+                    );
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        }),
       delete: async (flag) => {
         await api.poke(groupAction(flag, { del: null }));
       },
@@ -179,7 +199,7 @@ export const useGroupState = create<GroupState>(
           };
         });
 
-        api.poke({
+        await api.poke({
           app: 'groups',
           mark: 'group-join',
           json: {
@@ -245,6 +265,17 @@ export const useGroupState = create<GroupState>(
 
         get().batchSet((draft) => {
           draft.gangs[flag].invite = null;
+        });
+      },
+      cancel: async (flag) => {
+        await api.poke({
+          app: 'groups',
+          mark: 'group-cancel',
+          json: flag,
+        });
+
+        get().batchSet((draft) => {
+          draft.gangs[flag].claim = null;
         });
       },
       leave: async (flag: string) => {
@@ -422,6 +453,7 @@ export const useGroupState = create<GroupState>(
           },
         };
         await api.poke(groupAction(flag, diff));
+        await useGroupState.getState().updateGroups();
       },
       setChannelPerm: async (flag, nest, sects) => {
         const currentReaders = get().groups[flag].channels[nest]?.readers || [];
@@ -454,6 +486,13 @@ export const useGroupState = create<GroupState>(
           },
         };
         await api.poke(groupAction(flag, diff));
+      },
+      updateGroups: async () => {
+        const groups = await api.scry<Groups>({
+          app: 'groups',
+          path: '/groups',
+        });
+        set(() => ({ groups }));
       },
       start: async () => {
         const [groups, gangs] = await Promise.all([
@@ -640,7 +679,12 @@ export function usePendingGangsWithoutClaim() {
 
   Object.entries(gangs)
     .filter(([flag, g]) => g.invite !== null && !(flag in groups))
-    .filter(([_, gang]) => !gang.claim || gang.claim.progress === 'knocking')
+    .filter(
+      ([_, gang]) =>
+        !gang.claim ||
+        gang.claim.progress === 'error' ||
+        gang.claim.progress === 'knocking'
+    )
     .forEach(([flag, gang]) => {
       pendingGangs[flag] = gang;
     });

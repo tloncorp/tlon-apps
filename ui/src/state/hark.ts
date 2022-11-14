@@ -20,15 +20,15 @@ export interface HarkState {
   };
   groupSubs: Flag[];
   /** start: fetches app-wide notifications and subscribes to updates */
-  start: () => void;
+  start: () => Promise<void>;
   /** retrieve: refreshes app-wide notifications to latest  */
-  retrieve: () => void;
+  retrieve: () => Promise<void>;
   /** retrieveGroup: fetches group's notifications and adds to "subs" */
-  retrieveGroup: (flag: Flag) => void;
+  retrieveGroup: (flag: Flag) => Promise<void>;
   /** releaseGroup: removes updates from happening */
-  releaseGroup: (flag: Flag) => void;
-  sawRope: (rope: Rope) => void;
-  sawSeam: (seam: Seam) => void;
+  releaseGroup: (flag: Flag) => Promise<void>;
+  sawRope: (rope: Rope) => Promise<void>;
+  sawSeam: (seam: Seam) => Promise<void>;
 }
 
 export function emptyCarpet(seam: Seam) {
@@ -69,7 +69,7 @@ const useHarkState = create<HarkState>((set, get) => ({
   blanket: emptyBlanket({ desk: window.desk }),
   textiles: {},
   groupSubs: [],
-  start: () => {
+  start: async () => {
     get().retrieve();
 
     api.subscribe({
@@ -124,7 +124,7 @@ const useHarkState = create<HarkState>((set, get) => ({
       }
     });
   },
-  releaseGroup: (flag) => {
+  releaseGroup: async (flag) => {
     get().batchSet((draft) => {
       const index = draft.groupSubs.indexOf(flag);
 
@@ -133,14 +133,14 @@ const useHarkState = create<HarkState>((set, get) => ({
       }
     });
   },
-  sawRope: (rope) => {
-    api.poke(
+  sawRope: async (rope) => {
+    await api.poke(
       harkAction({
         'saw-rope': rope,
       })
     );
   },
-  sawSeam: (seam) => {
+  sawSeam: async (seam) => {
     api.poke(
       harkAction({
         'saw-seam': seam,

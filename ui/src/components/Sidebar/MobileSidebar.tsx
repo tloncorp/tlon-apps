@@ -1,12 +1,18 @@
 import React from 'react';
-import { Outlet } from 'react-router';
+import cn from 'classnames';
+import { Outlet, useMatch } from 'react-router';
 import { useNotifications } from '@/notifications/useNotifications';
 import NavTab from '../NavTab';
-import GroupIcon from '../icons/GroupIcon';
-import ActivityIndicator from './ActivityIndicator';
-import AsteriskIcon from '../icons/Asterisk16Icon';
+import AppGroupsIcon from '../icons/AppGroupsIcon';
+import ElipsisIcon from '../icons/EllipsisIcon';
+import BellIcon from '../icons/BellIcon';
+import Avatar from '../Avatar';
+
+import MagnifyingGlassIcon from '../icons/MagnifyingGlass16Icon';
 
 export default function MobileSidebar() {
+  const ship = window.our;
+  const profileMatch = useMatch('/profile/edit');
   const { count } = useNotifications();
 
   return (
@@ -16,21 +22,31 @@ export default function MobileSidebar() {
         <nav>
           <ul className="flex justify-items-stretch">
             <NavTab to="/">
-              <GroupIcon className="mb-0.5 h-6 w-6" />
+              <AppGroupsIcon className="mb-0.5 h-6 w-6" />
               Groups
             </NavTab>
             <NavTab to="/notifications">
-              <ActivityIndicator count={count} className="mb-0.5" />
-              Notifications
+              <BellIcon className="mb-0.5 h-6 w-6" />
+              Activity
             </NavTab>
-            <NavTab
-              linkClass="no-underline"
-              href="https://github.com/tloncorp/homestead/issues/new?assignees=&amp;labels=bug&amp;template=bug_report.md&amp;title=groups:"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <AsteriskIcon className="mb-0.5 h-6 w-6" />
-              Submit Issue
+            <NavTab to="/find">
+              <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
+              Find Groups
+            </NavTab>
+            <NavTab to="/profile/edit">
+              <Avatar
+                size="xs"
+                ship={ship}
+                className={cn(
+                  'mb-1 h-6 w-6',
+                  !profileMatch && 'opacity-50 grayscale'
+                )}
+              />
+              Profile
+            </NavTab>
+            <NavTab to="/actions">
+              <ElipsisIcon className="mb-0.5 h-6 w-6" />
+              Options
             </NavTab>
           </ul>
         </nav>
