@@ -1116,7 +1116,7 @@
       ca-core
     ::
         %writs
-      =.  pact.chat  (reduce:ca-pact time p.d)
+      =.  pact.chat  (reduce:ca-pact now.bowl p.d)
       ?-  -.q.p.d  
           ?(%del %add-feel %del-feel)  ca-core
           %add
