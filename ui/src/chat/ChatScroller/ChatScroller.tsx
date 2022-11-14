@@ -237,10 +237,10 @@ export default function ChatScroller({
 
   const fetchMessages = useCallback(
     async (newer: boolean) => {
-      const newest = mess.peekLargest();
-      const seenNewest = newer && newest && loaded.newest.leq(newest[0]);
-      const oldest = mess.peekSmallest();
-      const seenOldest = !newer && oldest && loaded.oldest.geq(oldest[0]);
+      const newest = messages.peekLargest();
+      const seenNewest = newer && newest && loaded.newest.geq(newest[0]);
+      const oldest = messages.peekSmallest();
+      const seenOldest = !newer && oldest && loaded.oldest.leq(oldest[0]);
 
       if (seenNewest || seenOldest) {
         return;
@@ -260,7 +260,7 @@ export default function ChatScroller({
 
       setFetching('initial');
     },
-    [whom, mess, loaded]
+    [whom, messages, loaded]
   );
 
   return (
@@ -276,10 +276,18 @@ export default function ChatScroller({
         style={{
           overflowY: 'scroll',
         }}
-        atBottomThreshold={250}
-        atTopThreshold={250}
-        atTopStateChange={(top) => top && fetchMessages(false)}
-        atBottomStateChange={(bot) => bot && fetchMessages(true)}
+        atBottomThreshold={2500}
+        atTopThreshold={2500}
+        atTopStateChange={(top) => {
+          if (top) {
+            fetchMessages(false);
+          }
+        }}
+        atBottomStateChange={(bot) => {
+          if (bot) {
+            fetchMessages(true);
+          }
+        }}
         itemContent={(i, realIndex) => <Message index={realIndex} />}
         computeItemKey={computeItemKey}
         components={{
