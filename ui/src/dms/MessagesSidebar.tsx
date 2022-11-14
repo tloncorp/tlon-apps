@@ -71,7 +71,7 @@ export function TalkAppMenu() {
       }
     >
       <div className="flex items-center justify-between">
-        Groups
+        Talk
         <a
           title="Back to Landscape"
           aria-label="Back to Landscape"
