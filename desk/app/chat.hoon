@@ -269,7 +269,7 @@
       ^-  ?
       =/  gop  (~(got by groups) group.req)
       %-  ~(any in bloc.gop)
-      ~(has in sects:(~(got by fleet.gop) our.bowl))    ::  XX: is this right?
+      ~(has in sects:(~(got by fleet.gop) our.bowl))
     ::
     ++  groups
       .^  groups:g
