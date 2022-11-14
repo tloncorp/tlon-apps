@@ -276,7 +276,7 @@ export default function ChatScroller({
         style={{
           overflowY: 'scroll',
         }}
-        atBottomThreshold={2500}
+        atBottomThreshold={250}
         atTopThreshold={2500}
         atTopStateChange={(top) => {
           if (top) {
