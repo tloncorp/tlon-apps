@@ -476,7 +476,7 @@ export default function ShipSelector({
         isValidNewOption={(val) =>
           includes(
             slicedOptions.map((o) => o.value),
-            val
+            preSig(val)
           )
             ? false
             : isValidNewOption(val)
@@ -568,7 +568,14 @@ export default function ShipSelector({
       value={ships}
       onChange={onChange}
       onInputChange={onInputChange}
-      isValidNewOption={isValidNewOption}
+      isValidNewOption={(val) =>
+        includes(
+          slicedOptions.map((o) => o.value),
+          preSig(val)
+        )
+          ? false
+          : isValidNewOption(val)
+      }
       onKeyDown={onKeyDown}
       placeholder={isMobile ? mobilePlaceholder : placeholder}
       hideSelectedOptions
