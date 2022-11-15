@@ -29,6 +29,7 @@ interface CreateRendererParams {
   brief?: ChatBrief;
   chatInfo?: ChatInfo;
   prefixedElement: React.ReactNode;
+  scrollTo?: bigInt.BigInteger;
 }
 
 interface RendererProps {
@@ -42,6 +43,7 @@ function createRenderer({
   brief,
   chatInfo,
   prefixedElement,
+  scrollTo,
 }: CreateRendererParams) {
   const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
     <>
@@ -95,6 +97,7 @@ function createRenderer({
           ref={ref}
           unread={unreadBrief}
           isLast={keyIdx === keys.length - 1}
+          isLinked={scrollTo ? index.eq(scrollTo) : false}
         />
       );
     }
@@ -157,8 +160,9 @@ export default function ChatScroller({
         brief,
         chatInfo,
         prefixedElement,
+        scrollTo,
       }),
-    [messages, keys, whom, brief, chatInfo, prefixedElement]
+    [messages, whom, keys, brief, chatInfo, prefixedElement, scrollTo]
   );
 
   const TopLoader = useMemo(
@@ -198,10 +202,32 @@ export default function ChatScroller({
     [whom, messages, loaded]
   );
 
+  /**
+   * If scrollTo is set, we want to scroll to that index.
+   * If it's not set, we want to scroll to the bottom.
+   */
+  const scrollToIndex = useMemo(() => {
+    if (!scrollTo || !keys.length) {
+      return 'LAST';
+    }
+
+    const idx = keys.findIndex((k) => k.eq(scrollTo));
+    return idx > -1 ? idx : 'LAST';
+  }, [keys, scrollTo]);
+
+  useEffect(() => {
+    if (virtuoso.current) {
+      virtuoso.current.scrollToIndex({
+        index: scrollToIndex,
+        align: 'start',
+        behavior: 'auto',
+      });
+    }
+  }, [scrollToIndex]);
+
   return (
     <div className="relative h-full flex-1">
       <Virtuoso
-        // {...indexData}
         data={keys}
         ref={virtuoso}
         followOutput
