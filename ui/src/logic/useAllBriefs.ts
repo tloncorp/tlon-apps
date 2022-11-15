@@ -9,8 +9,8 @@ export default function useAllBriefs() {
   const diBriefs = useDiaryBriefs();
 
   return {
-    ..._.mapKeys(chBriefs, (k) => `chat/${k}`),
-    ..._.mapKeys(heBriefs, (k) => `heap/${k}`),
-    ..._.mapKeys(diBriefs, (k) => `diary/${k}`),
+    ..._.mapKeys(chBriefs, (v, k) => `chat/${k}`),
+    ..._.mapKeys(heBriefs, (v, k) => `heap/${k}`),
+    ..._.mapKeys(diBriefs, (v, k) => `diary/${k}`),
   };
 }

@@ -107,10 +107,9 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
         );
       });
 
-  const unsectionedChannels = sortChannels(group.channels).filter(([n]) => {
-    const [_app, f] = nestToFlag(n);
-    return f in briefs;
-  });
+  const unsectionedChannels = sortChannels(group.channels).filter(
+    ([n]) => n in briefs
+  );
 
   return (
     <div className={className}>
