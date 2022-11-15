@@ -279,7 +279,12 @@ export function JSONToInlines(
           return [{ break: null }];
         }
         const isContentFinal = idx === json.content.length - 1;
-        if (isContentFinal) {
+        const lastMessage = memo[idx - 1];
+        const isBreakDirectlyBefore =
+          lastMessage &&
+          typeof lastMessage !== 'string' &&
+          'break' in lastMessage;
+        if (isContentFinal && !isBreakDirectlyBefore) {
           return memo.concat(JSONToInlines(c, limitNewlines), [
             { break: null },
           ]);

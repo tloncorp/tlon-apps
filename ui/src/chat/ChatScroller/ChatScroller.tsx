@@ -5,12 +5,13 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { differenceInDays } from 'date-fns';
-import { BigIntOrderedMap, daToUnix, unixToDa } from '@urbit/api';
+import { isSameDay } from 'date-fns';
+import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
-import { Virtuoso } from 'react-virtuoso';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { ChatState } from '@/state/chat/type';
 import { useChatState, useLoadedWrits } from '@/state/chat/chat';
@@ -77,9 +78,7 @@ function createRenderer({
         ? new Date(daToUnix(lastWritKey))
         : undefined;
       const newDay =
-        lastWrit && lastWritDay
-          ? differenceInDays(writDay, lastWritDay) > 0
-          : false;
+        lastWrit && lastWritDay ? !isSameDay(writDay, lastWritDay) : !lastWrit;
       const unreadBrief =
         brief && brief['read-id'] === writ.seal.id ? brief : undefined;
 
@@ -95,6 +94,7 @@ function createRenderer({
           newDay={newDay}
           ref={ref}
           unread={unreadBrief}
+          isLast={keyIdx === keys.length - 1}
         />
       );
     }
@@ -135,6 +135,7 @@ export default function ChatScroller({
   const loaded = useLoadedWrits(whom);
   const [oldWhom, setOldWhom] = useState(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
+  const virtuoso = useRef<VirtuosoHandle>(null);
 
   const keys = useMemo(
     () =>
@@ -186,7 +187,31 @@ export default function ChatScroller({
         data: keys,
       });
     }
-  }, [whom, oldWhom, keys, mess, indexData]);
+
+    // Sometimes the virtuoso component doesn't scroll to the bottom when
+    // switching chats. Diff remains zero when it shouldn't.
+    // This is a hack to force it to scroll to the bottom.
+
+    if (indexData.firstItemIndex === FIRST_INDEX && diff === 0 && !scrollTo) {
+      // We need to wait to make sure the virtuoso component has been updated.
+      setTimeout(() => {
+        virtuoso?.current?.scrollToIndex({
+          index: indexData.data.length - 1,
+        });
+      }, 50);
+    }
+
+    if (scrollTo) {
+      const idx = keys.findIndex((k) => k.eq(scrollTo));
+      if (idx !== -1) {
+        setTimeout(() => {
+          virtuoso?.current?.scrollToIndex({
+            index: idx,
+          });
+        }, 50);
+      }
+    }
+  }, [whom, oldWhom, keys, mess, indexData, scrollTo]);
 
   const Message = useMemo(
     () =>
@@ -212,10 +237,10 @@ export default function ChatScroller({
 
   const fetchMessages = useCallback(
     async (newer: boolean) => {
-      const newest = mess.peekLargest();
-      const seenNewest = newer && newest && loaded.newest.leq(newest[0]);
-      const oldest = mess.peekSmallest();
-      const seenOldest = !newer && oldest && loaded.oldest.geq(oldest[0]);
+      const newest = messages.peekLargest();
+      const seenNewest = newer && newest && loaded.newest.geq(newest[0]);
+      const oldest = messages.peekSmallest();
+      const seenOldest = !newer && oldest && loaded.oldest.leq(oldest[0]);
 
       if (seenNewest || seenOldest) {
         return;
@@ -235,20 +260,34 @@ export default function ChatScroller({
 
       setFetching('initial');
     },
-    [whom, mess, loaded]
+    [whom, messages, loaded]
   );
 
   return (
     <div className="relative h-full flex-1">
       <Virtuoso
         {...indexData}
+        ref={virtuoso}
         followOutput
         alignToBottom
         className="h-full overflow-x-hidden p-4"
+        // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
+        // size of elements, triggering a reflow loop in virtual scroller
+        style={{
+          overflowY: 'scroll',
+        }}
         atBottomThreshold={250}
-        atTopThreshold={250}
-        atTopStateChange={(top) => top && fetchMessages(false)}
-        atBottomStateChange={(bot) => bot && fetchMessages(true)}
+        atTopThreshold={2500}
+        atTopStateChange={(top) => {
+          if (top) {
+            fetchMessages(false);
+          }
+        }}
+        atBottomStateChange={(bot) => {
+          if (bot) {
+            fetchMessages(true);
+          }
+        }}
         itemContent={(i, realIndex) => <Message index={realIndex} />}
         computeItemKey={computeItemKey}
         components={{

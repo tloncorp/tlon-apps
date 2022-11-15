@@ -129,9 +129,7 @@ export default function makeNotesStore(
                 const { time: quipId, delta: quipDel } = delta.quips;
                 // const { delta, time: quipId } = diff;
                 const k = bigInt(udToDec(time));
-
-                const diary = draft.notes[flag];
-                const note = diary.get(bigTime);
+                const note = noteMap.get(bigTime);
                 if (!note) {
                   return;
                 }
@@ -140,7 +138,7 @@ export default function makeNotesStore(
                 if ('add' in quipDel) {
                   if (note.type === 'outline') {
                     note.quipCount += 1;
-                    diary.set(bigTime, note);
+                    noteMap.set(bigTime, note);
                   } else {
                     const quip = {
                       cork: {
@@ -150,17 +148,19 @@ export default function makeNotesStore(
                       memo: quipDel.add,
                     };
                     note.seal.quips = note.seal.quips.set(k, quip);
-                    diary.set(bigTime, note);
+                    noteMap.set(bigTime, note);
                   }
                 } else if ('del' in delta) {
                   if (note.type === 'outline') {
                     note.quipCount -= 1;
-                    diary.set(bigTime, note);
+                    noteMap.set(bigTime, note);
                   } else {
                     note.seal.quips.delete(k);
                   }
                 }
               }
+
+              draft.notes[flag] = noteMap;
             });
           }
         },

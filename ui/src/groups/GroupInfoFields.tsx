@@ -40,8 +40,9 @@ export default function GroupInfoFields() {
           placeholder="e.g. Urbit Fan Club"
         />
       </div>
-      <div className="flex space-x-2">
-        <div>
+      <div className="flex flex-col space-x-0 sm:flex-row sm:space-x-2">
+        <div className="pb-2 font-bold sm:hidden">Preview</div>
+        <div className="flex flex-row justify-center pb-2">
           <GroupInfoPreview
             iconType={iconType}
             showEmpty={showEmpty}

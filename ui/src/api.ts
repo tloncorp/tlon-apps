@@ -6,6 +6,7 @@ import Urbit, {
   Thread,
 } from '@urbit/http-api';
 import { useLocalState } from './state/local';
+import useSubscriptionState from './state/subscription';
 
 export const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -67,12 +68,36 @@ const api = {
     }
   },
   async subscribe(params: SubscriptionRequestInterface) {
+    const eventListener =
+      (listener?: (event: any, mark: string) => void) =>
+      (event: any, mark: string) => {
+        const { watchers, remove } = useSubscriptionState.getState();
+        const path = params.app + params.path;
+        const relevantWatchers = watchers[path];
+
+        if (relevantWatchers) {
+          relevantWatchers.forEach((w) => {
+            if (w.hook(event, mark)) {
+              w.resolve();
+              remove(path, w.id);
+            }
+          });
+        }
+
+        if (listener) {
+          listener(event, mark);
+        }
+      };
+
     try {
       if (!client) {
         await setupAPI();
       }
 
-      const clientSubscribe = await client.subscribe(params);
+      const clientSubscribe = await client.subscribe({
+        ...params,
+        event: eventListener(params.event),
+      });
       useLocalState.setState({ subscription: 'connected' });
       useLocalState.setState({ errorCount: 0 });
       return clientSubscribe;

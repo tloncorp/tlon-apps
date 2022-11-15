@@ -14,7 +14,7 @@ function getButtonText(
 ) {
   switch (true) {
     case group:
-      return 'Open';
+      return 'Go';
     case requested && !invited:
       return 'Requested';
     case privacy === 'private' && !invited:
