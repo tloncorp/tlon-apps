@@ -1,10 +1,9 @@
 import cn from 'classnames';
 import React, { useEffect, useState } from 'react';
-import { isValidUrl } from '@/logic/utils';
 import { FieldPath, FieldValues, useFormContext } from 'react-hook-form';
 import { ColorPickerField } from './ColorPicker';
+import ImageURLUploadField from './ImageURLUploadField';
 import XIcon from './icons/XIcon';
-import LinkIcon from './icons/LinkIcon';
 
 export type ImageOrColorFieldState = 'image' | 'color';
 
@@ -23,12 +22,14 @@ export default function ImageOrColorField<FormType extends FieldValues>({
 }: ImageOrColorFieldProps<FormType>) {
   const {
     register,
+    watch,
     setValue,
     formState: { errors },
   } = useFormContext<FormType>();
   const [type, setType] = useState<ImageOrColorFieldState>('color');
   const status = state || type;
   const setStatus = setState || setType;
+  const watchValue = watch(fieldName);
 
   useEffect(() => {
     setStatus('color');
@@ -54,25 +55,20 @@ export default function ImageOrColorField<FormType extends FieldValues>({
     <>
       <div className="flex w-full items-center space-x-2">
         {status === 'image' ? (
-          <div className="input flex w-full items-center">
-            <div className="flex items-center justify-center">
-              <LinkIcon className="h-4 w-4 text-gray-600" />
-            </div>
-            <input
-              className={cn('input-inner grow rounded-none py-0', {})}
-              placeholder="Paste Image URL Here"
-              {...register(fieldName, {
-                required: true,
-                validate: (value) => isValidUrl(value),
-              })}
-            />
+          <>
             <button
               className="flex items-center justify-center"
               onClick={handleColorIconType}
             >
               <XIcon className="h-4 w-4" />
             </button>
-          </div>
+            <ImageURLUploadField
+              formRegister={register}
+              formSetValue={setValue}
+              formWatchURL={watchValue}
+              formValue={fieldName}
+            />
+          </>
         ) : null}
         {status === 'color' ? (
           <div className="input flex w-full items-center rounded-lg px-1 py-0.5">

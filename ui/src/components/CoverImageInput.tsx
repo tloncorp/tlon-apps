@@ -67,7 +67,7 @@ export default function CoverImageInput({
             {...register('image')}
             defaultValue={url}
             placeholder="Insert URL Here..."
-            className="input-inner w-full"
+            className="input-inner w-full p-0"
           />
           {loaded && hasCredentials ? (
             <button
