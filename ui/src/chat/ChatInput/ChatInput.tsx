@@ -45,7 +45,7 @@ interface ChatInputProps {
   sendMessage: (whom: string, memo: ChatMemo) => void;
 }
 
-function UploadErrorPopover({
+export function UploadErrorPopover({
   errorMessage,
   setUploadError,
 }: {
