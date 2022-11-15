@@ -199,14 +199,36 @@
   ::
   ++  create
     |=  req=create:d
-    ^+  cor
-    =/  =flag:d  [our.bowl name.req]
-    =|  =diary:d
-    =/  =perm:d  [writers.req group.req]
-    =.  perm.diary  perm
-    =.  net.diary  [%pub ~]
-    =.  shelf  (~(put by shelf) flag diary)
-    di-abet:(di-init:(di-abed:di-core flag) req)
+    |^  ^+  cor
+    ~_  leaf+"Create failed: check group permissions"
+      ?>  can-nest
+      =/  =flag:d  [our.bowl name.req]
+      =|  =diary:d
+      =/  =perm:d  [writers.req group.req]
+      =.  perm.diary  perm
+      =.  net.diary  [%pub ~]
+      =.  shelf  (~(put by shelf) flag diary)
+      di-abet:(di-init:(di-abed:di-core flag) req)
+    ::  +can-nest: does group exist, are we allowed
+    ::
+    ++  can-nest
+      ^-  ?
+      =/  gop  (~(got by groups) group.req)
+      %-  ~(any in bloc.gop)
+      ~(has in sects:(~(got by fleet.gop) our.bowl))
+    ::  +groups:
+    ::
+    ::  this has to be duplicated because
+    ::  +di-groups-scry does not allow me
+    ::  to properly adjust for a possible
+    ::  group.
+    ::
+    ++  groups
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
   --
 ++  watch
   |=  =path
