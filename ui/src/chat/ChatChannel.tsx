@@ -7,12 +7,7 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
 import { ViewProps } from '@/types/groups';
-import {
-  useChatPerms,
-  useChatState,
-  useLatestMessage,
-  useMessagesForChat,
-} from '@/state/chat';
+import { useChatPerms, useChatState, useMessagesForChat } from '@/state/chat';
 import {
   useRouteGroup,
   useVessel,
