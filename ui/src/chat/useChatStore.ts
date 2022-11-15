@@ -6,7 +6,6 @@ import create from 'zustand';
 export interface ChatInfo {
   replying: string | null;
   blocks: ChatBlock[];
-  atBottom: boolean;
   unread?: {
     readTimeout: number;
     seen: boolean;
@@ -14,21 +13,23 @@ export interface ChatInfo {
   };
 }
 
-interface ChatStore {
+export interface ChatStore {
   chats: {
     [flag: string]: ChatInfo;
   };
+  atBottom: boolean;
+  current: string;
   reply: (flag: string, msgId: string | null) => void;
   setBlocks: (whom: string, blocks: ChatBlock[]) => void;
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
   unread: (whom: string, brief: ChatBrief) => void;
-  bottom: (whom: string, atBottom: boolean) => void;
+  bottom: (atBottom: boolean) => void;
+  setCurrent: (whom: string) => void;
 }
 
 const emptyInfo: ChatInfo = {
-  atBottom: false,
   replying: null,
   blocks: [],
   unread: undefined,
@@ -36,6 +37,8 @@ const emptyInfo: ChatInfo = {
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
+  atBottom: false,
+  current: '',
   setBlocks: (whom, blocks) => {
     set(
       produce((draft) => {
@@ -127,14 +130,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  bottom: (whom, atBottom) => {
+  setCurrent: (current) => {
     set(
       produce((draft) => {
-        const chat = draft.chats[whom] || emptyInfo;
-        draft.chats[whom] = {
-          ...chat,
-          atBottom,
-        };
+        draft.current = current;
+      })
+    );
+  },
+  bottom: (atBottom) => {
+    set(
+      produce((draft) => {
+        draft.atBottom = atBottom;
       })
     );
   },

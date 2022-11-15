@@ -257,10 +257,10 @@ export default function ChatScroller({
           const { bottom, delayedRead } = useChatStore.getState();
           if (bot) {
             fetchMessages(true);
-            bottom(whom, true);
+            bottom(true);
             delayedRead(whom, () => useChatState.getState().markRead(whom));
           } else {
-            bottom(whom, false);
+            bottom(false);
           }
         }}
         itemContent={(i, realIndex) => <Message index={realIndex} />}

@@ -180,6 +180,14 @@ export const useChatState = createState<ChatState>(
           get().batchSet((draft) => {
             draft.briefs = briefs;
           });
+
+          const { unread } = useChatStore.getState();
+          Object.entries(briefs).forEach(([whom, brief]) => {
+            const isUnread = brief.count > 0 && brief['read-id'];
+            if (isUnread) {
+              unread(whom, brief);
+            }
+          });
         });
 
       api
@@ -222,13 +230,12 @@ export const useChatState = createState<ChatState>(
             draft.briefs[whom] = brief;
           });
 
-          const { chats, unread } = useChatStore.getState();
-          const chat = chats[whom];
+          const { unread, atBottom, current } = useChatStore.getState();
           const isUnread = brief.count > 0 && brief['read-id'];
-          if (isUnread && !chat?.atBottom) {
-            unread(whom, brief);
-          } else if (isUnread) {
+          if (isUnread && current === whom && atBottom) {
             get().markRead(whom);
+          } else if (isUnread) {
+            unread(whom, brief);
           }
         },
       });

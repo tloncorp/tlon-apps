@@ -302,15 +302,13 @@ export async function jsonFetch<T>(
   return data as T;
 }
 
-export function filterJoinedChannels(
-  channels: [string, GroupChannel][],
+export function isChannelJoined(
+  nest: string,
   briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
 ) {
-  return channels.filter(([nest]) => {
-    const [, chFlag] = nestToFlag(nest);
-    const isChannelHost = window.our === chFlag?.split('/')[0];
-    return isChannelHost || (chFlag && chFlag in briefs);
-  });
+  const [, chFlag] = nestToFlag(nest);
+  const isChannelHost = window.our === chFlag?.split('/')[0];
+  return isChannelHost || (nest && nest in briefs);
 }
 
 /**
