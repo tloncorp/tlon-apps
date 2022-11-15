@@ -25,6 +25,7 @@ import {
 } from '@/types/chat';
 import api from '@/api';
 import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
+import { useChannelFlag } from '@/hooks';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { ChatState } from './type';
@@ -629,6 +630,24 @@ export function useMessagesForChat(whom: string) {
   const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
   return useChatState(
     useCallback((s) => s.pacts[whom]?.writs || def, [whom, def])
+  );
+}
+
+export function useChatKeys({ replying }: { replying: boolean }) {
+  const chFlag = useChannelFlag();
+  const messages = useMessagesForChat(chFlag ?? '');
+  return useMemo(
+    () =>
+      messages
+        .keys()
+        .reverse()
+        .filter((k) => {
+          if (replying) {
+            return true;
+          }
+          return messages.get(k)?.memo.replying === null;
+        }),
+    [messages, replying]
   );
 }
 
