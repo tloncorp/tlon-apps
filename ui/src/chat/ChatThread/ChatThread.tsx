@@ -1,6 +1,8 @@
 import React, { PropsWithChildren } from 'react';
-import { useParams } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
+import useIsChat from '@/logic/useIsChat';
+import { udToDec } from '@urbit/api';
 import { useChannelFlag } from '../../hooks';
 import { useChatState, useReplies, useWrit } from '../../state/chat';
 import { useChannel, useRouteGroup } from '../../state/groups/groups';
@@ -15,8 +17,16 @@ type ChatThreadProps = PropsWithChildren<{
 }>;
 
 export default function ChatThread({ whom, children }: ChatThreadProps) {
-  const { idTime, idShip } = useParams<{ idShip: string; idTime: string }>();
+  const { ship, name, chShip, chName, idTime, idShip } = useParams<{
+    ship: string;
+    name: string;
+    chShip: string;
+    chName: string;
+    idShip: string;
+    idTime: string;
+  }>();
   const { sendMessage } = useChatState.getState();
+  const location = useLocation();
 
   const id = `${idShip!}/${idTime!}`;
   const maybeWrit = useWrit(whom, id);
@@ -27,12 +37,19 @@ export default function ChatThread({ whom, children }: ChatThreadProps) {
   }
   const [time, writ] = maybeWrit;
 
+  const returnURL = () => {
+    if (location.pathname.includes('groups')) {
+      return `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${time.toString()}`;
+    }
+    return `/dm/${ship}?msg=${time.toString()}`;
+  };
+
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l">
       <div className="space-y-2 p-4">
         <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
           {children}
-          <Link to="..">
+          <Link to={returnURL()}>
             <X16Icon className="h-4 w-4 text-gray-400" />
           </Link>
         </div>

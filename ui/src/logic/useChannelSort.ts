@@ -2,8 +2,10 @@ import { get } from 'lodash';
 import { useCallback } from 'react';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { GroupChannel, Channels, Zone } from '@/types/groups';
-import { useGetLatestMessage } from '@/state/chat';
+import { useGetLatestChat } from '@/state/chat';
 import { ChatWhom } from '@/types/chat';
+import { useGetLatestNote } from '@/state/diary';
+import { useGetLatestCurio } from '@/state/heap/heap';
 import useSidebarSort, {
   ALPHABETICAL,
   DEFAULT,
@@ -11,19 +13,41 @@ import useSidebarSort, {
   sortAlphabetical,
   Sorter,
 } from './useSidebarSort';
+import { nestToFlag } from './utils';
 
 const UNZONED = 'default';
 
+function useGetLatestPost() {
+  const getLatestChat = useGetLatestChat();
+  const getLatestCurio = useGetLatestCurio();
+  const getLatestNote = useGetLatestNote();
+
+  return (flag: string) => {
+    const [chType, _chFlag] = nestToFlag(flag);
+
+    switch (chType) {
+      case 'chat':
+        return (getLatestChat(flag)[0] ?? Number.NEGATIVE_INFINITY).toString();
+
+      case 'diary':
+        return (getLatestNote(flag)[0] ?? Number.NEGATIVE_INFINITY).toString();
+
+      case 'heap':
+        return (getLatestCurio(flag)[0] ?? Number.NEGATIVE_INFINITY).toString();
+
+      default:
+        return Number.NEGATIVE_INFINITY.toString();
+    }
+  };
+}
+
 function useRecentChannelSort() {
-  const getLatest = useGetLatestMessage();
+  const getLatestPost = useGetLatestPost();
 
   const sortRecent = useCallback(
     (a: ChatWhom, b: ChatWhom) => {
-      // TODO: why is bigInt comparison not working? strings do work :)
-      // const aLast = getLatest(a)[0] ?? bigInt(Number.NEGATIVE_INFINITY);
-      // const bLast = getLatest(b)[0] ?? bigInt(Number.NEGATIVE_INFINITY);
-      const aLast = (getLatest(a)[0] ?? Number.NEGATIVE_INFINITY).toString();
-      const bLast = (getLatest(b)[0] ?? Number.NEGATIVE_INFINITY).toString();
+      const aLast = getLatestPost(a);
+      const bLast = getLatestPost(b);
 
       if (aLast < bLast) {
         return -1;
@@ -33,7 +57,7 @@ function useRecentChannelSort() {
       }
       return 0;
     },
-    [getLatest]
+    [getLatestPost]
   );
 
   return sortRecent;

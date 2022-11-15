@@ -16,7 +16,7 @@ import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
 import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import usePrefetchGroupMessages from '@/logic/usePrefetchGroupMessages';
+import usePrefetchChannels from '@/logic/usePrefetchChannels';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -63,13 +63,13 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
 export default function ChannelList({ flag, className }: ChannelListProps) {
   const group = useGroup(flag);
   const briefs = useAllBriefs();
-  const { sortFn, sortOptions, setSortFn, sortChannels } = useChannelSort();
+  const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels, sections } = useChannelSections(flag);
   const isMobile = useIsMobile();
   const { isChannelUnread } = useIsChannelUnread();
 
-  usePrefetchGroupMessages(flag);
+  usePrefetchChannels(flag);
 
   if (!group) {
     return null;

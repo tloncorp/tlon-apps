@@ -323,7 +323,10 @@ export default function ChatInput({
           ) : null}
           <div className="flex items-center justify-end">
             <Avatar size="xs" ship={window.our} className="mr-2" />
-            <MessageEditor editor={messageEditor} className="w-full" />
+            <MessageEditor
+              editor={messageEditor}
+              className="w-full break-all"
+            />
             {loaded &&
             hasCredentials &&
             !uploadError &&

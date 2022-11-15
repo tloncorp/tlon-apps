@@ -184,7 +184,7 @@ export default function ChatScroller({
     // switching chats. Diff remains zero when it shouldn't.
     // This is a hack to force it to scroll to the bottom.
 
-    if (indexData.firstItemIndex === FIRST_INDEX && diff === 0) {
+    if (indexData.firstItemIndex === FIRST_INDEX && diff === 0 && !scrollTo) {
       // We need to wait to make sure the virtuoso component has been updated.
       setTimeout(() => {
         virtuoso?.current?.scrollToIndex({
@@ -192,7 +192,18 @@ export default function ChatScroller({
         });
       }, 50);
     }
-  }, [whom, oldWhom, keys, mess, indexData]);
+
+    if (scrollTo) {
+      const idx = keys.findIndex((k) => k.eq(scrollTo));
+      if (idx !== -1) {
+        setTimeout(() => {
+          virtuoso?.current?.scrollToIndex({
+            index: idx,
+          });
+        }, 50);
+      }
+    }
+  }, [whom, oldWhom, keys, mess, indexData, scrollTo]);
 
   const Message = useMemo(
     () =>
@@ -216,10 +227,10 @@ export default function ChatScroller({
 
   const fetchMessages = useCallback(
     async (newer: boolean) => {
-      const newest = mess.peekLargest();
-      const seenNewest = newer && newest && loaded.newest.leq(newest[0]);
-      const oldest = mess.peekSmallest();
-      const seenOldest = !newer && oldest && loaded.oldest.geq(oldest[0]);
+      const newest = messages.peekLargest();
+      const seenNewest = newer && newest && loaded.newest.geq(newest[0]);
+      const oldest = messages.peekSmallest();
+      const seenOldest = !newer && oldest && loaded.oldest.leq(oldest[0]);
 
       if (seenNewest || seenOldest) {
         return;
@@ -239,7 +250,7 @@ export default function ChatScroller({
 
       setFetching('initial');
     },
-    [whom, mess, loaded]
+    [whom, messages, loaded]
   );
 
   return (
@@ -250,8 +261,13 @@ export default function ChatScroller({
         followOutput
         alignToBottom
         className="h-full overflow-x-hidden p-4"
+        // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
+        // size of elements, triggering a reflow loop in virtual scroller
+        style={{
+          overflowY: 'scroll',
+        }}
         atBottomThreshold={250}
-        atTopThreshold={250}
+        atTopThreshold={2500}
         atTopStateChange={(top) => top && fetchMessages(false)}
         atBottomStateChange={(bot) => {
           const { bottom, delayedRead } = useChatStore.getState();
