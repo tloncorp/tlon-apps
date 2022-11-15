@@ -15,9 +15,10 @@ export default function useIsChannelUnread() {
   const isChannelUnread = useCallback(
     (nest: string) => {
       const [app, chFlag] = nestToFlag(nest);
+      const unread = chats[chFlag]?.unread;
 
       if (app === 'chat') {
-        return !!chats[chFlag]?.unread;
+        return unread && !unread.seen;
       }
 
       return (briefs[nest]?.count ?? 0) > 0;

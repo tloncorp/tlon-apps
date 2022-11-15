@@ -17,7 +17,7 @@ export default function useIsGroupUnread() {
   const isGroupUnread = useCallback(
     (flag: string) => {
       const group = groups[flag];
-      const chNests = Object.keys(group.channels);
+      const chNests = group ? Object.keys(group.channels) : [];
 
       const hasActivity = chNests.reduce(
         (memo, nest) => memo || (briefs[nest]?.count ?? 0) > 0,
