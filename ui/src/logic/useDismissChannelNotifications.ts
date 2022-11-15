@@ -14,7 +14,7 @@ export default function useDismissChannelNotifications({
 }: UseDismissChannelProps) {
   const flag = useRouteGroup();
   const chFlag = useChannelFlag();
-  const { isChannelUnread } = useIsChannelUnread(flag);
+  const { isChannelUnread } = useIsChannelUnread();
   const { notifications } = useNotifications(flag);
 
   /**
