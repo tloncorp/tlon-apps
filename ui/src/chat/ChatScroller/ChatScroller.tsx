@@ -109,8 +109,6 @@ function Loader({ show }: { show: boolean }) {
   ) : null;
 }
 
-const FIRST_INDEX = 99999;
-
 type FetchingState = 'top' | 'bottom' | 'initial';
 
 function computeItemKey(index: number, item: bigInt.BigInteger, context: any) {
@@ -133,7 +131,6 @@ export default function ChatScroller({
   const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
   const loaded = useLoadedWrits(whom);
-  const [oldWhom, setOldWhom] = useState(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const virtuoso = useRef<VirtuosoHandle>(null);
 
@@ -150,68 +147,6 @@ export default function ChatScroller({
         }),
     [messages, replying]
   );
-
-  const mess = useMemo(
-    () =>
-      keys.reduce(
-        (acc, val) => acc.set(val, messages.get(val)),
-        new BigIntOrderedMap<ChatWrit>()
-      ),
-    [keys, messages]
-  );
-
-  const [indexData, setIndexData] = useState<{
-    firstItemIndex: number;
-    data: bigInt.BigInteger[];
-  }>({
-    firstItemIndex: FIRST_INDEX,
-    data: keys,
-  });
-
-  useEffect(() => {
-    if (whom !== oldWhom) {
-      setOldWhom(whom);
-    }
-  }, [oldWhom, whom]);
-
-  useEffect(() => {
-    if (oldWhom !== whom) {
-      setIndexData({ firstItemIndex: FIRST_INDEX, data: keys });
-      return;
-    }
-
-    const diff = mess.size - indexData.data.length;
-    if (diff !== 0) {
-      setIndexData({
-        firstItemIndex: indexData.firstItemIndex - diff,
-        data: keys,
-      });
-    }
-
-    // Sometimes the virtuoso component doesn't scroll to the bottom when
-    // switching chats. Diff remains zero when it shouldn't.
-    // This is a hack to force it to scroll to the bottom.
-
-    if (indexData.firstItemIndex === FIRST_INDEX && diff === 0 && !scrollTo) {
-      // We need to wait to make sure the virtuoso component has been updated.
-      setTimeout(() => {
-        virtuoso?.current?.scrollToIndex({
-          index: indexData.data.length - 1,
-        });
-      }, 50);
-    }
-
-    if (scrollTo) {
-      const idx = keys.findIndex((k) => k.eq(scrollTo));
-      if (idx !== -1) {
-        setTimeout(() => {
-          virtuoso?.current?.scrollToIndex({
-            index: idx,
-          });
-        }, 50);
-      }
-    }
-  }, [whom, oldWhom, keys, mess, indexData, scrollTo]);
 
   const Message = useMemo(
     () =>
@@ -266,7 +201,8 @@ export default function ChatScroller({
   return (
     <div className="relative h-full flex-1">
       <Virtuoso
-        {...indexData}
+        // {...indexData}
+        data={keys}
         ref={virtuoso}
         followOutput
         alignToBottom
