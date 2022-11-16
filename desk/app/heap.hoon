@@ -128,6 +128,8 @@
     |=  req=create:h
     |^  ^+  cor
       ~_  leaf+"Create failed: check group permissions"
+      ?>  can-nest
+      ?>  ((sane %tas) name.req)
       =/  =flag:h  [our.bowl name.req]
       =|  =heap:h
       =/  =perm:h  [writers.req group.req]
