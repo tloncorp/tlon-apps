@@ -13,10 +13,14 @@ import GroupAvatar from '@/groups/GroupAvatar';
 import { isValidUrl } from '@/logic/utils';
 
 interface MultiDMInfoFormProps {
+  setEditing: (editing: boolean) => void;
   setOpen: (open: boolean) => void;
 }
 
-export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
+export default function MultiDMInfoForm({
+  setOpen,
+  setEditing,
+}: MultiDMInfoFormProps) {
   const clubId = useParams<{ id: string }>().id!;
   const club = useMultiDm(clubId);
   const [iconType, setIconType] = useState<ImageOrColorFieldState>('color');
@@ -87,11 +91,14 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
           </div>
         </div>
         <footer className="flex items-center space-x-2">
-          <DialogPrimitive.Close asChild>
-            <button className="button ml-auto">Cancel</button>
-          </DialogPrimitive.Close>
+          <button
+            onClick={() => setEditing(false)}
+            className="secondary-button ml-auto"
+          >
+            Cancel
+          </button>
           <button type="submit" className="button">
-            Done
+            Save
           </button>
         </footer>
       </form>
