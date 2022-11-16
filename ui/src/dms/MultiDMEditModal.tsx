@@ -64,6 +64,38 @@ export default function MultiDMEditModal() {
               <button className="button" onClick={() => setEditing(true)}>
                 Edit Chat Info
               </button>
+              {hasPending ? (
+                <>
+                  <h3 className="-mb-2 w-full text-left text-lg font-semibold text-gray-400">
+                    Pending
+                  </h3>
+                  <div className="flex w-full flex-col space-y-1">
+                    {club.hive.map((ship) => (
+                      <div
+                        className="flex items-center space-x-2 rounded-lg p-2 hover:bg-gray-50"
+                        key={ship}
+                      >
+                        <Avatar size="small" ship={ship} />
+                        <div className="flex grow flex-col">
+                          <ShipName
+                            name={ship}
+                            showAlias={true}
+                            className="font-semibold text-gray-800"
+                          />
+                          <ShipName
+                            name={ship}
+                            showAlias={false}
+                            className="text-sm font-semibold text-gray-400"
+                          />
+                        </div>
+                        <Link to={`/dm/${ship}`} aria-label={`Message ${ship}`}>
+                          <BubbleIcon className="h-6 w-6 text-gray-400" />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : null}
               <h3 className="-mb-2 w-full text-left text-lg font-semibold text-gray-400">
                 Members
               </h3>
@@ -78,7 +110,7 @@ export default function MultiDMEditModal() {
                       <ShipName
                         name={ship}
                         showAlias={true}
-                        className="font-bold text-gray-800"
+                        className="font-semibold text-gray-800"
                       />
                       <ShipName
                         name={ship}
@@ -86,7 +118,7 @@ export default function MultiDMEditModal() {
                         className="text-sm font-semibold text-gray-400"
                       />
                     </div>
-                    <Link to={`/dm/${ship}`}>
+                    <Link to={`/dm/${ship}`} aria-label={`Message ${ship}`}>
                       <BubbleIcon className="h-6 w-6 text-gray-400" />
                     </Link>
                   </div>
