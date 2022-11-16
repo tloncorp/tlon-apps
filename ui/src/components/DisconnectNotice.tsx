@@ -13,6 +13,7 @@ import {
   useLocalState,
   useSubscriptionStatus,
 } from '@/state/local';
+import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export default function DisconnectNotice() {
   const errorCount = useErrorCount();
@@ -42,7 +43,11 @@ export default function DisconnectNotice() {
   return (
     <div className="z-50 flex items-center justify-between bg-yellow py-1 px-2 text-sm font-medium text-black dark:text-white">
       <div className="flex items-center">
-        <AsteriskIcon className="mr-3 h-4 w-4" />
+        {subscription === 'reconnecting' ? (
+          <LoadingSpinner className="mr-3 h-4 w-4" />
+        ) : (
+          <AsteriskIcon className="mr-3 h-4 w-4" />
+        )}
         {subscription === 'reconnecting' ? (
           <span>Reconnecting...</span>
         ) : (

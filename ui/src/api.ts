@@ -15,7 +15,7 @@ const URL = (import.meta.env.VITE_MOCK_URL ||
 
 let client = undefined as unknown as Urbit | UrbitMock;
 
-const { errorCount } = useLocalState.getState();
+const { errorCount, airLockErrorCount } = useLocalState.getState();
 
 async function setupAPI() {
   if (IS_MOCK) {
@@ -44,7 +44,8 @@ async function setupAPI() {
 
   client.onError = () => {
     (async () => {
-      useLocalState.setState({ errorCount: errorCount + 1 });
+      useLocalState.setState({ airLockErrorCount: airLockErrorCount + 1 });
+      useLocalState.setState({ subscription: 'reconnecting' });
     })();
   };
 }

@@ -24,6 +24,7 @@ import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
 import {
+  useAirLockErrorCount,
   useErrorCount,
   useLocalState,
   useSubscriptionStatus,
@@ -411,6 +412,7 @@ function App() {
   const isSmall = useMedia('(max-width: 1023px)');
   const subscription = useSubscriptionStatus();
   const errorCount = useErrorCount();
+  const airLockErrorCount = useAirLockErrorCount();
 
   useEffect(() => {
     handleError(() => {
@@ -441,10 +443,13 @@ function App() {
   const state = location.state as { backgroundLocation?: Location } | null;
 
   useEffect(() => {
-    if (errorCount > 2 && subscription === 'connected') {
+    if (
+      (errorCount > 4 || airLockErrorCount > 1) &&
+      subscription === 'connected'
+    ) {
       useLocalState.setState({ subscription: 'disconnected' });
     }
-  }, [errorCount, subscription]);
+  }, [errorCount, subscription, airLockErrorCount]);
 
   return (
     <div className="flex h-full w-full flex-col">
