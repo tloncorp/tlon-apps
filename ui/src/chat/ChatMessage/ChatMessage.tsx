@@ -122,7 +122,7 @@ const ChatMessage = React.memo<
                   'flex w-full grow flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
                   !isMessageDelivered && !isMessagePosted && 'text-gray-400',
-                  isLinked && 'bg-gray-50'
+                  isLinked && 'bg-blue-softer'
                 )}
               >
                 {'story' in memo.content ? (
