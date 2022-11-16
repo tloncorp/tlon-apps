@@ -330,7 +330,7 @@ export default function ChatInput({
             <Avatar size="xs" ship={window.our} className="mr-2" />
             <MessageEditor
               editor={messageEditor}
-              className="w-full break-all"
+              className="w-full break-words"
             />
             {loaded &&
             hasCredentials &&

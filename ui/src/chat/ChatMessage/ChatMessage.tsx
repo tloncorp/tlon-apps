@@ -93,7 +93,7 @@ const ChatMessage = React.memo<
       return (
         <div
           ref={ref}
-          className={cn('flex flex-col', {
+          className={cn('flex flex-col break-words', {
             'pt-2': newAuthor,
             'pb-2': isLast,
           })}
@@ -103,7 +103,7 @@ const ChatMessage = React.memo<
           ) : null}
           {newDay && !unread ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
-          <div className="group-one relative z-0 flex">
+          <div className="group-one relative z-0 flex w-full">
             {hideOptions ? null : (
               <ChatMessageOptions
                 hideReply={hideReplies}
@@ -114,7 +114,7 @@ const ChatMessage = React.memo<
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
             </div>
-            <div className="flex w-full">
+            <div className="wrap-anywhere flex w-full">
               <div
                 className={cn(
                   'flex w-full grow flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50',
