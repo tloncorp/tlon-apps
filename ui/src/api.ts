@@ -41,6 +41,12 @@ async function setupAPI() {
     api.verbose = true;
     client = api;
   }
+
+  client.onError = () => {
+    (async () => {
+      useLocalState.setState({ errorCount: errorCount + 1 });
+    })();
+  };
 }
 
 const api = {
@@ -56,12 +62,6 @@ const api = {
       if (!client) {
         await setupAPI();
       }
-
-      client.onError = () => {
-        (async () => {
-          useLocalState.setState({ errorCount: errorCount + 1 });
-        })();
-      };
 
       const clientPoke = await client.poke<T>(params);
       useLocalState.setState({ subscription: 'connected' });
@@ -117,12 +117,6 @@ const api = {
       if (!client) {
         await setupAPI();
       }
-
-      client.onError = () => {
-        (async () => {
-          useLocalState.setState({ errorCount: errorCount + 1 });
-        })();
-      };
 
       const clientThread = await client.thread<Return, T>(params);
       useLocalState.setState({ subscription: 'connected' });
