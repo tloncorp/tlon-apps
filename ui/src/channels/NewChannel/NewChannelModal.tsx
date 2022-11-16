@@ -9,11 +9,11 @@ import { useParams, useNavigate } from 'react-router';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import NewChannelForm from '@/channels/NewChannel/NewChannelForm';
+import NewChannelDetails from '@/channels/NewChannel/NewChannelDetails';
 import { useChatState } from '@/state/chat';
 import { useDiaryState } from '@/state/diary';
 import { useHeapState } from '@/state/heap/heap';
 import { strToSym } from '@/logic/utils';
-import NewChannelDetails from './NewChannelDetails';
 
 export default function NewChannelModal() {
   const { section } = useParams<{ section: string }>();

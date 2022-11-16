@@ -9,12 +9,14 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import ChannelTypeSelector from '../ChannelTypeSelector';
 
 interface NewChannelFormProps {
+  edit?: boolean;
   goToNextStep: () => void;
   channelVisibility: ChannelVisibility;
   setChannelVisibility: React.Dispatch<React.SetStateAction<ChannelVisibility>>;
 }
 
 export default function NewChannelForm({
+  edit,
   goToNextStep,
   channelVisibility,
   setChannelVisibility,
@@ -25,16 +27,22 @@ export default function NewChannelForm({
     <>
       <div className="sm:w-96">
         <header className="mb-6 flex items-center">
-          <h2 className="text-lg font-bold">Add New Channel</h2>
+          <h2 className="text-lg font-bold">
+            {edit ? 'Edit Channel' : 'Add New Channel'}
+          </h2>
         </header>
       </div>
       <div className="flex flex-col">
-        <ChannelTypeSelector className="mb-6" />
-        <div className="mb-6 flex w-full justify-end">
-          <button className="button" disabled>
-            Search for New Channel Types – Coming Soon!
-          </button>
-        </div>
+        {!edit ? (
+          <>
+            <ChannelTypeSelector className="mb-6" />
+            <div className="mb-6 flex w-full justify-end">
+              <button className="button" disabled>
+                Search for New Channel Types – Coming Soon!
+              </button>
+            </div>
+          </>
+        ) : null}
         <label className="mb-6 font-semibold">
           Channel Name*
           <input

@@ -10,6 +10,7 @@ import Lock16Icon from '@/components/icons/Lock16Icon';
 import LockOpen16Icon from '@/components/icons/LockOpen16Icon';
 
 interface NewChannelDetailsProps {
+  edit?: boolean;
   channelType: ChannelType;
   visibility: ChannelVisibility;
   goToNextStep: () => void;
@@ -17,6 +18,7 @@ interface NewChannelDetailsProps {
 }
 
 export default function NewChannelDetails({
+  edit,
   goToNextStep,
   goToPrevStep,
   visibility,
@@ -90,7 +92,7 @@ export default function NewChannelDetails({
               {formState.isSubmitting ? (
                 <LoadingSpinner className="h-4 w-4" />
               ) : (
-                `Create ${channelTypeName}`
+                `${edit ? 'Edit' : 'Create'} ${channelTypeName}`
               )}
             </button>
           </div>
