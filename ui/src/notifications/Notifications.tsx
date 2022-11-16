@@ -75,7 +75,7 @@ export default function Notifications({
         </title>
       </Helmet>
       {notifications.map((grouping) => (
-        <>
+        <div key={grouping.date}>
           <h2 className="mt-8 mb-4 text-lg font-bold text-gray-400">
             {grouping.date}
           </h2>
@@ -86,7 +86,7 @@ export default function Notifications({
               </li>
             ))}
           </ul>
-        </>
+        </div>
       ))}
     </section>
   );

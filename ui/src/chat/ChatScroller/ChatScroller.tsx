@@ -203,27 +203,64 @@ export default function ChatScroller({
   );
 
   /**
+   * For reverse infinite scroll of older messages:
+   *
+   * See: https://virtuoso.dev/prepend-items/
+   *
+   * The actual index value is arbitrary, just need to change directionally
+   */
+  const START_INDEX = 9999999;
+  const [firstItemIndex, setfirstItemIndex] = useState(START_INDEX);
+  const [initialTopMostItemIndex, setInitialTopMostItemIndex] = useState(
+    START_INDEX - 1
+  );
+
+  useEffect(() => {
+    setfirstItemIndex(START_INDEX - keys.length);
+  }, [keys]);
+
+  useEffect(() => {
+    if (keys.length === 0) {
+      return;
+    }
+
+    const idx = scrollTo
+      ? keys.findIndex((k) => k.eq(scrollTo))
+      : keys.length - 1;
+
+    if (idx === initialTopMostItemIndex) {
+      return;
+    }
+
+    setInitialTopMostItemIndex(idx > -1 ? idx : START_INDEX - 1);
+  }, [initialTopMostItemIndex, keys, scrollTo]);
+
+  /**
    * If scrollTo is set, we want to scroll to that index.
    * If it's not set, we want to scroll to the bottom.
    */
-  const scrollToIndex = useMemo(() => {
-    if (!scrollTo || !keys.length) {
-      return 'LAST';
-    }
-
-    const idx = keys.findIndex((k) => k.eq(scrollTo));
-    return idx > -1 ? idx : 'LAST';
-  }, [keys, scrollTo]);
-
   useEffect(() => {
-    if (virtuoso.current) {
-      virtuoso.current.scrollToIndex({
-        index: scrollToIndex,
-        align: 'start',
-        behavior: 'auto',
-      });
+    if (scrollTo && virtuoso.current) {
+      let scrollToIndex: number | 'LAST';
+      if (!scrollTo || !keys.length) {
+        scrollToIndex = 'LAST';
+      } else {
+        const idx = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
+        scrollToIndex = idx > -1 ? idx : 'LAST';
+      }
+
+      setTimeout(() => {
+        if (!virtuoso.current) {
+          return;
+        }
+        virtuoso.current.scrollToIndex({
+          index: scrollToIndex,
+          align: 'start',
+          behavior: 'auto',
+        });
+      }, 50);
     }
-  }, [scrollToIndex]);
+  }, [keys, scrollTo]);
 
   return (
     <div className="relative h-full flex-1">
@@ -239,7 +276,7 @@ export default function ChatScroller({
           overflowY: 'scroll',
         }}
         atBottomThreshold={250}
-        atTopThreshold={2500}
+        atTopThreshold={400}
         atTopStateChange={(top) => {
           if (top) {
             fetchMessages(false);
@@ -250,6 +287,8 @@ export default function ChatScroller({
             fetchMessages(true);
           }
         }}
+        firstItemIndex={firstItemIndex}
+        initialTopMostItemIndex={initialTopMostItemIndex}
         itemContent={(i, realIndex) => <Message index={realIndex} />}
         computeItemKey={computeItemKey}
         components={{
