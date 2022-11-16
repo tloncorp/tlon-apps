@@ -23,7 +23,11 @@ import useMedia, { useIsMobile } from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
-import { useLocalState, useSubscriptionStatus } from '@/state/local';
+import {
+  useErrorCount,
+  useLocalState,
+  useSubscriptionStatus,
+} from '@/state/local';
 import useContactState from '@/state/contact';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -406,6 +410,7 @@ function App() {
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
   const subscription = useSubscriptionStatus();
+  const errorCount = useErrorCount();
 
   useEffect(() => {
     handleError(() => {
@@ -434,6 +439,12 @@ function App() {
   }, [handleError]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
+
+  useEffect(() => {
+    if (errorCount > 2 && subscription === 'connected') {
+      useLocalState.setState({ subscription: 'disconnected' });
+    }
+  }, [errorCount, subscription]);
 
   return (
     <div className="flex h-full w-full flex-col">

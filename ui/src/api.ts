@@ -5,8 +5,8 @@ import Urbit, {
   SubscriptionRequestInterface,
   Thread,
 } from '@urbit/http-api';
-import { useLocalState } from './state/local';
-import useSubscriptionState from './state/subscription';
+import { useLocalState } from '@/state/local';
+import useSubscriptionState from '@/state/subscription';
 
 export const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -57,12 +57,18 @@ const api = {
         await setupAPI();
       }
 
+      client.onError = () => {
+        (async () => {
+          useLocalState.setState({ errorCount: errorCount + 1 });
+        })();
+      };
+
       const clientPoke = await client.poke<T>(params);
       useLocalState.setState({ subscription: 'connected' });
       useLocalState.setState({ errorCount: 0 });
+
       return clientPoke;
     } catch (e) {
-      useLocalState.setState({ subscription: 'disconnected' });
       useLocalState.setState({ errorCount: errorCount + 1 });
       throw e;
     }
@@ -102,7 +108,6 @@ const api = {
       useLocalState.setState({ errorCount: 0 });
       return clientSubscribe;
     } catch (e) {
-      useLocalState.setState({ subscription: 'disconnected' });
       useLocalState.setState({ errorCount: errorCount + 1 });
       throw e;
     }
@@ -113,12 +118,17 @@ const api = {
         await setupAPI();
       }
 
+      client.onError = () => {
+        (async () => {
+          useLocalState.setState({ errorCount: errorCount + 1 });
+        })();
+      };
+
       const clientThread = await client.thread<Return, T>(params);
       useLocalState.setState({ subscription: 'connected' });
       useLocalState.setState({ errorCount: 0 });
       return clientThread;
     } catch (e) {
-      useLocalState.setState({ subscription: 'disconnected' });
       useLocalState.setState({ errorCount: errorCount + 1 });
       throw e;
     }
@@ -134,7 +144,6 @@ const api = {
       useLocalState.setState({ errorCount: 0 });
       return clientUnsubscribe;
     } catch (e) {
-      useLocalState.setState({ subscription: 'disconnected' });
       useLocalState.setState({ errorCount: errorCount + 1 });
       throw e;
     }

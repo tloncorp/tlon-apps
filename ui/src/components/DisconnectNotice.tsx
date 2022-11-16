@@ -15,7 +15,6 @@ import {
 } from '@/state/local';
 
 export default function DisconnectNotice() {
-  // const reconnect = useReconnect();
   const errorCount = useErrorCount();
   const subscription = useSubscriptionStatus();
 
