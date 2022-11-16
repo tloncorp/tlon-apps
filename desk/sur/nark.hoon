@@ -8,7 +8,7 @@
 ::
 +$  dues
   $%
-    [%chat (map id:chat burr)]
+    [%chat p=(map id:chat burr)]
   ==
 ::
 +$  burr
@@ -23,8 +23,8 @@
 ::
 +$  diff
   $%
-    [%stow hook]                                        :: referred
-    [%slew hook]                                        :: refers
+    [%stow =flag:groups =nest:groups =hook]             :: referred
+    [%slew =flag:groups =nest:groups =hook]             :: refers
   ==
 ::
 +$  action  (pair id diff)

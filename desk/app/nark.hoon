@@ -1,4 +1,4 @@
-/-  n=nark, e=epic
+/-  n=nark, e=epic, g=groups, c=chat
 /+  default-agent, verb, dbug
 !:
 ^-  agent:gall
@@ -122,10 +122,16 @@
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
       %holt  cor
-      ::%grab  (grab !<(* vase))
+      %stow  (stow !<(diff:n vase))
   ==
   ++  grab
     cor
+  ++  stow
+    |=  =diff:n
+    ?>  ?=(%stow -.diff)
+    ~&  >>  %stow
+    =<  na-abet
+    (na-hook:(na-abed:na-core flag.diff nest.diff) hook.diff)
   ::
   --
 ++  watch
@@ -210,11 +216,30 @@
 ++  na-abed  na-abed:na-core
 ::
 ++  na-core
-  |_  =dues:n
+  |_  [=flag:g =nest:g =tags:n =dues:n]
   ++  na-core  .
-  ++  na-abet  cor
-  ++  na-abed  cor
+  ++  na-abet
+    =+  (~(put by tags) nest dues)
+    =.  bags  (~(put by bags) flag -)
+    cor
   ::
+  ++  na-abed
+    |=  [f=flag:g c=nest:g]
+    ^+  na-core
+    =/  t=tags:n   (fall (~(get by bags) f) *tags:n)
+    =/  d=dues:n   (fall (~(get by t) c) *dues:n)
+    na-core(flag f, nest c, tags t, dues d)
+  ::
+  ++  na-hook
+    |=  =hook:n
+    ^+  na-core
+    =-  =.  dues  -  na-core
+    ?-    -.dues
+        %chat
+      =-  dues(p -)
+      (~(put by p.dues) *id:c [%index hook])
+    ==
+
   ++  na-pass
     |%
     ++  act
