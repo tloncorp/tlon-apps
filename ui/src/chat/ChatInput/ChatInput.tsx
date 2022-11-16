@@ -236,10 +236,15 @@ export default function ChatInput({
   }, [whom, messageEditor]);
 
   useEffect(() => {
-    if ((autoFocus || reply) && messageEditor && !messageEditor.isDestroyed) {
+    if (
+      (autoFocus || reply) &&
+      !isMobile &&
+      messageEditor &&
+      !messageEditor.isDestroyed
+    ) {
       messageEditor.commands.focus();
     }
-  }, [autoFocus, reply, messageEditor]);
+  }, [autoFocus, reply, isMobile, messageEditor]);
 
   useEffect(() => {
     if (mostRecentFile && messageEditor && !messageEditor.isDestroyed) {
