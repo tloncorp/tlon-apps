@@ -7,7 +7,7 @@ export default function MultiDMEditModal() {
   const dismiss = useDismissNavigate();
 
   return (
-    <Dialog defaultOpen onOpenChange={(open) => open && dismiss()}>
+    <Dialog defaultOpen onOpenChange={(open) => !open && dismiss()}>
       <DialogContent showClose containerClass="max-w-lg">
         <div className="sm:w-96">
           <header className="flex items-center ">
