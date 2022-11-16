@@ -26,7 +26,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
         class="sm:w-96"
       >
         <header
-          class="mb-3 flex items-center"
+          class="mb-6 flex items-center"
         >
           <h2
             class="text-lg font-bold"
@@ -35,11 +35,11 @@ exports[`NewChannelModal > renders as expected 1`] = `
           </h2>
         </header>
       </div>
-      <form
+      <div
         class="flex flex-col"
       >
         <ul
-          class="flex flex-col space-y-2 mb-5"
+          class="flex flex-col space-y-2 mb-6"
         >
           <li>
             <label
@@ -191,8 +191,18 @@ exports[`NewChannelModal > renders as expected 1`] = `
             </label>
           </li>
         </ul>
+        <div
+          class="mb-6 flex w-full justify-end"
+        >
+          <button
+            class="button"
+            disabled=""
+          >
+            Search for New Channel Types – Coming Soon!
+          </button>
+        </div>
         <label
-          class="mb-3 font-semibold"
+          class="mb-6 font-semibold"
         >
           Channel Name*
           <input
@@ -201,176 +211,130 @@ exports[`NewChannelModal > renders as expected 1`] = `
             type="text"
           />
         </label>
-        <label
-          class="mb-3 font-semibold"
-        >
-          Channel Permissions
-          <ul
-            class="flex flex-col space-y-2"
+        <div>
+          <label
+            class="mb-6 font-semibold"
           >
-            <li>
-              <label
-                class="flex cursor-pointer items-center justify-between space-x-2 py-2"
-              >
-                <div
-                  class="flex items-center"
-                >
-                  <div
-                    class="h-4 w-4 rounded-xl border-4 border-gray-400"
-                  />
-                </div>
-                <div
-                  class="flex w-full flex-col"
-                >
-                  <div
-                    class="flex flex-row items-center space-x-2"
-                  >
-                    <div
-                      class="flex w-full flex-col justify-start text-left"
-                    >
-                      <span
-                        class="font-semibold"
-                      >
-                        Open to All
-                      </span>
-                      <span
-                        class="text-sm font-medium text-gray-600"
-                      >
-                        Anyone can view and write
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <input
-                  class="sr-only"
-                  name="privacy"
-                  type="radio"
-                  value="public"
-                />
-              </label>
-            </li>
-            <li>
-              <label
-                class="flex cursor-pointer items-center justify-between space-x-2 py-2"
-              >
-                <div
-                  class="flex items-center"
-                >
-                  <div
-                    class="h-4 w-4 rounded-xl border-2 border-gray-200"
-                  />
-                </div>
-                <div
-                  class="flex w-full flex-col"
-                >
-                  <div
-                    class="flex flex-row items-center space-x-2"
-                  >
-                    <div
-                      class="flex w-full flex-col justify-start text-left"
-                    >
-                      <span
-                        class="font-semibold"
-                      >
-                        Members Can View
-                      </span>
-                      <span
-                        class="text-sm font-medium text-gray-600"
-                      >
-                        Members can only view
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <input
-                  class="sr-only"
-                  name="privacy"
-                  type="radio"
-                  value="read-only"
-                />
-              </label>
-            </li>
-            <li>
-              <label
-                class="flex cursor-pointer items-center justify-between space-x-2 py-2"
-              >
-                <div
-                  class="flex items-center"
-                >
-                  <div
-                    class="h-4 w-4 rounded-xl border-2 border-gray-200"
-                  />
-                </div>
-                <div
-                  class="flex w-full flex-col"
-                >
-                  <div
-                    class="flex flex-row items-center space-x-2"
-                  >
-                    <div
-                      class="flex w-full flex-col justify-start text-left"
-                    >
-                      <span
-                        class="font-semibold"
-                      >
-                        Admin Only
-                      </span>
-                      <span
-                        class="text-sm font-medium text-gray-600"
-                      >
-                        Only Admin can view and write
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <input
-                  class="sr-only"
-                  name="privacy"
-                  type="radio"
-                  value="secret"
-                />
-              </label>
-            </li>
-          </ul>
-        </label>
-        <label
-          class="flex cursor-pointer items-center justify-between space-x-2 py-2"
-        >
-          <div
-            class="flex items-center"
-          >
-            <div
-              class="h-4 w-4 rounded-sm border-2 border-gray-200"
-            />
-          </div>
-          <div
-            class="flex w-full flex-col"
-          >
-            <div
-              class="flex flex-row items-center space-x-2"
+            Channel Visibility
+            <ul
+              class="mt-2 flex flex-col space-y-2"
             >
-              <div
-                class="flex w-full flex-col justify-start text-left"
-              >
-                <span
-                  class="font-semibold"
+              <li>
+                <label
+                  class="flex cursor-pointer items-center justify-between rounded-lg p-2 bg-gray-50"
                 >
-                  Default
-                </span>
-                <span
-                  class="text-sm font-medium text-gray-600"
+                  <div
+                    class="flex w-full flex-col"
+                  >
+                    <div
+                      class="flex flex-row items-center space-x-2"
+                    >
+                      <div
+                        class="rounded bg-gray-50 p-2 mix-blend-multiply dark:mix-blend-screen"
+                      >
+                        <svg
+                          class="h-6 w-6 text-gray-600"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            class="fill-current"
+                            clip-rule="evenodd"
+                            d="M9 7C9 5.34315 10.3431 4 12 4C13.6569 4 15 5.34315 15 7H17C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7V9C5.34315 9 4 10.3431 4 12V18C4 19.6569 5.34315 21 7 21H17C18.6569 21 20 19.6569 20 18V12C20 10.3431 18.6569 9 17 9H9V7ZM6 12C6 11.4477 6.44772 11 7 11H17C17.5523 11 18 11.4477 18 12V18C18 18.5523 17.5523 19 17 19H7C6.44772 19 6 18.5523 6 18V12Z"
+                            fill-rule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div
+                        class="flex w-full flex-col justify-start text-left"
+                      >
+                        <span
+                          class="font-semibold"
+                        >
+                          Open
+                        </span>
+                        <span
+                          class="text-sm font-medium text-gray-600"
+                        >
+                          By default, all group members can view and contribute
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <svg
+                    class="h-6 w-6 text-gray-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      class="stroke-current"
+                      d="m6 12 3.64645 3.6464c.19526.1953.51185.1953.70715 0L18 8"
+                      stroke-linecap="round"
+                      stroke-width="2"
+                    />
+                  </svg>
+                  <input
+                    class="sr-only"
+                    type="radio"
+                    value="open"
+                  />
+                </label>
+              </li>
+              <li>
+                <label
+                  class="flex cursor-pointer items-center justify-between rounded-lg p-2 bg-white"
                 >
-                  New members will be automatically subscribed to this channel
-                </span>
-              </div>
-            </div>
-          </div>
-          <input
-            class="sr-only"
-            name="join"
-            type="checkbox"
-          />
-        </label>
+                  <div
+                    class="flex w-full flex-col"
+                  >
+                    <div
+                      class="flex flex-row items-center space-x-2"
+                    >
+                      <div
+                        class="rounded bg-gray-50 p-2 mix-blend-multiply dark:mix-blend-screen"
+                      >
+                        <svg
+                          class="h-6 w-6 text-gray-600"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            class="fill-current"
+                            clip-rule="evenodd"
+                            d="M9 7C9 5.34315 10.3431 4 12 4C13.6569 4 15 5.34315 15 7V9H9V7ZM17 9V7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7V9C5.34315 9 4 10.3431 4 12V18C4 19.6569 5.34315 21 7 21H17C18.6569 21 20 19.6569 20 18V12C20 10.3431 18.6569 9 17 9ZM6 12C6 11.4477 6.44772 11 7 11H17C17.5523 11 18 11.4477 18 12V18C18 18.5523 17.5523 19 17 19H7C6.44772 19 6 18.5523 6 18V12Z"
+                            fill-rule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div
+                        class="flex w-full flex-col justify-start text-left"
+                      >
+                        <span
+                          class="font-semibold"
+                        >
+                          Closed
+                        </span>
+                        <span
+                          class="text-sm font-medium text-gray-600"
+                        >
+                          By default, group members cannot view/contribute
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <input
+                    class="sr-only"
+                    type="radio"
+                    value="closed"
+                  />
+                </label>
+              </li>
+            </ul>
+          </label>
+        </div>
         <footer
           class="mt-4 flex items-center justify-between space-x-2"
         >
@@ -386,13 +350,26 @@ exports[`NewChannelModal > renders as expected 1`] = `
             <button
               class="button"
               disabled=""
-              type="submit"
             >
-              Add Channel
+              Next: Channel Details
             </button>
           </div>
         </footer>
-      </form>
+      </div>
+      <div
+        class="flex flex-col items-center pt-4"
+      >
+        <div
+          class="flex space-x-2"
+        >
+          <div
+            class="h-2 w-2 cursor-pointer rounded-full bg-black"
+          />
+          <div
+            class="h-2 w-2 cursor-pointer rounded-full bg-gray-100"
+          />
+        </div>
+      </div>
       <button
         class="icon-button absolute top-6 right-6"
         type="button"
