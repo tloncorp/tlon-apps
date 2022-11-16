@@ -335,6 +335,9 @@ export interface NewChannelFormSchema extends ChannelFormSchema {
   type: ChannelType;
 }
 
+// used to determine channel detail view
+export type ChannelVisibility = 'open' | 'closed';
+
 export interface ChannelPreview {
   nest: string;
   meta: GroupMeta;

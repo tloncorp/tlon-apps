@@ -1,147 +1,125 @@
-import React, { useCallback } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import React from 'react';
+import cn from 'classnames';
+import { useFormContext } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { NewChannelFormSchema } from '@/types/groups';
-import { useNavigate, useParams } from 'react-router';
-import { useGroupState, useRouteGroup } from '@/state/groups';
-import { strToSym } from '@/logic/utils';
-import { useChatState } from '@/state/chat';
-import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
-import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
-import { useHeapState } from '@/state/heap/heap';
-import { useDiaryState } from '@/state/diary';
-import { useIsMobile } from '@/logic/useMedia';
+import { ChannelVisibility } from '@/types/groups';
+import LockOpenIcon from '@/components/icons/LockOpenIcon';
+import LockIcon from '@/components/icons/LockIcon';
+import CheckIcon from '@/components/icons/CheckIcon';
 import ChannelTypeSelector from '../ChannelTypeSelector';
 
-export default function NewChannelForm() {
-  const { section } = useParams<{ section: string }>();
-  const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const groupFlag = useRouteGroup();
-  const defaultValues: NewChannelFormSchema = {
-    type: 'chat',
-    zone: 'default',
-    added: Date.now(),
-    readers: [],
-    join: false,
-    meta: {
-      title: '',
-      description: '',
-      image: '',
-      cover: '',
-    },
-    privacy: 'public',
-  };
+interface NewChannelFormProps {
+  goToNextStep: () => void;
+  channelVisibility: ChannelVisibility;
+  setChannelVisibility: React.Dispatch<React.SetStateAction<ChannelVisibility>>;
+}
 
-  const form = useForm<NewChannelFormSchema>({
-    defaultValues,
-    mode: 'onChange',
-  });
-
-  const onSubmit = useCallback(
-    async (values: NewChannelFormSchema) => {
-      const { privacy, type, ...nextChannel } = values;
-      /*
-        For now channel names are used as keys for pacts. Therefore we need to
-        check if a channel with the same name already exists in the chat store. If it does, we
-        need to append a timestamp to the end of the name of the new channel.
-
-        Timestamps are used because they are virtually guaranteed to be unique.
-
-        In the future, we will index channels by their full path (including group name), and this will no
-        longer be necessary. That change will require a migration of existing channels.
-       */
-      const tempChannelName = strToSym(values.meta.title);
-      const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
-      const existingChannel = () => {
-        if (type === 'chat') {
-          return useChatState.getState().chats[tempNewChannelFlag];
-        }
-
-        if (type === 'diary') {
-          return useDiaryState.getState().notes[tempNewChannelFlag];
-        }
-
-        if (type === 'heap') {
-          return useHeapState.getState().stash[tempNewChannelFlag];
-        }
-
-        return false;
-      };
-
-      const randomSmallNumber = Math.floor(Math.random() * 100);
-      const channelName = existingChannel()
-        ? `${tempChannelName}-${randomSmallNumber}`
-        : tempChannelName;
-      const newChannelFlag = `${window.our}/${channelName}`;
-      const newChannelNest = `${type}/${newChannelFlag}`;
-
-      if (privacy === 'secret') {
-        nextChannel.readers.push('admin');
-      } else {
-        nextChannel.readers.splice(nextChannel.readers.indexOf('admin'), 1);
-      }
-
-      if (section) {
-        nextChannel.zone = section;
-      }
-
-      const creator =
-        type === 'chat'
-          ? useChatState.getState().create
-          : type === 'heap'
-          ? useHeapState.getState().create
-          : useDiaryState.getState().create;
-
-      await creator({
-        group: groupFlag,
-        name: channelName,
-        title: values.meta.title,
-        description: values.meta.description,
-        readers: values.readers,
-        writers: privacy !== 'public' ? ['admin'] : [],
-      });
-
-      if (section) {
-        await useGroupState
-          .getState()
-          .addChannelToZone(section, groupFlag, newChannelNest);
-      }
-
-      if (values.join === true) {
-        await useGroupState
-          .getState()
-          .setChannelJoin(groupFlag, newChannelNest, true);
-      }
-      navigate(
-        isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/info/channels`
-      );
-    },
-    [section, groupFlag, navigate, isMobile]
-  );
+export default function NewChannelForm({
+  goToNextStep,
+  channelVisibility,
+  setChannelVisibility,
+}: NewChannelFormProps) {
+  const { register, formState } = useFormContext();
 
   return (
-    <FormProvider {...form}>
+    <>
       <div className="sm:w-96">
-        <header className="mb-3 flex items-center">
+        <header className="mb-6 flex items-center">
           <h2 className="text-lg font-bold">Add New Channel</h2>
         </header>
       </div>
-      <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>
-        <ChannelTypeSelector className="mb-5" />
-        <label className="mb-3 font-semibold">
+      <div className="flex flex-col">
+        <ChannelTypeSelector className="mb-6" />
+        <div className="mb-6 flex w-full justify-end">
+          <button className="button" disabled>
+            Search for New Channel Types – Coming Soon!
+          </button>
+        </div>
+        <label className="mb-6 font-semibold">
           Channel Name*
           <input
-            {...form.register('meta.title', { required: true })}
+            {...register('meta.title', { required: true })}
             className="input my-2 block w-full p-1"
             type="text"
           />
         </label>
-        <label className="mb-3 font-semibold">
-          Channel Permissions
-          <ChannelPermsSelector />
-        </label>
-        <ChannelJoinSelector />
+        <div>
+          <label className="mb-6 font-semibold">
+            Channel Visibility
+            <ul className="mt-2 flex flex-col space-y-2">
+              <li>
+                <label
+                  className={cn(
+                    'flex cursor-pointer items-center justify-between rounded-lg p-2',
+                    channelVisibility === 'open' ? 'bg-gray-50' : 'bg-white'
+                  )}
+                >
+                  <div className="flex w-full flex-col">
+                    <div className="flex flex-row items-center space-x-2">
+                      <div
+                        className={cn(
+                          'rounded bg-gray-50 p-2 mix-blend-multiply dark:mix-blend-screen'
+                        )}
+                      >
+                        <LockOpenIcon className="h-6 w-6 text-gray-600" />
+                      </div>
+                      <div className="flex w-full flex-col justify-start text-left">
+                        <span className="font-semibold">Open</span>
+                        <span className="text-sm font-medium text-gray-600">
+                          By default, all group members can view and contribute
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {channelVisibility === 'open' ? (
+                    <CheckIcon className="h-6 w-6 text-gray-600" />
+                  ) : null}
+                  <input
+                    onClick={() => setChannelVisibility('open')}
+                    className="sr-only"
+                    type="radio"
+                    value="open"
+                  />
+                </label>
+              </li>
+              <li>
+                <label
+                  className={cn(
+                    'flex cursor-pointer items-center justify-between rounded-lg p-2',
+                    channelVisibility === 'closed' ? 'bg-gray-50' : 'bg-white'
+                  )}
+                >
+                  <div className="flex w-full flex-col">
+                    <div className="flex flex-row items-center space-x-2">
+                      <div
+                        className={cn(
+                          'rounded bg-gray-50 p-2 mix-blend-multiply dark:mix-blend-screen'
+                        )}
+                      >
+                        <LockIcon className="h-6 w-6 text-gray-600" />
+                      </div>
+                      <div className="flex w-full flex-col justify-start text-left">
+                        <span className="font-semibold">Closed</span>
+                        <span className="text-sm font-medium text-gray-600">
+                          By default, group members cannot view/contribute
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {channelVisibility === 'closed' ? (
+                    <CheckIcon className="h-6 w-6 text-gray-600" />
+                  ) : null}
+                  <input
+                    onClick={() => setChannelVisibility('closed')}
+                    className="sr-only"
+                    type="radio"
+                    value="closed"
+                  />
+                </label>
+              </li>
+            </ul>
+          </label>
+        </div>
 
         <footer className="mt-4 flex items-center justify-between space-x-2">
           <div className="ml-auto flex items-center space-x-2">
@@ -149,15 +127,15 @@ export default function NewChannelForm() {
               <button className="secondary-button ml-auto">Cancel</button>
             </DialogPrimitive.Close>
             <button
-              type="submit"
               className="button"
-              disabled={!form.formState.isValid || !form.formState.isDirty}
+              disabled={!formState.isValid}
+              onClick={goToNextStep}
             >
-              Add Channel
+              Next: Channel Details
             </button>
           </div>
         </footer>
-      </form>
-    </FormProvider>
+      </div>
+    </>
   );
 }
