@@ -8,10 +8,10 @@
 ::
 +$  dues
   $%
-    [%chat p=(map id:chat burr)]
+    [%chat p=(map id:chat scab)]
   ==
 ::
-+$  burr
++$  scab
   $%
     [%node =resource:post =node:graph-store]
     [%index hook]
