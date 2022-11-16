@@ -95,7 +95,7 @@ exports[`ChatInput > renders as expected 1`] = `
           </svg>
         </div>
         <div
-          class="input block p-0 w-full break-all"
+          class="input block p-0 w-full break-words"
         >
           <div
             class="w-full"

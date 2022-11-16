@@ -45,6 +45,9 @@
 
 .ProseMirror {
   @apply bg-transparent caret-blue-400 transition-colors focus-within:border-gray-100  focus:outline-none focus-visible:border-gray-100;
+  /* Father forgive me for my sins.
+     we use anywhere here because any other value makes the input overflow. */
+  overflow-wrap: anywhere !important;
 }
 
 /* Placeholder (at the top) */
