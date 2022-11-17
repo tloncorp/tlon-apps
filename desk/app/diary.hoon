@@ -234,6 +234,8 @@
   =/  =perm:d
     :_  group.association
     ?:(=(~ writers) ~ (silt (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~) ~))
+  =/  =remark:d
+    [now.bowl | ~]
   =/  =diary:d
     :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
         log=(import-log update-log)
@@ -241,7 +243,7 @@
         %grid  :: TODO: check defaults with design
         %time
         graph-to-notes
-        *remark:d
+        remark
     ==
   =.  shelf  (~(put by shelf) flag diary)
   =.  cor  di-abet:(di-import:(di-abed:di-core flag) writers association)
