@@ -29,7 +29,7 @@ import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 import { useLocalStorage } from 'usehooks-ts';
 import * as Toast from '@radix-ui/react-toast';
-import { createStorageKey } from '@/logic/utils';
+import { canReadChannel, createStorageKey } from '@/logic/utils';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
@@ -42,26 +42,25 @@ function DiaryChannel() {
   const letters = useNotesForDiary(chFlag);
   const location = useLocation();
   const navigate = useNavigate();
-  const amAdmin = useAmAdmin(flag);
   const [, setRecent] = useLocalStorage(
     createStorageKey(`recent-chan:${flag}`),
     ''
   );
+  const channel = useChannel(flag, nest);
+
+  useEffect(() => {
+    if (channel && !canReadChannel(channel, vessel)) {
+      navigate('../../activity');
+      setRecent('');
+    }
+  }, [channel, vessel, navigate, setRecent]);
+
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
   const { didCopy, onCopy } = useDiaryActions({
     flag: chFlag,
     time: newNote || '',
   });
-
-  const channel = useChannel(flag, chFlag);
-
-  useEffect(() => {
-    if (channel?.readers.includes(GROUP_ADMIN) && !amAdmin) {
-      navigate('../activity');
-      setRecent('');
-    }
-  }, [channel, amAdmin, navigate, setRecent]);
 
   const settings = useDiarySettings();
   // for now sortMode is not actually doing anything.

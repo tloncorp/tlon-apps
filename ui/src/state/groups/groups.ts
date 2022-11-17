@@ -598,7 +598,7 @@ export function useGroupList(): string[] {
 
 export function useVessel(flag: string, ship: string) {
   return useGroupState(
-    useCallback((s) => s.groups[flag].fleet[ship], [ship, flag])
+    useCallback((s) => s.groups[flag]?.fleet[ship], [ship, flag])
   );
 }
 

@@ -31,7 +31,7 @@ import {
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { createStorageKey } from '@/logic/utils';
+import { canReadChannel, createStorageKey } from '@/logic/utils';
 import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import bigInt from 'big-integer';
 import NewCurioForm from './NewCurioForm';
@@ -42,7 +42,7 @@ function HeapChannel({ title }: ViewProps) {
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
   const flag = useRouteGroup();
-  const amAdmin = useAmAdmin(flag);
+  const vessel = useVessel(flag, window.our);
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
   const [, setRecent] = useLocalStorage(
@@ -51,11 +51,11 @@ function HeapChannel({ title }: ViewProps) {
   );
 
   useEffect(() => {
-    if (channel?.readers.includes(GROUP_ADMIN) && !amAdmin) {
-      navigate('../activity');
+    if (channel && !canReadChannel(channel, vessel)) {
+      navigate('../../activity');
       setRecent('');
     }
-  }, [channel, amAdmin, navigate, setRecent]);
+  }, [channel, vessel, navigate, setRecent]);
 
   const displayMode = useHeapDisplayMode(chFlag);
   const settings = useHeapSettings();
@@ -64,7 +64,6 @@ function HeapChannel({ title }: ViewProps) {
   const sortMode = useHeapSortMode(chFlag);
   const curios = useCuriosForHeap(chFlag);
   const perms = useHeapPerms(chFlag);
-  const vessel = useVessel(flag, window.our);
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;

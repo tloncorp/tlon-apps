@@ -361,6 +361,7 @@ export const useChatState = createState<ChatState>(
           const chat = {
             perms: {
               writers: [],
+              group: '',
             },
           };
           draft.dms[ship] = chat;
@@ -771,6 +772,11 @@ export function useWrit(whom: string, id: string) {
       [whom, id]
     )
   );
+}
+
+const selChats = (s: ChatState) => s.chats;
+export function useChats(): Chats {
+  return useChatState(selChats);
 }
 
 export function useChat(whom: string): Chat | undefined {

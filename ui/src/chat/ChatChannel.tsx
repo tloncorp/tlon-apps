@@ -17,7 +17,7 @@ import {
   GROUP_ADMIN,
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
-import { createStorageKey } from '@/logic/utils';
+import { canReadChannel, createStorageKey } from '@/logic/utils';
 import { useLocalStorage } from 'usehooks-ts';
 
 function ChatChannel({ title }: ViewProps) {
@@ -26,7 +26,6 @@ function ChatChannel({ title }: ViewProps) {
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
-  const amAdmin = useAmAdmin(groupFlag);
   const [, setRecent] = useLocalStorage(
     createStorageKey(`recent-chan:${groupFlag}`),
     ''
@@ -49,11 +48,11 @@ function ChatChannel({ title }: ViewProps) {
   const group = useGroup(groupFlag);
 
   useEffect(() => {
-    if (channel?.readers.includes(GROUP_ADMIN) && !amAdmin) {
-      navigate('../activity');
+    if (channel && !canReadChannel(channel, vessel)) {
+      navigate('../../activity');
       setRecent('');
     }
-  }, [channel, amAdmin, navigate, setRecent]);
+  }, [channel, vessel, navigate, setRecent]);
 
   return (
     <Layout
