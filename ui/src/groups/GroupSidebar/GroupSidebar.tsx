@@ -2,7 +2,7 @@ import cn from 'classnames';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
-import useMedia from '@/logic/useMedia';
+import { useIsDark } from '@/logic/useMedia';
 import { useGroup, useGroupFlag } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
@@ -25,7 +25,7 @@ function GroupHeader() {
   const cover = useRef(null);
   const fac = new FastAverageColor();
   const averageSucceeded = isColor(coverImgColor);
-  const dark = useMedia('(prefers-color-scheme: dark)');
+  const dark = useIsDark();
   const hoverFallbackForeground = dark ? 'white' : 'black';
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
   const calm = useCalm();
