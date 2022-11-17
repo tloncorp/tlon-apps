@@ -8,6 +8,7 @@ import { useChannel, useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { useDiaryState } from '@/state/diary';
+import { isChannelJoined } from '@/logic/utils';
 
 function Channel() {
   const { app, chShip, chName } = useParams();
@@ -16,7 +17,7 @@ function Channel() {
   const flag = useRouteGroup();
   const channel = useChannel(flag, nest);
   const briefs = useAllBriefs();
-  const isJoined = chFlag in briefs;
+  const isJoined = isChannelJoined(nest, briefs);
   const join = () => {
     const joiner =
       app === 'chat'

@@ -4,17 +4,20 @@ import { useNotifications } from '@/notifications/useNotifications';
 import { useRouteGroup } from '@/state/groups';
 import useHarkState from '@/state/hark';
 import { useEffect } from 'react';
+import { nestToFlag } from './utils';
 
 interface UseDismissChannelProps {
+  nest: string;
   markRead: (flag: string) => Promise<void>;
 }
 
 export default function useDismissChannelNotifications({
+  nest,
   markRead,
 }: UseDismissChannelProps) {
   const flag = useRouteGroup();
-  const chFlag = useChannelFlag();
-  const { isChannelUnread } = useIsChannelUnread(flag);
+  const [, chFlag] = nestToFlag(nest);
+  const { isChannelUnread } = useIsChannelUnread();
   const { notifications } = useNotifications(flag);
 
   /**
@@ -26,7 +29,7 @@ export default function useDismissChannelNotifications({
    */
   // dismiss unread notifications while viewing channel
   useEffect(() => {
-    if (chFlag && isChannelUnread(chFlag)) {
+    if (nest && isChannelUnread(nest)) {
       // dismiss brief
       markRead(chFlag);
       // iterate bins, saw each rope
@@ -42,5 +45,5 @@ export default function useDismissChannelNotifications({
         });
       });
     }
-  }, [chFlag, markRead, isChannelUnread, notifications]);
+  }, [nest, chFlag, markRead, isChannelUnread, notifications]);
 }
