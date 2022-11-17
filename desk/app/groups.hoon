@@ -105,7 +105,7 @@
       [fleet ~ ~ ~ ~ ~ cordon.create title.create description.create image.create cover.create] 
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
-    go-abet:go-init:(go-abed:group-core flag)
+    go-abet:(go-init:(go-abed:group-core flag) |)
   ::
       ?(%group-action %group-action-0)
     =+  !<(=action:g vase)
@@ -382,7 +382,7 @@
       pub/(put:log-on:g *log:g now.bowl create/group)
     sub/now.bowl
   =.  groups  (~(put by groups) flag [net group])
-  go-abet:go-init:(go-abed:group-core flag) :: setup defaults
+  go-abet:(go-init:(go-abed:group-core flag) &) :: setup defaults
   ::
   ++  sect-for-flag
     |=  =flag:g
@@ -525,10 +525,7 @@
     go-core(gone &)
   ::
   ++  go-init  
-    =|  our=vessel:fleet:g
-    =.  sects.our  (~(put in sects.our) %admin)
-    =.  fleet.group  (~(put by fleet.group) our.bowl our)
-    =.  bloc.group  (~(put in bloc.group) %admin)
+    |=  import=?
     =.  cabals.group
       %+  ~(put by cabals.group)  %admin
       :_  ~
@@ -544,7 +541,15 @@
       `nest
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  =diff:g  [%create group]
-    (go-tell-update now.bowl diff)
+    =.  go-core  (go-tell-update now.bowl diff)
+    ?:  import
+      go-core
+    =|  our=vessel:fleet:g
+    =.  sects.our  (~(put in sects.our) %admin)
+    =.  fleet.group  (~(put by fleet.group) our.bowl our)
+    =.  bloc.group  (~(put in bloc.group) %admin)
+    go-core
+
   ::
   ++  go-start-sub
     ^+  go-core
