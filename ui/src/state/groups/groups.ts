@@ -208,9 +208,27 @@ export const useGroupState = create<GroupState>(
             },
           });
         }),
-      delete: async (flag) => {
-        await api.poke(groupAction(flag, { del: null }));
-      },
+      delete: async (flag) =>
+        new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, { del: null }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff } = event.update;
+                    return 'del' in diff && event.flag === flag;
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        }),
       join: async (flag, joinAll) => {
         get().batchSet((draft) => {
           draft.gangs[flag].invite = null;

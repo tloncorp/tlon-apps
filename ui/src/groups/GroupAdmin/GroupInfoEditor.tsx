@@ -32,6 +32,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const group = useGroup(groupFlag);
   const [deleteField, setDeleteField] = useState('');
   const [status, setStatus] = useState<Status>('initial');
+  const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -57,9 +58,15 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     [setDeleteField]
   );
 
-  const onDelete = useCallback(() => {
-    useGroupState.getState().delete(groupFlag);
-    navigate('/');
+  const onDelete = useCallback(async () => {
+    setDeleteStatus('loading');
+    try {
+      await useGroupState.getState().delete(groupFlag);
+      setDeleteStatus('success');
+      navigate('/');
+    } catch (e) {
+      setDeleteStatus('error');
+    }
   }, [groupFlag, navigate]);
 
   const onSubmit = useCallback(
@@ -145,7 +152,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
                 disabled={!eqGroupName(deleteField, group?.meta.title || '')}
                 onClick={onDelete}
               >
-                Delete
+                {deleteStatus === 'loading' ? (
+                  <LoadingSpinner />
+                ) : deleteStatus === 'error' ? (
+                  'Error'
+                ) : (
+                  'Delete'
+                )}
               </DialogClose>
             </div>
           </DialogContent>
