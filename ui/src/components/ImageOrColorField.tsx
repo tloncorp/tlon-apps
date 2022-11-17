@@ -71,7 +71,7 @@ export default function ImageOrColorField<FormType extends FieldValues>({
           </>
         ) : null}
         {status === 'color' ? (
-          <div className="input flex w-full items-center rounded-lg px-1 py-0.5">
+          <div className="input flex h-8 w-full items-center rounded-lg">
             <ColorPickerField fieldName={fieldName} className="grow" />
             <button
               className="small-button line-break-none w-max"
