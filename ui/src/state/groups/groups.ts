@@ -157,9 +157,31 @@ export const useGroupState = create<GroupState>(
           console.error(e);
         }
       },
-      edit: async (flag, metadata) => {
-        await api.poke(groupAction(flag, { meta: metadata }));
-      },
+      edit: async (flag, metadata) =>
+        new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, { meta: metadata }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff } = event.update;
+                    return (
+                      'meta' in diff &&
+                      diff.meta.title === metadata.title &&
+                      event.flag === flag
+                    );
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        }),
       create: async (req) =>
         new Promise((resolve, reject) => {
           api.poke({
@@ -211,7 +233,6 @@ export const useGroupState = create<GroupState>(
               await useSubscriptionState
                 .getState()
                 .track('groups/groups/ui', (event) => {
-                  console.log({ event });
                   if (typeof event === 'object' && 'flag' in event) {
                     return flag === event.flag;
                   }

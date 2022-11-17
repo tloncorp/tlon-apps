@@ -7,16 +7,13 @@ import Dialog, {
   DialogTrigger,
 } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
-import {
-  GroupFormSchema,
-  GroupMeta,
-  PrivacyType,
-  ViewProps,
-} from '@/types/groups';
+import { GroupFormSchema, GroupMeta, ViewProps } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { getGroupPrivacy } from '@/logic/utils';
-import GroupInfoFields from '../GroupInfoFields';
-import PrivacySelector from '../PrivacySelector';
+import GroupInfoFields from '@/groups/GroupInfoFields';
+import PrivacySelector from '@/groups/PrivacySelector';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 const emptyMeta = {
   title: '',
@@ -34,6 +31,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const [deleteField, setDeleteField] = useState('');
+  const [status, setStatus] = useState<Status>('initial');
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -65,8 +63,14 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   }, [groupFlag, navigate]);
 
   const onSubmit = useCallback(
-    (values: GroupMeta) => {
-      useGroupState.getState().edit(groupFlag, values);
+    async (values: GroupMeta) => {
+      setStatus('loading');
+      try {
+        await useGroupState.getState().edit(groupFlag, values);
+        setStatus('success');
+      } catch (e) {
+        setStatus('error');
+      }
     },
     [groupFlag]
   );
@@ -103,7 +107,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
               className="button"
               disabled={!form.formState.isDirty}
             >
-              Save
+              {status === 'loading' ? (
+                <LoadingSpinner />
+              ) : status === 'error' ? (
+                'Error'
+              ) : (
+                'Save'
+              )}
             </button>
           </footer>
         </form>
