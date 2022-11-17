@@ -341,7 +341,7 @@ export const useGroupState = create<GroupState>(
         });
       },
       addSects: async (flag, ship, sects) => {
-        const diff = {
+        const dif = {
           fleet: {
             ships: [ship],
             diff: {
@@ -349,10 +349,35 @@ export const useGroupState = create<GroupState>(
             },
           },
         };
-        await api.poke(groupAction(flag, diff));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, dif),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff } = event.update;
+                    return (
+                      'fleet' in diff &&
+                      'diff' in diff.fleet &&
+                      'add-sects' in diff.fleet.diff &&
+                      diff.fleet.ships.includes(ship) &&
+                      event.flag === flag
+                    );
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        });
       },
       delSects: async (flag, ship, sects) => {
-        const diff = {
+        const dif = {
           fleet: {
             ships: [ship],
             diff: {
@@ -360,7 +385,32 @@ export const useGroupState = create<GroupState>(
             },
           },
         };
-        await api.poke(groupAction(flag, diff));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, dif),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff } = event.update;
+                    return (
+                      'fleet' in diff &&
+                      'diff' in diff.fleet &&
+                      'del-sects' in diff.fleet.diff &&
+                      diff.fleet.ships.includes(ship) &&
+                      event.flag === flag
+                    );
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        });
       },
       addMembers: async (flag, ships) => {
         const diff = {
