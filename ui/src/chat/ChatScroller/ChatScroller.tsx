@@ -14,7 +14,11 @@ import bigInt from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { ChatState } from '@/state/chat/type';
-import { useChatState, useLoadedWrits } from '@/state/chat/chat';
+import {
+  useChatState,
+  useGetFirstUnreadID,
+  useLoadedWrits,
+} from '@/state/chat/chat';
 import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
@@ -134,6 +138,7 @@ export default function ChatScroller({
 }: IChatScroller) {
   const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
+  const firstUnreadID = useGetFirstUnreadID(whom);
   const loaded = useLoadedWrits(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const virtuoso = useRef<VirtuosoHandle>(null);
@@ -185,7 +190,7 @@ export default function ChatScroller({
   );
 
   const fetchMessages = useCallback(
-    async (newer: boolean) => {
+    async (newer: boolean, pageSize = MESSAGE_FETCH_PAGE_SIZE) => {
       const newest = messages.peekLargest();
       const seenNewest = newer && newest && loaded.newest.geq(newest[0]);
       const oldest = messages.peekSmallest();
@@ -198,13 +203,9 @@ export default function ChatScroller({
       setFetching(newer ? 'bottom' : 'top');
 
       if (newer) {
-        await useChatState
-          .getState()
-          .fetchNewer(whom, MESSAGE_FETCH_PAGE_SIZE.toString());
+        await useChatState.getState().fetchNewer(whom, pageSize.toString());
       } else {
-        await useChatState
-          .getState()
-          .fetchOlder(whom, MESSAGE_FETCH_PAGE_SIZE.toString());
+        await useChatState.getState().fetchOlder(whom, pageSize.toString());
       }
 
       setFetching('initial');
@@ -247,6 +248,27 @@ export default function ChatScroller({
      */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollTo, virtuoso]);
+
+  /**
+   * By default, 100 messages are fetched on initial load. If there are more
+   * unreads per the brief, fetch those as well. That way, the user can click
+   * the unread banner and see the unread messages.
+   */
+  useEffect(() => {
+    if (
+      fetching === 'initial' &&
+      brief &&
+      brief.count > MESSAGE_FETCH_PAGE_SIZE &&
+      firstUnreadID &&
+      !keys.includes(firstUnreadID)
+    ) {
+      fetchMessages(false, brief.count);
+    }
+    /**
+     * Only want to track the brief and unread ID
+     */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brief, firstUnreadID]);
 
   return (
     <div className="relative h-full flex-1">
