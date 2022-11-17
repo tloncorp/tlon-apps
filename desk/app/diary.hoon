@@ -202,6 +202,7 @@
     |^  ^+  cor
     ~_  leaf+"Create failed: check group permissions"
       ?>  can-nest
+      ?>  ((sane %tas) name.req)
       =/  =flag:d  [our.bowl name.req]
       =|  =diary:d
       =/  =perm:d  [writers.req group.req]
