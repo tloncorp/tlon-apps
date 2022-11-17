@@ -94,6 +94,7 @@ function HeapChannel({ title }: ViewProps) {
   }, [chFlag, nest, setRecent]);
 
   useDismissChannelNotifications({
+    nest,
     markRead: useHeapState.getState().markRead,
   });
 

@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import _ from 'lodash';
 import { BigIntOrderedMap } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -7,6 +7,7 @@ import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import { ChatWrit } from '@/types/chat';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useLocation } from 'react-router';
+import { useChatStore } from './useChatStore';
 
 interface ChatWindowProps {
   whom: string;
@@ -19,13 +20,16 @@ export default function ChatWindow({
   messages,
   prefixedElement,
 }: ChatWindowProps) {
-  const brief = useChatState((s) => s.briefs[whom]);
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
 
+  useEffect(() => {
+    useChatStore.getState().setCurrent(whom);
+  }, [whom]);
+
   return (
     <div className="relative h-full">
-      <ChatUnreadAlerts brief={brief} whom={whom} />
+      <ChatUnreadAlerts whom={whom} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <ChatScroller
           messages={messages}

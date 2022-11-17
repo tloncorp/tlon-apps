@@ -1096,10 +1096,9 @@
         %unwatch  remark.chat(watching |)
         %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
       ::
-          %read   remark.chat(last-read now.bowl)
-  ::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
-  ::    =.  last-read.remark.chat  time
-  ::    ca-core
+          %read
+      =/  [=time =writ:c]  (need (ram:on:writs:c wit.pact.chat))
+      remark.chat(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
       (give-brief flag/flag ca-brief)
