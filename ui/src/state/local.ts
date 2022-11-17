@@ -14,6 +14,7 @@ interface LocalState {
   currentTheme: 'light' | 'dark';
   subscription: SubscriptionStatus;
   errorCount: number;
+  airLockErrorCount: number;
   set: (f: (s: LocalState) => void) => void;
 }
 
@@ -25,6 +26,7 @@ export const useLocalState = create<LocalState>(
       browserId: '',
       subscription: 'connected',
       errorCount: 0,
+      airLockErrorCount: 0,
     }),
     {
       name: createStorageKey('local'),
@@ -55,4 +57,9 @@ export function useSubscriptionStatus() {
 const selErrorCount = (s: LocalState) => s.errorCount;
 export function useErrorCount() {
   return useLocalState(selErrorCount);
+}
+
+const selAirLockErrorCount = (s: LocalState) => s.airLockErrorCount;
+export function useAirLockErrorCount() {
+  return useLocalState(selAirLockErrorCount);
 }

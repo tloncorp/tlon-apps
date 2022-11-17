@@ -236,10 +236,15 @@ export default function ChatInput({
   }, [whom, messageEditor]);
 
   useEffect(() => {
-    if ((autoFocus || reply) && messageEditor && !messageEditor.isDestroyed) {
+    if (
+      (autoFocus || reply) &&
+      !isMobile &&
+      messageEditor &&
+      !messageEditor.isDestroyed
+    ) {
       messageEditor.commands.focus();
     }
-  }, [autoFocus, reply, messageEditor]);
+  }, [autoFocus, reply, isMobile, messageEditor]);
 
   useEffect(() => {
     if (mostRecentFile && messageEditor && !messageEditor.isDestroyed) {
@@ -325,7 +330,7 @@ export default function ChatInput({
             <Avatar size="xs" ship={window.our} className="mr-2" />
             <MessageEditor
               editor={messageEditor}
-              className="w-full break-all"
+              className="w-full break-words"
             />
             {loaded &&
             hasCredentials &&

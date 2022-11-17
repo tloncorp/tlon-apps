@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import cn from 'classnames';
-import { intersection } from 'lodash';
+import { intersection, findLast } from 'lodash';
 import { useForm } from 'react-hook-form';
 import LinkIcon from '@/components/icons/LinkIcon';
 import { useHeapPerms, useHeapState } from '@/state/heap/heap';
@@ -18,7 +18,11 @@ import {
   NewCurioFormSchema,
   TEXT,
 } from '@/types/heap';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import { useHeapDisplayMode } from '@/state/settings';
+import { useFileStore } from '@/state/storage';
+import useFileUpload from '@/logic/useFileUpload';
 import HeapTextInput from './HeapTextInput';
 
 export default function NewCurioForm() {
@@ -39,11 +43,36 @@ export default function NewCurioForm() {
     perms.writers.length === 0 ||
     intersection(perms.writers, vessel.sects).length !== 0;
 
-  const { register, handleSubmit, reset, watch } = useForm<NewCurioFormSchema>({
-    defaultValues: {
-      content: '',
-    },
-  });
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const { loaded, hasCredentials, promptUpload } = useFileUpload();
+  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
+  const mostRecentFile = useFileStore((state) =>
+    findLast(state.files, ['for', fileId.current])
+  );
+  const { register, handleSubmit, reset, watch, setValue } =
+    useForm<NewCurioFormSchema>({
+      defaultValues: {
+        content: '',
+      },
+    });
+
+  useEffect(() => {
+    if (
+      mostRecentFile &&
+      mostRecentFile.status === 'error' &&
+      mostRecentFile.errorMessage
+    ) {
+      setUploadError(mostRecentFile.errorMessage);
+    }
+
+    if (mostRecentFile && mostRecentFile.status === 'success') {
+      setValue('content', mostRecentFile.url, {
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+    }
+  }, [mostRecentFile, setValue]);
+
   const { isPending, setPending, setReady } = useRequestState();
   const onSubmit = useCallback(
     async ({ content }: NewCurioFormSchema) => {
@@ -147,6 +176,31 @@ export default function NewCurioForm() {
               onKeyDown={onKeyDown}
               defaultValue={draftLink}
             />
+            {loaded && hasCredentials ? (
+              <button
+                title={'Upload an image'}
+                className="button absolute bottom-3 left-3 whitespace-nowrap rounded-md px-2 py-1"
+                aria-label="Add attachment"
+                onClick={(e) => {
+                  e.preventDefault();
+                  promptUpload(fileId.current);
+                }}
+              >
+                {mostRecentFile && mostRecentFile.status === 'loading' ? (
+                  <LoadingSpinner secondary="black" className="h-4 w-4" />
+                ) : (
+                  'Upload Image'
+                )}
+              </button>
+            ) : null}
+            {uploadError ? (
+              <div className="absolute mr-2">
+                <UploadErrorPopover
+                  errorMessage={uploadError}
+                  setUploadError={setUploadError}
+                />
+              </div>
+            ) : null}
             <input
               value={isPending ? 'Posting...' : 'Post'}
               type="submit"
