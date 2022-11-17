@@ -34,6 +34,7 @@ export interface ChatMessageProps {
   hideReplies?: boolean;
   hideOptions?: boolean;
   isLast?: boolean;
+  isLinked?: boolean;
 }
 
 function briefMatches(brief: ChatBrief, id: string): boolean {
@@ -54,6 +55,7 @@ const ChatMessage = React.memo<
         hideReplies = false,
         hideOptions = false,
         isLast = false,
+        isLinked = false,
       }: ChatMessageProps,
       ref
     ) => {
@@ -161,7 +163,8 @@ const ChatMessage = React.memo<
                 className={cn(
                   'flex w-full grow flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  !isMessageDelivered && !isMessagePosted && 'text-gray-400'
+                  !isMessageDelivered && !isMessagePosted && 'text-gray-400',
+                  isLinked && 'bg-blue-softer'
                 )}
               >
                 {'story' in memo.content ? (
