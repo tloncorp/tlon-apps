@@ -11,6 +11,8 @@ import {
   useChannel,
   useGroup,
   useVessel,
+  GROUP_ADMIN,
+  useAmAdmin,
 } from '@/state/groups/groups';
 import {
   useCuriosForHeap,
@@ -35,10 +37,12 @@ import bigInt from 'big-integer';
 import NewCurioForm from './NewCurioForm';
 
 function HeapChannel({ title }: ViewProps) {
+  const navigate = useNavigate();
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
   const flag = useRouteGroup();
+  const amAdmin = useAmAdmin(flag);
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
   const [, setRecent] = useLocalStorage(
@@ -46,7 +50,13 @@ function HeapChannel({ title }: ViewProps) {
     ''
   );
 
-  const navigate = useNavigate();
+  useEffect(() => {
+    if (channel?.readers.includes(GROUP_ADMIN) && !amAdmin) {
+      navigate('../activity');
+      setRecent('');
+    }
+  }, [channel, amAdmin, navigate, setRecent]);
+
   const displayMode = useHeapDisplayMode(chFlag);
   const settings = useHeapSettings();
   // for now sortMode is not actually doing anything.

@@ -2,7 +2,13 @@ import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup, useVessel } from '@/state/groups/groups';
+import {
+  GROUP_ADMIN,
+  useAmAdmin,
+  useChannel,
+  useRouteGroup,
+  useVessel,
+} from '@/state/groups/groups';
 import {
   useNotesForDiary,
   useDiaryState,
@@ -36,6 +42,7 @@ function DiaryChannel() {
   const letters = useNotesForDiary(chFlag);
   const location = useLocation();
   const navigate = useNavigate();
+  const amAdmin = useAmAdmin(flag);
   const [, setRecent] = useLocalStorage(
     createStorageKey(`recent-chan:${flag}`),
     ''
@@ -46,6 +53,15 @@ function DiaryChannel() {
     flag: chFlag,
     time: newNote || '',
   });
+
+  const channel = useChannel(flag, chFlag);
+
+  useEffect(() => {
+    if (channel?.readers.includes(GROUP_ADMIN) && !amAdmin) {
+      navigate('../activity');
+      setRecent('');
+    }
+  }, [channel, amAdmin, navigate, setRecent]);
 
   const settings = useDiarySettings();
   // for now sortMode is not actually doing anything.
