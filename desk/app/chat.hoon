@@ -373,13 +373,15 @@
   |=  =graph:gra:c
   ^+  cor
   =/  old-dms  (tap:orm-gra:c graph)
+  =|  =remark:c 
+  =.  last-read.remark  now.bowl
   |-  =*  loop  $
   ?~  old-dms  cor
   =/  [ship=@ =node:gra:c]  i.old-dms
   ?.  ?=(%graph -.children.node)
     loop(old-dms t.old-dms)
   =.  dms  
-    (~(put by dms) ship (graph-to-pact p.children.node) *remark:c %done |)
+    (~(put by dms) ship (graph-to-pact p.children.node) remark %done |)
   loop(old-dms t.old-dms)
 ++  graph-to-pact
   |=  =graph:gra:c
@@ -909,7 +911,7 @@
     ^+  ca-core
     =?  ca-core  ?=(%sub -.net.chat)
       ca-sub
-    ca-core
+    (ca-remark-diff read/~)
   ::
   ++  ca-spin  
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
