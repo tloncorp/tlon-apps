@@ -14,10 +14,12 @@
 ++  trace
   |*  [tag=@t sef=rule]
   |=  tub=nail
-  ~?  dbug  [tag tub]
-  =-  ~?(dbug [tag -] -)  (sef tub)
+  ?.  dbug
+    (sef tub)
+  ~|  [tag tub]
+  (sef tub)
 ::
-++  dbug  |
+++  dbug  &
 ++  edict
   |$  [prod]
   $-(nail (like prod))
@@ -384,9 +386,12 @@
   ?~  q.vex
     (fail tub)
   =/  but=nail  tub
+  ~|  q.u.q.vex
   =+  outer=(;~(sfix (plus ;~(less delim next)) delim) q.u.q.vex)
   ?~  q.outer
     (fail tub)
+  ~|  infix-fail/p.u.q.outer
+  ~|  ;;(tape p.u.q.outer)
   =+  in=(inner [1 1] p.u.q.outer)
   ?~  q.in
     (fail tub)
@@ -428,7 +433,7 @@
     ;~(plug (stun [1 6] hax) inline)
   ++  blockquote  (stag %inline (listify (stag %blockquote ;~(pfix gar inline))))
   ++  hr          (stag %block (cold `block:d`rule/~ (jest '---')))
-  ++  str         (tie (plus ;~(less cab tar next)))
+  ++  str         (tie (plus ;~(less cab tar tic next)))
   ++  inline-verse  (stag %inline inline)
   ++  inline
     %+  knee  *(list inline:d)
@@ -436,9 +441,13 @@
     %+  trace  %inline
     %-  plus
     ;~  pose
+      (stag %bold (infix ;~(plug cab cab) inline))
+      (stag %bold (infix ;~(plug tar tar) inline))
+      (stag %inline-code (infix tic code))
       (stag %italics (infix cab inline))
       (stag %italics (infix tar inline))
       str
+      next
     ==
   ::
   ++  line-start
@@ -451,6 +460,9 @@
       inline-verse
     ==
   --
+::
+++  code
+  (tie (star next))
 ++  tie
   |*  rul=rule
   (cook crip rul)
