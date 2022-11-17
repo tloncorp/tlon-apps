@@ -236,13 +236,14 @@
     ?:(=(~ writers) ~ (silt (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~) ~))
   =/  =remark:d
     [now.bowl | ~]
+  =/  =notes:d  graph-to-notes
   =/  =diary:d
     :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
-        log=(import-log update-log)
+        log=(import-log notes perm)
         perm
         %grid  :: TODO: check defaults with design
         %time
-        graph-to-notes
+        notes
         remark
     ==
   =.  shelf  (~(put by shelf) flag diary)
@@ -250,9 +251,12 @@
   loop(imports t.imports)
   ::
   ++  import-log  
-    |=  log=update-log:gra:d
+    |=  [=notes:d =perm:d]
     ^-  log:d
-    *log:d ::TODO fix
+    =/  =time  (fall (bind (ram:orm-log-gra:d update-log) head) *time)
+    %+  gas:log-on:d  *log:d
+    :~  [time %create perm notes]
+    ==
   ::
   ++  graph-to-notes
     %+  gas:on:notes:d  *notes:d
