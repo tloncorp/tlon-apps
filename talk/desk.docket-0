@@ -4,7 +4,7 @@
     image+'https://bootstrap.urbit.org/icon-talk.svg?v=1'
     glob-http+['https://bootstrap.urbit.org/glob-0v4.hoveu.ovjdu.k2srg.odmrq.kt347.glob' 0v4.hoveu.ovjdu.k2srg.odmrq.kt347]
     base+'talk'
-    version+[0 9 0]
+    version+[0 9 1]
     website+'https://tlon.io'
     license+'MIT'
 ==
