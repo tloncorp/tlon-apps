@@ -1,30 +1,29 @@
+import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import useAllBriefs from '@/logic/useAllBriefs';
-import { useNotifications } from '@/notifications/useNotifications';
 import { useCallback } from 'react';
+import { nestToFlag } from './utils';
 
-export default function useIsChannelUnread(groupFlag: string) {
-  const { notifications } = useNotifications(groupFlag);
+const selChats = (s: ChatStore) => s.chats;
+
+export default function useIsChannelUnread() {
   const briefs = useAllBriefs();
+  const chats = useChatStore(selChats);
 
   /**
-   * A Channel is unread if:
-   * - it's brief has new unseen items, or
-   * - any of its bins is unread and matches the chFlag
+   * A Channel is unread if it's brief has new unseen items
    */
   const isChannelUnread = useCallback(
-    (chFlag: string) => {
-      const hasActivity = (briefs[chFlag]?.count ?? 0) > 0;
+    (nest: string) => {
+      const [app, chFlag] = nestToFlag(nest);
+      const unread = chats[chFlag]?.unread;
 
-      return (
-        hasActivity ||
-        notifications.some((n) =>
-          n.bins.some(
-            (b) => b.unread && b.topYarn?.rope.channel?.includes(chFlag)
-          )
-        )
-      );
+      if (app === 'chat') {
+        return unread && !unread.seen;
+      }
+
+      return (briefs[nest]?.count ?? 0) > 0;
     },
-    [briefs, notifications]
+    [briefs, chats]
   );
 
   return {

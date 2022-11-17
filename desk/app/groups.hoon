@@ -97,6 +97,7 @@
   ::
       %group-create
     =+  !<(=create:g vase)
+    ?>  ((sane %tas) name.create)
     =/  =flag:g  [our.bowl name.create]
     ~!  members.create
     =/  =fleet:g

@@ -4,8 +4,8 @@ import Lock16Icon from '@/components/icons/Lock16Icon';
 import Private16Icon from '@/components/icons/Private16Icon';
 import { getFlagParts, getGroupPrivacy } from '@/logic/utils';
 import { GroupPreview } from '@/types/groups';
-import LockOpen16Icon from '@/components/icons/LockOpen16Icon';
 import GroupAvatar from '@/groups/GroupAvatar';
+import Globe16Icon from '@/components/icons/Globe16Icon';
 
 export type GroupSummarySize = 'default' | 'small';
 
@@ -40,7 +40,7 @@ export default function GroupSummary({
           {privacy ? (
             <span className="inline-flex items-center space-x-1 capitalize">
               {privacy === 'public' ? (
-                <LockOpen16Icon className="h-4 w-4" />
+                <Globe16Icon className="h-4 w-4" />
               ) : privacy === 'private' ? (
                 <Lock16Icon className="h-4 w-4" />
               ) : (

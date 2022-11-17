@@ -50,7 +50,7 @@ export default function ImageURLUploadField({
   }, [mostRecentFile, formSetValue, formValue]);
 
   return (
-    <div className="input relative flex w-full items-center justify-end">
+    <div className="input relative flex h-8 w-full items-center justify-end">
       <input
         className={cn('input-inner grow p-0')}
         onFocus={() => setIsFocused(true)}

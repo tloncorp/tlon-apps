@@ -114,6 +114,7 @@ function DiaryChannel() {
   }, [newNote, location, navigate]);
 
   useDismissChannelNotifications({
+    nest,
     markRead: useDiaryState.getState().markRead,
   });
 

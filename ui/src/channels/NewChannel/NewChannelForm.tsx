@@ -51,7 +51,10 @@ export default function NewChannelForm() {
         In the future, we will index channels by their full path (including group name), and this will no
         longer be necessary. That change will require a migration of existing channels.
        */
-      const tempChannelName = strToSym(values.meta.title);
+      const tempChannelName = strToSym(values.meta.title).replace(
+        /[^a-z]*([a-z][-\w\d]+)/i,
+        '$1'
+      );
       const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
       const existingChannel = () => {
         if (type === 'chat') {

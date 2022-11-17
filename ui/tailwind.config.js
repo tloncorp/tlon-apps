@@ -37,6 +37,7 @@ const lightColors = {
   blue: {
     DEFAULT: '#008EFF',
     soft: '#E5F4FF',
+    softer: 'rgba(0, 142, 255, 0.1)',
   },
   indigo: {
     DEFAULT: '#615FD3',
@@ -78,6 +79,7 @@ const darkColors = {
   blue: {
     DEFAULT: '#008EFF',
     soft: colors.blue['900'],
+    softer: 'rgba(0, 142, 255, 0.2)',
   },
   indigo: {
     DEFAULT: '#615FD3',

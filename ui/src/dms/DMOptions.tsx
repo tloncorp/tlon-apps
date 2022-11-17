@@ -1,19 +1,20 @@
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
-import Dialog, { DialogContent } from '../components/Dialog';
-import EllipsisIcon from '../components/icons/EllipsisIcon';
-import LeaveIcon from '../components/icons/LeaveIcon';
-import { useBriefs, useChatState, usePinned } from '../state/chat';
-import PinIcon from '../components/icons/PinIcon';
-import BulletIcon from '../components/icons/BulletIcon';
-import InviteIcon16 from '../components/icons/InviteIcon16';
+import Dialog, { DialogContent } from '@/components/Dialog';
+import EllipsisIcon from '@/components/icons/EllipsisIcon';
+import LeaveIcon from '@/components/icons/LeaveIcon';
+import { useChatState, usePinned } from '@/state/chat';
+import PinIcon from '@/components/icons/PinIcon';
+import BulletIcon from '@/components/icons/BulletIcon';
+import InviteIcon16 from '@/components/icons/InviteIcon16';
+import { whomIsMultiDm } from '@/logic/utils';
+import SlidersIcon from '@/components/icons/SlidersIcon';
+import PeopleIcon from '@/components/icons/PeopleIcon';
+import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import DmInviteDialog from './DmInviteDialog';
-import { whomIsMultiDm } from '../logic/utils';
-import SlidersIcon from '../components/icons/SlidersIcon';
-import PeopleIcon from '../components/icons/PeopleIcon';
 
 interface DMOptionsProps {
   whom: string;
@@ -33,8 +34,8 @@ export default function DmOptions({
   const location = useLocation();
   const navigate = useNavigate();
   const pinned = usePinned();
-  const briefs = useBriefs();
-  const hasActivity = (briefs[whom]?.count ?? 0) > 0 || pending;
+  const { isChannelUnread } = useIsChannelUnread();
+  const hasActivity = isChannelUnread(`chat/${whom}`) || pending;
   const [isOpen, setIsOpen] = useState(false);
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
   const onArchive = () => {
