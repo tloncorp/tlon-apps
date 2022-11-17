@@ -386,12 +386,9 @@
   ?~  q.vex
     (fail tub)
   =/  but=nail  tub
-  ~|  q.u.q.vex
   =+  outer=(;~(sfix (plus ;~(less delim next)) delim) q.u.q.vex)
   ?~  q.outer
     (fail tub)
-  ~|  infix-fail/p.u.q.outer
-  ~|  ;;(tape p.u.q.outer)
   =+  in=(inner [1 1] p.u.q.outer)
   ?~  q.in
     (fail tub)
