@@ -64,11 +64,14 @@ const ChatMessage = React.memo<
         threshold: 1,
         onChange: useCallback(
           (inView) => {
+            // if no tracked unread we don't need to take any action
             if (!unread) {
               return;
             }
 
             const { brief, seen } = unread;
+            /* the first fire of this function
+               which we don't to do anything with. */
             if (!inView && !seen) {
               return;
             }
@@ -80,12 +83,20 @@ const ChatMessage = React.memo<
             } = useChatStore.getState();
             const { markRead } = useChatState.getState();
 
+            /* once the unseen marker comes into view we need to mark it
+               as seen and start a timer to mark it read so it goes away.
+               we ensure that the brief matches and hasn't changed before
+               doing so. we don't want to accidentally clear unreads when
+               the state has changed 
+            */
             if (inView && briefMatches(brief, writ.seal.id) && !seen) {
               markSeen(whom);
               delayedRead(whom, () => markRead(whom));
               return;
             }
 
+            /* finally, if the marker transitions back to not being visible,
+              we can assume the user is done and clear the unread. */
             if (!inView && unread && seen) {
               read(whom);
               markRead(whom);
