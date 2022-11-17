@@ -422,12 +422,13 @@
   =/  =perm:c
     :_  group.association
     ?:(=(~ writers) ~ (silt (rap 3 %chat '-' (scot %p p.flag) '-' q.flag ~) ~))
+  =/  =pact:c  (graph-to-pact graph)
   =/  =chat:c
     :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag chi/~])
-        *remark:c  ::  TODO:
-        log=(import-log update-log)
+        *remark:c
+        log=(import-log pact perm)
         perm
-        (graph-to-pact graph)
+        pact
     ==
   =.  chats  (~(put by chats) flag chat)
   =.  cor
@@ -435,9 +436,13 @@
   loop(imports t.imports)
   ::
   ++  import-log  
-    |=  log=update-log:gra:c
+    |=  [=pact:c =perm:c]
     ^-  log:c
-    *log:c ::TODO fix
+    =/  =time  (fall (bind (ram:orm-log-gra:c update-log) head) *time)
+    %+  gas:log-on:c  *log:c
+    :~  [time %create perm pact]
+    ==
+  ::
   ++  orm  orm-gra:c
   --
 ::

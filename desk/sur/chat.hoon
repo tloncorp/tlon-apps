@@ -349,4 +349,5 @@
 ::
 ++  gra  graph-store
 ++  orm-gra  orm:lib-graph
+++  orm-log-gra  orm-log:lib-graph
 --
