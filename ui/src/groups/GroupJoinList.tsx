@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import cn from 'classnames';
 import { useIsMobile } from '@/logic/useMedia';
 import { Gang, Gangs } from '@/types/groups';
@@ -12,14 +12,8 @@ interface GroupJoinItemProps {
 }
 
 function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
-  const [hasBeenClicked, setHasBeenClicked] = useState(false);
-  const { open, reject, button, privacy, requested } = useGroupJoin(flag, gang);
+  const { open, reject, button, status } = useGroupJoin(flag, gang);
   const isMobile = useIsMobile();
-
-  const onClick = useCallback((buttonAction: () => void) => {
-    setHasBeenClicked(true);
-    buttonAction();
-  }, []);
 
   return (
     <li className="relative flex items-center">
@@ -33,7 +27,7 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
         <GroupSummary flag={flag} {...gang.preview} size={'small'} />
       </button>
       <div className="absolute right-2 flex flex-row">
-        {gang.invite ? (
+        {gang.invite && status !== 'loading' ? (
           <button
             className="button bg-red-soft text-red mix-blend-multiply dark:bg-red-900 dark:mix-blend-screen"
             onClick={reject}
@@ -41,17 +35,17 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
             Reject
           </button>
         ) : null}
-        <button
-          className="button ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100"
-          onClick={() => onClick(button.action)}
-          disabled={button.disabled}
-        >
-          {hasBeenClicked && privacy === 'private' && !requested ? (
-            <LoadingSpinner />
-          ) : (
+        {status === 'loading' ? (
+          <LoadingSpinner />
+        ) : (
+          <button
+            className="button ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100"
+            onClick={button.action}
+            disabled={button.disabled}
+          >
             button.text
-          )}
-        </button>
+          </button>
+        )}
       </div>
     </li>
   );

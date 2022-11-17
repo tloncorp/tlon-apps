@@ -198,13 +198,30 @@ export const useGroupState = create<GroupState>(
           };
         });
 
-        await api.poke({
-          app: 'groups',
-          mark: 'group-join',
-          json: {
-            flag,
-            'join-all': joinAll,
-          },
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            app: 'groups',
+            mark: 'group-join',
+            json: {
+              flag,
+              'join-all': joinAll,
+            },
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  console.log({ event });
+                  if (typeof event === 'object' && 'flag' in event) {
+                    return flag === event.flag;
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
         });
       },
       knock: async (flag) => {
@@ -518,17 +535,21 @@ export const useGroupState = create<GroupState>(
             }
 
             const { flag, update } = data as GroupAction;
-            if ('create' in update.diff) {
-              const group = update.diff.create;
-              get().batchSet((draft) => {
-                draft.groups[flag] = group;
-              });
-            }
+            if (update) {
+              // check if update exists, sometimes we just get back the flag.
+              // TODO: figure out why this happens
+              if ('create' in update.diff) {
+                const group = update.diff.create;
+                get().batchSet((draft) => {
+                  draft.groups[flag] = group;
+                });
+              }
 
-            if ('del' in update.diff) {
-              get().batchSet((draft) => {
-                delete draft.groups[flag];
-              });
+              if ('del' in update.diff) {
+                get().batchSet((draft) => {
+                  delete draft.groups[flag];
+                });
+              }
             }
           },
         });
