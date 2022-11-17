@@ -17,6 +17,7 @@ import { ChatState } from '@/state/chat/type';
 import { useChatState, useLoadedWrits } from '@/state/chat/chat';
 import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
+import { useIsMobile } from '@/logic/useMedia';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import { ChatInfo, useChatInfo } from '../useChatStore';
@@ -136,6 +137,15 @@ export default function ChatScroller({
   const loaded = useLoadedWrits(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const virtuoso = useRef<VirtuosoHandle>(null);
+  const isMobile = useIsMobile();
+
+  const thresholds = {
+    atBottomThreshold: isMobile ? 125 : 250,
+    atTopThreshold: isMobile ? 1200 : 2500,
+    overscan: isMobile
+      ? { main: 200, reverse: 200 }
+      : { main: 400, reverse: 400 },
+  };
 
   const keys = useMemo(
     () =>
@@ -210,30 +220,7 @@ export default function ChatScroller({
    * The actual index value is arbitrary, just need to change directionally
    */
   const START_INDEX = 9999999;
-  const [firstItemIndex, setfirstItemIndex] = useState(START_INDEX);
-  const [initialTopMostItemIndex, setInitialTopMostItemIndex] = useState(
-    START_INDEX - 1
-  );
-
-  useEffect(() => {
-    setfirstItemIndex(START_INDEX - keys.length);
-  }, [keys]);
-
-  useEffect(() => {
-    if (keys.length === 0) {
-      return;
-    }
-
-    const idx = scrollTo
-      ? keys.findIndex((k) => k.eq(scrollTo))
-      : keys.length - 1;
-
-    if (idx === initialTopMostItemIndex) {
-      return;
-    }
-
-    setInitialTopMostItemIndex(idx > -1 ? idx : START_INDEX - 1);
-  }, [initialTopMostItemIndex, keys, scrollTo]);
+  const firstItemIndex = useMemo(() => START_INDEX - keys.length, [keys]);
 
   /**
    * If scrollTo is set, we want to scroll to that index.
@@ -241,32 +228,25 @@ export default function ChatScroller({
    */
   useEffect(() => {
     if (virtuoso.current) {
-      let scrollToIndex: number | 'LAST';
-      if (!scrollTo || !keys.length) {
-        scrollToIndex = 'LAST';
-      } else {
+      let scrollToIndex: number | 'LAST' = 'LAST';
+      if (scrollTo) {
         const idx = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
         scrollToIndex = idx > -1 ? idx : 'LAST';
       }
 
-      setTimeout(() => {
-        if (!virtuoso.current) {
-          return;
-        }
-        virtuoso.current.scrollToIndex({
-          index: scrollToIndex,
-          align: 'start',
-          behavior: 'auto',
-        });
-      }, 50);
+      virtuoso.current.scrollToIndex({
+        index: scrollToIndex,
+        align: 'start',
+        behavior: 'auto',
+      });
     }
     /**
      * Only trigger this effect when scrollTo changes (e.g., clicking the unread
      * banner); otherwise, we'll scroll to the bottom each time older messages
-     * are fetched.
+     * are fetched, or jump to the scrollTo message if it's in the backscroll
      */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo]);
+  }, [scrollTo, virtuoso]);
 
   return (
     <div className="relative h-full flex-1">
@@ -281,9 +261,7 @@ export default function ChatScroller({
         style={{
           overflowY: 'scroll',
         }}
-        atBottomThreshold={250}
-        atTopThreshold={2500}
-        overscan={{ main: 100, reverse: 100 }}
+        {...thresholds}
         atTopStateChange={(top) => {
           if (top) {
             fetchMessages(false);
@@ -295,7 +273,6 @@ export default function ChatScroller({
           }
         }}
         firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={initialTopMostItemIndex}
         itemContent={(i, realIndex) => <Message index={realIndex} />}
         computeItemKey={computeItemKey}
         components={{
