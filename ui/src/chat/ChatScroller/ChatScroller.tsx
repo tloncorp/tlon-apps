@@ -240,7 +240,7 @@ export default function ChatScroller({
    * If it's not set, we want to scroll to the bottom.
    */
   useEffect(() => {
-    if (scrollTo && virtuoso.current) {
+    if (virtuoso.current) {
       let scrollToIndex: number | 'LAST';
       if (!scrollTo || !keys.length) {
         scrollToIndex = 'LAST';
@@ -260,7 +260,13 @@ export default function ChatScroller({
         });
       }, 50);
     }
-  }, [keys, scrollTo]);
+    /**
+     * Only trigger this effect when scrollTo changes (e.g., clicking the unread
+     * banner); otherwise, we'll scroll to the bottom each time older messages
+     * are fetched.
+     */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTo]);
 
   return (
     <div className="relative h-full flex-1">
@@ -276,7 +282,8 @@ export default function ChatScroller({
           overflowY: 'scroll',
         }}
         atBottomThreshold={250}
-        atTopThreshold={400}
+        atTopThreshold={2500}
+        overscan={{ main: 100, reverse: 100 }}
         atTopStateChange={(top) => {
           if (top) {
             fetchMessages(false);
