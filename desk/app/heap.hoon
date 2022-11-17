@@ -264,7 +264,7 @@
       perm
       %grid :: XX: check defaults with design
       graph-to-curios
-      *remark:h
+      [now.bowl | ~]
     ==
   =.  cor
     he-abet:(he-import:(he-abed:he-core flag) writers association)
