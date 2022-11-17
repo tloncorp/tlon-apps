@@ -257,13 +257,14 @@
   =/  =perm:h
     :_  group.association
     ?:(=(~ writers) ~ (silt (rap 3 %heap '-' (scot %p p.flag) '-' q.flag ~) ~))
+  =/  =curios:h  graph-to-curios
   =.  stash
     %+  ~(put by stash)  flag
     :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
-      log=(import-log update-log)
+      log=(import-log perm curios)
       perm
       %grid :: XX: check defaults with design
-      graph-to-curios
+      curios
       [now.bowl | ~]
     ==
   =.  cor
@@ -271,9 +272,13 @@
   loop(imports t.imports)
   ::
   ++  import-log
-    |=  =update-log:gra:h
+    |=  [=perm:h =curios:h]
     ^-  log:h
-    *log:h
+    =/  =time  (fall (bind (ram:orm-log-gra:h update-log) head) *time)
+    %+  gas:log-on:h  *log:h
+    :~  [time %create perm curios]
+    ==
+  ::
   ++  orm  orm-gra:h
   ::
   ++  graph-to-curios
