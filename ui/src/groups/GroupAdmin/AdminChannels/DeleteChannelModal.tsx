@@ -1,12 +1,15 @@
 import React from 'react';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import { GroupChannel } from '@/types/groups';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface DeleteChannelModalProps {
   deleteChannelIsOpen: boolean;
   setDeleteChannelIsOpen: (open: boolean) => void;
   onDeleteChannelConfirm: () => void;
   channel?: GroupChannel;
+  deleteStatus: Status;
 }
 
 export default function DeleteChannelModal({
@@ -14,6 +17,7 @@ export default function DeleteChannelModal({
   setDeleteChannelIsOpen,
   onDeleteChannelConfirm,
   channel,
+  deleteStatus,
 }: DeleteChannelModalProps) {
   return (
     <Dialog open={deleteChannelIsOpen} onOpenChange={setDeleteChannelIsOpen}>
@@ -32,8 +36,15 @@ export default function DeleteChannelModal({
             <button
               onClick={() => onDeleteChannelConfirm()}
               className="button bg-red text-white"
+              disabled={deleteStatus === 'loading'}
             >
-              Delete
+              {deleteStatus === 'loading' ? (
+                <LoadingSpinner className="h-4 w-4" />
+              ) : deleteStatus === 'error' ? (
+                'Error'
+              ) : (
+                'Delete'
+              )}
             </button>
           </div>
         </footer>

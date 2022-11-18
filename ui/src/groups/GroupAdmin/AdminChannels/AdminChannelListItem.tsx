@@ -12,9 +12,10 @@ import { Chat } from '@/types/chat';
 import { Heap } from '@/types/heap';
 import { useDiaryState } from '@/state/diary';
 import ChannelIcon from '@/channels/ChannelIcon';
-import AdminChannelListDropdown from './AdminChannelListDropdown';
-import DeleteChannelModal from './DeleteChannelModal';
-import { PRIVACY_TYPE } from './ChannelPermsSelector';
+import AdminChannelListDropdown from '@/groups/GroupAdmin/AdminChannels/AdminChannelListDropdown';
+import DeleteChannelModal from '@/groups/GroupAdmin/AdminChannels/DeleteChannelModal';
+import { PRIVACY_TYPE } from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
+import { Status } from '@/logic/status';
 
 interface AdminChannelListItemProps {
   nest: string;
@@ -56,13 +57,21 @@ export default function AdminChannelListItem({
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const privacy = getPrivacyFromChannel(channel, getChannel(app, channelFlag));
   const permissionText = PRIVACY_TYPE[privacy].title;
 
   const onDeleteChannelConfirm = useCallback(async () => {
-    setDeleteChannelIsOpen(!deleteChannelIsOpen);
-    await useGroupState.getState().deleteChannel(flag, nest);
-    onChannelDelete(nest, sectionKey);
+    setDeleteStatus('loading');
+    try {
+      await useGroupState.getState().deleteChannel(flag, nest);
+      onChannelDelete(nest, sectionKey);
+      setDeleteStatus('success');
+      setDeleteChannelIsOpen(!deleteChannelIsOpen);
+    } catch (e) {
+      setDeleteStatus('error');
+      console.log(e);
+    }
   }, [nest, deleteChannelIsOpen, onChannelDelete, sectionKey, flag]);
 
   return (
@@ -117,6 +126,7 @@ export default function AdminChannelListItem({
         onDeleteChannelConfirm={onDeleteChannelConfirm}
         setDeleteChannelIsOpen={setDeleteChannelIsOpen}
         channel={channel}
+        deleteStatus={deleteStatus}
       />
     </>
   );

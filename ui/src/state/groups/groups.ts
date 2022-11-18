@@ -381,16 +381,36 @@ export const useGroupState = create<GroupState>(
         });
       },
       deleteChannel: async (flag, nest) => {
-        await api.poke(
-          groupAction(flag, {
-            channel: {
-              nest,
-              diff: {
-                del: null,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, {
+              channel: {
+                nest,
+                diff: {
+                  del: null,
+                },
               },
+            }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { update } = event as GroupAction;
+                    return (
+                      'channel' in update.diff &&
+                      nest === update.diff.channel.nest &&
+                      'del' in update.diff.channel.diff
+                    );
+                  }
+
+                  return false;
+                });
+              resolve();
             },
-          })
-        );
+          });
+        });
       },
       createZone: async (flag, zone, meta) => {
         const dif = {
