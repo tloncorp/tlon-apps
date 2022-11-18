@@ -70,7 +70,7 @@ import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
-import AlphaNotice from './components/AlphaNotice';
+import PrereleaseNotice from './components/PrereleaseNotice';
 import DisconnectNotice from './components/DisconnectNotice';
 import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
 import TalkNav from './nav/TalkNav';
@@ -456,7 +456,7 @@ function App() {
       {subscription === 'disconnected' || subscription === 'reconnecting' ? (
         <DisconnectNotice />
       ) : null}
-      <AlphaNotice />
+      <PrereleaseNotice />
       {isChat ? (
         <ChatRoutes
           state={state}
