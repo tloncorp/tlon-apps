@@ -41,7 +41,12 @@ export default function JoinGroupModal() {
               </button>
             ) : null}
             {status === 'loading' ? (
-              <LoadingSpinner />
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-400">Joining...</span>
+                <LoadingSpinner className="h-5 w-4" />
+              </div>
+            ) : status === 'error' ? (
+              <span className="text-red-500">Error</span>
             ) : (
               <button
                 className="button ml-2 bg-blue text-white dark:text-black"

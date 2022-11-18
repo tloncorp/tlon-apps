@@ -65,13 +65,17 @@ export default function GroupReference({ flag }: GroupReferenceProps) {
           </button>
         ) : null}
         {status === 'loading' ? (
-          <LoadingSpinner />
+          <div className="flex items-center space-x-2">
+            <span className="text-gray-400">Joining...</span>
+            <LoadingSpinner />
+          </div>
         ) : (
           <button
             className="small-button ml-2 bg-blue text-white dark:text-black"
             onClick={button.action}
+            disabled={button.disabled || status === 'error'}
           >
-            {button.text}
+            {status === 'error' ? 'Errored' : button.text}
           </button>
         )}
       </div>

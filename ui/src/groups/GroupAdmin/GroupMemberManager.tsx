@@ -202,7 +202,7 @@ export default function GroupMemberManager() {
                       >
                         {getSectTitle(group.cabals, s)}
                         {sectStatus === 'loading' ? (
-                          <LoadingSpinner className="ml-auto h-6 w-6" />
+                          <LoadingSpinner className="ml-auto h-4 w-4" />
                         ) : vessel.sects.includes(s) ? (
                           <CheckIcon className="ml-auto h-6 w-6 text-green" />
                         ) : (

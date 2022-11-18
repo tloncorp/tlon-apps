@@ -33,6 +33,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [deleteField, setDeleteField] = useState('');
   const [status, setStatus] = useState<Status>('initial');
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -63,6 +64,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     try {
       await useGroupState.getState().delete(groupFlag);
       setDeleteStatus('success');
+      setDeleteDialogOpen(false);
       navigate('/');
     } catch (e) {
       setDeleteStatus('error');
@@ -130,10 +132,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
         <p className="mb-4">
           Deleting this group will permanently remove all content and members
         </p>
-        <Dialog>
-          <DialogTrigger className="button bg-red text-white dark:text-black">
+        <Dialog open={deleteDialogOpen}>
+          <button
+            onClick={() => setDeleteDialogOpen(true)}
+            className="button bg-red text-white dark:text-black"
+          >
             Delete {group?.meta.title}
-          </DialogTrigger>
+          </button>
           <DialogContent containerClass="max-w-[420px]">
             <h2 className="mb-4 text-lg font-bold">Delete Group</h2>
             <p className="mb-4">

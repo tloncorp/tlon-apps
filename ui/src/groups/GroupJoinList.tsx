@@ -36,14 +36,17 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
           </button>
         ) : null}
         {status === 'loading' ? (
-          <LoadingSpinner />
+          <div className="flex items-center justify-center space-x-2">
+            <span className="text-gray-400"> Joining... </span>
+            <LoadingSpinner className="h-4 w-4" />
+          </div>
         ) : (
           <button
             className="button ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100"
             onClick={button.action}
-            disabled={button.disabled}
+            disabled={button.disabled || status === 'error'}
           >
-            button.text
+            {status === 'error' ? 'Errored' : button.text}
           </button>
         )}
       </div>
