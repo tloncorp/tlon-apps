@@ -1,9 +1,11 @@
 import React, { useCallback } from 'react';
 import { format, isToday } from 'date-fns';
 import { useLocation, useNavigate } from 'react-router';
+import { daToUnix, udToDec } from '@urbit/api';
+import bigInt from 'big-integer';
 import XIcon from '@/components/icons/XIcon';
-import { pluralize } from '../logic/utils';
-import { useChatState, useGetFirstUnreadID } from '../state/chat';
+import { pluralize } from '@/logic/utils';
+import { useChatState, useGetFirstUnreadID } from '@/state/chat';
 import { useChatInfo } from './useChatStore';
 
 interface ChatUnreadAlertsProps {
@@ -32,7 +34,11 @@ export default function ChatUnreadAlerts({ whom }: ChatUnreadAlertsProps) {
   }
 
   const { brief } = chatInfo.unread;
-  const date = brief ? new Date(brief.last) : new Date();
+  const readId = brief['read-id'];
+  const udTime = readId
+    ? daToUnix(bigInt(udToDec(readId.split('/')[1])))
+    : null;
+  const date = udTime ? new Date(udTime) : new Date();
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`
     : format(date, 'LLLL d');

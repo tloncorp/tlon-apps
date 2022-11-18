@@ -69,8 +69,6 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const isMobile = useIsMobile();
   const { isChannelUnread } = useIsChannelUnread();
 
-  usePrefetchChannels(flag);
-
   if (!group) {
     return null;
   }

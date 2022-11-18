@@ -540,6 +540,7 @@
     ?-    -.d
         %curios
       =.  curios.heap  (reduce:he-curios time q.p.d)
+      =.  cor  (give-brief flag he-brief)
       ?-  -.q.p.d
           ?(%edit %del %add-feel %del-feel)  he-core
           %add

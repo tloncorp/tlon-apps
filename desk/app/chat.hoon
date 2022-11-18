@@ -1112,8 +1112,6 @@
       (put:log-on:c log.chat time d)
     =.  ca-core
       (ca-give-updates time d)
-    =.  cor
-      (give-brief flag/flag ca-brief)
     ?-    -.d
         %add-sects
       =*  p  perm.chat
@@ -1131,6 +1129,7 @@
     ::
         %writs
       =.  pact.chat  (reduce:ca-pact time p.d)
+      =.  cor  (give-brief flag/flag ca-brief)
       ?-  -.q.p.d  
           ?(%del %add-feel %del-feel)  ca-core
           %add

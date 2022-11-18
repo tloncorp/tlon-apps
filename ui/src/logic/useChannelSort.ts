@@ -12,6 +12,7 @@ import useSidebarSort, {
   RECENT,
   sortAlphabetical,
   Sorter,
+  useRecentSort,
 } from './useSidebarSort';
 import { nestToFlag } from './utils';
 
@@ -66,7 +67,7 @@ function useRecentChannelSort() {
 export default function useChannelSort() {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
-  const sortRecent = useRecentChannelSort();
+  const sortRecent = useRecentSort();
 
   const sortDefault = (a: Zone, b: Zone) => {
     if (!group) {
