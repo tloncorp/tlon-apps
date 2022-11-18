@@ -1,11 +1,6 @@
 import { get } from 'lodash';
-import { useCallback } from 'react';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { GroupChannel, Channels, Zone } from '@/types/groups';
-import { useGetLatestChat } from '@/state/chat';
-import { ChatWhom } from '@/types/chat';
-import { useGetLatestNote } from '@/state/diary';
-import { useGetLatestCurio } from '@/state/heap/heap';
 import useSidebarSort, {
   ALPHABETICAL,
   DEFAULT,
@@ -14,55 +9,8 @@ import useSidebarSort, {
   Sorter,
   useRecentSort,
 } from './useSidebarSort';
-import { nestToFlag } from './utils';
 
 const UNZONED = 'default';
-
-function useGetLatestPost() {
-  const getLatestChat = useGetLatestChat();
-  const getLatestCurio = useGetLatestCurio();
-  const getLatestNote = useGetLatestNote();
-
-  return (flag: string) => {
-    const [chType, _chFlag] = nestToFlag(flag);
-
-    switch (chType) {
-      case 'chat':
-        return (getLatestChat(flag)[0] ?? Number.NEGATIVE_INFINITY).toString();
-
-      case 'diary':
-        return (getLatestNote(flag)[0] ?? Number.NEGATIVE_INFINITY).toString();
-
-      case 'heap':
-        return (getLatestCurio(flag)[0] ?? Number.NEGATIVE_INFINITY).toString();
-
-      default:
-        return Number.NEGATIVE_INFINITY.toString();
-    }
-  };
-}
-
-function useRecentChannelSort() {
-  const getLatestPost = useGetLatestPost();
-
-  const sortRecent = useCallback(
-    (a: ChatWhom, b: ChatWhom) => {
-      const aLast = getLatestPost(a);
-      const bLast = getLatestPost(b);
-
-      if (aLast < bLast) {
-        return -1;
-      }
-      if (aLast > bLast) {
-        return 1;
-      }
-      return 0;
-    },
-    [getLatestPost]
-  );
-
-  return sortRecent;
-}
 
 export default function useChannelSort() {
   const groupFlag = useRouteGroup();
