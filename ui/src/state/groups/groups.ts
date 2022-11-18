@@ -349,16 +349,36 @@ export const useGroupState = create<GroupState>(
         await api.poke(groupAction(flag, diff));
       },
       editChannel: async (flag, nest, channel) => {
-        await api.poke(
-          groupAction(flag, {
-            channel: {
-              nest,
-              diff: {
-                add: channel,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, {
+              channel: {
+                nest,
+                diff: {
+                  add: channel,
+                },
               },
+            }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { update } = event as GroupAction;
+                    return (
+                      'channel' in update.diff &&
+                      nest === update.diff.channel.nest &&
+                      'add' in update.diff.channel.diff
+                    );
+                  }
+
+                  return false;
+                });
+              resolve();
             },
-          })
-        );
+          });
+        });
       },
       deleteChannel: async (flag, nest) => {
         await api.poke(
