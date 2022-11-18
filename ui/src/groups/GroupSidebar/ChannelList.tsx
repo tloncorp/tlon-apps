@@ -2,9 +2,14 @@ import cn from 'classnames';
 import React from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
-import { channelHref, nestToFlag, isChannelJoined } from '@/logic/utils';
+import {
+  channelHref,
+  nestToFlag,
+  isChannelJoined,
+  canReadChannel,
+} from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
-import { useGroup } from '@/state/groups';
+import { useGroup, useVessel } from '@/state/groups';
 import CaretDown16Icon from '@/components/icons/CaretDownIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
@@ -68,6 +73,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const { sectionedChannels, sections } = useChannelSections(flag);
   const isMobile = useIsMobile();
   const { isChannelUnread } = useIsChannelUnread();
+  const vessel = useVessel(flag, window.our);
 
   usePrefetchChannels(flag);
 
@@ -77,7 +83,10 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
 
   const renderChannels = (channels: [string, GroupChannel][]) =>
     channels
-      .filter(([nest]) => isChannelJoined(nest, briefs))
+      .filter(
+        ([nest, chan]) =>
+          isChannelJoined(nest, briefs) && canReadChannel(chan, vessel)
+      )
       .map(([nest, channel]) => {
         const icon = (active: boolean) =>
           isMobile ? (

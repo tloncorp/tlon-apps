@@ -14,6 +14,7 @@ import { useDiaryState } from '@/state/diary';
 import { createStorageKey, nestToFlag } from '@/logic/utils';
 import { useLocalStorage } from 'usehooks-ts';
 import { useIsMobile } from '@/logic/useMedia';
+import _ from 'lodash';
 
 function Groups() {
   const navigate = useNavigate();
@@ -43,14 +44,13 @@ function Groups() {
 
       // done this way to prevent too many renders from useAllBriefs
       const allBriefs = {
-        ...useChatState.getState().briefs,
-        ...useHeapState.getState().briefs,
-        ...useDiaryState.getState().briefs,
+        ..._.mapKeys(useChatState.getState().briefs, (v, k) => `chat/${k}`),
+        ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
+        ..._.mapKeys(useDiaryState.getState().briefs, (v, k) => `diary/${k}`),
       };
-      const channel = Object.entries(group.channels).find(([nest]) => {
-        const [, chFlag] = nestToFlag(nest);
-        return chFlag in allBriefs;
-      });
+      const channel = Object.entries(group.channels).find(
+        ([nest]) => nest in allBriefs
+      );
 
       if (channel && !isMobile) {
         navigate(`./channels/${channel[0]}`);

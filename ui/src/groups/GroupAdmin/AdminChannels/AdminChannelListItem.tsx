@@ -7,9 +7,11 @@ import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
-import { getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
-import { Chat } from '@/types/chat';
-import { Heap } from '@/types/heap';
+import {
+  getPrivacyFromChannel,
+  nestToFlag,
+  WritePermissions,
+} from '@/logic/utils';
 import { useDiaryState } from '@/state/diary';
 import ChannelIcon from '@/channels/ChannelIcon';
 import AdminChannelListDropdown from './AdminChannelListDropdown';
@@ -25,7 +27,7 @@ interface AdminChannelListItemProps {
   onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
-function getChannel(app: string, flag: string): Chat | Heap {
+function getChannel(app: string, flag: string): WritePermissions {
   const { chats } = useChatState.getState();
   const { stash } = useHeapState.getState();
   const { shelf } = useDiaryState.getState();
