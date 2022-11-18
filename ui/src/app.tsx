@@ -495,7 +495,6 @@ function RoutedApp() {
   };
 
   const theme = useTheme();
-  console.log(theme);
   const isDarkMode = useMedia('(prefers-color-scheme: dark)');
 
   useEffect(() => {
