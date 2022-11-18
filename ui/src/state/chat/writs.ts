@@ -1,5 +1,6 @@
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
+import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import api from '../../api';
 import {
   ChatWrit,
@@ -112,7 +113,7 @@ export default function makeWritsStore(
     });
   return {
     initialize: async () => {
-      const writs = await scry<ChatWrits>(`/newest/100`);
+      const writs = await scry<ChatWrits>(`/newest/${MESSAGE_FETCH_PAGE_SIZE}`);
       const sta = get();
       sta.batchSet((draft) => {
         const pact: Pact = {

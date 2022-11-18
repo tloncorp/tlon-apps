@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet, useLocation, useMatch, useNavigate } from 'react-router';
+import { Outlet, useMatch, useNavigate } from 'react-router';
 import {
   useGang,
   useGroup,
@@ -11,9 +11,9 @@ import api from '@/api';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
-import { createStorageKey, nestToFlag } from '@/logic/utils';
-import { useLocalStorage } from 'usehooks-ts';
+import { nestToFlag } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
+import useRecentChannel from '@/logic/useRecentChannel';
 
 function Groups() {
   const navigate = useNavigate();
@@ -26,10 +26,7 @@ function Groups() {
     path: '/groups/:ship/:name',
     end: true,
   });
-  const [recentChannel] = useLocalStorage(
-    createStorageKey(`recent-chan:${flag}`),
-    ''
-  );
+  const { recentChannel } = useRecentChannel(flag);
 
   useEffect(() => {
     if (initialized && !group && !gang) {

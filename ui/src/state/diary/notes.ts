@@ -1,17 +1,16 @@
+import bigInt from 'big-integer';
+import { BigIntOrderedMap, decToUd, udToDec } from '@urbit/api';
+import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import {
-  NoteDiff,
   NoteSeal,
   DiaryNote,
   DiaryNotes,
   DiaryFlag,
-  DiaryDiff,
   DiaryUpdate,
   DiaryOutlines,
   DiaryLetter,
   DiaryQuip,
 } from '@/types/diary';
-import { BigIntOrderedMap, decToUd, udToDec } from '@urbit/api';
-import bigInt from 'big-integer';
 import api from '../../api';
 import { DiaryState } from './type';
 
@@ -75,7 +74,9 @@ export default function makeNotesStore(
 
   return {
     initialize: async () => {
-      const notes = await scry<DiaryOutlines>(`/newest/100/outline`);
+      const notes = await scry<DiaryOutlines>(
+        `/newest/${MESSAGE_FETCH_PAGE_SIZE}/outline`
+      );
       const sta = get();
       sta.batchSet((draft) => {
         let noteMap = new BigIntOrderedMap<DiaryLetter>();
