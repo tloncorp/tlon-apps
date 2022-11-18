@@ -393,7 +393,7 @@ export const useGroupState = create<GroupState>(
         );
       },
       createZone: async (flag, zone, meta) => {
-        const diff = {
+        const dif = {
           zone: {
             zone,
             delta: {
@@ -401,7 +401,29 @@ export const useGroupState = create<GroupState>(
             },
           },
         };
-        await api.poke(groupAction(flag, diff));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, dif),
+            onError: () => reject(),
+            onSuccess: async () => {
+              useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { update } = event as GroupAction;
+                    return (
+                      'zone' in update.diff &&
+                      zone === update.diff.zone.zone &&
+                      'add' in update.diff.zone.delta
+                    );
+                  }
+
+                  return false;
+                });
+              resolve();
+            },
+          });
+        });
       },
       editZone: async (flag, zone, meta) => {
         const diff = {
