@@ -110,7 +110,7 @@ export default function FindGroups({ title }: ViewProps) {
       // @ts-expect-error results will always either be a GroupIndex, or the
       // request will throw an error, which will be caught below
       const results: GroupIndex = await asyncCallWithTimeout(
-        useGroupState.getState().index(ship),
+        useGroupState.getState().index(preSig(ship)),
         10 * 1000
       );
       setGroupIndex(results);

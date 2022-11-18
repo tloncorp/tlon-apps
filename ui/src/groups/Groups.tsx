@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet, useLocation, useMatch, useNavigate } from 'react-router';
+import { Outlet, useMatch, useNavigate } from 'react-router';
 import {
   useGang,
   useGroup,
@@ -35,7 +35,8 @@ function Groups() {
     if (initialized && !group && !gang) {
       navigate('/');
     } else if (initialized && group && root) {
-      if (recentChannel && !isMobile) {
+      const channels = Object.entries(group.channels).map(([name]) => name);
+      if (recentChannel && channels.includes(recentChannel) && !isMobile) {
         navigate(`./channels/${recentChannel}`);
         return;
       }
