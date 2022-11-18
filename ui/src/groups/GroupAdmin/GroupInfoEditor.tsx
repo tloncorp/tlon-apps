@@ -7,12 +7,7 @@ import Dialog, {
   DialogTrigger,
 } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
-import {
-  GroupFormSchema,
-  GroupMeta,
-  PrivacyType,
-  ViewProps,
-} from '@/types/groups';
+import { GroupFormSchema, GroupMeta, ViewProps } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { getGroupPrivacy } from '@/logic/utils';
 import GroupInfoFields from '../GroupInfoFields';
