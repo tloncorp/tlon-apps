@@ -1,6 +1,6 @@
 import { BigIntOrderedMap, decToUd, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
-import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import {
   CurioDiff,
   CurioSeal,
@@ -72,7 +72,7 @@ export default function makeCuriosStore(
   return {
     initialize: async () => {
       const curios = await scry<HeapCurios>(
-        `/newest/${MESSAGE_FETCH_PAGE_SIZE}`
+        `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}`
       );
       const sta = get();
       sta.batchSet((draft) => {

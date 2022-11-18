@@ -1,6 +1,6 @@
 import bigInt from 'big-integer';
 import { BigIntOrderedMap, decToUd, udToDec } from '@urbit/api';
-import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import {
   NoteSeal,
   DiaryNote,
@@ -75,7 +75,7 @@ export default function makeNotesStore(
   return {
     initialize: async () => {
       const notes = await scry<DiaryOutlines>(
-        `/newest/${MESSAGE_FETCH_PAGE_SIZE}/outline`
+        `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`
       );
       const sta = get();
       sta.batchSet((draft) => {
