@@ -7,7 +7,7 @@ export default function PrereleaseNotice() {
 
   return (
     <ButterBar
-      dismissKey={`${app}-prerelease-notice-dismissed`}
+      dismissKey={`prerelease-notice-dismissed`}
       message={`Reminder: you are using a Beta version of ${app}. Everything you write or create, including groups and messages, will be deleted prior to official launch.`}
     />
   );
