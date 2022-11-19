@@ -47,44 +47,14 @@ export type ChannelHeaderProps = PropsWithChildren<{
 
 interface ChannelHeaderSortControlsProps {
   setSortMode?: (sortType: any) => void;
-}
-
-const ChannelHeaderButton = React.forwardRef<
-  HTMLButtonElement,
-  React.HTMLProps<HTMLButtonElement>
->((props, ref) => {
-  const { children, className, onClick } = props;
-  return (
-    <button
-      ref={ref}
-      onClick={onClick}
-      className={cn('secondary-button', className)}
-    >
-      {children}
-    </button>
-  );
-});
-
-function ChannelHeaderMenuButton({
-  children,
-  onClick,
-  className,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'dropdown-item flex w-full items-center space-x-2 pr-4',
-        className
-      )}
-    >
-      {children}
-    </button>
-  );
+  sortMode:
+    | 'time-dsc'
+    | 'quip-dsc'
+    | 'time-asc'
+    | 'quip-asc'
+    | 'alpha'
+    | 'time'
+    | undefined;
 }
 
 function ChannelActions({
@@ -217,70 +187,96 @@ function ChannelActions({
   );
 }
 
-function HeapSortControls({ setSortMode }: ChannelHeaderSortControlsProps) {
+function HeapSortControls({
+  setSortMode,
+  sortMode,
+}: ChannelHeaderSortControlsProps) {
   return (
-    <Popover.Root>
-      <Popover.Trigger asChild>
-        <ChannelHeaderButton className="icon-button h-8 w-8 bg-transparent">
+    <Dropdown.Root>
+      <Dropdown.Trigger asChild>
+        <button className="icon-button h-8 w-8 bg-transparent">
           <SortIcon className="h-6 w-6" />
-        </ChannelHeaderButton>
-      </Popover.Trigger>
-      <Popover.Content>
-        <div className="flex w-[126px] flex-col rounded-lg bg-white leading-5 drop-shadow-lg">
-          <ChannelHeaderMenuButton
-            onClick={() => (setSortMode ? setSortMode('time') : null)}
-          >
-            <span className="font-semibold">Time</span>
-          </ChannelHeaderMenuButton>
-          <ChannelHeaderMenuButton
-            onClick={() => (setSortMode ? setSortMode('alpha') : null)}
-          >
-            <span className="font-semibold">Alphabetical</span>
-          </ChannelHeaderMenuButton>
-        </div>
-      </Popover.Content>
-    </Popover.Root>
+        </button>
+      </Dropdown.Trigger>
+      <Dropdown.Content className="dropdown">
+        <Dropdown.Item
+          className={cn(
+            'dropdown-item',
+            sortMode === 'time' && 'bg-gray-100 hover:bg-gray-100'
+          )}
+          onClick={() => (setSortMode ? setSortMode('time') : null)}
+        >
+          <span className="font-semibold">Time</span>
+        </Dropdown.Item>
+        <Dropdown.Item
+          className={cn(
+            'dropdown-item',
+            sortMode === 'alpha' && 'bg-gray-100 hover:bg-gray-100'
+          )}
+          onClick={() => (setSortMode ? setSortMode('alpha') : null)}
+        >
+          <span className="font-semibold">Alphabetical</span>
+        </Dropdown.Item>
+      </Dropdown.Content>
+    </Dropdown.Root>
   );
 }
 
-function DiarySortControls({ setSortMode }: ChannelHeaderSortControlsProps) {
+function DiarySortControls({
+  setSortMode,
+  sortMode,
+}: ChannelHeaderSortControlsProps) {
   return (
-    <Popover.Root>
-      <Popover.Trigger asChild>
-        <ChannelHeaderButton className="icon-button h-8 w-8 bg-transparent">
+    <Dropdown.Root>
+      <Dropdown.Trigger asChild>
+        <button className="icon-button h-8 w-8 bg-transparent">
           <SortIcon className="h-6 w-6" />
-        </ChannelHeaderButton>
-      </Popover.Trigger>
-      <Popover.Content>
-        <div className="flex max-w-sm flex-col rounded-lg bg-white p-2 leading-5 drop-shadow-lg">
-          <ChannelHeaderMenuButton
-            onClick={() => (setSortMode ? setSortMode('time-dsc') : null)}
-          >
-            <span className="font-semibold">New Posts First</span>
-          </ChannelHeaderMenuButton>
-          <ChannelHeaderMenuButton
-            onClick={() => (setSortMode ? setSortMode('time-asc') : null)}
-          >
-            <span className="font-semibold">Old Posts First</span>
-          </ChannelHeaderMenuButton>
-          <Divider />
-          <ChannelHeaderMenuButton
+        </button>
+      </Dropdown.Trigger>
+      <Dropdown.Content className="dropdown">
+        <Dropdown.Item
+          className={cn(
+            'dropdown-item',
+            sortMode === 'time-dsc' && 'bg-gray-100 hover:bg-gray-100'
+          )}
+          onClick={() => (setSortMode ? setSortMode('time-dsc') : null)}
+        >
+          <span className="font-semibold">New Posts First</span>
+        </Dropdown.Item>
+        <Dropdown.Item
+          className={cn(
+            'dropdown-item',
+            sortMode === 'time-asc' && 'bg-gray-100 hover:bg-gray-100'
+          )}
+          onClick={() => (setSortMode ? setSortMode('time-asc') : null)}
+        >
+          <span className="font-semibold">Old Posts First</span>
+        </Dropdown.Item>
+        <Divider />
+        <Dropdown.Item
+          className={cn(
+            'dropdown-item',
+            sortMode === 'quip-asc' && 'bg-gray-100 hover:bg-gray-100'
+          )}
           // onClick={() => setSortMode('quip-asc')}
-          >
-            <span className="font-semibold text-gray-400">
-              New Comments First
-            </span>
-          </ChannelHeaderMenuButton>
-          <ChannelHeaderMenuButton
+        >
+          <span className="font-semibold text-gray-400">
+            New Comments First
+          </span>
+        </Dropdown.Item>
+        <Dropdown.Item
+          className={cn(
+            'dropdown-item',
+            sortMode === 'quip-dsc' && 'bg-gray-100 hover:bg-gray-100'
+          )}
           // onClick={() => setSortMode('quip-dsc')}
-          >
-            <span className="font-semibold text-gray-400">
-              Old Comments First
-            </span>
-          </ChannelHeaderMenuButton>
-        </div>
-      </Popover.Content>
-    </Popover.Root>
+        >
+          <span className="font-semibold text-gray-400">
+            Old Comments First
+          </span>
+        </Dropdown.Item>
+      </Dropdown.Content>
+    </Dropdown.Root>
   );
 }
 
@@ -337,33 +333,47 @@ export default function ChannelHeader({
         <div className="flex items-center space-x-3">
           {children}
           {/* TODO: Switch the popovers to dropdowns */}
-          <Popover.Root>
-            <Popover.Trigger asChild>
-              <ChannelHeaderButton className="icon-button h-8 w-8 bg-transparent">
+          <Dropdown.Root>
+            <Dropdown.Trigger asChild>
+              <button className="icon-button h-8 w-8 bg-transparent">
                 {displayMode === 'grid' ? (
                   <GridIcon className="-m-1 h-8 w-8" />
                 ) : (
                   <ListIcon className="-m-1 h-8 w-8" />
                 )}
-              </ChannelHeaderButton>
-            </Popover.Trigger>
-            <Popover.Content asChild>
-              <div className="flex w-[126px] flex-col rounded-lg bg-white leading-5 drop-shadow-lg">
-                <ChannelHeaderMenuButton onClick={() => setDisplayMode('list')}>
+              </button>
+            </Dropdown.Trigger>
+            <Dropdown.Content className="dropdown">
+              <Dropdown.Item
+                className={cn(
+                  'dropdown-item-icon',
+                  displayMode === 'list' && 'hover-bg-gray-100 bg-gray-100'
+                )}
+                onClick={() => setDisplayMode('list')}
+              >
+                <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
                   <ListIcon className="-m-1 h-8 w-8" />
-                  <span className="font-semibold">List</span>
-                </ChannelHeaderMenuButton>
-                <ChannelHeaderMenuButton onClick={() => setDisplayMode('grid')}>
+                </div>
+                <span className="font-semibold">List</span>
+              </Dropdown.Item>
+              <Dropdown.Item
+                className={cn(
+                  'dropdown-item-icon',
+                  displayMode === 'grid' && 'bg-gray-100 hover:bg-gray-100'
+                )}
+                onClick={() => setDisplayMode('grid')}
+              >
+                <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
                   <GridIcon className="-m-1 h-8 w-8" />
-                  <span className="font-semibold">Grid</span>
-                </ChannelHeaderMenuButton>
-              </div>
-            </Popover.Content>
-          </Popover.Root>
+                </div>
+                <span className="font-semibold">Grid</span>
+              </Dropdown.Item>
+            </Dropdown.Content>
+          </Dropdown.Root>
           {isDiary ? (
-            <DiarySortControls setSortMode={setSortMode} />
+            <DiarySortControls setSortMode={setSortMode} sortMode={sortMode} />
           ) : (
-            <HeapSortControls setSortMode={setSortMode} />
+            <HeapSortControls setSortMode={setSortMode} sortMode={sortMode} />
           )}
 
           <ChannelActions {...{ nest, channel, isAdmin }} />
