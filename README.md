@@ -38,15 +38,10 @@ standalone apps coming later (see list below).
 
 We are currently working on:
 
-- Mobile-responsive layout and interaction fixes
-- Mute controls for all notification-producing events, by type or in specific
-  instances
+- A clean, error-free migration of Groups 1 data
 - Secret, invite-only groups
-- Group templates for new groups
-- Emoji reactions
-- An as-is port of the S3 uploader from [Groups
-  1](https://github.com/urbit/urbit/tree/master/pkg/interface)
-- Reuse of several present-day Landscape agents
+- Mobile-responsive layout and interaction fixes
+- @mentions
 
 ## Coming later
 
@@ -71,7 +66,7 @@ app](https://urbit.org/applications/~pocwet/docs) if you have both Docs and
 Groups installed on a running Urbit ship. 
 
 Visit the Tlon Public group on-network (`~nibset-napwyn/tlon`) for instructions
-on how to install the developer alpha versions of Groups and Talk.
+on how to install the public beta versions of Groups and Talk.
 
 ## Integrating with Groups agents
 

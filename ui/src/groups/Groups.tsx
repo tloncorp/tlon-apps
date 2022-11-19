@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet, useLocation, useMatch, useNavigate } from 'react-router';
+import { Outlet, useMatch, useNavigate } from 'react-router';
 import {
   useGang,
   useGroup,
@@ -14,6 +14,7 @@ import { useDiaryState } from '@/state/diary';
 import { createStorageKey, nestToFlag } from '@/logic/utils';
 import { useLocalStorage } from 'usehooks-ts';
 import { useIsMobile } from '@/logic/useMedia';
+import _ from 'lodash';
 
 function Groups() {
   const navigate = useNavigate();
@@ -35,21 +36,21 @@ function Groups() {
     if (initialized && !group && !gang) {
       navigate('/');
     } else if (initialized && group && root) {
-      if (recentChannel && !isMobile) {
+      const channels = Object.entries(group.channels).map(([name]) => name);
+      if (recentChannel && channels.includes(recentChannel) && !isMobile) {
         navigate(`./channels/${recentChannel}`);
         return;
       }
 
       // done this way to prevent too many renders from useAllBriefs
       const allBriefs = {
-        ...useChatState.getState().briefs,
-        ...useHeapState.getState().briefs,
-        ...useDiaryState.getState().briefs,
+        ..._.mapKeys(useChatState.getState().briefs, (v, k) => `chat/${k}`),
+        ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
+        ..._.mapKeys(useDiaryState.getState().briefs, (v, k) => `diary/${k}`),
       };
-      const channel = Object.entries(group.channels).find(([nest]) => {
-        const [, chFlag] = nestToFlag(nest);
-        return chFlag in allBriefs;
-      });
+      const channel = Object.entries(group.channels).find(
+        ([nest]) => nest in allBriefs
+      );
 
       if (channel && !isMobile) {
         navigate(`./channels/${channel[0]}`);

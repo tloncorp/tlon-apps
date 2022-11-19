@@ -5,7 +5,7 @@ import { useContact } from '@/state/contact';
 import { useCalm } from '@/state/settings';
 
 type CoverProps = PropsWithChildren<{
-  ship: string;
+  cover: string;
   className?: string;
 }>;
 
@@ -21,13 +21,11 @@ const emptyContact: Contact = {
 };
 
 export default function ProfileCoverImage({
-  ship,
+  cover,
   className,
   children,
 }: CoverProps) {
-  const contact = useContact(ship);
   const { disableRemoteContent } = useCalm();
-  const { cover } = contact || emptyContact;
 
   return (
     <div

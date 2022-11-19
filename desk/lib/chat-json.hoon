@@ -137,6 +137,7 @@
     |=  p=perm:c
     %-  pairs
     :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+        group/(flag group.p)
     ==
   ++  ship
     |=  her=@p

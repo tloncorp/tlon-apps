@@ -54,7 +54,10 @@ export default function NewGroup() {
 
   const onComplete = useCallback(async () => {
     const { privacy, ...values } = form.getValues();
-    const name = strToSym(values.title);
+    const name = strToSym(values.title).replace(
+      /[^a-z]*([a-z][-\w\d]+)/i,
+      '$1'
+    );
     const members = shipsToInvite.reduce(
       (obj, ship) => ({
         ...obj,

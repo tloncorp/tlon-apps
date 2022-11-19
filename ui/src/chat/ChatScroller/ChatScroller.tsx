@@ -14,12 +14,17 @@ import bigInt from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { ChatState } from '@/state/chat/type';
-import { useChatState, useLoadedWrits } from '@/state/chat/chat';
+import {
+  useChatState,
+  useGetFirstUnreadID,
+  useLoadedWrits,
+} from '@/state/chat/chat';
 import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
+import { useIsMobile } from '@/logic/useMedia';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
-import { ChatInfo, useChatInfo } from '../useChatStore';
+import { ChatInfo, useChatInfo, useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
 
 interface CreateRendererParams {
@@ -29,6 +34,7 @@ interface CreateRendererParams {
   brief?: ChatBrief;
   chatInfo?: ChatInfo;
   prefixedElement: React.ReactNode;
+  scrollTo?: bigInt.BigInteger;
 }
 
 interface RendererProps {
@@ -39,9 +45,8 @@ function createRenderer({
   messages,
   keys,
   whom,
-  brief,
-  chatInfo,
   prefixedElement,
+  scrollTo,
 }: CreateRendererParams) {
   const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
     <>
@@ -79,22 +84,19 @@ function createRenderer({
         : undefined;
       const newDay =
         lastWrit && lastWritDay ? !isSameDay(writDay, lastWritDay) : !lastWrit;
-      const unreadBrief =
-        brief && brief['read-id'] === writ.seal.id ? brief : undefined;
 
       return renderPrefix(
         index,
         <ChatMessage
           key={writ.seal.id}
           whom={whom}
-          isReplyOp={chatInfo?.replying === writ.seal.id}
           writ={writ}
           time={index}
           newAuthor={newAuthor}
           newDay={newDay}
           ref={ref}
-          unread={unreadBrief}
           isLast={keyIdx === keys.length - 1}
+          isLinked={scrollTo ? index.eq(scrollTo) : false}
         />
       );
     }
@@ -108,8 +110,6 @@ function Loader({ show }: { show: boolean }) {
     </div>
   ) : null;
 }
-
-const FIRST_INDEX = 99999;
 
 type FetchingState = 'top' | 'bottom' | 'initial';
 
@@ -132,10 +132,19 @@ export default function ChatScroller({
 }: IChatScroller) {
   const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
+  const firstUnreadID = useGetFirstUnreadID(whom);
   const loaded = useLoadedWrits(whom);
-  const [oldWhom, setOldWhom] = useState(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const virtuoso = useRef<VirtuosoHandle>(null);
+  const isMobile = useIsMobile();
+
+  const thresholds = {
+    atBottomThreshold: isMobile ? 125 : 250,
+    atTopThreshold: isMobile ? 1200 : 2500,
+    overscan: isMobile
+      ? { main: 200, reverse: 200 }
+      : { main: 400, reverse: 400 },
+  };
 
   const keys = useMemo(
     () =>
@@ -151,79 +160,16 @@ export default function ChatScroller({
     [messages, replying]
   );
 
-  const mess = useMemo(
-    () =>
-      keys.reduce(
-        (acc, val) => acc.set(val, messages.get(val)),
-        new BigIntOrderedMap<ChatWrit>()
-      ),
-    [keys, messages]
-  );
-
-  const [indexData, setIndexData] = useState<{
-    firstItemIndex: number;
-    data: bigInt.BigInteger[];
-  }>({
-    firstItemIndex: FIRST_INDEX,
-    data: keys,
-  });
-
-  useEffect(() => {
-    if (whom !== oldWhom) {
-      setOldWhom(whom);
-    }
-  }, [oldWhom, whom]);
-
-  useEffect(() => {
-    if (oldWhom !== whom) {
-      setIndexData({ firstItemIndex: FIRST_INDEX, data: keys });
-      return;
-    }
-
-    const diff = mess.size - indexData.data.length;
-    if (diff !== 0) {
-      setIndexData({
-        firstItemIndex: indexData.firstItemIndex - diff,
-        data: keys,
-      });
-    }
-
-    // Sometimes the virtuoso component doesn't scroll to the bottom when
-    // switching chats. Diff remains zero when it shouldn't.
-    // This is a hack to force it to scroll to the bottom.
-
-    if (indexData.firstItemIndex === FIRST_INDEX && diff === 0 && !scrollTo) {
-      // We need to wait to make sure the virtuoso component has been updated.
-      setTimeout(() => {
-        virtuoso?.current?.scrollToIndex({
-          index: indexData.data.length - 1,
-        });
-      }, 50);
-    }
-
-    if (scrollTo) {
-      const idx = keys.findIndex((k) => k.eq(scrollTo));
-      if (idx !== -1) {
-        setTimeout(() => {
-          virtuoso?.current?.scrollToIndex({
-            index: idx,
-          });
-        }, 50);
-      }
-    }
-  }, [whom, oldWhom, keys, mess, indexData, scrollTo]);
-
   const Message = useMemo(
     () =>
       createRenderer({
         messages,
         whom,
         keys,
-        brief,
-        chatInfo,
         prefixedElement,
+        scrollTo,
       }),
-    [messages, keys, whom, brief, chatInfo, prefixedElement]
+    [messages, whom, keys, prefixedElement, scrollTo]
   );
 
   const TopLoader = useMemo(
@@ -236,11 +182,11 @@ export default function ChatScroller({
   );
 
   const fetchMessages = useCallback(
-    async (newer: boolean) => {
-      const newest = mess.peekLargest();
-      const seenNewest = newer && newest && loaded.newest.leq(newest[0]);
-      const oldest = mess.peekSmallest();
-      const seenOldest = !newer && oldest && loaded.oldest.geq(oldest[0]);
+    async (newer: boolean, pageSize = MESSAGE_FETCH_PAGE_SIZE) => {
+      const newest = messages.peekLargest();
+      const seenNewest = newer && newest && loaded.newest.geq(newest[0]);
+      const oldest = messages.peekSmallest();
+      const seenOldest = !newer && oldest && loaded.oldest.leq(oldest[0]);
 
       if (seenNewest || seenOldest) {
         return;
@@ -249,24 +195,77 @@ export default function ChatScroller({
       setFetching(newer ? 'bottom' : 'top');
 
       if (newer) {
-        await useChatState
-          .getState()
-          .fetchNewer(whom, MESSAGE_FETCH_PAGE_SIZE.toString());
+        await useChatState.getState().fetchNewer(whom, pageSize.toString());
       } else {
-        await useChatState
-          .getState()
-          .fetchOlder(whom, MESSAGE_FETCH_PAGE_SIZE.toString());
+        await useChatState.getState().fetchOlder(whom, pageSize.toString());
       }
 
       setFetching('initial');
     },
-    [whom, mess, loaded]
+    [whom, messages, loaded]
   );
+
+  /**
+   * For reverse infinite scroll of older messages:
+   *
+   * See: https://virtuoso.dev/prepend-items/
+   *
+   * The actual index value is arbitrary, just need to change directionally
+   */
+  const START_INDEX = 9999999;
+  const firstItemIndex = useMemo(() => START_INDEX - keys.length, [keys]);
+
+  /**
+   * If scrollTo is set, we want to scroll to that index.
+   * If it's not set, we want to scroll to the bottom.
+   */
+  useEffect(() => {
+    if (virtuoso.current) {
+      let scrollToIndex: number | 'LAST' = 'LAST';
+      if (scrollTo) {
+        const idx = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
+        scrollToIndex = idx > -1 ? idx : 'LAST';
+      }
+
+      virtuoso.current.scrollToIndex({
+        index: scrollToIndex,
+        align: 'start',
+        behavior: 'auto',
+      });
+    }
+    /**
+     * Only trigger this effect when scrollTo changes (e.g., clicking the unread
+     * banner); otherwise, we'll scroll to the bottom each time older messages
+     * are fetched, or jump to the scrollTo message if it's in the backscroll
+     */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTo, virtuoso]);
+
+  /**
+   * By default, 100 messages are fetched on initial load. If there are more
+   * unreads per the brief, fetch those as well. That way, the user can click
+   * the unread banner and see the unread messages.
+   */
+  useEffect(() => {
+    if (
+      fetching === 'initial' &&
+      brief &&
+      brief.count > MESSAGE_FETCH_PAGE_SIZE &&
+      firstUnreadID &&
+      !keys.includes(firstUnreadID)
+    ) {
+      fetchMessages(false, brief.count);
+    }
+    /**
+     * Only want to track the brief and unread ID
+     */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brief, firstUnreadID]);
 
   return (
     <div className="relative h-full flex-1">
       <Virtuoso
-        {...indexData}
+        data={keys}
         ref={virtuoso}
         followOutput
         alignToBottom
@@ -276,10 +275,19 @@ export default function ChatScroller({
         style={{
           overflowY: 'scroll',
         }}
-        atBottomThreshold={250}
-        atTopThreshold={250}
+        {...thresholds}
         atTopStateChange={(top) => top && fetchMessages(false)}
-        atBottomStateChange={(bot) => bot && fetchMessages(true)}
+        atBottomStateChange={(bot) => {
+          const { bottom, delayedRead } = useChatStore.getState();
+          if (bot) {
+            fetchMessages(true);
+            bottom(true);
+            delayedRead(whom, () => useChatState.getState().markRead(whom));
+          } else {
+            bottom(false);
+          }
+        }}
+        firstItemIndex={firstItemIndex}
         itemContent={(i, realIndex) => <Message index={realIndex} />}
         computeItemKey={computeItemKey}
         components={{
