@@ -24,7 +24,7 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
         )}
         onClick={open}
       >
-        <GroupSummary flag={flag} {...gang.preview} size={'small'} />
+        <GroupSummary flag={flag} preview={gang.preview} size={'small'} />
       </button>
       <div className="absolute right-2 flex flex-row">
         {gang.invite && status !== 'loading' ? (

@@ -7,6 +7,7 @@ import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
 import f from 'lodash/fp';
+import { parseToRgba } from 'color2k';
 import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
@@ -15,11 +16,12 @@ import {
   Cordon,
   PrivacyType,
   Rank,
+  Group,
+  GroupPreview,
   Vessel,
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
-import { DiaryBrief, DiaryQuip, DiaryQuipMap, DiaryQuips } from '@/types/diary';
-import { parseToRgba } from 'color2k';
+import { DiaryBrief, DiaryQuip, DiaryQuipMap } from '@/types/diary';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -204,16 +206,28 @@ export function getFlagParts(flag: string) {
   };
 }
 
-export function getGroupPrivacy(cordon: Cordon): PrivacyType {
-  if ('open' in cordon) {
-    return 'public';
-  }
-
+export function getPrivacyFromCordon(cordon: Cordon): PrivacyType {
   if ('shut' in cordon) {
     return 'private';
   }
 
-  return 'secret';
+  return 'public';
+}
+
+export function getPrivacyFromPreview(preview: GroupPreview) {
+  if (preview.secret) {
+    return 'secret';
+  }
+
+  return getPrivacyFromCordon(preview.cordon);
+}
+
+export function getPrivacyFromGroup(group: Group): PrivacyType {
+  if (group.secret) {
+    return 'secret';
+  }
+
+  return getPrivacyFromCordon(group.cordon);
 }
 
 export interface WritePermissions {

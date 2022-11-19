@@ -129,6 +129,7 @@
       =bloc
       =channels:channel
       =cordon
+      secret=?
       meta=data:meta
   ==
 ::
@@ -237,6 +238,7 @@
       [%cordon p=diff:cordon]
       [%zone p=diff:zone]
       [%meta p=data:meta]
+      [%secret p=?]
       [%create p=group]
       [%del ~]
   ==
@@ -261,12 +263,15 @@
       cover=cord
       =cordon
       members=(jug ship sect)
+      secret=?
   ==
 ::
 +$  init  [=time =group]
 ::
 +$  groups
   (map flag group)
++$  net-groups
+  (map flag [net group])
 ::
 ::  $log: a time ordered map of all modifications to groups
 ::
@@ -314,6 +319,7 @@
       meta=data:meta
       =cordon
       =time
+      secret=?
   ==
 ::
 +$  previews  (map flag preview)

@@ -149,6 +149,8 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
         group['zone-ord'] = group['zone-ord'].filter((zone) => zone !== f);
         group['zone-ord'].splice(d.mov, 0, f);
       }
+    } else if ('secret' in diff) {
+      group.secret = diff.secret;
     } else {
       // console.log('unreachable');
     }

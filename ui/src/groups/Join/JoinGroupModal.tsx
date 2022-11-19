@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import { useGang, useRouteGroup } from '@/state/groups';
-import { useNavigate } from 'react-router';
 import GroupSummary from '@/groups/GroupSummary';
 import useGroupJoin from '@/groups/useGroupJoin';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -23,7 +23,7 @@ export default function JoinGroupModal() {
       <DialogContent containerClass="w-full max-w-md">
         <div className="space-y-6">
           <h2 className="text-lg font-bold">Join a Group</h2>
-          <GroupSummary flag={flag} {...gang.preview} />
+          <GroupSummary flag={flag} preview={gang.preview} />
           <p>{gang.preview?.meta.description}</p>
           <div className="flex items-center justify-end space-x-2">
             <button
