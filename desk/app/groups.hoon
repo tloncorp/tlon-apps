@@ -14,8 +14,8 @@
   +$  card  card:agent:gall
   +$  state-0
     $:  %0
-        groups=(map flag:g [net:g group:g])
-        xeno=(map flag:g gang:g)
+        groups=net-groups:g
+        xeno=gangs:g
     ==
   ++  versioned-state  $%(state-0)
   ::
@@ -79,6 +79,37 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+::  +load: load next state
+++  load
+  |=  =vase
+  |^  ^+  cor
+   =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
+  (mule |.(!<([versioned-state epic:e] vase)))
+  ::  XX only save when epic changes
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
+  ::
+  =.  state  old
+  ?:  =(okay cool)  cor
+  =?  cor  bad  (emit (keep !>(old)))
+  =-  (give %fact ~(tap in -) epic+!>(okay))
+  %-  ~(gas in *(set path))
+  %+  murn  ~(val by sup.bowl)
+  |=  [=ship =path]
+  ^-  (unit _path)
+  ?.  |(=(/epic path) ?=([%groups @ @ %updates *] path))  ~
+  `path
+  ::
+  ++  keep
+  |=  bad=^vase
+  ^-  card
+  ~&  >  %keep
+  [%pass /groups/keep %arvo %k %fard q.byk.bowl %keep %noun bad]
+  --
+::
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -107,12 +138,13 @@
       [sects *time]
     =/  =group:g
       :*  fleet
-        ~  ~  ~  ~  ~
-        cordon.create
-        title.create
-        description.create
-        image.create
-        cover.create
+          ~  ~  ~  ~  ~
+          cordon.create
+          secret.create
+          title.create
+          description.create
+          image.create
+          cover.create
       ==
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
@@ -163,36 +195,6 @@
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
-::  +load: load next state
-++  load
-  |=  =vase
-  |^  ^+  cor
-   =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
-  (mule |.(!<([versioned-state epic:e] vase)))
-  ::  XX only save when epic changes
-  =/  [old=versioned-state cool=epic:e bad=?]
-    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
-    =;  [sta=versioned-state ba=?]  [sta okay ba]
-    =-  %+  fall  -  ~&  >  %bad-load  [state &]
-    (mole |.([!<(versioned-state vase) |]))
-  ::
-  =.  state  old
-  ?:  =(okay cool)  cor
-  =?  cor  bad  (emit (keep !>(old)))
-  =-  (give %fact ~(tap in -) epic+!>(okay))
-  %-  ~(gas in *(set path))
-  %+  murn  ~(val by sup.bowl)
-  |=  [=ship =path]
-  ^-  (unit _path)
-  ?.  |(=(/epic path) ?=([%groups @ @ %updates *] path))  ~
-  `path
-  ::
-  ++  keep
-  |=  bad=^vase
-  ^-  card
-  ~&  >  %keep
-  [%pass /groups/keep %arvo %k %fard q.byk.bowl %keep %noun bad]
-  --
 ::
 ++  watch
   |=  =(pole knot)
@@ -340,7 +342,7 @@
     =,  group
     :*  nest
         meta:(~(got by channels.group) nest)
-        flag  meta  cordon  now.bowl
+        flag  meta  cordon  now.bowl  secret.group
     ==
   =.  cor  (emit %give %fact ~ channel-preview+!>(preview))
   (emit %give %kick ~ ~)
@@ -435,7 +437,7 @@
     =-  (fall - [(crip "{(scow %p p.flag)}/{(scow %ta q.flag)}") '' '' ''])
     (bind (~(get by om) [%groups flag]) old-assoc-to-new-meta)
   =/  =group:g
-    [fleet cabals zones zone-ord bloc channels cordon meta]
+    [fleet cabals zones zone-ord bloc channels cordon | meta]
   =|  =log:g
   =.  log     (put:log-on:g log now.bowl create/group)
   =/  =net:g  pub/log
@@ -608,9 +610,17 @@
     ==
   ::
   ++  go-preview
+    :: TODO: either use ?> to enforce request permissions; or return a preview
+    ::   with limited info? for rendering a secret group reference
+    :: ?>  (~(has by fleet.group) src.bowl)
+    :: TODO: if user is in the allowed to join list, they should see a preview;
+    ::   reusing some of the below logic
+    :: ?>  ?|  =(p.flag our.bowl) :: self
+    ::     =(p.flag src.bowl) :: subscription
+    ::     &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
     =/  =preview:g
       =,  group
-      [flag meta cordon now.bowl]
+      [flag meta cordon now.bowl secret.group]
     =.  cor
       (emit %give %fact ~ group-preview+!>(preview))
     =.  cor
@@ -792,9 +802,14 @@
       %create   go-core(group p.diff)
       %zone     (go-zone-update +.diff)
       %meta     (go-meta-update p.diff)
+      %secret   (go-secret-update p.diff)
       %del      go-core(gone &)
     ==
   ::
+  ++  go-secret-update
+    |=  secret=?
+    =.  secret.group  secret
+    go-core
   ++  go-meta-update
     |=  meta=data:meta
     =.  meta.group  meta
@@ -1197,9 +1212,9 @@
   %+  murn  ~(tap by groups)
   |=  [=flag:g =net:g =group:g]
   ^-  (unit [flag:g preview:g])
-  ?.  =(our.bowl p.flag)
+  ?.  &(=(our.bowl p.flag) !secret.group)
     ~
-  `[flag =,(group [flag meta cordon now.bowl])]
+  `[flag =,(group [flag meta cordon now.bowl |])]
 ::
 ++  req-gang-index
   |=  =ship
