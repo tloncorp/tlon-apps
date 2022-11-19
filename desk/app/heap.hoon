@@ -8,13 +8,11 @@
   |%
   ++  okay  `epic:e`0
   +$  card  card:agent:gall
-  +$  state-0
+  +$  current-state
     $:  %0
         =stash:h
     ==
-  ++  versioned-state  $%(state-0)
   ::
-  +$  current-state  state-0
   --
 =|  current-state
 =*  state  -
@@ -79,6 +77,38 @@
 ++  init
   ^+  cor
   watch-groups
+::
+++  load
+  |=  =vase
+  |^  ^+  cor
+  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
+    (mule |.(!<([versioned-state epic:e] vase)))
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ::  XX only save when epic changes
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
+  =.  state  old
+  ?:  =(okay cool)  cor
+  =?  cor  bad  (emit (keep !>(old)))
+  ::  speak the good news
+  =-  (give %fact ~(tap in -) epic+!>(okay))
+  %-  ~(gas in *(set path))
+  %+  murn  ~(val by sup.bowl)
+  |=  [=ship =path]
+  ^-  (unit _path)
+  ?.  |(=(/epic path) ?=([%heap @ @ %updates *] path))  ~
+  `path
+  ::
+  ++  keep
+    |=  bad=^vase
+    ^-  card
+    ~&  >  %keep
+    [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
+  ::
+  +$  versioned-state  $%(current-state)
+  --
 ::
 ++  watch-groups
   ^+  cor
@@ -146,36 +176,6 @@
       ==
     --
   --
-++  load
-  |=  =vase
-  |^  ^+  cor
-  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
-    (mule |.(!<([versioned-state epic:e] vase)))
-  =/  [old=versioned-state cool=epic:e bad=?]
-    ::  XX only save when epic changes
-    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
-    =;  [sta=versioned-state ba=?]  [sta okay ba]
-    =-  %+  fall  -  ~&  >  %bad-load  [state &]
-    (mole |.([!<(versioned-state vase) |]))
-  =.  state  old
-  ?:  =(okay cool)  cor
-  =?  cor  bad  (emit (keep !>(old)))
-  ::  speak the good news
-  =-  (give %fact ~(tap in -) epic+!>(okay))
-  %-  ~(gas in *(set path))
-  %+  murn  ~(val by sup.bowl)
-  |=  [=ship =path]
-  ^-  (unit _path)
-  ?.  |(=(/epic path) ?=([%heap @ @ %updates *] path))  ~
-  `path
-  ::
-  ++  keep
-    |=  bad=^vase
-    ^-  card
-    ~&  >  %keep
-    [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
-  --
-::
 ++  watch
   |=  =path
   ^+  cor

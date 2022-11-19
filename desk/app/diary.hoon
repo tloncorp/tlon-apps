@@ -11,7 +11,7 @@
   ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %0
         =shelf:d
     ==
   --
@@ -90,23 +90,16 @@
     =-  %+  fall  -  ~&  >  %bad-load  [state &]
     (mole |.([!<(versioned-state vase) |]))
   |-
-  ?-  -.old
-      %1
-    =.  state  old
-    ?:  =(okay cool)  cor
-    =?  cor  bad  (emit (keep !>(old)))
-    =-  (give %fact ~(tap in -) epic+!>(okay))
-    %-  ~(gas in *(set path))
-    %+  murn  ~(val by sup.bowl)
-    |=  [=ship =path]
-    ^-  (unit _path)
-    ?.  |(=(/epic path) ?=([%diary @ @ %updates *] path))  ~
+  =.  state  old
+  ?:  =(okay cool)  cor
+  =?  cor  bad  (emit (keep !>(old)))
+  =-  (give %fact ~(tap in -) epic+!>(okay))
+  %-  ~(gas in *(set path))
+  %+  murn  ~(val by sup.bowl)
+  |=  [=ship =path]
+  ^-  (unit _path)
+  ?.  |(=(/epic path) ?=([%diary @ @ %updates *] path))  ~
   `path
-      %0
-    %=  $
-      old  (state-0-to-1 old)
-    ==
-  ==
   ::
   ++  keep
     |=  bad=^vase
@@ -114,85 +107,7 @@
     ~&  >  %keep
     [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
   ::
-  +$  versioned-state
-    $%  state-0
-        state-1
-    ==
-  ++  zero     zero:old:d
-  ++  one      d
-  +$  state-0  [%0 =shelf:zero]
-  +$  state-1  current-state
-  ++  state-0-to-1
-    |=  sta=state-0
-    ^-  state-1
-    :-  %1
-    %-  ~(run by shelf.sta)
-    |=  =diary:zero
-    ^-  diary:one
-    %*  .  *diary:one
-      net    (net-0-to-1 net.diary)
-      log    (log-0-to-1 log.diary)
-      perm   perm.diary
-      view   view.diary
-      sort   sort.diary
-      notes  (notes-0-to-1 notes.diary banter.diary)
-      remark  remark.diary
-    ==
-  ::
-  ++  log-0-to-1
-    |=  =log:zero
-    ^-  log:one
-    %+  gas:log-on:one  *log:one
-    %+  turn  (tap:log-on:zero log)
-    |=  [=time =diff:zero]
-    ^-  [_time diff:one]
-    :-  time
-    ^-  diff:one
-    ?.  ?=(%quips -.diff)  diff
-    ^-  diff:one
-    [%notes p.diff %quips (quips-diff-0-to-1 q.diff)]
-  ::
-  ++  quips-diff-0-to-1
-    |=  =diff:quips:zero
-    ^-  diff:quips:one
-    :-  p.diff
-    ?.  ?=(%add -.q.diff)  q.diff
-    add/(memo-0-to-1 p.q.diff)
-  ::
-  ++  notes-0-to-1
-    |=  [=notes:zero banter=(map time quips:zero)]
-    ^-  notes:one
-    %+  gas:on:notes:one  *notes:one
-    %+  turn  (tap:on:notes:zero notes)
-    |=  [=time =note:zero]
-    ^-  [_time note:one]
-    :-  time
-    :_  +.note
-    ^-  seal:one
-    [time (quips-0-to-1 (~(gut by banter) time *quips:zero)) feels.note]
-  ::
-  ++  quips-0-to-1
-    |=  =quips:zero
-    ^-  quips:one
-    %+  gas:on:quips:one  *quips:one
-    ^-  (list [time quip:one])
-    %+  turn  (tap:on:quips:zero quips)
-    |=  [=time =quip:zero]
-    [time -.quip (memo-0-to-1 +.quip)]
-  ::
-  ++  memo-0-to-1
-    |=  =memo:zero
-    ^-  memo:one
-    [`content author sent]:memo
-  ::
-  ++  net-0-to-1
-    |=  =net:zero
-    ^-  net:one
-    ?:  ?=(%load -.net)
-    ::  XX should we remove uninitialized subs from state-0?
-       [%pub ~]
-    ?.  ?=(%sub -.net)  net
-    [%sub p.net & [%chi ~]]
+  +$  versioned-state  $%(current-state)
   --
 ::
 ++  watch-epic

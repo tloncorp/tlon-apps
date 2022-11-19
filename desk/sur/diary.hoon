@@ -1,9 +1,5 @@
-/-  g=groups, c=cite, e=epic, zer=diary-0
+/-  g=groups, c=cite, e=epic
 |%
-++  old
-  |%
-  ++  zero  zer
-  --
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)
 ::  $feel: either an emoji identifier like :diff or a URL for custom

@@ -12,14 +12,12 @@
   |%
   ++  okay  `epic:e`0
   +$  card  card:agent:gall
-  +$  state-0
+  +$  current-state
     $:  %0
         groups=(map flag:g [net:g group:g])
         xeno=(map flag:g gang:g)
     ==
-  ++  versioned-state  $%(state-0)
   ::
-  +$  current-state  state-0
   --
 =|  current-state
 =*  state  -
@@ -79,12 +77,43 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+::  +load: load next state
+++  load
+  |=  =vase
+  |^  ^+  cor
+  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
+    (mule |.(!<([versioned-state epic:e] vase)))
+  ::  XX only save when epic changes
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
+  ::
+  =.  state  old
+  ?:  =(okay cool)  cor
+  =?  cor  bad  (emit (keep !>(old)))
+  =-  (give %fact ~(tap in -) epic+!>(okay))
+  %-  ~(gas in *(set path))
+  %+  murn  ~(val by sup.bowl)
+  |=  [=ship =path]
+  ^-  (unit _path)
+  ?.  |(=(/epic path) ?=([%groups @ @ %updates *] path))  ~
+  `path
+  ::
+  ++  keep
+  |=  bad=^vase
+  ^-  card
+  ~&  >  %keep
+  [%pass /groups/keep %arvo %k %fard q.byk.bowl %keep %noun bad]
+  ::
+  +$  versioned-state  $%(current-state)
+  --
+::
 ++  poke
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
-      %holt  (holt |)
-  ::
       %group-import
     =+  !<(=flag:g vase)
     ?>  &(=(our.bowl p.flag) =(src our):bowl)
@@ -163,36 +192,6 @@
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
-::  +load: load next state
-++  load
-  |=  =vase
-  |^  ^+  cor
-   =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
-  (mule |.(!<([versioned-state epic:e] vase)))
-  ::  XX only save when epic changes
-  =/  [old=versioned-state cool=epic:e bad=?]
-    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
-    =;  [sta=versioned-state ba=?]  [sta okay ba]
-    =-  %+  fall  -  ~&  >  %bad-load  [state &]
-    (mole |.([!<(versioned-state vase) |]))
-  ::
-  =.  state  old
-  ?:  =(okay cool)  cor
-  =?  cor  bad  (emit (keep !>(old)))
-  =-  (give %fact ~(tap in -) epic+!>(okay))
-  %-  ~(gas in *(set path))
-  %+  murn  ~(val by sup.bowl)
-  |=  [=ship =path]
-  ^-  (unit _path)
-  ?.  |(=(/epic path) ?=([%groups @ @ %updates *] path))  ~
-  `path
-  ::
-  ++  keep
-  |=  bad=^vase
-  ^-  card
-  ~&  >  %keep
-  [%pass /groups/keep %arvo %k %fard q.byk.bowl %keep %noun bad]
-  --
 ::
 ++  watch
   |=  =(pole knot)
@@ -269,25 +268,6 @@
   |=  [=wire sign=sign-arvo]
   ^+  cor
   !!
-::
-++  holt
-  |=  tell=?
-  ^+  cor
-  =.  state  *versioned-state
-  =.  cor
-    %-  emil
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
-  ?.  tell
-    cor
-  %-  emil
-  %+  murn  `(list dude:gall)`desk-bill
-  |=  =dude:gall
-  ^-  (unit card)
-  ?:  =(dude dap.bowl)  ~
-  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
 ::
 ++  watch-epic
   |=  her=ship

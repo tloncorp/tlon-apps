@@ -17,7 +17,7 @@
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   ++  okay  `epic:e`0
   +$  current-state
-    $:  %1
+    $:  %0
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
@@ -105,79 +105,24 @@
     =-  %+  fall  -  ~&  >  %bad-load  [state &]
     (mole |.([!<(versioned-state vase) |]))
   |-
-  ?-  -.old
-      %0
-    %=  $
-      old  (state-0-to-1 old)
-    ==
-      %1
-    =.  state  old
-    ?:  =(okay cool)  cor
-    =?  cor  bad  (emit (keep !>(old)))
-    =-  (give %fact ~(tap in -) epic+!>(okay))
-    %-  ~(gas in *(set path))
-    %+  murn  ~(val by sup.bowl)
-    |=  [=ship =path]
-    ^-  (unit _path)
-    ?.  |(=(/epic path) ?=([%chat @ @ %updates *] path))  ~
-    `path
-  ==
+  =.  state  old
+  ?:  =(okay cool)  cor
+  =?  cor  bad  (emit (keep !>(old)))
+  =-  (give %fact ~(tap in -) epic+!>(okay))
+  %-  ~(gas in *(set path))
+  %+  murn  ~(val by sup.bowl)
+  |=  [=ship =path]
+  ^-  (unit _path)
+  ?.  |(=(/epic path) ?=([%chat @ @ %updates *] path))  ~
+  `path
   ::
   ++  keep
     |=  bad=^vase
     ^-  card
     ~&  >  %keep
     [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
- ::
- +$  versioned-state
-    $%  state-0
-        state-1
-    ==
-  +$  state-0
-    $:  %0
-        chats=(map flag:zero chat:zero)
-        dms=(map ship dm:zero)
-        clubs=(map id:club:zero club:zero)
-        drafts=(map whom:zero story:zero)
-        pins=(list whom:zero)
-        bad=(set ship)
-        inv=(set ship)
-        voc=(map [flag:zero id:zero] (unit said:zero))
-    ==
-  ++  zero     zero:old:c
-  +$  state-1  current-state
-  ++  one      c
-  ++  state-0-to-1
-    |=  s=state-0
-    ^-  state-1
-    %*  .  *state-1
-      dms     dms.s
-      clubs   clubs.s
-      drafts  drafts.s
-      pins    pins.s
-      bad     bad.s
-      inv     inv.s
-      voc     voc.s
-      chats   (chats-0-to-1 chats.s)
-    ==
-  ++  chats-0-to-1
-    |=  chats=(map flag:zero chat:zero)
-    ^-  (map flag:one chat:one)
-    %-  ~(run by chats)
-    |=  =chat:zero
-    %*  .  *chat:one
-      remark  remark.chat
-      log     log.chat
-      perm    perm.chat
-      pact    pact.chat
-      ::
-        net
-      ?:  ?=(%load -.net.chat)
-      ::  XX maybe should p.net be a (unit @p)?
-        [%pub ~]
-      ?.  ?=(%sub -.net.chat)  net.chat
-      [%sub p.net.chat & [%chi ~]]
-    ==
+  ::
+  +$  versioned-state  $%(current-state)
   --
 ::
 ++  watch-groups
@@ -197,7 +142,6 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
-      %holt  (holt |)
       %graph-import
     (import-graph !<([flag:g flag:g graph:gra] vase))
   ::
@@ -573,25 +517,6 @@
     :-  flag/flag
     ca-brief:(ca-abed:ca-core flag)
   ==
-::
-++  holt
-  |=  tell=?
-  ^+  cor
-  =.  state  *current-state
-  =.  cor
-    %-  emil
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
-  =.  cor  init
-  ?.  tell  cor
-  %-  emil
-  %+  murn  `(list dude:gall)`desk-bill
-  |=  =dude:gall
-  ^-  (unit card)
-  ?:  =(dude dap.bowl)  ~
-  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
 ::
 ++  give-brief
   |=  [=whom:c =brief:briefs:c]
