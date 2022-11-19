@@ -26,7 +26,7 @@ export default function GroupInviteDialog() {
     const shipList = ships.map((s) => s.value);
     if (privacy === 'public') {
       useGroupState.getState().addMembers(flag, shipList);
-    } else if (privacy === 'private') {
+    } else {
       useGroupState.getState().invite(flag, shipList);
     }
   }, [flag, privacy, ships]);
