@@ -27,6 +27,7 @@ import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import GridIcon from '@/components/icons/GridIcon';
 import ListIcon from '@/components/icons/ListIcon';
 import SortIcon from '@/components/icons/SortIcon';
+import { Status } from '@/logic/status';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
@@ -104,6 +105,7 @@ function ChannelActions({
   const [dropdownIsOpen, setDropdownIsOpen] = useState(false);
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const isChannelHost = useIsChannelHost(flag);
 
   function prettyAppName() {
@@ -149,15 +151,18 @@ function ChannelActions({
   }, [flag, ship, name, navigate, leave, isMobile]);
 
   const onDeleteChannelConfirm = useCallback(async () => {
+    setDeleteStatus('loading');
     try {
-      setDeleteChannelIsOpen(!deleteChannelIsOpen);
-      useGroupState.getState().deleteChannel(groupFlag, nest);
+      await useGroupState.getState().deleteChannel(groupFlag, nest);
       navigate(
         isMobile
           ? `/groups/${ship}/${name}`
           : `/groups/${ship}/${name}/channels`
       );
+      setDeleteStatus('success');
+      setDeleteChannelIsOpen(!deleteChannelIsOpen);
     } catch (error) {
+      setDeleteStatus('error');
       console.error(error);
     }
   }, [deleteChannelIsOpen, groupFlag, isMobile, name, navigate, nest, ship]);
@@ -210,6 +215,7 @@ function ChannelActions({
             onDeleteChannelConfirm={onDeleteChannelConfirm}
             setDeleteChannelIsOpen={setDeleteChannelIsOpen}
             channel={channel}
+            deleteStatus={deleteStatus}
           />
         </>
       )}

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
@@ -11,10 +11,13 @@ import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSe
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
-import ChannelTypeSelector from '../ChannelTypeSelector';
+import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 export default function NewChannelForm() {
   const { section } = useParams<{ section: string }>();
+  const [addChannelStatus, setAddChannelStatus] = useState<Status>('initial');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
@@ -40,6 +43,7 @@ export default function NewChannelForm() {
 
   const onSubmit = useCallback(
     async (values: NewChannelFormSchema) => {
+      setAddChannelStatus('loading');
       const { privacy, type, ...nextChannel } = values;
       /*
         For now channel names are used as keys for pacts. Therefore we need to
@@ -96,19 +100,29 @@ export default function NewChannelForm() {
           ? useHeapState.getState().create
           : useDiaryState.getState().create;
 
-      await creator({
-        group: groupFlag,
-        name: channelName,
-        title: values.meta.title,
-        description: values.meta.description,
-        readers: values.readers,
-        writers: privacy !== 'public' ? ['admin'] : [],
-      });
+      try {
+        await creator({
+          group: groupFlag,
+          name: channelName,
+          title: values.meta.title,
+          description: values.meta.description,
+          readers: values.readers,
+          writers: privacy !== 'public' ? ['admin'] : [],
+        });
+      } catch (e) {
+        setAddChannelStatus('error');
+        console.log(e);
+      }
 
       if (section) {
-        await useGroupState
-          .getState()
-          .addChannelToZone(section, groupFlag, newChannelNest);
+        try {
+          await useGroupState
+            .getState()
+            .addChannelToZone(section, groupFlag, newChannelNest);
+        } catch (e) {
+          setAddChannelStatus('error');
+          console.log(e);
+        }
       }
 
       if (values.join === true) {
@@ -116,6 +130,7 @@ export default function NewChannelForm() {
           .getState()
           .setChannelJoin(groupFlag, newChannelNest, true);
       }
+      setAddChannelStatus('success');
       navigate(
         isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/info/channels`
       );
@@ -154,9 +169,23 @@ export default function NewChannelForm() {
             <button
               type="submit"
               className="button"
-              disabled={!form.formState.isValid || !form.formState.isDirty}
+              disabled={
+                !form.formState.isValid ||
+                !form.formState.isDirty ||
+                addChannelStatus === 'loading' ||
+                addChannelStatus === 'success' ||
+                addChannelStatus === 'error'
+              }
             >
-              Add Channel
+              {addChannelStatus === 'loading' ? (
+                <LoadingSpinner className="h-4 w-4" />
+              ) : addChannelStatus === 'error' ? (
+                'Error'
+              ) : addChannelStatus === 'success' ? (
+                'Saved'
+              ) : (
+                'Add Channel'
+              )}
             </button>
           </div>
         </footer>
