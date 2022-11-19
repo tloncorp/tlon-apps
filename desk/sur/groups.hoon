@@ -1,9 +1,5 @@
-/-  meta, zer=groups-0
+/-  meta, e=epic
 |%
-++  old
-  |%
-  ++  zero  zer
-  --
 ::  $flag: ID for a group
 ::
 +$  flag  (pair ship term)
@@ -290,8 +286,7 @@
 +$  net
   $~  [%pub ~]
   $%  [%pub p=log]
-      [%sub p=time]
-      [%load ~]
+      [%sub p=time load=_| =saga:e]
   ==
 ::
 ::  $join: a join request, can elect to join all channels

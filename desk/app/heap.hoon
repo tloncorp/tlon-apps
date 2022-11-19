@@ -1,4 +1,4 @@
-/-  h=heap, g=groups, ha=hark
+/-  h=heap, g=groups, ha=hark, e=epic
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
@@ -6,13 +6,17 @@
 ^-  agent:gall
 =>
   |%
+  ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  state-0
     $:  %0
         =stash:h
     ==
+  ++  versioned-state  $%(state-0)
+  ::
+  +$  current-state  state-0
   --
-=|  state-0
+=|  current-state
 =*  state  -
 =< 
   %+  verb  &
@@ -27,21 +31,13 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>([state okay])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
-    =/  old=(unit state-0)
-      (mole |.(!<(state-0 vase)))  
-    ?^  old  `this(state u.old)
-    ~&  >>>  "Incompatible load, nuking"
-    =^  cards  this  on-init
-    :_  this
-    =-  (welp - cards)
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
+    =^  cards  state
+      abet:(load:cor vase)
+    [cards this]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -150,12 +146,44 @@
       ==
     --
   --
+++  load
+  |=  =vase
+  |^  ^+  cor
+  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
+    (mule |.(!<([versioned-state epic:e] vase)))
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ::  XX only save when epic changes
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
+  =.  state  old
+  ?:  =(okay cool)  cor
+  =?  cor  bad  (emit (keep !>(old)))
+  ::  speak the good news
+  =-  (give %fact ~(tap in -) epic+!>(okay))
+  %-  ~(gas in *(set path))
+  %+  murn  ~(val by sup.bowl)
+  |=  [=ship =path]
+  ^-  (unit _path)
+  ?.  |(=(/epic path) ?=([%heap @ @ %updates *] path))  ~
+  `path
+  ::
+  ++  keep
+    |=  bad=^vase
+    ^-  card
+    ~&  >  %keep
+    [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
+  --
+::
 ++  watch
   |=  =path
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
+    ::
+      [%epic ~]    (give %fact ~ epic+!>(okay))
     ::
       [%heap @ @ *]
     =/  =ship  (slav %p i.t.path)
@@ -167,7 +195,8 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
-  ::
+      ~  cor
+      [%epic ~]  (take-epic sign)
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -195,6 +224,40 @@
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
+++  watch-epic
+  |=  her=ship
+  ^+  cor
+  =/  =wire  /epic
+  =/  =dock  [her dap.bowl]
+  ?:  (~(has by wex.bowl) [wire dock])
+    cor
+  (emit %pass wire %agent [her dap.bowl] %watch /epic)
+::
+++  take-epic
+  |=  =sign:agent:gall
+  ^+  cor
+  ?+    -.sign  cor
+      %kick
+    (watch-epic src.bowl)
+  ::
+      %fact
+    ?.  =(%epic p.cage.sign)
+      ~&  '!!! weird fact on /epic'
+      cor
+    =+  !<(=epic:e q.cage.sign)
+    ?.  =(epic okay)
+      cor
+    ~&  >>  "good news everyone!"
+    %+  roll  ~(tap by stash)
+    |=  [[=flag:g =heap:h] out=_cor]
+    ?>  =(src.bowl p.flag)
+    he-abet:he-sub:(he-abed:he-core:out flag)
+      %watch-ack
+    %.  cor
+    ?~  p.sign  same
+    (slog leaf/"weird watch nack" u.p.sign)
+  ==
+::
 ++  take-groups
   |=  =action:g
   =/  affected=(list flag:h)
@@ -386,15 +449,30 @@
     |=  [[=ship =path] he=_he-core]
     ?:  (he-can-read:he ship)  he
     he(cor (emit %give %kick ~[path] `ship))
+  ++  he-take-epic
+    |=  her=epic:e
+    ^+  he-core
+    ?>  ?=(%sub -.net.heap)
+    ?:  =(her okay)
+      he-core
+    ?:  (gth her okay)
+      =.  saga.net.heap  dex+her
+      he-core
+    =.  saga.net.heap  lev+~
+    =.  cor  (watch-epic p.flag)
+    he-core
   ::
   ++  he-take-update
     |=  =sign:agent:gall
     ^+  he-core
     ?+    -.sign  he-core
-      %kick  he-sub
+        %kick
+      ?>  ?=(%sub -.net.heap)
+      ?:  =(%chi -.saga.net.heap)  he-sub
+      he-core
     ::
         %watch-ack
-      =.  net.heap  [%sub src.bowl]
+      =.  net.heap  [%sub src.bowl & [%chi ~]]
       ?~  p.sign  he-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       =.  gone  &
@@ -403,6 +481,7 @@
         %fact
       =*  cage  cage.sign 
       ?+  p.cage  he-core
+        %epic                             (he-take-epic !<(epic:e q.cage))
         ?(%heap-logs-0 %heap-logs)      (he-apply-logs !<(log:h q.cage))
         ?(%heap-update-0 %heap-update)  (he-update !<(update:h q.cage))
       ==
