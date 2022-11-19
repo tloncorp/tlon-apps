@@ -272,14 +272,29 @@
   ::
   ++  create
     |=  req=create:c
-    ^+  cor
-    =/  =flag:c  [our.bowl name.req]
-    =|  =chat:c
-    =/  =perm:c  [writers.req group.req]
-    =.  perm.chat  perm
-    =.  net.chat  [%pub ~]
-    =.  chats  (~(put by chats) flag chat)
-    ca-abet:(ca-init:(ca-abed:ca-core flag) req)
+    |^  ^+  cor
+      ~_  leaf+"Create failed: check group permissions"
+      ?>  can-nest
+      ?>  ((sane %tas) name.req)
+      =/  =flag:c  [our.bowl name.req]
+      =|  =chat:c
+      =/  =perm:c  [writers.req group.req]
+      =.  perm.chat  perm
+      =.  net.chat  [%pub ~]
+      =.  chats  (~(put by chats) flag chat)
+      ca-abet:(ca-init:(ca-abed:ca-core flag) req)
+    ++  can-nest
+      ^-  ?
+      =/  gop  (~(got by groups) group.req)
+      %-  ~(any in bloc.gop)
+      ~(has in sects:(~(got by fleet.gop) our.bowl))
+    ::
+    ++  groups
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
   ++  pin
     |=  ps=(list whom:c)
     =.  pins  ps
@@ -1089,10 +1104,9 @@
         %unwatch  remark.chat(watching |)
         %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
       ::
-          %read   remark.chat(last-read now.bowl)
-  ::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
-  ::    =.  last-read.remark.chat  time
-  ::    ca-core
+          %read
+      =/  [=time =writ:c]  (need (ram:on:writs:c wit.pact.chat))
+      remark.chat(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
       (give-brief flag/flag ca-brief)

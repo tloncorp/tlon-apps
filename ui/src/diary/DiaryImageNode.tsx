@@ -1,20 +1,31 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { useCalm } from '@/state/settings';
+import { findLast } from 'lodash';
 import LinkIcon from '@/components/icons/LinkIcon';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { Node, NodeViewProps } from '@tiptap/core';
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import cn from 'classnames';
-import React, { useState, useEffect, useRef } from 'react';
+import useFileUpload from '@/logic/useFileUpload';
+import { useFileStore } from '@/state/storage';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import useDiaryNode from './useDiaryNode';
 
 function DiaryImageComponent(props: NodeViewProps) {
   const className = '';
-  const { selected, editor } = props;
+  const { selected, getPos, editor } = props;
   const { clear, ...bind } = useDiaryNode('src', props);
   const [error, setError] = useState(false);
   const [src, setSrc] = useState(null as string | null);
   const image = useRef<HTMLImageElement>(null);
   const calm = useCalm();
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const { loaded, hasCredentials, promptUpload } = useFileUpload();
+  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
+  const mostRecentFile = useFileStore((state) =>
+    findLast(state.files, ['for', fileId.current])
+  );
   const onError = () => {
     setError(true);
   };
@@ -23,10 +34,36 @@ function DiaryImageComponent(props: NodeViewProps) {
   }, [src]);
 
   useEffect(() => {
+    if (
+      mostRecentFile &&
+      mostRecentFile.status === 'error' &&
+      mostRecentFile.errorMessage
+    ) {
+      setUploadError(mostRecentFile.errorMessage);
+    }
+
+    if (mostRecentFile && mostRecentFile.status === 'success') {
+      setSrc(mostRecentFile.url);
+      if (bind.ref.current) {
+        bind.ref.current.value = mostRecentFile.url;
+      }
+    }
+  }, [mostRecentFile, bind]);
+
+  useEffect(() => {
     if (!selected) {
       setSrc(bind.value);
     }
   }, [selected, bind.value]);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowUp') {
+      editor.commands.focus(getPos() - 1);
+    } else if (e.key === 'ArrowDown') {
+      editor.commands.focus(getPos() + 1);
+    }
+  };
+
   const onCancel = () => {
     setSrc(null);
     clear();
@@ -53,14 +90,40 @@ function DiaryImageComponent(props: NodeViewProps) {
           className
         )}
       >
-        <div className="absolute inset-x-4 bottom-4 flex h-8 items-center space-x-2 rounded-lg border border-gray-100 bg-white px-2">
+        <div className="input absolute inset-x-4 bottom-4 flex h-8 items-center space-x-2 rounded-lg border border-gray-100 bg-white px-2">
           <LinkIcon className="h-4 w-4" />
           <input
             className="input-transparent grow"
             type="text"
             {...bind}
+            onKeyDown={onKeyDown}
             placeholder="Enter an image/embed/web URL"
           />
+          {loaded && hasCredentials ? (
+            <button
+              title={'Upload an image'}
+              className="small-button whitespace-nowrap"
+              aria-label="Add attachment"
+              onClick={(e) => {
+                e.preventDefault();
+                promptUpload(fileId.current);
+              }}
+            >
+              {mostRecentFile && mostRecentFile.status === 'loading' ? (
+                <LoadingSpinner secondary="black" className="h-4 w-4" />
+              ) : (
+                'Upload Image'
+              )}
+            </button>
+          ) : null}
+          {uploadError ? (
+            <div className="absolute mr-2">
+              <UploadErrorPopover
+                errorMessage={uploadError}
+                setUploadError={setUploadError}
+              />
+            </div>
+          ) : null}
           {error ? (
             <div className="flex space-x-2">
               <AsteriskIcon className="h-4 w-4" />

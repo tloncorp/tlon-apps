@@ -15,6 +15,7 @@ export default function ProfileModal() {
   const { doCopy, didCopy } = useCopy(ship || '');
   const navigate = useNavigate();
   const contact = useContact(ship ? ship : '');
+  const cover = contact?.cover || '';
   const dismiss = useDismissNavigate();
 
   const onCopy = useCallback(() => {
@@ -46,8 +47,13 @@ export default function ProfileModal() {
           className="overflow-y-auto p-0"
           containerClass="w-full sm:max-w-lg"
         >
-          <ProfileCoverImage className="flex items-end" ship={ship}>
-            <Avatar ship={ship} size="huge" className="translate-y-9" />
+          <ProfileCoverImage className="flex items-end" cover={cover}>
+            <Avatar
+              ship={ship}
+              icon={false}
+              size="huge"
+              className="translate-y-9"
+            />
           </ProfileCoverImage>
           <div className="p-5 pt-14">
             <div className="text-lg font-bold">
@@ -76,8 +82,13 @@ export default function ProfileModal() {
         className="overflow-y-auto p-0"
         containerClass="w-full sm:max-w-lg"
       >
-        <ProfileCoverImage className="flex items-end" ship={ship}>
-          <Avatar ship={ship} size="huge" className="translate-y-9" />
+        <ProfileCoverImage className="flex items-end" cover={cover}>
+          <Avatar
+            icon={false}
+            ship={ship}
+            size="huge"
+            className="translate-y-9"
+          />
         </ProfileCoverImage>
         <div className="p-5 pt-14">
           <div className="text-lg font-bold">

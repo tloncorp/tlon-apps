@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { PropsWithChildren, Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
@@ -19,11 +19,16 @@ import api, { IS_MOCK } from '@/api';
 import Dms from '@/dms/Dms';
 import NewDM from '@/dms/NewDm';
 import { DmThread, GroupChatThread } from '@/chat/ChatThread/ChatThread';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
+import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
-import { useLocalState } from '@/state/local';
+import {
+  useAirLockErrorCount,
+  useErrorCount,
+  useLocalState,
+  useSubscriptionStatus,
+} from '@/state/local';
 import useContactState from '@/state/contact';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -65,12 +70,14 @@ import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
-import AlphaNotice from './components/AlphaNotice';
+import PrereleaseNotice from './components/PrereleaseNotice';
+import DisconnectNotice from './components/DisconnectNotice';
 import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
 import TalkNav from './nav/TalkNav';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
+import MobileGroupsActions from './groups/MobileGroupsActions';
 import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
 
@@ -108,9 +115,10 @@ interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
   location: Location;
   isMobile: boolean;
+  isSmall: boolean;
 }
 
-function ChatRoutes({ state, location, isMobile }: RoutesProps) {
+function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -141,14 +149,28 @@ function ChatRoutes({ state, location, isMobile }: RoutesProps) {
               path="channels/join/:app/:chShip/:chName"
               element={<Channel />}
             />
-            <Route
-              path="channels/chat/:chShip/:chName"
-              element={<ChatChannel title={`• ${appHead('chat').title}`} />}
-            >
+            <Route path="channels/chat/:chShip/:chName">
               <Route
-                path="message/:idShip/:idTime"
-                element={<GroupChatThread />}
+                index
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
               />
+              <Route
+                path="*"
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
+              >
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<GroupChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall ? (
+                <Route
+                  path="message/:idShip/:idTime"
+                  element={<GroupChatThread />}
+                />
+              ) : null}
             </Route>
           </Route>
 
@@ -175,7 +197,7 @@ function ChatRoutes({ state, location, isMobile }: RoutesProps) {
   );
 }
 
-function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
+function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -231,10 +253,11 @@ function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
                 <EditProfile title={`Edit Profile • ${appHead('').title}`} />
               }
             />
+            <Route path="/actions" element={<MobileGroupsActions />} />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
-              <Route index element={<MobileGroupRoot />} />
+              <Route index element={isMobile ? <MobileGroupRoot /> : null} />
               <Route
                 path="activity"
                 element={
@@ -282,9 +305,22 @@ function GroupsRoutes({ state, location, isMobile }: RoutesProps) {
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
               />
               <Route
-                path="message/:idShip/:idTime"
-                element={<GroupChatThread />}
-              />
+                path="*"
+                element={<ChatChannel title={` • ${appHead('').title}`} />}
+              >
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<GroupChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall ? (
+                <Route
+                  path="message/:idShip/:idTime"
+                  element={<GroupChatThread />}
+                />
+              ) : null}
             </Route>
             <Route path="channels/heap/:chShip/:chName">
               <Route
@@ -373,6 +409,10 @@ function App() {
   const location = useLocation();
   const isChat = useIsChat();
   const isMobile = useIsMobile();
+  const isSmall = useMedia('(max-width: 1023px)');
+  const subscription = useSubscriptionStatus();
+  const errorCount = useErrorCount();
+  const airLockErrorCount = useAirLockErrorCount();
 
   useEffect(() => {
     handleError(() => {
@@ -402,13 +442,35 @@ function App() {
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
+  useEffect(() => {
+    if (
+      (errorCount > 4 || airLockErrorCount > 1) &&
+      subscription === 'connected'
+    ) {
+      useLocalState.setState({ subscription: 'disconnected' });
+    }
+  }, [errorCount, subscription, airLockErrorCount]);
+
   return (
     <div className="flex h-full w-full flex-col">
-      <AlphaNotice />
+      {subscription === 'disconnected' || subscription === 'reconnecting' ? (
+        <DisconnectNotice />
+      ) : null}
+      <PrereleaseNotice />
       {isChat ? (
-        <ChatRoutes state={state} location={location} isMobile={isMobile} />
+        <ChatRoutes
+          state={state}
+          location={location}
+          isMobile={isMobile}
+          isSmall={isSmall}
+        />
       ) : (
-        <GroupsRoutes state={state} location={location} isMobile={isMobile} />
+        <GroupsRoutes
+          state={state}
+          location={location}
+          isMobile={isMobile}
+          isSmall={isSmall}
+        />
       )}
     </div>
   );
@@ -433,7 +495,7 @@ function RoutedApp() {
   };
 
   const theme = useTheme();
-  const isDarkMode = useMedia('(prefers-color-scheme: dark)');
+  const isDarkMode = useIsDark();
 
   useEffect(() => {
     if ((isDarkMode && theme === 'auto') || theme === 'dark') {

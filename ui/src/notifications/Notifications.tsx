@@ -22,8 +22,8 @@ export function MainWrapper({
 
   return (
     <>
-      <header className="flex-none px-2 py-1">
-        <h1 className="p-2 text-base font-semibold">Notifications</h1>
+      <header className="flex h-14 items-center justify-between px-5 py-4">
+        <h1 className="text-base font-bold">Notifications</h1>
       </header>
       <nav className="h-full flex-1 overflow-y-auto">{children}</nav>
     </>
@@ -75,7 +75,7 @@ export default function Notifications({
         </title>
       </Helmet>
       {notifications.map((grouping) => (
-        <>
+        <div key={grouping.date}>
           <h2 className="mt-8 mb-4 text-lg font-bold text-gray-400">
             {grouping.date}
           </h2>
@@ -86,7 +86,7 @@ export default function Notifications({
               </li>
             ))}
           </ul>
-        </>
+        </div>
       ))}
     </section>
   );

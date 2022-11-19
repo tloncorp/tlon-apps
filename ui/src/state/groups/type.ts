@@ -47,6 +47,7 @@ export interface GroupState {
   leave: (flag: string) => Promise<void>;
   edit: (flag: string, metadata: GroupMeta) => Promise<void>;
   delete: (flag: string) => Promise<void>;
+  updateGroups: () => Promise<void>;
   start: () => Promise<void>;
   channelPreview: (nest: string) => Promise<void>;
   search: (flag: string) => Promise<void>;
@@ -61,6 +62,7 @@ export interface GroupState {
     kind: 'ask' | 'pending'
   ) => Promise<void>;
   reject: (flag: string) => Promise<void>;
+  cancel: (flag: string) => Promise<void>;
   createZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   editZone: (flag: string, zone: string, meta: GroupMeta) => Promise<void>;
   moveZone: (flag: string, zone: string, index: number) => Promise<void>;

@@ -98,6 +98,7 @@
   ::
       %group-create
     =+  !<(=create:g vase)
+    ?>  ((sane %tas) name.create)
     =/  =flag:g  [our.bowl name.create]
     =/  =fleet:g
       %-  ~(run by members.create)
@@ -121,6 +122,8 @@
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
+    ?:  &(!=(our.bowl p.p.action) from-self)
+      go-abet:(go-proxy:group-core q.action)
     go-abet:(go-update:group-core q.action)
   ::
       %group-invite
@@ -151,6 +154,10 @@
       %group-rescind
     =+  !<(=flag:g vase)
     ga-abet:ga-rescind:(ga-abed:gang-core flag)
+  ::
+      %group-cancel
+    =+  !<(=flag:g vase)
+    ga-abet:ga-cancel:(ga-abed:gang-core flag)
   ::
       %invite-decline
     =+  !<(=flag:g vase)
@@ -513,6 +520,8 @@
   ++  go-link
     |=  link=path 
     (welp /groups/(scot %p p.flag)/[q.flag] link)
+  ++  go-is-our-bloc
+    (~(has in go-bloc-who) our.bowl)
   ++  go-is-bloc
     |(=(src.bowl p.flag) (~(has in go-bloc-who) src.bowl))
   ++  go-bloc-who
@@ -691,6 +700,16 @@
         ?(%group-init-0 %group-init)      (go-fact-init !<(init:g q.cage))
       ==
     ==
+  ::
+  ++  go-proxy
+    |=  =update:g
+    ^+  go-core
+    ?>  go-is-bloc
+    =/  =wire  (snoc go-area %proxy)
+    =/  =dock  [p.flag dap.bowl]
+    =/  =cage  group-action+!>([flag update])
+    =.  cor  (emit %pass wire %agent dock %poke cage)
+    go-core
   ::
   ++  go-pub
     |=  =path
@@ -908,7 +927,6 @@
         ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
         =.  ask.cordon.group  (~(uni in ask.cordon) q.diff)
         =/  ships  q.diff
-        ~&  [src.bowl our.bowl]
         ?:  from-self  go-core
         =/  link  (go-link /info/members/pending)
         =/  yarn
@@ -926,7 +944,8 @@
                   [%emph title.meta.group]
               ==
           ==
-        =.  cor  (emit (pass-hark & & yarn))
+        =?  cor  go-is-our-bloc
+          (emit (pass-hark & & yarn))
         go-core
       ::
           [%del-ships %ask]
@@ -999,7 +1018,8 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =?  cor  go-is-our-bloc
+        (emit (pass-hark & & yarn))
       ?-  -.cordon.group
           ?(%open %afar)  go-core
           %shut  
@@ -1032,7 +1052,8 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =?  cor  go-is-our-bloc
+        (emit (pass-hark & & yarn))
       ?:  (~(has in ships) our.bowl)
         go-core(gone &)
       go-core
@@ -1071,7 +1092,8 @@
                 [%emph role-list]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =?  cor  go-is-our-bloc
+        (emit (pass-hark & & yarn))
       go-core
     ::
         %del-sects
@@ -1249,6 +1271,12 @@
   ++  ga-start-join
     ^+  ga-core
     =.  cor  (emit add-self:ga-pass)
+    ga-core
+  ::
+  ++  ga-cancel
+    ^+  ga-core
+    =.  cam.gang  ~
+    =.  cor  ga-give-update
     ga-core
   ::
   ++  ga-knock

@@ -122,9 +122,14 @@ export default function DiaryNote() {
   const loading = id.isZero();
 
   useEffect(() => {
-    if (loading) {
-      useDiaryState.getState().fetchNote(chFlag, noteId);
+    async function load() {
+      await useDiaryState.getState().initialize(chFlag);
+      if (loading) {
+        useDiaryState.getState().fetchNote(chFlag, noteId);
+      }
     }
+
+    load();
   }, [chFlag, noteId, loading]);
 
   return (

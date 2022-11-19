@@ -24,3 +24,7 @@ a[aria-disabled='true'] {
     display: none; /* Safari and Chrome */
   }
 }
+
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+}

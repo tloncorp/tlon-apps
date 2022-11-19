@@ -30,6 +30,7 @@ import {
   createStorageKey,
   clearStorageMigration,
   storageVersion,
+  nestToFlag,
 } from '@/logic/utils';
 import { DiaryState } from './type';
 import makeNotesStore from './notes';
@@ -319,6 +320,10 @@ export function useNotes(flag: DiaryFlag) {
   return useDiaryState(useCallback((s) => s.notes[flag], [flag]));
 }
 
+export function useAllNotes() {
+  return useDiaryState(useCallback((s: DiaryState) => s.notes, []));
+}
+
 export function useCurrentNotesSize(flag: DiaryFlag) {
   return useDiaryState(useCallback((s) => s.notes[flag]?.size ?? 0, [flag]));
 }
@@ -404,6 +409,18 @@ export function useBrief(flag: string) {
 //   const getQuip = useQuips;
 //   const quipNotes = Array.from(notes).map(([time, note]) => [time, getQuip(flag, time.toString())]);
 // }
+
+export function useGetLatestNote() {
+  const def = useMemo(() => new BigIntOrderedMap<DiaryLetter>(), []);
+  const empty = [bigInt(), null];
+  const allNotes = useAllNotes();
+
+  return (chFlag: string) => {
+    const noteFlag = chFlag.startsWith('~') ? chFlag : nestToFlag(chFlag)[1];
+    const notes = allNotes[noteFlag] ?? def;
+    return notes.size > 0 ? notes.peekLargest() : empty;
+  };
+}
 
 (window as any).diary = useDiaryState.getState;
 

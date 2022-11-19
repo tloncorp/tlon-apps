@@ -18,6 +18,7 @@ import {
   ClearIndicatorProps,
   InputActionMeta,
 } from 'react-select';
+import { includes } from 'lodash';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
 import { deSig } from '@urbit/api';
@@ -29,6 +30,7 @@ import { useMemoizedContacts } from '@/state/contact';
 import { MAX_DISPLAYED_OPTIONS } from '@/constants';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { useIsMobile } from '@/logic/useMedia';
 import ShipName from './ShipName';
 import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
 
@@ -45,6 +47,7 @@ interface ShipSelectorProps {
   isClearable?: boolean;
   isLoading?: boolean;
   hasPrompt?: boolean;
+  inner?: boolean;
   placeholder?: string;
   isValidNewOption?: (value: string) => boolean;
 }
@@ -56,6 +59,17 @@ function Control({ children, ...props }: ControlProps<ShipOption, true>) {
       className="input cursor-text items-center text-gray-800"
     >
       <MagnifyingGlass16Icon className="h-4 w-4 text-gray-300" />
+      {children}
+    </components.Control>
+  );
+}
+
+function InnerControl({ children, ...props }: ControlProps<ShipOption, true>) {
+  return (
+    <components.Control
+      {...props}
+      className="input-inner cursor-text items-center px-0 text-gray-800"
+    >
       {children}
     </components.Control>
   );
@@ -252,6 +266,7 @@ export default function ShipSelector({
   onEnter,
   isMulti = true,
   isClearable = false,
+  inner = false,
   isLoading = false,
   hasPrompt = true,
   placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
@@ -262,6 +277,7 @@ export default function ShipSelector({
     true,
     GroupBase<ShipOption>
   > | null>(null);
+  const isMobile = useIsMobile();
   const contacts = useMemoizedContacts();
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
@@ -271,6 +287,7 @@ export default function ShipSelector({
   const validShips = ships
     ? ships.every((ship) => isValidNewOption(preSig(ship.value)))
     : false;
+  const mobilePlaceholder = 'Search by @p or nickname';
 
   const handleEnter = () => {
     const isInputting = !!(
@@ -456,9 +473,16 @@ export default function ShipSelector({
         // @ts-expect-error this error is irrelevant
         onChange={singleOnChange}
         onInputChange={onInputChange}
-        isValidNewOption={isValidNewOption}
+        isValidNewOption={(val) =>
+          includes(
+            slicedOptions.map((o) => o.value),
+            preSig(val)
+          )
+            ? false
+            : isValidNewOption(val)
+        }
         onKeyDown={onKeyDown}
-        placeholder={placeholder}
+        placeholder={isMobile ? mobilePlaceholder : placeholder}
         hideSelectedOptions
         // TODO: create custom filter for sorting potential DM participants.
         filterOption={() => true} // disable the default filter
@@ -467,7 +491,7 @@ export default function ShipSelector({
         onClear={onClear}
         hasPrompt={hasPrompt}
         components={{
-          Control,
+          Control: inner ? InnerControl : Control,
           Menu: ShipDropDownMenu,
           MenuList: ShipDropDownMenuList,
           Input,
@@ -544,16 +568,23 @@ export default function ShipSelector({
       value={ships}
       onChange={onChange}
       onInputChange={onInputChange}
-      isValidNewOption={isValidNewOption}
+      isValidNewOption={(val) =>
+        includes(
+          slicedOptions.map((o) => o.value),
+          preSig(val)
+        )
+          ? false
+          : isValidNewOption(val)
+      }
       onKeyDown={onKeyDown}
-      placeholder={placeholder}
+      placeholder={isMobile ? mobilePlaceholder : placeholder}
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
       filterOption={() => true} // disable the default filter
       isClearable={isClearable}
       isLoading={isLoading}
       components={{
-        Control,
+        Control: inner ? InnerControl : Control,
         Menu: ShipDropDownMenu,
         MenuList: ShipDropDownMenuList,
         Input,

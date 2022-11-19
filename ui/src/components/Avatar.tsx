@@ -165,7 +165,7 @@ export default function Avatar({
   ) {
     return (
       <img
-        className={classNames(className, classes)}
+        className={classNames(className, classes, 'object-cover')}
         src={previewAvatar}
         alt=""
         style={style}
@@ -176,7 +176,7 @@ export default function Avatar({
   if (avatar && !calm.disableRemoteContent && !calm.disableAvatars) {
     return (
       <img
-        className={classNames(className, classes)}
+        className={classNames(className, classes, 'object-cover')}
         src={avatar}
         alt=""
         style={style}

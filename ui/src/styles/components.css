@@ -7,7 +7,7 @@
 }
 
 .small-button {
-  @apply inline-flex h-6 items-center justify-center rounded-md bg-gray-800 py-1 px-2 text-sm font-semibold leading-4 text-white ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400;
+  @apply inline-flex items-center justify-center rounded-md bg-gray-800 py-1 px-2 text-sm font-semibold text-white ring-gray-200 ring-offset-2 ring-offset-white focus:outline-none focus-visible:ring-2 disabled:bg-gray-200 disabled:text-gray-400 sm:h-6 sm:leading-4;
 }
 
 .small-secondary-button {
@@ -44,7 +44,10 @@
 }
 
 .ProseMirror {
-  @apply bg-transparent caret-blue-400 transition-colors focus-within:border-gray-100 focus-within:bg-white focus:outline-none focus-visible:border-gray-100;
+  @apply bg-transparent caret-blue-400 transition-colors focus-within:border-gray-100  focus:outline-none focus-visible:border-gray-100;
+  /* Father forgive me for my sins.
+     we use anywhere here because any other value makes the input overflow. */
+  overflow-wrap: anywhere !important;
 }
 
 /* Placeholder (at the top) */

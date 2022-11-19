@@ -1,4 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
+import cn from 'classnames';
+import { useIsMobile } from '@/logic/useMedia';
 import { Gang, Gangs } from '@/types/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GroupSummary from './GroupSummary';
@@ -10,24 +12,22 @@ interface GroupJoinItemProps {
 }
 
 function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
-  const [hasBeenClicked, setHasBeenClicked] = useState(false);
-  const { open, reject, button, privacy, requested } = useGroupJoin(flag, gang);
-
-  const onClick = useCallback((buttonAction: () => void) => {
-    setHasBeenClicked(true);
-    buttonAction();
-  }, []);
+  const { open, reject, button, status } = useGroupJoin(flag, gang);
+  const isMobile = useIsMobile();
 
   return (
     <li className="relative flex items-center">
       <button
-        className="flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50"
+        className={cn(
+          'flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50',
+          isMobile && 'bg-gray-50'
+        )}
         onClick={open}
       >
         <GroupSummary flag={flag} {...gang.preview} size={'small'} />
       </button>
       <div className="absolute right-2 flex flex-row">
-        {gang.invite ? (
+        {gang.invite && status !== 'loading' ? (
           <button
             className="button bg-red-soft text-red mix-blend-multiply dark:bg-red-900 dark:mix-blend-screen"
             onClick={reject}
@@ -35,17 +35,20 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
             Reject
           </button>
         ) : null}
-        <button
-          className="button ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100"
-          onClick={() => onClick(button.action)}
-          disabled={button.disabled}
-        >
-          {hasBeenClicked && privacy === 'private' && !requested ? (
-            <LoadingSpinner />
-          ) : (
-            button.text
-          )}
-        </button>
+        {status === 'loading' ? (
+          <div className="flex items-center justify-center space-x-2">
+            <span className="text-gray-400"> Joining... </span>
+            <LoadingSpinner className="h-4 w-4" />
+          </div>
+        ) : (
+          <button
+            className="button ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100"
+            onClick={button.action}
+            disabled={button.disabled || status === 'error'}
+          >
+            {status === 'error' ? 'Errored' : button.text}
+          </button>
+        )}
       </div>
     </li>
   );

@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import cn from 'classnames';
 import ob from 'urbit-ob';
 import {
   useGangs,
   useGroupState,
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
+import { useIsMobile } from '@/logic/useMedia';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { Gangs, GroupIndex, ViewProps } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
@@ -21,6 +23,7 @@ export default function FindGroups({ title }: ViewProps) {
   const [groupIndex, setGroupIndex] = useState<GroupIndex | null>(null);
   const existingGangs = useGangs();
   const pendingGangs = usePendingGangsWithoutClaim();
+  const isMobile = useIsMobile();
 
   /**
    *  Search results for render:
@@ -107,7 +110,7 @@ export default function FindGroups({ title }: ViewProps) {
       // @ts-expect-error results will always either be a GroupIndex, or the
       // request will throw an error, which will be caught below
       const results: GroupIndex = await asyncCallWithTimeout(
-        useGroupState.getState().index(ship),
+        useGroupState.getState().index(preSig(ship)),
         10 * 1000
       );
       setGroupIndex(results);
@@ -137,6 +140,11 @@ export default function FindGroups({ title }: ViewProps) {
       return;
     }
 
+    if (ship && name) {
+      navigate(`/find/${ship}/${name}`);
+      return;
+    }
+
     // user has cleared selection, redirect back to find root
     navigate('/find');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,7 +155,9 @@ export default function FindGroups({ title }: ViewProps) {
       return (
         <>
           <span>Searching for groups hosted by&nbsp;</span>
-          <span className="text-gray-800">{presentedShip}</span>
+          <span className="text-gray-800">
+            {presentedShip === '' ? ship : presentedShip}
+          </span>
           <span>&nbsp;...</span>
         </>
       );
@@ -158,7 +168,9 @@ export default function FindGroups({ title }: ViewProps) {
         return (
           <>
             <span>Groups hosted by&nbsp;</span>
-            <span className="text-gray-800">{presentedShip}</span>
+            <span className="text-gray-800">
+              {presentedShip === '' ? ship : presentedShip}
+            </span>
             <span>:</span>
           </>
         );
@@ -175,48 +187,68 @@ export default function FindGroups({ title }: ViewProps) {
     val ? ob.isValidPatp(preSig(val)) || whomIsFlag(val) : false;
 
   return (
-    <div className="flex grow overflow-y-auto bg-gray-50">
-      <Helmet>
-        <title>{title ? title : document.title}</title>
-      </Helmet>
-      <div className="w-full p-4">
-        <section className="card mb-4 space-y-8 sm:p-8">
-          <h1 className="text-lg font-bold">Find Groups</h1>
-          <div>
-            <label htmlFor="flag" className="mb-1.5 block font-semibold">
-              Join Groups via Nickname or Urbit ID
-            </label>
-            <div className="flex flex-col space-y-2">
-              <ShipSelector
-                ships={shipSelectorShips}
-                setShips={setShipSelectorShips}
-                isMulti={false}
-                isClearable={true}
-                isLoading={isPending}
-                hasPrompt={false}
-                placeholder={''}
-                isValidNewOption={isValidNewOption}
-              />
+    <>
+      {isMobile && (
+        <header className="flex h-14 items-center justify-between px-5 py-4">
+          <h1 className="text-base font-bold">Find Groups</h1>
+        </header>
+      )}
+      <div
+        className={cn('flex grow overflow-y-auto', !isMobile && 'bg-gray-50')}
+      >
+        <Helmet>
+          <title>{title ? title : document.title}</title>
+        </Helmet>
+        <div className="w-full p-4">
+          <section
+            className={cn('mb-8 space-y-8', !isMobile && 'card mb-4 sm:p-8')}
+          >
+            {!isMobile && <h1 className="text-lg font-bold">Find Groups</h1>}
+            <div>
+              <label htmlFor="flag" className="mb-1.5 block font-semibold">
+                Join Groups via Nickname or Urbit ID
+              </label>
+              <div className="flex flex-col space-y-2">
+                <ShipSelector
+                  ships={shipSelectorShips}
+                  setShips={setShipSelectorShips}
+                  isMulti={false}
+                  isClearable={true}
+                  isLoading={isPending}
+                  hasPrompt={false}
+                  placeholder={''}
+                  isValidNewOption={isValidNewOption}
+                />
+              </div>
             </div>
-          </div>
-          {selectedShip ? (
-            <section className="space-y-3">
-              <p className="font-semibold text-gray-400">{resultsTitle()}</p>
-              {isPending ? (
-                <GroupJoinListPlaceholder />
-              ) : indexedGangs && hasKeys(indexedGangs) ? (
-                <GroupJoinList gangs={indexedGangs} />
-              ) : null}
+            {selectedShip || (ship && name) ? (
+              <section className="space-y-3">
+                <p className="font-semibold text-gray-400">{resultsTitle()}</p>
+                {isPending ? (
+                  <GroupJoinListPlaceholder />
+                ) : indexedGangs && hasKeys(indexedGangs) ? (
+                  <GroupJoinList gangs={indexedGangs} />
+                ) : null}
+              </section>
+            ) : null}
+          </section>
+          {hasKeys(pendingGangs) ? (
+            <section
+              className={cn(
+                'mb-4 space-y-4',
+                !isMobile && 'card space-y-8 sm:p-8'
+              )}
+            >
+              <h1
+                className={cn('font-bold', isMobile ? 'text-base' : 'text-lg')}
+              >
+                Pending Invites
+              </h1>
+              <GroupJoinList gangs={pendingGangs} />
             </section>
           ) : null}
-        </section>
-        {hasKeys(pendingGangs) ? (
-          <section className="card mb-4 space-y-8 sm:p-8">
-            <h1 className="text-lg font-bold">Pending Invites</h1>
-            <GroupJoinList gangs={pendingGangs} />
-          </section>
-        ) : null}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

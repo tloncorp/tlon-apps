@@ -1,13 +1,11 @@
 import React from 'react';
+import ShipName from '@/components/ShipName';
 import Lock16Icon from '@/components/icons/Lock16Icon';
-import Globe16Icon from '@/components/icons/Globe16Icon';
 import Private16Icon from '@/components/icons/Private16Icon';
 import { getFlagParts, getGroupPrivacy } from '@/logic/utils';
 import { GroupPreview } from '@/types/groups';
-import { useGroup } from '@/state/groups';
-import Person16Icon from '@/components/icons/Person16Icon';
-import ShipName from '@/components/ShipName';
-import GroupAvatar from './GroupAvatar';
+import GroupAvatar from '@/groups/GroupAvatar';
+import Globe16Icon from '@/components/icons/Globe16Icon';
 
 export type GroupSummarySize = 'default' | 'small';
 

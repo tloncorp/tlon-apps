@@ -37,6 +37,7 @@ const lightColors = {
   blue: {
     DEFAULT: '#008EFF',
     soft: '#E5F4FF',
+    softer: 'rgba(0, 142, 255, 0.1)',
   },
   indigo: {
     DEFAULT: '#615FD3',
@@ -78,6 +79,7 @@ const darkColors = {
   blue: {
     DEFAULT: '#008EFF',
     soft: colors.blue['900'],
+    softer: 'rgba(0, 142, 255, 0.2)',
   },
   indigo: {
     DEFAULT: '#615FD3',
@@ -100,6 +102,10 @@ const dark = {
 module.exports = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class', // or 'media' or 'class'
+  // This disables CSS hovers on mobile, avoiding double-tap scenarios
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   theme: {
     fontFamily: {
       sans: [

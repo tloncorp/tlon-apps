@@ -122,14 +122,29 @@
   ::
   ++  create
     |=  req=create:h
-    ^+  cor
-    =/  =flag:h  [our.bowl name.req]
-    =|  =heap:h
-    =/  =perm:h  [writers.req group.req]
-    =.  perm.heap  perm
-    =.  net.heap  [%pub ~]
-    =.  stash  (~(put by stash) flag heap)
-    he-abet:(he-init:(he-abed:he-core flag) req)
+    |^  ^+  cor
+      ~_  leaf+"Create failed: check group permissions"
+      ?>  can-nest
+      ?>  ((sane %tas) name.req)
+      =/  =flag:h  [our.bowl name.req]
+      =|  =heap:h
+      =/  =perm:h  [writers.req group.req]
+      =.  perm.heap  perm
+      =.  net.heap  [%pub ~]
+      =.  stash  (~(put by stash) flag heap)
+      he-abet:(he-init:(he-abed:he-core flag) req)
+    ++  can-nest
+      ^-  ?
+      =/  gop  (~(got by groups) group.req)
+      %-  ~(any in bloc.gop)
+      ~(has in sects:(~(got by fleet.gop) our.bowl))
+    ::
+    ++  groups
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
   --
 ++  load
   |=  =vase
@@ -593,15 +608,17 @@
   ::
   ++  he-update
     |=  [=time d=diff:h]
-    ?>  he-can-write
     ^+  he-core
+    ?>  he-can-write
+    =?  time  =(p.flag our.bowl)
+      now.bowl
     =.  log.heap
       (put:log-on:h log.heap time d)
     =.  he-core
       (he-give-updates time d)
     ?-    -.d
         %curios
-      =.  curios.heap  (reduce:he-curios time p.d)
+      =.  curios.heap  (reduce:he-curios time q.p.d)
       ?-  -.q.p.d
           ?(%edit %del %add-feel %del-feel)  he-core
           %add

@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import cn from 'classnames';
+import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { ContactEditField } from '@urbit/api';
 import ColorPicker from '@/components/ColorPicker';
 import CheckIcon from '@/components/icons/CheckIcon';
-import { isValidUrl, normalizeUrbitColor } from '@/logic/utils';
-import LinkIcon from '@/components/icons/LinkIcon';
+import { normalizeUrbitColor } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
+import ImageURLUploadField from '@/components/ImageURLUploadField';
 
 interface ProfileFormSchema extends ContactEditField {
   isContactPrivate: boolean;
@@ -16,12 +15,8 @@ export default function ProfileFields() {
   const { register, watch, setValue, formState } =
     useFormContext<ProfileFormSchema>();
   const { errors } = formState;
-  const [headerFieldFocused, setHeaderFieldFocused] = useState<boolean>(false);
-  const [avatarFieldFocused, setAvatarFieldFocused] = useState<boolean>(false);
   const watchAvatar = watch('avatar');
   const watchCover = watch('cover');
-  const avatarHasLength = watchAvatar?.length;
-  const coverHasLength = watchCover?.length;
   const watchSigilColor = watch('color');
   // we're flipping this logic because G1 expects the value to be "true" if it's private
   const isPrivateSelected = watch('isContactPrivate') === true;
@@ -56,23 +51,12 @@ export default function ProfileFields() {
         <label htmlFor="headerImage" className="pb-2 font-bold">
           Overlay Avatar
         </label>
-        <div className="relative flex w-full items-baseline">
-          <input
-            className={cn('input grow')}
-            onFocus={() => setAvatarFieldFocused(true)}
-            {...register('avatar', {
-              onBlur: () => setAvatarFieldFocused(false),
-              validate: (value) =>
-                value && value.length ? isValidUrl(value) : true,
-            })}
-          />
-          {!avatarFieldFocused && !avatarHasLength ? (
-            <div className="pointer-events-none absolute left-[0.5625rem] top-2 flex cursor-pointer items-center">
-              <LinkIcon className="mr-1 inline h-4 w-4 fill-gray-100" />
-              <span className="pointer-events-none">Paste an image URL</span>
-            </div>
-          ) : null}
-        </div>
+        <ImageURLUploadField
+          formWatchURL={watchAvatar}
+          formValue="avatar"
+          formSetValue={setValue}
+          formRegister={register}
+        />
         <div className="mt-1 text-sm font-semibold text-gray-600">
           {calm.disableAvatars || calm.disableRemoteContent ? (
             <span>
@@ -90,23 +74,12 @@ export default function ProfileFields() {
         <label htmlFor="headerImage" className="pb-2 font-bold">
           Header Image
         </label>
-        <div className="relative flex w-full items-baseline">
-          <input
-            className={cn('input grow')}
-            onFocus={() => setHeaderFieldFocused(true)}
-            {...register('cover', {
-              onBlur: () => setHeaderFieldFocused(false),
-              validate: (value) =>
-                value && value.length ? isValidUrl(value) : true,
-            })}
-          />
-          {!headerFieldFocused && !coverHasLength ? (
-            <div className="pointer-events-none absolute left-[0.5625rem] top-2 flex cursor-pointer items-center">
-              <LinkIcon className="mr-1 inline h-4 w-4 fill-gray-100" />
-              <span className="pointer-events-none">Paste an image URL</span>
-            </div>
-          ) : null}
-        </div>
+        <ImageURLUploadField
+          formWatchURL={watchCover}
+          formValue="cover"
+          formSetValue={setValue}
+          formRegister={register}
+        />
         <div className="mt-1 text-sm font-semibold text-gray-600">
           {calm.disableRemoteContent ? (
             <span>

@@ -5,6 +5,7 @@ import GroupAvatar from '@/groups/GroupAvatar';
 import { getFlagParts } from '@/logic/utils';
 import ShipName from '@/components/ShipName';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 
 interface GroupReferenceProps {
   flag: string;
@@ -12,7 +13,10 @@ interface GroupReferenceProps {
 
 export default function GroupReference({ flag }: GroupReferenceProps) {
   const gang = useGang(flag);
-  const { group, privacy, open, join, reject } = useGroupJoin(flag, gang);
+  const { group, privacy, open, reject, button, status } = useGroupJoin(
+    flag,
+    gang
+  );
   const { ship } = getFlagParts(flag);
 
   const meta = group?.meta || gang?.preview?.meta;
@@ -52,7 +56,7 @@ export default function GroupReference({ flag }: GroupReferenceProps) {
         </div>
       </button>
       <div className="absolute right-5 flex flex-row">
-        {gang.invite ? (
+        {gang.invite && status !== 'loading' ? (
           <button
             className="small-button bg-red text-white dark:text-black"
             onClick={reject}
@@ -60,12 +64,20 @@ export default function GroupReference({ flag }: GroupReferenceProps) {
             Reject
           </button>
         ) : null}
-        <button
-          className="small-button ml-2 bg-blue text-white dark:text-black"
-          onClick={group ? open : join}
-        >
-          {group ? 'Go' : privacy === 'private' ? 'Request to Join' : 'Join'}
-        </button>
+        {status === 'loading' ? (
+          <div className="flex items-center space-x-2">
+            <span className="text-gray-400">Joining...</span>
+            <LoadingSpinner />
+          </div>
+        ) : (
+          <button
+            className="small-button ml-2 bg-blue text-white dark:text-black"
+            onClick={button.action}
+            disabled={button.disabled || status === 'error'}
+          >
+            {status === 'error' ? 'Errored' : button.text}
+          </button>
+        )}
       </div>
     </div>
   );

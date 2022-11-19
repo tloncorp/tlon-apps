@@ -2,7 +2,7 @@ import cn from 'classnames';
 import React from 'react';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import { isColor } from '@/logic/utils';
-import useMedia from '@/logic/useMedia';
+import { useIsDark } from '@/logic/useMedia';
 import { useCalm } from '@/state/settings';
 
 interface GroupAvatarProps {
@@ -38,7 +38,7 @@ export default function GroupAvatar({
   className,
   title,
 }: GroupAvatarProps) {
-  const dark = useMedia('(prefers-color-scheme: dark)');
+  const dark = useIsDark();
   const calm = useCalm();
   let background;
 

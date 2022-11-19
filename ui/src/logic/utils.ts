@@ -15,6 +15,7 @@ import {
   Cordon,
   PrivacyType,
   Rank,
+  Vessel,
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief, DiaryQuip, DiaryQuipMap, DiaryQuips } from '@/types/diary';
@@ -215,9 +216,15 @@ export function getGroupPrivacy(cordon: Cordon): PrivacyType {
   return 'secret';
 }
 
+export interface WritePermissions {
+  perms: {
+    writers: string[];
+  };
+}
+
 export function getPrivacyFromChannel(
   groupChannel?: GroupChannel,
-  channel?: Chat | Heap
+  channel?: WritePermissions
 ): ChannelPrivacyType {
   if (!groupChannel || !channel) {
     return 'public';
@@ -263,7 +270,7 @@ export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
-  /(http(s?):)([/|.|\w|\s|-]|%20)*\.(?:jpg|gif|png|webp)/i;
+  /(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)/i;
 
 export function isImageUrl(url: string) {
   return IMAGE_URL_REGEX.test(url);
@@ -302,15 +309,21 @@ export async function jsonFetch<T>(
   return data as T;
 }
 
-export function filterJoinedChannels(
-  channels: [string, GroupChannel][],
+export function isChannelJoined(
+  nest: string,
   briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
 ) {
-  return channels.filter(([nest]) => {
-    const [, chFlag] = nestToFlag(nest);
-    const isChannelHost = window.our === chFlag?.split('/')[0];
-    return isChannelHost || (chFlag && chFlag in briefs);
-  });
+  const [, chFlag] = nestToFlag(nest);
+  const isChannelHost = window.our === chFlag?.split('/')[0];
+  return isChannelHost || (nest && nest in briefs);
+}
+
+export function canReadChannel(channel: GroupChannel, vessel: Vessel) {
+  if (channel.readers.length === 0) {
+    return true;
+  }
+
+  return _.intersection(channel.readers, vessel.sects).length > 0;
 }
 
 /**
