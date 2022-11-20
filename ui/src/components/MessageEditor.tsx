@@ -25,6 +25,8 @@ import { refPasteRule, Shortcuts } from '@/logic/tiptap';
 import { ChatBlock, Cite } from '@/types/chat';
 import { useChatStore } from '@/chat/useChatStore';
 import { useCalm } from '@/state/settings';
+import Mention from '@tiptap/extension-mention';
+import MentionPopup from './Mention/MentionPopup';
 
 interface HandlerParams {
   editor: Editor;
@@ -79,6 +81,12 @@ export function useMessageEditor({
   return useEditor(
     {
       extensions: [
+        Mention.extend({ priority: 1000 }).configure({
+          HTMLAttributes: {
+            class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
+          },
+          suggestion: MentionPopup,
+        }),
         Blockquote,
         Bold,
         Code.extend({ excludes: undefined }),
@@ -86,10 +94,10 @@ export function useMessageEditor({
         HardBreak,
         History.configure({ newGroupDelay: 100 }),
         Italic,
+        keyMapExt,
         Link.configure({
           openOnClick: false,
         }),
-        keyMapExt,
         Paragraph,
         Placeholder.configure({ placeholder }),
         Strike,

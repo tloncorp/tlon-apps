@@ -24,7 +24,7 @@ import {
   DiaryListing,
   NoteContent,
 } from '@/types/diary';
-import { citeToPath, pathToCite } from './utils';
+import { citeToPath, pathToCite, preSig } from './utils';
 
 export interface EditorOnUpdateProps {
   editor: Editor;
@@ -39,7 +39,6 @@ export function Shortcuts(bindings: {
   [keyCode: string]: KeyboardShortcutCommand;
 }) {
   return Extension.create({
-    priority: 999999,
     addKeyboardShortcuts() {
       return bindings;
     },
@@ -357,6 +356,13 @@ export function JSONToInlines(
       return [
         {
           rule: null,
+        },
+      ];
+    }
+    case 'mention': {
+      return [
+        {
+          ship: preSig(json.attrs?.id),
         },
       ];
     }
