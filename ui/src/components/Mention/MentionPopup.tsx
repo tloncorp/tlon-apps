@@ -1,11 +1,13 @@
 import cn from 'classnames';
 import fuzzy from 'fuzzy';
 import React, { useEffect, useImperativeHandle, useState } from 'react';
-import useContactState, { useContacts } from '@/state/contact';
+import { isValidPatp } from 'urbit-ob';
 import { ReactRenderer } from '@tiptap/react';
 import { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion';
 import tippy from 'tippy.js';
 import { deSig } from '@urbit/api';
+import useContactState, { useContacts } from '@/state/contact';
+import { preSig } from '@/logic/utils';
 import Avatar from '../Avatar';
 import ShipName from '../ShipName';
 
@@ -93,9 +95,10 @@ const MentionList = React.forwardRef<
 
 const MentionPopup: Partial<SuggestionOptions> = {
   char: '~',
-  decorationClass: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
   items: ({ query }) => {
     const { contacts } = useContactState.getState();
+    const sigged = preSig(query);
+    const valid = isValidPatp(sigged);
 
     const contactNames = Object.keys(contacts);
 
@@ -104,6 +107,11 @@ const MentionPopup: Partial<SuggestionOptions> = {
     const searchSpace = Object.entries(contacts).map(
       ([patp, contact]) => `${contact.nickname}${patp}`
     );
+
+    if (valid && !contactNames.includes(sigged)) {
+      contactNames.push(sigged);
+      searchSpace.push(sigged);
+    }
 
     const fuzzyNames = fuzzy
       .filter(query, searchSpace)

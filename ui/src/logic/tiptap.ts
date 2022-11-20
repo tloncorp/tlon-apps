@@ -7,6 +7,7 @@ import {
   isInlineCode,
   isItalics,
   isLink,
+  isShip,
   isStrikethrough,
 } from '@/types/content';
 import { reduce, isEqual } from 'lodash';
@@ -133,6 +134,10 @@ export function inlineToString(inline: Inline): any {
     return typeof inline['inline-code'] === 'object'
       ? inlineToString(inline['inline-code'])
       : inline['inline-code'];
+  }
+
+  if (isShip(inline)) {
+    return inline.ship;
   }
 
   return '';
@@ -412,6 +417,10 @@ export function JSONToInlines(
 }
 
 const makeText = (t: string) => ({ type: 'text', text: t });
+const makeMention = (ship: string) => ({
+  type: 'mention',
+  attrs: { id: ship },
+});
 const makeParagraph = (content?: JSONContent[]): JSONContent => {
   const p = { type: 'paragraph' };
   if (!content) {
@@ -492,6 +501,10 @@ export const inlineToContent = (
 
   if ('break' in inline) {
     return makeParagraph();
+  }
+
+  if ('ship' in inline) {
+    return makeMention(inline.ship);
   }
 
   const key = Object.keys(inline)[0] as InlineKey;
