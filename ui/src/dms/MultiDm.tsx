@@ -46,71 +46,76 @@ export default function MultiDm() {
   const BackButton = isMobile ? Link : 'div';
 
   return (
-    <Layout
-      className="h-full grow"
-      header={
-        <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
-          <BackButton
-            to="/"
-            className={cn(
-              'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
-              isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
-            )}
-            aria-label={isMobile ? 'Open Messages Menu' : undefined}
-          >
-            {isMobile ? (
-              <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
-            ) : null}
-            <div className="flex items-center space-x-3">
-              <MultiDmAvatar {...club.meta} size="small" />
-              <div className="flex flex-col items-start text-left">
-                <div className="w-full truncate font-semibold">{groupName}</div>
-                <div className="text-gray-600">
-                  <span>{`${count} ${pluralize('Member', count)}${
-                    hasPending ? ',' : ''
-                  }`}</span>
-                  {hasPending ? (
-                    <span className="text-blue"> {pendingCount} Pending</span>
-                  ) : null}
+    <>
+      <Layout
+        className="h-full grow"
+        header={
+          <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
+            <BackButton
+              to="/"
+              className={cn(
+                'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
+                isMobile &&
+                  '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
+              )}
+              aria-label={isMobile ? 'Open Messages Menu' : undefined}
+            >
+              {isMobile ? (
+                <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
+              ) : null}
+              <div className="flex items-center space-x-3">
+                <MultiDmAvatar {...club.meta} size="small" />
+                <div className="flex flex-col items-start text-left">
+                  <div className="w-full truncate font-semibold">
+                    {groupName}
+                  </div>
+                  <div className="text-gray-600">
+                    <span>{`${count} ${pluralize('Member', count)}${
+                      hasPending ? ',' : ''
+                    }`}</span>
+                    {hasPending ? (
+                      <span className="text-blue"> {pendingCount} Pending</span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
-          </BackButton>
-          <DmOptions
-            whom={clubId}
-            pending={!isAccepted}
-            isMulti
-            alwaysShowEllipsis
-          />
-        </div>
-      }
-      aside={<Outlet />}
-      footer={
-        isAccepted ? (
-          <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput
+            </BackButton>
+            <DmOptions
               whom={clubId}
-              sendMessage={sendMessage}
-              showReply
-              autoFocus
+              pending={!isAccepted}
+              isMulti
+              alwaysShowEllipsis
             />
           </div>
-        ) : null
-      }
-    >
-      {isAccepted ? (
-        <ChatWindow
-          whom={clubId}
-          messages={messages}
-          prefixedElement={
-            <div className="pt-4 pb-12">
-              <MultiDmHero club={club} />
+        }
+        footer={
+          isAccepted ? (
+            <div className="border-t-2 border-gray-50 p-4">
+              <ChatInput
+                whom={clubId}
+                sendMessage={sendMessage}
+                showReply
+                autoFocus
+              />
             </div>
-          }
-        />
-      ) : (
-        <MultiDmInvite id={clubId} />
-      )}
-    </Layout>
+          ) : null
+        }
+      >
+        {isAccepted ? (
+          <ChatWindow
+            whom={clubId}
+            messages={messages}
+            prefixedElement={
+              <div className="pt-4 pb-12">
+                <MultiDmHero club={club} />
+              </div>
+            }
+          />
+        ) : (
+          <MultiDmInvite id={clubId} />
+        )}
+      </Layout>
+      <Outlet />
+    </>
   );
 }

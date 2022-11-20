@@ -55,27 +55,29 @@ function ChatChannel({ title }: ViewProps) {
   }, [channel, vessel, navigate, setRecent]);
 
   return (
-    <Layout
-      className="flex-1 bg-white"
-      aside={<Outlet />}
-      header={<ChannelHeader flag={groupFlag} nest={nest} />}
-      footer={
-        <div className={cn(canWrite ? 'border-t-2 border-gray-50 p-4' : '')}>
-          {canWrite ? (
-            <ChatInput whom={chFlag} sendMessage={sendMessage} showReply />
-          ) : null}
-        </div>
-      }
-    >
-      <Helmet>
-        <title>
-          {channel && group
-            ? `${channel.meta.title} in ${group.meta.title} ${title}`
-            : title}
-        </title>
-      </Helmet>
-      <ChatWindow whom={chFlag} messages={messages} />
-    </Layout>
+    <>
+      <Layout
+        className="flex-1 bg-white"
+        header={<ChannelHeader flag={groupFlag} nest={nest} />}
+        footer={
+          <div className={cn(canWrite ? 'border-t-2 border-gray-50 p-4' : '')}>
+            {canWrite ? (
+              <ChatInput whom={chFlag} sendMessage={sendMessage} showReply />
+            ) : null}
+          </div>
+        }
+      >
+        <Helmet>
+          <title>
+            {channel && group
+              ? `${channel.meta.title} in ${group.meta.title} ${title}`
+              : title}
+          </title>
+        </Helmet>
+        <ChatWindow whom={chFlag} messages={messages} />
+      </Layout>
+      <Outlet />
+    </>
   );
 }
 

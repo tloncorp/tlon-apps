@@ -30,6 +30,7 @@ import ChatNotice from '../ChatNotice';
 interface CreateRendererParams {
   messages: BigIntOrderedMap<ChatWrit>;
   keys: bigInt.BigInteger[];
+  replying: boolean;
   whom: string;
   brief?: ChatBrief;
   chatInfo?: ChatInfo;
@@ -45,6 +46,7 @@ function createRenderer({
   messages,
   keys,
   whom,
+  replying,
   prefixedElement,
   scrollTo,
 }: CreateRendererParams) {
@@ -91,6 +93,7 @@ function createRenderer({
           key={writ.seal.id}
           whom={whom}
           writ={writ}
+          hideReplies={replying}
           time={index}
           newAuthor={newAuthor}
           newDay={newDay}
@@ -130,7 +133,6 @@ export default function ChatScroller({
   prefixedElement,
   scrollTo = undefined,
 }: IChatScroller) {
-  const chatInfo = useChatInfo(whom);
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
   const firstUnreadID = useGetFirstUnreadID(whom);
   const loaded = useLoadedWrits(whom);
@@ -165,11 +167,12 @@ export default function ChatScroller({
       createRenderer({
         messages,
         whom,
+        replying,
         keys,
         prefixedElement,
         scrollTo,
       }),
-    [messages, whom, keys, prefixedElement, scrollTo]
+    [messages, whom, keys, replying, prefixedElement, scrollTo]
   );
 
   const TopLoader = useMemo(
