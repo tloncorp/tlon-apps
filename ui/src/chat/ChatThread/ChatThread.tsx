@@ -1,4 +1,3 @@
-import FaceIcon from '@/components/icons/FaceIcon';
 import cn from 'classnames';
 import React from 'react';
 import { useLocation, useParams } from 'react-router';
@@ -11,18 +10,19 @@ import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import useIsChat from '@/logic/useIsChat';
+import { whomIsFlag } from '@/logic/utils';
 
 export default function ChatThread() {
-  const { name, chShip, chName, idTime, idShip } = useParams<{
+  const { name, chShip, ship, chName, idTime, idShip } = useParams<{
     name: string;
     chShip: string;
+    ship: string;
     chName: string;
     idShip: string;
     idTime: string;
   }>();
-  const ship = useParams<{ ship: string }>().ship!;
   const flag = useChannelFlag()!;
-  const whom = flag || ship;
+  const whom = flag || ship || '';
   const groupFlag = useRouteGroup();
   const { sendMessage } = useChatState.getState();
   const isChat = useIsChat();
@@ -54,9 +54,15 @@ export default function ChatThread() {
             <div className="rounded bg-gray-50 p-1">
               <BranchIcon className="h-6 w-6 text-gray-400" />
             </div>
-            <div>Thread : {isChat ? ship : channel?.meta.title || ''}</div>
+            <div>
+              Thread : {whomIsFlag(whom) ? channel?.meta.title || '' : ship}
+            </div>
           </div>
-          <Link to={returnURL()} className="icon-button h-8 w-8 bg-transparent">
+          <Link
+            to={returnURL()}
+            aria-label="Close"
+            className="icon-button h-8 w-8 bg-transparent"
+          >
             <X16Icon className="h-6 w-6 text-gray-400" />
           </Link>
         </div>
