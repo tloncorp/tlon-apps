@@ -11,9 +11,8 @@ import api from '@/api';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
-import { createStorageKey, nestToFlag } from '@/logic/utils';
-import { useLocalStorage } from 'usehooks-ts';
 import { useIsMobile } from '@/logic/useMedia';
+import useRecentChannel from '@/logic/useRecentChannel';
 import _ from 'lodash';
 
 function Groups() {
@@ -27,10 +26,7 @@ function Groups() {
     path: '/groups/:ship/:name',
     end: true,
   });
-  const [recentChannel] = useLocalStorage(
-    createStorageKey(`recent-chan:${flag}`),
-    ''
-  );
+  const { recentChannel } = useRecentChannel(flag);
 
   useEffect(() => {
     if (initialized && !group && !gang) {

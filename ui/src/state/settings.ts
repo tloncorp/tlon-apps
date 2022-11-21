@@ -141,7 +141,7 @@ export const useSettingsState = createState<BaseSettingsState>(
     },
     groups: {
       orderedGroupPins: [],
-      sideBarSort: ALPHABETICAL,
+      sideBarSort: DEFAULT,
       groupSideBarSort: '{"~": "A → Z"}' as Stringified<GroupSideBarSort>,
     },
     talk: {
@@ -243,7 +243,7 @@ export function useHeapSortMode(flag: string): HeapSortMode {
 export function useHeapDisplayMode(flag: string): HeapDisplayMode {
   const settings = useHeapSettings();
   const heapSetting = getSetting(settings, flag);
-  return heapSetting?.displayMode ?? 'list';
+  return heapSetting?.displayMode ?? 'grid';
 }
 
 const selDiarySettings = (s: SettingsState) => s.diary.settings;

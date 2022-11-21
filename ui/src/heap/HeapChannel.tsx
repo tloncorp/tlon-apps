@@ -3,7 +3,7 @@ import _ from 'lodash';
 import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
-import { useLocalStorage } from 'usehooks-ts';
+import bigInt from 'big-integer';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import {
@@ -33,7 +33,7 @@ import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { canReadChannel, createStorageKey } from '@/logic/utils';
 import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
-import bigInt from 'big-integer';
+import useRecentChannel from '@/logic/useRecentChannel';
 import NewCurioForm from './NewCurioForm';
 
 function HeapChannel({ title }: ViewProps) {
@@ -45,17 +45,14 @@ function HeapChannel({ title }: ViewProps) {
   const vessel = useVessel(flag, window.our);
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
-  const [, setRecent] = useLocalStorage(
-    createStorageKey(`recent-chan:${flag}`),
-    ''
-  );
+  const { setRecentChannel } = useRecentChannel(flag);
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel)) {
       navigate('../../activity');
-      setRecent('');
+      setRecentChannel('');
     }
-  }, [channel, vessel, navigate, setRecent]);
+  }, [channel, vessel, navigate, setRecentChannel]);
 
   const displayMode = useHeapDisplayMode(chFlag);
   const settings = useHeapSettings();
@@ -99,8 +96,8 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     useHeapState.getState().initialize(chFlag);
-    setRecent(nest);
-  }, [chFlag, nest, setRecent]);
+    setRecentChannel(nest);
+  }, [chFlag, nest, setRecentChannel]);
 
   useDismissChannelNotifications({
     nest,

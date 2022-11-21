@@ -75,8 +75,6 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const { isChannelUnread } = useIsChannelUnread();
   const vessel = useVessel(flag, window.our);
 
-  usePrefetchChannels(flag);
-
   if (!group) {
     return null;
   }

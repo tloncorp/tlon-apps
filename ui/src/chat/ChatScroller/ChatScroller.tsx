@@ -19,7 +19,10 @@ import {
   useGetFirstUnreadID,
   useLoadedWrits,
 } from '@/state/chat/chat';
-import { MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import {
+  INITIAL_MESSAGE_FETCH_PAGE_SIZE,
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { IChatScroller } from './IChatScroller';
@@ -182,7 +185,7 @@ export default function ChatScroller({
   );
 
   const fetchMessages = useCallback(
-    async (newer: boolean, pageSize = MESSAGE_FETCH_PAGE_SIZE) => {
+    async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
       const newest = messages.peekLargest();
       const seenNewest = newer && newest && loaded.newest.geq(newest[0]);
       const oldest = messages.peekSmallest();
@@ -242,7 +245,7 @@ export default function ChatScroller({
   }, [scrollTo, virtuoso]);
 
   /**
-   * By default, 100 messages are fetched on initial load. If there are more
+   * By default, 50 messages are fetched on initial load. If there are more
    * unreads per the brief, fetch those as well. That way, the user can click
    * the unread banner and see the unread messages.
    */
@@ -250,7 +253,7 @@ export default function ChatScroller({
     if (
       fetching === 'initial' &&
       brief &&
-      brief.count > MESSAGE_FETCH_PAGE_SIZE &&
+      brief.count > INITIAL_MESSAGE_FETCH_PAGE_SIZE &&
       firstUnreadID &&
       !keys.includes(firstUnreadID)
     ) {

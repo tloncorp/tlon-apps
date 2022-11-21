@@ -600,6 +600,7 @@
     ?-    -.dif
         %notes
       =.  notes.diary  (reduce:di-notes time p.dif)
+      =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
         (hark:di-notes our.bowl p.dif)
       =.  cor
