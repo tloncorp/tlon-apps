@@ -9,6 +9,7 @@ import {
   InlineCode,
   Italics,
   Link,
+  Ship as ShipInline,
   Strikethrough,
   Tag,
 } from './content';
@@ -21,7 +22,7 @@ export type DiaryInline =
   | Bold
   | Italics
   | Strikethrough
-  | Ship
+  | ShipInline
   | Break
   | InlineCode
   | BlockCode

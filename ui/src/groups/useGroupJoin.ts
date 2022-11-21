@@ -62,6 +62,11 @@ export default function useGroupJoin(
           group: flag,
           thread: `/${flag}/invite`,
         });
+      } catch (error) {
+        // no notification
+      }
+
+      try {
         await useGroupState.getState().join(flag, true);
         setStatus('success');
         navigate(`/groups/${flag}`);
