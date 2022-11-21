@@ -18,7 +18,7 @@
   ++  def-flag  `flag:c`[~zod %test]
   ++  wood-state
     ^-  state:wood-lib
-    :*  ver=&
+    :*  ver=|
         odd=&
         veb=|
     ==
@@ -895,12 +895,7 @@
     ?.  =(okay ver.saga.net.chat)  
       %-  (note:wood %ver leaf/"%future-shock {<[ver.saga.net.chat flag]>}" ~)
       ca-core
-    %-  (note:wood %ver leaf/"restoring: {<flag>}" ~)
-    =>  .(saga.net.chat `saga:e`saga.net.chat)
-    =.  saga.net.chat  chi/~
-    ?.  ca-has-sub
-      ca-sub
-    ca-core
+    ca-make-chi
   ::
   ++  ca-pass
     |%

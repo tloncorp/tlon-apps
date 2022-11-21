@@ -9,7 +9,7 @@
 ^-  agent:gall
 =>
   |%
-  ++  okay  `epic:e`1
+  ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  current-state
     $:  %1

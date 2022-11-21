@@ -679,8 +679,6 @@
     ?.  =(okay ver.saga.net)  
       ~&  future-shock/[ver.saga.net flag]
       go-core
-    ~&  restoring/flag
-    =>  .(saga.net `saga:e`saga.net)
     go-make-chi
   ::
   ++  go-take-epic
