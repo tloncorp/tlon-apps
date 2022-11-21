@@ -7,6 +7,7 @@ exports[`ChannelList > renders as expected 1`] = `
       class="p-2"
     >
       <button
+        aria-expanded="false"
         aria-haspopup="menu"
         aria-label="Channels Sort Options"
         class="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"

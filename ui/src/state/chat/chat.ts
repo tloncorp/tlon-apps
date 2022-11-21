@@ -32,6 +32,7 @@ import makeWritsStore, { writsReducer } from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
+import useSubscriptionState from '../subscription';
 
 setAutoFreeze(false);
 
@@ -361,6 +362,7 @@ export const useChatState = createState<ChatState>(
           const chat = {
             perms: {
               writers: [],
+              group: '',
             },
           };
           draft.dms[ship] = chat;
@@ -500,10 +502,26 @@ export const useChatState = createState<ChatState>(
       }
     },
     create: async (req) => {
-      await api.poke({
-        app: 'chat',
-        mark: 'chat-create',
-        json: req,
+      await new Promise<void>((resolve, reject) => {
+        api.poke({
+          app: 'chat',
+          mark: 'chat-create',
+          json: req,
+          onError: () => reject(),
+          onSuccess: async () => {
+            await useSubscriptionState.getState().track('chat/ui', (event) => {
+              const { update, flag } = event;
+              if (
+                'create' in update.diff &&
+                flag === `${req.group.split('/')[0]}/${req.name}`
+              ) {
+                return true;
+              }
+              return false;
+            });
+            resolve();
+          },
+        });
       });
     },
     initializeMultiDm: async (id) => {
@@ -771,6 +789,11 @@ export function useWrit(whom: string, id: string) {
       [whom, id]
     )
   );
+}
+
+const selChats = (s: ChatState) => s.chats;
+export function useChats(): Chats {
+  return useChatState(selChats);
 }
 
 export function useChat(whom: string): Chat | undefined {

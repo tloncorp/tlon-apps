@@ -39,7 +39,7 @@ function GroupChannel({
   const briefs = useAllBriefs();
   const joined = isChannelJoined(nest, briefs);
   const isChannelHost = useIsChannelHost(flag);
-  const isAdmin = useAmAdmin(flag);
+  const isAdmin = useAmAdmin(groupFlag);
   const navigate = useNavigate();
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
@@ -122,7 +122,7 @@ function GroupChannel({
     navigate(channelHref(groupFlag, nest));
   }, [groupFlag, joined, navigate, nest]);
 
-  if (!group) {
+  if (!group || (channel.readers.includes('admin') && !isAdmin)) {
     return null;
   }
 

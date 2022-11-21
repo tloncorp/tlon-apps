@@ -15,6 +15,7 @@ import {
   Cordon,
   PrivacyType,
   Rank,
+  Vessel,
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief, DiaryQuip, DiaryQuipMap, DiaryQuips } from '@/types/diary';
@@ -215,9 +216,15 @@ export function getGroupPrivacy(cordon: Cordon): PrivacyType {
   return 'secret';
 }
 
+export interface WritePermissions {
+  perms: {
+    writers: string[];
+  };
+}
+
 export function getPrivacyFromChannel(
   groupChannel?: GroupChannel,
-  channel?: Chat | Heap
+  channel?: WritePermissions
 ): ChannelPrivacyType {
   if (!groupChannel || !channel) {
     return 'public';
@@ -309,6 +316,14 @@ export function isChannelJoined(
   const [, chFlag] = nestToFlag(nest);
   const isChannelHost = window.our === chFlag?.split('/')[0];
   return isChannelHost || (nest && nest in briefs);
+}
+
+export function canReadChannel(channel: GroupChannel, vessel: Vessel) {
+  if (channel.readers.length === 0) {
+    return true;
+  }
+
+  return _.intersection(channel.readers, vessel.sects).length > 0;
 }
 
 /**

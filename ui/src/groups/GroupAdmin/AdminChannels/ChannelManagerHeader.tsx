@@ -1,8 +1,6 @@
-import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
 import { useRouteGroup } from '@/state/groups';
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import EditChannelModal from './EditChannelModal';
 
 interface ChannelManagerHeaderProps {
   addSection: () => void;

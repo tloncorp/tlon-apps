@@ -2,7 +2,13 @@ import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import Layout from '@/components/Layout/Layout';
-import { useRouteGroup, useVessel } from '@/state/groups/groups';
+import {
+  GROUP_ADMIN,
+  useAmAdmin,
+  useChannel,
+  useRouteGroup,
+  useVessel,
+} from '@/state/groups/groups';
 import {
   useNotesForDiary,
   useDiaryState,
@@ -23,6 +29,7 @@ import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 import * as Toast from '@radix-ui/react-toast';
 import useRecentChannel from '@/logic/useRecentChannel';
+import { canReadChannel, createStorageKey } from '@/logic/utils';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
@@ -36,6 +43,15 @@ function DiaryChannel() {
   const location = useLocation();
   const navigate = useNavigate();
   const { setRecentChannel } = useRecentChannel(flag);
+  const channel = useChannel(flag, nest);
+
+  useEffect(() => {
+    if (channel && !canReadChannel(channel, vessel)) {
+      navigate('../../activity');
+      setRecentChannel('');
+    }
+  }, [channel, vessel, navigate, setRecentChannel]);
+
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
   const { didCopy, onCopy } = useDiaryActions({

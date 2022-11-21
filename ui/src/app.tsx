@@ -19,7 +19,7 @@ import api, { IS_MOCK } from '@/api';
 import Dms from '@/dms/Dms';
 import NewDM from '@/dms/NewDm';
 import { DmThread, GroupChatThread } from '@/chat/ChatThread/ChatThread';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
+import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
@@ -257,7 +257,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
-              <Route index element={<MobileGroupRoot />} />
+              <Route index element={isMobile ? <MobileGroupRoot /> : null} />
               <Route
                 path="activity"
                 element={
@@ -495,7 +495,7 @@ function RoutedApp() {
   };
 
   const theme = useTheme();
-  const isDarkMode = useMedia('(prefers-color-scheme: dark)');
+  const isDarkMode = useIsDark();
 
   useEffect(() => {
     if ((isDarkMode && theme === 'auto') || theme === 'dark') {
