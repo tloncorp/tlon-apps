@@ -37,6 +37,7 @@ interface useMessageEditorParams {
   content: JSONContent | string;
   placeholder?: string;
   editorClass?: string;
+  allowMentions?: boolean;
   onEnter: ({ editor }: HandlerParams) => boolean;
   onUpdate?: ({ editor }: HandlerParams) => void;
 }
@@ -46,6 +47,7 @@ export function useMessageEditor({
   content,
   placeholder,
   editorClass,
+  allowMentions = false,
   onEnter,
   onUpdate,
 }: useMessageEditorParams) {
@@ -78,35 +80,42 @@ export function useMessageEditor({
     [onEnter]
   );
 
+  const extensions = [
+    Blockquote,
+    Bold,
+    Code.extend({ excludes: undefined }),
+    Document,
+    HardBreak,
+    History.configure({ newGroupDelay: 100 }),
+    Italic,
+    keyMapExt,
+    Link.configure({
+      openOnClick: false,
+    }),
+    Paragraph,
+    Placeholder.configure({ placeholder }),
+    Strike,
+    Text.extend({
+      addPasteRules() {
+        return [refPasteRule(onReference)];
+      },
+    }),
+  ];
+
+  if (allowMentions) {
+    extensions.unshift(
+      Mention.extend({ priority: 1000 }).configure({
+        HTMLAttributes: {
+          class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
+        },
+        suggestion: MentionPopup,
+      })
+    );
+  }
+
   return useEditor(
     {
-      extensions: [
-        Mention.extend({ priority: 1000 }).configure({
-          HTMLAttributes: {
-            class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
-          },
-          suggestion: MentionPopup,
-        }),
-        Blockquote,
-        Bold,
-        Code.extend({ excludes: undefined }),
-        Document,
-        HardBreak,
-        History.configure({ newGroupDelay: 100 }),
-        Italic,
-        keyMapExt,
-        Link.configure({
-          openOnClick: false,
-        }),
-        Paragraph,
-        Placeholder.configure({ placeholder }),
-        Strike,
-        Text.extend({
-          addPasteRules() {
-            return [refPasteRule(onReference)];
-          },
-        }),
-      ],
+      extensions,
       content: content || '',
       editorProps: {
         attributes: {

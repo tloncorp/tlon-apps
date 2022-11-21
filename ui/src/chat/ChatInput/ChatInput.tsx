@@ -218,6 +218,7 @@ export default function ChatInput({
     whom,
     content: '',
     placeholder: 'Message',
+    allowMentions: true,
     onEnter: useCallback(
       ({ editor }) => {
         onSubmit(editor);
