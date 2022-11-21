@@ -22,7 +22,6 @@
   `path
 ++  is-old
   |=  =mark
-  ~&  is-old/mark
   =(upd (end [3 (met 3 upd)] mark))
 --
   

@@ -6,11 +6,12 @@
 /+  default-agent, verb, dbug
 /+  groups-json  :: unused, nice for perf
 /+  of
+/+  epos-lib=saga
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
   |%
-  ++  okay  `epic:e`0
+  ++  okay  `epic:e`1
   +$  card  card:agent:gall
   +$  state-0
     $:  %0
@@ -74,11 +75,17 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
++*  epos  ~(. epos-lib [bowl %group-update okay])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %group-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %group-update '-' (scot %ud okay) ~)
+  --
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -172,13 +179,14 @@
   =.  state  old
   ?:  =(okay cool)  cor
   =?  cor  bad  (emit (keep !>(old)))
-  =-  (give %fact ~(tap in -) epic+!>(okay))
-  %-  ~(gas in *(set path))
-  %+  murn  ~(val by sup.bowl)
-  |=  [=ship =path]
-  ^-  (unit _path)
-  ?.  |(=(/epic path) ?=([%groups @ @ %updates *] path))  ~
-  `path
+  =.  cor  (emil (drop load:epos))
+  =/  groups  ~(tap in ~(key by groups))
+  |-
+  ?~  groups
+    cor
+  =.  cor
+    go-abet:go-upgrade:(go-abed:group-core i.groups)
+  $(groups t.groups)
   ::
   ++  keep
   |=  bad=^vase
@@ -299,8 +307,8 @@
     (watch-epic src.bowl)
   ::
       %fact
-    ?:  =(%epic p.cage.sign)
-      ~&  '!!! weird fact on /epic'
+    ?.  =(%epic p.cage.sign)
+      ~&  [p.cage.sign '!!! weird fact on /epic']
       cor
     =+  !<(=epic:e q.cage.sign)
     ?.  =(epic okay)  cor
@@ -308,11 +316,12 @@
     %+  roll  ~(tap by groups)
     |=  [[=flag:g =net:g =group:g] out=_cor]
     ?:  =(our.bowl p.flag)  out
-    go-abet:go-sub:(go-abed:group-core:out flag)
+    go-abet:(go-take-epic:(go-abed:group-core:out flag) epic)
+  ::
       %watch-ack
-    ?~  p.sign
-      (give %fact ~ epic+!>(okay))
     %.  cor
+    ?~  p.sign
+      same
     (slog leaf/"weird watch nack" u.p.sign)
   ==
 ::
@@ -499,7 +508,7 @@
       (~(put by groups) flag net group)
     ?.  gone  cor
     =/  =action:g  [flag now.bowl %del ~]
-    (give %fact ~[/groups/ui] group-action+!>(action))
+    (give %fact ~[/groups/ui] act:mar !>(action))
   ++  go-abed
     |=  f=flag:g
     ^+  go-core
@@ -535,7 +544,7 @@
       =/  =wire  (snoc go-area %proxy)
       =/  =dock  [p.flag dap.bowl]
       =/  =cage
-        :-  %group-action
+        :-  act:mar
         !>  ^-  action:g
         [flag now.bowl %fleet (silt our.bowl ~) %del ~]
       [%pass wire %agent dock %poke cage]
@@ -576,6 +585,16 @@
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
+  ::
+  ++  go-has-sub
+    (~(has by wex.bowl) [(snoc go-area %updates) p.flag dap.bowl])
+  ::
+  ++  go-safe-sub
+    |=  init=_|
+    ^+  go-core
+    ?:  go-has-sub
+      go-core
+    (go-sub init)
   ::
   ++  go-sub
     |=  init=_|
@@ -652,18 +671,28 @@
       %-  (slog leaf/"Error forwarding poke" u.p.sign)
       go-core
     ==
+  ::
+  ++  go-upgrade
+    ^+  go-core
+    ?.  ?=(%sub -.net)       go-core
+    ?.  ?=(%dex -.saga.net)  go-core
+    ?.  =(okay ver.saga.net)  
+      ~&  future-shock/[ver.saga.net flag]
+      go-core
+    ~&  restoring/flag
+    =>  .(saga.net `saga:e`saga.net)
+    go-make-chi
+  ::
   ++  go-take-epic
     |=  her=epic:e
     ^+  go-core
     ?>  ?=(%sub -.net)
     ?:  =(her okay)
-      go-core
+      go-make-chi
     ?:  (gth her okay)
       =.  saga.net  dex+her
       go-core
-    =.  saga.net  lev+~
-    =.  cor  (watch-epic p.flag)
-    go-core
+    go-make-lev
   ::
   ++  go-take-update
     |=  =sign:agent:gall
@@ -684,13 +713,37 @@
         %fact
       =*  cage  cage.sign
       ::  XX: does init need to be handled specially?
-      ?+  p.cage  go-core
+      ?+  p.cage  (go-odd-update p.cage)
         %epic                             (go-take-epic !<(epic:e q.cage))
         ?(%group-log-0 %group-log)        (go-apply-log !<(log:g q.cage))
         ?(%group-update-0 %group-update)  (go-update !<(update:g q.cage))
         ?(%group-init-0 %group-init)      (go-fact-init !<(init:g q.cage))
       ==
     ==
+  ::
+  ++  go-odd-update
+    |=  =mark
+    ?.  (is-old:epos mark)
+      go-core
+    ?.  ?=(%sub -.net)
+      go-core
+    go-make-lev
+  ::
+  ++  go-make-lev
+    ?.  ?=(%sub -.net)
+       go-core
+    ~&  "took lev epic: {<flag>}"
+    =.  saga.net  lev/~
+    =.  cor  (watch-epic p.flag)
+    go-core
+  ::
+  ++  go-make-chi
+    ^+  go-core
+    ?.  ?=(%sub -.net)
+       go-core
+    ~&  "took chi epic: {<flag>}"
+    =.  saga.net  chi/~
+    (go-safe-sub load.net)
   ::
   ++  go-pub
     |=  =path
@@ -722,7 +775,7 @@
     =.  net  [%sub time | %chi ~]
     =/  create=diff:g  [%create group]
     =.  cor  
-      (give %fact ~[/groups /groups/ui] group-action+!>(`action:g`[flag now.bowl create]))
+      (give %fact ~[/groups /groups/ui] act:mar !>(`action:g`[flag now.bowl create]))
     =.  cor
       (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
     =.  cor
@@ -740,9 +793,9 @@
       (~(put in out) path)
     =.  paths  (~(put in paths) (snoc go-area %ui))
     =.  cor
-      (give %fact ~(tap in paths) group-update+!>(`update:g`[time diff]))
+      (give %fact ~(tap in paths) upd:mar !>(`update:g`[time diff]))
     =.  cor
-      (give %fact ~[/groups /groups/ui] group-action+!>(`action:g`[flag time diff]))
+      (give %fact ~[/groups /groups/ui] act:mar !>(`action:g`[flag time diff]))
     go-core
   ::
   ++  go-tell-update
@@ -1232,16 +1285,16 @@
     ++  add-self
       =/  =vessel:fleet:g  [~ now.bowl]
       =/  =action:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
-      (poke-host /join/add group-action+!>(action))
+      (poke-host /join/add act:mar !>(action))
     ::
     ++  knock
       =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
       =/  =action:g  [flag now.bowl %cordon %shut %add-ships %ask ships]
-      (poke-host /knock group-action+!>(action))
+      (poke-host /knock act:mar !>(action))
     ++  rescind
       =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
       =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
-      (poke-host /rescind group-action+!>(action))
+      (poke-host /rescind act:mar !>(action))
     ++  get-preview
       =/  =task:agent:gall  [%watch /groups/(scot %p p.flag)/[q.flag]/preview]
       (pass-host /preview task)
