@@ -50,70 +50,74 @@ export default function Dm() {
   const BackButton = isMobile ? Link : 'div';
 
   return (
-    <Layout
-      className="h-full grow"
-      header={
-        <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
-          <BackLink mobile={isMobile}>
-            <BackButton
-              to="/"
-              className={cn(
-                'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
-                isMobile &&
-                  '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
-              )}
-              aria-label={isMobile ? 'Open Messages Menu' : undefined}
-            >
-              {isMobile ? (
-                <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
-              ) : null}
-              <div className="flex items-center space-x-3">
-                <Avatar size="small" ship={ship} />
-                <div className="flex flex-col items-start">
-                  {contact?.nickname ? (
-                    <>
-                      <span className="font-semibold">{contact.nickname}</span>
-                      <span className="text-gray-600">{ship}</span>
-                    </>
-                  ) : (
-                    <span className="font-semibold">{ship}</span>
-                  )}
+    <>
+      <Layout
+        className="h-full grow"
+        header={
+          <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
+            <BackLink mobile={isMobile}>
+              <BackButton
+                to="/"
+                className={cn(
+                  'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
+                  isMobile &&
+                    '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
+                )}
+                aria-label={isMobile ? 'Open Messages Menu' : undefined}
+              >
+                {isMobile ? (
+                  <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
+                ) : null}
+                <div className="flex items-center space-x-3">
+                  <Avatar size="small" ship={ship} />
+                  <div className="flex flex-col items-start">
+                    {contact?.nickname ? (
+                      <>
+                        <span className="font-semibold">
+                          {contact.nickname}
+                        </span>
+                        <span className="text-gray-600">{ship}</span>
+                      </>
+                    ) : (
+                      <span className="font-semibold">{ship}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </BackButton>
-          </BackLink>
-          {canStart ? (
-            <DmOptions whom={ship} pending={!isAccepted} alwaysShowEllipsis />
-          ) : null}
-        </div>
-      }
-      aside={<Outlet />}
-      footer={
-        isAccepted ? (
-          <div className="border-t-2 border-gray-50 p-4">
-            <ChatInput
-              whom={ship}
-              sendMessage={sendMessage}
-              showReply
-              autoFocus
-            />
+              </BackButton>
+            </BackLink>
+            {canStart ? (
+              <DmOptions whom={ship} pending={!isAccepted} alwaysShowEllipsis />
+            ) : null}
           </div>
-        ) : null
-      }
-    >
-      {isAccepted ? (
-        <ChatWindow
-          whom={ship}
-          messages={messages}
-          prefixedElement={
-            <div className="pt-4 pb-12">
-              <DMHero ship={ship} contact={contact} />
+        }
+        footer={
+          isAccepted ? (
+            <div className="border-t-2 border-gray-50 p-4">
+              <ChatInput
+                whom={ship}
+                sendMessage={sendMessage}
+                showReply
+                autoFocus
+              />
             </div>
-          }
-        />
-      ) : (
-        <DmInvite ship={ship} />
-      )}
-    </Layout>
+          ) : null
+        }
+      >
+        {isAccepted ? (
+          <ChatWindow
+            whom={ship}
+            messages={messages}
+            prefixedElement={
+              <div className="pt-4 pb-12">
+                <DMHero ship={ship} contact={contact} />
+              </div>
+            }
+          />
+        ) : (
+          <DmInvite ship={ship} />
+        )}
+      </Layout>
+      <Outlet />
+    </>
   );
 }

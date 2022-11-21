@@ -18,7 +18,7 @@ import { useChatState } from '@/state/chat';
 import api, { IS_MOCK } from '@/api';
 import Dms from '@/dms/Dms';
 import NewDM from '@/dms/NewDm';
-import { DmThread, GroupChatThread } from '@/chat/ChatThread/ChatThread';
+import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
@@ -140,8 +140,19 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route index element={<DMHome />} />
             <Route path="new" element={<NewDM />} />
             <Route path=":ship" element={<Message />}>
-              <Route path="message/:idShip/:idTime" element={<DmThread />} />
+              {isSmall ? null : (
+                <Route
+                  path="message/:idShip/:idTime"
+                  element={<ChatThread />}
+                />
+              )}
             </Route>
+            {isSmall && (
+              <Route
+                path=":ship/message/:idShip/:idTime"
+                element={<ChatThread />}
+              />
+            )}
           </Route>
 
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
@@ -161,14 +172,14 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 {isSmall ? null : (
                   <Route
                     path="message/:idShip/:idTime"
-                    element={<GroupChatThread />}
+                    element={<ChatThread />}
                   />
                 )}
               </Route>
               {isSmall ? (
                 <Route
                   path="message/:idShip/:idTime"
-                  element={<GroupChatThread />}
+                  element={<ChatThread />}
                 />
               ) : null}
             </Route>
@@ -311,14 +322,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 {isSmall ? null : (
                   <Route
                     path="message/:idShip/:idTime"
-                    element={<GroupChatThread />}
+                    element={<ChatThread />}
                   />
                 )}
               </Route>
               {isSmall ? (
                 <Route
                   path="message/:idShip/:idTime"
-                  element={<GroupChatThread />}
+                  element={<ChatThread />}
                 />
               ) : null}
             </Route>
