@@ -77,13 +77,12 @@ export default function Notification({
             </span>
             <CaretDown16Icon className="h-4 w-4 text-gray-400" />
           </Dropdown.Trigger>
-          <Dropdown.Content className="dropdown" portalled={false}>
+          <Dropdown.Content className="dropdown">
             {bin.unread ? (
               <Dropdown.Item className="dropdown-item" onSelect={onClick}>
                 Mark Read
               </Dropdown.Item>
             ) : null}
-            {/* TODO add settings */}
           </Dropdown.Content>
         </Dropdown.Root>
       </div>

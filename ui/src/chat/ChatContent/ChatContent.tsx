@@ -9,10 +9,14 @@ import {
   isLink,
   isStrikethrough,
   Inline,
+  isShip,
 } from '@/types/content';
 import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
+import { useLocation } from 'react-router';
+import ShipName from '@/components/ShipName';
+import { Link } from 'react-router-dom';
 
 interface ChatContentProps {
   story: ChatStory;
@@ -24,6 +28,24 @@ interface InlineContentProps {
 
 interface BlockContentProps {
   story: ChatBlock;
+}
+
+interface ShipMentionProps {
+  ship: string;
+}
+
+function ShipMention({ ship }: ShipMentionProps) {
+  const location = useLocation();
+
+  return (
+    <Link
+      to={`/profile/${ship}`}
+      className="inline-block rounded bg-blue-soft px-1.5 py-0 text-blue"
+      state={{ backgroundLocation: location }}
+    >
+      <ShipName name={ship} showAlias />
+    </Link>
+  );
 }
 
 export function InlineContent({ story }: InlineContentProps) {
@@ -88,7 +110,7 @@ export function InlineContent({ story }: InlineContentProps) {
 
   if (isInlineCode(story)) {
     return (
-      <code className="rounded bg-gray-50 px-1">
+      <code className="inline-block rounded bg-gray-50 px-1.5">
         {typeof story['inline-code'] === 'object' ? (
           <InlineContent story={story['inline-code']} />
         ) : (
@@ -96,6 +118,10 @@ export function InlineContent({ story }: InlineContentProps) {
         )}
       </code>
     );
+  }
+
+  if (isShip(story)) {
+    return <ShipMention ship={story.ship} />;
   }
 
   if (isBreak(story)) {
