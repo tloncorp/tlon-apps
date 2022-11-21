@@ -165,7 +165,7 @@ export default function ChatInput({
         const memo: ChatMemo = {
           replying: reply,
           author: `~${window.ship || 'zod'}`,
-          sent: Date.now(),
+          sent: 0, // wait until ID is created so we can share time
           content: {
             story: {
               inline: Array.isArray(data) ? data : [data],
