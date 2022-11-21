@@ -11,6 +11,8 @@ import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { isValidUrl } from '@/logic/utils';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface MultiDMInfoFormProps {
   setEditing: (editing: boolean) => void;
@@ -24,6 +26,7 @@ export default function MultiDMInfoForm({
   const clubId = useParams<{ id: string }>().id!;
   const club = useMultiDm(clubId);
   const [iconType, setIconType] = useState<ImageOrColorFieldState>('color');
+  const [editStatus, setEditStatus] = useState<Status>('initial');
   const defaultValues: GroupMeta = {
     title: club?.meta.title || '',
     cover: club?.meta.cover || '',
@@ -51,9 +54,16 @@ export default function MultiDMInfoForm({
   }, [watchImage]);
 
   const onSubmit = useCallback(
-    (values: GroupMeta) => {
-      setOpen(false);
-      useChatState.getState().editMultiDm(clubId, values);
+    async (values: GroupMeta) => {
+      try {
+        setEditStatus('loading');
+
+        await useChatState.getState().editMultiDm(clubId, values);
+        setEditStatus('success');
+        setOpen(false);
+      } catch (error) {
+        setEditStatus('error');
+      }
     },
     [clubId, setOpen]
   );
@@ -101,8 +111,21 @@ export default function MultiDMInfoForm({
           >
             Cancel
           </button>
-          <button type="submit" className="button">
-            Save
+          <button
+            type="submit"
+            className="button"
+            disabled={editStatus !== 'initial'}
+          >
+            {editStatus === 'initial' ? (
+              'Save'
+            ) : editStatus === 'loading' ? (
+              <>
+                <LoadingSpinner className="mr-2 h-4 w-4" />
+                Saving
+              </>
+            ) : (
+              'Errored'
+            )}
           </button>
         </footer>
       </form>

@@ -568,9 +568,26 @@ export const useChatState = createState<ChatState>(
         },
       });
     },
-    editMultiDm: async (id, meta) => {
-      await api.poke(multiDmAction(id, { meta }));
-    },
+    editMultiDm: async (id, meta) =>
+      new Promise((resolve, reject) => {
+        api.poke({
+          ...multiDmAction(id, { meta }),
+          onError: () => reject(),
+          onSuccess: async () => {
+            await useSubscriptionState
+              .getState()
+              .track(`chat/club/${id}/ui`, (event: ClubDelta) => {
+                if ('meta' in event && meta.title === event.meta.title) {
+                  return true;
+                }
+
+                return false;
+              });
+
+            resolve();
+          },
+        });
+      }),
     inviteToMultiDm: async (id, hive) => {
       await api.poke(multiDmAction(id, { hive: { ...hive, add: true } }));
     },
