@@ -1,6 +1,6 @@
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, decToUd, unixToDa } from '@urbit/api';
+import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -12,6 +12,7 @@ import {
   ChatBriefUpdate,
   ChatDiff,
   ChatDraft,
+  ChatMemo,
   ChatPerm,
   Chats,
   ChatWrit,
@@ -70,14 +71,14 @@ function chatWritDiff(whom: string, id: string, delta: WritDelta) {
 }
 
 function makeId() {
-  return `${window.our}/${decToUd(unixToDa(Date.now()).toString())}`;
+  const time = Date.now();
+  return {
+    id: `${window.our}/${decToUd(unixToDa(time).toString())}`,
+    time,
+  };
 }
 
-function dmAction(
-  ship: string,
-  delta: WritDelta,
-  id = makeId()
-): Poke<DmAction> {
+function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
   return {
     app: 'chat',
     mark: 'dm-action',
@@ -271,11 +272,27 @@ export const useChatState = createState<ChatState>(
           get().batchSet((draft) => {
             const {
               flag,
-              update: { diff },
+              update: { diff, time },
             } = event;
             const chat = draft.chats[flag];
+            const pact = draft.pacts[flag];
 
-            if ('del-sects' in diff) {
+            if ('writs' in diff && pact) {
+              const { id, delta } = diff.writs;
+              const { index, writs } = pact;
+              if ('add' in delta) {
+                // correct time key in chats
+                const timeKey = index[id];
+                const writ = timeKey && writs.get(timeKey);
+
+                if (writ) {
+                  const newWrits = pact.writs.delete(timeKey);
+                  const newTime = bigInt(udToDec(time));
+                  draft.pacts[flag].writs = newWrits.set(newTime, writ);
+                  draft.pacts[flag].index[id] = newTime;
+                }
+              }
+            } else if ('del-sects' in diff) {
               chat.perms.writers = chat.perms.writers.filter(
                 (w) => !diff['del-sects'].includes(w)
               );
@@ -427,11 +444,17 @@ export const useChatState = createState<ChatState>(
         },
       });
     },
-    sendMessage: (whom, memo) => {
+    sendMessage: (whom, mem) => {
       const isDM = whomIsDm(whom);
       const isMultiDm = whomIsMultiDm(whom);
+      // ensure time and ID match up
+      const { id, time } = makeId();
+      const memo: ChatMemo = {
+        ...mem,
+        sent: time,
+      };
       const diff = { add: memo };
-      const id = makeId();
+
       if (isDM) {
         pokeOptimisticallyN(useChatState, dmAction(whom, { add: memo }, id), [
           writsReducer(whom),
