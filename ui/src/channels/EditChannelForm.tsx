@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { GroupChannel, ChannelFormSchema } from '@/types/groups';
@@ -6,12 +6,14 @@ import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import { channelHref, getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
-import { useChat, useChatState } from '@/state/chat';
+import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import useChannel from '@/logic/useChannel';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface EditChannelFormProps {
   nest: string;
@@ -30,6 +32,7 @@ export default function EditChannelForm({
   redirect = true,
   setEditIsOpen,
 }: EditChannelFormProps) {
+  const [editStatus, setEditStatus] = useState<Status>('initial');
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
@@ -55,6 +58,7 @@ export default function EditChannelForm({
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
+      setEditStatus('loading');
       const { privacy, ...nextChannel } = values;
 
       if (privacy === 'secret') {
@@ -66,8 +70,15 @@ export default function EditChannelForm({
       if (presetSection) {
         nextChannel.zone = presetSection;
       }
-
-      await useGroupState.getState().editChannel(groupFlag, nest, nextChannel);
+      try {
+        await useGroupState
+          .getState()
+          .editChannel(groupFlag, nest, nextChannel);
+        setEditStatus('success');
+      } catch (e) {
+        setEditStatus('error');
+        console.log(e);
+      }
 
       const chState =
         app === 'chat'
@@ -134,9 +145,22 @@ export default function EditChannelForm({
             <button
               type="submit"
               className="button"
-              disabled={!form.formState.isDirty}
+              disabled={
+                !form.formState.isDirty ||
+                editStatus === 'loading' ||
+                editStatus === 'success' ||
+                editStatus === 'error'
+              }
             >
-              Done
+              {editStatus === 'loading' ? (
+                <LoadingSpinner className="h-4 w-4" />
+              ) : editStatus === 'error' ? (
+                'Error'
+              ) : editStatus === 'success' ? (
+                'Success'
+              ) : (
+                'Done'
+              )}
             </button>
           </div>
         </footer>

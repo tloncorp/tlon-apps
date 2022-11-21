@@ -34,6 +34,7 @@ import {
 } from '@/logic/utils';
 import { DiaryState } from './type';
 import makeNotesStore from './notes';
+import useSubscriptionState from '../subscription';
 
 setAutoFreeze(false);
 
@@ -233,10 +234,28 @@ export const useDiaryState = create<DiaryState>(
         await api.poke(diaryNoteDiff(flag, time, { del: null }));
       },
       create: async (req) => {
-        await api.poke({
-          app: 'diary',
-          mark: 'diary-create',
-          json: req,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            app: 'diary',
+            mark: 'diary-create',
+            json: req,
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('diary/ui', (event) => {
+                  const { update, flag } = event;
+                  if (
+                    'create' in update.diff &&
+                    flag === `${req.group.split('/')[0]}/${req.name}`
+                  ) {
+                    return true;
+                  }
+                  return false;
+                });
+              resolve();
+            },
+          });
         });
       },
       addSects: async (flag, sects) => {

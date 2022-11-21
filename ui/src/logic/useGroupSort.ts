@@ -32,7 +32,11 @@ export default function useGroupSort() {
       },
     };
 
-    return sortRecordsBy(groups, accessors[sortFn], sortFn === RECENT);
+    return sortRecordsBy(
+      groups,
+      accessors[sortFn] || accessors[ALPHABETICAL],
+      sortFn === RECENT
+    );
   }
 
   return {

@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import React, { useEffect, useState } from 'react';
 import { FieldPath, FieldValues, useFormContext } from 'react-hook-form';
+import { isColor, isValidUrl } from '@/logic/utils';
 import { ColorPickerField } from './ColorPicker';
 import ImageURLUploadField from './ImageURLUploadField';
 import XIcon from './icons/XIcon';
@@ -32,9 +33,13 @@ export default function ImageOrColorField<FormType extends FieldValues>({
   const watchValue = watch(fieldName);
 
   useEffect(() => {
-    setStatus('color');
-    setValue(fieldName, defaultColor as any);
-  }, [defaultColor, fieldName, setStatus, setValue]);
+    if (isValidUrl(watchValue) && !isColor(watchValue) && status === 'color') {
+      setStatus('image');
+      setValue(fieldName, watchValue as any);
+    } else if (watchValue === '' && status === 'color') {
+      setValue(fieldName, defaultColor as any);
+    }
+  }, [defaultColor, watchValue, fieldName, setStatus, status, setValue]);
 
   const handleColorIconType = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -71,7 +76,7 @@ export default function ImageOrColorField<FormType extends FieldValues>({
           </>
         ) : null}
         {status === 'color' ? (
-          <div className="input flex w-full items-center rounded-lg px-1 py-0.5">
+          <div className="input flex h-8 w-full items-center rounded-lg">
             <ColorPickerField fieldName={fieldName} className="grow" />
             <button
               className="small-button line-break-none w-max"

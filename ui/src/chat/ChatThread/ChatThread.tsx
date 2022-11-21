@@ -78,7 +78,7 @@ export default function ChatThread({ whom, children }: ChatThreadProps) {
 export function GroupChatThread() {
   const flag = useChannelFlag()!;
   const groupFlag = useRouteGroup();
-  const channel = useChannel(groupFlag, flag)!;
+  const channel = useChannel(groupFlag, `chat/${flag}`)!;
 
   return (
     <ChatThread whom={flag}>

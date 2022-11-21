@@ -202,6 +202,7 @@
     |^  ^+  cor
     ~_  leaf+"Create failed: check group permissions"
       ?>  can-nest
+      ?>  ((sane %tas) name.req)
       =/  =flag:d  [our.bowl name.req]
       =|  =diary:d
       =/  =perm:d  [writers.req group.req]
@@ -599,6 +600,7 @@
     ?-    -.dif
         %notes
       =.  notes.diary  (reduce:di-notes time p.dif)
+      =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
         (hark:di-notes our.bowl p.dif)
       =.  cor

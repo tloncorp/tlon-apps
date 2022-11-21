@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocalStorage } from 'usehooks-ts';
+import { createStorageKey } from '@/logic/utils';
 import AsteriskIcon from './icons/Asterisk16Icon';
 
 interface ButterBarProps {
@@ -8,7 +9,10 @@ interface ButterBarProps {
 }
 
 function ButterBar({ dismissKey, message }: ButterBarProps) {
-  const [isDismissed, setIsDismissed] = useLocalStorage(dismissKey, false);
+  const [isDismissed, setIsDismissed] = useLocalStorage(
+    createStorageKey(dismissKey),
+    false
+  );
 
   function onClick() {
     setIsDismissed(true);

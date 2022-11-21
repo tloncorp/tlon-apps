@@ -19,7 +19,7 @@ import api, { IS_MOCK } from '@/api';
 import Dms from '@/dms/Dms';
 import NewDM from '@/dms/NewDm';
 import { DmThread, GroupChatThread } from '@/chat/ChatThread/ChatThread';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
+import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
@@ -70,7 +70,7 @@ import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
-import AlphaNotice from './components/AlphaNotice';
+import PrereleaseNotice from './components/PrereleaseNotice';
 import DisconnectNotice from './components/DisconnectNotice';
 import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
 import TalkNav from './nav/TalkNav';
@@ -257,7 +257,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
-              <Route index element={<MobileGroupRoot />} />
+              <Route index element={isMobile ? <MobileGroupRoot /> : null} />
               <Route
                 path="activity"
                 element={
@@ -456,7 +456,7 @@ function App() {
       {subscription === 'disconnected' || subscription === 'reconnecting' ? (
         <DisconnectNotice />
       ) : null}
-      <AlphaNotice />
+      <PrereleaseNotice />
       {isChat ? (
         <ChatRoutes
           state={state}
@@ -495,7 +495,7 @@ function RoutedApp() {
   };
 
   const theme = useTheme();
-  const isDarkMode = useMedia('(prefers-color-scheme: dark)');
+  const isDarkMode = useIsDark();
 
   useEffect(() => {
     if ((isDarkMode && theme === 'auto') || theme === 'dark') {

@@ -3,7 +3,7 @@ import _ from 'lodash';
 import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
-import { useLocalStorage } from 'usehooks-ts';
+import bigInt from 'big-integer';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import {
@@ -11,6 +11,8 @@ import {
   useChannel,
   useGroup,
   useVessel,
+  GROUP_ADMIN,
+  useAmAdmin,
 } from '@/state/groups/groups';
 import {
   useCuriosForHeap,
@@ -29,24 +31,29 @@ import {
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { createStorageKey } from '@/logic/utils';
+import { canReadChannel, createStorageKey } from '@/logic/utils';
 import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
-import bigInt from 'big-integer';
+import useRecentChannel from '@/logic/useRecentChannel';
 import NewCurioForm from './NewCurioForm';
 
 function HeapChannel({ title }: ViewProps) {
+  const navigate = useNavigate();
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
   const flag = useRouteGroup();
+  const vessel = useVessel(flag, window.our);
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
-  const [, setRecent] = useLocalStorage(
-    createStorageKey(`recent-chan:${flag}`),
-    ''
-  );
+  const { setRecentChannel } = useRecentChannel(flag);
 
-  const navigate = useNavigate();
+  useEffect(() => {
+    if (channel && !canReadChannel(channel, vessel)) {
+      navigate('../../activity');
+      setRecentChannel('');
+    }
+  }, [channel, vessel, navigate, setRecentChannel]);
+
   const displayMode = useHeapDisplayMode(chFlag);
   const settings = useHeapSettings();
   // for now sortMode is not actually doing anything.
@@ -54,7 +61,6 @@ function HeapChannel({ title }: ViewProps) {
   const sortMode = useHeapSortMode(chFlag);
   const curios = useCuriosForHeap(chFlag);
   const perms = useHeapPerms(chFlag);
-  const vessel = useVessel(flag, window.our);
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
@@ -90,10 +96,11 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     useHeapState.getState().initialize(chFlag);
-    setRecent(nest);
-  }, [chFlag, nest, setRecent]);
+    setRecentChannel(nest);
+  }, [chFlag, nest, setRecentChannel]);
 
   useDismissChannelNotifications({
+    nest,
     markRead: useHeapState.getState().markRead,
   });
 

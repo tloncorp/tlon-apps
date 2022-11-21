@@ -73,11 +73,15 @@
 }
 
 .dropdown {
-  @apply flex min-w-40 flex-col rounded-lg bg-white py-0 font-semibold shadow-lg dark:border dark:border-gray-50;
+  @apply z-10 flex min-w-40 flex-col space-y-0.5 rounded-lg bg-white p-2 font-semibold shadow-lg dark:border dark:border-gray-50;
 }
 
 .dropdown-item {
-  @apply cursor-pointer rounded-lg px-2 py-3 ring-gray-200 hover:bg-gray-50 focus:outline-none;
+  @apply cursor-pointer rounded p-4 ring-gray-200 hover:bg-gray-50 focus:outline-none;
+}
+
+.dropdown-item-icon {
+  @apply dropdown-item flex w-full items-center space-x-2 p-2;
 }
 
 .card {

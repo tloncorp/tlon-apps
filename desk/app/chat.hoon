@@ -263,6 +263,7 @@
     |^  ^+  cor
       ~_  leaf+"Create failed: check group permissions"
       ?>  can-nest
+      ?>  ((sane %tas) name.req)
       =/  =flag:c  [our.bowl name.req]
       =|  =chat:c
       =/  =perm:c  [writers.req group.req]
@@ -616,6 +617,28 @@
       ?(%code %inline-code)  ""
       ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
   ==
+::
+++  mentioned
+  |=  [content=(list inline:c) =ship]
+  ^-  ?
+  |-
+  ?~  content  %.n
+  =/  head  i.content
+  =/  tail  t.content
+  ?@  head
+    $(content tail)
+  ?-  -.head
+    ?(%break %tag %block %link %code %inline-code)  $(content tail)
+    ::
+      ?(%italics %bold %strike %blockquote)
+    ?:  (mentioned p.head ship)  %.y
+    $(content tail)
+    ::
+      %ship
+    ?:  =(ship p.head)  %.y
+    $(content tail)
+  ==
+::
 ++  from-self  =(our src):bowl
 ++  cu-abed  cu-abed:cu-core
 ::
@@ -1095,10 +1118,9 @@
         %unwatch  remark.chat(watching |)
         %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
       ::
-          %read   remark.chat(last-read now.bowl)
-  ::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
-  ::    =.  last-read.remark.chat  time
-  ::    ca-core
+          %read
+      =/  [=time =writ:c]  (need (ram:on:writs:c wit.pact.chat))
+      remark.chat(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
       (give-brief flag/flag ca-brief)
@@ -1112,8 +1134,6 @@
       (put:log-on:c log.chat time d)
     =.  ca-core
       (ca-give-updates time d)
-    =.  cor
-      (give-brief flag/flag ca-brief)
     ?-    -.d
         %add-sects
       =*  p  perm.chat
@@ -1131,6 +1151,7 @@
     ::
         %writs
       =.  pact.chat  (reduce:ca-pact time p.d)
+      =.  cor  (give-brief flag/flag ca-brief)
       ?-  -.q.p.d  
           ?(%del %add-feel %del-feel)  ca-core
           %add
@@ -1138,8 +1159,20 @@
         ?-  -.content.memo
             %notice  ca-core
             %story
-          ?~  replying.memo  ca-core
-          =/  op  (~(get pac pact.chat) u.replying.memo)
+          ?.  |((mentioned q.p.content.memo our.bowl) !=(~ replying.memo))  ca-core
+          ?:  (mentioned q.p.content.memo our.bowl)
+            =/  yarn
+              %^  ca-spin
+                /message/(scot %p p.p.p.d)/(scot %ud q.p.p.d)/navigate
+                :~  [%ship author.memo]
+                    ' mentioned you :'
+                    (flatten q.p.content.memo)
+                ==
+              ~
+            =.  cor  (emit (pass-hark & & yarn))
+            ca-core
+          =/  replying  (need replying.memo)
+          =/  op  (~(get pac pact.chat) replying)
           ?~  op  ca-core
           =/  opwrit  writ.u.op
           =/  in-replies
@@ -1155,7 +1188,7 @@
               %story          
             =/  yarn
               %^  ca-spin
-                /message/(scot %p p.u.replying.memo)/(scot %ud q.u.replying.memo)
+                /message/(scot %p p.replying)/(scot %ud q.replying)
                 :~  [%ship author.memo]
                     ' replied to your message “'
                     (flatten q.p.content.opwrit)

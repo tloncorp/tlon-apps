@@ -3,8 +3,9 @@ import useHarkState from '@/state/hark';
 import { getGroupPrivacy } from '@/logic/utils';
 import { useGroup, useGroupState } from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { Status } from '@/logic/status';
 
 function getButtonText(
   privacy: PrivacyType,
@@ -29,6 +30,7 @@ export default function useGroupJoin(
   gang: Gang,
   inModal = false
 ) {
+  const [status, setStatus] = useState<Status>('initial');
   const location = useLocation();
   const navigate = useNavigate();
   const modalNavigate = useModalNavigate();
@@ -51,24 +53,31 @@ export default function useGroupJoin(
   }, [flag, group, location, navigate]);
 
   const join = useCallback(async () => {
+    setStatus('loading');
     if (privacy === 'public' || (privacy === 'private' && invited)) {
       try {
-        await useGroupState.getState().join(flag, true);
         await useHarkState.getState().sawRope({
           channel: null,
           desk: window.desk,
           group: flag,
           thread: `/${flag}/invite`,
         });
+      } catch (error) {
+        // no notification
+      }
+
+      try {
+        await useGroupState.getState().join(flag, true);
+        setStatus('success');
         navigate(`/groups/${flag}`);
       } catch (e) {
+        setStatus('error');
         navigate(`/find/${flag}`);
         if (requested) {
           await useGroupState.getState().rescind(flag);
         } else {
           await useGroupState.getState().reject(flag);
         }
-        console.error(e);
       }
     } else {
       await useGroupState.getState().knock(flag);
@@ -102,6 +111,7 @@ export default function useGroupJoin(
     dismiss,
     open,
     join,
+    status,
     reject,
     button: {
       disabled: requested && !invited,

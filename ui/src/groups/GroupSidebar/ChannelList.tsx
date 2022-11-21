@@ -2,9 +2,14 @@ import cn from 'classnames';
 import React from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
-import { channelHref, nestToFlag, filterJoinedChannels } from '@/logic/utils';
+import {
+  channelHref,
+  nestToFlag,
+  isChannelJoined,
+  canReadChannel,
+} from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
-import { useGroup } from '@/state/groups';
+import { useGroup, useVessel } from '@/state/groups';
 import CaretDown16Icon from '@/components/icons/CaretDownIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
@@ -67,49 +72,51 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels, sections } = useChannelSections(flag);
   const isMobile = useIsMobile();
-  const { isChannelUnread } = useIsChannelUnread(flag);
-
-  usePrefetchChannels(flag);
+  const { isChannelUnread } = useIsChannelUnread();
+  const vessel = useVessel(flag, window.our);
 
   if (!group) {
     return null;
   }
 
   const renderChannels = (channels: [string, GroupChannel][]) =>
-    filterJoinedChannels(channels, briefs).map(([nest, channel]) => {
-      const [_app, chFlag] = nestToFlag(nest);
-      const icon = (active: boolean) =>
-        isMobile ? (
-          <span
-            className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-md',
-              !active && 'bg-gray-50',
-              active && 'bg-white'
-            )}
-          >
+    channels
+      .filter(
+        ([nest, chan]) =>
+          isChannelJoined(nest, briefs) && canReadChannel(chan, vessel)
+      )
+      .map(([nest, channel]) => {
+        const icon = (active: boolean) =>
+          isMobile ? (
+            <span
+              className={cn(
+                'flex h-12 w-12 items-center justify-center rounded-md',
+                !active && 'bg-gray-50',
+                active && 'bg-white'
+              )}
+            >
+              <ChannelIcon nest={nest} className="h-6 w-6" />
+            </span>
+          ) : (
             <ChannelIcon nest={nest} className="h-6 w-6" />
-          </span>
-        ) : (
-          <ChannelIcon nest={nest} className="h-6 w-6" />
+          );
+
+        return (
+          <SidebarItem
+            inexact
+            key={nest}
+            icon={icon}
+            to={channelHref(flag, nest)}
+            actions={isChannelUnread(nest) ? <UnreadIndicator /> : null}
+          >
+            {channel.meta.title || nest}
+          </SidebarItem>
         );
+      });
 
-      return (
-        <SidebarItem
-          inexact
-          key={nest}
-          icon={icon}
-          to={channelHref(flag, nest)}
-          actions={isChannelUnread(chFlag) ? <UnreadIndicator /> : null}
-        >
-          {channel.meta.title || nest}
-        </SidebarItem>
-      );
-    });
-
-  const unsectionedChannels = sortChannels(group.channels).filter(([n]) => {
-    const [_app, f] = nestToFlag(n);
-    return f in briefs;
-  });
+  const unsectionedChannels = sortChannels(group.channels).filter(
+    ([n]) => n in briefs
+  );
 
   return (
     <div className={className}>
