@@ -617,6 +617,28 @@
       ?(%code %inline-code)  ""
       ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
   ==
+::
+++  mentioned
+  |=  [content=(list inline:c) =ship]
+  ^-  ?
+  |-
+  ?~  content  %.n
+  =/  head  i.content
+  =/  tail  t.content
+  ?@  head
+    $(content tail)
+  ?-  -.head
+    ?(%break %tag %block %link %code %inline-code)  $(content tail)
+    ::
+      ?(%italics %bold %strike %blockquote)
+    ?:  (mentioned p.head ship)  %.y
+    $(content tail)
+    ::
+      %ship
+    ?:  =(ship p.head)  %.y
+    $(content tail)
+  ==
+::
 ++  from-self  =(our src):bowl
 ++  cu-abed  cu-abed:cu-core
 ::
@@ -1137,8 +1159,20 @@
         ?-  -.content.memo
             %notice  ca-core
             %story
-          ?~  replying.memo  ca-core
-          =/  op  (~(get pac pact.chat) u.replying.memo)
+          ?.  |((mentioned q.p.content.memo our.bowl) !=(~ replying.memo))  ca-core
+          ?:  (mentioned q.p.content.memo our.bowl)
+            =/  yarn
+              %^  ca-spin
+                /message/(scot %p p.p.p.d)/(scot %ud q.p.p.d)/navigate
+                :~  [%ship author.memo]
+                    ' mentioned you :'
+                    (flatten q.p.content.memo)
+                ==
+              ~
+            =.  cor  (emit (pass-hark & & yarn))
+            ca-core
+          =/  replying  (need replying.memo)
+          =/  op  (~(get pac pact.chat) replying)
           ?~  op  ca-core
           =/  opwrit  writ.u.op
           =/  in-replies
@@ -1154,7 +1188,7 @@
               %story          
             =/  yarn
               %^  ca-spin
-                /message/(scot %p p.u.replying.memo)/(scot %ud q.u.replying.memo)
+                /message/(scot %p p.replying)/(scot %ud q.replying)
                 :~  [%ship author.memo]
                     ' replied to your message “'
                     (flatten q.p.content.opwrit)

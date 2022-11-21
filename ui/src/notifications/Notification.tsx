@@ -83,7 +83,6 @@ export default function Notification({
                 Mark Read
               </Dropdown.Item>
             ) : null}
-            {/* TODO add settings */}
           </Dropdown.Content>
         </Dropdown.Root>
       </div>
