@@ -1,6 +1,6 @@
 {
-  "name": "homestead",
-  "version": "0.0.0",
+  "name": "landscape-apps",
+  "version": "0.9.1",
   "private": true,
   "engines": {
     "node": "14.19.0"

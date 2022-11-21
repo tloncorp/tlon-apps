@@ -4,13 +4,13 @@ import Dialog, { DialogClose, DialogContent } from '@/components/Dialog';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups/groups';
-import { getGroupPrivacy } from '@/logic/utils';
+import { getPrivacyFromGroup } from '@/logic/utils';
 
 export default function GroupInviteDialog() {
   const dismiss = useDismissNavigate();
   const flag = useRouteGroup();
   const group = useGroup(flag);
-  const privacy = group ? getGroupPrivacy(group.cordon) : 'public';
+  const privacy = group ? getPrivacyFromGroup(group) : 'public';
   const [ships, setShips] = useState<ShipOption[]>([]);
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(ship.value))
@@ -26,7 +26,7 @@ export default function GroupInviteDialog() {
     const shipList = ships.map((s) => s.value);
     if (privacy === 'public') {
       useGroupState.getState().addMembers(flag, shipList);
-    } else if (privacy === 'private') {
+    } else {
       useGroupState.getState().invite(flag, shipList);
     }
   }, [flag, privacy, ships]);

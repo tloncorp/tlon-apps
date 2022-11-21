@@ -25,23 +25,23 @@ export default function ColorPicker({
 }: ColorPickerProps) {
   return (
     <div className={classNames('flex items-center', className)}>
-      <HexColorInput
-        prefixed
-        className="input w-full rounded-l-lg rounded-r-none p-1"
-        type="text"
-        color={color}
-        onChange={setColor}
-      />
       <Popover.Root>
         <Popover.Trigger
           style={{ backgroundColor: color }}
-          className="h-8 w-8 rounded-r-lg rounded-l-none"
+          className="h-6 w-6 rounded"
         />
         <Popover.Content>
           <HexColorPicker color={color} onChange={setColor} />
           <Popover.Arrow className="fill-gray-300" />
         </Popover.Content>
       </Popover.Root>
+      <HexColorInput
+        prefixed
+        className="input-inner grow py-0"
+        type="text"
+        color={color}
+        onChange={setColor}
+      />
     </div>
   );
 }

@@ -1,12 +1,8 @@
-/-  g=groups, zer=chat-0
+/-  g=groups
 /-  meta
 /-  cite
 /-  e=epic
 |%
-++  old
-  |%
-  ++  zero  zer
-  --
 ::  $writ: a chat message
 +$  writ   [seal memo]
 ::  $id: an identifier for chat messages

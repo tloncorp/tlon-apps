@@ -13,14 +13,12 @@
   |%
   ++  okay  `epic:e`0
   +$  card  card:agent:gall
-  +$  state-0
+  +$  current-state
     $:  %0
-        groups=(map flag:g [net:g group:g])
-        xeno=(map flag:g gang:g)
+        groups=net-groups:g
+        xeno=gangs:g
     ==
-  ++  versioned-state  $%(state-0)
   ::
-  +$  current-state  state-0
   --
 =|  current-state
 =*  state  -
@@ -90,8 +88,6 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
-      %holt  (holt |)
-  ::
       %group-import
     =+  !<(=flag:g vase)
     ?>  &(=(our.bowl p.flag) =(src our):bowl)
@@ -105,6 +101,7 @@
   ::
       %group-create
     =+  !<(=create:g vase)
+    ?>  ((sane %tas) name.create)
     =/  =flag:g  [our.bowl name.create]
     =/  =fleet:g
       %-  ~(run by members.create)
@@ -113,12 +110,13 @@
       [sects *time]
     =/  =group:g
       :*  fleet
-        ~  ~  ~  ~  ~
-        cordon.create
-        title.create
-        description.create
-        image.create
-        cover.create
+          ~  ~  ~  ~  ~
+          cordon.create
+          secret.create
+          title.create
+          description.create
+          image.create
+          cover.create
       ==
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
@@ -128,6 +126,8 @@
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
+    ?:  &(!=(our.bowl p.p.action) from-self)
+      go-abet:(go-proxy:group-core q.action)
     go-abet:(go-update:group-core q.action)
   ::
       %group-invite
@@ -159,6 +159,10 @@
     =+  !<(=flag:g vase)
     ga-abet:ga-rescind:(ga-abed:gang-core flag)
   ::
+      %group-cancel
+    =+  !<(=flag:g vase)
+    ga-abet:ga-cancel:(ga-abed:gang-core flag)
+  ::
       %invite-decline
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
@@ -178,7 +182,6 @@
   ::
   =.  state  old
   ?:  =(okay cool)  cor
-  =?  cor  bad  (emit (keep !>(old)))
   =.  cor  (emil (drop load:epos))
   =/  groups  ~(tap in ~(key by groups))
   |-
@@ -188,11 +191,7 @@
     go-abet:go-upgrade:(go-abed:group-core i.groups)
   $(groups t.groups)
   ::
-  ++  keep
-  |=  bad=^vase
-  ^-  card
-  ~&  >  %keep
-  [%pass /groups/keep %arvo %k %fard q.byk.bowl %keep %noun bad]
+  +$  versioned-state  $%(current-state)
   --
 ::
 ++  watch
@@ -271,25 +270,6 @@
   ^+  cor
   !!
 ::
-++  holt
-  |=  tell=?
-  ^+  cor
-  =.  state  *versioned-state
-  =.  cor
-    %-  emil
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
-  ?.  tell
-    cor
-  %-  emil
-  %+  murn  `(list dude:gall)`desk-bill
-  |=  =dude:gall
-  ^-  (unit card)
-  ?:  =(dude dap.bowl)  ~
-  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
-::
 ++  watch-epic
   |=  her=ship
   ^+  cor
@@ -342,7 +322,7 @@
     =,  group
     :*  nest
         meta:(~(got by channels.group) nest)
-        flag  meta  cordon  now.bowl
+        flag  meta  cordon  now.bowl  secret.group
     ==
   =.  cor  (emit %give %fact ~ channel-preview+!>(preview))
   (emit %give %kick ~ ~)
@@ -437,7 +417,7 @@
     =-  (fall - [(crip "{(scow %p p.flag)}/{(scow %ta q.flag)}") '' '' ''])
     (bind (~(get by om) [%groups flag]) old-assoc-to-new-meta)
   =/  =group:g
-    [fleet cabals zones zone-ord bloc channels cordon meta]
+    [fleet cabals zones zone-ord bloc channels cordon | meta]
   =|  =log:g
   =.  log     (put:log-on:g log now.bowl create/group)
   =/  =net:g  pub/log
@@ -522,6 +502,8 @@
   ++  go-link
     |=  link=path 
     (welp /groups/(scot %p p.flag)/[q.flag] link)
+  ++  go-is-our-bloc
+    (~(has in go-bloc-who) our.bowl)
   ++  go-is-bloc
     |(=(src.bowl p.flag) (~(has in go-bloc-who) src.bowl))
   ++  go-bloc-who
@@ -618,9 +600,17 @@
     ==
   ::
   ++  go-preview
+    :: TODO: either use ?> to enforce request permissions; or return a preview
+    ::   with limited info? for rendering a secret group reference
+    :: ?>  (~(has by fleet.group) src.bowl)
+    :: TODO: if user is in the allowed to join list, they should see a preview;
+    ::   reusing some of the below logic
+    :: ?>  ?|  =(p.flag our.bowl) :: self
+    ::     =(p.flag src.bowl) :: subscription
+    ::     &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
     =/  =preview:g
       =,  group
-      [flag meta cordon now.bowl]
+      [flag meta cordon now.bowl secret.group]
     =.  cor
       (emit %give %fact ~ group-preview+!>(preview))
     =.  cor
@@ -743,6 +733,16 @@
     =.  saga.net  chi/~
     (go-safe-sub load.net)
   ::
+  ++  go-proxy
+    |=  =update:g
+    ^+  go-core
+    ?>  go-is-bloc
+    =/  =wire  (snoc go-area %proxy)
+    =/  =dock  [p.flag dap.bowl]
+    =/  =cage  group-action+!>([flag update])
+    =.  cor  (emit %pass wire %agent dock %poke cage)
+    go-core
+  ::
   ++  go-pub
     |=  =path
     ^+  go-core
@@ -824,9 +824,14 @@
       %create   go-core(group p.diff)
       %zone     (go-zone-update +.diff)
       %meta     (go-meta-update p.diff)
+      %secret   (go-secret-update p.diff)
       %del      go-core(gone &)
     ==
   ::
+  ++  go-secret-update
+    |=  secret=?
+    =.  secret.group  secret
+    go-core
   ++  go-meta-update
     |=  meta=data:meta
     =.  meta.group  meta
@@ -959,7 +964,6 @@
         ?>  |(go-is-bloc =(~(tap in q.diff) ~[src.bowl]))
         =.  ask.cordon.group  (~(uni in ask.cordon) q.diff)
         =/  ships  q.diff
-        ~&  [src.bowl our.bowl]
         ?:  from-self  go-core
         =/  link  (go-link /info/members/pending)
         =/  yarn
@@ -977,7 +981,8 @@
                   [%emph title.meta.group]
               ==
           ==
-        =.  cor  (emit (pass-hark & & yarn))
+        =?  cor  go-is-our-bloc
+          (emit (pass-hark & & yarn))
         go-core
       ::
           [%del-ships %ask]
@@ -1050,7 +1055,8 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =?  cor  go-is-our-bloc
+        (emit (pass-hark & & yarn))
       ?-  -.cordon.group
           ?(%open %afar)  go-core
           %shut  
@@ -1083,7 +1089,8 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =?  cor  go-is-our-bloc
+        (emit (pass-hark & & yarn))
       ?:  (~(has in ships) our.bowl)
         go-core(gone &)
       go-core
@@ -1122,7 +1129,8 @@
                 [%emph role-list]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =?  cor  go-is-our-bloc
+        (emit (pass-hark & & yarn))
       go-core
     ::
         %del-sects
@@ -1226,9 +1234,9 @@
   %+  murn  ~(tap by groups)
   |=  [=flag:g =net:g =group:g]
   ^-  (unit [flag:g preview:g])
-  ?.  =(our.bowl p.flag)
+  ?.  &(=(our.bowl p.flag) !secret.group)
     ~
-  `[flag =,(group [flag meta cordon now.bowl])]
+  `[flag =,(group [flag meta cordon now.bowl |])]
 ::
 ++  req-gang-index
   |=  =ship
@@ -1300,6 +1308,12 @@
   ++  ga-start-join
     ^+  ga-core
     =.  cor  (emit add-self:ga-pass)
+    ga-core
+  ::
+  ++  ga-cancel
+    ^+  ga-core
+    =.  cam.gang  ~
+    =.  cor  ga-give-update
     ga-core
   ::
   ++  ga-knock

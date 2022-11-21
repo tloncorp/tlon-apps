@@ -1,20 +1,25 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
 import { useNavigate, useParams } from 'react-router';
 import { useGroupState, useRouteGroup } from '@/state/groups';
-import { strToSym, channelHref } from '@/logic/utils';
+import { strToSym } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
 import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
-import ChannelTypeSelector from '../ChannelTypeSelector';
+import { useIsMobile } from '@/logic/useMedia';
+import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 export default function NewChannelForm() {
   const { section } = useParams<{ section: string }>();
+  const [addChannelStatus, setAddChannelStatus] = useState<Status>('initial');
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
@@ -38,8 +43,43 @@ export default function NewChannelForm() {
 
   const onSubmit = useCallback(
     async (values: NewChannelFormSchema) => {
+      setAddChannelStatus('loading');
       const { privacy, type, ...nextChannel } = values;
-      const channelName = strToSym(values.meta.title);
+      /*
+        For now channel names are used as keys for pacts. Therefore we need to
+        check if a channel with the same name already exists in the chat store. If it does, we
+        need to append a timestamp to the end of the name of the new channel.
+
+        Timestamps are used because they are virtually guaranteed to be unique.
+
+        In the future, we will index channels by their full path (including group name), and this will no
+        longer be necessary. That change will require a migration of existing channels.
+       */
+      const tempChannelName = strToSym(values.meta.title).replace(
+        /[^a-z]*([a-z][-\w\d]+)/i,
+        '$1'
+      );
+      const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
+      const existingChannel = () => {
+        if (type === 'chat') {
+          return useChatState.getState().chats[tempNewChannelFlag];
+        }
+
+        if (type === 'diary') {
+          return useDiaryState.getState().notes[tempNewChannelFlag];
+        }
+
+        if (type === 'heap') {
+          return useHeapState.getState().stash[tempNewChannelFlag];
+        }
+
+        return false;
+      };
+
+      const randomSmallNumber = Math.floor(Math.random() * 100);
+      const channelName = existingChannel()
+        ? `${tempChannelName}-${randomSmallNumber}`
+        : tempChannelName;
       const newChannelFlag = `${window.our}/${channelName}`;
       const newChannelNest = `${type}/${newChannelFlag}`;
 
@@ -60,24 +100,42 @@ export default function NewChannelForm() {
           ? useHeapState.getState().create
           : useDiaryState.getState().create;
 
-      await creator({
-        group: groupFlag,
-        name: channelName,
-        title: values.meta.title,
-        description: values.meta.description,
-        readers: values.readers,
-        writers: privacy !== 'public' ? ['admin'] : [],
-      });
-
-      if (section) {
-        await useGroupState
-          .getState()
-          .addChannelToZone(section, groupFlag, newChannelNest);
+      try {
+        await creator({
+          group: groupFlag,
+          name: channelName,
+          title: values.meta.title,
+          description: values.meta.description,
+          readers: values.readers,
+          writers: privacy !== 'public' ? ['admin'] : [],
+        });
+      } catch (e) {
+        setAddChannelStatus('error');
+        console.log(e);
       }
 
-      navigate(`/groups/${groupFlag}/info/channels`);
+      if (section) {
+        try {
+          await useGroupState
+            .getState()
+            .addChannelToZone(section, groupFlag, newChannelNest);
+        } catch (e) {
+          setAddChannelStatus('error');
+          console.log(e);
+        }
+      }
+
+      if (values.join === true) {
+        await useGroupState
+          .getState()
+          .setChannelJoin(groupFlag, newChannelNest, true);
+      }
+      setAddChannelStatus('success');
+      navigate(
+        isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/info/channels`
+      );
     },
-    [section, groupFlag, navigate]
+    [section, groupFlag, navigate, isMobile]
   );
 
   return (
@@ -111,9 +169,23 @@ export default function NewChannelForm() {
             <button
               type="submit"
               className="button"
-              disabled={!form.formState.isValid || !form.formState.isDirty}
+              disabled={
+                !form.formState.isValid ||
+                !form.formState.isDirty ||
+                addChannelStatus === 'loading' ||
+                addChannelStatus === 'success' ||
+                addChannelStatus === 'error'
+              }
             >
-              Add Channel
+              {addChannelStatus === 'loading' ? (
+                <LoadingSpinner className="h-4 w-4" />
+              ) : addChannelStatus === 'error' ? (
+                'Error'
+              ) : addChannelStatus === 'success' ? (
+                'Saved'
+              ) : (
+                'Add Channel'
+              )}
             </button>
           </div>
         </footer>

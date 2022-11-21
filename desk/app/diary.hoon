@@ -12,7 +12,7 @@
   ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %0
         =shelf:d
     ==
   --
@@ -96,112 +96,18 @@
     =;  [sta=versioned-state ba=?]  [sta okay ba]
     =-  %+  fall  -  ~&  >  %bad-load  [state &]
     (mole |.([!<(versioned-state vase) |]))
+  =.  state  old
+  =.  cor
+    (emil (drop load:epos))
+  =/  diaries  ~(tap in ~(key by shelf))
   |-
-  ?-  -.old
-      %1
-    =.  state  old
-    =?  cor  bad  (emit (keep !>(old)))
-    =.  cor
-      (emil (drop load:epos))
-    =/  diaries  ~(tap in ~(key by shelf))
-    |-
-    ?~  diaries
-      cor
-    =.  cor
-      di-abet:di-upgrade:(di-abed:di-core i.diaries)
-    $(diaries t.diaries)
+  ?~  diaries
+    cor
+  =.  cor
+    di-abet:di-upgrade:(di-abed:di-core i.diaries)
+  $(diaries t.diaries)
   ::
-          %0
-    %=  $
-      old  (state-0-to-1 old)
-    ==
-  ==
-  ::
-  ++  keep
-    |=  bad=^vase
-    ^-  card
-    ~&  >  %keep
-    [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
-  ::
-  +$  versioned-state
-    $%  state-0
-        state-1
-    ==
-  ++  zero     zero:old:d
-  ++  one      d
-  +$  state-0  [%0 =shelf:zero]
-  +$  state-1  current-state
-  ++  state-0-to-1
-    |=  sta=state-0
-    ^-  state-1
-    :-  %1
-    %-  ~(run by shelf.sta)
-    |=  =diary:zero
-    ^-  diary:one
-    %*  .  *diary:one
-      net    (net-0-to-1 net.diary)
-      log    (log-0-to-1 log.diary)
-      perm   perm.diary
-      view   view.diary
-      sort   sort.diary
-      notes  (notes-0-to-1 notes.diary banter.diary)
-      remark  remark.diary
-    ==
-  ::
-  ++  log-0-to-1
-    |=  =log:zero
-    ^-  log:one
-    %+  gas:log-on:one  *log:one
-    %+  turn  (tap:log-on:zero log)
-    |=  [=time =diff:zero]
-    ^-  [_time diff:one]
-    :-  time
-    ^-  diff:one
-    ?.  ?=(%quips -.diff)  diff
-    ^-  diff:one
-    [%notes p.diff %quips (quips-diff-0-to-1 q.diff)]
-  ::
-  ++  quips-diff-0-to-1
-    |=  =diff:quips:zero
-    ^-  diff:quips:one
-    :-  p.diff
-    ?.  ?=(%add -.q.diff)  q.diff
-    add/(memo-0-to-1 p.q.diff)
-  ::
-  ++  notes-0-to-1
-    |=  [=notes:zero banter=(map time quips:zero)]
-    ^-  notes:one
-    %+  gas:on:notes:one  *notes:one
-    %+  turn  (tap:on:notes:zero notes)
-    |=  [=time =note:zero]
-    ^-  [_time note:one]
-    :-  time
-    :_  +.note
-    ^-  seal:one
-    [time (quips-0-to-1 (~(gut by banter) time *quips:zero)) feels.note]
-  ::
-  ++  quips-0-to-1
-    |=  =quips:zero
-    ^-  quips:one
-    %+  gas:on:quips:one  *quips:one
-    ^-  (list [time quip:one])
-    %+  turn  (tap:on:quips:zero quips)
-    |=  [=time =quip:zero]
-    [time -.quip (memo-0-to-1 +.quip)]
-  ::
-  ++  memo-0-to-1
-    |=  =memo:zero
-    ^-  memo:one
-    [`content author sent]:memo
-  ::
-  ++  net-0-to-1
-    |=  =net:zero
-    ^-  net:one
-    ?:  ?=(%load -.net)
-    ::  XX should we remove uninitialized subs from state-0?
-       [%pub ~]
-    ?.  ?=(%sub -.net)  net
-    [%sub p.net & [%chi ~]]
+  +$  versioned-state  $%(current-state)
   --
 ::
 ++  watch-epic
@@ -282,14 +188,37 @@
   ::
   ++  create
     |=  req=create:d
-    ^+  cor
-    =/  =flag:d  [our.bowl name.req]
-    =|  =diary:d
-    =/  =perm:d  [writers.req group.req]
-    =.  perm.diary  perm
-    =.  net.diary  [%pub ~]
-    =.  shelf  (~(put by shelf) flag diary)
-    di-abet:(di-init:(di-abed:di-core flag) req)
+    |^  ^+  cor
+    ~_  leaf+"Create failed: check group permissions"
+      ?>  can-nest
+      ?>  ((sane %tas) name.req)
+      =/  =flag:d  [our.bowl name.req]
+      =|  =diary:d
+      =/  =perm:d  [writers.req group.req]
+      =.  perm.diary  perm
+      =.  net.diary  [%pub ~]
+      =.  shelf  (~(put by shelf) flag diary)
+      di-abet:(di-init:(di-abed:di-core flag) req)
+    ::  +can-nest: does group exist, are we allowed
+    ::
+    ++  can-nest
+      ^-  ?
+      =/  gop  (~(got by groups) group.req)
+      %-  ~(any in bloc.gop)
+      ~(has in sects:(~(got by fleet.gop) our.bowl))
+    ::  +groups:
+    ::
+    ::  this has to be duplicated because
+    ::  +di-groups-scry does not allow me
+    ::  to properly adjust for a possible
+    ::  group.
+    ::
+    ++  groups
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
   --
 ++  watch
   |=  =path

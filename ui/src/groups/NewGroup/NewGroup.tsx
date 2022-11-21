@@ -1,6 +1,7 @@
 import React, { ReactElement, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { FormProvider, useForm } from 'react-hook-form';
+import { useStep } from 'usehooks-ts';
 import { useGroupState } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
@@ -10,7 +11,7 @@ import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
-import { useStep } from 'usehooks-ts';
+import { Status } from '@/logic/status';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
@@ -25,6 +26,7 @@ export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
+  const [status, setStatus] = useState<Status>('initial');
   // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
 
   const onOpenChange = (isOpen: boolean) => {
@@ -52,7 +54,10 @@ export default function NewGroup() {
 
   const onComplete = useCallback(async () => {
     const { privacy, ...values } = form.getValues();
-    const name = strToSym(values.title);
+    const name = strToSym(values.title).replace(
+      /[^a-z]*([a-z][-\w\d]+)/i,
+      '$1'
+    );
     const members = shipsToInvite.reduce(
       (obj, ship) => ({
         ...obj,
@@ -75,9 +80,23 @@ export default function NewGroup() {
             },
           };
 
-    await useGroupState.getState().create({ ...values, name, members, cordon });
-    const flag = `${window.our}/${name}`;
-    navigate(`/groups/${flag}`);
+    setStatus('loading');
+
+    try {
+      await useGroupState.getState().create({
+        ...values,
+        name,
+        members,
+        cordon,
+        secret: privacy === 'secret',
+      });
+
+      setStatus('success');
+      const flag = `${window.our}/${name}`;
+      navigate(`/groups/${flag}`);
+    } catch (error) {
+      setStatus('error');
+    }
   }, [shipsToInvite, navigate, form]);
 
   // const nextWithTemplate = (template?: string) => {
@@ -113,7 +132,9 @@ export default function NewGroup() {
     case 3:
       currentStepComponent = (
         <NewGroupInvite
+          status={status}
           groupName={form.getValues('title')}
+          groupPrivacy={form.getValues('privacy')}
           goToPrevStep={goToPrevStep}
           goToNextStep={onComplete}
           shipsToInvite={shipsToInvite}
@@ -127,19 +148,21 @@ export default function NewGroup() {
   }
 
   return (
-    <Dialog defaultOpen onOpenChange={onOpenChange}>
-      <DialogContent containerClass="w-full sm:max-w-lg">
+    <Dialog defaultOpen modal={true} onOpenChange={onOpenChange}>
+      <DialogContent
+        onInteractOutside={(e) => e.preventDefault()}
+        className="sm:inset-y-24"
+        containerClass="w-full h-full sm:max-w-lg"
+      >
         <FormProvider {...form}>
           <div className="flex flex-col">{currentStepComponent}</div>
         </FormProvider>
         <div className="flex flex-col items-center pt-4">
-          {currentStep !== 1 ? (
-            <NavigationDots
-              maxStep={maxStep - 1}
-              currentStep={currentStep - 1}
-              setStep={(step) => setStep(step + 1)}
-            />
-          ) : null}
+          <NavigationDots
+            maxStep={maxStep}
+            currentStep={currentStep}
+            setStep={(step) => setStep(step + 1)}
+          />
         </div>
       </DialogContent>
     </Dialog>

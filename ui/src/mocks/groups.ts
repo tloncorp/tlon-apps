@@ -67,6 +67,7 @@ export function makeGroupPreview(privacy = 'public'): GroupPreview {
       image: `#${randomColor()}`,
       cover: `#${randomColor()}`,
     },
+    secret: false,
   };
 }
 
@@ -161,6 +162,7 @@ export function createMockGroup(title: string): Group {
     },
     bloc: [],
     'zone-ord': ['default'],
+    secret: false,
   };
 }
 const mockGroupOne: Group = {
@@ -231,6 +233,7 @@ const mockGroupOne: Group = {
   },
   bloc: [],
   'zone-ord': ['default'],
+  secret: false,
 };
 
 const mockGroupTwo: Group = {
@@ -306,6 +309,7 @@ const mockGroupTwo: Group = {
   },
   bloc: [],
   'zone-ord': ['default'],
+  secret: false,
 };
 
 const mockGroups: { [flag: string]: Group } = {
@@ -367,6 +371,7 @@ export const mockGangs: Gangs = {
           'https://fabled-faster.nyc3.digitaloceanspaces.com/fabled-faster/2022.1.27..17.59.43-image.png',
         cover: '',
       },
+      secret: false,
     },
   },
 };

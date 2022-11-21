@@ -174,17 +174,20 @@ function EditProfileContent() {
     previewAvatar: form.watch('avatar') || '',
   };
 
+  const watchCover = form.watch('cover');
+
   return (
     <div className="w-full">
       <FormProvider {...form}>
         <div>
           <ProfileCoverImage
             className="flex items-end rounded-b-lg"
-            ship={ship}
+            cover={watchCover || ''}
           >
             <Avatar
               ship={ship}
               previewData={avatarPreviewData}
+              icon={false}
               size="huge"
               className="translate-y-9"
             />

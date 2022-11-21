@@ -2,7 +2,7 @@ import cn from 'classnames';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
-import useMedia from '@/logic/useMedia';
+import { useIsDark } from '@/logic/useMedia';
 import { useGroup, useGroupFlag } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
@@ -14,6 +14,7 @@ import { foregroundFromBackground } from '@/components/Avatar';
 import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
+import ElipsisIcon from '@/components/icons/EllipsisIcon';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -24,7 +25,7 @@ function GroupHeader() {
   const cover = useRef(null);
   const fac = new FastAverageColor();
   const averageSucceeded = isColor(coverImgColor);
-  const dark = useMedia('(prefers-color-scheme: dark)');
+  const dark = useIsDark();
   const hoverFallbackForeground = dark ? 'white' : 'black';
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
   const calm = useCalm();
@@ -128,7 +129,7 @@ function GroupHeader() {
           {groupCoverHover && <span>Back to Groups</span>}
         </SidebarItem>
         <GroupActions flag={flag} className="">
-          <button className="default-focus flex w-full items-center space-x-3 rounded-lg p-2 pr-4 font-semibold">
+          <button className="group flex w-full items-center space-x-3 rounded-lg p-2 font-semibold focus:outline-none">
             <GroupAvatar {...group?.meta} />
             <div
               title={group?.meta.title}
@@ -141,6 +142,10 @@ function GroupHeader() {
             >
               {group?.meta.title}
             </div>
+            <ElipsisIcon
+              aria-label="Open Menu"
+              className={cn('h-6 w-6 opacity-0 group-hover:opacity-100')}
+            />
           </button>
         </GroupActions>
       </div>
@@ -152,7 +157,9 @@ export default function GroupSidebar() {
   const flag = useGroupFlag();
 
   useEffect(() => {
-    useHarkState.getState().retrieveGroup(flag);
+    if (flag !== '') {
+      useHarkState.getState().retrieveGroup(flag);
+    }
     return () => {
       useHarkState.getState().releaseGroup(flag);
     };

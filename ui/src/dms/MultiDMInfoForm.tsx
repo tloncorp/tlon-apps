@@ -19,11 +19,11 @@ interface MultiDMInfoFormProps {
 export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
   const clubId = useParams<{ id: string }>().id!;
   const club = useMultiDm(clubId);
-  const [iconType, setIconType] = useState<ImageOrColorFieldState>('initial');
+  const [iconType, setIconType] = useState<ImageOrColorFieldState>('color');
   const defaultValues: GroupMeta = {
     title: club?.meta.title || '',
     cover: club?.meta.cover || '',
-    image: '#b3b3b3',
+    image: club?.meta.image || '#b3b3b3',
     description: '',
   };
 
@@ -36,8 +36,15 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
   const watchImage = watch('image');
   const watchTitle = watch('title');
   const letter = watchTitle.slice(0, 1);
-  const showEmpty =
-    iconType === 'initial' || (iconType === 'image' && !isValidUrl(watchImage));
+  const showEmpty = iconType === 'image' && !isValidUrl(watchImage);
+
+  useEffect(() => {
+    if (isValidUrl(watchImage)) {
+      setIconType('image');
+    } else {
+      setIconType('color');
+    }
+  }, [watchImage]);
 
   const onSubmit = useCallback(
     (values: GroupMeta) => {
@@ -69,11 +76,7 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
               <label htmlFor="title" className="w-full font-bold">
                 Chat Icon*
               </label>
-              <ImageOrColorField
-                fieldName="image"
-                state={iconType}
-                setState={setIconType}
-              />
+              <ImageOrColorField fieldName="image" />
             </div>
           </div>
           <div className="py-4">

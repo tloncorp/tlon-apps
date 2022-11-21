@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 import { GroupMeta } from '@/types/groups';
-import { ChannelListItem } from './types';
+import { ChannelListItem } from '@/groups/GroupAdmin/AdminChannels/types';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface HandleSectionNameEditInputProps {
   handleEditingChange: () => void;
@@ -15,6 +17,8 @@ interface HandleSectionNameEditInputProps {
   isNew?: boolean;
   channels: ChannelListItem[];
   sectionKey: string;
+  saveStatus: Status;
+  setSaveStatus: (status: Status) => void;
 }
 
 export default function SectionNameEditInput({
@@ -24,6 +28,8 @@ export default function SectionNameEditInput({
   isNew,
   sectionTitle,
   sectionKey,
+  saveStatus,
+  setSaveStatus,
 }: HandleSectionNameEditInputProps) {
   const group = useRouteGroup();
 
@@ -56,39 +62,50 @@ export default function SectionNameEditInput({
   };
 
   const onSubmit = async (values: GroupMeta) => {
+    setSaveStatus('loading');
     const zoneFlag = strToSym(sectionKey);
     handleEditingChange();
-    if (isNew === true) {
-      await useGroupState.getState().createZone(group, zoneFlag, values);
-      await useGroupState.getState().moveZone(group, zoneFlag, 1);
-    } else {
-      await useGroupState.getState().editZone(group, zoneFlag, values);
+    try {
+      if (isNew === true) {
+        await useGroupState.getState().createZone(group, zoneFlag, values);
+        await useGroupState.getState().moveZone(group, zoneFlag, 1);
+      } else {
+        await useGroupState.getState().editZone(group, zoneFlag, values);
+      }
+      channels.forEach((channel) => {
+        addChannelsToZone(zoneFlag, group, channel.key);
+      });
+      onSectionEditNameSubmit(zoneFlag, values.title);
+      setSaveStatus('success');
+    } catch (e) {
+      setSaveStatus('error');
+      console.log(e);
     }
-    channels.forEach((channel) => {
-      addChannelsToZone(zoneFlag, group, channel.key);
-    });
-    onSectionEditNameSubmit(zoneFlag, values.title);
   };
 
   const onLoseFocus = async () => {
+    setSaveStatus('loading');
     const zoneFlag = strToSym(sectionKey);
     handleEditingChange();
-    if (sectionTitle && sectionTitle.length) {
-      return;
+    try {
+      await useGroupState
+        .getState()
+        .createZone(group, zoneFlag, untitledSectionValues);
+      await useGroupState.getState().moveZone(group, zoneFlag, 1);
+      onSectionEditNameSubmit(zoneFlag, untitledSectionValues.title);
+      channels.forEach((channel) => {
+        addChannelsToZone(zoneFlag, group, channel.key);
+      });
+      setSaveStatus('success');
+    } catch (e) {
+      setSaveStatus('error');
+      console.log(e);
     }
-    await useGroupState
-      .getState()
-      .createZone(group, zoneFlag, untitledSectionValues);
-    await useGroupState.getState().moveZone(group, zoneFlag, 1);
-    onSectionEditNameSubmit(zoneFlag, untitledSectionValues.title);
-    channels.forEach((channel) => {
-      addChannelsToZone(zoneFlag, group, channel.key);
-    });
   };
 
   return (
     <form
-      className="w-full"
+      className="flex w-full items-center"
       onSubmit={handleSubmit(onSubmit)}
       onBlur={handleSubmit(onLoseFocus)}
     >

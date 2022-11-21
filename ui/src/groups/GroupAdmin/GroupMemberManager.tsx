@@ -28,8 +28,11 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import { getSectTitle, toTitleCase } from '@/logic/utils';
 import { Vessel } from '@/types/groups';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 export default function GroupMemberManager() {
+  const [sectStatus, setSecStatus] = useState<Status>('initial');
   const location = useLocation();
   const flag = useRouteGroup();
   const group = useGroup(flag);
@@ -85,14 +88,28 @@ export default function GroupMemberManager() {
   }, []);
 
   const toggleSect = useCallback(
-    (ship: string, sect: string, vessel: Vessel) => (event: Event) => {
+    (ship: string, sect: string, vessel: Vessel) => async (event: Event) => {
       event.preventDefault();
+
+      setSecStatus('loading');
 
       const inSect = vessel.sects.includes(sect);
       if (inSect) {
-        useGroupState.getState().delSects(flag, ship, [sect]);
+        try {
+          await useGroupState.getState().delSects(flag, ship, [sect]);
+          setSecStatus('success');
+        } catch (e) {
+          setSecStatus('error');
+          console.error(e);
+        }
       } else {
-        useGroupState.getState().addSects(flag, ship, [sect]);
+        try {
+          await useGroupState.getState().addSects(flag, ship, [sect]);
+          setSecStatus('success');
+        } catch (e) {
+          setSecStatus('error');
+          console.log(e);
+        }
       }
     },
     [flag]
@@ -184,7 +201,9 @@ export default function GroupMemberManager() {
                         onSelect={toggleSect(m, s, vessel)}
                       >
                         {getSectTitle(group.cabals, s)}
-                        {vessel.sects.includes(s) ? (
+                        {sectStatus === 'loading' ? (
+                          <LoadingSpinner className="ml-auto h-4 w-4" />
+                        ) : vessel.sects.includes(s) ? (
                           <CheckIcon className="ml-auto h-6 w-6 text-green" />
                         ) : (
                           <div className="ml-auto h-6 w-6" />
