@@ -56,14 +56,17 @@ export default function useGroupJoin(
     setStatus('loading');
     if (privacy === 'public' || (privacy === 'private' && invited)) {
       try {
-        if (invited) {
-          await useHarkState.getState().sawRope({
-            channel: null,
-            desk: window.desk,
-            group: flag,
-            thread: `/${flag}/invite`,
-          });
-        }
+        await useHarkState.getState().sawRope({
+          channel: null,
+          desk: window.desk,
+          group: flag,
+          thread: `/${flag}/invite`,
+        });
+      } catch (error) {
+        // no notification
+      }
+
+      try {
         await useGroupState.getState().join(flag, true);
         setStatus('success');
         navigate(`/groups/${flag}`);
