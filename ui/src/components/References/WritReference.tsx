@@ -18,15 +18,15 @@ export default function WritReference({
   nest: string;
   idWrit: string;
 }) {
-  const writObject = useWritByFlagAndWritId(chFlag, idWrit);
+  const unSubbedWrit = useWritByFlagAndWritId(chFlag, idWrit);
   const preview = useChannelPreview(nest);
 
   // TODO: handle failure for useWritByFlagAndWritId call.
-  if (!writObject) {
+  if (!unSubbedWrit) {
     return <LoadingSpinner />;
   }
 
-  const { writ } = writObject;
+  const { writ } = unSubbedWrit;
   const time = bigInt(udToDec(writ.seal.id.split('/')[1]));
 
   if (!('story' in writ.memo.content)) {
@@ -38,7 +38,7 @@ export default function WritReference({
       <Link
         to={
           preview?.group
-            ? `/groups/${preview.group.flag}/channels/${nest}?msg=${writ.seal.id}`
+            ? `/groups/${preview.group.flag}/channels/${nest}?msg=${time}`
             : ''
         }
         className="cursor-pointer p-2 group-hover:bg-gray-50"
