@@ -462,6 +462,8 @@
       cor
     %+  roll  ~(tap by chats)
     |=  [[=flag:g =chat:c] out=_cor]
+    ?.  =(src.bowl p.flag)
+      out
     ca-abet:(ca-take-epic:(ca-abed:ca-core:out flag) epic)
   ::
       %watch-ack

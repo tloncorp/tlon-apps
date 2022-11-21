@@ -5,10 +5,11 @@
 /+  not=notes
 /+  qup=quips
 /+  diary-json
+/+  epos-lib=saga
 ^-  agent:gall
 =>
   |%
-  ++  okay  `epic:e`0
+  ++  okay  `epic:e`1
   +$  card  card:agent:gall
   +$  current-state
     $:  %1
@@ -70,6 +71,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
++*  epos  ~(. epos-lib [bowl %diary-update okay])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -78,6 +80,11 @@
 ++  init
   ^+  cor
   watch-groups
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %diary-update '-' (scot %ud okay) ~)
+  --
 ++  load
   |=  =vase
   |^  ^+  cor
@@ -93,16 +100,18 @@
   ?-  -.old
       %1
     =.  state  old
-    ?:  =(okay cool)  cor
     =?  cor  bad  (emit (keep !>(old)))
-    =-  (give %fact ~(tap in -) epic+!>(okay))
-    %-  ~(gas in *(set path))
-    %+  murn  ~(val by sup.bowl)
-    |=  [=ship =path]
-    ^-  (unit _path)
-    ?.  |(=(/epic path) ?=([%diary @ @ %updates *] path))  ~
-  `path
-      %0
+    =.  cor
+      (emil (drop load:epos))
+    =/  diaries  ~(tap in ~(key by shelf))
+    |-
+    ?~  diaries
+      cor
+    =.  cor
+      di-abet:di-upgrade:(di-abed:di-core i.diaries)
+    $(diaries t.diaries)
+  ::
+          %0
     %=  $
       old  (state-0-to-1 old)
     ==
@@ -221,8 +230,10 @@
     ~&  >>  "good news everyone!"
     %+  roll  ~(tap by shelf)
     |=  [[=flag:g =diary:d] out=_cor]
-    ?>  =(src.bowl p.flag)
-    di-abet:di-sub:(di-abed:di-core:out flag)
+    ?.  =(src.bowl p.flag)
+      out
+    di-abet:(di-take-epic:(di-abed:di-core:out flag) epic)
+  ::
       %watch-ack
     %.  cor
     ?~  p.sign  same
@@ -299,6 +310,8 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
+  ::
+      [%epic ~]  (take-epic sign)
   ::
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
@@ -428,6 +441,36 @@
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
   ::
+  ++  di-upgrade
+    ^+  di-core
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    ?.  ?=(%dex -.saga.net.diary)
+      di-core
+    ?.  =(okay ver.saga.net.diary)
+      ~&  future-shock/[ver.saga.net.diary flag]
+      di-core
+    =>  .(saga.net.diary `saga:e`saga.net.diary)
+    di-make-chi
+  ::
+  ++  di-make-lev
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    =.  saga.net.diary  lev/~
+    =.  cor  (watch-epic p.flag)
+    di-core
+  ::
+  ++  di-make-chi
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    =.  saga.net.diary  chi/~
+    di-safe-sub
+  ::
+  ++  di-safe-sub
+    ?:  (~(has by wex.bowl) [(snoc di-area %updates) p.flag dap.bowl])
+      di-core
+    di-sub
+  ::
   ++  di-watch
     |=  =path
     ^+  di-core
@@ -511,10 +554,8 @@
     ?:  (gth her okay)
       =.  saga.net.diary  dex+her
       di-core
-    =.  saga.net.diary  lev+~
-    =.  cor  (watch-epic p.flag)
-    di-core
-  ::
+    di-make-lev
+ ::
  ++  di-take-update
     |=  =sign:agent:gall
     ^+  di-core
@@ -533,18 +574,27 @@
     ::
         %fact
       =*  cage  cage.sign 
-      ?+  p.cage  di-core
+      ?+  p.cage  (di-odd-update p.cage)
         %epic                             (di-take-epic !<(epic:e q.cage))
         ?(%diary-logs %diary-logs-0)      (di-apply-logs !<(log:d q.cage))
         ?(%diary-update %diary-update-0)  (di-update !<(update:d q.cage))
       ==
     ==
+  ::
+  ++  di-odd-update
+    |=  =mark
+    ?.  (is-old:epos mark)
+      di-core
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    di-make-lev
+  ::
   ++  di-proxy
     |=  =update:d
     ^+  di-core
     ?>  di-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  diary-action+!>([flag update])
+    =/  =cage  [act:mar !>([flag update])]
     =.  cor
       (emit %pass di-area %agent dock %poke cage)
     di-core
@@ -634,8 +684,8 @@
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
     ~&  [flag [time d]]
-    =.  cor  (give %fact ~[/ui] diary-action+!>([flag [time d]]))
-    =/  cag=cage  diary-update+!>([time d])
+    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
+    =/  cag=cage  [upd:mar !>([time d])]
     =.  cor
       (give %fact ~(tap in paths) cag)
     di-core
