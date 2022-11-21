@@ -11,7 +11,6 @@ import PinIcon from '@/components/icons/PinIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
 import InviteIcon16 from '@/components/icons/InviteIcon16';
 import { whomIsMultiDm } from '@/logic/utils';
-import SlidersIcon from '@/components/icons/SlidersIcon';
 import PeopleIcon from '@/components/icons/PeopleIcon';
 import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import DmInviteDialog from './DmInviteDialog';
@@ -48,9 +47,7 @@ export default function DmOptions({
   }, [whom]);
 
   const [dialog, setDialog] = useState(false);
-  const onTryArchive = (e: Event) => {
-    setDialog(true);
-  };
+
   const leaveMessage = () => {
     navigate('/dm');
     if (whomIsMultiDm(whom)) {
@@ -145,27 +142,18 @@ export default function DmOptions({
                 </DropdownMenu.Item>
               ) : null}
               {isMulti ? (
-                <>
-                  <DropdownMenu.Item
-                    className="dropdown-item flex items-center space-x-2"
-                    onClick={(e) => e.preventDefault}
+                <DropdownMenu.Item
+                  className="dropdown-item flex items-center space-x-2"
+                  asChild
+                >
+                  <Link
+                    to={`/dm/${whom}/edit-info`}
+                    state={{ backgroundLocation: location }}
                   >
                     <PeopleIcon className="h-6 w-6" />
-                    <span>Info</span>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className="dropdown-item flex items-center space-x-2"
-                    asChild
-                  >
-                    <Link
-                      to={`/dm/${whom}/edit-info`}
-                      state={{ backgroundLocation: location }}
-                    >
-                      <SlidersIcon className="h-6 w-6" />
-                      <span>Edit Chat Info</span>
-                    </Link>
-                  </DropdownMenu.Item>
-                </>
+                    <span>Chat Info</span>
+                  </Link>
+                </DropdownMenu.Item>
               ) : null}
               <DropdownMenu.Item
                 className="dropdown-item flex items-center space-x-3"
