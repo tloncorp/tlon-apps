@@ -318,6 +318,8 @@
   =/  [=flag:g =net:g =group:g]  i.gs
   ?.  (~(has by channels.group) nest)
     $(gs t.gs)
+  ?.  (go-can-read:(go-abed:group-core flag) src.bowl (~(got by channels.group) nest))
+    $(gs t.gs)
   =/  =preview:channel:g
     =,  group
     :*  nest
@@ -635,13 +637,15 @@
       ?+    rest.pole  ~
           [%can-read src=@ ~]
         =/  src  (slav %p src.rest.pole)
-        ?:  =(%open -.cordon.group)  `loob+!>(&)
-        ?~  ves=(~(get by fleet.group) src)  `loob+!>(|)
-        ?:  =(~ readers.channel)  `loob+!>(&)
-        `loob+!>(!=(~ (~(int in readers.channel) sects.u.ves)))
+        `loob+!>((go-can-read src channel))
       ==
     ==
   ::
+  ++  go-can-read
+    |=  [src=ship =channel:g]
+    ?~  ves=(~(get by fleet.group) src)  |
+    ?:  =(~ readers.channel)  &
+    !=(~ (~(int in readers.channel) sects.u.ves))
   ++  go-agent
     |=  [=wire =sign:agent:gall]
     ^+  go-core
