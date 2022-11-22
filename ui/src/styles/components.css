@@ -62,9 +62,9 @@
 
 /* hack to prevent auto-zoom on em-emoji-picker */
 @media screen and (max-width: 767px) {
-  em-emoji-picker { 
+  em-emoji-picker {
     --font-size: 17px;
-    height: 45vh
+    height: 45vh;
   }
 }
 
