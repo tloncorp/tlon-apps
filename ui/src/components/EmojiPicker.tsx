@@ -25,7 +25,6 @@ export default function EmojiPicker({
     load();
   }, [load]);
 
-
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Anchor className={isMobile ? 'fixed inset-x-0 top-12' : ''} />
