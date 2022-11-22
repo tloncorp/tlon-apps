@@ -16,12 +16,6 @@
   |%
   +$  card  card:agent:gall
   ++  def-flag  `flag:c`[~zod %test]
-  ++  wood-state
-    ^-  state:wood-lib
-    :*  ver=|
-        odd=&
-        veb=|
-    ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   ++  okay  `epic:e`0
   +$  current-state
@@ -36,6 +30,7 @@
         voc=(map [flag:c id:c] (unit said:c))
     ==
   --
+=|  wood-rock=rock:wood-lib
 =|  current-state
 =*  state  -
 =< 
@@ -92,7 +87,7 @@
   --
 |_  [=bowl:gall cards=(list card)]
 +*  epos  ~(. epos-lib [bowl %chat-update okay])
-    wood   ~(. wood-lib [bowl wood-state])
+    wood   ~(. wood-lib [bowl wood-rock])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -123,7 +118,7 @@
   =.  state  old
   ?:  =(okay cool)  cor
   :: =?  cor  bad  (emit (keep !>(old)))
-  %-  (note:wood %ver leaf/"New Epic" ~)
+  %-  (ping:wood %ver |.("new epic"))
   =.  cor  (emil (drop load:epos))
   =/  chats  ~(tap in ~(key by chats))
   |-
@@ -159,6 +154,10 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
+  ::
+      %wood-wave
+    cor(wood-rock (wash:wood !<(wave:wood-lib vase)))
+  ::
       %graph-import
     (import-graph !<([flag:g flag:g graph:gra] vase))
   ::
@@ -413,7 +412,7 @@
   ::
       %fact
     ?.  =(%epic p.cage.sign)
-      %-  (note:wood %odd leaf/"!!! weird fact on /epic" ~)
+      %-  (ping:wood %odd |.("take/epic: weird fact"))
       cor
     =+  !<(=epic:e q.cage.sign)
     ?.  =(epic okay)  :: is now our guy
@@ -427,7 +426,7 @@
       %watch-ack
     %.  cor
     ?~  p.sign  same
-    (note:wood %odd leaf/"weird watch nack" u.p.sign)
+    (pang:wood %odd |.(["take/epic: weird watch-nack" u.p.sign]))
   ==
 ::  TODO: more efficient?
 ::    perhaps a cached index of (jug group=flag chat=flag)
@@ -440,7 +439,6 @@
     `flag
   ?+    q.q.action  cor
       [%fleet * %del ~]
-    %-  (note:wood %veb leaf/"revoke perms for {<affected>}" ~)
     %+  roll  affected
     |=  [=flag:c co=_cor]
     ^+  cor
@@ -451,14 +449,12 @@
     ca-abet:(ca-revoke:ca ship)
   ::
       [%fleet * %del-sects *]
-    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
     %+  roll  affected
     |=  [=flag:c co=_cor]
     =/  ca  (ca-abed:ca-core:co flag)
     ca-abet:ca-recheck:ca
   ::
       [%channel * %del-sects *]
-    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
     %+  roll  affected
     |=  [=flag:c co=_cor]
     =/  ca  (ca-abed:ca-core:co flag)
@@ -798,6 +794,7 @@
 ++  ca-core
   |_  [=flag:c =chat:c gone=_|]
   +*  ca-pact  ~(. pac pact.chat)
+      ca-twig  ~(. twig:wood flag)
   ++  ca-core  .
   ::  TODO: archive??
   ++  ca-abet  
@@ -854,7 +851,7 @@
     ?.  ?=(%sub -.net.chat)  ca-core
     ?.  ?=(%dex -.saga.net.chat)  ca-core
     ?.  =(okay ver.saga.net.chat)  
-      %-  (note:wood %ver leaf/"%future-shock {<[ver.saga.net.chat flag]>}" ~)
+      %-  (ping:wood %ver |.("%future-shock {(scow %ud ver.saga.net.chat)}"))
       ca-core
     ca-make-chi
   ::
@@ -932,15 +929,15 @@
         %kick
       ?>  ?=(%sub -.net.chat)
       ?:  =(%chi -.saga.net.chat)
-        %-  (note:wood %ver leaf/"chi-kick: {<flag>}" ~)
+        %-  (ping:ca-twig %ver |.("chi-kick"))
         ca-sub
-      %-  (note:wood %ver leaf/"wait-kick: {<flag>}" ~)
+      %-  (ping:ca-twig %ver |.("wait-kick"))
       ca-core
     ::
         %watch-ack
       =.  net.chat  [%sub src.bowl & %chi ~]
       ?~  p.sign  ca-core
-      %-  (slog leaf/"Failed subscription" u.p.sign)
+      %-  (pang:ca-twig %err |.(["failed subscription" u.p.sign]))
       =.  gone  &
       ca-core
     ::
@@ -964,14 +961,14 @@
   ++  ca-make-lev
     ?.  ?=(%sub -.net.chat)
        ca-core
-    %-  (note:wood %ver leaf/"took lev epic: {<flag>}" ~)
+    %-  (ping:wood %ver |.("make lev"))
     =.  saga.net.chat  lev/~
     =.  cor  (watch-epic p.flag)
     ca-core
   ::
   ++  ca-make-chi
     ?.  ?=(%sub -.net.chat)  ca-core
-    %-  (note:wood %ver leaf/"took okay epic: {<flag>}" ~)
+    %-  (ping:wood %ver |.("make chi"))
     =.  saga.net.chat  chi/~
     ?:  ca-has-sub  ca-core
     ca-sub
@@ -984,7 +981,7 @@
       ca-make-chi
     ?:  (gth her okay)
       =.  saga.net.chat  dex/her
-      %-  (note:wood %ver leaf/"took dex epic: {<[flag her]>}" ~)
+      %-  (ping:wood %ver |.("took dex epic: {<her>}"))
       ca-core
     ca-make-lev
   ::
@@ -1331,7 +1328,7 @@
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
     ?.  ok  
-      %-  (note:wood %odd leaf/"gone {<ship>}" ~)
+      %-  (ping:wood %odd |.("gone {(scow %p ship)}"))
       ?:  =(src.bowl ship)
         di-core
       di-core(gone &)
