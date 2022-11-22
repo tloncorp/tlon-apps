@@ -1011,11 +1011,12 @@
   ++  go-fleet-update
     |=  [ships=(set ship) =diff:fleet:g]
     ^+  go-core
+    =/  user-join  &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))
     ?-    -.diff
         %add
       ?>  ?|  =(p.flag our.bowl) :: self
               =(p.flag src.bowl) :: subscription
-              &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
+              user-join
           ==
       ?<  ?&  =(-.cordon.group %shut) 
               ?-  -.cordon.group
@@ -1026,7 +1027,7 @@
                 !=(~(wyt in ships) ~(wyt in cross))
               ==
           ==      
-      =.  cor  (give-invites flag ships)
+      =?  cor  !user-join  (give-invites flag ships)
       =.  fleet.group
         %-  ~(uni by fleet.group)
           %-  malt
