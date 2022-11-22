@@ -10,6 +10,10 @@ script:
   - commit:
     - cmd: 'commit %groups'
       type: 'urbit:app'
+    - cmd: 'commit %talk'
+      type: 'urbit:app'
   - install:
     - cmd: 'install our %groups'
+      type: 'urbit:app'
+    - cmd: 'install our %talk'
       type: 'urbit:app'
