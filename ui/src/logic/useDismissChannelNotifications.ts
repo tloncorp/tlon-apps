@@ -17,7 +17,7 @@ export default function useDismissChannelNotifications({
 }: UseDismissChannelProps) {
   const flag = useRouteGroup();
   const [, chFlag] = nestToFlag(nest);
-  const { isChannelUnread } = useIsChannelUnread();
+  const unread = useIsChannelUnread(nest);
   const { notifications } = useNotifications(flag);
 
   /**
@@ -29,7 +29,7 @@ export default function useDismissChannelNotifications({
    */
   // dismiss unread notifications while viewing channel
   useEffect(() => {
-    if (nest && isChannelUnread(nest)) {
+    if (nest && unread) {
       // dismiss brief
       markRead(chFlag);
       // iterate bins, saw each rope
@@ -45,5 +45,5 @@ export default function useDismissChannelNotifications({
         });
       });
     }
-  }, [nest, chFlag, markRead, isChannelUnread, notifications]);
+  }, [nest, chFlag, markRead, unread, notifications]);
 }

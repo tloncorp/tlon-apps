@@ -33,8 +33,8 @@ export default function DmOptions({
   const location = useLocation();
   const navigate = useNavigate();
   const pinned = usePinned();
-  const { isChannelUnread } = useIsChannelUnread();
-  const hasActivity = isChannelUnread(`chat/${whom}`) || pending;
+  const isUnread = useIsChannelUnread(`chat/${whom}`);
+  const hasActivity = isUnread || pending;
   const [isOpen, setIsOpen] = useState(false);
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
   const onArchive = () => {

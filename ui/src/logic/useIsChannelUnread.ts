@@ -5,28 +5,34 @@ import { nestToFlag } from './utils';
 
 const selChats = (s: ChatStore) => s.chats;
 
-export default function useIsChannelUnread() {
+function channelUnread(
+  nest: string,
+  briefs: ReturnType<typeof useAllBriefs>,
+  chats: ChatStore['chats']
+) {
+  const [app, chFlag] = nestToFlag(nest);
+  const unread = chats[chFlag]?.unread;
+
+  if (app === 'chat') {
+    return unread && !unread.seen;
+  }
+
+  return (briefs[nest]?.count ?? 0) > 0;
+}
+
+export function useCheckChannelUnread() {
   const briefs = useAllBriefs();
   const chats = useChatStore(selChats);
 
-  /**
-   * A Channel is unread if it's brief has new unseen items
-   */
-  const isChannelUnread = useCallback(
-    (nest: string) => {
-      const [app, chFlag] = nestToFlag(nest);
-      const unread = chats[chFlag]?.unread;
-
-      if (app === 'chat') {
-        return unread && !unread.seen;
-      }
-
-      return (briefs[nest]?.count ?? 0) > 0;
-    },
+  return useCallback(
+    (nest: string) => channelUnread(nest, briefs, chats),
     [briefs, chats]
   );
+}
 
-  return {
-    isChannelUnread,
-  };
+export default function useIsChannelUnread(nest: string) {
+  const briefs = useAllBriefs();
+  const chats = useChatStore(selChats);
+
+  return channelUnread(nest, briefs, chats);
 }
