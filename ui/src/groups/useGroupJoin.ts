@@ -52,7 +52,10 @@ export default function useGroupJoin(
 
   const join = useCallback(async () => {
     setStatus('loading');
-    if (privacy === 'public' || (privacy === 'private' && invited)) {
+
+    if (privacy === 'private' && !invited) {
+      await useGroupState.getState().knock(flag);
+    } else {
       try {
         await useHarkState.getState().sawRope({
           channel: null,
@@ -77,8 +80,6 @@ export default function useGroupJoin(
           await useGroupState.getState().reject(flag);
         }
       }
-    } else {
-      await useGroupState.getState().knock(flag);
     }
   }, [privacy, invited, flag, navigate, requested]);
 

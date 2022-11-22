@@ -1382,6 +1382,7 @@
           ga-core
           ::
             %kick
+          ?.  (~(has by xeno) flag)  ga-core
           ?^  pev.gang  ga-core
           ga-core(cor (emit get-preview:ga-pass))
         ==
