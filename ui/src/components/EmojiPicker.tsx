@@ -25,24 +25,6 @@ export default function EmojiPicker({
     load();
   }, [load]);
 
-  // if (isMobile) {
-  //   return (
-  //     <Dialog.Root open={open} onOpenChange={setOpen}>
-  //       <Dialog.Overlay />
-  //       <Dialog.Portal>
-  //         <Dialog.Content>
-  //             {data ? (
-  //               <Picker data={data} size={'2em'} previewPosition="none" {...props} />
-  //             ) : (
-  //               <div className="flex h-full w-full items-center justify-center">
-  //                 <LoadingSpinner className="h-6 w-6" />
-  //               </div>
-  //             )}
-  //        </Dialog.Content>
-  //      </Dialog.Portal>
-  //    </Dialog.Root>
-  //   );
-  // }
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
