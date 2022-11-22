@@ -213,11 +213,13 @@ export default function NewCurioForm() {
             draft={draftText}
             setDraft={setDraftText}
             flag={chFlag}
-            className="flex-1"
+            className={cn(
+              isListMode ? 'flex-1' : 'h-full w-full overflow-y-hidden'
+            )}
             inputClass={cn(
               isListMode
                 ? 'border-gray-100 bg-white focus-within:border-gray-300 mb-4 focus:outline-none rounded-tl-none min-h-[60px]'
-                : 'border-gray-50 focus-within:border-gray-50 bg-gray-50 focus-within:bg-gray-50 focus:outline-none'
+                : 'border-gray-50 overflow-y-auto focus-within:border-gray-50 bg-gray-50 focus-within:bg-gray-50 focus:outline-none'
             )}
           />
         )}
