@@ -297,6 +297,7 @@
     ::
       [%chat ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
+    ?>  (ca-can-read:(ca-abed:ca-core [ship name.pole]) src.bowl)
     ca-abet:(ca-watch:(ca-abed:ca-core ship name.pole) rest.pole)
   ::
       [%dm ship=@ rest=*]

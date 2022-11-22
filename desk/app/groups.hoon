@@ -635,7 +635,6 @@
       ?+    rest.pole  ~
           [%can-read src=@ ~]
         =/  src  (slav %p src.rest.pole)
-        ?:  =(%open -.cordon.group)  `loob+!>(&)
         ?~  ves=(~(get by fleet.group) src)  `loob+!>(|)
         ?:  =(~ readers.channel)  `loob+!>(&)
         `loob+!>(!=(~ (~(int in readers.channel) sects.u.ves)))
