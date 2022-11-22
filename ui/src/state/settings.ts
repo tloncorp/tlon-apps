@@ -165,7 +165,7 @@ export const useSettingsState = createState<BaseSettingsState>(
       set(newState);
     },
   }),
-  [],
+  ['heaps', 'diary', 'groups', 'talk'],
   [
     (set, get) =>
       createSubscription('settings-store', `/desk/${window.desk}`, (e) => {
