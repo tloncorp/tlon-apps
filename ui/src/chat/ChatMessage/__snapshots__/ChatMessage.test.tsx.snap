@@ -178,7 +178,9 @@ exports[`ChatMessage > renders as expected 1`] = `
             </svg>
           </button>
         </div>
-        <div />
+        <div
+          class=""
+        />
         <div
           class="group-two cursor-pointer"
         >
