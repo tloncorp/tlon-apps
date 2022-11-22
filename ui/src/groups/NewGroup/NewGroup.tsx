@@ -151,7 +151,7 @@ export default function NewGroup() {
     <Dialog defaultOpen modal={true} onOpenChange={onOpenChange}>
       <DialogContent
         onInteractOutside={(e) => e.preventDefault()}
-        className="sm:inset-y-24"
+        className="w-[500px] sm:inset-y-24"
         containerClass="w-full h-full sm:max-w-lg"
       >
         <FormProvider {...form}>
