@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import cn from 'classnames';
 import { useLocation } from 'react-router';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
@@ -91,6 +91,7 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const pendingInvites = usePendingInvites();
+  const [scrollTop, setScrollTop] = useState(0);
 
   const pendingInvitesCount = pendingInvites.length;
   const { count } = useNotifications();
@@ -102,13 +103,24 @@ export default function Sidebar() {
   const sortedPinnedGroups = sortGroups(pinnedGroups);
   const shipColor = useProfileColor(window.our);
 
+  const ref = useRef<HTMLUListElement>(null);
+
+  const scrollHandler = () => {
+    setScrollTop(ref.current?.scrollTop || 0);
+  };
+
   if (isMobile) {
     return <MobileSidebar />;
   }
 
   return (
     <nav className="flex h-full w-64 flex-col bg-white">
-      <ul className="flex w-full flex-col space-y-1 px-2 pt-2">
+      <ul
+        className={cn(
+          'flex w-full flex-col space-y-1 px-2 pt-2',
+          scrollTop > 0 && 'shadow'
+        )}
+      >
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
         <GroupsAppMenu />
         <div className="h-5" />
@@ -146,9 +158,15 @@ export default function Sidebar() {
         >
           Create Group
         </SidebarItem>
+      </ul>
+      <ul
+        ref={ref}
+        onScroll={scrollHandler}
+        className="flex-1 overflow-x-hidden overflow-y-scroll pr-0 pt-0"
+      >
         {hasKeys(pinnedGroups) ? (
           <GroupList
-            className="flex-1 overflow-y-scroll pr-0"
+            className="pr-0 pt-0"
             pinned
             groups={sortedGroups}
             pinnedGroups={sortedPinnedGroups}
@@ -167,12 +185,12 @@ export default function Sidebar() {
             isMobile={isMobile}
           />
         </li>
+        <GroupList
+          className="pr-0 pt-0"
+          groups={sortedGroups}
+          pinnedGroups={sortedPinnedGroups}
+        />
       </ul>
-      <GroupList
-        className="flex-1 overflow-x-hidden overflow-y-scroll pr-0 pt-0"
-        groups={sortedGroups}
-        pinnedGroups={sortedPinnedGroups}
-      />
     </nav>
   );
 }
