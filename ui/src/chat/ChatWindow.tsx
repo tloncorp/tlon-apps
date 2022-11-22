@@ -1,8 +1,9 @@
-import React, { ReactNode, useEffect } from 'react';
+import React, { ReactNode, useEffect, useRef } from 'react';
 import _ from 'lodash';
 import { BigIntOrderedMap } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useLocation } from 'react-router';
+import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import { ChatWrit } from '@/types/chat';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
@@ -20,6 +21,7 @@ export default function ChatWindow({
   prefixedElement,
 }: ChatWindowProps) {
   const location = useLocation();
+  const scrollerRef = useRef<VirtuosoHandle>(null);
   const scrollTo = new URLSearchParams(location.search).get('msg');
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export default function ChatWindow({
 
   return (
     <div className="relative h-full">
-      <ChatUnreadAlerts whom={whom} />
+      <ChatUnreadAlerts whom={whom} scrollerRef={scrollerRef} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <ChatScroller
           /**
@@ -44,6 +46,7 @@ export default function ChatWindow({
           whom={whom}
           prefixedElement={prefixedElement}
           scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
+          scrollerRef={scrollerRef}
         />
       </div>
     </div>
