@@ -615,8 +615,6 @@
       [flag meta cordon now.bowl secret.group]
     =.  cor
       (emit %give %fact ~ group-preview+!>(preview))
-    =.  cor
-      (emit %give %kick ~ ~)
     go-core
   ::
   ++  go-peek
@@ -1382,6 +1380,7 @@
           ga-core
           ::
             %kick
+          ?.  (~(has by xeno) flag)  ga-core
           ?^  pev.gang  ga-core
           ga-core(cor (emit get-preview:ga-pass))
         ==
