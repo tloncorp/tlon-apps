@@ -1,7 +1,8 @@
 import cn from 'classnames';
-import React from 'react';
+import React, { useRef } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
+import { VirtuosoHandle } from 'react-virtuoso';
 import { useChannelFlag } from '@/hooks';
 import { useChatState, useReplies, useWrit } from '@/state/chat';
 import { useChannel, useRouteGroup } from '@/state/groups/groups';
@@ -9,7 +10,6 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
-import useIsChat from '@/logic/useIsChat';
 import { whomIsFlag } from '@/logic/utils';
 
 export default function ChatThread() {
@@ -21,14 +21,13 @@ export default function ChatThread() {
     idShip: string;
     idTime: string;
   }>();
+  const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const whom = flag || ship || '';
   const groupFlag = useRouteGroup();
   const { sendMessage } = useChatState.getState();
-  const isChat = useIsChat();
   const location = useLocation();
   const channel = useChannel(groupFlag, `chat/${flag}`)!;
-
   const id = `${idShip!}/${idTime!}`;
   const maybeWrit = useWrit(whom, id);
   const replies = useReplies(whom, id);
@@ -68,7 +67,12 @@ export default function ChatThread() {
         </div>
       </header>
       <div className="flex flex-1 flex-col px-2 py-0">
-        <ChatScroller messages={thread} whom={whom} replying />
+        <ChatScroller
+          messages={thread}
+          whom={whom}
+          scrollerRef={scrollerRef}
+          replying
+        />
       </div>
       <div className="sticky bottom-0 z-10 border-t-2 border-gray-50 bg-white p-4">
         <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />

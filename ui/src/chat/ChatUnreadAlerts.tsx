@@ -1,33 +1,46 @@
 import React, { useCallback } from 'react';
 import { format, isToday } from 'date-fns';
-import { useLocation, useNavigate } from 'react-router';
 import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
+import { VirtuosoHandle } from 'react-virtuoso';
 import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '@/logic/utils';
-import { useChatState, useGetFirstUnreadID } from '@/state/chat';
+import { useChatKeys, useChatState, useGetFirstUnreadID } from '@/state/chat';
 import { useChatInfo } from './useChatStore';
 
 interface ChatUnreadAlertsProps {
+  scrollerRef: React.RefObject<VirtuosoHandle>;
   whom: string;
 }
 
-export default function ChatUnreadAlerts({ whom }: ChatUnreadAlertsProps) {
+export default function ChatUnreadAlerts({
+  scrollerRef,
+  whom,
+}: ChatUnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
   const markRead = useCallback(() => {
     useChatState.getState().markRead(whom);
   }, [whom]);
 
-  const navigate = useNavigate();
-  const location = useLocation();
   // TODO: how to handle replies?
   const firstUnreadID = useGetFirstUnreadID(whom);
+  const keys = useChatKeys({ whom, replying: false });
   const goToFirstUnread = useCallback(() => {
-    if (!firstUnreadID) {
+    if (!firstUnreadID || !scrollerRef.current) {
       return;
     }
-    navigate(`${location.pathname}?msg=${firstUnreadID.toString()}`);
-  }, [firstUnreadID, location.pathname, navigate]);
+
+    const idx = keys.findIndex((k) => k.greaterOrEquals(firstUnreadID));
+    if (idx === -1) {
+      return;
+    }
+
+    scrollerRef.current.scrollToIndex({
+      index: idx,
+      align: 'start',
+      behavior: 'auto',
+    });
+  }, [firstUnreadID, keys, scrollerRef]);
 
   if (!chatInfo.unread || chatInfo.unread.seen) {
     return null;
