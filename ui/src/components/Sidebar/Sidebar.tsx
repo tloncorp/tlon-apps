@@ -118,7 +118,7 @@ export default function Sidebar() {
       <ul
         className={cn(
           'flex w-full flex-col space-y-1 px-2 pt-2',
-          scrollTop > 0 && 'shadow'
+          scrollTop > 0 && 'bottom-shadow'
         )}
       >
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
