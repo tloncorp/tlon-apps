@@ -1272,7 +1272,7 @@
     =.  xeno  (~(put by xeno) flag gang)
     ?.  (~(has by groups) flag)  cor
     =/  [=net:g =group:g]  (~(got by groups) flag)
-    ?.  &(?=(%sub -.net) load.net)  cor
+    ?.  &(?=(%sub -.net) !load.net)  cor
     =.  xeno  (~(del by xeno) flag)
     ga-give-update
   ::
