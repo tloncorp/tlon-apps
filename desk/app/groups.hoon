@@ -615,6 +615,8 @@
       [flag meta cordon now.bowl secret.group]
     =.  cor
       (emit %give %fact ~ group-preview+!>(preview))
+    =.  cor
+      (emit %give %kick ~ ~)
     go-core
   ::
   ++  go-peek
