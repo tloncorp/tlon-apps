@@ -60,7 +60,7 @@ export default function MessagesList({ filter }: MessagesListProps) {
 
       return true; // is all
     })
-    .sort(sortOptions[RECENT])
+    .sort((a, b) => sortOptions[RECENT](`chat/${a}`, `chat/${b}`))
     .reverse();
 
   return (

@@ -60,6 +60,14 @@
   @apply my-0;
 }
 
+/* hack to prevent auto-zoom on em-emoji-picker */
+@media screen and (max-width: 767px) {
+  em-emoji-picker {
+    --font-size: 17px;
+    height: 45vh;
+  }
+}
+
 .dialog-container {
   @apply fixed top-1/2 left-1/2 z-40 -translate-x-1/2 -translate-y-1/2 transform p-4;
 }
