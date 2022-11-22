@@ -1,23 +1,31 @@
 /-  c=chat, g=groups
 /-  meta
 /-  ha=hark
-/+  default-agent, verb, dbug
+/-  e=epic
+/+  default-agent, verb-lib=verb, dbug
 /+  chat-json
 /+  pac=dm
 /+  ch=chat-hark
 /+  gra=graph-store
+/+  epos-lib=saga
+/+  wood-lib=wood
 /+  mig=chat-graph
-/+  e=epic
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
   ++  def-flag  `flag:c`[~zod %test]
+  ++  wood-state
+    ^-  state:wood-lib
+    :*  ver=|
+        odd=&
+        veb=|
+    ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   ++  okay  `epic:e`0
   +$  current-state
-    $:  %1
+    $:  %0
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
@@ -31,7 +39,7 @@
 =|  current-state
 =*  state  -
 =< 
-  %+  verb  &
+  %+  verb-lib  &
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
@@ -83,6 +91,8 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
++*  epos  ~(. epos-lib [bowl %chat-update okay])
+    wood   ~(. wood-lib [bowl wood-state])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -92,80 +102,44 @@
 ++  init
   ^+  cor
   watch-groups
+::  +mar:  mark name
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %chat-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %chat-update '-' (scot %ud okay) ~)
+  --
 ::  +load: load next state
 ++  load
   |=  =vase
   |^  ^+  cor
-  =/  maybe-old=(each [versioned-state epic:e] tang)
+  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
     (mule |.(!<([versioned-state epic:e] vase)))
-  =/  [old=versioned-state cool=epic:e]
-    ?.  ?=(%| -.maybe-old)  p.maybe-old
-    [!<(versioned-state vase) okay]
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ::  XX only save when epic changes
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
+  =.  state  old
+  ?:  =(okay cool)  cor
+  :: =?  cor  bad  (emit (keep !>(old)))
+  %-  (note:wood %ver leaf/"New Epic" ~)
+  =.  cor  (emil (drop load:epos))
+  =/  chats  ~(tap in ~(key by chats))
   |-
-  ?-  -.old
-      %0
-    %=  $
-      old  (state-0-to-1 old)
-    ==
-      %1
-    =.  state  old
-    ?:  =(okay cool)  cor
-    =-  (give %fact ~(tap in -) epic+!>(okay))
-    %-  ~(gas in *(set path))
-    %+  murn  ~(val by sup.bowl)
-    |=  [=ship =path]
-    ^-  (unit _path)
-    ?.  |(=(/epic path) ?=([%chat @ @ %updates *] path))  ~
-    `path
-  ==
-  +$  versioned-state
-    $%  state-0
-        state-1
-    ==
-  +$  state-0
-    $:  %0
-        chats=(map flag:zero chat:zero)
-        dms=(map ship dm:zero)
-        clubs=(map id:club:zero club:zero)
-        drafts=(map whom:zero story:zero)
-        pins=(list whom:zero)
-        bad=(set ship)
-        inv=(set ship)
-        voc=(map [flag:zero id:zero] (unit said:zero))
-    ==
-  ++  zero     zero:old:c
-  +$  state-1  current-state
-  ++  one      c
-  ++  state-0-to-1
-    |=  s=state-0
-    ^-  state-1
-    %*  .  *state-1
-      dms     dms.s
-      clubs   clubs.s
-      drafts  drafts.s
-      pins    pins.s
-      bad     bad.s
-      inv     inv.s
-      voc     voc.s
-      chats   (chats-0-to-1 chats.s)
-    ==
-  ++  chats-0-to-1
-    |=  chats=(map flag:zero chat:zero)
-    ^-  (map flag:one chat:one)
-    %-  ~(run by chats)
-    |=  =chat:zero
-    %*  .  *chat:one
-      remark  remark.chat
-      log     log.chat
-      perm    perm.chat
-      pact    pact.chat
-      ::
-        net
-      ?-  -.net.chat
-        ?(%load %pub)  net.chat
-        %sub  [%sub p.net.chat *saga:e]
-      ==
-    ==
+  ?~  chats
+    cor
+  =.  cor
+    ca-abet:ca-upgrade:(ca-abed:ca-core i.chats)
+  $(chats t.chats)
+  ::
+  ++  keep
+    |=  bad=^vase
+    ^-  card
+    ~&  >  %keep
+    [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
+  ::
+  +$  versioned-state  $%(current-state)
   --
 ::
 ++  watch-groups
@@ -185,7 +159,6 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
-      %holt  (holt |)
       %graph-import
     (import-graph !<([flag:g flag:g graph:gra] vase))
   ::
@@ -436,24 +409,25 @@
   ^+  cor
   ?+    -.sign  cor
       %kick
-    ~&  'todo: check that sub is removed before ingesting kick'^wex.bowl
     (watch-epic src.bowl)
   ::
       %fact
-    ?:  =(%epic p.cage.sign)
-      ~&  '!!! weird fact on /epic'
+    ?.  =(%epic p.cage.sign)
+      %-  (note:wood %odd leaf/"!!! weird fact on /epic" ~)
       cor
     =+  !<(=epic:e q.cage.sign)
     ?.  =(epic okay)  :: is now our guy
       cor
     %+  roll  ~(tap by chats)
     |=  [[=flag:g =chat:c] out=_cor]
-    ca-abet:ca-sub:(ca-abed:ca-core:out flag)
+    ?.  =(src.bowl p.flag)
+      out
+    ca-abet:(ca-take-epic:(ca-abed:ca-core:out flag) epic)
   ::
       %watch-ack
     %.  cor
     ?~  p.sign  same
-    (slog leaf/"weird watch nack" u.p.sign)
+    (note:wood %odd leaf/"weird watch nack" u.p.sign)
   ==
 ::  TODO: more efficient?
 ::    perhaps a cached index of (jug group=flag chat=flag)
@@ -466,7 +440,7 @@
     `flag
   ?+    q.q.action  cor
       [%fleet * %del ~]
-    ~&  'revoke perms for'
+    %-  (note:wood %veb leaf/"revoke perms for {<affected>}" ~)
     %+  roll  affected
     |=  [=flag:c co=_cor]
     ^+  cor
@@ -477,14 +451,14 @@
     ca-abet:(ca-revoke:ca ship)
   ::
       [%fleet * %del-sects *]
-    ~&  'recheck permissions'
+    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
     %+  roll  affected
     |=  [=flag:c co=_cor]
     =/  ca  (ca-abed:ca-core:co flag)
     ca-abet:ca-recheck:ca
   ::
       [%channel * %del-sects *]
-    ~&  'recheck permissions'
+    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
     %+  roll  affected
     |=  [=flag:c co=_cor]
     =/  ca  (ca-abed:ca-core:co flag)
@@ -562,25 +536,6 @@
     :-  flag/flag
     ca-brief:(ca-abed:ca-core flag)
   ==
-::
-++  holt
-  |=  tell=?
-  ^+  cor
-  =.  state  *current-state
-  =.  cor
-    %-  emil
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
-  =.  cor  init
-  ?.  tell  cor
-  %-  emil
-  %+  murn  `(list dude:gall)`desk-bill
-  |=  =dude:gall
-  ^-  (unit card)
-  ?:  =(dude dap.bowl)  ~
-  `[%pass / %agent [our.bowl dude] %poke holt+!>(~)]
 ::
 ++  give-brief
   |=  [=whom:c =brief:briefs:c]
@@ -697,7 +652,6 @@
   ::
   ++  cu-create  
     |=  =create:club:c 
-    ~&  id/id.create
     =.  cu-core  (cu-init %done create)
     =.  cu-core  (cu-diff 0 [%init team hive met]:club)
     =/  =notice:c
@@ -730,8 +684,6 @@
     |=  =diff:writs:c
     =.  cor
       =/  =cage  writ-diff+!>(diff)
-      ~&  diff
-      ~&  cu-area
       (emit %give %fact ~[(welp cu-area /ui/writs)] cage)
     cu-core
   ::
@@ -896,6 +848,16 @@
       =.  cor  (give %kick ~ ~)
       ca-core
     --
+  ::
+  ++  ca-upgrade
+    ^+  ca-core
+    ?.  ?=(%sub -.net.chat)  ca-core
+    ?.  ?=(%dex -.saga.net.chat)  ca-core
+    ?.  =(okay ver.saga.net.chat)  
+      %-  (note:wood %ver leaf/"%future-shock {<[ver.saga.net.chat flag]>}" ~)
+      ca-core
+    ca-make-chi
+  ::
   ++  ca-pass
     |%
     ++  add-channel
@@ -969,14 +931,14 @@
     ?+    -.sign  ca-core
         %kick
       ?>  ?=(%sub -.net.chat)
-      ?-  -.saga.net.chat
-        %chi  ca-sub
-        %dex  ca-core
-        %lev  ca-core
-      ==
+      ?:  =(%chi -.saga.net.chat)
+        %-  (note:wood %ver leaf/"chi-kick: {<flag>}" ~)
+        ca-sub
+      %-  (note:wood %ver leaf/"wait-kick: {<flag>}" ~)
+      ca-core
     ::
         %watch-ack
-      =.  net.chat  [%sub src.bowl %chi ~]
+      =.  net.chat  [%sub src.bowl & %chi ~]
       ?~  p.sign  ca-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       =.  gone  &
@@ -984,32 +946,54 @@
     ::
         %fact
       =*  cage  cage.sign 
-      ?+  p.cage  ca-core
+      ?+  p.cage  (ca-odd-update p.cage)
         %epic                           (ca-take-epic !<(epic:e q.cage))
         ?(%chat-logs %chat-logs-0)      (ca-apply-logs !<(logs:c q.cage))
         ?(%chat-update %chat-update-0)  (ca-update !<(update:c q.cage))
       ==
     ==
   ::
+  ++  ca-odd-update
+    |=  =mark
+    ?.  (is-old:epos mark)
+      ca-core
+    ?.  ?=(%sub -.net.chat)
+      ca-core
+    ca-make-lev
+  ::
+  ++  ca-make-lev
+    ?.  ?=(%sub -.net.chat)
+       ca-core
+    %-  (note:wood %ver leaf/"took lev epic: {<flag>}" ~)
+    =.  saga.net.chat  lev/~
+    =.  cor  (watch-epic p.flag)
+    ca-core
+  ::
+  ++  ca-make-chi
+    ?.  ?=(%sub -.net.chat)  ca-core
+    %-  (note:wood %ver leaf/"took okay epic: {<flag>}" ~)
+    =.  saga.net.chat  chi/~
+    ?:  ca-has-sub  ca-core
+    ca-sub
+  ::
   ++  ca-take-epic
     |=  her=epic:e
     ^+  ca-core
     ?>  ?=(%sub -.net.chat)
     ?:  =(her okay)
-      ca-core
+      ca-make-chi
     ?:  (gth her okay)
       =.  saga.net.chat  dex/her
+      %-  (note:wood %ver leaf/"took dex epic: {<[flag her]>}" ~)
       ca-core
-    =.  saga.net.chat  lev/~ 
-    =.  cor  (watch-epic p.flag)
-    ca-core
+    ca-make-lev
   ::
   ++  ca-proxy
     |=  =update:c
     ^+  ca-core
     ?>  ca-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  chat-action+!>([flag update])
+    =/  =cage  [act:mar !>([flag update])]
     =.  cor
       (emit %pass ca-area %agent dock %poke cage)
     ca-core
@@ -1045,6 +1029,10 @@
     =/  =cage  chat-logs+!>(logs)
     =.  cor  (give %fact ~ cage)
     ca-core
+  ::
+  ++  ca-has-sub
+    ^-  ?
+    (~(has by wex.bowl) [(snoc ca-area %updates) p.flag dap.bowl])
   ::
   ++  ca-sub
     ^+  ca-core
@@ -1098,10 +1086,10 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in ca-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc ca-area %ui))
-    =/  cag=cage  chat-update+!>([time d])
+    =/  cag=cage  [upd:mar !>([time d])]
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] chat-action+!>([flag [time d]]))
+    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
       =/  =cage  writ-diff+!>(p.d)
       (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
@@ -1343,7 +1331,7 @@
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
     ?.  ok  
-      ~&  gone/ship
+      %-  (note:wood %odd leaf/"gone {<ship>}" ~)
       ?:  =(src.bowl ship)
         di-core
       di-core(gone &)

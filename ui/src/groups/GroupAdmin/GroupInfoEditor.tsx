@@ -1,19 +1,20 @@
 import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
-import Dialog, {
-  DialogClose,
-  DialogContent,
-  DialogTrigger,
-} from '@/components/Dialog';
-import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
-import { GroupFormSchema, GroupMeta, ViewProps } from '@/types/groups';
 import { useNavigate } from 'react-router';
-import { getGroupPrivacy } from '@/logic/utils';
-import GroupInfoFields from '@/groups/GroupInfoFields';
-import PrivacySelector from '@/groups/PrivacySelector';
+import Dialog, { DialogClose, DialogContent } from '@/components/Dialog';
+import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
+import {
+  GroupFormSchema,
+  GroupMeta,
+  PrivacyType,
+  ViewProps,
+} from '@/types/groups';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import GroupInfoFields from '../GroupInfoFields';
+import PrivacySelector from '../PrivacySelector';
 
 const emptyMeta = {
   title: '',
@@ -31,6 +32,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const [deleteField, setDeleteField] = useState('');
+  const { privacy } = useGroupPrivacy(groupFlag);
   const [status, setStatus] = useState<Status>('initial');
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -39,7 +41,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     defaultValues: {
       ...emptyMeta,
       ...group?.meta,
-      privacy: (group && getGroupPrivacy(group.cordon)) || 'public',
+      privacy,
     },
   });
 
@@ -47,9 +49,9 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     form.reset({
       ...emptyMeta,
       ...group?.meta,
-      privacy: (group && getGroupPrivacy(group.cordon)) || 'public',
+      privacy,
     });
-  }, [group, form]);
+  }, [group, form, privacy]);
 
   const onDeleteChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -72,16 +74,38 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   }, [groupFlag, navigate]);
 
   const onSubmit = useCallback(
-    async (values: GroupMeta) => {
+    async (values: GroupMeta & { privacy: PrivacyType }) => {
       setStatus('loading');
       try {
         await useGroupState.getState().edit(groupFlag, values);
+        const privacyChanged = values.privacy !== privacy;
+        if (privacyChanged) {
+          await useGroupState.getState().swapCordon(
+            groupFlag,
+            values.privacy === 'public'
+              ? {
+                  open: {
+                    ships: [],
+                    ranks: [],
+                  },
+                }
+              : {
+                  shut: {
+                    pending: [],
+                    ask: [],
+                  },
+                }
+          );
+          await useGroupState
+            .getState()
+            .setSecret(groupFlag, values.privacy === 'secret');
+        }
         setStatus('success');
       } catch (e) {
         setStatus('error');
       }
     },
-    [groupFlag]
+    [groupFlag, privacy]
   );
 
   return (

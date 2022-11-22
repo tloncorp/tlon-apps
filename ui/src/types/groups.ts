@@ -79,6 +79,7 @@ export interface Group {
   zones: Zones;
   'zone-ord': Zone[];
   bloc: string[];
+  secret: boolean;
 }
 
 export interface Fleet {
@@ -254,6 +255,10 @@ export interface GroupDelDiff {
   del: null;
 }
 
+export interface SecretDiff {
+  secret: boolean;
+}
+
 // TODO: elaborate
 export type GroupDiff =
   | GroupDelDiff
@@ -263,6 +268,7 @@ export type GroupDiff =
   | CabalDiff
   | ChannelDiff
   | CordonDiff
+  | SecretDiff
   | ZoneDiff;
 
 export interface GroupUpdate {
@@ -284,6 +290,7 @@ export interface GroupPreview {
   meta: GroupMeta;
   cordon: Cordon;
   time: number;
+  secret: boolean;
 }
 
 export interface GroupIndex {

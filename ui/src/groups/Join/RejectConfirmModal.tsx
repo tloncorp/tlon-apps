@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef } from 'react';
+import { useLocalStorage } from 'usehooks-ts';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGang, useGroupState, useRouteGroup } from '@/state/groups';
-import { getGroupPrivacy, toTitleCase } from '@/logic/utils';
-import { useLocalStorage } from 'usehooks-ts';
+import { toTitleCase } from '@/logic/utils';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
 
 const PRIVATE_COPY =
   "If you reject this invite, you'll need to send a membership request in order to join this group.";
@@ -19,9 +20,7 @@ export default function RejectConfirmModal() {
   const flag = useRouteGroup();
   const gang = useGang(flag);
   const dismiss = useDismissNavigate();
-  const privacy = gang.preview?.cordon
-    ? getGroupPrivacy(gang.preview?.cordon)
-    : 'public';
+  const { privacy } = useGroupPrivacy(flag);
   const checkboxRef = useRef<HTMLInputElement | null>(null);
   const [skipConfirmation, setSkipConfirmation] = useLocalStorage(
     'groups:skipGroupInviteRejectConfirm',

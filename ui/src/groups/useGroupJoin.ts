@@ -1,10 +1,10 @@
-import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
-import useHarkState from '@/state/hark';
-import { getGroupPrivacy } from '@/logic/utils';
-import { useGroup, useGroupState } from '@/state/groups';
-import { Gang, PrivacyType } from '@/types/groups';
 import { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
+import useHarkState from '@/state/hark';
+import { useGroup, useGroupState } from '@/state/groups';
+import { Gang, PrivacyType } from '@/types/groups';
 import { Status } from '@/logic/status';
 
 function getButtonText(
@@ -36,9 +36,7 @@ export default function useGroupJoin(
   const modalNavigate = useModalNavigate();
   const dismiss = useDismissNavigate();
   const group = useGroup(flag);
-  const privacy = gang.preview?.cordon
-    ? getGroupPrivacy(gang.preview?.cordon)
-    : 'public';
+  const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
 
