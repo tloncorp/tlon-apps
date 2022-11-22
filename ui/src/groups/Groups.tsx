@@ -51,7 +51,7 @@ function Groups() {
       if (channel && !isMobile) {
         navigate(`./channels/${channel[0]}`);
       } else if (!isMobile) {
-        navigate('./activity');
+        navigate('./channels');
       }
     }
   }, [root, gang, group, isMobile, initialized, recentChannel, navigate]);
