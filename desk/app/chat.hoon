@@ -1,5 +1,5 @@
-/-  c=chat, g=groups
-/-  meta
+/-  c=chat, g=groups, n=nark
+/-  meta, e=epic
 /-  ha=hark
 /-  e=epic
 /+  default-agent, verb-lib=verb, dbug
@@ -10,6 +10,7 @@
 /+  epos-lib=saga
 /+  wood-lib=wood
 /+  mig=chat-graph
+/+  nar=nark
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -162,6 +163,8 @@
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %import-flags   cor(imp !<((set flag:c) vase))
+      %graph-import  (import-graph [[our.bowl %test] [our.bowl %testing-9299] !<(graph:gra:c vase)])
+  ::
       %graph-imports  (import !<(imports:c vase))
   ::
       %dm-imports     (import-dms !<(graph:gra:c vase))
@@ -445,11 +448,29 @@
   ++  orm  orm-gra:c
   --
 ::
+++  import-graph
+  |=  [grp=flag:g =flag:g =graph:gra]
+  ^+  cor
+  =|  =create:c
+  =.  cor
+    =<  ca-abet
+    (ca-init:(ca-abed:ca-core flag) create(group grp, name q.flag, title `@t`q.flag))
+  =.  chats
+    %+  ~(put by chats)  flag
+    :*  net=?:(=(p.flag our.bowl) pub/~ sub/[p.flag | chi/~])
+        *remark:c
+        *log:c  :: TODO:
+        `grp
+        (convert:(nert:nar flag grp) graph)
+    ==
+  cor
+::
 ++  watch-said
   |=  [=flag:c =id:c]
   ?.  (~(has by chats) flag)
     (proxy-said flag id)
   ca-abet:(ca-said:(ca-abed:ca-core flag) id)
+::
 ++  said-wire
   |=  [=flag:c =id:c]
   ^-  wire
