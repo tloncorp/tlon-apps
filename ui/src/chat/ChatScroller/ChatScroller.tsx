@@ -67,14 +67,6 @@ function createRenderer({
         return null;
       }
 
-      const isNotice = writ ? 'notice' in writ.memo.content : false;
-      if (isNotice) {
-        return renderPrefix(
-          index,
-          <ChatNotice key={writ.seal.id} writ={writ} />
-        );
-      }
-
       const keyIdx = keys.findIndex((idx) => idx.eq(index));
       const lastWritKey = keyIdx > 0 ? keys[keyIdx - 1] : undefined;
       const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
@@ -88,6 +80,14 @@ function createRenderer({
         : undefined;
       const newDay =
         lastWrit && lastWritDay ? !isSameDay(writDay, lastWritDay) : !lastWrit;
+
+      const isNotice = writ ? 'notice' in writ.memo.content : false;
+      if (isNotice) {
+        return renderPrefix(
+          index,
+          <ChatNotice key={writ.seal.id} writ={writ} newDay={writDay} />
+        );
+      }
 
       return renderPrefix(
         index,
