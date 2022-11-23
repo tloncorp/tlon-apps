@@ -12,10 +12,10 @@ import AppReference from './AppReference';
 
 function ContentReference({
   cite,
-  isScrolling,
+  isScrolling = false,
 }: {
   cite: Cite;
-  isScrolling: boolean;
+  isScrolling?: boolean;
 }) {
   if (isScrolling) {
     // Without this console log we don't see the loading state.
