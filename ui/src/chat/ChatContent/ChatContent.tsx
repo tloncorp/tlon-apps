@@ -20,7 +20,7 @@ import { Link } from 'react-router-dom';
 
 interface ChatContentProps {
   story: ChatStory;
-  isScrolling: boolean;
+  isScrolling?: boolean;
 }
 
 interface InlineContentProps {
@@ -151,7 +151,10 @@ export function BlockContent({ story, isScrolling }: BlockContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export default function ChatContent({ story, isScrolling }: ChatContentProps) {
+export default function ChatContent({
+  story,
+  isScrolling = false,
+}: ChatContentProps) {
   const inlineLength = story.inline.length;
   const blockLength = story.block.length;
 
