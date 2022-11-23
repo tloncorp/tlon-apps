@@ -19,7 +19,9 @@ import useChannelSections from '@/logic/useChannelSections';
 import { GroupChannel } from '@/types/groups';
 import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
-import useIsChannelUnread from '@/logic/useIsChannelUnread';
+import useIsChannelUnread, {
+  useCheckChannelUnread,
+} from '@/logic/useIsChannelUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import usePrefetchChannels from '@/logic/usePrefetchChannels';
 import ChannelSortOptions from './ChannelSortOptions';
@@ -72,7 +74,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels, sections } = useChannelSections(flag);
   const isMobile = useIsMobile();
-  const { isChannelUnread } = useIsChannelUnread();
+  const isChannelUnread = useCheckChannelUnread();
   const vessel = useVessel(flag, window.our);
 
   if (!group) {
