@@ -612,7 +612,6 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
-    ~&  [flag [time d]]
     =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
     =/  cag=cage  [upd:mar !>([time d])]
     =.  cor
@@ -654,7 +653,7 @@
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui time)) cs ~))
+        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
       di-core
     ::
         %add-sects
