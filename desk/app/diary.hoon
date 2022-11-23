@@ -242,7 +242,7 @@
     [now.bowl | ~]
   =/  =notes:d  graph-to-notes
   =/  =diary:d
-    :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
+    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
         log=(import-log notes perm)
         perm
         %grid  :: TODO: check defaults with design

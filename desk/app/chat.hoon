@@ -160,8 +160,6 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
-      %holt           (holt |)
-  ::
       %graph-imports  (import !<(imports:c vase))
   ::
       %dm-imports     (import-dms !<(graph:gra:c vase))
@@ -415,7 +413,7 @@
     ?:(=(~ writers) ~ (silt (rap 3 %chat '-' (scot %p p.flag) '-' q.flag ~) ~))
   =/  =pact:c  (graph-to-pact graph)
   =/  =chat:c
-    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag chi/~])
+    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | chi/~])
         *remark:c
         log=(import-log pact perm)
         perm

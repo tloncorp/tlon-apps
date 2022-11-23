@@ -88,7 +88,6 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
-      %holt  (holt |)
   ::
       %group-import  (import-groups !<(imports:g vase))
   ::
@@ -391,7 +390,6 @@
           =group:old:g
       ==
   |^
-  =/  =net:g  load/~
   =/  cabals=(map sect:g cabal:g)
     %-  ~(gas by *(map sect:g cabal:g))
     %+  turn  ~(tap by roles)
@@ -438,11 +436,20 @@
     ^-  [_ship vessel:fleet:g]
     [ship ~ now.bowl]
   =/  =group:g
-    [fleet cabals zones zone-ord bloc channels cordon meta]
+    :*  fleet
+        cabals
+        zones
+        zone-ord
+        bloc
+        channels
+        cordon
+        =(%invite -.policy.group)
+        meta
+    ==
   =/  =net:g
     ?:  =(p.flag our.bowl)
       pub/(put:log-on:g *log:g now.bowl create/group)
-    sub/now.bowl
+    [%sub now.bowl | chi/~]
   =.  groups  (~(put by groups) flag [net group])
   go-abet:(go-init:(go-abed:group-core flag) &) :: setup defaults
   ::
@@ -614,9 +621,6 @@
     =.  bloc.group  (~(put in bloc.group) %admin)
     go-core
 
-  ::
-  ++  go-start-sub
-    (go-tell-update now.bowl diff)
   ::
   ++  go-has-sub
     (~(has by wex.bowl) [(snoc go-area %updates) p.flag dap.bowl])

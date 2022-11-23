@@ -340,7 +340,7 @@
   =/  =curios:h  graph-to-curios
   =.  stash
     %+  ~(put by stash)  flag
-    :*  net=?:(=(our.bowl p.flag) pub/~ sub/p.flag)
+    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | chi/~])
       log=(import-log perm curios)
       perm
       %grid :: XX: check defaults with design

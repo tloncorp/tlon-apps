@@ -2,8 +2,8 @@
 /-  meta
 /-  metadata-store
 /-  cite
-/+  lib-graph=graph-store
 /-  e=epic
+/+  lib-graph=graph-store
 |%
 ::  $writ: a chat message
 +$  writ   [seal memo]
