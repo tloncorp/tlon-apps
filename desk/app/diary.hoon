@@ -630,7 +630,9 @@
         %unwatch  remark.diary(watching |)
         %read-at  !!
       ::
-          %read   remark.diary(last-read now.bowl)
+          %read
+      =/  [=time =note:d]  (need (ram:on:notes:d notes.diary))
+      remark.diary(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
       (give-brief flag di-brief)
