@@ -300,9 +300,7 @@
     ^-  (unit note:d)
     ?~  pos=(get-latest-post node)
       ~
-    ::  =/  coms=(note-to-quips)
-    =/  =seal:d  [time ~ ~]
-    ::  =/  comments  (node-to-comments com-node)
+    =/  =seal:d  [time (node-to-quips node) ~]
     ?.  ?=([[%text *] *] contents.u.pos)
       ~  :: XX: should be invariant, don't want to risk it
     =/  con=(list verse:d)  (migrate flag `@ud`time t.contents.u.pos)
