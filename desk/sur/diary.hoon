@@ -1,4 +1,4 @@
-/-  g=groups, c=cite, graph-store, zer=diary-0, e=epic
+/-  g=groups, c=cite, graph-store, e=epic
 /-  metadata-store
 /+  lib-graph=graph-store
 |%

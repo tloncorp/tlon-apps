@@ -1,4 +1,4 @@
-/-  g=groups, zer=chat-0, graph-store
+/-  g=groups, graph-store
 /-  meta
 /-  metadata-store
 /-  cite

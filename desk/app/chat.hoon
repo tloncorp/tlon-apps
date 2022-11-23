@@ -7,7 +7,6 @@
 /+  pac=dm
 /+  ch=chat-hark
 /+  gra=graph-store
-/+  e=epic
 /+  epos-lib=saga
 /+  wood-lib=wood
 /+  mig=chat-graph
@@ -163,6 +162,7 @@
       %graph-imports  (import !<(imports:c vase))
   ::
       %dm-imports     (import-dms !<(graph:gra:c vase))
+      %club-imports   (import-clubs !<(club-imports:c vase))
   ::
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
@@ -349,14 +349,17 @@
 ::
 ++  import-clubs
   |=  cus=club-imports:c
-  ^+  cor
-  %+  roll  ~(tap by cus)
-  |=  [[=flag:c ships=(set ship) =association:met:c =graph:gra:c] out=_cor]
+  =/  cus  ~(tap by cus)
+  |-  ^+  cor
+  ?~  cus
+    cor
+  =/  [=flag:c ships=(set ship) =association:met:c =graph:gra:c]
+    i.cus
   =/  =id:club:c  (shax (jam flag))  :: TODO: determinstic, but collisions ig?
   =/  meta=data:meta
     [title description '' '']:metadatum.association
   =.  clubs  (~(put by clubs) id (graph-to-pact graph) ships ~ meta %done |)
-  out
+  $(cus t.cus)
 ::
 ++  import-dms
   |=  =graph:gra:c
@@ -1223,7 +1226,8 @@
         %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
       ::
           %read
-      =/  [=time =writ:c]  (need (ram:on:writs:c wit.pact.chat))
+      =/  =time
+        (fall (bind (ram:on:writs:c wit.pact.chat) head) now.bowl)
       remark.chat(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
