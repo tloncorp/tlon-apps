@@ -2,6 +2,7 @@ import React from 'react';
 import { nestToFlag } from '@/logic/utils';
 import { Cite } from '@/types/chat';
 import { udToDec } from '@urbit/api';
+import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CurioReference from './CurioReference';
 // eslint-disable-next-line import/no-cycle
 import WritReference from './WritReference';
@@ -9,7 +10,21 @@ import GroupReference from './GroupReference';
 import NoteReference from './NoteReference';
 import AppReference from './AppReference';
 
-function ContentReference({ cite }: { cite: Cite }) {
+function ContentReference({
+  cite,
+  isScrolling,
+}: {
+  cite: Cite;
+  isScrolling: boolean;
+}) {
+  if (isScrolling) {
+    // Without this console log we don't see the loading state.
+    // TODO: Figure out why.
+    // eslint-disable-next-line no-console
+    console.log('scrolling, not rendering');
+    return <HeapLoadingBlock reference />;
+  }
+
   if ('group' in cite) {
     return <GroupReference flag={cite.group} />;
   }

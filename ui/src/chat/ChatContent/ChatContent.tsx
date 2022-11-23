@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom';
 
 interface ChatContentProps {
   story: ChatStory;
+  isScrolling: boolean;
 }
 
 interface InlineContentProps {
@@ -28,6 +29,7 @@ interface InlineContentProps {
 
 interface BlockContentProps {
   story: ChatBlock;
+  isScrolling: boolean;
 }
 
 interface ShipMentionProps {
@@ -131,7 +133,7 @@ export function InlineContent({ story }: InlineContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export function BlockContent({ story }: BlockContentProps) {
+export function BlockContent({ story, isScrolling }: BlockContentProps) {
   if (isChatImage(story)) {
     return (
       <ChatContentImage
@@ -143,13 +145,13 @@ export function BlockContent({ story }: BlockContentProps) {
     );
   }
   if ('cite' in story) {
-    return <ContentReference cite={story.cite} />;
+    return <ContentReference cite={story.cite} isScrolling={isScrolling} />;
   }
 
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export default function ChatContent({ story }: ChatContentProps) {
+export default function ChatContent({ story, isScrolling }: ChatContentProps) {
   const inlineLength = story.inline.length;
   const blockLength = story.block.length;
 
@@ -164,7 +166,7 @@ export default function ChatContent({ story }: ChatContentProps) {
                 key={`${storyItem.toString()}-${index}`}
                 className="flex flex-col"
               >
-                <BlockContent story={storyItem} />
+                <BlockContent story={storyItem} isScrolling={isScrolling} />
               </div>
             ))}
         </>

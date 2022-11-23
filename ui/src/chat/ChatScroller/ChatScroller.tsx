@@ -38,6 +38,7 @@ interface CreateRendererParams {
   chatInfo?: ChatInfo;
   prefixedElement: React.ReactNode;
   scrollTo?: bigInt.BigInteger;
+  isScrolling: boolean;
 }
 
 interface RendererProps {
@@ -51,6 +52,7 @@ function createRenderer({
   replying,
   prefixedElement,
   scrollTo,
+  isScrolling,
 }: CreateRendererParams) {
   const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
     <>
@@ -102,6 +104,7 @@ function createRenderer({
           ref={ref}
           isLast={keyIdx === keys.length - 1}
           isLinked={scrollTo ? index.eq(scrollTo) : false}
+          isScrolling={isScrolling}
         />
       );
     }
@@ -141,6 +144,8 @@ export default function ChatScroller({
   const loaded = useLoadedWrits(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const isMobile = useIsMobile();
+  const [isScrolling, setIsScrolling] = useState(false);
+  const { atBottom } = useChatStore.getState();
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
@@ -173,8 +178,9 @@ export default function ChatScroller({
         keys,
         prefixedElement,
         scrollTo,
+        isScrolling,
       }),
-    [messages, whom, keys, replying, prefixedElement, scrollTo]
+    [messages, whom, keys, replying, prefixedElement, scrollTo, isScrolling]
   );
 
   const TopLoader = useMemo(
@@ -252,6 +258,15 @@ export default function ChatScroller({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brief, firstUnreadID]);
 
+  const handleScroll = useCallback(
+    (e: boolean) => {
+      if (e !== isScrolling && !atBottom) {
+        setIsScrolling(e);
+      }
+    },
+    [isScrolling, atBottom]
+  );
+
   return (
     <div className="relative h-full flex-1">
       <Virtuoso
@@ -259,6 +274,9 @@ export default function ChatScroller({
         ref={scrollerRef}
         followOutput
         alignToBottom
+        isScrolling={(e: boolean) => {
+          handleScroll(e);
+        }}
         className="h-full overflow-x-hidden p-4"
         // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
         // size of elements, triggering a reflow loop in virtual scroller

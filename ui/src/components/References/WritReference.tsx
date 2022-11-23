@@ -6,7 +6,7 @@ import { useChannelPreview } from '@/state/groups';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import ReferenceBar from './ReferenceBar';
 
 export default function WritReference({
@@ -18,15 +18,15 @@ export default function WritReference({
   nest: string;
   idWrit: string;
 }) {
-  const unSubbedWrit = useWritByFlagAndWritId(chFlag, idWrit);
+  const writObject = useWritByFlagAndWritId(chFlag, idWrit);
   const preview = useChannelPreview(nest);
 
   // TODO: handle failure for useWritByFlagAndWritId call.
-  if (!unSubbedWrit) {
-    return <LoadingSpinner />;
+  if (!writObject) {
+    return <HeapLoadingBlock reference />;
   }
 
-  const { writ } = unSubbedWrit;
+  const { writ } = writObject;
   const time = bigInt(udToDec(writ.seal.id.split('/')[1]));
 
   if (!('story' in writ.memo.content)) {
@@ -43,7 +43,7 @@ export default function WritReference({
         }
         className="cursor-pointer p-2 group-hover:bg-gray-50"
       >
-        <ChatContent story={writ.memo.content.story} />
+        <ChatContent story={writ.memo.content.story} isScrolling={false} />
       </Link>
       <ReferenceBar
         nest={nest}
