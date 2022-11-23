@@ -15,7 +15,7 @@ export default function NewDM() {
   const [ships, setShips] = useState<ShipOption[]>([]);
   const isMultiDm = ships.length > 1;
   const navigate = useNavigate();
-  const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
+  const shipValues = useMemo(() => ships.map((o) => preSig(o.value)), [ships]);
   const newClubId = useMemo(() => newUv(), []);
   const sendMultiDm = useSendMultiDm(true, shipValues);
 

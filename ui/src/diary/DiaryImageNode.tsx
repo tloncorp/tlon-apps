@@ -15,7 +15,7 @@ import useDiaryNode from './useDiaryNode';
 function DiaryImageComponent(props: NodeViewProps) {
   const className = '';
   const { selected, getPos, editor } = props;
-  const { clear, ...bind } = useDiaryNode('src', props);
+  const { clear, updateValues, ...bind } = useDiaryNode('src', props);
   const [error, setError] = useState(false);
   const [src, setSrc] = useState(null as string | null);
   const image = useRef<HTMLImageElement>(null);
@@ -46,9 +46,10 @@ function DiaryImageComponent(props: NodeViewProps) {
       setSrc(mostRecentFile.url);
       if (bind.ref.current) {
         bind.ref.current.value = mostRecentFile.url;
+        updateValues(mostRecentFile.url);
       }
     }
-  }, [mostRecentFile, bind]);
+  }, [mostRecentFile, updateValues, bind]);
 
   useEffect(() => {
     if (!selected) {

@@ -1,5 +1,5 @@
 /-  graph-store
-/-  g=groups
+/-  g=groups, e=epic
 /-  metadata-store
 /+  lib-graph=graph-store
 |%
@@ -135,15 +135,12 @@
   ==
 ::  $net: an indicator of whether I'm a host or subscriber
 ::
-::    %load: initiating heap join
 ::    %pub: am publisher/host with fresh log
 ::    %sub: subscribed to the ship
 ::
 +$  net
-  $~  [%load ~]
-  $%  [%sub p=ship]
+  $%  [%sub p=ship load=_| =saga:e]
       [%pub ~]
-      [%load ~]
   ==
 ::
 ::  $briefs: a map of heap unread information

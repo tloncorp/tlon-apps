@@ -75,8 +75,7 @@ const useHarkState = create<HarkState>((set, get) => ({
     api.subscribe({
       app: 'hark',
       path: '/ui',
-      event: (event: HarkAction) => {
-        console.log(event, get().carpet);
+      event: (_event: HarkAction) => {
         const { groupSubs, retrieve, retrieveGroup } = get();
         retrieve();
 

@@ -1,10 +1,13 @@
 import { useCallback, useEffect } from 'react';
+import { chunk } from 'lodash';
 import { useGroup } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import { asyncForEach } from '@/lib';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
+import { FETCH_BATCH_SIZE } from '@/constants';
 import { nestToFlag } from './utils';
+import useRecentChannel from './useRecentChannel';
 
 /**
  * On load, prefetches the messages for the group that the user is currently in.
@@ -14,6 +17,7 @@ import { nestToFlag } from './utils';
  */
 export default function usePrefetchChannels(flag: string) {
   const group = useGroup(flag);
+  const { recentChannel } = useRecentChannel(flag);
   const { initialize: initializeChat } = useChatState.getState();
   const { initialize: initializeDiary } = useDiaryState.getState();
   const { initialize: initializeHeap } = useHeapState.getState();
@@ -23,7 +27,7 @@ export default function usePrefetchChannels(flag: string) {
       const [chType, chFlag] = nestToFlag(channel);
       switch (chType) {
         case 'chat':
-          initializeChat(chFlag);
+          await initializeChat(chFlag);
           break;
         case 'diary':
           initializeDiary(chFlag);
@@ -39,8 +43,20 @@ export default function usePrefetchChannels(flag: string) {
   );
 
   const fetchAll = useCallback(async () => {
-    await asyncForEach(Object.keys(group?.channels ?? {}), fetchChannel);
-  }, [fetchChannel, group]);
+    // first, prioritize the recent channel
+    if (recentChannel && recentChannel !== '') {
+      await fetchChannel(recentChannel);
+    }
+
+    // defer the rest, in batches
+    const channels = Object.keys(group?.channels ?? {}).filter(
+      (c) => c !== recentChannel
+    );
+    const batched = chunk(channels, FETCH_BATCH_SIZE);
+    batched.forEach(async (batch) => {
+      await asyncForEach(batch, fetchChannel);
+    });
+  }, [fetchChannel, group, recentChannel]);
 
   useEffect(() => {
     if (!group) {

@@ -1,33 +1,33 @@
-import React, { PropsWithChildren } from 'react';
+import cn from 'classnames';
+import React, { useRef } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
-import useIsChat from '@/logic/useIsChat';
-import { udToDec } from '@urbit/api';
-import { useChannelFlag } from '../../hooks';
-import { useChatState, useReplies, useWrit } from '../../state/chat';
-import { useChannel, useRouteGroup } from '../../state/groups/groups';
-import ChatInput from '../ChatInput/ChatInput';
-import ChatMessage from '../ChatMessage/ChatMessage';
-import RowDivider from '../../components/RowDivider';
-import X16Icon from '../../components/icons/X16Icon';
-import ChatScroller from '../ChatScroller/ChatScroller';
+import { VirtuosoHandle } from 'react-virtuoso';
+import { useChannelFlag } from '@/hooks';
+import { useChatState, useReplies, useWrit } from '@/state/chat';
+import { useChannel, useRouteGroup } from '@/state/groups/groups';
+import ChatInput from '@/chat/ChatInput/ChatInput';
+import BranchIcon from '@/components/icons/BranchIcon';
+import X16Icon from '@/components/icons/X16Icon';
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import { whomIsFlag } from '@/logic/utils';
 
-type ChatThreadProps = PropsWithChildren<{
-  whom: string;
-}>;
-
-export default function ChatThread({ whom, children }: ChatThreadProps) {
-  const { ship, name, chShip, chName, idTime, idShip } = useParams<{
-    ship: string;
+export default function ChatThread() {
+  const { name, chShip, ship, chName, idTime, idShip } = useParams<{
     name: string;
     chShip: string;
+    ship: string;
     chName: string;
     idShip: string;
     idTime: string;
   }>();
+  const scrollerRef = useRef<VirtuosoHandle>(null);
+  const flag = useChannelFlag()!;
+  const whom = flag || ship || '';
+  const groupFlag = useRouteGroup();
   const { sendMessage } = useChatState.getState();
   const location = useLocation();
-
+  const channel = useChannel(groupFlag, `chat/${flag}`)!;
   const id = `${idShip!}/${idTime!}`;
   const maybeWrit = useWrit(whom, id);
   const replies = useReplies(whom, id);
@@ -36,6 +36,7 @@ export default function ChatThread({ whom, children }: ChatThreadProps) {
     return null;
   }
   const [time, writ] = maybeWrit;
+  const thread = replies.set(time, writ);
 
   const returnURL = () => {
     if (location.pathname.includes('groups')) {
@@ -45,54 +46,37 @@ export default function ChatThread({ whom, children }: ChatThreadProps) {
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l">
-      <div className="space-y-2 p-4">
-        <div className="sticky top-0 z-10 flex justify-between rounded border bg-white p-3 ">
-          {children}
-          <Link to={returnURL()}>
-            <X16Icon className="h-4 w-4 text-gray-400" />
+    <div className="relative flex h-full w-full flex-col overflow-y-auto border-gray-50 bg-white lg:w-96 lg:border-l-2">
+      <header className={'header z-40'}>
+        <div className="flex h-full w-full items-center justify-between border-b-2 border-gray-50 bg-white p-4">
+          <div className="flex items-center space-x-3 font-semibold">
+            <div className="rounded bg-gray-50 p-1">
+              <BranchIcon className="h-6 w-6 text-gray-400" />
+            </div>
+            <div>
+              Thread : {whomIsFlag(whom) ? channel?.meta.title || '' : ship}
+            </div>
+          </div>
+          <Link
+            to={returnURL()}
+            aria-label="Close"
+            className="icon-button h-8 w-8 bg-transparent"
+          >
+            <X16Icon className="h-6 w-6 text-gray-400" />
           </Link>
         </div>
-        <ChatMessage
+      </header>
+      <div className="flex flex-1 flex-col px-2 py-0">
+        <ChatScroller
+          messages={thread}
           whom={whom}
-          time={time}
-          writ={writ}
-          newAuthor
-          hideReplies
+          scrollerRef={scrollerRef}
+          replying
         />
-        <RowDivider
-          className="text-gray-400"
-          label={`${replies.size} ${replies.size === 1 ? 'Reply' : 'Replies'}`}
-        />
-      </div>
-      <div className="flex flex-1 flex-col p-2">
-        <ChatScroller messages={replies} whom={whom} replying />
       </div>
       <div className="sticky bottom-0 z-10 border-t-2 border-gray-50 bg-white p-4">
         <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />
       </div>
     </div>
-  );
-}
-
-export function GroupChatThread() {
-  const flag = useChannelFlag()!;
-  const groupFlag = useRouteGroup();
-  const channel = useChannel(groupFlag, flag)!;
-
-  return (
-    <ChatThread whom={flag}>
-      <div>Thread: {channel?.meta.title || ''}</div>
-    </ChatThread>
-  );
-}
-
-export function DmThread() {
-  const ship = useParams<{ ship: string }>().ship!;
-
-  return (
-    <ChatThread whom={ship}>
-      <div>Thread: {ship}</div>
-    </ChatThread>
   );
 }

@@ -11,19 +11,26 @@ import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { isValidUrl } from '@/logic/utils';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface MultiDMInfoFormProps {
+  setEditing: (editing: boolean) => void;
   setOpen: (open: boolean) => void;
 }
 
-export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
+export default function MultiDMInfoForm({
+  setOpen,
+  setEditing,
+}: MultiDMInfoFormProps) {
   const clubId = useParams<{ id: string }>().id!;
   const club = useMultiDm(clubId);
   const [iconType, setIconType] = useState<ImageOrColorFieldState>('color');
+  const [editStatus, setEditStatus] = useState<Status>('initial');
   const defaultValues: GroupMeta = {
     title: club?.meta.title || '',
     cover: club?.meta.cover || '',
-    image: '#b3b3b3',
+    image: club?.meta.image || '#b3b3b3',
     description: '',
   };
 
@@ -38,10 +45,25 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
   const letter = watchTitle.slice(0, 1);
   const showEmpty = iconType === 'image' && !isValidUrl(watchImage);
 
+  useEffect(() => {
+    if (isValidUrl(watchImage)) {
+      setIconType('image');
+    } else {
+      setIconType('color');
+    }
+  }, [watchImage]);
+
   const onSubmit = useCallback(
-    (values: GroupMeta) => {
-      setOpen(false);
-      useChatState.getState().editMultiDm(clubId, values);
+    async (values: GroupMeta) => {
+      try {
+        setEditStatus('loading');
+
+        await useChatState.getState().editMultiDm(clubId, values);
+        setEditStatus('success');
+        setOpen(false);
+      } catch (error) {
+        setEditStatus('error');
+      }
     },
     [clubId, setOpen]
   );
@@ -68,11 +90,7 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
               <label htmlFor="title" className="w-full font-bold">
                 Chat Icon*
               </label>
-              <ImageOrColorField
-                fieldName="image"
-                state={iconType}
-                setState={setIconType}
-              />
+              <ImageOrColorField fieldName="image" />
             </div>
           </div>
           <div className="py-4">
@@ -87,11 +105,27 @@ export default function MultiDMInfoForm({ setOpen }: MultiDMInfoFormProps) {
           </div>
         </div>
         <footer className="flex items-center space-x-2">
-          <DialogPrimitive.Close asChild>
-            <button className="button ml-auto">Cancel</button>
-          </DialogPrimitive.Close>
-          <button type="submit" className="button">
-            Done
+          <button
+            onClick={() => setEditing(false)}
+            className="secondary-button ml-auto"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="button"
+            disabled={editStatus !== 'initial'}
+          >
+            {editStatus === 'initial' ? (
+              'Save'
+            ) : editStatus === 'loading' ? (
+              <>
+                <LoadingSpinner className="mr-2 h-4 w-4" />
+                Saving
+              </>
+            ) : (
+              'Errored'
+            )}
           </button>
         </footer>
       </form>

@@ -173,6 +173,7 @@ function GangItem(props: { flag: string }) {
       <Popover.Content
         side={isMobile ? 'top' : 'right'}
         sideOffset={isMobile ? 0 : 16}
+        className="z-10"
       >
         <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg">
           {requested ? (

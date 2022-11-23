@@ -46,7 +46,10 @@ export default function ChatReaction({
             <Tooltip.Trigger>
               <button
                 onClick={editFeel}
-                className="group relative flex items-center space-x-2 rounded border border-solid border-transparent bg-gray-50 px-2 py-1 text-sm font-semibold leading-4 text-gray-600 group-one-hover:border-gray-100"
+                className={cn(
+                  'group relative flex items-center space-x-2 rounded border border-solid border-transparent bg-gray-50 px-2 py-1 text-sm font-semibold leading-4 text-gray-600 group-one-hover:border-gray-100',
+                  isMine && 'bg-blue-softer group-one-hover:border-blue-soft'
+                )}
                 aria-label={
                   isMine ? 'Remove reaction' : `Add ${feel.replaceAll(':', '')}`
                 }

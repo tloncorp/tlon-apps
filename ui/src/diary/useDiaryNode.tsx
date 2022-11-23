@@ -22,6 +22,15 @@ export default function useDiaryNode(
     [updateAttributes, name]
   );
 
+  const updateValues = useCallback(
+    (val: string) => {
+      updateAttributes({
+        [name]: val,
+      });
+    },
+    [name, updateAttributes]
+  );
+
   const clear = useCallback(() => {
     updateAttributes({
       [name]: null,
@@ -59,7 +68,7 @@ export default function useDiaryNode(
     // editor.chain().focus(getPos()).run();
   }, []);
   return useMemo(
-    () => ({ ref, onKeyDown, onChange, value, clear, onFocus }),
-    [ref, onKeyDown, onChange, value, clear, onFocus]
+    () => ({ ref, onKeyDown, updateValues, onChange, value, clear, onFocus }),
+    [ref, onKeyDown, updateValues, onChange, value, clear, onFocus]
   );
 }

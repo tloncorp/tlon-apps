@@ -31,6 +31,7 @@ import { intersection } from 'lodash';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
 import { useVessel } from '../groups';
+import useSubscriptionState from '../subscription';
 
 setAutoFreeze(false);
 
@@ -187,10 +188,28 @@ export const useHeapState = create<HeapState>(
         await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
       },
       create: async (req) => {
-        await api.poke({
-          app: 'heap',
-          mark: 'heap-create',
-          json: req,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            app: 'heap',
+            mark: 'heap-create',
+            json: req,
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('heap/ui', (event) => {
+                  const { update, flag } = event;
+                  if (
+                    'create' in update.diff &&
+                    flag === `${req.group.split('/')[0]}/${req.name}`
+                  ) {
+                    return true;
+                  }
+                  return false;
+                });
+              resolve();
+            },
+          });
         });
       },
       addSects: async (flag, sects) => {

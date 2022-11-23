@@ -167,7 +167,7 @@ export default function NewCurioForm() {
             <textarea
               {...register('content')}
               className={cn(
-                'h-full w-full resize-none rounded-lg border-2 py-1 px-2 leading-5 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400 focus:outline-none',
+                'mb-4 h-full w-full resize-none rounded-lg border-2 py-1 px-2 leading-5 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400 focus:outline-none',
                 isListMode
                   ? 'min-h-[60px] rounded-tl-none border-gray-100 bg-white align-middle focus:border-gray-300'
                   : 'border-gray-50 bg-gray-50'
@@ -213,11 +213,13 @@ export default function NewCurioForm() {
             draft={draftText}
             setDraft={setDraftText}
             flag={chFlag}
-            className="flex-1"
+            className={cn(
+              isListMode ? 'flex-1' : 'h-full w-full overflow-y-hidden'
+            )}
             inputClass={cn(
               isListMode
-                ? 'border-gray-100 bg-white focus-within:border-gray-300 focus:outline-none rounded-tl-none min-h-[60px]'
-                : 'border-gray-50 focus-within:border-gray-50 bg-gray-50 focus-within:bg-gray-50 focus:outline-none'
+                ? 'border-gray-100 bg-white focus-within:border-gray-300 mb-4 focus:outline-none rounded-tl-none min-h-[60px]'
+                : 'border-gray-50 overflow-y-auto focus-within:border-gray-50 bg-gray-50 focus-within:bg-gray-50 focus:outline-none'
             )}
           />
         )}

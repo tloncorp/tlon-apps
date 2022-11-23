@@ -1,4 +1,3 @@
-/-  g=groups
 |%
 ::  $saga: version synchronisation state
 ::    %dex: publisher is ahead
@@ -10,7 +9,7 @@
       [%lev ~]
       [%chi ~]
   ==
-+$  card  card:agent:gall
+
 +$  epic  @ud
 ::
 --
