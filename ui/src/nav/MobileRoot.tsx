@@ -47,12 +47,14 @@ export default function MobileRoot() {
             />
           </ul>
         ) : null}
-        <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-          <span className="ml-1 text-sm font-semibold text-gray-400">
-            All Groups
-          </span>
-        </li>
-        <GroupList groups={sortedGroups} pinnedGroups={sortedPinnedGroups} />
+        <ul className="mb-3 space-y-2 px-2 sm:mb-2 sm:space-y-0 md:mb-0">
+          <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
+            <span className="ml-4 text-sm font-semibold text-gray-400">
+              All Groups
+            </span>
+          </li>
+          <GroupList groups={sortedGroups} pinnedGroups={sortedPinnedGroups} />
+        </ul>
       </nav>
     </>
   );

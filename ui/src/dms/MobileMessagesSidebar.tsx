@@ -104,7 +104,9 @@ export default function MobileMessagesSidebar() {
             <NewMessageIcon className="h-6 w-6 text-blue" />
           </Link>
         </header>
-        <MessagesList filter={messagesFilter} />
+        <div className="px-2">
+          <MessagesList filter={messagesFilter} />
+        </div>
       </div>
     </nav>
   );

@@ -295,7 +295,7 @@ exports[`Sidebar > renders as expected 1`] = `
       </li>
     </ul>
     <ul
-      class="flex-1 overflow-y-auto overflow-x-hidden pr-0 pt-0"
+      class="flex-1 overflow-y-auto overflow-x-hidden px-2"
     >
       <li
         class="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2"

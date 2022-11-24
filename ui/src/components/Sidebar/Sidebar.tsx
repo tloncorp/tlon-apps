@@ -162,11 +162,11 @@ export default function Sidebar() {
       <ul
         ref={ref}
         onScroll={scrollHandler}
-        className="flex-1 overflow-y-auto overflow-x-hidden pr-0 pt-0"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-2"
       >
         {hasKeys(pinnedGroups) ? (
           <GroupList
-            className="pr-0 pt-0"
+            className="p-2"
             pinned
             groups={sortedGroups}
             pinnedGroups={sortedPinnedGroups}
@@ -186,7 +186,7 @@ export default function Sidebar() {
           />
         </li>
         <GroupList
-          className="pr-0 pt-0"
+          className="p-2"
           groups={sortedGroups}
           pinnedGroups={sortedPinnedGroups}
         />
