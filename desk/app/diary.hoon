@@ -16,6 +16,7 @@
   +$  current-state
     $:  %0
         =shelf:d
+        imp=(set flag:d)
     ==
   --
 =|  current-state
@@ -158,6 +159,7 @@
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %graph-imports  (import !<(imports:d vase))
+      %import-flags   cor(imp !<((set flag:d vase)))
   ::
       ?(%flag %channel-join)
     =+  !<(=flag:d vase)
@@ -251,7 +253,9 @@
         remark
     ==
   =.  shelf  (~(put by shelf) flag diary)
-  =.  cor  di-abet:(di-import:(di-abed:di-core flag) writers association)
+  =.  imp    (~(del in imp) flag)
+  =.  cor    (give %fact ~[/imp] flags+!>(imp))
+  =.  cor    di-abet:(di-import:(di-abed:di-core flag) writers association)
   loop(imports t.imports)
   ::
   ++  import-log  
@@ -337,6 +341,7 @@
   |=  =path
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
+      [%imp ~]     ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
     ::
@@ -425,6 +430,8 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+  ::
+    [%x %imp ~]    ``flags+!>(imp)
   ::
     [%x %shelf ~]  ``shelf+!>(shelf)
   ::
