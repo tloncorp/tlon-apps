@@ -34,6 +34,7 @@
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
+        imp=(set flag:g)
     ==
   --
 =|  current-state
@@ -159,6 +160,8 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
+  ::
+      %import-flags   (import-flags !<((set flag:g) vase)
       %graph-imports  (import !<(imports:c vase))
   ::
       %dm-imports     (import-dms !<(graph:gra:c vase))
@@ -267,6 +270,7 @@
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path/path !!)
+      [%imp ~]        ?>(from-self cor)
       [%club %new ~]  ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]  ?>(from-self cor)
@@ -402,6 +406,10 @@
   :-  [[author.pos time] ~ ~]
   [~ author.pos time-sent.pos (con:mig contents.pos)]
 ::
+++  import-flags
+  |=  fs=(set flag:c)
+  cor(imp fs)
+::
 ++  import
   |=  =imports:c
   ^+  cor
@@ -422,6 +430,9 @@
         perm
         pact
     ==
+  =.  imp    (~(del in imp) flag)
+  =.  cor
+    (give %fact ~[/imp] flags+!>(imp))
   =.  chats  (~(put by chats) flag chat)
   =.  cor
     ca-abet:(ca-import:(ca-abed:ca-core flag) writers association)
@@ -554,6 +565,7 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+    [%x %imp ~]   ``flags+!>(imp)
   ::
     [%x %chat ~]  ``flags+!>(~(key by chats))
   ::
