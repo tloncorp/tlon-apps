@@ -159,7 +159,7 @@
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %graph-imports  (import !<(imports:d vase))
-      %import-flags   cor(imp !<((set flag:d vase)))
+      %import-flags   cor(imp !<((set flag:d) vase))
   ::
       ?(%flag %channel-join)
     =+  !<(=flag:d vase)

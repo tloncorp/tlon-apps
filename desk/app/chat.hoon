@@ -161,7 +161,7 @@
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
   ::
-      %import-flags   (import-flags !<((set flag:g) vase)
+      %import-flags   cor(imp !<((set flag:c) vase))
       %graph-imports  (import !<(imports:c vase))
   ::
       %dm-imports     (import-dms !<(graph:gra:c vase))
@@ -405,10 +405,6 @@
   :-  ~
   :-  [[author.pos time] ~ ~]
   [~ author.pos time-sent.pos (con:mig contents.pos)]
-::
-++  import-flags
-  |=  fs=(set flag:c)
-  cor(imp fs)
 ::
 ++  import
   |=  =imports:c

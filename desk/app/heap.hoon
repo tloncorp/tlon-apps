@@ -13,6 +13,7 @@
   +$  current-state
     $:  %0
         =stash:h
+        imp=(set flag:h)
     ==
   ::
   --
@@ -97,6 +98,7 @@
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %graph-imports  (import-graphs !<(imports:h vase))
+      %import-flags   cor(imp !<((set flag:h) vase))
   ::
       ?(%flag %channel-join)
     =+  !<(=flag:h vase)
@@ -188,6 +190,7 @@
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
+      [%imp ~]     ?>(from-self cor)
     ::
       [%epic ~]    (give %fact ~ epic+!>(okay))
     ::
@@ -309,6 +312,7 @@
   ?+  path  [~ ~]
   ::
     [%x %stash ~]  ``stash+!>(stash)
+    [%x %imp ~]    ``flags+!>(imp)
   ::
       [%x %heap @ @ *]
     =/  =ship  (slav %p i.t.t.path)
@@ -347,6 +351,8 @@
       curios
       [now.bowl | ~]
     ==
+  =.  imp  (~(del in imp) flag)
+  =.  cor  (give %fact ~[/imp] flags+!>(imp))
   =.  cor
     he-abet:(he-import:(he-abed:he-core flag) writers association)
   loop(imports t.imports)
