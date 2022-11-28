@@ -12,10 +12,12 @@ export default function CurioReference({
   chFlag,
   nest,
   idCurio,
+  isScrolling = false,
 }: {
   chFlag: string;
   nest: string;
   idCurio: string;
+  isScrolling?: boolean;
 }) {
   const curioObject = useCurio(chFlag, idCurio);
   const preview = useChannelPreview(nest);
@@ -25,13 +27,15 @@ export default function CurioReference({
     : undefined;
 
   useEffect(() => {
-    useHeapState
-      .getState()
-      .initialize(chFlag)
-      .catch((reason) => {
-        setScryError(reason);
-      });
-  }, [chFlag]);
+    if (!isScrolling) {
+      useHeapState
+        .getState()
+        .initialize(chFlag)
+        .catch((reason) => {
+          setScryError(reason);
+        });
+    }
+  }, [chFlag, isScrolling]);
 
   if (scryError !== undefined) {
     // TODO handle requests for single curios like we do for single writs.

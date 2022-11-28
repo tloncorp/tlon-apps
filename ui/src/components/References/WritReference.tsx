@@ -13,12 +13,14 @@ export default function WritReference({
   chFlag,
   nest,
   idWrit,
+  isScrolling,
 }: {
   chFlag: string;
   nest: string;
   idWrit: string;
+  isScrolling: boolean;
 }) {
-  const writObject = useWritByFlagAndWritId(chFlag, idWrit);
+  const writObject = useWritByFlagAndWritId(chFlag, idWrit, isScrolling);
   const preview = useChannelPreview(nest);
 
   // TODO: handle failure for useWritByFlagAndWritId call.

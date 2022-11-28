@@ -17,21 +17,13 @@ function ContentReference({
   cite: Cite;
   isScrolling?: boolean;
 }) {
-  if (isScrolling) {
-    // Without this console log we don't see the loading state.
-    // TODO: Figure out why.
-    // eslint-disable-next-line no-console
-    console.log('scrolling, not rendering');
-    return <HeapLoadingBlock reference />;
-  }
-
   if ('group' in cite) {
-    return <GroupReference flag={cite.group} />;
+    return <GroupReference flag={cite.group} isScrolling={isScrolling} />;
   }
 
   if ('desk' in cite) {
     const { desk } = cite.desk;
-    return <AppReference desk={desk} />;
+    return <AppReference desk={desk} isScrolling={isScrolling} />;
   }
 
   if ('chan' in cite) {
@@ -41,15 +33,36 @@ function ContentReference({
 
     if (app === 'heap') {
       const idCurio = udToDec(segments[2]);
-      return <CurioReference chFlag={chFlag} nest={nest} idCurio={idCurio} />;
+      return (
+        <CurioReference
+          chFlag={chFlag}
+          nest={nest}
+          idCurio={idCurio}
+          isScrolling={isScrolling}
+        />
+      );
     }
     if (app === 'chat') {
       const idWrit = `${segments[2]}/${segments[3]}`;
-      return <WritReference chFlag={chFlag} nest={nest} idWrit={idWrit} />;
+      return (
+        <WritReference
+          isScrolling={isScrolling}
+          chFlag={chFlag}
+          nest={nest}
+          idWrit={idWrit}
+        />
+      );
     }
     if (app === 'diary') {
       const idNote = udToDec(segments[2]);
-      return <NoteReference chFlag={chFlag} nest={nest} id={idNote} />;
+      return (
+        <NoteReference
+          chFlag={chFlag}
+          nest={nest}
+          id={idNote}
+          isScrolling={isScrolling}
+        />
+      );
     }
   }
 
