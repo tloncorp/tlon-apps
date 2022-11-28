@@ -253,6 +253,7 @@
       ~   cor
       [%epic ~]  (take-epic sign)
       [%hark ~]  cor
+      [%helm *]  cor
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
