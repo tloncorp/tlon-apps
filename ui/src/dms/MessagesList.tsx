@@ -1,8 +1,8 @@
+import React, { useState, useRef } from 'react';
+import cn from 'classnames';
 import useMessageSort from '@/logic/useMessageSort';
 import { useGroups, useVessel } from '@/state/groups';
 import { filters, SidebarFilter } from '@/state/settings';
-import cn from 'classnames';
-import React from 'react';
 import { RECENT } from '../logic/useSidebarSort';
 import { canReadChannel, whomIsDm, whomIsMultiDm } from '../logic/utils';
 import {
@@ -66,7 +66,7 @@ export default function MessagesList({ filter }: MessagesListProps) {
   return (
     <ul
       className={cn(
-        'flex w-full flex-col space-y-3 overflow-x-hidden overflow-y-scroll px-2 pr-0 sm:space-y-1'
+        'flex w-full flex-col space-y-3 overflow-x-hidden pr-0 sm:space-y-1'
       )}
     >
       {allPending &&

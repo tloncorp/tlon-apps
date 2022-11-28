@@ -37,10 +37,9 @@ export default function MobileRoot() {
           </Link>
         </div>
       </header>
-
-      <header className="flex-none px-2 py-1">
+      <nav className="h-full flex-1 overflow-y-auto overflow-x-hidden">
         {hasKeys(pinnedGroups) ? (
-          <ul className="mb-3 space-y-2 sm:mb-2 sm:space-y-0 md:mb-0">
+          <ul className="mb-3 space-y-2 px-2 sm:mb-2 sm:space-y-0 md:mb-0">
             <GroupList
               pinned
               groups={sortedGroups}
@@ -48,9 +47,14 @@ export default function MobileRoot() {
             />
           </ul>
         ) : null}
-      </header>
-      <nav className="h-full flex-1 overflow-y-auto">
-        <GroupList groups={sortedGroups} pinnedGroups={sortedPinnedGroups} />
+        <ul className="mb-3 space-y-2 px-2 sm:mb-2 sm:space-y-0 md:mb-0">
+          <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
+            <span className="ml-4 text-sm font-semibold text-gray-400">
+              All Groups
+            </span>
+          </li>
+          <GroupList groups={sortedGroups} pinnedGroups={sortedPinnedGroups} />
+        </ul>
       </nav>
     </>
   );
