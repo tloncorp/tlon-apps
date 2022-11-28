@@ -23,6 +23,7 @@ export default function ChatMessageOptions(props: {
 }) {
   const { whom, writ, hideReply } = props;
   const groupFlag = useRouteGroup();
+  console.log({ groupFlag });
   const { didCopy, doCopy } = useCopy(
     `/1/chan/chat/${whom}/msg/${writ.seal.id}`
   );
@@ -84,18 +85,20 @@ export default function ChatMessageOptions(props: {
           />
         </>
       ) : null}
-      <IconButton
-        icon={
-          didCopy ? (
-            <CheckIcon className="h-6 w-6 text-gray-400" />
-          ) : (
-            <CopyIcon className="h-6 w-6 text-gray-400" />
-          )
-        }
-        label="Copy"
-        showTooltip
-        action={onCopy}
-      />
+      {groupFlag ? (
+        <IconButton
+          icon={
+            didCopy ? (
+              <CheckIcon className="h-6 w-6 text-gray-400" />
+            ) : (
+              <CopyIcon className="h-6 w-6 text-gray-400" />
+            )
+          }
+          label="Copy"
+          showTooltip
+          action={onCopy}
+        />
+      ) : null}
       {/* <IconButton
         icon={<ShareIcon className="h-6 w-6 text-gray-400" />}
         label="Send to..."
