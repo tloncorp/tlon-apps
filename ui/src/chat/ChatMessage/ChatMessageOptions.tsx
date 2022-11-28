@@ -23,7 +23,6 @@ export default function ChatMessageOptions(props: {
 }) {
   const { whom, writ, hideReply } = props;
   const groupFlag = useRouteGroup();
-  console.log({ groupFlag });
   const { didCopy, doCopy } = useCopy(
     `/1/chan/chat/${whom}/msg/${writ.seal.id}`
   );
