@@ -890,11 +890,15 @@ export function useMultiDmIsPending(id: string): boolean {
     useCallback(
       (s) => {
         const chat = s.multiDms[id];
-        if (!chat) {
-          return false;
+        const brief = s.briefs[id];
+        const isPending = chat && chat.hive.includes(window.our);
+        const inTeam = chat && chat.team.includes(window.our);
+
+        if (isPending) {
+          return true;
         }
 
-        return chat.hive.includes(window.our);
+        return !brief && !inTeam;
       },
       [id]
     )
