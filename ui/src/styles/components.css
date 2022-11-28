@@ -45,6 +45,9 @@
 
 .ProseMirror {
   @apply bg-transparent caret-blue-400 transition-colors focus-within:border-gray-100  focus:outline-none focus-visible:border-gray-100;
+  /* Father forgive me for my sins.
+     we use anywhere here because any other value makes the input overflow. */
+  overflow-wrap: anywhere !important;
 }
 
 /* Placeholder (at the top) */
@@ -55,6 +58,14 @@
 
 .ProseMirror li :where(p):not(:where([class~='not-prose'] *)) {
   @apply my-0;
+}
+
+/* hack to prevent auto-zoom on em-emoji-picker */
+@media screen and (max-width: 767px) {
+  em-emoji-picker {
+    --font-size: 17px;
+    height: 45vh;
+  }
 }
 
 .dialog-container {
@@ -70,11 +81,15 @@
 }
 
 .dropdown {
-  @apply flex min-w-40 flex-col rounded-lg bg-white py-0 font-semibold shadow-lg dark:border dark:border-gray-50;
+  @apply z-10 flex min-w-40 flex-col space-y-0.5 rounded-lg bg-white p-2 font-semibold shadow-lg dark:border dark:border-gray-50;
 }
 
 .dropdown-item {
-  @apply cursor-pointer rounded-lg px-2 py-3 ring-gray-200 hover:bg-gray-50 focus:outline-none;
+  @apply cursor-pointer rounded p-4 ring-gray-200 hover:bg-gray-50 focus:outline-none;
+}
+
+.dropdown-item-icon {
+  @apply dropdown-item flex w-full items-center space-x-2 p-2;
 }
 
 .card {

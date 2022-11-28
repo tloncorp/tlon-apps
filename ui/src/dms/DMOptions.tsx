@@ -1,19 +1,19 @@
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
-import Dialog, { DialogContent } from '../components/Dialog';
-import EllipsisIcon from '../components/icons/EllipsisIcon';
-import LeaveIcon from '../components/icons/LeaveIcon';
-import { useBriefs, useChatState, usePinned } from '../state/chat';
-import PinIcon from '../components/icons/PinIcon';
-import BulletIcon from '../components/icons/BulletIcon';
-import InviteIcon16 from '../components/icons/InviteIcon16';
+import Dialog, { DialogContent } from '@/components/Dialog';
+import EllipsisIcon from '@/components/icons/EllipsisIcon';
+import LeaveIcon from '@/components/icons/LeaveIcon';
+import { useChatState, usePinned } from '@/state/chat';
+import PinIcon from '@/components/icons/PinIcon';
+import BulletIcon from '@/components/icons/BulletIcon';
+import InviteIcon16 from '@/components/icons/InviteIcon16';
+import { whomIsMultiDm } from '@/logic/utils';
+import PeopleIcon from '@/components/icons/PeopleIcon';
+import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import DmInviteDialog from './DmInviteDialog';
-import { whomIsMultiDm } from '../logic/utils';
-import SlidersIcon from '../components/icons/SlidersIcon';
-import PeopleIcon from '../components/icons/PeopleIcon';
 
 interface DMOptionsProps {
   whom: string;
@@ -33,8 +33,8 @@ export default function DmOptions({
   const location = useLocation();
   const navigate = useNavigate();
   const pinned = usePinned();
-  const briefs = useBriefs();
-  const hasActivity = (briefs[whom]?.count ?? 0) > 0 || pending;
+  const isUnread = useIsChannelUnread(`chat/${whom}`);
+  const hasActivity = isUnread || pending;
   const [isOpen, setIsOpen] = useState(false);
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
   const onArchive = () => {
@@ -47,9 +47,7 @@ export default function DmOptions({
   }, [whom]);
 
   const [dialog, setDialog] = useState(false);
-  const onTryArchive = (e: Event) => {
-    setDialog(true);
-  };
+
   const leaveMessage = () => {
     navigate('/dm');
     if (whomIsMultiDm(whom)) {
@@ -144,27 +142,18 @@ export default function DmOptions({
                 </DropdownMenu.Item>
               ) : null}
               {isMulti ? (
-                <>
-                  <DropdownMenu.Item
-                    className="dropdown-item flex items-center space-x-2"
-                    onClick={(e) => e.preventDefault}
+                <DropdownMenu.Item
+                  className="dropdown-item flex items-center space-x-2"
+                  asChild
+                >
+                  <Link
+                    to={`/dm/${whom}/edit-info`}
+                    state={{ backgroundLocation: location }}
                   >
                     <PeopleIcon className="h-6 w-6" />
-                    <span>Info</span>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className="dropdown-item flex items-center space-x-2"
-                    asChild
-                  >
-                    <Link
-                      to={`/dm/${whom}/edit-info`}
-                      state={{ backgroundLocation: location }}
-                    >
-                      <SlidersIcon className="h-6 w-6" />
-                      <span>Edit Chat Info</span>
-                    </Link>
-                  </DropdownMenu.Item>
-                </>
+                    <span>Chat Info</span>
+                  </Link>
+                </DropdownMenu.Item>
               ) : null}
               <DropdownMenu.Item
                 className="dropdown-item flex items-center space-x-3"

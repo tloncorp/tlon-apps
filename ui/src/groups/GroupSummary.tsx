@@ -1,28 +1,32 @@
 import React from 'react';
-import Lock16Icon from '@/components/icons/Lock16Icon';
-import Globe16Icon from '@/components/icons/Globe16Icon';
-import Private16Icon from '@/components/icons/Private16Icon';
-import { getFlagParts, getGroupPrivacy } from '@/logic/utils';
-import { GroupPreview } from '@/types/groups';
-import { useGroup } from '@/state/groups';
-import Person16Icon from '@/components/icons/Person16Icon';
 import ShipName from '@/components/ShipName';
-import GroupAvatar from './GroupAvatar';
+import Lock16Icon from '@/components/icons/Lock16Icon';
+import Private16Icon from '@/components/icons/Private16Icon';
+import { getFlagParts } from '@/logic/utils';
+import { GroupPreview } from '@/types/groups';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import GroupAvatar from '@/groups/GroupAvatar';
+import Globe16Icon from '@/components/icons/Globe16Icon';
 
 export type GroupSummarySize = 'default' | 'small';
 
 interface GroupSummaryProps extends Partial<GroupPreview> {
   flag: string;
+  preview: GroupPreview | null;
   size?: GroupSummarySize;
 }
 
 export default function GroupSummary({
   flag,
-  cordon,
-  meta,
+  preview,
   size = 'default',
 }: GroupSummaryProps) {
-  const privacy = cordon && getGroupPrivacy(cordon);
+  const { privacy } = useGroupPrivacy(flag);
+
+  if (!preview) {
+    return null;
+  }
+  const { meta } = preview;
   const { ship } = getFlagParts(flag);
 
   return (

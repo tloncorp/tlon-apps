@@ -1,17 +1,16 @@
+import bigInt from 'big-integer';
+import { BigIntOrderedMap, decToUd, udToDec } from '@urbit/api';
+import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import {
-  NoteDiff,
   NoteSeal,
   DiaryNote,
   DiaryNotes,
   DiaryFlag,
-  DiaryDiff,
   DiaryUpdate,
   DiaryOutlines,
   DiaryLetter,
   DiaryQuip,
 } from '@/types/diary';
-import { BigIntOrderedMap, decToUd, udToDec } from '@urbit/api';
-import bigInt from 'big-integer';
 import api from '../../api';
 import { DiaryState } from './type';
 
@@ -75,7 +74,9 @@ export default function makeNotesStore(
 
   return {
     initialize: async () => {
-      const notes = await scry<DiaryOutlines>(`/newest/100/outline`);
+      const notes = await scry<DiaryOutlines>(
+        `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`
+      );
       const sta = get();
       sta.batchSet((draft) => {
         let noteMap = new BigIntOrderedMap<DiaryLetter>();
@@ -94,7 +95,7 @@ export default function makeNotesStore(
         app: 'diary',
         path: subPath,
         event: (data: DiaryUpdate) => {
-          const { diff: d } = data;
+          const { time: addTime, diff: d } = data;
           if ('notes' in d) {
             const { time, delta } = d.notes;
             const noteId = udToDec(time);
@@ -113,7 +114,7 @@ export default function makeNotesStore(
                   seal,
                   essay: delta.add,
                 };
-                noteMap = noteMap.set(bigTime, note);
+                noteMap = noteMap.set(bigInt(udToDec(addTime)), note);
               } else if ('edit' in delta && noteMap.has(bigTime)) {
                 const note = noteMap.get(bigTime);
                 if (!note) {
@@ -128,7 +129,7 @@ export default function makeNotesStore(
               } else if ('quips' in delta) {
                 const { time: quipId, delta: quipDel } = delta.quips;
                 // const { delta, time: quipId } = diff;
-                const k = bigInt(udToDec(time));
+                const k = bigInt(udToDec(quipId));
                 const note = noteMap.get(bigTime);
                 if (!note) {
                   return;

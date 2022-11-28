@@ -1,11 +1,10 @@
 import { useCallback } from 'react';
-import { useBriefs } from '@/state/chat';
-import { ChatWhom } from '@/types/chat';
 import {
   SettingsState,
   useSettingsState,
   useGroupSideBarSort,
 } from '@/state/settings';
+import useAllBriefs from './useAllBriefs';
 
 export const ALPHABETICAL = 'A → Z';
 export const DEFAULT = 'Arranged';
@@ -21,19 +20,19 @@ interface UseSidebarSort {
   flag?: string;
 }
 
-export const sortAlphabetical = (a: ChatWhom, b: ChatWhom) =>
-  a.localeCompare(b);
+export const sortAlphabetical = (aNest: string, bNest: string) =>
+  aNest.localeCompare(bNest);
 
 const selSideBarSort = (s: SettingsState) => ({
   sideBarSort: s.groups.sideBarSort,
 });
 
 export function useRecentSort() {
-  const briefs = useBriefs();
+  const briefs = useAllBriefs();
   const sortRecent = useCallback(
-    (a: ChatWhom, b: ChatWhom) => {
-      const aLast = briefs[a]?.last ?? Number.NEGATIVE_INFINITY;
-      const bLast = briefs[b]?.last ?? Number.NEGATIVE_INFINITY;
+    (aNest: string, bNest: string) => {
+      const aLast = briefs[aNest]?.last ?? Number.NEGATIVE_INFINITY;
+      const bLast = briefs[bNest]?.last ?? Number.NEGATIVE_INFINITY;
       if (aLast < bLast) {
         return -1;
       }
@@ -89,7 +88,8 @@ export default function useSidebarSort({
       const aVal = accessor(aKey, aObj);
       const bVal = accessor(bKey, bObj);
 
-      return sortOptions[sortFn ?? 'A → Z'](aVal, bVal);
+      const sorter = sortOptions[sortFn] ?? sortOptions[ALPHABETICAL];
+      return sorter(aVal, bVal);
     });
 
     return reverse ? entries.reverse() : entries;

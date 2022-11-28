@@ -1,48 +1,21 @@
 import { get } from 'lodash';
-import { useCallback } from 'react';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { GroupChannel, Channels, Zone } from '@/types/groups';
-import { useGetLatestMessage } from '@/state/chat';
-import { ChatWhom } from '@/types/chat';
 import useSidebarSort, {
   ALPHABETICAL,
   DEFAULT,
   RECENT,
   sortAlphabetical,
   Sorter,
+  useRecentSort,
 } from './useSidebarSort';
 
 const UNZONED = 'default';
 
-function useRecentChannelSort() {
-  const getLatest = useGetLatestMessage();
-
-  const sortRecent = useCallback(
-    (a: ChatWhom, b: ChatWhom) => {
-      // TODO: why is bigInt comparison not working? strings do work :)
-      // const aLast = getLatest(a)[0] ?? bigInt(Number.NEGATIVE_INFINITY);
-      // const bLast = getLatest(b)[0] ?? bigInt(Number.NEGATIVE_INFINITY);
-      const aLast = (getLatest(a)[0] ?? Number.NEGATIVE_INFINITY).toString();
-      const bLast = (getLatest(b)[0] ?? Number.NEGATIVE_INFINITY).toString();
-
-      if (aLast < bLast) {
-        return -1;
-      }
-      if (aLast > bLast) {
-        return 1;
-      }
-      return 0;
-    },
-    [getLatest]
-  );
-
-  return sortRecent;
-}
-
 export default function useChannelSort() {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
-  const sortRecent = useRecentChannelSort();
+  const sortRecent = useRecentSort();
 
   const sortDefault = (a: Zone, b: Zone) => {
     if (!group) {

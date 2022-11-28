@@ -1,4 +1,6 @@
-export type Ship = string;
+export interface Ship {
+  ship: string;
+}
 
 export interface Italics {
   italics: Inline[];
@@ -105,4 +107,8 @@ export function isBlockCode(item: unknown): item is BlockCode {
 
 export function isBreak(item: unknown): item is Break {
   return typeof item === 'object' && item !== null && 'break' in item;
+}
+
+export function isShip(item: unknown): item is Ship {
+  return typeof item === 'object' && item !== null && 'ship' in item;
 }

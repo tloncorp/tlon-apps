@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import cn from 'classnames';
-import { intersection } from 'lodash';
+import { intersection, findLast } from 'lodash';
 import { useForm } from 'react-hook-form';
 import LinkIcon from '@/components/icons/LinkIcon';
 import { useHeapPerms, useHeapState } from '@/state/heap/heap';
@@ -18,7 +18,11 @@ import {
   NewCurioFormSchema,
   TEXT,
 } from '@/types/heap';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import { useHeapDisplayMode } from '@/state/settings';
+import { useFileStore } from '@/state/storage';
+import useFileUpload from '@/logic/useFileUpload';
 import HeapTextInput from './HeapTextInput';
 
 export default function NewCurioForm() {
@@ -39,11 +43,36 @@ export default function NewCurioForm() {
     perms.writers.length === 0 ||
     intersection(perms.writers, vessel.sects).length !== 0;
 
-  const { register, handleSubmit, reset, watch } = useForm<NewCurioFormSchema>({
-    defaultValues: {
-      content: '',
-    },
-  });
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const { loaded, hasCredentials, promptUpload } = useFileUpload();
+  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
+  const mostRecentFile = useFileStore((state) =>
+    findLast(state.files, ['for', fileId.current])
+  );
+  const { register, handleSubmit, reset, watch, setValue } =
+    useForm<NewCurioFormSchema>({
+      defaultValues: {
+        content: '',
+      },
+    });
+
+  useEffect(() => {
+    if (
+      mostRecentFile &&
+      mostRecentFile.status === 'error' &&
+      mostRecentFile.errorMessage
+    ) {
+      setUploadError(mostRecentFile.errorMessage);
+    }
+
+    if (mostRecentFile && mostRecentFile.status === 'success') {
+      setValue('content', mostRecentFile.url, {
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+    }
+  }, [mostRecentFile, setValue]);
+
   const { isPending, setPending, setReady } = useRequestState();
   const onSubmit = useCallback(
     async ({ content }: NewCurioFormSchema) => {
@@ -138,7 +167,7 @@ export default function NewCurioForm() {
             <textarea
               {...register('content')}
               className={cn(
-                'h-full w-full resize-none rounded-lg border-2 py-1 px-2 leading-5 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400 focus:outline-none',
+                'mb-4 h-full w-full resize-none rounded-lg border-2 py-1 px-2 leading-5 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400 focus:outline-none',
                 isListMode
                   ? 'min-h-[60px] rounded-tl-none border-gray-100 bg-white align-middle focus:border-gray-300'
                   : 'border-gray-50 bg-gray-50'
@@ -147,6 +176,31 @@ export default function NewCurioForm() {
               onKeyDown={onKeyDown}
               defaultValue={draftLink}
             />
+            {loaded && hasCredentials ? (
+              <button
+                title={'Upload an image'}
+                className="button absolute bottom-3 left-3 whitespace-nowrap rounded-md px-2 py-1"
+                aria-label="Add attachment"
+                onClick={(e) => {
+                  e.preventDefault();
+                  promptUpload(fileId.current);
+                }}
+              >
+                {mostRecentFile && mostRecentFile.status === 'loading' ? (
+                  <LoadingSpinner secondary="black" className="h-4 w-4" />
+                ) : (
+                  'Upload Image'
+                )}
+              </button>
+            ) : null}
+            {uploadError ? (
+              <div className="absolute mr-2">
+                <UploadErrorPopover
+                  errorMessage={uploadError}
+                  setUploadError={setUploadError}
+                />
+              </div>
+            ) : null}
             <input
               value={isPending ? 'Posting...' : 'Post'}
               type="submit"
@@ -159,11 +213,13 @@ export default function NewCurioForm() {
             draft={draftText}
             setDraft={setDraftText}
             flag={chFlag}
-            className="flex-1"
+            className={cn(
+              isListMode ? 'flex-1' : 'h-full w-full overflow-y-hidden'
+            )}
             inputClass={cn(
               isListMode
-                ? 'border-gray-100 bg-white focus-within:border-gray-300 focus:outline-none rounded-tl-none min-h-[60px]'
-                : 'border-gray-50 focus-within:border-gray-50 bg-gray-50 focus-within:bg-gray-50 focus:outline-none'
+                ? 'border-gray-100 bg-white focus-within:border-gray-300 mb-4 focus:outline-none rounded-tl-none min-h-[60px]'
+                : 'border-gray-50 overflow-y-auto focus-within:border-gray-50 bg-gray-50 focus-within:bg-gray-50 focus:outline-none'
             )}
           />
         )}

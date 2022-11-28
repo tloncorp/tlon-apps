@@ -1,11 +1,8 @@
 import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
-import Dialog, {
-  DialogClose,
-  DialogContent,
-  DialogTrigger,
-} from '@/components/Dialog';
+import { useNavigate } from 'react-router';
+import Dialog, { DialogClose, DialogContent } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
 import {
   GroupFormSchema,
@@ -13,8 +10,9 @@ import {
   PrivacyType,
   ViewProps,
 } from '@/types/groups';
-import { useNavigate } from 'react-router';
-import { getGroupPrivacy } from '@/logic/utils';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GroupInfoFields from '../GroupInfoFields';
 import PrivacySelector from '../PrivacySelector';
 
@@ -34,12 +32,16 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const [deleteField, setDeleteField] = useState('');
+  const { privacy } = useGroupPrivacy(groupFlag);
+  const [status, setStatus] = useState<Status>('initial');
+  const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
       ...emptyMeta,
       ...group?.meta,
-      privacy: (group && getGroupPrivacy(group.cordon)) || 'public',
+      privacy,
     },
   });
 
@@ -47,9 +49,9 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     form.reset({
       ...emptyMeta,
       ...group?.meta,
-      privacy: (group && getGroupPrivacy(group.cordon)) || 'public',
+      privacy,
     });
-  }, [group, form]);
+  }, [group, form, privacy]);
 
   const onDeleteChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -59,16 +61,51 @@ export default function GroupInfoEditor({ title }: ViewProps) {
     [setDeleteField]
   );
 
-  const onDelete = useCallback(() => {
-    useGroupState.getState().delete(groupFlag);
-    navigate('/');
+  const onDelete = useCallback(async () => {
+    setDeleteStatus('loading');
+    try {
+      await useGroupState.getState().delete(groupFlag);
+      setDeleteStatus('success');
+      setDeleteDialogOpen(false);
+      navigate('/');
+    } catch (e) {
+      setDeleteStatus('error');
+    }
   }, [groupFlag, navigate]);
 
   const onSubmit = useCallback(
-    (values: GroupMeta) => {
-      useGroupState.getState().edit(groupFlag, values);
+    async (values: GroupMeta & { privacy: PrivacyType }) => {
+      setStatus('loading');
+      try {
+        await useGroupState.getState().edit(groupFlag, values);
+        const privacyChanged = values.privacy !== privacy;
+        if (privacyChanged) {
+          await useGroupState.getState().swapCordon(
+            groupFlag,
+            values.privacy === 'public'
+              ? {
+                  open: {
+                    ships: [],
+                    ranks: [],
+                  },
+                }
+              : {
+                  shut: {
+                    pending: [],
+                    ask: [],
+                  },
+                }
+          );
+          await useGroupState
+            .getState()
+            .setSecret(groupFlag, values.privacy === 'secret');
+        }
+        setStatus('success');
+      } catch (e) {
+        setStatus('error');
+      }
     },
-    [groupFlag]
+    [groupFlag, privacy]
   );
 
   return (
@@ -103,7 +140,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
               className="button"
               disabled={!form.formState.isDirty}
             >
-              Save
+              {status === 'loading' ? (
+                <LoadingSpinner />
+              ) : status === 'error' ? (
+                'Error'
+              ) : (
+                'Save'
+              )}
             </button>
           </footer>
         </form>
@@ -113,10 +156,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
         <p className="mb-4">
           Deleting this group will permanently remove all content and members
         </p>
-        <Dialog>
-          <DialogTrigger className="button bg-red text-white dark:text-black">
+        <Dialog open={deleteDialogOpen}>
+          <button
+            onClick={() => setDeleteDialogOpen(true)}
+            className="button bg-red text-white dark:text-black"
+          >
             Delete {group?.meta.title}
-          </DialogTrigger>
+          </button>
           <DialogContent containerClass="max-w-[420px]">
             <h2 className="mb-4 text-lg font-bold">Delete Group</h2>
             <p className="mb-4">
@@ -135,7 +181,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
                 disabled={!eqGroupName(deleteField, group?.meta.title || '')}
                 onClick={onDelete}
               >
-                Delete
+                {deleteStatus === 'loading' ? (
+                  <LoadingSpinner />
+                ) : deleteStatus === 'error' ? (
+                  'Error'
+                ) : (
+                  'Delete'
+                )}
               </DialogClose>
             </div>
           </DialogContent>

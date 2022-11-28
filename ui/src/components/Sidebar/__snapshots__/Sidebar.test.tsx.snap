@@ -15,6 +15,7 @@ exports[`Sidebar > renders as expected 1`] = `
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold text-black hover:text-gray-800 group"
         >
           <div
+            aria-expanded="false"
             aria-haspopup="menu"
             class="appearance-none h-6 w-6 rounded group-hover:bg-gray-100"
             data-state="closed"
@@ -292,6 +293,10 @@ exports[`Sidebar > renders as expected 1`] = `
           </div>
         </a>
       </li>
+    </ul>
+    <ul
+      class="flex-1 overflow-y-auto overflow-x-hidden px-2"
+    >
       <li
         class="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2"
       >
@@ -305,6 +310,7 @@ exports[`Sidebar > renders as expected 1`] = `
         class="relative p-2"
       >
         <button
+          aria-expanded="false"
           aria-haspopup="menu"
           aria-label="Groups Sort Options"
           class="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
@@ -350,40 +356,40 @@ exports[`Sidebar > renders as expected 1`] = `
           </svg>
         </button>
       </li>
-    </ul>
-    <ul
-      class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"
-    >
-      <li
-        class="relative flex w-full items-center justify-between rounded-lg"
+      <ul
+        class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"
       >
-        <div
-          class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
+        <li
+          class="relative flex w-full items-center justify-between rounded-lg"
         >
           <div
-            class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
-          />
-          <div
-            class="bg-gray-100 h-4 rounded-md"
-            style="width: 100px;"
-          />
-        </div>
-      </li>
-      <li
-        class="relative flex w-full items-center justify-between rounded-lg"
-      >
-        <div
-          class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
+            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
+          >
+            <div
+              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
+            />
+            <div
+              class="bg-gray-100 h-4 rounded-md"
+              style="width: 100px;"
+            />
+          </div>
+        </li>
+        <li
+          class="relative flex w-full items-center justify-between rounded-lg"
         >
           <div
-            class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
-          />
-          <div
-            class="bg-gray-100 h-4 rounded-md"
-            style="width: 100px;"
-          />
-        </div>
-      </li>
+            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
+          >
+            <div
+              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
+            />
+            <div
+              class="bg-gray-100 h-4 rounded-md"
+              style="width: 100px;"
+            />
+          </div>
+        </li>
+      </ul>
     </ul>
   </nav>
 </DocumentFragment>

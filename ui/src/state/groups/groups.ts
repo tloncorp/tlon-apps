@@ -14,6 +14,7 @@ import {
   GroupPreview,
   GroupIndex,
   ChannelPreview,
+  Cordon,
 } from '@/types/groups';
 import api from '@/api';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
@@ -157,9 +158,31 @@ export const useGroupState = create<GroupState>(
           console.error(e);
         }
       },
-      edit: async (flag, metadata) => {
-        await api.poke(groupAction(flag, { meta: metadata }));
-      },
+      edit: async (flag, metadata) =>
+        new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, { meta: metadata }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff } = event.update;
+                    return (
+                      'meta' in diff &&
+                      diff.meta.title === metadata.title &&
+                      event.flag === flag
+                    );
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        }),
       create: async (req) =>
         new Promise((resolve, reject) => {
           api.poke({
@@ -186,9 +209,27 @@ export const useGroupState = create<GroupState>(
             },
           });
         }),
-      delete: async (flag) => {
-        await api.poke(groupAction(flag, { del: null }));
-      },
+      delete: async (flag) =>
+        new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, { del: null }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff } = event.update;
+                    return 'del' in diff && event.flag === flag;
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        }),
       join: async (flag, joinAll) => {
         get().batchSet((draft) => {
           draft.gangs[flag].invite = null;
@@ -198,13 +239,29 @@ export const useGroupState = create<GroupState>(
           };
         });
 
-        await api.poke({
-          app: 'groups',
-          mark: 'group-join',
-          json: {
-            flag,
-            'join-all': joinAll,
-          },
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            app: 'groups',
+            mark: 'group-join',
+            json: {
+              flag,
+              'join-all': joinAll,
+            },
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if (typeof event === 'object' && 'flag' in event) {
+                    return flag === event.flag;
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
         });
       },
       knock: async (flag) => {
@@ -284,8 +341,20 @@ export const useGroupState = create<GroupState>(
           json: flag,
         });
       },
+      swapCordon: async (flag: string, cordon: Cordon) => {
+        await api.poke(
+          groupAction(flag, {
+            cordon: {
+              swap: cordon,
+            },
+          })
+        );
+      },
+      setSecret: async (flag: string, isSecret: boolean) => {
+        await api.poke(groupAction(flag, { secret: isSecret }));
+      },
       addSects: async (flag, ship, sects) => {
-        const diff = {
+        const dif = {
           fleet: {
             ships: [ship],
             diff: {
@@ -293,10 +362,35 @@ export const useGroupState = create<GroupState>(
             },
           },
         };
-        await api.poke(groupAction(flag, diff));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, dif),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff } = event.update;
+                    return (
+                      'fleet' in diff &&
+                      'diff' in diff.fleet &&
+                      'add-sects' in diff.fleet.diff &&
+                      diff.fleet.ships.includes(ship) &&
+                      event.flag === flag
+                    );
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        });
       },
       delSects: async (flag, ship, sects) => {
-        const diff = {
+        const dif = {
           fleet: {
             ships: [ship],
             diff: {
@@ -304,7 +398,32 @@ export const useGroupState = create<GroupState>(
             },
           },
         };
-        await api.poke(groupAction(flag, diff));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, dif),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff } = event.update;
+                    return (
+                      'fleet' in diff &&
+                      'diff' in diff.fleet &&
+                      'del-sects' in diff.fleet.diff &&
+                      diff.fleet.ships.includes(ship) &&
+                      event.flag === flag
+                    );
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        });
       },
       addMembers: async (flag, ships) => {
         const diff = {
@@ -349,31 +468,71 @@ export const useGroupState = create<GroupState>(
         await api.poke(groupAction(flag, diff));
       },
       editChannel: async (flag, nest, channel) => {
-        await api.poke(
-          groupAction(flag, {
-            channel: {
-              nest,
-              diff: {
-                add: channel,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, {
+              channel: {
+                nest,
+                diff: {
+                  add: channel,
+                },
               },
+            }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { update } = event as GroupAction;
+                    return (
+                      'channel' in update.diff &&
+                      nest === update.diff.channel.nest &&
+                      'add' in update.diff.channel.diff
+                    );
+                  }
+
+                  return false;
+                });
+              resolve();
             },
-          })
-        );
+          });
+        });
       },
       deleteChannel: async (flag, nest) => {
-        await api.poke(
-          groupAction(flag, {
-            channel: {
-              nest,
-              diff: {
-                del: null,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, {
+              channel: {
+                nest,
+                diff: {
+                  del: null,
+                },
               },
+            }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { update } = event as GroupAction;
+                    return (
+                      'channel' in update.diff &&
+                      nest === update.diff.channel.nest &&
+                      'del' in update.diff.channel.diff
+                    );
+                  }
+
+                  return false;
+                });
+              resolve();
             },
-          })
-        );
+          });
+        });
       },
       createZone: async (flag, zone, meta) => {
-        const diff = {
+        const dif = {
           zone: {
             zone,
             delta: {
@@ -381,7 +540,29 @@ export const useGroupState = create<GroupState>(
             },
           },
         };
-        await api.poke(groupAction(flag, diff));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, dif),
+            onError: () => reject(),
+            onSuccess: async () => {
+              useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { update } = event as GroupAction;
+                    return (
+                      'zone' in update.diff &&
+                      zone === update.diff.zone.zone &&
+                      'add' in update.diff.zone.delta
+                    );
+                  }
+
+                  return false;
+                });
+              resolve();
+            },
+          });
+        });
       },
       editZone: async (flag, zone, meta) => {
         const diff = {
@@ -417,7 +598,7 @@ export const useGroupState = create<GroupState>(
         await api.poke(groupAction(flag, diff));
       },
       addChannelToZone: async (zone, flag, nest) => {
-        const diff = {
+        const dif = {
           channel: {
             nest,
             diff: {
@@ -425,7 +606,32 @@ export const useGroupState = create<GroupState>(
             },
           },
         };
-        await api.poke(groupAction(flag, diff));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, dif),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff } = event.update;
+                    if ('channel' in diff) {
+                      const { nest: channelNest, diff: channelDiff } =
+                        diff.channel;
+                      if (channelNest === nest && 'zone' in channelDiff) {
+                        return true;
+                      }
+                    }
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
+        });
       },
       moveChannel: async (flag, zone, nest, index) => {
         const diff = {
@@ -518,17 +724,21 @@ export const useGroupState = create<GroupState>(
             }
 
             const { flag, update } = data as GroupAction;
-            if ('create' in update.diff) {
-              const group = update.diff.create;
-              get().batchSet((draft) => {
-                draft.groups[flag] = group;
-              });
-            }
+            if (update) {
+              // check if update exists, sometimes we just get back the flag.
+              // TODO: figure out why this happens
+              if ('create' in update.diff) {
+                const group = update.diff.create;
+                get().batchSet((draft) => {
+                  draft.groups[flag] = group;
+                });
+              }
 
-            if ('del' in update.diff) {
-              get().batchSet((draft) => {
-                delete draft.groups[flag];
-              });
+              if ('del' in update.diff) {
+                get().batchSet((draft) => {
+                  delete draft.groups[flag];
+                });
+              }
             }
           },
         });
@@ -598,7 +808,7 @@ export function useGroupList(): string[] {
 
 export function useVessel(flag: string, ship: string) {
   return useGroupState(
-    useCallback((s) => s.groups[flag].fleet[ship], [ship, flag])
+    useCallback((s) => s.groups[flag]?.fleet[ship], [ship, flag])
   );
 }
 

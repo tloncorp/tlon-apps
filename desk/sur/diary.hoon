@@ -1,9 +1,5 @@
-/-  g=groups, c=cite, zer=diary-0
+/-  g=groups, c=cite, e=epic
 |%
-++  old
-  |%
-  ++  zero  zer
-  --
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)
 ::  $feel: either an emoji identifier like :diff or a URL for custom
@@ -225,15 +221,12 @@
 ::
 ::  $net: an indicator of whether I'm a host or subscriber
 ::
-::    %load: initiating diary join
 ::    %pub: am publisher/host with fresh log
-::    %sub: subscribed to the ship
+::    %sub: subscribed to the ship at saga
 ::
 +$  net
-  $~  [%load ~]
-  $%  [%sub p=ship]
+  $%  [%sub p=ship load=_| =saga:e]
       [%pub ~] :: TODO: permissions?
-      [%load ~]
   ==
 ::
 ::  $briefs: a map of diary unread information
@@ -292,10 +285,5 @@
       description=cord
       readers=(set sect:g)
       writers=(set sect:g)
-  ==
-::  $state-0: initial version
-+$  state-0
-  $:  %0
-      =shelf
   ==
 --

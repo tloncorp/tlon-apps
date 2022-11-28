@@ -30,9 +30,11 @@ import {
   createStorageKey,
   clearStorageMigration,
   storageVersion,
+  nestToFlag,
 } from '@/logic/utils';
 import { DiaryState } from './type';
 import makeNotesStore from './notes';
+import useSubscriptionState from '../subscription';
 
 setAutoFreeze(false);
 
@@ -232,10 +234,28 @@ export const useDiaryState = create<DiaryState>(
         await api.poke(diaryNoteDiff(flag, time, { del: null }));
       },
       create: async (req) => {
-        await api.poke({
-          app: 'diary',
-          mark: 'diary-create',
-          json: req,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            app: 'diary',
+            mark: 'diary-create',
+            json: req,
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('diary/ui', (event) => {
+                  const { update, flag } = event;
+                  if (
+                    'create' in update.diff &&
+                    flag === `${req.group.split('/')[0]}/${req.name}`
+                  ) {
+                    return true;
+                  }
+                  return false;
+                });
+              resolve();
+            },
+          });
         });
       },
       addSects: async (flag, sects) => {
@@ -317,6 +337,10 @@ export function useDiaryIsJoined(flag: DiaryFlag) {
 
 export function useNotes(flag: DiaryFlag) {
   return useDiaryState(useCallback((s) => s.notes[flag], [flag]));
+}
+
+export function useAllNotes() {
+  return useDiaryState(useCallback((s: DiaryState) => s.notes, []));
 }
 
 export function useCurrentNotesSize(flag: DiaryFlag) {
@@ -404,6 +428,18 @@ export function useBrief(flag: string) {
 //   const getQuip = useQuips;
 //   const quipNotes = Array.from(notes).map(([time, note]) => [time, getQuip(flag, time.toString())]);
 // }
+
+export function useGetLatestNote() {
+  const def = useMemo(() => new BigIntOrderedMap<DiaryLetter>(), []);
+  const empty = [bigInt(), null];
+  const allNotes = useAllNotes();
+
+  return (chFlag: string) => {
+    const noteFlag = chFlag.startsWith('~') ? chFlag : nestToFlag(chFlag)[1];
+    const notes = allNotes[noteFlag] ?? def;
+    return notes.size > 0 ? notes.peekLargest() : empty;
+  };
+}
 
 (window as any).diary = useDiaryState.getState;
 

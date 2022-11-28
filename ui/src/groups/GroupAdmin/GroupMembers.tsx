@@ -1,13 +1,21 @@
 import { Helmet } from 'react-helmet';
 import cn from 'classnames';
-import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { useGroup, useRouteGroup } from '@/state/groups/groups';
+import React, { useEffect } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAmAdmin, useGroup, useRouteGroup } from '@/state/groups/groups';
 import { ViewProps } from '@/types/groups';
 
 export default function GroupMembers({ title }: ViewProps) {
+  const navigate = useNavigate();
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const amAdmin = useAmAdmin(flag);
+
+  useEffect(() => {
+    if (!amAdmin) {
+      navigate('../');
+    }
+  }, [amAdmin, navigate]);
 
   if (!group) {
     return null;

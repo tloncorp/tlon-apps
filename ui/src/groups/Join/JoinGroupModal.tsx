@@ -1,15 +1,16 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import { useGang, useRouteGroup } from '@/state/groups';
-import { useNavigate } from 'react-router';
-import GroupSummary from '../GroupSummary';
-import useGroupJoin from '../useGroupJoin';
+import GroupSummary from '@/groups/GroupSummary';
+import useGroupJoin from '@/groups/useGroupJoin';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 export default function JoinGroupModal() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
   const gang = useGang(flag);
-  const { group, dismiss, reject, button } = useGroupJoin(flag, gang);
+  const { group, dismiss, reject, button, status } = useGroupJoin(flag, gang);
 
   useEffect(() => {
     if (group) {
@@ -22,7 +23,7 @@ export default function JoinGroupModal() {
       <DialogContent containerClass="w-full max-w-md">
         <div className="space-y-6">
           <h2 className="text-lg font-bold">Join a Group</h2>
-          <GroupSummary flag={flag} {...gang.preview} />
+          <GroupSummary flag={flag} preview={gang.preview} />
           <p>{gang.preview?.meta.description}</p>
           <div className="flex items-center justify-end space-x-2">
             <button
@@ -31,7 +32,7 @@ export default function JoinGroupModal() {
             >
               Back
             </button>
-            {gang.invite ? (
+            {gang.invite && status !== 'loading' ? (
               <button
                 className="button bg-red text-white dark:text-black"
                 onClick={reject}
@@ -39,13 +40,22 @@ export default function JoinGroupModal() {
                 Reject Invite
               </button>
             ) : null}
-            <button
-              className="button ml-2 bg-blue text-white dark:text-black"
-              onClick={button.action}
-              disabled={button.disabled}
-            >
-              {button.text}
-            </button>
+            {status === 'loading' ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-400">Joining...</span>
+                <LoadingSpinner className="h-5 w-4" />
+              </div>
+            ) : status === 'error' ? (
+              <span className="text-red-500">Error</span>
+            ) : (
+              <button
+                className="button ml-2 bg-blue text-white dark:text-black"
+                onClick={button.action}
+                disabled={button.disabled}
+              >
+                {button.text}
+              </button>
+            )}
           </div>
         </div>
       </DialogContent>

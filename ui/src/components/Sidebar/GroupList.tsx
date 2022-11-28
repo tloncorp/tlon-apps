@@ -173,6 +173,7 @@ function GangItem(props: { flag: string }) {
       <Popover.Content
         side={isMobile ? 'top' : 'right'}
         sideOffset={isMobile ? 0 : 16}
+        className="z-10"
       >
         <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg">
           {requested ? (
@@ -297,7 +298,8 @@ export default function GroupList({
       ))}
     </DndProvider>
   ) : (
-    <ul className={cn('h-full space-y-3 p-2 sm:space-y-1', className)}>
+    // <ul className={cn('h-full space-y-3 p-2 sm:space-y-1', className)}>
+    <>
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />
       ))}
@@ -308,6 +310,7 @@ export default function GroupList({
         .map(([flag]) => (
           <GroupItem key={flag} flag={flag} />
         ))}
-    </ul>
+    </>
+    // </ul>
   );
 }

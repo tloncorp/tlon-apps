@@ -3,10 +3,12 @@ import { Draggable } from 'react-beautiful-dnd';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
-import { SectionListItem } from './types';
-import Channels from './Channels';
-import EditSectionDropdown from './EditSectionDropdown';
-import SectionNameEditInput from './SectionNameEditInput';
+import { SectionListItem } from '@/groups/GroupAdmin/AdminChannels/types';
+import Channels from '@/groups/GroupAdmin/AdminChannels/Channels';
+import EditSectionDropdown from '@/groups/GroupAdmin/AdminChannels/EditSectionDropdown';
+import SectionNameEditInput from '@/groups/GroupAdmin/AdminChannels/SectionNameEditInput';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface SectionProps {
   sectionData: SectionListItem;
@@ -30,6 +32,7 @@ export default function Section({
 }: SectionProps) {
   const group = useRouteGroup();
   const [isEditing, setIsEditing] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<Status>('initial');
   const isSectionless = sectionKey === 'default';
 
   useEffect(() => {
@@ -71,6 +74,9 @@ export default function Section({
                     <SixDotIcon className="my-2 mr-3 h-5 w-5 fill-gray-600" />
                   </div>
                 )}
+                {saveStatus === 'loading' && (
+                  <LoadingSpinner className="mr-2 h-4 w-4" />
+                )}
                 {isEditing ? (
                   <SectionNameEditInput
                     handleEditingChange={handleEditingChange}
@@ -79,6 +85,8 @@ export default function Section({
                     onSectionEditNameSubmit={onSectionEditNameSubmit}
                     channels={sectionData.channels}
                     sectionKey={sectionKey}
+                    saveStatus={saveStatus}
+                    setSaveStatus={setSaveStatus}
                   />
                 ) : (
                   <h2 className="alt-highlight text-lg font-semibold">

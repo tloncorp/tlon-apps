@@ -24,12 +24,14 @@ import {
   createStorageKey,
   clearStorageMigration,
   storageVersion,
+  nestToFlag,
 } from '@/logic/utils';
 import useNest from '@/logic/useNest';
 import { intersection } from 'lodash';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
 import { useVessel } from '../groups';
+import useSubscriptionState from '../subscription';
 
 setAutoFreeze(false);
 
@@ -186,10 +188,28 @@ export const useHeapState = create<HeapState>(
         await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
       },
       create: async (req) => {
-        await api.poke({
-          app: 'heap',
-          mark: 'heap-create',
-          json: req,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            app: 'heap',
+            mark: 'heap-create',
+            json: req,
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('heap/ui', (event) => {
+                  const { update, flag } = event;
+                  if (
+                    'create' in update.diff &&
+                    flag === `${req.group.split('/')[0]}/${req.name}`
+                  ) {
+                    return true;
+                  }
+                  return false;
+                });
+              resolve();
+            },
+          });
         });
       },
       addSects: async (flag, sects) => {
@@ -276,6 +296,10 @@ export function useCurios(flag: HeapFlag) {
   return useHeapState(useCallback((s) => s.curios[flag], [flag]));
 }
 
+export function useAllCurios() {
+  return useHeapState(useCallback((s) => s.curios, []));
+}
+
 export function useCurrentCuriosSize(flag: HeapFlag) {
   return useHeapState(useCallback((s) => s.curios[flag]?.size ?? 0, [flag]));
 }
@@ -350,6 +374,18 @@ export function useOrderedCurios(
     nextCurio,
     prevCurio,
     sortedCurios,
+  };
+}
+
+export function useGetLatestCurio() {
+  const def = useMemo(() => new BigIntOrderedMap<HeapCurio>(), []);
+  const empty = [bigInt(), null];
+  const allCurios = useAllCurios();
+
+  return (chFlag: string) => {
+    const curioFlag = chFlag.startsWith('~') ? chFlag : nestToFlag(chFlag)[1];
+    const curios = allCurios[curioFlag] ?? def;
+    return curios.size > 0 ? curios.peekLargest() : empty;
   };
 }
 

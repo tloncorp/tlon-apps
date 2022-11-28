@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import create from 'zustand';
 
-interface QueryData {
-  initialized: boolean;
-  value: boolean;
-}
-
 interface MediaMatchStore {
   media: {
-    [query: string]: QueryData;
+    [query: string]: boolean;
   };
-  setQuery: (query: string, data: QueryData) => void;
+  setQuery: (query: string, data: boolean) => void;
 }
 
 const useMediaMatchStore = create<MediaMatchStore>((set, get) => ({
@@ -24,40 +19,30 @@ const useMediaMatchStore = create<MediaMatchStore>((set, get) => ({
 
 function useQuery(query: string) {
   return useMediaMatchStore(
-    useCallback(
-      (s) =>
-        s.media[query] || {
-          initialized: false,
-          value: false,
-        },
-      [query]
-    )
+    useCallback((s) => s.media[query] || false, [query])
   );
 }
 
+const queries: string[] = [];
+
 export default function useMedia(mediaQuery: string) {
-  const { initialized, value } = useQuery(mediaQuery);
+  const value = useQuery(mediaQuery);
 
   const update = useCallback(
     (e: MediaQueryListEvent) => {
-      useMediaMatchStore.getState().setQuery(mediaQuery, {
-        initialized: true,
-        value: e.matches,
-      });
+      useMediaMatchStore.getState().setQuery(mediaQuery, e.matches);
     },
     [mediaQuery]
   );
 
   useEffect(() => {
-    if (initialized) {
+    if (queries.includes(mediaQuery)) {
       return;
     }
 
     const query = window.matchMedia(mediaQuery);
-    useMediaMatchStore.getState().setQuery(mediaQuery, {
-      initialized: true,
-      value: false,
-    });
+    queries.push(mediaQuery);
+    useMediaMatchStore.getState().setQuery(mediaQuery, query.matches);
 
     query.addEventListener('change', update);
     update({ matches: query.matches } as MediaQueryListEvent);
@@ -65,11 +50,15 @@ export default function useMedia(mediaQuery: string) {
     return () => {
       query.removeEventListener('change', update);
     };
-  }, [initialized, update, mediaQuery]);
+  }, [update, mediaQuery]);
 
   return value;
 }
 
 export function useIsMobile() {
   return useMedia('(max-width: 767px)');
+}
+
+export function useIsDark() {
+  return useMedia('(prefers-color-scheme: dark)');
 }

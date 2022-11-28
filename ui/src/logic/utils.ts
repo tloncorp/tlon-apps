@@ -7,6 +7,7 @@ import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
 import f from 'lodash/fp';
+import { parseToRgba } from 'color2k';
 import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
@@ -15,10 +16,12 @@ import {
   Cordon,
   PrivacyType,
   Rank,
+  Group,
+  GroupPreview,
+  Vessel,
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
-import { DiaryBrief, DiaryQuip, DiaryQuipMap, DiaryQuips } from '@/types/diary';
-import { parseToRgba } from 'color2k';
+import { DiaryBrief, DiaryQuip, DiaryQuipMap } from '@/types/diary';
 
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
@@ -203,21 +206,39 @@ export function getFlagParts(flag: string) {
   };
 }
 
-export function getGroupPrivacy(cordon: Cordon): PrivacyType {
-  if ('open' in cordon) {
-    return 'public';
-  }
-
+export function getPrivacyFromCordon(cordon: Cordon): PrivacyType {
   if ('shut' in cordon) {
     return 'private';
   }
 
-  return 'secret';
+  return 'public';
+}
+
+export function getPrivacyFromPreview(preview: GroupPreview) {
+  if (preview.secret) {
+    return 'secret';
+  }
+
+  return getPrivacyFromCordon(preview.cordon);
+}
+
+export function getPrivacyFromGroup(group: Group): PrivacyType {
+  if (group.secret) {
+    return 'secret';
+  }
+
+  return getPrivacyFromCordon(group.cordon);
+}
+
+export interface WritePermissions {
+  perms: {
+    writers: string[];
+  };
 }
 
 export function getPrivacyFromChannel(
   groupChannel?: GroupChannel,
-  channel?: Chat | Heap
+  channel?: WritePermissions
 ): ChannelPrivacyType {
   if (!groupChannel || !channel) {
     return 'public';
@@ -302,15 +323,21 @@ export async function jsonFetch<T>(
   return data as T;
 }
 
-export function filterJoinedChannels(
-  channels: [string, GroupChannel][],
+export function isChannelJoined(
+  nest: string,
   briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
 ) {
-  return channels.filter(([nest]) => {
-    const [, chFlag] = nestToFlag(nest);
-    const isChannelHost = window.our === chFlag?.split('/')[0];
-    return isChannelHost || (chFlag && chFlag in briefs);
-  });
+  const [, chFlag] = nestToFlag(nest);
+  const isChannelHost = window.our === chFlag?.split('/')[0];
+  return isChannelHost || (nest && nest in briefs);
+}
+
+export function canReadChannel(channel: GroupChannel, vessel: Vessel) {
+  if (channel.readers.length === 0) {
+    return true;
+  }
+
+  return _.intersection(channel.readers, vessel.sects).length > 0;
 }
 
 /**

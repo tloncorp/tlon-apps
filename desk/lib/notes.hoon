@@ -39,11 +39,14 @@
   |=  [now=time =time del=delta:notes:d]
   ^+  not
   ?-  -.del
+    :: we use now on the add to enforce host ordering
+    :: any other actions should use time so that it's
+    :: the note that we're looking for.
       %add
-    =/  =seal:d  [time ~ ~]
-    ?:  (~(has by not) time)
+    =/  =seal:d  [now ~ ~]
+    ?:  (~(has by not) now)
       not
-    (put:on:notes:d not time [seal p.del])
+    (put:on:notes:d not now [seal p.del])
   ::
       %edit
     =/  note  (get time)
@@ -103,7 +106,7 @@
     %+  lien  (tap:on:quips:d quips.note)
     |=  [=^time =quip:d]
     =(author.quip our)
-  ?:  |(=(author.memo our) !in-replies)  ~
+  ?:  |(=(author.memo our) &(!in-replies !=(author.note our)))  ~
   =-  ~[-]
   :~  [%ship author.memo]
       ' commented on '

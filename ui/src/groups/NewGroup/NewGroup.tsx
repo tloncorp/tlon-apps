@@ -1,6 +1,7 @@
 import React, { ReactElement, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { FormProvider, useForm } from 'react-hook-form';
+import { useStep } from 'usehooks-ts';
 import { useGroupState } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
@@ -10,7 +11,6 @@ import Dialog, { DialogContent } from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
-import { useStep } from 'usehooks-ts';
 import { Status } from '@/logic/status';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
@@ -54,7 +54,10 @@ export default function NewGroup() {
 
   const onComplete = useCallback(async () => {
     const { privacy, ...values } = form.getValues();
-    const name = strToSym(values.title);
+    const name = strToSym(values.title).replace(
+      /[^a-z]*([a-z][-\w\d]+)/i,
+      '$1'
+    );
     const members = shipsToInvite.reduce(
       (obj, ship) => ({
         ...obj,
@@ -80,9 +83,13 @@ export default function NewGroup() {
     setStatus('loading');
 
     try {
-      await useGroupState
-        .getState()
-        .create({ ...values, name, members, cordon });
+      await useGroupState.getState().create({
+        ...values,
+        name,
+        members,
+        cordon,
+        secret: privacy === 'secret',
+      });
 
       setStatus('success');
       const flag = `${window.our}/${name}`;
@@ -144,7 +151,7 @@ export default function NewGroup() {
     <Dialog defaultOpen modal={true} onOpenChange={onOpenChange}>
       <DialogContent
         onInteractOutside={(e) => e.preventDefault()}
-        className="sm:inset-y-24"
+        className="w-[500px] sm:inset-y-24"
         containerClass="w-full h-full sm:max-w-lg"
       >
         <FormProvider {...form}>

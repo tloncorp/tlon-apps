@@ -1,15 +1,18 @@
 /-  d=diary, g=groups, ha=hark
 /-  meta
+/-  e=epic
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
 /+  diary-json
+/+  epos-lib=saga
 ^-  agent:gall
 =>
   |%
+  ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %0
         =shelf:d
     ==
   --
@@ -28,93 +31,13 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>([state okay])
   ++  on-load
     |=  =vase
-    =|  cards=(list card)
-    |^  ^-  (quip card _this)
-    =+  !<(old=versioned-state vase)
-    |-
-    ?-  -.old
-      %1  [cards this(state old)]
-    ::
-        %0
-      %=  $
-        old  (state-0-to-1 old)
-      ==
-    ==
-    ::
-    +$  versioned-state
-      $%  state-0
-          state-1
-      ==
-    +$  state-0  [%0 =shelf:zero]
-    ++  zero     zero:old:d
-    +$  state-1  current-state
-    ++  one      d
-    ++  state-0-to-1
-      |=  sta=state-0
-      ^-  state-1
-      :-  %1
-      %-  ~(run by shelf.sta)
-      |=  =diary:zero
-      ^-  diary:one
-      %*  .  *diary:one
-        net    net.diary
-        log    (log-0-to-1 log.diary)
-        perm   perm.diary
-        view   view.diary
-        sort   sort.diary
-        notes  (notes-0-to-1 notes.diary banter.diary)
-        remark  remark.diary
-      ==
-    ::
-    ++  log-0-to-1
-      |=  =log:zero
-      ^-  log:one
-      %+  gas:log-on:one  *log:one
-      %+  turn  (tap:log-on:zero log)
-      |=  [=time =diff:zero]
-      ^-  [_time diff:one]
-      :-  time
-      ^-  diff:one
-      ?.  ?=(%quips -.diff)  diff
-      ^-  diff:one
-      [%notes p.diff %quips (quips-diff-0-to-1 q.diff)]
-    ::
-    ++  quips-diff-0-to-1
-      |=  =diff:quips:zero
-      ^-  diff:quips:one
-      :-  p.diff
-      ?.  ?=(%add -.q.diff)  q.diff
-      add/(memo-0-to-1 p.q.diff)
-    ::
-    ++  notes-0-to-1
-      |=  [=notes:zero banter=(map time quips:zero)] 
-      ^-  notes:one
-      %+  gas:on:notes:one  *notes:one
-      %+  turn  (tap:on:notes:zero notes)
-      |=  [=time =note:zero]
-      ^-  [_time note:one]
-      :-  time
-      :_  +.note
-      ^-  seal:one
-      [time (quips-0-to-1 (~(gut by banter) time *quips:zero)) feels.note]
-    ::
-    ++  quips-0-to-1
-      |=  =quips:zero
-      ^-  quips:one
-      %+  gas:on:quips:one  *quips:one
-      ^-  (list [time quip:one])
-      %+  turn  (tap:on:quips:zero quips)
-      |=  [=time =quip:zero]
-      [time -.quip (memo-0-to-1 +.quip)]
-    ::
-    ++  memo-0-to-1
-      |=  =memo:zero
-      ^-  memo:one
-      [`content author sent]:memo
-    --
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(load:cor vase)
+    [cards this]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -148,6 +71,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
++*  epos  ~(. epos-lib [bowl %diary-update okay])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -156,6 +80,71 @@
 ++  init
   ^+  cor
   watch-groups
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %diary-update '-' (scot %ud okay) ~)
+  --
+++  load
+  |=  =vase
+  |^  ^+  cor
+  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
+  (mule |.(!<([versioned-state epic:e] vase)))
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ::  XX only save when epic changes
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
+  =.  state  old
+  =.  cor
+    (emil (drop load:epos))
+  =/  diaries  ~(tap in ~(key by shelf))
+  |-
+  ?~  diaries
+    cor
+  =.  cor
+    di-abet:di-upgrade:(di-abed:di-core i.diaries)
+  $(diaries t.diaries)
+  ::
+  +$  versioned-state  $%(current-state)
+  --
+::
+++  watch-epic
+  |=  her=ship
+  ^+  cor
+  =/  =wire  /epic
+  =/  =dock  [her dap.bowl]
+  ?:  (~(has by wex.bowl) [wire dock])
+    cor
+  (emit %pass wire %agent [her dap.bowl] %watch /epic)
+::
+++  take-epic
+  |=  =sign:agent:gall
+  ^+  cor
+  ?+    -.sign  cor
+      %kick
+    (watch-epic src.bowl)
+  ::
+      %fact
+    ?.  =(%epic p.cage.sign)
+      ~&  '!!! weird fact on /epic'
+      cor
+    =+  !<(=epic:e q.cage.sign)
+    ?.  =(epic okay)
+      cor
+    ~&  >>  "good news everyone!"
+    %+  roll  ~(tap by shelf)
+    |=  [[=flag:g =diary:d] out=_cor]
+    ?.  =(src.bowl p.flag)
+      out
+    di-abet:(di-take-epic:(di-abed:di-core:out flag) epic)
+  ::
+      %watch-ack
+    %.  cor
+    ?~  p.sign  same
+    (slog leaf/"weird watch nack" u.p.sign)
+  ==
 ::
 ++  watch-groups
   ^+  cor
@@ -199,14 +188,37 @@
   ::
   ++  create
     |=  req=create:d
-    ^+  cor
-    =/  =flag:d  [our.bowl name.req]
-    =|  =diary:d
-    =/  =perm:d  [writers.req group.req]
-    =.  perm.diary  perm
-    =.  net.diary  [%pub ~]
-    =.  shelf  (~(put by shelf) flag diary)
-    di-abet:(di-init:(di-abed:di-core flag) req)
+    |^  ^+  cor
+    ~_  leaf+"Create failed: check group permissions"
+      ?>  can-nest
+      ?>  ((sane %tas) name.req)
+      =/  =flag:d  [our.bowl name.req]
+      =|  =diary:d
+      =/  =perm:d  [writers.req group.req]
+      =.  perm.diary  perm
+      =.  net.diary  [%pub ~]
+      =.  shelf  (~(put by shelf) flag diary)
+      di-abet:(di-init:(di-abed:di-core flag) req)
+    ::  +can-nest: does group exist, are we allowed
+    ::
+    ++  can-nest
+      ^-  ?
+      =/  gop  (~(got by groups) group.req)
+      %-  ~(any in bloc.gop)
+      ~(has in sects:(~(got by fleet.gop) our.bowl))
+    ::  +groups:
+    ::
+    ::  this has to be duplicated because
+    ::  +di-groups-scry does not allow me
+    ::  to properly adjust for a possible
+    ::  group.
+    ::
+    ++  groups
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
   --
 ++  watch
   |=  =path
@@ -214,6 +226,8 @@
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
+    ::
+      [%epic ~]    (give %fact ~ epic+!>(okay))
     ::
       [%diary @ @ *]
     =/  =ship  (slav %p i.t.path)
@@ -225,6 +239,8 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
+  ::
+      [%epic ~]  (take-epic sign)
   ::
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
@@ -242,11 +258,11 @@
       %kick  watch-groups
     ::
         %watch-ack
-      %.  cor
-      ?~  p.sign  same
+      ?~  p.sign
+       (give %fact ~ epic+!>(okay))
       =/  =tank
         leaf/"Failed groups subscription in {<dap.bowl>}, unexpected"
-      (slog tank u.p.sign)
+      ((slog tank u.p.sign) cor)
     ::
         %fact
       ?.  =(%group-action p.cage.sign)  cor
@@ -354,6 +370,36 @@
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
   ::
+  ++  di-upgrade
+    ^+  di-core
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    ?.  ?=(%dex -.saga.net.diary)
+      di-core
+    ?.  =(okay ver.saga.net.diary)
+      ~&  future-shock/[ver.saga.net.diary flag]
+      di-core
+    =>  .(saga.net.diary `saga:e`saga.net.diary)
+    di-make-chi
+  ::
+  ++  di-make-lev
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    =.  saga.net.diary  lev/~
+    =.  cor  (watch-epic p.flag)
+    di-core
+  ::
+  ++  di-make-chi
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    =.  saga.net.diary  chi/~
+    di-safe-sub
+  ::
+  ++  di-safe-sub
+    ?:  (~(has by wex.bowl) [(snoc di-area %updates) p.flag dap.bowl])
+      di-core
+    di-sub
+  ::
   ++  di-watch
     |=  =path
     ^+  di-core
@@ -428,14 +474,28 @@
     ?:  (di-can-read:di ship)  di
     di(cor (emit %give %kick ~[path] `ship))
   ::
-  ++  di-take-update
+  ++  di-take-epic
+    |=  her=epic:e
+    ^+  di-core
+    ?>  ?=(%sub -.net.diary)
+    ?:  =(her okay)
+      di-core
+    ?:  (gth her okay)
+      =.  saga.net.diary  dex+her
+      di-core
+    di-make-lev
+ ::
+ ++  di-take-update
     |=  =sign:agent:gall
     ^+  di-core
     ?+    -.sign  di-core
-      %kick  di-sub
+        %kick
+      ?>  ?=(%sub -.net.diary)
+      ?:  =(%chi -.saga.net.diary)  di-sub
+      di-core
     ::
         %watch-ack
-      =.  net.diary  [%sub src.bowl]
+      =.  net.diary  [%sub src.bowl & [%chi ~]]
       ?~  p.sign  di-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       =.  gone  &
@@ -443,17 +503,27 @@
     ::
         %fact
       =*  cage  cage.sign 
-      ?+  p.cage  di-core
+      ?+  p.cage  (di-odd-update p.cage)
+        %epic                             (di-take-epic !<(epic:e q.cage))
         ?(%diary-logs %diary-logs-0)      (di-apply-logs !<(log:d q.cage))
         ?(%diary-update %diary-update-0)  (di-update !<(update:d q.cage))
       ==
     ==
+  ::
+  ++  di-odd-update
+    |=  =mark
+    ?.  (is-old:epos mark)
+      di-core
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    di-make-lev
+  ::
   ++  di-proxy
     |=  =update:d
     ^+  di-core
     ?>  di-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  diary-action+!>([flag update])
+    =/  =cage  [act:mar !>([flag update])]
     =.  cor
       (emit %pass di-area %agent dock %poke cage)
     di-core
@@ -542,9 +612,8 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
-    ~&  [flag [time d]]
-    =.  cor  (give %fact ~[/ui] diary-action+!>([flag [time d]]))
-    =/  cag=cage  diary-update+!>([time d])
+    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
+    =/  cag=cage  [upd:mar !>([time d])]
     =.  cor
       (give %fact ~(tap in paths) cag)
     di-core
@@ -560,7 +629,9 @@
         %unwatch  remark.diary(watching |)
         %read-at  !!
       ::
-          %read   remark.diary(last-read now.bowl)
+          %read
+      =/  [=time =note:d]  (need (ram:on:notes:d notes.diary))
+      remark.diary(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
       (give-brief flag di-brief)
@@ -577,13 +648,14 @@
     ?-    -.dif
         %notes
       =.  notes.diary  (reduce:di-notes time p.dif)
+      =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
         (hark:di-notes our.bowl p.dif)
       =.  cor
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui time)) cs ~))
+        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
       di-core
     ::
         %add-sects

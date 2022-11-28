@@ -1,5 +1,5 @@
 import { Editor } from '@tiptap/react';
-import { debounce, isEqual, findLast } from 'lodash';
+import { findLast } from 'lodash';
 import cn from 'classnames';
 import React, {
   useCallback,
@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useChatState, useChatDraft, usePact } from '@/state/chat';
+import { usePact } from '@/state/chat';
 import { ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
@@ -21,12 +21,7 @@ import {
 } from '@/chat/useChatStore';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import {
-  normalizeInline,
-  inlinesToJSON,
-  JSONToInlines,
-  tipTapToString,
-} from '@/logic/tiptap';
+import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
 import useFileUpload from '@/logic/useFileUpload';
@@ -45,7 +40,7 @@ interface ChatInputProps {
   sendMessage: (whom: string, memo: ChatMemo) => void;
 }
 
-function UploadErrorPopover({
+export function UploadErrorPopover({
   errorMessage,
   setUploadError,
 }: {
@@ -88,7 +83,6 @@ export default function ChatInput({
   sendMessage,
 }: ChatInputProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const draft = useChatDraft(whom);
   const pact = usePact(whom);
   const chatInfo = useChatInfo(whom);
   const reply = replying || chatInfo?.replying || null;
@@ -105,28 +99,6 @@ export default function ChatInput({
     useChatStore.getState().reply(whom, null);
   }, [whom]);
 
-  const onUpdate = useMemo(
-    () =>
-      debounce(({ editor }) => {
-        if (!whom) {
-          return;
-        }
-
-        const data = normalizeInline(
-          JSONToInlines(editor?.getJSON()) as Inline[]
-        );
-        const newDraft = {
-          inline: Array.isArray(data) ? data : [data],
-          block: [],
-        };
-        // if the new draft is the same as the old one, don't update
-        if (!isEqual(newDraft, draft)) {
-          useChatState.getState().draft(whom, newDraft);
-        }
-      }, 1000),
-    [whom, draft]
-  );
-
   useEffect(() => {
     if (
       mostRecentFile &&
@@ -136,8 +108,6 @@ export default function ChatInput({
       setUploadError(mostRecentFile.errorMessage);
     }
   }, [mostRecentFile]);
-
-  useEffect(() => () => onUpdate.cancel(), [onUpdate]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -195,7 +165,7 @@ export default function ChatInput({
         const memo: ChatMemo = {
           replying: reply,
           author: `~${window.ship || 'zod'}`,
-          sent: Date.now(),
+          sent: 0, // wait until ID is created so we can share time
           content: {
             story: {
               inline: Array.isArray(data) ? data : [data],
@@ -206,7 +176,6 @@ export default function ChatInput({
 
         sendMessage(whom, memo);
       }
-      useChatState.getState().draft(whom, { inline: [], block: [] });
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
       useChatStore.getState().setBlocks(whom, []);
@@ -218,6 +187,7 @@ export default function ChatInput({
     whom,
     content: '',
     placeholder: 'Message',
+    allowMentions: true,
     onEnter: useCallback(
       ({ editor }) => {
         onSubmit(editor);
@@ -225,21 +195,24 @@ export default function ChatInput({
       },
       [onSubmit]
     ),
-    onUpdate,
   });
 
   useEffect(() => {
     if (whom && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.setContent('');
-      useChatState.getState().getDraft(whom);
     }
   }, [whom, messageEditor]);
 
   useEffect(() => {
-    if ((autoFocus || reply) && messageEditor && !messageEditor.isDestroyed) {
+    if (
+      (autoFocus || reply) &&
+      !isMobile &&
+      messageEditor &&
+      !messageEditor.isDestroyed
+    ) {
       messageEditor.commands.focus();
     }
-  }, [autoFocus, reply, messageEditor]);
+  }, [autoFocus, reply, isMobile, messageEditor]);
 
   useEffect(() => {
     if (mostRecentFile && messageEditor && !messageEditor.isDestroyed) {
@@ -250,14 +223,7 @@ export default function ChatInput({
   }, [mostRecentFile, messageEditor]);
 
   useEffect(() => {
-    const draftIsJustBreak =
-      // backend will sometimes send a draft with just a break if there is no draft
-      draft.inline.length === 1 && isEqual(draft.inline[0], { break: null });
-    const draftEmpty =
-      (draft.inline.length === 0 || draftIsJustBreak) &&
-      draft.block.length === 0;
-
-    if (draftEmpty && messageEditor && !messageEditor.isDestroyed) {
+    if (messageEditor && !messageEditor.isDestroyed) {
       if (mostRecentFile) {
         // if there is a most recent file, we want to set the content to the url
         const { url } = mostRecentFile;
@@ -268,21 +234,7 @@ export default function ChatInput({
         messageEditor.commands.setContent(null, true);
       }
     }
-
-    if (!draftEmpty && messageEditor && !mostRecentFile) {
-      const current = tipTapToString(messageEditor.getJSON());
-      const draftString = tipTapToString(inlinesToJSON(draft.inline));
-
-      if (
-        // if the draft is not empty, and the editor is not empty,
-        // and the editor is not the draft, set the editor to the draft
-        (current === '' || current !== draftString) &&
-        !messageEditor.isDestroyed
-      ) {
-        messageEditor.commands.setContent(inlinesToJSON(draft.inline), true);
-      }
-    }
-  }, [draft, messageEditor, mostRecentFile]);
+  }, [messageEditor, mostRecentFile]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -323,7 +275,10 @@ export default function ChatInput({
           ) : null}
           <div className="flex items-center justify-end">
             <Avatar size="xs" ship={window.our} className="mr-2" />
-            <MessageEditor editor={messageEditor} className="w-full" />
+            <MessageEditor
+              editor={messageEditor}
+              className="w-full break-words"
+            />
             {loaded &&
             hasCredentials &&
             !uploadError &&

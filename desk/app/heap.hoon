@@ -1,18 +1,21 @@
-/-  h=heap, g=groups, ha=hark
+/-  h=heap, g=groups, ha=hark, e=epic
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
 /+  heap-json
+/+  epos-lib=saga
 ^-  agent:gall
 =>
   |%
+  ++  okay  `epic:e`0
   +$  card  card:agent:gall
-  +$  state-0
+  +$  current-state
     $:  %0
         =stash:h
     ==
+  ::
   --
-=|  state-0
+=|  current-state
 =*  state  -
 =< 
   %+  verb  &
@@ -27,21 +30,13 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>([state okay])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
-    =/  old=(unit state-0)
-      (mole |.(!<(state-0 vase)))  
-    ?^  old  `this(state u.old)
-    ~&  >>>  "Incompatible load, nuking"
-    =^  cards  this  on-init
-    :_  this
-    =-  (welp - cards)
-    %+  turn  ~(tap in ~(key by wex.bowl))
-    |=  [=wire =ship =term] 
-    ^-  card
-    [%pass wire %agent [ship term] %leave ~]
+    =^  cards  state
+      abet:(load:cor vase)
+    [cards this]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -75,6 +70,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
++*  epos  ~(. epos-lib [bowl %heap-update okay])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -87,6 +83,12 @@
 ++  watch-groups
   ^+  cor
   (emit %pass /groups %agent [our.bowl %groups] %watch /groups)
+::
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %heap-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %heap-update '-' (scot %ud okay) ~)
+  --
 ::
 ++  poke
   |=  [=mark =vase]
@@ -126,21 +128,64 @@
   ::
   ++  create
     |=  req=create:h
-    ^+  cor
-    =/  =flag:h  [our.bowl name.req]
-    =|  =heap:h
-    =/  =perm:h  [writers.req group.req]
-    =.  perm.heap  perm
-    =.  net.heap  [%pub ~]
-    =.  stash  (~(put by stash) flag heap)
-    he-abet:(he-init:(he-abed:he-core flag) req)
+    |^  ^+  cor
+      ~_  leaf+"Create failed: check group permissions"
+      ?>  can-nest
+      ?>  ((sane %tas) name.req)
+      =/  =flag:h  [our.bowl name.req]
+      =|  =heap:h
+      =/  =perm:h  [writers.req group.req]
+      =.  perm.heap  perm
+      =.  net.heap  [%pub ~]
+      =.  stash  (~(put by stash) flag heap)
+      he-abet:(he-init:(he-abed:he-core flag) req)
+    ++  can-nest
+      ^-  ?
+      =/  gop  (~(got by groups) group.req)
+      %-  ~(any in bloc.gop)
+      ~(has in sects:(~(got by fleet.gop) our.bowl))
+    ::
+    ++  groups
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
   --
+++  load
+  |=  =vase
+  |^  ^+  cor
+  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
+    (mule |.(!<([versioned-state epic:e] vase)))
+  =/  [old=versioned-state cool=epic:e bad=?]
+    ::  XX only save when epic changes
+    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
+    =;  [sta=versioned-state ba=?]  [sta okay ba]
+    =-  %+  fall  -  ~&  >  %bad-load  [state &]
+    (mole |.([!<(versioned-state vase) |]))
+  =.  state  old
+  ?:  =(okay cool)  cor
+  ::  speak the good news
+  =.  cor  (emil (drop load:epos))
+  =/  heaps  ~(tap in ~(key by stash))
+  |-
+  ?~  heaps
+    cor
+  =.  cor
+    he-abet:he-upgrade:(he-abed:he-core i.heaps)
+  $(heaps t.heaps)
+  ::
+  +$  versioned-state  $%(current-state)
+  --
+::
 ++  watch
   |=  =path
   ^+  cor
   ?+    path  ~|(bad-watch-path/path !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
+    ::
+      [%epic ~]    (give %fact ~ epic+!>(okay))
     ::
       [%heap @ @ *]
     =/  =ship  (slav %p i.t.path)
@@ -152,7 +197,8 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+    wire  ~|(bad-agent-wire/wire !!)
-  ::
+      ~  cor
+      [%epic ~]  (take-epic sign)
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -180,6 +226,40 @@
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
+++  watch-epic
+  |=  her=ship
+  ^+  cor
+  =/  =wire  /epic
+  =/  =dock  [her dap.bowl]
+  ?:  (~(has by wex.bowl) [wire dock])
+    cor
+  (emit %pass wire %agent [her dap.bowl] %watch /epic)
+::
+++  take-epic
+  |=  =sign:agent:gall
+  ^+  cor
+  ?+    -.sign  cor
+      %kick
+    (watch-epic src.bowl)
+  ::
+      %fact
+    ?.  =(%epic p.cage.sign)
+      ~&  '!!! weird fact on /epic'
+      cor
+    =+  !<(=epic:e q.cage.sign)
+    ?.  =(epic okay)
+      cor
+    ~&  >>  "good news everyone!"
+    %+  roll  ~(tap by stash)
+    |=  [[=flag:g =heap:h] out=_cor]
+    ?>  =(src.bowl p.flag)
+    he-abet:(he-take-epic:(he-abed:he-core:out flag) epic)
+      %watch-ack
+    %.  cor
+    ?~  p.sign  same
+    (slog leaf/"weird watch nack" u.p.sign)
+  ==
+::
 ++  take-groups
   |=  =action:g
   =/  affected=(list flag:h)
@@ -298,6 +378,15 @@
       (welp /groups/(scot %p p.group)/[q.group]/channels/heap/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
   ::
+  ++  he-upgrade
+    ^+  he-core
+    ?.  ?=(%sub -.net.heap)  he-core
+    ?.  ?=(%dex -.saga.net.heap)  he-core
+    ?.  =(okay ver.saga.net.heap)
+      ~&  future-shock/[ver.saga.net.heap flag]
+      he-core
+    he-make-chi
+  ::
   ++  he-watch
     |=  =path
     ^+  he-core
@@ -372,14 +461,43 @@
     ?:  (he-can-read:he ship)  he
     he(cor (emit %give %kick ~[path] `ship))
   ::
+  ++  he-take-epic
+    |=  her=epic:e
+    ^+  he-core
+    ?>  ?=(%sub -.net.heap)
+    ?:  =(her okay)
+      he-make-chi
+    ?:  (gth her okay)
+      =.  saga.net.heap  dex+her
+      he-core
+    he-make-lev
+  ::
+  ++  he-make-lev
+    ?.  ?=(%sub -.net.heap)
+      he-core
+    ~&  make-lev/flag
+    =.  saga.net.heap  lev+~
+    =.  cor  (watch-epic p.flag)
+    he-core
+  ::
+  ++  he-make-chi
+    ?.  ?=(%sub -.net.heap)
+      he-core
+    ~&  make-chi/flag
+    =.  saga.net.heap  chi+~
+    he-safe-sub
+  ::
   ++  he-take-update
     |=  =sign:agent:gall
     ^+  he-core
     ?+    -.sign  he-core
-      %kick  he-sub
+        %kick
+      ?>  ?=(%sub -.net.heap)
+      ?:  =(%chi -.saga.net.heap)  he-sub
+      he-core
     ::
         %watch-ack
-      =.  net.heap  [%sub src.bowl]
+      =.  net.heap  [%sub src.bowl & [%chi ~]]
       ?~  p.sign  he-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       =.  gone  &
@@ -387,17 +505,27 @@
     ::
         %fact
       =*  cage  cage.sign 
-      ?+  p.cage  he-core
+      ?+  p.cage  (he-odd-update p.cage)
+        %epic                             (he-take-epic !<(epic:e q.cage))
         ?(%heap-logs-0 %heap-logs)      (he-apply-logs !<(log:h q.cage))
         ?(%heap-update-0 %heap-update)  (he-update !<(update:h q.cage))
       ==
     ==
+  ::
+  ++  he-odd-update
+    |=  =mark
+    ?.  (is-old:epos mark)
+      he-core
+    ?.  ?=(%sub -.net.heap)
+      he-core
+    he-make-lev
+  ::
   ++  he-proxy
     |=  =update:h
     ^+  he-core
     ?>  he-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  heap-action+!>([flag update])
+    =/  =cage  [act:mar !>([flag update])]
     =.  cor
       (emit %pass he-area %agent dock %poke cage)
     he-core
@@ -433,6 +561,12 @@
     =/  =cage  heap-logs+!>(log)
     =.  cor  (give %fact ~ cage)
     he-core
+  ::
+  ++  he-safe-sub
+    ^+  he-core
+    ?:  (~(has by wex.bowl) [(snoc he-area %updates) p.flag dap.bowl])
+      he-core
+    he-sub
   ::
   ++  he-sub
     ^+  he-core
@@ -486,10 +620,10 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in he-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc he-area %ui))
-    =/  cag=cage  heap-update+!>([time d])
+    =/  cag=cage  [upd:mar !>([time d])]
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] heap-action+!>([flag [time d]]))
+    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
     =?  cor  ?=(%curios -.d)
       =/  =cage  curios-diff+!>(p.d)
       (give %fact ~[(welp he-area /ui/curios)] cage)
@@ -506,7 +640,9 @@
         %unwatch  remark.heap(watching |)
         %read-at  !!
       ::
-          %read   remark.heap(last-read now.bowl)
+          %read
+      =/  [=time =curio:h]  (need (ram:on:curios:h curios.heap))
+      remark.heap(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
       (give-brief flag he-brief)
@@ -525,6 +661,7 @@
     ?-    -.d
         %curios
       =.  curios.heap  (reduce:he-curios time q.p.d)
+      =.  cor  (give-brief flag he-brief)
       ?-  -.q.p.d
           ?(%edit %del %add-feel %del-feel)  he-core
           %add

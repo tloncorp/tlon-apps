@@ -7,6 +7,7 @@ import {
   isInlineCode,
   isItalics,
   isLink,
+  isShip,
   isStrikethrough,
 } from '@/types/content';
 import { reduce, isEqual } from 'lodash';
@@ -24,7 +25,7 @@ import {
   DiaryListing,
   NoteContent,
 } from '@/types/diary';
-import { citeToPath, pathToCite } from './utils';
+import { citeToPath, pathToCite, preSig } from './utils';
 
 export interface EditorOnUpdateProps {
   editor: Editor;
@@ -39,7 +40,6 @@ export function Shortcuts(bindings: {
   [keyCode: string]: KeyboardShortcutCommand;
 }) {
   return Extension.create({
-    priority: 999999,
     addKeyboardShortcuts() {
       return bindings;
     },
@@ -134,6 +134,10 @@ export function inlineToString(inline: Inline): any {
     return typeof inline['inline-code'] === 'object'
       ? inlineToString(inline['inline-code'])
       : inline['inline-code'];
+  }
+
+  if (isShip(inline)) {
+    return inline.ship;
   }
 
   return '';
@@ -360,6 +364,13 @@ export function JSONToInlines(
         },
       ];
     }
+    case 'mention': {
+      return [
+        {
+          ship: preSig(json.attrs?.id),
+        },
+      ];
+    }
     case 'diary-image': {
       if (!json.attrs) {
         return [];
@@ -406,6 +417,10 @@ export function JSONToInlines(
 }
 
 const makeText = (t: string) => ({ type: 'text', text: t });
+const makeMention = (ship: string) => ({
+  type: 'mention',
+  attrs: { id: ship },
+});
 const makeParagraph = (content?: JSONContent[]): JSONContent => {
   const p = { type: 'paragraph' };
   if (!content) {
@@ -486,6 +501,10 @@ export const inlineToContent = (
 
   if ('break' in inline) {
     return makeParagraph();
+  }
+
+  if ('ship' in inline) {
+    return makeMention(inline.ship);
   }
 
   const key = Object.keys(inline)[0] as InlineKey;

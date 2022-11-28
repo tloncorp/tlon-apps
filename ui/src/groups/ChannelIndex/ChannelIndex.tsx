@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { GroupChannel, Zone, ViewProps } from '@/types/groups';
-import { channelHref, nestToFlag } from '@/logic/utils';
+import { channelHref, isChannelJoined, nestToFlag } from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
@@ -20,7 +20,6 @@ import useChannelSections from '@/logic/useChannelSections';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import useIsChannelHost from '@/logic/useIsChannelHost';
-import useIsChannelJoined from '@/logic/useIsChannelJoined';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { useIsMobile } from '@/logic/useMedia';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
@@ -38,8 +37,9 @@ function GroupChannel({
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useAllBriefs();
+  const joined = isChannelJoined(nest, briefs);
   const isChannelHost = useIsChannelHost(flag);
-  const isAdmin = useAmAdmin(flag);
+  const isAdmin = useAmAdmin(groupFlag);
   const navigate = useNavigate();
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
@@ -115,8 +115,6 @@ function GroupChannel({
     console.log('mute ...');
   }, []);
 
-  const joined = useIsChannelJoined(flag, briefs);
-
   const open = useCallback(() => {
     if (!joined) {
       return;
@@ -124,7 +122,7 @@ function GroupChannel({
     navigate(channelHref(groupFlag, nest));
   }, [groupFlag, joined, navigate, nest]);
 
-  if (!group) {
+  if (!group || (channel.readers.includes('admin') && !isAdmin)) {
     return null;
   }
 
