@@ -1,12 +1,18 @@
 import React from 'react';
-import { Outlet, Route, useMatch } from 'react-router';
+import { matchPath, Outlet, useLocation, useMatch } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import GroupSidebar from '@/groups/GroupSidebar/GroupSidebar';
 import { useIsMobile } from '@/logic/useMedia';
 
 export function DesktopNav() {
+  const location = useLocation();
+  const state = location.state as { backgroundLocation?: Location } | null;
   const match = useMatch('/groups/:ship/:name/*');
+  const backgroundLocationMatch = matchPath(
+    '/groups/:ship/:name/*',
+    state?.backgroundLocation?.pathname || ''
+  );
   const animationConfig = {
     type: 'spring',
     stiffness: 2880,
@@ -16,7 +22,7 @@ export function DesktopNav() {
   return (
     <div className="relative flex h-full w-64 flex-none overflow-hidden border-r-2 border-gray-50 bg-white">
       <AnimatePresence initial={false}>
-        {match ? (
+        {match || backgroundLocationMatch ? (
           <motion.div
             key="group"
             className="absolute h-full"

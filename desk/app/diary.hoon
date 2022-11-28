@@ -774,7 +774,6 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
-    ~&  [flag [time d]]
     =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
     =/  cag=cage  [upd:mar !>([time d])]
     =.  cor
@@ -792,7 +791,9 @@
         %unwatch  remark.diary(watching |)
         %read-at  !!
       ::
-          %read   remark.diary(last-read now.bowl)
+          %read
+      =/  [=time =note:d]  (need (ram:on:notes:d notes.diary))
+      remark.diary(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
       (give-brief flag di-brief)
@@ -816,7 +817,7 @@
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui time)) cs ~))
+        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
       di-core
     ::
         %add-sects

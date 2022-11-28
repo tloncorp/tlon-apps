@@ -95,7 +95,7 @@ export default function makeNotesStore(
         app: 'diary',
         path: subPath,
         event: (data: DiaryUpdate) => {
-          const { diff: d } = data;
+          const { time: addTime, diff: d } = data;
           if ('notes' in d) {
             const { time, delta } = d.notes;
             const noteId = udToDec(time);
@@ -114,7 +114,7 @@ export default function makeNotesStore(
                   seal,
                   essay: delta.add,
                 };
-                noteMap = noteMap.set(bigTime, note);
+                noteMap = noteMap.set(bigInt(udToDec(addTime)), note);
               } else if ('edit' in delta && noteMap.has(bigTime)) {
                 const note = noteMap.get(bigTime);
                 if (!note) {
@@ -129,7 +129,7 @@ export default function makeNotesStore(
               } else if ('quips' in delta) {
                 const { time: quipId, delta: quipDel } = delta.quips;
                 // const { delta, time: quipId } = diff;
-                const k = bigInt(udToDec(time));
+                const k = bigInt(udToDec(quipId));
                 const note = noteMap.get(bigTime);
                 if (!note) {
                   return;

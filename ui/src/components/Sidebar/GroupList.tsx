@@ -298,7 +298,8 @@ export default function GroupList({
       ))}
     </DndProvider>
   ) : (
-    <ul className={cn('h-full space-y-3 p-2 sm:space-y-1', className)}>
+    // <ul className={cn('h-full space-y-3 p-2 sm:space-y-1', className)}>
+    <>
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />
       ))}
@@ -309,6 +310,7 @@ export default function GroupList({
         .map(([flag]) => (
           <GroupItem key={flag} flag={flag} />
         ))}
-    </ul>
+    </>
+    // </ul>
   );
 }
