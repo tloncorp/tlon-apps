@@ -79,9 +79,11 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
-++  scry
-  |*  [=mold care=term =desk =path]
-  .^(mold care (scot %p our.bowl) desk (scot %da now.bowl) path)
+++  check-known
+  |=  =ship
+  ^-  ?(%alien %known)
+  =-  (fall (~(get by -) ship) %alien)
+  .^((map ^ship ?(%alien %known)) %ax /(scot %p our.bowl)//(scot %da now.bowl)/peers)
 ++  mar
   |%
   ++  act  `mark`(rap 3 %group-action '-' (scot %ud okay) ~)
@@ -95,7 +97,6 @@
     =+  !<(=flag:g vase)
     ?>  &(=(our.bowl p.flag) =(src our):bowl)
     (group-import flag)
-
   ::
       %group-leave
     =+  !<(=flag:g vase)
@@ -215,10 +216,9 @@
       [%gangs %index ship=@ ~]
     =/  =ship  (slav %p ship.pole)
     ?:  =(our.bowl ship)  res-gang-index
-    ::  XX remove when ames fix is in, this will crash
-    ::  when a ship is not your peer
-    =+  (scry ,=ship-state:ames %ax %$ /peers/(scot %p ship))
-    ?.  ?=(%known -.ship-state)  cor
+    ::  XX remove when ames fix is in
+    =+  (check-known ship)
+    ?.  ?=(%known -)  cor
     (req-gang-index ship)
   ::
      [%gangs ship=@ name=@ rest=*]
