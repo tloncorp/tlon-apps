@@ -13,14 +13,13 @@
   `sect:g`(rap 3 'imports-' (scot %p p.flag) '/' q.flag ~)
 ::
 ++  graph-mark-to-agent
-|=  =mark
-^-  (unit term)
-?+  mark  ~
-  %graph-validator-chat     `%chat
-  %graph-validator-link     `%heap
-  %graph-validator-publish  `%diary
-==
-
+  |=  =mark
+  ^-  (unit term)
+  ?+  mark  ~
+    %graph-validator-chat     `%chat
+    %graph-validator-link     `%heap
+    %graph-validator-publish  `%diary
+  ==
 ::
 ++  graph-meta-to-agent
   |=  =metadatum:m-one
@@ -68,10 +67,10 @@
   ==
   ::
   ++  old-flag-path
-  `path`/ship/(scot %p p.flag)/[q.flag]
+    `path`/ship/(scot %p p.flag)/[q.flag]
   ::
   ++  exists-path
-  `path`/exists/(scot %p p.flag)/[q.flag]
+    `path`/exists/(scot %p p.flag)/[q.flag]
   ::
   ++  scry-groups
     =-  .^(_| -)
@@ -120,9 +119,9 @@
     ~&  >>  (ref contents.p)
     :-  ~
     :*  replying=~  ::(ref contents.p)
-    author=author.p
-    sent=time-sent.p
-    contents=(con contents.p)
+        author=author.p
+        sent=time-sent.p
+        contents=(con contents.p)
     ==
     ::
   ++  cit
@@ -151,8 +150,8 @@
     %+  roll  cs
     |=  [con=content:gra fer=(list reference:gra)]
     ?+     -.con  fer
-    %reference
-    (snoc fer reference.con)
+        %reference
+      (snoc fer reference.con)
     ==
     ::
   ++  ref
@@ -161,15 +160,15 @@
     %+  roll  cs
     |=  [con=content:gra fer=(unit id:c)]
     ?+     -.con  fer
-    %reference
-    ?.  ?=(%graph -.reference.con)  fer
-    =/  [res=resource:gra author=ship =index:gra]
-    :*  resource.uid.reference.con
-        entity.resource.uid.reference.con
-        index.uid.reference.con
-    ==
-    `[author `@da`(head index)]
-    ==
+        %reference
+      ?.  ?=(%graph -.reference.con)  fer
+      =/  [res=resource:gra author=ship =index:gra]
+      :*  resource.uid.reference.con
+          entity.resource.uid.reference.con
+          index.uid.reference.con
+      ==
+        `[author `@da`(head index)]
+   ==
   ::
   ++  con
     |=  cs=(list content:gra)
@@ -177,29 +176,29 @@
     =/  fer=(unit id:c)  (ref cs)
     ?~  fer  story/[~ (inline cs)]
     =/  wer=path  /msg/(scot %p p.u.fer)/(scot %ud q.u.fer)
-    story/[(turn (cit cs) (lead %cite)) (inline cs)]
+      story/[(turn (cit cs) (lead %cite)) (inline cs)]
     ::
     ++  inline
-    |=  cs=(list content:gra)
-    ^-  (list inline:c)
-    %+  turn  cs
-    |=  con=content:gra
-    ^-  inline:c
-    ?-  -.con
-    %text       text.con
-    %mention    `@t`(scot %p ship.con)
-    %url        [%link [. .]:url.con]
-    %code       [%inline-code expression.con]
-    %reference
-    =;  bait  ''
-    ::  =;  bait  (crip "{<bait>}")
-    ?.  ?=(%graph -.reference.con)  %not-graph
-    =/  [res=resource:gra author=ship =index:gra]
-    :*  resource.uid.reference.con
-    entity.resource.uid.reference.con
-    index.uid.reference.con
-    ==
-    (bait:n [%grub [res author index]])
-    ==
+      |=  cs=(list content:gra)
+      ^-  (list inline:c)
+      %+  turn  cs
+      |=  con=content:gra
+      ^-  inline:c
+      ?-  -.con
+        %text       text.con
+        %mention    `@t`(scot %p ship.con)
+        %url        [%link [. .]:url.con]
+        %code       [%inline-code expression.con]
+          %reference
+        =;  bait  ''
+          ::  =;  bait  (crip "{<bait>}")
+          ?.  ?=(%graph -.reference.con)  %not-graph
+          =/  [res=resource:gra author=ship =index:gra]
+          :*  resource.uid.reference.con
+              entity.resource.uid.reference.con
+              index.uid.reference.con
+          ==
+        (bait:n [%grub [res author index]])
+      ==
   --
 --
