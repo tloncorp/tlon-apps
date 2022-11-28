@@ -640,7 +640,9 @@
         %unwatch  remark.heap(watching |)
         %read-at  !!
       ::
-          %read   remark.heap(last-read now.bowl)
+          %read
+      =/  [=time =curio:h]  (need (ram:on:curios:h curios.heap))
+      remark.heap(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
       (give-brief flag he-brief)
