@@ -218,7 +218,7 @@
     ?:  =(our.bowl ship)  res-gang-index
     ::  XX remove when ames fix is in
     =+  (check-known ship)
-    ?.  ?=(%known -)  cor
+    ?.  ?=(%known -)  (hi-alien ship)
     (req-gang-index ship)
   ::
      [%gangs ship=@ name=@ rest=*]
@@ -1250,6 +1250,12 @@
     ~
   `[flag =,(group [flag meta cordon now.bowl |])]
 ::
+++  hi-alien
+  |=  =ship
+  ^+  cor
+  =/  =wire  /helm/hi/(scot %p ship)
+  =/  =dock  [ship %hood]
+  (emit %pass wire %agent dock %poke %helm-hi !>(''))
 ++  req-gang-index
   |=  =ship
   ^+  cor
