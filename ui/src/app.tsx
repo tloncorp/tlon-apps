@@ -540,7 +540,6 @@ function RoutedApp() {
           ) : (
             <link rel="manifest" href="/src/assets/chatmanifest.json" />
           )}
-          <link rel="manifest" href="/src/assets/manifest.json" />
         </Helmet>
         <TooltipProvider skipDelayDuration={400}>
           <App />
