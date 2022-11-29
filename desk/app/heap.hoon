@@ -222,7 +222,7 @@
       (slog tank u.p.sign)
     ::
         %fact
-      ?.  =(%group-action p.cage.sign)  cor
+      ?.  =(%group-action-0 p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
@@ -405,7 +405,7 @@
       =/  =channel:g  
         =,(req [[title description '' ''] now.bowl %default | readers])
       =/  =action:g  [group.req now.bowl %channel nest %add channel]
-      =/  =cage      group-action+!>(action)
+      =/  =cage      group-action-0+!>(action)
       =/  =wire      (snoc he-area %create)
       =/  =card
         [%pass he-area %agent dock %poke cage]
