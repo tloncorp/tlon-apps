@@ -960,16 +960,19 @@ type UnsubbedWrit = {
   writ: ChatWrit;
 };
 
-export function useWritByFlagAndWritId(chFlag: string, idWrit: string) {
+export function useWritByFlagAndWritId(
+  chFlag: string,
+  idWrit: string,
+  isScrolling: boolean
+) {
   const [res, setRes] = useState(null as UnsubbedWrit | null);
   useEffect(() => {
-    subscribeOnce<UnsubbedWrit>('chat', `/said/${chFlag}/msg/${idWrit}`).then(
-      setRes
-    );
-    return () => {
-      setRes(null);
-    };
-  }, [chFlag, idWrit]);
+    if (!isScrolling) {
+      subscribeOnce<UnsubbedWrit>('chat', `/said/${chFlag}/msg/${idWrit}`).then(
+        setRes
+      );
+    }
+  }, [chFlag, idWrit, isScrolling]);
   return res;
 }
 
