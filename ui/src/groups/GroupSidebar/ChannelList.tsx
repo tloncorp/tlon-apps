@@ -1,7 +1,6 @@
 import cn from 'classnames';
 import React, { ReactNode } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import * as Popover from '@radix-ui/react-popover';
 import useAllBriefs from '@/logic/useAllBriefs';
 import {
   channelHref,
@@ -24,9 +23,9 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import useFilteredSections from '@/logic/useFilteredSections';
-import ShipName from '@/components/ShipName';
 import usePendingImports from '@/logic/usePendingImports';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
+import MigrationTooltip from '@/components/MigrationTooltip';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -84,46 +83,16 @@ function UnmigratedChannel({
   isMobile,
 }: UnmigratedChannelProps) {
   return (
-    <Popover.Root>
-      <Popover.Anchor>
-        <Popover.Trigger asChild>
-          <SidebarItem
-            icon={icon}
-            actions={
-              <Bullet16Icon className="m-2 h-4 w-4 text-orange opacity-60" />
-            }
-          >
-            <span className="opacity-60">{title}</span>
-          </SidebarItem>
-        </Popover.Trigger>
-      </Popover.Anchor>
-      <Popover.Content
-        side={isMobile ? 'top' : 'right'}
-        sideOffset={isMobile ? 0 : 16}
-        className="z-10"
+    <MigrationTooltip ship={host} side="right">
+      <SidebarItem
+        icon={icon}
+        actions={
+          <Bullet16Icon className="m-2 h-4 w-4 text-orange opacity-60" />
+        }
       >
-        <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg">
-          <span>
-            This channel will become available once{' '}
-            <ShipName name={host} className="font-semibold" /> has migrated.
-          </span>
-        </div>
-        <Popover.Arrow asChild>
-          <svg
-            width="17"
-            height="8"
-            viewBox="0 0 17 8"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
-              className="fill-white"
-            />
-          </svg>
-        </Popover.Arrow>
-      </Popover.Content>
-    </Popover.Root>
+        <span className="opacity-60">{title}</span>
+      </SidebarItem>
+    </MigrationTooltip>
   );
 }
 
