@@ -13,6 +13,7 @@
   |%
   ++  okay  `epic:e`0
   +$  card  card:agent:gall
+  ++  import-epoch  ~2022.10.11
   +$  current-state
     $:  %0
         groups=net-groups:g
@@ -448,8 +449,8 @@
     ==
   =/  =net:g
     ?:  =(p.flag our.bowl)
-      pub/(put:log-on:g *log:g now.bowl create/group)
-    [%sub now.bowl | chi/~]
+      pub/(put:log-on:g *log:g import-epoch create/group)
+    [%sub (sub import-epoch ~d1) | chi/~]
   =.  groups  (~(put by groups) flag [net group])
   go-abet:(go-init:(go-abed:group-core flag) &) :: setup defaults
   ::
@@ -826,7 +827,7 @@
   ++  go-fact-init
     |=  [=time gr=group:g]
     =.  group  gr
-    =.  net  [%sub time | %chi ~]
+    =.  net  [%sub time & %chi ~]
     =/  create=diff:g  [%create group]
     =.  cor  
       (give %fact ~[/groups /groups/ui] act:mar !>(`action:g`[flag now.bowl create]))
