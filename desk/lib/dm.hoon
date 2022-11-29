@@ -35,6 +35,38 @@
   ^-  [=time =writ:c]
   (need (get id))
 ::
+++  search
+  |=  [len=@ud nedl=@t]
+  =/  nedl  (trip nedl)
+  |^  ^-  scan:c
+  =<  -
+  %^  (dip:on:writs:c scan:c)  wit.pac  *scan:c
+  |=  $:  =scan:c
+          key=time
+          =writ:c
+      ==
+  ^-  [(unit writ:c) stop=? _scan]
+  :-  ~
+  ?:  (matches writ)
+    :_  [writ scan]
+    =(len +((lent scan)))
+  [| scan]
+  ::
+  ++  matches
+    |=  =writ:c
+    ^-  ?
+    ?.  ?=(%story -.content.writ)
+      |
+    =/  ls=(list inline:c)  q.p.content.writ
+    |-
+    ?~  ls  |
+    ?@  i.ls
+      |(!=(~ (find nedl (trip i.ls))) $(ls t.ls))
+    ?.  ?=(?(%bold %italics %strike %blockquote) -.i.ls)
+      $(ls t.ls)
+    |($(ls p.i.ls) $(ls t.ls))
+  --
+::
 ++  reduce
   |=  [now=time =id:c del=delta:writs:c]
   ^+  pac
