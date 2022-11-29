@@ -81,6 +81,7 @@ export const useDiaryState = create<DiaryState>(
       banter: {},
       diarySubs: [],
       briefs: {},
+      pendingImports: [],
       markRead: async (flag) => {
         await api.poke({
           app: 'diary',
@@ -179,6 +180,25 @@ export const useDiaryState = create<DiaryState>(
                   diff['add-sects']
                 );
               }
+            });
+          },
+        });
+
+        const pendingImports = await api.scry<string[]>({
+          app: 'diary',
+          path: '/imp',
+        });
+
+        get().batchSet((draft) => {
+          draft.pendingImports = pendingImports;
+        });
+
+        api.subscribe({
+          app: 'diary',
+          path: '/imp',
+          event: (imports: string[]) => {
+            get().batchSet((draft) => {
+              draft.pendingImports = imports;
             });
           },
         });
