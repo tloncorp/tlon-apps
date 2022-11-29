@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useEmbedState from '@/state/embed';
 import { validOembedCheck } from '@/logic/utils';
-import { HeapCurio } from '@/types/heap';
+import { HeapCurio, isLink } from '@/types/heap';
 import HeapContent from '@/heap/HeapContent';
 import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
 import HeapDetailEmbed from '@/heap/HeapDetail/HeapDetailEmbed';
@@ -12,7 +12,8 @@ import HeapAudioPlayer from '@/heap/HeapAudioPlayer';
 export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
   const [embed, setEmbed] = useState<any>();
   const { content } = curio.heart;
-  const url = content[0].toString();
+  const url =
+    content.length > 0 && isLink(content[0]) ? content[0].link.href : '';
   const isMobile = useIsMobile();
 
   const { isText, isImage, isAudio, isVideo } = useHeapContentType(url);
