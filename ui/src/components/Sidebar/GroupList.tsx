@@ -78,7 +78,7 @@ function GroupItem({ flag }: { flag: string }) {
 
   if (!isMigrated) {
     return (
-      <MigrationTooltip ship={ship} side="right">
+      <MigrationTooltip ship={ship} side="right" kind="group">
         <SidebarItem
           className="opacity-60"
           icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
