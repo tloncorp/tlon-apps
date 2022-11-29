@@ -908,11 +908,15 @@
   ++  ca-peek
     |=  =(pole knot)
     ^-  (unit (unit cage))
-    ?+  pole  [~ ~]
+    ?+    pole  [~ ~]
         [%writs rest=*]  (peek:ca-pact rest.pole)
         [%perm ~]        ``chat-perm+!>(perm.chat)
+    ::
         [%search %text count=@ nedl=@ ~]  
       ``chat-scan+!>((search:ca-pact (slav %ud count.pole) nedl.pole))
+    ::
+        [%search %ship count=@ nedl=@ ~]  
+      ``chat-scan+!>((scour:ca-pact (slav %ud count.pole) (slav %p nedl.pole)))
     ==
   ::
   ++  ca-revoke
