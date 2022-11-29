@@ -5,11 +5,13 @@ import ShipName from './ShipName';
 type MigrationTooltipProps = PropsWithChildren<{
   ship: string;
   side: Tooltip.TooltipContentProps['side'];
+  kind?: 'group' | 'channel';
 }>;
 
 export default function MigrationTooltip({
   side,
   ship,
+  kind = 'channel',
   children,
 }: MigrationTooltipProps) {
   return (
@@ -19,7 +21,7 @@ export default function MigrationTooltip({
         <Tooltip.Content side={side} sideOffset={16} className="z-10">
           <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg dark:border dark:border-solid dark:border-gray-50">
             <span>
-              This channel will become available once{' '}
+              This {kind} will become available once{' '}
               <ShipName name={ship} className="font-semibold" /> has migrated.
             </span>
           </div>
