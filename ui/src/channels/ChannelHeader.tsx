@@ -315,20 +315,22 @@ export default function ChannelHeader({
         to={isMobile && isChat ? '/' : '../..'}
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
-          isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
+          isMobile && '-ml-2 flex items-center rounded-lg pr-0 hover:bg-gray-50'
         )}
         aria-label="Open Channels Menu"
       >
         {isMobile ? (
-          <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
+          <CaretLeftIcon className="mr-1 h-5 w-5 shrink-0 text-gray-500" />
         ) : null}
         <div className="flex items-center space-x-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-gray-50">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gray-50">
             <ChannelIcon nest={nest} className="h-4 w-4 text-gray-400" />
           </div>
-          <div className="flex flex-col items-start text-left">
-            <div className="text-md font-semibold">{channel?.meta.title}</div>
-            <span className="text-sm font-medium text-gray-600">
+          <div className="flex shrink flex-col items-start text-left">
+            <div className="text-md font-semibold line-clamp-1">
+              {channel?.meta.title}
+            </div>
+            <span className="text-sm font-medium text-gray-600 line-clamp-1">
               {groupName}
             </span>
           </div>
@@ -336,7 +338,12 @@ export default function ChannelHeader({
       </BackButton>
 
       {showControls && displayMode && setDisplayMode && setSortMode ? (
-        <div className="flex items-center space-x-3">
+        <div
+          className={cn(
+            'flex items-center',
+            isMobile ? 'shrink space-x-2' : 'space-x-3'
+          )}
+        >
           {children}
           {/* TODO: Switch the popovers to dropdowns */}
           <Dropdown.Root>

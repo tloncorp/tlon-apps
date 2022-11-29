@@ -316,9 +316,7 @@ export default function ChatInput({
           Send
         </button>
       </div>
-      {isMobile && messageEditor.isFocused ? (
-        <ChatInputMenu editor={messageEditor} />
-      ) : null}
+      {isMobile ? <ChatInputMenu editor={messageEditor} /> : null}
     </>
   );
 }

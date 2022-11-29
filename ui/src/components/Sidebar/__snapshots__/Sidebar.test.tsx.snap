@@ -48,7 +48,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 truncate text-left"
+            class="max-w-full flex-1 text-left truncate"
           >
             <div
               class="flex items-center justify-between"
@@ -175,7 +175,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 truncate text-left"
+            class="max-w-full flex-1 text-left truncate"
           >
             <span>
               <span
@@ -227,7 +227,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 truncate text-left"
+            class="max-w-full flex-1 text-left truncate"
             title="Notifications"
           >
             Notifications
@@ -255,7 +255,7 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="max-w-full flex-1 truncate text-left"
+            class="max-w-full flex-1 text-left truncate"
           >
             <div
               class="flex items-center"
@@ -286,7 +286,7 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="max-w-full flex-1 truncate text-left"
+            class="max-w-full flex-1 text-left truncate"
             title="Create Group"
           >
             Create Group
