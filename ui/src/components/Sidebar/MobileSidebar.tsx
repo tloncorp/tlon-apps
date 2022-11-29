@@ -18,7 +18,7 @@ export default function MobileSidebar() {
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
       <Outlet />
-      <footer className="flex-none border-t-2 border-gray-50">
+      <footer className="mobile-bottom-nav flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex justify-items-stretch">
             <NavTab to="/">

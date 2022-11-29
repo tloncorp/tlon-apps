@@ -53,6 +53,15 @@ body,
   min-height: -webkit-fill-available;
 }
 
+@media all and (display-mode: standalone) {
+  body {
+    padding-bottom: 2rem;
+  }
+  .mobile-bottom-nav {
+    padding-bottom: 2rem;
+  }
+}
+
 blockquote {
   @apply block border-l-2 border-gray-100 pl-3 text-gray-600;
 }

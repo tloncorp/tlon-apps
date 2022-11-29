@@ -535,6 +535,12 @@ function RoutedApp() {
             type="image/svg+xml"
           />
           <meta name="theme-color" content={userThemeColor} />
+          {app === 'groups' ? (
+            <link rel="manifest" href="/src/assets/manifest.json" />
+          ) : (
+            <link rel="manifest" href="/src/assets/chatmanifest.json" />
+          )}
+          <link rel="manifest" href="/src/assets/manifest.json" />
         </Helmet>
         <TooltipProvider skipDelayDuration={400}>
           <App />

@@ -1,7 +1,7 @@
 {
-  "name": "Groups",
-  "short_name": "Groups",
-  "start_url": "./apps/groups",
+  "name": "Talk",
+  "short_name": "Talk",
+  "start_url": "./apps/talk",
   "scope": "./",
   "icons": [
     {
