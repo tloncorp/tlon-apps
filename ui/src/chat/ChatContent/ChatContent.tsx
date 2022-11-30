@@ -1,4 +1,5 @@
 import React from 'react';
+import cn from 'classnames';
 import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
   isBlockquote,
@@ -125,7 +126,7 @@ export function InlineContent({ story }: InlineContentProps) {
 
   if (isBlockCode(story)) {
     return (
-      <pre className="rounded bg-gray-50 px-1.5">
+      <pre className="bg-gray-50 px-4">
         <code>{story.code}</code>
       </pre>
     );
@@ -166,6 +167,10 @@ export default function ChatContent({
 }: ChatContentProps) {
   const inlineLength = story.inline.length;
   const blockLength = story.block.length;
+  const firstBlockCode = story.inline.findIndex(isBlockCode);
+  // @ts-expect-error - this is a bug in typescript
+  // https://github.com/microsoft/TypeScript/issues/48829
+  const lastBlockCode = story.inline.findLastIndex(isBlockCode);
 
   return (
     <div className="leading-6">
@@ -185,12 +190,35 @@ export default function ChatContent({
       ) : null}
       {inlineLength > 0 ? (
         <>
-          {story.inline.map((storyItem, index) => (
-            <InlineContent
-              key={`${storyItem.toString()}-${index}`}
-              story={storyItem}
-            />
-          ))}
+          {story.inline.map((storyItem, index) => {
+            // we need to add top and bottom padding to first/last lines of code blocks.
+            if (index === firstBlockCode) {
+              return (
+                <div className="rounded bg-gray-50 pt-2">
+                  <InlineContent
+                    key={`${storyItem.toString()}-${index}`}
+                    story={storyItem}
+                  />
+                </div>
+              );
+            }
+            if (index === lastBlockCode) {
+              return (
+                <div className="rounded bg-gray-50 pb-2">
+                  <InlineContent
+                    key={`${storyItem.toString()}-${index}`}
+                    story={storyItem}
+                  />
+                </div>
+              );
+            }
+            return (
+              <InlineContent
+                key={`${storyItem.toString()}-${index}`}
+                story={storyItem}
+              />
+            );
+          })}
         </>
       ) : null}
     </div>
