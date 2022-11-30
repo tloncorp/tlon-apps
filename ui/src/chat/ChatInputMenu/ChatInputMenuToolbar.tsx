@@ -2,15 +2,16 @@ import React, { KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import isURL from 'validator/es/lib/isURL';
 import { Editor as CoreEditor } from '@tiptap/core';
-import { useIsMobile } from '../../logic/useMedia';
-import BlockquoteIcon from '../../components/icons/BlockquoteIcon';
-import BoldIcon from '../../components/icons/BoldIcon';
-import CodeIcon from '../../components/icons/CodeIcon';
-import ItalicIcon from '../../components/icons/ItalicIcon';
-import LinkIcon from '../../components/icons/LinkIcon';
-import StrikeIcon from '../../components/icons/StrikeIcon';
-import X16Icon from '../../components/icons/X16Icon';
-import ChatInputMenuButton from './ChatInputMenuButton';
+import CaretRightIcon from '@/components/icons/CaretRightIcon';
+import { useIsMobile } from '@/logic/useMedia';
+import BlockquoteIcon from '@/components/icons/BlockquoteIcon';
+import BoldIcon from '@/components/icons/BoldIcon';
+import CodeIcon from '@/components/icons/CodeIcon';
+import ItalicIcon from '@/components/icons/ItalicIcon';
+import LinkIcon from '@/components/icons/LinkIcon';
+import StrikeIcon from '@/components/icons/StrikeIcon';
+import X16Icon from '@/components/icons/X16Icon';
+import ChatInputMenuButton from '@/chat/ChatInputMenu/ChatInputMenuButton';
 
 export type MenuState = 'closed' | 'open' | 'editing-link' | 'link-hover';
 
@@ -151,6 +152,15 @@ export default function ChatInputMenuToolbar({
             onClick={() => editor.chain().focus().toggleCode().run()}
             unpressedLabel="Apply Code"
             pressedLabel="Remove Code"
+          >
+            <CaretRightIcon className="h-6 w-6" />
+          </ChatInputMenuButton>
+          <ChatInputMenuButton
+            isActive={editor.isActive('codeBlock')}
+            isSelected={isSelected('codeBlock')}
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            unpressedLabel="Apply Code Block"
+            pressedLabel="Remove Code Block"
           >
             <CodeIcon className="h-6 w-6" />
           </ChatInputMenuButton>

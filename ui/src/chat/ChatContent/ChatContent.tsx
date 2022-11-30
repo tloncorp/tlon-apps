@@ -10,6 +10,7 @@ import {
   isStrikethrough,
   Inline,
   isShip,
+  isBlockCode,
 } from '@/types/content';
 import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
 // eslint-disable-next-line import/no-cycle
@@ -119,6 +120,14 @@ export function InlineContent({ story }: InlineContentProps) {
           story['inline-code']
         )}
       </code>
+    );
+  }
+
+  if (isBlockCode(story)) {
+    return (
+      <pre className="rounded bg-gray-50 px-1.5">
+        <code>{story.code}</code>
+      </pre>
     );
   }
 
