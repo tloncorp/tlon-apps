@@ -735,10 +735,12 @@
         %team
       =*  ship  ship.delta
       =.  cu-core  (cu-give-delta delta)
-      ?:  &(!ok.delta (~(has in team.club) ship))
+      =/  loyal  (~(has in team.club) ship)
+      ?:  &(!ok.delta loyal)
         ?.  =(our src):bowl
           cu-core
         cu-core(gone &)
+      ?:  &(ok.delta loyal)  cu-core
       ?.  (~(has in hive.club) ship)
         cu-core
       =.  hive.club  (~(del in hive.club) ship)
