@@ -9,6 +9,7 @@ import {
   Club,
   Hive,
   ChatCreate,
+  ChatWrit,
 } from '../../types/chat';
 import { BaseState } from '../base';
 import { GroupMeta } from '../../types/groups';
@@ -45,6 +46,9 @@ export interface ChatState {
       oldest: bigInt.BigInteger;
       newest: bigInt.BigInteger;
     };
+  };
+  loadedRefs: {
+    [path: string]: ChatWrit;
   };
   pendingDms: string[];
   briefs: ChatBriefs;

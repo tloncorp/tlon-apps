@@ -131,6 +131,7 @@ export const useChatState = createState<ChatState>(
     sentMessages: [],
     postedMessages: [],
     loadedWrits: {},
+    loadedRefs: {},
     briefs: {},
     togglePin: async (whom, pin) => {
       const { pins } = get();
@@ -960,20 +961,27 @@ type UnsubbedWrit = {
   writ: ChatWrit;
 };
 
+const selLoadedRefs = (s: ChatState) => s.loadedRefs;
 export function useWritByFlagAndWritId(
   chFlag: string,
   idWrit: string,
   isScrolling: boolean
 ) {
-  const [res, setRes] = useState(null as UnsubbedWrit | null);
+  const refs = useChatState(selLoadedRefs);
+  const path = `/said/${chFlag}/msg/${idWrit}`;
+  const cached = refs[path];
+
   useEffect(() => {
     if (!isScrolling) {
-      subscribeOnce<UnsubbedWrit>('chat', `/said/${chFlag}/msg/${idWrit}`).then(
-        setRes
-      );
+      subscribeOnce<UnsubbedWrit>('chat', path).then(({ writ }) => {
+        useChatState.getState().batchSet((draft) => {
+          draft.loadedRefs[path] = writ;
+        });
+      });
     }
-  }, [chFlag, idWrit, isScrolling]);
-  return res;
+  }, [path, isScrolling]);
+
+  return cached;
 }
 
 export function useLoadedWrits(whom: string) {

@@ -326,3 +326,8 @@ export interface DiaryCreate {
 export interface DiaryPerm {
   writers: string[];
 }
+
+export interface DiarySaid {
+  flag: string;
+  outline: DiaryOutline;
+}

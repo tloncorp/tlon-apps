@@ -24,6 +24,7 @@ import {
   DiaryDisplayMode,
   DiaryLetter,
   DiaryStory,
+  DiarySaid,
 } from '@/types/diary';
 import api from '@/api';
 import {
@@ -37,6 +38,16 @@ import makeNotesStore from './notes';
 import useSubscriptionState from '../subscription';
 
 setAutoFreeze(false);
+
+function subscribeOnce<T>(app: string, path: string) {
+  return new Promise<T>((resolve) => {
+    api.subscribe({
+      app,
+      path,
+      event: resolve,
+    });
+  });
+}
 
 function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
   return {
@@ -80,6 +91,7 @@ export const useDiaryState = create<DiaryState>(
       notes: {},
       banter: {},
       diarySubs: [],
+      loadedNotes: {},
       briefs: {},
       markRead: async (flag) => {
         await api.poke({
@@ -446,4 +458,23 @@ export function useGetLatestNote() {
 export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
   const diary = useDiary(flag);
   return diary?.view ?? 'grid';
+}
+
+const selRefs = (s: DiaryState) => s.loadedNotes;
+export function useRemoteOutline(flag: string, time: string, load: boolean) {
+  const refs = useDiaryState(selRefs);
+  const path = `/said/${flag}/note/${time}`;
+  const cached = refs[path];
+
+  useEffect(() => {
+    if (!load) {
+      subscribeOnce<DiarySaid>('diary', path).then(({ outline }) => {
+        useDiaryState.getState().batchSet((draft) => {
+          draft.loadedNotes[path] = outline;
+        });
+      });
+    }
+  }, [path, load]);
+
+  return cached;
 }

@@ -6,7 +6,7 @@ import {
   DiaryDisplayMode,
   DiaryFlag,
   DiaryNoteMap,
-  DiaryQuipMap,
+  DiaryOutline,
   NoteEssay,
 } from '@/types/diary';
 
@@ -17,6 +17,9 @@ export interface DiaryState {
     [flag: string]: Diary;
   };
   diarySubs: string[];
+  loadedNotes: {
+    [path: string]: DiaryOutline;
+  };
   notes: {
     [flag: DiaryFlag]: DiaryNoteMap;
   };
