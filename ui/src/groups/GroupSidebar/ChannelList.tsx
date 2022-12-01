@@ -27,6 +27,7 @@ import usePendingImports from '@/logic/usePendingImports';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import MigrationTooltip from '@/components/MigrationTooltip';
 import { useStartedMigration } from '@/logic/useMigrationInfo';
+import useFilteredSections from '@/logic/useFilteredSections';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -104,10 +105,11 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const hasStarted = useStartedMigration();
   const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT;
-  const { sectionedChannels, sections } = useChannelSections(flag);
+  const { sectionedChannels } = useChannelSections(flag);
+  const filteredSections = useFilteredSections(flag, true);
   const isMobile = useIsMobile();
-  const isChannelUnread = useCheckChannelUnread();
   const vessel = useVessel(flag, window.our);
+  const isChannelUnread = useCheckChannelUnread();
 
   if (!group) {
     return null;
@@ -175,19 +177,16 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   return (
     <div className={className}>
       {!isMobile && <ChannelSorter isMobile={false} />}
-
       <ul className={cn('space-y-1', isMobile && 'flex-none space-y-3')}>
         {isDefaultSort
-          ? sections.map((s) => (
+          ? filteredSections.map((s) => (
               <div className="space-y-1" key={s}>
                 {s !== UNZONED ? (
                   <Divider>
                     {s in group.zones ? group.zones[s].meta.title : ''}
                   </Divider>
                 ) : null}
-                {s in sectionedChannels
-                  ? renderChannels(sectionedChannels[s])
-                  : null}
+                {renderChannels(sectionedChannels[s])}
               </div>
             ))
           : renderChannels(unsectionedChannels)}

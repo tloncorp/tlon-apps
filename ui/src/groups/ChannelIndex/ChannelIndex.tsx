@@ -32,6 +32,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import usePendingImports from '@/logic/usePendingImports';
 import MigrationTooltip from '@/components/MigrationTooltip';
 import { useStartedMigration } from '@/logic/useMigrationInfo';
+import useFilteredSections from '@/logic/useFilteredSections';
 
 const UNZONED = 'default';
 
@@ -280,7 +281,8 @@ function ChannelSection({
 
 export default function ChannelIndex({ title }: ViewProps) {
   const flag = useRouteGroup();
-  const { sectionedChannels, sections } = useChannelSections(flag);
+  const { sectionedChannels } = useChannelSections(flag);
+  const filteredSections = useFilteredSections(flag);
   const navigate = useNavigate();
   const isAdmin = useAmAdmin(flag);
   const group = useGroup(flag);
@@ -318,7 +320,7 @@ export default function ChannelIndex({ title }: ViewProps) {
         ) : null}
       </div>
       <div className="p-4">
-        {sections.map((section) =>
+        {filteredSections.map((section) =>
           sectionedChannels[section] ? (
             <div
               key={section}

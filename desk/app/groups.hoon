@@ -13,6 +13,7 @@
   |%
   ++  okay  `epic:e`0
   +$  card  card:agent:gall
+  ++  import-epoch  ~2022.10.11
   +$  current-state
     $:  %0
         groups=net-groups:g
@@ -79,6 +80,11 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  check-known
+  |=  =ship
+  ^-  ?(%alien %known)
+  =-  (fall (~(get by -) ship) %alien)
+  .^((map ^ship ?(%alien %known)) %ax /(scot %p our.bowl)//(scot %da now.bowl)/peers)
 ++  mar
   |%
   ++  act  `mark`(rap 3 %group-action '-' (scot %ud okay) ~)
@@ -209,6 +215,9 @@
       [%gangs %index ship=@ ~]
     =/  =ship  (slav %p ship.pole)
     ?:  =(our.bowl ship)  res-gang-index
+    ::  XX remove when ames fix is in
+    =+  (check-known ship)
+    ?.  ?=(%known -)  (hi-and-req-gang-index ship)
     (req-gang-index ship)
   ::
      [%gangs ship=@ name=@ rest=*]
@@ -243,6 +252,7 @@
       ~   cor
       [%epic ~]  (take-epic sign)
       [%hark ~]  cor
+      [%helm *]  cor
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -448,8 +458,8 @@
     ==
   =/  =net:g
     ?:  =(p.flag our.bowl)
-      pub/(put:log-on:g *log:g now.bowl create/group)
-    [%sub now.bowl | chi/~]
+      pub/(put:log-on:g *log:g import-epoch create/group)
+    [%sub (sub import-epoch ~d1) | chi/~]
   =.  groups  (~(put by groups) flag [net group])
   go-abet:(go-init:(go-abed:group-core flag) &) :: setup defaults
   ::
@@ -826,7 +836,7 @@
   ++  go-fact-init
     |=  [=time gr=group:g]
     =.  group  gr
-    =.  net  [%sub time | %chi ~]
+    =.  net  [%sub time & %chi ~]
     =/  create=diff:g  [%create group]
     =.  cor  
       (give %fact ~[/groups /groups/ui] act:mar !>(`action:g`[flag now.bowl create]))
@@ -1301,6 +1311,18 @@
   =/  =wire  /gangs/index/(scot %p ship)
   =/  =dock  [ship dap.bowl]
   (emit %pass wire %agent dock %watch `path`wire)
+::
+++  hi-and-req-gang-index
+  |=  =ship
+  ^+  cor
+  =/  hi-wire=wire  /helm/hi/(scot %p ship)
+  =/  hi-dock=dock  [ship %hood]
+  =/  gang-wire  /gangs/index/(scot %p ship)
+  =/  gang-dock  [ship dap.bowl]
+  %-  emil
+  :~  [%pass hi-wire %agent hi-dock %poke %helm-hi !>('')]
+      [%pass gang-wire %agent gang-dock %watch `path`gang-wire]
+  ==
 ::
 ++  take-gang-index
   |=  [=ship =sign:agent:gall]

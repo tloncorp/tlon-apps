@@ -10,7 +10,7 @@ export default function HeapLoadingBlock({
     <div
       className={
         reference
-          ? 'heap-inline-block items-center justify-center bg-gray-100'
+          ? 'heap-inline-block h-[126px] items-center justify-center bg-gray-100'
           : 'heap-block items-center justify-center bg-gray-100'
       }
     >

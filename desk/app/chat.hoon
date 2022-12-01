@@ -346,7 +346,7 @@
       (slog tank u.p.sign)
     ::
         %fact
-      ?.  =(%group-action p.cage.sign)  cor
+      ?.  =(%group-action-0 p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
@@ -822,10 +822,12 @@
         %team
       =*  ship  ship.delta
       =.  cu-core  (cu-give-delta delta)
-      ?:  &(!ok.delta (~(has in team.club) ship))
+      =/  loyal  (~(has in team.club) ship)
+      ?:  &(!ok.delta loyal)
         ?.  =(our src):bowl
           cu-core
         cu-core(gone &)
+      ?:  &(ok.delta loyal)  cu-core
       ?.  (~(has in hive.club) ship)
         cu-core
       =.  hive.club  (~(del in hive.club) ship)
@@ -975,7 +977,7 @@
       =/  =dock      [our.bowl %groups]  :: XX: which ship?
       =/  =wire      (snoc ca-area term)
       =.  cor
-        (emit %pass wire %agent dock %poke group-action+!>(action))
+        (emit %pass wire %agent dock %poke group-action-0+!>(action))
       ca-core
     ::
     ++  create-channel

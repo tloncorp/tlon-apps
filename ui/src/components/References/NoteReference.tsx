@@ -15,10 +15,12 @@ export default function NoteReference({
   chFlag,
   nest,
   id,
+  isScrolling = false,
 }: {
   chFlag: string;
   nest: string;
   id: string;
+  isScrolling?: boolean;
 }) {
   const preview = useChannelPreview(nest);
   const [scryError, setScryError] = useState<string>();
@@ -31,13 +33,15 @@ export default function NoteReference({
   const totalComments = Array.from(quips).length;
 
   useEffect(() => {
-    useDiaryState
-      .getState()
-      .initialize(chFlag)
-      .catch((reason) => {
-        setScryError(reason);
-      });
-  }, [chFlag]);
+    if (!isScrolling) {
+      useDiaryState
+        .getState()
+        .initialize(chFlag)
+        .catch((reason) => {
+          setScryError(reason);
+        });
+    }
+  }, [chFlag, isScrolling]);
 
   if (scryError !== undefined) {
     // TODO handle requests for single notes like we do for single writs.

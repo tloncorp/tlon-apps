@@ -50,7 +50,7 @@ export default function MultiDm() {
       <Layout
         className="h-full grow"
         header={
-          <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
+          <div className="flex h-full w-full items-center justify-between border-b-2 border-gray-50 p-2">
             <BackButton
               to="/"
               className={cn(
@@ -66,9 +66,7 @@ export default function MultiDm() {
               <div className="flex items-center space-x-3">
                 <MultiDmAvatar {...club.meta} size="small" />
                 <div className="flex flex-col items-start text-left">
-                  <div className="w-full truncate font-semibold">
-                    {groupName}
-                  </div>
+                  <div className="font-semibold line-clamp-1">{groupName}</div>
                   <div className="text-gray-600">
                     <span>{`${count} ${pluralize('Member', count)}${
                       hasPending ? ',' : ''

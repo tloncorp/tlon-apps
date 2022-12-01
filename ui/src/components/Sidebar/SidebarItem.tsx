@@ -9,6 +9,7 @@ import React, {
 import { Link, LinkProps, useMatch } from 'react-router-dom';
 import { useCurrentTheme } from '@/state/local';
 import { isColor } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
 
 type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
@@ -65,6 +66,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
       (defaultRoute ? '/' : matchString) || 'DONT_MATCH'
     );
     const active = !!matches;
+    const isMobile = useIsMobile();
     const Wrapper: keyof ReactHTML = div ? 'div' : 'li';
     const currentTheme = useCurrentTheme();
 
@@ -139,7 +141,8 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
           <div
             title={typeof children === 'string' ? children : undefined}
             className={cn(
-              'max-w-full flex-1 truncate text-left',
+              'max-w-full flex-1 text-left',
+              isMobile ? 'line-clamp-1' : 'truncate',
               actions && 'pr-4'
             )}
           >

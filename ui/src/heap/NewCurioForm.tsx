@@ -78,7 +78,7 @@ export default function NewCurioForm() {
     async ({ content }: NewCurioFormSchema) => {
       await useHeapState.getState().addCurio(chFlag, {
         title: null,
-        content: [content],
+        content: [{ link: { href: content, content } }],
         author: window.our,
         sent: Date.now(),
         replying: null,
