@@ -12,6 +12,7 @@
   +$  current-state
     $:  %0
         =stash:h
+        voc=(map [flag:h time] (unit said:h))
     ==
   ::
   --
@@ -179,24 +180,75 @@
   --
 ::
 ++  watch
-  |=  =path
+  |=  =(pole knot)
   ^+  cor
-  ?+    path  ~|(bad-watch-path/path !!)
+  ?+    pole  ~|(bad-watch-path/pole !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
     ::
       [%epic ~]    (give %fact ~ epic+!>(okay))
     ::
-      [%heap @ @ *]
-    =/  =ship  (slav %p i.t.path)
-    =*  name   i.t.t.path
-    he-abet:(he-watch:(he-abed:he-core ship name) t.t.t.path)
+      [%heap ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    he-abet:(he-watch:(he-abed:he-core ship name.pole) rest.pole)
+    ::
+      [%said host=@ name=@ %curio time=@ ~]
+    =/  host=ship   (slav %p host.pole)
+    =/  =flag:h     [host name.pole]
+    =/  =time       (slav %ud time.pole)
+    (watch-said flag time)
   ==
 ::
-++  agent
-  |=  [=wire =sign:agent:gall]
+++  watch-said
+  |=  [=flag:h =time]
+  ?.  (~(has by stash) flag)
+    (proxy-said flag time)
+  he-abet:(he-said:(he-abed:he-core flag) time)
+++  said-wire
+  |=  [=flag:h =time]
+  ^-  wire
+  /said/(scot %p p.flag)/[q.flag]/curio/(scot %ud time)
+::
+++  take-said
+  |=  [=flag:h =time =sign:agent:gall]
   ^+  cor
-  ?+    wire  ~|(bad-agent-wire/wire !!)
+  ?+    -.sign  !!
+      %watch-ack
+    %.  cor
+    ?~  p.sign  same
+    (slog leaf/"Preview failed" u.p.sign)
+  ::
+      %kick
+    ?:  (~(has by voc) [flag time])
+      cor  :: subscription ended politely
+    (proxy-said flag time)
+  ::
+      %fact
+    =.  cor
+      (give %fact ~[(said-wire flag time)] cage.sign)
+    ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
+        %heap-said
+      =+  !<(=said:h q.cage.sign)
+      =.  voc  (~(put by voc) [flag time] `said)
+      cor
+    ::
+        %heap-denied
+      =.  voc  (~(put by voc) [flag time] ~)
+      cor
+    ==
+  ==
+::
+++  proxy-said
+  |=  [=flag:h =time]
+  =/  =dock  [p.flag dap.bowl]
+  =/  wire  (said-wire flag time)
+  =/  =card  [%pass wire %agent dock %watch wire]
+  (emit card)
+::
+++  agent
+  |=  [=(pole knot) =sign:agent:gall]
+  ^+  cor
+  ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
       [%epic ~]  (take-epic sign)
       [%hark ~]
@@ -205,10 +257,15 @@
     %-  (slog leaf/"Failed to hark" u.p.sign)
     cor
   ::
-      [%heap @ @ *]
-    =/  =ship  (slav %p i.t.wire)
-    =*  name   i.t.t.wire
-    he-abet:(he-agent:(he-abed:he-core ship name) t.t.t.wire sign)
+      [%heap ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    he-abet:(he-agent:(he-abed:he-core ship name.pole) rest.pole sign)
+  ::
+      [%said host=@ name=@ %curio time=@ ~]
+    =/  host=ship   (slav %p host.pole)
+    =/  =flag:h     [host name.pole]
+    =/  id=time     (slav %ud time.pole)
+    (take-said flag id sign)
   ::
       [%groups ~]
     ?+    -.sign  !!
@@ -377,6 +434,22 @@
     =/  link  
       (welp /groups/(scot %p p.group)/[q.group]/channels/heap/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
+  ::
+  ++  he-said
+    |=  =time
+    |^  ^+  he-core
+    ?.  (he-can-read src.bowl)
+      (give-kick heap-denied+!>(~))
+    =/  [* =curio:h]  (got:he-curios time)
+    %+  give-kick  %heap-said
+    !>  ^-  said:h
+    [flag curio]
+    ++  give-kick
+      |=  =cage
+      =.  cor  (give %fact ~ cage)
+      =.  cor  (give %kick ~ ~)
+      he-core
+    --
   ::
   ++  he-upgrade
     ^+  he-core
@@ -624,9 +697,6 @@
     =.  cor
       (give %fact ~(tap in paths) cag)
     =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
-    =?  cor  ?=(%curios -.d)
-      =/  =cage  curios-diff+!>(p.d)
-      (give %fact ~[(welp he-area /ui/curios)] cage)
     he-core
   ::
   ++  he-remark-diff
@@ -652,15 +722,13 @@
     |=  [=time d=diff:h]
     ^+  he-core
     ?>  he-can-write
-    =?  time  =(p.flag our.bowl)
-      now.bowl
     =.  log.heap
       (put:log-on:h log.heap time d)
     =.  he-core
       (he-give-updates time d)
     ?-    -.d
         %curios
-      =.  curios.heap  (reduce:he-curios time q.p.d)
+      =.  curios.heap  (reduce:he-curios time p.d)
       =.  cor  (give-brief flag he-brief)
       ?-  -.q.p.d
           ?(%edit %del %add-feel %del-feel)  he-core

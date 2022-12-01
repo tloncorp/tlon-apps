@@ -4,7 +4,7 @@ import create from 'zustand';
 import { persist } from 'zustand/middleware';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   CurioDelta,
   Heap,
@@ -18,6 +18,7 @@ import {
   HeapDisplayMode,
   Stash,
   GRID,
+  HeapSaid,
 } from '@/types/heap';
 import api from '@/api';
 import {
@@ -34,6 +35,16 @@ import { useVessel } from '../groups';
 import useSubscriptionState from '../subscription';
 
 setAutoFreeze(false);
+
+function subscribeOnce<T>(app: string, path: string) {
+  return new Promise<T>((resolve) => {
+    api.subscribe({
+      app,
+      path,
+      event: resolve,
+    });
+  });
+}
 
 function heapAction(flag: HeapFlag, diff: HeapDiff) {
   return {
@@ -76,6 +87,7 @@ export const useHeapState = create<HeapState>(
       stash: {},
       curios: {},
       heapSubs: [],
+      loadedRefs: {},
       briefs: {},
       markRead: async (flag) => {
         await api.poke({
@@ -245,7 +257,7 @@ export const useHeapState = create<HeapState>(
           flag,
           get,
           `/heap/${flag}/curios`,
-          `/heap/${flag}/ui/curios`
+          `/heap/${flag}/ui`
         ).initialize();
       },
     }),
@@ -387,6 +399,25 @@ export function useGetLatestCurio() {
     const curios = allCurios[curioFlag] ?? def;
     return curios.size > 0 ? curios.peekLargest() : empty;
   };
+}
+
+const selRefs = (s: HeapState) => s.loadedRefs;
+export function useRemoteCurio(flag: string, time: string, blockLoad: boolean) {
+  const refs = useHeapState(selRefs);
+  const path = `/said/${flag}/curio/${decToUd(time)}`;
+  const cached = refs[path];
+
+  useEffect(() => {
+    if (!blockLoad) {
+      subscribeOnce<HeapSaid>('heap', path).then(({ curio }) => {
+        useHeapState.getState().batchSet((draft) => {
+          draft.loadedRefs[path] = curio;
+        });
+      });
+    }
+  }, [path, blockLoad]);
+
+  return cached;
 }
 
 (window as any).heap = useHeapState.getState;

@@ -34,18 +34,21 @@
   (need (get time))
 ::
 ++  reduce
-  |=  [=time del=delta:curios:h]
+  |=  [now=time =time del=delta:curios:h]
   ^+  cur
   ?-  -.del
+    :: we use now on the add to enforce host ordering
+    :: any other actions should use time so that it's
+    :: the note that we're looking for.
       %add
-    =/  =seal:h  [time ~ ~]
-    ?:  (~(has by cur) time)
+    =/  =seal:h  [now ~ ~]
+    ?:  (~(has by cur) now)
       cur
     =.  cur
-      (put:on:curios:h cur time [seal p.del])
+      (put:on:curios:h cur now [seal p.del])
     ?~  replying.p.del  cur
     =*  replying  u.replying.p.del
-    (jab replying |=(curio:h +<(replied (~(put in replied) time))))
+    (jab replying |=(curio:h +<(replied (~(put in replied) now))))
   ::
       %edit
     =/  curio  (get time)

@@ -26,11 +26,6 @@ export default function NoteReference({
   const [scryError, setScryError] = useState<string>();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const outline = useRemoteOutline(chFlag, id, isScrolling);
-  // const { quips } = noteObject[1].seal;
-  // const commentAuthors = _.uniq(
-  //   Array.from(quips).map(([, quip]) => quip.memo.author)
-  // );
-  // const totalComments = Array.from(quips).length;
 
   useEffect(() => {
     if (!isScrolling) {

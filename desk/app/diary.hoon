@@ -224,7 +224,7 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ?+    pole  ~|(bad-watch-path/path !!)
+  ?+    pole  ~|(bad-watch-path/pole !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
     ::
@@ -290,7 +290,7 @@
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
-  ?+    pole  ~|(bad-agent-wire/wire !!)
+  ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
   ::
       [%epic ~]  (take-epic sign)

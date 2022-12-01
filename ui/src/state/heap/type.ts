@@ -3,6 +3,7 @@ import {
   Heap,
   HeapBriefs,
   HeapCreate,
+  HeapCurio,
   HeapCurioMap,
   HeapDisplayMode,
   HeapFlag,
@@ -15,6 +16,9 @@ export interface HeapState {
     [flag: string]: Heap;
   };
   heapSubs: string[];
+  loadedRefs: {
+    [path: string]: HeapCurio;
+  };
   curios: {
     [flag: HeapFlag]: HeapCurioMap;
   };

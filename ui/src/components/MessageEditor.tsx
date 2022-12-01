@@ -59,6 +59,7 @@ export function useMessageEditor({
         return;
       }
       const { chats, setBlocks } = useChatStore.getState();
+      console.log(r);
       const blocks = chats[whom]?.blocks || [];
       setBlocks(whom, [...blocks, { cite: r }]);
     },

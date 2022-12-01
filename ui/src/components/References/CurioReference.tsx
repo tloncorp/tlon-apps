@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useCurio, useHeapState } from '@/state/heap/heap';
+import { useCurio, useHeapState, useRemoteCurio } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import HeapBlock from '@/heap/HeapBlock';
 import { useChannelPreview } from '@/state/groups';
@@ -19,7 +19,7 @@ export default function CurioReference({
   idCurio: string;
   isScrolling?: boolean;
 }) {
-  const curioObject = useCurio(chFlag, idCurio);
+  const curio = useRemoteCurio(chFlag, idCurio, isScrolling);
   const preview = useChannelPreview(nest);
   const [scryError, setScryError] = useState<string>();
   const refToken = preview?.group
@@ -32,7 +32,7 @@ export default function CurioReference({
         .getState()
         .initialize(chFlag)
         .catch((reason) => {
-          setScryError(reason);
+          console.log(reason);
         });
     }
   }, [chFlag, isScrolling]);
@@ -43,11 +43,6 @@ export default function CurioReference({
     return <UnavailableReference time={time} nest={nest} preview={preview} />;
   }
 
-  if (!curioObject) {
-    return <HeapLoadingBlock reference />;
-  }
-
-  const [time, curio] = curioObject;
   if (!curio) {
     return <HeapLoadingBlock reference />;
   }
@@ -56,7 +51,7 @@ export default function CurioReference({
       <HeapBlock curio={curio} time={idCurio} refToken={refToken} asRef />
       <ReferenceBar
         nest={nest}
-        time={time}
+        time={bigInt(idCurio)}
         author={curio.heart.author}
         groupFlag={preview?.group.flag}
         groupTitle={preview?.group.meta.title}

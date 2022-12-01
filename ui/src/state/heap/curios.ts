@@ -2,11 +2,11 @@ import { BigIntOrderedMap, decToUd, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import {
-  CurioDiff,
   CurioSeal,
   HeapCurio,
   HeapCurios,
   HeapFlag,
+  HeapUpdate,
 } from '@/types/heap';
 import api from '../../api';
 import { HeapState } from './type';
@@ -90,24 +90,31 @@ export default function makeCuriosStore(
       api.subscribe({
         app: 'heap',
         path: subPath,
-        event: (data: unknown) => {
-          const { time, delta } = data as CurioDiff;
+        event: (data: HeapUpdate) => {
+          const { time: addTime, diff } = data;
+
+          if (!('curios' in diff)) {
+            return;
+          }
+
+          const { time, delta } = diff.curios;
           const s = get();
 
+          const addBigTime = bigInt(udToDec(addTime));
           const bigTime = bigInt(udToDec(time));
           s.batchSet((draft) => {
             let curioMap = draft.curios[flag];
-            if ('add' in delta && !curioMap.has(bigTime)) {
+            if ('add' in delta && !curioMap.has(addBigTime)) {
               const seal: CurioSeal = { time, feels: {}, replied: [] };
               const curio: HeapCurio = { seal, heart: delta.add };
-              curioMap = curioMap.set(bigTime, curio);
+              curioMap = curioMap.set(addBigTime, curio);
               if (delta.add.replying) {
                 const replyTime = bigInt(udToDec(delta.add.replying));
                 if (replyTime) {
                   const ancestor = curioMap.get(replyTime);
                   ancestor.seal.replied = [
                     ...ancestor.seal.replied,
-                    udToDec(time),
+                    udToDec(addTime),
                   ];
                   curioMap.set(replyTime, ancestor);
                 }

@@ -13,6 +13,14 @@
     |=  her=@p
     n+(rap 3 '"' (scot %p her) '"' ~)
   ::
+  ++  said
+    |=  s=said:h
+    ^-  json
+    %-  pairs
+    :~  flag/(flag p.s)
+        curio/(curio q.s)
+    ==
+  ::
   ++  briefs
     |=  bs=briefs:h
     %-  pairs

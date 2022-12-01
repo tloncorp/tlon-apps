@@ -461,20 +461,24 @@ export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
 }
 
 const selRefs = (s: DiaryState) => s.loadedNotes;
-export function useRemoteOutline(flag: string, time: string, load: boolean) {
+export function useRemoteOutline(
+  flag: string,
+  time: string,
+  blockLoad: boolean
+) {
   const refs = useDiaryState(selRefs);
   const path = `/said/${flag}/note/${decToUd(time)}`;
   const cached = refs[path];
 
   useEffect(() => {
-    if (!load) {
+    if (!blockLoad) {
       subscribeOnce<DiarySaid>('diary', path).then(({ outline }) => {
         useDiaryState.getState().batchSet((draft) => {
           draft.loadedNotes[path] = outline;
         });
       });
     }
-  }, [path, load]);
+  }, [path, blockLoad]);
 
   return cached;
 }
