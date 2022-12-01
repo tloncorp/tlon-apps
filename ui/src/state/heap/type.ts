@@ -19,6 +19,7 @@ export interface HeapState {
     [flag: HeapFlag]: HeapCurioMap;
   };
   briefs: HeapBriefs;
+  pendingImports: string[];
   create: (req: HeapCreate) => Promise<void>;
   start: () => Promise<void>;
   initialize: (flag: HeapFlag) => Promise<void>;

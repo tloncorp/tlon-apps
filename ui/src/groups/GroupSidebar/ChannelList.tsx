@@ -1,8 +1,15 @@
 import cn from 'classnames';
-import React from 'react';
+import React, { ReactNode } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
-import { channelHref, isChannelJoined, canReadChannel } from '@/logic/utils';
+import {
+  channelHref,
+  isChannelJoined,
+  canReadChannel,
+  nestToFlag,
+  getFlagParts,
+  isChannelImported,
+} from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useVessel } from '@/state/groups';
 import CaretDown16Icon from '@/components/icons/CaretDownIcon';
@@ -14,10 +21,12 @@ import useChannelSections from '@/logic/useChannelSections';
 import { GroupChannel } from '@/types/groups';
 import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
-import useIsChannelUnread, {
-  useCheckChannelUnread,
-} from '@/logic/useIsChannelUnread';
+import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
+import usePendingImports from '@/logic/usePendingImports';
+import Bullet16Icon from '@/components/icons/Bullet16Icon';
+import MigrationTooltip from '@/components/MigrationTooltip';
+import { useStartedMigration } from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
 import ChannelSortOptions from './ChannelSortOptions';
 
@@ -62,9 +71,38 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
   );
 }
 
+interface UnmigratedChannelProps {
+  icon: ReactNode;
+  title: string;
+  host: string;
+  isMobile: boolean;
+}
+
+function UnmigratedChannel({
+  icon,
+  host,
+  title,
+  isMobile,
+}: UnmigratedChannelProps) {
+  return (
+    <MigrationTooltip ship={host} side="right">
+      <SidebarItem
+        icon={icon}
+        actions={
+          <Bullet16Icon className="m-2 h-4 w-4 text-orange opacity-60" />
+        }
+      >
+        <span className="opacity-60">{title}</span>
+      </SidebarItem>
+    </MigrationTooltip>
+  );
+}
+
 export default function ChannelList({ flag, className }: ChannelListProps) {
   const group = useGroup(flag);
   const briefs = useAllBriefs();
+  const pendingImports = usePendingImports();
+  const hasStarted = useStartedMigration();
   const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels } = useChannelSections(flag);
@@ -81,14 +119,20 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
     channels
       .filter(
         ([nest, chan]) =>
-          isChannelJoined(nest, briefs) && canReadChannel(chan, vessel)
+          (isChannelJoined(nest, briefs) && canReadChannel(chan, vessel)) ||
+          pendingImports.includes(nest)
       )
       .map(([nest, channel]) => {
+        const [, chFlag] = nestToFlag(nest);
+        const { ship } = getFlagParts(chFlag);
+        const imported =
+          isChannelImported(nest, pendingImports) && hasStarted(ship);
         const icon = (active: boolean) =>
           isMobile ? (
             <span
               className={cn(
                 'flex h-12 w-12 items-center justify-center rounded-md',
+                !imported && 'opacity-60',
                 !active && 'bg-gray-50',
                 active && 'bg-white'
               )}
@@ -96,8 +140,22 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
               <ChannelIcon nest={nest} className="h-6 w-6" />
             </span>
           ) : (
-            <ChannelIcon nest={nest} className="h-6 w-6" />
+            <ChannelIcon
+              nest={nest}
+              className={cn('h-6 w-6', !imported && 'opacity-60')}
+            />
           );
+
+        if (!imported) {
+          return (
+            <UnmigratedChannel
+              icon={icon}
+              title={channel.meta.title || nest}
+              host={ship}
+              isMobile={isMobile}
+            />
+          );
+        }
 
         return (
           <SidebarItem

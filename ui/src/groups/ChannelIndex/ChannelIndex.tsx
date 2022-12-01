@@ -6,7 +6,13 @@ import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { GroupChannel, Zone, ViewProps } from '@/types/groups';
-import { channelHref, isChannelJoined, nestToFlag } from '@/logic/utils';
+import {
+  channelHref,
+  getFlagParts,
+  isChannelImported,
+  isChannelJoined,
+  nestToFlag,
+} from '@/logic/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
@@ -23,6 +29,9 @@ import useIsChannelHost from '@/logic/useIsChannelHost';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { useIsMobile } from '@/logic/useMedia';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
+import usePendingImports from '@/logic/usePendingImports';
+import MigrationTooltip from '@/components/MigrationTooltip';
+import { useStartedMigration } from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
 
 const UNZONED = 'default';
@@ -35,9 +44,13 @@ function GroupChannel({
   channel: GroupChannel;
 }) {
   const [_app, flag] = nestToFlag(nest);
+  const { ship } = getFlagParts(flag);
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useAllBriefs();
+  const pendingImports = usePendingImports();
+  const hasStarted = useStartedMigration();
+  const imported = isChannelImported(nest, pendingImports) && hasStarted(ship);
   const joined = isChannelJoined(nest, briefs);
   const isChannelHost = useIsChannelHost(flag);
   const isAdmin = useAmAdmin(groupFlag);
@@ -132,13 +145,14 @@ function GroupChannel({
       <button
         className="flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50"
         onClick={open}
+        disabled={!joined || !imported}
       >
         <div className="flex flex-row">
           <div className="mr-3 flex h-12 w-12 items-center justify-center rounded bg-gray-50">
             <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
           </div>
           <div className="flex flex-col justify-evenly">
-            {joined && nest ? (
+            {joined && imported && nest ? (
               <Link
                 className="font-semibold text-gray-800"
                 to={channelHref(groupFlag, nest)}
@@ -153,8 +167,14 @@ function GroupChannel({
           </div>
         </div>
       </button>
-      <div>
-        {joined ? (
+      <div className="flex-none">
+        {!imported ? (
+          <MigrationTooltip ship={ship} side="left">
+            <button className="secondary-button" disabled>
+              Pending Migration
+            </button>
+          </MigrationTooltip>
+        ) : joined ? (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild className="appearance-none">
               <button className="button bg-green-soft text-green mix-blend-multiply dark:bg-green-900 dark:mix-blend-screen hover:dark:bg-green-800">
