@@ -12,6 +12,7 @@ import LinkIcon from '@/components/icons/LinkIcon';
 import StrikeIcon from '@/components/icons/StrikeIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import ChatInputMenuButton from '@/chat/ChatInputMenu/ChatInputMenuButton';
+import CodeBlockIcon from '@/components/icons/CodeBlockIcon';
 
 export type MenuState = 'closed' | 'open' | 'editing-link' | 'link-hover';
 
@@ -153,7 +154,7 @@ export default function ChatInputMenuToolbar({
             unpressedLabel="Apply Code"
             pressedLabel="Remove Code"
           >
-            <CaretRightIcon className="h-6 w-6" />
+            <CodeIcon className="h-6 w-6" />
           </ChatInputMenuButton>
           <ChatInputMenuButton
             isActive={editor.isActive('codeBlock')}
@@ -162,7 +163,7 @@ export default function ChatInputMenuToolbar({
             unpressedLabel="Apply Code Block"
             pressedLabel="Remove Code Block"
           >
-            <CodeIcon className="h-6 w-6" />
+            <CodeBlockIcon className="h-6 w-6" />
           </ChatInputMenuButton>
           <ChatInputMenuButton
             textButton
