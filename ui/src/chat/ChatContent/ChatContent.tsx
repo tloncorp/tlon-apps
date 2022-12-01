@@ -1,5 +1,5 @@
 import React from 'react';
-import cn from 'classnames';
+import { findLastIndex } from 'lodash';
 import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
   isBlockquote,
@@ -168,9 +168,7 @@ export default function ChatContent({
   const inlineLength = story.inline.length;
   const blockLength = story.block.length;
   const firstBlockCode = story.inline.findIndex(isBlockCode);
-  // @ts-expect-error - this is a bug in typescript
-  // https://github.com/microsoft/TypeScript/issues/48829
-  const lastBlockCode = story.inline.findLastIndex(isBlockCode);
+  const lastBlockCode = findLastIndex(story.inline, isBlockCode);
 
   return (
     <div className="leading-6">
