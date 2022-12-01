@@ -15,10 +15,7 @@ export default function ColorBoxIcon({
 }: ColorBoxIconProps) {
   return (
     <div
-      className={classNames(
-        className,
-        'flex items-center justify-center rounded-md'
-      )}
+      className={classNames(className, 'rounded flex items-center justify-center')}
       style={{ backgroundColor: color }}
     >
       <span style={{ color: foregroundFromBackground(color) }}>{letter}</span>
