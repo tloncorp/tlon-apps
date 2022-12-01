@@ -18,6 +18,9 @@
     (sef tub)
   ~|  [tag tub]
   (sef tub)
+++  lyke
+  |$  [res]
+  [p=hair q=(unit [p=res q=nail])]
 ::
 ++  dbug  &
 ++  edict
@@ -221,6 +224,18 @@
   ^-  (list verse:d)
   %-  squeeze
   abet:~(main sing [[1 1] (trip str)] ~)
+++  nixt
+  |=  tub=nail
+  ^-  (like char)
+  ?~  q.tub
+    (fail tub)
+  =+  zac=(lust i.q.tub p.tub)
+  ?:  =('\\' i.q.tub)
+    ?~  t.q.tub
+      [zac [~ i.q.tub [zac t.q.tub]]]
+    =+  zec=(lust i.t.q.tub zac)
+    [zec [~ i.t.q.tub [zec t.t.q.tub]]]
+  [zac [~ i.q.tub [zac t.q.tub]]]
 ::  TODO: squeeze after parsing?
 ++  migrate
   |=  [f=flag:d atom=@ud ls=(list content:post:gra:d)]
@@ -235,9 +250,9 @@
   ^-  (list verse:d)
   ?-    -.con
       %text       (ring (trip text.con))
-      %mention    [%inline ~[`@t`(scot %p ship.con)]]~  :: TODO: i swear I PR'd ships
+      %mention    [%inline ~[ship/ship.con]]~  :: TODO: i swear I PR'd ships
       %code       [%inline ~[code/expression.con]]~
-      %reference  ~  :: TODO: think about?
+      %reference  [%inline ~[code/(crip <reference.con>) break/~]]~
   ::
       %url        
     =/  def=(list verse:d)
@@ -379,6 +394,28 @@
     b
   u.a
 ::
+++  infix-lr
+  |*  [left=rule right=rule inner=rule]
+  |=  tub=nail
+  =+  vex=(left tub)
+  ?~  q.vex
+    (fail tub)
+  =/  but=nail  tub
+  =+  outer=(;~(sfix (plus ;~(less right nixt)) (opt-sfix-end right)) q.u.q.vex)
+  ?~  q.outer
+    (fail tub)
+  =+  in=(inner [1 1] p.u.q.outer)
+  ?~  q.in
+    (fail tub)
+  outer(p.u.q p.u.q.in)
+::
+++  pose-further
+  |*  [vex=edge sab=rule]
+  =+  roq=(sab)
+  ?:  =(p.vex (last p.vex p.roq))
+    vex
+  roq
+::
 ++  infix
   |*  [delim=rule inner=rule]
   |=  tub=nail
@@ -386,13 +423,55 @@
   ?~  q.vex
     (fail tub)
   =/  but=nail  tub
-  =+  outer=(;~(sfix (plus ;~(less delim next)) delim) q.u.q.vex)
+  =+  outer=(;~(sfix (plus ;~(less delim nixt)) (opt-sfix-end delim)) q.u.q.vex)
   ?~  q.outer
     (fail tub)
   =+  in=(inner [1 1] p.u.q.outer)
   ?~  q.in
     (fail tub)
   outer(p.u.q p.u.q.in) ::
+::
+++  opt-sfix-end
+  |*  sef=rule
+  |=  tub=nail
+  ?:  =(q.tub ~)
+    [p=p.tub q=[~ u=[p=~ q=tub]]]
+  =+  vex=(sef tub)
+  vex
+::
+++  infix-multi
+  |*  inner=rule
+  |*  [vex=edge delim=rule]
+  =/  roq
+    ?:(=(~ q.vex) (delim) vex)
+  ?~  q.roq :: did not find start delim, fail
+    [p=p.roq q=~]
+  =+  out=(;~(sfix (plus ;~(less delim next)) (opt-sfix-end delim)) q.u.q.roq)
+  ?~  q.out
+    [p=p.vex q=~]
+  =+  in=(inner [1 1] p.u.q.out)
+  ?~  q.in
+    [p=p.vex q=~]
+  [p=p.out q=[~ u=[p=p.u.q.in q=q.u.q.out]]]
+::
+++  infix-multi-bad
+  |*  inner=rule
+  |=  [vex=(lyke _(wonk (inner))) delim=$-(nail (lyke _(wonk (inner))))]
+  ^-  (lyke _(wonk (inner)))
+  ?.  ?=(~ q.vex)  :: if success, ret
+    [p=p.vex q=~]
+  =+  roq=(delim)
+  ?~  q.roq :: did not find start delim, fail
+    [p=(last p.vex p.roq) q=q.roq]
+  ~!  q.u.q.roq
+  =+  out=(;~(sfix (plus ;~(less delim next)) (opt-sfix-end delim)) q.u.q.roq)
+  ?~  q.out
+    ~&  %fail-outer
+    [p=p.vex q=~]
+  =+  in=(inner [1 1] p.u.q.out)
+  ?~  q.in
+    [p=p.vex q=~]
+  [p=p.out q=[~ u=[p=p.u.q.in q=q.u.q.out]]]
 ::
 ++  split-rule
   |*  [txt=tape delim=rule]
@@ -401,15 +480,27 @@
   (rust txt (more delim (star ;~(less delim next))))
 ::
 ++  by-code
+  |^
   |=  txt=tape
   ^-  (list lang)
-  =<  +
-  %+  reel  (split-rule txt ;~(plug tic tic tic))
-  |=  [tap=tape count=@ud ls=(list lang)]
-  :-  +(count)
-  ?:  =(0 (mod count 2))
-    [[%& tap] ls]
-  [[%| tap] ls]
+  (log-fall %by-code txt (rust txt (star apex)) ~[[%& txt]]) 
+  :: (log-fall %by-code txt (rust txt (plus apex)) ~[[%& txt]])
+  ++  apex
+    ;~  pose
+      code
+      prose-simple
+      (stag %& (listify next))
+    ==
+  ++  code
+    ;~  pose-further
+      (infix ;~(plug tic tic tic) code-inner)
+      (infix ;~(plug sig sig sig) code-inner)
+    ==
+  ++  code-inner
+    (stag %| (star next))
+  ++  prose-simple
+    (stag %& (plus ;~(less sig tic next)))
+  --
 ::
 ++  elem
   |%
@@ -430,8 +521,9 @@
     ;~(plug (stun [1 6] hax) inline)
   ++  blockquote  (stag %inline (listify (stag %blockquote ;~(pfix gar inline))))
   ++  hr          (stag %block (cold `block:d`rule/~ (jest '---')))
-  ++  str         (tie (plus ;~(less cab tar tic next)))
+  ++  str         (tie (plus ;~(less cab tar tic sig sel nbsp nixt)))
   ++  inline-verse  (stag %inline inline)
+  ++  nbsp  (jest '&nbsp')
   ++  inline
     %+  knee  *(list inline:d)
     |.  ~+
@@ -443,8 +535,18 @@
       (stag %inline-code (infix tic code))
       (stag %italics (infix cab inline))
       (stag %italics (infix tar inline))
+      (stag %ship ;~(pfix sig fed:ag))
+      link
+      (cold ' ' (jest '&nbsp'))
       str
-      next
+      nixt
+    ==
+  ++  link
+    %+  stag  %link
+    %+  cook  |=([a=@t b=@t] [b a])
+    ;~  plug
+      (infix-lr sel ser (tie (star prn)))
+      (infix-lr pal par (tie (star prn)))
     ==
   ::
   ++  line-start
@@ -459,7 +561,7 @@
   --
 ::
 ++  code
-  (tie (star next))
+  (tie (star nixt))
 ++  tie
   |*  rul=rule
   (cook crip rul)
@@ -467,17 +569,18 @@
 ++  whit  ;~(pose (jest '\09') ace)
 ::
 ++  lift-blocks
-  |=  txt=tape
+  |=  [txt=tape first=?]
   ^-  (list erratum)
   =-  (log-fall %lift-blocks txt - ~[prose/txt])
   %+  rust  txt
-  %+  sear
+  %+  cook
     |=  ls=(list erratum)
-    ^-  (unit (list erratum))
+    ^-  (list erratum)
+    ?:  first  ls
     ?~  ls   ~
     ?.  ?=(%prose -.i.ls)
-      `ls
-    `[[%line tape.i.ls] t.ls]
+      ls
+    [[%line tape.i.ls] t.ls]
   %-  plus
   ;~  pose
     %+  cook
@@ -506,13 +609,14 @@
       ~[lang]
     (turn (by-line p.lang) (lead %&))
   =/  err=(list erratum)
-    %-  zing
-    %+  turn  lines
-    |=  =lang
-    ^-  (list erratum)
+    =<  -
+    %+  reel  lines
+    |=  [=lang out=(list erratum) first=_&]
+    ^-  [(list erratum) ?]
+    :_  |
     ?:  ?=(%| -.lang)
-      [%code p.lang]~
-    (lift-blocks p.lang)
+      [[%code p.lang] out]
+    (welp (flop (lift-blocks p.lang first)) out)
   =/  blocks=(list verse:d)
     %+  turn  err
     |=  e=erratum
