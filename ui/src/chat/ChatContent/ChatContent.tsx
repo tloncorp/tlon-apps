@@ -1,4 +1,5 @@
 import React from 'react';
+import { findLastIndex } from 'lodash';
 import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
   isBlockquote,
@@ -10,6 +11,7 @@ import {
   isStrikethrough,
   Inline,
   isShip,
+  isBlockCode,
 } from '@/types/content';
 import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
 // eslint-disable-next-line import/no-cycle
@@ -122,6 +124,14 @@ export function InlineContent({ story }: InlineContentProps) {
     );
   }
 
+  if (isBlockCode(story)) {
+    return (
+      <pre className="bg-gray-50 px-4">
+        <code>{story.code}</code>
+      </pre>
+    );
+  }
+
   if (isShip(story)) {
     return <ShipMention ship={story.ship} />;
   }
@@ -157,6 +167,8 @@ export default function ChatContent({
 }: ChatContentProps) {
   const inlineLength = story.inline.length;
   const blockLength = story.block.length;
+  const firstBlockCode = story.inline.findIndex(isBlockCode);
+  const lastBlockCode = findLastIndex(story.inline, isBlockCode);
 
   return (
     <div className="leading-6">
@@ -176,12 +188,47 @@ export default function ChatContent({
       ) : null}
       {inlineLength > 0 ? (
         <>
-          {story.inline.map((storyItem, index) => (
-            <InlineContent
-              key={`${storyItem.toString()}-${index}`}
-              story={storyItem}
-            />
-          ))}
+          {story.inline.map((storyItem, index) => {
+            // we need to add top and bottom padding to first/last lines of code blocks.
+
+            if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
+              return (
+                <div className="rounded bg-gray-50 py-2">
+                  <InlineContent
+                    key={`${storyItem.toString()}-${index}`}
+                    story={storyItem}
+                  />
+                </div>
+              );
+            }
+
+            if (index === firstBlockCode) {
+              return (
+                <div className="rounded bg-gray-50 pt-2">
+                  <InlineContent
+                    key={`${storyItem.toString()}-${index}`}
+                    story={storyItem}
+                  />
+                </div>
+              );
+            }
+            if (index === lastBlockCode) {
+              return (
+                <div className="rounded bg-gray-50 pb-2">
+                  <InlineContent
+                    key={`${storyItem.toString()}-${index}`}
+                    story={storyItem}
+                  />
+                </div>
+              );
+            }
+            return (
+              <InlineContent
+                key={`${storyItem.toString()}-${index}`}
+                story={storyItem}
+              />
+            );
+          })}
         </>
       ) : null}
     </div>
