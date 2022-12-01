@@ -170,6 +170,8 @@ export default function ChatContent({
   const firstBlockCode = story.inline.findIndex(isBlockCode);
   const lastBlockCode = findLastIndex(story.inline, isBlockCode);
 
+  console.log({ firstBlockCode, lastBlockCode, story });
+
   return (
     <div className="leading-6">
       {blockLength > 0 ? (
@@ -190,6 +192,18 @@ export default function ChatContent({
         <>
           {story.inline.map((storyItem, index) => {
             // we need to add top and bottom padding to first/last lines of code blocks.
+
+            if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
+              return (
+                <div className="rounded bg-gray-50 py-2">
+                  <InlineContent
+                    key={`${storyItem.toString()}-${index}`}
+                    story={storyItem}
+                  />
+                </div>
+              );
+            }
+
             if (index === firstBlockCode) {
               return (
                 <div className="rounded bg-gray-50 pt-2">
