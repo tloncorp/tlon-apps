@@ -235,9 +235,9 @@
     di-abet:(di-watch:(di-abed:di-core ship name.pole) rest.pole)
     ::
       [%said host=@ name=@ %note time=@ ~]
-    =/  host=ship  (slav %p host.pole)
+    =/  host=ship   (slav %p host.pole)
     =/  =flag:d     [host name.pole]
-    =/  =time  time.pole
+    =/  =time       (slav %ud time.pole)
     (watch-said flag time)
   ==
 ::
@@ -306,9 +306,9 @@
     di-abet:(di-agent:(di-abed:di-core ship name.pole) rest.pole sign)
   ::
       [%said host=@ name=@ %note time=@ ~]
-    =/  host=ship  (slav %p host.pole)
+    =/  host=ship   (slav %p host.pole)
     =/  =flag:d     [host name.pole]
-    =/  id=time  time.pole
+    =/  id=time     (slav %ud time.pole)
     (take-said flag id sign)
   ::
       [%groups ~]

@@ -320,14 +320,12 @@
     =/  =wire  /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
     (emit [%pass wire %agent [p.q.nest dap.bowl] %watch `path`wire])
   =/  gs  ~(tap by groups)
-  ~&  [nest gs]
   |-  
   ?~  gs
     ~|(no-group-found/nest !!)
   =/  [=flag:g =net:g =group:g]  i.gs
   ?.  (~(has by channels.group) nest)
     $(gs t.gs)
-  ~&  [flag (~(got by channels.group) nest) src.bowl]
   ?.  (go-can-read:(go-abed:group-core flag) src.bowl (~(got by channels.group) nest))
     $(gs t.gs)
   =/  =preview:channel:g

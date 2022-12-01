@@ -463,7 +463,7 @@ export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
 const selRefs = (s: DiaryState) => s.loadedNotes;
 export function useRemoteOutline(flag: string, time: string, load: boolean) {
   const refs = useDiaryState(selRefs);
-  const path = `/said/${flag}/note/${time}`;
+  const path = `/said/${flag}/note/${decToUd(time)}`;
   const cached = refs[path];
 
   useEffect(() => {
