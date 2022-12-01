@@ -6,19 +6,23 @@ import { useCalm } from '@/state/settings';
 
 interface AppReferenceProps {
   desk: string;
+  isScrolling?: boolean;
 }
 
-export default function AppReference({ desk }: AppReferenceProps) {
+export default function AppReference({
+  desk,
+  isScrolling = false,
+}: AppReferenceProps) {
   const [ship, deskId] = desk.split('/');
   const treaty = useTreaty(ship, deskId);
   const calm = useCalm();
   const href = `/apps/grid/leap/search/${ship}/apps/${ship}/${deskId}`;
 
   useEffect(() => {
-    if (!treaty) {
+    if (!treaty && !isScrolling) {
       useDocketState.getState().requestTreaty(ship, desk);
     }
-  }, [treaty, ship, desk]);
+  }, [treaty, ship, desk, isScrolling]);
 
   function openLink() {
     window.open(`${window.location.origin}${href}`);

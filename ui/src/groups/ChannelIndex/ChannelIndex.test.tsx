@@ -8,11 +8,13 @@ import ChannelIndex from './ChannelIndex';
 
 const fakeGroup: Group = createMockGroup('Fake Group');
 fakeGroup.channels[`chat/~zod/tlon`] = createChannel('Fake Channel');
+const fakeVessel = fakeGroup.fleet['~hastuc-dibtux'];
 
 vi.mock('@/state/groups', () => ({
   useGroup: () => fakeGroup,
   useRouteGroup: () => null,
   useAmAdmin: () => true,
+  useVessel: () => fakeVessel,
 }));
 
 describe('ChannelIndex', () => {

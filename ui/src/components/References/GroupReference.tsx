@@ -9,9 +9,13 @@ import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 
 interface GroupReferenceProps {
   flag: string;
+  isScrolling?: boolean;
 }
 
-export default function GroupReference({ flag }: GroupReferenceProps) {
+export default function GroupReference({
+  flag,
+  isScrolling = false,
+}: GroupReferenceProps) {
   const gang = useGang(flag);
   const { group, privacy, open, reject, button, status } = useGroupJoin(
     flag,
@@ -22,10 +26,10 @@ export default function GroupReference({ flag }: GroupReferenceProps) {
   const meta = group?.meta || gang?.preview?.meta;
 
   useEffect(() => {
-    if (!gang?.preview && !group) {
+    if (!gang?.preview && !group && !isScrolling) {
       useGroupState.getState().search(flag);
     }
-  }, [gang, group, flag]);
+  }, [gang, group, flag, isScrolling]);
 
   if (privacy === 'secret') {
     return (

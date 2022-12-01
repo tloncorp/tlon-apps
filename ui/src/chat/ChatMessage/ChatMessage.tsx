@@ -35,6 +35,7 @@ export interface ChatMessageProps {
   hideOptions?: boolean;
   isLast?: boolean;
   isLinked?: boolean;
+  isScrolling?: boolean;
 }
 
 function briefMatches(brief: ChatBrief, id: string): boolean {
@@ -56,6 +57,7 @@ const ChatMessage = React.memo<
         hideOptions = false,
         isLast = false,
         isLinked = false,
+        isScrolling = false,
       }: ChatMessageProps,
       ref
     ) => {
@@ -89,7 +91,7 @@ const ChatMessage = React.memo<
                as seen and start a timer to mark it read so it goes away.
                we ensure that the brief matches and hasn't changed before
                doing so. we don't want to accidentally clear unreads when
-               the state has changed 
+               the state has changed
             */
             if (inView && briefMatches(brief, writ.seal.id) && !seen) {
               markSeen(whom);
@@ -168,7 +170,10 @@ const ChatMessage = React.memo<
                 )}
               >
                 {'story' in memo.content ? (
-                  <ChatContent story={memo.content.story} />
+                  <ChatContent
+                    story={memo.content.story}
+                    isScrolling={isScrolling}
+                  />
                 ) : null}
                 {Object.keys(seal.feels).length > 0 && (
                   <ChatReactions seal={seal} whom={whom} />

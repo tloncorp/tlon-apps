@@ -890,11 +890,15 @@ export function useMultiDmIsPending(id: string): boolean {
     useCallback(
       (s) => {
         const chat = s.multiDms[id];
-        if (!chat) {
-          return false;
+        const brief = s.briefs[id];
+        const isPending = chat && chat.hive.includes(window.our);
+        const inTeam = chat && chat.team.includes(window.our);
+
+        if (isPending) {
+          return true;
         }
 
-        return chat.hive.includes(window.our);
+        return !brief && !inTeam;
       },
       [id]
     )
@@ -960,16 +964,19 @@ type UnsubbedWrit = {
   writ: ChatWrit;
 };
 
-export function useWritByFlagAndWritId(chFlag: string, idWrit: string) {
+export function useWritByFlagAndWritId(
+  chFlag: string,
+  idWrit: string,
+  isScrolling: boolean
+) {
   const [res, setRes] = useState(null as UnsubbedWrit | null);
   useEffect(() => {
-    subscribeOnce<UnsubbedWrit>('chat', `/said/${chFlag}/msg/${idWrit}`).then(
-      setRes
-    );
-    return () => {
-      setRes(null);
-    };
-  }, [chFlag, idWrit]);
+    if (!isScrolling) {
+      subscribeOnce<UnsubbedWrit>('chat', `/said/${chFlag}/msg/${idWrit}`).then(
+        setRes
+      );
+    }
+  }, [chFlag, idWrit, isScrolling]);
   return res;
 }
 

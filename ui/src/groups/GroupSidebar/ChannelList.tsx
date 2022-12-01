@@ -2,12 +2,7 @@ import cn from 'classnames';
 import React from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import useAllBriefs from '@/logic/useAllBriefs';
-import {
-  channelHref,
-  nestToFlag,
-  isChannelJoined,
-  canReadChannel,
-} from '@/logic/utils';
+import { channelHref, isChannelJoined, canReadChannel } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useVessel } from '@/state/groups';
 import CaretDown16Icon from '@/components/icons/CaretDownIcon';
@@ -23,7 +18,7 @@ import useIsChannelUnread, {
   useCheckChannelUnread,
 } from '@/logic/useIsChannelUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import usePrefetchChannels from '@/logic/usePrefetchChannels';
+import useFilteredSections from '@/logic/useFilteredSections';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -72,10 +67,11 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const briefs = useAllBriefs();
   const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT;
-  const { sectionedChannels, sections } = useChannelSections(flag);
+  const { sectionedChannels } = useChannelSections(flag);
+  const filteredSections = useFilteredSections(flag, true);
   const isMobile = useIsMobile();
-  const isChannelUnread = useCheckChannelUnread();
   const vessel = useVessel(flag, window.our);
+  const isChannelUnread = useCheckChannelUnread();
 
   if (!group) {
     return null;
@@ -123,19 +119,16 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   return (
     <div className={className}>
       {!isMobile && <ChannelSorter isMobile={false} />}
-
       <ul className={cn('space-y-1', isMobile && 'flex-none space-y-3')}>
         {isDefaultSort
-          ? sections.map((s) => (
+          ? filteredSections.map((s) => (
               <div className="space-y-1" key={s}>
                 {s !== UNZONED ? (
                   <Divider>
                     {s in group.zones ? group.zones[s].meta.title : ''}
                   </Divider>
                 ) : null}
-                {s in sectionedChannels
-                  ? renderChannels(sectionedChannels[s])
-                  : null}
+                {renderChannels(sectionedChannels[s])}
               </div>
             ))
           : renderChannels(unsectionedChannels)}

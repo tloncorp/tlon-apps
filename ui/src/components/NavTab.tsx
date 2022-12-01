@@ -30,7 +30,7 @@ export default function NavTab({
           to={props.to}
           className={({ isActive }) =>
             cn(
-              'flex h-full w-full flex-col items-center justify-center p-2',
+              'flex h-full w-full flex-col items-center justify-center py-2',
               isActive ? 'text-gray-800' : 'text-gray-400',
               linkClass
             )

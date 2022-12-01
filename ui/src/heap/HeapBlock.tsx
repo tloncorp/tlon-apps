@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import React, { useEffect, useState } from 'react';
-import { HeapCurio } from '@/types/heap';
+import { HeapCurio, isLink } from '@/types/heap';
 import cn from 'classnames';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
@@ -157,7 +157,8 @@ interface BottomBarProps {
 function BottomBar({ curio, provider, title, asRef }: BottomBarProps) {
   const { content, sent } = curio.heart;
   const replyCount = curio.seal.replied.length;
-  const url = content.length > 0 ? content[0].toString() : '';
+  const url =
+    content.length > 0 && isLink(content[0]) ? content[0].link.href : '';
   const prettySent = formatDistanceToNow(sent);
 
   if (asRef) {
@@ -200,7 +201,8 @@ export default function HeapBlock({
 }: HeapBlockProps) {
   const [embed, setEmbed] = useState<any>();
   const { content } = curio.heart;
-  const url = content.length > 0 ? content[0].toString() : '';
+  const url =
+    content.length > 0 && isLink(content[0]) ? content[0].link.href : '';
   const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
   const textFallbackTitle = content
@@ -265,7 +267,7 @@ export default function HeapBlock({
         <BottomBar
           {...botBar}
           provider="Image"
-          title={curio.heart.title || undefined}
+          title={curio.heart.title || url}
         />
       </div>
     );
@@ -281,7 +283,7 @@ export default function HeapBlock({
         <BottomBar
           {...botBar}
           provider="Audio"
-          title={curio.heart.title || undefined}
+          title={curio.heart.title || url}
         />
       </div>
     );
@@ -301,11 +303,7 @@ export default function HeapBlock({
           }}
         >
           <TopBar canEdit={canEdit} {...topBar} />
-          <BottomBar
-            {...botBar}
-            provider={provider}
-            title={curio.heart.title || title}
-          />
+          <BottomBar {...botBar} provider={provider} title={title || url} />
         </div>
       );
     }
@@ -328,7 +326,7 @@ export default function HeapBlock({
           <BottomBar
             {...botBar}
             provider={provider}
-            title={curio.heart.title || undefined}
+            title={twitterHandle || url}
           />
         </div>
       );
@@ -342,7 +340,7 @@ export default function HeapBlock({
         <BottomBar
           {...botBar}
           provider={provider ? provider : 'Link'}
-          title={curio.heart.title || undefined}
+          title={title || url}
         />
       </div>
     );
@@ -354,11 +352,7 @@ export default function HeapBlock({
       <div className="flex grow flex-col items-center justify-center">
         <LinkIcon className="h-16 w-16 text-gray-300" />
       </div>
-      <BottomBar
-        {...botBar}
-        provider="Link"
-        title={curio.heart.title || undefined}
-      />
+      <BottomBar {...botBar} provider="Link" title={url || undefined} />
     </div>
   );
 }

@@ -28,7 +28,7 @@ export default function EmojiPicker({
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Anchor className={isMobile ? 'fixed inset-x-0 top-12' : ''} />
-      <Popover.Content sideOffset={8}>
+      <Popover.Content side={isMobile ? 'bottom' : 'left'} sideOffset={40}>
         {data ? (
           <Picker
             data={data}

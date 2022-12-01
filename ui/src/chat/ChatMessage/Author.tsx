@@ -40,14 +40,21 @@ export default function Author({
   if (!date) {
     return (
       <div className="align-center group flex items-center space-x-3 py-1">
-        <div onClick={handleProfileClick}>
+        <div onClick={handleProfileClick} className="shrink-0">
           <Avatar ship={ship} size="xs" className="cursor-pointer" />
         </div>
-        <div onClick={doCopy} className="text-md cursor-pointer font-semibold">
+        <div
+          onClick={doCopy}
+          className="text-md shrink cursor-pointer font-semibold"
+        >
           {didCopy ? (
             'Copied!'
           ) : (
-            <ShipName name={ship} showAlias className="text-md font-semibold" />
+            <ShipName
+              name={ship}
+              showAlias
+              className="text-md font-semibold line-clamp-1"
+            />
           )}
         </div>
       </div>
@@ -56,27 +63,34 @@ export default function Author({
 
   return (
     <div className="align-center group flex items-center space-x-3 py-1">
-      <div onClick={handleProfileClick}>
+      <div onClick={handleProfileClick} className="shrink-0">
         <Avatar ship={ship} size="xs" className="cursor-pointer" />
       </div>
-      <div onClick={doCopy} className="text-md cursor-pointer font-semibold">
+      <div
+        onClick={doCopy}
+        className="text-md shrink cursor-pointer font-semibold"
+      >
         {didCopy ? (
           'Copied!'
         ) : (
-          <ShipName name={ship} showAlias className="text-md font-semibold" />
+          <ShipName
+            name={ship}
+            showAlias
+            className="text-md font-semibold line-clamp-1"
+          />
         )}
       </div>
 
       {hideTime ? (
-        <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
+        <span className="hidden shrink-0 text-sm font-semibold text-gray-500 group-hover:block">
           {prettyDayAndTime}
         </span>
       ) : (
         <>
-          <span className="hidden text-sm font-semibold text-gray-500 group-hover:block">
+          <span className="hidden shrink-0 text-sm font-semibold text-gray-500 group-hover:block">
             {prettyDayAndDateAndTime}
           </span>
-          <span className="block text-sm font-semibold text-gray-500 group-hover:hidden">
+          <span className="block shrink-0 text-sm font-semibold text-gray-500 group-hover:hidden">
             {timeOnly ? prettyTime : prettyDayAndTime}
           </span>
         </>

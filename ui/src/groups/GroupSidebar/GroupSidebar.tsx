@@ -29,6 +29,7 @@ function GroupHeader() {
   const hoverFallbackForeground = dark ? 'white' : 'black';
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
   const calm = useCalm();
+  const defaultImportCover = group?.meta.cover === '0x0';
 
   const onError = useCallback(() => {
     setNoCors(true);
@@ -44,14 +45,29 @@ function GroupHeader() {
   };
 
   const coverStyles = () => {
-    if (group && isColor(group.meta.cover))
+    if (group && isColor(group.meta.cover)) {
       return {
         backgroundColor: group.meta.cover,
       };
+    }
+    if (group && defaultImportCover) {
+      return {
+        backgroundColor: '#D9D9D9',
+      };
+    }
     return {};
   };
 
   const coverButtonStyles = () => {
+    if (group && defaultImportCover) {
+      return {
+        backgroundColor:
+          groupCoverHover === true
+            ? mix('#D9D9D9', 'black', 0.33)
+            : 'transparent',
+        color: foregroundFromBackground('#D9D9D9'),
+      };
+    }
     if (group && isColor(group.meta.cover))
       return {
         backgroundColor:
@@ -91,21 +107,31 @@ function GroupHeader() {
 
   return (
     <li className="relative mb-2 w-full rounded-lg" style={coverStyles()}>
-      {group && !calm?.disableRemoteContent && !isColor(group?.meta.cover) && (
-        <img
-          {...(noCors ? {} : { crossOrigin: 'anonymous' })}
-          src={group?.meta.cover}
-          ref={cover}
-          onError={onError}
-          onLoad={() => getCoverImageColor()}
-          className="absolute h-full w-full flex-none rounded-lg object-cover"
-        />
-      )}
-      {group && calm.disableRemoteContent && !isColor(group?.meta.cover) && (
-        <div className="absolute h-full w-full flex-none rounded-lg bg-gray-400" />
-      )}
+      {group &&
+        !calm?.disableRemoteContent &&
+        !isColor(group?.meta.cover) &&
+        !defaultImportCover && (
+          <img
+            {...(noCors ? {} : { crossOrigin: 'anonymous' })}
+            src={group?.meta.cover}
+            ref={cover}
+            onError={onError}
+            onLoad={() => getCoverImageColor()}
+            className="absolute h-full w-full flex-none rounded-lg object-cover"
+          />
+        )}
+      {group &&
+        calm.disableRemoteContent &&
+        !isColor(group?.meta.cover) &&
+        !defaultImportCover && (
+          <div className="absolute h-full w-full flex-none rounded-lg bg-gray-400" />
+        )}
       <div
-        style={group && !isColor(group?.meta.cover) ? { height: '240px' } : {}}
+        style={
+          group && !isColor(group?.meta.cover) && !defaultImportCover
+            ? { height: '240px' }
+            : {}
+        }
         className="group relative mb-2 flex w-full flex-col justify-between text-lg font-semibold text-gray-600 sm:text-base"
       >
         <SidebarItem
