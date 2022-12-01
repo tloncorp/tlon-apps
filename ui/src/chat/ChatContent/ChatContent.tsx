@@ -170,8 +170,6 @@ export default function ChatContent({
   const firstBlockCode = story.inline.findIndex(isBlockCode);
   const lastBlockCode = findLastIndex(story.inline, isBlockCode);
 
-  console.log({ firstBlockCode, lastBlockCode, story });
-
   return (
     <div className="leading-6">
       {blockLength > 0 ? (
