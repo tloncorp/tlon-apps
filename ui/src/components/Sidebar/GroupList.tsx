@@ -13,13 +13,12 @@ import {
   useGroupsInitialized,
   useGroupState,
 } from '@/state/groups/groups';
-import { GroupState } from '@/state/groups/type';
 import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 import { Group } from '@/types/groups';
-import usePendingImports from '@/logic/usePendingImports';
 import { getFlagParts } from '@/logic/utils';
+import { useHasMigratedChannels } from '@/logic/useMigrationInfo';
 import SidebarItem from './SidebarItem';
 import GroupListPlaceholder from './GroupListPlaceholder';
 import Bullet16Icon from '../icons/Bullet16Icon';
@@ -68,13 +67,7 @@ function DraggableGroupItem({ flag }: { flag: string }) {
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
   const { ship } = getFlagParts(flag);
-  const channels = useGroupState(
-    useCallback((s: GroupState) => s.groups[flag]?.channels, [flag])
-  );
-  const pendingImports = usePendingImports();
-  const keys = Object.keys(channels || {});
-  const isMigrated =
-    keys.length === 0 || !keys.every((c) => pendingImports.includes(c));
+  const isMigrated = useHasMigratedChannels(flag);
 
   if (!isMigrated) {
     return (

@@ -9,6 +9,7 @@ import { GroupChannel, Zone, ViewProps } from '@/types/groups';
 import {
   channelHref,
   getFlagParts,
+  isChannelImported,
   isChannelJoined,
   nestToFlag,
 } from '@/logic/utils';
@@ -30,6 +31,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import usePendingImports from '@/logic/usePendingImports';
 import MigrationTooltip from '@/components/MigrationTooltip';
+import { useStartedMigration } from '@/logic/useMigrationInfo';
 
 const UNZONED = 'default';
 
@@ -46,7 +48,8 @@ function GroupChannel({
   const group = useGroup(groupFlag);
   const briefs = useAllBriefs();
   const pendingImports = usePendingImports();
-  const imported = !pendingImports.includes(nest);
+  const hasStarted = useStartedMigration();
+  const imported = isChannelImported(nest, pendingImports) && hasStarted(ship);
   const joined = isChannelJoined(nest, briefs);
   const isChannelHost = useIsChannelHost(flag);
   const isAdmin = useAmAdmin(groupFlag);
