@@ -8,6 +8,7 @@ import {
   canReadChannel,
   nestToFlag,
   getFlagParts,
+  isChannelImported,
 } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useVessel } from '@/state/groups';
@@ -26,6 +27,7 @@ import useFilteredSections from '@/logic/useFilteredSections';
 import usePendingImports from '@/logic/usePendingImports';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import MigrationTooltip from '@/components/MigrationTooltip';
+import { useStartedMigration } from '@/logic/useMigrationInfo';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -100,6 +102,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const group = useGroup(flag);
   const briefs = useAllBriefs();
   const pendingImports = usePendingImports();
+  const hasStarted = useStartedMigration();
   const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels } = useChannelSections(flag);
@@ -122,13 +125,14 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
       .map(([nest, channel]) => {
         const [, chFlag] = nestToFlag(nest);
         const { ship } = getFlagParts(chFlag);
-        const pending = pendingImports.includes(nest);
+        const imported =
+          isChannelImported(nest, pendingImports) && hasStarted(ship);
         const icon = (active: boolean) =>
           isMobile ? (
             <span
               className={cn(
                 'flex h-12 w-12 items-center justify-center rounded-md',
-                pending && 'opacity-60',
+                !imported && 'opacity-60',
                 !active && 'bg-gray-50',
                 active && 'bg-white'
               )}
@@ -138,11 +142,11 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
           ) : (
             <ChannelIcon
               nest={nest}
-              className={cn('h-6 w-6', pending && 'opacity-60')}
+              className={cn('h-6 w-6', !imported && 'opacity-60')}
             />
           );
 
-        if (pending) {
+        if (!imported) {
           return (
             <UnmigratedChannel
               icon={icon}
