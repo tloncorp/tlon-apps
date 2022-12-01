@@ -36,7 +36,10 @@ export function useHasMigratedChannels(flag: string) {
   );
   const hasStarted = useStartedMigration();
   const keys = Object.keys(channels || {});
-  return keys.some(
-    (k) => isChannelImported(k, pendingImports) && hasStarted(getNestShip(k))
+  return (
+    keys.length === 0 ||
+    keys.some(
+      (k) => isChannelImported(k, pendingImports) && hasStarted(getNestShip(k))
+    )
   );
 }
