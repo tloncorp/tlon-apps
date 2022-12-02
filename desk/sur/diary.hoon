@@ -1,4 +1,6 @@
-/-  g=groups, c=cite, e=epic
+/-  g=groups, c=cite, graph-store, e=epic
+/-  metadata-store
+/+  lib-graph=graph-store
 |%
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)
@@ -182,6 +184,7 @@
       [%strike p=(list inline)]
       [%blockquote p=(list inline)]
       [%inline-code p=cord]
+      [%ship p=ship]
       [%block p=@ud q=cord]
       [%code p=cord]
       [%tag p=cord]
@@ -213,7 +216,7 @@
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
     ::
-      [%create p=perm]
+      [%create p=perm q=notes]
       [%view p=view]
       [%sort p=sort]
     ::
@@ -286,4 +289,12 @@
       readers=(set sect:g)
       writers=(set sect:g)
   ==
++$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
+::
++$  imports  (map flag import)
+::
+++  gra  graph-store
+++  orm-gra  orm:lib-graph
+++  orm-log-gra  orm-log:lib-graph
+++  met  metadata-store
 --

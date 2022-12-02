@@ -13,6 +13,7 @@
   |%
   ++  okay  `epic:e`0
   +$  card  card:agent:gall
+  ++  import-epoch  ~2022.10.11
   +$  current-state
     $:  %0
         groups=net-groups:g
@@ -93,10 +94,8 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
-      %group-import
-    =+  !<(=flag:g vase)
-    ?>  &(=(our.bowl p.flag) =(src our):bowl)
-    (group-import flag)
+  ::
+      %group-import  (import-groups !<(imports:g vase))
   ::
       %group-leave
     =+  !<(=flag:g vase)
@@ -124,7 +123,7 @@
       ==
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
-    go-abet:go-init:(go-abed:group-core flag)
+    go-abet:(go-init:(go-abed:group-core flag) |)
   ::
       ?(%group-action %group-action-0)
     =+  !<(=action:g vase)
@@ -383,56 +382,100 @@
     =/  cage  group-invite+!>(`invite:g`[flag ship])
     =/  line  `wire`/gangs/(scot %p p.flag)/[q.flag]/invite
     [%pass line %agent [ship dap.bowl] %poke cage]
+
+++  import-groups
+  |=  =imports:g
+  ^+  cor
+  =/  imports  ~(tap by imports)
+  |-
+  ?~  imports  cor
+  =.  cor  (import-group i.imports)
+  $(imports t.imports)
 ::
-++  group-import
-  |=  =flag:g
+++  import-group
+  |=  $:  =flag:g
+          =association:met:g
+          chan=(map flag:g association:met:g)
+          roles=(set flag:g)
+          =group:old:g
+      ==
   |^
-  =/  =net:g  pub/~
-  =/  og=group:g-one  (need scry-group)
-  =/  om=associations:m-one  scry-meta
-  =/  =fleet:g
-    %-  ~(gas by *fleet:g)
-    %+  turn  ~(tap in members.og)
-    |=  =ship
-    ^-  [_ship vessel:fleet:g]
-    =-  [ship - now.bowl]
-    ?.  (~(has ju tags.og) %admin ship)
+  =/  cabals=(map sect:g cabal:g)
+    %-  ~(gas by *(map sect:g cabal:g))
+    %+  turn  ~(tap by roles)
+    |=  =flag:g
+    ^-  [sect:g cabal:g]
+    :-  (sect-for-flag flag)
+    ?~  ass=(~(get by chan) flag)
+      *cabal:g
+    :_  ~
+    :*  (rap 3 'Writers: ' title.metadatum.u.ass ~)
+        (rap 3 'The writers role for the ' title.metadatum.u.ass ' channel' ~)
+        ''
+        ''
+    ==
+  =/  =channels:channel:g
+    %-  ~(gas by *channels:channel:g)
+    %+  murn  ~(tap by chan)
+    |=  [=flag:g =association:met:g]
+    ^-  (unit [nest:g channel:g])
+    ?~  dud=(graph-meta-to-agent metadatum.association)
       ~
-    (silt %admin ~)
-  =|  cabals=(map sect:g cabal:g)
+    :-  ~
+    :-  [u.dud flag]
+    ^-  channel:g
+    :*  (old-assoc-to-new-meta association)
+        date-created.metadatum.association
+        %default
+        |
+        ::
+        ^-  (set sect:g)
+        ?.  (~(has in roles) flag)  ~
+        (silt (sect-for-flag flag) ~)
+    ==
   =|  zones=(map zone:g realm:zone:g)
   =|  zone-ord=(list zone:g)
   =|  bloc=(set sect:g)  :: admin perms set up in +go-init at end
-  =/  =channels:channel:g
-    %-  ~(gas by *channels:channel:g)
-    %+  murn  ~(tap by om)
-    |=  [=md-resource:m-one =association:m-one]
-    ^-  (unit [nest:g channel:g])
-    ?:  =(%groups app-name.md-resource)
-      ~
-    ?~  dude=(graph-meta-to-agent metadatum.association)
-      ~
-    :-  ~
-    :-  [u.dude resource.md-resource]
-    =/  meta=data:meta
-      (old-to-new-meta metadatum.association)
-    :*  meta
-        added=date-created.metadatum.association
-        zone=%default
-        join=|
-        readers=~
-    ==
-  =/  =cordon:g  (policy-to-cordon policy.og)
+  =/  =cordon:g  (policy-to-cordon policy.group)
   =/  meta=data:meta
-    =-  (fall - [(crip "{(scow %p p.flag)}/{(scow %ta q.flag)}") '' '' ''])
-    (bind (~(get by om) [%groups flag]) old-assoc-to-new-meta)
+    (old-assoc-to-new-meta association)
+  =/  =fleet:g
+    %-  ~(gas by *fleet:g)
+    %+  turn  ~(tap in members.group)
+    |=  =ship
+    ^-  [_ship vessel:fleet:g]
+    [ship ~ now.bowl]
   =/  =group:g
-    [fleet cabals zones zone-ord bloc channels cordon | meta]
-  =|  =log:g
-  =.  log     (put:log-on:g log now.bowl create/group)
-  =/  =net:g  pub/log
+    :*  fleet
+        cabals
+        zones
+        zone-ord
+        bloc
+        channels
+        cordon
+        =(%invite -.policy.group)
+        meta
+    ==
+  =/  =net:g
+    ?:  =(p.flag our.bowl)
+      pub/(put:log-on:g *log:g import-epoch create/group)
+    [%sub (sub import-epoch ~d1) | chi/~]
   =.  groups  (~(put by groups) flag [net group])
-  go-abet:go-init:(go-abed:group-core flag) :: setup defaults
+  go-abet:(go-init:(go-abed:group-core flag) &) :: setup defaults
+  ::
+  ++  sect-for-flag
+    |=  =flag:g
+    `sect:g`(rap 3 'imports-' (scot %p p.flag) '/' q.flag ~)
+  ::
+  ++  graph-mark-to-agent
+  |=  =mark
+  ^-  (unit term)
+  ?+  mark  ~
+    %graph-validator-chat     `%chat
+    %graph-validator-link     `%heap
+    %graph-validator-publish  `%diary
+  ==
+
   ::
   ++  graph-meta-to-agent
     |=  =metadatum:m-one
@@ -442,7 +485,7 @@
     ?+  module.config.metadatum  ~
       %chat  `%chat
       %link  `%heap
-      %publish   ~  :: TODO
+      %publish   `%diary  :: TODO
     ==
   ::
   ++  old-assoc-to-new-meta
@@ -563,20 +606,31 @@
     go-core(gone &)
   ::
   ++  go-init  
-    =|  our=vessel:fleet:g
-    =.  sects.our  (~(put in sects.our) %admin)
-    =.  fleet.group  (~(put by fleet.group) our.bowl our)
-    =.  bloc.group  (silt %admin ~)
+    |=  import=?
     =.  cabals.group
       %+  ~(put by cabals.group)  %admin
       :_  ~
       ['Admin' 'Admins can add and remove channels and edit metadata' '' '']
     =.  zones.group
       %+  ~(put by zones.group)  %default
-      [['Sectionless' '' '' ''] ~]
+      :-  ['Sectionless' '' '' '']
+      %+  murn  ~(tap by channels.group)
+      |=  [=nest:g =channel:g]
+      ^-  (unit nest:g)
+      ?.  =(zone.channel %default)
+        ~
+      `nest
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  =diff:g  [%create group]
-    (go-tell-update now.bowl diff)
+    =.  go-core  (go-tell-update now.bowl diff)
+    ?:  import
+      go-core
+    =|  our=vessel:fleet:g
+    =.  sects.our  (~(put in sects.our) %admin)
+    =.  fleet.group  (~(put by fleet.group) our.bowl our)
+    =.  bloc.group  (~(put in bloc.group) %admin)
+    go-core
+
   ::
   ++  go-has-sub
     (~(has by wex.bowl) [(snoc go-area %updates) p.flag dap.bowl])
@@ -782,7 +836,7 @@
   ++  go-fact-init
     |=  [=time gr=group:g]
     =.  group  gr
-    =.  net  [%sub time | %chi ~]
+    =.  net  [%sub time & %chi ~]
     =/  create=diff:g  [%create group]
     =.  cor  
       (give %fact ~[/groups /groups/ui] act:mar !>(`action:g`[flag now.bowl create]))

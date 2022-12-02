@@ -28,6 +28,7 @@ export interface ChatState {
   drafts: {
     [whom: string]: ChatStory;
   };
+  pendingImports: string[];
   chatSubs: string[];
   dmSubs: string[];
   sentMessages: string[];

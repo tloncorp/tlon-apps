@@ -458,3 +458,13 @@ export function useCopy(copied: string) {
 
   return { doCopy, didCopy };
 }
+
+export function getNestShip(nest: string) {
+  const [, flag] = nestToFlag(nest);
+  const { ship } = getFlagParts(flag);
+  return ship;
+}
+
+export function isChannelImported(nest: string, pending: string[]) {
+  return !pending.includes(nest) || window.our === getNestShip(nest);
+}
