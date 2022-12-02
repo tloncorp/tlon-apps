@@ -132,6 +132,10 @@ export function InlineContent({ story }: InlineContentProps) {
     return <br />;
   }
 
+  if ('ship' in story) {
+    return <span className="text-blue">{story.ship}</span>;
+  }
+
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
