@@ -627,8 +627,6 @@
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  =diff:g  [%create group]
     =.  go-core  (go-tell-update now.bowl diff)
-    ?:  import
-      go-core
     =|  our=vessel:fleet:g
     =.  sects.our  (~(put in sects.our) %admin)
     =.  fleet.group  (~(put by fleet.group) our.bowl our)
