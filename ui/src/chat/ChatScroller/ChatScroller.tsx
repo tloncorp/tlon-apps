@@ -203,15 +203,20 @@ export default function ChatScroller({
         return;
       }
 
-      setFetching(newer ? 'bottom' : 'top');
+      try {
+        setFetching(newer ? 'bottom' : 'top');
 
-      if (newer) {
-        await useChatState.getState().fetchNewer(whom, pageSize.toString());
-      } else {
-        await useChatState.getState().fetchOlder(whom, pageSize.toString());
+        if (newer) {
+          await useChatState.getState().fetchNewer(whom, pageSize.toString());
+        } else {
+          await useChatState.getState().fetchOlder(whom, pageSize.toString());
+        }
+
+        setFetching('initial');
+      } catch (e) {
+        console.log(e);
+        setFetching('initial');
       }
-
-      setFetching('initial');
     },
     [whom, messages, loaded]
   );
