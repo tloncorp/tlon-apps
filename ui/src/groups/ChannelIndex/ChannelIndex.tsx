@@ -69,7 +69,7 @@ function GroupChannel({
           ? useHeapState.getState().joinHeap
           : useDiaryState.getState().joinDiary;
 
-      joiner(chFlag);
+      return joiner(chFlag);
     },
     [_app]
   );
@@ -82,7 +82,7 @@ function GroupChannel({
           ? useHeapState.getState().leaveHeap
           : useDiaryState.getState().leaveDiary;
 
-      leaver(chFlag);
+      return leaver(chFlag);
     },
     [_app]
   );
@@ -116,13 +116,19 @@ function GroupChannel({
 
   const leaveChannel = useCallback(async () => {
     try {
-      leave(flag);
+      if (timer) {
+        clearTimeout(timer);
+        setTimer(null);
+      }
+      setPending();
+      await leave(flag);
+      setReady();
     } catch (error) {
       if (error) {
         console.error(`[ChannelIndex:LeaveError] ${error}`);
       }
     }
-  }, [flag, leave]);
+  }, [flag, leave, setPending, setReady, timer]);
 
   const muteChannel = useCallback(() => {
     // TODO: add channel mute action here
@@ -174,6 +180,16 @@ function GroupChannel({
               Pending Migration
             </button>
           </MigrationTooltip>
+        ) : joined && isPending ? (
+          <button
+            disabled
+            className="button mix-blend-multiply disabled:bg-gray-50 dark:mix-blend-screen"
+          >
+            <span className="center-items flex">
+              <LoadingSpinner />
+              <span className="ml-2">Leaving...</span>
+            </span>
+          </button>
         ) : joined ? (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild className="appearance-none">
