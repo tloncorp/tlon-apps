@@ -1,5 +1,19 @@
 /-  c=chat
 |_  pac=pact:c
+++  gas
+  |=  ls=(list [=time =writ:c])
+  ^+  pac
+  %_    pac
+      wit  (gas:on:writs:c wit.pac ls)
+  ::
+      dex  
+    %-  ~(gas by dex.pac)
+    %+  turn  ls
+    |=  [=time =writ:c]
+    ^-  [id:c _time]
+    [id.writ time]
+  ==
+::
 ++  brief
   |=  [our=ship last-read=time]
   ^-  brief:briefs:c

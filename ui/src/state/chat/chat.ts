@@ -127,6 +127,7 @@ export const useChatState = createState<ChatState>(
     dmSubs: [],
     multiDmSubs: [],
     pendingDms: [],
+    pendingImports: [],
     pins: [],
     sentMessages: [],
     postedMessages: [],
@@ -299,6 +300,25 @@ export const useChatState = createState<ChatState>(
             } else if ('add-sects' in diff) {
               chat.perms.writers = chat.perms.writers.concat(diff['add-sects']);
             }
+          });
+        },
+      });
+
+      const pendingImports = await api.scry<string[]>({
+        app: 'chat',
+        path: '/imp',
+      });
+
+      get().batchSet((draft) => {
+        draft.pendingImports = pendingImports;
+      });
+
+      api.subscribe({
+        app: 'chat',
+        path: '/imp',
+        event: (imports: string[]) => {
+          get().batchSet((draft) => {
+            draft.pendingImports = imports;
           });
         },
       });

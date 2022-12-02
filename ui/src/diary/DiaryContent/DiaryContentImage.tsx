@@ -14,12 +14,14 @@ export default function DiaryContentImage({
   width,
   altText,
 }: DiaryContentImage) {
+  const h = height === 0 ? undefined : height;
+  const w = width === 0 ? undefined : width;
   const calm = useCalm();
 
   return (
     <div
       className="group relative w-full py-2"
-      style={{ maxWidth: width ? (width > 600 ? 600 : width) : 600 }}
+      style={{ maxWidth: width ? (width > 600 ? 600 : w) : 600 }}
     >
       <a href={src} target="_blank" rel="noreferrer">
         {calm?.disableRemoteContent ? (
@@ -28,8 +30,8 @@ export default function DiaryContentImage({
           <img
             src={src}
             className="max-w-full rounded"
-            height={height}
-            width={width}
+            height={h}
+            width={w}
             alt={altText ? altText : 'A Diary image'}
           />
         )}

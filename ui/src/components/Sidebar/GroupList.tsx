@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { PropsWithChildren, useEffect } from 'react';
+import React, { PropsWithChildren, useCallback, useEffect } from 'react';
 import { uniq, without } from 'lodash';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -17,8 +17,12 @@ import { SettingsState, useSettingsState } from '@/state/settings';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 import { Group } from '@/types/groups';
+import { getFlagParts } from '@/logic/utils';
+import { useHasMigratedChannels } from '@/logic/useMigrationInfo';
 import SidebarItem from './SidebarItem';
 import GroupListPlaceholder from './GroupListPlaceholder';
+import Bullet16Icon from '../icons/Bullet16Icon';
+import MigrationTooltip from '../MigrationTooltip';
 
 const dragTypes = {
   GROUP: 'group',
@@ -62,6 +66,27 @@ function DraggableGroupItem({ flag }: { flag: string }) {
 
 function GroupItem({ flag }: { flag: string }) {
   const group = useGroup(flag);
+  const { ship } = getFlagParts(flag);
+  const isMigrated = useHasMigratedChannels(flag);
+
+  if (!isMigrated) {
+    return (
+      <MigrationTooltip ship={ship} side="right" kind="group">
+        <SidebarItem
+          className="opacity-60"
+          icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
+          actions={
+            <Bullet16Icon
+              className="m-2 h-4 w-4 text-orange opacity-60"
+              aria-label="Pending Migration"
+            />
+          }
+        >
+          {group?.meta.title}
+        </SidebarItem>
+      </MigrationTooltip>
+    );
+  }
 
   return (
     <SidebarItem
