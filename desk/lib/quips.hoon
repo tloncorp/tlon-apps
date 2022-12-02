@@ -26,9 +26,6 @@
   |=  [now=time =time del=delta:quips:d]
   ^+  qup
   ?-  -.del
-    :: we use now on the add to enforce host ordering
-    :: any other actions should use time so that it's
-    :: the quip that we're looking for.
       %add
     =/  =cork:d  [now ~]
     ?:  (~(has by qup) now)

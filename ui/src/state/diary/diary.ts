@@ -25,6 +25,7 @@ import {
   DiaryLetter,
   DiaryStory,
   DiarySaid,
+  DiaryUpdate,
 } from '@/types/diary';
 import api from '@/api';
 import {
@@ -228,13 +229,35 @@ export const useDiaryState = create<DiaryState>(
       viewDiary: async (flag, view) => {
         await api.poke(diaryAction(flag, { view }));
       },
-      addNote: async (flag, essay) => {
-        await api.poke(
-          diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
-            add: essay,
-          })
-        );
-      },
+      addNote: async (flag, essay) =>
+        new Promise<string>((resolve, reject) => {
+          api.poke({
+            ...diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
+              add: essay,
+            }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              let timePosted = '';
+
+              await useSubscriptionState
+                .getState()
+                .track(`diary/diary/${flag}/ui`, (event: DiaryUpdate) => {
+                  const { time, diff } = event;
+                  if ('notes' in diff) {
+                    const { delta } = diff.notes;
+                    if ('add' in delta && delta.add.sent === essay.sent) {
+                      timePosted = time;
+                      return true;
+                    }
+                  }
+
+                  return false;
+                });
+
+              resolve(timePosted);
+            },
+          });
+        }),
       editNote: async (flag, time, essay) => {
         await api.poke(
           diaryNoteDiff(flag, decToUd(time), {

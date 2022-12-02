@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -11,8 +11,9 @@ import { diaryMixedToJSON, JSONToInlines } from '@/logic/tiptap';
 import { useDiaryState, useNote } from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
 import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
-import { unixToDa } from '@urbit/api';
 import { Inline } from '@/types/content';
+import { Status } from '@/logic/status';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
@@ -21,6 +22,7 @@ export default function DiaryAddNote() {
   const group = useRouteGroup();
   const navigate = useNavigate();
   const [, note] = useNote(chFlag, id || '');
+  const [status, setStatus] = useState<Status>('initial');
   const content = useMemo(
     () =>
       note.essay.content.length > 0 ? diaryMixedToJSON(note.essay.content) : '',
@@ -42,10 +44,12 @@ export default function DiaryAddNote() {
     onEnter: () => false,
   });
 
-  const publish = useCallback(() => {
+  const publish = useCallback(async () => {
     if (!editor?.getText()) {
       return;
     }
+
+    setStatus('loading');
 
     const editorJSON = editor?.getJSON();
     const data = JSONToInlines(editor?.getJSON(), false);
@@ -78,30 +82,32 @@ export default function DiaryAddNote() {
       }
     });
 
-    if (id) {
-      useDiaryState.getState().editNote(chFlag, id, {
-        ...note.essay,
-        ...values,
-        content: noteContent,
-      });
-    } else {
-      useDiaryState.getState().addNote(chFlag, {
-        ...values,
-        content: noteContent,
-        author: window.our,
-        sent,
-      });
-    }
+    let returnTime = id;
+    try {
+      if (id) {
+        await useDiaryState.getState().editNote(chFlag, id, {
+          ...note.essay,
+          ...values,
+          content: noteContent,
+        });
+      } else {
+        returnTime = await useDiaryState.getState().addNote(chFlag, {
+          ...values,
+          content: noteContent,
+          author: window.our,
+          sent,
+        });
+      }
 
-    reset();
-    if (!editor?.isDestroyed) {
-      editor.commands.setContent('');
+      setStatus('success');
+      reset();
+      if (!editor?.isDestroyed) {
+        editor.commands.setContent('');
+      }
+      navigate(`/groups/${group}/channels/diary/${chFlag}?new=${returnTime}`);
+    } catch (error) {
+      setStatus('error');
     }
-    navigate(
-      `/groups/${group}/channels/diary/${chFlag}?new=${unixToDa(
-        sent
-      ).toString()}`
-    );
   }, [chFlag, editor, getValues, group, id, navigate, note.essay, reset]);
 
   return (
@@ -118,13 +124,22 @@ export default function DiaryAddNote() {
             <CaretLeftIcon className="h-6 w-6 text-gray-600" />
           </Link>
           <button
-            disabled={!editor?.getText()}
+            disabled={!editor?.getText() || status === 'loading'}
             className={cn(
               'button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:text-black dark:disabled:text-gray-400'
             )}
             onClick={publish}
           >
-            Publish
+            {status === 'loading' ? (
+              <>
+                <LoadingSpinner className="mr-2 h-4 w-4" />
+                Publishing
+              </>
+            ) : status === 'error' ? (
+              'Error'
+            ) : (
+              'Publish'
+            )}
           </button>
         </header>
       }
