@@ -12,14 +12,17 @@ import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { Gangs, GroupIndex, ViewProps } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
 import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useLocation } from 'react-router';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
+import { useModalNavigate } from '@/logic/routing';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 
 export default function FindGroups({ title }: ViewProps) {
   const { ship, name } = useParams<{ ship: string; name: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
+  const modalNavigate = useModalNavigate();
   const [groupIndex, setGroupIndex] = useState<GroupIndex | null>(null);
   const existingGangs = useGangs();
   const pendingGangs = usePendingGangsWithoutClaim();
@@ -150,12 +153,21 @@ export default function FindGroups({ title }: ViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShip]);
 
+  const handleProfileClick = () => {
+    modalNavigate(`/profile/${preSig(ship!)}`, {
+      state: { backgroundLocation: location },
+    });
+  };
+
   const resultsTitle = () => {
     if (isPending) {
       return (
         <>
           <span>Searching for groups hosted by&nbsp;</span>
-          <span className="text-gray-800">
+          <span
+            onClick={handleProfileClick}
+            className="cursor-pointer text-gray-800"
+          >
             {presentedShip === '' ? ship : presentedShip}
           </span>
           <span>&nbsp;...</span>
@@ -168,7 +180,10 @@ export default function FindGroups({ title }: ViewProps) {
         return (
           <>
             <span>Groups hosted by&nbsp;</span>
-            <span className="text-gray-800">
+            <span
+              onClick={handleProfileClick}
+              className="cursor-pointer text-gray-800"
+            >
               {presentedShip === '' ? ship : presentedShip}
             </span>
             <span>:</span>
