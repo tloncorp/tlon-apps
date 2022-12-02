@@ -7,10 +7,15 @@
 +$  erratum
   $%  [%prose =tape]
       [%line =tape]
+      [%br ~]
       [%code =tape]
       [%block =block:d]
   ==
-+$  lang    (each tape tape)
++$  lang
+  $%  [%p p=tape] :: prose
+      [%c p=tape] :: code
+      [%br ~]     :: line break
+  ==
 ++  trace
   |*  [tag=@t sef=rule]
   |=  tub=nail
@@ -244,24 +249,26 @@
       time  atom
     ==
   %-  squeeze
-  %-  zing
-  %+  turn  ls
-  |=  con=content:post:gra:d
-  ^-  (list verse:d)
+  =<  -
+  %+  roll  ls
+  |=  [con=content:post:gra:d out=(list verse:d) prev-break=_&]
+  ^-  [(list verse:d) ?]
+  :_  ?=(?(%code %reference %url) -.con)
   ?-    -.con
-      %text       (ring (trip text.con))
-      %mention    [%inline ~[ship/ship.con]]~  :: TODO: i swear I PR'd ships
-      %code       [%inline ~[code/expression.con]]~
-      %reference  [%inline ~[code/(crip <reference.con>) break/~]]~
+      %text       (welp out (ring (trip text.con) prev-break))
+      %mention    (snoc out [%inline ~[ship/ship.con]])  :: TODO: i swear I PR'd ships
+      %code       (snoc out [%inline ~[code/expression.con]])
+      %reference  (snoc out [%inline ~[code/(crip <reference.con>) break/~]])
   ::
       %url        
-    =/  def=(list verse:d)
-      [%inline ~[link/[url.con '']]]~
+    =/  def=verse:d
+      [%inline ~[link/[url.con '']]]
+    %+  snoc  out
     ?~  ext=(rush url.con (cook rear (most dot (cook crip (plus ;~(less dot prn))))))
       def
-    ?:  ?=(?(%png %jpeg %jpeg) u.ext)
-      [%block %image url.con 0 0 '']~
-    def
+    ?.  ?=(?(%png %jpeg %jpeg) u.ext)
+      def
+    [%block %image url.con 0 0 '']
   ==
 ::
 ++  squeeze
@@ -466,7 +473,6 @@
   ~!  q.u.q.roq
   =+  out=(;~(sfix (plus ;~(less delim next)) (opt-sfix-end delim)) q.u.q.roq)
   ?~  q.out
-    ~&  %fail-outer
     [p=p.vex q=~]
   =+  in=(inner [1 1] p.u.q.out)
   ?~  q.in
@@ -483,13 +489,13 @@
   |^
   |=  txt=tape
   ^-  (list lang)
-  (log-fall %by-code txt (rust txt (star apex)) ~[[%& txt]]) 
+  (log-fall %by-code txt (rust txt (star apex)) ~[[%p txt]]) 
   :: (log-fall %by-code txt (rust txt (plus apex)) ~[[%& txt]])
   ++  apex
     ;~  pose
       code
       prose-simple
-      (stag %& (listify next))
+      (stag %p (listify next))
     ==
   ++  code
     ;~  pose-further
@@ -497,9 +503,9 @@
       (infix ;~(plug sig sig sig) code-inner)
     ==
   ++  code-inner
-    (stag %| (star next))
+    (stag %c (star next))
   ++  prose-simple
-    (stag %& (plus ;~(less sig tic next)))
+    (stag %p (plus ;~(less sig tic next)))
   --
 ::
 ++  elem
@@ -551,7 +557,7 @@
   ::
   ++  line-start
     ^-  (edict verse:d)
-    :: =-  ;~(pfix (star whit) -)
+    =-  ;~(pfix (star whit) -)
     ;~  pose
       head
       blockquote
@@ -569,15 +575,14 @@
 ++  whit  ;~(pose (jest '\09') ace)
 ::
 ++  lift-blocks
-  |=  [txt=tape first=?]
+  |=  [txt=tape prev-break=?]
   ^-  (list erratum)
   =-  (log-fall %lift-blocks txt - ~[prose/txt])
   %+  rust  txt
   %+  cook
     |=  ls=(list erratum)
-    ^-  (list erratum)
-    ?:  first  ls
-    ?~  ls   ~
+    ?~  ls   ls
+    ?.  prev-break  ls
     ?.  ?=(%prose -.i.ls)
       ls
     [[%line tape.i.ls] t.ls]
@@ -597,31 +602,36 @@
   ==
 ::
 ++  ring
-  |=  txt=tape
+  |=  [txt=tape last-break=?]
   ^-  (list verse:d)
   =/  langs  (by-code txt)
   =/  lines=(list lang)
     %-  zing
     %+  turn  langs
     |=  =lang
-    ^-  (list _lang)
-    ?.  ?=(%& -.lang)
+    ^-  (list ^lang)
+    ?.  ?=(%p -.lang)
       ~[lang]
-    (turn (by-line p.lang) (lead %&))
+    =/  ls=(list ^lang)  (turn (by-line p.lang) (lead %p))
+    =/  sep=^lang  br/~
+    (join sep ls)
   =/  err=(list erratum)
     =<  -
-    %+  reel  lines
-    |=  [=lang out=(list erratum) first=_&]
+    %+  roll  lines
+    |=  [=lang out=(list erratum) prev-break=_last-break]
     ^-  [(list erratum) ?]
-    :_  |
-    ?:  ?=(%| -.lang)
-      [[%code p.lang] out]
-    (welp (flop (lift-blocks p.lang first)) out)
+    :_  =(%br -.lang)
+    ?:  ?=(%c -.lang)
+      (snoc out [%code p.lang])
+    ?:  ?=(%br -.lang)
+      (snoc out br/~)
+    (welp out (lift-blocks p.lang prev-break))
   =/  blocks=(list verse:d)
     %+  turn  err
     |=  e=erratum
     ^-  verse:d
     ?-  -.e
+        %br     [%inline ~[break/~]]
     ::
         %code   [%inline ~[code/(crip tape.e)]]
         %block  [%block block.e]
