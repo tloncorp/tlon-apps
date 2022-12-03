@@ -16,6 +16,7 @@
   +$  current-state
     $:  %0
         =shelf:d
+        voc=(map [flag:d time] (unit said:d))
         imp=(set flag:d)
     ==
   --
@@ -177,7 +178,6 @@
   ::
       ?(%diary-action-0 %diary-action)
     =+  !<(=action:d vase)
-    =.  p.q.action  now.bowl
     =/  diary-core  (di-abed:di-core p.action)
     ?:  =(p.p.action our.bowl)
       di-abet:(di-update:diary-core q.action)
@@ -338,25 +338,76 @@
   --
 ::
 ++  watch
-  |=  =path
+  |=  =(pole knot)
   ^+  cor
-  ?+    path  ~|(bad-watch-path/path !!)
-      [%imp ~]     ?>(from-self cor)
+  ?+    pole  ~|(bad-watch-path/pole !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
     ::
       [%epic ~]    (give %fact ~ epic+!>(okay))
     ::
-      [%diary @ @ *]
-    =/  =ship  (slav %p i.t.path)
-    =*  name   i.t.t.path
-    di-abet:(di-watch:(di-abed:di-core ship name) t.t.t.path)
+      [%diary ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    di-abet:(di-watch:(di-abed:di-core ship name.pole) rest.pole)
+    ::
+      [%said host=@ name=@ %note time=@ ~]
+    =/  host=ship   (slav %p host.pole)
+    =/  =flag:d     [host name.pole]
+    =/  =time       (slav %ud time.pole)
+    (watch-said flag time)
   ==
 ::
-++  agent
-  |=  [=wire =sign:agent:gall]
+++  watch-said
+  |=  [=flag:d =time]
+  ?.  (~(has by shelf) flag)
+    (proxy-said flag time)
+  di-abet:(di-said:(di-abed:di-core flag) time)
+++  said-wire
+  |=  [=flag:d =time]
+  ^-  wire
+  /said/(scot %p p.flag)/[q.flag]/note/(scot %ud time)
+::
+++  take-said
+  |=  [=flag:d =time =sign:agent:gall]
   ^+  cor
-  ?+    wire  ~|(bad-agent-wire/wire !!)
+  ?+    -.sign  !!
+      %watch-ack
+    %.  cor
+    ?~  p.sign  same
+    (slog leaf/"Preview failed" u.p.sign)
+  ::
+      %kick
+    ?:  (~(has by voc) [flag time])
+      cor  :: subscription ended politely
+    (proxy-said flag time)
+  ::
+      %fact
+    =.  cor
+      (give %fact ~[(said-wire flag time)] cage.sign)
+    ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
+        %diary-said
+      =+  !<(=said:d q.cage.sign)
+      =.  voc  (~(put by voc) [flag time] `said)
+      cor
+    ::
+        %diary-denied
+      =.  voc  (~(put by voc) [flag time] ~)
+      cor
+    ==
+  ==
+::
+++  proxy-said
+  |=  [=flag:d =time]
+  =/  =dock  [p.flag dap.bowl]
+  =/  wire  (said-wire flag time)
+  =/  =card  [%pass wire %agent dock %watch wire]
+  (emit card)
+::
+++  agent
+  |=  [=(pole knot) =sign:agent:gall]
+  ^+  cor
+  ?+    pole  ~|(bad-agent-wire/pole !!)
+      ~  cor
   ::
       [%epic ~]  (take-epic sign)
   ::
@@ -366,10 +417,15 @@
     %-  (slog leaf/"Failed to hark" u.p.sign)
     cor
   ::
-      [%diary @ @ *]
-    =/  =ship  (slav %p i.t.wire)
-    =*  name   i.t.t.wire
-    di-abet:(di-agent:(di-abed:di-core ship name) t.t.t.wire sign)
+      [%diary ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    di-abet:(di-agent:(di-abed:di-core ship name.pole) rest.pole sign)
+  ::
+      [%said host=@ name=@ %note time=@ ~]
+    =/  host=ship   (slav %p host.pole)
+    =/  =flag:d     [host name.pole]
+    =/  id=time     (slav %ud time.pole)
+    (take-said flag id sign)
   ::
       [%groups ~]
     ?+    -.sign  !!
@@ -497,6 +553,23 @@
     =?  di-core  ?=(%sub -.net.diary)
       di-sub
     di-core
+  ::
+  ++  di-said
+    |=  =time
+    |^  ^+  di-core
+    ?.  (di-can-read src.bowl)
+      (give-kick diary-denied+!>(~))
+    =/  [* =note:d]  (got:di-notes time)
+    =/  =outline:d  (trace:di-notes note)
+    %+  give-kick  %diary-said
+    !>  ^-  said:d
+    [flag outline]
+    ++  give-kick
+      |=  =cage
+      =.  cor  (give %fact ~ cage)
+      =.  cor  (give %kick ~ ~)
+      di-core
+    --
   ::
   ++  di-upgrade
     ^+  di-core
@@ -803,6 +876,9 @@
     |=  [=time dif=diff:d]
     ?>  di-can-write
     ^+  di-core
+    :: we use now on the host to enforce host ordering
+    =?  time  =(p.flag our.bowl)
+      now.bowl
     =.  log.diary
       (put:log-on:d log.diary time dif)
     =.  di-core

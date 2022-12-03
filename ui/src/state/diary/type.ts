@@ -6,7 +6,7 @@ import {
   DiaryDisplayMode,
   DiaryFlag,
   DiaryNoteMap,
-  DiaryQuipMap,
+  DiaryOutline,
   NoteEssay,
 } from '@/types/diary';
 
@@ -17,6 +17,9 @@ export interface DiaryState {
     [flag: string]: Diary;
   };
   diarySubs: string[];
+  loadedNotes: {
+    [path: string]: DiaryOutline;
+  };
   notes: {
     [flag: DiaryFlag]: DiaryNoteMap;
   };
@@ -30,7 +33,7 @@ export interface DiaryState {
   leaveDiary: (flag: DiaryFlag) => Promise<void>;
   viewDiary: (flag: DiaryFlag, view: DiaryDisplayMode) => Promise<void>;
   markRead: (flag: DiaryFlag) => Promise<void>;
-  addNote: (flag: DiaryFlag, essay: NoteEssay) => void;
+  addNote: (flag: DiaryFlag, essay: NoteEssay) => Promise<string>;
   editNote: (flag: DiaryFlag, time: string, essay: NoteEssay) => Promise<void>;
   delNote: (flag: DiaryFlag, time: string) => Promise<void>;
   addSects: (flag: DiaryFlag, writers: string[]) => Promise<void>;

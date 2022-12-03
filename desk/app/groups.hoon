@@ -705,8 +705,14 @@
   ::
   ++  go-can-read
     |=  [src=ship =channel:g]
-    ?~  ves=(~(get by fleet.group) src)  |
-    ?:  =(~ readers.channel)  &
+    =/  open  =(-.cordon.group %open)
+    =/  ves  (~(get by fleet.group) src)
+    =/  visible  =(~ readers.channel)
+    ?:  ?|  &(open visible)
+            &(!=(~ ves) visible)
+        ==
+      &
+    ?~  ves  |
     !=(~ (~(int in readers.channel) sects.u.ves))
   ++  go-agent
     |=  [=wire =sign:agent:gall]

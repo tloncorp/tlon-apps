@@ -10,7 +10,9 @@
 ::  $view: the persisted display format for a heap
 +$  view  ?(%grid %list)
 ::  $stash: heaps I've joined
-+$  stash  (map flag:g heap)
++$  stash  (map flag heap)
+::  $said: used for curio references
++$  said  (pair flag curio)
 ::
 ::  $heap: a collection of curiosities
 ::

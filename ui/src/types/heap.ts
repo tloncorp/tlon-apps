@@ -142,7 +142,7 @@ interface HeapDiffDelSects {
   'del-sects': string[];
 }
 
-interface HeapDiffCurios {
+export interface HeapDiffCurios {
   curios: CurioDiff;
 }
 
@@ -157,7 +157,7 @@ export type HeapDiff =
   | HeapDiffDelSects;
 
 export interface HeapUpdate {
-  time: number;
+  time: string;
   diff: HeapDiff;
 }
 
@@ -216,3 +216,8 @@ export type NewCurioFormSchema = { content: string };
 export type EditCurioFormSchema = NewCurioFormSchema &
   Pick<CurioHeart, 'title'>;
 export type CurioFormSchema = NewCurioFormSchema | EditCurioFormSchema;
+
+export interface HeapSaid {
+  flag: string;
+  curio: HeapCurio;
+}

@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
 import { Link } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useDiaryState, useNote } from '@/state/diary';
+import { useDiaryState, useNote, useRemoteOutline } from '@/state/diary';
 import { useChannelPreview } from '@/state/groups';
-import { makePrettyDate } from '@/logic/utils';
+import { makePrettyDate, pluralize } from '@/logic/utils';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
@@ -25,12 +25,7 @@ export default function NoteReference({
   const preview = useChannelPreview(nest);
   const [scryError, setScryError] = useState<string>();
   const groupFlag = preview?.group?.flag || '~zod/test';
-  const noteObject = useNote(chFlag, id);
-  const { quips } = noteObject[1].seal;
-  const commentAuthors = _.uniq(
-    Array.from(quips).map(([, quip]) => quip.memo.author)
-  );
-  const totalComments = Array.from(quips).length;
+  const outline = useRemoteOutline(chFlag, id, isScrolling);
 
   useEffect(() => {
     if (!isScrolling) {
@@ -38,7 +33,7 @@ export default function NoteReference({
         .getState()
         .initialize(chFlag)
         .catch((reason) => {
-          setScryError(reason);
+          console.log(reason);
         });
     }
   }, [chFlag, isScrolling]);
@@ -49,30 +44,29 @@ export default function NoteReference({
     return <UnavailableReference time={time} nest={nest} preview={preview} />;
   }
 
-  if (!noteObject) {
+  if (!outline) {
     return <HeapLoadingBlock reference />;
   }
 
-  const [time, note] = noteObject;
-  const prettyDate = makePrettyDate(new Date(note.essay.sent));
+  const prettyDate = makePrettyDate(new Date(outline.sent));
 
   return (
     <div className="note-inline-block group">
       <div className="flex flex-col space-y-2 p-2 group-hover:bg-gray-50">
-        {note.essay.image ? (
+        {outline.image ? (
           <div
             className="relative h-36 w-full rounded-lg bg-gray-100 bg-cover bg-center px-4"
             style={{
-              backgroundImage: `url(${note.essay.image})`,
+              backgroundImage: `url(${outline.image})`,
             }}
           />
         ) : null}
-        <span className="text-2xl font-bold">{note.essay.title}</span>
+        <span className="text-2xl font-bold">{outline.title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
-        {totalComments > 0 ? (
+        {outline.quipCount > 0 ? (
           <div className="flex space-x-2">
             <div className="relative flex items-center">
-              {commentAuthors.map((author, index) => (
+              {outline.quippers.map((author, index) => (
                 <Avatar
                   ship={author}
                   size="xs"
@@ -85,7 +79,7 @@ export default function NoteReference({
               ))}
             </div>
             <span className="font-semibold text-gray-600">
-              {totalComments} {totalComments === 1 ? 'comment' : 'comments'}
+              {outline.quipCount} {pluralize('comment', outline.quipCount)}
             </span>
           </div>
         ) : null}
@@ -93,7 +87,7 @@ export default function NoteReference({
           TODO: render multiple authors when we have that ability.
           note.essay.author ? <Author ship={note.essay.author} /> : null
         */}
-        {note.essay.content.slice(0, 1).map((verse, index) => {
+        {outline.content.slice(0, 1).map((verse, index) => {
           if ('inline' in verse) {
             return (
               <div key={index}>
@@ -119,8 +113,8 @@ export default function NoteReference({
       </div>
       <ReferenceBar
         nest={nest}
-        time={time}
-        author={note.essay.author}
+        time={bigInt(id)}
+        author={outline.author}
         groupFlag={preview?.group.flag}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}

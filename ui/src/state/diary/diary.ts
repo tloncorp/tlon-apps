@@ -24,6 +24,8 @@ import {
   DiaryDisplayMode,
   DiaryLetter,
   DiaryStory,
+  DiarySaid,
+  DiaryUpdate,
 } from '@/types/diary';
 import api from '@/api';
 import {
@@ -37,6 +39,16 @@ import makeNotesStore from './notes';
 import useSubscriptionState from '../subscription';
 
 setAutoFreeze(false);
+
+function subscribeOnce<T>(app: string, path: string) {
+  return new Promise<T>((resolve) => {
+    api.subscribe({
+      app,
+      path,
+      event: resolve,
+    });
+  });
+}
 
 function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
   return {
@@ -80,6 +92,7 @@ export const useDiaryState = create<DiaryState>(
       notes: {},
       banter: {},
       diarySubs: [],
+      loadedNotes: {},
       briefs: {},
       pendingImports: [],
       markRead: async (flag) => {
@@ -236,13 +249,35 @@ export const useDiaryState = create<DiaryState>(
       viewDiary: async (flag, view) => {
         await api.poke(diaryAction(flag, { view }));
       },
-      addNote: async (flag, essay) => {
-        await api.poke(
-          diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
-            add: essay,
-          })
-        );
-      },
+      addNote: async (flag, essay) =>
+        new Promise<string>((resolve, reject) => {
+          api.poke({
+            ...diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
+              add: essay,
+            }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              let timePosted = '';
+
+              await useSubscriptionState
+                .getState()
+                .track(`diary/diary/${flag}/ui`, (event: DiaryUpdate) => {
+                  const { time, diff } = event;
+                  if ('notes' in diff) {
+                    const { delta } = diff.notes;
+                    if ('add' in delta && delta.add.sent === essay.sent) {
+                      timePosted = time;
+                      return true;
+                    }
+                  }
+
+                  return false;
+                });
+
+              resolve(timePosted);
+            },
+          });
+        }),
       editNote: async (flag, time, essay) => {
         await api.poke(
           diaryNoteDiff(flag, decToUd(time), {
@@ -466,4 +501,27 @@ export function useGetLatestNote() {
 export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
   const diary = useDiary(flag);
   return diary?.view ?? 'grid';
+}
+
+const selRefs = (s: DiaryState) => s.loadedNotes;
+export function useRemoteOutline(
+  flag: string,
+  time: string,
+  blockLoad: boolean
+) {
+  const refs = useDiaryState(selRefs);
+  const path = `/said/${flag}/note/${decToUd(time)}`;
+  const cached = refs[path];
+
+  useEffect(() => {
+    if (!blockLoad) {
+      subscribeOnce<DiarySaid>('diary', path).then(({ outline }) => {
+        useDiaryState.getState().batchSet((draft) => {
+          draft.loadedNotes[path] = outline;
+        });
+      });
+    }
+  }, [path, blockLoad]);
+
+  return cached;
 }

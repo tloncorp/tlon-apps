@@ -11,7 +11,9 @@
 ::  $sort: the persisted sort type for a diary
 +$  sort  ?(%alpha %time)
 ::  $shelf: my ship's diaries
-+$  shelf  (map flag:g diary)
++$  shelf  (map flag diary)
+::  $said: used for references
++$  said  (pair flag outline)
 ::
 ::  $diary: written longform communication
 ::

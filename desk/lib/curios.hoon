@@ -34,38 +34,38 @@
   (need (get time))
 ::
 ++  reduce
-  |=  [=time del=delta:curios:h]
+  |=  [new=time existing=time del=delta:curios:h]
   ^+  cur
   ?-  -.del
       %add
-    =/  =seal:h  [time ~ ~]
-    ?:  (~(has by cur) time)
+    =/  =seal:h  [new ~ ~]
+    ?:  (~(has by cur) new)
       cur
     =.  cur
-      (put:on:curios:h cur time [seal p.del])
+      (put:on:curios:h cur new [seal p.del])
     ?~  replying.p.del  cur
     =*  replying  u.replying.p.del
-    (jab replying |=(curio:h +<(replied (~(put in replied) time))))
+    (jab replying |=(curio:h +<(replied (~(put in replied) new))))
   ::
       %edit
-    =/  curio  (get time)
+    =/  curio  (get existing)
     ?~  curio  cur
-    (put:on:curios:h cur time [-.+.u.curio p.del])
+    (put:on:curios:h cur existing [-.+.u.curio p.del])
   ::
       %del
     =^  cu=(unit curio:h)  cur
-      (del:on:curios:h cur time)
+      (del:on:curios:h cur existing)
     ?~  cu  cur
     ?~  replying.u.cu  cur
-    (jab u.replying.u.cu |=(curio:h +<(replied (~(del in replied) time))))
+    (jab u.replying.u.cu |=(curio:h +<(replied (~(del in replied) existing))))
   ::
       %add-feel
-    %+  jab  time
+    %+  jab  existing
     |=  =curio:h
     curio(feels (~(put by feels.curio) [p q]:del))
   ::
       %del-feel
-    %+  jab  time
+    %+  jab  existing
     |=  =curio:h
     curio(feels (~(del by feels.curio) p.del))
   ==

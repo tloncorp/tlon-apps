@@ -13,6 +13,14 @@
     |=  her=@p
     n+(rap 3 '"' (scot %p her) '"' ~)
   ::
+  ++  said
+    |=  s=said:h
+    ^-  json
+    %-  pairs
+    :~  flag/(flag p.s)
+        curio/(curio q.s)
+    ==
+  ::
   ++  briefs
     |=  bs=briefs:h
     %-  pairs
@@ -166,6 +174,22 @@
         :-  %a
         (turn ~(tap in replied.seal) (cork (cury scot %ud) (lead %s)))
     ==
+  ++  remark-action
+    |=  act=remark-action:h
+    %-  pairs
+    :~  flag/(flag p.act)
+        diff/(remark-diff q.act)
+    ==
+  ::
+  ++  remark-diff
+    |=  diff=remark-diff:h
+    %+  frond  -.diff
+    ~!  -.diff
+    ?-  -.diff
+      %read-at  (time p.diff)
+      ?(%read %watch %unwatch)  ~
+    ==
+  ::
   --
 ++  dejs
   =,  dejs:format

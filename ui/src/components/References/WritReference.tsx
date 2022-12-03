@@ -20,15 +20,14 @@ export default function WritReference({
   idWrit: string;
   isScrolling: boolean;
 }) {
-  const writObject = useWritByFlagAndWritId(chFlag, idWrit, isScrolling);
+  const writ = useWritByFlagAndWritId(chFlag, idWrit, isScrolling);
   const preview = useChannelPreview(nest);
 
   // TODO: handle failure for useWritByFlagAndWritId call.
-  if (!writObject) {
+  if (!writ) {
     return <HeapLoadingBlock reference />;
   }
 
-  const { writ } = writObject;
   const time = bigInt(udToDec(writ.seal.id.split('/')[1]));
 
   if (!('story' in writ.memo.content)) {

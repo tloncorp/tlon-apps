@@ -36,40 +36,37 @@
   (need (get time))
 ::
 ++  reduce
-  |=  [now=time =time del=delta:notes:d]
+  |=  [new=time existing=time del=delta:notes:d]
   ^+  not
   ?-  -.del
-    :: we use now on the add to enforce host ordering
-    :: any other actions should use time so that it's
-    :: the note that we're looking for.
       %add
-    =/  =seal:d  [now ~ ~]
-    ?:  (~(has by not) now)
+    =/  =seal:d  [new ~ ~]
+    ?:  (~(has by not) new)
       not
-    (put:on:notes:d not now [seal p.del])
+    (put:on:notes:d not new [seal p.del])
   ::
       %edit
-    =/  note  (get time)
+    =/  note  (get existing)
     ?~  note  not
-    (put:on:notes:d not time [-.+.u.note p.del])
+    (put:on:notes:d not existing [-.+.u.note p.del])
   ::
       %del
     =^  no=(unit note:d)  not
-      (del:on:notes:d not time)
+      (del:on:notes:d not existing)
     not
   ::
       %quips
-    %+  jab  time
+    %+  jab  existing
     |=  =note:d
-    note(quips (~(reduce qip quips.note) now p.p.del q.p.del))
+    note(quips (~(reduce qip quips.note) new p.p.del q.p.del))
   ::
       %add-feel
-    %+  jab  time
+    %+  jab  existing
     |=  =note:d
     note(feels (~(put by feels.note) [p q]:del))
   ::
       %del-feel
-    %+  jab  time
+    %+  jab  existing
     |=  =note:d
     note(feels (~(del by feels.note) p.del))
   ==
