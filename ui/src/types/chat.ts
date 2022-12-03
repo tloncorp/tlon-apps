@@ -29,6 +29,14 @@ export interface GroupCite {
   group: string;
 }
 
+export interface BaitCite {
+  bait: {
+    old: string;
+    flag: string;
+    where: string;
+  };
+}
+
 export interface DeskCite {
   desk: {
     desk: string;
@@ -36,7 +44,7 @@ export interface DeskCite {
   };
 }
 
-export type Cite = ChanCite | GroupCite | DeskCite;
+export type Cite = ChanCite | GroupCite | DeskCite | BaitCite;
 
 export type ChatBlock = ChatImage | { cite: Cite };
 

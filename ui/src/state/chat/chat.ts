@@ -980,6 +980,24 @@ export function usePinnedClubs() {
   return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);
 }
 
+type UnsubbedBait = {
+  exists: boolean;
+};
+
+export function useBait(old: string, flag: string, where: string) {
+  const [res, setRes] = useState(null as UnsubbedBait | null);
+  useEffect(() => {
+    subscribeOnce<UnsubbedBait>('nark', `/bait/${old}/${flag}/${where}`).then(
+      setRes
+    );
+
+    return () => {
+      setRes(null);
+    };
+  }, [old, flag, where]);
+  return res;
+}
+
 type UnsubbedWrit = {
   flag: string;
   writ: ChatWrit;
@@ -994,7 +1012,6 @@ export function useWritByFlagAndWritId(
   const refs = useChatState(selLoadedRefs);
   const path = `/said/${chFlag}/msg/${idWrit}`;
   const cached = refs[path];
-
   useEffect(() => {
     if (!isScrolling) {
       subscribeOnce<UnsubbedWrit>('chat', path).then(({ writ }) => {

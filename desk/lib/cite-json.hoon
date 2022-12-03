@@ -22,7 +22,7 @@
   ::
       %bait
     %-  pairs
-    :~  group/s/(flag:enjs:j group.cite)
+    :~  old/s/(flag:enjs:j old.cite)
         flag/s/(flag:enjs:j flag.cite)
         where/s/(spat wer.cite)
     ==
@@ -48,7 +48,7 @@
       ::
       :-  %bait
       %-  ot
-      :~  group/flag:dejs:j
+      :~  old/flag:dejs:j
           flag/flag:dejs:j
           where/pa
       ==

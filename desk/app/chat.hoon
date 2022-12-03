@@ -452,6 +452,7 @@
   |=  [grp=flag:g =flag:g =graph:gra]
   ^+  cor
   =|  =create:c
+  :: XX incorrect (how to do this correctly?)
   =.  cor
     =<  ca-abet
     (ca-init:(ca-abed:ca-core flag) create(group grp, name q.flag, title `@t`q.flag))

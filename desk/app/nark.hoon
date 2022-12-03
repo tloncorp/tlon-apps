@@ -1,5 +1,6 @@
 /-  n=nark, e=epic, g=groups, c=chat
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, etch
+/+  nark
 !:
 ^-  agent:gall
 =>
@@ -134,11 +135,30 @@
     (na-hook:(na-abed:na-core flag.diff nest.diff) hook.diff)
   ::
   --
+::
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ?+    pole  ~|(bad-watch-path/path !!)
+  ?+    pole  ~|(bad-watch-path/pole !!)
       [%ui ~]  ?>(from-self cor)
+      ::
+        [%bait host=@ old=@ ~]
+      ~&  >>  `@t`old.pole
+      ~&  >>  (slav %p host.pole)
+      =/  cage  !>((en-vase:etch !>('%nark response: i am bait')))
+      ~&  >>  result+!<(json cage) 
+      =.  cor  (give %fact ~ json+cage) 
+      =.  cor  (give %kick ~ ~)
+      cor
+      ::
+        [%bait gh=@ gn=@ h=@ n=@ wer=*]
+      =/  host=ship  (slav %p gh.pole)  
+      :: TODO: translate?
+      =/  =flag:c  [host gn.pole]
+      =/  sender=ship  (slav %p h.pole)
+      =/  =time  (slav %ud (head (flop wer.pole)))
+      =/  =id:c  [sender time]
+      (watch-bait flag id)   
     ::
       [%epic ~]
     (give %fact ~ epic+!>(okay))
@@ -176,6 +196,16 @@
     ==
   ==
 ::
+++  watch-bait
+  |=  [=flag:c =id:c]
+  ~&  >>  bait+[flag id]
+  =/  scrier  (scrier:nark flag bowl)
+  =/  exists=_|  scry-groups:scrier
+  =/  cage  !>((en-vase:etch !>(exists)))
+  =.  cor  (give %fact ~ json+cage) 
+  =.  cor  (give %kick ~ ~)
+  cor
+  ::
 ++  take-epic
   |=  =sign:agent:gall
   ^+  cor

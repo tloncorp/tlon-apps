@@ -70,6 +70,15 @@
   ++  old-flag-path
   `path`/ship/(scot %p p.flag)/[q.flag]
   ::
+  ++  exists-path
+  `path`/exists/(scot %p p.flag)/[q.flag]
+  ::
+  ++  scry-groups
+    =-  .^(_| -)
+    %:  scry  %gx  %groups
+    `path`(snoc exists-path %noun)
+    ==
+  ::
   ++  scry-group
     =-  .^((unit group:g-one) -)
     %:  scry  %gx  %group-store
@@ -91,11 +100,10 @@
     ^-  pact:c
     =|  =pact:c
     =/  nodes=(list (pair atom node:gra))
-    (tap:orm:gra graph)
+      (tap:orm:gra graph)
     |-
     ?~  nodes
-    ~&  'nothing to do :('
-    pact
+    ~&  'nothing to do :('  pact
     =/  node  i.nodes
     ?~  mem=(node-to-memo q.node)
     $(nodes t.nodes)
@@ -121,22 +129,24 @@
     |=  cs=(list content:gra)
     ^-  (list cite:cite)
     =;  refs
-    %+  turn  refs
-    |=  =reference:gra
-    ?-    -.reference
-      %graph
-    =/  grp=resource:gra  group:reference
-    =/  [res=resource:gra idx=index:gra]  uid:reference
-    =/  wer=path
-      /msg/(scot %p entity.res)/(scot %ud (head idx))
-    ?.  =(grp group)  [%bait grp flag wer]
-    =/  =nest:g  [%chat res]
-    [%chan nest wer]
-    ::
-      %group  *cite:cite
-    ::
-      %app  *cite:cite
-    ==
+      %+  turn  refs
+      |=  =reference:gra
+      ?-    -.reference
+        %graph
+      =/  grp=resource:gra  group:reference
+      =/  [old=resource:gra idx=index:gra]  
+        uid:reference
+      =/  wer=path
+        /msg/(scot %p entity.old)/(scot %ud (head idx))
+      ?.  =(grp group)  [%bait grp old wer]
+      ::  TODO: old -> new channel
+      =/  =nest:g  [%chat old]
+      [%chan nest wer]
+      ::
+        %group  *cite:cite
+      ::
+        %app  *cite:cite
+      ==
     ::
     %+  roll  cs
     |=  [con=content:gra fer=(list reference:gra)]
@@ -155,8 +165,8 @@
     ?.  ?=(%graph -.reference.con)  fer
     =/  [res=resource:gra author=ship =index:gra]
     :*  resource.uid.reference.con
-    entity.resource.uid.reference.con
-    index.uid.reference.con
+        entity.resource.uid.reference.con
+        index.uid.reference.con
     ==
     `[author `@da`(head index)]
     ==
