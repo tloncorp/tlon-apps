@@ -68,7 +68,15 @@ export interface DeskCite {
   };
 }
 
-export type Cite = ChanCite | GroupCite | DeskCite;
+export interface BaitCite {
+  bait: {
+    old: string;
+    flag: string;
+    where: string;
+  };
+}
+
+export type Cite = ChanCite | GroupCite | DeskCite | BaitCite;
 
 export interface DiaryCite {
   cite: Cite;

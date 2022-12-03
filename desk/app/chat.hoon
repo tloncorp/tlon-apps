@@ -1,5 +1,5 @@
 /-  c=chat, g=groups, n=nark
-/-  meta, e=epic
+/-  meta
 /-  ha=hark
 /-  e=epic
 /+  default-agent, verb-lib=verb, dbug
