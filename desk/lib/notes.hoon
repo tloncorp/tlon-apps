@@ -36,37 +36,37 @@
   (need (get time))
 ::
 ++  reduce
-  |=  [=time qt=time del=delta:notes:d]
+  |=  [new=time existing=time del=delta:notes:d]
   ^+  not
   ?-  -.del
       %add
-    =/  =seal:d  [time ~ ~]
-    ?:  (~(has by not) time)
+    =/  =seal:d  [new ~ ~]
+    ?:  (~(has by not) new)
       not
-    (put:on:notes:d not time [seal p.del])
+    (put:on:notes:d not new [seal p.del])
   ::
       %edit
-    =/  note  (get time)
+    =/  note  (get existing)
     ?~  note  not
-    (put:on:notes:d not time [-.+.u.note p.del])
+    (put:on:notes:d not existing [-.+.u.note p.del])
   ::
       %del
     =^  no=(unit note:d)  not
-      (del:on:notes:d not time)
+      (del:on:notes:d not existing)
     not
   ::
       %quips
-    %+  jab  qt
+    %+  jab  existing
     |=  =note:d
-    note(quips (~(reduce qip quips.note) time p.p.del q.p.del))
+    note(quips (~(reduce qip quips.note) new p.p.del q.p.del))
   ::
       %add-feel
-    %+  jab  time
+    %+  jab  existing
     |=  =note:d
     note(feels (~(put by feels.note) [p q]:del))
   ::
       %del-feel
-    %+  jab  time
+    %+  jab  existing
     |=  =note:d
     note(feels (~(del by feels.note) p.del))
   ==

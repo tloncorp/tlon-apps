@@ -111,7 +111,6 @@
   ::
       ?(%heap-action-0 %heap-action)
     =+  !<(=action:h vase)
-    =.  p.q.action  now.bowl
     =/  heap-core  (he-abed:he-core p.action)
     ?:  =(p.p.action our.bowl)
       he-abet:(he-update:heap-core q.action)
@@ -722,6 +721,9 @@
     |=  [=time d=diff:h]
     ^+  he-core
     ?>  he-can-write
+    :: we use now on the host to enforce host ordering
+    =?  time  =(p.flag our.bowl)
+      now.bowl
     =.  log.heap
       (put:log-on:h log.heap time d)
     =.  he-core
