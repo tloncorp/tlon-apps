@@ -89,6 +89,7 @@ export const useHeapState = create<HeapState>(
       heapSubs: [],
       loadedRefs: {},
       briefs: {},
+      pendingImports: [],
       markRead: async (flag) => {
         await api.poke({
           app: 'heap',
@@ -163,6 +164,25 @@ export const useHeapState = create<HeapState>(
                   diff['add-sects']
                 );
               }
+            });
+          },
+        });
+
+        const pendingImports = await api.scry<string[]>({
+          app: 'heap',
+          path: '/imp',
+        });
+
+        get().batchSet((draft) => {
+          draft.pendingImports = pendingImports;
+        });
+
+        api.subscribe({
+          app: 'heap',
+          path: '/imp',
+          event: (imports: string[]) => {
+            get().batchSet((draft) => {
+              draft.pendingImports = imports;
             });
           },
         });

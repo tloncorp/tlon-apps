@@ -12,6 +12,7 @@ import XIcon from '@/components/icons/XIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import HeapDetailHeaderDescription from '@/heap/HeapDetail/HeapDetailHeaderDescription';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
+import { isLink } from '@/types/heap';
 import useCurioActions from '../useCurioActions';
 
 export interface ChannelHeaderProps {
@@ -29,7 +30,10 @@ export default function HeapDetailHeader({
   const group = useGroup(flag);
   const isMobile = useIsMobile();
   const curio = curioObject ? curioObject[1] : null;
-  const curioContent = curio?.heart.content[0].toString() || '';
+  const curioContent =
+    (isLink(curio?.heart.content[0])
+      ? curio?.heart.content[0].link.href
+      : curio?.heart.content[0].toString()) || '';
   // TODO: a better title fallback
   const prettyDayAndTime = makePrettyDayAndTime(
     new Date(curio?.heart.sent || Date.now())

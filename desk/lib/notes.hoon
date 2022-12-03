@@ -86,6 +86,7 @@
       %link   (trip q.c)
       %block   (trip q.c)
       ?(%code %inline-code)  ""
+      %ship    (scow %p p.c)
       ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
   ==
 ::

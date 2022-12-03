@@ -202,6 +202,8 @@
         %break
       ~
     ::
+        %ship  s/(scot %p p.i)
+    ::
         ?(%code %tag %inline-code)
       s+p.i
     ::

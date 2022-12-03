@@ -1,4 +1,7 @@
 /-  meta, e=epic
+/-  old=group
+/-  grp=group-store
+/-  metadata-store
 |%
 ::  $flag: ID for a group
 ::
@@ -337,4 +340,9 @@
   ==
 ::
 +$  gangs  (map flag gang)
+++  met     metadata-store
+::
++$  import  [self=association:met chan=(map flag =association:met) roles=(set flag) =group:old]
+::
++$  imports  (map flag import)
 --

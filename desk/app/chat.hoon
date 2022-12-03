@@ -34,6 +34,7 @@
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
+        imp=(set flag:g)
     ==
   --
 =|  current-state
@@ -159,8 +160,12 @@
   |=  [=mark =vase]
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
-      %graph-import
-    (import-graph !<([flag:g flag:g graph:gra] vase))
+  ::
+      %import-flags   cor(imp !<((set flag:c) vase))
+      %graph-imports  (import !<(imports:c vase))
+  ::
+      %dm-imports     (import-dms !<(graph:gra:c vase))
+      %club-imports   (import-clubs !<(club-imports:c vase))
   ::
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
@@ -260,26 +265,12 @@
     |=  ps=(list whom:c)
     =.  pins  ps
     cor
-  ::
-  ++  import-graph
-    |=  [grp=flag:g =flag:g =graph:gra]
-    ^+  cor
-    =/  =pact:c  (convert:mig graph)
-    =/  =net:c   pub/~
-    =|  =remark:c
-    =/  =perm:c  `grp
-    =/  =diff:c  create/[perm `pact]
-    =|  =log:c
-    =.  log  (put:log-on:c log now.bowl diff)
-    =/  =chat:c
-      [net remark log perm pact]
-    =.  chats  (~(put by chats) flag chat)
-    cor  :: TODO: initialise? 
   --
 ++  watch
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path/path !!)
+      [%imp ~]        ?>(from-self cor)
       [%club %new ~]  ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]  ?>(from-self cor)
@@ -359,6 +350,101 @@
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
+::
+++  import-clubs
+  |=  cus=club-imports:c
+  =/  cus  ~(tap by cus)
+  |-  ^+  cor
+  ?~  cus
+    cor
+  =/  [=flag:c ships=(set ship) =association:met:c =graph:gra:c]
+    i.cus
+  =/  =id:club:c  (shax (jam flag))  :: TODO: determinstic, but collisions ig?
+  =/  meta=data:meta
+    [title description '' '']:metadatum.association
+  =.  clubs  (~(put by clubs) id (graph-to-pact graph) ships ~ meta %done |)
+  $(cus t.cus)
+::
+++  import-dms
+  |=  =graph:gra:c
+  ^+  cor
+  =/  old-dms  (tap:orm-gra:c graph)
+  =|  =remark:c 
+  =.  last-read.remark  now.bowl
+  |-  =*  loop  $
+  ?~  old-dms  cor
+  =/  [ship=@ =node:gra:c]  i.old-dms
+  ?.  ?=(%graph -.children.node)
+    loop(old-dms t.old-dms)
+  =.  dms  
+    (~(put by dms) ship (graph-to-pact p.children.node) remark %done |)
+  loop(old-dms t.old-dms)
+++  graph-to-pact
+  |=  =graph:gra:c
+  ^-  pact:c
+  %-  ~(gas pac *pact:c)
+  %+  murn  (tap:orm-gra:c graph)
+  |=  [=time =node:gra:c]
+  ^-  (unit [_time writ:c])
+  ?~  wit=(node-to-writ time node)
+    ~
+  `[time u.wit]
+::  TODO: review crashing semantics
+::        check graph ordering (backwards iirc)
+++  node-to-writ
+  |=  [=time =node:gra:c]
+  ^-  (unit writ:c)
+  ?.  ?=(%& -.post.node)
+    ~
+  =*  pos  p.post.node
+  :: using the received timestamp 
+  :: defends against shitty clients, bc we didn't enforce uniqueness last time
+  :: but breaks referential transparency, so you can't quote migrated
+  :: messages
+  :: XX: probably change?
+  :-  ~
+  :-  [[author.pos time] ~ ~]
+  [~ author.pos time-sent.pos (con:mig contents.pos)]
+::
+++  import
+  |=  =imports:c
+  ^+  cor
+  =/  imports  ~(tap by imports)
+  |-  =*  loop  $
+  ?~  imports  cor
+  =/  [=flag:c writers=(set ship) =association:met:c =update-log:gra:c =graph:gra:c]
+    i.imports
+  |^
+  =/  =perm:c
+    :_  group.association
+    ?:(=(~ writers) ~ (silt (rap 3 %chat '-' (scot %p p.flag) '-' q.flag ~) ~))
+  =/  =pact:c  (graph-to-pact graph)
+  =/  =chat:c
+    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | chi/~])
+        *remark:c
+        log=(import-log pact perm)
+        perm
+        pact
+    ==
+  =.  imp    (~(del in imp) flag)
+  =.  cor
+    (give %fact ~[/imp] flags+!>(imp))
+  =.  chats  (~(put by chats) flag chat)
+  =.  cor
+    ca-abet:(ca-import:(ca-abed:ca-core flag) writers association)
+  loop(imports t.imports)
+  ::
+  ++  import-log  
+    |=  [=pact:c =perm:c]
+    ^-  log:c
+    =/  =time  (fall (bind (ram:orm-log-gra:c update-log) head) *time)
+    %+  gas:log-on:c  *log:c
+    :~  [time %create perm pact]
+    ==
+  ::
+  ++  orm  orm-gra:c
+  --
+::
 ++  watch-said
   |=  [=flag:c =id:c]
   ?.  (~(has by chats) flag)
@@ -475,6 +561,7 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+    [%x %imp ~]   ``flags+!>(imp)
   ::
     [%x %chat ~]  ``flags+!>(~(key by chats))
   ::
@@ -735,10 +822,12 @@
         %team
       =*  ship  ship.delta
       =.  cu-core  (cu-give-delta delta)
-      ?:  &(!ok.delta (~(has in team.club) ship))
+      =/  loyal  (~(has in team.club) ship)
+      ?:  &(!ok.delta loyal)
         ?.  =(our src):bowl
           cu-core
         cu-core(gone &)
+      ?:  &(ok.delta loyal)  cu-core
       ?.  (~(has in hive.club) ship)
         cu-core
       =.  hive.club  (~(del in hive.club) ship)
@@ -810,6 +899,15 @@
     |=  f=flag:c
     ca-core(flag f, chat (~(got by chats) f))
   ++  ca-area  `path`/chat/(scot %p p.flag)/[q.flag]
+  ::  TODO: add metadata
+  ::        maybe delay the watch?
+  ++  ca-import
+    |=  [writers=(set ship) =association:met:c]
+    ^+  ca-core
+    =?  ca-core  ?=(%sub -.net.chat)
+      ca-sub
+    (ca-remark-diff read/~)
+  ::
   ++  ca-spin  
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     =*  group  group.perm.chat
@@ -861,28 +959,50 @@
   ::
   ++  ca-pass
     |%
-    ++  add-channel
-      |=  req=create:c
-      =/  =dock      [p.group.req %groups]
-      =/  =nest:g    [dap.bowl flag]
-      =/  =channel:g  
-        =,(req [[title description '' ''] now.bowl %default | readers])
-      =/  =action:g  [group.req now.bowl %channel nest %add channel]
-      =/  =cage      group-action-0+!>(action)
-      =/  =wire      (snoc ca-area %create)
-      =/  =card
-        [%pass ca-area %agent dock %poke cage]
+    ++  writer-sect
+      |=  [ships=(set ship) =association:met:c]
+      =/  =sect:g
+        (rap 3 %chat '-' (scot %p p.flag) '-' q.flag ~)
+      =/  title=@t
+        (rap 3 'Writers: ' title.metadatum.association ~)
+      =/  desc=@t
+        (rap 3 'The writers role for the ' title.metadatum.association ' chat' ~)
+      %+  poke-group  %import-writers
+      :+  group.association   now.bowl
+      [%cabal sect %add title desc '' '']
+    ::
+    ++  poke-group
+      |=  [=term =action:g]
+      ^+  ca-core
+      =/  =dock      [our.bowl %groups]  :: XX: which ship?
+      =/  =wire      (snoc ca-area term)
       =.  cor
-        (emit card)
+        (emit %pass wire %agent dock %poke group-action-0+!>(action))
       ca-core
     ::
+    ++  create-channel
+      |=  [=term group=flag:g =channel:g]
+      ^+  ca-core
+      =/  =nest:g  [dap.bowl flag]
+      (poke-group term group now.bowl %channel nest %add channel)
+    ::
+    ++  import-channel
+      |=  =association:met:c
+      =/  meta=data:meta:g
+        [title description '' '']:metadatum.association
+      (create-channel %import group.association meta now.bowl zone=%default %| ~)
+    ::
+    ++  add-channel
+      |=  req=create:c
+      %+  create-channel  %create
+      [group.req =,(req [[title description '' ''] now.bowl %default | readers])]
     --
   ++  ca-init
     |=  req=create:c
     =/  =perm:c  [writers.req group.req]
     =.  cor
       (give-brief flag/flag ca-brief)
-    =.  ca-core  (ca-update now.bowl %create perm ~)
+    =.  ca-core  (ca-update now.bowl %create perm *pact:c)
     (add-channel:ca-pass req)
   ::
   ++  ca-agent
@@ -900,6 +1020,14 @@
       %.  ca-core  :: TODO rollback creation if poke fails?
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
+    ::
+        [%import ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign
+        ca-core
+      %-  (slog u.p.sign)
+      :: =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
+      ca-core
     ::
     ==
   ::
@@ -942,7 +1070,7 @@
       =.  net.chat  [%sub src.bowl & %chi ~]
       ?~  p.sign  ca-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
-      =.  gone  &
+      ::  =.  gone  &
       ca-core
     ::
         %fact
@@ -1108,7 +1236,8 @@
         %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
       ::
           %read
-      =/  [=time =writ:c]  (need (ram:on:writs:c wit.pact.chat))
+      =/  =time
+        (fall (bind (ram:on:writs:c wit.pact.chat) head) now.bowl)
       remark.chat(last-read `@da`(add time 1))  ::  greater than last
       ==
     =.  cor
@@ -1136,6 +1265,7 @@
     ::
         %create
       =.  perm.chat  p.d
+      =.  pact.chat  q.d
       ca-core
     ::
         %writs

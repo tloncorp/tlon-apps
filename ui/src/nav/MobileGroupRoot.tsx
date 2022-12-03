@@ -20,9 +20,9 @@ export default function MobileGroupRoot() {
             to="/"
             className="default-focus inline-flex items-center text-base font-semibold text-gray-800 hover:bg-gray-50"
           >
-            <CaretLeftIcon className="mr-2 h-6 w-6 text-gray-400" />
+            <CaretLeftIcon className="mr-2 h-6 w-6 shrink-0 text-gray-400" />
             <GroupAvatar {...group?.meta} size="h-8 w-8" className="mr-3" />
-            <h1 className="truncate text-base font-bold">
+            <h1 className="shrink text-base font-bold line-clamp-1">
               {group?.meta.title}
             </h1>
           </Link>

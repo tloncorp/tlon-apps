@@ -127,6 +127,7 @@ export const useChatState = createState<ChatState>(
     dmSubs: [],
     multiDmSubs: [],
     pendingDms: [],
+    pendingImports: [],
     pins: [],
     sentMessages: [],
     postedMessages: [],
@@ -300,6 +301,25 @@ export const useChatState = createState<ChatState>(
             } else if ('add-sects' in diff) {
               chat.perms.writers = chat.perms.writers.concat(diff['add-sects']);
             }
+          });
+        },
+      });
+
+      const pendingImports = await api.scry<string[]>({
+        app: 'chat',
+        path: '/imp',
+      });
+
+      get().batchSet((draft) => {
+        draft.pendingImports = pendingImports;
+      });
+
+      api.subscribe({
+        app: 'chat',
+        path: '/imp',
+        event: (imports: string[]) => {
+          get().batchSet((draft) => {
+            draft.pendingImports = imports;
           });
         },
       });
@@ -891,11 +911,15 @@ export function useMultiDmIsPending(id: string): boolean {
     useCallback(
       (s) => {
         const chat = s.multiDms[id];
-        if (!chat) {
-          return false;
+        const brief = s.briefs[id];
+        const isPending = chat && chat.hive.includes(window.our);
+        const inTeam = chat && chat.team.includes(window.our);
+
+        if (isPending) {
+          return true;
         }
 
-        return chat.hive.includes(window.our);
+        return !brief && !inTeam;
       },
       [id]
     )

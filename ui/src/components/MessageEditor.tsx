@@ -12,6 +12,7 @@ import Blockquote from '@tiptap/extension-blockquote';
 import Placeholder from '@tiptap/extension-placeholder';
 import Bold from '@tiptap/extension-bold';
 import Code from '@tiptap/extension-code';
+import CodeBlock from '@tiptap/extension-code-block';
 import Italic from '@tiptap/extension-italic';
 import Strike from '@tiptap/extension-strike';
 import Link from '@tiptap/extension-link';
@@ -85,6 +86,7 @@ export function useMessageEditor({
     Blockquote,
     Bold,
     Code.extend({ excludes: undefined }),
+    CodeBlock,
     Document,
     HardBreak,
     History.configure({ newGroupDelay: 100 }),

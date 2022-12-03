@@ -30,7 +30,6 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
   const [selected, setSelected] = useState(-1);
   const [selectionPos, setSelectionPos] = useState<DOMRect>();
   const [status, setStatus] = useState<MenuState>('closed');
-
   const isMobile = useIsMobile();
 
   const onSelection = useCallback(
@@ -99,6 +98,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         editor.chain().extendMarkRange('link').setLink({ href: url }).run();
       }
 
+      editor.chain().focus();
       setStatus('open');
     },
     [editor]
@@ -134,7 +134,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     [selected, status, editor]
   );
   if (isMobile) {
-    return (
+    return editor.view.hasFocus() || status === 'editing-link' ? (
       <ChatInputMenuToolbar
         editor={editor}
         toolbarRef={toolbarRef}
@@ -145,7 +145,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         isSelected={isSelected}
         openLinkEditor={openLinkEditor}
       />
-    );
+    ) : null;
   }
   return (
     <Popover.Root open={status !== 'closed'}>

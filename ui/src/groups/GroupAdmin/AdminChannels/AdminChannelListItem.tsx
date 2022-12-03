@@ -91,12 +91,14 @@ export default function AdminChannelListItem({
             <div {...provided.dragHandleProps}>
               <SixDotIcon className="mr-3 h-5 w-5 fill-gray-600" />
             </div>
-            <div className="mr-3 flex h-8 w-8 items-center justify-center rounded bg-gray-50">
+            <div className="mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gray-50">
               <ChannelIcon nest={nest} className="h-5 w-5 text-gray-400" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-md font-semibold">{meta.title}</h2>
+                <h2 className="text-md font-semibold line-clamp-1">
+                  {meta.title}
+                </h2>
                 {channel.join ? (
                   <div className="rounded-md border-2 border-gray-600 px-1 text-sm font-bold text-gray-600">
                     Default

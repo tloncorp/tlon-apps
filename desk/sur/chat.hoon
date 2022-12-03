@@ -1,7 +1,9 @@
-/-  g=groups
+/-  g=groups, graph-store
 /-  meta
+/-  metadata-store
 /-  cite
 /-  e=epic
+/+  lib-graph=graph-store
 |%
 ::  $writ: a chat message
 +$  writ   [seal memo]
@@ -73,7 +75,7 @@
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
     ::
-      [%create p=perm q=(unit pact)]
+      [%create p=perm q=pact]
   ==
 ::  $index: a map of chat message id to server received message time
 ::
@@ -331,4 +333,15 @@
       readers=(set sect:g)
       writers=(set sect:g)
   ==
+++  met     metadata-store
++$  club-import  [ships=(set ship) =association:met =graph:gra]
++$  club-imports  (map flag club-import)
+::
++$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
+::
++$  imports  (map flag import)
+::
+++  gra  graph-store
+++  orm-gra  orm:lib-graph
+++  orm-log-gra  orm-log:lib-graph
 --

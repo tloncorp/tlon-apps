@@ -27,7 +27,9 @@ exports[`ChatMessage > renders as expected 1`] = `
     <div
       class="align-center group flex items-center space-x-3 py-1"
     >
-      <div>
+      <div
+        class="shrink-0"
+      >
         <div
           class="relative flex flex-none items-center justify-center rounded bg-black w-6 h-6 rounded p-1.5 cursor-pointer"
           style="background-color: rgb(0, 0, 0);"
@@ -113,10 +115,10 @@ exports[`ChatMessage > renders as expected 1`] = `
         </div>
       </div>
       <div
-        class="text-md cursor-pointer font-semibold"
+        class="text-md shrink cursor-pointer font-semibold"
       >
         <span
-          class="text-md font-semibold"
+          class="text-md font-semibold line-clamp-1"
         >
           <span
             aria-hidden="true"
@@ -139,12 +141,12 @@ exports[`ChatMessage > renders as expected 1`] = `
         </span>
       </div>
       <span
-        class="hidden text-sm font-semibold text-gray-500 group-hover:block"
+        class="hidden shrink-0 text-sm font-semibold text-gray-500 group-hover:block"
       >
         February 1st, 2021 • 13:00
       </span>
       <span
-        class="block text-sm font-semibold text-gray-500 group-hover:hidden"
+        class="block shrink-0 text-sm font-semibold text-gray-500 group-hover:hidden"
       >
         February 1st • 13:00
       </span>
