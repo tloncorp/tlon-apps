@@ -499,7 +499,8 @@
   ++  old-to-new-meta
     |=  =metadatum:m-one
     ^-  data:meta
-    =,(metadatum [title description picture (scot %ux color)])
+    =/  hex  (crip (welp ~['#'] (trip (en:base16:mimes:html 3 color))))
+    =,(metadatum [title description picture hex])
   ::
   ++  policy-to-cordon
     |=  =policy:g-one
