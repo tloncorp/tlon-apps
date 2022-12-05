@@ -120,7 +120,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
       .filter(
         ([nest, chan]) =>
           (isChannelJoined(nest, briefs) && canReadChannel(chan, vessel)) ||
-          pendingImports.includes(nest)
+          nest in pendingImports
       )
       .map(([nest, channel]) => {
         const [, chFlag] = nestToFlag(nest);
