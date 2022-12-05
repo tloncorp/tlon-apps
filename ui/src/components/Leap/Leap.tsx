@@ -61,16 +61,22 @@ export default function Leap() {
           />
         </div>
         <div className="mt-4">
-          {results.map((result, idx) =>
-            'section' in result ? (
-              <LeapSectionRow key={idx} section={result} />
-            ) : (
-              <LeapRow
-                key={idx}
-                option={result}
-                selected={selectedIndex === result.resultIndex}
-              />
+          {results.length > 0 ? (
+            results.map((result, idx) =>
+              'section' in result ? (
+                <LeapSectionRow key={idx} section={result} />
+              ) : (
+                <LeapRow
+                  key={idx}
+                  option={result}
+                  selected={selectedIndex === result.resultIndex}
+                />
+              )
             )
+          ) : (
+            <div className="flex h-32 w-full items-center justify-center border border-dashed border-gray-200">
+              <p className="text-sm text-gray-200">No results</p>
+            </div>
           )}
         </div>
       </DialogContent>
