@@ -29,7 +29,7 @@ export interface ChatState {
   drafts: {
     [whom: string]: ChatStory;
   };
-  pendingImports: string[];
+  pendingImports: Record<string, boolean>;
   chatSubs: string[];
   dmSubs: string[];
   sentMessages: string[];

@@ -17,7 +17,7 @@
     $:  %0
         =shelf:d
         voc=(map [flag:d time] (unit said:d))
-        imp=(set flag:d)
+        imp=(map flag:d ?)
     ==
   --
 =|  current-state
@@ -160,7 +160,14 @@
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %graph-imports  (import !<(imports:d vase))
-      %import-flags   cor(imp !<((set flag:d) vase))
+      %import-flags
+    =+  !<(flags=(set flag:d) vase)
+    =.  imp  %-  ~(gas by *(map flag:d ?))
+      ^-  (list [flag:d ?])
+      %+  turn 
+        ~(tap in flags) 
+      |=(=flag:d [flag |])
+    cor
   ::
       ?(%flag %channel-join)
     =+  !<(=flag:d vase)
@@ -253,8 +260,9 @@
         remark
     ==
   =.  shelf  (~(put by shelf) flag diary)
-  =.  imp    (~(del in imp) flag)
-  =.  cor    (give %fact ~[/imp] flags+!>(imp))
+  =.  imp    (~(put by imp) flag &)
+  =.  cor
+    (give %fact ~[/imp] migrate-map+!>(imp))
   =.  cor    di-abet:(di-import:(di-abed:di-core flag) writers association)
   loop(imports t.imports)
   ::
@@ -487,7 +495,7 @@
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
   ::
-    [%x %imp ~]    ``flags+!>(imp)
+    [%x %imp ~]    ``migrate-map+!>(imp)
   ::
     [%x %shelf ~]  ``shelf+!>(shelf)
   ::

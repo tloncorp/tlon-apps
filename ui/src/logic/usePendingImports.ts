@@ -1,10 +1,11 @@
+import _ from 'lodash';
 import { useChatState } from '@/state/chat';
 import { useDiaryState } from '@/state/diary';
 import { useHeapState } from '@/state/heap/heap';
 import { useMemo } from 'react';
 
 interface ChannelAgent {
-  pendingImports: string[];
+  pendingImports: Record<string, boolean>;
 }
 
 const selPendImports = (s: ChannelAgent) => s.pendingImports;
@@ -15,12 +16,11 @@ export default function usePendingImports() {
   const diaries = useDiaryState(selPendImports);
 
   return useMemo(
-    () =>
-      ([] as string[]).concat(
-        chats.map((c) => `chat/${c}`),
-        heaps.map((h) => `heap/${h}`),
-        diaries.map((d) => `diary/${d}`)
-      ),
+    () => ({
+      ..._.mapKeys(chats, (v, c) => `chat/${c}`),
+      ..._.mapKeys(heaps, (v, h) => `heap/${h}`),
+      ..._.mapKeys(diaries, (v, d) => `diary/${d}`),
+    }),
     [chats, heaps, diaries]
   );
 }

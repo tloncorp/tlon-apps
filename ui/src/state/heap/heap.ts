@@ -89,7 +89,7 @@ export const useHeapState = create<HeapState>(
       heapSubs: [],
       loadedRefs: {},
       briefs: {},
-      pendingImports: [],
+      pendingImports: {},
       markRead: async (flag) => {
         await api.poke({
           app: 'heap',
@@ -168,7 +168,7 @@ export const useHeapState = create<HeapState>(
           },
         });
 
-        const pendingImports = await api.scry<string[]>({
+        const pendingImports = await api.scry<Record<string, boolean>>({
           app: 'heap',
           path: '/imp',
         });
@@ -180,7 +180,7 @@ export const useHeapState = create<HeapState>(
         api.subscribe({
           app: 'heap',
           path: '/imp',
-          event: (imports: string[]) => {
+          event: (imports: Record<string, boolean>) => {
             get().batchSet((draft) => {
               draft.pendingImports = imports;
             });
