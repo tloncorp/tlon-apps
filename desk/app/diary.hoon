@@ -17,6 +17,7 @@
     $:  %0
         =shelf:d
         voc=(map [flag:d time] (unit said:d))
+        ::  true represents imported, false pending import
         imp=(map flag:d ?)
     ==
   --

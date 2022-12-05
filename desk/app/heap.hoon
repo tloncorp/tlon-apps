@@ -14,6 +14,7 @@
     $:  %0
         =stash:h
         voc=(map [flag:h time] (unit said:h))
+        ::  true represents imported, false pending import
         imp=(map flag:h ?)
     ==
   ::

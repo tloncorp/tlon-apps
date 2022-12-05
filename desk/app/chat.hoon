@@ -34,6 +34,7 @@
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
+        ::  true represents imported, false pending import
         imp=(map flag:c ?)
     ==
   --
