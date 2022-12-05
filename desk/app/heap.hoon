@@ -14,7 +14,8 @@
     $:  %0
         =stash:h
         voc=(map [flag:h time] (unit said:h))
-        imp=(set flag:h)
+        ::  true represents imported, false pending import
+        imp=(map flag:h ?)
     ==
   ::
   --
@@ -99,7 +100,14 @@
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %graph-imports  (import-graphs !<(imports:h vase))
-      %import-flags   cor(imp !<((set flag:h) vase))
+      %import-flags
+    =+  !<(flags=(set flag:h) vase)
+    =.  imp  %-  ~(gas by *(map flag:h ?))
+      ^-  (list [flag:h ?])
+      %+  turn
+        ~(tap in flags) 
+      |=(=flag:h [flag |])
+    cor
   ::
       ?(%flag %channel-join)
     =+  !<(=flag:h vase)
@@ -368,7 +376,7 @@
   ?+  path  [~ ~]
   ::
     [%x %stash ~]  ``stash+!>(stash)
-    [%x %imp ~]    ``flags+!>(imp)
+    [%x %imp ~]    ``migrate-map+!>(imp)
   ::
       [%x %heap @ @ *]
     =/  =ship  (slav %p i.t.t.path)
@@ -407,8 +415,9 @@
       curios
       [now.bowl | ~]
     ==
-  =.  imp  (~(del in imp) flag)
-  =.  cor  (give %fact ~[/imp] flags+!>(imp))
+  =.  imp    (~(put by imp) flag &)
+  =.  cor
+    (give %fact ~[/imp] migrate-map+!>(imp))
   =.  cor
     he-abet:(he-import:(he-abed:he-core flag) writers association)
   loop(imports t.imports)

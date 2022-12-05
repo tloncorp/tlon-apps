@@ -34,7 +34,8 @@
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
-        imp=(set flag:g)
+        ::  true represents imported, false pending import
+        imp=(map flag:c ?)
     ==
   --
 =|  current-state
@@ -161,7 +162,14 @@
   |^  ^+  cor 
   ?+    mark  ~|(bad-poke/mark !!)
   ::
-      %import-flags   cor(imp !<((set flag:c) vase))
+      %import-flags
+    =+  !<(flags=(set flag:c) vase)
+    =.  imp  %-  ~(gas by *(map flag:c ?))
+      ^-  (list [flag:c ?])
+      %+  turn
+        ~(tap in flags)
+      |=(=flag:c [flag |])
+    cor
       %graph-imports  (import !<(imports:c vase))
   ::
       %dm-imports     (import-dms !<(graph:gra:c vase))
@@ -426,9 +434,9 @@
         perm
         pact
     ==
-  =.  imp    (~(del in imp) flag)
+  =.  imp    (~(put by imp) flag &)
   =.  cor
-    (give %fact ~[/imp] flags+!>(imp))
+    (give %fact ~[/imp] migrate-map+!>(imp))
   =.  chats  (~(put by chats) flag chat)
   =.  cor
     ca-abet:(ca-import:(ca-abed:ca-core flag) writers association)
@@ -561,7 +569,7 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
-    [%x %imp ~]   ``flags+!>(imp)
+    [%x %imp ~]   ``migrate-map+!>(imp)
   ::
     [%x %chat ~]  ``flags+!>(~(key by chats))
   ::

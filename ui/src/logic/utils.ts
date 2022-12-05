@@ -469,6 +469,12 @@ export function getNestShip(nest: string) {
   return ship;
 }
 
-export function isChannelImported(nest: string, pending: string[]) {
-  return !pending.includes(nest) || window.our === getNestShip(nest);
+export function isChannelImported(
+  nest: string,
+  pending: Record<string, boolean>
+) {
+  const isImport = nest in pending;
+  return (
+    !isImport || (isImport && pending[nest]) || window.our === getNestShip(nest)
+  );
 }

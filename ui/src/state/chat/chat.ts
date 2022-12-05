@@ -127,7 +127,7 @@ export const useChatState = createState<ChatState>(
     dmSubs: [],
     multiDmSubs: [],
     pendingDms: [],
-    pendingImports: [],
+    pendingImports: {},
     pins: [],
     sentMessages: [],
     postedMessages: [],
@@ -305,7 +305,7 @@ export const useChatState = createState<ChatState>(
         },
       });
 
-      const pendingImports = await api.scry<string[]>({
+      const pendingImports = await api.scry<Record<string, boolean>>({
         app: 'chat',
         path: '/imp',
       });
@@ -317,7 +317,7 @@ export const useChatState = createState<ChatState>(
       api.subscribe({
         app: 'chat',
         path: '/imp',
-        event: (imports: string[]) => {
+        event: (imports: Record<string, boolean>) => {
           get().batchSet((draft) => {
             draft.pendingImports = imports;
           });

@@ -17,6 +17,8 @@ export function useStartedMigration() {
   const chats = useChats();
   const stash = useHeapState(selStash);
   const shelf = useDiaryState(selShelf);
+  const pendingImports = usePendingImports();
+  const pendingShips = Object.keys(pendingImports).map(getNestShip);
   const ships = useMemo(
     () => [
       ...Object.keys(chats).map(getShip),
@@ -26,7 +28,13 @@ export function useStartedMigration() {
     [chats, stash, shelf]
   );
 
-  return useCallback((ship: string) => ships.includes(ship), [ships]);
+  return useCallback(
+    (ship: string) => {
+      const inPending = pendingShips.includes(ship);
+      return !inPending || (inPending && ships.includes(ship));
+    },
+    [ships, pendingShips]
+  );
 }
 
 export function useHasMigratedChannels(flag: string) {
