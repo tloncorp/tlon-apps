@@ -242,6 +242,10 @@
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
+  ::
+      [%x %exists ship=@ name=@ rest=*]
+      =/  src  (slav %p ship.pole)
+      ``noun+!>((~(has by groups) [src name.pole]))
   ==
 ::
 ++  agent

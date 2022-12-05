@@ -2,13 +2,13 @@ import React from 'react';
 import { nestToFlag } from '@/logic/utils';
 import { Cite } from '@/types/chat';
 import { udToDec } from '@urbit/api';
-import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CurioReference from './CurioReference';
 // eslint-disable-next-line import/no-cycle
 import WritReference from './WritReference';
 import GroupReference from './GroupReference';
 import NoteReference from './NoteReference';
 import AppReference from './AppReference';
+import BaitReference from './BaitReference';
 
 function ContentReference({
   cite,
@@ -26,6 +26,9 @@ function ContentReference({
     return <AppReference desk={desk} isScrolling={isScrolling} />;
   }
 
+  if ('bait' in cite) {
+    return <BaitReference {...cite.bait} />;
+  }
   if ('chan' in cite) {
     const { nest, where } = cite.chan;
     const [app, chFlag] = nestToFlag(cite.chan.nest);

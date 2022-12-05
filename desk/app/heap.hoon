@@ -471,7 +471,7 @@
     ;<  [@ latest=node:gra:h]  _biff  (pry:orm graph)
     ;<  =post:gra:h            _biff  (node-to-post latest)
     =/  =seal:h  [time ~ ~]
-    =/  con=(list inline:h)  (inline:chat-migrate contents.post)
+    =/  con=(list inline:h)  +:(con:nert:chat-migrate contents.post)
     =/  =heart:h  
       =,(post [~ con author time-sent `reply])
     `[seal heart]
