@@ -35,6 +35,7 @@
     %chan   chan/(welp (nest nest.c) wer.c)
     %desk   desk/(welp (flag flag.c) wer.c)
     %group  group/(flag flag.c)
+    %bait   bait/(flag flag.c)
   ==
   ++  flag
     |=  f=flag:g
@@ -48,6 +49,9 @@
   $%  [%chan =nest:g wer=path]
       [%group =flag:g]
       [%desk =flag:g wer=path]
+      [%bait old=flag:g =flag:g wer=path]
+      :: scry into groups when you receive a bait for a chat that doesn't exist yet
+      :: work out what app
   ==
 --
 

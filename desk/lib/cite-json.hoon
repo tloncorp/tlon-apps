@@ -19,6 +19,13 @@
     :~  nest/s/(nest:enjs:j nest.cite)
         where/s/(spat wer.cite)
     ==
+  ::
+      %bait
+    %-  pairs
+    :~  old/s/(flag:enjs:j old.cite)
+        flag/s/(flag:enjs:j flag.cite)
+        where/s/(spat wer.cite)
+    ==
   ==
 ::
 ++  dejs
@@ -36,6 +43,13 @@
       :-  %chan
       %-  ot
       :~  nest/nest:dejs:j
+          where/pa
+      ==
+      ::
+      :-  %bait
+      %-  ot
+      :~  old/flag:dejs:j
+          flag/flag:dejs:j
           where/pa
       ==
   ==
