@@ -80,6 +80,7 @@ import MobileGroupsNavHome from './nav/MobileRoot';
 import MobileGroupsActions from './groups/MobileGroupsActions';
 import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
+import Leap from './components/Leap/Leap';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -483,6 +484,7 @@ function App() {
           isSmall={isSmall}
         />
       )}
+      <Leap />
     </div>
   );
 }
