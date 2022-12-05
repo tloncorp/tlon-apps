@@ -1,23 +1,10 @@
-/-  c=chat
+/-  c=chat, g=groups
+/-  cite
 /+  gra=graph-store
 /+  pac=dm
 |%
-++  convert
-  |=  =graph:gra
-  ^-  pact:c
-  =|  =pact:c
-  =/  nodes=(list (pair atom node:gra))
-    (tap:orm:gra graph)
-  |- 
-  ?~  nodes
-    ~&  'nothing to do :('
-    pact
-  =/  node  i.nodes
-  ?~  mem=(node-to-memo q.node)
-    $(nodes t.nodes)
-  =/  =id:c
-    [author.u.mem p.node] :: technically wrong, but defends against poor clients
-  $(nodes t.nodes, pact (~(reduce pac pact) p.node id %add u.mem))
+++  nert
+  |_  [=flag:g =dude:gall]
 ++  node-to-memo
   |=  =node:gra
   ^-  (unit memo:c)
@@ -28,28 +15,44 @@
   :*  replying=~
       author=author.p
       sent=time-sent.p
-      contents=(con contents.p)
+      contents=story/(con contents.p)
   ==
-
 ++  con
   |=  cs=(list content:gra)
-  ^-  content:c
-  story/[~ (inline cs)]
-::
-++  inline
-  |=  cs=(list content:gra)
-  ^-  (list inline:c)
-  %-  zing
-  %+  turn  cs
-  |=  con=content:gra
-  ^-  (list inline:c)
+  ^-  story:c
+  %+  roll  cs
+  |=  [con=content:gra p=(list block:c) q=(list inline:c)]
+  ^-  story:c
   ?-  -.con
-    %text       (fall (rush text.con apex:parse) ~[text.con])
-    %mention    ~[`@t`(scot %p ship.con)]
-    %url        [%link [. .]:url.con]~
-    %code       [%inline-code expression.con]~
-    %reference  ~['elided reference'] :: TODO fix?
+    %text       [p (welp q (fall (rush text.con apex:parse) ~[text.con]))]
+    %mention    [p (snoc q ship/ship.con)]
+    %url        [p (snoc q [%link [. .]:url.con])] :: XX: maybe try pull images?
+    %code       [p (snoc q [%inline-code expression.con])]
+    %reference  :_(q (snoc p (ref reference.con)))
   ==
+  ::
+  ++  ref
+    |=  ref=reference:gra
+    ^-  block:c
+    =;  =cite
+      [%cite cite]
+    ?-    -.ref
+        %group  [%group group.ref]
+        %app    [%desk [ship desk] path]:ref
+    ::
+        %graph
+      ?.  ?&  =(resource.uid.ref flag)
+              ?=(?(~ [@ ~]) index.uid.ref)
+              =(%chat dude)
+          ==
+        [%bait group.ref uid.ref]
+      =/  wer=path
+         ?~  index.uid.ref   /
+         [%msg index.uid.ref]
+      [%chan [dude flag] wer]
+    ==
+  --
+  ::
 ::
 ++  parse
   |%

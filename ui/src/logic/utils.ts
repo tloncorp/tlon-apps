@@ -371,7 +371,11 @@ export function citeToPath(cite: Cite) {
   if ('chan' in cite) {
     return `/1/chan/${cite.chan.nest}${cite.chan.where}`;
   }
-  return `/1/group/${cite.group}`;
+  if ('group' in cite) {
+    return `/1/group/${cite.group}`;
+  }
+
+  return `/1/bait/${cite.bait.group}/${cite.bait.graph}/${cite.bait.where}`;
 }
 
 export function pathToCite(path: string): Cite | undefined {
