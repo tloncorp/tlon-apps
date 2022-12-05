@@ -4,7 +4,6 @@ export const STANDARD_MESSAGE_FETCH_PAGE_SIZE = 100;
 export const LARGE_MESSAGE_FETCH_PAGE_SIZE = 200;
 export const FETCH_BATCH_SIZE = 3;
 export const MAX_DISPLAYED_OPTIONS = 40;
-export const LEAP_SEARCH_DEBOUNCE = 200;
 
 export const AUTHORS = [
   '~nocsyx-lassul',
