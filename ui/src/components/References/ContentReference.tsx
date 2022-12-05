@@ -9,6 +9,7 @@ import WritReference from './WritReference';
 import GroupReference from './GroupReference';
 import NoteReference from './NoteReference';
 import AppReference from './AppReference';
+import BaitReference from './BaitReference';
 
 function ContentReference({
   cite,
@@ -26,6 +27,10 @@ function ContentReference({
     return <AppReference desk={desk} isScrolling={isScrolling} />;
   }
 
+  if ('bait' in cite) {
+    const { old, flag, where } = cite.bait;
+    return <BaitReference old={old} flag={flag} where={where} />;
+  }
   if ('chan' in cite) {
     const { nest, where } = cite.chan;
     const [app, chFlag] = nestToFlag(cite.chan.nest);

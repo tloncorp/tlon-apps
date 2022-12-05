@@ -1,23 +1,10 @@
-/-  c=chat
+/-  c=chat, g=groups
+/-  cite
 /+  gra=graph-store
 /+  pac=dm
 |%
-++  convert
-  |=  =graph:gra
-  ^-  pact:c
-  =|  =pact:c
-  =/  nodes=(list (pair atom node:gra))
-    (tap:orm:gra graph)
-  |- 
-  ?~  nodes
-    ~&  'nothing to do :('
-    pact
-  =/  node  i.nodes
-  ?~  mem=(node-to-memo q.node)
-    $(nodes t.nodes)
-  =/  =id:c
-    [author.u.mem p.node] :: technically wrong, but defends against poor clients
-  $(nodes t.nodes, pact (~(reduce pac pact) p.node id %add u.mem))
+++  nert
+  |_  =flag:g
 ++  node-to-memo
   |=  =node:gra
   ^-  (unit memo:c)
@@ -30,12 +17,6 @@
       sent=time-sent.p
       contents=(con contents.p)
   ==
-
-++  con
-  |=  cs=(list content:gra)
-  ^-  content:c
-  story/[~ (inline cs)]
-::
 ++  inline
   |=  cs=(list content:gra)
   ^-  (list inline:c)
@@ -48,8 +29,65 @@
     %mention    ~[`@t`(scot %p ship.con)]
     %url        [%link [. .]:url.con]~
     %code       [%inline-code expression.con]~
-    %reference  ~['elided reference'] :: TODO fix?
+    %reference  ~  :: shouldn't hit this
   ==
+  ++  con
+    |=  cs=(list content:gra)
+    ^-  content:c
+    =/  fer=(unit id:c)  (ref cs)
+    ?~  fer  story/[~ (inline cs)]
+    =/  wer=path  /msg/(scot %p p.u.fer)/(scot %ud q.u.fer)
+    story/[(turn (cit cs) (lead %cite)) (inline cs)]
+  ::
+  ++  ref
+    |=  cs=(list content:gra)
+    ^-  (unit id:c)
+    %+  roll  cs
+    |=  [con=content:gra fer=(unit id:c)]
+    ?+     -.con  fer
+        %reference
+      ?.  ?=(%graph -.reference.con)  fer
+      =/  [res=resource:gra author=ship =index:gra]
+      :*  resource.uid.reference.con
+          entity.resource.uid.reference.con
+          index.uid.reference.con
+      ==
+      =-  `[author -]
+      ?~  index  *@da
+      `@da`(head index)
+    ==
+  ::
+  ++  cit
+    |=  cs=(list content:gra)
+    ^-  (list cite:cite)
+    =;  refs
+    %+  turn  refs
+    |=  =reference:gra
+    ?-    -.reference
+        %graph
+      =/  grp=resource:gra  group:reference
+      =/  [res=resource:gra idx=index:gra]  uid:reference
+      =/  =time  ?~  idx  *time  (head idx)
+      =/  wer=path
+        /msg/(scot %p entity.res)/(scot %ud time)
+      ?.  =(grp flag)  [%bait grp flag wer]
+      =/  =nest:g  [%chat res]
+      [%chan nest wer]
+    ::
+      %group  *cite:cite
+    ::
+      %app  *cite:cite
+    ==
+    ::
+    %+  roll  cs
+    |=  [con=content:gra fer=(list reference:gra)]
+    ?+     -.con  fer
+        %reference
+      (snoc fer reference.con)
+    ==
+    ::
+  --
+  ::
 ::
 ++  parse
   |%

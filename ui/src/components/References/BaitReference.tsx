@@ -1,6 +1,5 @@
-import {
-  useBait
-} from '@/state/chat';
+import React from 'react';
+import { useBait } from '@/state/chat';
 // eslint-disable-next-line import/no-cycle
 import WritReference from './WritReference';
 
@@ -16,15 +15,14 @@ export default function BaitReference({
   const bait = useBait(old, flag, where);
   if (!bait) {
     return (
-    <div className="writ-inline-block group">
-      {`exists: ${bait}`} {old} {flag} {where}
-    </div>
+      <div className="writ-inline-block group">
+        {`exists: ${bait}`} {old} {flag} {where}
+      </div>
     );
   }
 
   if (bait.exists !== false) {
     return <WritReference chFlag={''} nest={''} idWrit={''} />;
-
   }
   return (
     <div className="writ-inline-block group">

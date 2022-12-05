@@ -1,4 +1,4 @@
-/-  c=chat, g=groups
+/-  c=chat, g=groups, n=nark
 /-  meta
 /-  ha=hark
 /-  e=epic
@@ -10,6 +10,7 @@
 /+  epos-lib=saga
 /+  wood-lib=wood
 /+  mig=chat-graph
+/+  nar=nark
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -362,7 +363,7 @@
   =/  =id:club:c  (shax (jam flag))  :: TODO: determinstic, but collisions ig?
   =/  meta=data:meta
     [title description '' '']:metadatum.association
-  =.  clubs  (~(put by clubs) id (graph-to-pact graph) ships ~ meta %done |)
+  =.  clubs  (~(put by clubs) id (graph-to-pact graph flag) ships ~ meta %done |)
   $(cus t.cus)
 ::
 ++  import-dms
@@ -377,22 +378,23 @@
   ?.  ?=(%graph -.children.node)
     loop(old-dms t.old-dms)
   =.  dms  
-    (~(put by dms) ship (graph-to-pact p.children.node) remark %done |)
+    (~(put by dms) ship (graph-to-pact p.children.node [ship (scot %p ship)]) remark %done |)
   loop(old-dms t.old-dms)
 ++  graph-to-pact
-  |=  =graph:gra:c
+  |=    [=graph:gra:c =flag:c]
   ^-  pact:c
   %-  ~(gas pac *pact:c)
   %+  murn  (tap:orm-gra:c graph)
   |=  [=time =node:gra:c]
+  ~&  >>  graph-flag+flag
   ^-  (unit [_time writ:c])
-  ?~  wit=(node-to-writ time node)
+  ?~  wit=(node-to-writ time node flag)
     ~
   `[time u.wit]
 ::  TODO: review crashing semantics
 ::        check graph ordering (backwards iirc)
 ++  node-to-writ
-  |=  [=time =node:gra:c]
+  |=  [=time =node:gra:c =flag:c]
   ^-  (unit writ:c)
   ?.  ?=(%& -.post.node)
     ~
@@ -404,7 +406,7 @@
   :: XX: probably change?
   :-  ~
   :-  [[author.pos time] ~ ~]
-  [~ author.pos time-sent.pos (con:mig contents.pos)]
+  [~ author.pos time-sent.pos (~(con nert:mig flag) contents.pos)]
 ::
 ++  import
   |=  =imports:c
@@ -418,7 +420,7 @@
   =/  =perm:c
     :_  group.association
     ?:(=(~ writers) ~ (silt (rap 3 %chat '-' (scot %p p.flag) '-' q.flag ~) ~))
-  =/  =pact:c  (graph-to-pact graph)
+  =/  =pact:c  (graph-to-pact graph flag)
   =/  =chat:c
     :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | chi/~])
         *remark:c
