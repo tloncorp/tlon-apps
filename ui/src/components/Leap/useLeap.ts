@@ -12,6 +12,9 @@ import menuOptions from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
 import UnknownAvatarIcon from '../icons/UnknownAvatarIcon';
+import BubbleIcon from '../icons/BubbleIcon';
+import ShapesIcon from '../icons/ShapesIcon';
+import NotebookIcon from '../icons/NotebookIcon';
 
 export default function useLeap() {
   const [isOpen, setIsOpen] = useState(false);
@@ -103,16 +106,30 @@ export default function useLeap() {
           channel.meta.title.toLowerCase().includes(inputValue.toLowerCase())
         )
         .map(({ groupFlag, group, channel, nest }, idx) => {
-          const [, chFlag] = nestToFlag(nest);
+          const [chType, chFlag] = nestToFlag(nest);
           const onSelect = () => {
             navigate(`/groups/${groupFlag}/channels/chat/${chFlag}`);
             setSelectedIndex(0);
             setInputValue('');
             setIsOpen(false);
           };
+          let channelIcon;
+          switch (chType) {
+            case 'chat':
+              channelIcon = BubbleIcon;
+              break;
+            case 'heap':
+              channelIcon = ShapesIcon;
+              break;
+            case 'diary':
+              channelIcon = NotebookIcon;
+              break;
+            default:
+              channelIcon = UnknownAvatarIcon;
+          }
           return {
             onSelect,
-            icon: UnknownAvatarIcon, // TODO: ChannelIcon
+            icon: channelIcon,
             title: channel.meta.title,
             subtitle:
               channel.meta.description.slice(

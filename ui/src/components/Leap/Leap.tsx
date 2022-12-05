@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useEventListener } from 'usehooks-ts';
 import Dialog, { DialogContent } from '../Dialog';
 import LeapRow from './LeapRow';
@@ -16,33 +16,48 @@ export default function Leap() {
     resultCount,
   } = useLeap();
 
+  // global trigger
   useEventListener('keydown', (event) => {
-    // TODO: make this configurable
+    // TODO: make hotkey configurable, and support MacOS
     if (event.ctrlKey && event.key === '/') {
-      setIsOpen(true);
-    } else if (event.key === 'ArrowDown') {
-      if (selectedIndex < resultCount - 1) {
-        setSelectedIndex((idx) => idx + 1);
-      }
-    } else if (event.key === 'ArrowUp') {
-      if (selectedIndex > 0) {
-        setSelectedIndex((idx) => idx - 1);
-      }
-    } else if (event.key === 'Enter') {
-      const result = results
-        .filter((r) => 'resultIndex' in r)
-        // @ts-expect-error items without resultIndex are filtered out
-        .find((r) => r.resultIndex === selectedIndex);
-      if (result) {
-        // @ts-expect-error items without onSelect are filtered out
-        result.onSelect();
-      }
-    } else if (event.key === 'Escape') {
       setSelectedIndex(0);
       setInputValue('');
-      setIsOpen(false);
+      setIsOpen(true);
     }
   });
+
+  // dialog actions
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useEventListener(
+    'keydown',
+    (event) => {
+      if (!(document.activeElement === inputRef.current)) {
+        return;
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (selectedIndex < resultCount - 1) {
+          setSelectedIndex((idx) => idx + 1);
+        }
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (selectedIndex > 0) {
+          setSelectedIndex((idx) => idx - 1);
+        }
+      } else if (event.key === 'Enter') {
+        const result = results
+          .filter((r) => 'resultIndex' in r)
+          // @ts-expect-error items without resultIndex are filtered out
+          .find((r) => r.resultIndex === selectedIndex);
+        if (result) {
+          // @ts-expect-error items without onSelect are filtered out
+          result.onSelect();
+        }
+      }
+    },
+    inputRef
+  );
 
   const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedIndex(0);
@@ -54,6 +69,7 @@ export default function Leap() {
       <DialogContent containerClass="w-full sm:max-w-lg" showClose={false}>
         <div className="flex items-center justify-between">
           <input
+            ref={inputRef}
             type="text"
             className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600"
             placeholder="Search"
