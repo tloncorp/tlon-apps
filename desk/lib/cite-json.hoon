@@ -48,8 +48,8 @@
       ::
       :-  %bait
       %-  ot
-      :~  old/flag:dejs:j
-          flag/flag:dejs:j
+      :~  group/flag:dejs:j
+          graph/flag:dejs:j
           where/pa
       ==
   ==

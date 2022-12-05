@@ -985,23 +985,6 @@ type UnsubbedWrit = {
   writ: ChatWrit;
 };
 
-type UnsubbedBait = {
-  exists: boolean;
-};
-
-export function useBait(old: string, flag: string, where: string) {
-  const [res, setRes] = useState(null as UnsubbedBait | null);
-  useEffect(() => {
-    subscribeOnce<UnsubbedBait>('nark', `/bait/${old}/${flag}/${where}`).then(
-      setRes
-    );
-
-    return () => {
-      setRes(null);
-    };
-  }, [old, flag, where]);
-  return res;
-}
 const selLoadedRefs = (s: ChatState) => s.loadedRefs;
 export function useWritByFlagAndWritId(
   chFlag: string,

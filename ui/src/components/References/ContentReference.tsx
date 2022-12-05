@@ -8,7 +8,6 @@ import WritReference from './WritReference';
 import GroupReference from './GroupReference';
 import NoteReference from './NoteReference';
 import AppReference from './AppReference';
-// eslint-disable-next-line import/no-cycle
 import BaitReference from './BaitReference';
 
 function ContentReference({
@@ -28,8 +27,7 @@ function ContentReference({
   }
 
   if ('bait' in cite) {
-    const { old, flag, where } = cite.bait;
-    return <BaitReference old={old} flag={flag} where={where} />;
+    return <BaitReference {...cite.bait} />;
   }
   if ('chan' in cite) {
     const { nest, where } = cite.chan;

@@ -70,8 +70,8 @@ export interface DeskCite {
 
 export interface BaitCite {
   bait: {
-    old: string;
-    flag: string;
+    group: string;
+    graph: string;
     where: string;
   };
 }
