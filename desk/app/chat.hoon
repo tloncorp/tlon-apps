@@ -1,4 +1,4 @@
-/-  c=chat, g=groups, n=nark
+/-  c=chat, g=groups
 /-  meta
 /-  ha=hark
 /-  e=epic
@@ -10,7 +10,6 @@
 /+  epos-lib=saga
 /+  wood-lib=wood
 /+  mig=chat-graph
-/+  nar=nark
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -405,7 +404,7 @@
   :: XX: probably change?
   :-  ~
   :-  [[author.pos time] ~ ~]
-  [~ author.pos time-sent.pos (~(con nert:mig flag) contents.pos)]
+  [~ author.pos time-sent.pos story/(~(con nert:mig flag %chat) contents.pos)]
 ::
 ++  import
   |=  =imports:c

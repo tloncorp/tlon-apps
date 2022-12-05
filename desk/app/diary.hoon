@@ -333,7 +333,7 @@
     ;<  [@ latest=node:gra:d]  _biff  (pry:orm graph)
     ;<  =post:gra:d            _biff  (node-to-post latest)
     =/  =cork:d  [time ~]
-    =/  =memo:d  =,(post [[~ (inline:nert:chat-migrate contents)] author time-sent])
+    =/  =memo:d  =,(post [(con:nert:chat-migrate contents) author time-sent])
     `[cork memo]
   --
 ::
