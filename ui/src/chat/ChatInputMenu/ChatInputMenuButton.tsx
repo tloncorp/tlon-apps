@@ -8,6 +8,7 @@ type ChatInputMenuButtonProps = PropsWithChildren<{
   unpressedLabel: string;
   pressedLabel: string;
   onClick: () => void;
+  className?: string;
 }>;
 
 export default function ChatInputMenuButton({
@@ -18,6 +19,7 @@ export default function ChatInputMenuButton({
   pressedLabel,
   onClick,
   children,
+  className,
 }: ChatInputMenuButtonProps) {
   const ref = useRef<HTMLButtonElement>(null);
 
@@ -33,7 +35,8 @@ export default function ChatInputMenuButton({
       className={classNames(
         'icon-toggle default-focus',
         isActive && 'icon-toggle-active',
-        textButton && 'w-auto px-1'
+        textButton && 'w-auto px-1',
+        className && className
       )}
       onClick={onClick}
       tabIndex={-1}

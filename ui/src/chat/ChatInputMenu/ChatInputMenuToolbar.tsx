@@ -139,15 +139,6 @@ export default function ChatInputMenuToolbar({
             <LinkIcon className="h-5 w-5" />
           </ChatInputMenuButton>
           <ChatInputMenuButton
-            isActive={editor.isActive('blockquote')}
-            isSelected={isSelected('blockquote')}
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            unpressedLabel="Apply Blockquote"
-            pressedLabel="Remove Blockquote"
-          >
-            <BlockquoteIcon className="h-6 w-6" />
-          </ChatInputMenuButton>
-          <ChatInputMenuButton
             isActive={editor.isActive('code')}
             isSelected={isSelected('code')}
             onClick={() => editor.chain().focus().toggleCode().run()}
@@ -155,6 +146,16 @@ export default function ChatInputMenuToolbar({
             pressedLabel="Remove Code"
           >
             <CodeIcon className="h-6 w-6" />
+          </ChatInputMenuButton>
+          <ChatInputMenuButton
+            className="!ml-4"
+            isActive={editor.isActive('blockquote')}
+            isSelected={isSelected('blockquote')}
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            unpressedLabel="Apply Blockquote"
+            pressedLabel="Remove Blockquote"
+          >
+            <BlockquoteIcon className="h-6 w-6" />
           </ChatInputMenuButton>
           <ChatInputMenuButton
             isActive={editor.isActive('codeBlock')}
