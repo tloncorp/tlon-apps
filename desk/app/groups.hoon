@@ -113,7 +113,7 @@
       [sects *time]
     =/  =group:g
       :*  fleet
-          ~  ~  ~  ~  ~
+          ~  ~  ~  ~  ~  ~
           cordon.create
           secret.create
           title.create
@@ -456,6 +456,7 @@
         zone-ord
         bloc
         channels
+        ~(key by channels)
         cordon
         =(%invite -.policy.group)
         meta
