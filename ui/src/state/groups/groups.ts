@@ -23,6 +23,8 @@ import {
   createStorageKey,
   storageVersion,
 } from '@/logic/utils';
+import { BaitCite } from '@/types/chat';
+import _ from 'lodash';
 import groupsReducer from './groupsReducer';
 import { GroupState } from './type';
 import useSubscriptionState from '../subscription';
@@ -60,6 +62,22 @@ export const useGroupState = create<GroupState>(
       channelPreviews: {},
       groups: {},
       gangs: {},
+      shoal: {},
+      fetchShoal: async (bait: BaitCite['bait']) => {
+        let result: string | null = null;
+        try {
+          result = await subscribeOnce(
+            'groups',
+            `/bait/${bait.graph}/${bait.group}`
+          );
+        } catch (e) {
+          console.log(e);
+        }
+        get().batchSet((draft) => {
+          draft.shoal[bait.graph] = result;
+        });
+        return result;
+      },
       banShips: async (flag, ships) => {
         await api.poke(
           groupAction(flag, {
@@ -877,7 +895,7 @@ export function usePendingGangsWithoutClaim() {
   Object.entries(gangs)
     .filter(([flag, g]) => g.invite !== null && !(flag in groups))
     .filter(
-      ([_, gang]) =>
+      ([, gang]) =>
         !gang.claim ||
         gang.claim.progress === 'error' ||
         gang.claim.progress === 'knocking'
@@ -913,6 +931,29 @@ export function useChannelPreview(nest: string) {
   }, [getChannelPreview, preview]);
 
   return preview;
+}
+
+export function useShoal(bait: BaitCite['bait']) {
+  const res = useGroupState(
+    useCallback(
+      (s) => s.shoal[bait.graph] as string | null | undefined,
+      [bait.graph]
+    )
+  );
+
+  useEffect(() => {
+    console.log('shoal', res);
+    if (_.isUndefined(res)) {
+      useGroupState
+        .getState()
+        .fetchShoal(bait)
+        .then((s) => {
+          console.log(s);
+        });
+    }
+  }, [bait, res]);
+
+  return res;
 }
 
 (window as any).groups = useGroupState.getState;

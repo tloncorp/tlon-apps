@@ -4,10 +4,11 @@ import { Cite } from '@/types/chat';
 import { udToDec } from '@urbit/api';
 import CurioReference from './CurioReference';
 // eslint-disable-next-line import/no-cycle
-import WritReference from './WritReference';
+import WritChanReference from './WritChanReference';
 import GroupReference from './GroupReference';
 import NoteReference from './NoteReference';
 import AppReference from './AppReference';
+// eslint-disable-next-line import/no-cycle
 import BaitReference from './BaitReference';
 
 function ContentReference({
@@ -27,7 +28,7 @@ function ContentReference({
   }
 
   if ('bait' in cite) {
-    return <BaitReference {...cite.bait} />;
+    return <BaitReference bait={cite.bait} isScrolling={isScrolling} />;
   }
   if ('chan' in cite) {
     const { nest, where } = cite.chan;
@@ -48,7 +49,7 @@ function ContentReference({
     if (app === 'chat') {
       const idWrit = `${segments[2]}/${segments[3]}`;
       return (
-        <WritReference
+        <WritChanReference
           isScrolling={isScrolling}
           chFlag={chFlag}
           nest={nest}

@@ -134,6 +134,7 @@ export const useChatState = createState<ChatState>(
     loadedWrits: {},
     loadedRefs: {},
     briefs: {},
+    loadedGraphRefs: {},
     togglePin: async (whom, pin) => {
       const { pins } = get();
       let newPins = [];
@@ -1006,6 +1007,39 @@ export function useWritByFlagAndWritId(
   }, [path, isScrolling]);
 
   return cached;
+}
+
+export function useWritByFlagAndGraphIndex(
+  chFlag: string,
+  index: string,
+  isScrolling: boolean
+) {
+  const res = useChatState(
+    useCallback((s) => s.loadedGraphRefs[chFlag + index], [chFlag, index])
+  );
+
+  useEffect(() => {
+    if (!res && !isScrolling) {
+      (async () => {
+        let w: ChatWrit | null;
+        try {
+          const { writ } = await subscribeOnce(
+            'chat',
+            `/hook/${chFlag}${index}`
+          );
+          w = writ;
+        } catch (e) {
+          console.warn(e);
+        }
+
+        useChatState.getState().batchSet((draft) => {
+          draft.loadedGraphRefs[chFlag + index] = w;
+        });
+      })();
+    }
+  }, [isScrolling, chFlag, index, res]);
+
+  return res;
 }
 
 export function useLoadedWrits(whom: string) {
