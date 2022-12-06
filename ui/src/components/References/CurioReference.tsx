@@ -48,7 +48,7 @@ export default function CurioReference({
     return <HeapLoadingBlock reference />;
   }
   return (
-    <div className="heap-inline-block group">
+    <div className="heap-inline-block not-prose group">
       <HeapBlock curio={curio} time={idCurio} refToken={refToken} asRef />
       <ReferenceBar
         nest={nest}
