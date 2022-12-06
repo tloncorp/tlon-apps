@@ -989,7 +989,7 @@
     ?>  (ca-can-read src.bowl)
     ?>  ?=([@ ~] wer)
     =/  time=@   (slav %ud i.wer)
-    =.  cor  (give-kick ~ %chat-said !>((got:on:writs:c wit.pact.chat time)))
+    =.  cor  (give-kick ~ %chat-said !>([flag (got:on:writs:c wit.pact.chat time)]))
     ca-core
   ::
   ++  ca-said

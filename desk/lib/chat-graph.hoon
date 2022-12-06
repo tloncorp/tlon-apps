@@ -39,8 +39,10 @@
     ?-  -.ref
       %group  [%group group.ref]
       %app    [%desk [ship desk] path]:ref
-      %graph  [%bait group.ref uid.ref]
+      %graph  [%bait group.ref resource.uid.ref (idx-to-path index.uid.ref)]
     ==
+  ++  idx-to-path  |=(=index:gra (turn index (cury scot %ud)))
+    
   --
   ::
 ::
