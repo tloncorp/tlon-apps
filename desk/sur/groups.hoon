@@ -131,6 +131,7 @@
       zone-ord=(list zone)
       =bloc
       =channels:channel
+      imported=(set nest)
       =cordon
       secret=?
       meta=data:meta
