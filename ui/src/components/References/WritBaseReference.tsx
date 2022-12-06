@@ -35,7 +35,7 @@ export default function WritBaseReference({
   }
 
   return (
-    <div className="writ-inline-block group">
+    <div className="writ-inline-block not-prose group">
       <Link
         to={
           preview?.group
