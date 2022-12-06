@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
+import { cite } from '@urbit/api';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
 import { Group, GroupChannel } from '@/types/groups';
@@ -8,6 +9,7 @@ import {
   LEAP_RESULT_TRUNCATE_SIZE,
 } from '@/constants';
 import { useContacts } from '@/state/contact';
+import { useModalNavigate } from '@/logic/routing';
 import menuOptions from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
@@ -21,8 +23,10 @@ export default function useLeap() {
   const [inputValue, setInputValue] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const navigate = useNavigate();
+  const modalNavigate = useModalNavigate();
   const groups = useGroups();
   const contacts = useContacts();
+  const location = useLocation();
 
   const menu =
     inputValue === ''
@@ -53,7 +57,9 @@ export default function useLeap() {
         )
         .map(([patp, contact], idx) => {
           const onSelect = () => {
-            navigate(`/groups/profile/${patp}`);
+            modalNavigate(`/profile/${patp}`, {
+              state: { backgroundLocation: location },
+            });
             setSelectedIndex(0);
             setInputValue('');
             setIsOpen(false);
@@ -61,17 +67,17 @@ export default function useLeap() {
           return {
             onSelect,
             icon: PersonIcon,
-            title: patp,
+            title: cite(patp),
             subtitle: (contact.status || contact.bio || '').slice(
               0,
               LEAP_DESCRIPTION_TRUNCATE_LENGTH
             ),
-            to: `/groups/profile/${patp}`,
+            to: `/profile/${patp}`,
             resultIndex: idx,
           };
         }),
     ];
-  }, [contacts, inputValue, navigate]);
+  }, [contacts, inputValue, location, modalNavigate]);
 
   const channelResults = useMemo(() => {
     if (inputValue === '') {

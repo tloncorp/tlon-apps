@@ -66,7 +66,11 @@ export default function Leap() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent containerClass="w-full sm:max-w-lg" showClose={false}>
+      <DialogContent
+        className="fixed top-1/4 w-full"
+        containerClass="w-full sm:max-w-lg top-[10%]"
+        showClose={false}
+      >
         <div className="flex items-center justify-between">
           <input
             ref={inputRef}
