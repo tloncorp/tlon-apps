@@ -34,6 +34,7 @@
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
+        fish=(map [flag:c @] id:c)
         ::  true represents imported, false pending import
         imp=(map flag:c ?)
     ==
@@ -283,17 +284,20 @@
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
-    ::
+  ::
       [%epic ~]
     (give %fact ~ epic+!>(okay))
-    ::
+  ::
       [%said host=@ name=@ %msg sender=@ time=@ ~]
     =/  host=ship  (slav %p host.pole)
     =/  =flag:c     [host name.pole]
     =/  sender=ship  (slav %p sender.pole)
     =/  =id:c       [sender (slav %ud time.pole)]
     (watch-said flag id)
-    ::
+  ::
+      [%hook host=@ name=@ rest=*]
+    =,(pole (watch-hook [(slav %p host) name] rest))
+  ::
       [%chat ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     ?>  (ca-can-read:(ca-abed:ca-core [ship name.pole]) src.bowl)
@@ -316,6 +320,9 @@
   ::
       [%epic ~]
     (take-epic sign)
+  ::
+      [%hook host=@ name=@ rest=*]
+    =,(pole (take-hook [(slav %p host) name] rest sign))
   ::
       [%said host=@ name=@ %msg sender=@ time=@ ~]
     =/  host=ship    (slav %p host.pole)
@@ -357,6 +364,43 @@
       ?.  =(%group-action-0 p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
+  ==
+++  give-kick
+  |=  [pas=(list path) =cage]
+  =.  cor  (give %fact pas cage)
+  (give %kick ~ ~)
+::
+++  watch-hook
+  |=  [=flag:g wer=path]
+  ^+  cor
+  ?:  (~(has by chats) flag)
+    ca-abet:(ca-hook:(ca-abed:ca-core flag) wer)
+  ?<  =(our.bowl flag)
+  ?>  ?=([@ ~] wer)
+  =/  time=@  (slav %ud i.wer)
+  ?^  fis=(~(get by fish) [flag time])
+    (give-kick ~ chat-said+!>((~(got by voc) flag u.fis)))
+  =/  =path  (welp /hook/(scot %p p.flag)/[q.flag] wer)
+  (emit %pass path %agent [p.flag dap.bowl] %watch path)
+::
+++  take-hook
+  |=  [=flag:g wer=path =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([@ ~] wer)
+  =/  =path  (welp /hook/(scot %p p.flag)/[q.flag] wer)
+  ?+    -.sign  cor
+      %kick  (give %kick ~[path] ~)
+      %watch-ack
+    ?~  p.sign  cor
+    (give %kick ~[path] ~)
+  ::
+      %fact
+    ?.  =(%chat-said p.cage.sign)
+      cor
+    =+  !<(=said:c q.cage.sign)
+    =/  time=@  (slav %ud i.wer)
+    =.  fish    (~(put by fish) [flag time] id.q.said)
+    (give-kick ~[path] cage.sign)
   ==
 ::
 ++  import-clubs
@@ -940,21 +984,23 @@
     ::
     ==
   ::
+  ++  ca-hook
+    |=  wer=path
+    ?>  (ca-can-read src.bowl)
+    ?>  ?=([@ ~] wer)
+    =/  time=@   (slav %ud i.wer)
+    =.  cor  (give-kick ~ %chat-said !>((got:on:writs:c wit.pact.chat time)))
+    ca-core
+  ::
   ++  ca-said
     |=  =id:c
-    |^  ^+  ca-core
+    ^+  ca-core
     ?.  (ca-can-read src.bowl)
-      (give-kick chat-denied+!>(~))
-    =/  [=time =writ:c]  (got:ca-pact id)
-    %+  give-kick  %chat-said
-    !>  ^-  said:c
-    [flag writ]
-    ++  give-kick
-      |=  =cage
-      =.  cor  (give %fact ~ cage)
-      =.  cor  (give %kick ~ ~)
+      =.  cor  (give-kick ~ chat-denied+!>(~))
       ca-core
-    --
+    =/  [=time =writ:c]  (got:ca-pact id)
+    =.  cor  (give-kick ~ %chat-said !>([flag writ]))
+    ca-core
   ::
   ++  ca-upgrade
     ^+  ca-core
