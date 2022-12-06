@@ -19,7 +19,6 @@
         groups=net-groups:g
         xeno=gangs:g
         shoal=(map flag:g dude:gall)
-
     ==
   ::
   --
@@ -515,6 +514,10 @@
       pub/(put:log-on:g *log:g import-epoch create/group)
     [%sub (sub import-epoch ~d1) | chi/~]
   =.  groups  (~(put by groups) flag [net group])
+  =.  shoal
+    %-  ~(gas by shoal)
+    %+  turn  ~(tap in imported.group)
+    |=(=nest:g [q p]:nest)
   go-abet:(go-init:(go-abed:group-core flag) &) :: setup defaults
   ::
   ++  sect-for-flag
