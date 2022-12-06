@@ -41,7 +41,7 @@ export default function GroupReference({
   }
 
   return (
-    <div className="relative flex items-center rounded-lg border-2 border-gray-50 text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white">
+    <div className="not-prose relative flex items-center rounded-lg border-2 border-gray-50 text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white">
       <button
         className="flex w-full items-center justify-start rounded-lg p-2 text-left"
         onClick={open}
