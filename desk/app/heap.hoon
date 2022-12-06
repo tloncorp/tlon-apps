@@ -225,6 +225,7 @@
 ::
 ++  take-said
   |=  [=flag:h =time =sign:agent:gall]
+  =/  =wire  (said-wire flag time)
   ^+  cor
   ?+    -.sign  !!
       %watch-ack
@@ -235,11 +236,13 @@
       %kick
     ?:  (~(has by voc) [flag time])
       cor  :: subscription ended politely
-    (proxy-said flag time)
+    ::  XX: only versioned subscriptions should rewatch on kick
+    (give %kick ~[wire] ~)
+    ::  (proxy-said flag time)
   ::
       %fact
-    =.  cor
-      (give %fact ~[(said-wire flag time)] cage.sign)
+    =.  cor  (give %fact ~[wire] cage.sign)
+    =.  cor  (give %kick ~[wire] ~)
     ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
         %heap-said
       =+  !<(=said:h q.cage.sign)
