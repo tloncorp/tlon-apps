@@ -18,6 +18,8 @@
     $:  %0
         groups=net-groups:g
         xeno=gangs:g
+        shoal=(map flag:g dude:gall)
+
     ==
   ::
   --
@@ -208,6 +210,9 @@
   ::
     [%epic ~]  (give %fact ~ epic+!>(okay))
   ::
+      [%bait s=@ n=@ gs=@ gn=@ ~]
+    =,(pole (cast [(slav %p gs) gn] [(slav %p s) n]))
+  ::
       [%groups ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
     go-abet:(go-watch:(go-abed:group-core ship name.pole) rest.pole)
@@ -249,7 +254,6 @@
   ==
 ::
 ++  agent
-
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
@@ -257,6 +261,7 @@
       [%epic ~]  (take-epic sign)
       [%hark ~]  cor
       [%helm *]  cor
+      [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -273,6 +278,7 @@
     =/  =ship  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
     (take-chan nest sign)
+    
 
   ==
 ::
@@ -280,6 +286,49 @@
   |=  [=wire sign=sign-arvo]
   ^+  cor
   !!
+::
+++  cast
+  |=  [grp=flag:g gra=flag:g]
+  ^+  cor
+  ?^  dud=(~(get by shoal) gra)
+    =.  cor   (give %fact ~ dude+!>(u.dud))
+    (give %kick ~ ~)
+  =/  grp-path=path   /(scot %p p.grp)/[q.grp]
+  =/  gra-path=path   /(scot %p p.gra)/[q.gra]
+  =/  =wire          [%cast gra-path]
+  =/  =path          :(welp /groups grp-path /bait gra-path)
+  ?:  (~(has by wex.bowl) wire p.grp dap.bowl)
+    cor
+  (emit %pass wire %agent [p.grp dap.bowl] %watch path)
+::
+++  take-cast
+  |=  [gra=flag:g =sign:agent:gall]
+  ^+  cor
+  =/  matching=(list path)
+    =-  ~(tap in -)
+    %-  ~(gas in *(set path))
+    %+  murn  ~(val by sup.bowl)
+    |=  [=ship =path]
+    ^-  (unit ^path)
+    ?.  =((scag 3 path) [%bait (scot %p p.gra) q.gra ~])
+      ~
+    `path
+  ?+    -.sign  cor
+      %kick  (give %kick matching ~)
+  ::
+      %watch-ack
+    ?~  p.sign  cor
+    (give %kick matching ~)
+  ::
+      %fact
+    ?.  =(p.cage.sign %dude)
+      ~&  trash-fish/p.cage.sign
+      cor
+    =+  !<(=dude:gall q.cage.sign)
+    =.  shoal  (~(put by shoal) gra dude)
+    =.  cor  (give %fact matching cage.sign)
+    (give %kick matching ~)
+  ==
 ::
 ++  watch-epic
   |=  her=ship
@@ -665,10 +714,25 @@
   ++  go-watch
     |=  =(pole knot)
     ^+  go-core
-    ?+  pole  !!
-      [%updates rest=*]  (go-pub rest.pole)
-      [%ui ~]            go-core
-      [%preview ~]       go-preview
+    ?+    pole  !!
+        [%updates rest=*]  (go-pub rest.pole)
+        [%ui ~]            go-core
+        [%preview ~]       go-preview
+    ::
+        [%bait host=@ name=@ ~]
+      ?>  ?=(%open -.cordon.group)
+      =/  =flag:g  [(slav %p host.pole) name.pole]
+      =;  =nest:g
+        =.  cor  (give %fact ~ dude+!>(p.nest))
+        =.  cor  (give %kick ~ ~)
+        go-core
+      %-  need
+      %+  roll  ~(tap in imported.group)
+      |=  [=nest:g out=(unit nest:g)]
+      ^-  (unit nest:g)
+      ?.  =(~ out)  out
+      ?.  =(q.nest flag)  ~
+      `nest
     ==
   ::
   ++  go-preview
