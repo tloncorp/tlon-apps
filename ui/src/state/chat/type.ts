@@ -52,7 +52,7 @@ export interface ChatState {
     [path: string]: ChatWrit;
   };
   loadedGraphRefs: {
-    [path: string]: ChatWrit | null;
+    [path: string]: ChatWrit | 'loading' | 'error';
   };
   pendingDms: string[];
   briefs: ChatBriefs;

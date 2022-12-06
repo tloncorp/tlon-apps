@@ -1021,8 +1021,11 @@ export function useWritByFlagAndGraphIndex(
   useEffect(() => {
     if (!res && !isScrolling) {
       (async () => {
-        let w: ChatWrit | null;
+        let w: ChatWrit | 'error' = 'error';
         try {
+          useChatState.getState().batchSet((draft) => {
+            draft.loadedGraphRefs[chFlag + index] = 'loading';
+          });
           const { writ } = await subscribeOnce(
             'chat',
             `/hook/${chFlag}${index}`
@@ -1039,7 +1042,7 @@ export function useWritByFlagAndGraphIndex(
     }
   }, [isScrolling, chFlag, index, res]);
 
-  return res;
+  return res || 'loading';
 }
 
 export function useLoadedWrits(whom: string) {
