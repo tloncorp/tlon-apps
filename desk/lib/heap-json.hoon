@@ -1,5 +1,6 @@
 /-  h=heap
 /-  meta
+/+  cite=cite-json
 |%
 ++  enjs
   =,  enjs:format
@@ -104,10 +105,32 @@
     |=  =heart:h
     %-  pairs
     :~  title+?~(title.heart ~ s+u.title.heart)
-        content/a/(turn content.heart inline)
+        content+(content content.heart)
         author+(ship author.heart)
         sent+(time sent.heart)
         replying+?~(replying.heart ~ s/(scot %ud u.replying.heart))
+    ==
+  ::
+  ++  content
+    |=  =content:h
+    %-  pairs
+    :~  block+a+(turn p.content block)
+        inline+a+(turn q.content inline)
+    ==
+  ::
+  ++  block
+    |=  b=block:h
+    ^-  json
+    %+  frond  -.b
+    ?-  -.b
+        %cite  (enjs:cite cite.b)
+        %image
+      %-  pairs
+      :~  src+s+src.b
+          height+(numb height.b)
+          width+(numb width.b)
+          alt+s+alt.b
+      ==
     ==
   ::
   ++  inline
@@ -252,10 +275,30 @@
     ^-  $-(json heart:h)
     %-  ot
     :~  title/(mu so)
-        content/(ar inline)
+        content/content
         author/ship
         sent/di
         replying/(mu (se %ud))
+    ==
+  ::
+  ++  content
+    %-  ot
+    :~  block/(ar block)
+       inline/(ar inline)
+    ==
+  ::
+  ++  block
+    ^-  $-(json block:h)
+    %-  of
+    :~  cite/dejs:cite
+    ::
+      :-  %image
+      %-  ot
+      :~  src/so
+          height/ni
+          width/ni
+          alt/so
+      ==
     ==
   ::
   ++  inline
