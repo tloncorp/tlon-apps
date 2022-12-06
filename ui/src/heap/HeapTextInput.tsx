@@ -87,7 +87,7 @@ export default function HeapTextInput({
       };
 
       const heart: CurioHeart = {
-        title: null,
+        title: '', // TODO: Title input
         replying: replyTo,
         author: window.our,
         sent: Date.now(),
