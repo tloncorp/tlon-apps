@@ -26,9 +26,12 @@ const mockCurios: HeapCurios = {
     },
     heart: {
       title: 'House rendering',
-      content: [
-        'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
-      ],
+      content: {
+        block: [],
+        inline: [
+          'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
+        ],
+      },
       author: '~finned-palmer',
       sent: unixTime,
       replying: null,
@@ -42,9 +45,12 @@ const mockCurios: HeapCurios = {
     },
     heart: {
       title: 'Description of a Martini',
-      content: [
-        'The martini is a cocktail made with gin and vermouth, and garnished with an olive or a lemon twist.',
-      ],
+      content: {
+        block: [],
+        inline: [
+          'The martini is a cocktail made with gin and vermouth, and garnished with an olive or a lemon twist.',
+        ],
+      },
       author: '~finned-palmer',
       sent: unixTime,
       replying: null,
@@ -58,9 +64,12 @@ const mockCurios: HeapCurios = {
     },
     heart: {
       title: 'House rendering',
-      content: [
-        'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
-      ],
+      content: {
+        block: [],
+        inline: [
+          'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
+        ],
+      },
       author: '~finned-palmer',
       sent: unixTime,
       replying: null,
@@ -74,9 +83,12 @@ const mockCurios: HeapCurios = {
     },
     heart: {
       title: '',
-      content: [
-        'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/15-09-26-RalfR-WLC-0084.jpg/1920px-15-09-26-RalfR-WLC-0084.jpg',
-      ],
+      content: {
+        block: [],
+        inline: [
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/15-09-26-RalfR-WLC-0084.jpg/1920px-15-09-26-RalfR-WLC-0084.jpg',
+        ],
+      },
       author: '~finned-palmer',
       sent: unixTime,
       replying: null,
@@ -90,9 +102,12 @@ const mockCurios: HeapCurios = {
     },
     heart: {
       title: 'One Thing About Me',
-      content: [
-        'https://twitter.com/noagencynewyork/status/1540353656326946817?s=20&t=OSmaPCFVGbJmjvs1VtJtkg',
-      ],
+      content: {
+        block: [],
+        inline: [
+          'https://twitter.com/noagencynewyork/status/1540353656326946817?s=20&t=OSmaPCFVGbJmjvs1VtJtkg',
+        ],
+      },
       author: '~finned-palmer',
       sent: unixTime,
       replying: null,

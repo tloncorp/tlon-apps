@@ -31,9 +31,9 @@ export default function HeapDetailHeader({
   const isMobile = useIsMobile();
   const curio = curioObject ? curioObject[1] : null;
   const curioContent =
-    (isLink(curio?.heart.content[0])
-      ? curio?.heart.content[0].link.href
-      : curio?.heart.content[0].toString()) || '';
+    (isLink(curio?.heart.content.inline[0])
+      ? curio?.heart.content.inline[0].link.href
+      : curio?.heart.content.inline[0].toString()) || '';
   // TODO: a better title fallback
   const prettyDayAndTime = makePrettyDayAndTime(
     new Date(curio?.heart.sent || Date.now())

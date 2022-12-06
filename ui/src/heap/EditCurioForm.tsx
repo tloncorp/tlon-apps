@@ -9,6 +9,8 @@ import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/core';
 import { inlinesToJSON, JSONToInlines } from '@/logic/tiptap';
+import { ChatBlock } from '@/types/chat';
+import { Inline } from '@/types/content';
 import useCurioFromParams from './useCurioFromParams';
 import HeapTextInput from './HeapTextInput';
 
@@ -57,7 +59,12 @@ export default function EditCurioForm() {
       }
       const editedContent = isLinkMode
         ? [content]
-        : (JSONToInlines(draftText || {}) as HeapInline[]);
+        : (JSONToInlines(draftText || {}) as Inline[]);
+
+      const con = {
+        block: [] as ChatBlock[],
+        inline: editedContent,
+      };
 
       try {
         setPending();
@@ -65,7 +72,7 @@ export default function EditCurioForm() {
           .getState()
           .editCurio(chFlag, time?.toString() || '', {
             ...curio.heart,
-            ...{ title, content: editedContent },
+            ...{ title, content: con },
           });
         setReady();
         dismiss();
@@ -105,7 +112,7 @@ export default function EditCurioForm() {
   // on load, set the text draft to the persisted state
   useEffect(() => {
     if (curio && !isLinkMode) {
-      const parsed = inlinesToJSON(curio.heart.content);
+      const parsed = inlinesToJSON(curio.heart.content.inline);
       setDraftText(parsed);
     }
   }, [curio, isLinkMode]);

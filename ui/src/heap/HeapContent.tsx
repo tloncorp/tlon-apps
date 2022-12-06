@@ -100,13 +100,13 @@ export function InlineContent({ inline }: InlineContentProps) {
 }
 
 export default function HeapContent({ content, className }: HeapContentProps) {
-  const inlineLength = content.length;
+  const inlineLength = content.inline.length;
 
   return (
     <div className={className}>
       {inlineLength > 0 ? (
         <>
-          {content.map((inlineItem, index) => (
+          {content.inline.map((inlineItem, index) => (
             <InlineContent
               key={`${inlineItem.toString()}-${index}`}
               inline={inlineItem}

@@ -158,7 +158,9 @@ function BottomBar({ curio, provider, title, asRef }: BottomBarProps) {
   const { content, sent } = curio.heart;
   const replyCount = curio.seal.replied.length;
   const url =
-    content.length > 0 && isLink(content[0]) ? content[0].link.href : '';
+    content.inline.length > 0 && isLink(content.inline[0])
+      ? content.inline[0].link.href
+      : '';
   const prettySent = formatDistanceToNow(sent);
 
   if (asRef) {
@@ -202,10 +204,12 @@ export default function HeapBlock({
   const [embed, setEmbed] = useState<any>();
   const { content } = curio.heart;
   const url =
-    content.length > 0 && isLink(content[0]) ? content[0].link.href : '';
+    content.inline.length > 0 && isLink(content.inline[0])
+      ? content.inline[0].link.href
+      : '';
   const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
-  const textFallbackTitle = content
+  const textFallbackTitle = content.inline
     .map((inline) => inlineToString(inline))
     .join(' ')
     .toString();

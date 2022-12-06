@@ -13,7 +13,9 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
   const [embed, setEmbed] = useState<any>();
   const { content } = curio.heart;
   const url =
-    content.length > 0 && isLink(content[0]) ? content[0].link.href : '';
+    content.inline.length > 0 && isLink(content.inline[0])
+      ? content.inline[0].link.href
+      : '';
   const isMobile = useIsMobile();
 
   const { isText, isImage, isAudio, isVideo } = useHeapContentType(url);
