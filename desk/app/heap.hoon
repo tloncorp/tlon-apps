@@ -225,6 +225,7 @@
 ::
 ++  take-said
   |=  [=flag:h =time =sign:agent:gall]
+  =/  =wire  (said-wire flag time)
   ^+  cor
   ?+    -.sign  !!
       %watch-ack
@@ -235,11 +236,13 @@
       %kick
     ?:  (~(has by voc) [flag time])
       cor  :: subscription ended politely
-    (proxy-said flag time)
+    ::  XX: only versioned subscriptions should rewatch on kick
+    (give %kick ~[wire] ~)
+    ::  (proxy-said flag time)
   ::
       %fact
-    =.  cor
-      (give %fact ~[(said-wire flag time)] cage.sign)
+    =.  cor  (give %fact ~[wire] cage.sign)
+    =.  cor  (give %kick ~[wire] ~)
     ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
         %heap-said
       =+  !<(=said:h q.cage.sign)
@@ -256,8 +259,9 @@
   |=  [=flag:h =time]
   =/  =dock  [p.flag dap.bowl]
   =/  wire  (said-wire flag time)
-  =/  =card  [%pass wire %agent dock %watch wire]
-  (emit card)
+  ?:  (~(has by wex.bowl) wire dock)
+    cor
+  (emit %pass wire %agent dock %watch wire)
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
@@ -453,10 +457,12 @@
     ?.  ?=([[%text @] $%([%url @] [%reference *]) ~] con)
       :: invariant
       *curios:h
-    =-  (put:on:curios:h curios time [seal `text.i.con - author.u.pos time-sent.u.pos ~])
+    =;  =content:h
+      %^  put:on:curios:h  curios  time
+      [seal `text.i.con content author.u.pos time-sent.u.pos ~]
     ?-  -.i.t.con
-      %reference  ~
-      %url        [%link url.i.t.con '']~
+      %reference  :_(~ (ref:nert:chat-migrate reference.i.t.con)^~)
+      %url        [~ [%link url.i.t.con '']~]
     ==
   ::
   ++  node-to-quips
@@ -480,9 +486,9 @@
     ;<  [@ latest=node:gra:h]  _biff  (pry:orm graph)
     ;<  =post:gra:h            _biff  (node-to-post latest)
     =/  =seal:h  [time ~ ~]
-    =/  con=(list inline:h)  +:(con:nert:chat-migrate contents.post)
+    =/  =content:h  (con:nert:chat-migrate contents.post)
     =/  =heart:h  
-      =,(post [~ con author time-sent `reply])
+      =,(post [~ content author time-sent `reply])
     `[seal heart]
   ::
   ++  node-to-children
@@ -913,7 +919,7 @@
             ?~  curio  %.n
             =(author.curio.u.curio our.bowl)
         ?:  |(=(author.heart our.bowl) !in-replies)  he-core
-        =/  content  (trip (flatten content.curio))
+        =/  content  (trip (flatten q.content.curio))
         =/  title
           ?:  !=(title.heart ~)  (need title.heart)
           ?:  (lte (lent content) 80)  (crip content)
@@ -927,7 +933,7 @@
                 ': '
                 [%ship author.heart]
                 ': '
-                (flatten content.heart)
+                (flatten q.content.heart)
             ==
           ~  
         =.  cor  (emit (pass-hark & & yarn))

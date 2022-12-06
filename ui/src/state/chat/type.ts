@@ -51,6 +51,9 @@ export interface ChatState {
   loadedRefs: {
     [path: string]: ChatWrit;
   };
+  loadedGraphRefs: {
+    [path: string]: ChatWrit | 'loading' | 'error';
+  };
   pendingDms: string[];
   briefs: ChatBriefs;
   togglePin: (whom: string, pin: boolean) => Promise<void>;

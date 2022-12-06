@@ -36,21 +36,13 @@
     ^-  block:c
     =;  =cite
       [%cite cite]
-    ?-    -.ref
-        %group  [%group group.ref]
-        %app    [%desk [ship desk] path]:ref
-    ::
-        %graph
-      ?.  ?&  =(resource.uid.ref flag)
-              ?=(?(~ [@ ~]) index.uid.ref)
-              =(%chat dude)
-          ==
-        [%bait group.ref uid.ref]
-      =/  wer=path
-         ?~  index.uid.ref   /
-         [%msg index.uid.ref]
-      [%chan [dude flag] wer]
+    ?-  -.ref
+      %group  [%group group.ref]
+      %app    [%desk [ship desk] path]:ref
+      %graph  [%bait group.ref resource.uid.ref (idx-to-path index.uid.ref)]
     ==
+  ++  idx-to-path  |=(=index:gra (turn index (cury scot %ud)))
+    
   --
   ::
 ::

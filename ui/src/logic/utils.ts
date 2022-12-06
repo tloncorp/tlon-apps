@@ -348,17 +348,17 @@ export function canReadChannel(channel: GroupChannel, vessel: Vessel) {
  * @param content CurioContent
  * @returns boolean
  */
-export function isLinkCurio(content: CurioContent) {
+export function isLinkCurio({ inline }: CurioContent) {
   return (
-    content.length === 1 &&
-    typeof content[0] === 'string' &&
-    isValidUrl(content[0])
+    inline.length === 1 &&
+    typeof inline[0] === 'string' &&
+    isValidUrl(inline[0])
   );
 }
 
 export function linkFromCurioContent(content: CurioContent) {
   if (isLinkCurio(content)) {
-    return content[0] as string;
+    return content.inline[0] as string;
   }
 
   return '';

@@ -1,3 +1,4 @@
+import { BaitCite } from '@/types/chat';
 import {
   Gangs,
   Group,
@@ -19,6 +20,10 @@ export interface GroupState {
   groups: {
     [flag: string]: Group;
   };
+  shoal: {
+    [flag: string]: string | null;
+  };
+  fetchShoal: (b: BaitCite['bait']) => Promise<string | null>;
   gangs: Gangs;
   initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;

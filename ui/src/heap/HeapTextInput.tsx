@@ -79,9 +79,12 @@ export default function HeapTextInput({
 
       setPending();
 
-      const content = normalizeHeapInline(
-        JSONToInlines(editor?.getJSON()) as HeapInline[]
-      );
+      const content = {
+        block: [],
+        inline: normalizeHeapInline(
+          JSONToInlines(editor?.getJSON()) as HeapInline[]
+        ),
+      };
 
       const heart: CurioHeart = {
         title: null,

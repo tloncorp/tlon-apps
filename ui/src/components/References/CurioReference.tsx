@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useCurio, useHeapState, useRemoteCurio } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
+// eslint-disable-next-line import/no-cycle
 import HeapBlock from '@/heap/HeapBlock';
 import { useChannelPreview } from '@/state/groups';
 import { udToDec } from '@urbit/api';

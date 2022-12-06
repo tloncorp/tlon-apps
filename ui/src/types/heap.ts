@@ -1,4 +1,5 @@
 import { BigIntOrderedMap } from '@urbit/api';
+import { ChatBlock } from './chat';
 import {
   Italics,
   Strikethrough,
@@ -9,6 +10,7 @@ import {
   Blockquote,
   Link,
   Tag,
+  Inline,
 } from './content';
 
 export type Patda = string;
@@ -82,7 +84,10 @@ export interface CurioSeal {
   replied: string[];
 }
 
-export type CurioContent = HeapInline[];
+export interface CurioContent {
+  block: ChatBlock[];
+  inline: Inline[];
+}
 
 export interface CurioHeart {
   title: string | null;

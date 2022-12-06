@@ -38,11 +38,12 @@ export default function HeapRow({
   const { replied } = curio.seal;
   const calm = useCalm();
   // TODO: improve this
-  const contentString = content.length > 0 ? content[0].toString() : '';
+  const contentString =
+    content.inline.length > 0 ? content.inline[0].toString() : '';
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit = isAdmin || window.our === curio.heart.author;
-  const textFallbackTitle = content
+  const textFallbackTitle = content.inline
     .map((inline) => inlineToString(inline))
     .join(' ')
     .toString();

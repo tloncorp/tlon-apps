@@ -11,6 +11,9 @@ import {
   CurioContent,
 } from '@/types/heap';
 
+// eslint-disable-next-line import/no-cycle
+import ContentReference from '@/components/References/ContentReference';
+
 interface HeapContentProps {
   content: CurioContent;
   className?: string;
@@ -100,13 +103,20 @@ export function InlineContent({ inline }: InlineContentProps) {
 }
 
 export default function HeapContent({ content, className }: HeapContentProps) {
-  const inlineLength = content.length;
+  const inlineLength = content.inline.length;
+  const block = content.block.map(Object.keys).join(', ');
 
   return (
     <div className={className}>
+      {content.block.map((b, idx) => {
+        if ('cite' in b) {
+          return <ContentReference cite={b.cite} />;
+        }
+        return '??';
+      })}
       {inlineLength > 0 ? (
         <>
-          {content.map((inlineItem, index) => (
+          {content.inline.map((inlineItem, index) => (
             <InlineContent
               key={`${inlineItem.toString()}-${index}`}
               inline={inlineItem}
