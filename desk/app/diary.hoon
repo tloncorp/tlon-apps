@@ -414,8 +414,9 @@
   |=  [=flag:d =plan:d]
   =/  =dock  [p.flag dap.bowl]
   =/  wire  (said-wire flag plan)
-  =/  =card  [%pass wire %agent dock %watch wire]
-  (emit card)
+  ?:  (~(has by wex.bowl) wire dock)
+    cor
+  (emit %pass wire %agent dock %watch wire)
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]

@@ -259,8 +259,9 @@
   |=  [=flag:h =time]
   =/  =dock  [p.flag dap.bowl]
   =/  wire  (said-wire flag time)
-  =/  =card  [%pass wire %agent dock %watch wire]
-  (emit card)
+  ?:  (~(has by wex.bowl) wire dock)
+    cor
+  (emit %pass wire %agent dock %watch wire)
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]

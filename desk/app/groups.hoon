@@ -369,6 +369,8 @@
   ^+  cor
   ?.  =(our.bowl p.q.nest)
     =/  =wire  /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+    ?:  (~(has by wex.bowl) [wire p.q.nest dap.bowl)
+      cor
     (emit [%pass wire %agent [p.q.nest dap.bowl] %watch `path`wire])
   =/  gs  ~(tap by groups)
   |-  

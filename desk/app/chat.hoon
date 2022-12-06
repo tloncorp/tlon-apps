@@ -545,8 +545,9 @@
   |=  [=flag:c =id:c]
   =/  =dock  [p.flag dap.bowl]
   =/  wire  (said-wire flag id)
-  =/  =card  [%pass wire %agent dock %watch wire]
-  (emit card)
+  ?:  (~(has by wex.bowl) wire dock)
+    cor
+  (emit %pass wire %agent dock %watch wire)
 ::
 ++  take-epic
   |=  =sign:agent:gall
