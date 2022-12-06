@@ -375,7 +375,7 @@
   ^+  cor
   ?:  (~(has by chats) flag)
     ca-abet:(ca-hook:(ca-abed:ca-core flag) wer)
-  ?<  =(our.bowl flag)
+  ?<  =(our.bowl p.flag)
   ?>  ?=([@ ~] wer)
   =/  time=@  (slav %ud i.wer)
   ?^  fis=(~(get by fish) [flag time])
