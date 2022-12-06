@@ -6,12 +6,11 @@
   |%
   ++  noun  flags
   ++  json
-    |=  fs=(map flag:g ?)
     =,  enjs:format
     %-  pairs
-    %+  turn  ~(tap by fs)
+    %+  turn  ~(tap by flags)
     |=  [f=flag:g mig=?]
-    [s+(rap 3 (scot %p p.f) '/' q.f ~) b+mig]
+    [(rap 3 (scot %p p.f) '/' q.f ~) b+mig]
   --
 ++  grab
   |%
