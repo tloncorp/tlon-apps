@@ -18,6 +18,7 @@
     $:  %0
         groups=net-groups:g
         xeno=gangs:g
+        ::  graph -> agent
         shoal=(map flag:g dude:gall)
     ==
   ::
