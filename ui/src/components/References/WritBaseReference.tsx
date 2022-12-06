@@ -21,7 +21,6 @@ export default function WritBaseReference({
   writ?: ChatWrit;
   isScrolling: boolean;
 }) {
-  console.log(writ);
   const preview = useChannelPreview(nest);
 
   // TODO: handle failure for useWritByFlagAndWritId call.
