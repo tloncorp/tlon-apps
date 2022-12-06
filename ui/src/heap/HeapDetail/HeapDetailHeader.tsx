@@ -10,7 +10,6 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import { useCurio } from '@/state/heap/heap';
 import XIcon from '@/components/icons/XIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
-import HeapDetailHeaderDescription from '@/heap/HeapDetail/HeapDetailHeaderDescription';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import { isLink } from '@/types/heap';
 import useHeapContentType from '@/logic/useHeapContentType';
