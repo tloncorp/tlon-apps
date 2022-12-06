@@ -5,6 +5,7 @@ import { udToDec } from '@urbit/api';
 import cn from 'classnames';
 import React from 'react';
 import ExclamationPoint from '../icons/ExclamationPoint';
+// eslint-disable-next-line import/no-cycle
 import CurioReference from './CurioReference';
 import NoteReference from './NoteReference';
 

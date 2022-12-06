@@ -6,6 +6,7 @@ import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import useEmbedState from '@/state/embed';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
+// eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import { formatDistanceToNow } from 'date-fns';
@@ -236,6 +237,22 @@ export default function HeapBlock({
     asRef ? refClass || '' : 'heap-block group';
   const topBar = { time, refToken };
   const botBar = { curio, asRef };
+
+  if (content.block.length > 0 && 'cite' in content.block[0]) {
+    return (
+      <div className={cnm()}>
+        <TopBar hasIcon canEdit={canEdit} {...topBar} />
+        <div className="flex grow flex-col items-center justify-center">
+          <LinkIcon className="h-16 w-16 text-gray-300" />
+        </div>
+        <BottomBar
+          {...botBar}
+          provider="Urbit Reference"
+          title={curio.heart.title || 'Urbit Reference'}
+        />
+      </div>
+    );
+  }
 
   if (isText) {
     return (

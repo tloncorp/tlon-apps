@@ -14,7 +14,7 @@ export default function HeapDetailSidebarInfo({
 }: HeapDetailSidebarProps) {
   const { content, author, sent, title } = curio.heart;
   const unixDate = new Date(sent);
-  const stringContent = content.inline[0].toString();
+  const stringContent = (content.inline?.[0] || '').toString();
   const textPreview = content.inline
     .map((inline) => inlineToString(inline))
     .join(' ')

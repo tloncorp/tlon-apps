@@ -13,6 +13,7 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import HeapDetailHeaderDescription from '@/heap/HeapDetail/HeapDetailHeaderDescription';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import { isLink } from '@/types/heap';
+import useHeapContentType from '@/logic/useHeapContentType';
 import useCurioActions from '../useCurioActions';
 
 export interface ChannelHeaderProps {
@@ -30,10 +31,12 @@ export default function HeapDetailHeader({
   const group = useGroup(flag);
   const isMobile = useIsMobile();
   const curio = curioObject ? curioObject[1] : null;
+  const content = curio ? curio.heart.content : { block: [], inline: [] };
   const curioContent =
     (isLink(curio?.heart.content.inline[0])
       ? curio?.heart.content.inline[0].link.href
-      : curio?.heart.content.inline[0].toString()) || '';
+      : (curio?.heart.content.inline[0] || '').toString()) || '';
+  const { description } = useHeapContentType(curioContent);
   // TODO: a better title fallback
   const prettyDayAndTime = makePrettyDayAndTime(
     new Date(curio?.heart.sent || Date.now())
@@ -45,6 +48,7 @@ export default function HeapDetailHeader({
     time: idCurio,
   });
 
+  const isCite = content.block.length > 0 && 'cite' in content.block[0];
   const BackButton = isMobile ? Link : 'div';
 
   return (
@@ -84,7 +88,9 @@ export default function HeapDetailHeader({
                 {isImageLink && !curioTitle ? curioContent : null}
                 {!isImageLink && !curioTitle ? prettyDayAndTime : null}
               </span>
-              <HeapDetailHeaderDescription url={curioContent} />
+              <div className="text-md font-semibold text-gray-600">
+                {isCite ? 'Reference' : description()}
+              </div>
             </div>
           </div>
         </BackButton>
