@@ -510,6 +510,7 @@
 ++  take-said
   |=  [=flag:c =id:c =sign:agent:gall]
   ^+  cor
+  =/  wire  (said-wire flag id)
   ?+    -.sign  !!
       %watch-ack
     %.  cor
@@ -519,11 +520,15 @@
       %kick
     ?:  (~(has by voc) [flag id])
       cor  :: subscription ended politely
-    (proxy-said flag id)
+    ::  XX: only versioned subscriptions should rewatch on kick
+    (give %kick ~[wire] ~)
+    :: (proxy-said flag id)  
   ::
       %fact
     =.  cor
-      (give %fact ~[(said-wire flag id)] cage.sign)
+      (give %fact ~[wire] cage.sign)
+    =.  cor
+      (give %kick ~[wire] ~)
     ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
         %chat-said
       =+  !<(=said:c q.cage.sign)
