@@ -942,7 +942,6 @@ export function useShoal(bait: BaitCite['bait']) {
   );
 
   useEffect(() => {
-    console.log('shoal', res);
     if (_.isUndefined(res)) {
       useGroupState
         .getState()
