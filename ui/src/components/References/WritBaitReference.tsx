@@ -1,14 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import {
-  useWritByFlagAndGraphIndex,
-  useWritByFlagAndWritId,
-} from '@/state/chat';
+import { udToDec } from '@urbit/api';
+import bigInt from 'big-integer';
+import { useWritByFlagAndGraphIndex } from '@/state/chat';
 // eslint-disable-next-line import/no-cycle
 import WritBaseReference from './WritBaseReference';
 import UnavailableReference from './UnavailableReference';
-import { makePatDa, udToDec } from '@urbit/api';
-import bigInt from 'big-integer';
 
 export default function WritBaitReference(props: {
   chFlag: string;
