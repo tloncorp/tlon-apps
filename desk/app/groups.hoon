@@ -496,10 +496,13 @@
    |=  =association:m-one
    (old-to-new-meta metadatum.association)
   ::
+  ++  get-hex
+    |=  =color:m-one
+    (crip (welp ~['#'] (trip (en:base16:mimes:html 3 color))))
   ++  old-to-new-meta
     |=  =metadatum:m-one
     ^-  data:meta
-    =,(metadatum [title description picture (scot %ux color)])
+    =,(metadatum [title description picture (get-hex color)])
   ::
   ++  policy-to-cordon
     |=  =policy:g-one

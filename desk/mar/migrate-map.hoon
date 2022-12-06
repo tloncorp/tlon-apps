@@ -11,7 +11,7 @@
     %-  pairs
     %+  turn  ~(tap by fs)
     |=  [f=flag:g mig=?]
-    [(rap 3 (scot %p p.f) '/' q.f ~) b+mig]
+    [s+(rap 3 (scot %p p.f) '/' q.f ~) b+mig]
   --
 ++  grab
   |%
