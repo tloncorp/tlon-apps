@@ -352,6 +352,7 @@
   ?+    pole  ~|(bad-watch-path/pole !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
+      [%imp ~]      ?>(from-self cor)
     ::
       [%epic ~]    (give %fact ~ epic+!>(okay))
     ::
