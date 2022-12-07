@@ -9,10 +9,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: "Create and deploy a glob to ~binnec-dozzod-marzod (canary)"
+    name: "Release to ~binnec-dozzod-marzod (canary)"
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/deploy
+      - uses: ./.github/actions/release
         with:
           app: 'groups'
           ship: 'canary'

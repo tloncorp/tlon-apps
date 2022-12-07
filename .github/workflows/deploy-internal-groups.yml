@@ -9,10 +9,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: "Create and deploy a glob to ~marnec-dozzod-marzod (internal)"
+    name: "Release to ~marnec-dozzod-marzod (internal)"
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/deploy
+      - uses: ./.github/actions/release
         with:
           app: 'groups'
           ship: 'internal'
