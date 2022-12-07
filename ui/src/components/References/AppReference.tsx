@@ -24,8 +24,8 @@ export default function AppReference({ flag }: AppReferenceProps) {
   return (
     <div className="relative flex items-center rounded-lg border-2 border-gray-50 text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white">
       {treaty ? (
-        <>
-          <button className="flex w-full items-center justify-start rounded-lg p-2 text-left">
+        <div className="flex w-full flex-row flex-wrap items-center justify-between">
+          <div className="flex items-center justify-start rounded-lg p-2 text-left">
             <div className="flex items-center space-x-3 font-semibold">
               {treaty.image && !calm.disableRemoteContent ? (
                 <div
@@ -51,16 +51,16 @@ export default function AppReference({ flag }: AppReferenceProps) {
                 <span className="capitalize text-gray-400">Application</span>
               </div>
             </div>
-          </button>
-          <div className="absolute right-5 flex flex-row">
+          </div>
+          <div className="p-2">
             <button
-              className="small-button ml-2 bg-blue text-white dark:text-black"
+              className="small-button ml-2 w-fit bg-blue text-white dark:text-black"
               onClick={openLink}
             >
               Open in Landscape
             </button>
           </div>
-        </>
+        </div>
       ) : (
         <div className="flex w-full items-center justify-start rounded-lg p-2 text-left">
           <div className="flex items-center space-x-3 font-semibold">
