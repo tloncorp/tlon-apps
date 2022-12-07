@@ -247,7 +247,7 @@
   |^
   =/  =perm:d
     :_  group.association
-    ?:(=(~ writers) ~ (silt (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~) ~))
+    ?:(=(~ writers) ~ (silt (rap 3 'import/' (scot %p p.flag) '/' q.flag ~) ~))
   =/  =remark:d
     [now.bowl | ~]
   =/  =notes:d  graph-to-notes
