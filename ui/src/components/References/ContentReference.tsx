@@ -25,7 +25,7 @@ function ContentReference({
 
   if ('desk' in cite) {
     const { flag } = cite.desk;
-    return flag ? <AppReference flag={flag} /> : null;
+    return flag ? <AppReference flag={flag} isScrolling={isScrolling} /> : null;
   }
 
   if ('bait' in cite) {

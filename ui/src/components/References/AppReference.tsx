@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ShipName from '@/components/ShipName';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
-import { useTreaty } from '@/state/docket';
+import useDocketState, { useTreaty } from '@/state/docket';
 import { useCalm } from '@/state/settings';
 import { getFlagParts } from '@/logic/utils';
 import { useIsDark } from '@/logic/useMedia';
 
 interface AppReferenceProps {
   flag: string;
+  isScrolling: boolean;
 }
 
-export default function AppReference({ flag }: AppReferenceProps) {
+export default function AppReference({ flag, isScrolling }: AppReferenceProps) {
   const { ship, name: deskId } = getFlagParts(flag);
   const treaty = useTreaty(ship, deskId);
   const calm = useCalm();
@@ -20,6 +21,12 @@ export default function AppReference({ flag }: AppReferenceProps) {
   function openLink() {
     window.open(`${window.location.origin}${href}`);
   }
+
+  useEffect(() => {
+    if (!treaty && !isScrolling) {
+      useDocketState.getState().requestTreaty(ship, flag);
+    }
+  }, [treaty, ship, isScrolling, flag]);
 
   return (
     <div className="relative flex items-center rounded-lg border-2 border-gray-50 text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white">
