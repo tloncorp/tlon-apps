@@ -687,7 +687,7 @@
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     ?:  import
       go-core
-    =|  our=vessel:fleet:g
+    =/  our=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
     =.  sects.our  (~(put in sects.our) %admin)
     =.  fleet.group  (~(put by fleet.group) our.bowl our)
     =.  bloc.group  (~(put in bloc.group) %admin)
