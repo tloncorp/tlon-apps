@@ -469,7 +469,7 @@
   |^
   =/  =perm:c
     :_  group.association
-    ?:(=(~ writers) ~ (silt (rap 3 %chat '-' (scot %p p.flag) '-' q.flag ~) ~))
+    ?:(=(~ writers) ~ (silt (rap 3 'import/' (scot %p p.flag) '/' q.flag ~) ~))
   =/  =pact:c  (graph-to-pact graph flag)
   =/  =chat:c
     :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | chi/~])
