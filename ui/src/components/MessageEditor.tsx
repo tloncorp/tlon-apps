@@ -1,12 +1,6 @@
 import cn from 'classnames';
-import {
-  Editor,
-  EditorContent,
-  Extension,
-  JSONContent,
-  useEditor,
-} from '@tiptap/react';
-import React, { useCallback, useMemo, useState } from 'react';
+import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
+import React, { useCallback, useMemo } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -23,7 +17,6 @@ import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { refPasteRule, Shortcuts } from '@/logic/tiptap';
-import { ChatBlock, Cite } from '@/types/chat';
 import { useChatStore } from '@/chat/useChatStore';
 import { useCalm } from '@/state/settings';
 import Mention from '@tiptap/extension-mention';

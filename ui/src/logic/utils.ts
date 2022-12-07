@@ -366,7 +366,7 @@ export function linkFromCurioContent(content: CurioContent) {
 
 export function citeToPath(cite: Cite) {
   if ('desk' in cite) {
-    return `/1/desk/${cite.desk.desk}${cite.desk.where}`;
+    return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
   }
   if ('chan' in cite) {
     return `/1/chan/${cite.chan.nest}${cite.chan.where}`;
@@ -403,10 +403,10 @@ export function pathToCite(path: string): Cite | undefined {
     if (rest.length < 2) {
       return undefined;
     }
-    const desk = rest.slice(0, 2).join('/');
+    const flag = rest.slice(0, 2).join('/');
     return {
       desk: {
-        desk,
+        flag,
         where: `/${rest.slice(2).join('/')}` || '/',
       },
     };

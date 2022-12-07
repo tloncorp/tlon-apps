@@ -39,7 +39,7 @@ export interface BaitCite {
 
 export interface DeskCite {
   desk: {
-    desk: string;
+    flag: string;
     where: string;
   };
 }
