@@ -113,6 +113,22 @@ const api = {
       throw e;
     }
   },
+  async subscribeOnce<T>(app: string, path: string, timeout?: number) {
+    try {
+      if (!client) {
+        await setupAPI();
+      }
+
+      const clientPoke = await client.subscribeOnce<T>(app, path, timeout);
+      useLocalState.setState({ subscription: 'connected' });
+      useLocalState.setState({ errorCount: 0 });
+
+      return clientPoke;
+    } catch (e) {
+      useLocalState.setState({ errorCount: errorCount + 1 });
+      throw e;
+    }
+  },
   async thread<Return, T>(params: Thread<T>) {
     try {
       if (!client) {
