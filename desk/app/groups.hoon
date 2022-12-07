@@ -526,7 +526,7 @@
   ::
   ++  sect-for-flag
     |=  =flag:g
-    `sect:g`(rap 3 'imports/' (scot %p p.flag) '/' q.flag ~)
+    `sect:g`(rap 3 'import/' (scot %p p.flag) '/' q.flag ~)
   ::
   ++  graph-mark-to-agent
   |=  =mark
