@@ -102,7 +102,7 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
   const group = useGroup(flag);
   const briefs = useAllBriefs();
   const pendingImports = usePendingImports();
-  const hasStarted = useStartedMigration();
+  const { hasStarted } = useStartedMigration(flag);
   const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels } = useChannelSections(flag);

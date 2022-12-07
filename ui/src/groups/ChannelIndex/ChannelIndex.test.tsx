@@ -15,6 +15,7 @@ vi.mock('@/state/groups', () => ({
   useRouteGroup: () => null,
   useAmAdmin: () => true,
   useVessel: () => fakeVessel,
+  useGroupState: () => ({}),
 }));
 
 describe('ChannelIndex', () => {

@@ -15,6 +15,7 @@ vi.mock('@/state/groups', () => ({
   useGroup: () => fakeGroup,
   useRouteGroup: () => fakeFlag,
   useVessel: () => fakeVessel,
+  useGroupState: () => ({}),
 }));
 
 describe('ChannelList', () => {
