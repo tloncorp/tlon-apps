@@ -455,12 +455,13 @@
           =group:old:g
       ==
   |^
-  =/  cabals=(map sect:g cabal:g)
-    %-  ~(gas by *(map sect:g cabal:g))
-    %+  turn  ~(tap by roles)
-    |=  =flag:g
-    ^-  [sect:g cabal:g]
-    :-  (sect-for-flag flag)
+  =/  [cabals=(map sect:g cabal:g) members=(jug ship sect:g)]
+    %+  roll  ~(tap by roles)
+    |=  [=flag:g cabals=(map sect:g cabal:g) members=(jug ship sect:g)]
+    ^-  [(map sect:g cabal:g) (jug ship sect:g)]
+    =/  =sect:g  (sect-for-flag flag)
+    :_  (~(put ju members) p.flag sect)
+    %+  ~(put by cabals)  sect
     ?~  ass=(~(get by chan) flag)
       *cabal:g
     :_  ~
@@ -499,7 +500,7 @@
     %+  turn  ~(tap in members.group)
     |=  =ship
     ^-  [_ship vessel:fleet:g]
-    [ship ~ now.bowl]
+    [ship (~(get ju members) ship) now.bowl]
   =/  =group:g
     :*  fleet
         cabals
