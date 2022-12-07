@@ -243,7 +243,10 @@ export default function HeapBlock({
       <div className={cnm()}>
         <TopBar hasIcon canEdit={canEdit} {...topBar} />
         <div className="flex grow flex-col items-center justify-center">
-          <LinkIcon className="h-16 w-16 text-gray-300" />
+          <HeapContent
+            className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
+            content={content}
+          />
         </div>
         <BottomBar
           {...botBar}

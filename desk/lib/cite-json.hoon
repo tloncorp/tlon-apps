@@ -10,7 +10,7 @@
   ::
       %desk
     %-  pairs
-    :~  desk/s/(flag:enjs:j flag.cite)
+    :~  flag/s/(flag:enjs:j flag.cite)
         where/s/(spat wer.cite)
     ==
   ::
