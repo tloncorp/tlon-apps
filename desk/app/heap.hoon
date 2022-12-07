@@ -408,7 +408,7 @@
   |^
   =/  =perm:h
     :_  group.association
-    ?:(=(~ writers) ~ (silt (rap 3 'imports/' (scot %p p.flag) '/' q.flag ~) ~))
+    ?:(=(~ writers) ~ (silt (rap 3 'import/' (scot %p p.flag) '/' q.flag ~) ~))
   =/  =curios:h  graph-to-curios
   =.  stash
     %+  ~(put by stash)  flag
