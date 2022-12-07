@@ -39,17 +39,18 @@ const UNZONED = 'default';
 function GroupChannel({
   channel,
   nest,
+  migration,
 }: {
   nest: string;
   channel: GroupChannel;
+  migration: ReturnType<typeof useStartedMigration>;
 }) {
   const [_app, flag] = nestToFlag(nest);
   const { ship } = getFlagParts(flag);
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const briefs = useAllBriefs();
-  const pendingImports = usePendingImports();
-  const hasStarted = useStartedMigration();
+  const { hasStarted, pendingImports } = migration;
   const imported = isChannelImported(nest, pendingImports) && hasStarted(ship);
   const joined = isChannelJoined(nest, briefs);
   const isChannelHost = useIsChannelHost(flag);
@@ -254,9 +255,11 @@ function GroupChannel({
 function ChannelSection({
   channels,
   zone,
+  migration,
 }: {
   channels: [string, GroupChannel][];
   zone: Zone | null;
+  migration: ReturnType<typeof useStartedMigration>;
 }) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
@@ -272,7 +275,12 @@ function ChannelSection({
       ) : null}
       <ul>
         {channels.map(([nest, channel]) => (
-          <GroupChannel nest={nest} channel={channel} key={channel.added} />
+          <GroupChannel
+            nest={nest}
+            channel={channel}
+            key={channel.added}
+            migration={migration}
+          />
         ))}
       </ul>
     </>
@@ -283,6 +291,7 @@ export default function ChannelIndex({ title }: ViewProps) {
   const flag = useRouteGroup();
   const { sectionedChannels } = useChannelSections(flag);
   const filteredSections = useFilteredSections(flag);
+  const migration = useStartedMigration(flag);
   const navigate = useNavigate();
   const isAdmin = useAmAdmin(flag);
   const group = useGroup(flag);
@@ -331,6 +340,7 @@ export default function ChannelIndex({ title }: ViewProps) {
                   section in sectionedChannels ? sectionedChannels[section] : []
                 }
                 zone={section}
+                migration={migration}
               />
             </div>
           ) : null
