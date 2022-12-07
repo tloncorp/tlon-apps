@@ -1,4 +1,5 @@
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
+import { useHasMigratedChannels } from '@/logic/useMigrationInfo';
 import { useGroup, useShoal } from '@/state/groups';
 import { BaitCite } from '@/types/chat';
 import { udToDec } from '@urbit/api';
@@ -26,6 +27,18 @@ export default function BaitReference({
   const [, ...segments] = where.split('/');
   const nest = agent ? `${agent}/${graph}` : null;
   const id = udToDec(segments[0]);
+  const hasMigrated = useHasMigratedChannels(bait.group);
+
+  if (!hasMigrated) {
+    return (
+      <div className="heap-inline-block h-[126px] items-center justify-center bg-gray-100">
+        <ExclamationPoint className="h-6 w-6" />
+        <span className="ml-2">
+          This content belongs to a channel that has not been migrated yet.
+        </span>
+      </div>
+    );
+  }
 
   if (agent === 'heap') {
     return (
