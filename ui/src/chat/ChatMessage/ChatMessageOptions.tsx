@@ -53,17 +53,18 @@ export default function ChatMessageOptions(props: {
   const navigate = useNavigate();
   return (
     <div className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle opacity-0 group-one-hover:opacity-100">
-      <IconButton
-        icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
-        label="React"
-        showTooltip
-        action={openPicker}
-      />
       <EmojiPicker
         open={pickerOpen}
         setOpen={setPickerOpen}
         onEmojiSelect={onEmoji}
-      />
+      >
+        <IconButton
+          icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
+          label="React"
+          showTooltip
+          action={openPicker}
+        />
+      </EmojiPicker>
       {!writ.memo.replying && writ.memo.replying?.length !== 0 && !hideReply ? (
         <>
           {/*

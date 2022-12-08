@@ -36,18 +36,19 @@ export default function ChatReactions({ whom, seal }: ChatReactionsProps) {
           whom={whom}
         />
       ))}
-      <button
-        className="appearance-none border-none bg-transparent"
-        onClick={openPicker}
-        aria-label="Add Reaction"
-      >
-        <AddReactIcon className="h-6 w-6 text-gray-600" />
-      </button>
       <EmojiPicker
         open={pickerOpen}
         setOpen={setPickerOpen}
         onEmojiSelect={onEmoji}
-      />
+      >
+        <button
+          className="appearance-none border-none bg-transparent"
+          onClick={openPicker}
+          aria-label="Add Reaction"
+        >
+          <AddReactIcon className="h-6 w-6 text-gray-600" />
+        </button>
+      </EmojiPicker>
     </div>
   );
 }
