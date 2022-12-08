@@ -6,6 +6,7 @@ import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import useEmbedState from '@/state/embed';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
+// eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import { formatDistanceToNow } from 'date-fns';
@@ -158,7 +159,9 @@ function BottomBar({ curio, provider, title, asRef }: BottomBarProps) {
   const { content, sent } = curio.heart;
   const replyCount = curio.seal.replied.length;
   const url =
-    content.length > 0 && isLink(content[0]) ? content[0].link.href : '';
+    content.inline.length > 0 && isLink(content.inline[0])
+      ? content.inline[0].link.href
+      : '';
   const prettySent = formatDistanceToNow(sent);
 
   if (asRef) {
@@ -202,10 +205,12 @@ export default function HeapBlock({
   const [embed, setEmbed] = useState<any>();
   const { content } = curio.heart;
   const url =
-    content.length > 0 && isLink(content[0]) ? content[0].link.href : '';
+    content.inline.length > 0 && isLink(content.inline[0])
+      ? content.inline[0].link.href
+      : '';
   const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
-  const textFallbackTitle = content
+  const textFallbackTitle = content.inline
     .map((inline) => inlineToString(inline))
     .join(' ')
     .toString();
@@ -232,6 +237,25 @@ export default function HeapBlock({
     asRef ? refClass || '' : 'heap-block group';
   const topBar = { time, refToken };
   const botBar = { curio, asRef };
+
+  if (content.block.length > 0 && 'cite' in content.block[0]) {
+    return (
+      <div className={cnm()}>
+        <TopBar hasIcon canEdit={canEdit} {...topBar} />
+        <div className="flex grow flex-col items-center justify-center">
+          <HeapContent
+            className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
+            content={content}
+          />
+        </div>
+        <BottomBar
+          {...botBar}
+          provider="Urbit Reference"
+          title={curio.heart.title || 'Urbit Reference'}
+        />
+      </div>
+    );
+  }
 
   if (isText) {
     return (

@@ -24,7 +24,7 @@ export interface DiaryState {
     [flag: DiaryFlag]: DiaryNoteMap;
   };
   briefs: DiaryBriefs;
-  pendingImports: string[];
+  pendingImports: Record<string, boolean>;
   create: (req: DiaryCreate) => Promise<void>;
   start: () => Promise<void>;
   fetchNote: (flag: DiaryFlag, noteId: string) => Promise<void>;

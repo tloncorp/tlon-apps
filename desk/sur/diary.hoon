@@ -14,6 +14,12 @@
 +$  shelf  (map flag diary)
 ::  $said: used for references
 +$  said  (pair flag outline)
+::  $plan: index into diary state
+::    p: Note being referred to
+::    q: Quip being referred to, if any
+::    
++$  plan
+  (pair time (unit time))
 ::
 ::  $diary: written longform communication
 ::

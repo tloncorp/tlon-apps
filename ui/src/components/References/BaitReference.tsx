@@ -1,39 +1,77 @@
-import { useGroup } from '@/state/groups';
+import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
+import { useHasMigratedChannels } from '@/logic/useMigrationInfo';
+import { useGroup, useShoal } from '@/state/groups';
 import { BaitCite } from '@/types/chat';
+import { udToDec } from '@urbit/api';
 import cn from 'classnames';
 import React from 'react';
 import ExclamationPoint from '../icons/ExclamationPoint';
+// eslint-disable-next-line import/no-cycle
+import CurioReference from './CurioReference';
+import NoteReference from './NoteReference';
+
+// eslint-disable-next-line import/no-cycle
+import WritBaitReference from './WritBaitReference';
 
 export default function BaitReference({
-  group,
-  graph,
-  where,
-}: BaitCite['bait']) {
+  bait,
+  isScrolling,
+}: {
+  isScrolling: boolean;
+  bait: BaitCite['bait'];
+}) {
+  const { group, graph, where } = bait;
   const theGroup = useGroup(group);
   const groupTitle = theGroup?.meta.title;
+  const agent = useShoal(bait);
+  const [, ...segments] = where.split('/');
+  const nest = agent ? `${agent}/${graph}` : null;
+  const id = udToDec(segments[0]);
+  const hasMigrated = useHasMigratedChannels(bait.group);
 
-  return (
-    <div className="heap-inline-block group">
-      <div className="h-full w-full p-2">
-        <div className="flex h-full w-full flex-col items-center justify-center rounded-lg bg-gray-50 font-semibold text-gray-600">
-          <ExclamationPoint className="mb-3 h-12 w-12" />
-          <span>This content is still being migrated.</span>
-          <span className="font-mono">{where}</span>
-        </div>
+  if (!hasMigrated) {
+    return (
+      <div className="heap-inline-block h-[126px] items-center justify-center bg-gray-100">
+        <ExclamationPoint className="h-6 w-6" />
+        <span className="ml-2">
+          This content belongs to a channel that has not been migrated yet.
+        </span>
       </div>
-      <div className="flex items-center justify-between border-t-2 border-gray-50 p-2 group-hover:bg-gray-50">
-        <div className="flex cursor-pointer items-center space-x-2 text-gray-400 group-hover:text-gray-600">
-          <span className="font-semibold">{graph}</span>
-          {groupTitle ? (
-            <>
-              <span className="font-bold">•</span>
-              <span className="font-semibold">{groupTitle}</span>
-            </>
-          ) : (
-            group
-          )}
-        </div>
-      </div>
-    </div>
-  );
+    );
+  }
+
+  if (agent === 'heap') {
+    return (
+      <CurioReference
+        idCurio={id}
+        chFlag={graph}
+        nest={`heap/${graph}`}
+        isScrolling={isScrolling}
+      />
+    );
+  }
+
+  if (nest && agent === 'chat') {
+    return (
+      <WritBaitReference
+        chFlag={graph}
+        nest={nest}
+        index={where}
+        isScrolling={isScrolling}
+      />
+    );
+  }
+
+  if (nest && agent === 'diary') {
+    return (
+      <NoteReference
+        chFlag={graph}
+        nest={nest}
+        id={id}
+        isScrolling={isScrolling}
+      />
+    );
+  }
+
+  return <HeapLoadingBlock reference />;
 }

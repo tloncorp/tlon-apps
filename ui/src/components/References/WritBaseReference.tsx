@@ -7,20 +7,20 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
+import { ChatWrit } from '@/types/chat';
 import ReferenceBar from './ReferenceBar';
 
-export default function WritReference({
+export default function WritBaseReference({
   chFlag,
   nest,
-  idWrit,
+  writ,
   isScrolling,
 }: {
   chFlag: string;
   nest: string;
-  idWrit: string;
+  writ?: ChatWrit;
   isScrolling: boolean;
 }) {
-  const writ = useWritByFlagAndWritId(chFlag, idWrit, isScrolling);
   const preview = useChannelPreview(nest);
 
   // TODO: handle failure for useWritByFlagAndWritId call.
@@ -35,7 +35,7 @@ export default function WritReference({
   }
 
   return (
-    <div className="writ-inline-block group">
+    <div className="writ-inline-block not-prose group">
       <Link
         to={
           preview?.group

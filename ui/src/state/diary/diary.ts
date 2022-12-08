@@ -94,7 +94,7 @@ export const useDiaryState = create<DiaryState>(
       diarySubs: [],
       loadedNotes: {},
       briefs: {},
-      pendingImports: [],
+      pendingImports: {},
       markRead: async (flag) => {
         await api.poke({
           app: 'diary',
@@ -197,7 +197,7 @@ export const useDiaryState = create<DiaryState>(
           },
         });
 
-        const pendingImports = await api.scry<string[]>({
+        const pendingImports = await api.scry<Record<string, boolean>>({
           app: 'diary',
           path: '/imp',
         });
@@ -209,7 +209,7 @@ export const useDiaryState = create<DiaryState>(
         api.subscribe({
           app: 'diary',
           path: '/imp',
-          event: (imports: string[]) => {
+          event: (imports: Record<string, boolean>) => {
             get().batchSet((draft) => {
               draft.pendingImports = imports;
             });

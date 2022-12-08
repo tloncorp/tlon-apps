@@ -16,8 +16,9 @@
   +$  current-state
     $:  %0
         =shelf:d
-        voc=(map [flag:d time] (unit said:d))
-        imp=(set flag:d)
+        voc=(map [flag:d plan:d] (unit said:d))
+        ::  true represents imported, false pending import
+        imp=(map flag:d ?)
     ==
   --
 =|  current-state
@@ -160,7 +161,14 @@
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %graph-imports  (import !<(imports:d vase))
-      %import-flags   cor(imp !<((set flag:d) vase))
+      %import-flags
+    =+  !<(flags=(set flag:d) vase)
+    =.  imp  %-  ~(gas by *(map flag:d ?))
+      ^-  (list [flag:d ?])
+      %+  turn 
+        ~(tap in flags) 
+      |=(=flag:d [flag |])
+    cor
   ::
       ?(%flag %channel-join)
     =+  !<(=flag:d vase)
@@ -239,7 +247,7 @@
   |^
   =/  =perm:d
     :_  group.association
-    ?:(=(~ writers) ~ (silt (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~) ~))
+    ?:(=(~ writers) ~ (silt (rap 3 'import/' (scot %p p.flag) '/' q.flag ~) ~))
   =/  =remark:d
     [now.bowl | ~]
   =/  =notes:d  graph-to-notes
@@ -253,8 +261,9 @@
         remark
     ==
   =.  shelf  (~(put by shelf) flag diary)
-  =.  imp    (~(del in imp) flag)
-  =.  cor    (give %fact ~[/imp] flags+!>(imp))
+  =.  imp    (~(put by imp) flag &)
+  =.  cor
+    (give %fact ~[/imp] migrate-map+!>(imp))
   =.  cor    di-abet:(di-import:(di-abed:di-core flag) writers association)
   loop(imports t.imports)
   ::
@@ -343,6 +352,7 @@
   ?+    pole  ~|(bad-watch-path/pole !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
+      [%imp ~]      ?>(from-self cor)
     ::
       [%epic ~]    (give %fact ~ epic+!>(okay))
     ::
@@ -350,25 +360,28 @@
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-watch:(di-abed:di-core ship name.pole) rest.pole)
     ::
-      [%said host=@ name=@ %note time=@ ~]
+      [%said host=@ name=@ %note time=@ quip=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =flag:d     [host name.pole]
-    =/  =time       (slav %ud time.pole)
-    (watch-said flag time)
+    =/  =plan:d     =,(pole [(slav %ud time) ?~(quip ~ `(slav %ud -.quip))])
+    (watch-said flag plan)
   ==
 ::
 ++  watch-said
-  |=  [=flag:d =time]
+  |=  [=flag:d =plan:d]
   ?.  (~(has by shelf) flag)
-    (proxy-said flag time)
-  di-abet:(di-said:(di-abed:di-core flag) time)
+    (proxy-said flag plan)
+  di-abet:(di-said:(di-abed:di-core flag) plan)
 ++  said-wire
-  |=  [=flag:d =time]
+  |=  [=flag:d =plan:d]
   ^-  wire
-  /said/(scot %p p.flag)/[q.flag]/note/(scot %ud time)
+  %+  welp
+    /said/(scot %p p.flag)/[q.flag]/note/(scot %ud p.plan)
+  ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  take-said
-  |=  [=flag:d =time =sign:agent:gall]
+  |=  [=flag:d =plan:d =sign:agent:gall]
+  =/  =wire  (said-wire flag plan)
   ^+  cor
   ?+    -.sign  !!
       %watch-ack
@@ -377,31 +390,34 @@
     (slog leaf/"Preview failed" u.p.sign)
   ::
       %kick
-    ?:  (~(has by voc) [flag time])
+    ?:  (~(has by voc) [flag plan])
       cor  :: subscription ended politely
-    (proxy-said flag time)
+    ::  XX: only versioned subscriptions should rewatch on kick
+    (give %kick ~[wire] ~)
+    :: (proxy-said flag time)  
   ::
       %fact
-    =.  cor
-      (give %fact ~[(said-wire flag time)] cage.sign)
+    =.  cor  (give %fact ~[wire] cage.sign)
+    =.  cor  (give %kick ~[wire] ~)
     ?+    p.cage.sign  ~|(funny-mark/p.cage.sign !!)
         %diary-said
       =+  !<(=said:d q.cage.sign)
-      =.  voc  (~(put by voc) [flag time] `said)
+      =.  voc  (~(put by voc) [flag plan] `said)
       cor
     ::
         %diary-denied
-      =.  voc  (~(put by voc) [flag time] ~)
+      =.  voc  (~(put by voc) [flag plan] ~)
       cor
     ==
   ==
 ::
 ++  proxy-said
-  |=  [=flag:d =time]
+  |=  [=flag:d =plan:d]
   =/  =dock  [p.flag dap.bowl]
-  =/  wire  (said-wire flag time)
-  =/  =card  [%pass wire %agent dock %watch wire]
-  (emit card)
+  =/  wire  (said-wire flag plan)
+  ?:  (~(has by wex.bowl) wire dock)
+    cor
+  (emit %pass wire %agent dock %watch wire)
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
@@ -421,11 +437,11 @@
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-agent:(di-abed:di-core ship name.pole) rest.pole sign)
   ::
-      [%said host=@ name=@ %note time=@ ~]
+      [%said host=@ name=@ %note time=@ quip=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =flag:d     [host name.pole]
-    =/  id=time     (slav %ud time.pole)
-    (take-said flag id sign)
+    =/  =plan:d     =,(pole [(slav %ud time) ?~(quip ~ `(slav %ud -.quip))])
+    (take-said flag plan sign)
   ::
       [%groups ~]
     ?+    -.sign  !!
@@ -487,7 +503,7 @@
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
   ::
-    [%x %imp ~]    ``flags+!>(imp)
+    [%x %imp ~]    ``migrate-map+!>(imp)
   ::
     [%x %shelf ~]  ``shelf+!>(shelf)
   ::
@@ -555,11 +571,11 @@
     di-core
   ::
   ++  di-said
-    |=  =time
+    |=  =plan:d
     |^  ^+  di-core
     ?.  (di-can-read src.bowl)
       (give-kick diary-denied+!>(~))
-    =/  [* =note:d]  (got:di-notes time)
+    =/  [* =note:d]  (got:di-notes p.plan)
     =/  =outline:d  (trace:di-notes note)
     %+  give-kick  %diary-said
     !>  ^-  said:d

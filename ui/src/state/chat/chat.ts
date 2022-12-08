@@ -127,13 +127,14 @@ export const useChatState = createState<ChatState>(
     dmSubs: [],
     multiDmSubs: [],
     pendingDms: [],
-    pendingImports: [],
+    pendingImports: {},
     pins: [],
     sentMessages: [],
     postedMessages: [],
     loadedWrits: {},
     loadedRefs: {},
     briefs: {},
+    loadedGraphRefs: {},
     togglePin: async (whom, pin) => {
       const { pins } = get();
       let newPins = [];
@@ -305,7 +306,7 @@ export const useChatState = createState<ChatState>(
         },
       });
 
-      const pendingImports = await api.scry<string[]>({
+      const pendingImports = await api.scry<Record<string, boolean>>({
         app: 'chat',
         path: '/imp',
       });
@@ -317,7 +318,7 @@ export const useChatState = createState<ChatState>(
       api.subscribe({
         app: 'chat',
         path: '/imp',
-        event: (imports: string[]) => {
+        event: (imports: Record<string, boolean>) => {
           get().batchSet((draft) => {
             draft.pendingImports = imports;
           });
@@ -1006,6 +1007,42 @@ export function useWritByFlagAndWritId(
   }, [path, isScrolling]);
 
   return cached;
+}
+
+export function useWritByFlagAndGraphIndex(
+  chFlag: string,
+  index: string,
+  isScrolling: boolean
+) {
+  const res = useChatState(
+    useCallback((s) => s.loadedGraphRefs[chFlag + index], [chFlag, index])
+  );
+
+  useEffect(() => {
+    if (!res && !isScrolling) {
+      (async () => {
+        let w: ChatWrit | 'error' = 'error';
+        try {
+          useChatState.getState().batchSet((draft) => {
+            draft.loadedGraphRefs[chFlag + index] = 'loading';
+          });
+          const { writ } = await subscribeOnce(
+            'chat',
+            `/hook/${chFlag}${index}`
+          );
+          w = writ;
+        } catch (e) {
+          console.warn(e);
+        }
+
+        useChatState.getState().batchSet((draft) => {
+          draft.loadedGraphRefs[chFlag + index] = w;
+        });
+      })();
+    }
+  }, [isScrolling, chFlag, index, res]);
+
+  return res || 'loading';
 }
 
 export function useLoadedWrits(whom: string) {

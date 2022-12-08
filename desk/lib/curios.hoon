@@ -41,6 +41,12 @@
     =/  =seal:h  [new ~ ~]
     ?:  (~(has by cur) new)
       cur
+    ~|  curio-failed-validation/p.del
+    ?>  ?|  ?=(^ replying.p.del)
+            ?&  ?=(^ title.p.del) 
+                |(?=([~ ^] content.p.del) ?=([[* ~] ~] content.p.del))
+            ==
+        ==
     =.  cur
       (put:on:curios:h cur new [seal p.del])
     ?~  replying.p.del  cur

@@ -51,7 +51,7 @@ export default function NoteReference({
   const prettyDate = makePrettyDate(new Date(outline.sent));
 
   return (
-    <div className="note-inline-block group">
+    <div className="note-inline-block not-prose group">
       <div className="flex flex-col space-y-2 p-2 group-hover:bg-gray-50">
         {outline.image ? (
           <div

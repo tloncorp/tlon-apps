@@ -1,5 +1,6 @@
 /-  d=diary
 /-  graph=graph-store
+/+  chat-graph
 =<  migrate
 =|  [=flag:d time=@ud]
 |%
@@ -258,7 +259,7 @@
       %text       (welp out (ring (trip text.con) prev-break))
       %mention    (snoc out [%inline ~[ship/ship.con]])  :: TODO: i swear I PR'd ships
       %code       (snoc out [%inline ~[code/expression.con]])
-      %reference  (snoc out [%inline ~[code/(crip <reference.con>) break/~]])
+      %reference  (snoc out [%block (ref:nert:chat-graph reference.con)])
   ::
       %url        
     =/  def=verse:d

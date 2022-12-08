@@ -8,12 +8,15 @@ import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
 import HeapDetailEmbed from '@/heap/HeapDetail/HeapDetailEmbed';
 import { useIsMobile } from '@/logic/useMedia';
 import HeapAudioPlayer from '@/heap/HeapAudioPlayer';
+import ContentReference from '@/components/References/ContentReference';
 
 export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
   const [embed, setEmbed] = useState<any>();
   const { content } = curio.heart;
   const url =
-    content.length > 0 && isLink(content[0]) ? content[0].link.href : '';
+    content.inline.length > 0 && isLink(content.inline[0])
+      ? content.inline[0].link.href
+      : '';
   const isMobile = useIsMobile();
 
   const { isText, isImage, isAudio, isVideo } = useHeapContentType(url);
@@ -25,6 +28,16 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
     };
     getOembed();
   }, [url, isMobile]);
+
+  if (content.block.length > 0 && 'cite' in content.block[0]) {
+    return (
+      <div className="mx-auto flex h-full w-full items-center justify-center p-8 text-[18px] leading-[26px]">
+        <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto">
+          <ContentReference cite={content.block[0].cite} />
+        </div>
+      </div>
+    );
+  }
 
   if (isText) {
     return (

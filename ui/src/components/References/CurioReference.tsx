@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useCurio, useHeapState, useRemoteCurio } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
+// eslint-disable-next-line import/no-cycle
 import HeapBlock from '@/heap/HeapBlock';
 import { useChannelPreview } from '@/state/groups';
 import { udToDec } from '@urbit/api';
@@ -47,7 +48,7 @@ export default function CurioReference({
     return <HeapLoadingBlock reference />;
   }
   return (
-    <div className="heap-inline-block group">
+    <div className="heap-inline-block not-prose group">
       <HeapBlock curio={curio} time={idCurio} refToken={refToken} asRef />
       <ReferenceBar
         nest={nest}

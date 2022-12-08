@@ -9,6 +9,12 @@ import { useHeapState } from '@/state/heap/heap';
 import { reduce } from 'lodash';
 import useRequestState from '@/logic/useRequestState';
 import { JSONToInlines } from '@/logic/tiptap';
+import {
+  fetchChatBlocks,
+  useChatInfo,
+  useChatStore,
+} from '@/chat/useChatStore';
+import X16Icon from '@/components/icons/X16Icon';
 
 interface HeapTextInputProps {
   flag: string;
@@ -64,6 +70,7 @@ export default function HeapTextInput({
 }: HeapTextInputProps) {
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
+  const chatInfo = useChatInfo(flag);
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -73,18 +80,25 @@ export default function HeapTextInput({
       if (sendDisabled) {
         return;
       }
-      if (!editor.getText()) {
+      const blocks = fetchChatBlocks(flag);
+      if (!editor.getText() && !blocks.length) {
         return;
       }
 
       setPending();
 
-      const content = normalizeHeapInline(
-        JSONToInlines(editor?.getJSON()) as HeapInline[]
-      );
+      const content = {
+        inline:
+          blocks.length === 0
+            ? normalizeHeapInline(
+                JSONToInlines(editor?.getJSON()) as HeapInline[]
+              )
+            : [],
+        block: blocks,
+      };
 
       const heart: CurioHeart = {
-        title: null,
+        title: '', // TODO: Title input
         replying: replyTo,
         author: window.our,
         sent: Date.now(),
@@ -94,6 +108,7 @@ export default function HeapTextInput({
       await useHeapState.getState().addCurio(flag, heart);
       setDraft(undefined);
       editor?.commands.setContent('');
+      useChatStore.getState().setBlocks(flag, []);
       setReady();
     },
     [sendDisabled, setPending, replyTo, flag, setDraft, setReady]
@@ -107,6 +122,7 @@ export default function HeapTextInput({
   );
 
   const messageEditor = useMessageEditor({
+    whom: flag,
     content: draft || '',
     placeholder: placeholder || 'Enter Text Here',
     onUpdate,
@@ -149,6 +165,19 @@ export default function HeapTextInput({
         className={cn('relative', className)}
         onClick={() => messageEditor.commands.focus()}
       >
+        {chatInfo.blocks.length > 0 ? (
+          <div className="my-2 flex items-center justify-start font-semibold">
+            <span className="mr-2 text-gray-600">Attached: </span>
+            {chatInfo.blocks.length} reference
+            {chatInfo.blocks.length === 1 ? '' : 's'}
+            <button
+              className="icon-button ml-auto"
+              onClick={() => useChatStore.getState().setBlocks(flag, [])}
+            >
+              <X16Icon className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
         <MessageEditor
           editor={messageEditor}
           className={cn('h-full w-full rounded-lg', inputClass)}
@@ -162,7 +191,9 @@ export default function HeapTextInput({
           <button
             className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
             disabled={
-              sendDisabled || isPending || messageEditor.getText() === ''
+              sendDisabled ||
+              isPending ||
+              (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
             }
             onClick={onClick}
           >

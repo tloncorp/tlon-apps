@@ -1,4 +1,5 @@
 /-  graph-store
+/-  cite
 /-  g=groups, e=epic
 /-  metadata-store
 /+  lib-graph=graph-store
@@ -75,10 +76,19 @@
 ::
 +$  heart
   $:  title=(unit @t)
-      content=(list inline)
+      =content
       author=ship
       sent=time
       replying=(unit time)
+  ==
+::  $content: curio content
+::
++$  content
+  (pair (list block) (list inline))
+::  $block: block-level curio content
++$  block
+  $%  [%image src=cord height=@ud width=@ud alt=cord]
+      [%cite =cite]
   ==
 ::  $inline: curio content that flows within a paragraph
 ::

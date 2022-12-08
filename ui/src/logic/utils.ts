@@ -348,17 +348,17 @@ export function canReadChannel(channel: GroupChannel, vessel: Vessel) {
  * @param content CurioContent
  * @returns boolean
  */
-export function isLinkCurio(content: CurioContent) {
+export function isLinkCurio({ inline }: CurioContent) {
   return (
-    content.length === 1 &&
-    typeof content[0] === 'string' &&
-    isValidUrl(content[0])
+    inline.length === 1 &&
+    typeof inline[0] === 'string' &&
+    isValidUrl(inline[0])
   );
 }
 
 export function linkFromCurioContent(content: CurioContent) {
   if (isLinkCurio(content)) {
-    return content[0] as string;
+    return content.inline[0] as string;
   }
 
   return '';
@@ -366,7 +366,7 @@ export function linkFromCurioContent(content: CurioContent) {
 
 export function citeToPath(cite: Cite) {
   if ('desk' in cite) {
-    return `/1/desk/${cite.desk.desk}${cite.desk.where}`;
+    return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
   }
   if ('chan' in cite) {
     return `/1/chan/${cite.chan.nest}${cite.chan.where}`;
@@ -403,10 +403,10 @@ export function pathToCite(path: string): Cite | undefined {
     if (rest.length < 2) {
       return undefined;
     }
-    const desk = rest.slice(0, 2).join('/');
+    const flag = rest.slice(0, 2).join('/');
     return {
       desk: {
-        desk,
+        flag,
         where: `/${rest.slice(2).join('/')}` || '/',
       },
     };
@@ -469,6 +469,12 @@ export function getNestShip(nest: string) {
   return ship;
 }
 
-export function isChannelImported(nest: string, pending: string[]) {
-  return !pending.includes(nest) || window.our === getNestShip(nest);
+export function isChannelImported(
+  nest: string,
+  pending: Record<string, boolean>
+) {
+  const isImport = nest in pending;
+  return (
+    !isImport || (isImport && pending[nest]) || window.our === getNestShip(nest)
+  );
 }

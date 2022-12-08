@@ -29,7 +29,7 @@ export interface ChatState {
   drafts: {
     [whom: string]: ChatStory;
   };
-  pendingImports: string[];
+  pendingImports: Record<string, boolean>;
   chatSubs: string[];
   dmSubs: string[];
   sentMessages: string[];
@@ -50,6 +50,9 @@ export interface ChatState {
   };
   loadedRefs: {
     [path: string]: ChatWrit;
+  };
+  loadedGraphRefs: {
+    [path: string]: ChatWrit | 'loading' | 'error';
   };
   pendingDms: string[];
   briefs: ChatBriefs;
