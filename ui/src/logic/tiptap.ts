@@ -545,6 +545,27 @@ export const inlineToContent = (
   return makeParagraph();
 };
 
+export function makeListing(listing: DiaryListing): JSONContent {
+  if ('list' in listing) {
+    const { list } = listing;
+
+    if (list.type === 'ordered') {
+      return {
+        type: 'orderedList',
+        content: list.items.map((item) => makeListing(item)),
+      };
+    }
+    return {
+      type: 'bulletList',
+      content: list.items.map((item) => makeListing(item)),
+    };
+  }
+  return {
+    type: 'listItem',
+    content: wrapParagraphs(listing.item.map((i) => inlineToContent(i))),
+  };
+}
+
 export const blockToContent = (content: DiaryBlock): JSONContent => {
   if ('cite' in content) {
     return {
@@ -559,6 +580,29 @@ export const blockToContent = (content: DiaryBlock): JSONContent => {
     return {
       type: 'diary-image',
       attrs: content.image,
+    };
+  }
+
+  if ('rule' in content) {
+    return {
+      type: 'horizontalRule',
+    };
+  }
+
+  if ('listing' in content) {
+    return makeListing(content.listing);
+  }
+
+  if ('header' in content) {
+    const { header } = content;
+    const { tag, content: headerContent } = header;
+
+    return {
+      type: `heading`,
+      attrs: {
+        level: parseInt(tag.replace('h', '')),
+      },
+      content: headerContent.map((i) => inlineToContent(i)),
     };
   }
 
