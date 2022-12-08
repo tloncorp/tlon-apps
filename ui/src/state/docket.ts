@@ -89,16 +89,16 @@ const useDocketState = create<DocketState>((set, get) => ({
     set((s) => ({ treaties: { ...s.treaties, ...treaties } }));
     return treaties;
   },
-  requestTreaty: async (ship: string, desk: string) => {
-    const { treaties } = get();
+  requestTreaty: async (ship: string, flag: string) => {
+    const { treaties }: { treaties: Treaties } = get();
 
-    const key = `${ship}/${desk}`;
+    const key = flag;
     if (key in treaties) {
       return treaties[key];
     }
 
     const result = await api.subscribeOnce('treaty', `/treaty/${key}`, 20000);
-    const treaty = { ...normalizeDocket(result, desk), ship };
+    const treaty = { ...normalizeDocket(result, flag), ship };
     set((state) => ({
       treaties: { ...state.treaties, [key]: treaty },
     }));
@@ -244,11 +244,6 @@ export function useCharges() {
 
 export function useCharge(desk: string) {
   return useDocketState(useCallback((state) => state.charges[desk], [desk]));
-}
-
-const selRequest = (s: DocketState) => s.requestTreaty;
-export function useRequestDocket() {
-  return useDocketState(selRequest);
 }
 
 const selAllies = (s: DocketState) => s.allies;

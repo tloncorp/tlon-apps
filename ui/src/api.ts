@@ -113,6 +113,13 @@ const api = {
       throw e;
     }
   },
+  async subscribeOnce<T>(app: string, path: string, timeout?: number) {
+    if (!client) {
+      await setupAPI();
+    }
+
+    return client.subscribeOnce<T>(app, path, timeout);
+  },
   async thread<Return, T>(params: Thread<T>) {
     try {
       if (!client) {
