@@ -350,9 +350,7 @@ export function canReadChannel(channel: GroupChannel, vessel: Vessel) {
  */
 export function isLinkCurio({ inline }: CurioContent) {
   return (
-    inline.length === 1 &&
-    typeof inline[0] === 'string' &&
-    isValidUrl(inline[0])
+    inline.length === 1 && typeof inline[0] === 'object' && 'link' in inline[0]
   );
 }
 
