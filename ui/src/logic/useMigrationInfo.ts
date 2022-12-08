@@ -8,7 +8,13 @@ import { getNestShip, isChannelImported } from './utils';
 import asyncCallWithTimeout from './asyncWithTimeout';
 
 const selPreviews = (s: GroupState) => s.channelPreviews;
-const inProgress: Record<string, boolean> = {};
+
+interface PreviewCheck {
+  inProgress: boolean;
+  attempted: number;
+}
+
+const tracked: Record<string, PreviewCheck> = {};
 const isOurs = (nest: string) => getNestShip(nest) === window.our;
 
 export function useCheckUnjoinedMigrations(
@@ -21,14 +27,29 @@ export function useCheckUnjoinedMigrations(
 
   useEffect(() => {
     Object.entries(unjoined).forEach(([k, v]) => {
-      if (!isOurs(k) && !(k in previews) && !inProgress[k] && !disable) {
-        inProgress[k] = true;
+      const { attempted, inProgress } = tracked[k] || {
+        inProgress: false,
+        attempted: 0,
+      };
+      const pastWaiting = Date.now() - attempted >= 10 * 60 * 1000; // wait 10 mins
+
+      if (
+        !isOurs(k) &&
+        !(k in previews) &&
+        !inProgress &&
+        pastWaiting &&
+        !disable
+      ) {
+        tracked[k] = {
+          inProgress: true,
+          attempted: Date.now(),
+        };
 
         asyncCallWithTimeout(
           useGroupState.getState().channelPreview(k),
           10 * 1000
         ).finally(() => {
-          inProgress[k] = false;
+          tracked[k].inProgress = false;
         });
       }
     });
