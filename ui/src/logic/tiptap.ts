@@ -426,6 +426,13 @@ const makeParagraph = (content?: JSONContent[]): JSONContent => {
   if (!content) {
     return p;
   }
+  if (
+    content.length > 0 &&
+    content[0].type === 'text' &&
+    content[0].text === ''
+  ) {
+    return p;
+  }
   return { ...p, content };
 };
 const makeMarks = (k: InlineKey) => ({ type: convertTipTapType(k) });
