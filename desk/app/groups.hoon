@@ -501,6 +501,7 @@
     |=  =ship
     ^-  [_ship vessel:fleet:g]
     [ship (~(get ju members) ship) now.bowl]
+  =/  admin=?  (~(has in (~(get ju tags.group) %admin)) our.bowl)
   =/  =group:g
     :*  fleet
         cabals
@@ -522,7 +523,7 @@
     %-  ~(gas by shoal)
     %+  turn  ~(tap in imported.group)
     |=(=nest:g [q p]:nest)
-  go-abet:(go-init:(go-abed:group-core flag) &) :: setup defaults
+  go-abet:(go-init:(go-abed:group-core flag) admin) :: setup defaults
   ::
   ++  sect-for-flag
     |=  =flag:g
@@ -686,6 +687,8 @@
       `nest
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  our=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+    ?:  import
+      go-core
     =.  sects.our  (~(put in sects.our) %admin)
     =.  fleet.group  (~(put by fleet.group) our.bowl our)
     =.  bloc.group  (~(put in bloc.group) %admin)
