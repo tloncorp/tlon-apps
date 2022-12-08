@@ -24,9 +24,9 @@ export default function AppReference({ flag, isScrolling }: AppReferenceProps) {
 
   useEffect(() => {
     if (!treaty && !isScrolling) {
-      useDocketState.getState().requestTreaty(ship, flag);
+      useDocketState.getState().requestTreaty(ship, deskId);
     }
-  }, [treaty, ship, isScrolling, flag]);
+  }, [treaty, ship, isScrolling, deskId]);
 
   return (
     <div className="relative flex items-center rounded-lg border-2 border-gray-50 text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white">
