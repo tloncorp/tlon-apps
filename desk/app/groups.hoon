@@ -203,7 +203,7 @@
   |=  =(pole knot)
   ^+  cor
   ?+  pole  ~|(bad-watch/pole !!)
-  ::
+    [%init ~]             (give %kick ~ ~)
     [%groups %ui ~]       cor
     [%groups ~]           cor
     [%gangs %updates ~]   cor
