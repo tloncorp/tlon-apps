@@ -9,6 +9,7 @@ import {
   isLink,
   isShip,
   isStrikethrough,
+  Link,
 } from '@/types/content';
 import { reduce, isEqual } from 'lodash';
 import { JSONContent } from '@tiptap/react';
@@ -417,6 +418,11 @@ export function JSONToInlines(
 }
 
 const makeText = (t: string) => ({ type: 'text', text: t });
+const makeLink = (link: Link['link']) => ({
+  type: 'text',
+  marks: [{ type: 'link', attrs: { href: link.href } }],
+  text: link.content,
+});
 const makeMention = (ship: string) => ({
   type: 'mention',
   attrs: { id: ship },
@@ -512,6 +518,10 @@ export const inlineToContent = (
 
   if ('ship' in inline) {
     return makeMention(inline.ship);
+  }
+
+  if ('link' in inline) {
+    return makeLink(inline.link);
   }
 
   const key = Object.keys(inline)[0] as InlineKey;
