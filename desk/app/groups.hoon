@@ -125,7 +125,7 @@
       ==
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
-    go-abet:(go-init:(go-abed:group-core flag) |)
+    go-abet:(go-init:(go-abed:group-core flag) &)
   ::
       ?(%group-action %group-action-0)
     =+  !<(=action:g vase)
