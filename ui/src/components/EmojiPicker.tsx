@@ -33,27 +33,29 @@ export default function EmojiPicker({
       {isMobile && (
         <Popover.Anchor className={isMobile ? 'fixed inset-x-0 top-12' : ''} />
       )}
-      <Popover.Content
-        side={isMobile ? 'bottom' : 'left'}
-        sideOffset={40}
-        collisionPadding={15}
-      >
-        <div className="flex h-96 w-72 items-center justify-center">
-          {data ? (
-            <Picker
-              data={data}
-              autoFocus={isMobile}
-              perLine={isMobile ? mobilePerLineCount : 9}
-              previewPosition="none"
-              {...props}
-            />
-          ) : (
-            <div className="flex h-96 w-72 items-center justify-center">
-              <LoadingSpinner className="h-6 w-6" />
-            </div>
-          )}
-        </div>
-      </Popover.Content>
+      <Popover.Portal>
+        <Popover.Content
+          side={isMobile ? 'bottom' : 'left'}
+          sideOffset={40}
+          collisionPadding={15}
+        >
+          <div className="z-50 flex h-96 w-72 items-center justify-center">
+            {data ? (
+              <Picker
+                data={data}
+                autoFocus={isMobile}
+                perLine={isMobile ? mobilePerLineCount : 9}
+                previewPosition="none"
+                {...props}
+              />
+            ) : (
+              <div className="flex h-96 w-72 items-center justify-center">
+                <LoadingSpinner className="h-6 w-6" />
+              </div>
+            )}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
     </Popover.Root>
   );
 }
