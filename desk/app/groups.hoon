@@ -670,8 +670,8 @@
     =.  cor  (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
     go-core(gone &)
   ::
-  ++  go-init  
-    |=  import=?
+  ++  go-init
+    |=  admin=?
     =.  cabals.group
       %+  ~(put by cabals.group)  %admin
       :_  ~
@@ -687,7 +687,7 @@
       `nest
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =/  our=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
-    ?:  import
+    ?.  admin
       go-core
     =.  sects.our  (~(put in sects.our) %admin)
     =.  fleet.group  (~(put by fleet.group) our.bowl our)
