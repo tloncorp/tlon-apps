@@ -22,10 +22,6 @@ function useFileUpload() {
   const [hasCredentials, setHasCredentials] = useState(false);
 
   useEffect(() => {
-    useStorage.getState().initialize(api);
-  }, []);
-
-  useEffect(() => {
     const hasCreds =
       credentials?.accessKeyId &&
       credentials?.endpoint &&

@@ -13,6 +13,7 @@ import {
   useLocalState,
   useSubscriptionStatus,
 } from '@/state/local';
+import { useStorage } from '@/state/storage';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export default function DisconnectNotice() {
@@ -35,6 +36,7 @@ export default function DisconnectNotice() {
       fetchAll();
 
       useContactState.getState().initialize(api);
+      useStorage.getState().initialize(api);
     } else {
       window.location.reload();
     }
