@@ -29,6 +29,7 @@ import { useFileStore } from '@/state/storage';
 import { isImageUrl } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
+import { useSubscriptionStatus } from '@/state/local';
 
 interface ChatInputProps {
   whom: string;
@@ -83,6 +84,7 @@ export default function ChatInput({
   sendMessage,
 }: ChatInputProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const subscription = useSubscriptionStatus();
   const pact = usePact(whom);
   const chatInfo = useChatInfo(whom);
   const reply = replying || chatInfo?.replying || null;
@@ -309,6 +311,8 @@ export default function ChatInput({
           className="button"
           disabled={
             sendDisabled ||
+            subscription === 'reconnecting' ||
+            subscription === 'disconnected' ||
             (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
           }
           onClick={onClick}
