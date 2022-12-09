@@ -206,12 +206,6 @@ export default function ChatInput({
   }, [whom, messageEditor]);
 
   useEffect(() => {
-    if (subscription === 'disconnected' || subscription === 'reconnecting') {
-      messageEditor?.setEditable(false);
-    }
-  }, [subscription, messageEditor]);
-
-  useEffect(() => {
     if (
       (autoFocus || reply) &&
       !isMobile &&
