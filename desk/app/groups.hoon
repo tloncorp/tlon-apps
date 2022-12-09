@@ -694,7 +694,7 @@
         vessel
       vessel(sects (~(put in sects.vessel) %admin))
     ?.  =(our.bowl p.flag)
-      go-core
+      (go-safe-sub &)
     =/  our=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
     =.  sects.our  (~(put in sects.our) %admin)
     =.  fleet.group  (~(put by fleet.group) our.bowl our)
