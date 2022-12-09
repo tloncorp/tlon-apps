@@ -25,6 +25,7 @@ import {
 } from '@/logic/utils';
 import { BaitCite } from '@/types/chat';
 import _ from 'lodash';
+import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import groupsReducer from './groupsReducer';
 import { GroupState } from './type';
 import useSubscriptionState from '../subscription';
@@ -912,23 +913,26 @@ export function useGroupsInitialized() {
   return useGroupState(selInit);
 }
 
+const { shouldLoad, newAttempt, finished } = getPreviewTracker();
+
 export function useChannelPreview(nest: string) {
   const preview = useGroupState(
     useCallback((s) => s.channelPreviews[nest], [nest])
   );
 
   const getChannelPreview = useCallback(async () => {
-    await asyncCallWithTimeout(
+    asyncCallWithTimeout(
       useGroupState.getState().channelPreview(nest),
       10 * 1000
-    );
+    ).finally(() => finished(nest));
   }, [nest]);
 
   useEffect(() => {
-    if (preview) return;
+    if (preview && !shouldLoad(nest)) return;
 
+    newAttempt(nest);
     getChannelPreview();
-  }, [getChannelPreview, preview]);
+  }, [getChannelPreview, preview, nest]);
 
   return preview;
 }
