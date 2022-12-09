@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -21,13 +21,26 @@ export default function DiaryAddNote() {
   const chFlag = `${chShip}/${chName}`;
   const group = useRouteGroup();
   const navigate = useNavigate();
-  const [, note] = useNote(chFlag, id || '');
+  const [idNote, note] = useNote(chFlag, id || '');
   const [status, setStatus] = useState<Status>('initial');
   const content = useMemo(
     () =>
       note.essay.content.length > 0 ? diaryMixedToJSON(note.essay.content) : '',
     [note.essay.content]
   );
+
+  const loading = idNote.isZero();
+
+  useEffect(() => {
+    async function load() {
+      await useDiaryState.getState().initialize(chFlag);
+      if (loading) {
+        useDiaryState.getState().fetchNote(chFlag, id!);
+      }
+    }
+
+    load();
+  }, [chFlag, id, loading]);
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
@@ -51,9 +64,7 @@ export default function DiaryAddNote() {
 
     setStatus('loading');
 
-    const editorJSON = editor?.getJSON();
     const data = JSONToInlines(editor?.getJSON(), false);
-    console.log({ editorJSON, data });
     const values = getValues();
 
     const sent = Date.now();
