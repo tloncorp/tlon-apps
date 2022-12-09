@@ -477,6 +477,7 @@
         bold/(ar inline)
         strike/(ar inline)
         blockquote/(ar inline)
+        ship/ship
         inline-code/so
         code/so
         tag/so

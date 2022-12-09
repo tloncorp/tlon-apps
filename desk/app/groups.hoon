@@ -125,7 +125,7 @@
       ==
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
-    go-abet:(go-init:(go-abed:group-core flag) &)
+    go-abet:(go-init:(go-abed:group-core flag) ~)
   ::
       ?(%group-action %group-action-0)
     =+  !<(=action:g vase)
@@ -501,7 +501,7 @@
     |=  =ship
     ^-  [_ship vessel:fleet:g]
     [ship (~(get ju members) ship) now.bowl]
-  =/  admin=?  (~(has in (~(get ju tags.group) %admin)) our.bowl)
+  =/  admins=(set ship)  (~(get ju tags.group) %admin)
   =/  =group:g
     :*  fleet
         cabals
@@ -523,7 +523,7 @@
     %-  ~(gas by shoal)
     %+  turn  ~(tap in imported.group)
     |=(=nest:g [q p]:nest)
-  go-abet:(go-init:(go-abed:group-core flag) admin) :: setup defaults
+  go-abet:(go-init:(go-abed:group-core flag) admins) :: setup defaults
   ::
   ++  sect-for-flag
     |=  =flag:g
@@ -671,11 +671,12 @@
     go-core(gone &)
   ::
   ++  go-init
-    |=  admin=?
+    |=  admins=(set ship)
     =.  cabals.group
       %+  ~(put by cabals.group)  %admin
       :_  ~
       ['Admin' 'Admins can add and remove channels and edit metadata' '' '']
+    =.  bloc.group  (~(put in bloc.group) %admin)
     =.  zones.group
       %+  ~(put by zones.group)  %default
       :-  ['Sectionless' '' '' '']
@@ -686,12 +687,17 @@
         ~
       `nest
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
+    =.  fleet.group
+      %-  ~(rut by fleet.group)
+      |=  [=ship =vessel:fleet:g]
+      ?.  (~(has in admins) ship)
+        vessel
+      vessel(sects (~(put in sects.vessel) %admin))
+    ?.  =(our.bowl p.flag)
+      (go-safe-sub &)
     =/  our=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
-    ?.  admin
-      go-core
     =.  sects.our  (~(put in sects.our) %admin)
     =.  fleet.group  (~(put by fleet.group) our.bowl our)
-    =.  bloc.group  (~(put in bloc.group) %admin)
     =/  =diff:g  [%create group]
     (go-tell-update now.bowl diff)
   ::

@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { EditCurioFormSchema, HeapInline } from '@/types/heap';
+import { EditCurioFormSchema } from '@/types/heap';
 import { useForm } from 'react-hook-form';
 import { useHeapState } from '@/state/heap/heap';
 import { useChannelFlag } from '@/hooks';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/core';
-import { inlinesToJSON, JSONToInlines } from '@/logic/tiptap';
+import { inlinesToJSON, inlineToString, JSONToInlines } from '@/logic/tiptap';
 import { ChatBlock } from '@/types/chat';
 import { Inline } from '@/types/content';
 import useCurioFromParams from './useCurioFromParams';
@@ -22,10 +22,18 @@ export default function EditCurioForm() {
   const { curio, time } = useCurioFromParams();
   const isLinkMode = curio ? isLinkCurio(curio.heart.content) : false;
   const { isPending, setPending, setReady } = useRequestState();
+  const firstInline = curio && curio.heart.content.inline[0];
 
   const defaultValues: EditCurioFormSchema = {
     title: curio ? curio.heart.title : '',
-    content: curio && isLinkMode ? curio.heart.content.toString() : '',
+    content:
+      curio &&
+      isLinkMode &&
+      firstInline &&
+      typeof firstInline === 'object' &&
+      'link' in firstInline
+        ? firstInline.link.href
+        : '',
   };
 
   const { handleSubmit, register, watch } = useForm<EditCurioFormSchema>({

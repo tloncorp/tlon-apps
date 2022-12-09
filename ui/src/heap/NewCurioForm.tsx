@@ -77,7 +77,7 @@ export default function NewCurioForm() {
   const onSubmit = useCallback(
     async ({ content }: NewCurioFormSchema) => {
       await useHeapState.getState().addCurio(chFlag, {
-        title: null,
+        title: '',
         content: { block: [], inline: [{ link: { href: content, content } }] },
         author: window.our,
         sent: Date.now(),

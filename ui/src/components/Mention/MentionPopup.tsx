@@ -78,7 +78,7 @@ const MentionList = React.forwardRef<
                 'dropdown-item flex w-full items-center space-x-2',
                 index === selectedIndex && 'bg-gray-50'
               )}
-              onClick={() => props.command(i)}
+              onClick={() => selectItem(index)}
             >
               <Avatar size="xs" ship={i.id} />
               <ShipName name={i.id} showAlias />
