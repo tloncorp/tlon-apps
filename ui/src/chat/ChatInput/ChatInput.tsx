@@ -192,10 +192,13 @@ export default function ChatInput({
     allowMentions: true,
     onEnter: useCallback(
       ({ editor }) => {
-        onSubmit(editor);
-        return true;
+        if (subscription === 'connected') {
+          onSubmit(editor);
+          return true;
+        }
+        return false;
       },
-      [onSubmit]
+      [onSubmit, subscription]
     ),
   });
 
