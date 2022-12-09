@@ -12,29 +12,30 @@ import usePendingImports from './usePendingImports';
 interface WaitStore {
   wait: string[];
   initialized: boolean;
-  initialize: () => void;
   fetchWait: () => Promise<void>;
 }
 
 const useWaitStore = create<WaitStore>((set, get) => ({
   initialized: false,
   wait: [],
-  initialize: () => {
-    api.subscribe({
-      app: 'group-store',
-      path: '/wait',
-      event: (wait: string[]) => {
-        set({ wait });
-      },
-    });
-  },
   fetchWait: async () => {
+    if (get().initialized) {
+      return;
+    }
+
     const wait = await api.scry<string[]>({
       app: 'group-store',
       path: '/wait',
     });
 
-    set({ wait });
+    set({ wait, initialized: true });
+    api.subscribe({
+      app: 'group-store',
+      path: '/wait',
+      event: (newWait: string[]) => {
+        set((s) => ({ ...s, wait: newWait }));
+      },
+    });
   },
 }));
 
@@ -114,6 +115,10 @@ export function useStartedMigration(flag: string, onlyPending = false) {
   );
   const toCheck = onlyPending ? pendingImports : migrations;
   const pendingShips = Object.keys(toCheck).map(getNestShip);
+
+  useEffect(() => {
+    useWaitStore.getState().fetchWait();
+  }, []);
 
   return {
     hasStarted: useCallback(
