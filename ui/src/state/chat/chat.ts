@@ -28,6 +28,7 @@ import api from '@/api';
 import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
 import { useChannelFlag } from '@/hooks';
 import { useChatStore } from '@/chat/useChatStore';
+import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { ChatState } from './type';
@@ -986,6 +987,8 @@ type UnsubbedWrit = {
   writ: ChatWrit;
 };
 
+const { shouldLoad, newAttempt, finished } = getPreviewTracker();
+
 const selLoadedRefs = (s: ChatState) => s.loadedRefs;
 export function useWritByFlagAndWritId(
   chFlag: string,
@@ -997,12 +1000,15 @@ export function useWritByFlagAndWritId(
   const cached = refs[path];
 
   useEffect(() => {
-    if (!isScrolling) {
-      subscribeOnce<UnsubbedWrit>('chat', path).then(({ writ }) => {
-        useChatState.getState().batchSet((draft) => {
-          draft.loadedRefs[path] = writ;
-        });
-      });
+    if (!isScrolling && shouldLoad(path)) {
+      newAttempt(path);
+      subscribeOnce<UnsubbedWrit>('chat', path)
+        .then(({ writ }) => {
+          useChatState.getState().batchSet((draft) => {
+            draft.loadedRefs[path] = writ;
+          });
+        })
+        .finally(() => finished(path));
     }
   }, [path, isScrolling]);
 

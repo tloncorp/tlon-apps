@@ -34,6 +34,7 @@ import {
   storageVersion,
   nestToFlag,
 } from '@/logic/utils';
+import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { DiaryState } from './type';
 import makeNotesStore from './notes';
 import useSubscriptionState from '../subscription';
@@ -503,6 +504,8 @@ export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
   return diary?.view ?? 'grid';
 }
 
+const { shouldLoad, newAttempt, finished } = getPreviewTracker();
+
 const selRefs = (s: DiaryState) => s.loadedNotes;
 export function useRemoteOutline(
   flag: string,
@@ -514,12 +517,15 @@ export function useRemoteOutline(
   const cached = refs[path];
 
   useEffect(() => {
-    if (!blockLoad) {
-      subscribeOnce<DiarySaid>('diary', path).then(({ outline }) => {
-        useDiaryState.getState().batchSet((draft) => {
-          draft.loadedNotes[path] = outline;
-        });
-      });
+    if (!blockLoad && shouldLoad(path)) {
+      newAttempt(path);
+      subscribeOnce<DiarySaid>('diary', path)
+        .then(({ outline }) => {
+          useDiaryState.getState().batchSet((draft) => {
+            draft.loadedNotes[path] = outline;
+          });
+        })
+        .finally(() => finished(path));
     }
   }, [path, blockLoad]);
 

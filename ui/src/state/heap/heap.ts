@@ -29,6 +29,7 @@ import {
 } from '@/logic/utils';
 import useNest from '@/logic/useNest';
 import { intersection } from 'lodash';
+import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
 import { useVessel } from '../groups';
@@ -421,6 +422,8 @@ export function useGetLatestCurio() {
   };
 }
 
+const { shouldLoad, newAttempt, finished } = getPreviewTracker();
+
 const selRefs = (s: HeapState) => s.loadedRefs;
 export function useRemoteCurio(flag: string, time: string, blockLoad: boolean) {
   const refs = useHeapState(selRefs);
@@ -428,12 +431,15 @@ export function useRemoteCurio(flag: string, time: string, blockLoad: boolean) {
   const cached = refs[path];
 
   useEffect(() => {
-    if (!blockLoad) {
-      subscribeOnce<HeapSaid>('heap', path).then(({ curio }) => {
-        useHeapState.getState().batchSet((draft) => {
-          draft.loadedRefs[path] = curio;
-        });
-      });
+    if (!blockLoad && shouldLoad(path)) {
+      newAttempt(path);
+      subscribeOnce<HeapSaid>('heap', path)
+        .then(({ curio }) => {
+          useHeapState.getState().batchSet((draft) => {
+            draft.loadedRefs[path] = curio;
+          });
+        })
+        .finally(() => finished(path));
     }
   }, [path, blockLoad]);
 
