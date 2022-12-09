@@ -11,29 +11,30 @@ import usePendingImports from './usePendingImports';
 
 interface WaitStore {
   wait: string[];
-  initialized: boolean;
   fetchWait: () => Promise<void>;
 }
 
+let initialized = false;
 const useWaitStore = create<WaitStore>((set, get) => ({
   initialized: false,
   wait: [],
   fetchWait: async () => {
-    if (get().initialized) {
+    if (initialized) {
       return;
     }
 
+    initialized = true;
     const wait = await api.scry<string[]>({
       app: 'group-store',
       path: '/wait',
     });
 
-    set({ wait, initialized: true });
+    set({ wait });
     api.subscribe({
       app: 'group-store',
       path: '/wait',
       event: (newWait: string[]) => {
-        set((s) => ({ ...s, wait: newWait }));
+        set({ wait: newWait });
       },
     });
   },
