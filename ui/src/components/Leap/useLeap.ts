@@ -10,6 +10,7 @@ import {
 } from '@/constants';
 import { useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
+import useAppName from '@/logic/useAppName';
 import menuOptions from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
@@ -27,13 +28,18 @@ export default function useLeap() {
   const groups = useGroups();
   const contacts = useContacts();
   const location = useLocation();
+  const app = useAppName();
 
   const menu =
     inputValue === ''
       ? menuOptions.map((o, idx) => ({
           ...o,
           onSelect: () => {
-            navigate(o.to);
+            if (app === 'Groups' && o.title === 'Messages') {
+              window.open(`${window.location.origin}/apps/talk`, '_blank');
+            } else {
+              navigate(o.to);
+            }
             setIsOpen(false);
             setSelectedIndex(0);
           },
@@ -58,9 +64,13 @@ export default function useLeap() {
         )
         .map(([patp, contact], idx) => {
           const onSelect = () => {
-            modalNavigate(`/profile/${patp}`, {
-              state: { backgroundLocation: location },
-            });
+            if (app === 'Talk') {
+              navigate(`/dm/${patp}`);
+            } else {
+              modalNavigate(`/profile/${patp}`, {
+                state: { backgroundLocation: location },
+              });
+            }
             setSelectedIndex(0);
             setInputValue('');
             setIsOpen(false);
@@ -80,7 +90,7 @@ export default function useLeap() {
           };
         }),
     ];
-  }, [contacts, inputValue, location, modalNavigate]);
+  }, [app, contacts, inputValue, location, modalNavigate, navigate]);
 
   const channelResults = useMemo(() => {
     if (inputValue === '') {
@@ -170,8 +180,16 @@ export default function useLeap() {
           group.meta.title.toLowerCase().includes(inputValue.toLowerCase())
         )
         .map(([flag, group], idx) => {
+          const path = `/groups/${flag}`;
           const onSelect = () => {
-            navigate(`/groups/${flag}`);
+            if (app === 'Talk') {
+              window.open(
+                `${window.location.origin}/apps/groups${path}`,
+                '_blank'
+              );
+            } else {
+              navigate(path);
+            }
             setSelectedIndex(0);
             setInputValue('');
             setIsOpen(false);
@@ -185,7 +203,7 @@ export default function useLeap() {
                 0,
                 LEAP_DESCRIPTION_TRUNCATE_LENGTH
               ) || getFlagParts(flag).ship,
-            to: `/groups/${flag}`,
+            to: path,
             resultIndex:
               idx +
               (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
@@ -197,7 +215,14 @@ export default function useLeap() {
           };
         }),
     ];
-  }, [channelResults.length, groups, inputValue, navigate, shipResults.length]);
+  }, [
+    app,
+    channelResults.length,
+    groups,
+    inputValue,
+    navigate,
+    shipResults.length,
+  ]);
 
   // If changing the order, update the resultIndex calculations above
   const results = [
