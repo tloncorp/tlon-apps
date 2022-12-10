@@ -62,10 +62,8 @@ Each scry is organized by path
   - `/perm` grabs the permissions for the channel
   - `/curios`
     - `/newest/\{count}` grabs the last `count` curios
-    - `/older/\{start}/\{count}` grabs `count` number of curios previous, 
-    starting from `start`
-    - `/newer/\{start}/\{count}` grabs `count` number of curios ahead, 
-    starting from `start`
+    - `/older/\{start}/\{count}` grabs `count` number of curios previous, starting from `start`
+    - `/newer/\{start}/\{count}` grabs `count` number of curios ahead, starting from `start`
     - `/curio/id/\{time}` grabs the curio at the time
 
 ### subscriptions

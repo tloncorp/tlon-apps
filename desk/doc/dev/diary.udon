@@ -63,18 +63,14 @@ Each scry is organized by path
   - `/perm` grabs the permissions for the channel
   - `/notes`
     - `/newest/\{count}` grabs the last `count` notes
-    - `/older/\{start}/\{count}` grabs `count` number of notes before, 
-    starting from `start`
-    - `/newer/\{start}/\{count}` grabs `count` number of notes ahead, 
-    starting from `start`
+    - `/older/\{start}/\{count}` grabs `count` number of notes before, starting from `start`
+    - `/newer/\{start}/\{count}` grabs `count` number of notes ahead, starting from `start`
     - `/note/id/\{time}` grabs the note at the given time
   - `/quips` 
     - `/all` grabs all the comments in the map
     - `/newest/\{count}` grabs the last `count` comments
-    - `/older/\{start}/\{count}` grabs `count` number of comments before, 
-    starting from `start`
-    - `/newer/\{start}/\{count}` grabs `count` number of comments ahead, 
-    starting from `start`
+    - `/older/\{start}/\{count}` grabs `count` number of comments before, starting from `start`
+    - `/newer/\{start}/\{count}` grabs `count` number of comments ahead, starting from `start`
     - `/quip/id/\{time}` grabs the comment at the time
 
 ### subscriptions
