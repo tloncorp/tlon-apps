@@ -39,11 +39,15 @@ export default function Leap() {
         event.preventDefault();
         if (selectedIndex < resultCount - 1) {
           setSelectedIndex((idx) => idx + 1);
+        } else {
+          setSelectedIndex((_idx) => 0);
         }
       } else if (event.key === 'ArrowUp') {
         event.preventDefault();
         if (selectedIndex > 0) {
           setSelectedIndex((idx) => idx - 1);
+        } else {
+          setSelectedIndex((_idx) => resultCount - 1);
         }
       } else if (event.key === 'Enter') {
         const result = results

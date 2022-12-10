@@ -67,7 +67,9 @@ export default function useLeap() {
           return {
             onSelect,
             icon: PersonIcon,
-            title: cite(patp),
+            title: contact.nickname
+              ? `${contact.nickname} (${cite(patp)})`
+              : cite(patp),
             subtitle: (contact.status || contact.bio || '').slice(
               0,
               LEAP_DESCRIPTION_TRUNCATE_LENGTH
@@ -144,7 +146,10 @@ export default function useLeap() {
               ) || group.meta.title,
             to: `/groups/${groupFlag}/channels/chat/${chFlag}`,
             resultIndex:
-              idx + (shipResults.length > 0 ? shipResults.length - 1 : 0),
+              idx +
+              (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
+                ? LEAP_RESULT_TRUNCATE_SIZE
+                : shipResults.length - 1),
           };
         }),
     ];
@@ -182,8 +187,12 @@ export default function useLeap() {
             to: `/groups/${flag}`,
             resultIndex:
               idx +
-              (shipResults.length > 0 ? shipResults.length - 1 : 0) +
-              (channelResults.length > 0 ? channelResults.length - 1 : 0), // -1 for channel result Section header
+              (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
+                ? LEAP_RESULT_TRUNCATE_SIZE
+                : shipResults.length - 1) +
+              (channelResults.length > LEAP_RESULT_TRUNCATE_SIZE
+                ? LEAP_RESULT_TRUNCATE_SIZE
+                : channelResults.length - 1),
           };
         }),
     ];
