@@ -68,6 +68,7 @@ export default function ChatThread() {
       </header>
       <div className="flex flex-1 flex-col px-2 py-0">
         <ChatScroller
+          key={idTime}
           messages={thread}
           whom={whom}
           scrollerRef={scrollerRef}

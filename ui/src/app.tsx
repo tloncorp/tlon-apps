@@ -80,6 +80,7 @@ import MobileGroupsActions from './groups/MobileGroupsActions';
 import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
 import Leap from './components/Leap/Leap';
+import { useStorage } from './state/storage';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -448,6 +449,7 @@ function App() {
       fetchAll();
 
       useContactState.getState().initialize(api);
+      useStorage.getState().initialize(api);
     })();
   }, [handleError]);
 

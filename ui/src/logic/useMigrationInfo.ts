@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { getNestShip, isChannelImported } from './utils';
 import asyncCallWithTimeout from './asyncWithTimeout';
 import usePendingImports from './usePendingImports';
+import { getPreviewTracker } from './subscriptionTracking';
 
 interface WaitStore {
   wait: string[];
@@ -49,7 +50,8 @@ interface PreviewCheck {
   attempted: number;
 }
 
-const tracked: Record<string, PreviewCheck> = {};
+const { shouldLoad, newAttempt, finished } = getPreviewTracker();
+
 const isOurs = (nest: string) => getNestShip(nest) === window.our;
 
 export function useCheckUnjoinedMigrations(
@@ -62,29 +64,14 @@ export function useCheckUnjoinedMigrations(
 
   useEffect(() => {
     Object.entries(unjoined).forEach(([k, v]) => {
-      const { attempted, inProgress } = tracked[k] || {
-        inProgress: false,
-        attempted: 0,
-      };
-      const pastWaiting = Date.now() - attempted >= 10 * 60 * 1000; // wait 10 mins
-
-      if (
-        !isOurs(k) &&
-        !(k in previews) &&
-        !inProgress &&
-        pastWaiting &&
-        !disable
-      ) {
-        tracked[k] = {
-          inProgress: true,
-          attempted: Date.now(),
-        };
+      if (!isOurs(k) && !(k in previews) && shouldLoad(k) && !disable) {
+        newAttempt(k);
 
         asyncCallWithTimeout(
           useGroupState.getState().channelPreview(k),
           10 * 1000
         ).finally(() => {
-          tracked[k].inProgress = false;
+          finished(k);
         });
       }
     });

@@ -6,6 +6,7 @@ import { useContact } from '@/state/contact';
 import Avatar from '@/components/Avatar';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import ShipName from '@/components/ShipName';
+import useAppName from '@/logic/useAppName';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
@@ -14,6 +15,7 @@ export default function ProfileModal() {
   const { ship } = useParams();
   const { doCopy, didCopy } = useCopy(ship || '');
   const navigate = useNavigate();
+  const app = useAppName();
   const contact = useContact(ship ? ship : '');
   const cover = contact?.cover || '';
   const dismiss = useDismissNavigate();
@@ -33,7 +35,12 @@ export default function ProfileModal() {
   };
 
   const handleMessageClick = () => {
-    navigate(`/dm/${ship}`);
+    if (app === 'Groups') {
+      const href = `/apps/talk/dm/${ship}`;
+      window.open(`${window.location.origin}${href}`, '_blank');
+    } else {
+      navigate(`/dm/${ship}`);
+    }
   };
 
   const handleCopyClick = () => {

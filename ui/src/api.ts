@@ -38,7 +38,7 @@ async function setupAPI() {
   if (!client) {
     const api = new Urbit('', '', window.desk);
     api.ship = window.ship;
-    api.verbose = true;
+    api.verbose = import.meta.env.DEV;
     client = api;
   }
 
