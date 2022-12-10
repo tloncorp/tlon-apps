@@ -53,7 +53,8 @@ export default function useLeap() {
       ...Object.entries(contacts)
         .filter(
           ([patp, contact]) =>
-            patp.includes(inputValue) || contact.nickname.includes(inputValue)
+            patp.toLowerCase().includes(inputValue.toLowerCase()) ||
+            contact.nickname.toLowerCase().includes(inputValue.toLowerCase())
         )
         .map(([patp, contact], idx) => {
           const onSelect = () => {
