@@ -1,6 +1,6 @@
 import { isValidPatp } from 'urbit-ob';
 import classNames from 'classnames';
-import React, { CSSProperties } from 'react';
+import React, { CSSProperties, useState } from 'react';
 import { sigil as sigilRaw, reactRenderer } from '@tlon/sigil-js';
 import { deSig, Contact, cite } from '@urbit/api';
 import _ from 'lodash';
@@ -22,6 +22,7 @@ interface AvatarProps {
     previewColor?: string;
     previewAvatar?: string;
   };
+  loadImage?: boolean;
 }
 
 interface AvatarMeta {
@@ -135,8 +136,11 @@ export default function Avatar({
   className,
   style,
   icon = true,
+  loadImage = true,
   previewData,
 }: AvatarProps) {
+  const [loaded, setLoaded] = useState(false);
+  const showImage = loadImage || loaded;
   const currentTheme = useCurrentTheme();
   const contact = useContact(ship);
   const calm = useCalm();
@@ -159,6 +163,7 @@ export default function Avatar({
   );
 
   if (
+    showImage &&
     previewAvatarIsValid &&
     !calm.disableRemoteContent &&
     !calm.disableAvatars
@@ -169,17 +174,24 @@ export default function Avatar({
         src={previewAvatar}
         alt=""
         style={style}
+        onLoad={() => setLoaded(true)}
       />
     );
   }
 
-  if (avatar && !calm.disableRemoteContent && !calm.disableAvatars) {
+  if (
+    avatar &&
+    showImage &&
+    !calm.disableRemoteContent &&
+    !calm.disableAvatars
+  ) {
     return (
       <img
         className={classNames(className, classes, 'object-cover')}
         src={avatar}
         alt=""
         style={style}
+        onLoad={() => setLoaded(true)}
       />
     );
   }

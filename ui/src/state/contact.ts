@@ -128,7 +128,7 @@ const useContactState = createState<BaseContactState>(
       await api.poke(pokeSetPublic(isPublic));
     },
   },
-  ['nackedContacts'],
+  ['contacts'],
   [
     (set, get) =>
       createSubscription('contact-pull-hook', '/nacks', (e) => {

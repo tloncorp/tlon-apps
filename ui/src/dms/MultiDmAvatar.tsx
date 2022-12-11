@@ -1,6 +1,6 @@
 import GroupAvatar from '@/groups/GroupAvatar';
 import cn from 'classnames';
-import React from 'react';
+import React, { useState } from 'react';
 import { isColor } from '@/logic/utils';
 import PeopleIcon from '../components/icons/PeopleIcon';
 
@@ -12,6 +12,7 @@ interface MultiDmAvatarProps {
   size?: MultiDmAvatarSize;
   className?: string;
   title?: string;
+  loadImage?: boolean;
 }
 
 const sizeMap = {
@@ -39,15 +40,30 @@ export default function MultiDmAvatar({
   size = 'default',
   className,
   title,
+  loadImage = true,
 }: MultiDmAvatarProps) {
+  const [loaded, setLoaded] = useState(false);
+  const showImage = loaded || loadImage;
+
   if (image && isColor(image)) {
     return (
-      <GroupAvatar size={sizeMap[size].size} image={image} title={title} />
+      <GroupAvatar
+        size={sizeMap[size].size}
+        image={image}
+        title={title}
+        loadImage={loadImage}
+      />
     );
   }
 
-  if (image) {
-    return <img className={cn(sizeMap[size].size, className)} src={image} />;
+  if (image && showImage) {
+    return (
+      <img
+        className={cn(sizeMap[size].size, className)}
+        src={image}
+        onLoad={() => setLoaded(true)}
+      />
+    );
   }
 
   return (
