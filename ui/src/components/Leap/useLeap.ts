@@ -127,7 +127,7 @@ export default function useLeap() {
         .map(({ groupFlag, group, channel, nest }, idx) => {
           const [chType, chFlag] = nestToFlag(nest);
           const onSelect = () => {
-            navigate(`/groups/${groupFlag}/channels/chat/${chFlag}`);
+            navigate(`/groups/${groupFlag}/channels/${nest}`);
             setSelectedIndex(0);
             setInputValue('');
             setIsOpen(false);
