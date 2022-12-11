@@ -6,9 +6,10 @@ import { deSig, Contact, cite } from '@urbit/api';
 import _ from 'lodash';
 import { darken, lighten, parseToHsla } from 'color2k';
 import { useCalm } from '@/state/settings';
-import { useCurrentTheme } from '../state/local';
-import { normalizeUrbitColor, isValidUrl } from '../logic/utils';
-import { useContact } from '../state/contact';
+import { useCurrentTheme } from '@/state/local';
+import { normalizeUrbitColor, isValidUrl } from '@/logic/utils';
+import { useContact } from '@/state/contact';
+import { useAvatar } from '@/state/avatar';
 
 export type AvatarSizes = 'xs' | 'small' | 'default' | 'huge';
 
@@ -139,8 +140,6 @@ export default function Avatar({
   loadImage = true,
   previewData,
 }: AvatarProps) {
-  const [loaded, setLoaded] = useState(false);
-  const showImage = loadImage || loaded;
   const currentTheme = useCurrentTheme();
   const contact = useContact(ship);
   const calm = useCalm();
@@ -148,6 +147,10 @@ export default function Avatar({
   const previewAvatarIsValid =
     previewAvatar && previewAvatar !== null && isValidUrl(previewAvatar);
   const { color, avatar } = contact || emptyContact;
+  const { hasLoaded, load } = useAvatar(
+    (previewAvatarIsValid ? previewAvatar : avatar) || ''
+  );
+  const showImage = loadImage || hasLoaded;
   const { classes, size: sigilSize } = sizeMap[size];
   const adjustedColor = themeAdjustColor(
     normalizeUrbitColor(previewColor || color),
@@ -174,7 +177,7 @@ export default function Avatar({
         src={previewAvatar}
         alt=""
         style={style}
-        onLoad={() => setLoaded(true)}
+        onLoad={load}
       />
     );
   }
@@ -191,7 +194,7 @@ export default function Avatar({
         src={avatar}
         alt=""
         style={style}
-        onLoad={() => setLoaded(true)}
+        onLoad={load}
       />
     );
   }

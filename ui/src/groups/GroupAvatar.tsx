@@ -4,6 +4,7 @@ import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import { isColor } from '@/logic/utils';
 import { useIsDark } from '@/logic/useMedia';
 import { useCalm } from '@/state/settings';
+import { useAvatar } from '@/state/avatar';
 
 interface GroupAvatarProps {
   image?: string;
@@ -40,8 +41,8 @@ export default function GroupAvatar({
   title,
   loadImage = true,
 }: GroupAvatarProps) {
-  const [loaded, setLoaded] = useState(false);
-  const showImage = loaded || loadImage;
+  const { hasLoaded, load } = useAvatar(image || '');
+  const showImage = hasLoaded || loadImage;
   const dark = useIsDark();
   const calm = useCalm();
   let background;
@@ -53,11 +54,7 @@ export default function GroupAvatar({
   }
 
   return image && showImage && !calm.disableRemoteContent && !isColor(image) ? (
-    <img
-      className={cn('rounded', size, className)}
-      src={image}
-      onLoad={() => setLoaded(true)}
-    />
+    <img className={cn('rounded', size, className)} src={image} onLoad={load} />
   ) : (
     <ColorBoxIcon
       className={cn('rounded', size, textSize(size), className)}
