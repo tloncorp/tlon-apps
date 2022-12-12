@@ -12,6 +12,7 @@ import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 import MultiDmAvatar from './MultiDmAvatar';
 import { whomIsDm, whomIsMultiDm } from '../logic/utils';
+import { useMessagesScrolling } from './MessagesScrollingContext';
 
 interface MessagesSidebarItemProps {
   whom: string;
@@ -31,6 +32,7 @@ function ChannelSidebarItem({
   )?.[0];
   const channel = useChannel(groupFlag || '', nest);
   const group = useGroup(groupFlag || '');
+  const isScrolling = useMessagesScrolling();
 
   if (!channel) {
     return null;
@@ -39,7 +41,13 @@ function ChannelSidebarItem({
   return (
     <SidebarItem
       to={`/groups/${groupFlag}/channels/${nest}`}
-      icon={<GroupAvatar size="h-12 w-12 sm:h-6 sm:w-6" {...group?.meta} />}
+      icon={
+        <GroupAvatar
+          size="h-12 w-12 sm:h-6 sm:w-6"
+          {...group?.meta}
+          loadImage={!isScrolling}
+        />
+      }
       actions={<DmOptions whom={whom} pending={!!pending} />}
     >
       {channel.meta.title}
@@ -49,11 +57,18 @@ function ChannelSidebarItem({
 
 function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
   const isMobile = useIsMobile();
+  const isScrolling = useMessagesScrolling();
 
   return (
     <SidebarItem
       to={`/dm/${whom}`}
-      icon={<Avatar size={isMobile ? 'default' : 'xs'} ship={whom} />}
+      icon={
+        <Avatar
+          size={isMobile ? 'default' : 'xs'}
+          ship={whom}
+          loadImage={!isScrolling}
+        />
+      }
       actions={<DmOptions whom={whom} pending={!!pending} />}
     >
       <ShipName
@@ -74,6 +89,7 @@ export function MultiDMSidebarItem({
   const club = useMultiDm(whom);
   const allMembers = club?.team.concat(club.hive);
   const groupName = club?.meta.title || allMembers?.join(', ') || whom;
+  const isScrolling = useMessagesScrolling();
 
   if (club && !allMembers?.includes(window.our)) {
     return null;
@@ -90,6 +106,7 @@ export function MultiDMSidebarItem({
             {...club?.meta}
             title={groupName}
             size={isMobile ? 'default' : 'xs'}
+            loadImage={!isScrolling}
           />
         )
       }

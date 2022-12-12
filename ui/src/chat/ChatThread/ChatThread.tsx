@@ -75,7 +75,7 @@ export default function ChatThread() {
           replying
         />
       </div>
-      <div className="sticky bottom-0 z-10 border-t-2 border-gray-50 bg-white p-4">
+      <div className="sticky bottom-0 border-t-2 border-gray-50 bg-white p-4">
         <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />
       </div>
     </div>

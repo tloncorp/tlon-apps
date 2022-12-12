@@ -54,12 +54,13 @@ export function useRecentSort() {
  * @returns an object with sorting functions to be consumed in view components
  */
 export default function useSidebarSort({
+  defaultSort,
   sortOptions,
   flag = '~',
 }: UseSidebarSort) {
   const { sideBarSort } = useSettingsState(selSideBarSort);
   const groupSideBarSort = useGroupSideBarSort();
-  const sortFn = groupSideBarSort[flag] || sideBarSort;
+  const sortFn = defaultSort || groupSideBarSort[flag] || sideBarSort;
 
   const setSideBarSort = (mode: string) => {
     useSettingsState.getState().putEntry('groups', 'sideBarSort', mode);
