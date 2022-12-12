@@ -17,7 +17,7 @@ let numLoads = 0;
 export type StorageState = BaseStorageState & BaseState<BaseStorageState>;
 
 export const useStorage = createState<BaseStorageState>(
-  'Settings',
+  'Storage',
   (set, get) => ({
     loaded: false,
     hasCredentials: false,
@@ -51,7 +51,7 @@ export const useStorage = createState<BaseStorageState>(
       credentials: null,
     },
   }),
-  ['loaded', 's3', 'gcp'],
+  [],
   [
     (set, get) =>
       createSubscription('s3-store', '/all', (e) => {

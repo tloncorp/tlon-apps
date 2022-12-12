@@ -1,14 +1,15 @@
 import { isValidPatp } from 'urbit-ob';
 import classNames from 'classnames';
-import React, { CSSProperties } from 'react';
+import React, { CSSProperties, useState } from 'react';
 import { sigil as sigilRaw, reactRenderer } from '@tlon/sigil-js';
 import { deSig, Contact, cite } from '@urbit/api';
 import _ from 'lodash';
 import { darken, lighten, parseToHsla } from 'color2k';
 import { useCalm } from '@/state/settings';
-import { useCurrentTheme } from '../state/local';
-import { normalizeUrbitColor, isValidUrl } from '../logic/utils';
-import { useContact } from '../state/contact';
+import { useCurrentTheme } from '@/state/local';
+import { normalizeUrbitColor, isValidUrl } from '@/logic/utils';
+import { useContact } from '@/state/contact';
+import { useAvatar } from '@/state/avatar';
 
 export type AvatarSizes = 'xs' | 'small' | 'default' | 'huge';
 
@@ -22,6 +23,7 @@ interface AvatarProps {
     previewColor?: string;
     previewAvatar?: string;
   };
+  loadImage?: boolean;
 }
 
 interface AvatarMeta {
@@ -135,6 +137,7 @@ export default function Avatar({
   className,
   style,
   icon = true,
+  loadImage = true,
   previewData,
 }: AvatarProps) {
   const currentTheme = useCurrentTheme();
@@ -144,6 +147,10 @@ export default function Avatar({
   const previewAvatarIsValid =
     previewAvatar && previewAvatar !== null && isValidUrl(previewAvatar);
   const { color, avatar } = contact || emptyContact;
+  const { hasLoaded, load } = useAvatar(
+    (previewAvatarIsValid ? previewAvatar : avatar) || ''
+  );
+  const showImage = loadImage || hasLoaded;
   const { classes, size: sigilSize } = sizeMap[size];
   const adjustedColor = themeAdjustColor(
     normalizeUrbitColor(previewColor || color),
@@ -159,6 +166,7 @@ export default function Avatar({
   );
 
   if (
+    showImage &&
     previewAvatarIsValid &&
     !calm.disableRemoteContent &&
     !calm.disableAvatars
@@ -169,17 +177,24 @@ export default function Avatar({
         src={previewAvatar}
         alt=""
         style={style}
+        onLoad={load}
       />
     );
   }
 
-  if (avatar && !calm.disableRemoteContent && !calm.disableAvatars) {
+  if (
+    avatar &&
+    showImage &&
+    !calm.disableRemoteContent &&
+    !calm.disableAvatars
+  ) {
     return (
       <img
         className={classNames(className, classes, 'object-cover')}
         src={avatar}
         alt=""
         style={style}
+        onLoad={load}
       />
     );
   }

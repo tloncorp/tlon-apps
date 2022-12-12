@@ -785,9 +785,16 @@ export const useGroupState = create<GroupState>(
       name: createStorageKey('groups'),
       version: storageVersion,
       migrate: clearStorageMigration,
-      partialize: (state) => ({
-        groups: state.groups,
-      }),
+      merge: (persisted, current) => _.merge(current, persisted),
+      partialize: (state) => {
+        const groups = _.mapValues(state.groups, ({ fleet, ...group }) => ({
+          ...group,
+          fleet: {},
+        }));
+        return {
+          groups,
+        };
+      },
     }
   )
 );

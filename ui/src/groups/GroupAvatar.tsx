@@ -1,15 +1,17 @@
 import cn from 'classnames';
-import React from 'react';
+import React, { useState } from 'react';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import { isColor } from '@/logic/utils';
 import { useIsDark } from '@/logic/useMedia';
 import { useCalm } from '@/state/settings';
+import { useAvatar } from '@/state/avatar';
 
 interface GroupAvatarProps {
   image?: string;
   size?: string;
   className?: string;
   title?: string;
+  loadImage?: boolean;
 }
 
 const textSize = (size: string) => {
@@ -37,24 +39,27 @@ export default function GroupAvatar({
   size = 'h-6 w-6',
   className,
   title,
+  loadImage = true,
 }: GroupAvatarProps) {
+  const { hasLoaded, load } = useAvatar(image || '');
+  const showImage = hasLoaded || loadImage;
   const dark = useIsDark();
   const calm = useCalm();
   let background;
 
-  if (!calm.disableRemoteContent) {
+  if (showImage && !calm.disableRemoteContent) {
     background = image || (dark ? '#333333' : '#E5E5E5');
   } else {
     background = dark ? '#333333' : '#E5E5E5';
   }
 
-  return image && !calm.disableRemoteContent && !isColor(image) ? (
-    <img className={cn('rounded', size, className)} src={image} />
+  return image && showImage && !calm.disableRemoteContent && !isColor(image) ? (
+    <img className={cn('rounded', size, className)} src={image} onLoad={load} />
   ) : (
     <ColorBoxIcon
       className={cn('rounded', size, textSize(size), className)}
       color={background}
-      letter={title ? title.charAt(0) : ''}
+      letter={title ? Array.from(title)[0] : ''}
     />
   );
 }
