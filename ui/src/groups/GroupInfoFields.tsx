@@ -10,7 +10,6 @@ import { GroupMeta } from '@/types/groups';
 
 export default function GroupInfoFields() {
   const { register, watch } = useFormContext<GroupMeta>();
-  const [iconLetter, setIconLetter] = useState<string>();
   const [iconType, setIconType] = useState<ImageOrColorFieldState>('color');
   const [coverType, setCoverType] = useState<ImageOrColorFieldState>('color');
   const watchImage = watch('image');
@@ -19,12 +18,6 @@ export default function GroupInfoFields() {
   const showEmpty = iconType === 'image' && !isValidUrl(watchImage);
   const showCoverEmpty = coverType === 'image' && !isValidUrl(watchCover);
   const calm = useCalm();
-
-  useEffect(() => {
-    if (iconType === 'color' && watchTitle !== '') {
-      setIconLetter((watchTitle as string).slice(0, 1));
-    }
-  }, [iconType, watchTitle]);
 
   return (
     <>
@@ -49,7 +42,6 @@ export default function GroupInfoFields() {
             watchImage={watchImage}
             watchTitle={watchTitle}
             watchCover={watchCover}
-            iconLetter={iconLetter}
             coverType={coverType}
             showCoverEmpty={showCoverEmpty}
           />
