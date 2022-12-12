@@ -237,12 +237,15 @@ export const useChatState = createState<ChatState>(
             draft.briefs[whom] = brief;
           });
 
-          const { unread, atBottom, current } = useChatStore.getState();
+          const { read, unread, atBottom, chats, current } =
+            useChatStore.getState();
           const isUnread = brief.count > 0 && brief['read-id'];
           if (isUnread && current === whom && atBottom) {
             get().markRead(whom);
           } else if (isUnread) {
             unread(whom, brief);
+          } else if (!isUnread && chats[whom]?.unread?.readTimeout === 0) {
+            read(whom);
           }
         },
       });
