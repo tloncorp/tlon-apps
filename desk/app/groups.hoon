@@ -148,6 +148,7 @@
     =+  !<(=join:g vase)
     =/  =gang:g  (~(gut by xeno) flag.join [~ ~ ~])
     =/  =claim:g  [join-all.join %adding]
+    ?<  (~(has by xeno) flag.join)
     =.  cam.gang  `claim
     =.  xeno  (~(put by xeno) flag.join gang)
     ga-abet:ga-start-join:(ga-abed:gang-core flag.join)
