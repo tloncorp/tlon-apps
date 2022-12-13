@@ -242,6 +242,7 @@
   ++  join
     |=  =flag:c
     ^+  cor
+    ?<  (~(has by chats) flag)
     =.  chats  (~(put by chats) flag *chat:c)
     ca-abet:(ca-join:ca-core flag)
   ::
