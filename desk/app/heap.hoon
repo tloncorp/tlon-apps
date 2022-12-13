@@ -137,6 +137,7 @@
   ++  join
     |=  =flag:h
     ^+  cor
+    ?<  (~(has by stash) flag)
     =.  stash  (~(put by stash) flag *heap:h)
     he-abet:(he-join:he-core flag)
   ::

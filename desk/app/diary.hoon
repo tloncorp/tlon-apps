@@ -198,6 +198,7 @@
   ++  join
     |=  =flag:d
     ^+  cor
+    ?<  (~(has by shelf) flag)
     =.  shelf  (~(put by shelf) flag *diary:d)
     di-abet:(di-join:di-core flag)
   ::
