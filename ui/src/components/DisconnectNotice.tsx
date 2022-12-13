@@ -1,19 +1,11 @@
 import React from 'react';
-import api from '@/api';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
-import { useGroupState } from '@/state/groups';
-import { useChatState } from '@/state/chat';
-import { useHeapState } from '@/state/heap/heap';
-import { useDiaryState } from '@/state/diary';
-import useHarkState from '@/state/hark';
-import { useSettingsState } from '@/state/settings';
-import useContactState from '@/state/contact';
 import {
   useErrorCount,
   useLocalState,
   useSubscriptionStatus,
 } from '@/state/local';
-import { useStorage } from '@/state/storage';
+import bootstrap from '@/state/bootstrap';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export default function DisconnectNotice() {
@@ -23,20 +15,7 @@ export default function DisconnectNotice() {
   function onClick() {
     if (errorCount < 3) {
       useLocalState.setState({ subscription: 'reconnecting' });
-      useGroupState.getState().start();
-      useChatState.getState().start();
-      useHeapState.getState().start();
-      useDiaryState.getState().start();
-
-      useChatState.getState().fetchDms();
-      useHarkState.getState().start();
-      const { initialize: settingsInitialize, fetchAll } =
-        useSettingsState.getState();
-      settingsInitialize(api);
-      fetchAll();
-
-      useContactState.getState().initialize(api);
-      useStorage.getState().initialize(api);
+      bootstrap();
     } else {
       window.location.reload();
     }

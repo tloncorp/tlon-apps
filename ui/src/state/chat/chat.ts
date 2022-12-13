@@ -723,7 +723,7 @@ export const useChatState = createState<ChatState>(
       ).initialize();
     },
   }),
-  ['multiDms', 'pins'],
+  ['chats', 'dms', 'pendingDms', 'briefs', 'multiDms', 'pins'],
   []
 );
 
