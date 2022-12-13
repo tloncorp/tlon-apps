@@ -68,7 +68,7 @@ At the moment, Groups and Talk both make use of `%settings-store`, `%s3-store`,
 and `%contact-store` agents in the `%landscape` desk (the historical name for
 the Groups 1 app). We will eventually distribute these as part of the base
 `%garden` desk (the system launcher UI we now call Landscape). Finally, we will
-rename `%garden` to `%landscape`, reducing confusion everywhere).
+rename `%garden` to `%landscape`, reducing confusion everywhere.
 
 We have plans to replace `%contact-store`with a Groups agent (and standalone
 contact + identity management app) on the tails of Tlon core devs’ [subscription
