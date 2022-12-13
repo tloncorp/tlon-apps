@@ -30,30 +30,6 @@ images, media, and even random musings.
 
 ---
 
-## Slated for launch
-
-Groups and Talk are under active development with a full 1.0 release date in
-sight. Notebook and Gallery will be released as channels in Groups, with full
-standalone apps coming later (see list below). 
-
-We are currently working on:
-
-- A clean, error-free migration of Groups 1 data
-- Secret, invite-only groups
-- Mobile-responsive layout and interaction fixes
-- @mentions
-
-## Coming later
-
-- Arrangeable ordering in Notebooks and Gallery
-- Blocking users in Talk
-- Rich embeds of web2 content
-- Content search within channels
-- Standalone Notebook, Gallery, and Contacts apps in Landscape
-- Remote storage updates
-- Group discovery and user onboarding updates
-
----
 ## Developer documentation
 
 This project uses the [formal comment
@@ -89,9 +65,9 @@ for more details.
 ## Use of current-day Landscape agents
 
 At the moment, Groups and Talk both make use of `%settings-store`, `%s3-store`,
-and `%contact-store` agents in the `%landscape` desk. We will eventually
-distribute these as part of the base `%garden` desk (and finally rename
-`%garden` to `%landscape`, reducing confusion everywhere).
+and `%contact-store` agents in the `%landscape` desk (the poorly named desk for old groups). We will eventually
+distribute these as part of the base `%garden` desk (the desk for the main app UI we now call landscape). 
+Finally we will rename `%garden` to `%landscape`, reducing confusion everywhere).
 
 We have plans to replace `%contact-store`with a Groups agent (and standalone
 contact + identity management app) on the tails of Tlon core devs’ [subscription
