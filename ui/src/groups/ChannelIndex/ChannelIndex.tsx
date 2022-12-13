@@ -33,6 +33,7 @@ import usePendingImports from '@/logic/usePendingImports';
 import MigrationTooltip from '@/components/MigrationTooltip';
 import { useStartedMigration } from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
+import EditChannelModal from '../GroupAdmin/AdminChannels/EditChannelModal';
 
 const UNZONED = 'default';
 
@@ -56,6 +57,7 @@ function GroupChannel({
   const isChannelHost = useIsChannelHost(flag);
   const isAdmin = useAmAdmin(groupFlag);
   const navigate = useNavigate();
+  const [editIsOpen, setEditIsOpen] = useState(false);
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -87,10 +89,6 @@ function GroupChannel({
     },
     [_app]
   );
-
-  const editChannel = useCallback(() => {
-    navigate(`/groups/${flag}/info/channels`);
-  }, [flag, navigate]);
 
   const joinChannel = useCallback(async () => {
     try {
@@ -176,50 +174,58 @@ function GroupChannel({
             </button>
           </MigrationTooltip>
         ) : joined ? (
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild className="appearance-none">
-              <button className="button bg-green-soft text-green mix-blend-multiply dark:bg-green-900 dark:mix-blend-screen hover:dark:bg-green-800">
-                <span className="mr-1">Joined</span>{' '}
-                <CaretDown16Icon className="h-4 w-4" />
-              </button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content className="dropdown">
-              {/* TODO: un-disable this once channel mutes are complete */}
-              <DropdownMenu.Item
-                onSelect={muteChannel}
-                className="dropdown-item disabled flex items-center space-x-2 hover:bg-transparent"
-              >
-                <BulletIcon className="h-6 w-6 text-gray-400" />
-                <span className="text-gray-400">Mute Channel</span>
-              </DropdownMenu.Item>
-              {/* TODO: un-disable this once mentions and mutes are complete */}
-              <DropdownMenu.Item
-                onSelect={muteChannel}
-                className="dropdown-item disabled flex items-center space-x-2 hover:bg-transparent"
-              >
-                <BulletIcon className="h-6 w-6 text-gray-400" />
-                <span className="text-gray-400">Mute Mentions</span>
-              </DropdownMenu.Item>
-              {isAdmin ? (
+          <>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild className="appearance-none">
+                <button className="button bg-green-soft text-green mix-blend-multiply dark:bg-green-900 dark:mix-blend-screen hover:dark:bg-green-800">
+                  <span className="mr-1">Joined</span>{' '}
+                  <CaretDown16Icon className="h-4 w-4" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content className="dropdown">
+                {/* TODO: un-disable this once channel mutes are complete */}
                 <DropdownMenu.Item
-                  onSelect={editChannel}
-                  className="dropdown-item flex items-center space-x-2"
+                  onSelect={muteChannel}
+                  className="dropdown-item disabled flex items-center space-x-2 hover:bg-transparent"
                 >
-                  <PencilIcon className="m-1.5 h-3 w-3 fill-gray-500" />
-                  <span>Edit Channel</span>
+                  <BulletIcon className="h-6 w-6 text-gray-400" />
+                  <span className="text-gray-400">Mute Channel</span>
                 </DropdownMenu.Item>
-              ) : null}
-              {!isChannelHost ? (
+                {/* TODO: un-disable this once mentions and mutes are complete */}
                 <DropdownMenu.Item
-                  onSelect={leaveChannel}
-                  className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+                  onSelect={muteChannel}
+                  className="dropdown-item disabled flex items-center space-x-2 hover:bg-transparent"
                 >
-                  <LeaveIcon className="h-6 w-6" />
-                  <span>Leave Channel</span>
+                  <BulletIcon className="h-6 w-6 text-gray-400" />
+                  <span className="text-gray-400">Mute Mentions</span>
                 </DropdownMenu.Item>
-              ) : null}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+                {isAdmin ? (
+                  <DropdownMenu.Item
+                    onSelect={() => setEditIsOpen(!editIsOpen)}
+                    className="dropdown-item flex items-center space-x-2"
+                  >
+                    <PencilIcon className="m-1.5 h-3 w-3 fill-gray-500" />
+                    <span>Edit Channel</span>
+                  </DropdownMenu.Item>
+                ) : null}
+                {!isChannelHost ? (
+                  <DropdownMenu.Item
+                    onSelect={leaveChannel}
+                    className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+                  >
+                    <LeaveIcon className="h-6 w-6" />
+                    <span>Leave Channel</span>
+                  </DropdownMenu.Item>
+                ) : null}
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+            <EditChannelModal
+              editIsOpen={editIsOpen}
+              setEditIsOpen={setEditIsOpen}
+              nest={nest}
+              channel={channel}
+            />
+          </>
         ) : (
           <button
             disabled={isPending}
