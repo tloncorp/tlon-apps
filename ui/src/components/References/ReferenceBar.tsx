@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
 import ChannelIcon from '@/channels/ChannelIcon';
+import { nestToFlag } from '@/logic/utils';
+import useAppName from '@/logic/useAppName';
 
 export default function ReferenceBar({
   nest,
@@ -26,17 +28,23 @@ export default function ReferenceBar({
   unSubbed?: boolean;
 }) {
   const groupFlagOrZod = groupFlag || '~zod/test';
+  const [nestApp] = nestToFlag(nest);
+  const app = useAppName();
 
   const navigate = useNavigate();
   const unix = new Date(daToUnix(time));
 
   const navigateToChannel = useCallback(() => {
     if (unSubbed) {
+      // TODO: hook this up to the Join Channel Modal
       console.log('join channel modal');
+    } else if (app === 'Talk' && (nestApp === 'diary' || nestApp === 'heap')) {
+      const href = `/apps/groups/groups/${groupFlagOrZod}/channels/${nest}`;
+      window.open(`${window.location.origin}${href}`, '_blank');
     } else {
       navigate(`/groups/${groupFlagOrZod}/channels/${nest}`);
     }
-  }, [navigate, nest, groupFlagOrZod, unSubbed]);
+  }, [navigate, nest, groupFlagOrZod, unSubbed, app, nestApp]);
 
   return (
     <div
