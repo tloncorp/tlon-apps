@@ -12,7 +12,6 @@ interface GroupInfoPreviewProps {
   watchImage: string;
   watchCover: string;
   watchTitle: string;
-  iconLetter: string | undefined;
   coverType: ImageOrColorFieldState;
   showCoverEmpty: boolean;
 }
@@ -24,7 +23,6 @@ export default function GroupInfoPreview({
   watchCover,
   watchTitle,
   watchImage,
-  iconLetter,
   showCoverEmpty,
 }: GroupInfoPreviewProps) {
   return (
@@ -49,15 +47,12 @@ export default function GroupInfoPreview({
       <div className="relative flex w-full flex-col justify-between p-2 text-lg sm:text-base">
         <div className="flex items-center space-x-2">
           <div className="flex items-center">
-            {iconType === 'color' ? (
-              <ColorBoxIcon
-                className="h-6 w-6 text-lg"
-                color={watchImage ? watchImage : '#999999'}
-                letter={iconLetter ? iconLetter : 'T'}
+            {iconType === 'color' || isValidUrl(watchImage) ? (
+              <GroupAvatar
+                title={watchTitle}
+                size=" h-6 w-6"
+                image={watchImage}
               />
-            ) : null}
-            {iconType === 'image' && isValidUrl(watchImage) ? (
-              <GroupAvatar size=" h-6 w-6" image={watchImage} />
             ) : null}
             {showEmpty ? (
               <EmptyIconBox className=" h-6 w-6 text-gray-300" />
