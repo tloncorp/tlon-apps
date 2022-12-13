@@ -46,6 +46,7 @@ export default function GroupAvatar({
   const dark = useIsDark();
   const calm = useCalm();
   let background;
+  const symbols = [...(title || '')];
 
   if (showImage && !calm.disableRemoteContent) {
     background = image || (dark ? '#333333' : '#E5E5E5');
@@ -59,7 +60,7 @@ export default function GroupAvatar({
     <ColorBoxIcon
       className={cn('rounded', size, textSize(size), className)}
       color={background}
-      letter={title ? Array.from(title)[0] : ''}
+      letter={title ? symbols[0] : ''}
     />
   );
 }

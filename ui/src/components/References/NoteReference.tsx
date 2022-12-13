@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useDiaryState, useNote, useRemoteOutline } from '@/state/diary';
+import { useDiaryState, useRemoteOutline } from '@/state/diary';
 import { useChannelPreview } from '@/state/groups';
 import { makePrettyDate, pluralize } from '@/logic/utils';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
+import useAppName from '@/logic/useAppName';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
@@ -26,6 +27,8 @@ export default function NoteReference({
   const [scryError, setScryError] = useState<string>();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const outline = useRemoteOutline(chFlag, id, isScrolling);
+  const navigate = useNavigate();
+  const app = useAppName();
 
   useEffect(() => {
     if (!isScrolling) {
@@ -37,6 +40,15 @@ export default function NoteReference({
         });
     }
   }, [chFlag, isScrolling]);
+
+  const handleOpenReferenceClick = () => {
+    if (app === 'Talk') {
+      const href = `/apps/groups/groups/${groupFlag}/channels/${nest}/note/${id}`;
+      window.open(`${window.location.origin}${href}`, '_blank');
+    } else {
+      navigate(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
+    }
+  };
 
   if (scryError !== undefined) {
     // TODO handle requests for single notes like we do for single writs.
@@ -104,12 +116,12 @@ export default function NoteReference({
           // TODO: handle blocks.
           return '';
         })}
-        <Link
-          to={`/groups/${groupFlag}/channels/${nest}/note/${id}`}
+        <button
+          onClick={handleOpenReferenceClick}
           className="small-secondary-button w-[120px]"
         >
           <span className="text-gray-800">Continue Reading</span>
-        </Link>
+        </button>
       </div>
       <ReferenceBar
         nest={nest}
