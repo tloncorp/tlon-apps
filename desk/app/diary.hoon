@@ -102,6 +102,7 @@
     =-  %+  fall  -  ~&  >  %bad-load  [state &]
     (mole |.([!<(versioned-state vase) |]))
   =.  state  old
+  =.  cor  restore-missing-subs
   =.  cor
     (emil (drop load:epos))
   =/  diaries  ~(tap in ~(key by shelf))
@@ -113,6 +114,11 @@
   $(diaries t.diaries)
   ::
   +$  versioned-state  $%(current-state)
+  ++  restore-missing-subs
+    %+  roll
+      ~(tap by shelf)
+    |=  [[=flag:d *] core=_cor]
+    di-abet:di-safe-sub:(di-abed:di-core flag)
   --
 ::
 ++  watch-epic
