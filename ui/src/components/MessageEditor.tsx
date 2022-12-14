@@ -89,7 +89,7 @@ export function useMessageEditor({
     }),
     CodeBlock.configure({
       HTMLAttributes: {
-        class: 'py-2 px-4 rounded bg-gray-50 dark:bg-gray-100',
+        class: 'mr-4 px-2 rounded bg-gray-50 dark:bg-gray-100',
       },
     }),
     Document,
