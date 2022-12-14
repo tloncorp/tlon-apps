@@ -114,7 +114,7 @@ export function InlineContent({ story }: InlineContentProps) {
 
   if (isInlineCode(story)) {
     return (
-      <code className="inline-block rounded bg-gray-50 px-1.5">
+      <code className="inline-block rounded bg-gray-50 px-1.5 dark:bg-gray-100">
         {typeof story['inline-code'] === 'object' ? (
           <InlineContent story={story['inline-code']} />
         ) : (
