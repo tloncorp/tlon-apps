@@ -80,6 +80,7 @@ import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
 import { useStorage } from './state/storage';
 import { isTalk } from './logic/utils';
+import bootstrap from './state/bootstrap';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -433,21 +434,7 @@ function App() {
 
   useEffect(() => {
     handleError(() => {
-      // TODO: Clean up this order for different apps
-      useGroupState.getState().start();
-      useChatState.getState().start();
-      useHeapState.getState().start();
-      useDiaryState.getState().start();
-
-      useChatState.getState().fetchDms();
-      useHarkState.getState().start();
-      const { initialize: settingsInitialize, fetchAll } =
-        useSettingsState.getState();
-      settingsInitialize(api);
-      fetchAll();
-
-      useContactState.getState().initialize(api);
-      useStorage.getState().initialize(api);
+      bootstrap();
     })();
   }, [handleError]);
 
