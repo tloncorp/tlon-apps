@@ -291,19 +291,27 @@ export function useDiaryInlineEditor({
     {
       extensions: [
         Blockquote,
-        Bold,
+        Bold.extend({ exitable: true, inclusive: false }),
         BulletList,
-        Code.extend({ excludes: undefined }),
+        Code.extend({
+          excludes: undefined,
+          exitable: true,
+          inclusive: false,
+        }).configure({
+          HTMLAttributes: {
+            class: 'rounded px-1 bg-gray-50 dark:bg-gray-100',
+          },
+        }),
         PrismCodeBlock,
         Document,
         HardBreak,
         Heading,
         History.configure({ newGroupDelay: 100 }),
         HorizontalRule,
-        Italic,
+        Italic.extend({ exitable: true, inclusive: false }),
         Link.configure({
           openOnClick: false,
-        }),
+        }).extend({ exitable: true, inclusive: false }),
         ListItem,
         Mention.extend({ priority: 1000 }).configure({
           HTMLAttributes: {
@@ -320,7 +328,7 @@ export function useDiaryInlineEditor({
           showOnlyWhenEditable: false,
           includeChildren: true,
         }),
-        Strike,
+        Strike.extend({ exitable: true, inclusive: false }),
         Text,
         Shortcuts({
           Enter: onEnter,

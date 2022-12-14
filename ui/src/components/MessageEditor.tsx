@@ -77,8 +77,12 @@ export function useMessageEditor({
 
   const extensions = [
     Blockquote,
-    Bold.extend({ exitable: true }),
-    Code.extend({ excludes: undefined, exitable: true }).configure({
+    Bold.extend({ exitable: true, inclusive: false }),
+    Code.extend({
+      excludes: undefined,
+      exitable: true,
+      inclusive: false,
+    }).configure({
       HTMLAttributes: {
         class: 'rounded px-1 bg-gray-50 dark:bg-gray-100',
       },
@@ -91,7 +95,7 @@ export function useMessageEditor({
     Document,
     HardBreak,
     History.configure({ newGroupDelay: 100 }),
-    Italic.extend({ exitable: true }),
+    Italic.extend({ exitable: true, inclusive: false }),
     keyMapExt,
     Link.configure({
       openOnClick: false,
@@ -101,7 +105,7 @@ export function useMessageEditor({
     }),
     Paragraph,
     Placeholder.configure({ placeholder }),
-    Strike.extend({ exitable: true }),
+    Strike.extend({ exitable: true, inclusive: false }),
     Text.extend({
       addPasteRules() {
         return [refPasteRule(onReference)];
