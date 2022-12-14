@@ -710,7 +710,7 @@ export const useGroupState = create<GroupState>(
         const [groups, gangs] = await Promise.all([
           api.scry<Groups>({
             app: 'groups',
-            path: '/groups',
+            path: '/groups/light',
           }),
           api.scry<Gangs>({
             app: 'groups',
@@ -720,7 +720,7 @@ export const useGroupState = create<GroupState>(
 
         set((s) => ({
           ...s,
-          groups,
+          groups: _.merge(groups, s.groups),
           gangs,
         }));
         await api.subscribe({
@@ -766,12 +766,22 @@ export const useGroupState = create<GroupState>(
           draft.initialized = true;
         });
       },
-      initialize: async (flag: string) =>
-        api.subscribe({
+      initialize: async (flag: string) => {
+        const group = await api.scry<Group>({
+          app: 'groups',
+          path: `/groups/${flag}`,
+        });
+
+        get().batchSet((draft) => {
+          draft.groups[flag] = group;
+        });
+
+        return api.subscribe({
           app: 'groups',
           path: `/groups/${flag}/ui`,
           event: (data) => get().batchSet(groupsReducer(flag, data)),
-        }),
+        });
+      },
       set: (fn) => {
         set(produce(get(), fn));
       },
@@ -918,6 +928,11 @@ export function usePendingGangsWithoutClaim() {
 const selInit = (s: GroupState) => s.initialized;
 export function useGroupsInitialized() {
   return useGroupState(selInit);
+}
+
+export function useSects(flag: string) {
+  const group = useGroup(flag);
+  return group ? Object.keys(group.cabals) : [];
 }
 
 const { shouldLoad, newAttempt, finished } = getPreviewTracker();

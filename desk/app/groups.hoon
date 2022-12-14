@@ -202,7 +202,7 @@
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g *] core=_cor]
-    go-abet:(go-safe-sub:(go-abed:group-core flag) &)
+    go-abet:(go-safe-sub:(go-abed:group-core:core flag) &)
   --
 ::
 ++  watch
@@ -247,11 +247,25 @@
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
   ::
+      [%x %groups %light ~]
+    =-  ``groups+!>(-)
+    ^-  groups:g
+    %-  ~(run by groups)
+    |=  [=net:g =group:g]
+    =.  fleet.group
+      ::  not sure how this would be the case, but better to be safe
+      ?.  (~(has by fleet.group) our.bowl)
+        *fleet:g
+      (~(put by *fleet:g) our.bowl (~(got by fleet.group) our.bowl))
+    group
+  ::
       [%x %gangs ~]
     ``gangs+!>(`gangs:g`xeno)
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
+    ?~  rest.pole
+      ``group+!>(`group:g`+:(~(got by groups) [ship name.pole]))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
       [%x %exists ship=@ name=@ rest=*]
@@ -435,6 +449,7 @@
 ::
 ++  give-invites
   |=  [=flag:g ships=(set ship)]
+  ?.  =(p.flag our.bowl)  cor
   %-  emil
     %+  turn
       ~(tap in ships)
@@ -1174,9 +1189,10 @@
     |=  [ships=(set ship) =diff:fleet:g]
     ^+  go-core
     =/  user-join  &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))
+    =/  am-host  =(p.flag our.bowl)
     ?-    -.diff
         %add
-      ?>  ?|  =(p.flag our.bowl) :: self
+      ?>  ?|  am-host
               =(p.flag src.bowl) :: subscription
               user-join
           ==
@@ -1189,7 +1205,7 @@
                 !=(~(wyt in ships) ~(wyt in cross))
               ==
           ==      
-      =?  cor  !user-join  (give-invites flag ships)
+      =?  cor  &(!user-join am-host)  (give-invites flag ships)
       =.  fleet.group
         %-  ~(uni by fleet.group)
           %-  malt
@@ -1552,6 +1568,7 @@
           ga-core
           ::
             %kick
+          ~&  [(~(has by xeno) flag) (~(has by groups) flag) pev.gang]
           ?.  (~(has by xeno) flag)  ga-core
           ?^  pev.gang  ga-core
           ga-core(cor (emit get-preview:ga-pass))
