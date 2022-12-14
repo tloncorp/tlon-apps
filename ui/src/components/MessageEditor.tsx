@@ -77,20 +77,23 @@ export function useMessageEditor({
 
   const extensions = [
     Blockquote,
-    Bold,
-    Code.extend({ excludes: undefined }),
+    Bold.extend({ exitable: true }),
+    Code.extend({ excludes: undefined, exitable: true }),
     CodeBlock,
     Document,
     HardBreak,
     History.configure({ newGroupDelay: 100 }),
-    Italic,
+    Italic.extend({ exitable: true }),
     keyMapExt,
     Link.configure({
       openOnClick: false,
+    }).extend({
+      exitable: true,
+      inclusive: false,
     }),
     Paragraph,
     Placeholder.configure({ placeholder }),
-    Strike,
+    Strike.extend({ exitable: true }),
     Text.extend({
       addPasteRules() {
         return [refPasteRule(onReference)];
