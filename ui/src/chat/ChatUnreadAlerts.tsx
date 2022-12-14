@@ -1,12 +1,17 @@
 import React, { useCallback } from 'react';
 import { format, isToday } from 'date-fns';
 import { daToUnix, udToDec } from '@urbit/api';
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { VirtuosoHandle } from 'react-virtuoso';
 import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '@/logic/utils';
-import { useChatKeys, useChatState, useGetFirstUnreadID } from '@/state/chat';
-import { useChatInfo } from './useChatStore';
+import {
+  useChatKeys,
+  useChatState,
+  useGetFirstUnreadID,
+  useWrit,
+} from '@/state/chat';
+import { useChatInfo, useChatStore } from './useChatStore';
 
 interface ChatUnreadAlertsProps {
   scrollerRef: React.RefObject<VirtuosoHandle>;
@@ -18,15 +23,43 @@ export default function ChatUnreadAlerts({
   whom,
 }: ChatUnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
+  const maybeWrit = useWrit(whom, chatInfo?.unread?.brief['read-id'] || '');
+  let replyToId: BigInteger = bigInt(0);
+  if (maybeWrit) {
+    const [_, writ] = maybeWrit;
+    const replyTo = writ.memo.replying || '';
+    replyToId =
+      replyTo !== ''
+        ? bigInt(replyTo.split('/')[1].replaceAll('.', ''))
+        : bigInt(0);
+  }
   const markRead = useCallback(() => {
     useChatState.getState().markRead(whom);
+    useChatStore.getState().read(whom);
   }, [whom]);
 
   // TODO: how to handle replies?
   const firstUnreadID = useGetFirstUnreadID(whom);
   const keys = useChatKeys({ whom, replying: false });
   const goToFirstUnread = useCallback(() => {
-    if (!firstUnreadID || !scrollerRef.current) {
+    if (!scrollerRef.current) {
+      return;
+    }
+
+    if (replyToId !== bigInt(0)) {
+      const idx = keys.findIndex((k) => k.greaterOrEquals(replyToId));
+      if (idx === -1) {
+        return;
+      }
+
+      scrollerRef.current.scrollToIndex({
+        index: idx,
+        align: 'start',
+        behavior: 'auto',
+      });
+    }
+
+    if (!firstUnreadID) {
       return;
     }
 
@@ -40,7 +73,7 @@ export default function ChatUnreadAlerts({
       align: 'start',
       behavior: 'auto',
     });
-  }, [firstUnreadID, keys, scrollerRef]);
+  }, [firstUnreadID, keys, scrollerRef, replyToId]);
 
   if (!chatInfo.unread || chatInfo.unread.seen) {
     return null;
