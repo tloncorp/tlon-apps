@@ -23,6 +23,7 @@ import {
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
+import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { useChatInfo, useChatStore } from '../useChatStore';
 
 export interface ChatMessageProps {
@@ -64,6 +65,7 @@ const ChatMessage = React.memo<
       const { seal, memo } = writ;
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
+      const unreadId = unread?.brief['read-id'];
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -118,6 +120,9 @@ const ChatMessage = React.memo<
       const pact = usePact(whom);
 
       const numReplies = seal.replied.length;
+      const repliesContainsUnreadId = unreadId
+        ? seal.replied.includes(unreadId)
+        : false;
       const replyAuthors = _.flow(
         f.map((k: string) => {
           const t = pact.index[k];
@@ -189,6 +194,12 @@ const ChatMessage = React.memo<
                     }
                   >
                     <div className="flex items-center space-x-2">
+                      {repliesContainsUnreadId ? (
+                        <UnreadIndicator
+                          className="h-6 w-6 text-blue transition-opacity"
+                          aria-label="Unread replies in this thread"
+                        />
+                      ) : null}
                       {replyAuthors.map((ship) => (
                         <Avatar key={ship} ship={ship} size="xs" />
                       ))}
