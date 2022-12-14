@@ -11,7 +11,7 @@ import {
   useGetFirstUnreadID,
   useWrit,
 } from '@/state/chat';
-import { useChatInfo } from './useChatStore';
+import { useChatInfo, useChatStore } from './useChatStore';
 
 interface ChatUnreadAlertsProps {
   scrollerRef: React.RefObject<VirtuosoHandle>;
@@ -35,6 +35,7 @@ export default function ChatUnreadAlerts({
   }
   const markRead = useCallback(() => {
     useChatState.getState().markRead(whom);
+    useChatStore.getState().read(whom);
   }, [whom]);
 
   // TODO: how to handle replies?
