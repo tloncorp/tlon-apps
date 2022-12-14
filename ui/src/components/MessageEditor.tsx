@@ -78,8 +78,16 @@ export function useMessageEditor({
   const extensions = [
     Blockquote,
     Bold.extend({ exitable: true }),
-    Code.extend({ excludes: undefined, exitable: true }),
-    CodeBlock,
+    Code.extend({ excludes: undefined, exitable: true }).configure({
+      HTMLAttributes: {
+        class: 'rounded px-1 bg-gray-50 dark:bg-gray-100',
+      },
+    }),
+    CodeBlock.configure({
+      HTMLAttributes: {
+        class: 'py-2 px-4 rounded bg-gray-50 dark:bg-gray-100',
+      },
+    }),
     Document,
     HardBreak,
     History.configure({ newGroupDelay: 100 }),

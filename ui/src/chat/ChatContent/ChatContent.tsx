@@ -126,7 +126,7 @@ export function InlineContent({ story }: InlineContentProps) {
 
   if (isBlockCode(story)) {
     return (
-      <pre className="bg-gray-50 px-4">
+      <pre className="bg-gray-50 px-4 dark:bg-gray-100">
         <code>{story.code}</code>
       </pre>
     );
@@ -193,7 +193,7 @@ export default function ChatContent({
 
             if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
               return (
-                <div className="rounded bg-gray-50 py-2">
+                <div className="rounded bg-gray-50 py-2 dark:bg-gray-100">
                   <InlineContent
                     key={`${storyItem.toString()}-${index}`}
                     story={storyItem}
@@ -204,7 +204,7 @@ export default function ChatContent({
 
             if (index === firstBlockCode) {
               return (
-                <div className="rounded bg-gray-50 pt-2">
+                <div className="rounded bg-gray-50 pt-2 dark:bg-gray-100">
                   <InlineContent
                     key={`${storyItem.toString()}-${index}`}
                     story={storyItem}
@@ -214,7 +214,7 @@ export default function ChatContent({
             }
             if (index === lastBlockCode) {
               return (
-                <div className="rounded bg-gray-50 pb-2">
+                <div className="rounded bg-gray-50 pb-2 dark:bg-gray-100">
                   <InlineContent
                     key={`${storyItem.toString()}-${index}`}
                     story={storyItem}
