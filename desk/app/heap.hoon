@@ -179,6 +179,7 @@
     =-  %+  fall  -  ~&  >  %bad-load  [state &]
     (mole |.([!<(versioned-state vase) |]))
   =.  state  old
+  =.  cor  restore-missing-subs
   ?:  =(okay cool)  cor
   ::  speak the good news
   =.  cor  (emil (drop load:epos))
@@ -191,6 +192,12 @@
   $(heaps t.heaps)
   ::
   +$  versioned-state  $%(current-state)
+  ++  restore-missing-subs
+    %+  roll
+      ~(tap by stash)
+    |=  [[=flag:h *] core=_cor]
+    he-abet:he-safe-sub:(he-abed:he-core flag)
+  ::
   --
 ::
 ++  watch
@@ -806,9 +813,13 @@
     =.  cor  (give %fact ~ cage)
     he-core
   ::
+  ++  he-has-sub
+    ^-  ?
+    (~(has by wex.bowl) [(snoc he-area %updates) p.flag dap.bowl])
+  ::
   ++  he-safe-sub
     ^+  he-core
-    ?:  (~(has by wex.bowl) [(snoc he-area %updates) p.flag dap.bowl])
+    ?:  |(he-has-sub =(our.bowl p.flag))
       he-core
     he-sub
   ::

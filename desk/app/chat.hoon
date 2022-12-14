@@ -124,6 +124,7 @@
     =-  %+  fall  -  ~&  >  %bad-load  [state &]
     (mole |.([!<(versioned-state vase) |]))
   =.  state  old
+  =.  cor  restore-missing-subs
   ?:  =(okay cool)  cor
   :: =?  cor  bad  (emit (keep !>(old)))
   %-  (note:wood %ver leaf/"New Epic" ~)
@@ -135,6 +136,12 @@
   =.  cor
     ca-abet:ca-upgrade:(ca-abed:ca-core i.chats)
   $(chats t.chats)
+  ::
+  ++  restore-missing-subs
+    %+  roll
+      ~(tap by chats)
+    |=  [[=flag:c *] core=_cor]
+    ca-abet:ca-safe-sub:(ca-abed:ca-core flag)
   ::
   ++  keep
     |=  bad=^vase
@@ -1219,6 +1226,11 @@
     =/  =cage  chat-logs+!>(logs)
     =.  cor  (give %fact ~ cage)
     ca-core
+  ::
+  ++  ca-safe-sub
+    ?:  |(ca-has-sub =(our.bowl p.flag))
+      ca-core
+    ca-sub
   ::
   ++  ca-has-sub
     ^-  ?
