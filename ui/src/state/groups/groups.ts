@@ -776,7 +776,7 @@ export const useGroupState = create<GroupState>(
           draft.groups[flag] = group;
         });
 
-        api.subscribe({
+        return api.subscribe({
           app: 'groups',
           path: `/groups/${flag}/ui`,
           event: (data) => get().batchSet(groupsReducer(flag, data)),

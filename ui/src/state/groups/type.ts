@@ -25,7 +25,7 @@ export interface GroupState {
   };
   fetchShoal: (b: BaitCite['bait']) => Promise<string | null>;
   gangs: Gangs;
-  initialize: (flag: string) => Promise<void>;
+  initialize: (flag: string) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
   banShips: (flag: string, ships: string[]) => Promise<void>;
   unbanShips: (flag: string, ships: string[]) => Promise<void>;
