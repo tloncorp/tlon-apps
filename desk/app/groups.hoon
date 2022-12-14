@@ -186,6 +186,7 @@
     (mole |.([!<(versioned-state vase) |]))
   ::
   =.  state  old
+  =.  cor  restore-missing-subs
   ?:  =(okay cool)  cor
   =.  cor  (emil (drop load:epos))
   =/  groups  ~(tap in ~(key by groups))
@@ -197,6 +198,11 @@
   $(groups t.groups)
   ::
   +$  versioned-state  $%(current-state)
+  ++  restore-missing-subs
+    %+  roll
+      ~(tap by groups)
+    |=  [[=flag:g *] core=_cor]
+    go-abet:(go-safe-sub:(go-abed:group-core flag) &)
   --
 ::
 ++  watch
@@ -707,7 +713,7 @@
   ++  go-safe-sub
     |=  init=_|
     ^+  go-core
-    ?:  go-has-sub
+    ?:  |(go-has-sub =(our.bowl p.flag))
       go-core
     (go-sub init)
   ::
