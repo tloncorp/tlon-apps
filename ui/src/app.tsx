@@ -20,7 +20,6 @@ import Dms from '@/dms/Dms';
 import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
-import useIsChat from '@/logic/useIsChat';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useSettingsState, useTheme } from '@/state/settings';
 import {
@@ -80,6 +79,8 @@ import MobileGroupsActions from './groups/MobileGroupsActions';
 import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
 import { useStorage } from './state/storage';
+import { isTalk } from './logic/utils';
+import bootstrap from './state/bootstrap';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -418,7 +419,6 @@ function App() {
   const navigate = useNavigate();
   const handleError = useErrorHandler();
   const location = useLocation();
-  const isChat = useIsChat();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
   const subscription = useSubscriptionStatus();
@@ -434,21 +434,7 @@ function App() {
 
   useEffect(() => {
     handleError(() => {
-      // TODO: Clean up this order for different apps
-      useGroupState.getState().start();
-      useChatState.getState().start();
-      useHeapState.getState().start();
-      useDiaryState.getState().start();
-
-      useChatState.getState().fetchDms();
-      useHarkState.getState().start();
-      const { initialize: settingsInitialize, fetchAll } =
-        useSettingsState.getState();
-      settingsInitialize(api);
-      fetchAll();
-
-      useContactState.getState().initialize(api);
-      useStorage.getState().initialize(api);
+      bootstrap();
     })();
   }, [handleError]);
 
@@ -468,7 +454,7 @@ function App() {
       {subscription === 'disconnected' || subscription === 'reconnecting' ? (
         <DisconnectNotice />
       ) : null}
-      {isChat ? (
+      {isTalk ? (
         <ChatRoutes
           state={state}
           location={location}

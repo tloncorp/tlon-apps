@@ -2,12 +2,10 @@ import React, { PropsWithChildren, useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import * as Popover from '@radix-ui/react-popover';
 import { GroupChannel } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import useIsChannelHost from '@/logic/useIsChannelHost';
-import { nestToFlag, getFlagParts } from '@/logic/utils';
-import useIsChat from '@/logic/useIsChat';
+import { nestToFlag, getFlagParts, isTalk } from '@/logic/utils';
 import {
   useGroup,
   useChannel,
@@ -301,7 +299,6 @@ export default function ChannelHeader({
   const isMobile = useIsMobile();
   const channel = useChannel(flag, nest);
   const groupName = group?.meta.title;
-  const isChat = useIsChat();
   const BackButton = isMobile ? Link : 'div';
   const isAdmin = useAmAdmin(flag);
 
@@ -312,7 +309,7 @@ export default function ChannelHeader({
       )}
     >
       <BackButton
-        to={isMobile && isChat ? '/' : '../..'}
+        to={isMobile && isTalk ? '/' : '../..'}
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
           isMobile && '-ml-2 flex items-center rounded-lg pr-0 hover:bg-gray-50'

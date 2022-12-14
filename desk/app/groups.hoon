@@ -247,11 +247,22 @@
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
   ::
+      [%x %groups %light ~]
+    =-  ``groups+!>(-)
+    ^-  groups:g
+    %-  ~(run by groups)
+    |=  [=net:g =group:g]
+    =.  fleet.group
+      (~(put by *fleet:g) our.bowl (~(got by fleet.group) our.bowl))
+    group
+  ::
       [%x %gangs ~]
     ``gangs+!>(`gangs:g`xeno)
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
+    ?~  rest.pole
+      ``group+!>(`group:g`+:(~(got by groups) [ship name.pole]))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
       [%x %exists ship=@ name=@ rest=*]

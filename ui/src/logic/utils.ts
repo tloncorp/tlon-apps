@@ -23,6 +23,8 @@ import {
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief, DiaryQuip, DiaryQuipMap } from '@/types/diary';
 
+export const isTalk = import.meta.env.VITE_APP === 'chat';
+
 export function nestToFlag(nest: string): [string, string] {
   const [app, ...rest] = nest.split('/');
 
