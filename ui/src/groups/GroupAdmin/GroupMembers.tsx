@@ -22,7 +22,7 @@ export default function GroupMembers({ title }: ViewProps) {
   }
 
   return (
-    <div className="card">
+    <div className="card grow">
       <Helmet>
         <title>
           {group ? `Members of ${group.meta.title} ${title}` : title}{' '}

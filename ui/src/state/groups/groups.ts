@@ -920,6 +920,11 @@ export function useGroupsInitialized() {
   return useGroupState(selInit);
 }
 
+export function useSects(flag: string) {
+  const group = useGroup(flag);
+  return group ? Object.keys(group.cabals) : [];
+}
+
 const { shouldLoad, newAttempt, finished } = getPreviewTracker();
 
 export function useChannelPreview(nest: string) {
