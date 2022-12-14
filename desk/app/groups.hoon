@@ -202,7 +202,7 @@
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g *] core=_cor]
-    go-abet:(go-safe-sub:(go-abed:group-core flag) &)
+    go-abet:(go-safe-sub:(go-abed:group-core:core flag) &)
   --
 ::
 ++  watch

@@ -196,7 +196,7 @@
     %+  roll
       ~(tap by stash)
     |=  [[=flag:h *] core=_cor]
-    he-abet:he-safe-sub:(he-abed:he-core flag)
+    he-abet:he-safe-sub:(he-abed:he-core:core flag)
   ::
   --
 ::
