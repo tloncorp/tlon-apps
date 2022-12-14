@@ -710,7 +710,7 @@ export const useGroupState = create<GroupState>(
         const [groups, gangs] = await Promise.all([
           api.scry<Groups>({
             app: 'groups',
-            path: '/groups',
+            path: '/groups/light',
           }),
           api.scry<Gangs>({
             app: 'groups',
@@ -766,12 +766,22 @@ export const useGroupState = create<GroupState>(
           draft.initialized = true;
         });
       },
-      initialize: async (flag: string) =>
+      initialize: async (flag: string) => {
+        const group = await api.scry<Group>({
+          app: 'groups',
+          path: `/groups/${flag}`,
+        });
+
+        get().batchSet((draft) => {
+          draft.groups[flag] = group;
+        });
+
         api.subscribe({
           app: 'groups',
           path: `/groups/${flag}/ui`,
           event: (data) => get().batchSet(groupsReducer(flag, data)),
-        }),
+        });
+      },
       set: (fn) => {
         set(produce(get(), fn));
       },
