@@ -720,7 +720,7 @@ export const useGroupState = create<GroupState>(
 
         set((s) => ({
           ...s,
-          groups,
+          groups: _.merge(groups, s.groups),
           gangs,
         }));
         await api.subscribe({
