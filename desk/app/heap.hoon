@@ -813,9 +813,13 @@
     =.  cor  (give %fact ~ cage)
     he-core
   ::
+  ++  he-has-sub
+    ^-  ?
+    (~(has by wex.bowl) [(snoc he-area %updates) p.flag dap.bowl])
+  ::
   ++  he-safe-sub
     ^+  he-core
-    ?:  (~(has by wex.bowl) [(snoc he-area %updates) p.flag dap.bowl])
+    ?:  |(he-has-sub =(our.bowl p.flag))
       he-core
     he-sub
   ::

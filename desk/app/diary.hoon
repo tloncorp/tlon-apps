@@ -619,8 +619,12 @@
     =.  saga.net.diary  chi/~
     di-safe-sub
   ::
+  ++  di-has-sub
+    ^-  ?
+    (~(has by wex.bowl) [(snoc di-area %updates) p.flag dap.bowl])
+  ::
   ++  di-safe-sub
-    ?:  (~(has by wex.bowl) [(snoc di-area %updates) p.flag dap.bowl])
+    ?:  |(di-has-sub =(our.bowl p.flag))
       di-core
     di-sub
   ::

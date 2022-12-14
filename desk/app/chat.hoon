@@ -1228,7 +1228,7 @@
     ca-core
   ::
   ++  ca-safe-sub
-    ?:  ca-has-sub
+    ?:  |(ca-has-sub =(our.bowl p.flag))
       ca-core
     ca-sub
   ::
