@@ -272,6 +272,10 @@ export default function ChatScroller({
     [isScrolling, atBottom]
   );
 
+  if (keys.length === 0) {
+    return null;
+  }
+
   return (
     <div className="relative h-full flex-1">
       <Virtuoso
