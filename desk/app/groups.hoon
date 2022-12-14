@@ -435,6 +435,7 @@
 ::
 ++  give-invites
   |=  [=flag:g ships=(set ship)]
+  ?.  =(p.flag our.bowl)  cor
   %-  emil
     %+  turn
       ~(tap in ships)
@@ -1174,9 +1175,10 @@
     |=  [ships=(set ship) =diff:fleet:g]
     ^+  go-core
     =/  user-join  &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))
+    =/  am-host  =(p.flag our.bowl)
     ?-    -.diff
         %add
-      ?>  ?|  =(p.flag our.bowl) :: self
+      ?>  ?|  am-host
               =(p.flag src.bowl) :: subscription
               user-join
           ==
@@ -1189,7 +1191,7 @@
                 !=(~(wyt in ships) ~(wyt in cross))
               ==
           ==      
-      =?  cor  !user-join  (give-invites flag ships)
+      =?  cor  &(!user-join am-host)  (give-invites flag ships)
       =.  fleet.group
         %-  ~(uni by fleet.group)
           %-  malt
@@ -1552,6 +1554,7 @@
           ga-core
           ::
             %kick
+          ~&  [(~(has by xeno) flag) (~(has by groups) flag) pev.gang]
           ?.  (~(has by xeno) flag)  ga-core
           ?^  pev.gang  ga-core
           ga-core(cor (emit get-preview:ga-pass))
