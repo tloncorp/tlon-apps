@@ -118,7 +118,7 @@
     %+  roll
       ~(tap by shelf)
     |=  [[=flag:d *] core=_cor]
-    di-abet:di-safe-sub:(di-abed:di-core flag)
+    di-abet:di-safe-sub:(di-abed:di-core:core flag)
   --
 ::
 ++  watch-epic

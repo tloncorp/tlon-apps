@@ -141,7 +141,7 @@
     %+  roll
       ~(tap by chats)
     |=  [[=flag:c *] core=_cor]
-    ca-abet:ca-safe-sub:(ca-abed:ca-core flag)
+    ca-abet:ca-safe-sub:(ca-abed:ca-core:core flag)
   ::
   ++  keep
     |=  bad=^vase
