@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
+import bigInt from 'big-integer';
+import { Virtuoso } from 'react-virtuoso';
 import Layout from '@/components/Layout/Layout';
 import {
   GROUP_ADMIN,
@@ -24,7 +26,7 @@ import {
 } from '@/state/settings';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { DiaryDisplayMode } from '@/types/diary';
+import { DiaryDisplayMode, DiaryLetter } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 import * as Toast from '@radix-ui/react-toast';
@@ -32,6 +34,8 @@ import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, createStorageKey } from '@/logic/utils';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
+
+// const ListViewItem = React.memo((letter: DiaryLetter, time: bigInt.BigInteger) => <DiaryListItem letter={letter} time={time} key={time.toString()} />);
 
 function DiaryChannel() {
   const { chShip, chName } = useParams();
@@ -131,6 +135,13 @@ function DiaryChannel() {
     return b.compare(a);
   });
 
+  const keys = sortedNotes.map((sN) => sN[0]);
+
+  const itemContent = (i: number, realIndex: bigInt.BigInteger) => {
+    console.log('getting itemcontent');
+    return <DiaryListItem letter={letters.get(realIndex)} time={realIndex} />;
+  };
+
   return (
     <Layout
       stickyHeader
@@ -182,13 +193,18 @@ function DiaryChannel() {
         ) : (
           <div className="h-full p-6">
             <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
-              {sortedNotes.map(([time, letter]) => (
+              <Virtuoso
+                style={{ height: '100%', width: '100%' }}
+                data={keys}
+                itemContent={itemContent}
+              />
+              {/* {sortedNotes.map(([time, letter]) => (
                 <DiaryListItem
                   key={time.toString()}
                   time={time}
                   letter={letter}
                 />
-              ))}
+              ))} */}
             </div>
           </div>
         )}
