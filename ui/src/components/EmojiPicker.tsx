@@ -35,7 +35,7 @@ export default function EmojiPicker({
       )}
       <Popover.Portal>
         <Popover.Content side="bottom" sideOffset={40} collisionPadding={15}>
-          <div className="z-50 mr-10 flex h-96 w-72 items-center justify-center">
+          <div className="z-50 mx-10 flex h-96 w-72 items-center justify-center">
             {data ? (
               <Picker
                 data={data}
