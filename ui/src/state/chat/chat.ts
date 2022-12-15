@@ -240,7 +240,12 @@ export const useChatState = createState<ChatState>(
           const { read, unread, atBottom, chats, current } =
             useChatStore.getState();
           const isUnread = brief.count > 0 && brief['read-id'];
-          if (isUnread && current === whom && atBottom) {
+          if (
+            isUnread &&
+            current === whom &&
+            atBottom &&
+            document.visibilityState === 'visible'
+          ) {
             get().markRead(whom);
           } else if (isUnread) {
             unread(whom, brief);

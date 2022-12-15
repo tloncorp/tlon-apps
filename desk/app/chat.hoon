@@ -25,7 +25,7 @@
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   ++  okay  `epic:e`0
   +$  current-state
-    $:  %0
+    $:  %1
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
@@ -123,7 +123,11 @@
     =;  [sta=versioned-state ba=?]  [sta okay ba]
     =-  %+  fall  -  ~&  >  %bad-load  [state &]
     (mole |.([!<(versioned-state vase) |]))
-  =.  state  old
+  =.  state
+    ?-  -.old
+      %0  (state-0-to-1 old)
+      %1  old
+    ==  
   =.  cor  restore-missing-subs
   ?:  =(okay cool)  cor
   :: =?  cor  bad  (emit (keep !>(old)))
@@ -149,7 +153,44 @@
     ~&  >  %keep
     [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
   ::
-  +$  versioned-state  $%(current-state)
+  +$  versioned-state  $%(current-state state-0)
+  +$  state-0
+    $:  %0
+        chats=(map flag:zero chat:zero)
+        dms=(map ship dm:zero)
+        clubs=(map id:club:zero club:zero)
+        drafts=(map whom:zero story:zero)
+        pins=(list whom:zero)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:zero id:zero] (unit said:zero))
+        fish=(map [flag:zero @] id:zero)
+        ::  true represents imported, false pending import
+        imp=(map flag:zero ?)
+    ==
+  ++  zero     zero:old:c
+  +$  state-1  current-state
+  ++  one      c
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    %*  .  *state-1
+      dms     dms.s
+      clubs   (clubs-0-to-1 clubs.s)
+      drafts  drafts.s
+      pins    pins.s
+      bad     bad.s
+      inv     inv.s
+      fish    fish.s
+      voc     voc.s
+      chats   chats.s
+    ==
+  ++  clubs-0-to-1
+    |=  clubs=(map id:club:zero club:zero)
+    ^-  (map id:club:one club:one)
+    %-  ~(run by clubs)
+    |=  =club:zero
+    [*remark:one club]
   --
 ::
 ++  watch-groups
@@ -225,7 +266,7 @@
     ?-  -.p.act
       %ship  di-abet:(di-remark-diff:(di-abed:di-core p.p.act) q.act)
       %flag  ca-abet:(ca-remark-diff:(ca-abed:ca-core p.p.act) q.act)
-      %club  cor  :: TODO
+      %club  cu-abet:(cu-remark-diff:(cu-abed:cu-core p.p.act) q.act)
     ==
   ::
       %dm-action
@@ -422,7 +463,7 @@
   =/  =id:club:c  (shax (jam flag))  :: TODO: determinstic, but collisions ig?
   =/  meta=data:meta
     [title description '' '']:metadatum.association
-  =.  clubs  (~(put by clubs) id (graph-to-pact graph flag) ships ~ meta %done |)
+  =.  clubs  (~(put by clubs) id *remark:c (graph-to-pact graph flag) ships ~ meta %done |)
   $(cus t.cus)
 ::
 ++  import-dms
@@ -799,10 +840,10 @@
   ++  cu-init
     |=  [=net:club:c =create:club:c]
     =/  clab=club:c
-      [*pact:c (silt our.bowl ~) hive.create *data:meta net |]
+      [*remark:c *pact:c (silt our.bowl ~) hive.create *data:meta net |]
     cu-core(id id.create, club clab)
   ::
-  ++  cu-brief  (brief:cu-pact [our now]:bowl)
+  ++  cu-brief  (brief:cu-pact our.bowl last-read.remark.club)
   ::
   ++  cu-create  
     |=  =create:club:c 
@@ -865,6 +906,7 @@
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       =.  cu-core  (cu-give-writs-diff diff.delta)
+      =.  cor  (give-brief club/id cu-brief)
       ?-  -.q.diff.delta  
           ?(%del %add-feel %del-feel)  cu-core
           %add
@@ -919,6 +961,24 @@
       =.  hive.club  (~(del in hive.club) for.delta)
       (cu-post-notice for.delta '' ' was uninvited from the chat') 
     ==
+  ::
+  ++  cu-remark-diff
+    |=  diff=remark-diff:c
+    ^+  cu-core
+    =.  remark.club
+      ?-  -.diff
+        %watch    remark.club(watching &)
+        %unwatch  remark.club(watching |)
+        %read-at  !! ::  cu-core(last-read.remark.chat p.diff)
+      ::
+          %read
+      =/  =time
+        (fall (bind (ram:on:writs:c wit.pact.club) head) now.bowl)
+      remark.club(last-read `@da`(add time 1))  ::  greater than last
+      ==
+    =.  cor
+      (give-brief club/id cu-brief)
+    cu-core
   ::
   ++  cu-peek
     |=  =path
