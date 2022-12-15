@@ -77,20 +77,35 @@ export function useMessageEditor({
 
   const extensions = [
     Blockquote,
-    Bold,
-    Code.extend({ excludes: undefined }),
-    CodeBlock,
+    Bold.extend({ exitable: true, inclusive: false }),
+    Code.extend({
+      excludes: undefined,
+      exitable: true,
+      inclusive: false,
+    }).configure({
+      HTMLAttributes: {
+        class: 'rounded px-1 bg-gray-50 dark:bg-gray-100',
+      },
+    }),
+    CodeBlock.configure({
+      HTMLAttributes: {
+        class: 'mr-4 px-2 rounded bg-gray-50 dark:bg-gray-100',
+      },
+    }),
     Document,
     HardBreak,
     History.configure({ newGroupDelay: 100 }),
-    Italic,
+    Italic.extend({ exitable: true, inclusive: false }),
     keyMapExt,
     Link.configure({
       openOnClick: false,
+    }).extend({
+      exitable: true,
+      inclusive: false,
     }),
     Paragraph,
     Placeholder.configure({ placeholder }),
-    Strike,
+    Strike.extend({ exitable: true, inclusive: false }),
     Text.extend({
       addPasteRules() {
         return [refPasteRule(onReference)];
