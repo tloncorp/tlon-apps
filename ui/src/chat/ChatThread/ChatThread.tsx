@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import React, { useRef } from 'react';
-import { useLocation, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useChannelFlag } from '@/hooks';
@@ -11,6 +11,7 @@ import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { whomIsFlag } from '@/logic/utils';
+import { useEventListener } from 'usehooks-ts';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime, idShip } = useParams<{
@@ -31,19 +32,38 @@ export default function ChatThread() {
   const id = `${idShip!}/${idTime!}`;
   const maybeWrit = useWrit(whom, id);
   const replies = useReplies(whom, id);
-
-  if (!maybeWrit) {
-    return null;
-  }
-  const [time, writ] = maybeWrit;
-  const thread = replies.set(time, writ);
+  const navigate = useNavigate();
+  const [time, writ] = maybeWrit ?? [null, null];
 
   const returnURL = () => {
+    if (!time || !writ) return '#';
+
     if (location.pathname.includes('groups')) {
       return `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${time.toString()}`;
     }
     return `/dm/${ship}?msg=${time.toString()}`;
   };
+
+  useEventListener('keydown', (e) => {
+    switch (e.key) {
+      case 'Escape': {
+        navigate(returnURL());
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+  });
+
+  if (!time || !writ)
+    return (
+      <div className="flex h-full w-full items-center justify-center text-gray-400">
+        No thread found
+      </div>
+    );
+
+  const thread = replies.set(time, writ);
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto border-gray-50 bg-white lg:w-96 lg:border-l-2">
