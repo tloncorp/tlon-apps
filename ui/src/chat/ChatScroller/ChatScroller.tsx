@@ -306,7 +306,7 @@ export default function ChatScroller({
           }
         }}
         totalListHeightChanged={(newHeight) => {
-          if (height !== newHeight) {
+          if (height !== newHeight && atBottom) {
             scrollerRef.current?.scrollBy({ left: 0, top: newHeight - height });
             setHeight(newHeight);
           }
