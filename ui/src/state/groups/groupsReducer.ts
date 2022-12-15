@@ -65,12 +65,12 @@ function reduceFleet(draft: Group, diff: FleetDiff) {
     });
   } else if ('add-sects' in d) {
     ships.forEach((ship) => {
-      const vessel = draft.fleet[ship];
+      const vessel = draft.fleet[ship] || { sects: [], joined: 0 };
       vessel.sects = [...vessel.sects, ...d['add-sects']];
     });
   } else if ('del-sects' in d) {
     ships.forEach((ship) => {
-      const vessel = draft.fleet[ship];
+      const vessel = draft.fleet[ship] || { sects: [], joined: 0 };
       vessel.sects = vessel.sects.filter((s) => !d['del-sects'].includes(s));
     });
   }
