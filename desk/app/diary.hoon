@@ -795,6 +795,11 @@
   ::
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
+    =/  bloc=path
+      %+  welp  di-groups-scry
+      /fleet/(scot %p src.bowl)/is-bloc/noun
+    =+  .^(is-bloc=? %gx bloc)
+    ?:  is-bloc  &
     =/  =path
       %+  welp  di-groups-scry
       /fleet/(scot %p src.bowl)/vessel/noun

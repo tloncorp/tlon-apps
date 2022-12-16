@@ -798,6 +798,10 @@
       =/  src  (slav %p ship.pole)
       `noun+!>((~(got by fleet.group) src))
       ::
+        [%fleet ship=@ %is-bloc ~]
+      =/  src  (slav %p ship.pole)
+      `loob+!>((~(has by go-is-bloc-who) src))
+      ::
         [%channel app=@ ship=@ name=@ rest=*]
       =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
       =/  =channel:g  (~(got by channels.group) nes)
@@ -813,7 +817,8 @@
     =/  open  =(-.cordon.group %open)
     =/  ves  (~(get by fleet.group) src)
     =/  visible  =(~ readers.channel)
-    ?:  ?|  &(open visible)
+    ?:  ?|  (~(has by go-is-bloc-who) src)
+            &(open visible)
             &(!=(~ ves) visible)
         ==
       &
