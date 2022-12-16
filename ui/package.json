@@ -1,6 +1,6 @@
 {
   "name": "landscape-apps",
-  "version": "0.9.1",
+  "version": "2.2.0",
   "private": true,
   "engines": {
     "node": "14.19.0"
