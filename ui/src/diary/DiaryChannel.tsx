@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
@@ -135,6 +135,10 @@ function DiaryChannel() {
     return b.compare(a);
   });
 
+  // const loadOlderNotes = useCallback(async () => {
+  //   await useDiaryState.getState().getOlderNotes(chFlag, 30);
+  // }, [chFlag]);
+
   const loadOlderNotes = async () => {
     await useDiaryState.getState().getOlderNotes(chFlag, 30);
   };
@@ -195,7 +199,7 @@ function DiaryChannel() {
       </Toast.Provider>
       <div className="h-full">
         {displayMode === 'grid' ? (
-          <DiaryGridView notes={sortedNotes} />
+          <DiaryGridView notes={sortedNotes} loadOlderNotes={loadOlderNotes} />
         ) : (
           <div className="h-full">
             <div className="mx-auto flex h-full w-full flex-col">

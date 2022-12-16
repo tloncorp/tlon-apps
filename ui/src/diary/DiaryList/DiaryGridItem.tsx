@@ -7,7 +7,7 @@ import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import IconButton from '@/components/IconButton';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
-import { makePrettyDate } from '@/logic/utils';
+import { makePrettyDate, sampleQuippers } from '@/logic/utils';
 import { daToUnix } from '@urbit/api';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import { useChannelFlag } from '@/hooks';
@@ -28,7 +28,7 @@ export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
   const date = makePrettyDate(unix);
   const navigate = useNavigate();
   const hasImage =
-    (letter.type === 'note' ? letter.essay.image : letter.image).length !== 0;
+    (letter.type === 'note' ? letter.essay.image : letter.image)?.length !== 0;
   const { didCopy, onCopy } = useDiaryActions({
     flag: chFlag || '',
     time: time.toString(),
@@ -45,11 +45,7 @@ export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
   const commenters =
     letter.type === 'outline'
       ? letter.quippers
-      : _.flow(
-          f.compact,
-          f.uniq,
-          f.take(3)
-        )([...letter.seal.quips].map(([, v]) => v.memo.author));
+      : sampleQuippers(letter.seal.quips);
   const quipCount =
     letter.type === 'outline' ? letter.quipCount : letter.seal.quips.size;
 
