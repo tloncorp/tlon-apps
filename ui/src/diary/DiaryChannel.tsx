@@ -139,17 +139,19 @@ function DiaryChannel() {
     await useDiaryState.getState().getOlderNotes(chFlag, 30);
   };
 
-  // const keys = sortedNotes.map((sN) => sN[0]);
-
-  // const itemContent = (i: number, realIndex: bigInt.BigInteger) => {
-  //   console.log('getting itemcontent');
-  //   return <DiaryListItem letter={letters.get(realIndex)} time={realIndex} />;
-  // };
+  const itemContent = (
+    i: number,
+    [time, letter]: [bigInt.BigInteger, DiaryLetter]
+  ) => (
+    <div className="my-4 mx-auto max-w-[600px]">
+      <DiaryListItem letter={letter} time={time} />
+    </div>
+  );
 
   return (
     <Layout
       stickyHeader
-      className="flex-1 overflow-y-scroll bg-gray-50"
+      className="flex-1 bg-gray-50"
       aside={<Outlet />}
       header={
         <ChannelHeader
@@ -191,29 +193,23 @@ function DiaryChannel() {
           <Toast.Viewport label="Note successfully published" />
         </div>
       </Toast.Provider>
-      <div className="p-4">
+      <div className="h-full">
         {displayMode === 'grid' ? (
           <DiaryGridView notes={sortedNotes} />
         ) : (
-          <div className="h-full p-6">
-            <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
-              {/* <Virtuoso
-                style={{ height: '100%', width: '100%' }}
-                data={keys}
+          <div className="h-full">
+            <div className="mx-auto flex h-full w-full flex-col">
+              <Virtuoso
+                style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
+                data={sortedNotes}
                 itemContent={itemContent}
-              /> */}
-              {sortedNotes.map(([time, letter]) => (
-                <DiaryListItem
-                  key={time.toString()}
-                  time={time}
-                  letter={letter}
-                />
-              ))}
-              <div className="flex w-full items-center justify-center">
-                <button className="button" onClick={loadOlderNotes}>
-                  Load More
-                </button>
-              </div>
+                overscan={200}
+                atBottomStateChange={loadOlderNotes}
+                components={{
+                  Header: () => <div className="h-8 w-full" />,
+                  Footer: () => <div className="h-4 w-full" />,
+                }}
+              />
             </div>
           </div>
         )}
