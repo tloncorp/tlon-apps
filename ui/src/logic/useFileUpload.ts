@@ -5,19 +5,18 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { dateToDa, deSig } from '@urbit/api';
 import { useFileStore, useStorage } from '@/state/storage';
 import { Upload } from '@/types/storage';
-import api from '../api';
 
 function useFileUpload() {
   const { s3, ...storage } = useStorage();
   const { credentials } = s3;
   const {
+    client,
     setFiles,
     createClient,
     setStatus,
     setFileStatus,
     setErrorMessage,
     setFileURL,
-    ...fs
   } = useFileStore();
   const [hasCredentials, setHasCredentials] = useState(false);
 
@@ -28,25 +27,28 @@ function useFileUpload() {
       credentials?.secretAccessKey;
     if (hasCreds) {
       setHasCredentials(true);
-      const connect = async () => {
-        createClient(credentials);
-      };
-      connect()
-        .then(() => setStatus('success'))
-        .catch((error: unknown) => {
-          console.error(error);
-        });
     }
-  }, [createClient, setStatus, credentials]);
+  }, [credentials]);
+
+  const initClient = useCallback(async () => {
+    if (credentials) {
+      await createClient(credentials);
+      setStatus('success');
+    }
+  }, [createClient, credentials, setStatus]);
+
+  useEffect(() => {
+    if (hasCredentials && !client) {
+      initClient();
+    }
+  }, [client, hasCredentials, initClient]);
 
   const uploadFile = useCallback(
     async (upload) => {
-      const { file, key } = upload;
-
-      if (!fs.client) {
-        setStatus('error');
-        return false;
+      if (!client) {
+        return;
       }
+      const { file, key } = upload;
 
       setFileStatus([key, 'loading']);
 
@@ -59,9 +61,9 @@ function useFileUpload() {
         ACL: 'public-read',
       });
 
-      const url = await getSignedUrl(fs.client, command);
+      const url = await getSignedUrl(client, command);
 
-      const uploadData = fs.client
+      client
         .send(command)
         .then(() => {
           setFileStatus([key, 'success']);
@@ -75,20 +77,18 @@ function useFileUpload() {
           ]);
           console.log({ error });
         });
-
-      return uploadData;
     },
-    [fs, s3, setStatus, setFileStatus, setFileURL, setErrorMessage]
+    [client, setFileStatus, s3, setFileURL, setErrorMessage]
   );
 
-  const onFiles = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      if (!e.target.files) return;
+  const uploadFiles = useCallback(
+    async (files: FileList | null) => {
+      if (!files) return;
       const newFiles = _.keyBy(
-        [...e.target.files].map((file) => ({
+        [...files].map((file) => ({
           file,
           key: `${window.ship}/${deSig(dateToDa(new Date()))}-${file.name}`,
-          for: e.target.id,
+          for: window.ship, // TODO: this is unused, should it be kept?
           status: 'initial',
           url: '',
         })),
@@ -98,6 +98,11 @@ function useFileUpload() {
       _.map(newFiles, (file) => uploadFile(file));
     },
     [setFiles, uploadFile]
+  );
+
+  const onFiles = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => uploadFiles(e.target.files),
+    [uploadFiles]
   );
 
   const promptUpload = useCallback(
@@ -119,6 +124,7 @@ function useFileUpload() {
     storage,
     hasCredentials,
     loaded: storage.loaded,
+    uploadFiles,
     promptUpload,
   };
 }

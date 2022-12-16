@@ -7,6 +7,16 @@ export const MAX_DISPLAYED_OPTIONS = 40;
 export const LEAP_DESCRIPTION_TRUNCATE_LENGTH = 48;
 export const LEAP_RESULT_TRUNCATE_SIZE = 5;
 
+export const PASTEABLE_IMAGE_TYPES = [
+  'image/gif',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/svg',
+  'image/tif',
+  'image/webp',
+];
+
 export const AUTHORS = [
   '~nocsyx-lassul',
   '~finned-palmer',

@@ -21,7 +21,7 @@ export default function IconButton({
 }: IconButtonProps) {
   return (
     <div className={cn('group-two cursor-pointer', className)}>
-      <Tooltip.Root delayDuration={0}>
+      <Tooltip.Root delayDuration={800} disableHoverableContent>
         {showTooltip ? (
           <Tooltip.Portal>
             <Tooltip.Content asChild sideOffset={5} hideWhenDetached>
