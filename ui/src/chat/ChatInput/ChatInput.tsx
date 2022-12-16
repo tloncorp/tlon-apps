@@ -269,12 +269,12 @@ export default function ChatInput({
       <div className={cn('flex w-full items-end space-x-2', className)}>
         <div className="flex-1">
           {imageBlocks.length > 0 ? (
-            <div className="mb-2 flex flex-wrap items-center space-x-3 space-y-3">
+            <div className="mb-2 flex flex-wrap items-center">
               {imageBlocks.map((img, idx) => (
-                <div key={idx} className="relative">
+                <div key={idx} className="relative p-1.5">
                   <button
                     onClick={() => onRemove(idx)}
-                    className="icon-button absolute top-2 right-2"
+                    className="icon-button absolute top-4 right-4"
                   >
                     <X16Icon className="h-4 w-4" />
                   </button>
@@ -282,7 +282,7 @@ export default function ChatInput({
                     <img
                       title={img.image.alt}
                       src={img.image.src}
-                      className="h-32 w-32"
+                      className="h-32 w-32 object-cover"
                     />
                   ) : (
                     <div
@@ -297,7 +297,10 @@ export default function ChatInput({
           {chatInfo.blocks.length > 0 ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="mr-2 text-gray-600">Attached: </span>
-              {chatInfo.blocks.length} reference
+              {chatInfo.blocks.length}{' '}
+              {chatInfo.blocks.every((b) => 'image' in b)
+                ? 'image'
+                : 'reference'}
               {chatInfo.blocks.length === 1 ? '' : 's'}
               <button
                 className="icon-button ml-auto"
