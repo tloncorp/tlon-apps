@@ -242,6 +242,21 @@ export default function ChatInput({
     [messageEditor, onSubmit]
   );
 
+  const onRemove = useCallback(
+    (idx: number) => {
+      const blocks = fetchChatBlocks(whom);
+      if ('image' in blocks[idx]) {
+        // @ts-expect-error type check on previous line
+        useFileStore.getState().removeFileByURL(blocks[idx]);
+      }
+      useChatStore.getState().setBlocks(
+        whom,
+        blocks.filter((_b, k) => k !== idx)
+      );
+    },
+    [whom]
+  );
+
   if (!messageEditor) {
     return null;
   }
@@ -255,22 +270,28 @@ export default function ChatInput({
         <div className="flex-1">
           {imageBlocks.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center space-x-3 space-y-3">
-              {imageBlocks.map((img, idx) =>
-                IMAGE_REGEX.test(img.image.src) ? (
-                  <img
-                    key={idx}
-                    title={img.image.alt}
-                    src={img.image.src}
-                    className="h-32 w-32"
-                  />
-                ) : (
-                  <div
-                    key={idx}
-                    title={img.image.alt}
-                    className="h-32 w-32 animate-pulse bg-gray-200"
-                  />
-                )
-              )}
+              {imageBlocks.map((img, idx) => (
+                <div key={idx} className="relative">
+                  <button
+                    onClick={() => onRemove(idx)}
+                    className="icon-button absolute top-2 right-2"
+                  >
+                    <X16Icon className="h-4 w-4" />
+                  </button>
+                  {IMAGE_REGEX.test(img.image.src) ? (
+                    <img
+                      title={img.image.alt}
+                      src={img.image.src}
+                      className="h-32 w-32"
+                    />
+                  ) : (
+                    <div
+                      title={img.image.alt}
+                      className="h-32 w-32 animate-pulse bg-gray-200"
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           ) : null}
           {chatInfo.blocks.length > 0 ? (

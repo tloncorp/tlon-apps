@@ -88,7 +88,7 @@ function useFileUpload() {
         [...files].map((file) => ({
           file,
           key: `${window.ship}/${deSig(dateToDa(new Date()))}-${file.name}`,
-          // for: id, TODO: is this needed?
+          for: window.ship, // TODO: this is unused, should it be kept?
           status: 'initial',
           url: '',
         })),

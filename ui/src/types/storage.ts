@@ -1,5 +1,6 @@
 import { S3Credentials } from '@urbit/api';
 import { S3Client } from '@aws-sdk/client-s3';
+import { ChatImage } from './chat';
 
 export interface GcpToken {
   accessKey: string;
@@ -56,6 +57,7 @@ export interface FileStore {
   setFileStatus: (file: Array<number | string>) => void;
   setFileURL: (file: Array<number | string>) => void;
   clearFiles: () => void;
+  removeFileByURL: (i: ChatImage) => void;
 }
 
 export interface UploadInputProps {
