@@ -154,3 +154,9 @@ export function useChatInfo(flag: string): ChatInfo {
 export function fetchChatBlocks(whom: string): ChatBlock[] {
   return useChatStore.getState().chats[whom]?.blocks || [];
 }
+
+export function useChatBlocks(whom?: string): ChatBlock[] {
+  return useChatStore(
+    useCallback((s) => (whom ? s.chats[whom]?.blocks || [] : []), [whom])
+  );
+}

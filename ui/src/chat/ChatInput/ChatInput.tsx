@@ -1,13 +1,7 @@
 import { Editor } from '@tiptap/react';
 import { findLast } from 'lodash';
 import cn from 'classnames';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePact } from '@/state/chat';
 import { ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
@@ -254,6 +248,7 @@ export default function ChatInput({
     <>
       <div className={cn('flex w-full items-end space-x-2', className)}>
         <div className="flex-1">
+          {/* branch on block type? */}
           {chatInfo.blocks.length > 0 ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="mr-2 text-gray-600">Attached: </span>
