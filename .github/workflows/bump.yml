@@ -1,0 +1,24 @@
+name: Version Bump
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        required: true
+        description: Enter the version
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: "Bumps versions and pushes to master"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+      - name: Bump
+        run: |
+          sed -i "s/version\+\[.*]/version+[${{ github.event.inputs.tag }}]/" desk/desk.docket-0
+          sed -i "s/version\+\[.*]/version+[${{ github.event.inputs.tag }}]/" talk/desk.docket-0
+      - name: Commit
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: '-A'
