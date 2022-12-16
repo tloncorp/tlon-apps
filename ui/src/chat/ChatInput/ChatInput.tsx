@@ -3,7 +3,7 @@ import { findLast } from 'lodash';
 import cn from 'classnames';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePact } from '@/state/chat';
-import { ChatMemo } from '@/types/chat';
+import { ChatImage, ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -58,9 +58,6 @@ export function UploadErrorPopover({
           </span>
           <div className="flex flex-col justify-start">
             <span className="mt-2 text-gray-800">{errorMessage}</span>
-            {/*
-              <button className="small-button mt-4 w-[84px]">Learn more</button>
-            */}
           </div>
         </div>
       </Popover.Content>
@@ -104,6 +101,11 @@ export default function ChatInput({
       setUploadError(mostRecentFile.errorMessage);
     }
   }, [mostRecentFile]);
+
+  const clearAttachments = useCallback(() => {
+    useChatStore.getState().setBlocks(whom, []);
+    useFileStore.getState().clearFiles();
+  }, [whom]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -174,9 +176,9 @@ export default function ChatInput({
       }
       editor?.commands.setContent('');
       setTimeout(() => closeReply(), 0);
-      useChatStore.getState().setBlocks(whom, []);
+      clearAttachments();
     },
-    [reply, whom, sendMessage, closeReply, mostRecentFile]
+    [whom, clearAttachments, mostRecentFile, sendMessage, reply, closeReply]
   );
 
   const messageEditor = useMessageEditor({
@@ -244,11 +246,25 @@ export default function ChatInput({
     return null;
   }
 
+  // @ts-expect-error tsc is not tracking the type narrowing in the filter
+  const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
+
   return (
     <>
       <div className={cn('flex w-full items-end space-x-2', className)}>
         <div className="flex-1">
-          {/* branch on block type? */}
+          {imageBlocks.length > 0 ? (
+            <div className="align-items mb-2 flex space-x-3">
+              {imageBlocks.map((img) => (
+                <img
+                  key={img.image.src}
+                  title={img.image.alt}
+                  src={img.image.src}
+                  className="h-32 w-32"
+                />
+              ))}
+            </div>
+          ) : null}
           {chatInfo.blocks.length > 0 ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="mr-2 text-gray-600">Attached: </span>
@@ -256,7 +272,7 @@ export default function ChatInput({
               {chatInfo.blocks.length === 1 ? '' : 's'}
               <button
                 className="icon-button ml-auto"
-                onClick={() => useChatStore.getState().setBlocks(whom, [])}
+                onClick={clearAttachments}
               >
                 <X16Icon className="h-4 w-4" />
               </button>

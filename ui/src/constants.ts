@@ -6,10 +6,11 @@ export const FETCH_BATCH_SIZE = 3;
 export const MAX_DISPLAYED_OPTIONS = 40;
 
 export const PASTEABLE_IMAGE_TYPES = [
-  'image/png',
+  'image/gif',
   'image/jpeg',
   'image/jpg',
-  'image/gif',
+  'image/png',
+  'image/svg',
   'image/tif',
   'image/webp',
 ];

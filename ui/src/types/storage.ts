@@ -55,6 +55,7 @@ export interface FileStore {
   setFiles: (file: Upload) => void;
   setFileStatus: (file: Array<number | string>) => void;
   setFileURL: (file: Array<number | string>) => void;
+  clearFiles: () => void;
 }
 
 export interface UploadInputProps {
