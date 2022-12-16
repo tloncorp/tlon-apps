@@ -26,13 +26,14 @@ import {
   clearStorageMigration,
   storageVersion,
   nestToFlag,
+  canWriteChannel,
 } from '@/logic/utils';
 import useNest from '@/logic/useNest';
 import { intersection } from 'lodash';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
-import { useVessel } from '../groups';
+import { useGroup, useVessel } from '../groups';
 import useSubscriptionState from '../subscription';
 
 setAutoFreeze(false);
@@ -309,12 +310,11 @@ export function useHeapPerms(flag: HeapFlag) {
 }
 
 export function useCanWriteToHeap(groupFlag: string) {
+  const group = useGroup(groupFlag);
   const vessel = useVessel(groupFlag, window.our);
   const nest = useNest();
   const perms = useHeapPerms(nest);
-  const canWrite =
-    perms.writers.length === 0 ||
-    intersection(perms.writers, vessel.sects).length !== 0;
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   return canWrite;
 }

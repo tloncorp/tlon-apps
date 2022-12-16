@@ -334,12 +334,28 @@ export function isChannelJoined(
   return isChannelHost || (nest && nest in briefs);
 }
 
-export function canReadChannel(channel: GroupChannel, vessel: Vessel) {
+export function canReadChannel(
+  channel: GroupChannel,
+  vessel: Vessel,
+  bloc: string[] = []
+) {
   if (channel.readers.length === 0) {
     return true;
   }
 
-  return _.intersection(channel.readers, vessel.sects).length > 0;
+  return _.intersection([...channel.readers, ...bloc], vessel.sects).length > 0;
+}
+
+export function canWriteChannel(
+  perms: WritePermissions['perms'],
+  vessel: Vessel,
+  bloc: string[] = []
+) {
+  if (perms.writers.length === 0) {
+    return true;
+  }
+
+  return _.intersection([...perms.writers, ...bloc], vessel.sects).length > 0;
 }
 
 /**

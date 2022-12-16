@@ -4,9 +4,10 @@ import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
+import { useRouteGroup, useGroup, useAmAdmin, useVessel } from '@/state/groups';
 import { GroupChannel, Zone, ViewProps } from '@/types/groups';
 import {
+  canReadChannel,
   channelHref,
   getFlagParts,
   isChannelImported,
@@ -50,6 +51,7 @@ function GroupChannel({
   const { ship } = getFlagParts(flag);
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
+  const vessel = useVessel(groupFlag, window.our);
   const briefs = useAllBriefs();
   const { hasStarted, pendingImports } = migration;
   const imported = isChannelImported(nest, pendingImports) && hasStarted(ship);
@@ -135,7 +137,10 @@ function GroupChannel({
     navigate(channelHref(groupFlag, nest));
   }, [groupFlag, joined, navigate, nest]);
 
-  if (!group || (channel.readers.includes('admin') && !isAdmin)) {
+  const canRead = canReadChannel(channel, vessel, group?.bloc);
+  console.log(canRead, channel, vessel, group?.bloc);
+
+  if (!group || !canRead) {
     return null;
   }
 
@@ -303,6 +308,8 @@ export default function ChannelIndex({ title }: ViewProps) {
   const group = useGroup(flag);
   const isMobile = useIsMobile();
   const BackButton = isMobile ? Link : 'div';
+
+  console.log(filteredSections, sectionedChannels);
 
   return (
     <section className="w-full sm:overflow-y-scroll">

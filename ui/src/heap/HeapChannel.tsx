@@ -31,7 +31,11 @@ import {
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { canReadChannel, createStorageKey } from '@/logic/utils';
+import {
+  canReadChannel,
+  canWriteChannel,
+  createStorageKey,
+} from '@/logic/utils';
 import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
 import NewCurioForm from './NewCurioForm';
@@ -48,11 +52,11 @@ function HeapChannel({ title }: ViewProps) {
   const { setRecentChannel } = useRecentChannel(flag);
 
   useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel)) {
+    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
       navigate('../../activity');
       setRecentChannel('');
     }
-  }, [channel, vessel, navigate, setRecentChannel]);
+  }, [group, channel, vessel, navigate, setRecentChannel]);
 
   const displayMode = useHeapDisplayMode(chFlag);
   const settings = useHeapSettings();
@@ -61,9 +65,7 @@ function HeapChannel({ title }: ViewProps) {
   const sortMode = useHeapSortMode(chFlag);
   const curios = useCuriosForHeap(chFlag);
   const perms = useHeapPerms(chFlag);
-  const canWrite =
-    perms.writers.length === 0 ||
-    _.intersection(perms.writers, vessel.sects).length !== 0;
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   const setDisplayMode = (setting: HeapDisplayMode) => {
     const newSettings = setSetting<HeapSetting>(

@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import LinkIcon from '@/components/icons/LinkIcon';
 import { useHeapPerms, useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
-import { isValidUrl, nestToFlag } from '@/logic/utils';
-import { useRouteGroup, useVessel } from '@/state/groups';
+import { canWriteChannel, isValidUrl, nestToFlag } from '@/logic/utils';
+import { useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/react';
@@ -30,6 +30,7 @@ export default function NewCurioForm() {
   const [draftLink, setDraftLink] = useState<string>();
   const [draftText, setDraftText] = useState<JSONContent>();
   const flag = useRouteGroup();
+  const group = useGroup(flag);
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
   const displayMode = useHeapDisplayMode(chFlag);
@@ -39,9 +40,7 @@ export default function NewCurioForm() {
   const isTextMode = inputMode === TEXT;
   const perms = useHeapPerms(nest);
   const vessel = useVessel(flag, window.our);
-  const canWrite =
-    perms.writers.length === 0 ||
-    intersection(perms.writers, vessel.sects).length !== 0;
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   const [uploadError, setUploadError] = useState<string | null>(null);
   const { loaded, hasCredentials, promptUpload } = useFileUpload();

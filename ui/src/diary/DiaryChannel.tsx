@@ -6,6 +6,7 @@ import {
   GROUP_ADMIN,
   useAmAdmin,
   useChannel,
+  useGroup,
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
@@ -29,7 +30,11 @@ import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 import * as Toast from '@radix-ui/react-toast';
 import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, createStorageKey } from '@/logic/utils';
+import {
+  canReadChannel,
+  canWriteChannel,
+  createStorageKey,
+} from '@/logic/utils';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
@@ -43,14 +48,15 @@ function DiaryChannel() {
   const location = useLocation();
   const navigate = useNavigate();
   const { setRecentChannel } = useRecentChannel(flag);
+  const group = useGroup(flag);
   const channel = useChannel(flag, nest);
 
   useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel)) {
+    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
       navigate('../../activity');
       setRecentChannel('');
     }
-  }, [channel, vessel, navigate, setRecentChannel]);
+  }, [group, channel, vessel, navigate, setRecentChannel]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
@@ -84,9 +90,7 @@ function DiaryChannel() {
 
   const perms = useDiaryPerms(chFlag);
 
-  const canWrite =
-    perms.writers.length === 0 ||
-    _.intersection(perms.writers, vessel.sects).length !== 0;
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);

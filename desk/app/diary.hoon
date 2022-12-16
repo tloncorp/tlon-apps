@@ -797,7 +797,7 @@
     ?:  =(p.flag src.bowl)  &
     =/  bloc=path
       %+  welp  di-groups-scry
-      /fleet/(scot %p src.bowl)/is-bloc/noun
+      /fleet/(scot %p src.bowl)/is-bloc/loob
     =+  .^(is-bloc=? %gx bloc)
     ?:  is-bloc  &
     =/  =path
