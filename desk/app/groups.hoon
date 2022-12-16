@@ -866,7 +866,7 @@
         %kick
       ?>  ?=(%sub -.net)
       ?.  ?=(%chi -.saga.net)  go-core
-      (go-sub load.net)
+      (go-sub !load.net)
     ::
         %watch-ack
       =?  cor  (~(has by xeno) flag)
@@ -908,7 +908,7 @@
        go-core
     ~&  "took chi epic: {<flag>}"
     =.  saga.net  chi/~
-    (go-safe-sub load.net)
+    (go-safe-sub !load.net)
   ::
   ++  go-proxy
     |=  =update:g

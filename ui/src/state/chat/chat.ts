@@ -518,36 +518,39 @@ export const useChatState = createState<ChatState>(
       };
 
       if (whomIsDm(whom)) {
-        api.poke(dmAction(whom, delta, id));
+        pokeOptimisticallyN(useChatState, dmAction(whom, delta, id), [
+          writsReducer(whom),
+        ]).then(() => set((draft) => draft.postedMessages.push(id)));
       } else if (whomIsMultiDm(whom)) {
-        api.poke(
-          multiDmAction(whom, {
-            writ: {
-              id,
-              delta,
-            },
-          })
-        );
+        pokeOptimisticallyN(
+          useChatState,
+          multiDmAction(whom, { writ: { id, delta } }),
+          [writsReducer(whom)]
+        ).then(() => set((draft) => draft.postedMessages.push(id)));
       } else {
-        api.poke(chatWritDiff(whom, id, delta));
+        pokeOptimisticallyN(useChatState, chatWritDiff(whom, id, delta), [
+          writsReducer(whom),
+        ]).then(() => set((draft) => draft.postedMessages.push(id)));
       }
+      set((draft) => draft.sentMessages.push(id));
     },
     delFeel: async (whom, id) => {
       const delta: WritDelta = { 'del-feel': window.our };
 
       if (whomIsDm(whom)) {
-        api.poke(dmAction(whom, delta, id));
+        pokeOptimisticallyN(useChatState, dmAction(whom, delta, id), [
+          writsReducer(whom),
+        ]).then(() => set((draft) => draft.postedMessages.push(id)));
       } else if (whomIsMultiDm(whom)) {
-        api.poke(
-          multiDmAction(whom, {
-            writ: {
-              id,
-              delta,
-            },
-          })
-        );
+        pokeOptimisticallyN(
+          useChatState,
+          multiDmAction(whom, { writ: { id, delta } }),
+          [writsReducer(whom)]
+        ).then(() => set((draft) => draft.postedMessages.push(id)));
       } else {
-        api.poke(chatWritDiff(whom, id, delta));
+        pokeOptimisticallyN(useChatState, chatWritDiff(whom, id, delta), [
+          writsReducer(whom),
+        ]).then(() => set((draft) => draft.postedMessages.push(id)));
       }
     },
     create: async (req) => {
