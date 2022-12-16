@@ -135,12 +135,16 @@ function DiaryChannel() {
     return b.compare(a);
   });
 
-  const keys = sortedNotes.map((sN) => sN[0]);
-
-  const itemContent = (i: number, realIndex: bigInt.BigInteger) => {
-    console.log('getting itemcontent');
-    return <DiaryListItem letter={letters.get(realIndex)} time={realIndex} />;
+  const loadOlderNotes = async () => {
+    await useDiaryState.getState().getOlderNotes(chFlag, 30);
   };
+
+  // const keys = sortedNotes.map((sN) => sN[0]);
+
+  // const itemContent = (i: number, realIndex: bigInt.BigInteger) => {
+  //   console.log('getting itemcontent');
+  //   return <DiaryListItem letter={letters.get(realIndex)} time={realIndex} />;
+  // };
 
   return (
     <Layout
@@ -193,18 +197,23 @@ function DiaryChannel() {
         ) : (
           <div className="h-full p-6">
             <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
-              <Virtuoso
+              {/* <Virtuoso
                 style={{ height: '100%', width: '100%' }}
                 data={keys}
                 itemContent={itemContent}
-              />
-              {/* {sortedNotes.map(([time, letter]) => (
+              /> */}
+              {sortedNotes.map(([time, letter]) => (
                 <DiaryListItem
                   key={time.toString()}
                   time={time}
                   letter={letter}
                 />
-              ))} */}
+              ))}
+              <div className="flex w-full items-center justify-center">
+                <button className="button" onClick={loadOlderNotes}>
+                  Load More
+                </button>
+              </div>
             </div>
           </div>
         )}

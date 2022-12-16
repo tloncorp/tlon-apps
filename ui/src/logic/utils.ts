@@ -37,7 +37,7 @@ export function sampleQuippers(quips: DiaryQuipMap) {
     f.compact,
     f.uniq,
     f.take(3)
-  )([...quips]);
+  )(quips.size ? [...quips] : []);
 }
 
 export function renderRank(rank: Rank, plural = false) {
