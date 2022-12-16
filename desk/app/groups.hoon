@@ -1,4 +1,4 @@
-/-  g=groups, ha=hark
+/-  g=groups, ha=hark, h=heap, d=diary, c=chat
 /-  g-one=group
 /-  m-one=metadata-store
 /-  meta
@@ -96,6 +96,10 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
+      %noun
+    ?+  q.vase  !!
+      %reset-channel-perms  reset-channel-perms
+    ==
   ::
       %group-import  (import-groups !<(imports:g vase))
   ::
@@ -172,6 +176,56 @@
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
+++  channel-scry
+  |=  app=@tas
+  ^-  path
+  /(scot %p our.bowl)/[app]/(scot %da now.bowl)
+++  reset-channel-perms
+  =.  cor
+    %-  ~(rep by groups)
+    |=  [[=flag:g [=net:g =group:g]] cr=_cor]
+    %-  ~(rep by channels.group)
+    |=  [[=nest:g =channel:g] core=_cr]  
+    =.  cards.core
+      :_  cards.core
+      ^-  card  
+      ?+  -.nest  *card
+          %chat
+        =/  =path  (welp (channel-scry %chat) /chat/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
+        =/  perms  .^(perm:c %gx path)
+        =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
+        =/  =wire  /chat
+        =/  =dock  [our.bowl %chat]
+        =/  =cage  chat-action+!>(action)
+        [%pass wire %agent dock %poke cage]
+          %diary
+        =/  =path  (welp (channel-scry %diary) /diary/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
+        =/  perms  .^(perm:d %gx path)
+        =/  =action:d  [+.nest [now.bowl [%del-sects writers.perms]]]
+        =/  =wire  /diary
+        =/  =dock  [our.bowl %diary]
+        =/  =cage  diary-action+!>(action)
+        [%pass wire %agent dock %poke cage]
+          %heap
+        =/  path   (welp (channel-scry %heap) /heap/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
+        =/  perms  .^(perm:h %gx path)
+        =/  =action:h  [+.nest [now.bowl [%del-sects writers.perms]]]
+        =/  =wire  /heap
+        =/  =dock  [our.bowl %heap]
+        =/  =cage  heap-action+!>(action)
+        [%pass wire %agent dock %poke cage]
+      ==
+    core
+  =.  groups  
+    %-  ~(run by groups)
+    |=  [=net:g =group:g]
+    =.  channels.group
+      %-  ~(run by channels.group)
+      |=  =channel:g
+      =.  readers.channel  ~
+      channel
+    [net group]
+  cor
 ::  +load: load next state
 ++  load
   |=  =vase
@@ -280,6 +334,9 @@
       ~   cor
       [%epic ~]  (take-epic sign)
       [%hark ~]  cor
+      [%chat ~]  cor
+      [%heap ~]  cor
+      [%diary ~]  cor
       [%helm *]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
   ::
