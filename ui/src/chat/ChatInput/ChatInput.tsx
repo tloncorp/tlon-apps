@@ -20,7 +20,7 @@ import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
 import useFileUpload from '@/logic/useFileUpload';
 import { useFileStore } from '@/state/storage';
-import { isImageUrl } from '@/logic/utils';
+import { IMAGE_REGEX, isImageUrl } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
 import { useSubscriptionStatus } from '@/state/local';
@@ -254,15 +254,23 @@ export default function ChatInput({
       <div className={cn('flex w-full items-end space-x-2', className)}>
         <div className="flex-1">
           {imageBlocks.length > 0 ? (
-            <div className="align-items mb-2 flex space-x-3">
-              {imageBlocks.map((img) => (
-                <img
-                  key={img.image.src}
-                  title={img.image.alt}
-                  src={img.image.src}
-                  className="h-32 w-32"
-                />
-              ))}
+            <div className="mb-2 flex flex-wrap items-center space-x-3 space-y-3">
+              {imageBlocks.map((img, idx) =>
+                IMAGE_REGEX.test(img.image.src) ? (
+                  <img
+                    key={idx}
+                    title={img.image.alt}
+                    src={img.image.src}
+                    className="h-32 w-32"
+                  />
+                ) : (
+                  <div
+                    key={idx}
+                    title={img.image.alt}
+                    className="h-32 w-32 animate-pulse bg-gray-200"
+                  />
+                )
+              )}
             </div>
           ) : null}
           {chatInfo.blocks.length > 0 ? (

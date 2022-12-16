@@ -65,6 +65,27 @@ export function useMessageEditor({
     [chatBlocks, setBlocks, whom]
   );
 
+  const handleDrop = useCallback(
+    (_view, event: DragEvent, _slice) => {
+      if (!whom) {
+        return false;
+      }
+      if (
+        event.dataTransfer &&
+        Array.from(event.dataTransfer.files).some((f) =>
+          PASTEABLE_IMAGE_TYPES.includes(f.type)
+        )
+      ) {
+        // TODO should blocks first be updated here to show the loading state?
+        uploadFiles(event.dataTransfer.files);
+        return true;
+      }
+
+      return false;
+    },
+    [uploadFiles, whom]
+  );
+
   const handlePaste = useCallback(
     (_view, event: ClipboardEvent, _slice) => {
       if (!whom) {
@@ -179,6 +200,7 @@ export function useMessageEditor({
           'aria-label': 'Message editor with formatting menu',
           spellcheck: `${!calm.disableSpellcheck}`,
         },
+        handleDrop,
         handlePaste,
       },
       onUpdate: ({ editor }) => {
