@@ -1349,6 +1349,7 @@
       go-core
     ::
         %del
+      ?.  (has:by-ch ch)  go-core
       =/  =channel:g   (got:by-ch ch)
       =.  zones.group
         %+  ~(jab by zones.group)  zone.channel
