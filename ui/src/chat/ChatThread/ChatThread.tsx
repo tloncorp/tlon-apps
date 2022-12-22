@@ -1,5 +1,4 @@
-import cn from 'classnames';
-import React, { useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -34,39 +33,37 @@ export default function ChatThread() {
   const replies = useReplies(whom, id);
   const navigate = useNavigate();
   const [time, writ] = maybeWrit ?? [null, null];
+  const threadRef = useRef<HTMLDivElement | null>(null);
 
-  const returnURL = () => {
+  const returnURL = useCallback(() => {
     if (!time || !writ) return '#';
 
     if (location.pathname.includes('groups')) {
       return `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${time.toString()}`;
     }
     return `/dm/${ship}?msg=${time.toString()}`;
-  };
+  }, [chName, chShip, location, name, ship, time, writ]);
 
-  useEventListener('keydown', (e) => {
-    switch (e.key) {
-      case 'Escape': {
+  const onEscape = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
         navigate(returnURL());
-        break;
       }
-      default: {
-        break;
-      }
-    }
-  });
+    },
+    [navigate, returnURL]
+  );
 
-  if (!time || !writ)
-    return (
-      <div className="flex h-full w-full items-center justify-center text-gray-400">
-        No thread found
-      </div>
-    );
+  useEventListener('keydown', onEscape, threadRef);
+
+  if (!time || !writ) return null;
 
   const thread = replies.set(time, writ);
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-y-auto border-gray-50 bg-white lg:w-96 lg:border-l-2">
+    <div
+      className="relative flex h-full w-full flex-col overflow-y-auto border-gray-50 bg-white lg:w-96 lg:border-l-2"
+      ref={threadRef}
+    >
       <header className={'header z-40'}>
         <div className="flex h-full w-full items-center justify-between border-b-2 border-gray-50 bg-white p-4">
           <div className="flex items-center space-x-3 font-semibold">
