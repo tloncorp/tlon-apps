@@ -95,54 +95,56 @@ function TopBar({
             />
           )}
         </div>
-        <div className="relative hidden group-hover:block">
-          {asRef ? (
-            <IconButton
-              icon={<ElipsisSmallIcon className="h-4 w-4" />}
-              action={() => setMenuOpen(true)}
-              label="expand"
-              className="rounded border border-gray-100 bg-white"
-              small
-            />
-          ) : (
-            <IconButton
-              icon={<ElipsisSmallIcon className="h-4 w-4" />}
-              label="options"
-              className="rounded bg-white"
-              action={() => setMenuOpen(!menuOpen)}
-            />
-          )}
-          <div
-            className={cn(
-              'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
-              { hidden: !menuOpen }
-            )}
-            onMouseLeave={() => setMenuOpen(false)}
-          >
+        {canEdit && (
+          <div className="relative hidden group-hover:block">
             {asRef ? (
-              <button
-                className="small-menu-button"
-                onClick={onCopy}
-                disabled={didCopy}
-              >
-                {didCopy ? 'Copied' : 'Share'}
-              </button>
-            ) : null}
-            {!asRef && canEdit ? (
-              <>
-                <button onClick={onEdit} className="small-menu-button">
-                  Edit
-                </button>
+              <IconButton
+                icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                action={() => setMenuOpen(true)}
+                label="expand"
+                className="rounded border border-gray-100 bg-white"
+                small
+              />
+            ) : (
+              <IconButton
+                icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                label="options"
+                className="rounded bg-white"
+                action={() => setMenuOpen(!menuOpen)}
+              />
+            )}
+            <div
+              className={cn(
+                'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
+                { hidden: !menuOpen }
+              )}
+              onMouseLeave={() => setMenuOpen(false)}
+            >
+              {asRef ? (
                 <button
-                  className="small-menu-button text-red"
-                  onClick={onDelete}
+                  className="small-menu-button"
+                  onClick={onCopy}
+                  disabled={didCopy}
                 >
-                  Delete
+                  {didCopy ? 'Copied' : 'Share'}
                 </button>
-              </>
-            ) : null}
+              ) : null}
+              {!asRef && canEdit ? (
+                <>
+                  <button onClick={onEdit} className="small-menu-button">
+                    Edit
+                  </button>
+                  <button
+                    className="small-menu-button text-red"
+                    onClick={onDelete}
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : null}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
