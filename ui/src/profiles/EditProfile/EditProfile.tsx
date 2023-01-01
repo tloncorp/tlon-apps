@@ -221,7 +221,7 @@ function EditProfileContent() {
             <div className="text-sm font-semibold text-gray-600">
               Share your favorite groups on your profile
             </div>
-            <div className="flex flex-wrap space-x-2 pt-2">
+            <div className="flex flex-wrap pt-2">
               {form.watch('groups').map((group) => (
                 <ProfileGroup
                   key={group.value}
