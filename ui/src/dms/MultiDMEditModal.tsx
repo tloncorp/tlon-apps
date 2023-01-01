@@ -30,7 +30,7 @@ export default function MultiDMEditModal() {
     <Dialog defaultOpen onOpenChange={(open) => !open && dismiss()}>
       {editing ? (
         <DialogContent showClose containerClass="w-max-lg">
-          <div className="sm:w-96">
+          <div className="w-80">
             <header className="flex items-center ">
               <h2 className="text-xl font-bold">Edit Chat Info</h2>
             </header>
@@ -42,7 +42,7 @@ export default function MultiDMEditModal() {
         </DialogContent>
       ) : (
         <DialogContent showClose containerClass="max-w-lg">
-          <div className="sm:w-96">
+          <div className="w-80">
             <header className="flex items-center ">
               <h2 className="text-xl font-bold">Chat Info</h2>
             </header>

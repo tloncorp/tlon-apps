@@ -77,9 +77,9 @@ export default function ImageOrColorField<FormType extends FieldValues>({
         ) : null}
         {status === 'color' ? (
           <div className="input flex h-8 w-full items-center rounded-lg">
-            <ColorPickerField fieldName={fieldName} className="grow" />
+            <ColorPickerField fieldName={fieldName} />
             <button
-              className="small-button line-break-none w-max"
+              className="small-button h-6 whitespace-nowrap"
               onClick={handleImageIconType}
             >
               Add Image

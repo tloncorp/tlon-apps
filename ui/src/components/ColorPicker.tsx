@@ -28,7 +28,7 @@ export default function ColorPicker({
       <Popover.Root>
         <Popover.Trigger
           style={{ backgroundColor: color }}
-          className="h-6 w-6 rounded"
+          className="h-6 w-6 shrink-0 rounded"
         />
         <Popover.Content>
           <HexColorPicker color={color} onChange={setColor} />
@@ -37,7 +37,7 @@ export default function ColorPicker({
       </Popover.Root>
       <HexColorInput
         prefixed
-        className="input-inner grow py-0"
+        className="input-inner w-full"
         type="text"
         color={color}
         onChange={setColor}
