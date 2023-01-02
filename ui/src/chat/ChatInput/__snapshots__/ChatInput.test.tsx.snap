@@ -9,7 +9,7 @@ exports[`ChatInput > renders as expected 1`] = `
       class="flex-1"
     >
       <div
-        class="flex items-center justify-end"
+        class="relative flex items-end justify-end"
       >
         <div
           class="relative flex flex-none items-center justify-center rounded bg-black w-6 h-6 rounded p-1.5 mr-2"

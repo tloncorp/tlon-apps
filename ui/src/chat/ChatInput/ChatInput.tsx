@@ -18,6 +18,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
+import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
 import useFileUpload from '@/logic/useFileUpload';
 import { useFileStore } from '@/state/storage';
 import { IMAGE_REGEX, isImageUrl } from '@/logic/utils';
@@ -294,6 +295,7 @@ export default function ChatInput({
               ))}
             </div>
           ) : null}
+
           {chatInfo.blocks.length > 0 ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="mr-2 text-gray-600">Attached: </span>
@@ -321,11 +323,21 @@ export default function ChatInput({
               </button>
             </div>
           ) : null}
-          <div className="flex items-center justify-end">
-            <Avatar size="xs" ship={window.our} className="mr-2" />
+          <div className="relative flex items-end justify-end">
+            {!isMobile && (
+              <Avatar size="xs" ship={window.our} className="mr-2" />
+            )}
             <MessageEditor
               editor={messageEditor}
-              className="w-full break-words"
+              className={cn(
+                'w-full break-words',
+                loaded &&
+                  hasCredentials &&
+                  !uploadError &&
+                  mostRecentFile?.status !== 'loading'
+                  ? 'pr-8'
+                  : ''
+              )}
             />
             {loaded &&
             hasCredentials &&
@@ -333,18 +345,18 @@ export default function ChatInput({
             mostRecentFile?.status !== 'loading' ? (
               <button
                 title={'Upload an image'}
-                className="absolute mr-2 text-gray-600 hover:text-gray-800"
+                className="absolute bottom-2 mr-2 text-gray-600 hover:text-gray-800"
                 aria-label="Add attachment"
                 onClick={() => promptUpload(fileId.current)}
               >
-                <AddIcon className="h-6 w-4" />
+                <AddIcon className="h-4 w-4" />
               </button>
             ) : null}
             {mostRecentFile && mostRecentFile.status === 'loading' ? (
-              <LoadingSpinner className="absolute mr-2 h-4 w-4" />
+              <LoadingSpinner className="absolute bottom-2 mr-2 h-4 w-4" />
             ) : null}
             {uploadError ? (
-              <div className="absolute mr-2">
+              <div className="absolute bottom-2 mr-2">
                 <UploadErrorPopover
                   errorMessage={uploadError}
                   setUploadError={setUploadError}
@@ -354,7 +366,7 @@ export default function ChatInput({
           </div>
         </div>
         <button
-          className="button"
+          className={cn('button', isMobile && 'px-2')}
           disabled={
             sendDisabled ||
             subscription === 'reconnecting' ||
@@ -363,7 +375,7 @@ export default function ChatInput({
           }
           onClick={onClick}
         >
-          Send
+          {isMobile ? <ArrowNWIcon16 className="h-4 w-4" /> : 'Send'}
         </button>
       </div>
       {isMobile ? <ChatInputMenu editor={messageEditor} /> : null}
