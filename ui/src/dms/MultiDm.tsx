@@ -27,10 +27,10 @@ export default function MultiDm() {
   const club = useMultiDm(clubId);
 
   useEffect(() => {
-    if (clubId) {
+    if (clubId && club) {
       useChatState.getState().initializeMultiDm(clubId);
     }
-  }, [clubId]);
+  }, [clubId, club]);
 
   const sendMessage = useSendMultiDm();
   const messages = useMultiDmMessages(clubId);

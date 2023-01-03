@@ -52,7 +52,7 @@ export default function ImageURLUploadField({
   return (
     <div className="input relative flex h-8 w-full items-center justify-end">
       <input
-        className={cn('input-inner grow p-0')}
+        className={cn('input-inner w-full py-0 pl-0 pr-2')}
         onFocus={() => setIsFocused(true)}
         {...formRegister(formValue, {
           onBlur: () => setIsFocused(false),
@@ -69,7 +69,7 @@ export default function ImageURLUploadField({
       {loaded && hasCredentials ? (
         <button
           title={'Upload an image'}
-          className="small-button whitespace-nowrap"
+          className="small-button h-6 whitespace-nowrap"
           aria-label="Add attachment"
           onClick={(e) => {
             e.preventDefault();

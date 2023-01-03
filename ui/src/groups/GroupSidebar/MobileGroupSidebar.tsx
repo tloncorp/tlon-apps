@@ -1,17 +1,15 @@
 import React from 'react';
 import cn from 'classnames';
 import { Outlet, useMatch } from 'react-router';
-import { useLocation } from 'react-router-dom';
 import { useGroup, useGroupFlag } from '@/state/groups/groups';
 import NavTab from '@/components/NavTab';
 import HashIcon from '@/components/icons/HashIcon';
-import InviteIcon16 from '@/components/icons/InviteIcon16';
+import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import GroupAvatar from '../GroupAvatar';
 
 export default function MobileGroupSidebar() {
   const flag = useGroupFlag();
   const group = useGroup(flag);
-  const location = useLocation();
   const match = useMatch('/groups/:ship/:name/info');
 
   return (
@@ -32,12 +30,9 @@ export default function MobileGroupSidebar() {
               />
               Group Info
             </NavTab>
-            <NavTab
-              to={`/groups/${flag}/invite`}
-              state={{ backgroundLocation: location }}
-            >
-              <InviteIcon16 className="mb-0.5 h-6 w-6" />
-              Invite
+            <NavTab to={`/groups/${flag}/actions`}>
+              <ElipsisIcon className="mb-0.5 h-6 w-6" />
+              Options
             </NavTab>
           </ul>
         </nav>
