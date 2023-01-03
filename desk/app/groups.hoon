@@ -1313,7 +1313,7 @@
     ::
         %del
       ?<  &((~(has in ships) our.bowl) =(p.flag our.bowl))
-      ?>  ?|(=(p.flag src.bowl) (~(has in ships) src.bowl))
+      ?>  ?|(go-is-bloc =(p.flag src.bowl) (~(has in ships) src.bowl))
       =.  fleet.group
       %-  malt
         %+  skip 
