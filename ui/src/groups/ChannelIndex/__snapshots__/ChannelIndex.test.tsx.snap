@@ -9,9 +9,9 @@ exports[`ChannelIndex > renders as expected 1`] = `
       class="flex flex-row items-center justify-between py-1 px-2 sm:p-4"
     >
       <div
-        aria-label="Back to Group Menu"
+        aria-label="Back to Group"
         class="cursor-pointer select-none p-2 sm:cursor-text sm:select-text"
-        to="../actions"
+        to="/groups/null"
       >
         <h1
           class="text-base font-semibold sm:text-lg"

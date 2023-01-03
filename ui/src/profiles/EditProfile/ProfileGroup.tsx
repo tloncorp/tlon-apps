@@ -14,7 +14,7 @@ export default function ProfileGroup({
   const group = useGroup(groupFlag);
 
   return (
-    <div className="flex h-8 items-center space-x-2 rounded-md bg-gray-50 px-4">
+    <div className="mr-2 mb-2 inline-flex items-center space-x-2 rounded-md bg-gray-50 px-4 py-2">
       <span className="font-semibold">
         {group ? group.meta.title : groupFlag}
       </span>

@@ -1,16 +1,17 @@
 import React, { useCallback, useRef } from 'react';
+import _ from 'lodash';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
+import { useEventListener } from 'usehooks-ts';
 import { useChannelFlag } from '@/hooks';
-import { useChatState, useReplies, useWrit } from '@/state/chat';
-import { useChannel, useRouteGroup } from '@/state/groups/groups';
+import { useChatState, useReplies, useWrit, useChatPerms } from '@/state/chat';
+import { useChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { whomIsFlag } from '@/logic/utils';
-import { useEventListener } from 'usehooks-ts';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime, idShip } = useParams<{
@@ -34,6 +35,11 @@ export default function ChatThread() {
   const navigate = useNavigate();
   const [time, writ] = maybeWrit ?? [null, null];
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const perms = useChatPerms(flag);
+  const vessel = useVessel(groupFlag, window.our);
+  const canWrite =
+    perms.writers.length === 0 ||
+    _.intersection(perms.writers, vessel.sects).length !== 0;
 
   const returnURL = useCallback(() => {
     if (!time || !writ) return '#';
@@ -93,7 +99,9 @@ export default function ChatThread() {
         />
       </div>
       <div className="sticky bottom-0 border-t-2 border-gray-50 bg-white p-4">
-        <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />
+        {canWrite && (
+          <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />
+        )}
       </div>
     </div>
   );
