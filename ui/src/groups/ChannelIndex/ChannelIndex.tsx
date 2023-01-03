@@ -138,7 +138,6 @@ function GroupChannel({
   }, [groupFlag, joined, navigate, nest]);
 
   const canRead = canReadChannel(channel, vessel, group?.bloc);
-  console.log(canRead, channel, vessel, group?.bloc);
 
   if (!group || !canRead) {
     return null;
