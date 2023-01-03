@@ -188,13 +188,16 @@
   |=  app=@tas
   ^-  path
   /(scot %p our.bowl)/[app]/(scot %da now.bowl)
+::
 ++  reset-all-perms
   (~(rep by groups) (reset-group-perms cor))
+::
 ++  reset-group-perms
   |=  core=_cor
   |=  [[=flag:g [=net:g =group:g]] cr=_core]
   ?.  =(our.bowl p.flag)  cr
   (~(rep by channels.group) (reset-channel-perms flag cr))
+::
 ++  reset-channel-perms
   |=  [=flag:g cr=_cor]
   |=  [[=nest:g =channel:g] core=_cr]  
@@ -217,6 +220,7 @@
       =/  =dock  [our.bowl %chat]
       =/  =cage  chat-action+!>(action)
       [%pass wire %agent dock %poke cage]
+    ::
         %diary
       =/  =path  (welp (channel-scry %diary) /diary/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
       =/  perms  .^(perm:d %gx path)
@@ -225,6 +229,7 @@
       =/  =dock  [our.bowl %diary]
       =/  =cage  diary-action+!>(action)
       [%pass wire %agent dock %poke cage]
+    ::
         %heap
       =/  path   (welp (channel-scry %heap) /heap/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
       =/  perms  .^(perm:h %gx path)
@@ -235,6 +240,7 @@
       [%pass wire %agent dock %poke cage]
     ==
   core
+::
 ::  +load: load next state
 ++  load
   |=  =vase
@@ -1313,7 +1319,10 @@
     ::
         %del
       ?<  &((~(has in ships) our.bowl) =(p.flag our.bowl))
-      ?>  ?|(go-is-bloc =(p.flag src.bowl) (~(has in ships) src.bowl))
+      ?>  ?|  go-is-bloc 
+              =(p.flag src.bowl)
+              (~(has in ships) src.bowl)
+          ==
       =.  fleet.group
       %-  malt
         %+  skip 
