@@ -98,10 +98,18 @@
   ?+    mark  ~|(bad-mark/mark !!)
       %noun
     ?+  q.vase  !!
-      %reset-channel-perms  reset-channel-perms
+      %reset-all-perms  reset-all-perms
     ==
   ::
       %group-import  (import-groups !<(imports:g vase))
+  ::
+      %reset-group-perms
+    =+  !<(=flag:g vase)
+    =/  val  (~(get by groups) flag)
+    ?~  val
+      ~&  'No group found'
+      cor
+    ((reset-group-perms cor) [flag u.val] cor)
   ::
       %group-leave
     =+  !<(=flag:g vase)
@@ -180,10 +188,15 @@
   |=  app=@tas
   ^-  path
   /(scot %p our.bowl)/[app]/(scot %da now.bowl)
+++  reset-all-perms
+  (~(rep by groups) (reset-group-perms cor))
+++  reset-group-perms
+  |=  core=_cor
+  |=  [[=flag:g [=net:g =group:g]] cr=_core]
+  ?.  =(our.bowl p.flag)  cr
+  (~(rep by channels.group) (reset-channel-perms flag cr))
 ++  reset-channel-perms
-  %-  ~(rep by groups)
-  |=  [[=flag:g [=net:g =group:g]] cr=_cor]
-  %-  ~(rep by channels.group)
+  |=  [=flag:g cr=_cor]
   |=  [[=nest:g =channel:g] core=_cr]  
   =.  cards.core
     :_
