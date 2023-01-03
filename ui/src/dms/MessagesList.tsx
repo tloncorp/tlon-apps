@@ -51,7 +51,7 @@ export default function MessagesList({
     const vessel = group?.fleet[window.our];
     const channel = group?.channels[`chat/${b}`];
 
-    if (channel && vessel && !canReadChannel(channel, vessel)) {
+    if (channel && vessel && !canReadChannel(channel, vessel, group?.bloc)) {
       return false;
     }
 

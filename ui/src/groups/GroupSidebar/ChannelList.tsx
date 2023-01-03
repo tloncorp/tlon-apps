@@ -120,7 +120,8 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
     channels
       .filter(
         ([nest, chan]) =>
-          (isChannelJoined(nest, briefs) && canReadChannel(chan, vessel)) ||
+          (isChannelJoined(nest, briefs) &&
+            canReadChannel(chan, vessel, group?.bloc)) ||
           nest in pendingImports
       )
       .map(([nest, channel]) => {

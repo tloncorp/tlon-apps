@@ -1,9 +1,14 @@
 import _ from 'lodash';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import { pluralize, sampleQuippers } from '@/logic/utils';
+import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
 import { useBrief, useDiaryState, useNote, useDiaryPerms } from '@/state/diary';
-import { useRouteGroup, useVessel, useAmAdmin } from '@/state/groups/groups';
+import {
+  useRouteGroup,
+  useVessel,
+  useAmAdmin,
+  useGroup,
+} from '@/state/groups/groups';
 import { DiaryBrief, DiaryQuip } from '@/types/diary';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -82,6 +87,7 @@ export default function DiaryNote() {
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const flag = useRouteGroup();
+  const group = useGroup(flag);
   const [id, note] = useNote(chFlag, noteId)!;
   const vessel = useVessel(flag, window.our);
   const isAdmin = useAmAdmin(flag);
@@ -101,9 +107,7 @@ export default function DiaryNote() {
   );
 
   const perms = useDiaryPerms(chFlag);
-  const canWrite =
-    perms.writers.length === 0 ||
-    _.intersection(perms.writers, vessel.sects).length !== 0;
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   const setSort = useCallback(
     (setting: 'asc' | 'dsc') => {
@@ -190,8 +194,8 @@ export default function DiaryNote() {
                 <DiaryCommentField flag={chFlag} replyTo={noteId} />
               ) : null}
               <ul className="mt-12">
-                {groupedQuips.map(([t, group]) =>
-                  group.map((props) => (
+                {groupedQuips.map(([t, g]) =>
+                  g.map((props) => (
                     <li key={props.time.toString()}>
                       <DiaryComment {...props} />
                     </li>
