@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useCopy } from '@/logic/utils';
-import { useRouteGroup } from '@/state/groups';
+import { useAmAdmin, useRouteGroup } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import { ChatWrit } from '@/types/chat';
 import IconButton from '@/components/IconButton';
@@ -23,6 +23,7 @@ export default function ChatMessageOptions(props: {
 }) {
   const { whom, writ, hideReply } = props;
   const groupFlag = useRouteGroup();
+  const isAdmin = useAmAdmin(groupFlag);
   const { didCopy, doCopy } = useCopy(
     `/1/chan/chat/${whom}/msg/${writ.seal.id}`
   );
@@ -105,7 +106,7 @@ export default function ChatMessageOptions(props: {
         showTooltip
         action={() => console.log('send to..')}
       /> */}
-      {window.our === writ.memo.author ? (
+      {isAdmin || window.our === writ.memo.author ? (
         <IconButton
           icon={<XIcon className="h-6 w-6 text-red" />}
           label="Delete"
