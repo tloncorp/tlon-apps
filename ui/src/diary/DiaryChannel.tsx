@@ -35,7 +35,6 @@ import { canReadChannel, createStorageKey } from '@/logic/utils';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
-
 function DiaryChannel() {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
@@ -134,10 +133,9 @@ function DiaryChannel() {
     return b.compare(a);
   });
 
-
-  const loadOlderNotes = async () => {
+  const loadOlderNotes = useCallback(async () => {
     await useDiaryState.getState().getOlderNotes(chFlag, 30);
-  };
+  }, [chFlag]);
 
   const itemContent = (
     i: number,
