@@ -36,6 +36,8 @@ export interface DiaryState {
   addNote: (flag: DiaryFlag, essay: NoteEssay) => Promise<string>;
   editNote: (flag: DiaryFlag, time: string, essay: NoteEssay) => Promise<void>;
   delNote: (flag: DiaryFlag, time: string) => Promise<void>;
+  getOlderNotes: (flag: string, count: number) => Promise<void>;
+  getNewerNotes: (flag: string, count: number) => Promise<void>;
   addSects: (flag: DiaryFlag, writers: string[]) => Promise<void>;
   delSects: (flag: DiaryFlag, writers: string[]) => Promise<void>;
   addQuip: (

@@ -334,6 +334,22 @@ export const useDiaryState = create<DiaryState>(
           draft.shelf[flag].perms = perms;
         });
       },
+      getOlderNotes: async (flag: string, count: number) => {
+        await makeNotesStore(
+          flag,
+          get,
+          `/diary/${flag}/notes`,
+          `/diary/${flag}/ui`
+        ).getOlder(count.toString());
+      },
+      getNewerNotes: async (flag: string, count: number) => {
+        await makeNotesStore(
+          flag,
+          get,
+          `/diary/${flag}/notes`,
+          `/diary/${flag}/ui`
+        ).getNewer(count.toString());
+      },
       initialize: async (flag) => {
         if (get().diarySubs.includes(flag)) {
           return;
