@@ -176,6 +176,7 @@ export default function ChatInput({
         sendMessage(whom, memo);
       }
       editor?.commands.setContent('');
+      useChatStore.getState().read(whom);
       setTimeout(() => closeReply(), 0);
       clearAttachments();
     },
