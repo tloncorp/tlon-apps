@@ -35,7 +35,6 @@ import { canReadChannel, createStorageKey } from '@/logic/utils';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
-// const ListViewItem = React.memo((letter: DiaryLetter, time: bigInt.BigInteger) => <DiaryListItem letter={letter} time={time} key={time.toString()} />);
 
 function DiaryChannel() {
   const { chShip, chName } = useParams();
@@ -135,9 +134,6 @@ function DiaryChannel() {
     return b.compare(a);
   });
 
-  // const loadOlderNotes = useCallback(async () => {
-  //   await useDiaryState.getState().getOlderNotes(chFlag, 30);
-  // }, [chFlag]);
 
   const loadOlderNotes = async () => {
     await useDiaryState.getState().getOlderNotes(chFlag, 30);
