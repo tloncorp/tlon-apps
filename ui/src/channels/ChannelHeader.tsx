@@ -315,15 +315,19 @@ export default function ChannelHeader({
 
   useEffect(() => {
     if (hasActivity) {
-      const unreadBins = notifications.filter((n) =>
-        n.bins.filter((b) => b.unread === true)
-      )[0].bins;
+      const unreadBins = notifications
+        .filter((n) => n.bins.some((b) => b.unread === true))[0]
+        ?.bins.filter((b) => b.unread === true);
 
-      unreadBins.forEach((n) => {
-        useHarkState.getState().sawRope(n.topYarn.rope);
-      });
+      if (unreadBins) {
+        unreadBins
+          .filter((b) => b.topYarn.wer.includes(nest))
+          .forEach((n) => {
+            useHarkState.getState().sawRope(n.topYarn.rope);
+          });
+      }
     }
-  }, [hasActivity, notifications]);
+  }, [hasActivity, notifications, nest]);
 
   return (
     <div
