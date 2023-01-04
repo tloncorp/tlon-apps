@@ -7,7 +7,7 @@ import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import { ChatWrit } from '@/types/chat';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
-import { useChatStore } from './useChatStore';
+import { useChatInfo, useChatStore } from './useChatStore';
 
 interface ChatWindowProps {
   whom: string;
@@ -23,10 +23,20 @@ export default function ChatWindow({
   const location = useLocation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const scrollTo = new URLSearchParams(location.search).get('msg');
+  const readTimeout = useChatInfo(whom).unread?.readTimeout;
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
   }, [whom]);
+
+  useEffect(
+    () => () => {
+      if (readTimeout !== undefined && readTimeout !== 0) {
+        useChatStore.getState().read(whom);
+      }
+    },
+    [readTimeout, whom]
+  );
 
   return (
     <div className="relative h-full">
