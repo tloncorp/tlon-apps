@@ -1360,7 +1360,7 @@
           ?:  (mentioned q.p.content.memo our.bowl)
             =/  yarn
               %^  ca-spin
-                /message/(scot %p p.p.p.d)/(scot %ud q.p.p.d)/navigate
+                /message/(scot %p p.p.p.d)/(scot %ud q.p.p.d)
                 :~  [%ship author.memo]
                     ' mentioned you :'
                     (flatten q.p.content.memo)
