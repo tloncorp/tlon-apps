@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
@@ -13,8 +12,6 @@ import {
   useVessel,
   useGroup,
   useChannel,
-  useAmAdmin,
-  GROUP_ADMIN,
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useRecentChannel from '@/logic/useRecentChannel';
