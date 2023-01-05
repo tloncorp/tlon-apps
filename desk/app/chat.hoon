@@ -974,7 +974,7 @@
           %read
       =/  =time
         (fall (bind (ram:on:writs:c wit.pact.club) head) now.bowl)
-      remark.club(last-read `@da`(add time 1))  ::  greater than last
+      remark.club(last-read `@da`(add time (div ~s1 100)))  ::  greater than last
       ==
     =.  cor
       (give-brief club/id cu-brief)
@@ -1371,7 +1371,7 @@
           %read
       =/  =time
         (fall (bind (ram:on:writs:c wit.pact.chat) head) now.bowl)
-      remark.chat(last-read `@da`(add time 1))  ::  greater than last
+      remark.chat(last-read `@da`(add time (div ~s1 100)))  ::  greater than last
       ==
     =.  cor
       (give-brief flag/flag ca-brief)
