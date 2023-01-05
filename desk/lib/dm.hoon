@@ -65,7 +65,9 @@
     (jab replying |=(writ:c +<(replied (~(put in replied) ^id))))
   ::
       %del
-    =/  =time     (~(got by dex.pac) id)
+    =/  tim=(unit time)  (~(get by dex.pac) id)
+    ?~  tim  pac
+    =/  =time  (need tim)
     =^  wit=(unit writ:c)  wit.pac
       (del:on:writs:c wit.pac time)
     =.  dex.pac  (~(del by dex.pac) id)
