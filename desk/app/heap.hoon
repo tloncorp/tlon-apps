@@ -899,7 +899,7 @@
       ::
           %read
       =/  [=time =curio:h]  (need (ram:on:curios:h curios.heap))
-      remark.heap(last-read `@da`(add time 1))  ::  greater than last
+      remark.heap(last-read `@da`(add time (div ~s1 100)))  ::  greater than last
       ==
     =.  cor
       (give-brief flag he-brief)
