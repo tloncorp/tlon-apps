@@ -3,8 +3,8 @@ import React, { useCallback, useEffect } from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import f from 'lodash/fp';
-import { BigInteger } from 'big-integer';
-import { daToUnix } from '@urbit/api';
+import bigInt, { BigInteger } from 'big-integer';
+import { daToUnix, udToDec } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
@@ -136,6 +136,11 @@ const ChatMessage = React.memo<
         f.uniq,
         f.take(3)
       )(seal.replied);
+      const lastReplyTime = seal.replied.length
+        ? new Date(
+            daToUnix(bigInt(udToDec(seal.replied.at(-1)!.split('/')[1])))
+          )
+        : new Date(0);
 
       return (
         <div
@@ -209,9 +214,9 @@ const ChatMessage = React.memo<
                       </span>
                       <span className="text-gray-400">
                         Last reply{' '}
-                        {isToday(unix)
-                          ? `${formatDistanceToNow(unix)} ago`
-                          : formatRelative(unix, new Date())}
+                        {isToday(lastReplyTime)
+                          ? `${formatDistanceToNow(lastReplyTime)} ago`
+                          : formatRelative(lastReplyTime, new Date())}
                       </span>
                     </div>
                   </NavLink>
