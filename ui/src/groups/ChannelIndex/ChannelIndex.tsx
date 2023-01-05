@@ -4,9 +4,10 @@ import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
+import { useRouteGroup, useGroup, useAmAdmin, useVessel } from '@/state/groups';
 import { GroupChannel, Zone, ViewProps } from '@/types/groups';
 import {
+  canReadChannel,
   channelHref,
   getFlagParts,
   isChannelImported,
@@ -49,7 +50,9 @@ function GroupChannel({
   const [_app, flag] = nestToFlag(nest);
   const { ship } = getFlagParts(flag);
   const groupFlag = useRouteGroup();
+  const isMobile = useIsMobile();
   const group = useGroup(groupFlag);
+  const vessel = useVessel(groupFlag, window.our);
   const briefs = useAllBriefs();
   const { hasStarted, pendingImports } = migration;
   const imported = isChannelImported(nest, pendingImports) && hasStarted(ship);
@@ -135,14 +138,19 @@ function GroupChannel({
     navigate(channelHref(groupFlag, nest));
   }, [groupFlag, joined, navigate, nest]);
 
-  if (!group || (channel.readers.includes('admin') && !isAdmin)) {
+  const canRead = canReadChannel(channel, vessel, group?.bloc);
+
+  if (!group || !canRead) {
     return null;
   }
 
   return (
     <li className="my-2 flex flex-row items-center justify-between rounded-lg pl-0 pr-2 hover:bg-gray-50">
       <button
-        className="flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50"
+        className={cn(
+          'flex w-full items-center justify-start rounded-xl text-left hover:bg-gray-50',
+          !isMobile ? 'p-2' : ''
+        )}
         onClick={open}
         disabled={!joined || !imported}
       >
@@ -177,7 +185,12 @@ function GroupChannel({
           <>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild className="appearance-none">
-                <button className="button bg-green-soft text-green mix-blend-multiply dark:bg-green-900 dark:mix-blend-screen hover:dark:bg-green-800">
+                <button
+                  className={cn(
+                    'button bg-green-soft text-green mix-blend-multiply dark:bg-green-900 dark:mix-blend-screen hover:dark:bg-green-800',
+                    isMobile && 'text-sm'
+                  )}
+                >
                   <span className="mr-1">Joined</span>{' '}
                   <CaretDown16Icon className="h-4 w-4" />
                 </button>
@@ -238,7 +251,8 @@ function GroupChannel({
                 'text-gray-800': isReady,
                 'text-gray-400': isPending,
                 'text-red': isFailed,
-              }
+              },
+              isMobile ? 'text-sm' : ''
             )}
           >
             {isPending ? (
@@ -304,6 +318,8 @@ export default function ChannelIndex({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const BackButton = isMobile ? Link : 'div';
 
+  console.log(filteredSections, sectionedChannels);
+
   return (
     <section className="w-full sm:overflow-y-scroll">
       <Helmet>
@@ -313,12 +329,12 @@ export default function ChannelIndex({ title }: ViewProps) {
       </Helmet>
       <div className="flex flex-row items-center justify-between py-1 px-2 sm:p-4">
         <BackButton
-          to="../actions"
+          to={`/groups/${flag}`}
           className={cn(
             'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
             isMobile && 'flex items-center rounded-lg hover:bg-gray-50'
           )}
-          aria-label="Back to Group Menu"
+          aria-label="Back to Group"
         >
           {isMobile ? (
             <CaretLeft16Icon className="mr-1 h-4 w-4 text-gray-400" />
@@ -339,7 +355,10 @@ export default function ChannelIndex({ title }: ViewProps) {
           sectionedChannels[section] ? (
             <div
               key={section}
-              className="mb-2 w-full rounded-xl bg-white py-1 pl-4 pr-2"
+              className={cn(
+                'mb-2 w-full rounded-xl bg-white py-1',
+                !isMobile ? 'pl-4 pr-2' : ''
+              )}
             >
               <ChannelSection
                 channels={

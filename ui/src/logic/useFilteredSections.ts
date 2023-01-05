@@ -1,4 +1,4 @@
-import { useVessel } from '@/state/groups';
+import { useGroup, useVessel } from '@/state/groups';
 import useAllBriefs from './useAllBriefs';
 import useChannelSections from './useChannelSections';
 import { canReadChannel, isChannelJoined } from './utils';
@@ -6,6 +6,7 @@ import { canReadChannel, isChannelJoined } from './utils';
 const useFilteredSections = (flag: string, filterJoined?: boolean) => {
   const briefs = useAllBriefs();
   const { sections, sectionedChannels } = useChannelSections(flag);
+  const group = useGroup(flag);
   const vessel = useVessel(flag, window.our);
 
   const filteredSections = sections.filter(
@@ -15,11 +16,14 @@ const useFilteredSections = (flag: string, filterJoined?: boolean) => {
         if (filterJoined) {
           return (
             sectionedChan[1] &&
-            canReadChannel(sectionedChan[1], vessel) &&
+            canReadChannel(sectionedChan[1], vessel, group?.bloc) &&
             isChannelJoined(sectionedChan[0], briefs)
           );
         }
-        return sectionedChan[1] && canReadChannel(sectionedChan[1], vessel);
+        return (
+          sectionedChan[1] &&
+          canReadChannel(sectionedChan[1], vessel, group?.bloc)
+        );
       })
   );
   return filteredSections;

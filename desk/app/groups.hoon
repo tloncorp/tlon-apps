@@ -1,4 +1,4 @@
-/-  g=groups, ha=hark
+/-  g=groups, ha=hark, h=heap, d=diary, c=chat
 /-  g-one=group
 /-  m-one=metadata-store
 /-  meta
@@ -96,8 +96,20 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
+      %noun
+    ?+  q.vase  !!
+      %reset-all-perms  reset-all-perms
+    ==
   ::
       %group-import  (import-groups !<(imports:g vase))
+  ::
+      %reset-group-perms
+    =+  !<(=flag:g vase)
+    =/  val  (~(get by groups) flag)
+    ?~  val
+      ~&  'No group found'
+      cor
+    ((reset-group-perms cor) [flag u.val] cor)
   ::
       %group-leave
     =+  !<(=flag:g vase)
@@ -172,6 +184,63 @@
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
+++  channel-scry
+  |=  app=@tas
+  ^-  path
+  /(scot %p our.bowl)/[app]/(scot %da now.bowl)
+::
+++  reset-all-perms
+  (~(rep by groups) (reset-group-perms cor))
+::
+++  reset-group-perms
+  |=  core=_cor
+  |=  [[=flag:g [=net:g =group:g]] cr=_core]
+  ?.  =(our.bowl p.flag)  cr
+  (~(rep by channels.group) (reset-channel-perms flag cr))
+::
+++  reset-channel-perms
+  |=  [=flag:g cr=_cor]
+  |=  [[=nest:g =channel:g] core=_cr]  
+  =.  cards.core
+    :_
+    :_  cards.core
+      ^-  card  
+      =/  wire  /groups
+      =/  dock  [our.bowl dap.bowl]
+      =/  =action:g  [flag [now.bowl [%channel nest [%del-sects readers.channel]]]]
+      =/  cage  group-action+!>(action)
+      [%pass wire %agent dock %poke cage]
+    ^-  card  
+    ?+  -.nest  *card
+        %chat
+      =/  =path  (welp (channel-scry %chat) /chat/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
+      =/  perms  .^(perm:c %gx path)
+      =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
+      =/  =wire  /chat
+      =/  =dock  [our.bowl %chat]
+      =/  =cage  chat-action+!>(action)
+      [%pass wire %agent dock %poke cage]
+    ::
+        %diary
+      =/  =path  (welp (channel-scry %diary) /diary/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
+      =/  perms  .^(perm:d %gx path)
+      =/  =action:d  [+.nest [now.bowl [%del-sects writers.perms]]]
+      =/  =wire  /diary
+      =/  =dock  [our.bowl %diary]
+      =/  =cage  diary-action+!>(action)
+      [%pass wire %agent dock %poke cage]
+    ::
+        %heap
+      =/  path   (welp (channel-scry %heap) /heap/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
+      =/  perms  .^(perm:h %gx path)
+      =/  =action:h  [+.nest [now.bowl [%del-sects writers.perms]]]
+      =/  =wire  /heap
+      =/  =dock  [our.bowl %heap]
+      =/  =cage  heap-action+!>(action)
+      [%pass wire %agent dock %poke cage]
+    ==
+  core
+::
 ::  +load: load next state
 ++  load
   |=  =vase
@@ -279,8 +348,8 @@
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
       [%epic ~]  (take-epic sign)
-      [%hark ~]  cor
       [%helm *]  cor
+      [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
   ::
       [%groups ship=@ name=@ rest=*]
@@ -798,6 +867,10 @@
       =/  src  (slav %p ship.pole)
       `noun+!>((~(got by fleet.group) src))
       ::
+        [%fleet ship=@ %is-bloc ~]
+      =/  src  (slav %p ship.pole)
+      `loob+!>((~(has in go-bloc-who) src))
+      ::
         [%channel app=@ ship=@ name=@ rest=*]
       =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
       =/  =channel:g  (~(got by channels.group) nes)
@@ -813,7 +886,8 @@
     =/  open  =(-.cordon.group %open)
     =/  ves  (~(get by fleet.group) src)
     =/  visible  =(~ readers.channel)
-    ?:  ?|  &(open visible)
+    ?:  ?|  (~(has in go-bloc-who) src)
+            &(open visible)
             &(!=(~ ves) visible)
         ==
       &
@@ -866,7 +940,7 @@
         %kick
       ?>  ?=(%sub -.net)
       ?.  ?=(%chi -.saga.net)  go-core
-      (go-sub load.net)
+      (go-sub !load.net)
     ::
         %watch-ack
       =?  cor  (~(has by xeno) flag)
@@ -908,7 +982,7 @@
        go-core
     ~&  "took chi epic: {<flag>}"
     =.  saga.net  chi/~
-    (go-safe-sub load.net)
+    (go-safe-sub !load.net)
   ::
   ++  go-proxy
     |=  =update:g
@@ -1245,7 +1319,10 @@
     ::
         %del
       ?<  &((~(has in ships) our.bowl) =(p.flag our.bowl))
-      ?>  ?|(=(p.flag src.bowl) (~(has in ships) src.bowl))
+      ?>  ?|  go-is-bloc 
+              =(p.flag src.bowl)
+              (~(has in ships) src.bowl)
+          ==
       =.  fleet.group
       %-  malt
         %+  skip 
@@ -1349,6 +1426,7 @@
       go-core
     ::
         %del
+      ?.  (has:by-ch ch)  go-core
       =/  =channel:g   (got:by-ch ch)
       =.  zones.group
         %+  ~(jab by zones.group)  zone.channel

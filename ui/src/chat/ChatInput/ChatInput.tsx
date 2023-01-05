@@ -1,15 +1,9 @@
 import { Editor } from '@tiptap/react';
 import { findLast } from 'lodash';
 import cn from 'classnames';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePact } from '@/state/chat';
-import { ChatMemo } from '@/types/chat';
+import { ChatImage, ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -24,9 +18,10 @@ import { useIsMobile } from '@/logic/useMedia';
 import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
+import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
 import useFileUpload from '@/logic/useFileUpload';
 import { useFileStore } from '@/state/storage';
-import { isImageUrl } from '@/logic/utils';
+import { IMAGE_REGEX, isImageUrl } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
 import { useSubscriptionStatus } from '@/state/local';
@@ -64,9 +59,6 @@ export function UploadErrorPopover({
           </span>
           <div className="flex flex-col justify-start">
             <span className="mt-2 text-gray-800">{errorMessage}</span>
-            {/*
-              <button className="small-button mt-4 w-[84px]">Learn more</button>
-            */}
           </div>
         </div>
       </Popover.Content>
@@ -110,6 +102,11 @@ export default function ChatInput({
       setUploadError(mostRecentFile.errorMessage);
     }
   }, [mostRecentFile]);
+
+  const clearAttachments = useCallback(() => {
+    useChatStore.getState().setBlocks(whom, []);
+    useFileStore.getState().clearFiles();
+  }, [whom]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -179,10 +176,11 @@ export default function ChatInput({
         sendMessage(whom, memo);
       }
       editor?.commands.setContent('');
+      useChatStore.getState().read(whom);
       setTimeout(() => closeReply(), 0);
-      useChatStore.getState().setBlocks(whom, []);
+      clearAttachments();
     },
-    [reply, whom, sendMessage, closeReply, mostRecentFile]
+    [whom, clearAttachments, mostRecentFile, sendMessage, reply, closeReply]
   );
 
   const messageEditor = useMessageEditor({
@@ -246,22 +244,70 @@ export default function ChatInput({
     [messageEditor, onSubmit]
   );
 
+  const onRemove = useCallback(
+    (idx: number) => {
+      const blocks = fetchChatBlocks(whom);
+      if ('image' in blocks[idx]) {
+        // @ts-expect-error type check on previous line
+        useFileStore.getState().removeFileByURL(blocks[idx]);
+      }
+      useChatStore.getState().setBlocks(
+        whom,
+        blocks.filter((_b, k) => k !== idx)
+      );
+    },
+    [whom]
+  );
+
   if (!messageEditor) {
     return null;
   }
+
+  // @ts-expect-error tsc is not tracking the type narrowing in the filter
+  const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
 
   return (
     <>
       <div className={cn('flex w-full items-end space-x-2', className)}>
         <div className="flex-1">
+          {imageBlocks.length > 0 ? (
+            <div className="mb-2 flex flex-wrap items-center">
+              {imageBlocks.map((img, idx) => (
+                <div key={idx} className="relative p-1.5">
+                  <button
+                    onClick={() => onRemove(idx)}
+                    className="icon-button absolute top-4 right-4"
+                  >
+                    <X16Icon className="h-4 w-4" />
+                  </button>
+                  {IMAGE_REGEX.test(img.image.src) ? (
+                    <img
+                      title={img.image.alt}
+                      src={img.image.src}
+                      className="h-32 w-32 object-cover"
+                    />
+                  ) : (
+                    <div
+                      title={img.image.alt}
+                      className="h-32 w-32 animate-pulse bg-gray-200"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           {chatInfo.blocks.length > 0 ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="mr-2 text-gray-600">Attached: </span>
-              {chatInfo.blocks.length} reference
+              {chatInfo.blocks.length}{' '}
+              {chatInfo.blocks.every((b) => 'image' in b)
+                ? 'image'
+                : 'reference'}
               {chatInfo.blocks.length === 1 ? '' : 's'}
               <button
                 className="icon-button ml-auto"
-                onClick={() => useChatStore.getState().setBlocks(whom, [])}
+                onClick={clearAttachments}
               >
                 <X16Icon className="h-4 w-4" />
               </button>
@@ -278,11 +324,21 @@ export default function ChatInput({
               </button>
             </div>
           ) : null}
-          <div className="flex items-center justify-end">
-            <Avatar size="xs" ship={window.our} className="mr-2" />
+          <div className="relative flex items-end justify-end">
+            {!isMobile && (
+              <Avatar size="xs" ship={window.our} className="mr-2" />
+            )}
             <MessageEditor
               editor={messageEditor}
-              className="w-full break-words"
+              className={cn(
+                'w-full break-words',
+                loaded &&
+                  hasCredentials &&
+                  !uploadError &&
+                  mostRecentFile?.status !== 'loading'
+                  ? 'pr-8'
+                  : ''
+              )}
             />
             {loaded &&
             hasCredentials &&
@@ -290,18 +346,18 @@ export default function ChatInput({
             mostRecentFile?.status !== 'loading' ? (
               <button
                 title={'Upload an image'}
-                className="absolute mr-2 text-gray-600 hover:text-gray-800"
+                className="absolute bottom-2 mr-2 text-gray-600 hover:text-gray-800"
                 aria-label="Add attachment"
                 onClick={() => promptUpload(fileId.current)}
               >
-                <AddIcon className="h-6 w-4" />
+                <AddIcon className="h-4 w-4" />
               </button>
             ) : null}
             {mostRecentFile && mostRecentFile.status === 'loading' ? (
-              <LoadingSpinner className="absolute mr-2 h-4 w-4" />
+              <LoadingSpinner className="absolute bottom-2 mr-2 h-4 w-4" />
             ) : null}
             {uploadError ? (
-              <div className="absolute mr-2">
+              <div className="absolute bottom-2 mr-2">
                 <UploadErrorPopover
                   errorMessage={uploadError}
                   setUploadError={setUploadError}
@@ -311,7 +367,7 @@ export default function ChatInput({
           </div>
         </div>
         <button
-          className="button"
+          className={cn('button', isMobile && 'px-2')}
           disabled={
             sendDisabled ||
             subscription === 'reconnecting' ||
@@ -320,7 +376,7 @@ export default function ChatInput({
           }
           onClick={onClick}
         >
-          Send
+          {isMobile ? <ArrowNWIcon16 className="h-4 w-4" /> : 'Send'}
         </button>
       </div>
       {isMobile ? <ChatInputMenu editor={messageEditor} /> : null}

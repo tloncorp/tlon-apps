@@ -146,6 +146,7 @@ export default function ChatScroller({
   const isMobile = useIsMobile();
   const [isScrolling, setIsScrolling] = useState(false);
   const { atBottom } = useChatStore.getState();
+  const [height, setHeight] = useState(0);
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
@@ -302,6 +303,12 @@ export default function ChatScroller({
             delayedRead(whom, () => useChatState.getState().markRead(whom));
           } else {
             bottom(false);
+          }
+        }}
+        totalListHeightChanged={(newHeight) => {
+          if (height < newHeight && atBottom) {
+            scrollerRef.current?.scrollBy({ left: 0, top: newHeight - height });
+            setHeight(newHeight);
           }
         }}
         firstItemIndex={firstItemIndex}

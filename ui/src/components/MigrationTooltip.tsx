@@ -1,31 +1,55 @@
-import * as Tooltip from '@radix-ui/react-tooltip';
+import * as Popover from '@radix-ui/react-popover';
+import { useGroupState } from '@/state/groups';
 import React, { PropsWithChildren } from 'react';
 import ShipName from './ShipName';
 
 type MigrationTooltipProps = PropsWithChildren<{
   ship: string;
-  side: Tooltip.TooltipContentProps['side'];
+  side: Popover.PopoverContentProps['side'];
+  flag?: string;
   kind?: 'group' | 'channel';
 }>;
 
 export default function MigrationTooltip({
   side,
   ship,
+  flag,
   kind = 'channel',
   children,
 }: MigrationTooltipProps) {
+  const handleLeaveGroup = () => {
+    if (flag) {
+      useGroupState.getState().leave(flag);
+    }
+  };
+
   return (
-    <Tooltip.Root>
-      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
-      <Tooltip.Portal>
-        <Tooltip.Content side={side} sideOffset={16} className="z-10">
+    <Popover.Root>
+      <Popover.Trigger asChild>{children}</Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content side={side} sideOffset={16} className="z-10">
           <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg dark:border dark:border-solid dark:border-gray-50">
             <span>
               This {kind} will become available once{' '}
               <ShipName name={ship} className="font-semibold" /> has migrated.
             </span>
+            {kind === 'group' ? (
+              <div className="flex items-center justify-between">
+                <Popover.Close>
+                  <button
+                    className="small-button bg-gray-50 text-red"
+                    onClick={handleLeaveGroup}
+                  >
+                    Leave Group
+                  </button>
+                </Popover.Close>
+                <Popover.Close asChild>
+                  <button className="small-button">OK</button>
+                </Popover.Close>
+              </div>
+            ) : null}
           </div>
-          <Tooltip.Arrow asChild>
+          <Popover.Arrow asChild>
             <svg
               width="17"
               height="8"
@@ -38,9 +62,9 @@ export default function MigrationTooltip({
                 className="fill-white"
               />
             </svg>
-          </Tooltip.Arrow>
-        </Tooltip.Content>
-      </Tooltip.Portal>
-    </Tooltip.Root>
+          </Popover.Arrow>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

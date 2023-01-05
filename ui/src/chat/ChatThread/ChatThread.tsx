@@ -1,11 +1,12 @@
-import cn from 'classnames';
-import React, { useRef } from 'react';
-import { useLocation, useParams } from 'react-router';
+import React, { useCallback, useRef } from 'react';
+import _ from 'lodash';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
+import { useEventListener } from 'usehooks-ts';
 import { useChannelFlag } from '@/hooks';
-import { useChatState, useReplies, useWrit } from '@/state/chat';
-import { useChannel, useRouteGroup } from '@/state/groups/groups';
+import { useChatState, useReplies, useWrit, useChatPerms } from '@/state/chat';
+import { useChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
@@ -31,22 +32,44 @@ export default function ChatThread() {
   const id = `${idShip!}/${idTime!}`;
   const maybeWrit = useWrit(whom, id);
   const replies = useReplies(whom, id);
+  const navigate = useNavigate();
+  const [time, writ] = maybeWrit ?? [null, null];
+  const threadRef = useRef<HTMLDivElement | null>(null);
+  const perms = useChatPerms(flag);
+  const vessel = useVessel(groupFlag, window.our);
+  const canWrite =
+    perms.writers.length === 0 ||
+    _.intersection(perms.writers, vessel.sects).length !== 0;
 
-  if (!maybeWrit) {
-    return null;
-  }
-  const [time, writ] = maybeWrit;
-  const thread = replies.set(time, writ);
+  const returnURL = useCallback(() => {
+    if (!time || !writ) return '#';
 
-  const returnURL = () => {
     if (location.pathname.includes('groups')) {
       return `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${time.toString()}`;
     }
     return `/dm/${ship}?msg=${time.toString()}`;
-  };
+  }, [chName, chShip, location, name, ship, time, writ]);
+
+  const onEscape = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        navigate(returnURL());
+      }
+    },
+    [navigate, returnURL]
+  );
+
+  useEventListener('keydown', onEscape, threadRef);
+
+  if (!time || !writ) return null;
+
+  const thread = replies.set(time, writ);
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-y-auto border-gray-50 bg-white lg:w-96 lg:border-l-2">
+    <div
+      className="relative flex h-full w-full flex-col overflow-y-auto border-gray-50 bg-white lg:w-96 lg:border-l-2"
+      ref={threadRef}
+    >
       <header className={'header z-40'}>
         <div className="flex h-full w-full items-center justify-between border-b-2 border-gray-50 bg-white p-4">
           <div className="flex items-center space-x-3 font-semibold">
@@ -76,7 +99,9 @@ export default function ChatThread() {
         />
       </div>
       <div className="sticky bottom-0 border-t-2 border-gray-50 bg-white p-4">
-        <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />
+        {canWrite && (
+          <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />
+        )}
       </div>
     </div>
   );

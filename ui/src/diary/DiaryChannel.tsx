@@ -1,11 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
+import bigInt from 'big-integer';
+import { Virtuoso } from 'react-virtuoso';
 import Layout from '@/components/Layout/Layout';
 import {
   GROUP_ADMIN,
   useAmAdmin,
   useChannel,
+  useGroup,
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
@@ -24,12 +27,16 @@ import {
 } from '@/state/settings';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { DiaryDisplayMode } from '@/types/diary';
+import { DiaryDisplayMode, DiaryLetter } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 import * as Toast from '@radix-ui/react-toast';
 import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, createStorageKey } from '@/logic/utils';
+import {
+  canReadChannel,
+  canWriteChannel,
+  createStorageKey,
+} from '@/logic/utils';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
@@ -43,14 +50,15 @@ function DiaryChannel() {
   const location = useLocation();
   const navigate = useNavigate();
   const { setRecentChannel } = useRecentChannel(flag);
+  const group = useGroup(flag);
   const channel = useChannel(flag, nest);
 
   useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel)) {
+    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
       navigate('../../activity');
       setRecentChannel('');
     }
-  }, [channel, vessel, navigate, setRecentChannel]);
+  }, [group, channel, vessel, navigate, setRecentChannel]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
@@ -84,9 +92,7 @@ function DiaryChannel() {
 
   const perms = useDiaryPerms(chFlag);
 
-  const canWrite =
-    perms.writers.length === 0 ||
-    _.intersection(perms.writers, vessel.sects).length !== 0;
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   useEffect(() => {
     useDiaryState.getState().initialize(chFlag);
@@ -131,10 +137,23 @@ function DiaryChannel() {
     return b.compare(a);
   });
 
+  const loadOlderNotes = useCallback(async () => {
+    await useDiaryState.getState().getOlderNotes(chFlag, 30);
+  }, [chFlag]);
+
+  const itemContent = (
+    i: number,
+    [time, letter]: [bigInt.BigInteger, DiaryLetter]
+  ) => (
+    <div className="my-4 mx-auto max-w-[600px]">
+      <DiaryListItem letter={letter} time={time} />
+    </div>
+  );
+
   return (
     <Layout
       stickyHeader
-      className="flex-1 overflow-y-scroll bg-gray-50"
+      className="flex-1 bg-gray-50"
       aside={<Outlet />}
       header={
         <ChannelHeader
@@ -176,19 +195,23 @@ function DiaryChannel() {
           <Toast.Viewport label="Note successfully published" />
         </div>
       </Toast.Provider>
-      <div className="p-4">
+      <div className="h-full">
         {displayMode === 'grid' ? (
-          <DiaryGridView notes={sortedNotes} />
+          <DiaryGridView notes={sortedNotes} loadOlderNotes={loadOlderNotes} />
         ) : (
-          <div className="h-full p-6">
-            <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
-              {sortedNotes.map(([time, letter]) => (
-                <DiaryListItem
-                  key={time.toString()}
-                  time={time}
-                  letter={letter}
-                />
-              ))}
+          <div className="h-full">
+            <div className="mx-auto flex h-full w-full flex-col">
+              <Virtuoso
+                style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
+                data={sortedNotes}
+                itemContent={itemContent}
+                overscan={200}
+                atBottomStateChange={loadOlderNotes}
+                components={{
+                  Header: () => <div className="h-8 w-full" />,
+                  Footer: () => <div className="h-4 w-full" />,
+                }}
+              />
             </div>
           </div>
         )}

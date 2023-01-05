@@ -41,14 +41,14 @@
   --
 =|  current-state
 =*  state  -
-=< 
+=<
   %+  verb-lib  &
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
       cor   ~(. +> [bowl ~])
-  ++  on-init  
+  ++  on-init
     ^-  (quip card _this)
     =^  cards  state
       abet:init:cor
@@ -208,7 +208,7 @@
 ::
 ++  poke
   |=  [=mark =vase]
-  |^  ^+  cor 
+  |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %import-flags
@@ -470,14 +470,14 @@
   |=  =graph:gra:c
   ^+  cor
   =/  old-dms  (tap:orm-gra:c graph)
-  =|  =remark:c 
+  =|  =remark:c
   =.  last-read.remark  now.bowl
   |-  =*  loop  $
   ?~  old-dms  cor
   =/  [ship=@ =node:gra:c]  i.old-dms
   ?.  ?=(%graph -.children.node)
     loop(old-dms t.old-dms)
-  =.  dms  
+  =.  dms
     (~(put by dms) ship (graph-to-pact p.children.node [ship (scot %p ship)]) remark %done |)
   loop(old-dms t.old-dms)
 ++  graph-to-pact
@@ -498,7 +498,7 @@
   ?.  ?=(%& -.post.node)
     ~
   =*  pos  p.post.node
-  :: using the received timestamp 
+  :: using the received timestamp
   :: defends against shitty clients, bc we didn't enforce uniqueness last time
   :: but breaks referential transparency, so you can't quote migrated
   :: messages
@@ -535,7 +535,7 @@
     ca-abet:(ca-import:(ca-abed:ca-core flag) writers association)
   loop(imports t.imports)
   ::
-  ++  import-log  
+  ++  import-log
     |=  [=pact:c =perm:c]
     ^-  log:c
     =/  =time  (fall (bind (ram:orm-log-gra:c update-log) head) *time)
@@ -571,7 +571,7 @@
       cor  :: subscription ended politely
     ::  XX: only versioned subscriptions should rewatch on kick
     (give %kick ~[wire] ~)
-    :: (proxy-said flag id)  
+    :: (proxy-said flag id)
   ::
       %fact
     =.  cor
@@ -719,7 +719,7 @@
       |=  =id:club:c
       =/  cu  (cu-abed id)
       [club/id cu-brief:cu]
-    %+  welp  
+    %+  welp
       %+  murn  ~(tap in ~(key by dms))
       |=  =ship
       =/  di  (di-abed:di-core ship)
@@ -796,7 +796,7 @@
   |_  [=id:club:c =club:c gone=_|]
   +*  cu-pact  ~(. pac pact.club)
   ++  cu-core  .
-  ++  cu-abet  
+  ++  cu-abet
   =.  clubs
     ?:  gone
       (~(del by clubs) id)
@@ -812,7 +812,7 @@
   ::
   ++  cu-area  `wire`/club/(scot %uv id)
   ::
-  ++  cu-spin  
+  ++  cu-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
     ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %talk /club/(scot %uv id)]
@@ -845,8 +845,8 @@
   ::
   ++  cu-brief  (brief:cu-pact our.bowl last-read.remark.club)
   ::
-  ++  cu-create  
-    |=  =create:club:c 
+  ++  cu-create
+    |=  =create:club:c
     =.  cu-core  (cu-init %done create)
     =.  cu-core  (cu-diff 0 [%init team hive met]:club)
     =/  =notice:c
@@ -916,7 +916,7 @@
             %notice  cu-core
             %story
           =/  yarn
-            %+  cu-spin 
+            %+  cu-spin
               :~  [%ship author.memo]
                   ': '
                   (flatten q.p.content.memo)
@@ -955,11 +955,11 @@
           (emit (act:cu-pass for.delta club-eq %init [team hive met]:club))
         :: TODO include inviter's name in message? requires rework of
         :: notice messages though :(
-        (cu-post-notice for.delta '' ' was invited to the chat') 
+        (cu-post-notice for.delta '' ' was invited to the chat')
       ?.  (~(has in hive.club) for.delta)
         cu-core
       =.  hive.club  (~(del in hive.club) for.delta)
-      (cu-post-notice for.delta '' ' was uninvited from the chat') 
+      (cu-post-notice for.delta '' ' was uninvited from the chat')
     ==
   ::
   ++  cu-remark-diff
@@ -1016,9 +1016,9 @@
   +*  ca-pact  ~(. pac pact.chat)
   ++  ca-core  .
   ::  TODO: archive??
-  ++  ca-abet  
+  ++  ca-abet
     %_  cor
-        chats  
+        chats
       ?:(gone (~(del by chats) flag) (~(put by chats) flag chat))
     ==
   ++  ca-abed
@@ -1034,12 +1034,12 @@
       ca-sub
     (ca-remark-diff read/~)
   ::
-  ++  ca-spin  
+  ++  ca-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
-    =/  link  
+    =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
   ::
@@ -1080,7 +1080,7 @@
     ^+  ca-core
     ?.  ?=(%sub -.net.chat)  ca-core
     ?.  ?=(%dex -.saga.net.chat)  ca-core
-    ?.  =(okay ver.saga.net.chat)  
+    ?.  =(okay ver.saga.net.chat)
       %-  (note:wood %ver leaf/"%future-shock {<[ver.saga.net.chat flag]>}" ~)
       ca-core
     ca-make-chi
@@ -1202,7 +1202,7 @@
       ca-core
     ::
         %fact
-      =*  cage  cage.sign 
+      =*  cage  cage.sign
       ?+  p.cage  (ca-odd-update p.cage)
         %epic                           (ca-take-epic !<(epic:e q.cage))
         ?(%chat-logs %chat-logs-0)      (ca-apply-logs !<(logs:c q.cage))
@@ -1261,6 +1261,11 @@
   ::
   ++  ca-can-write
     ?:  =(p.flag src.bowl)  &
+    =/  bloc=path
+      %+  welp  ca-groups-scry
+      /fleet/(scot %p src.bowl)/is-bloc/loob
+    =+  .^(is-bloc=? %gx bloc)
+    ?:  is-bloc  &
     =/  =path
       %+  welp  ca-groups-scry
       /fleet/(scot %p src.bowl)/vessel/noun
@@ -1301,7 +1306,7 @@
     =/  tim=(unit time)
       (bind (ram:log-on:c log.chat) head)
     =/  base=wire  (snoc ca-area %updates)
-    =/  =path 
+    =/  =path
       %+  weld  base
       ?~  tim  ~
       /(scot %da u.tim)
@@ -1404,7 +1409,7 @@
         %writs
       =.  pact.chat  (reduce:ca-pact time p.d)
       =.  cor  (give-brief flag/flag ca-brief)
-      ?-  -.q.p.d  
+      ?-  -.q.p.d
           ?(%del %add-feel %del-feel)  ca-core
           %add
         =/  memo=memo:c  p.q.p.d
@@ -1434,10 +1439,10 @@
             =/  writ  (~(get pac pact.chat) id)
             ?~  writ  %.n
             =(author.writ.u.writ our.bowl)
-          ?:  |(=(author.memo our.bowl) !in-replies)  ca-core  
+          ?:  |(=(author.memo our.bowl) !in-replies)  ca-core
           ?-  -.content.opwrit
               %notice  ca-core
-              %story          
+              %story
             =/  yarn
               %^  ca-spin
                 /message/(scot %p p.replying)/(scot %ud q.replying)
@@ -1487,8 +1492,8 @@
   +*  di-pact  ~(. pac pact.dm)
       di-hark  ~(. hark-dm:ch [now.bowl ship])
   ++  di-core  .
-  ++  di-abet 
-    =.  dms  
+  ++  di-abet
+    =.  dms
       ?:  gone  (~(del by dms) ship)
       (~(put by dms) ship dm)
     cor
@@ -1509,7 +1514,7 @@
     di-core(ship s, dm d)
 
   ++  di-area  `path`/dm/(scot %p ship)
-  ++  di-spin  
+  ++  di-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
     ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %talk /dm/(scot %p ship)]
@@ -1537,7 +1542,7 @@
     ?+  -.delta  di-core
         %add
       ?.  ?=(%story -.content.p.delta)  di-core
-      =.  cor  
+      =.  cor
         (emit (hark:di-pass (story:di-hark id p.content.p.delta)))
       di-core
     ==
@@ -1555,10 +1560,10 @@
       (give-brief ship/ship di-brief)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
-    =.  di-core  
+    =.  di-core
       (di-notify diff)
     ?:  from-self  di-core
-    ?-  -.q.diff  
+    ?-  -.q.diff
         ?(%del %add-feel %del-feel)  di-core
         %add
       =/  memo=memo:c  p.q.diff
@@ -1566,12 +1571,11 @@
           %notice  di-core
           %story
         =/  yarn
-          %+  di-spin 
+          %+  di-spin
             :~  [%ship author.memo]
-                ?:  =(net.dm %invited)  ' has invited you to a direct message: “'
+                ?:  =(net.dm %invited)  ' has invited you to a direct message'
                 ': '
-                (flatten q.p.content.memo)
-                ?:(=(net.dm %invited) '”' '')
+                ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
             ==
           ~
         =.  cor  (emit (pass-hark & & yarn))
@@ -1594,7 +1598,7 @@
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
-    ?.  ok  
+    ?.  ok
       %-  (note:wood %odd leaf/"gone {<ship>}" ~)
       ?:  =(src.bowl ship)
         di-core

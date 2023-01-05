@@ -25,6 +25,7 @@ import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import usePendingImports from '@/logic/usePendingImports';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
+import HashIcon16 from '@/components/icons/HashIcon16';
 import MigrationTooltip from '@/components/MigrationTooltip';
 import { useStartedMigration } from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
@@ -119,7 +120,8 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
     channels
       .filter(
         ([nest, chan]) =>
-          (isChannelJoined(nest, briefs) && canReadChannel(chan, vessel)) ||
+          (isChannelJoined(nest, briefs) &&
+            canReadChannel(chan, vessel, group?.bloc)) ||
           nest in pendingImports
       )
       .map(([nest, channel]) => {
@@ -176,6 +178,19 @@ export default function ChannelList({ flag, className }: ChannelListProps) {
 
   return (
     <div className={className}>
+      {isMobile && (
+        <SidebarItem
+          icon={
+            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+              <HashIcon16 className="m-1 h-4 w-4" />
+            </div>
+          }
+          to={`/groups/${flag}/channels`}
+          className="mb-3"
+        >
+          All Channels
+        </SidebarItem>
+      )}
       {!isMobile && <ChannelSorter isMobile={false} />}
       <ul className={cn('space-y-1', isMobile && 'flex-none space-y-3')}>
         {isDefaultSort

@@ -1,11 +1,8 @@
-/** Deprecated, but leaving around for reference */
-
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import InviteIcon from '@/components/icons/InviteIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import PersonIcon from '@/components/icons/PersonIcon';
-import HashIcon16 from '@/components/icons/HashIcon16';
 import { useGroupActions } from '@/groups/GroupActions';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import LeaveIcon from '@/components/icons/LeaveIcon';
@@ -21,16 +18,6 @@ export default function MobileGroupActions() {
   return (
     <nav className="p-2">
       <ul className="space-y-3">
-        <SidebarItem
-          icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-              <HashIcon16 className="m-1 h-4 w-4" />
-            </div>
-          }
-          to={`/groups/${flag}/channels`}
-        >
-          All Channels
-        </SidebarItem>
         <SidebarItem
           to={`/groups/${flag}/invite`}
           state={{ backgroundLocation: location }}

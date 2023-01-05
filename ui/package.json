@@ -1,6 +1,6 @@
 {
   "name": "landscape-apps",
-  "version": "0.9.1",
+  "version": "2.2.1",
   "private": true,
   "engines": {
     "node": "14.19.0"
@@ -65,7 +65,7 @@
     "@tiptap/extension-history": "^2.0.0-beta.21",
     "@tiptap/extension-horizontal-rule": "^2.0.0-beta.199",
     "@tiptap/extension-italic": "^2.0.0-beta.26",
-    "@tiptap/extension-link": "^2.0.0-beta.37",
+    "@tiptap/extension-link": "^2.0.0-beta.206",
     "@tiptap/extension-list-item": "^2.0.0-beta.199",
     "@tiptap/extension-mention": "^2.0.0-beta.202",
     "@tiptap/extension-ordered-list": "^2.0.0-beta.199",

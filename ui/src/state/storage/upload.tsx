@@ -2,7 +2,7 @@ import { S3Credentials } from '@urbit/api';
 import { S3Client } from '@aws-sdk/client-s3';
 import create from 'zustand';
 import produce from 'immer';
-import { FileStore } from '@/types/storage';
+import { FileStore, FileStoreFile } from '@/types/storage';
 
 export function prefixEndpoint(endpoint: string) {
   return endpoint.match(/https?:\/\//) ? endpoint : `https://${endpoint}`;
@@ -58,6 +58,20 @@ export const useFileStore = create<FileStore>((set) => ({
       produce((draft) => {
         const [key, url] = file;
         draft.files[key].url = url;
+      })
+    ),
+  clearFiles: () =>
+    set(
+      produce((draft) => {
+        draft.files = {};
+      })
+    ),
+  removeFileByURL: (i) =>
+    set(
+      produce((draft: FileStore) => {
+        draft.files = Object.fromEntries(
+          Object.entries(draft.files).filter(([_k, f]) => f.url !== i.image.src)
+        );
       })
     ),
 }));
