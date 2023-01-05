@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { useCallback } from 'react';
@@ -18,6 +19,28 @@ function channelUnread(
   }
 
   return (briefs[nest]?.count ?? 0) > 0;
+}
+
+interface ChannelUnreadCount {
+  scope: 'Group Channels' | 'Direct Messages' | 'All Messages';
+}
+
+export function useChannelUnreadCounts(args: ChannelUnreadCount) {
+  const briefs = useAllBriefs();
+  const chatKeys = Object.keys(useChatStore(selChats)).map(
+    (key) => `chat/${key}`
+  );
+
+  switch (args.scope) {
+    case 'All Messages':
+      return _.sumBy(Object.values(briefs), 'count');
+    case 'Group Channels':
+      return _.sumBy(Object.values(_.pick(briefs, chatKeys)), 'count');
+    case 'Direct Messages':
+      return _.sumBy(Object.values(_.omit(briefs, chatKeys)), 'count');
+    default:
+      return _.sumBy(Object.values(briefs), 'count');
+  }
 }
 
 export function useCheckChannelUnread() {

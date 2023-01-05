@@ -72,6 +72,7 @@ import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 import DisconnectNotice from './components/DisconnectNotice';
 import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
 import TalkNav from './nav/TalkNav';
+import TalkHead from './dms/TalkHead';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
@@ -455,12 +456,15 @@ function App() {
         <DisconnectNotice />
       ) : null}
       {isTalk ? (
-        <ChatRoutes
-          state={state}
-          location={location}
-          isMobile={isMobile}
-          isSmall={isSmall}
-        />
+        <>
+          <TalkHead />
+          <ChatRoutes
+            state={state}
+            location={location}
+            isMobile={isMobile}
+            isSmall={isSmall}
+          />
+        </>
       ) : (
         <GroupsRoutes
           state={state}
