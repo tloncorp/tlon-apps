@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
+import bigInt from 'big-integer';
+import { Virtuoso } from 'react-virtuoso';
 import Layout from '@/components/Layout/Layout';
 import {
   GROUP_ADMIN,
@@ -25,7 +27,7 @@ import {
 } from '@/state/settings';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { DiaryDisplayMode } from '@/types/diary';
+import { DiaryDisplayMode, DiaryLetter } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { Link } from 'react-router-dom';
 import * as Toast from '@radix-ui/react-toast';
@@ -135,10 +137,23 @@ function DiaryChannel() {
     return b.compare(a);
   });
 
+  const loadOlderNotes = useCallback(async () => {
+    await useDiaryState.getState().getOlderNotes(chFlag, 30);
+  }, [chFlag]);
+
+  const itemContent = (
+    i: number,
+    [time, letter]: [bigInt.BigInteger, DiaryLetter]
+  ) => (
+    <div className="my-4 mx-auto max-w-[600px]">
+      <DiaryListItem letter={letter} time={time} />
+    </div>
+  );
+
   return (
     <Layout
       stickyHeader
-      className="flex-1 overflow-y-scroll bg-gray-50"
+      className="flex-1 bg-gray-50"
       aside={<Outlet />}
       header={
         <ChannelHeader
@@ -180,19 +195,23 @@ function DiaryChannel() {
           <Toast.Viewport label="Note successfully published" />
         </div>
       </Toast.Provider>
-      <div className="p-4">
+      <div className="h-full">
         {displayMode === 'grid' ? (
-          <DiaryGridView notes={sortedNotes} />
+          <DiaryGridView notes={sortedNotes} loadOlderNotes={loadOlderNotes} />
         ) : (
-          <div className="h-full p-6">
-            <div className="mx-auto flex h-full max-w-[600px] flex-col space-y-4">
-              {sortedNotes.map(([time, letter]) => (
-                <DiaryListItem
-                  key={time.toString()}
-                  time={time}
-                  letter={letter}
-                />
-              ))}
+          <div className="h-full">
+            <div className="mx-auto flex h-full w-full flex-col">
+              <Virtuoso
+                style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
+                data={sortedNotes}
+                itemContent={itemContent}
+                overscan={200}
+                atBottomStateChange={loadOlderNotes}
+                components={{
+                  Header: () => <div className="h-8 w-full" />,
+                  Footer: () => <div className="h-4 w-full" />,
+                }}
+              />
             </div>
           </div>
         )}
