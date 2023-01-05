@@ -1642,7 +1642,8 @@
                     [%emph title.meta.u.pev.gang]
                 ==
             ==
-          =.  cor  (emit (pass-hark & & yarn))
+          =?  cor  !(~(has by groups) flag)
+            (emit (pass-hark & & yarn))
           ga-core
           ::
             %kick
