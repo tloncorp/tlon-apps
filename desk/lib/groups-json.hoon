@@ -122,10 +122,10 @@
     |=  d=diff:channel:g
     %+  frond  -.d
     ?-  -.d
-      %add                      (channel channel.d)
+      ?(%add %edit)             (channel channel.d)
       %del                      ~
       ?(%add-sects %del-sects)  a/(turn ~(tap in sects.d) (lead %s))
-      %zone                 s/zone.d
+      %zone                     s/zone.d
       %join                     b/join.d
     ==
   ::
@@ -374,6 +374,7 @@
   ++  channel-diff
     %-  of
     :~  add/channel
+        edit/channel
         del/ul
         add-sects/(as sym)
         del-sects/(as sym)
