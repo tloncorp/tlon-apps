@@ -1439,7 +1439,7 @@
         :*  (go-rope /channel/edit)
             link
             `['Subscribe to channel' link]
-            ?:  &(!=(~ title.meta.prev) !=(title.meta.channel.diff title.meta.prev))
+            ?:  !=(title.meta.channel.diff title.meta.prev)
               :~  [%emph title.meta.prev]
                   ' has been renamed to '
                   [%emph title.meta.channel.diff]
