@@ -1,5 +1,12 @@
 import { useRouteGroup, useGroup } from '@/state/groups';
-import React, { ComponentType, PropsWithChildren, useCallback } from 'react';
+import React, {
+  ComponentType,
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+import _ from 'lodash';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { ViewProps } from '@/types/groups';
@@ -65,6 +72,17 @@ export default function Notifications({
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const { notifications } = useNotifications(flag);
+  const [hasUnreads, setHasUnreads] = useState(false);
+
+  useEffect(() => {
+    const allNotifs: object[] = [];
+    notifications.map((day) => day.bins.map((bin) => allNotifs.push(bin)));
+    if (_.some(allNotifs, { unread: true })) {
+      setHasUnreads(true);
+    } else {
+      setHasUnreads(false);
+    }
+  }, [notifications]);
 
   const markAllRead = useCallback(() => {
     useHarkState.getState().sawSeam({ desk: 'groups' });
@@ -80,9 +98,11 @@ export default function Notifications({
         </title>
       </Helmet>
       <div className="flex w-full items-center justify-end">
-        <button className="small-button bg-blue" onClick={markAllRead}>
-          Mark All as Read
-        </button>
+        {hasUnreads && (
+          <button className="small-button bg-blue" onClick={markAllRead}>
+            Mark All as Read
+          </button>
+        )}
       </div>
       {notifications.map((grouping) => (
         <div key={grouping.date}>
