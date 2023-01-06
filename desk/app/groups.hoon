@@ -721,6 +721,18 @@
       out
     (~(put in out) who)
   ::
+  ++  go-is-banned
+    |=  =ship
+    =*  cordon  cordon.group
+    ?&  =(-.cordon %open)
+        ?-  -.cordon
+            ?(%shut %afar)  |
+            %open
+          ?|  (~(has in ranks.ban.cordon) (clan:title ship))
+              (~(has in ships.ban.cordon) ship)
+          ==
+        ==
+    ==
   ++  go-pass
     |%
     ++  leave
@@ -870,6 +882,10 @@
         [%fleet ship=@ %is-bloc ~]
       =/  src  (slav %p ship.pole)
       `loob+!>((~(has in go-bloc-who) src))
+      ::
+        [%fleet ship=@ %is-ban ~]
+      =/  src  (slav %p ship.pole)
+      `loob+!>((go-is-banned src))
       ::
         [%channel app=@ ship=@ name=@ rest=*]
       =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
@@ -1264,17 +1280,19 @@
     ^+  go-core
     =/  user-join  &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))
     =/  am-host  =(p.flag our.bowl)
+    =*  cordon  cordon.group
     ?-    -.diff
         %add
       ?>  ?|  am-host
               =(p.flag src.bowl) :: subscription
               user-join
           ==
-      ?<  ?&  =(-.cordon.group %shut) 
-              ?-  -.cordon.group
+      ?<  (go-is-banned src.bowl)
+      ?<  ?&  =(-.cordon %shut) 
+              ?-  -.cordon
                   ?(%open %afar)  |
                   %shut
-                =/  cross  (~(int in pend.cordon.group) ships)
+                =/  cross  (~(int in pend.cordon) ships)
                 ~&  [cross ~(wyt in ships) ~(wyt in cross)]
                 !=(~(wyt in ships) ~(wyt in cross))
               ==
@@ -1310,10 +1328,10 @@
         ==
       =?  cor  go-is-our-bloc
         (emit (pass-hark & & yarn))
-      ?-  -.cordon.group
+      ?-  -.cordon
           ?(%open %afar)  go-core
           %shut  
-        =.  pend.cordon.group  (~(dif in pend.cordon.group) ships)
+        =.  pend.cordon  (~(dif in pend.cordon) ships)
         go-core
       ==
     ::
