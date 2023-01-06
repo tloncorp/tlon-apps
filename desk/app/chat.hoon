@@ -985,7 +985,7 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
       [%writs *]  (peek:cu-pact t.path)
-      [%crew ~]   ``club-crew+!>(+.club)
+      [%crew ~]   ``club-crew+!>(+.+.club)
     ==
   ::
   ++  cu-watch
