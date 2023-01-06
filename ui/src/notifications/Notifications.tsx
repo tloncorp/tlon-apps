@@ -6,7 +6,6 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import _ from 'lodash';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { ViewProps } from '@/types/groups';
@@ -75,13 +74,10 @@ export default function Notifications({
   const [hasUnreads, setHasUnreads] = useState(false);
 
   useEffect(() => {
-    const allNotifs: object[] = [];
-    notifications.map((day) => day.bins.map((bin) => allNotifs.push(bin)));
-    if (_.some(allNotifs, { unread: true })) {
-      setHasUnreads(true);
-    } else {
-      setHasUnreads(false);
-    }
+    const hasUnreadNotifs = notifications.some((day) =>
+      day.bins.some((bin) => bin.unread === true)
+    );
+    setHasUnreads(hasUnreadNotifs);
   }, [notifications]);
 
   const markAllRead = useCallback(() => {
