@@ -1,10 +1,10 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import f from 'lodash/fp';
-import bigInt, { BigInteger } from 'big-integer';
-import { daToUnix, udToDec } from '@urbit/api';
+import { BigInteger } from 'big-integer';
+import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
@@ -20,6 +20,7 @@ import {
   useChatState,
   useIsMessageDelivered,
   useIsMessagePosted,
+  useWrit,
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
@@ -136,11 +137,11 @@ const ChatMessage = React.memo<
         f.uniq,
         f.take(3)
       )(seal.replied);
-      const lastReplyTime = seal.replied.length
-        ? new Date(
-            daToUnix(bigInt(udToDec(seal.replied.at(-1)!.split('/')[1])))
-          )
-        : new Date(0);
+      const lastReply = seal.replied.length ? _.last(seal.replied)! : '';
+      const lastReplyWrit = useWrit(whom, lastReply)!;
+      const lastReplyTime = lastReplyWrit
+        ? new Date(daToUnix(lastReplyWrit[0]))
+        : new Date();
 
       return (
         <div
