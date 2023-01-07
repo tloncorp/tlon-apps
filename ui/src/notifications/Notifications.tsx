@@ -70,15 +70,8 @@ export default function Notifications({
 }: NotificationsProps) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
-  const { notifications } = useNotifications(flag);
-  const [hasUnreads, setHasUnreads] = useState(false);
-
-  useEffect(() => {
-    const hasUnreadNotifs = notifications.some((day) =>
-      day.bins.some((bin) => bin.unread === true)
-    );
-    setHasUnreads(hasUnreadNotifs);
-  }, [notifications]);
+  const { notifications, count } = useNotifications(flag);
+  const hasUnreads = count > 0;
 
   const markAllRead = useCallback(() => {
     useHarkState.getState().sawSeam({ desk: 'groups' });
