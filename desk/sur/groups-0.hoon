@@ -1,13 +1,8 @@
 /-  meta, e=epic
-/-  grp=group
-/-  zer=groups-0
+/-  old=group
+/-  grp=group-store
 /-  metadata-store
 |%
-++  old
-  |%
-  ++  zero  zer
-  --
-::
 ::  $flag: ID for a group
 ::
 +$  flag  (pair ship term)
@@ -105,7 +100,6 @@
   ::  $diff: represents the set of actions you can take on a channel
   ::  
   ::    add: create a channel
-  ::    edit: edit a channel
   ::    del: delete a channel
   ::    add-sects: add sects to readers
   ::    del-sects: delete sects from readers
@@ -114,7 +108,6 @@
   ::
   +$  diff
     $%  [%add =channel]
-        [%edit =channel]
         [%del ~]
       ::
         [%add-sects sects=(set sect)]   
@@ -350,7 +343,7 @@
 +$  gangs  (map flag gang)
 ++  met     metadata-store
 ::
-+$  import  [self=association:met chan=(map flag =association:met) roles=(set flag) =group:grp]
++$  import  [self=association:met chan=(map flag =association:met) roles=(set flag) =group:old]
 ::
 +$  imports  (map flag import)
 --
