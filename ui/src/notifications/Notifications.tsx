@@ -1,5 +1,11 @@
 import { useRouteGroup, useGroup } from '@/state/groups';
-import React, { ComponentType, PropsWithChildren, useCallback } from 'react';
+import React, {
+  ComponentType,
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { ViewProps } from '@/types/groups';
@@ -64,7 +70,8 @@ export default function Notifications({
 }: NotificationsProps) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
-  const { notifications } = useNotifications(flag);
+  const { notifications, count } = useNotifications(flag);
+  const hasUnreads = count > 0;
 
   const markAllRead = useCallback(() => {
     useHarkState.getState().sawSeam({ desk: 'groups' });
@@ -80,9 +87,11 @@ export default function Notifications({
         </title>
       </Helmet>
       <div className="flex w-full items-center justify-end">
-        <button className="small-button bg-blue" onClick={markAllRead}>
-          Mark All as Read
-        </button>
+        {hasUnreads && (
+          <button className="small-button bg-blue" onClick={markAllRead}>
+            Mark All as Read
+          </button>
+        )}
       </div>
       {notifications.map((grouping) => (
         <div key={grouping.date}>
