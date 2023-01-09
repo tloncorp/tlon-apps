@@ -1425,6 +1425,32 @@
       =.  cor  (emit (pass-hark & & yarn))
       go-core
     ::
+        %edit
+      =/  prev=channel:g  (got:by-ch ch)
+      =/  =zone:g  zone.channel.diff
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone
+        |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
+      =.  channels.group  (put:by-ch ch channel.diff)
+      ?:  from-self  go-core
+      =/  link  (go-link /channels)
+      =/  yarn
+        %-  spin
+        :*  (go-rope /channel/edit)
+            link
+            `['Subscribe to channel' link]
+            ?:  !=(title.meta.channel.diff title.meta.prev)
+              :~  [%emph title.meta.prev]
+                  ' has been renamed to '
+                  [%emph title.meta.channel.diff]
+              ==
+            :~  [%emph title.meta.channel.diff]
+                ' has been edited'
+            ==
+        ==
+      =.  cor  (emit (pass-hark & & yarn))
+      go-core
+    ::
         %del
       ?.  (has:by-ch ch)  go-core
       =/  =channel:g   (got:by-ch ch)

@@ -99,7 +99,8 @@
   ::
   ::  $diff: represents the set of actions you can take on a channel
   ::  
-  ::    add: create a channel, should be called from agent
+  ::    add: create a channel
+  ::    edit: edit a channel
   ::    del: delete a channel
   ::    add-sects: add sects to readers
   ::    del-sects: delete sects from readers
@@ -107,7 +108,8 @@
   ::    join: toggle default join
   ::
   +$  diff
-    $%  [%add =channel]                 
+    $%  [%add =channel]
+        [%edit =channel]
         [%del ~]
       ::
         [%add-sects sects=(set sect)]   
