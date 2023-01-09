@@ -7,6 +7,7 @@ import Avatar from '@/components/Avatar';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import ShipName from '@/components/ShipName';
 import useAppName from '@/logic/useAppName';
+import PalsProfileInfo from '@/components/Pals/PalsProfileInfo';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
@@ -62,9 +63,14 @@ export default function ProfileModal() {
               className="translate-y-9"
             />
           </ProfileCoverImage>
-          <div className="p-5 pt-14">
-            <div className="text-lg font-bold">
-              <ShipName name={ship} showAlias />
+          <div className='flex flex-row'>
+            <div className="p-5 pt-14">
+              <div className="text-lg font-bold">
+                <ShipName name={ship} showAlias />
+              </div>
+            </div>
+            <div className='m-2 mt-10'>
+              <PalsProfileInfo ship={ship} />
             </div>
           </div>
           <footer className="flex items-center py-4 px-6">
@@ -105,6 +111,7 @@ export default function ProfileModal() {
             ) : null}
           </div>
           <ProfileBio bio={contact.bio} />
+          <PalsProfileInfo ship={ship.replace('~', '')} />
           {contact.groups.length > 0 && (
             <div className="mt-5">
               <h2 className="mb-3 font-semibold">Favorite Groups</h2>
