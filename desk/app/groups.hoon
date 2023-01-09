@@ -894,6 +894,14 @@
           [%can-read src=@ ~]
         =/  src  (slav %p src.rest.pole)
         `loob+!>((go-can-read src channel))
+        ::
+          [%can-write src=@ ~]
+        =/  src  (slav %p src.rest.pole)
+        =-  `noun+!>(-)
+        ?:  |((go-is-banned src) !(~(has by fleet.group) src))  ~
+        %-  some
+        :-  bloc=(~(has in go-bloc-who) src.bowl)
+        sects=sects:(~(got by fleet.group) src)
       ==
     ==
   ::
@@ -902,6 +910,7 @@
     =/  open  =(-.cordon.group %open)
     =/  ves  (~(get by fleet.group) src)
     =/  visible  =(~ readers.channel)
+    ?:  (go-is-banned src)  |
     ?:  ?|  (~(has in go-bloc-who) src)
             &(open visible)
             &(!=(~ ves) visible)
