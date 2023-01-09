@@ -15,7 +15,7 @@
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
-    $:  %1
+    $:  %0
         groups=net-groups:g
         xeno=gangs:g
         ::  graph -> agent
@@ -254,11 +254,7 @@
     =-  %+  fall  -  ~&  >  %bad-load  [state &]
     (mole |.([!<(versioned-state vase) |]))
   ::
-  =.  state
-    ?-  -.old
-      %0  (state-0-to-1 old)
-      %1  old
-    ==  
+  =.  state  old
   =.  cor  restore-missing-subs
   ?:  =(okay cool)  cor
   =.  cor  (emil (drop load:epos))
@@ -270,30 +266,12 @@
     go-abet:go-upgrade:(go-abed:group-core i.groups)
   $(groups t.groups)
   ::
+  +$  versioned-state  $%(current-state)
   ++  restore-missing-subs
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g *] core=_cor]
     go-abet:(go-safe-sub:(go-abed:group-core:core flag) &)
-  +$  versioned-state  $%(current-state state-0)
-  +$  state-0
-    $:  %0
-        groups=net-groups:g
-        xeno=gangs:g
-        ::  graph -> agent
-        shoal=(map flag:g dude:gall)
-    ==
-  ++  zero     zero:old:g
-  +$  state-1  current-state
-  ++  one      g
-  ++  state-0-to-1
-    |=  s=state-0
-    ^-  state-1
-    %*  .  *state-1
-      groups  groups.s
-      xeno    xeno.s
-      shoal   shoal.s
-    ==
   --
 ::
 ++  watch
