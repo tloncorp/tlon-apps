@@ -100,7 +100,7 @@
   ::  $diff: represents the set of actions you can take on a channel
   ::  
   ::    add: create a channel
-  ::    add: edit a channel
+  ::    edit: edit a channel
   ::    del: delete a channel
   ::    add-sects: add sects to readers
   ::    del-sects: delete sects from readers
