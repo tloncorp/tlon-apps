@@ -16,13 +16,14 @@ export default function Leap() {
     resultCount,
   } = useLeap();
 
-  // global trigger
+  // open dialog
   useEventListener('keydown', (event) => {
-    // TODO: make hotkey configurable, and support MacOS
-    if (event.ctrlKey && event.key === '/') {
+    // Ctrl for Linux and Windows, Cmd for Mac
+    if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+      event.preventDefault();
       setSelectedIndex(0);
       setInputValue('');
-      setIsOpen(true);
+      setIsOpen((state) => !state);
     }
   });
 
