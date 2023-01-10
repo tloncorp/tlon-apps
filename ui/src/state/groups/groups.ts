@@ -493,7 +493,7 @@ export const useGroupState = create<GroupState>(
               channel: {
                 nest,
                 diff: {
-                  add: channel,
+                  edit: channel,
                 },
               },
             }),

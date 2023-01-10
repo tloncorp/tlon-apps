@@ -1,15 +1,10 @@
-/-  g=groups, graph-store, zer=chat-0
+/-  g=groups, graph-store
 /-  meta
 /-  metadata-store
 /-  cite
 /-  e=epic
 /+  lib-graph=graph-store
 |%
-++  old
-  |%
-  ++  zero  zer
-  --
-::
 ::  $writ: a chat message
 +$  writ   [seal memo]
 ::  $id: an identifier for chat messages
@@ -106,7 +101,7 @@
   ::  $net: status of club
   ::
   +$  net  ?(%archive %invited %done)
-  +$  club  [=remark =pact crew]
+  +$  club  [=pact crew]
   ::
   ::  $crew: a container for the metadata for the club
   ::

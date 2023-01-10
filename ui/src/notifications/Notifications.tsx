@@ -1,9 +1,16 @@
 import { useRouteGroup, useGroup } from '@/state/groups';
-import React, { ComponentType, PropsWithChildren } from 'react';
+import React, {
+  ComponentType,
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { ViewProps } from '@/types/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
+import useHarkState from '@/state/hark';
 import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -63,7 +70,12 @@ export default function Notifications({
 }: NotificationsProps) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
-  const { notifications } = useNotifications(flag);
+  const { notifications, count } = useNotifications(flag);
+  const hasUnreads = count > 0;
+
+  const markAllRead = useCallback(() => {
+    useHarkState.getState().sawSeam({ desk: 'groups' });
+  }, []);
 
   return (
     <section className="h-full w-full overflow-y-auto bg-white p-6">
@@ -74,6 +86,13 @@ export default function Notifications({
             : title}
         </title>
       </Helmet>
+      <div className="flex w-full items-center justify-end">
+        {hasUnreads && (
+          <button className="small-button bg-blue" onClick={markAllRead}>
+            Mark All as Read
+          </button>
+        )}
+      </div>
       {notifications.map((grouping) => (
         <div key={grouping.date}>
           <h2 className="mt-8 mb-4 text-lg font-bold text-gray-400">

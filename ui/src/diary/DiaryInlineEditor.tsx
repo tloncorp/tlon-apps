@@ -20,6 +20,7 @@ import React, {
   useImperativeHandle,
   useState,
   forwardRef,
+  useMemo,
 } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
@@ -287,6 +288,33 @@ export function useDiaryInlineEditor({
 }: useDiaryInlineEditorParams) {
   const calm = useCalm();
 
+  const contentWithoutExtraParagraphs = useMemo(() => {
+    const filterEmptyContent = (c: JSONContent) => {
+      if (c.content === undefined) {
+        return false;
+      }
+      return true;
+    };
+    const mapAndFilter = (c: JSONContent): JSONContent => {
+      if (c.content && c.content.length > 1) {
+        return {
+          type: c.type,
+          content: c.content.filter(filterEmptyContent).map(mapAndFilter),
+        };
+      }
+      return c;
+    };
+    if (content.length === 0) {
+      return content;
+    }
+    if (typeof content !== 'string' && Array.isArray(content.content)) {
+      return content.content.filter(filterEmptyContent).map(mapAndFilter);
+    }
+    return content;
+  }, [content]);
+
+  console.log({ contentWithoutExtraParagraphs, content });
+
   const ed = useEditor(
     {
       extensions: [
@@ -357,13 +385,16 @@ export function useDiaryInlineEditor({
 
   useEffect(() => {
     if (ed && !ed.isDestroyed) {
-      const com = ed.chain().clearContent().insertContent(content);
+      const com = ed
+        .chain()
+        .clearContent()
+        .insertContent(contentWithoutExtraParagraphs);
       if (content !== '') {
         com.focus();
       }
       com.run();
     }
-  }, [ed, content]);
+  }, [ed, content, contentWithoutExtraParagraphs]);
 
   return ed;
 }

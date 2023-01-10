@@ -24,7 +24,7 @@
 =|  current-state
 =*  state  -
 =< 
-  %+  verb  &
+  %+  verb  |
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
@@ -898,7 +898,7 @@
       ::
           %read
       =/  [=time =note:d]  (need (ram:on:notes:d notes.diary))
-      remark.diary(last-read `@da`(add time 1))  ::  greater than last
+      remark.diary(last-read `@da`(add time (div ~s1 100)))  ::  greater than last
       ==
     =.  cor
       (give-brief flag di-brief)

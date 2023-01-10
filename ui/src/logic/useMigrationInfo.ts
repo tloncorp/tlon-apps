@@ -3,12 +3,9 @@ import create from 'zustand';
 import api from '@/api';
 import { useGroupState } from '@/state/groups';
 import { GroupState } from '@/state/groups/type';
-import { Channels } from '@/types/groups';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect } from 'react';
 import { getNestShip, isChannelImported } from './utils';
-import asyncCallWithTimeout from './asyncWithTimeout';
 import usePendingImports from './usePendingImports';
-import { getPreviewTracker } from './subscriptionTracking';
 
 interface WaitStore {
   wait: string[];
@@ -43,66 +40,13 @@ const useWaitStore = create<WaitStore>((set, get) => ({
 
 const selWait = (s: WaitStore) => s.wait;
 
-const selPreviews = (s: GroupState) => s.channelPreviews;
-
-interface PreviewCheck {
-  inProgress: boolean;
-  attempted: number;
-}
-
-const { shouldLoad, newAttempt, finished } = getPreviewTracker();
-
-const isOurs = (nest: string) => getNestShip(nest) === window.our;
-
-export function useCheckUnjoinedMigrations(
-  channels: Channels,
-  pendingImports: Record<string, boolean>,
-  disable: boolean
-) {
-  const previews = useGroupState(selPreviews);
-  const unjoined = _.pickBy(channels, (v, k) => !(k in pendingImports));
-
-  useEffect(() => {
-    Object.entries(unjoined).forEach(([k, v]) => {
-      if (!isOurs(k) && !(k in previews) && shouldLoad(k) && !disable) {
-        newAttempt(k);
-
-        asyncCallWithTimeout(
-          useGroupState.getState().channelPreview(k),
-          10 * 1000
-        ).finally(() => {
-          finished(k);
-        });
-      }
-    });
-  }, [previews, unjoined, disable]);
-
-  return useMemo(
-    () => _.mapValues(unjoined, (v, k) => k in previews || isOurs(k)),
-    [unjoined, previews]
-  );
-}
-
-export function useStartedMigration(flag: string, onlyPending = false) {
+export function useStartedMigration(flag: string) {
   const wait = useWaitStore(selWait);
   const pendingImports = usePendingImports();
   const channels = useGroupState(
     useCallback((s: GroupState) => s.groups[flag]?.channels, [flag])
   );
-  const unjoinedMigrations = useCheckUnjoinedMigrations(
-    channels,
-    pendingImports,
-    onlyPending
-  );
-  const migrations = useMemo(
-    () => ({
-      ...pendingImports,
-      ...unjoinedMigrations,
-    }),
-    [pendingImports, unjoinedMigrations]
-  );
-  const toCheck = onlyPending ? pendingImports : migrations;
-  const pendingShips = Object.keys(toCheck).map(getNestShip);
+  const pendingShips = Object.keys(pendingImports).map(getNestShip);
 
   useEffect(() => {
     useWaitStore.getState().fetchWait();
@@ -112,12 +56,12 @@ export function useStartedMigration(flag: string, onlyPending = false) {
     hasStarted: useCallback(
       (ship: string) => {
         const inPending = pendingShips.includes(ship) && wait.includes(ship);
-        const hasOneMigrated = Object.entries(toCheck).some(
+        const hasOneMigrated = Object.entries(pendingImports).some(
           ([k, v]) => getNestShip(k) === ship && v
         );
         return !inPending || (inPending && hasOneMigrated);
       },
-      [toCheck, pendingShips, wait]
+      [pendingImports, pendingShips, wait]
     ),
     channels,
     pendingImports,
@@ -125,10 +69,7 @@ export function useStartedMigration(flag: string, onlyPending = false) {
 }
 
 export function useHasMigratedChannels(flag: string) {
-  const { channels, pendingImports, hasStarted } = useStartedMigration(
-    flag,
-    true
-  );
+  const { channels, pendingImports, hasStarted } = useStartedMigration(flag);
   const keys = Object.keys(channels || {});
   return (
     keys.length === 0 ||
