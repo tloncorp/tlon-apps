@@ -70,7 +70,7 @@ export default function DiaryAddNote() {
     const sent = Date.now();
 
     const isBlock = (c: Inline | DiaryBlock) =>
-      ['image', 'cite', 'listing', 'header', 'rule'].some(
+      ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
         (k) => typeof c !== 'string' && k in c
       );
     const noteContent: NoteContent = [];

@@ -19,6 +19,8 @@ import {
   NoteContent,
 } from '@/types/diary';
 import _ from 'lodash';
+import { refractor } from 'refractor';
+import { toH } from 'hast-to-hyperscript';
 import DiaryContentImage from './DiaryContentImage';
 
 interface DiaryContentProps {
@@ -205,6 +207,17 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
 
   if ('rule' in story) {
     return <hr />;
+  }
+
+  const tree = refractor.highlight(story.code.code, story.code.lang);
+  const element = toH(React.createElement, tree);
+
+  if ('code' in story) {
+    return (
+      <pre>
+        <code className={`language-${story.code.lang}`}>{element}</code>
+      </pre>
+    );
   }
 
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);

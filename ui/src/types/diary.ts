@@ -122,6 +122,13 @@ export interface DiaryRule {
   rule: null;
 }
 
+export interface DiaryCode {
+  code: {
+    code: string;
+    lang: string;
+  };
+}
+
 export function isDiaryImage(item: unknown): item is DiaryImage {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
@@ -131,7 +138,8 @@ export type DiaryBlock =
   | DiaryCite
   | DiaryListingBlock
   | DiaryHeader
-  | DiaryRule;
+  | DiaryRule
+  | DiaryCode;
 
 export interface VerseBlock {
   block: DiaryBlock;

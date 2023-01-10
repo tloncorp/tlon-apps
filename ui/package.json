@@ -92,6 +92,7 @@
     "fast-average-color": "^9.1.1",
     "framer-motion": "^6.5.1",
     "fuzzy": "^0.1.3",
+    "hast-to-hyperscript": "^10.0.1",
     "history": "^5.3.0",
     "immer": "^9.0.12",
     "lodash": "^4.17.21",
