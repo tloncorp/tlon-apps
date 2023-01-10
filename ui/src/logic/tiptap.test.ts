@@ -286,6 +286,7 @@ describe('inlinesToJSON', () => {
           type: 'paragraph',
           content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'foo' }],
         },
+        { type: 'paragraph' },
         { type: 'paragraph', content: [{ type: 'text', text: 'foo' }] },
       ],
     };
@@ -351,6 +352,7 @@ describe('inlinesToJSON', () => {
       type: 'doc',
       content: [
         { type: 'paragraph', content: [{ type: 'text', text: 'test text' }] },
+        { type: 'paragraph' },
         {
           type: 'paragraph',
           content: [
