@@ -59,7 +59,6 @@ describe('wrapParagraphs', () => {
         type: 'paragraph',
         content: [{ type: 'text', text: 'urbit fixes this' }],
       },
-      { type: 'paragraph' },
       { type: 'paragraph', content: [{ type: 'text', text: 'foo foo' }] },
     ];
     expect(output).toEqual(expected);
@@ -97,9 +96,6 @@ describe('inlineToContent', () => {
         {
           type: 'paragraph',
           content: [{ type: 'text', text: 'foo bar baz' }],
-        },
-        {
-          type: 'paragraph',
         },
         {
           type: 'paragraph',
@@ -193,7 +189,6 @@ describe('inlinesToJSON', () => {
           type: 'paragraph',
           content: [{ type: 'text', text: 'urbit fixes this' }],
         },
-        { type: 'paragraph' },
         { type: 'paragraph', content: [{ type: 'text', text: 'foo foo' }] },
       ],
     };
@@ -216,9 +211,7 @@ describe('inlinesToJSON', () => {
           type: 'paragraph',
           content: [{ type: 'text', text: 'urbit fixes this' }],
         },
-        { type: 'paragraph' },
         { type: 'paragraph', content: [{ type: 'text', text: 'foo foo' }] },
-        { type: 'paragraph' },
         { type: 'paragraph', content: [{ type: 'text', text: 'bar baz' }] },
       ],
     };
@@ -261,9 +254,6 @@ describe('inlinesToJSON', () => {
             },
             {
               type: 'paragraph',
-            },
-            {
-              type: 'paragraph',
               content: [
                 {
                   type: 'text',
@@ -296,8 +286,6 @@ describe('inlinesToJSON', () => {
           type: 'paragraph',
           content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'foo' }],
         },
-        { type: 'paragraph' },
-        { type: 'paragraph' },
         { type: 'paragraph', content: [{ type: 'text', text: 'foo' }] },
       ],
     };
@@ -363,8 +351,6 @@ describe('inlinesToJSON', () => {
       type: 'doc',
       content: [
         { type: 'paragraph', content: [{ type: 'text', text: 'test text' }] },
-        { type: 'paragraph' },
-        { type: 'paragraph' },
         {
           type: 'paragraph',
           content: [

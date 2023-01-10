@@ -488,7 +488,8 @@ export function wrapParagraphs(content: JSONContent[]) {
     return [makeParagraph([])];
   }
 
-  return wrappedContent;
+  // now that we've wrapped we can remove the empty paragraph objects.
+  return wrappedContent.filter((c) => c.content && c.content.length > 0);
 }
 
 // 'foo' | { bold: ['bar'] } | { italics: [ { bold: [ "foobar" ] } ] } | { 'inline-code': 'code' } | { break: null }
