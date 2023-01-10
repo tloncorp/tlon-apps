@@ -37,6 +37,11 @@ export default function useLeap() {
           onSelect: () => {
             if (app === 'Groups' && o.title === 'Messages') {
               window.open(`${window.location.origin}/apps/talk`, '_blank');
+            } else if (app === 'Talk' && o.title === 'Find Groups') {
+              window.open(
+                `${window.location.origin}/apps/groups/find`,
+                '_blank'
+              );
             } else {
               navigate(o.to);
             }
