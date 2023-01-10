@@ -5,6 +5,7 @@ import { useGroups } from '@/state/groups';
 import { filters, SidebarFilter } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import { canReadChannel, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { ChatBrief } from '@/types/chat';
 import {
   usePendingDms,
   useBriefs,
@@ -20,6 +21,14 @@ type MessagesListProps = PropsWithChildren<{
   atTopChange?: (atTop: boolean) => void;
   isScrolling?: (scrolling: boolean) => void;
 }>;
+
+function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
+  return (
+    <div className="pl-2 pb-3 sm:pb-1">
+      <MessagesSidebarItem key={whom} whom={whom} />
+    </div>
+  );
+}
 
 export default function MessagesList({
   filter,
@@ -81,16 +90,11 @@ export default function MessagesList({
         {allPending &&
           filter !== filters.groups &&
           allPending.map((whom) => (
-            <MessagesSidebarItem
-              pending
-              key={whom}
-              whom={whom}
-              brief={briefs[whom]}
-            />
+            <MessagesSidebarItem pending key={whom} whom={whom} />
           ))}
       </>
     ),
-    [children, allPending, briefs, filter]
+    [children, allPending, filter]
   );
 
   return (
@@ -98,11 +102,7 @@ export default function MessagesList({
       {...thresholds}
       data={organizedBriefs}
       computeItemKey={(i, [whom]) => whom}
-      itemContent={(i, [whom, brief]) => (
-        <div className="pl-2 pb-3 sm:pb-1">
-          <MessagesSidebarItem key={whom} whom={whom} brief={brief} />
-        </div>
-      )}
+      itemContent={itemContent}
       components={{
         Header: () => head,
       }}
