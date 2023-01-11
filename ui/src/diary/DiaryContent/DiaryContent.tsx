@@ -21,6 +21,8 @@ import {
 import _ from 'lodash';
 import { refractor } from 'refractor';
 import { toH } from 'hast-to-hyperscript';
+import { useIsDark } from '@/logic/useMedia';
+import cn from 'classnames';
 import DiaryContentImage from './DiaryContentImage';
 
 interface DiaryContentProps {
@@ -171,6 +173,8 @@ export function ListingContent({ content }: { content: DiaryListing }) {
 }
 
 export const BlockContent = React.memo(({ story }: BlockContentProps) => {
+  const dark = useIsDark();
+
   if (isDiaryImage(story)) {
     return (
       <DiaryContentImage
@@ -214,7 +218,7 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
 
   if ('code' in story) {
     return (
-      <pre>
+      <pre className={cn({ invert: dark, 'bg-white': dark })}>
         <code className={`language-${story.code.lang}`}>{element}</code>
       </pre>
     );
