@@ -82,13 +82,13 @@ function useFileUpload() {
   );
 
   const uploadFiles = useCallback(
-    async (files: FileList | null) => {
+    async (files: FileList | null, fileId?: string) => {
       if (!files) return;
       const newFiles = _.keyBy(
         [...files].map((file) => ({
           file,
           key: `${window.ship}/${deSig(dateToDa(new Date()))}-${file.name}`,
-          for: window.ship, // TODO: this is unused, should it be kept?
+          for: fileId ?? window.ship,
           status: 'initial',
           url: '',
         })),
@@ -101,7 +101,8 @@ function useFileUpload() {
   );
 
   const onFiles = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => uploadFiles(e.target.files),
+    (e: ChangeEvent<HTMLInputElement>, fileId?: string) =>
+      uploadFiles(e.target.files, fileId),
     [uploadFiles]
   );
 
@@ -113,7 +114,7 @@ function useFileUpload() {
       input.id = fileId;
       input.accept = 'image/*,video/*,audio/*';
       input.addEventListener('change', (e) => {
-        onFiles(e as any);
+        onFiles(e as any, fileId);
       });
       input.click();
     },
