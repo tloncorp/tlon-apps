@@ -218,26 +218,11 @@ export default function ChatInput({
   }, [autoFocus, reply, isMobile, messageEditor]);
 
   useEffect(() => {
-    if (mostRecentFile && messageEditor && !messageEditor.isDestroyed) {
-      const { url } = mostRecentFile;
-      messageEditor.commands.setContent(null);
-      messageEditor.commands.setContent(url);
-    }
-  }, [mostRecentFile, messageEditor]);
-
-  useEffect(() => {
     if (messageEditor && !messageEditor.isDestroyed) {
-      if (mostRecentFile) {
-        // if there is a most recent file, we want to set the content to the url
-        const { url } = mostRecentFile;
-
-        messageEditor.commands.setContent(url);
-      } else {
-        // if the draft is empty, clear the editor
-        messageEditor.commands.setContent(null, true);
-      }
+      // if the draft is empty, clear the editor
+      messageEditor.commands.setContent(null, true);
     }
-  }, [messageEditor, mostRecentFile]);
+  }, [messageEditor]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -372,6 +357,8 @@ export default function ChatInput({
             sendDisabled ||
             subscription === 'reconnecting' ||
             subscription === 'disconnected' ||
+            mostRecentFile?.status === 'loading' ||
+            mostRecentFile?.status === 'error' ||
             (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
           }
           onClick={onClick}
