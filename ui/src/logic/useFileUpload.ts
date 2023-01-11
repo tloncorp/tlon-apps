@@ -5,6 +5,12 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { dateToDa, deSig } from '@urbit/api';
 import { useFileStore, useStorage } from '@/state/storage';
 import { Upload } from '@/types/storage';
+import { getImageSize } from 'react-image-size';
+
+function imageSize(url: string) {
+  const size = getImageSize(url).then(({ width, height }) => [width, height]);
+  return size;
+}
 
 function useFileUpload() {
   const { s3, ...storage } = useStorage();
@@ -17,6 +23,7 @@ function useFileUpload() {
     setFileStatus,
     setErrorMessage,
     setFileURL,
+    setFileSize,
   } = useFileStore();
   const [hasCredentials, setHasCredentials] = useState(false);
 
@@ -68,6 +75,7 @@ function useFileUpload() {
         .then(() => {
           setFileStatus([key, 'success']);
           setFileURL([key, url.split('?')[0]]);
+          imageSize(url.split('?')[0]).then((s) => setFileSize([key, s]));
         })
         .catch((error: any) => {
           setFileStatus([key, 'error']);
@@ -78,7 +86,7 @@ function useFileUpload() {
           console.log({ error });
         });
     },
-    [client, setFileStatus, s3, setFileURL, setErrorMessage]
+    [client, setFileStatus, s3, setFileURL, setErrorMessage, setFileSize]
   );
 
   const uploadFiles = useCallback(
