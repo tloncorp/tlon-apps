@@ -592,7 +592,14 @@ describe('JSONToInlines', () => {
       ],
     };
     const output = JSONToInlines(input);
-    const expected: Inline[] = [{ code: 'console.log' }];
+    const expected: DiaryBlock[] = [
+      {
+        code: {
+          code: 'console.log',
+          lang: '',
+        },
+      },
+    ];
     expect(output).toEqual(expected);
   });
 
