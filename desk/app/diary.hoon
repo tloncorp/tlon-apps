@@ -205,7 +205,6 @@
     |=  =flag:d
     ^+  cor
     ?<  (~(has by shelf) flag)
-    =.  shelf  (~(put by shelf) flag *diary:d)
     di-abet:(di-join:di-core flag)
   ::
   ++  create
@@ -795,17 +794,14 @@
   ::
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
-    =/  bloc=path
+    =/  =path 
       %+  welp  di-groups-scry
-      /fleet/(scot %p src.bowl)/is-bloc/loob
-    =+  .^(is-bloc=? %gx bloc)
-    ?:  is-bloc  &
-    =/  =path
-      %+  welp  di-groups-scry
-      /fleet/(scot %p src.bowl)/vessel/noun
-    =+  .^(=vessel:fleet:g %gx path)
-    ?:  =(~ writers.perm.diary)  &
-    !=(~ (~(int in writers.perm.diary) sects.vessel))
+      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
+    =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
+    ?~  write  |
+    =/  perms  (need write) 
+    ?:  |(bloc.perms =(~ writers.perm.diary))  &
+    !=(~ (~(int in writers.perm.diary) sects.perms))
   ::
   ++  di-can-read
     |=  her=ship
