@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
 import React, { useCallback, useEffect, useMemo } from 'react';
+import _ from 'lodash';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -23,7 +24,6 @@ import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import useFileUpload from '@/logic/useFileUpload';
 import { useFileStore } from '@/state/storage';
-import { EditorProps } from 'prosemirror-view';
 import MentionPopup from './Mention/MentionPopup';
 
 interface HandlerParams {
@@ -107,17 +107,22 @@ export function useMessageEditor({
     [uploadFiles, whom]
   );
 
-  // update the Attached Items view when files are uploaded
+  // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
-    if (whom && files && Object.values(files).length) {
+    if (
+      whom &&
+      files &&
+      Object.values(files).length &&
+      !_.some(Object.values(files), (f) => f.size === undefined)
+    ) {
       // TODO: handle existing blocks (other refs)
       setBlocks(
         whom,
         Object.values(files).map((f) => ({
           image: {
             src: f.url, // TODO: what to put when still loading?
-            height: 200, // TODO
-            width: 200,
+            width: f.size[0],
+            height: f.size[1],
             alt: f.file.name,
           },
         }))

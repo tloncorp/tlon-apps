@@ -44,6 +44,7 @@ export interface FileStoreFile {
   url: string;
   for: string;
   key: string;
+  size: [number, number];
 }
 
 export interface FileStore {
@@ -56,6 +57,7 @@ export interface FileStore {
   setFiles: (file: Upload) => void;
   setFileStatus: (file: Array<number | string>) => void;
   setFileURL: (file: Array<number | string>) => void;
+  setFileSize: (file: Array<number | string>) => void;
   clearFiles: () => void;
   removeFileByURL: (i: ChatImage) => void;
 }

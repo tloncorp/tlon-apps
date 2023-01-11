@@ -60,6 +60,13 @@ export const useFileStore = create<FileStore>((set) => ({
         draft.files[key].url = url;
       })
     ),
+  setFileSize: (file) =>
+    set(
+      produce((draft) => {
+        const [key, size] = file;
+        draft.files[key].size = size;
+      })
+    ),
   clearFiles: () =>
     set(
       produce((draft) => {
