@@ -313,6 +313,8 @@ export default function GroupList({
   }, [pinnedGroups, order, loaded]);
 
   if (!initialized) {
+    if (!pinned) return null;
+
     return <GroupListPlaceholder count={groups.length || 5} />;
   }
 
