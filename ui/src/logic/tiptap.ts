@@ -336,7 +336,7 @@ export function JSONToInlines(
           ? {
               code: {
                 code: json.content[0].text ?? '',
-                lang: json.attrs?.language ?? '',
+                lang: json.attrs?.language ?? 'plaintext',
               },
             }
           : { code: json.content[0].text ?? '' },
