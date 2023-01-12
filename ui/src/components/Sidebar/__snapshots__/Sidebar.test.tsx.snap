@@ -356,40 +356,6 @@ exports[`Sidebar > renders as expected 1`] = `
           </svg>
         </button>
       </li>
-      <ul
-        class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"
-      >
-        <li
-          class="relative flex w-full items-center justify-between rounded-lg"
-        >
-          <div
-            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
-          >
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
-            />
-            <div
-              class="bg-gray-100 h-4 rounded-md"
-              style="width: 100px;"
-            />
-          </div>
-        </li>
-        <li
-          class="relative flex w-full items-center justify-between rounded-lg"
-        >
-          <div
-            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
-          >
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
-            />
-            <div
-              class="bg-gray-100 h-4 rounded-md"
-              style="width: 100px;"
-            />
-          </div>
-        </li>
-      </ul>
     </ul>
   </nav>
 </DocumentFragment>
