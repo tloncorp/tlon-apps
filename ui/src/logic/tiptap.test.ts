@@ -591,7 +591,7 @@ describe('JSONToInlines', () => {
         },
       ],
     };
-    const output = JSONToInlines(input);
+    const output = JSONToInlines(input, true, true);
     const expected: DiaryBlock[] = [
       {
         code: {
