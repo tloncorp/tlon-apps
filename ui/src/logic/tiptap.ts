@@ -227,7 +227,8 @@ export function JSONToListing(
 
 export function JSONToInlines(
   json: JSONContent,
-  limitNewlines = true
+  limitNewlines = true,
+  codeWithLang = false
 ): (Inline | DiaryBlock)[] {
   switch (json.type) {
     case 'text': {
@@ -326,12 +327,14 @@ export function JSONToInlines(
         return [];
       }
       return [
-        {
-          code: {
-            code: json.content[0].text ?? '',
-            lang: json.attrs?.language ?? '',
-          },
-        },
+        codeWithLang
+          ? {
+              code: {
+                code: json.content[0].text ?? '',
+                lang: json.attrs?.language ?? '',
+              },
+            }
+          : { code: json.content[0].text ?? '' },
       ];
     }
     case 'orderedList': {
