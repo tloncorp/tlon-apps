@@ -64,7 +64,7 @@ export default function DiaryAddNote() {
 
     setStatus('loading');
 
-    const data = JSONToInlines(editor?.getJSON(), false);
+    const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
 
     const sent = Date.now();
