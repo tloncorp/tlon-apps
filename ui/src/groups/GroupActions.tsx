@@ -56,105 +56,105 @@ type GroupActionsProps = PropsWithChildren<{
   className?: string;
 }>;
 
-export default function GroupActions({
-  flag,
-  className,
-  children,
-}: GroupActionsProps) {
-  const { isGroupUnread } = useIsGroupUnread();
-  const location = useLocation();
-  const hasActivity = isGroupUnread(flag);
+const GroupActions = React.memo(
+  ({ flag, className, children }: GroupActionsProps) => {
+    const { isGroupUnread } = useIsGroupUnread();
+    const location = useLocation();
+    const hasActivity = isGroupUnread(flag);
 
-  const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
-    useGroupActions(flag);
+    const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
+      useGroupActions(flag);
 
-  const onCopySelect = useCallback(
-    (event: Event) => {
-      event.preventDefault();
-      onCopy();
-    },
-    [onCopy]
-  );
+    const onCopySelect = useCallback(
+      (event: Event) => {
+        event.preventDefault();
+        onCopy();
+      },
+      [onCopy]
+    );
 
-  return (
-    <div className={className}>
-      <DropdownMenu.Root open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenu.Trigger asChild className="appearance-none">
-          {children || (
-            <div className="relative h-6 w-6">
-              {!isOpen && hasActivity ? (
-                <UnreadIndicator
-                  className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-                  aria-label="Has Activity"
-                />
-              ) : null}
-              <button
-                className={cn(
-                  'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                  hasActivity && 'text-blue',
-                  isOpen ? 'opacity:100' : 'opacity-0'
-                )}
-                aria-label="Open Group Options"
-              >
-                <EllipsisIcon className="h-6 w-6" />
-              </button>
-            </div>
-          )}
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content className="dropdown min-w-52 text-gray-800">
-          <DropdownMenu.Item
-            asChild
-            className="dropdown-item text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
-          >
-            <Link
-              to={`/groups/${flag}/invite`}
-              state={{ backgroundLocation: location }}
-              className="flex items-center space-x-2"
+    return (
+      <div className={className}>
+        <DropdownMenu.Root open={isOpen} onOpenChange={setIsOpen}>
+          <DropdownMenu.Trigger asChild className="appearance-none">
+            {children || (
+              <div className="relative h-6 w-6">
+                {!isOpen && hasActivity ? (
+                  <UnreadIndicator
+                    className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+                    aria-label="Has Activity"
+                  />
+                ) : null}
+                <button
+                  className={cn(
+                    'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+                    hasActivity && 'text-blue',
+                    isOpen ? 'opacity:100' : 'opacity-0'
+                  )}
+                  aria-label="Open Group Options"
+                >
+                  <EllipsisIcon className="h-6 w-6" />
+                </button>
+              </div>
+            )}
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content className="dropdown min-w-52 text-gray-800">
+            <DropdownMenu.Item
+              asChild
+              className="dropdown-item text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
             >
-              <InviteIcon16 className="h-6 w-6 opacity-60" />
-              <span className="pr-2">Invite People</span>
-            </Link>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className={
-              'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900'
-            }
-            onSelect={onCopySelect}
-          >
-            <LinkIcon16 className="h-6 w-6 opacity-60" />
-            <span className="pr-2">{copyItemText}</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className="dropdown-item flex items-center space-x-2"
-            onClick={onPinClick}
-          >
-            <PinIcon16 className="h-6 w-6 text-gray-600" />
-            <span className="pr-2">{isPinned ? 'Unpin' : 'Pin'}</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item asChild className="dropdown-item">
-            <Link
-              to={`/groups/${flag}/info`}
-              // state={{ backgroundLocation: location }}
-              className="flex items-center space-x-2"
-            >
-              <Person16Icon className="m-1 h-4 w-4 text-gray-600" />
-              <span className="pr-2">Members &amp; Group Info</span>
-            </Link>
-          </DropdownMenu.Item>
-          {flag.includes(ship) ? null : (
-            <DropdownMenu.Item asChild className="dropdown-item">
               <Link
-                to={`/groups/${flag}/leave`}
+                to={`/groups/${flag}/invite`}
                 state={{ backgroundLocation: location }}
-                className="flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+                className="flex items-center space-x-2"
               >
-                <LeaveIcon className="h-6 w-6" />
-                <span className="pr-2">Leave Group</span>
+                <InviteIcon16 className="h-6 w-6 opacity-60" />
+                <span className="pr-2">Invite People</span>
               </Link>
             </DropdownMenu.Item>
-          )}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-    </div>
-  );
-}
+            <DropdownMenu.Item
+              className={
+                'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900'
+              }
+              onSelect={onCopySelect}
+            >
+              <LinkIcon16 className="h-6 w-6 opacity-60" />
+              <span className="pr-2">{copyItemText}</span>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              className="dropdown-item flex items-center space-x-2"
+              onClick={onPinClick}
+            >
+              <PinIcon16 className="h-6 w-6 text-gray-600" />
+              <span className="pr-2">{isPinned ? 'Unpin' : 'Pin'}</span>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item asChild className="dropdown-item">
+              <Link
+                to={`/groups/${flag}/info`}
+                // state={{ backgroundLocation: location }}
+                className="flex items-center space-x-2"
+              >
+                <Person16Icon className="m-1 h-4 w-4 text-gray-600" />
+                <span className="pr-2">Members &amp; Group Info</span>
+              </Link>
+            </DropdownMenu.Item>
+            {flag.includes(ship) ? null : (
+              <DropdownMenu.Item asChild className="dropdown-item">
+                <Link
+                  to={`/groups/${flag}/leave`}
+                  state={{ backgroundLocation: location }}
+                  className="flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+                >
+                  <LeaveIcon className="h-6 w-6" />
+                  <span className="pr-2">Leave Group</span>
+                </Link>
+              </DropdownMenu.Item>
+            )}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      </div>
+    );
+  }
+);
+
+export default GroupActions;
