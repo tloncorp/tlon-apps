@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import useAllBriefs from '@/logic/useAllBriefs';
+import { useBriefs, useChats } from '@/state/chat';
 import { useCallback } from 'react';
 import { nestToFlag } from './utils';
 
@@ -26,10 +27,9 @@ interface ChannelUnreadCount {
 }
 
 export function useChannelUnreadCounts(args: ChannelUnreadCount) {
-  const briefs = useAllBriefs();
-  const chatKeys = Object.keys(useChatStore(selChats)).map(
-    (key) => `chat/${key}`
-  );
+  const briefs = useBriefs();
+  const chats = useChats();
+  const chatKeys = Object.keys(chats);
 
   switch (args.scope) {
     case 'All Messages':
