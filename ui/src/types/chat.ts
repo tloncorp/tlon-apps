@@ -149,8 +149,13 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
+export interface ChatDiffCreate {
+  create: Chat;
+}
+
 export type ChatDiff =
   | { writs: WritDiff }
+  | ChatDiffCreate
   | ChatDiffAddSects
   | ChatDiffDelSects;
 

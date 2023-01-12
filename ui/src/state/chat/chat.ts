@@ -304,6 +304,8 @@ export const useChatState = createState<ChatState>(
                   draft.pacts[flag].index[id] = newTime;
                 }
               }
+            } else if ('create' in diff) {
+              draft.chats[flag] = diff.create;
             } else if ('del-sects' in diff) {
               chat.perms.writers = chat.perms.writers.filter(
                 (w) => !diff['del-sects'].includes(w)
