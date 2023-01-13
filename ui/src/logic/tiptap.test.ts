@@ -596,7 +596,7 @@ describe('JSONToInlines', () => {
       {
         code: {
           code: 'console.log',
-          lang: '',
+          lang: 'plaintext',
         },
       },
     ];

@@ -269,7 +269,11 @@ export function JSONToInlines(
 
       return [
         {
-          [convertMarkType(first.type)]: JSONToInlines(json, limitNewlines),
+          [convertMarkType(first.type)]: JSONToInlines(
+            json,
+            limitNewlines,
+            codeWithLang
+          ),
         },
       ] as unknown as (Inline | DiaryBlock)[];
     }
@@ -291,11 +295,11 @@ export function JSONToInlines(
           typeof lastMessage !== 'string' &&
           'break' in lastMessage;
         if (isContentFinal && !isBreakDirectlyBefore) {
-          return memo.concat(JSONToInlines(c, limitNewlines), [
+          return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang), [
             { break: null },
           ]);
         }
-        return memo.concat(JSONToInlines(c, limitNewlines));
+        return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang));
       }, [] as (Inline | DiaryBlock)[]);
       return limitNewlines ? limitBreaks(inlines) : inlines;
     }
@@ -305,7 +309,7 @@ export function JSONToInlines(
       }
 
       const inlines = json.content.reduce(
-        (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
+        (memo, c) => memo.concat(JSONToInlines(c, limitNewlines, codeWithLang)),
         [] as (Inline | DiaryBlock)[]
       );
       return limitNewlines ? limitBreaks(inlines) : inlines;
@@ -313,7 +317,8 @@ export function JSONToInlines(
     case 'blockquote': {
       const inlines =
         json.content?.reduce(
-          (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
+          (memo, c) =>
+            memo.concat(JSONToInlines(c, limitNewlines, codeWithLang)),
           [] as (Inline | DiaryBlock)[]
         ) ?? [];
       return [
@@ -331,7 +336,7 @@ export function JSONToInlines(
           ? {
               code: {
                 code: json.content[0].text ?? '',
-                lang: json.attrs?.language ?? '',
+                lang: json.attrs?.language ?? 'plaintext',
               },
             }
           : { code: json.content[0].text ?? '' },
@@ -357,7 +362,8 @@ export function JSONToInlines(
           header: {
             tag: `h${json.attrs?.level || 2}` as DiaryHeaderLevel,
             content: (json.content || []).reduce(
-              (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
+              (memo, c) =>
+                memo.concat(JSONToInlines(c, limitNewlines, codeWithLang)),
               [] as (Inline | DiaryBlock)[]
             ) as Inline[],
           },
