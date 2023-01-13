@@ -21,7 +21,7 @@ import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
 import useFileUpload from '@/logic/useFileUpload';
 import { useFileStore } from '@/state/storage';
-import { IMAGE_REGEX, isImageUrl } from '@/logic/utils';
+import { IMAGE_REGEX, isImageUrl, isValidUrl } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
 import { useSubscriptionStatus } from '@/state/local';
@@ -200,6 +200,8 @@ export default function ChatInput({
     ),
   });
 
+  const text = messageEditor?.getText();
+
   useEffect(() => {
     if (whom && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.setContent('');
@@ -223,6 +225,19 @@ export default function ChatInput({
       messageEditor.commands.setContent(null, true);
     }
   }, [messageEditor]);
+
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed) {
+      // if text is just a valid URL, make it a link.
+      // this is necessary because the editor doesn't
+      // keep focus on mobile in some cases (chrome/android).
+      if (text && isValidUrl(text)) {
+        messageEditor.commands.selectAll();
+        messageEditor.commands.setLink({ href: text });
+        messageEditor.commands.selectTextblockEnd();
+      }
+    }
+  }, [messageEditor, text]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),

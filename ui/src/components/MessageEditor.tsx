@@ -24,7 +24,7 @@ import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import useFileUpload from '@/logic/useFileUpload';
 import { useFileStore } from '@/state/storage';
-import { isRef, isValidUrl, pathToCite } from '@/logic/utils';
+import { isRef, pathToCite } from '@/logic/utils';
 import MentionPopup from './Mention/MentionPopup';
 
 interface HandlerParams {
