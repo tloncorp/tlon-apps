@@ -3,7 +3,6 @@ import {
   InlineKey,
   isBlockquote,
   isBold,
-  isBreak,
   isInlineCode,
   isItalics,
   isLink,
@@ -566,16 +565,21 @@ export function makeListing(listing: DiaryListing): JSONContent {
   if ('list' in listing) {
     const { list } = listing;
 
-    if (list.type === 'ordered') {
-      return {
-        type: 'orderedList',
-        content: list.items.map((item) => makeListing(item)),
-      };
-    }
-    return {
-      type: 'bulletList',
+    const returnList = {
+      type: list.type === 'ordered' ? 'orderedList' : 'bulletList',
       content: list.items.map((item) => makeListing(item)),
     };
+
+    if (list.contents.length > 0) {
+      return {
+        type: 'listItem',
+        content: [
+          ...wrapParagraphs(list.contents.map((i) => inlineToContent(i))),
+          returnList,
+        ],
+      };
+    }
+    return returnList;
   }
   return {
     type: 'listItem',
