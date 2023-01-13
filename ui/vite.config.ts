@@ -1,12 +1,12 @@
 /// <reference types="vitest" />
 import packageJson from './package.json';
 import { loadEnv, defineConfig, BuildOptions } from 'vite';
-import reactRefresh from '@vitejs/plugin-react-refresh';
+import react from '@vitejs/plugin-react';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
-import pluginRewriteAll from 'vite-plugin-rewrite-all';
 import { fileURLToPath } from 'url';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -37,29 +37,40 @@ export default ({ mode }: { mode: string }) => {
 
   const plugins = (mode: string, app: string) => {
     if (mode === 'mock' || mode === 'staging') {
-      return [reactRefresh(), pluginRewriteAll()];
+      return [
+        basicSsl(),
+        react({
+          jsxImportSource: '@welldone-software/why-did-you-render',
+        }),
+      ];
     }
 
     switch (app) {
       case 'chat':
         return [
+          basicSsl(),
           urbitPlugin({
             base: 'talk',
             target: SHIP_URL,
             changeOrigin: true,
             secure: false,
           }),
-          reactRefresh(),
+          react({
+            jsxImportSource: '@welldone-software/why-did-you-render',
+          }),
         ];
       default:
         return [
+          basicSsl(),
           urbitPlugin({
             base: 'groups',
             target: SHIP_URL,
             changeOrigin: true,
             secure: false,
           }),
-          reactRefresh(),
+          react({
+            jsxImportSource: '@welldone-software/why-did-you-render',
+          }),
         ];
     }
   };
@@ -69,6 +80,11 @@ export default ({ mode }: { mode: string }) => {
 
   return defineConfig({
     base: base(mode, app),
+    server: {
+      https: true,
+      host: 'localhost',
+      port: 3000,
+    },
     build:
       mode !== 'profile'
         ? {

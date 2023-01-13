@@ -30,7 +30,6 @@ import useIsChannelHost from '@/logic/useIsChannelHost';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { useIsMobile } from '@/logic/useMedia';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
-import usePendingImports from '@/logic/usePendingImports';
 import MigrationTooltip from '@/components/MigrationTooltip';
 import { useStartedMigration } from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
@@ -38,7 +37,7 @@ import EditChannelModal from '../GroupAdmin/AdminChannels/EditChannelModal';
 
 const UNZONED = 'default';
 
-function GroupChannel({
+function GroupChannelRow({
   channel,
   nest,
   migration,
@@ -295,7 +294,7 @@ function ChannelSection({
       ) : null}
       <ul>
         {channels.map(([nest, channel]) => (
-          <GroupChannel
+          <GroupChannelRow
             nest={nest}
             channel={channel}
             key={channel.added}
@@ -317,8 +316,6 @@ export default function ChannelIndex({ title }: ViewProps) {
   const group = useGroup(flag);
   const isMobile = useIsMobile();
   const BackButton = isMobile ? Link : 'div';
-
-  console.log(filteredSections, sectionedChannels);
 
   return (
     <section className="w-full sm:overflow-y-scroll">

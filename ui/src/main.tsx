@@ -1,3 +1,12 @@
+/* eslint-disable import/first */
+console.log(import.meta.env);
+console.log(import.meta.env.VITE_ENABLE_WDYR);
+if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WDYR === 'true') {
+  // nothing needs to be done with this variable but one needs to be declared in order to import the module
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const autoImport = import.meta.glob('./wdyr.ts', { eager: true });
+}
+
 /* eslint-disable */
 import { EditorView } from 'prosemirror-view';
 
