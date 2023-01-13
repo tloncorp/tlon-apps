@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import useHarkState, { emptyBlanket, emptyCarpet } from '@/state/hark';
 import { Flag, Thread, Yarn, Yarns } from '@/types/hark';
 import _ from 'lodash';
@@ -76,13 +76,16 @@ export const useNotifications = (flag?: Flag) => {
       [flag]
     )
   );
-  const bins: Bin[] = carpet.cable.map((c) =>
-    getBin(c.thread, carpet.yarns, true)
-  );
-  const oldBins: Bin[] = Object.values(blanket.quilt).map((t) =>
-    getBin(t, blanket.yarns, false)
-  );
-  const notifications: DayGrouping[] = groupBinsByDate(bins.concat(oldBins));
+
+  const notifications = useMemo(() => {
+    const bins: Bin[] = carpet.cable.map((c) =>
+      getBin(c.thread, carpet.yarns, true)
+    );
+    const oldBins: Bin[] = Object.values(blanket.quilt).map((t) =>
+      getBin(t, blanket.yarns, false)
+    );
+    return groupBinsByDate(bins.concat(oldBins));
+  }, [carpet, blanket]);
 
   return {
     count: carpet.cable.length,
