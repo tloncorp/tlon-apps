@@ -38,8 +38,8 @@ export function useChannelUnreadCounts(args: ChannelUnreadCount) {
       const chat = chats[k];
       if (chat) {
         const group = groups[chat.perms.group];
-        const channel = group.channels[`chat/${k}`];
-        const vessel = group.fleet[window.our];
+        const channel = group?.channels[`chat/${k}`];
+        const vessel = group?.fleet[window.our];
         return channel && vessel && canReadChannel(channel, vessel, group.bloc);
       }
 
