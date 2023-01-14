@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { PropsWithChildren, useCallback, useEffect } from 'react';
+import React, { PropsWithChildren, useEffect, useMemo } from 'react';
 import { uniq, without } from 'lodash';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -312,6 +312,16 @@ export default function GroupList({
     }
   }, [pinnedGroups, order, loaded]);
 
+  const pinnedGroupsOptions = useMemo(
+    () =>
+      pinnedGroups.map(([flag]) => (
+        <GroupItemContainer flag={flag} key={flag}>
+          <DraggableGroupItem flag={flag} />
+        </GroupItemContainer>
+      )),
+    [pinnedGroups]
+  );
+
   if (!initialized) {
     if (!pinned) return null;
 
@@ -338,11 +348,7 @@ export default function GroupList({
           Pinned Groups
         </span>
       </li>
-      {pinnedGroups.map(([flag]) => (
-        <GroupItemContainer flag={flag} key={flag}>
-          <DraggableGroupItem flag={flag} />
-        </GroupItemContainer>
-      ))}
+      {pinnedGroupsOptions}
     </DndProvider>
   ) : (
     <>

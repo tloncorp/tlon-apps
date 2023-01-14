@@ -109,9 +109,6 @@ export default function MessagesList({
       atTopStateChange={atTopChange}
       isScrolling={isScrolling}
       className="w-full overflow-x-hidden"
-      style={{
-        overflowY: 'scroll',
-      }}
     />
   );
 }

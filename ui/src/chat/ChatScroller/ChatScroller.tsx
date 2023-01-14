@@ -277,6 +277,37 @@ export default function ChatScroller({
     return null;
   }
 
+  // perf: define these outside of render
+  const atTopStateChange = (top: boolean) => top && fetchMessages(false);
+  const atBottomStateChange = (bot: boolean) => {
+    const { bottom, delayedRead } = useChatStore.getState();
+    if (bot) {
+      fetchMessages(true);
+      bottom(true);
+      delayedRead(whom, () => useChatState.getState().markRead(whom));
+    } else {
+      bottom(false);
+    }
+  };
+  const totalListHeightChanged = (newHeight: number) => {
+    if (height < newHeight && atBottom) {
+      scrollerRef.current?.scrollBy({ left: 0, top: newHeight - height });
+      setHeight(newHeight);
+    }
+  };
+  const handleIsScrolling = (e: boolean) => {
+    handleScroll(e);
+  };
+  const components = {
+    Header: () => TopLoader,
+    Footer: () => BottomLoader,
+    List,
+  };
+
+  const itemContent = (i: number, realIndex: bigInt.BigInteger) => (
+    <Message index={realIndex} />
+  );
+
   return (
     <div className="relative h-full flex-1">
       <Virtuoso
@@ -284,42 +315,17 @@ export default function ChatScroller({
         ref={scrollerRef}
         followOutput
         alignToBottom
-        isScrolling={(e: boolean) => {
-          handleScroll(e);
-        }}
+        isScrolling={handleIsScrolling}
         className="h-full overflow-x-hidden p-4"
-        // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
-        // size of elements, triggering a reflow loop in virtual scroller
-        style={{
-          overflowY: 'scroll',
-        }}
         {...thresholds}
-        atTopStateChange={(top) => top && fetchMessages(false)}
-        atBottomStateChange={(bot) => {
-          const { bottom, delayedRead } = useChatStore.getState();
-          if (bot) {
-            fetchMessages(true);
-            bottom(true);
-            delayedRead(whom, () => useChatState.getState().markRead(whom));
-          } else {
-            bottom(false);
-          }
-        }}
-        totalListHeightChanged={(newHeight) => {
-          if (height < newHeight && atBottom) {
-            scrollerRef.current?.scrollBy({ left: 0, top: newHeight - height });
-            setHeight(newHeight);
-          }
-        }}
+        atTopStateChange={atTopStateChange}
+        atBottomStateChange={atBottomStateChange}
+        totalListHeightChanged={totalListHeightChanged}
         firstItemIndex={firstItemIndex}
         initialTopMostItemIndex={initialTopMostIndex}
-        itemContent={(i, realIndex) => <Message index={realIndex} />}
+        itemContent={itemContent}
         computeItemKey={computeItemKey}
-        components={{
-          Header: () => TopLoader,
-          Footer: () => BottomLoader,
-          List,
-        }}
+        components={components}
       />
     </div>
   );
