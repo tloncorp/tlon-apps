@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import SortIcon from '@/components/icons/SortIcon';
@@ -17,6 +17,20 @@ export default function SidebarSorter({
   setSortFn,
   isMobile,
 }: SidebarSorterProps) {
+  const dropdownOptions = useMemo(
+    () =>
+      Object.keys(sortOptions).map((k) => (
+        <DropdownMenu.Item
+          key={k}
+          onSelect={() => setSortFn(k)}
+          className="dropdown-item flex items-center space-x-2"
+        >
+          {k}
+        </DropdownMenu.Item>
+      )),
+    [setSortFn, sortOptions]
+  );
+
   return (
     <DropdownMenu.Root>
       {isMobile ? (
@@ -45,15 +59,7 @@ export default function SidebarSorter({
         >
           Group Ordering
         </DropdownMenu.Item>
-        {Object.keys(sortOptions).map((k) => (
-          <DropdownMenu.Item
-            key={k}
-            onSelect={() => setSortFn(k)}
-            className="dropdown-item flex items-center space-x-2"
-          >
-            {k}
-          </DropdownMenu.Item>
-        ))}
+        {dropdownOptions}
       </DropdownMenu.Content>
     </DropdownMenu.Root>
   );
