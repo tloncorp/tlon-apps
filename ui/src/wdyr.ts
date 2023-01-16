@@ -6,8 +6,14 @@ import * as React from 'react';
 import wdyr from '@welldone-software/why-did-you-render';
 
 wdyr(React, {
-  include: [/^ChannelHeader/, /^HeapChannel/, /^App/, /^RoutedApp/],
-  exclude: [/^BrowserRouter/, /^Link/, /^Route/],
+  include: [
+    /^RoutedApp/,
+    /^App$/,
+    /^GroupsRoutes/,
+    /^Sidebar/,
+    /^GroupSidebar/,
+  ],
+  exclude: [/^Link/, /^Route/, /^BrowserRouter/],
   trackHooks: true,
   trackAllPureComponents: true,
 });
