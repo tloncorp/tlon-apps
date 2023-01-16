@@ -30,6 +30,9 @@ function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
   );
 }
 
+const computeItemKey = (_i: number, [whom, _brief]: [string, ChatBrief]) =>
+  whom;
+
 export default function MessagesList({
   filter,
   atTopChange,
@@ -53,35 +56,43 @@ export default function MessagesList({
       : { main: 400, reverse: 400 },
   };
 
-  const organizedBriefs = sortMessages(briefs).filter(([b]) => {
-    const chat = chats[b];
-    const groupFlag = chat?.perms.group;
-    const group = groups[groupFlag || ''];
-    const vessel = group?.fleet[window.our];
-    const channel = group?.channels[`chat/${b}`];
+  const organizedBriefs = useMemo(
+    () =>
+      sortMessages(briefs).filter(([b]) => {
+        const chat = chats[b];
+        const groupFlag = chat?.perms.group;
+        const group = groups[groupFlag || ''];
+        const vessel = group?.fleet[window.our];
+        const channel = group?.channels[`chat/${b}`];
 
-    if (channel && vessel && !canReadChannel(channel, vessel, group?.bloc)) {
-      return false;
-    }
+        if (
+          channel &&
+          vessel &&
+          !canReadChannel(channel, vessel, group?.bloc)
+        ) {
+          return false;
+        }
 
-    if (pinned.includes(b)) {
-      return false;
-    }
+        if (pinned.includes(b)) {
+          return false;
+        }
 
-    if (allPending.includes(b)) {
-      return false;
-    }
+        if (allPending.includes(b)) {
+          return false;
+        }
 
-    if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
-      return false;
-    }
+        if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
+          return false;
+        }
 
-    if (filter === filters.dms && isGroupBrief(b)) {
-      return false;
-    }
+        if (filter === filters.dms && isGroupBrief(b)) {
+          return false;
+        }
 
-    return true; // is all
-  });
+        return true; // is all
+      }),
+    [allPending, briefs, chats, filter, groups, pinned, sortMessages]
+  );
 
   const head = useMemo(
     () => (
@@ -97,15 +108,20 @@ export default function MessagesList({
     [children, allPending, filter]
   );
 
+  const components = useMemo(
+    () => ({
+      Header: () => head,
+    }),
+    [head]
+  );
+
   return (
     <Virtuoso
       {...thresholds}
       data={organizedBriefs}
-      computeItemKey={(i, [whom]) => whom}
+      computeItemKey={computeItemKey}
       itemContent={itemContent}
-      components={{
-        Header: () => head,
-      }}
+      components={components}
       atTopStateChange={atTopChange}
       isScrolling={isScrolling}
       className="w-full overflow-x-hidden"
