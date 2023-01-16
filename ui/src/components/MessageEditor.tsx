@@ -239,7 +239,7 @@ export default function MessageEditor({
   inputClassName,
 }: MessageEditorProps) {
   const isMobile = useIsMobile();
-  const classes = cn('wn-full', inputClassName);
+  const classes = cn('w-full', inputClassName);
   return (
     <div className={cn('input block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
