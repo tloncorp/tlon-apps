@@ -323,7 +323,7 @@ export default function GroupList({
   );
 
   if (!initialized) {
-    if (!pinned) return null;
+    if (pinned) return null;
 
     return <GroupListPlaceholder count={groups.length || 5} />;
   }
@@ -361,9 +361,6 @@ export default function GroupList({
         computeItemKey={(_i, [flag]) => flag}
         itemContent={itemContent}
         className="h-full w-full overflow-x-hidden"
-        style={{
-          overflowY: 'scroll',
-        }}
       />
     </>
   );
