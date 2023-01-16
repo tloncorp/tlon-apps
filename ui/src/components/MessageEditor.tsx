@@ -239,10 +239,11 @@ export default function MessageEditor({
   inputClassName,
 }: MessageEditorProps) {
   const isMobile = useIsMobile();
+  const classes = cn('wn-full', inputClassName);
   return (
     <div className={cn('input block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
-      <EditorContent className={cn('w-full', inputClassName)} editor={editor} />
+      <EditorContent className={classes} editor={editor} />
       {!isMobile ? <ChatInputMenu editor={editor} /> : null}
     </div>
   );
