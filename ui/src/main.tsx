@@ -1,7 +1,7 @@
 /* eslint-disable import/first */
-if (import.meta.env.DEV) {
-  import.meta.glob('./wdyr.ts', { eager: true });
-}
+// if (import.meta.env.VITE_ENABLE_WDYR) {
+//   import.meta.glob('./wdyr.ts', { eager: true });
+// }
 
 /* eslint-disable */
 import { EditorView } from 'prosemirror-view';
