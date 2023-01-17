@@ -55,7 +55,6 @@ export function useMessageEditor({
   const chatBlocks = useChatBlocks(whom);
   const { setBlocks } = useChatStore.getState();
   const files = uploader?.files;
-  console.log(files);
 
   const onReference = useCallback(
     (r) => {
