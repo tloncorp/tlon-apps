@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import cn from 'classnames';
-import { intersection, findLast } from 'lodash';
 import { useForm } from 'react-hook-form';
 import LinkIcon from '@/components/icons/LinkIcon';
 import { useHeapPerms, useHeapState } from '@/state/heap/heap';
@@ -21,8 +20,7 @@ import {
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import { useHeapDisplayMode } from '@/state/settings';
-import { useFileStore } from '@/state/storage';
-import useFileUpload from '@/logic/useFileUpload';
+import { useUploader } from '@/state/storage';
 import HeapTextInput from './HeapTextInput';
 
 export default function NewCurioForm() {
@@ -43,11 +41,8 @@ export default function NewCurioForm() {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { loaded, hasCredentials, promptUpload } = useFileUpload();
-  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
-  const mostRecentFile = useFileStore((state) =>
-    findLast(state.files, ['for', fileId.current])
-  );
+  const uploader = useUploader('new-curio-input');
+  const mostRecentFile = uploader?.getMostRecent();
   const { register, handleSubmit, reset, watch, setValue } =
     useForm<NewCurioFormSchema>({
       defaultValues: {
@@ -175,14 +170,14 @@ export default function NewCurioForm() {
               onKeyDown={onKeyDown}
               defaultValue={draftLink}
             />
-            {loaded && hasCredentials ? (
+            {uploader ? (
               <button
                 title={'Upload an image'}
                 className="button absolute bottom-3 left-3 whitespace-nowrap rounded-md px-2 py-1"
                 aria-label="Add attachment"
                 onClick={(e) => {
                   e.preventDefault();
-                  promptUpload(fileId.current);
+                  uploader.prompt();
                 }}
               >
                 {mostRecentFile && mostRecentFile.status === 'loading' ? (

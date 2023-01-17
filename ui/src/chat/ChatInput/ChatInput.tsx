@@ -1,7 +1,6 @@
 import { Editor } from '@tiptap/react';
-import { findLast } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { usePact } from '@/state/chat';
 import { ChatImage, ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
@@ -19,8 +18,7 @@ import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
-import useFileUpload from '@/logic/useFileUpload';
-import { useFileStore } from '@/state/storage';
+import { useUploader } from '@/state/storage';
 import { IMAGE_REGEX, isImageUrl } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
@@ -83,11 +81,8 @@ export default function ChatInput({
   const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
-  const { loaded, hasCredentials, promptUpload } = useFileUpload();
-  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
-  const mostRecentFile = useFileStore((state) =>
-    findLast(state.files, ['for', fileId.current])
-  );
+  const uploader = useUploader(`chat-input-${whom}-${replying}`);
+  const mostRecentFile = uploader?.getMostRecent();
 
   const closeReply = useCallback(() => {
     useChatStore.getState().reply(whom, null);
@@ -105,8 +100,8 @@ export default function ChatInput({
 
   const clearAttachments = useCallback(() => {
     useChatStore.getState().setBlocks(whom, []);
-    useFileStore.getState().clearFiles();
-  }, [whom]);
+    uploader?.clear();
+  }, [whom, uploader]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -158,8 +153,6 @@ export default function ChatInput({
             },
           });
         };
-
-        fileId.current = `chat-input-${Math.floor(Math.random() * 1000000)}`;
       } else {
         const memo: ChatMemo = {
           replying: reply,
@@ -186,6 +179,7 @@ export default function ChatInput({
   const messageEditor = useMessageEditor({
     whom,
     content: '',
+    uploader,
     placeholder: 'Message',
     allowMentions: true,
     onEnter: useCallback(
@@ -234,14 +228,14 @@ export default function ChatInput({
       const blocks = fetchChatBlocks(whom);
       if ('image' in blocks[idx]) {
         // @ts-expect-error type check on previous line
-        useFileStore.getState().removeFileByURL(blocks[idx]);
+        uploader.removeFileByURL(blocks[idx]);
       }
       useChatStore.getState().setBlocks(
         whom,
         blocks.filter((_b, k) => k !== idx)
       );
     },
-    [whom]
+    [whom, uploader]
   );
 
   if (!messageEditor) {
@@ -317,23 +311,19 @@ export default function ChatInput({
               editor={messageEditor}
               className={cn(
                 'w-full break-words',
-                loaded &&
-                  hasCredentials &&
-                  !uploadError &&
-                  mostRecentFile?.status !== 'loading'
+                uploader && !uploadError && mostRecentFile?.status !== 'loading'
                   ? 'pr-8'
                   : ''
               )}
             />
-            {loaded &&
-            hasCredentials &&
+            {uploader &&
             !uploadError &&
             mostRecentFile?.status !== 'loading' ? (
               <button
                 title={'Upload an image'}
                 className="absolute bottom-2 mr-2 text-gray-600 hover:text-gray-800"
                 aria-label="Add attachment"
-                onClick={() => promptUpload(fileId.current)}
+                onClick={() => uploader.prompt()}
               >
                 <AddIcon className="h-4 w-4" />
               </button>
