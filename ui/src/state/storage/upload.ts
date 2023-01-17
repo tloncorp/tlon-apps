@@ -222,13 +222,3 @@ export function useUploader(key: string): Uploader | undefined {
 
   return uploader;
 }
-
-export function useMostRecentFile(key: string) {
-  const uploader = useUploader(key);
-  if (!uploader) {
-    return null;
-  }
-
-  const fileKey = _.last(Object.keys(uploader.files).sort());
-  return fileKey ? uploader.files[fileKey] : null;
-}
