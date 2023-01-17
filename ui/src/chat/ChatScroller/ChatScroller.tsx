@@ -273,6 +273,15 @@ export default function ChatScroller({
     [isScrolling, atBottom]
   );
 
+  const components = useMemo(
+    () => ({
+      Header: () => TopLoader,
+      Footer: () => BottomLoader,
+      List,
+    }),
+    [BottomLoader, TopLoader]
+  );
+
   if (keys.length === 0) {
     return null;
   }
@@ -298,15 +307,6 @@ export default function ChatScroller({
   const handleIsScrolling = (e: boolean) => {
     handleScroll(e);
   };
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const components = useMemo(
-    () => ({
-      Header: () => TopLoader,
-      Footer: () => BottomLoader,
-      List,
-    }),
-    [BottomLoader, TopLoader]
-  );
 
   const itemContent = (i: number, realIndex: bigInt.BigInteger) => (
     <Message index={realIndex} />
