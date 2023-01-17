@@ -2,7 +2,12 @@ import React, { useEffect } from 'react';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { useGang, useGroupState } from '@/state/groups';
 import GroupAvatar from '@/groups/GroupAvatar';
-import { getFlagParts } from '@/logic/utils';
+import {
+  getFlagParts,
+  matchesBans,
+  pluralRank,
+  toTitleCase,
+} from '@/logic/utils';
 import ShipName from '@/components/ShipName';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
@@ -22,6 +27,8 @@ export default function GroupReference({
     gang
   );
   const { ship } = getFlagParts(flag);
+  const cordon = gang.preview?.cordon || group?.cordon;
+  const banned = cordon ? matchesBans(cordon, window.our) : null;
 
   const meta = group?.meta || gang?.preview?.meta;
 
@@ -60,27 +67,37 @@ export default function GroupReference({
         </div>
       </button>
       <div className="absolute right-5 flex flex-row">
-        {gang.invite && status !== 'loading' ? (
-          <button
-            className="small-button bg-red text-white dark:text-black"
-            onClick={reject}
-          >
-            Reject
-          </button>
-        ) : null}
-        {status === 'loading' ? (
-          <div className="flex items-center space-x-2">
-            <span className="text-gray-400">Joining...</span>
-            <LoadingSpinner />
-          </div>
+        {banned ? (
+          <span className="inline-block px-2 font-semibold text-gray-600">
+            {banned === 'ship'
+              ? "You've been banned from this group"
+              : `${toTitleCase(pluralRank(banned))} are banned`}
+          </span>
         ) : (
-          <button
-            className="small-button ml-2 bg-blue text-white dark:text-black"
-            onClick={button.action}
-            disabled={button.disabled || status === 'error'}
-          >
-            {status === 'error' ? 'Errored' : button.text}
-          </button>
+          <>
+            {gang.invite && status !== 'loading' ? (
+              <button
+                className="small-button bg-red text-white dark:text-black"
+                onClick={reject}
+              >
+                Reject
+              </button>
+            ) : null}
+            {status === 'loading' ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-400">Joining...</span>
+                <LoadingSpinner />
+              </div>
+            ) : (
+              <button
+                className="small-button ml-2 bg-blue text-white dark:text-black"
+                onClick={button.action}
+                disabled={button.disabled || status === 'error'}
+              >
+                {status === 'error' ? 'Errored' : button.text}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

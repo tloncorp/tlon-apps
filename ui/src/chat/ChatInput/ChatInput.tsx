@@ -194,6 +194,8 @@ export default function ChatInput({
     ),
   });
 
+  const text = messageEditor?.getText();
+
   useEffect(() => {
     if (whom && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.setContent('');

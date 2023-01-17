@@ -23,6 +23,7 @@ import { useCalm } from '@/state/settings';
 import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { Uploader } from '@/state/storage/type';
+import { isRef, pathToCite } from '@/logic/utils';
 import MentionPopup from './Mention/MentionPopup';
 
 interface HandlerParams {
@@ -93,6 +94,13 @@ export function useMessageEditor({
       if (!whom) {
         return false;
       }
+      const text = event.clipboardData?.getData('text/plain');
+
+      if (text && isRef(text)) {
+        onReference(pathToCite(text));
+
+        return true;
+      }
 
       if (
         uploader &&
@@ -108,7 +116,7 @@ export function useMessageEditor({
 
       return false;
     },
-    [uploader, whom]
+    [uploader, whom, onReference]
   );
 
   // update the Attached Items view when files finish uploading and have a size

@@ -163,8 +163,9 @@
   ++  diff
     |=  =diff:c
     %+  frond  -.diff
-    ?+  -.diff  ~
-      %writs     (writs-diff p.diff)
+    ?-  -.diff
+      %create     (pairs ~[perms/(perm p.diff)])
+      %writs      (writs-diff p.diff)
       %add-sects  a/(turn ~(tap in p.diff) (lead %s))
       %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
