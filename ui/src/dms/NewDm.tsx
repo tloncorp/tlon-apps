@@ -38,9 +38,10 @@ export default function NewDM() {
         await useChatState.getState().sendMessage(whom, memo);
       }
 
+      setShips([]);
       navigate(`/dm/${isMultiDm ? whom : preSig(whom)}`);
     },
-    [navigate, sendMultiDm, isMultiDm]
+    [navigate, sendMultiDm, isMultiDm, setShips]
   );
 
   const onEnter = useCallback(
