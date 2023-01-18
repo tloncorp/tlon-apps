@@ -40,9 +40,7 @@ export default function NewDM() {
   const who =
     ships.length > 0
       ? isMultiDm
-        ? existingMultiDm
-          ? existingMultiDm
-          : newClubId
+        ? existingMultiDm || newClubId
         : ships[0].value
       : '';
 
