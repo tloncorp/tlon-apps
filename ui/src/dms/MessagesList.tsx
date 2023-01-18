@@ -5,6 +5,7 @@ import { useGroups } from '@/state/groups';
 import { filters, SidebarFilter } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import { canReadChannel, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { ChatBrief } from '@/types/chat';
 import {
   usePendingDms,
   useBriefs,
@@ -20,6 +21,17 @@ type MessagesListProps = PropsWithChildren<{
   atTopChange?: (atTop: boolean) => void;
   isScrolling?: (scrolling: boolean) => void;
 }>;
+
+function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
+  return (
+    <div className="pl-2 pb-3 sm:pb-1">
+      <MessagesSidebarItem key={whom} whom={whom} />
+    </div>
+  );
+}
+
+const computeItemKey = (_i: number, [whom, _brief]: [string, ChatBrief]) =>
+  whom;
 
 export default function MessagesList({
   filter,
@@ -44,35 +56,43 @@ export default function MessagesList({
       : { main: 400, reverse: 400 },
   };
 
-  const organizedBriefs = sortMessages(briefs).filter(([b]) => {
-    const chat = chats[b];
-    const groupFlag = chat?.perms.group;
-    const group = groups[groupFlag || ''];
-    const vessel = group?.fleet[window.our];
-    const channel = group?.channels[`chat/${b}`];
+  const organizedBriefs = useMemo(
+    () =>
+      sortMessages(briefs).filter(([b]) => {
+        const chat = chats[b];
+        const groupFlag = chat?.perms.group;
+        const group = groups[groupFlag || ''];
+        const vessel = group?.fleet[window.our];
+        const channel = group?.channels[`chat/${b}`];
 
-    if (channel && vessel && !canReadChannel(channel, vessel, group?.bloc)) {
-      return false;
-    }
+        if (
+          channel &&
+          vessel &&
+          !canReadChannel(channel, vessel, group?.bloc)
+        ) {
+          return false;
+        }
 
-    if (pinned.includes(b)) {
-      return false;
-    }
+        if (pinned.includes(b)) {
+          return false;
+        }
 
-    if (allPending.includes(b)) {
-      return false;
-    }
+        if (allPending.includes(b)) {
+          return false;
+        }
 
-    if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
-      return false;
-    }
+        if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
+          return false;
+        }
 
-    if (filter === filters.dms && isGroupBrief(b)) {
-      return false;
-    }
+        if (filter === filters.dms && isGroupBrief(b)) {
+          return false;
+        }
 
-    return true; // is all
-  });
+        return true; // is all
+      }),
+    [allPending, briefs, chats, filter, groups, pinned, sortMessages]
+  );
 
   const head = useMemo(
     () => (
@@ -81,37 +101,30 @@ export default function MessagesList({
         {allPending &&
           filter !== filters.groups &&
           allPending.map((whom) => (
-            <MessagesSidebarItem
-              pending
-              key={whom}
-              whom={whom}
-              brief={briefs[whom]}
-            />
+            <MessagesSidebarItem pending key={whom} whom={whom} />
           ))}
       </>
     ),
-    [children, allPending, briefs, filter]
+    [children, allPending, filter]
+  );
+
+  const components = useMemo(
+    () => ({
+      Header: () => head,
+    }),
+    [head]
   );
 
   return (
     <Virtuoso
       {...thresholds}
       data={organizedBriefs}
-      computeItemKey={(i, [whom]) => whom}
-      itemContent={(i, [whom, brief]) => (
-        <div className="pl-2 pb-3 sm:pb-1">
-          <MessagesSidebarItem key={whom} whom={whom} brief={brief} />
-        </div>
-      )}
-      components={{
-        Header: () => head,
-      }}
+      computeItemKey={computeItemKey}
+      itemContent={itemContent}
+      components={components}
       atTopStateChange={atTopChange}
       isScrolling={isScrolling}
       className="w-full overflow-x-hidden"
-      style={{
-        overflowY: 'scroll',
-      }}
     />
   );
 }

@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { Components, Virtuoso } from 'react-virtuoso';
+import { Components as VirtuosoComponents, Virtuoso } from 'react-virtuoso';
 import { useIsMobile } from '@/logic/useMedia';
 import GroupMemberItem from './GroupMemberItem';
 
@@ -7,7 +7,7 @@ interface MemberScrollerProps {
   members: string[];
 }
 
-const Components: Components = {
+const Components: VirtuosoComponents = {
   List: forwardRef((props, listRef) => (
     <div className="h-full w-full space-y-6 py-2" {...props} ref={listRef}>
       {props.children}

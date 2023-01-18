@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   SettingsState,
   useSettingsState,
@@ -66,11 +66,18 @@ export default function useSidebarSort({
     useSettingsState.getState().putEntry('groups', 'sideBarSort', mode);
   };
 
-  const setGroupSideBarSort = (mode: string) => {
-    useSettingsState
-      .getState()
-      .putEntry('groups', 'groupSideBarSort', JSON.stringify({ [flag]: mode }));
-  };
+  const setGroupSideBarSort = useCallback(
+    () => (mode: string) => {
+      useSettingsState
+        .getState()
+        .putEntry(
+          'groups',
+          'groupSideBarSort',
+          JSON.stringify({ [flag]: mode })
+        );
+    },
+    [flag]
+  );
 
   /**
    * Sorts a Record object by an accessed value of T, returns an array of entries
@@ -96,8 +103,13 @@ export default function useSidebarSort({
     return reverse ? entries.reverse() : entries;
   }
 
+  const setSortFn = useMemo(
+    () => (flag !== '~' ? setGroupSideBarSort : setSideBarSort),
+    [flag, setGroupSideBarSort]
+  );
+
   return {
-    setSortFn: flag !== '~' ? setGroupSideBarSort : setSideBarSort,
+    setSortFn,
     sortFn,
     sortOptions,
     sortRecordsBy,
