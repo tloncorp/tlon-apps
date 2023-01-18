@@ -26,7 +26,9 @@ export default function NewDM() {
     const { briefs } = useChatState.getState();
     return Object.entries(multiDms).reduce<string>((key, [k, v]) => {
       const theShips = [...v.hive, ...v.team];
-      const sameDM = _.difference(shipValues, theShips).length === 0;
+      const sameDM =
+        _.difference(shipValues, theShips).length === 0 &&
+        shipValues.length === theShips.length;
       const brief = briefs[key];
       const newBrief = briefs[k];
       const newer = !brief || (brief && newBrief && newBrief.last > brief.last);
