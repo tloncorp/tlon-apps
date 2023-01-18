@@ -503,7 +503,7 @@ export function wrapParagraphs(content: JSONContent[]) {
   return wrappedContent.filter(
     (c, i) =>
       (c.content && c.content.length > 0) ||
-      (c.content === undefined && wrappedContent[i - 1].content === undefined)
+      (c.content === undefined && wrappedContent[i - 1]?.content === undefined)
   );
 }
 
