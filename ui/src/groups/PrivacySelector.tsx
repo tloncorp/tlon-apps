@@ -65,7 +65,7 @@ function PrivacySettingRow({ type }: PrivacySettingRowProps) {
         value={type}
       />
       <div className="flex items-center">
-        {selected ? <CheckIcon className="h-5 w-5 fill-gray-400" /> : null}
+        {selected ? <CheckIcon className="h-5 w-5" /> : null}
       </div>
     </label>
   );

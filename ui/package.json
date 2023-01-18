@@ -16,7 +16,7 @@
     "dev": "vite",
     "chat": "cross-env APP=chat vite",
     "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
+    "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
     "lint:all": "npm run lint:format && npm run lint:fix",
     "mock": "vite --mode mock",
