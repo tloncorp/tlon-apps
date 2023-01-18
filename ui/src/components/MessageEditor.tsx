@@ -115,7 +115,9 @@ export function useMessageEditor({
 
       return false;
     },
-    [uploader, whom, onReference]
+    // no need to update onReference
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [uploader, whom]
   );
 
   // update the Attached Items view when files finish uploading and have a size
