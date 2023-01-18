@@ -1,10 +1,8 @@
 import React from 'react';
-import cn from 'classnames';
 import Avatar from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
 import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
-import { ChatBrief } from '../types/chat';
 import { useMultiDm } from '../state/chat';
 import { useChannel, useGroup, useGroupState } from '../state/groups/groups';
 import { useIsMobile } from '../logic/useMedia';
@@ -16,15 +14,10 @@ import { useMessagesScrolling } from './MessagesScrollingContext';
 
 interface MessagesSidebarItemProps {
   whom: string;
-  brief: ChatBrief;
   pending?: boolean; // eslint-disable-line
 }
 
-function ChannelSidebarItem({
-  whom,
-  brief,
-  pending,
-}: MessagesSidebarItemProps) {
+function ChannelSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
   const groups = useGroupState((s) => s.groups);
   const nest = `chat/${whom}`;
   const groupFlag = Object.entries(groups).find(
@@ -55,7 +48,7 @@ function ChannelSidebarItem({
   );
 }
 
-function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
+function DMSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
   const isMobile = useIsMobile();
   const isScrolling = useMessagesScrolling();
 
@@ -82,7 +75,6 @@ function DMSidebarItem({ whom, brief, pending }: MessagesSidebarItemProps) {
 
 export function MultiDMSidebarItem({
   whom,
-  brief,
   pending,
 }: MessagesSidebarItemProps) {
   const isMobile = useIsMobile();
@@ -117,18 +109,16 @@ export function MultiDMSidebarItem({
   );
 }
 
-export default function MessagesSidebarItem({
-  whom,
-  brief,
-  pending,
-}: MessagesSidebarItemProps) {
+function MessagesSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
   if (whomIsDm(whom)) {
-    return <DMSidebarItem pending={pending} whom={whom} brief={brief} />;
+    return <DMSidebarItem pending={pending} whom={whom} />;
   }
 
   if (whomIsMultiDm(whom)) {
-    return <MultiDMSidebarItem whom={whom} brief={brief} pending={pending} />;
+    return <MultiDMSidebarItem whom={whom} pending={pending} />;
   }
 
-  return <ChannelSidebarItem whom={whom} brief={brief} pending={pending} />;
+  return <ChannelSidebarItem whom={whom} pending={pending} />;
 }
+
+export default React.memo(MessagesSidebarItem);
