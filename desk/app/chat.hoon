@@ -673,6 +673,8 @@
   ::
     [%x %chats ~]  ``chats+!>(chats)
   ::
+    [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c +.+.club)))
+  ::
     [%x %pins ~]  ``chat-pins+!>(pins)
   ::
       [%x %chat @ @ *]

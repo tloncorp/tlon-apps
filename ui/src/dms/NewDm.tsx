@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
@@ -5,19 +6,33 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { newUv, preSig } from '@/logic/utils';
-import { useChatState } from '@/state/chat';
+import { useChatState, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
 import useSendMultiDm from '@/state/chat/useSendMultiDm';
 import { ChatMemo } from '@/types/chat';
 import { Link } from 'react-router-dom';
 
 export default function NewDM() {
+  const multiDms = useMultiDms();
   const [ships, setShips] = useState<ShipOption[]>([]);
   const isMultiDm = ships.length > 1;
   const navigate = useNavigate();
   const shipValues = useMemo(() => ships.map((o) => preSig(o.value)), [ships]);
   const newClubId = useMemo(() => newUv(), []);
   const sendMultiDm = useSendMultiDm(true, shipValues);
+  const existingMultiDm = useMemo(
+    () =>
+      Object.entries(multiDms).reduce<string>((key, [k, v]) => {
+        const theShips = [...v.hive, ...v.team];
+        const sameDM = _.difference(shipValues, theShips).length === 0;
+        if (sameDM) {
+          return k;
+        }
+
+        return key;
+      }, ''),
+    [multiDms, shipValues]
+  );
 
   const validShips = useCallback(
     () =>
@@ -41,7 +56,9 @@ export default function NewDM() {
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {
-      if (isMultiDm) {
+      if (existingMultiDm) {
+        navigate(`/dm/${existingMultiDm}`);
+      } else if (isMultiDm) {
         await createClub(
           newClubId,
           invites.map((s) => s.value)
@@ -51,7 +68,7 @@ export default function NewDM() {
         navigate(`/dm/${preSig(invites[0].value)}`);
       }
     },
-    [newClubId, isMultiDm, navigate]
+    [newClubId, isMultiDm, existingMultiDm, navigate]
   );
 
   return (
