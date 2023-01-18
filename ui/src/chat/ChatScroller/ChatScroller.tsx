@@ -28,6 +28,7 @@ import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import { ChatInfo, useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
+import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 
 interface CreateRendererParams {
   messages: BigIntOrderedMap<ChatWrit>;
@@ -283,7 +284,11 @@ export default function ChatScroller({
   );
 
   if (keys.length === 0) {
-    return null;
+    return (
+      <div className="h-full">
+        <ChatScrollerPlaceholder count={30} />
+      </div>
+    );
   }
 
   // perf: define these outside of render
