@@ -93,13 +93,6 @@ export function useMessageEditor({
       if (!whom) {
         return false;
       }
-      const text = event.clipboardData?.getData('text/plain');
-
-      if (text && isRef(text)) {
-        onReference(pathToCite(text));
-
-        return true;
-      }
 
       if (
         uploader &&
@@ -115,8 +108,6 @@ export function useMessageEditor({
 
       return false;
     },
-    // no need to update onReference
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [uploader, whom]
   );
 
