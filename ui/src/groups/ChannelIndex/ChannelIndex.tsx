@@ -37,7 +37,7 @@ import EditChannelModal from '../GroupAdmin/AdminChannels/EditChannelModal';
 
 const UNZONED = 'default';
 
-function GroupChannel({
+function GroupChannelRow({
   channel,
   nest,
   migration,
@@ -294,7 +294,7 @@ function ChannelSection({
       ) : null}
       <ul>
         {channels.map(([nest, channel]) => (
-          <GroupChannel
+          <GroupChannelRow
             nest={nest}
             channel={channel}
             key={channel.added}

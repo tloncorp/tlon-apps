@@ -1,7 +1,7 @@
 /* eslint-disable no-param-reassign */
 import { S3Update } from '@urbit/api';
 import _ from 'lodash';
-import { BaseStorageState } from '@/types/storage';
+import { BaseStorageState } from './type';
 import { BaseState } from '../base';
 
 export type StorageState = BaseStorageState & BaseState<BaseStorageState>;
@@ -20,6 +20,7 @@ const configuration = (json: S3Update, state: StorageState): StorageState => {
     state.s3.configuration = {
       buckets: new Set(data.buckets),
       currentBucket: data.currentBucket,
+      region: data.region,
     };
   }
   return state;

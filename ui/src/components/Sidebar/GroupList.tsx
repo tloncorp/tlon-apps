@@ -1,10 +1,11 @@
 import cn from 'classnames';
-import React, { PropsWithChildren, useCallback, useEffect } from 'react';
+import React, { PropsWithChildren, useEffect, useMemo } from 'react';
 import { uniq, without } from 'lodash';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
 import * as Popover from '@radix-ui/react-popover';
+import { Virtuoso } from 'react-virtuoso';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useGang,
@@ -64,7 +65,7 @@ function DraggableGroupItem({ flag }: { flag: string }) {
   );
 }
 
-function GroupItem({ flag }: { flag: string }) {
+const GroupItem = React.memo(({ flag }: { flag: string }) => {
   const group = useGroup(flag);
   const { ship } = getFlagParts(flag);
   const isMigrated = useHasMigratedChannels(flag);
@@ -97,7 +98,7 @@ function GroupItem({ flag }: { flag: string }) {
       {group?.meta.title}
     </SidebarItem>
   );
-}
+});
 
 function GroupItemContainer({
   flag,
@@ -244,6 +245,10 @@ function GangItem(props: { flag: string }) {
   );
 }
 
+function itemContent(_i: number, [flag, _group]: [string, Group]) {
+  return <GroupItem key={flag} flag={flag} />;
+}
+
 interface GroupListProps {
   className?: string;
   pinned?: boolean;
@@ -261,6 +266,21 @@ export default function GroupList({
   const gangs = useGangList();
   const initialized = useGroupsInitialized();
   const { order, loaded } = useSettingsState(selOrderedPins);
+  const thresholds = {
+    atBottomThreshold: 125,
+    atTopThreshold: 125,
+    overscan: isMobile
+      ? { main: 200, reverse: 200 }
+      : { main: 400, reverse: 400 },
+  };
+
+  const groupsWithoutPinned = useMemo(
+    () =>
+      groups.filter(
+        ([flag, _g]) => !pinnedGroups.map(([f, _]) => f).includes(flag)
+      ),
+    [groups, pinnedGroups]
+  );
 
   useEffect(() => {
     const hasKeys = order && !!order.length;
@@ -292,7 +312,19 @@ export default function GroupList({
     }
   }, [pinnedGroups, order, loaded]);
 
+  const pinnedGroupsOptions = useMemo(
+    () =>
+      pinnedGroups.map(([flag]) => (
+        <GroupItemContainer flag={flag} key={flag}>
+          <DraggableGroupItem flag={flag} />
+        </GroupItemContainer>
+      )),
+    [pinnedGroups]
+  );
+
   if (!initialized) {
+    if (pinned) return null;
+
     return <GroupListPlaceholder count={groups.length || 5} />;
   }
 
@@ -316,26 +348,20 @@ export default function GroupList({
           Pinned Groups
         </span>
       </li>
-      {pinnedGroups.map(([flag]) => (
-        <GroupItemContainer flag={flag} key={flag}>
-          <DraggableGroupItem flag={flag} />
-        </GroupItemContainer>
-      ))}
+      {pinnedGroupsOptions}
     </DndProvider>
   ) : (
-    // <ul className={cn('h-full space-y-3 p-2 sm:space-y-1', className)}>
     <>
       {gangs.map((flag) => (
         <GangItem key={flag} flag={flag} />
       ))}
-      {groups
-        .filter(
-          ([flag, _group]) => !pinnedGroups.map(([f, _]) => f).includes(flag)
-        )
-        .map(([flag]) => (
-          <GroupItem key={flag} flag={flag} />
-        ))}
+      <Virtuoso
+        {...thresholds}
+        data={groupsWithoutPinned}
+        computeItemKey={(_i, [flag]) => flag}
+        itemContent={itemContent}
+        className="h-full w-full overflow-x-hidden"
+      />
     </>
-    // </ul>
   );
 }

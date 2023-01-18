@@ -14,7 +14,6 @@ import ChatWindow from '@/chat/ChatWindow';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { pluralize } from '@/logic/utils';
-import useSendMultiDm from '@/state/chat/useSendMultiDm';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -32,7 +31,7 @@ export default function MultiDm() {
     }
   }, [clubId, club]);
 
-  const sendMessage = useSendMultiDm();
+  const { sendMessage } = useChatState.getState();
   const messages = useMultiDmMessages(clubId);
 
   if (!club) {

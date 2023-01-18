@@ -3,8 +3,6 @@ import { useGroup, useRouteGroup } from '@/state/groups';
 import { SectionMap } from './types';
 import AdminChannelListDropContext from './AdminChannelListDropContext';
 
-// const UNZONED = 'default';
-
 export default function AdminChannelList() {
   const flag = useRouteGroup();
   const group = useGroup(flag);

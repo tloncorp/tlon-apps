@@ -1,20 +1,24 @@
 import _ from 'lodash';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
-import { newUv, preSig } from '@/logic/utils';
+import { createStorageKey, newUv, preSig } from '@/logic/utils';
 import { useChatState, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
 import useSendMultiDm from '@/state/chat/useSendMultiDm';
 import { ChatMemo } from '@/types/chat';
 import { Link } from 'react-router-dom';
+import { useLocalStorage } from 'usehooks-ts';
 
 export default function NewDM() {
   const multiDms = useMultiDms();
-  const [ships, setShips] = useState<ShipOption[]>([]);
+  const [ships, setShips] = useLocalStorage<ShipOption[]>(
+    createStorageKey('new-dm-ships'),
+    []
+  );
   const isMultiDm = ships.length > 1;
   const navigate = useNavigate();
   const shipValues = useMemo(() => ships.map((o) => preSig(o.value)), [ships]);
@@ -49,9 +53,10 @@ export default function NewDM() {
         await useChatState.getState().sendMessage(whom, memo);
       }
 
+      setShips([]);
       navigate(`/dm/${isMultiDm ? whom : preSig(whom)}`);
     },
-    [navigate, sendMultiDm, isMultiDm]
+    [navigate, sendMultiDm, isMultiDm, setShips]
   );
 
   const onEnter = useCallback(

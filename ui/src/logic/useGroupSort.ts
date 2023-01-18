@@ -1,5 +1,6 @@
-import { Group, Groups } from '@/types/groups';
 import { get } from 'lodash';
+import { useMemo } from 'react';
+import { Group, Groups } from '@/types/groups';
 import useChannelSort from './useChannelSort';
 import useSidebarSort, {
   ALPHABETICAL,
@@ -11,10 +12,13 @@ import useSidebarSort, {
 
 export default function useGroupSort() {
   const sortRecent = useRecentSort();
-  const sortOptions: Record<string, Sorter> = {
-    [ALPHABETICAL]: sortAlphabetical,
-    [RECENT]: sortRecent,
-  };
+  const sortOptions: Record<string, Sorter> = useMemo(
+    () => ({
+      [ALPHABETICAL]: sortAlphabetical,
+      [RECENT]: sortRecent,
+    }),
+    [sortRecent]
+  );
   const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({ sortOptions });
   const { sortChannels } = useChannelSort();
 
