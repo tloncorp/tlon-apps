@@ -93,13 +93,6 @@ export function useMessageEditor({
       if (!whom) {
         return false;
       }
-      const text = event.clipboardData?.getData('text/plain');
-
-      if (text && isRef(text)) {
-        onReference(pathToCite(text));
-
-        return true;
-      }
 
       if (
         uploader &&
@@ -115,7 +108,7 @@ export function useMessageEditor({
 
       return false;
     },
-    [uploader, whom, onReference]
+    [uploader, whom]
   );
 
   // update the Attached Items view when files finish uploading and have a size
