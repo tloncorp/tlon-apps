@@ -11,6 +11,7 @@ const unixTime = subMinutes(new Date(), 1).getTime();
 const mockStash: Stash = {
   'heap/~zod/testHeap': {
     perms: {
+      group: '~zod/group',
       writers: ['~zod', '~finned-palmer'],
     },
     view: 'grid',
