@@ -37,7 +37,7 @@ export function sampleQuippers(quips: DiaryQuipMap) {
     f.compact,
     f.uniq,
     f.take(3)
-  )([...quips]);
+  )(quips.size ? [...quips] : []);
 }
 
 export function renderRank(rank: Rank, plural = false) {
@@ -257,6 +257,55 @@ export function getPrivacyFromChannel(
   return 'public';
 }
 
+export function pluralRank(
+  rank: 'galaxy' | 'star' | 'planet' | 'moon' | 'comet'
+) {
+  switch (rank) {
+    case 'galaxy':
+      return 'galaxies';
+    default:
+      return `${rank}s`;
+  }
+}
+
+export function rankToClan(
+  rank: 'czar' | 'king' | 'duke' | 'earl' | 'pawn' | string
+) {
+  switch (rank) {
+    case 'czar':
+      return 'galaxy';
+    case 'king':
+      return 'star';
+    case 'duke':
+      return 'planet';
+    case 'earl':
+      return 'moon';
+    default:
+      return 'comet';
+  }
+}
+
+export function matchesBans(
+  cordon: Cordon,
+  ship: string
+): ReturnType<typeof ob.clan> | 'ship' | null {
+  const siggedShip = preSig(ship);
+  if (!('open' in cordon)) {
+    return null;
+  }
+
+  if (cordon.open.ships.includes(siggedShip)) {
+    return 'ship';
+  }
+
+  const clan = ob.clan(siggedShip);
+  if (cordon.open.ranks.map(rankToClan).includes(clan)) {
+    return clan;
+  }
+
+  return null;
+}
+
 export function toTitleCase(s: string): string {
   if (!s) {
     return '';
@@ -286,10 +335,15 @@ export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
-  /(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)/i;
+  /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)$/i;
+export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
 
 export function isImageUrl(url: string) {
   return IMAGE_URL_REGEX.test(url);
+}
+
+export function isRef(text: string) {
+  return REF_REGEX.test(text);
 }
 
 export function isValidUrl(str?: string): boolean {
@@ -334,12 +388,28 @@ export function isChannelJoined(
   return isChannelHost || (nest && nest in briefs);
 }
 
-export function canReadChannel(channel: GroupChannel, vessel: Vessel) {
+export function canReadChannel(
+  channel: GroupChannel,
+  vessel: Vessel,
+  bloc: string[] = []
+) {
   if (channel.readers.length === 0) {
     return true;
   }
 
-  return _.intersection(channel.readers, vessel.sects).length > 0;
+  return _.intersection([...channel.readers, ...bloc], vessel.sects).length > 0;
+}
+
+export function canWriteChannel(
+  perms: WritePermissions['perms'],
+  vessel: Vessel,
+  bloc: string[] = []
+) {
+  if (perms.writers.length === 0) {
+    return true;
+  }
+
+  return _.intersection([...perms.writers, ...bloc], vessel.sects).length > 0;
 }
 
 /**

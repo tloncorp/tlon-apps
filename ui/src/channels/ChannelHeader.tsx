@@ -1,4 +1,9 @@
-import React, { PropsWithChildren, useCallback, useState } from 'react';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useState,
+  useEffect,
+} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
@@ -26,6 +31,9 @@ import GridIcon from '@/components/icons/GridIcon';
 import ListIcon from '@/components/icons/ListIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import { Status } from '@/logic/status';
+import useIsGroupUnread from '@/logic/useIsGroupUnread';
+import { useNotifications } from '@/notifications/useNotifications';
+import useHarkState from '@/state/hark';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
@@ -301,6 +309,25 @@ export default function ChannelHeader({
   const groupName = group?.meta.title;
   const BackButton = isMobile ? Link : 'div';
   const isAdmin = useAmAdmin(flag);
+  const { isGroupUnread } = useIsGroupUnread();
+  const hasActivity = isGroupUnread(flag);
+  const { notifications } = useNotifications(flag);
+
+  useEffect(() => {
+    if (hasActivity) {
+      const unreadBins = notifications
+        .filter((n) => n.bins.some((b) => b.unread === true))[0]
+        ?.bins.filter((b) => b.unread === true);
+
+      if (unreadBins) {
+        unreadBins
+          .filter((b) => b.topYarn.wer.includes(nest))
+          .forEach((n) => {
+            useHarkState.getState().sawRope(n.topYarn.rope);
+          });
+      }
+    }
+  }, [hasActivity, notifications, nest]);
 
   return (
     <div

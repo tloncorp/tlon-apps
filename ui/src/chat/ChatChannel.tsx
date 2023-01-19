@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
@@ -13,12 +12,10 @@ import {
   useVessel,
   useGroup,
   useChannel,
-  useAmAdmin,
-  GROUP_ADMIN,
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel } from '@/logic/utils';
+import { canReadChannel, canWriteChannel } from '@/logic/utils';
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
@@ -36,20 +33,17 @@ function ChatChannel({ title }: ViewProps) {
   const messages = useMessagesForChat(chFlag);
   const perms = useChatPerms(chFlag);
   const vessel = useVessel(groupFlag, window.our);
-  const canWrite =
-    perms.writers.length === 0 ||
-    _.intersection(perms.writers, vessel.sects).length !== 0;
-  const { sendMessage } = useChatState.getState();
-
   const channel = useChannel(groupFlag, nest);
   const group = useGroup(groupFlag);
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const { sendMessage } = useChatState.getState();
 
   useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel)) {
+    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
       navigate('../../activity');
       setRecentChannel('');
     }
-  }, [channel, vessel, navigate, setRecentChannel]);
+  }, [group, channel, vessel, navigate, setRecentChannel]);
 
   return (
     <>

@@ -127,6 +127,10 @@ interface ChannelDiffAdd {
   add: GroupChannel;
 }
 
+interface ChannelDiffEdit {
+  edit: GroupChannel;
+}
+
 interface ChannelDiffDel {
   del: null;
 }
@@ -152,6 +156,7 @@ interface ChannelDiff {
     nest: string;
     diff:
       | ChannelDiffAdd
+      | ChannelDiffEdit
       | ChannelDiffDel
       | ChannelDiffAddZone
       | ChannelDiffAddSects

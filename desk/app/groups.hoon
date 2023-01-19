@@ -1,4 +1,4 @@
-/-  g=groups, ha=hark
+/-  g=groups, ha=hark, h=heap, d=diary, c=chat
 /-  g-one=group
 /-  m-one=metadata-store
 /-  meta
@@ -26,7 +26,7 @@
 =|  current-state
 =*  state  -
 =< 
-  %+  verb  &
+  %+  verb  |
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
@@ -96,8 +96,20 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-mark/mark !!)
+      %noun
+    ?+  q.vase  !!
+      %reset-all-perms  reset-all-perms
+    ==
   ::
       %group-import  (import-groups !<(imports:g vase))
+  ::
+      %reset-group-perms
+    =+  !<(=flag:g vase)
+    =/  val  (~(get by groups) flag)
+    ?~  val
+      ~&  'No group found'
+      cor
+    ((reset-group-perms cor) [flag u.val] cor)
   ::
       %group-leave
     =+  !<(=flag:g vase)
@@ -172,19 +184,68 @@
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
+++  channel-scry
+  |=  app=@tas
+  ^-  path
+  /(scot %p our.bowl)/[app]/(scot %da now.bowl)
+::
+++  reset-all-perms
+  (~(rep by groups) (reset-group-perms cor))
+::
+++  reset-group-perms
+  |=  core=_cor
+  |=  [[=flag:g [=net:g =group:g]] cr=_core]
+  ?.  =(our.bowl p.flag)  cr
+  (~(rep by channels.group) (reset-channel-perms flag cr))
+::
+++  reset-channel-perms
+  |=  [=flag:g cr=_cor]
+  |=  [[=nest:g =channel:g] core=_cr]  
+  =.  cards.core
+    :_
+    :_  cards.core
+      ^-  card  
+      =/  wire  /groups
+      =/  dock  [our.bowl dap.bowl]
+      =/  =action:g  [flag [now.bowl [%channel nest [%del-sects readers.channel]]]]
+      =/  cage  group-action+!>(action)
+      [%pass wire %agent dock %poke cage]
+    ^-  card  
+    ?+  -.nest  *card
+        %chat
+      =/  =path  (welp (channel-scry %chat) /chat/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
+      =/  perms  .^(perm:c %gx path)
+      =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
+      =/  =wire  /chat
+      =/  =dock  [our.bowl %chat]
+      =/  =cage  chat-action+!>(action)
+      [%pass wire %agent dock %poke cage]
+    ::
+        %diary
+      =/  =path  (welp (channel-scry %diary) /diary/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
+      =/  perms  .^(perm:d %gx path)
+      =/  =action:d  [+.nest [now.bowl [%del-sects writers.perms]]]
+      =/  =wire  /diary
+      =/  =dock  [our.bowl %diary]
+      =/  =cage  diary-action+!>(action)
+      [%pass wire %agent dock %poke cage]
+    ::
+        %heap
+      =/  path   (welp (channel-scry %heap) /heap/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
+      =/  perms  .^(perm:h %gx path)
+      =/  =action:h  [+.nest [now.bowl [%del-sects writers.perms]]]
+      =/  =wire  /heap
+      =/  =dock  [our.bowl %heap]
+      =/  =cage  heap-action+!>(action)
+      [%pass wire %agent dock %poke cage]
+    ==
+  core
+::
 ::  +load: load next state
 ++  load
   |=  =vase
   |^  ^+  cor
-   =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
-  (mule |.(!<([versioned-state epic:e] vase)))
-  ::  XX only save when epic changes
-  =/  [old=versioned-state cool=epic:e bad=?]
-    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
-    =;  [sta=versioned-state ba=?]  [sta okay ba]
-    =-  %+  fall  -  ~&  >  %bad-load  [state &]
-    (mole |.([!<(versioned-state vase) |]))
-  ::
+  =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
   ?:  =(okay cool)  cor
@@ -279,8 +340,8 @@
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
       [%epic ~]  (take-epic sign)
-      [%hark ~]  cor
       [%helm *]  cor
+      [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
   ::
       [%groups ship=@ name=@ rest=*]
@@ -652,6 +713,18 @@
       out
     (~(put in out) who)
   ::
+  ++  go-is-banned
+    |=  =ship
+    =*  cordon  cordon.group
+    ?&  =(-.cordon %open)
+        ?-  -.cordon
+            ?(%shut %afar)  |
+            %open
+          ?|  (~(has in ranks.ban.cordon) (clan:title ship))
+              (~(has in ships.ban.cordon) ship)
+          ==
+        ==
+    ==
   ++  go-pass
     |%
     ++  leave
@@ -798,6 +871,14 @@
       =/  src  (slav %p ship.pole)
       `noun+!>((~(got by fleet.group) src))
       ::
+        [%fleet ship=@ %is-bloc ~]
+      =/  src  (slav %p ship.pole)
+      `loob+!>((~(has in go-bloc-who) src))
+      ::
+        [%fleet ship=@ %is-ban ~]
+      =/  src  (slav %p ship.pole)
+      `loob+!>((go-is-banned src))
+      ::
         [%channel app=@ ship=@ name=@ rest=*]
       =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
       =/  =channel:g  (~(got by channels.group) nes)
@@ -805,6 +886,14 @@
           [%can-read src=@ ~]
         =/  src  (slav %p src.rest.pole)
         `loob+!>((go-can-read src channel))
+        ::
+          [%can-write src=@ ~]
+        =/  src  (slav %p src.rest.pole)
+        =-  `noun+!>(-)
+        ?:  |((go-is-banned src) !(~(has by fleet.group) src))  ~
+        %-  some
+        :-  bloc=(~(has in go-bloc-who) src.bowl)
+        sects=sects:(~(got by fleet.group) src)
       ==
     ==
   ::
@@ -813,7 +902,9 @@
     =/  open  =(-.cordon.group %open)
     =/  ves  (~(get by fleet.group) src)
     =/  visible  =(~ readers.channel)
-    ?:  ?|  &(open visible)
+    ?:  (go-is-banned src)  |
+    ?:  ?|  (~(has in go-bloc-who) src)
+            &(open visible)
             &(!=(~ ves) visible)
         ==
       &
@@ -1190,17 +1281,19 @@
     ^+  go-core
     =/  user-join  &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))
     =/  am-host  =(p.flag our.bowl)
+    =*  cordon  cordon.group
     ?-    -.diff
         %add
       ?>  ?|  am-host
               =(p.flag src.bowl) :: subscription
               user-join
           ==
-      ?<  ?&  =(-.cordon.group %shut) 
-              ?-  -.cordon.group
+      ?<  (go-is-banned src.bowl)
+      ?<  ?&  =(-.cordon %shut) 
+              ?-  -.cordon
                   ?(%open %afar)  |
                   %shut
-                =/  cross  (~(int in pend.cordon.group) ships)
+                =/  cross  (~(int in pend.cordon) ships)
                 ~&  [cross ~(wyt in ships) ~(wyt in cross)]
                 !=(~(wyt in ships) ~(wyt in cross))
               ==
@@ -1236,16 +1329,19 @@
         ==
       =?  cor  go-is-our-bloc
         (emit (pass-hark & & yarn))
-      ?-  -.cordon.group
+      ?-  -.cordon
           ?(%open %afar)  go-core
           %shut  
-        =.  pend.cordon.group  (~(dif in pend.cordon.group) ships)
+        =.  pend.cordon  (~(dif in pend.cordon) ships)
         go-core
       ==
     ::
         %del
       ?<  &((~(has in ships) our.bowl) =(p.flag our.bowl))
-      ?>  ?|(=(p.flag src.bowl) (~(has in ships) src.bowl))
+      ?>  ?|  go-is-bloc 
+              =(p.flag src.bowl)
+              (~(has in ships) src.bowl)
+          ==
       =.  fleet.group
       %-  malt
         %+  skip 
@@ -1343,6 +1439,32 @@
             :~  [%emph title.meta.channel.diff]
                 ' has been added to '
                 [%emph title.meta.group]
+            ==
+        ==
+      =.  cor  (emit (pass-hark & & yarn))
+      go-core
+    ::
+        %edit
+      =/  prev=channel:g  (got:by-ch ch)
+      =/  =zone:g  zone.channel.diff
+      =.  zones.group
+        %+  ~(jab by zones.group)  zone
+        |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
+      =.  channels.group  (put:by-ch ch channel.diff)
+      ?:  from-self  go-core
+      =/  link  (go-link /channels)
+      =/  yarn
+        %-  spin
+        :*  (go-rope /channel/edit)
+            link
+            `['Subscribe to channel' link]
+            ?:  !=(title.meta.channel.diff title.meta.prev)
+              :~  [%emph title.meta.prev]
+                  ' has been renamed to '
+                  [%emph title.meta.channel.diff]
+              ==
+            :~  [%emph title.meta.channel.diff]
+                ' has been edited'
             ==
         ==
       =.  cor  (emit (pass-hark & & yarn))
@@ -1565,7 +1687,8 @@
                     [%emph title.meta.u.pev.gang]
                 ==
             ==
-          =.  cor  (emit (pass-hark & & yarn))
+          =?  cor  !(~(has by groups) flag)
+            (emit (pass-hark & & yarn))
           ga-core
           ::
             %kick

@@ -493,7 +493,7 @@ export const useGroupState = create<GroupState>(
               channel: {
                 nest,
                 diff: {
-                  add: channel,
+                  edit: channel,
                 },
               },
             }),
@@ -893,9 +893,13 @@ export function useAmAdmin(flag: string) {
 export function usePendingInvites() {
   const groups = useGroups();
   const gangs = useGangs();
-  return Object.entries(gangs)
-    .filter(([k, g]) => g.invite !== null && !(k in groups))
-    .map(([k]) => k);
+  return useMemo(
+    () =>
+      Object.entries(gangs)
+        .filter(([k, g]) => g.invite !== null && !(k in groups))
+        .map(([k]) => k),
+    [gangs, groups]
+  );
 }
 
 export function usePendingGangs() {

@@ -96,7 +96,6 @@ export default function MessagesSidebar() {
   const [atTop, setAtTop] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
   const { messagesFilter } = useSettingsState(selMessagesFilter);
-  const briefs = useBriefs();
   const pinned = usePinned();
 
   const setFilterMode = (mode: SidebarFilter) => {
@@ -144,11 +143,7 @@ export default function MessagesSidebar() {
                   </span>
                 </div>
                 {pinned.map((ship: string) => (
-                  <MessagesSidebarItem
-                    key={ship}
-                    whom={ship}
-                    brief={briefs[ship]}
-                  />
+                  <MessagesSidebarItem key={ship} whom={ship} />
                 ))}
               </>
             ) : null}

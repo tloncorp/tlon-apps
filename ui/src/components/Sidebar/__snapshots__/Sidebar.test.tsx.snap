@@ -295,7 +295,7 @@ exports[`Sidebar > renders as expected 1`] = `
       </li>
     </ul>
     <ul
-      class="flex-1 overflow-y-auto overflow-x-hidden px-2"
+      class="flex-initial overflow-y-auto overflow-x-hidden px-2"
     >
       <li
         class="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2"
@@ -356,6 +356,10 @@ exports[`Sidebar > renders as expected 1`] = `
           </svg>
         </button>
       </li>
+    </ul>
+    <div
+      class="flex-auto"
+    >
       <ul
         class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"
       >
@@ -390,7 +394,7 @@ exports[`Sidebar > renders as expected 1`] = `
           </div>
         </li>
       </ul>
-    </ul>
+    </div>
   </nav>
 </DocumentFragment>
 `;

@@ -10,6 +10,8 @@ import {
   Hive,
   ChatCreate,
   ChatWrit,
+  Clubs,
+  Chats,
 } from '../../types/chat';
 import { BaseState } from '../base';
 import { GroupMeta } from '../../types/groups';
@@ -17,14 +19,10 @@ import { GroupMeta } from '../../types/groups';
 export interface ChatState {
   set: (fn: (sta: BasedChatState) => void) => void;
   batchSet: (fn: (sta: BasedChatState) => void) => void;
-  chats: {
-    [flag: string]: Chat;
-  };
+  chats: Chats;
+  multiDms: Clubs;
   dms: {
     [ship: string]: Chat;
-  };
-  multiDms: {
-    [id: string]: Club; // id is `@uw`
   };
   drafts: {
     [whom: string]: ChatStory;
@@ -39,6 +37,7 @@ export interface ChatState {
   dmArchive: string[];
   fetchDms: () => Promise<void>;
   fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
+  fetchMultiDms: () => Promise<void>;
   pacts: {
     [whom: ChatWhom]: Pact;
   };

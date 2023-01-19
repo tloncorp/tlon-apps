@@ -20,6 +20,7 @@ import {
   ClubAction,
   ClubDelta,
   ClubInvite,
+  Clubs,
   DmAction,
   Pins,
   WritDelta,
@@ -240,7 +241,12 @@ export const useChatState = createState<ChatState>(
           const { read, unread, atBottom, chats, current } =
             useChatStore.getState();
           const isUnread = brief.count > 0 && brief['read-id'];
-          if (isUnread && current === whom && atBottom) {
+          if (
+            isUnread &&
+            current === whom &&
+            atBottom &&
+            document.visibilityState === 'visible'
+          ) {
             get().markRead(whom);
           } else if (isUnread) {
             unread(whom, brief);
@@ -299,6 +305,8 @@ export const useChatState = createState<ChatState>(
                   draft.pacts[flag].index[id] = newTime;
                 }
               }
+            } else if ('create' in diff) {
+              draft.chats[flag] = diff.create;
             } else if ('del-sects' in diff) {
               chat.perms.writers = chat.perms.writers.filter(
                 (w) => !diff['del-sects'].includes(w)
@@ -362,6 +370,16 @@ export const useChatState = createState<ChatState>(
         `/chat/${whom}/writs`,
         `/chat/${whom}/ui/writs`
       ).getOlder(count);
+    },
+    fetchMultiDms: async () => {
+      const dms = await api.scry<Clubs>({
+        app: 'chat',
+        path: '/clubs',
+      });
+
+      get().batchSet((draft) => {
+        draft.multiDms = dms;
+      });
     },
     fetchMultiDm: async (id, force) => {
       const { multiDms } = get();
@@ -893,7 +911,13 @@ export function useDmIsPending(ship: string) {
 
 const selMultiDms = (s: ChatState) => s.multiDms;
 export function useMultiDms() {
-  return useChatState(selMultiDms);
+  const dms = useChatState(selMultiDms);
+
+  useEffect(() => {
+    useChatState.getState().fetchMultiDms();
+  }, []);
+
+  return dms;
 }
 
 export function useMultiDm(id: string): Club | undefined {

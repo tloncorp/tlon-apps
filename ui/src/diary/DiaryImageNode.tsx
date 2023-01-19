@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCalm } from '@/state/settings';
-import { findLast } from 'lodash';
 import LinkIcon from '@/components/icons/LinkIcon';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { Node, NodeViewProps } from '@tiptap/core';
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import cn from 'classnames';
-import useFileUpload from '@/logic/useFileUpload';
-import { useFileStore } from '@/state/storage';
+import { useUploader } from '@/state/storage';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import useDiaryNode from './useDiaryNode';
@@ -21,11 +19,8 @@ function DiaryImageComponent(props: NodeViewProps) {
   const image = useRef<HTMLImageElement>(null);
   const calm = useCalm();
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { loaded, hasCredentials, promptUpload } = useFileUpload();
-  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
-  const mostRecentFile = useFileStore((state) =>
-    findLast(state.files, ['for', fileId.current])
-  );
+  const uploader = useUploader('diary-image-input');
+  const mostRecentFile = uploader?.getMostRecent();
   const onError = () => {
     setError(true);
   };
@@ -100,14 +95,14 @@ function DiaryImageComponent(props: NodeViewProps) {
             onKeyDown={onKeyDown}
             placeholder="Enter an image/embed/web URL"
           />
-          {loaded && hasCredentials ? (
+          {uploader ? (
             <button
               title={'Upload an image'}
               className="small-button whitespace-nowrap"
               aria-label="Add attachment"
               onClick={(e) => {
                 e.preventDefault();
-                promptUpload(fileId.current);
+                uploader.prompt();
               }}
             >
               {mostRecentFile && mostRecentFile.status === 'loading' ? (

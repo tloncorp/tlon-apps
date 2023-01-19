@@ -75,16 +75,20 @@ export default function MultiDMInfoForm({
           <div className="flex items-center space-x-3 py-4">
             {iconType === 'color' ? (
               <ColorBoxIcon
-                className="ml-2 h-14 w-14 text-xl"
+                className="h-14 w-14 shrink-0 text-xl"
                 color={watchImage ? watchImage : '#000000'}
                 letter={letter ? letter : 'T'}
               />
             ) : null}
             {iconType === 'image' && isValidUrl(watchImage) ? (
-              <GroupAvatar size="ml-2 h-14 w-14" image={watchImage} />
+              <GroupAvatar
+                size="h-14 w-14"
+                className="shrink-0"
+                image={watchImage}
+              />
             ) : null}
             {showEmpty ? (
-              <EmptyIconBox className="ml-2 h-14 w-14 text-gray-300" />
+              <EmptyIconBox className="h-14 w-14 shrink-0 text-gray-300" />
             ) : null}
             <div className="flex-1 space-y-1.5">
               <label htmlFor="title" className="w-full font-bold">

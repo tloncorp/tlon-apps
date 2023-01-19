@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import f from 'lodash/fp';
@@ -20,6 +20,7 @@ import {
   useChatState,
   useIsMessageDelivered,
   useIsMessagePosted,
+  useWrit,
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
@@ -136,6 +137,11 @@ const ChatMessage = React.memo<
         f.uniq,
         f.take(3)
       )(seal.replied);
+      const lastReply = seal.replied.length ? _.last(seal.replied)! : '';
+      const lastReplyWrit = useWrit(whom, lastReply)!;
+      const lastReplyTime = lastReplyWrit
+        ? new Date(daToUnix(lastReplyWrit[0]))
+        : new Date();
 
       return (
         <div
@@ -209,9 +215,9 @@ const ChatMessage = React.memo<
                       </span>
                       <span className="text-gray-400">
                         Last reply{' '}
-                        {isToday(unix)
-                          ? `${formatDistanceToNow(unix)} ago`
-                          : formatRelative(unix, new Date())}
+                        {isToday(lastReplyTime)
+                          ? `${formatDistanceToNow(lastReplyTime)} ago`
+                          : formatRelative(lastReplyTime, new Date())}
                       </span>
                     </div>
                   </NavLink>

@@ -43,8 +43,8 @@ export default function DiaryCommentField({
         JSONToInlines(editor?.getJSON()) as DiaryInline[]
       );
 
-      await useDiaryState.getState().addQuip(flag, replyTo, content);
       editor?.commands.setContent('');
+      await useDiaryState.getState().addQuip(flag, replyTo, content);
       setReady();
     },
     [sendDisabled, setPending, replyTo, flag, setReady]

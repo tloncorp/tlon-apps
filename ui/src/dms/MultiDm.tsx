@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -14,7 +14,6 @@ import ChatWindow from '@/chat/ChatWindow';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { pluralize } from '@/logic/utils';
-import useSendMultiDm from '@/state/chat/useSendMultiDm';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -27,12 +26,12 @@ export default function MultiDm() {
   const club = useMultiDm(clubId);
 
   useEffect(() => {
-    if (clubId) {
+    if (clubId && club) {
       useChatState.getState().initializeMultiDm(clubId);
     }
-  }, [clubId]);
+  }, [clubId, club]);
 
-  const sendMessage = useSendMultiDm();
+  const { sendMessage } = useChatState.getState();
   const messages = useMultiDmMessages(clubId);
 
   if (!club) {

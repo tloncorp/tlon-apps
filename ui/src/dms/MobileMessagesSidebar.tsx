@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -9,7 +9,7 @@ import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
 import NewMessageIcon from '@/components/icons/NewMessageIcon';
-import { useBriefs, usePinned } from '@/state/chat';
+import { usePinned } from '@/state/chat';
 import {
   filters,
   SettingsState,
@@ -27,7 +27,6 @@ const selMessagesFilter = (s: SettingsState) => ({
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
   const { messagesFilter } = useSettingsState(selMessagesFilter);
-  const briefs = useBriefs();
   const pinned = usePinned();
 
   const setFilterMode = (mode: SidebarFilter) => {
@@ -54,11 +53,7 @@ export default function MobileMessagesSidebar() {
               </div>
               <div className="flex flex-col space-y-2 px-2 pb-2">
                 {pinned.map((ship: string) => (
-                  <MessagesSidebarItem
-                    key={ship}
-                    whom={ship}
-                    brief={briefs[ship]}
-                  />
+                  <MessagesSidebarItem key={ship} whom={ship} />
                 ))}
               </div>
             </div>

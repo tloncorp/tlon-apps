@@ -24,7 +24,7 @@
 =|  current-state
 =*  state  -
 =< 
-  %+  verb  &
+  %+  verb  |
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
@@ -93,14 +93,7 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
-  (mule |.(!<([versioned-state epic:e] vase)))
-  =/  [old=versioned-state cool=epic:e bad=?]
-    ::  XX only save when epic changes
-    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
-    =;  [sta=versioned-state ba=?]  [sta okay ba]
-    =-  %+  fall  -  ~&  >  %bad-load  [state &]
-    (mole |.([!<(versioned-state vase) |]))
+  =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
   =.  cor
@@ -205,7 +198,6 @@
     |=  =flag:d
     ^+  cor
     ?<  (~(has by shelf) flag)
-    =.  shelf  (~(put by shelf) flag *diary:d)
     di-abet:(di-join:di-core flag)
   ::
   ++  create
@@ -795,12 +787,14 @@
   ::
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
-    =/  =path
+    =/  =path 
       %+  welp  di-groups-scry
-      /fleet/(scot %p src.bowl)/vessel/noun
-    =+  .^(=vessel:fleet:g %gx path)
-    ?:  =(~ writers.perm.diary)  &
-    !=(~ (~(int in writers.perm.diary) sects.vessel))
+      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
+    =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
+    ?~  write  |
+    =/  perms  (need write) 
+    ?:  |(bloc.perms =(~ writers.perm.diary))  &
+    !=(~ (~(int in writers.perm.diary) sects.perms))
   ::
   ++  di-can-read
     |=  her=ship
@@ -893,7 +887,7 @@
       ::
           %read
       =/  [=time =note:d]  (need (ram:on:notes:d notes.diary))
-      remark.diary(last-read `@da`(add time 1))  ::  greater than last
+      remark.diary(last-read `@da`(add time (div ~s1 100)))  ::  greater than last
       ==
     =.  cor
       (give-brief flag di-brief)

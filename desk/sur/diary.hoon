@@ -17,7 +17,7 @@
 ::  $plan: index into diary state
 ::    p: Note being referred to
 ::    q: Quip being referred to, if any
-::    
+::
 +$  plan
   (pair time (unit time))
 ::
@@ -129,7 +129,7 @@
       image=@t
       content=(list verse)
       author=ship
-      sent=time      
+      sent=time
   ==
 +$  story  (pair (list block) (list inline))
 ::  $memo: the comment data itself
@@ -148,7 +148,7 @@
 ::    blocks stand on their own. inlines come in groups and get wrapped
 ::    into a paragraph
 ::
-+$  verse  
++$  verse
   $%  [%block p=block]
       [%inline p=(list inline)]
   ==
@@ -163,6 +163,7 @@
 ::    %cite: an Urbit reference
 ::    %header: a traditional HTML heading, h1-h6
 ::    %listing: a traditional HTML list, ul and ol
+::    %code: a block of code
 ::
 +$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
@@ -170,6 +171,7 @@
       [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
       [%listing p=listing]
       [%rule ~]
+      [%code code=cord lang=cord]
   ==
 ::  $inline: post content that flows within a paragraph
 ::
@@ -247,7 +249,7 @@
 ::
 ++  briefs
   =<  briefs
-  |% 
+  |%
   +$  briefs
     (map flag brief)
   +$  brief
@@ -281,11 +283,11 @@
 +$  leave  flag:g
 ::
 ::  $create: represents a request to create a channel
-::    
+::
 ::    The name will be used as part of the flag which represents the
 ::    channel. $create is consumed by the diary agent first and then
 ::    passed to the groups agent to register the channel with the group.
-::  
+::
 ::    Write permission is stored with the specific agent in the channel,
 ::    read permission is stored with the group's data.
 ::

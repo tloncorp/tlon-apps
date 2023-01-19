@@ -1,6 +1,6 @@
 {
   "name": "landscape-apps",
-  "version": "2.2.1",
+  "version": "2.3.2",
   "private": true,
   "engines": {
     "node": "14.19.0"
@@ -16,7 +16,7 @@
     "dev": "vite",
     "chat": "cross-env APP=chat vite",
     "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
+    "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
     "lint:all": "npm run lint:format && npm run lint:fix",
     "mock": "vite --mode mock",
@@ -92,6 +92,7 @@
     "fast-average-color": "^9.1.1",
     "framer-motion": "^6.5.1",
     "fuzzy": "^0.1.3",
+    "hast-to-hyperscript": "^10.0.1",
     "history": "^5.3.0",
     "immer": "^9.0.12",
     "lodash": "^4.17.21",
@@ -110,6 +111,7 @@
     "react-error-boundary": "^3.1.4",
     "react-helmet": "^6.1.0",
     "react-hook-form": "^7.30.0",
+    "react-image-size": "^2.0.0",
     "react-intersection-observer": "^9.4.0",
     "react-oembed-container": "^1.0.1",
     "react-router": "^6.3.0",
@@ -131,7 +133,7 @@
     "@storybook/addon-interactions": "^6.4.22",
     "@storybook/addon-links": "^6.4.22",
     "@storybook/addon-postcss": "^2.0.0",
-    "@storybook/builder-vite": "^0.1.28",
+    "@storybook/builder-vite": "^0.2.7",
     "@storybook/react": "^6.4.22",
     "@storybook/testing-library": "0.0.9",
     "@tailwindcss/aspect-ratio": "^0.4.0",
@@ -152,7 +154,9 @@
     "@typescript-eslint/parser": "^5.19.0",
     "@urbit/eslint-config": "^1.0.3",
     "@urbit/vite-plugin-urbit": "^0.8.0",
-    "@vitejs/plugin-react-refresh": "^1.3.1",
+    "@vitejs/plugin-basic-ssl": "^1.0.1",
+    "@vitejs/plugin-react": "^2.2.0",
+    "@welldone-software/why-did-you-render": "^7.0.1",
     "autoprefixer": "^10.4.4",
     "babel-eslint": "^10.1.0",
     "babel-loader": "^8.2.4",
@@ -185,8 +189,7 @@
     "tailwindcss-theme-swapper": "^0.6.2",
     "tsc-files": "^1.1.3",
     "typescript": "^4.6.3",
-    "vite": "^2.9.1",
-    "vite-plugin-rewrite-all": "^0.1.2",
+    "vite": "^3.2.5",
     "vitest": "^0.23.1"
   }
 }

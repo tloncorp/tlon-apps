@@ -20,6 +20,7 @@ import React, {
   useImperativeHandle,
   useState,
   forwardRef,
+  useMemo,
 } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';

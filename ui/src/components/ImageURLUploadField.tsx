@@ -1,11 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { findLast } from 'lodash';
+import React, { useState, useEffect } from 'react';
 import cn from 'classnames';
 import { UseFormRegister, UseFormSetValue } from 'react-hook-form';
 import { isValidUrl } from '@/logic/utils';
 import LinkIcon from '@/components/icons/LinkIcon';
-import useFileUpload from '@/logic/useFileUpload';
-import { useFileStore } from '@/state/storage';
+import { useUploader } from '@/state/storage';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 
@@ -26,11 +24,8 @@ export default function ImageURLUploadField({
   const urlHasLength = formWatchURL?.length;
 
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { loaded, hasCredentials, promptUpload } = useFileUpload();
-  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
-  const mostRecentFile = useFileStore((state) =>
-    findLast(state.files, ['for', fileId.current])
-  );
+  const uploader = useUploader('image-url-input');
+  const mostRecentFile = uploader?.getMostRecent();
 
   useEffect(() => {
     if (
@@ -52,7 +47,7 @@ export default function ImageURLUploadField({
   return (
     <div className="input relative flex h-8 w-full items-center justify-end">
       <input
-        className={cn('input-inner grow p-0')}
+        className={cn('input-inner w-full py-0 pl-0 pr-2')}
         onFocus={() => setIsFocused(true)}
         {...formRegister(formValue, {
           onBlur: () => setIsFocused(false),
@@ -66,14 +61,14 @@ export default function ImageURLUploadField({
           <span className="pointer-events-none">Paste an image URL</span>
         </div>
       ) : null}
-      {loaded && hasCredentials ? (
+      {uploader ? (
         <button
           title={'Upload an image'}
-          className="small-button whitespace-nowrap"
+          className="small-button h-6 whitespace-nowrap"
           aria-label="Add attachment"
           onClick={(e) => {
             e.preventDefault();
-            promptUpload(fileId.current);
+            uploader.prompt();
           }}
         >
           {mostRecentFile && mostRecentFile.status === 'loading' ? (

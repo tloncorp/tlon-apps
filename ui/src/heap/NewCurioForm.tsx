@@ -1,12 +1,11 @@
-import React, { useCallback, useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import cn from 'classnames';
-import { intersection, findLast } from 'lodash';
 import { useForm } from 'react-hook-form';
 import LinkIcon from '@/components/icons/LinkIcon';
 import { useHeapPerms, useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
-import { isValidUrl, nestToFlag } from '@/logic/utils';
-import { useRouteGroup, useVessel } from '@/state/groups';
+import { canWriteChannel, isValidUrl, nestToFlag } from '@/logic/utils';
+import { useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/react';
@@ -21,8 +20,7 @@ import {
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import { useHeapDisplayMode } from '@/state/settings';
-import { useFileStore } from '@/state/storage';
-import useFileUpload from '@/logic/useFileUpload';
+import { useUploader } from '@/state/storage';
 import HeapTextInput from './HeapTextInput';
 
 export default function NewCurioForm() {
@@ -30,6 +28,7 @@ export default function NewCurioForm() {
   const [draftLink, setDraftLink] = useState<string>();
   const [draftText, setDraftText] = useState<JSONContent>();
   const flag = useRouteGroup();
+  const group = useGroup(flag);
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
   const displayMode = useHeapDisplayMode(chFlag);
@@ -39,16 +38,11 @@ export default function NewCurioForm() {
   const isTextMode = inputMode === TEXT;
   const perms = useHeapPerms(nest);
   const vessel = useVessel(flag, window.our);
-  const canWrite =
-    perms.writers.length === 0 ||
-    intersection(perms.writers, vessel.sects).length !== 0;
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { loaded, hasCredentials, promptUpload } = useFileUpload();
-  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
-  const mostRecentFile = useFileStore((state) =>
-    findLast(state.files, ['for', fileId.current])
-  );
+  const uploader = useUploader('new-curio-input');
+  const mostRecentFile = uploader?.getMostRecent();
   const { register, handleSubmit, reset, watch, setValue } =
     useForm<NewCurioFormSchema>({
       defaultValues: {
@@ -176,14 +170,14 @@ export default function NewCurioForm() {
               onKeyDown={onKeyDown}
               defaultValue={draftLink}
             />
-            {loaded && hasCredentials ? (
+            {uploader ? (
               <button
                 title={'Upload an image'}
                 className="button absolute bottom-3 left-3 whitespace-nowrap rounded-md px-2 py-1"
                 aria-label="Add attachment"
                 onClick={(e) => {
                   e.preventDefault();
-                  promptUpload(fileId.current);
+                  uploader.prompt();
                 }}
               >
                 {mostRecentFile && mostRecentFile.status === 'loading' ? (

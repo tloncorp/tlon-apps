@@ -22,7 +22,7 @@
 =|  current-state
 =*  state  -
 =< 
-  %+  verb  &
+  %+  verb  |
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
@@ -138,7 +138,6 @@
     |=  =flag:h
     ^+  cor
     ?<  (~(has by stash) flag)
-    =.  stash  (~(put by stash) flag *heap:h)
     he-abet:(he-join:he-core flag)
   ::
   ++  create
@@ -170,14 +169,7 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
-    (mule |.(!<([versioned-state epic:e] vase)))
-  =/  [old=versioned-state cool=epic:e bad=?]
-    ::  XX only save when epic changes
-    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
-    =;  [sta=versioned-state ba=?]  [sta okay ba]
-    =-  %+  fall  -  ~&  >  %bad-load  [state &]
-    (mole |.([!<(versioned-state vase) |]))
+  =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
   ?:  =(okay cool)  cor
@@ -787,12 +779,14 @@
   ::
   ++  he-can-write
     ?:  =(p.flag src.bowl)  &
-    =/  =path
+    =/  =path 
       %+  welp  he-groups-scry
-      /fleet/(scot %p src.bowl)/vessel/noun
-    =+  .^(=vessel:fleet:g %gx path)
-    ?:  =(~ writers.perm.heap)  &
-    !=(~ (~(int in writers.perm.heap) sects.vessel))
+      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
+    =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
+    ?~  write  |
+    =/  perms  (need write) 
+    ?:  |(bloc.perms =(~ writers.perm.heap))  &
+    !=(~ (~(int in writers.perm.heap) sects.perms))
   ::
   ++  he-can-read
     |=  her=ship
@@ -894,7 +888,7 @@
       ::
           %read
       =/  [=time =curio:h]  (need (ram:on:curios:h curios.heap))
-      remark.heap(last-read `@da`(add time 1))  ::  greater than last
+      remark.heap(last-read `@da`(add time (div ~s1 100)))  ::  greater than last
       ==
     =.  cor
       (give-brief flag he-brief)

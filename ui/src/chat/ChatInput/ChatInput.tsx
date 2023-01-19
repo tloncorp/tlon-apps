@@ -1,7 +1,6 @@
 import { Editor } from '@tiptap/react';
-import { findLast } from 'lodash';
 import cn from 'classnames';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { usePact } from '@/state/chat';
 import { ChatImage, ChatMemo } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
@@ -18,8 +17,8 @@ import { useIsMobile } from '@/logic/useMedia';
 import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
-import useFileUpload from '@/logic/useFileUpload';
-import { useFileStore } from '@/state/storage';
+import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
+import { useUploader } from '@/state/storage';
 import { IMAGE_REGEX, isImageUrl } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
@@ -82,11 +81,8 @@ export default function ChatInput({
   const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
-  const { loaded, hasCredentials, promptUpload } = useFileUpload();
-  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
-  const mostRecentFile = useFileStore((state) =>
-    findLast(state.files, ['for', fileId.current])
-  );
+  const uploader = useUploader(`chat-input-${whom}-${replying}`);
+  const mostRecentFile = uploader?.getMostRecent();
 
   const closeReply = useCallback(() => {
     useChatStore.getState().reply(whom, null);
@@ -104,8 +100,8 @@ export default function ChatInput({
 
   const clearAttachments = useCallback(() => {
     useChatStore.getState().setBlocks(whom, []);
-    useFileStore.getState().clearFiles();
-  }, [whom]);
+    uploader?.clear();
+  }, [whom, uploader]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -157,8 +153,6 @@ export default function ChatInput({
             },
           });
         };
-
-        fileId.current = `chat-input-${Math.floor(Math.random() * 1000000)}`;
       } else {
         const memo: ChatMemo = {
           replying: reply,
@@ -175,6 +169,7 @@ export default function ChatInput({
         sendMessage(whom, memo);
       }
       editor?.commands.setContent('');
+      useChatStore.getState().read(whom);
       setTimeout(() => closeReply(), 0);
       clearAttachments();
     },
@@ -184,6 +179,7 @@ export default function ChatInput({
   const messageEditor = useMessageEditor({
     whom,
     content: '',
+    uploader,
     placeholder: 'Message',
     allowMentions: true,
     onEnter: useCallback(
@@ -197,6 +193,8 @@ export default function ChatInput({
       [onSubmit, subscription]
     ),
   });
+
+  const text = messageEditor?.getText();
 
   useEffect(() => {
     if (whom && messageEditor && !messageEditor.isDestroyed) {
@@ -216,26 +214,11 @@ export default function ChatInput({
   }, [autoFocus, reply, isMobile, messageEditor]);
 
   useEffect(() => {
-    if (mostRecentFile && messageEditor && !messageEditor.isDestroyed) {
-      const { url } = mostRecentFile;
-      messageEditor.commands.setContent(null);
-      messageEditor.commands.setContent(url);
-    }
-  }, [mostRecentFile, messageEditor]);
-
-  useEffect(() => {
     if (messageEditor && !messageEditor.isDestroyed) {
-      if (mostRecentFile) {
-        // if there is a most recent file, we want to set the content to the url
-        const { url } = mostRecentFile;
-
-        messageEditor.commands.setContent(url);
-      } else {
-        // if the draft is empty, clear the editor
-        messageEditor.commands.setContent(null, true);
-      }
+      // if the draft is empty, clear the editor
+      messageEditor.commands.setContent(null, true);
     }
-  }, [messageEditor, mostRecentFile]);
+  }, [messageEditor]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -247,14 +230,14 @@ export default function ChatInput({
       const blocks = fetchChatBlocks(whom);
       if ('image' in blocks[idx]) {
         // @ts-expect-error type check on previous line
-        useFileStore.getState().removeFileByURL(blocks[idx]);
+        uploader.removeFileByURL(blocks[idx]);
       }
       useChatStore.getState().setBlocks(
         whom,
         blocks.filter((_b, k) => k !== idx)
       );
     },
-    [whom]
+    [whom, uploader]
   );
 
   if (!messageEditor) {
@@ -294,6 +277,7 @@ export default function ChatInput({
               ))}
             </div>
           ) : null}
+
           {chatInfo.blocks.length > 0 ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="mr-2 text-gray-600">Attached: </span>
@@ -321,30 +305,36 @@ export default function ChatInput({
               </button>
             </div>
           ) : null}
-          <div className="flex items-center justify-end">
-            <Avatar size="xs" ship={window.our} className="mr-2" />
+          <div className="relative flex items-end justify-end">
+            {!isMobile && (
+              <Avatar size="xs" ship={window.our} className="mr-2" />
+            )}
             <MessageEditor
               editor={messageEditor}
-              className="w-full break-words"
+              className={cn(
+                'w-full break-words',
+                uploader && !uploadError && mostRecentFile?.status !== 'loading'
+                  ? 'pr-8'
+                  : ''
+              )}
             />
-            {loaded &&
-            hasCredentials &&
+            {uploader &&
             !uploadError &&
             mostRecentFile?.status !== 'loading' ? (
               <button
                 title={'Upload an image'}
-                className="absolute mr-2 text-gray-600 hover:text-gray-800"
+                className="absolute bottom-2 mr-2 text-gray-600 hover:text-gray-800"
                 aria-label="Add attachment"
-                onClick={() => promptUpload(fileId.current)}
+                onClick={() => uploader.prompt()}
               >
-                <AddIcon className="h-6 w-4" />
+                <AddIcon className="h-4 w-4" />
               </button>
             ) : null}
             {mostRecentFile && mostRecentFile.status === 'loading' ? (
-              <LoadingSpinner className="absolute mr-2 h-4 w-4" />
+              <LoadingSpinner className="absolute bottom-2 mr-2 h-4 w-4" />
             ) : null}
             {uploadError ? (
-              <div className="absolute mr-2">
+              <div className="absolute bottom-2 mr-2">
                 <UploadErrorPopover
                   errorMessage={uploadError}
                   setUploadError={setUploadError}
@@ -354,16 +344,18 @@ export default function ChatInput({
           </div>
         </div>
         <button
-          className="button"
+          className={cn('button', isMobile && 'px-2')}
           disabled={
             sendDisabled ||
             subscription === 'reconnecting' ||
             subscription === 'disconnected' ||
+            mostRecentFile?.status === 'loading' ||
+            mostRecentFile?.status === 'error' ||
             (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
           }
           onClick={onClick}
         >
-          Send
+          {isMobile ? <ArrowNWIcon16 className="h-4 w-4" /> : 'Send'}
         </button>
       </div>
       {isMobile ? <ChatInputMenu editor={messageEditor} /> : null}
