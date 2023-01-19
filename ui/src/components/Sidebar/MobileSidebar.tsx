@@ -1,7 +1,6 @@
 import React from 'react';
 import cn from 'classnames';
 import { Outlet, useMatch } from 'react-router';
-import { useNotifications } from '@/notifications/useNotifications';
 import NavTab from '../NavTab';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
 import ElipsisIcon from '../icons/EllipsisIcon';
@@ -13,7 +12,6 @@ import MagnifyingGlassIcon from '../icons/MagnifyingGlass16Icon';
 export default function MobileSidebar() {
   const ship = window.our;
   const profileMatch = useMatch('/profile/edit');
-  const { count } = useNotifications();
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
