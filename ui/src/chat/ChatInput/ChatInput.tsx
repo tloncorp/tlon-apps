@@ -194,8 +194,6 @@ export default function ChatInput({
     ),
   });
 
-  const text = messageEditor?.getText();
-
   useEffect(() => {
     if (whom && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.setContent('');
@@ -212,13 +210,6 @@ export default function ChatInput({
       messageEditor.commands.focus();
     }
   }, [autoFocus, reply, isMobile, messageEditor]);
-
-  useEffect(() => {
-    if (messageEditor && !messageEditor.isDestroyed) {
-      // if the draft is empty, clear the editor
-      messageEditor.commands.setContent(null, true);
-    }
-  }, [messageEditor]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
