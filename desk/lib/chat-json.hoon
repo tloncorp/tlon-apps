@@ -224,6 +224,14 @@
       ==
       
     ==
+  ::
+  ++  clubs
+    |=  cs=(map id:club:c crew:club:c)
+    %-  pairs
+    %+  turn  ~(tap by cs)
+    |=  [=id:club:c cr=crew:club:c]
+    [(scot %uv id) (crew cr)]
+  ::
   ++  crew
     |=  cr=crew:club:c
     %-  pairs

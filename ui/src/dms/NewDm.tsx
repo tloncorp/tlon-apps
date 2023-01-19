@@ -1,18 +1,19 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import _ from 'lodash';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
+import { Link } from 'react-router-dom';
+import { useLocalStorage } from 'usehooks-ts';
 import ob from 'urbit-ob';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { createStorageKey, newUv, preSig } from '@/logic/utils';
-import { useChatState } from '@/state/chat';
+import { useChatState, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
-import useSendMultiDm from '@/state/chat/useSendMultiDm';
 import { ChatMemo } from '@/types/chat';
-import { Link } from 'react-router-dom';
-import { useLocalStorage } from 'usehooks-ts';
 
 export default function NewDM() {
+  const multiDms = useMultiDms();
   const [ships, setShips] = useLocalStorage<ShipOption[]>(
     createStorageKey('new-dm-ships'),
     []
@@ -21,7 +22,29 @@ export default function NewDM() {
   const navigate = useNavigate();
   const shipValues = useMemo(() => ships.map((o) => preSig(o.value)), [ships]);
   const newClubId = useMemo(() => newUv(), []);
-  const sendMultiDm = useSendMultiDm(true, shipValues);
+  const existingMultiDm = useMemo(() => {
+    const { briefs } = useChatState.getState();
+    return Object.entries(multiDms).reduce<string>((key, [k, v]) => {
+      const theShips = [...v.hive, ...v.team];
+      const sameDM =
+        _.difference(shipValues, theShips).length === 0 &&
+        shipValues.length === theShips.length;
+      const brief = briefs[key];
+      const newBrief = briefs[k];
+      const newer = !brief || (brief && newBrief && newBrief.last > brief.last);
+      if (sameDM && newer) {
+        return k;
+      }
+
+      return key;
+    }, '');
+  }, [multiDms, shipValues]);
+  const who =
+    ships.length > 0
+      ? isMultiDm
+        ? existingMultiDm || newClubId
+        : ships[0].value
+      : '';
 
   const validShips = useCallback(
     () =>
@@ -32,21 +55,22 @@ export default function NewDM() {
 
   const sendDm = useCallback(
     async (whom: string, memo: ChatMemo) => {
-      if (isMultiDm) {
-        await sendMultiDm(whom, memo);
-      } else {
-        await useChatState.getState().sendMessage(whom, memo);
+      if (isMultiDm && shipValues && whom !== existingMultiDm) {
+        await createClub(whom, shipValues);
       }
 
+      await useChatState.getState().sendMessage(whom, memo);
       setShips([]);
       navigate(`/dm/${isMultiDm ? whom : preSig(whom)}`);
     },
-    [navigate, sendMultiDm, isMultiDm, setShips]
+    [isMultiDm, shipValues, existingMultiDm, setShips, navigate]
   );
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {
-      if (isMultiDm) {
+      if (existingMultiDm) {
+        navigate(`/dm/${existingMultiDm}`);
+      } else if (isMultiDm) {
         await createClub(
           newClubId,
           invites.map((s) => s.value)
@@ -55,8 +79,10 @@ export default function NewDM() {
       } else {
         navigate(`/dm/${preSig(invites[0].value)}`);
       }
+
+      setShips([]);
     },
-    [newClubId, isMultiDm, navigate]
+    [newClubId, isMultiDm, existingMultiDm, navigate, setShips]
   );
 
   return (
@@ -65,13 +91,7 @@ export default function NewDM() {
       footer={
         <div className="border-t-2 border-gray-50 p-4">
           <ChatInput
-            whom={
-              ships && ships.length > 0
-                ? ships.length > 1
-                  ? newClubId
-                  : ships[0].value
-                : ''
-            }
+            whom={who}
             showReply
             sendDisabled={!validShips()}
             sendMessage={sendDm}

@@ -115,14 +115,7 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
-    (mule |.(!<([versioned-state epic:e] vase)))
-  =/  [old=versioned-state cool=epic:e bad=?]
-    ::  XX only save when epic changes
-    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
-    =;  [sta=versioned-state ba=?]  [sta okay ba]
-    =-  %+  fall  -  ~&  >  %bad-load  [state &]
-    (mole |.([!<(versioned-state vase) |]))
+  =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state
     ?-  -.old
       %0  (state-0-to-1 old)
@@ -672,6 +665,8 @@
     [%x %chat ~]  ``flags+!>(~(key by chats))
   ::
     [%x %chats ~]  ``chats+!>(chats)
+  ::
+    [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c +.+.club)))
   ::
     [%x %pins ~]  ``chat-pins+!>(pins)
   ::

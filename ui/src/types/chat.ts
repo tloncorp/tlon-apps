@@ -186,6 +186,10 @@ export interface Club {
   meta: GroupMeta;
 }
 
+export interface Clubs {
+  [id: string]: Club; // id is `@uv`
+}
+
 export interface DmAction {
   ship: string;
   diff: WritDiff;
