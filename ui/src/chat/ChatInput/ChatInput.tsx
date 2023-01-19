@@ -190,7 +190,7 @@ export default function ChatInput({
 
         sendMessage(whom, memo);
       }
-      editor?.commands.setContent('');
+      editor?.chain().setContent('').focus().run();
       setTimeout(() => {
         useChatStore.getState().read(whom);
         closeReply();
