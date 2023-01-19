@@ -13,6 +13,7 @@ import {
   Strikethrough,
   Tag,
 } from './content';
+import { Flag } from './hark';
 
 export type Patda = string;
 export type Ship = string;
@@ -333,6 +334,7 @@ export interface DiaryCreate {
 
 export interface DiaryPerm {
   writers: string[];
+  group: Flag;
 }
 
 export interface DiarySaid {
