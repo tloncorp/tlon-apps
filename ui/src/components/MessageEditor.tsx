@@ -22,8 +22,7 @@ import { useChatBlocks, useChatStore } from '@/chat/useChatStore';
 import { useCalm } from '@/state/settings';
 import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import { Uploader } from '@/state/storage/type';
-import { isRef, pathToCite } from '@/logic/utils';
+import { useFileStore } from '@/state/storage';
 import MentionPopup from './Mention/MentionPopup';
 
 interface HandlerParams {
@@ -33,7 +32,7 @@ interface HandlerParams {
 interface useMessageEditorParams {
   whom?: string;
   content: JSONContent | string;
-  uploader?: Uploader;
+  uploadKey: string;
   placeholder?: string;
   editorClass?: string;
   allowMentions?: boolean;
@@ -41,10 +40,18 @@ interface useMessageEditorParams {
   onUpdate?: ({ editor }: HandlerParams) => void;
 }
 
+/**
+ * !!! CAUTION !!!
+ *
+ * Anything passed to this hook which causes a recreation of the editor
+ * will cause it to lose focus, tread with caution.
+ *
+ */
+
 export function useMessageEditor({
   whom,
   content,
-  uploader,
+  uploadKey,
   placeholder,
   editorClass,
   allowMentions = false,
@@ -54,7 +61,6 @@ export function useMessageEditor({
   const calm = useCalm();
   const chatBlocks = useChatBlocks(whom);
   const { setBlocks } = useChatStore.getState();
-  const files = uploader?.files;
 
   const onReference = useCallback(
     (r) => {
@@ -71,6 +77,8 @@ export function useMessageEditor({
       if (!whom) {
         return false;
       }
+
+      const uploader = useFileStore.getState().getUploader(uploadKey);
       if (
         uploader &&
         event.dataTransfer &&
@@ -85,7 +93,7 @@ export function useMessageEditor({
 
       return false;
     },
-    [uploader, whom]
+    [uploadKey, whom]
   );
 
   const handlePaste = useCallback(
@@ -94,6 +102,7 @@ export function useMessageEditor({
         return false;
       }
 
+      const uploader = useFileStore.getState().getUploader(uploadKey);
       if (
         uploader &&
         event.clipboardData &&
@@ -108,32 +117,8 @@ export function useMessageEditor({
 
       return false;
     },
-    [uploader, whom]
+    [uploadKey, whom]
   );
-
-  // update the Attached Items view when files finish uploading and have a size
-  useEffect(() => {
-    if (
-      whom &&
-      files &&
-      Object.values(files).length &&
-      !_.some(Object.values(files), (f) => f.size === undefined)
-    ) {
-      // TODO: handle existing blocks (other refs)
-      setBlocks(
-        whom,
-        Object.values(files).map((f) => ({
-          image: {
-            src: f.url, // TODO: what to put when still loading?
-            width: f.size[0],
-            height: f.size[1],
-            alt: f.file.name,
-          },
-        }))
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files]);
 
   const keyMapExt = useMemo(
     () =>

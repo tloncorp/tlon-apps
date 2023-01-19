@@ -12,6 +12,7 @@ const mockStash: Stash = {
   'heap/~zod/testHeap': {
     perms: {
       writers: ['~zod', '~finned-palmer'],
+      group: '~zod/test',
     },
     view: 'grid',
   },
