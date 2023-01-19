@@ -22,6 +22,21 @@ export default function NewDM() {
   const navigate = useNavigate();
   const shipValues = useMemo(() => ships.map((o) => preSig(o.value)), [ships]);
   const newClubId = useMemo(() => newUv(), []);
+
+  const existingDM = useMemo(() => {
+    if (ships.length !== 1) {
+      return null;
+    }
+
+    const { briefs: chatBriefs } = useChatState.getState();
+    return (
+      Object.entries(chatBriefs).find(([flag, _brief]) => {
+        const theShip = preSig(ships[0].value);
+        const sameDM = theShip === flag;
+        return sameDM;
+      })?.[0] ?? null
+    );
+  }, [ships]);
   const existingMultiDm = useMemo(() => {
     const { briefs } = useChatState.getState();
     return Object.entries(multiDms).reduce<string>((key, [k, v]) => {
@@ -85,6 +100,14 @@ export default function NewDM() {
     [newClubId, isMultiDm, existingMultiDm, navigate, setShips]
   );
 
+  const navigateExistingDM = useCallback(() => {
+    if (!existingDM) {
+      return;
+    }
+    navigate(`/dm/${preSig(existingDM)}`);
+    setShips([]);
+  }, [existingDM, navigate, setShips]);
+
   return (
     <Layout
       className="flex-1"
@@ -111,6 +134,14 @@ export default function NewDM() {
         <Link className="secondary-button py-2.5" to="/">
           Cancel
         </Link>
+        {existingDM ? (
+          <button
+            className="secondary-button w-32 bg-blue py-2.5"
+            onClick={navigateExistingDM}
+          >
+            Go to DM
+          </button>
+        ) : null}
       </div>
     </Layout>
   );
