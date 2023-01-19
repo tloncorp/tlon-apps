@@ -3,7 +3,6 @@ import {
   InlineKey,
   isBlockquote,
   isBold,
-  isBreak,
   isInlineCode,
   isItalics,
   isLink,
@@ -227,7 +226,8 @@ export function JSONToListing(
 
 export function JSONToInlines(
   json: JSONContent,
-  limitNewlines = true
+  limitNewlines = true,
+  codeWithLang = false
 ): (Inline | DiaryBlock)[] {
   switch (json.type) {
     case 'text': {
@@ -268,7 +268,11 @@ export function JSONToInlines(
 
       return [
         {
-          [convertMarkType(first.type)]: JSONToInlines(json, limitNewlines),
+          [convertMarkType(first.type)]: JSONToInlines(
+            json,
+            limitNewlines,
+            codeWithLang
+          ),
         },
       ] as unknown as (Inline | DiaryBlock)[];
     }
@@ -290,11 +294,11 @@ export function JSONToInlines(
           typeof lastMessage !== 'string' &&
           'break' in lastMessage;
         if (isContentFinal && !isBreakDirectlyBefore) {
-          return memo.concat(JSONToInlines(c, limitNewlines), [
+          return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang), [
             { break: null },
           ]);
         }
-        return memo.concat(JSONToInlines(c, limitNewlines));
+        return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang));
       }, [] as (Inline | DiaryBlock)[]);
       return limitNewlines ? limitBreaks(inlines) : inlines;
     }
@@ -304,7 +308,7 @@ export function JSONToInlines(
       }
 
       const inlines = json.content.reduce(
-        (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
+        (memo, c) => memo.concat(JSONToInlines(c, limitNewlines, codeWithLang)),
         [] as (Inline | DiaryBlock)[]
       );
       return limitNewlines ? limitBreaks(inlines) : inlines;
@@ -312,7 +316,8 @@ export function JSONToInlines(
     case 'blockquote': {
       const inlines =
         json.content?.reduce(
-          (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
+          (memo, c) =>
+            memo.concat(JSONToInlines(c, limitNewlines, codeWithLang)),
           [] as (Inline | DiaryBlock)[]
         ) ?? [];
       return [
@@ -326,9 +331,14 @@ export function JSONToInlines(
         return [];
       }
       return [
-        {
-          code: json.content[0].text ?? '',
-        },
+        codeWithLang
+          ? {
+              code: {
+                code: json.content[0].text ?? '',
+                lang: json.attrs?.language ?? 'plaintext',
+              },
+            }
+          : { code: json.content[0].text ?? '' },
       ];
     }
     case 'orderedList': {
@@ -351,7 +361,8 @@ export function JSONToInlines(
           header: {
             tag: `h${json.attrs?.level || 2}` as DiaryHeaderLevel,
             content: (json.content || []).reduce(
-              (memo, c) => memo.concat(JSONToInlines(c, limitNewlines)),
+              (memo, c) =>
+                memo.concat(JSONToInlines(c, limitNewlines, codeWithLang)),
               [] as (Inline | DiaryBlock)[]
             ) as Inline[],
           },
@@ -488,7 +499,12 @@ export function wrapParagraphs(content: JSONContent[]) {
     return [makeParagraph([])];
   }
 
-  return wrappedContent;
+  // now that we've wrapped we can remove the empty paragraph objects.
+  return wrappedContent.filter(
+    (c, i) =>
+      (c.content && c.content.length > 0) ||
+      (c.content === undefined && wrappedContent[i - 1]?.content === undefined)
+  );
 }
 
 // 'foo' | { bold: ['bar'] } | { italics: [ { bold: [ "foobar" ] } ] } | { 'inline-code': 'code' } | { break: null }
@@ -549,16 +565,21 @@ export function makeListing(listing: DiaryListing): JSONContent {
   if ('list' in listing) {
     const { list } = listing;
 
-    if (list.type === 'ordered') {
-      return {
-        type: 'orderedList',
-        content: list.items.map((item) => makeListing(item)),
-      };
-    }
-    return {
-      type: 'bulletList',
+    const returnList = {
+      type: list.type === 'ordered' ? 'orderedList' : 'bulletList',
       content: list.items.map((item) => makeListing(item)),
     };
+
+    if (list.contents.length > 0) {
+      return {
+        type: 'listItem',
+        content: [
+          ...wrapParagraphs(list.contents.map((i) => inlineToContent(i))),
+          returnList,
+        ],
+      };
+    }
+    return returnList;
   }
   return {
     type: 'listItem',

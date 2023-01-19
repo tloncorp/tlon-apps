@@ -245,15 +245,7 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-   =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
-  (mule |.(!<([versioned-state epic:e] vase)))
-  ::  XX only save when epic changes
-  =/  [old=versioned-state cool=epic:e bad=?]
-    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
-    =;  [sta=versioned-state ba=?]  [sta okay ba]
-    =-  %+  fall  -  ~&  >  %bad-load  [state &]
-    (mole |.([!<(versioned-state vase) |]))
-  ::
+  =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
   ?:  =(okay cool)  cor
@@ -721,6 +713,18 @@
       out
     (~(put in out) who)
   ::
+  ++  go-is-banned
+    |=  =ship
+    =*  cordon  cordon.group
+    ?&  =(-.cordon %open)
+        ?-  -.cordon
+            ?(%shut %afar)  |
+            %open
+          ?|  (~(has in ranks.ban.cordon) (clan:title ship))
+              (~(has in ships.ban.cordon) ship)
+          ==
+        ==
+    ==
   ++  go-pass
     |%
     ++  leave
@@ -871,6 +875,10 @@
       =/  src  (slav %p ship.pole)
       `loob+!>((~(has in go-bloc-who) src))
       ::
+        [%fleet ship=@ %is-ban ~]
+      =/  src  (slav %p ship.pole)
+      `loob+!>((go-is-banned src))
+      ::
         [%channel app=@ ship=@ name=@ rest=*]
       =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
       =/  =channel:g  (~(got by channels.group) nes)
@@ -878,6 +886,14 @@
           [%can-read src=@ ~]
         =/  src  (slav %p src.rest.pole)
         `loob+!>((go-can-read src channel))
+        ::
+          [%can-write src=@ ~]
+        =/  src  (slav %p src.rest.pole)
+        =-  `noun+!>(-)
+        ?:  |((go-is-banned src) !(~(has by fleet.group) src))  ~
+        %-  some
+        :-  bloc=(~(has in go-bloc-who) src.bowl)
+        sects=sects:(~(got by fleet.group) src)
       ==
     ==
   ::
@@ -886,6 +902,7 @@
     =/  open  =(-.cordon.group %open)
     =/  ves  (~(get by fleet.group) src)
     =/  visible  =(~ readers.channel)
+    ?:  (go-is-banned src)  |
     ?:  ?|  (~(has in go-bloc-who) src)
             &(open visible)
             &(!=(~ ves) visible)
@@ -1264,17 +1281,19 @@
     ^+  go-core
     =/  user-join  &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))
     =/  am-host  =(p.flag our.bowl)
+    =*  cordon  cordon.group
     ?-    -.diff
         %add
       ?>  ?|  am-host
               =(p.flag src.bowl) :: subscription
               user-join
           ==
-      ?<  ?&  =(-.cordon.group %shut) 
-              ?-  -.cordon.group
+      ?<  (go-is-banned src.bowl)
+      ?<  ?&  =(-.cordon %shut) 
+              ?-  -.cordon
                   ?(%open %afar)  |
                   %shut
-                =/  cross  (~(int in pend.cordon.group) ships)
+                =/  cross  (~(int in pend.cordon) ships)
                 ~&  [cross ~(wyt in ships) ~(wyt in cross)]
                 !=(~(wyt in ships) ~(wyt in cross))
               ==
@@ -1310,10 +1329,10 @@
         ==
       =?  cor  go-is-our-bloc
         (emit (pass-hark & & yarn))
-      ?-  -.cordon.group
+      ?-  -.cordon
           ?(%open %afar)  go-core
           %shut  
-        =.  pend.cordon.group  (~(dif in pend.cordon.group) ships)
+        =.  pend.cordon  (~(dif in pend.cordon) ships)
         go-core
       ==
     ::

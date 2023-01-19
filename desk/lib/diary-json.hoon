@@ -177,13 +177,18 @@
           width+(numb width.b)
           alt+s+alt.b
       ==
+        %code
+      %-  pairs
+      :~  code+s+code.b
+          lang+s+lang.b
+      ==
     ==
   ::
   ++  listing
     |=  l=listing:d
     ^-  json
     %+  frond  -.l
-    ?-  -.l  
+    ?-  -.l
         %item  a+(turn p.l inline)
         %list
       %-  pairs
@@ -435,6 +440,12 @@
     :~  rule/ul
         cite/dejs:cite
         listing/listing
+    ::
+      :-  %code
+      %-  ot
+      :~  code/so
+          lang/(se %tas)
+      ==
     ::
       :-  %header
       %-  ot

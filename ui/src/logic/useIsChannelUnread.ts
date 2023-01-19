@@ -1,8 +1,10 @@
 import _ from 'lodash';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import useAllBriefs from '@/logic/useAllBriefs';
+import { useBriefs, useChats } from '@/state/chat';
+import { useGroups } from '@/state/groups';
 import { useCallback } from 'react';
-import { nestToFlag } from './utils';
+import { canReadChannel, nestToFlag } from './utils';
 
 const selChats = (s: ChatStore) => s.chats;
 
@@ -26,20 +28,34 @@ interface ChannelUnreadCount {
 }
 
 export function useChannelUnreadCounts(args: ChannelUnreadCount) {
-  const briefs = useAllBriefs();
-  const chatKeys = Object.keys(useChatStore(selChats)).map(
-    (key) => `chat/${key}`
+  const briefs = useBriefs();
+  const chats = useChats();
+  const groups = useGroups();
+  const chatKeys = Object.keys(chats);
+
+  const filteredBriefs = _.fromPairs(
+    Object.entries(briefs).filter(([k, v]) => {
+      const chat = chats[k];
+      if (chat) {
+        const group = groups[chat.perms.group];
+        const channel = group?.channels[`chat/${k}`];
+        const vessel = group?.fleet[window.our];
+        return channel && vessel && canReadChannel(channel, vessel, group.bloc);
+      }
+
+      return true;
+    })
   );
 
   switch (args.scope) {
     case 'All Messages':
-      return _.sumBy(Object.values(briefs), 'count');
+      return _.sumBy(Object.values(filteredBriefs), 'count');
     case 'Group Channels':
-      return _.sumBy(Object.values(_.pick(briefs, chatKeys)), 'count');
+      return _.sumBy(Object.values(_.pick(filteredBriefs, chatKeys)), 'count');
     case 'Direct Messages':
       return _.sumBy(Object.values(_.omit(briefs, chatKeys)), 'count');
     default:
-      return _.sumBy(Object.values(briefs), 'count');
+      return _.sumBy(Object.values(filteredBriefs), 'count');
   }
 }
 

@@ -64,13 +64,13 @@ export default function DiaryAddNote() {
 
     setStatus('loading');
 
-    const data = JSONToInlines(editor?.getJSON(), false);
+    const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
 
     const sent = Date.now();
 
     const isBlock = (c: Inline | DiaryBlock) =>
-      ['image', 'cite', 'listing', 'header', 'rule'].some(
+      ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
         (k) => typeof c !== 'string' && k in c
       );
     const noteContent: NoteContent = [];

@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
 import React, { useCallback, useEffect, useMemo } from 'react';
+import _ from 'lodash';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -21,9 +22,8 @@ import { useChatBlocks, useChatStore } from '@/chat/useChatStore';
 import { useCalm } from '@/state/settings';
 import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import useFileUpload from '@/logic/useFileUpload';
-import { useFileStore } from '@/state/storage';
-import { EditorProps } from 'prosemirror-view';
+import { Uploader } from '@/state/storage/type';
+import { isRef, pathToCite } from '@/logic/utils';
 import MentionPopup from './Mention/MentionPopup';
 
 interface HandlerParams {
@@ -33,6 +33,7 @@ interface HandlerParams {
 interface useMessageEditorParams {
   whom?: string;
   content: JSONContent | string;
+  uploader?: Uploader;
   placeholder?: string;
   editorClass?: string;
   allowMentions?: boolean;
@@ -43,6 +44,7 @@ interface useMessageEditorParams {
 export function useMessageEditor({
   whom,
   content,
+  uploader,
   placeholder,
   editorClass,
   allowMentions = false,
@@ -52,8 +54,7 @@ export function useMessageEditor({
   const calm = useCalm();
   const chatBlocks = useChatBlocks(whom);
   const { setBlocks } = useChatStore.getState();
-  const { files } = useFileStore();
-  const { uploadFiles } = useFileUpload();
+  const files = uploader?.files;
 
   const onReference = useCallback(
     (r) => {
@@ -71,19 +72,20 @@ export function useMessageEditor({
         return false;
       }
       if (
+        uploader &&
         event.dataTransfer &&
         Array.from(event.dataTransfer.files).some((f) =>
           PASTEABLE_IMAGE_TYPES.includes(f.type)
         )
       ) {
         // TODO should blocks first be updated here to show the loading state?
-        uploadFiles(event.dataTransfer.files);
+        uploader.uploadFiles(event.dataTransfer.files);
         return true;
       }
 
       return false;
     },
-    [uploadFiles, whom]
+    [uploader, whom]
   );
 
   const handlePaste = useCallback(
@@ -91,33 +93,47 @@ export function useMessageEditor({
       if (!whom) {
         return false;
       }
+      const text = event.clipboardData?.getData('text/plain');
+
+      if (text && isRef(text)) {
+        onReference(pathToCite(text));
+
+        return true;
+      }
+
       if (
+        uploader &&
         event.clipboardData &&
         Array.from(event.clipboardData.files).some((f) =>
           PASTEABLE_IMAGE_TYPES.includes(f.type)
         )
       ) {
         // TODO should blocks first be updated here to show the loading state?
-        uploadFiles(event.clipboardData.files);
+        uploader.uploadFiles(event.clipboardData.files);
         return true;
       }
 
       return false;
     },
-    [uploadFiles, whom]
+    [uploader, whom, onReference]
   );
 
-  // update the Attached Items view when files are uploaded
+  // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
-    if (whom && files && Object.values(files).length) {
+    if (
+      whom &&
+      files &&
+      Object.values(files).length &&
+      !_.some(Object.values(files), (f) => f.size === undefined)
+    ) {
       // TODO: handle existing blocks (other refs)
       setBlocks(
         whom,
         Object.values(files).map((f) => ({
           image: {
             src: f.url, // TODO: what to put when still loading?
-            height: 200, // TODO
-            width: 200,
+            width: f.size[0],
+            height: f.size[1],
             alt: f.file.name,
           },
         }))
@@ -225,10 +241,11 @@ export default function MessageEditor({
   inputClassName,
 }: MessageEditorProps) {
   const isMobile = useIsMobile();
+  const classes = cn('w-full', inputClassName);
   return (
     <div className={cn('input block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
-      <EditorContent className={cn('w-full', inputClassName)} editor={editor} />
+      <EditorContent className={classes} editor={editor} />
       {!isMobile ? <ChatInputMenu editor={editor} /> : null}
     </div>
   );

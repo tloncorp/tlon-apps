@@ -26,11 +26,9 @@ export default function HeapDetailSidebarInfo({
       <div className="flex flex-col space-y-1">
         {title ||
           (!isURL && (
-            <h2 className="whitespace-normal text-lg font-semibold line-clamp-2">
+            <h2 className="text-ellipsis break-all font-semibold text-gray-800 line-clamp-1">
               {title && title}
-              {!title && !isURL
-                ? _.truncate(textPreview, { length: 20 })
-                : null}
+              {!title && !isURL ? textPreview : null}
             </h2>
           ))}
         {isURL && (
@@ -38,7 +36,7 @@ export default function HeapDetailSidebarInfo({
             href={stringContent}
             target="_blank"
             rel="noreferrer"
-            className="text-ellipsis break-all font-semibold text-gray-600 underline line-clamp-1"
+            className="text-ellipsis break-all font-semibold text-gray-800 underline line-clamp-1"
           >
             {stringContent}
           </a>

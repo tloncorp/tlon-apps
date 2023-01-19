@@ -149,8 +149,13 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
+export interface ChatDiffCreate {
+  create: Chat;
+}
+
 export type ChatDiff =
   | { writs: WritDiff }
+  | ChatDiffCreate
   | ChatDiffAddSects
   | ChatDiffDelSects;
 
@@ -179,6 +184,10 @@ export interface Club {
   hive: string[];
   team: string[];
   meta: GroupMeta;
+}
+
+export interface Clubs {
+  [id: string]: Club; // id is `@uv`
 }
 
 export interface DmAction {

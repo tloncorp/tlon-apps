@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import cn from 'classnames';
 import { useLocation } from 'react-router';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
@@ -18,6 +18,7 @@ import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
+import { debounce } from 'lodash';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 
@@ -91,7 +92,7 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const pendingInvites = usePendingInvites();
-  const [scrollTop, setScrollTop] = useState(0);
+  const [scrolledFromTop, setScrolledFromTop] = useState(false);
 
   const pendingInvitesCount = pendingInvites.length;
   const { count } = useNotifications();
@@ -105,9 +106,30 @@ export default function Sidebar() {
 
   const ref = useRef<HTMLUListElement>(null);
 
-  const scrollHandler = () => {
-    setScrollTop(ref.current?.scrollTop || 0);
-  };
+  const classes = useMemo(
+    () =>
+      cn(
+        'flex w-full flex-col space-y-1 px-2 pt-2',
+        scrolledFromTop && 'bottom-shadow'
+      ),
+    [scrolledFromTop]
+  );
+
+  // to prevent re-render, only set state when necessary
+  const scrollHandler = useCallback(() => {
+    debounce(() => {
+      if (ref.current?.scrollTop === 0) {
+        if (!scrolledFromTop) {
+          setScrolledFromTop(true);
+        }
+      } else {
+        // eslint-disable-next-line no-lonely-if
+        if (scrolledFromTop) {
+          setScrolledFromTop(false);
+        }
+      }
+    }, 100);
+  }, [scrolledFromTop]);
 
   if (isMobile) {
     return <MobileSidebar />;
@@ -115,12 +137,7 @@ export default function Sidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-col bg-white">
-      <ul
-        className={cn(
-          'flex w-full flex-col space-y-1 px-2 pt-2',
-          scrollTop > 0 && 'bottom-shadow'
-        )}
-      >
+      <ul className={classes}>
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
         <GroupsAppMenu />
         <div className="h-5" />
@@ -162,7 +179,7 @@ export default function Sidebar() {
       <ul
         ref={ref}
         onScroll={scrollHandler}
-        className="flex-1 overflow-y-auto overflow-x-hidden px-2"
+        className="flex-initial overflow-y-auto overflow-x-hidden px-2"
       >
         {hasKeys(pinnedGroups) ? (
           <GroupList
@@ -185,12 +202,14 @@ export default function Sidebar() {
             isMobile={isMobile}
           />
         </li>
+      </ul>
+      <div className="flex-auto">
         <GroupList
           className="p-2"
           groups={sortedGroups}
           pinnedGroups={sortedPinnedGroups}
         />
-      </ul>
+      </div>
     </nav>
   );
 }

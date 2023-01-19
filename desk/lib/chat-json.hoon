@@ -163,8 +163,9 @@
   ++  diff
     |=  =diff:c
     %+  frond  -.diff
-    ?+  -.diff  ~
-      %writs     (writs-diff p.diff)
+    ?-  -.diff
+      %create     (pairs ~[perms/(perm p.diff)])
+      %writs      (writs-diff p.diff)
       %add-sects  a/(turn ~(tap in p.diff) (lead %s))
       %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
@@ -223,6 +224,14 @@
       ==
       
     ==
+  ::
+  ++  clubs
+    |=  cs=(map id:club:c crew:club:c)
+    %-  pairs
+    %+  turn  ~(tap by cs)
+    |=  [=id:club:c cr=crew:club:c]
+    [(scot %uv id) (crew cr)]
+  ::
   ++  crew
     |=  cr=crew:club:c
     %-  pairs

@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import produce, { enableMapSet } from 'immer';
-import { GcpToken, BaseStorageState } from '@/types/storage';
+import { GcpToken, BaseStorageState } from './type';
+import reduce from './reducer';
 import {
   createState,
   createSubscription,
@@ -8,7 +9,6 @@ import {
   BaseState,
 } from '../base';
 import api from '../../api';
-import reduce from './reducer';
 
 enableMapSet();
 
@@ -47,6 +47,7 @@ export const useStorage = createState<BaseStorageState>(
       configuration: {
         buckets: new Set(),
         currentBucket: '',
+        region: '',
       },
       credentials: null,
     },

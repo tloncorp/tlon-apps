@@ -1,13 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { findLast } from 'lodash';
+import React, { useState, useEffect } from 'react';
 import cn from 'classnames';
 import { useFormContext } from 'react-hook-form';
 import { NoteEssay } from '@/types/diary';
 import { useCalm } from '@/state/settings';
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import useFileUpload from '@/logic/useFileUpload';
-import { useFileStore } from '@/state/storage';
+import { useUploader } from '@/state/storage';
 
 interface CoverImageInputProps {
   className?: string;
@@ -23,11 +21,8 @@ export default function CoverImageInput({
   const image = watch('image');
   const calm = useCalm();
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { loaded, hasCredentials, promptUpload } = useFileUpload();
-  const fileId = useRef(`chat-input-${Math.floor(Math.random() * 1000000)}`);
-  const mostRecentFile = useFileStore((state) =>
-    findLast(state.files, ['for', fileId.current])
-  );
+  const uploader = useUploader('cover-image-input');
+  const mostRecentFile = uploader?.getMostRecent();
 
   useEffect(() => {
     if (
@@ -69,14 +64,14 @@ export default function CoverImageInput({
             placeholder="Insert URL Here..."
             className="input-inner w-full p-0"
           />
-          {loaded && hasCredentials ? (
+          {uploader ? (
             <button
               title={'Upload an image'}
               className="small-button whitespace-nowrap"
               aria-label="Add attachment"
               onClick={(e) => {
                 e.preventDefault();
-                promptUpload(fileId.current);
+                uploader.prompt();
               }}
             >
               {mostRecentFile && mostRecentFile.status === 'loading' ? (

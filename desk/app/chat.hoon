@@ -115,14 +115,7 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =/  maybe-old=(each [p=versioned-state q=epic:e] tang)
-    (mule |.(!<([versioned-state epic:e] vase)))
-  =/  [old=versioned-state cool=epic:e bad=?]
-    ::  XX only save when epic changes
-    ?.  ?=(%| -.maybe-old)  [p q &]:p.maybe-old
-    =;  [sta=versioned-state ba=?]  [sta okay ba]
-    =-  %+  fall  -  ~&  >  %bad-load  [state &]
-    (mole |.([!<(versioned-state vase) |]))
+  =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state
     ?-  -.old
       %0  (state-0-to-1 old)
@@ -291,7 +284,6 @@
     |=  =flag:c
     ^+  cor
     ?<  (~(has by chats) flag)
-    =.  chats  (~(put by chats) flag *chat:c)
     ca-abet:(ca-join:ca-core flag)
   ::
   ++  create
@@ -673,6 +665,8 @@
     [%x %chat ~]  ``flags+!>(~(key by chats))
   ::
     [%x %chats ~]  ``chats+!>(chats)
+  ::
+    [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c +.+.club)))
   ::
     [%x %pins ~]  ``chat-pins+!>(pins)
   ::
@@ -1261,17 +1255,14 @@
   ::
   ++  ca-can-write
     ?:  =(p.flag src.bowl)  &
-    =/  bloc=path
-      %+  welp  ca-groups-scry
-      /fleet/(scot %p src.bowl)/is-bloc/loob
-    =+  .^(is-bloc=? %gx bloc)
-    ?:  is-bloc  &
     =/  =path
       %+  welp  ca-groups-scry
-      /fleet/(scot %p src.bowl)/vessel/noun
-    =+  .^(=vessel:fleet:g %gx path)
-    ?:  =(~ writers.perm.chat)  &
-    !=(~ (~(int in writers.perm.chat) sects.vessel))
+      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
+    =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
+    ?~  write  |
+    =/  perms  (need write) 
+    ?:  |(bloc.perms =(~ writers.perm.chat))  &
+    !=(~ (~(int in writers.perm.chat) sects.perms))
   ::
   ++  ca-can-read
     |=  her=ship
