@@ -60,6 +60,7 @@
     |=  p=perm:h
     %-  pairs
     :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+        group/(flag group.p)
     ==
   ++  action
     |=  =action:h
