@@ -110,14 +110,14 @@ export default function ChatInput({
   // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
     if (
-      whom &&
+      id &&
       files &&
       Object.values(files).length &&
       !_.some(Object.values(files), (f) => f.size === undefined)
     ) {
       // TODO: handle existing blocks (other refs)
       useChatStore.getState().setBlocks(
-        whom,
+        id,
         Object.values(files).map((f) => ({
           image: {
             src: f.url, // TODO: what to put when still loading?
@@ -128,8 +128,7 @@ export default function ChatInput({
         }))
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files]);
+  }, [files, id]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -209,7 +208,7 @@ export default function ChatInput({
    *
    */
   const messageEditor = useMessageEditor({
-    whom: id,
+    whom,
     content: '',
     uploadKey,
     placeholder: 'Message',
