@@ -93,6 +93,27 @@ const MentionList = React.forwardRef<
   );
 });
 
+// assumes already lowercased
+function scoreEntry(filter: string, entry: fuzzy.FilterResult<string>) {
+  const parts = entry.string.split('~');
+
+  if (parts.length === 1) {
+    return entry.score;
+  }
+
+  const [nickname, ship] = parts;
+
+  if (nickname === filter || ship === filter) {
+    return entry.score + 2;
+  }
+
+  if (nickname.startsWith(filter) || ship.startsWith(filter)) {
+    return entry.score + 1;
+  }
+
+  return entry.score;
+}
+
 const MentionPopup: Partial<SuggestionOptions> = {
   char: '~',
   items: ({ query }) => {
@@ -104,8 +125,8 @@ const MentionPopup: Partial<SuggestionOptions> = {
 
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
-    const searchSpace = Object.entries(contacts).map(
-      ([patp, contact]) => `${contact.nickname}${patp}`
+    const searchSpace = Object.entries(contacts).map(([patp, contact]) =>
+      `${contact.nickname}${patp}`.toLocaleLowerCase()
     );
 
     if (valid && !contactNames.includes(sigged)) {
@@ -113,18 +134,12 @@ const MentionPopup: Partial<SuggestionOptions> = {
       searchSpace.push(sigged);
     }
 
+    const lowerQuery = query.toLocaleLowerCase();
     const fuzzyNames = fuzzy
-      .filter(query, searchSpace)
+      .filter(lowerQuery, searchSpace)
       .sort((a, b) => {
         const filter = deSig(query) || '';
-        const left = deSig(a.string)?.startsWith(filter)
-          ? a.score + 1
-          : a.score;
-        const right = deSig(b.string)?.startsWith(filter)
-          ? b.score + 1
-          : b.score;
-
-        return right - left;
+        return scoreEntry(filter, b) - scoreEntry(filter, a);
       })
       .map((result) => contactNames[result.index]);
 
