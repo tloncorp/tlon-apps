@@ -93,8 +93,14 @@ const MentionList = React.forwardRef<
   );
 });
 
+export const DISALLOWED_MENTION_CHARS = /[^\w\d-]/g;
+
+function normalizeText(text: string): string {
+  return text.replace(DISALLOWED_MENTION_CHARS, '');
+}
+
 // assumes already lowercased
-function scoreEntry(filter: string, entry: fuzzy.FilterResult<string>) {
+function scoreEntry(filter: string, entry: fuzzy.FilterResult<string>): number {
   const parts = entry.string.split('~');
 
   if (parts.length === 1) {
@@ -126,7 +132,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(([patp, contact]) =>
-      `${contact.nickname}${patp}`.toLocaleLowerCase()
+      normalizeText(`${contact.nickname}${patp}`).toLocaleLowerCase()
     );
 
     if (valid && !contactNames.includes(sigged)) {
@@ -134,9 +140,9 @@ const MentionPopup: Partial<SuggestionOptions> = {
       searchSpace.push(sigged);
     }
 
-    const lowerQuery = query.toLocaleLowerCase();
+    const normQuery = normalizeText(query).toLocaleLowerCase();
     const fuzzyNames = fuzzy
-      .filter(lowerQuery, searchSpace)
+      .filter(normQuery, searchSpace)
       .sort((a, b) => {
         const filter = deSig(query) || '';
         return scoreEntry(filter, b) - scoreEntry(filter, a);
@@ -177,6 +183,12 @@ const MentionPopup: Partial<SuggestionOptions> = {
       },
       onUpdate: (props) => {
         component.updateProps(props);
+
+        if (DISALLOWED_MENTION_CHARS.test(props.query)) {
+          popup[0].destroy();
+          component?.destroy();
+          return;
+        }
 
         if (!props.clientRect) {
           return;
