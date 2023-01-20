@@ -190,7 +190,7 @@ export default function ChatInput({
 
         sendMessage(whom, memo);
       }
-      editor?.chain().setContent('').focus().run();
+      editor?.commands.setContent('');
       setTimeout(() => {
         useChatStore.getState().read(whom);
         closeReply();
@@ -375,7 +375,10 @@ export default function ChatInput({
             mostRecentFile?.status === 'error' ||
             (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
           }
-          onClick={onClick}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onClick();
+          }}
         >
           {isMobile ? <ArrowNWIcon16 className="h-4 w-4" /> : 'Send'}
         </button>
