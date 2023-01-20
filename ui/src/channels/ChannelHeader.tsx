@@ -10,7 +10,7 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { GroupChannel } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import useIsChannelHost from '@/logic/useIsChannelHost';
-import { nestToFlag, getFlagParts, isTalk } from '@/logic/utils';
+import { nestToFlag, getFlagParts } from '@/logic/utils';
 import {
   useGroup,
   useChannel,
@@ -336,7 +336,7 @@ export default function ChannelHeader({
       )}
     >
       <BackButton
-        to={isMobile && isTalk ? '/' : '../..'}
+        to={`/groups/${flag}`}
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
           isMobile && '-ml-2 flex items-center rounded-lg pr-0 hover:bg-gray-50'
