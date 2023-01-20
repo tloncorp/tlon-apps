@@ -329,7 +329,7 @@ export default function ChatInput({
           ) : null}
           <div className="relative flex items-end justify-end">
             {!isMobile && (
-              <Avatar size="xs" ship={window.our} className="mr-2" />
+              <Avatar size="xs" ship={window.our} className="mr-2 mb-1" />
             )}
             <MessageEditor
               editor={messageEditor}
