@@ -1,4 +1,4 @@
-import { HeapCurios, Stash } from '@/types/heap';
+import { HeapCurios, HeapPerm, Stash } from '@/types/heap';
 import {
   Handler,
   ScryHandler,
@@ -8,12 +8,14 @@ import { subMinutes } from 'date-fns';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 
+const mockPerms: HeapPerm = {
+  writers: ['~zod', '~finned-palmer'],
+  group: '~zod/test',
+};
+
 const mockStash: Stash = {
   'heap/~zod/testHeap': {
-    perms: {
-      group: '~zod/group',
-      writers: ['~zod', '~finned-palmer'],
-    },
+    perms: mockPerms,
     view: 'grid',
   },
 };

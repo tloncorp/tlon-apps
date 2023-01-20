@@ -61,6 +61,7 @@ export interface Uploader {
 export interface FileStore {
   client: S3Client | null;
   uploaders: Record<string, Uploader>;
+  getUploader: (key: string) => Uploader;
   createClient: (s3: S3Credentials, region: string) => void;
   update: (key: string, updateFn: (uploader: Uploader) => void) => void;
   uploadFiles: (

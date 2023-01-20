@@ -1,5 +1,6 @@
 import { Editor } from '@tiptap/react';
 import cn from 'classnames';
+import _ from 'lodash';
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePact } from '@/state/chat';
 import { ChatImage, ChatMemo } from '@/types/chat';
@@ -18,7 +19,7 @@ import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
-import { useUploader } from '@/state/storage';
+import { useFileStore, useUploader } from '@/state/storage';
 import { IMAGE_REGEX, isImageUrl } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
@@ -76,12 +77,15 @@ export default function ChatInput({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const subscription = useSubscriptionStatus();
   const pact = usePact(whom);
-  const chatInfo = useChatInfo(whom);
+  const id = replying ? `${whom}-${replying}` : whom;
+  const chatInfo = useChatInfo(id);
   const reply = replying || chatInfo?.replying || null;
   const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
-  const uploader = useUploader(`chat-input-${whom}-${replying}`);
+  const uploadKey = `chat-input-${id}`;
+  const uploader = useUploader(uploadKey);
+  const files = uploader?.files;
   const mostRecentFile = uploader?.getMostRecent();
 
   const closeReply = useCallback(() => {
@@ -99,9 +103,32 @@ export default function ChatInput({
   }, [mostRecentFile]);
 
   const clearAttachments = useCallback(() => {
-    useChatStore.getState().setBlocks(whom, []);
-    uploader?.clear();
-  }, [whom, uploader]);
+    useChatStore.getState().setBlocks(id, []);
+    useFileStore.getState().getUploader(uploadKey)?.clear();
+  }, [id, uploadKey]);
+
+  // update the Attached Items view when files finish uploading and have a size
+  useEffect(() => {
+    if (
+      id &&
+      files &&
+      Object.values(files).length &&
+      !_.some(Object.values(files), (f) => f.size === undefined)
+    ) {
+      // TODO: handle existing blocks (other refs)
+      useChatStore.getState().setBlocks(
+        id,
+        Object.values(files).map((f) => ({
+          image: {
+            src: f.url, // TODO: what to put when still loading?
+            width: f.size[0],
+            height: f.size[1],
+            alt: f.file.name,
+          },
+        }))
+      );
+    }
+  }, [files, id]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -118,13 +145,8 @@ export default function ChatInput({
       const textIsImageUrl = isImageUrl(text);
 
       if (textIsImageUrl) {
-        let url = text;
-        let name = 'chat-image';
-
-        if (mostRecentFile) {
-          url = mostRecentFile.url;
-          name = mostRecentFile.file.name;
-        }
+        const url = text;
+        const name = 'chat-image';
 
         const img = new Image();
         img.src = url;
@@ -168,18 +190,27 @@ export default function ChatInput({
 
         sendMessage(whom, memo);
       }
-      editor?.commands.setContent('');
-      useChatStore.getState().read(whom);
-      setTimeout(() => closeReply(), 0);
-      clearAttachments();
+      editor?.chain().setContent('').focus().run();
+      setTimeout(() => {
+        useChatStore.getState().read(whom);
+        closeReply();
+        clearAttachments();
+      }, 0);
     },
-    [whom, clearAttachments, mostRecentFile, sendMessage, reply, closeReply]
+    [whom, reply, clearAttachments, sendMessage, closeReply]
   );
 
+  /**
+   * !!! CAUTION !!!
+   *
+   * Anything passed to this hook which causes a recreation of the editor
+   * will cause it to lose focus, tread with caution.
+   *
+   */
   const messageEditor = useMessageEditor({
     whom,
     content: '',
-    uploader,
+    uploadKey,
     placeholder: 'Message',
     allowMentions: true,
     onEnter: useCallback(
@@ -221,7 +252,7 @@ export default function ChatInput({
       const blocks = fetchChatBlocks(whom);
       if ('image' in blocks[idx]) {
         // @ts-expect-error type check on previous line
-        uploader.removeFileByURL(blocks[idx]);
+        uploader.removeByURL(blocks[idx]);
       }
       useChatStore.getState().setBlocks(
         whom,

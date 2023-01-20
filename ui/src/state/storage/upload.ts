@@ -1,11 +1,11 @@
 import _ from 'lodash';
 import create from 'zustand';
 import produce from 'immer';
-import { dateToDa, deSig, s3, S3Credentials } from '@urbit/api';
+import { dateToDa, deSig, S3Credentials } from '@urbit/api';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getImageSize } from 'react-image-size';
-import { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Status } from '@/logic/status';
 import { FileStore, Uploader } from './type';
 import { useStorage } from './storage';
@@ -40,6 +40,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
       forcePathStyle: true,
     });
     set({ client });
+  },
+  getUploader: (key) => {
+    const { uploaders } = get();
+
+    return uploaders[key];
   },
   update: (key: string, updateFn: (uploader: Uploader) => void) => {
     set(produce((draft) => updateFn(draft.uploaders[key])));

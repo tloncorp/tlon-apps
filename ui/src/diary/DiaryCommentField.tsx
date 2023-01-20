@@ -52,6 +52,7 @@ export default function DiaryCommentField({
 
   const messageEditor = useMessageEditor({
     content: '',
+    uploadKey: `diary-comment-field-${flag}`,
     placeholder: 'Add a comment',
     editorClass: 'p-0',
     onEnter: useCallback(
