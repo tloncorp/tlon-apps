@@ -684,9 +684,11 @@
   ++  go-core  .
   ++  go-abet
     =.  groups 
-      ?:  gone  (~(del by groups) flag)
+      ?:  gone  
+        (~(del by groups) flag)
       (~(put by groups) flag net group)
     ?.  gone  cor
+    =?  cor  !=(p.flag our.bowl)  (emit leave:go-pass)
     =/  =action:g  [flag now.bowl %del ~]
     (give %fact ~[/groups/ui] act:mar !>(action))
   ++  go-abed
@@ -759,7 +761,6 @@
     --
   ::
   ++  go-leave
-    =.  cor  (emit leave:go-pass)
     =.  cor  (emit remove-self:go-pass)
     =.  cor  (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
     go-core(gone &)
