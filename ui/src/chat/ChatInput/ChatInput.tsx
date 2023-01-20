@@ -216,7 +216,7 @@ export default function ChatInput({
    *
    */
   const messageEditor = useMessageEditor({
-    whom,
+    whom: id,
     content: '',
     uploadKey,
     placeholder: 'Message',
