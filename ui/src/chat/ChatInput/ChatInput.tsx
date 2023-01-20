@@ -10,6 +10,7 @@ import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import {
   fetchChatBlocks,
+  useChatBlocks,
   useChatInfo,
   useChatStore,
 } from '@/chat/useChatStore';
@@ -20,7 +21,13 @@ import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
 import { useFileStore, useUploader } from '@/state/storage';
-import { IMAGE_REGEX, isImageUrl } from '@/logic/utils';
+import {
+  IMAGE_REGEX,
+  REF_REGEX,
+  isImageUrl,
+  pathToCite,
+  URL_REGEX,
+} from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
 import { useSubscriptionStatus } from '@/state/local';
@@ -87,6 +94,7 @@ export default function ChatInput({
   const uploader = useUploader(uploadKey);
   const files = uploader?.files;
   const mostRecentFile = uploader?.getMostRecent();
+  const { setBlocks } = useChatStore.getState();
 
   const closeReply = useCallback(() => {
     useChatStore.getState().reply(whom, null);
@@ -241,6 +249,55 @@ export default function ChatInput({
       messageEditor.commands.focus();
     }
   }, [autoFocus, reply, isMobile, messageEditor]);
+
+  const editorText = messageEditor?.getText();
+  const editorHTML = messageEditor?.getHTML();
+
+  useEffect(() => {
+    if (/Android \d/.test(navigator.userAgent)) {
+      // Android's Gboard doesn't send a clipboard event when pasting
+      // so we have to use a hacky workaround to detect pastes for refs
+      // https://github.com/ProseMirror/prosemirror/issues/1206
+      if (messageEditor && !messageEditor.isDestroyed && editorText !== '') {
+        if (editorText?.match(REF_REGEX)) {
+          const path = editorText.match(REF_REGEX)?.[0];
+          const cite = path ? pathToCite(path) : undefined;
+          if (!cite || !path) {
+            return;
+          }
+          if (!whom) {
+            return;
+          }
+          setBlocks(whom, [{ cite }]);
+          messageEditor.commands.deleteRange({
+            from: editorText.indexOf(path),
+            to: editorText.indexOf(path) + path.length + 1,
+          });
+        }
+        if (editorText?.match(URL_REGEX)) {
+          const url = editorText.match(URL_REGEX)?.[0];
+          if (!url) {
+            return;
+          }
+          const urlIncluded = editorHTML?.includes(
+            `<a target="_blank" rel="noopener noreferrer nofollow" href="${url}">${url}</a>`
+          );
+          if (urlIncluded) {
+            return;
+          }
+          messageEditor
+            .chain()
+            .setTextSelection({
+              from: editorText.indexOf(url),
+              to: editorText.indexOf(url) + url.length + 1,
+            })
+            .setLink({ href: url })
+            .selectTextblockEnd()
+            .run();
+        }
+      }
+    }
+  }, [messageEditor, editorText, editorHTML, whom, setBlocks]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
