@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import fuzzy from 'fuzzy';
 import React, { useEffect, useImperativeHandle, useState } from 'react';
-import { isValidPatp } from 'urbit-ob';
+import { isValidPatp, clan } from 'urbit-ob';
 import { ReactRenderer } from '@tiptap/react';
 import { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion';
 import tippy from 'tippy.js';
@@ -81,7 +81,7 @@ const MentionList = React.forwardRef<
               onClick={() => selectItem(index)}
             >
               <Avatar size="xs" ship={i.id} />
-              <ShipName name={i.id} showAlias />
+              <ShipName name={i.id} full={clan(i.id) !== 'comet'} showAlias />
               {contacts[i.id]?.nickname ? (
                 <ShipName name={i.id} className="text-gray-400" />
               ) : null}
@@ -103,21 +103,33 @@ function normalizeText(text: string): string {
 function scoreEntry(filter: string, entry: fuzzy.FilterResult<string>): number {
   const parts = entry.string.split('~');
 
+  // shouldn't happen
   if (parts.length === 1) {
     return entry.score;
   }
 
   const [nickname, ship] = parts;
+  // downrank comets significantly
+  const score = ship.length > 28 ? entry.score * 0.25 : entry.score;
 
-  if (nickname === filter || ship === filter) {
-    return entry.score + 2;
+  // making this highest because ships are unique, nicknames are not
+  // also prevents someone setting their nickname as someone else's
+  // patp taking over prime position
+  if (ship === filter) {
+    return score + 120;
   }
 
-  if (nickname.startsWith(filter) || ship.startsWith(filter)) {
-    return entry.score + 1;
+  if (nickname === filter) {
+    return score + 100;
   }
 
-  return entry.score;
+  // since ship is in the middle of the string we need to make it work
+  // as if it was at the beginning
+  if (nickname && ship.startsWith(filter)) {
+    return score + 80;
+  }
+
+  return score;
 }
 
 const MentionPopup: Partial<SuggestionOptions> = {
@@ -132,7 +144,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(([patp, contact]) =>
-      normalizeText(`${contact.nickname}${patp}`).toLocaleLowerCase()
+      `${normalizeText(contact.nickname)}${patp}`.toLocaleLowerCase()
     );
 
     if (valid && !contactNames.includes(sigged)) {
@@ -141,15 +153,17 @@ const MentionPopup: Partial<SuggestionOptions> = {
     }
 
     const normQuery = normalizeText(query).toLocaleLowerCase();
-    const fuzzyNames = fuzzy
-      .filter(normQuery, searchSpace)
-      .sort((a, b) => {
-        const filter = deSig(query) || '';
-        return scoreEntry(filter, b) - scoreEntry(filter, a);
-      })
-      .map((result) => contactNames[result.index]);
+    const fuzzyNames = fuzzy.filter(normQuery, searchSpace).sort((a, b) => {
+      const filter = deSig(query) || '';
+      const right = scoreEntry(filter, b);
+      const left = scoreEntry(filter, a);
+      return right - left;
+    });
 
-    const items = fuzzyNames.slice(0, 5).map((id) => ({ id }));
+    const items = fuzzyNames
+      .slice(0, 5)
+      .map((entry) => ({ id: contactNames[entry.index] }));
+    console.log(fuzzyNames.slice(0, 5));
 
     return items;
   },
