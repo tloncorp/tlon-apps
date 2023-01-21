@@ -20,7 +20,7 @@ export default function useMessageSelector() {
   const shipValues = useMemo(() => ships.map((o) => preSig(o.value)), [ships]);
   const multiDms = useMultiDms();
 
-  const existingDM = useMemo(() => {
+  const existingDm = useMemo(() => {
     if (ships.length !== 1) {
       return null;
     }
@@ -57,8 +57,8 @@ export default function useMessageSelector() {
     async (invites: ShipOption[]) => {
       if (existingMultiDm) {
         navigate(`/dm/${existingMultiDm}`);
-      } else if (existingDM) {
-        navigate(`/dm/${preSig(existingDM)}`);
+      } else if (existingDm) {
+        navigate(`/dm/${preSig(existingDm)}`);
       } else if (isMultiDm) {
         await createClub(
           newClubId,
@@ -71,7 +71,7 @@ export default function useMessageSelector() {
 
       setShips([]);
     },
-    [existingMultiDm, existingDM, isMultiDm, setShips, navigate, newClubId]
+    [existingMultiDm, existingDm, isMultiDm, setShips, navigate, newClubId]
   );
 
   const sendDm = useCallback(
@@ -97,7 +97,7 @@ export default function useMessageSelector() {
     [existingMultiDm, isMultiDm, newClubId, ships]
   );
 
-  const validShips = useCallback(
+  const validShips = useMemo(
     () =>
       Boolean(shipValues.length) &&
       shipValues.every((ship) => ob.isValidPatp(ship)),
@@ -105,6 +105,8 @@ export default function useMessageSelector() {
   );
 
   return {
+    existingDm,
+    existingMultiDm,
     onEnter,
     sendDm,
     setShips,

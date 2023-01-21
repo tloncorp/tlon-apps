@@ -1,14 +1,14 @@
-import _ from 'lodash';
 import React from 'react';
-import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import ShipSelector from '@/components/ShipSelector';
 import useMessageSelector from '@/logic/useMessageSelector';
+import MessageSelector from './MessageSelector';
 
 export default function NewDM() {
-  const { onEnter, sendDm, setShips, ships, validShips, whom } =
+  const { existingDm, existingMultiDm, sendDm, validShips, whom } =
     useMessageSelector();
+
+  const action = existingDm || existingMultiDm ? 'Open' : 'Create';
 
   return (
     <Layout
@@ -18,25 +18,22 @@ export default function NewDM() {
           <ChatInput
             whom={whom}
             showReply
-            sendDisabled={!validShips()}
+            sendDisabled={!validShips}
             sendMessage={sendDm}
           />
         </div>
       }
     >
-      <div className="flex w-full items-center space-x-2 py-3 px-4">
-        <div className="w-full">
-          <ShipSelector
-            ships={ships}
-            setShips={setShips}
-            onEnter={onEnter}
-            isMulti={true}
-          />
+      <MessageSelector />
+      {validShips ? (
+        <div className="flex h-full flex-1 flex-col items-center justify-center">
+          <div className="flex w-fit flex-col items-center justify-center rounded-md border border-dashed border-gray-200 p-8">
+            <div className="text-lg text-gray-500">Press Enter to {action}</div>
+            <div className="text-md text-gray-300">or</div>
+            <div className="text-lg text-gray-500">Add More Ships</div>
+          </div>
         </div>
-        <Link className="secondary-button py-2.5" to="/">
-          Cancel
-        </Link>
-      </div>
+      ) : null}
     </Layout>
   );
 }
