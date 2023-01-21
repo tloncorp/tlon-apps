@@ -339,36 +339,24 @@ export const useChatState = createState<ChatState>(
     },
     fetchNewer: async (whom: string, count: string) => {
       const isDM = whomIsDm(whom);
-      if (isDM) {
-        return makeWritsStore(
-          whom,
-          get,
-          `/dm/${whom}/writs`,
-          `/dm/${whom}/ui`
-        ).getNewer(count);
-      }
+      const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
+
       return makeWritsStore(
         whom,
         get,
-        `/chat/${whom}/writs`,
-        `/chat/${whom}/ui/writs`
+        `/${type}/${whom}/writs`,
+        `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
       ).getNewer(count);
     },
     fetchOlder: async (whom: string, count: string) => {
       const isDM = whomIsDm(whom);
-      if (isDM) {
-        return makeWritsStore(
-          whom,
-          get,
-          `/dm/${whom}/writs`,
-          `/dm/${whom}/ui`
-        ).getOlder(count);
-      }
+      const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
+
       return makeWritsStore(
         whom,
         get,
-        `/chat/${whom}/writs`,
-        `/chat/${whom}/ui/writs`
+        `/${type}/${whom}/writs`,
+        `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
       ).getOlder(count);
     },
     fetchMultiDms: async () => {
