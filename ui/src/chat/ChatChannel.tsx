@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import cn from 'classnames';
@@ -24,9 +24,15 @@ function ChatChannel({ title }: ViewProps) {
   const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
   const { setRecentChannel } = useRecentChannel(groupFlag);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    useChatState.getState().initialize(chFlag);
+    const initializeChannel = async () => {
+      setLoading(true);
+      await useChatState.getState().initialize(chFlag);
+      setLoading(false);
+    };
+    initializeChannel();
     setRecentChannel(nest);
   }, [chFlag, nest, setRecentChannel]);
 
@@ -65,7 +71,7 @@ function ChatChannel({ title }: ViewProps) {
               : title}
           </title>
         </Helmet>
-        <ChatWindow whom={chFlag} messages={messages} />
+        <ChatWindow whom={chFlag} messages={messages} loading={loading} />
       </Layout>
       <Outlet />
     </>

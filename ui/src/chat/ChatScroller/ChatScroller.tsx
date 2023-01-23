@@ -139,6 +139,7 @@ export default function ChatScroller({
   prefixedElement,
   scrollTo = undefined,
   scrollerRef,
+  loading,
 }: IChatScroller) {
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
   const firstUnreadID = useGetFirstUnreadID(whom);
@@ -283,7 +284,7 @@ export default function ChatScroller({
     [BottomLoader, TopLoader]
   );
 
-  if (keys.length === 0) {
+  if (loading) {
     return (
       <div className="h-full">
         <ChatScrollerPlaceholder count={30} />
