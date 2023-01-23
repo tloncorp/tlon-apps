@@ -1412,7 +1412,7 @@
     ::
         %del-sects
       ?>  go-is-bloc
-      ?<  &(has-host (~(has in sects.diff) 'admin'))
+      ?:  &(has-host (~(has in sects.diff) 'admin'))  go-core
       =.  fleet.group
         %-  ~(rut by fleet.group)
         |=  [=ship =vessel:fleet:g]
