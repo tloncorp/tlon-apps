@@ -1,12 +1,20 @@
 import cn from 'classnames';
 import fuzzy from 'fuzzy';
-import React, { useEffect, useImperativeHandle, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from 'react';
+import { useMatch } from 'react-router';
 import { isValidPatp, clan } from 'urbit-ob';
 import { ReactRenderer } from '@tiptap/react';
 import { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion';
 import tippy from 'tippy.js';
 import { deSig } from '@urbit/api';
 import useContactState, { useContacts } from '@/state/contact';
+import { useGroup, useGroupFlag } from '@/state/groups';
+import { useMultiDms } from '@/state/chat';
 import { preSig } from '@/logic/utils';
 import Avatar from '../Avatar';
 import ShipName from '../ShipName';
@@ -19,8 +27,26 @@ const MentionList = React.forwardRef<
   MentionListHandle,
   SuggestionProps<{ id: string }>
 >((props, ref) => {
+  const flag = useGroupFlag();
+  const group = useGroup(flag);
+  const multiDms = useMultiDms();
+  const match = useMatch('/dm/:ship');
   const contacts = useContacts();
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const getMessage = useCallback(
+    (ship: string) => {
+      if (match) {
+        const multiDm = match && multiDms[match.params.ship || ''];
+        return !multiDm || ![...multiDm.hive, ...multiDm.team].includes(ship)
+          ? 'Not in message'
+          : null;
+      }
+
+      return !group?.fleet[ship] ? 'Not in group' : null;
+    },
+    [group, multiDms, match]
+  );
 
   const selectItem = (index: number) => {
     const item = props.items[index];
@@ -69,13 +95,13 @@ const MentionList = React.forwardRef<
   }));
 
   return (
-    <div className="dropdown p-1">
-      <ul>
+    <div className="dropdown min-w-96 p-1">
+      <ul className="w-full">
         {(props.items || []).map((i, index) => (
-          <li key={i.id}>
+          <li key={i.id} className="w-full">
             <button
               className={cn(
-                'dropdown-item flex w-full items-center space-x-2',
+                'dropdown-item flex w-full items-center space-x-2 text-left',
                 index === selectedIndex && 'bg-gray-50'
               )}
               onClick={() => selectItem(index)}
@@ -84,6 +110,11 @@ const MentionList = React.forwardRef<
               <ShipName name={i.id} full={clan(i.id) !== 'comet'} showAlias />
               {contacts[i.id]?.nickname ? (
                 <ShipName name={i.id} className="text-gray-400" />
+              ) : null}
+              {getMessage(i.id) ? (
+                <span className="flex-1 pl-6 text-right font-normal text-gray-400">
+                  {getMessage(i.id)}
+                </span>
               ) : null}
             </button>
           </li>
@@ -163,7 +194,6 @@ const MentionPopup: Partial<SuggestionOptions> = {
     const items = fuzzyNames
       .slice(0, 5)
       .map((entry) => ({ id: contactNames[entry.index] }));
-    console.log(fuzzyNames.slice(0, 5));
 
     return items;
   },
