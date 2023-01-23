@@ -33,7 +33,7 @@ function DateDividerComponent(
         {unreadCount ? (
           <>
             &nbsp;&bull;&nbsp;
-            {unreadCount} new {pluralize('messsage', unreadCount)} below
+            {unreadCount} new {pluralize('message', unreadCount)} below
           </>
         ) : null}
       </span>

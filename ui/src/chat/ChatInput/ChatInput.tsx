@@ -1,5 +1,6 @@
 import { Editor } from '@tiptap/react';
 import cn from 'classnames';
+import _ from 'lodash';
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePact } from '@/state/chat';
 import { ChatImage, ChatMemo } from '@/types/chat';
@@ -9,6 +10,7 @@ import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import {
   fetchChatBlocks,
+  useChatBlocks,
   useChatInfo,
   useChatStore,
 } from '@/chat/useChatStore';
@@ -18,8 +20,14 @@ import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
-import { useUploader } from '@/state/storage';
-import { IMAGE_REGEX, isImageUrl } from '@/logic/utils';
+import { useFileStore, useUploader } from '@/state/storage';
+import {
+  IMAGE_REGEX,
+  REF_REGEX,
+  isImageUrl,
+  pathToCite,
+  URL_REGEX,
+} from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
 import { useSubscriptionStatus } from '@/state/local';
@@ -76,13 +84,17 @@ export default function ChatInput({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const subscription = useSubscriptionStatus();
   const pact = usePact(whom);
-  const chatInfo = useChatInfo(whom);
+  const id = replying ? `${whom}-${replying}` : whom;
+  const chatInfo = useChatInfo(id);
   const reply = replying || chatInfo?.replying || null;
   const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
-  const uploader = useUploader(`chat-input-${whom}-${replying}`);
+  const uploadKey = `chat-input-${id}`;
+  const uploader = useUploader(uploadKey);
+  const files = uploader?.files;
   const mostRecentFile = uploader?.getMostRecent();
+  const { setBlocks } = useChatStore.getState();
 
   const closeReply = useCallback(() => {
     useChatStore.getState().reply(whom, null);
@@ -99,9 +111,32 @@ export default function ChatInput({
   }, [mostRecentFile]);
 
   const clearAttachments = useCallback(() => {
-    useChatStore.getState().setBlocks(whom, []);
-    uploader?.clear();
-  }, [whom, uploader]);
+    useChatStore.getState().setBlocks(id, []);
+    useFileStore.getState().getUploader(uploadKey)?.clear();
+  }, [id, uploadKey]);
+
+  // update the Attached Items view when files finish uploading and have a size
+  useEffect(() => {
+    if (
+      id &&
+      files &&
+      Object.values(files).length &&
+      !_.some(Object.values(files), (f) => f.size === undefined)
+    ) {
+      // TODO: handle existing blocks (other refs)
+      useChatStore.getState().setBlocks(
+        id,
+        Object.values(files).map((f) => ({
+          image: {
+            src: f.url, // TODO: what to put when still loading?
+            width: f.size[0],
+            height: f.size[1],
+            alt: f.file.name,
+          },
+        }))
+      );
+    }
+  }, [files, id]);
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -118,13 +153,8 @@ export default function ChatInput({
       const textIsImageUrl = isImageUrl(text);
 
       if (textIsImageUrl) {
-        let url = text;
-        let name = 'chat-image';
-
-        if (mostRecentFile) {
-          url = mostRecentFile.url;
-          name = mostRecentFile.file.name;
-        }
+        const url = text;
+        const name = 'chat-image';
 
         const img = new Image();
         img.src = url;
@@ -169,17 +199,26 @@ export default function ChatInput({
         sendMessage(whom, memo);
       }
       editor?.commands.setContent('');
-      useChatStore.getState().read(whom);
-      setTimeout(() => closeReply(), 0);
-      clearAttachments();
+      setTimeout(() => {
+        useChatStore.getState().read(whom);
+        closeReply();
+        clearAttachments();
+      }, 0);
     },
-    [whom, clearAttachments, mostRecentFile, sendMessage, reply, closeReply]
+    [whom, reply, clearAttachments, sendMessage, closeReply]
   );
 
+  /**
+   * !!! CAUTION !!!
+   *
+   * Anything passed to this hook which causes a recreation of the editor
+   * will cause it to lose focus, tread with caution.
+   *
+   */
   const messageEditor = useMessageEditor({
     whom,
     content: '',
-    uploader,
+    uploadKey,
     placeholder: 'Message',
     allowMentions: true,
     onEnter: useCallback(
@@ -193,8 +232,6 @@ export default function ChatInput({
       [onSubmit, subscription]
     ),
   });
-
-  const text = messageEditor?.getText();
 
   useEffect(() => {
     if (whom && messageEditor && !messageEditor.isDestroyed) {
@@ -213,12 +250,54 @@ export default function ChatInput({
     }
   }, [autoFocus, reply, isMobile, messageEditor]);
 
+  const editorText = messageEditor?.getText();
+  const editorHTML = messageEditor?.getHTML();
+
   useEffect(() => {
-    if (messageEditor && !messageEditor.isDestroyed) {
-      // if the draft is empty, clear the editor
-      messageEditor.commands.setContent(null, true);
+    if (/Android \d/.test(navigator.userAgent)) {
+      // Android's Gboard doesn't send a clipboard event when pasting
+      // so we have to use a hacky workaround to detect pastes for refs
+      // https://github.com/ProseMirror/prosemirror/issues/1206
+      if (messageEditor && !messageEditor.isDestroyed && editorText !== '') {
+        if (editorText?.match(REF_REGEX)) {
+          const path = editorText.match(REF_REGEX)?.[0];
+          const cite = path ? pathToCite(path) : undefined;
+          if (!cite || !path) {
+            return;
+          }
+          if (!whom) {
+            return;
+          }
+          setBlocks(whom, [{ cite }]);
+          messageEditor.commands.deleteRange({
+            from: editorText.indexOf(path),
+            to: editorText.indexOf(path) + path.length + 1,
+          });
+        }
+        if (editorText?.match(URL_REGEX)) {
+          const url = editorText.match(URL_REGEX)?.[0];
+          if (!url) {
+            return;
+          }
+          const urlIncluded = editorHTML?.includes(
+            `<a target="_blank" rel="noopener noreferrer nofollow" href="${url}">${url}</a>`
+          );
+          if (urlIncluded) {
+            return;
+          }
+          messageEditor
+            .chain()
+            .setTextSelection({
+              from: editorText.indexOf(url),
+              to: editorText.indexOf(url) + url.length + 1,
+            })
+            .setLink({ href: url })
+            .selectTextblockEnd()
+            .run();
+        }
+      }
     }
-  }, [messageEditor]);
+  }, [messageEditor, editorText, editorHTML, whom, setBlocks]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -230,7 +309,7 @@ export default function ChatInput({
       const blocks = fetchChatBlocks(whom);
       if ('image' in blocks[idx]) {
         // @ts-expect-error type check on previous line
-        uploader.removeFileByURL(blocks[idx]);
+        uploader.removeByURL(blocks[idx]);
       }
       useChatStore.getState().setBlocks(
         whom,
@@ -307,7 +386,7 @@ export default function ChatInput({
           ) : null}
           <div className="relative flex items-end justify-end">
             {!isMobile && (
-              <Avatar size="xs" ship={window.our} className="mr-2" />
+              <Avatar size="xs" ship={window.our} className="mr-2 mb-1" />
             )}
             <MessageEditor
               editor={messageEditor}
@@ -353,7 +432,10 @@ export default function ChatInput({
             mostRecentFile?.status === 'error' ||
             (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
           }
-          onClick={onClick}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onClick();
+          }}
         >
           {isMobile ? <ArrowNWIcon16 className="h-4 w-4" /> : 'Send'}
         </button>

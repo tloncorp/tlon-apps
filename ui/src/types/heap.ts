@@ -12,6 +12,7 @@ import {
   Tag,
   Inline,
 } from './content';
+import { Flag } from './hark';
 
 export type Patda = string;
 export type Ship = string;
@@ -211,6 +212,7 @@ export interface HeapCreate {
 
 export interface HeapPerm {
   writers: string[];
+  group: Flag;
 }
 
 export const LINK = 'link';

@@ -124,6 +124,7 @@ export default function HeapTextInput({
   const messageEditor = useMessageEditor({
     whom: flag,
     content: draft || '',
+    uploadKey: `heap-text-input-${flag}`,
     placeholder: placeholder || 'Enter Text Here',
     onUpdate,
     onEnter: useCallback(
