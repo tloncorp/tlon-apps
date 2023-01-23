@@ -292,12 +292,11 @@ export function useDiaryInlineEditor({
     {
       extensions: [
         Blockquote,
-        Bold.extend({ exitable: true, inclusive: false }),
+        Bold.extend({ exitable: true }),
         BulletList,
         Code.extend({
           excludes: undefined,
           exitable: true,
-          inclusive: false,
         }).configure({
           HTMLAttributes: {
             class: 'rounded px-1 bg-gray-50 dark:bg-gray-100',
@@ -309,10 +308,10 @@ export function useDiaryInlineEditor({
         Heading,
         History.configure({ newGroupDelay: 100 }),
         HorizontalRule,
-        Italic.extend({ exitable: true, inclusive: false }),
+        Italic.extend({ exitable: true }),
         Link.configure({
           openOnClick: false,
-        }).extend({ exitable: true, inclusive: false }),
+        }).extend({ exitable: true }),
         ListItem,
         Mention.extend({ priority: 1000 }).configure({
           HTMLAttributes: {
@@ -329,7 +328,7 @@ export function useDiaryInlineEditor({
           showOnlyWhenEditable: false,
           includeChildren: true,
         }),
-        Strike.extend({ exitable: true, inclusive: false }),
+        Strike.extend({ exitable: true }),
         Text,
         Shortcuts({
           Enter: onEnter,
