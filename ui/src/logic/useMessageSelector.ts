@@ -60,33 +60,25 @@ export default function useMessageSelector() {
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {
-      if (invites.length === ships.length) {
-        if (existingMultiDm) {
-          navigate(`/dm/${existingMultiDm}`);
-        } else if (existingDm) {
-          navigate(`/dm/${preSig(existingDm)}`);
-        } else if (isMultiDm) {
-          await createClub(
-            newClubId,
-            invites.map((s) => s.value)
-          );
-          navigate(`/dm/${newClubId}`);
-        } else {
-          navigate(`/dm/${preSig(invites[0].value)}`);
-        }
-
-        setShips([]);
+      if (existingMultiDm) {
+        navigate(`/dm/${existingMultiDm}`);
+      } else if (existingDm) {
+        navigate(`/dm/${preSig(existingDm)}`);
+      } else if (isMultiDm) {
+        await createClub(
+          newClubId,
+          invites
+            .filter((i) => preSig(i.value) !== window.our)
+            .map((s) => preSig(s.value))
+        );
+        navigate(`/dm/${newClubId}`);
+      } else {
+        navigate(`/dm/${preSig(invites[0].value)}`);
       }
+
+      setShips([]);
     },
-    [
-      ships,
-      existingMultiDm,
-      existingDm,
-      isMultiDm,
-      setShips,
-      navigate,
-      newClubId,
-    ]
+    [existingMultiDm, existingDm, isMultiDm, setShips, navigate, newClubId]
   );
 
   const sendDm = useCallback(
@@ -122,18 +114,15 @@ export default function useMessageSelector() {
   const action = existingDm || existingMultiDm ? 'Open' : 'Create';
   const isSelectingMessage = useMemo(() => ships.length > 0, [ships]);
 
-  // navigate to existing DM if it exists, or to new DM if no ships are selected
   useEffect(() => {
     if (existingDm) {
       navigate(`/dm/${preSig(existingDm)}`);
     } else if (existingMultiDm) {
       navigate(`/dm/${existingMultiDm}`);
+    } else if (shipValues.length > 0) {
+      navigate(`/dm/new`);
     }
-    // TODO: handle backspace / empty state ?
-    //  else {
-    //   navigate(`/dm/new`);
-    // }
-  }, [existingDm, existingMultiDm, navigate]);
+  }, [existingDm, existingMultiDm, navigate, shipValues]);
 
   return {
     action,

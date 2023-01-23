@@ -301,9 +301,10 @@ export default function ShipSelector({
     }
     if (ships && ships.length > 0 && validShips && onEnter) {
       onEnter(ships);
-      if (!isMulti) {
-        setShips([]);
-      }
+      // TODO: Is this a Chesterton's fence? Why only clear if not multi? Should onEnter be responsible for clearing?
+      // if (!isMulti) {
+      //   setShips([]);
+      // }
     }
   };
 
