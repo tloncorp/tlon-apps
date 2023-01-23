@@ -1,6 +1,6 @@
 import { difference } from 'lodash';
 import ob from 'urbit-ob';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 import { ShipOption } from '@/components/ShipSelector';
@@ -37,11 +37,14 @@ export default function useMessageSelector() {
 
   const existingMultiDm = useMemo(() => {
     const { briefs } = useChatState.getState();
-    return Object.entries(multiDms).reduce<string>((key, [k, v]) => {
+    const clubId = Object.entries(multiDms).reduce<string>((key, [k, v]) => {
       const theShips = [...v.hive, ...v.team];
+      const ourShipValues = shipValues.includes(window.our)
+        ? shipValues
+        : [...shipValues, window.our];
       const sameDM =
-        difference(shipValues, theShips).length === 0 &&
-        shipValues.length === theShips.length;
+        difference(ourShipValues, theShips).length === 0 &&
+        ourShipValues.length === theShips.length;
       const brief = briefs[key];
       const newBrief = briefs[k];
       const newer = !brief || (brief && newBrief && newBrief.last > brief.last);
@@ -51,27 +54,39 @@ export default function useMessageSelector() {
 
       return key;
     }, '');
+
+    return clubId !== '' ? clubId : null;
   }, [multiDms, shipValues]);
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {
-      if (existingMultiDm) {
-        navigate(`/dm/${existingMultiDm}`);
-      } else if (existingDm) {
-        navigate(`/dm/${preSig(existingDm)}`);
-      } else if (isMultiDm) {
-        await createClub(
-          newClubId,
-          invites.map((s) => s.value)
-        );
-        navigate(`/dm/${newClubId}`);
-      } else {
-        navigate(`/dm/${preSig(invites[0].value)}`);
-      }
+      if (invites.length === ships.length) {
+        if (existingMultiDm) {
+          navigate(`/dm/${existingMultiDm}`);
+        } else if (existingDm) {
+          navigate(`/dm/${preSig(existingDm)}`);
+        } else if (isMultiDm) {
+          await createClub(
+            newClubId,
+            invites.map((s) => s.value)
+          );
+          navigate(`/dm/${newClubId}`);
+        } else {
+          navigate(`/dm/${preSig(invites[0].value)}`);
+        }
 
-      setShips([]);
+        setShips([]);
+      }
     },
-    [existingMultiDm, existingDm, isMultiDm, setShips, navigate, newClubId]
+    [
+      ships,
+      existingMultiDm,
+      existingDm,
+      isMultiDm,
+      setShips,
+      navigate,
+      newClubId,
+    ]
   );
 
   const sendDm = useCallback(
@@ -104,9 +119,27 @@ export default function useMessageSelector() {
     [shipValues]
   );
 
+  const action = existingDm || existingMultiDm ? 'Open' : 'Create';
+  const isSelectingMessage = useMemo(() => ships.length > 0, [ships]);
+
+  // navigate to existing DM if it exists, or to new DM if no ships are selected
+  useEffect(() => {
+    if (existingDm) {
+      navigate(`/dm/${preSig(existingDm)}`);
+    } else if (existingMultiDm) {
+      navigate(`/dm/${existingMultiDm}`);
+    }
+    // TODO: handle backspace / empty state ?
+    //  else {
+    //   navigate(`/dm/new`);
+    // }
+  }, [existingDm, existingMultiDm, navigate]);
+
   return {
+    action,
     existingDm,
     existingMultiDm,
+    isSelectingMessage,
     onEnter,
     sendDm,
     setShips,

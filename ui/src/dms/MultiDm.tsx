@@ -14,16 +14,20 @@ import ChatWindow from '@/chat/ChatWindow';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { pluralize } from '@/logic/utils';
+import useMessageSelector from '@/logic/useMessageSelector';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
 import DmOptions from './DMOptions';
+import MessageSelector from './MessageSelector';
 
 export default function MultiDm() {
   const clubId = useParams<{ ship: string }>().ship!;
   const isMobile = useIsMobile();
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
+
+  const { existingMultiDm, isSelectingMessage } = useMessageSelector();
 
   useEffect(() => {
     if (clubId && club) {
@@ -92,12 +96,14 @@ export default function MultiDm() {
                 whom={clubId}
                 sendMessage={sendMessage}
                 showReply
-                autoFocus
+                autoFocus={!isSelectingMessage}
+                sendDisabled={isSelectingMessage}
               />
             </div>
           ) : null
         }
       >
+        {existingMultiDm ? <MessageSelector /> : null}
         {isAccepted ? (
           <ChatWindow
             whom={clubId}

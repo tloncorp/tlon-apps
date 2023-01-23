@@ -1,14 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import useMessageSelector from '@/logic/useMessageSelector';
 import MessageSelector from './MessageSelector';
 
 export default function NewDM() {
-  const { existingDm, existingMultiDm, sendDm, validShips, whom } =
-    useMessageSelector();
-
-  const action = existingDm || existingMultiDm ? 'Open' : 'Create';
+  const { sendDm, validShips, whom } = useMessageSelector();
 
   return (
     <Layout
@@ -25,15 +22,6 @@ export default function NewDM() {
       }
     >
       <MessageSelector />
-      {validShips ? (
-        <div className="flex h-full flex-1 flex-col items-center justify-center">
-          <div className="flex w-fit flex-col items-center justify-center rounded-md border border-dashed border-gray-200 p-8">
-            <div className="text-lg text-gray-500">Press Enter to {action}</div>
-            <div className="text-md text-gray-300">or</div>
-            <div className="text-lg text-gray-500">Add More Ships</div>
-          </div>
-        </div>
-      ) : null}
     </Layout>
   );
 }

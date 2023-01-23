@@ -13,6 +13,8 @@ import { useContact } from '@/state/contact';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import DMHero from '@/dms/DMHero';
+import useMessageSelector from '@/logic/useMessageSelector';
+import MessageSelector from './MessageSelector';
 
 function BackLink({
   children,
@@ -39,6 +41,8 @@ export default function Dm() {
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
+
+  const { existingDm, isSelectingMessage } = useMessageSelector();
 
   useEffect(() => {
     if (ship && canStart) {
@@ -97,12 +101,14 @@ export default function Dm() {
                 whom={ship}
                 sendMessage={sendMessage}
                 showReply
-                autoFocus
+                autoFocus={!isSelectingMessage}
+                sendDisabled={isSelectingMessage}
               />
             </div>
           ) : null
         }
       >
+        {existingDm ? <MessageSelector /> : null}
         {isAccepted ? (
           <ChatWindow
             whom={ship}
