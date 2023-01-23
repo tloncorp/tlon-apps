@@ -51,7 +51,11 @@ function ChatChannel({ title }: ViewProps) {
         className="flex-1 bg-white"
         header={<ChannelHeader flag={groupFlag} nest={nest} />}
         footer={
-          <div className={cn(canWrite ? 'border-t-2 border-gray-50 p-4' : '')}>
+          <div
+            className={cn(
+              canWrite ? 'border-t-2 border-gray-50 p-3 sm:p-4' : ''
+            )}
+          >
             {canWrite ? (
               <ChatInput whom={chFlag} sendMessage={sendMessage} showReply />
             ) : null}

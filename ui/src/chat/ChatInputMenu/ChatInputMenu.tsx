@@ -134,7 +134,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     [selected, status, editor]
   );
   if (isMobile) {
-    return editor.view.hasFocus() || status === 'editing-link' ? (
+    return (
       <ChatInputMenuToolbar
         editor={editor}
         toolbarRef={toolbarRef}
@@ -145,7 +145,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         isSelected={isSelected}
         openLinkEditor={openLinkEditor}
       />
-    ) : null;
+    );
   }
   return (
     <Popover.Root open={status !== 'closed'}>
