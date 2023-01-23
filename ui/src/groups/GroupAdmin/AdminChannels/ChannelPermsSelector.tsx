@@ -11,20 +11,20 @@ interface ChannelPrivacySetting {
 
 export const PRIVACY_TYPE: Record<ChannelPrivacyType, ChannelPrivacySetting> = {
   public: {
-    title: 'Open to All',
-    description: 'Anyone can view and write',
+    title: 'Open to All Members',
+    description: 'Everyone can view and write',
     readerSects: ['all'],
     writerSects: ['all'],
   },
   'read-only': {
-    title: 'Members Can View',
-    description: 'Members can only view',
+    title: 'Members Can Read Only',
+    description: 'Only admins can write',
     readerSects: ['all'],
     writerSects: ['admin'],
   },
   secret: {
     title: 'Admin Only',
-    description: 'Only Admin can view and write',
+    description: 'Only admins can view and write',
     readerSects: ['admin'],
     writerSects: ['admin'],
   },
