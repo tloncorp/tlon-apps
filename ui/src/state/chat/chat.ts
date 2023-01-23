@@ -691,7 +691,7 @@ export const useChatState = createState<ChatState>(
         draft.chatSubs.push(whom);
       });
 
-      makeWritsStore(
+      await makeWritsStore(
         whom,
         get,
         `/chat/${whom}/writs`,
