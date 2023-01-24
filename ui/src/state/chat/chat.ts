@@ -285,27 +285,11 @@ export const useChatState = createState<ChatState>(
           get().batchSet((draft) => {
             const {
               flag,
-              update: { diff, time },
+              update: { diff },
             } = event;
             const chat = draft.chats[flag];
-            const pact = draft.pacts[flag];
 
-            if ('writs' in diff && pact) {
-              const { id, delta } = diff.writs;
-              const { index, writs } = pact;
-              if ('add' in delta) {
-                // correct time key in chats
-                const timeKey = index[id];
-                const writ = timeKey && writs.get(timeKey);
-
-                if (writ) {
-                  const newWrits = pact.writs.delete(timeKey);
-                  const newTime = bigInt(udToDec(time));
-                  draft.pacts[flag].writs = newWrits.set(newTime, writ);
-                  draft.pacts[flag].index[id] = newTime;
-                }
-              }
-            } else if ('create' in diff) {
+            if ('create' in diff) {
               draft.chats[flag] = diff.create;
             } else if ('del-sects' in diff) {
               chat.perms.writers = chat.perms.writers.filter(
