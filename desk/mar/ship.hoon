@@ -1,17 +1,20 @@
-/-  g=groups
-/+  j=groups-json
 |_  s=ship
 ++  grad  %noun
 ++  grow
   |%
-  ++  mime  [/text/x-ship (as-octs:mimes:html (scot %p s))]
   ++  noun  s
-  ++  json  s/(scot %p s)
+  ++  json  s+(scot %p s)
+  ++  mime
+    ^-  ^mime
+    [/text/x-ship (as-octt:mimes:html (scow %p s))]
+
   --
 ++  grab
   |%
   ++  noun  ship
-  ++  json  (se:dejs:format %p)
-  ++  mime  |=([=mite len=@ud tex=@] `@p`(slav %p tex))
+  ++  json  (su:dejs:format ;~(pfix sig fed:ag))
+  ++  mime
+    |=  [=mite len=@ tex=@]
+    (slav %p (snag 0 (to-wain:format tex)))
   --
 --
