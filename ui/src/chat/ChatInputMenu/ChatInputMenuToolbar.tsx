@@ -98,7 +98,7 @@ export default function ChatInputMenuToolbar({
       ) : (
         <div
           className={`items center flex space-x-1  ${
-            isMobile ? 'justify-between px-0 py-1' : 'p-1'
+            isMobile ? 'justify-between' : 'p-1'
           }`}
         >
           <ChatInputMenuButton
