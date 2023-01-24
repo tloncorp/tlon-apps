@@ -231,12 +231,12 @@ exports[`NewChannelModal > renders as expected 1`] = `
                       <span
                         class="font-semibold"
                       >
-                        Open to All
+                        Open to All Members
                       </span>
                       <span
                         class="text-sm font-medium text-gray-600"
                       >
-                        Anyone can view and write
+                        Everyone can view and write
                       </span>
                     </div>
                   </div>
@@ -272,12 +272,12 @@ exports[`NewChannelModal > renders as expected 1`] = `
                       <span
                         class="font-semibold"
                       >
-                        Members Can View
+                        Members Can Read Only
                       </span>
                       <span
                         class="text-sm font-medium text-gray-600"
                       >
-                        Members can only view
+                        Only admins can write
                       </span>
                     </div>
                   </div>
@@ -318,7 +318,7 @@ exports[`NewChannelModal > renders as expected 1`] = `
                       <span
                         class="text-sm font-medium text-gray-600"
                       >
-                        Only Admin can view and write
+                        Only admins can view and write
                       </span>
                     </div>
                   </div>
