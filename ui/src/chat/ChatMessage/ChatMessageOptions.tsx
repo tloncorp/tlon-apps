@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { useCopy } from '@/logic/utils';
-import { useAmAdmin, useRouteGroup } from '@/state/groups';
-import { useChatState } from '@/state/chat';
+import { useNavigate, useParams } from 'react-router';
+import { useCopy, canWriteChannel } from '@/logic/utils';
+import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import { useChatPerms, useChatState } from '@/state/chat';
 import { ChatWrit } from '@/types/chat';
 import IconButton from '@/components/IconButton';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -28,6 +28,12 @@ export default function ChatMessageOptions(props: {
     `/1/chan/chat/${whom}/msg/${writ.seal.id}`
   );
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { chShip, chName } = useParams();
+  const chFlag = `${chShip}/${chName}`;
+  const perms = useChatPerms(chFlag);
+  const vessel = useVessel(groupFlag, window.our);
+  const group = useGroup(groupFlag);
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   const onDelete = () => {
     useChatState.getState().delMessage(whom, writ.seal.id);
@@ -54,18 +60,20 @@ export default function ChatMessageOptions(props: {
   const navigate = useNavigate();
   return (
     <div className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle opacity-0 group-one-hover:opacity-100">
-      <EmojiPicker
-        open={pickerOpen}
-        setOpen={setPickerOpen}
-        onEmojiSelect={onEmoji}
-      >
-        <IconButton
-          icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
-          label="React"
-          showTooltip
-          action={openPicker}
-        />
-      </EmojiPicker>
+      {canWrite ? (
+        <EmojiPicker
+          open={pickerOpen}
+          setOpen={setPickerOpen}
+          onEmojiSelect={onEmoji}
+        >
+          <IconButton
+            icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
+            label="React"
+            showTooltip
+            action={openPicker}
+          />
+        </EmojiPicker>
+      ) : null}
       {!writ.memo.replying && writ.memo.replying?.length !== 0 && !hideReply ? (
         <>
           {/*
