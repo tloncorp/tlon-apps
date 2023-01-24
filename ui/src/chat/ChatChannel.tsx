@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import cn from 'classnames';
@@ -15,7 +15,13 @@ import {
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, canWriteChannel } from '@/logic/utils';
+import {
+  canReadChannel,
+  canWriteChannel,
+  isChannelJoined,
+} from '@/logic/utils';
+import useAllBriefs from '@/logic/useAllBriefs';
+import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder';
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
@@ -25,31 +31,49 @@ function ChatChannel({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const { setRecentChannel } = useRecentChannel(groupFlag);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const initializeChannel = async () => {
-      setLoading(true);
-      await useChatState.getState().initialize(chFlag);
-      setLoading(false);
-    };
-    initializeChannel();
-    setRecentChannel(nest);
-  }, [chFlag, nest, setRecentChannel]);
-
   const messages = useMessagesForChat(chFlag);
   const perms = useChatPerms(chFlag);
   const vessel = useVessel(groupFlag, window.our);
   const channel = useChannel(groupFlag, nest);
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const canRead = channel
+    ? canReadChannel(channel, vessel, group?.bloc)
+    : false;
   const { sendMessage } = useChatState.getState();
+  const briefs = useAllBriefs();
+  const joined = isChannelJoined(nest, briefs);
+
+  const joinChannel = useCallback(async () => {
+    await useChatState.getState().joinChat(chFlag);
+    window.location.reload();
+  }, [chFlag]);
+
+  const initializeChannel = useCallback(async () => {
+    await useChatState.getState().initialize(chFlag);
+    setLoading(false);
+  }, [chFlag]);
 
   useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
+    if (!joined) {
+      joinChannel();
+    }
+  }, [joined, joinChannel]);
+
+  useEffect(() => {
+    setLoading(true);
+    if (joined && channel && canRead) {
+      initializeChannel();
+      setRecentChannel(nest);
+    }
+  }, [nest, setRecentChannel, initializeChannel, joined, canRead, channel]);
+
+  useEffect(() => {
+    if (channel && !canRead) {
       navigate('../../activity');
       setRecentChannel('');
     }
-  }, [group, channel, vessel, navigate, setRecentChannel]);
+  }, [group, channel, vessel, navigate, setRecentChannel, canRead]);
 
   return (
     <>
@@ -75,7 +99,13 @@ function ChatChannel({ title }: ViewProps) {
               : title}
           </title>
         </Helmet>
-        <ChatWindow whom={chFlag} messages={messages} loading={loading} />
+        {loading ? (
+          <div className="h-full">
+            <ChatScrollerPlaceholder count={30} />
+          </div>
+        ) : (
+          <ChatWindow whom={chFlag} messages={messages} />
+        )}
       </Layout>
       <Outlet />
     </>
