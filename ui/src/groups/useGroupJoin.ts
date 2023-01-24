@@ -87,20 +87,15 @@ export default function useGroupJoin(
         }
       } catch (e) {
         setStatus('error');
+        if (requested) {
+          await useGroupState.getState().rescind(flag);
+        } else {
+          await useGroupState.getState().reject(flag);
+        }
         if (isTalk) {
-          if (requested) {
-            await useGroupState.getState().rescind(flag);
-          } else {
-            await useGroupState.getState().reject(flag);
-          }
           const href = `/apps/groups/find/${flag}/`;
           window.open(`${window.location.origin}${href}`, '_blank');
         } else {
-          if (requested) {
-            await useGroupState.getState().rescind(flag);
-          } else {
-            await useGroupState.getState().reject(flag);
-          }
           navigate(`/find/${flag}`);
         }
       }
