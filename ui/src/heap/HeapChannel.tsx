@@ -35,9 +35,11 @@ import {
   canReadChannel,
   canWriteChannel,
   createStorageKey,
+  isChannelJoined,
 } from '@/logic/utils';
 import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
+import useAllBriefs from '@/logic/useAllBriefs';
 import NewCurioForm from './NewCurioForm';
 
 function HeapChannel({ title }: ViewProps) {
@@ -66,6 +68,13 @@ function HeapChannel({ title }: ViewProps) {
   const curios = useCuriosForHeap(chFlag);
   const perms = useHeapPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const briefs = useAllBriefs();
+  const joined = isChannelJoined(nest, briefs);
+
+  const joinChannel = useCallback(async () => {
+    await useHeapState.getState().joinHeap(chFlag);
+    window.location.reload();
+  }, [chFlag]);
 
   const setDisplayMode = (setting: HeapDisplayMode) => {
     const newSettings = setSetting<HeapSetting>(
@@ -97,9 +106,17 @@ function HeapChannel({ title }: ViewProps) {
   );
 
   useEffect(() => {
-    useHeapState.getState().initialize(chFlag);
-    setRecentChannel(nest);
-  }, [chFlag, nest, setRecentChannel]);
+    if (!joined) {
+      joinChannel();
+    }
+  }, [joined, joinChannel]);
+
+  useEffect(() => {
+    if (joined) {
+      useHeapState.getState().initialize(chFlag);
+      setRecentChannel(nest);
+    }
+  }, [chFlag, nest, setRecentChannel, joined]);
 
   useDismissChannelNotifications({
     nest,

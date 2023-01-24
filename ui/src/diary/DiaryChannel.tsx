@@ -5,8 +5,6 @@ import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import Layout from '@/components/Layout/Layout';
 import {
-  GROUP_ADMIN,
-  useAmAdmin,
   useChannel,
   useGroup,
   useRouteGroup,
@@ -35,8 +33,9 @@ import useRecentChannel from '@/logic/useRecentChannel';
 import {
   canReadChannel,
   canWriteChannel,
-  createStorageKey,
+  isChannelJoined,
 } from '@/logic/utils';
+import useAllBriefs from '@/logic/useAllBriefs';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
@@ -52,6 +51,13 @@ function DiaryChannel() {
   const { setRecentChannel } = useRecentChannel(flag);
   const group = useGroup(flag);
   const channel = useChannel(flag, nest);
+  const briefs = useAllBriefs();
+  const joined = isChannelJoined(nest, briefs);
+
+  const joinChannel = useCallback(async () => {
+    await useDiaryState.getState().joinDiary(chFlag);
+    window.location.reload();
+  }, [chFlag]);
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
@@ -95,9 +101,17 @@ function DiaryChannel() {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   useEffect(() => {
-    useDiaryState.getState().initialize(chFlag);
-    setRecentChannel(nest);
-  }, [chFlag, nest, setRecentChannel]);
+    if (!joined) {
+      joinChannel();
+    }
+  }, [joined, joinChannel]);
+
+  useEffect(() => {
+    if (joined) {
+      useDiaryState.getState().initialize(chFlag);
+      setRecentChannel(nest);
+    }
+  }, [chFlag, nest, setRecentChannel, joined]);
 
   useEffect(() => {
     let timeout: any;
