@@ -66,6 +66,12 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
       setSectStatus('loading');
 
       const inSect = v.sects.includes(sect);
+      const isOwner = flag.includes(ship);
+
+      if (inSect && sect === 'admin' && isOwner) {
+        setSectStatus('error');
+        return;
+      }
       if (inSect) {
         try {
           await useGroupState.getState().delSects(flag, ship, [sect]);

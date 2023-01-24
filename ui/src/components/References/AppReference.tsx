@@ -36,10 +36,10 @@ export default function AppReference({ flag, isScrolling }: AppReferenceProps) {
             <div className="flex items-center space-x-3 font-semibold">
               {treaty.image && !calm.disableRemoteContent ? (
                 <div
-                  className="h-12 w-12 rounded-md"
+                  className="relative h-12 w-12 rounded-md"
                   style={{ background: treaty.color }}
                 >
-                  <img src={treaty.image} className="h-12 w-12" />
+                  <img src={treaty.image} className="absolute m-0 h-12 w-12" />
                 </div>
               ) : (
                 <ColorBoxIcon
@@ -49,17 +49,20 @@ export default function AppReference({ flag, isScrolling }: AppReferenceProps) {
                 />
               )}
               <div className="flex flex-col space-y-1">
-                <div className="flex items-center space-x-2">
-                  <h3>{treaty.title}</h3>
-                  <span className="font-semibold text-gray-400">
+                <div>
+                  <h3 className="m-0 inline text-base">{treaty.title}</h3>
+                  <span className="text-base font-semibold text-gray-400">
+                    {' '}
                     by <ShipName name={treaty.ship} />
                   </span>
                 </div>
-                <span className="capitalize text-gray-400">Application</span>
+                <span className="text-base capitalize text-gray-400">
+                  Application
+                </span>
               </div>
             </div>
           </div>
-          <div className="p-2">
+          <div className="pr-2 pb-2">
             <button
               className="small-button ml-2 w-fit bg-blue text-white dark:text-black"
               onClick={openLink}
