@@ -40,10 +40,10 @@ function ChatChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate('../../activity');
+      navigate(`/groups/${groupFlag}/activity`);
       setRecentChannel('');
     }
-  }, [group, channel, vessel, navigate, setRecentChannel]);
+  }, [groupFlag, group, channel, vessel, navigate, setRecentChannel]);
 
   return (
     <>

@@ -53,10 +53,10 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate('../../activity');
+      navigate(`/groups/${flag}/activity`);
       setRecentChannel('');
     }
-  }, [group, channel, vessel, navigate, setRecentChannel]);
+  }, [flag, group, channel, vessel, navigate, setRecentChannel]);
 
   const displayMode = useHeapDisplayMode(chFlag);
   const settings = useHeapSettings();
