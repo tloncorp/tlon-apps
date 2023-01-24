@@ -233,6 +233,7 @@ export default function FindGroups({ title }: ViewProps) {
                   hasPrompt={false}
                   placeholder={''}
                   isValidNewOption={isValidNewOption}
+                  autoFocus={isMobile ? false : true}
                 />
               </div>
             </div>
