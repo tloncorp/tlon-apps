@@ -57,7 +57,7 @@ export default function NoteReference({
     }
 
     let charCount = 0;
-    const truncated = outline.content.slice(0, 1).map((verse, index) => {
+    return outline.content.slice(0, 1).map((verse, index) => {
       if ('inline' in verse) {
         return (
           <div key={index}>
@@ -78,8 +78,6 @@ export default function NoteReference({
       // TODO: handle blocks.
       return '';
     });
-
-    return truncated;
   }, [outline]);
 
   if (scryError !== undefined) {
@@ -96,7 +94,10 @@ export default function NoteReference({
 
   return (
     <div className="note-inline-block not-prose group">
-      <div className="flex flex-col space-y-2 p-2 group-hover:bg-gray-50">
+      <div
+        onClick={handleOpenReferenceClick}
+        className="flex cursor-pointer flex-col space-y-2 p-2 group-hover:bg-gray-50"
+      >
         {outline.image ? (
           <div
             className="relative h-36 w-full rounded-lg bg-gray-100 bg-cover bg-center px-4"
