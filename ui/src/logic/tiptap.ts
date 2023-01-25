@@ -627,6 +627,21 @@ export const blockToContent = (content: DiaryBlock): JSONContent => {
     };
   }
 
+  if ('code' in content) {
+    return {
+      type: 'codeBlock',
+      content: [
+        {
+          type: 'text',
+          text: content.code.code,
+        },
+      ],
+      attrs: {
+        language: content.code.lang || 'plaintext',
+      },
+    };
+  }
+
   // TODO: is there a better fallback than an empty newline?
   return makeParagraph();
 };
