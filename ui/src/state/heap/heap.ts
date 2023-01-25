@@ -281,7 +281,7 @@ export const useHeapState = createState<HeapState>(
         path: `/heap/${flag}/perm`,
       });
       get().batchSet((draft) => {
-        const heap = { perms, view: 'list' as HeapDisplayMode };
+        const heap = { perms, view: 'grid' as HeapDisplayMode };
         draft.stash[flag] = heap;
         draft.heapSubs.push(flag);
       });
