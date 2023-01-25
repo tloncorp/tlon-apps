@@ -21,9 +21,12 @@ import {
 import _ from 'lodash';
 import { refractor } from 'refractor';
 import { toH } from 'hast-to-hyperscript';
+import hoon from 'refractor/lang/hoon.js';
 import { useIsDark } from '@/logic/useMedia';
 import cn from 'classnames';
 import DiaryContentImage from './DiaryContentImage';
+
+refractor.register(hoon);
 
 interface DiaryContentProps {
   content: NoteContent;
