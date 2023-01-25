@@ -125,7 +125,7 @@ function HeapChannel({ title }: ViewProps) {
   ]);
 
   useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
+    if (channel && !canRead) {
       navigate('../../activity');
       setRecentChannel('');
     }
