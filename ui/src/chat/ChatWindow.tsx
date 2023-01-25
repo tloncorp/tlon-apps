@@ -13,13 +13,11 @@ interface ChatWindowProps {
   whom: string;
   messages: BigIntOrderedMap<ChatWrit>;
   prefixedElement?: ReactNode;
-  loading?: boolean;
 }
 
 export default function ChatWindow({
   whom,
   messages,
-  loading,
   prefixedElement,
 }: ChatWindowProps) {
   const location = useLocation();
@@ -54,7 +52,6 @@ export default function ChatWindow({
            * the channel would be scrolled to the top.
            */
           key={whom}
-          loading={loading}
           messages={messages}
           whom={whom}
           prefixedElement={prefixedElement}

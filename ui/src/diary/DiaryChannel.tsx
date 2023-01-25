@@ -1,12 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import Layout from '@/components/Layout/Layout';
 import {
-  GROUP_ADMIN,
-  useAmAdmin,
   useChannel,
   useGroup,
   useRouteGroup,
@@ -35,12 +32,14 @@ import useRecentChannel from '@/logic/useRecentChannel';
 import {
   canReadChannel,
   canWriteChannel,
-  createStorageKey,
+  isChannelJoined,
 } from '@/logic/utils';
+import useAllBriefs from '@/logic/useAllBriefs';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
 function DiaryChannel() {
+  const [joining, setJoining] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
@@ -52,6 +51,20 @@ function DiaryChannel() {
   const { setRecentChannel } = useRecentChannel(flag);
   const group = useGroup(flag);
   const channel = useChannel(flag, nest);
+  const briefs = useAllBriefs();
+  const joined = isChannelJoined(nest, briefs);
+
+  const joinChannel = useCallback(async () => {
+    setJoining(true);
+    await useDiaryState.getState().joinDiary(chFlag);
+    setJoining(false);
+  }, [chFlag]);
+
+  const initializeChannel = useCallback(async () => {
+    setTimeout(async () => {
+      await useDiaryState.getState().initialize(chFlag);
+    }, 1000);
+  }, [chFlag]);
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
@@ -93,11 +106,32 @@ function DiaryChannel() {
   const perms = useDiaryPerms(chFlag);
 
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const canRead = channel
+    ? canReadChannel(channel, vessel, group?.bloc)
+    : false;
 
   useEffect(() => {
-    useDiaryState.getState().initialize(chFlag);
-    setRecentChannel(nest);
-  }, [chFlag, nest, setRecentChannel]);
+    if (!joined) {
+      joinChannel();
+    }
+  }, [joined, joinChannel, channel]);
+
+  useEffect(() => {
+    if (joined && !joining && channel && canRead) {
+      initializeChannel();
+      setRecentChannel(nest);
+    }
+  }, [
+    chFlag,
+    nest,
+    setRecentChannel,
+    joined,
+    initializeChannel,
+    joining,
+    briefs,
+    channel,
+    canRead,
+  ]);
 
   useEffect(() => {
     let timeout: any;
