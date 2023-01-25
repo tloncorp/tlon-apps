@@ -129,7 +129,7 @@ function HeapChannel({ title }: ViewProps) {
       navigate('../../activity');
       setRecentChannel('');
     }
-  }, [group, channel, vessel, navigate, setRecentChannel]);
+  }, [group, channel, vessel, navigate, setRecentChannel, canRead]);
   useDismissChannelNotifications({
     nest,
     markRead: useHeapState.getState().markRead,
