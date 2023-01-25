@@ -273,7 +273,6 @@ export const useHeapState = createState<HeapState>(
     },
     initialize: async (flag) => {
       if (get().heapSubs.includes(flag)) {
-        console.log('already subscribed to', flag);
         return;
       }
 
