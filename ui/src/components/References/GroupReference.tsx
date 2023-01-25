@@ -39,7 +39,9 @@ export default function GroupReference({
   }, [gang, group, flag, isScrolling]);
 
   const referenceUnavailable =
-    privacy === 'secret' && !(window.our in (group?.fleet ?? {}));
+    privacy === 'secret' &&
+    !(window.our in (group?.fleet ?? {})) &&
+    !(gang?.invite && gang.invite.ship === window.our);
 
   if (referenceUnavailable) {
     return (
