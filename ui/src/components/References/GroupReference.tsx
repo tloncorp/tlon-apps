@@ -38,7 +38,10 @@ export default function GroupReference({
     }
   }, [gang, group, flag, isScrolling]);
 
-  if (privacy === 'secret') {
+  const referenceUnavailable =
+    privacy === 'secret' && !(window.our in (group?.fleet ?? {}));
+
+  if (referenceUnavailable) {
     return (
       <div className="relative flex h-16 items-center space-x-3 rounded-lg border-2 border-gray-50 bg-gray-50 p-2 text-base font-semibold text-gray-600">
         <ExclamationPoint className="h-8 w-8 text-gray-400" />
