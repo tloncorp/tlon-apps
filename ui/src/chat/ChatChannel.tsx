@@ -31,6 +31,7 @@ function ChatChannel({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const { setRecentChannel } = useRecentChannel(groupFlag);
   const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
   const messages = useMessagesForChat(chFlag);
   const perms = useChatPerms(chFlag);
   const vessel = useVessel(groupFlag, window.our);
@@ -45,8 +46,9 @@ function ChatChannel({ title }: ViewProps) {
   const joined = isChannelJoined(nest, briefs);
 
   const joinChannel = useCallback(async () => {
+    setJoining(true);
     await useChatState.getState().joinChat(chFlag);
-    window.location.reload();
+    setJoining(false);
   }, [chFlag]);
 
   const initializeChannel = useCallback(async () => {
@@ -62,11 +64,19 @@ function ChatChannel({ title }: ViewProps) {
 
   useEffect(() => {
     setLoading(true);
-    if (joined && channel && canRead) {
+    if (joined && channel && canRead && !joining) {
       initializeChannel();
       setRecentChannel(nest);
     }
-  }, [nest, setRecentChannel, initializeChannel, joined, canRead, channel]);
+  }, [
+    nest,
+    setRecentChannel,
+    initializeChannel,
+    joined,
+    canRead,
+    channel,
+    joining,
+  ]);
 
   useEffect(() => {
     if (channel && !canRead) {

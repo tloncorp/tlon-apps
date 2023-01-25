@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
-import _ from 'lodash';
+import React, { useCallback, useEffect, useState } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
@@ -11,8 +10,6 @@ import {
   useChannel,
   useGroup,
   useVessel,
-  GROUP_ADMIN,
-  useAmAdmin,
 } from '@/state/groups/groups';
 import {
   useCuriosForHeap,
@@ -34,7 +31,6 @@ import useDismissChannelNotifications from '@/logic/useDismissChannelNotificatio
 import {
   canReadChannel,
   canWriteChannel,
-  createStorageKey,
   isChannelJoined,
 } from '@/logic/utils';
 import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
@@ -43,6 +39,7 @@ import useAllBriefs from '@/logic/useAllBriefs';
 import NewCurioForm from './NewCurioForm';
 
 function HeapChannel({ title }: ViewProps) {
+  const [joining, setJoining] = useState(false);
   const navigate = useNavigate();
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
@@ -52,14 +49,6 @@ function HeapChannel({ title }: ViewProps) {
   const channel = useChannel(flag, nest);
   const group = useGroup(flag);
   const { setRecentChannel } = useRecentChannel(flag);
-
-  useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate('../../activity');
-      setRecentChannel('');
-    }
-  }, [group, channel, vessel, navigate, setRecentChannel]);
-
   const displayMode = useHeapDisplayMode(chFlag);
   const settings = useHeapSettings();
   // for now sortMode is not actually doing anything.
@@ -68,12 +57,20 @@ function HeapChannel({ title }: ViewProps) {
   const curios = useCuriosForHeap(chFlag);
   const perms = useHeapPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const canRead = channel
+    ? canReadChannel(channel, vessel, group?.bloc)
+    : false;
   const briefs = useAllBriefs();
   const joined = isChannelJoined(nest, briefs);
 
   const joinChannel = useCallback(async () => {
+    setJoining(true);
     await useHeapState.getState().joinHeap(chFlag);
-    window.location.reload();
+    setJoining(false);
+  }, [chFlag]);
+
+  const initializeChannel = useCallback(async () => {
+    await useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
 
   const setDisplayMode = (setting: HeapDisplayMode) => {
@@ -109,15 +106,30 @@ function HeapChannel({ title }: ViewProps) {
     if (!joined) {
       joinChannel();
     }
-  }, [joined, joinChannel]);
+  }, [joined, joinChannel, channel]);
 
   useEffect(() => {
-    if (joined) {
-      useHeapState.getState().initialize(chFlag);
+    if (joined && !joining && channel && canRead) {
+      initializeChannel();
       setRecentChannel(nest);
     }
-  }, [chFlag, nest, setRecentChannel, joined]);
+  }, [
+    chFlag,
+    nest,
+    setRecentChannel,
+    joined,
+    joining,
+    initializeChannel,
+    channel,
+    canRead,
+  ]);
 
+  useEffect(() => {
+    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
+      navigate('../../activity');
+      setRecentChannel('');
+    }
+  }, [group, channel, vessel, navigate, setRecentChannel]);
   useDismissChannelNotifications({
     nest,
     markRead: useHeapState.getState().markRead,

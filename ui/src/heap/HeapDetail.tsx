@@ -37,6 +37,7 @@ export default function HeapDetail() {
   };
 
   useEffect(() => {
+    console.log('initialize heap detail');
     useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
 

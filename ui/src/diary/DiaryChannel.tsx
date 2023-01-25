@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import _ from 'lodash';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
@@ -40,6 +39,7 @@ import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 
 function DiaryChannel() {
+  const [joining, setJoining] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
@@ -55,8 +55,15 @@ function DiaryChannel() {
   const joined = isChannelJoined(nest, briefs);
 
   const joinChannel = useCallback(async () => {
+    setJoining(true);
     await useDiaryState.getState().joinDiary(chFlag);
-    window.location.reload();
+    setJoining(false);
+  }, [chFlag]);
+
+  const initializeChannel = useCallback(async () => {
+    setTimeout(async () => {
+      await useDiaryState.getState().initialize(chFlag);
+    }, 1000);
   }, [chFlag]);
 
   useEffect(() => {
@@ -99,19 +106,32 @@ function DiaryChannel() {
   const perms = useDiaryPerms(chFlag);
 
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const canRead = channel
+    ? canReadChannel(channel, vessel, group?.bloc)
+    : false;
 
   useEffect(() => {
     if (!joined) {
       joinChannel();
     }
-  }, [joined, joinChannel]);
+  }, [joined, joinChannel, channel]);
 
   useEffect(() => {
-    if (joined) {
-      useDiaryState.getState().initialize(chFlag);
+    if (joined && !joining && channel && canRead) {
+      initializeChannel();
       setRecentChannel(nest);
     }
-  }, [chFlag, nest, setRecentChannel, joined]);
+  }, [
+    chFlag,
+    nest,
+    setRecentChannel,
+    joined,
+    initializeChannel,
+    joining,
+    briefs,
+    channel,
+    canRead,
+  ]);
 
   useEffect(() => {
     let timeout: any;
