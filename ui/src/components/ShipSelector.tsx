@@ -50,6 +50,7 @@ interface ShipSelectorProps {
   inner?: boolean;
   placeholder?: string;
   isValidNewOption?: (value: string) => boolean;
+  autoFocus?: boolean;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -271,6 +272,7 @@ export default function ShipSelector({
   hasPrompt = true,
   placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
   isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
+  autoFocus = true,
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -301,9 +303,10 @@ export default function ShipSelector({
     }
     if (ships && ships.length > 0 && validShips && onEnter) {
       onEnter(ships);
-      if (!isMulti) {
-        setShips([]);
-      }
+      // TODO: Is this a Chesterton's fence? Why only clear if not multi? Should onEnter be responsible for clearing?
+      // if (!isMulti) {
+      //   setShips([]);
+      // }
     }
   };
 
@@ -425,7 +428,7 @@ export default function ShipSelector({
         handleEnter={handleEnter}
         ref={selectRef}
         formatCreateLabel={AddNewOption}
-        autoFocus
+        autoFocus={autoFocus}
         styles={{
           control: (base) => ({}),
           menu: ({ width, borderRadius, ...base }) => ({

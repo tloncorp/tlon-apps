@@ -28,7 +28,6 @@ import { IChatScroller } from './IChatScroller';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import { ChatInfo, useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
-import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 
 interface CreateRendererParams {
   messages: BigIntOrderedMap<ChatWrit>;
@@ -139,7 +138,6 @@ export default function ChatScroller({
   prefixedElement,
   scrollTo = undefined,
   scrollerRef,
-  loading,
 }: IChatScroller) {
   const brief = useChatState((s: ChatState) => s.briefs[whom]);
   const firstUnreadID = useGetFirstUnreadID(whom);
@@ -283,14 +281,6 @@ export default function ChatScroller({
     }),
     [BottomLoader, TopLoader]
   );
-
-  if (loading) {
-    return (
-      <div className="h-full">
-        <ChatScrollerPlaceholder count={30} />
-      </div>
-    );
-  }
 
   // perf: define these outside of render
   const atTopStateChange = (top: boolean) => top && fetchMessages(false);

@@ -3,7 +3,7 @@ import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt, { BigInteger } from 'big-integer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Groups } from '@/types/groups';
 import {
   Chat,
@@ -429,10 +429,28 @@ export const useChatState = createState<ChatState>(
       });
     },
     joinChat: async (flag) => {
-      await api.poke({
-        app: 'chat',
-        mark: 'flag',
-        json: flag,
+      await new Promise<void>((resolve, reject) => {
+        api.poke({
+          app: 'chat',
+          mark: 'flag',
+          json: flag,
+          onError: () => reject(),
+          onSuccess: async () => {
+            await useSubscriptionState
+              .getState()
+              .track(`chat/ui`, (event: ChatAction) => {
+                const {
+                  update: { diff },
+                  flag: f,
+                } = event;
+                if (f === flag && 'create' in diff) {
+                  return true;
+                }
+                return false;
+              });
+            resolve();
+          },
+        });
       });
     },
     leaveChat: async (flag) => {
@@ -669,6 +687,7 @@ export const useChatState = createState<ChatState>(
         app: 'chat',
         path: `/chat/${whom}/perm`,
       });
+
       get().batchSet((draft) => {
         const chat = { perms };
         draft.chats[whom] = chat;

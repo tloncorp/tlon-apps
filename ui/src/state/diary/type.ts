@@ -45,4 +45,5 @@ export interface DiaryState {
     noteId: string,
     content: Inline[]
   ) => Promise<void>;
+  [key: string]: unknown;
 }
