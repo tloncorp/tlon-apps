@@ -24,8 +24,10 @@ export function writsReducer(whom: string) {
   ): BasedChatState => {
     let id;
     let delta;
+    let hostTime;
     if ('update' in json) {
       if ('writs' in json.update.diff) {
+        hostTime = json.update.time;
         id = json.update.diff.writs.id;
         delta = json.update.diff.writs.delta;
       }
@@ -40,7 +42,9 @@ export function writsReducer(whom: string) {
     const pact = draft.pacts[whom];
 
     if ('add' in delta && !pact.index[id]) {
-      const time = bigInt(unixToDa(Date.now()));
+      const time = hostTime
+        ? bigInt(udToDec(hostTime))
+        : bigInt(unixToDa(Date.now()));
       pact.index[id] = time;
       const seal = { id, feels: {}, replied: [] };
       const writ = { seal, memo: delta.add };
@@ -53,6 +57,13 @@ export function writsReducer(whom: string) {
           pact.writs.set(replyTime, ancestor);
         }
       }
+    } else if ('add' in delta && pact.index[id] && hostTime) {
+      const time = bigInt(udToDec(hostTime));
+      const oldTime = pact.index[id];
+      const writ = pact.writs.get(oldTime);
+      pact.writs = pact.writs.delete(oldTime);
+      pact.index[id] = time;
+      pact.writs = pact.writs.set(time, writ);
     } else if ('del' in delta && pact.index[id]) {
       const time = pact.index[id];
       const old = pact.writs.get(time);
@@ -134,12 +145,20 @@ export default function makeWritsStore(
       api.subscribe({
         app: 'chat',
         path: subPath,
-        event: (data: WritDiff) => {
+        event: (data: ChatAction | WritDiff) => {
           get().batchSet((draft) => {
             writsReducer(whom)(data, draft);
-            draft.sentMessages = draft.sentMessages.filter(
-              (id) => id !== data.id
-            );
+            draft.sentMessages = draft.sentMessages.filter((id) => {
+              if ('id' in data) {
+                return id !== data.id;
+              }
+
+              if ('update' in data && 'writs' in data.update.diff) {
+                return id !== data.update.diff.writs.id;
+              }
+
+              return false;
+            });
           });
         },
       });

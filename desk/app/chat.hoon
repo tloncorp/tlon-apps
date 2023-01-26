@@ -1347,10 +1347,10 @@
     =/  cag=cage  [upd:mar !>([time d])]
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
+    =/  action=cage  [act:mar !>([flag [time d]])]
+    =.  cor  (give %fact ~[/ui] action)
     =?  cor  ?=(%writs -.d)
-      =/  =cage  writ-diff+!>(p.d)
-      (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
+      (give %fact ~[(welp ca-area /ui/writs)] action)
     ca-core
   ::
   ++  ca-remark-diff
