@@ -191,7 +191,16 @@ export default function FindGroups({ title }: ViewProps) {
         );
       }
 
-      return <span>This ship doesn&apos;t host any groups</span>;
+      return (
+        <div>
+          The search timed out. This happens when:
+          <ul className="list-inside list-disc">
+            <li>The ship doesn&apos;t host any groups</li>
+            <li>The ship is under heavy load</li>
+            <li>The ship is offline</li>
+          </ul>
+        </div>
+      );
     }
 
     return null;
