@@ -72,7 +72,7 @@ export default function Notifications({
 
   const markAllRead = useCallback(async () => {
     setPending();
-    useHarkState.getState().sawSeam({ desk: 'groups' });
+    await useHarkState.getState().sawSeam({ desk: 'groups' });
     setReady();
   }, [setPending, setReady]);
 
@@ -87,16 +87,14 @@ export default function Notifications({
       </Helmet>
       <div className="flex w-full items-center justify-end">
         {hasUnreads && (
-          <>
-            {isPending ? <LoadingSpinner className="mr-2 h-4 w-4" /> : null}
-            <button
-              disabled={isPending}
-              className="small-button bg-blue"
-              onClick={markAllRead}
-            >
-              Mark All as Read
-            </button>
-          </>
+          <button
+            disabled={isPending}
+            className="small-button bg-blue"
+            onClick={markAllRead}
+          >
+            Mark All as Read
+            {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+          </button>
         )}
       </div>
       {notifications.map((grouping) => (
