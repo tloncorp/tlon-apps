@@ -55,8 +55,7 @@ function Groups() {
         ([nest]) => nest in allBriefs
       );
 
-      // canRead = channel && canReadChannel(channel[1], vessel, group?.bloc);
-      canRead = true;
+      canRead = channel && canReadChannel(channel[1], vessel, group?.bloc);
       if (channel && canRead && !isMobile) {
         navigate(`./channels/${channel[0]}`);
       } else if (!isMobile) {
