@@ -1,16 +1,12 @@
 import { useRouteGroup, useGroup } from '@/state/groups';
-import React, {
-  ComponentType,
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useState,
-} from 'react';
+import React, { ComponentType, PropsWithChildren, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { ViewProps } from '@/types/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import useHarkState from '@/state/hark';
+import useRequestState from '@/logic/useRequestState';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -72,10 +68,13 @@ export default function Notifications({
   const group = useGroup(flag);
   const { notifications, count } = useNotifications(flag);
   const hasUnreads = count > 0;
+  const { isPending, setPending, setReady } = useRequestState();
 
-  const markAllRead = useCallback(() => {
-    useHarkState.getState().sawSeam({ desk: 'groups' });
-  }, []);
+  const markAllRead = useCallback(async () => {
+    setPending();
+    await useHarkState.getState().sawSeam({ desk: 'groups' });
+    setReady();
+  }, [setPending, setReady]);
 
   return (
     <section className="h-full w-full overflow-y-auto bg-white p-6">
@@ -88,8 +87,13 @@ export default function Notifications({
       </Helmet>
       <div className="flex w-full items-center justify-end">
         {hasUnreads && (
-          <button className="small-button bg-blue" onClick={markAllRead}>
+          <button
+            disabled={isPending}
+            className="small-button bg-blue"
+            onClick={markAllRead}
+          >
             Mark All as Read
+            {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
           </button>
         )}
       </div>
