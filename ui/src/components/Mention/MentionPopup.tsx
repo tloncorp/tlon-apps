@@ -1,12 +1,20 @@
 import cn from 'classnames';
 import fuzzy from 'fuzzy';
-import React, { useEffect, useImperativeHandle, useState } from 'react';
-import { isValidPatp } from 'urbit-ob';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from 'react';
+import { useMatch } from 'react-router';
+import { isValidPatp, clan } from 'urbit-ob';
 import { ReactRenderer } from '@tiptap/react';
 import { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion';
 import tippy from 'tippy.js';
 import { deSig } from '@urbit/api';
 import useContactState, { useContacts } from '@/state/contact';
+import { useGroup, useGroupFlag } from '@/state/groups';
+import { useMultiDms } from '@/state/chat';
 import { preSig } from '@/logic/utils';
 import Avatar from '../Avatar';
 import ShipName from '../ShipName';
@@ -19,8 +27,26 @@ const MentionList = React.forwardRef<
   MentionListHandle,
   SuggestionProps<{ id: string }>
 >((props, ref) => {
+  const flag = useGroupFlag();
+  const group = useGroup(flag);
+  const multiDms = useMultiDms();
+  const match = useMatch('/dm/:ship');
   const contacts = useContacts();
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const getMessage = useCallback(
+    (ship: string) => {
+      if (match) {
+        const multiDm = match && multiDms[match.params.ship || ''];
+        return !multiDm || ![...multiDm.hive, ...multiDm.team].includes(ship)
+          ? 'Not in message'
+          : null;
+      }
+
+      return !group?.fleet[ship] ? 'Not in group' : null;
+    },
+    [group, multiDms, match]
+  );
 
   const selectItem = (index: number) => {
     const item = props.items[index];
@@ -69,21 +95,26 @@ const MentionList = React.forwardRef<
   }));
 
   return (
-    <div className="dropdown p-1">
-      <ul>
+    <div className="dropdown min-w-96 p-1">
+      <ul className="w-full">
         {(props.items || []).map((i, index) => (
-          <li key={i.id}>
+          <li key={i.id} className="w-full">
             <button
               className={cn(
-                'dropdown-item flex w-full items-center space-x-2',
+                'dropdown-item flex w-full items-center space-x-2 text-left',
                 index === selectedIndex && 'bg-gray-50'
               )}
               onClick={() => selectItem(index)}
             >
               <Avatar size="xs" ship={i.id} />
-              <ShipName name={i.id} showAlias />
+              <ShipName name={i.id} full={clan(i.id) !== 'comet'} showAlias />
               {contacts[i.id]?.nickname ? (
                 <ShipName name={i.id} className="text-gray-400" />
+              ) : null}
+              {getMessage(i.id) ? (
+                <span className="flex-1 pl-6 text-right font-normal text-gray-400">
+                  {getMessage(i.id)}
+                </span>
               ) : null}
             </button>
           </li>
@@ -92,6 +123,45 @@ const MentionList = React.forwardRef<
     </div>
   );
 });
+
+export const DISALLOWED_MENTION_CHARS = /[^\w\d-]/g;
+
+function normalizeText(text: string): string {
+  return text.replace(DISALLOWED_MENTION_CHARS, '');
+}
+
+// assumes already lowercased
+function scoreEntry(filter: string, entry: fuzzy.FilterResult<string>): number {
+  const parts = entry.string.split('~');
+
+  // shouldn't happen
+  if (parts.length === 1) {
+    return entry.score;
+  }
+
+  const [nickname, ship] = parts;
+  // downrank comets significantly
+  const score = ship.length > 28 ? entry.score * 0.25 : entry.score;
+
+  // making this highest because ships are unique, nicknames are not
+  // also prevents someone setting their nickname as someone else's
+  // patp taking over prime position
+  if (ship === filter) {
+    return score + 120;
+  }
+
+  if (nickname === filter) {
+    return score + 100;
+  }
+
+  // since ship is in the middle of the string we need to make it work
+  // as if it was at the beginning
+  if (nickname && ship.startsWith(filter)) {
+    return score + 80;
+  }
+
+  return score;
+}
 
 const MentionPopup: Partial<SuggestionOptions> = {
   char: '~',
@@ -104,8 +174,8 @@ const MentionPopup: Partial<SuggestionOptions> = {
 
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
-    const searchSpace = Object.entries(contacts).map(
-      ([patp, contact]) => `${contact.nickname}${patp}`
+    const searchSpace = Object.entries(contacts).map(([patp, contact]) =>
+      `${normalizeText(contact.nickname)}${patp}`.toLocaleLowerCase()
     );
 
     if (valid && !contactNames.includes(sigged)) {
@@ -113,22 +183,17 @@ const MentionPopup: Partial<SuggestionOptions> = {
       searchSpace.push(sigged);
     }
 
-    const fuzzyNames = fuzzy
-      .filter(query, searchSpace)
-      .sort((a, b) => {
-        const filter = deSig(query) || '';
-        const left = deSig(a.string)?.startsWith(filter)
-          ? a.score + 1
-          : a.score;
-        const right = deSig(b.string)?.startsWith(filter)
-          ? b.score + 1
-          : b.score;
+    const normQuery = normalizeText(query).toLocaleLowerCase();
+    const fuzzyNames = fuzzy.filter(normQuery, searchSpace).sort((a, b) => {
+      const filter = deSig(query) || '';
+      const right = scoreEntry(filter, b);
+      const left = scoreEntry(filter, a);
+      return right - left;
+    });
 
-        return right - left;
-      })
-      .map((result) => contactNames[result.index]);
-
-    const items = fuzzyNames.slice(0, 5).map((id) => ({ id }));
+    const items = fuzzyNames
+      .slice(0, 5)
+      .map((entry) => ({ id: contactNames[entry.index] }));
 
     return items;
   },
@@ -162,6 +227,12 @@ const MentionPopup: Partial<SuggestionOptions> = {
       },
       onUpdate: (props) => {
         component.updateProps(props);
+
+        if (DISALLOWED_MENTION_CHARS.test(props.query)) {
+          popup[0].destroy();
+          component?.destroy();
+          return;
+        }
 
         if (!props.clientRect) {
           return;

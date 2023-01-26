@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  (map id:club:c crew:c)
+  ++  noun  (map id:club:c crew:club:c)
   --
 --

@@ -5,17 +5,19 @@ import { useContact } from '../state/contact';
 
 type ShipNameProps = {
   name: string;
+  full?: boolean;
   showAlias?: boolean;
 } & HTMLAttributes<HTMLSpanElement>;
 
 export default function ShipName({
   name,
+  full = false,
   showAlias = false,
   ...props
 }: ShipNameProps) {
   const contact = useContact(name);
   const separator = /([_^-])/;
-  const citedName = cite(name);
+  const citedName = full ? name : cite(name);
   const calm = useCalm();
 
   if (!citedName) {

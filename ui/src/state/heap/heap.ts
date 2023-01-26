@@ -1,7 +1,5 @@
 import bigInt, { BigInteger } from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
-import create from 'zustand';
-import { persist } from 'zustand/middleware';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -15,26 +13,19 @@ import {
   HeapDiff,
   HeapFlag,
   HeapPerm,
-  HeapDisplayMode,
   Stash,
-  GRID,
   HeapSaid,
+  HeapDisplayMode,
 } from '@/types/heap';
 import api from '@/api';
-import {
-  createStorageKey,
-  clearStorageMigration,
-  storageVersion,
-  nestToFlag,
-  canWriteChannel,
-} from '@/logic/utils';
+import { nestToFlag, canWriteChannel } from '@/logic/utils';
 import useNest from '@/logic/useNest';
-import { intersection } from 'lodash';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
 import { useGroup, useVessel } from '../groups';
 import useSubscriptionState from '../subscription';
+import { createState } from '../base';
 
 setAutoFreeze(false);
 
@@ -75,223 +66,236 @@ function getTime() {
   return decToUd(unixToDa(Date.now()).toString());
 }
 
-export const useHeapState = create<HeapState>(
-  persist<HeapState>(
-    (set, get) => ({
-      set: (fn) => {
-        set(produce(get(), fn));
-      },
-      batchSet: (fn) => {
-        batchUpdates(() => {
-          get().set(fn);
-        });
-      },
-      stash: {},
-      curios: {},
-      heapSubs: [],
-      loadedRefs: {},
-      briefs: {},
-      pendingImports: {},
-      markRead: async (flag) => {
-        await api.poke({
-          app: 'heap',
-          mark: 'heap-remark-action',
-          json: {
-            flag,
-            diff: { read: null },
-          },
-        });
-      },
-      start: async () => {
-        // TODO: parallelise
-        api
-          .scry<HeapBriefs>({
-            app: 'heap',
-            path: '/briefs',
-          })
-          .then((briefs) => {
-            get().batchSet((draft) => {
-              draft.briefs = briefs;
-            });
-          });
-
-        api
-          .scry<Stash>({
-            app: 'heap',
-            path: '/stash',
-          })
-          .then((stash) => {
-            get().batchSet((draft) => {
-              draft.stash = stash;
-            });
-          });
-
-        api.subscribe({
+export const useHeapState = createState<HeapState>(
+  'heap',
+  (set, get) => ({
+    set: (fn) => {
+      set(produce(get(), fn));
+    },
+    batchSet: (fn) => {
+      batchUpdates(() => {
+        get().set(fn);
+      });
+    },
+    stash: {},
+    curios: {},
+    heapSubs: [],
+    loadedRefs: {},
+    briefs: {},
+    pendingImports: {},
+    markRead: async (flag) => {
+      await api.poke({
+        app: 'heap',
+        mark: 'heap-remark-action',
+        json: {
+          flag,
+          diff: { read: null },
+        },
+      });
+    },
+    start: async () => {
+      // TODO: parallelise
+      api
+        .scry<HeapBriefs>({
           app: 'heap',
           path: '/briefs',
-          event: (event: unknown, mark: string) => {
-            if (mark === 'heap-leave') {
-              get().batchSet((draft) => {
-                delete draft.briefs[event as string];
-              });
-              return;
+        })
+        .then((briefs) => {
+          get().batchSet((draft) => {
+            draft.briefs = briefs;
+          });
+        });
+
+      api
+        .scry<Stash>({
+          app: 'heap',
+          path: '/stash',
+        })
+        .then((stash) => {
+          get().batchSet((draft) => {
+            draft.stash = stash;
+          });
+        });
+
+      api.subscribe({
+        app: 'heap',
+        path: '/briefs',
+        event: (event: unknown, mark: string) => {
+          if (mark === 'heap-leave') {
+            get().batchSet((draft) => {
+              delete draft.briefs[event as string];
+            });
+            return;
+          }
+
+          const { flag, brief } = event as HeapBriefUpdate;
+          get().batchSet((draft) => {
+            draft.briefs[flag] = brief;
+          });
+        },
+      });
+
+      api.subscribe({
+        app: 'heap',
+        path: '/ui',
+        event: (event: HeapAction) => {
+          get().batchSet((draft) => {
+            const {
+              flag,
+              update: { diff },
+            } = event;
+            const heap = draft.stash[flag];
+
+            if ('view' in diff) {
+              heap.view = diff.view;
+            } else if ('del-sects' in diff) {
+              heap.perms.writers = heap.perms.writers.filter(
+                (w) => !diff['del-sects'].includes(w)
+              );
+            } else if ('add-sects' in diff) {
+              heap.perms.writers = heap.perms.writers.concat(diff['add-sects']);
             }
+          });
+        },
+      });
 
-            const { flag, brief } = event as HeapBriefUpdate;
-            get().batchSet((draft) => {
-              draft.briefs[flag] = brief;
-            });
-          },
-        });
+      const pendingImports = await api.scry<Record<string, boolean>>({
+        app: 'heap',
+        path: '/imp',
+      });
 
-        api.subscribe({
-          app: 'heap',
-          path: '/ui',
-          event: (event: HeapAction) => {
-            get().batchSet((draft) => {
-              const {
-                flag,
-                update: { diff },
-              } = event;
-              const heap = draft.stash[flag];
+      get().batchSet((draft) => {
+        draft.pendingImports = pendingImports;
+      });
 
-              if ('view' in diff) {
-                heap.view = diff.view;
-              } else if ('del-sects' in diff) {
-                heap.perms.writers = heap.perms.writers.filter(
-                  (w) => !diff['del-sects'].includes(w)
-                );
-              } else if ('add-sects' in diff) {
-                heap.perms.writers = heap.perms.writers.concat(
-                  diff['add-sects']
-                );
-              }
-            });
-          },
-        });
-
-        const pendingImports = await api.scry<Record<string, boolean>>({
-          app: 'heap',
-          path: '/imp',
-        });
-
-        get().batchSet((draft) => {
-          draft.pendingImports = pendingImports;
-        });
-
-        api.subscribe({
-          app: 'heap',
-          path: '/imp',
-          event: (imports: Record<string, boolean>) => {
-            get().batchSet((draft) => {
-              draft.pendingImports = imports;
-            });
-          },
-        });
-      },
-      joinHeap: async (flag) => {
-        await api.poke({
+      api.subscribe({
+        app: 'heap',
+        path: '/imp',
+        event: (imports: Record<string, boolean>) => {
+          get().batchSet((draft) => {
+            draft.pendingImports = imports;
+          });
+        },
+      });
+    },
+    joinHeap: async (flag) => {
+      await new Promise<void>((resolve, reject) => {
+        api.poke({
           app: 'heap',
           mark: 'flag',
           json: flag,
+          onError: () => reject(),
+          onSuccess: async () => {
+            await useSubscriptionState
+              .getState()
+              .track(`heap/ui`, (event: HeapAction) => {
+                const {
+                  update: { diff },
+                  flag: f,
+                } = event;
+                if (f === flag && 'create' in diff) {
+                  return true;
+                }
+                return false;
+              });
+            resolve();
+          },
         });
-      },
-      leaveHeap: async (flag) => {
-        await api.poke({
+      });
+    },
+    leaveHeap: async (flag) => {
+      await api.poke({
+        app: 'heap',
+        mark: 'heap-leave',
+        json: flag,
+      });
+    },
+    viewHeap: async (flag, view) => {
+      await api.poke(
+        heapAction(flag, {
+          view,
+        })
+      );
+    },
+    addCurio: async (flag, heart) => {
+      await api.poke(heapCurioDiff(flag, getTime(), { add: heart }));
+    },
+    delCurio: async (flag, time) => {
+      const ud = decToUd(time);
+      await api.poke(heapCurioDiff(flag, ud, { del: null }));
+    },
+    editCurio: async (flag, time, heart) => {
+      const ud = decToUd(time);
+      await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
+    },
+    create: async (req) => {
+      await new Promise<void>((resolve, reject) => {
+        api.poke({
           app: 'heap',
-          mark: 'heap-leave',
-          json: flag,
+          mark: 'heap-create',
+          json: req,
+          onError: () => reject(),
+          onSuccess: async () => {
+            await useSubscriptionState.getState().track('heap/ui', (event) => {
+              const { update, flag } = event;
+              if (
+                'create' in update.diff &&
+                flag === `${req.group.split('/')[0]}/${req.name}`
+              ) {
+                return true;
+              }
+              return false;
+            });
+            resolve();
+          },
         });
-      },
-      viewHeap: async (flag, view) => {
-        await api.poke(
-          heapAction(flag, {
-            view,
-          })
-        );
-      },
-      addCurio: async (flag, heart) => {
-        await api.poke(heapCurioDiff(flag, getTime(), { add: heart }));
-      },
-      delCurio: async (flag, time) => {
-        const ud = decToUd(time);
-        await api.poke(heapCurioDiff(flag, ud, { del: null }));
-      },
-      editCurio: async (flag, time, heart) => {
-        const ud = decToUd(time);
-        await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
-      },
-      create: async (req) => {
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            app: 'heap',
-            mark: 'heap-create',
-            json: req,
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('heap/ui', (event) => {
-                  const { update, flag } = event;
-                  if (
-                    'create' in update.diff &&
-                    flag === `${req.group.split('/')[0]}/${req.name}`
-                  ) {
-                    return true;
-                  }
-                  return false;
-                });
-              resolve();
-            },
-          });
-        });
-      },
-      addSects: async (flag, sects) => {
-        await api.poke(heapAction(flag, { 'add-sects': sects }));
-        const perms = await api.scry<HeapPerm>({
-          app: 'heap',
-          path: `/heap/${flag}/perm`,
-        });
-        get().batchSet((draft) => {
-          draft.stash[flag].perms = perms;
-        });
-      },
-      delSects: async (flag, sects) => {
-        await api.poke(heapAction(flag, { 'del-sects': sects }));
-        const perms = await api.scry<HeapPerm>({
-          app: 'heap',
-          path: `/heap/${flag}/perm`,
-        });
-        get().batchSet((draft) => {
-          draft.stash[flag].perms = perms;
-        });
-      },
-      initialize: async (flag) => {
-        if (get().heapSubs.includes(flag)) {
-          return;
-        }
+      });
+    },
+    addSects: async (flag, sects) => {
+      await api.poke(heapAction(flag, { 'add-sects': sects }));
+      const perms = await api.scry<HeapPerm>({
+        app: 'heap',
+        path: `/heap/${flag}/perm`,
+      });
+      get().batchSet((draft) => {
+        draft.stash[flag].perms = perms;
+      });
+    },
+    delSects: async (flag, sects) => {
+      await api.poke(heapAction(flag, { 'del-sects': sects }));
+      const perms = await api.scry<HeapPerm>({
+        app: 'heap',
+        path: `/heap/${flag}/perm`,
+      });
+      get().batchSet((draft) => {
+        draft.stash[flag].perms = perms;
+      });
+    },
+    initialize: async (flag) => {
+      if (get().heapSubs.includes(flag)) {
+        return;
+      }
 
-        get().batchSet((draft) => {
-          draft.heapSubs.push(flag);
-        });
+      const perms = await api.scry<HeapPerm>({
+        app: 'heap',
+        path: `/heap/${flag}/perm`,
+      });
+      get().batchSet((draft) => {
+        const heap = { perms, view: 'grid' as HeapDisplayMode };
+        draft.stash[flag] = heap;
+        draft.heapSubs.push(flag);
+      });
 
-        await makeCuriosStore(
-          flag,
-          get,
-          `/heap/${flag}/curios`,
-          `/heap/${flag}/ui`
-        ).initialize();
-      },
-    }),
-    {
-      name: createStorageKey('heap'),
-      version: storageVersion,
-      migrate: clearStorageMigration,
-      partialize: ({ stash }) => ({
-        stash,
-      }),
-    }
-  )
+      await makeCuriosStore(
+        flag,
+        get,
+        `/heap/${flag}/curios`,
+        `/heap/${flag}/ui`
+      ).initialize();
+    },
+  }),
+  ['briefs', 'stash', 'curios'],
+  []
 );
 
 export function useCuriosForHeap(flag: HeapFlag) {
