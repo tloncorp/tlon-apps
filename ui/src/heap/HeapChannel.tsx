@@ -126,10 +126,10 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (channel && !canRead) {
-      navigate('../../activity');
+      navigate(`/groups/${flag}/activity`);
       setRecentChannel('');
     }
-  }, [group, channel, vessel, navigate, setRecentChannel, canRead]);
+  }, [flag, group, channel, vessel, navigate, setRecentChannel, canRead]);
   useDismissChannelNotifications({
     nest,
     markRead: useHeapState.getState().markRead,

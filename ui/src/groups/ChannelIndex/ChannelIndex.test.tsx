@@ -18,6 +18,12 @@ vi.mock('@/state/groups', () => ({
   useGroupState: () => ({}),
 }));
 
+vi.mock('@/logic/useMigrationInfo', () => ({
+  useStartedMigration: () => ({
+    hasStarted: (ship: string) => true,
+  }),
+}));
+
 describe('ChannelIndex', () => {
   it('renders as expected', () => {
     const { asFragment } = render(<ChannelIndex />);
