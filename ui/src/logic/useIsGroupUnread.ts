@@ -1,6 +1,6 @@
+import { useCallback } from 'react';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useGroups } from '@/state/groups';
-import { useCallback } from 'react';
 import useAllBriefs from './useAllBriefs';
 
 export default function useIsGroupUnread() {
@@ -11,8 +11,8 @@ export default function useIsGroupUnread() {
   /**
    * A Group is unread if
    * - any of it's Channels have new items in their corresponding briefs
-   * - any of its Channels are unread (bin is unread, group matches flag, rope
-   *   channel matchs chFlag)
+   * - any of its Channels are unread (bin is unread, rope channel matches
+   *   chFlag)
    */
   const isGroupUnread = useCallback(
     (flag: string) => {
@@ -30,7 +30,6 @@ export default function useIsGroupUnread() {
           n.bins.some(
             (b) =>
               b.unread &&
-              b.topYarn?.rope.group === flag &&
               b.topYarn?.rope.channel &&
               chNests.includes(b.topYarn?.rope.channel)
           )

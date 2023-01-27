@@ -49,7 +49,7 @@ export default function DmOptions({
   const [dialog, setDialog] = useState(false);
 
   const leaveMessage = () => {
-    navigate('/dm');
+    navigate('/');
     if (whomIsMultiDm(whom)) {
       useChatState.getState().multiDmRsvp(whom, false);
     } else {
