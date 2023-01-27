@@ -191,7 +191,12 @@ export default function FindGroups({ title }: ViewProps) {
         );
       }
 
-      return <span>This ship doesn&apos;t host any groups</span>;
+      return (
+        <span>
+          Your search timed out, which may happen when a ship hosts no groups,
+          is under heavy load, or is offline.
+        </span>
+      );
     }
 
     return null;
