@@ -315,8 +315,24 @@ export const useGroupState = create<GroupState>(
               await useSubscriptionState
                 .getState()
                 .track('groups/groups/ui', (event) => {
-                  const { diff } = event;
-                  if ('cordon' in diff) {
+                  const { update, diff } = event;
+                  if (update && update.diff) {
+                    if ('cordon' in update.diff) {
+                      const { shut } = update.diff.cordon;
+                      if ('add-ships' in shut) {
+                        const { kind, ships: addedShips } = shut['add-ships'];
+                        return (
+                          kind === 'pending' &&
+                          addedShips.every((ship: string) =>
+                            ships.includes(ship)
+                          )
+                        );
+                      }
+                      return false;
+                    }
+                    return false;
+                  }
+                  if (diff && 'cordon' in diff) {
                     const { shut } = diff.cordon;
                     if ('add-ships' in shut) {
                       const { kind, ships: addedShips } = shut['add-ships'];
