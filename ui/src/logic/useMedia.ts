@@ -46,10 +46,6 @@ export default function useMedia(mediaQuery: string) {
 
     query.addEventListener('change', update);
     update({ matches: query.matches } as MediaQueryListEvent);
-    /* eslint-disable-next-line consistent-return */
-    return () => {
-      query.removeEventListener('change', update);
-    };
   }, [update, mediaQuery]);
 
   return value;
