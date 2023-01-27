@@ -61,7 +61,9 @@ function HeapChannel({ title }: ViewProps) {
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
   const briefs = useAllBriefs();
-  const joined = isChannelJoined(nest, briefs);
+  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
+    ? isChannelJoined(nest, briefs)
+    : true;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);

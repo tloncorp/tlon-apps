@@ -43,7 +43,9 @@ function ChatChannel({ title }: ViewProps) {
     : false;
   const { sendMessage } = useChatState.getState();
   const briefs = useAllBriefs();
-  const joined = isChannelJoined(nest, briefs);
+  const joined = Object.keys(briefs).some((k) => k.includes('chat/'))
+    ? isChannelJoined(nest, briefs)
+    : true;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
