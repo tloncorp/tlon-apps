@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
@@ -36,9 +36,13 @@ export default function HeapDetail() {
     return `/groups/${groupFlag}/channels/heap/${chFlag}/curio/${id}`;
   };
 
-  useEffect(() => {
-    useHeapState.getState().initialize(chFlag);
+  const load = useCallback(async () => {
+    await useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   useEventListener('keydown', (e) => {
     switch (e.key) {
