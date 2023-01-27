@@ -10,7 +10,6 @@ import React, {
 } from 'react';
 import fuzzy from 'fuzzy';
 import { Link, useLocation } from 'react-router-dom';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { useModalNavigate } from '@/logic/routing';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -21,14 +20,10 @@ import {
   useGroupState,
   useRouteGroup,
 } from '@/state/groups/groups';
-import ElipsisCircleIcon from '@/components/icons/EllipsisCircleIcon';
-import ElipsisIcon from '@/components/icons/EllipsisIcon';
-import LeaveIcon from '@/components/icons/LeaveIcon';
-import CheckIcon from '@/components/icons/CheckIcon';
-import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
-import { getSectTitle, toTitleCase } from '@/logic/utils';
-import { Vessel } from '@/types/groups';
 import bigInt from 'big-integer';
+import useRequestState from '@/logic/useRequestState';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
 
 // *@da == ~2000.1.1
 const DA_BEGIN = daToUnix(bigInt('170141184492615420181573981275213004800'));
@@ -42,6 +37,8 @@ export default function GroupPendingManager() {
   const modalNavigate = useModalNavigate();
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
+  const { isPending, isReady, setPending, setReady, isFailed, setFailed } =
+    useRequestState();
   const pending = useMemo(() => {
     let members: string[] = [];
 
@@ -101,10 +98,19 @@ export default function GroupPendingManager() {
   );
 
   const approve = useCallback(
-    (ship: string) => () => {
-      useGroupState.getState().invite(flag, [ship]);
+    (ship: string) => async () => {
+      try {
+        await useGroupState.getState().invite(flag, [ship]);
+        setReady();
+      } catch (e) {
+        console.error('Error approving invite, poke failed');
+        setFailed();
+        setTimeout(() => {
+          setReady();
+        }, 3000);
+      }
     },
-    [flag]
+    [flag, setReady, setFailed]
   );
 
   const onViewProfile = (ship: string) => {
@@ -170,11 +176,23 @@ export default function GroupPendingManager() {
                     </button>
                   ) : null}
                   <button
-                    disabled={!inAsk}
-                    className="button min-w-24 bg-blue text-white disabled:bg-gray-100 disabled:text-gray-600 dark:text-black dark:disabled:text-gray-600"
+                    disabled={!inAsk || isPending || isFailed}
+                    className={cn(
+                      'button min-w-24 text-white disabled:bg-gray-100 disabled:text-gray-600 dark:text-black dark:disabled:text-gray-600',
+                      {
+                        'bg-red': isFailed,
+                        'bg-blue': !isFailed,
+                      }
+                    )}
                     onClick={approve(m)}
                   >
                     {inAsk ? 'Approve' : 'Invited'}
+                    {isPending ? (
+                      <LoadingSpinner className="ml-2 h-4 w-4" />
+                    ) : null}
+                    {isFailed ? (
+                      <ExclamationPoint className="ml-2 h-4 w-4" />
+                    ) : null}
                   </button>
                 </div>
               ) : null}
