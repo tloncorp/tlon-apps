@@ -10,12 +10,14 @@ interface EmojiPickerProps extends Record<string, any> {
   open: boolean;
   setOpen: (open: boolean) => void;
   children: React.ReactChild;
+  withTrigger?: boolean;
 }
 
 export default function EmojiPicker({
   open,
   setOpen,
   children,
+  withTrigger = true,
   ...props
 }: EmojiPickerProps) {
   const { data, load } = useEmoji();
@@ -29,8 +31,12 @@ export default function EmojiPicker({
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger>{children}</Popover.Trigger>
-      {isMobile && (
+      {withTrigger ? (
+        <Popover.Trigger asChild>{children}</Popover.Trigger>
+      ) : (
+        children
+      )}
+      {(isMobile || !withTrigger) && (
         <Popover.Anchor className={isMobile ? 'fixed inset-x-0 top-12' : ''} />
       )}
       <Popover.Portal>

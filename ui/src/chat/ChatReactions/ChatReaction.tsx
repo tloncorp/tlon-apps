@@ -43,7 +43,7 @@ export default function ChatReaction({
       {count > 0 && (
         <Tooltip.Provider>
           <Tooltip.Root delayDuration={0}>
-            <Tooltip.Trigger>
+            <Tooltip.Trigger asChild>
               <button
                 onClick={editFeel}
                 className={cn(

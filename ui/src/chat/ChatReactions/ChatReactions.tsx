@@ -46,7 +46,7 @@ export default function ChatReactions({ whom, seal }: ChatReactionsProps) {
           onClick={openPicker}
           aria-label="Add Reaction"
         >
-          <AddReactIcon className="h-6 w-6 text-gray-600" />
+          <AddReactIcon className="h-6 w-6 text-gray-400" />
         </button>
       </EmojiPicker>
     </div>
