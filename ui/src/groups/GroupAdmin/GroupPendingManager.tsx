@@ -37,8 +37,15 @@ export default function GroupPendingManager() {
   const modalNavigate = useModalNavigate();
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
-  const { isPending, isReady, setPending, setReady, isFailed, setFailed } =
+  const { isPending, setPending, setReady, isFailed, setFailed } =
     useRequestState();
+  const {
+    isPending: isRevokePending,
+    setPending: setRevokePending,
+    setReady: setRevokeReady,
+    isFailed: isRevokeFailed,
+    setFailed: setRevokeFailed,
+  } = useRequestState();
   const pending = useMemo(() => {
     let members: string[] = [];
 
@@ -91,14 +98,25 @@ export default function GroupPendingManager() {
   }, []);
 
   const reject = useCallback(
-    (ship: string, kind: 'ask' | 'pending') => () => {
-      useGroupState.getState().revoke(flag, [ship], kind);
+    (ship: string, kind: 'ask' | 'pending') => async () => {
+      setRevokePending();
+      try {
+        await useGroupState.getState().revoke(flag, [ship], kind);
+        setRevokeReady();
+      } catch (e) {
+        console.error('Error revoking invite, poke failed');
+        setRevokeFailed();
+        setTimeout(() => {
+          setRevokeReady();
+        }, 3000);
+      }
     },
-    [flag]
+    [flag, setRevokePending, setRevokeReady, setRevokeFailed]
   );
 
   const approve = useCallback(
     (ship: string) => async () => {
+      setPending();
       try {
         await useGroupState.getState().invite(flag, [ship]);
         setReady();
@@ -110,7 +128,7 @@ export default function GroupPendingManager() {
         }, 3000);
       }
     },
-    [flag, setReady, setFailed]
+    [flag, setPending, setReady, setFailed]
   );
 
   const onViewProfile = (ship: string) => {
@@ -169,10 +187,20 @@ export default function GroupPendingManager() {
                 <div className="ml-auto flex items-center space-x-3">
                   {inAsk || inPending ? (
                     <button
-                      className="secondary-button min-w-20"
+                      className={cn('secondary-button min-w-20', {
+                        'bg-red': isRevokeFailed,
+                        'text-white': isRevokeFailed,
+                      })}
                       onClick={reject(m, inAsk ? 'ask' : 'pending')}
+                      disabled={isRevokePending || isRevokeFailed}
                     >
                       {inAsk ? 'Reject' : 'Cancel'}
+                      {isRevokePending ? (
+                        <LoadingSpinner className="ml-2 h-4 w-4" />
+                      ) : null}
+                      {isRevokeFailed ? (
+                        <ExclamationPoint className="ml-2 h-4 w-4" />
+                      ) : null}
                     </button>
                   ) : null}
                   <button

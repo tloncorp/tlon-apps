@@ -357,18 +357,60 @@ export const useGroupState = create<GroupState>(
         set(() => ({ groups }));
       },
       revoke: async (flag, ships, kind) => {
-        api.poke(
-          groupAction(flag, {
-            cordon: {
-              shut: {
-                'del-ships': {
-                  kind,
-                  ships,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, {
+              cordon: {
+                shut: {
+                  'del-ships': {
+                    kind,
+                    ships,
+                  },
                 },
               },
+            }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  const { update, diff } = event;
+                  if (update && update.diff) {
+                    if ('cordon' in update.diff) {
+                      const { shut } = update.diff.cordon;
+                      if ('del-ships' in shut) {
+                        const { kind: returnedKind, ships: addedShips } =
+                          shut['del-ships'];
+                        return (
+                          returnedKind === 'pending' &&
+                          addedShips.every((ship: string) =>
+                            ships.includes(ship)
+                          )
+                        );
+                      }
+                      return false;
+                    }
+                    return false;
+                  }
+                  if (diff && 'cordon' in diff) {
+                    const { shut } = diff.cordon;
+                    if ('del-ships' in shut) {
+                      const { kind: returnedKind, ships: addedShips } =
+                        shut['del-ships'];
+                      return (
+                        returnedKind === 'pending' &&
+                        addedShips.every((ship: string) => ships.includes(ship))
+                      );
+                    }
+                    return false;
+                  }
+                  return false;
+                });
+
+              resolve();
             },
-          })
-        );
+          });
+        });
       },
       reject: async (flag) => {
         await api.poke({
