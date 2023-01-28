@@ -1,12 +1,17 @@
 import ob from 'urbit-ob';
 import React, { useCallback, useState } from 'react';
-import Dialog, { DialogClose, DialogContent } from '@/components/Dialog';
+import cn from 'classnames';
+import Dialog, { DialogContent } from '@/components/Dialog';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups/groups';
 import { getPrivacyFromGroup, preSig } from '@/logic/utils';
+import useRequestState from '@/logic/useRequestState';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
 
 export default function GroupInviteDialog() {
+  const [open, setOpen] = useState(true);
   const dismiss = useDismissNavigate();
   const flag = useRouteGroup();
   const group = useGroup(flag);
@@ -15,45 +20,74 @@ export default function GroupInviteDialog() {
   const validShips = ships
     ? ships.every((ship) => ob.isValidPatp(preSig(ship.value)))
     : false;
+  const { isPending, setPending, setReady, setFailed, isFailed } =
+    useRequestState();
 
-  const onOpenChange = (isOpen: boolean) => {
-    if (!isOpen) {
-      dismiss();
-    }
-  };
+  const close = useCallback(() => {
+    setOpen(false);
+    dismiss();
+  }, [dismiss]);
 
-  const onInvite = useCallback(() => {
+  const onInvite = useCallback(async () => {
+    setPending();
     const shipList = ships.map((s) => preSig(s.value));
     if (privacy === 'public') {
-      useGroupState.getState().addMembers(flag, shipList);
+      try {
+        await useGroupState.getState().addMembers(flag, shipList);
+        setReady();
+        close();
+      } catch (e) {
+        console.error('Error adding members: poke failed');
+        setFailed();
+        setTimeout(() => {
+          setReady();
+        }, 3000);
+      }
     } else {
-      useGroupState.getState().invite(flag, shipList);
+      try {
+        await useGroupState.getState().invite(flag, shipList);
+        setReady();
+        close();
+      } catch (e) {
+        console.error('Error inviting members: poke failed');
+        setFailed();
+        setTimeout(() => {
+          setReady();
+        }, 3000);
+      }
     }
-  }, [flag, privacy, ships]);
+  }, [flag, privacy, ships, setPending, setReady, setFailed, close]);
 
   const onEnter = useCallback(() => {
     onInvite();
-    dismiss();
-  }, [onInvite, dismiss]);
+    close();
+  }, [onInvite, close]);
 
   return (
-    <Dialog defaultOpen onOpenChange={onOpenChange}>
-      <DialogContent containerClass="w-full max-w-xl" showClose>
+    <Dialog open={open}>
+      <DialogContent containerClass="w-full max-w-xl" showClose={false}>
         <div className="flex flex-col">
           <h2 className="mb-4 text-lg font-bold">Invite To Group</h2>
           <div className="w-full py-3">
             <ShipSelector ships={ships} setShips={setShips} onEnter={onEnter} />
           </div>
           <div className="flex items-center justify-end space-x-2">
-            <DialogClose className="secondary-button">Cancel</DialogClose>
+            <button className="secondary-button" onClick={close}>
+              Cancel
+            </button>
 
-            <DialogClose
+            <button
               onClick={onInvite}
-              className="button bg-blue text-white dark:text-black"
-              disabled={!validShips}
+              className={cn('button text-white dark:text-black', {
+                'bg-red': isFailed,
+                'bg-blue': !isFailed,
+              })}
+              disabled={!validShips || isPending || isFailed}
             >
               Invite
-            </DialogClose>
+              {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+              {isFailed ? <ExclamationPoint className="ml-2 h-4 w-4" /> : null}
+            </button>
           </div>
         </div>
       </DialogContent>
