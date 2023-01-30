@@ -27,7 +27,7 @@ export default function MessageSelector() {
       <div className="my-2.5 flex w-full flex-row justify-evenly sm:w-auto">
         {isMobile ? (
           <button
-            className="secondary-button mr-2.5 w-1/2 py-2.5 sm:w-auto"
+            className="secondary-button mr-1 w-1/2 py-2.5 sm:mr-auto sm:w-auto"
             disabled={!validShips}
             onClick={() => onEnter(ships)}
           >
@@ -35,7 +35,7 @@ export default function MessageSelector() {
           </button>
         ) : null}
         <button
-          className="secondary-button ml-2.5 w-1/2 py-2.5 sm:w-auto"
+          className="secondary-button ml-1 w-1/2 py-2.5 sm:ml-auto sm:w-auto"
           onClick={onCancel}
         >
           Cancel
