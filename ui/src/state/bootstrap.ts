@@ -6,12 +6,15 @@ import { useDiaryState } from './diary';
 import { useGroupState } from './groups';
 import useHarkState from './hark';
 import { useHeapState } from './heap/heap';
+import useKilnState from './kiln';
 import { useSettingsState } from './settings';
 import { useStorage } from './storage';
 
-export default function bootstrap() {
+export default async function bootstrap() {
   useGroupState.getState().start();
   useChatState.getState().start();
+
+  useKilnState.getState().initializeKiln();
 
   if (isTalk) {
     useChatState.getState().fetchDms();

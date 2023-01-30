@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import cn from 'classnames';
+import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
@@ -24,6 +25,7 @@ import MenuIcon from '../icons/MenuIcon';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
   return (
     <SidebarItem
       div
@@ -64,6 +66,15 @@ export function GroupsAppMenu() {
                 Submit Feedback
               </DropdownMenu.Item>
             </a>
+            <Link
+              to="/about"
+              className="no-underline"
+              state={{ backgroundLocation: location }}
+            >
+              <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
+                About Groups
+              </DropdownMenu.Item>
+            </Link>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       }

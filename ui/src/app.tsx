@@ -82,6 +82,7 @@ import MobileGroupActions from './groups/MobileGroupActions';
 import { useStorage } from './state/storage';
 import { isTalk } from './logic/utils';
 import bootstrap from './state/bootstrap';
+import AboutDialog from './components/AboutDialog';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -355,6 +356,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
+          <Route path="/about" element={<AboutDialog />} />
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
