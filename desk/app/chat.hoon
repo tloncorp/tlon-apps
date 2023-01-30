@@ -321,7 +321,7 @@
   ^+  cor
   ?+    pole  ~|(bad-watch-path/path !!)
       [%imp ~]        ?>(from-self cor)
-      [%club %new ~]  ?>(from-self cor)
+      [%clubs %ui ~]  ?>(from-self cor)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
@@ -862,11 +862,11 @@
     =.  pact.club  (reduce:cu-pact now.bowl w-d)
     (cu-give-writs-diff w-d)
   ::
-  ++  cu-give-delta
-    |=  =delta:club:c
+  ++  cu-give-action
+    |=  =action:club:c
+    =/  =cage  club-action+!>(action)
     =.  cor
-      =/  =cage  club-delta+!>(delta)
-      (emit %give %fact ~[(snoc cu-area %ui)] cage)
+      (emit %give %fact ~[/clubs/ui] cage)
     cu-core
   ::
   ++  cu-give-writs-diff
@@ -881,6 +881,7 @@
     ::  ?>  (~(has in cu-circle) src.bowl)  :: TODO: signatures?? probably overkill
     =?  cor  (lth echo club-eq)
       (emil (gossip:cu-pass +(echo) delta))
+    =/  =action:club:c  [id [echo delta]]
     ?-    -.delta
     ::
         %init
@@ -888,14 +889,11 @@
           team.club  team.delta
           met.club   met.delta
       ==
-      =/  cage  club-invite+!>([id (tail delta)])
-      =.  cor  (emit %give %fact ~[`wire`/club/new] cage)
-      cu-core
+      (cu-give-action action)
     ::
         %meta
       =.  met.club  meta.delta
-      =.  cu-core  (cu-give-delta delta)
-      cu-core
+      (cu-give-action action)
     ::
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
@@ -923,7 +921,7 @@
     ::
         %team
       =*  ship  ship.delta
-      =.  cu-core  (cu-give-delta delta)
+      =.  cu-core  (cu-give-action action)
       =/  loyal  (~(has in team.club) ship)
       ?:  &(!ok.delta loyal)
         ?.  =(our src):bowl
@@ -940,7 +938,7 @@
       (cu-post-notice ship '' ' joined the chat')
     ::
         %hive
-      =.  cu-core  (cu-give-delta delta)
+      =.  cu-core  (cu-give-action action)
       ?:  add.delta
         ?:  (~(has in hive.club) for.delta)
           cu-core

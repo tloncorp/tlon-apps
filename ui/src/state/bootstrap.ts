@@ -15,6 +15,7 @@ export default function bootstrap() {
 
   if (isTalk) {
     useChatState.getState().fetchDms();
+    useChatState.getState().fetchMultiDms();
   } else {
     useHeapState.getState().start();
     useDiaryState.getState().start();
