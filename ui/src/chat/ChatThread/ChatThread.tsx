@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import _ from 'lodash';
+import ob from 'urbit-ob';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -37,6 +38,13 @@ export default function ChatThread() {
   const threadRef = useRef<HTMLDivElement | null>(null);
   const perms = useChatPerms(flag);
   const vessel = useVessel(groupFlag, window.our);
+  const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
+  const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
+  const threadTitle = whomIsFlag(whom)
+    ? channel.meta.title || ''
+    : isClub
+    ? club?.meta.title || ship
+    : ship;
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
@@ -76,9 +84,7 @@ export default function ChatThread() {
             <div className="rounded bg-gray-50 p-1">
               <BranchIcon className="h-6 w-6 text-gray-400" />
             </div>
-            <div>
-              Thread : {whomIsFlag(whom) ? channel?.meta.title || '' : ship}
-            </div>
+            <div>Thread: {threadTitle}</div>
           </div>
           <Link
             to={returnURL()}
