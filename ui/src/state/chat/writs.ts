@@ -22,7 +22,7 @@ export function writsReducer(whom: string) {
     json: ChatAction | WritDiff,
     draft: BasedChatState
   ): BasedChatState => {
-    let id;
+    let id: string | undefined;
     let delta;
     if ('update' in json) {
       if ('writs' in json.update.diff) {
@@ -62,10 +62,8 @@ export function writsReducer(whom: string) {
         const replyTime = pact.index[old.memo.replying];
         if (replyTime) {
           const ancestor = pact.writs.get(replyTime);
-          ancestor.seal.replied = ancestor.seal.replied.filter(
-            (r) => r !== old.memo.replying
-          );
-          pact.writs.set(replyTime, ancestor);
+          ancestor.seal.replied = ancestor.seal.replied.filter((r) => r !== id);
+          pact.writs = pact.writs.set(replyTime, ancestor);
         }
       }
     } else if ('add-feel' in delta && pact.index[id]) {
