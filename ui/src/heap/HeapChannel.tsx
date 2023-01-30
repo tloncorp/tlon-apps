@@ -128,7 +128,7 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (channel && !canRead) {
-      navigate(`/groups/${flag}/activity`);
+      navigate(`/groups/${flag}`);
       setRecentChannel('');
     }
   }, [flag, group, channel, vessel, navigate, setRecentChannel, canRead]);
