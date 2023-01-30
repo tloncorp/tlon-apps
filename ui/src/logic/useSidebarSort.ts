@@ -67,16 +67,16 @@ export default function useSidebarSort({
   };
 
   const setGroupSideBarSort = useCallback(
-    () => (mode: string) => {
+    (mode: string) => {
       useSettingsState
         .getState()
         .putEntry(
           'groups',
           'groupSideBarSort',
-          JSON.stringify({ [flag]: mode })
+          JSON.stringify({ ...groupSideBarSort, [flag]: mode })
         );
     },
-    [flag]
+    [flag, groupSideBarSort]
   );
 
   /**
@@ -104,7 +104,8 @@ export default function useSidebarSort({
   }
 
   const setSortFn = useMemo(
-    () => (flag !== '~' ? setGroupSideBarSort : setSideBarSort),
+    () => (mode: string) =>
+      flag !== '~' ? setGroupSideBarSort(mode) : setSideBarSort(mode),
     [flag, setGroupSideBarSort]
   );
 

@@ -68,10 +68,10 @@ function DiaryChannel() {
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate('../../activity');
+      navigate(`/groups/${flag}/activity`);
       setRecentChannel('');
     }
-  }, [group, channel, vessel, navigate, setRecentChannel]);
+  }, [flag, group, channel, vessel, navigate, setRecentChannel]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);

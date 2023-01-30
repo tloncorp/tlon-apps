@@ -6,6 +6,7 @@ import {
   useGroupsInitialized,
   useGroupState,
   useRouteGroup,
+  useVessel,
 } from '@/state/groups/groups';
 import api from '@/api';
 import { useChatState } from '@/state/chat';
@@ -14,6 +15,7 @@ import { useDiaryState } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import _ from 'lodash';
+import { canReadChannel } from '@/logic/utils';
 
 function Groups() {
   const navigate = useNavigate();
@@ -21,6 +23,7 @@ function Groups() {
   const initialized = useGroupsInitialized();
   const group = useGroup(flag);
   const gang = useGang(flag);
+  const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
   const root = useMatch({
     path: '/groups/:ship/:name',
@@ -32,8 +35,12 @@ function Groups() {
     if (initialized && !group && !gang) {
       navigate('/');
     } else if (initialized && group && root) {
-      const channels = Object.entries(group.channels).map(([name]) => name);
-      if (recentChannel && channels.includes(recentChannel) && !isMobile) {
+      const found = Object.entries(group.channels).find(
+        ([nest, channel]) => recentChannel === nest
+      );
+
+      let canRead = found && canReadChannel(found[1], vessel, group?.bloc);
+      if (recentChannel && canRead && !isMobile) {
         navigate(`./channels/${recentChannel}`);
         return;
       }
@@ -48,13 +55,23 @@ function Groups() {
         ([nest]) => nest in allBriefs
       );
 
-      if (channel && !isMobile) {
+      canRead = channel && canReadChannel(channel[1], vessel, group?.bloc);
+      if (channel && canRead && !isMobile) {
         navigate(`./channels/${channel[0]}`);
       } else if (!isMobile) {
         navigate('./channels');
       }
     }
-  }, [root, gang, group, isMobile, initialized, recentChannel, navigate]);
+  }, [
+    root,
+    gang,
+    group,
+    vessel,
+    isMobile,
+    initialized,
+    recentChannel,
+    navigate,
+  ]);
 
   useEffect(() => {
     let id = null as number | null;

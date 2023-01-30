@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import ob from 'urbit-ob';
 import fuzzy from 'fuzzy';
 import {
@@ -51,6 +51,7 @@ interface ShipSelectorProps {
   placeholder?: string;
   isValidNewOption?: (value: string) => boolean;
   autoFocus?: boolean;
+  containerClassName?: string;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -273,6 +274,7 @@ export default function ShipSelector({
   placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
   isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
   autoFocus = true,
+  containerClassName,
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -381,9 +383,16 @@ export default function ShipSelector({
     }
   };
 
-  const onInputChange = (newValue: string, _actionMeta: InputActionMeta) => {
-    setInputValue(newValue);
-  };
+  const onInputChange = useCallback(
+    (newValue: string, { action }: InputActionMeta) => {
+      if (['input-blur', 'menu-close'].indexOf(action) === -1) {
+        setInputValue(newValue);
+        return newValue;
+      }
+      return inputValue;
+    },
+    [inputValue]
+  );
 
   const onChange = (
     newValue: MultiValue<ShipOption>,
@@ -429,6 +438,7 @@ export default function ShipSelector({
         ref={selectRef}
         formatCreateLabel={AddNewOption}
         autoFocus={autoFocus}
+        className={containerClassName}
         styles={{
           control: (base) => ({}),
           menu: ({ width, borderRadius, ...base }) => ({
@@ -485,6 +495,7 @@ export default function ShipSelector({
             : isValidNewOption(val)
         }
         onKeyDown={onKeyDown}
+        inputValue={inputValue}
         placeholder={isMobile ? mobilePlaceholder : placeholder}
         hideSelectedOptions
         // TODO: create custom filter for sorting potential DM participants.
@@ -517,6 +528,7 @@ export default function ShipSelector({
       formatCreateLabel={AddNewOption}
       autoFocus
       isMulti
+      className={containerClassName}
       styles={{
         control: (base) => ({}),
         menuList: ({ padding, paddingTop, paddingBottom, ...base }) => ({
@@ -580,6 +592,7 @@ export default function ShipSelector({
           : isValidNewOption(val)
       }
       onKeyDown={onKeyDown}
+      inputValue={inputValue}
       placeholder={isMobile ? mobilePlaceholder : placeholder}
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.

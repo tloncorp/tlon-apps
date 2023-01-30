@@ -458,7 +458,7 @@ export function useNote(
       (s) => {
         const notes = s.notes[flag];
         const fallback = [bigInt(0), emptyNote] as const;
-        if (!notes) {
+        if (!notes || !notes.get) {
           return fallback;
         }
 
