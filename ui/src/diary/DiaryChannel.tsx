@@ -68,7 +68,7 @@ function DiaryChannel() {
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate(`/groups/${flag}/activity`);
+      navigate(`/groups/${flag}`);
       setRecentChannel('');
     }
   }, [flag, group, channel, vessel, navigate, setRecentChannel]);

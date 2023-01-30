@@ -19,6 +19,7 @@ import {
   canReadChannel,
   canWriteChannel,
   isChannelJoined,
+  isTalk,
 } from '@/logic/utils';
 import useAllBriefs from '@/logic/useAllBriefs';
 import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder';
@@ -80,7 +81,11 @@ function ChatChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (channel && !canRead) {
-      navigate(`/groups/${groupFlag}/activity`);
+      if (isTalk) {
+        navigate('/');
+      } else {
+        navigate(`/groups/${groupFlag}`);
+      }
       setRecentChannel('');
     }
   }, [groupFlag, group, channel, vessel, navigate, setRecentChannel, canRead]);
