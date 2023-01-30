@@ -1,3 +1,4 @@
+import { useDismissNavigate } from '@/logic/routing';
 import { isTalk, useCopy } from '@/logic/utils';
 import { usePike } from '@/state/kiln';
 import Dialog, { DialogContent } from './Dialog';
@@ -6,6 +7,7 @@ import CheckIcon from './icons/CheckIcon';
 import CopyIcon from './icons/CopyIcon';
 
 export default function AboutDialog() {
+  const dismiss = useDismissNavigate();
   const pike = usePike(isTalk ? 'talk' : 'groups');
   const { didCopy: didCopyHash, doCopy: doCopyHash } = useCopy(
     pike?.hash || ''
@@ -13,6 +15,12 @@ export default function AboutDialog() {
   const { didCopy: didCopyShip, doCopy: doCopyShip } = useCopy(
     pike?.sync?.ship || ''
   );
+
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      dismiss();
+    }
+  };
 
   const appDescription = isTalk
     ? `Send encrypted direct messages to one or many friends.
@@ -24,7 +32,7 @@ export default function AboutDialog() {
             Gallery for a full, communal suite of tools.`;
 
   return (
-    <Dialog defaultOpen modal>
+    <Dialog defaultOpen modal onOpenChange={onOpenChange}>
       <DialogContent
         onInteractOutside={(e) => e.preventDefault()}
         className="w-[500px] sm:inset-y-24"
