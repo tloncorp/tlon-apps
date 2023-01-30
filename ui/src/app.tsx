@@ -198,6 +198,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
+          <Route path="/about" element={<AboutDialog />} />
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />

@@ -18,6 +18,7 @@ import {
   SettingsState,
 } from '@/state/settings';
 import { debounce } from 'lodash';
+import { Link, useLocation } from 'react-router-dom';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -28,6 +29,7 @@ const selMessagesFilter = (s: SettingsState) => ({
 
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
   return (
     <SidebarItem
       div
@@ -68,6 +70,15 @@ export function TalkAppMenu() {
                 Submit Feedback
               </DropdownMenu.Item>
             </a>
+            <Link
+              to="/about"
+              className="no-underline"
+              state={{ backgroundLocation: location }}
+            >
+              <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
+                About Talk
+              </DropdownMenu.Item>
+            </Link>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       }
