@@ -368,7 +368,7 @@ export function useCurio(flag: HeapFlag, time: string) {
     useCallback(
       (s) => {
         const curios = s.curios[flag];
-        if (!curios) {
+        if (!curios || !curios.get) {
           return undefined;
         }
 
