@@ -153,7 +153,9 @@ function NoShipsMessage() {
   return (
     <div className="flex content-center space-x-1 px-2 py-3">
       <ExclamationPoint className="mr-2 w-[18px] text-gray-300" />
-      <span className="italic">This name was not found.</span>
+      <span className="italic">
+        This is not a known alias or valid ship name.
+      </span>
     </div>
   );
 }
