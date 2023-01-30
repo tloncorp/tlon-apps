@@ -16,42 +16,31 @@ export default function MessageSelector() {
   }, [navigate, setShips]);
 
   return (
-    <>
-      <div className="relative z-50 flex w-full items-center space-x-2 py-3 px-4">
-        <div className="w-full">
-          <ShipSelector
-            ships={ships}
-            setShips={setShips}
-            onEnter={onEnter}
-            isMulti={true}
-          />
-        </div>
-        <button className="secondary-button py-2.5" onClick={onCancel}>
+    <div className="relative z-50 flex w-full flex-col items-center py-3 px-4 sm:flex-row sm:space-x-2">
+      <ShipSelector
+        ships={ships}
+        setShips={setShips}
+        onEnter={onEnter}
+        isMulti={true}
+        containerClassName="w-full grow"
+      />
+      <div className="my-2.5 flex w-full flex-row justify-evenly sm:w-auto">
+        {isMobile ? (
+          <button
+            className="secondary-button mr-1 w-1/2 py-2.5 sm:mr-auto sm:w-auto"
+            disabled={!validShips}
+            onClick={() => onEnter(ships)}
+          >
+            {action}
+          </button>
+        ) : null}
+        <button
+          className="secondary-button ml-1 w-1/2 py-2.5 sm:ml-auto sm:w-auto"
+          onClick={onCancel}
+        >
           Cancel
         </button>
       </div>
-      {validShips ? (
-        <div className="absolute inset-0 z-40 flex h-full flex-1 flex-col items-center justify-center bg-gray-100/50">
-          <div className="flex w-fit flex-col items-center justify-center rounded-md border border-dashed border-gray-200 bg-gray-100/90 p-8">
-            {isMobile ? (
-              <div className="flex flex-col items-center space-y-2">
-                <button
-                  className="small-button m-2"
-                  onClick={() => onEnter(ships)}
-                >
-                  {action}
-                </button>
-              </div>
-            ) : (
-              <div className="text-lg text-gray-500">
-                Press Enter to {action}
-              </div>
-            )}
-            <div className="text-lg text-gray-300">or</div>
-            <div className="text-lg text-gray-500">Add More Ships</div>
-          </div>
-        </div>
-      ) : null}
-    </>
+    </div>
   );
 }

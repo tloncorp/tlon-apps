@@ -51,6 +51,7 @@ interface ShipSelectorProps {
   placeholder?: string;
   isValidNewOption?: (value: string) => boolean;
   autoFocus?: boolean;
+  containerClassName?: string;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -273,6 +274,7 @@ export default function ShipSelector({
   placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
   isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
   autoFocus = true,
+  containerClassName,
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -436,6 +438,7 @@ export default function ShipSelector({
         ref={selectRef}
         formatCreateLabel={AddNewOption}
         autoFocus={autoFocus}
+        className={containerClassName}
         styles={{
           control: (base) => ({}),
           menu: ({ width, borderRadius, ...base }) => ({
@@ -525,6 +528,7 @@ export default function ShipSelector({
       formatCreateLabel={AddNewOption}
       autoFocus
       isMulti
+      className={containerClassName}
       styles={{
         control: (base) => ({}),
         menuList: ({ padding, paddingTop, paddingBottom, ...base }) => ({

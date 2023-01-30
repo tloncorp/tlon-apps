@@ -27,7 +27,7 @@ export default function MultiDm() {
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
 
-  const { existingMultiDm, isSelectingMessage } = useMessageSelector();
+  const { isSelectingMessage } = useMessageSelector();
 
   useEffect(() => {
     if (clubId && club) {
@@ -53,7 +53,9 @@ export default function MultiDm() {
       <Layout
         className="h-full grow"
         header={
-          isSelectingMessage ? null : (
+          isSelectingMessage ? (
+            <MessageSelector />
+          ) : (
             <div className="flex h-full w-full items-center justify-between border-b-2 border-gray-50 p-2">
               <BackButton
                 to="/"
@@ -110,7 +112,6 @@ export default function MultiDm() {
           ) : null
         }
       >
-        {existingMultiDm ? <MessageSelector /> : null}
         {isAccepted ? (
           <ChatWindow
             whom={clubId}
