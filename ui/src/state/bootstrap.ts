@@ -14,8 +14,6 @@ export default async function bootstrap() {
   useGroupState.getState().start();
   useChatState.getState().start();
 
-  useKilnState.getState().initializeKiln();
-
   if (isTalk) {
     useChatState.getState().fetchDms();
   } else {
@@ -31,4 +29,5 @@ export default async function bootstrap() {
   fetchAll();
 
   useStorage.getState().initialize(api);
+  useKilnState.getState().initializeKiln();
 }
