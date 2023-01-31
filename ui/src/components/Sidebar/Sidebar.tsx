@@ -71,7 +71,7 @@ export function GroupsAppMenu() {
               className="no-underline"
               state={{ backgroundLocation: location }}
             >
-              <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
+              <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
                 About Groups
               </DropdownMenu.Item>
             </Link>

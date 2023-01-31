@@ -43,8 +43,10 @@ export default function AboutDialog() {
           </span>
           <span className="text-sm text-gray-500">{appDescription}</span>
           <div className="flex flex-row items-center text-sm">
-            <span className="font-bold text-gray-500">Hash:</span>
-            <code className="ml-2 break-all">{pike?.hash}</code>
+            <div className="flex flex-row items-end">
+              <span className="font-bold text-gray-500">Hash:</span>
+              <code className="ml-2 break-all">{pike?.hash}</code>
+            </div>
             <IconButton
               label="Copy Hash"
               icon={
