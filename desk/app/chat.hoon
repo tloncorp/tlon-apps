@@ -897,12 +897,14 @@
     ::
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
-      =.  cu-core  (cu-give-writs-diff diff.delta)
-      =.  cor  (give-brief club/id cu-brief)
+      =.  cu-core  (cu-give-writs-diff diff.delta)      
       ?-  -.q.diff.delta  
           ?(%del %add-feel %del-feel)  cu-core
           %add
         =/  memo=memo:c  p.q.diff.delta
+        =?  remark.club  =(author.memo our.bowl)  
+          remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
+        =.  cor  (give-brief club/id cu-brief)
         ?:  =(our.bowl author.memo)  cu-core
         ?-  -.content.memo
             %notice  cu-core
@@ -1547,17 +1549,19 @@
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
-    =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
-      (give-brief ship/ship di-brief)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     =.  di-core
       (di-notify diff)
-    ?:  from-self  di-core
     ?-  -.q.diff
         ?(%del %add-feel %del-feel)  di-core
         %add
       =/  memo=memo:c  p.q.diff
+      =?  remark.dm  =(author.memo our.bowl)  
+        remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
+      =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
+        (give-brief ship/ship di-brief)
+      ?:  from-self  di-core
       ?-  -.content.memo
           %notice  di-core
           %story
