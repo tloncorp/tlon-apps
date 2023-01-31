@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
@@ -83,6 +83,9 @@ import Leap from './components/Leap/Leap';
 import { useStorage } from './state/storage';
 import { isTalk } from './logic/utils';
 import bootstrap from './state/bootstrap';
+import AboutDialog from './components/AboutDialog';
+import useKilnState, { usePike } from './state/kiln';
+import UpdateNotice from './components/UpdateNotice';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -198,6 +201,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
+          <Route path="/about" element={<AboutDialog />} />
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
@@ -356,6 +360,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       </Routes>
       {state?.backgroundLocation ? (
         <Routes>
+          <Route path="/about" element={<AboutDialog />} />
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
@@ -426,6 +431,17 @@ function App() {
   const subscription = useSubscriptionStatus();
   const errorCount = useErrorCount();
   const airLockErrorCount = useAirLockErrorCount();
+  const pike = usePike(isTalk ? 'talk' : 'groups');
+  const [baseHash, setBaseHash] = useState('');
+  const [needsUpdate, setNeedsUpdate] = useState(false);
+
+  const fetchPikes = useCallback(async () => {
+    try {
+      await useKilnState.getState().fetchPikes();
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   useEffect(() => {
     handleError(() => {
@@ -439,6 +455,24 @@ function App() {
       bootstrap();
     })();
   }, [handleError]);
+
+  useEffect(() => {
+    if (pike && baseHash === '') {
+      setBaseHash(pike.hash);
+    }
+  }, [pike, baseHash]);
+
+  useEffect(() => {
+    setInterval(() => {
+      fetchPikes();
+    }, 1000 * 60 * 5);
+  }, [fetchPikes]);
+
+  useEffect(() => {
+    if (pike && pike.hash !== baseHash && baseHash !== '' && !needsUpdate) {
+      setNeedsUpdate(true);
+    }
+  }, [pike, baseHash, needsUpdate]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
@@ -456,6 +490,7 @@ function App() {
       {subscription === 'disconnected' || subscription === 'reconnecting' ? (
         <DisconnectNotice />
       ) : null}
+      {needsUpdate ? <UpdateNotice /> : null}
       {isTalk ? (
         <>
           <TalkHead />
