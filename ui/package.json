@@ -78,7 +78,7 @@
     "@tlon/sigil-js": "^1.4.5",
     "@tloncorp/mock-http-api": "^1.2.0",
     "@types/prosemirror-view": "^1.23.3",
-    "@urbit/api": "^2.1.1",
+    "@urbit/api": "^2.2.0",
     "@urbit/aura": "^0.4.0",
     "@urbit/http-api": "^2.2.0",
     "any-ascii": "^0.3.1",
