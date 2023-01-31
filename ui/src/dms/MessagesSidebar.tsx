@@ -19,6 +19,7 @@ import {
 } from '@/state/settings';
 import { debounce } from 'lodash';
 import { Link, useLocation } from 'react-router-dom';
+import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -61,20 +62,26 @@ export function TalkAppMenu() {
 
           <DropdownMenu.Content className="dropdown mt-2 -ml-2 w-60">
             <a
-              className="no-underline"
+              className="dropdown-item flex flex-row items-center p-2 no-underline"
               href="https://airtable.com/shrflFkf5UyDFKhmW"
               target="_blank"
               rel="noreferrer"
             >
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <AsteriskIcon className="h-6 w-6" />
+              </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
                 Submit Feedback
               </DropdownMenu.Item>
             </a>
             <Link
               to="/about"
-              className="no-underline"
+              className="dropdown-item flex flex-row items-center p-2 no-underline"
               state={{ backgroundLocation: location }}
             >
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <TalkIcon className="h-6 w-6" />
+              </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
                 About Talk
               </DropdownMenu.Item>

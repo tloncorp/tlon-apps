@@ -22,6 +22,7 @@ import { useNotifications } from '@/notifications/useNotifications';
 import { debounce } from 'lodash';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
+import AsteriskIcon from '../icons/Asterisk16Icon';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -57,20 +58,26 @@ export function GroupsAppMenu() {
 
           <DropdownMenu.Content className="dropdown mt-2 -ml-2 w-60">
             <a
-              className="no-underline"
+              className="dropdown-item flex flex-row items-center p-2 no-underline"
               href="https://airtable.com/shrflFkf5UyDFKhmW"
               target="_blank"
               rel="noreferrer"
             >
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <AsteriskIcon className="h-6 w-6" />
+              </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
                 Submit Feedback
               </DropdownMenu.Item>
             </a>
             <Link
               to="/about"
-              className="no-underline"
+              className="dropdown-item flex flex-row items-center p-2 no-underline"
               state={{ backgroundLocation: location }}
             >
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <AppGroupsIcon className="h-6 w-6" />
+              </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
                 About Groups
               </DropdownMenu.Item>
