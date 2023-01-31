@@ -1397,11 +1397,13 @@
     ::
         %writs
       =.  pact.chat  (reduce:ca-pact time p.d)
-      =.  cor  (give-brief flag/flag ca-brief)
       ?-  -.q.p.d
           ?(%del %add-feel %del-feel)  ca-core
           %add
         =/  memo=memo:c  p.q.p.d
+        =?  remark.chat  =(author.memo our.bowl)  
+          remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
+        =.  cor  (give-brief flag/flag ca-brief)
         ?-  -.content.memo
             %notice  ca-core
             %story
