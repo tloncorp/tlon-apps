@@ -174,8 +174,11 @@ export default function makeWritsStore(
         Object.keys(writs).forEach((key) => {
           const writ = writs[key];
           const tim = bigInt(udToDec(key));
-          pact.writs = pact.writs.set(tim, writ);
-          pact.index[writ.seal.id] = tim;
+
+          if (!pact.index[writ.seal.id]) {
+            pact.writs = pact.writs.set(tim, writ);
+            pact.index[writ.seal.id] = tim;
+          }
         });
         draft.pacts[whom] = { ...pact };
         const loaded = draft.loadedWrits[whom] || {
@@ -220,8 +223,11 @@ export default function makeWritsStore(
         Object.keys(writs).forEach((key) => {
           const writ = writs[key];
           const tim = bigInt(udToDec(key));
-          pact.writs = pact.writs.set(tim, writ);
-          pact.index[writ.seal.id] = tim;
+
+          if (!pact.index[writ.seal.id]) {
+            pact.writs = pact.writs.set(tim, writ);
+            pact.index[writ.seal.id] = tim;
+          }
         });
         draft.pacts[whom] = { ...pact };
         const loaded = draft.loadedWrits[whom] || {
