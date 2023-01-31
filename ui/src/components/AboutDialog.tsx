@@ -1,5 +1,6 @@
 import { useDismissNavigate } from '@/logic/routing';
 import { isTalk, useCopy } from '@/logic/utils';
+import { useCharge } from '@/state/docket';
 import { usePike } from '@/state/kiln';
 import Dialog, { DialogContent } from './Dialog';
 import IconButton from './IconButton';
@@ -9,11 +10,15 @@ import CopyIcon from './icons/CopyIcon';
 export default function AboutDialog() {
   const dismiss = useDismissNavigate();
   const pike = usePike(isTalk ? 'talk' : 'groups');
+  const charge = useCharge(isTalk ? 'talk' : 'groups');
   const { didCopy: didCopyHash, doCopy: doCopyHash } = useCopy(
     pike?.hash || ''
   );
   const { didCopy: didCopyShip, doCopy: doCopyShip } = useCopy(
     pike?.sync?.ship || ''
+  );
+  const { didCopy: didCopyVersion, doCopy: doCopyVersion } = useCopy(
+    charge?.version || ''
   );
 
   const onOpenChange = (open: boolean) => {
@@ -21,15 +26,6 @@ export default function AboutDialog() {
       dismiss();
     }
   };
-
-  const appDescription = isTalk
-    ? `Send encrypted direct messages to one or many friends.
-    Talk is a simple chat tool for catching up, getting work done,
-    and everything in between.`
-    : `Start, host, and cultivate communities. Own your communications,
-            organize your resources, and share documents. Groups is a
-            decentralized platform that integrates with Talk, Notebook, and
-            Gallery for a full, communal suite of tools.`;
 
   return (
     <Dialog defaultOpen modal onOpenChange={onOpenChange}>
@@ -41,7 +37,22 @@ export default function AboutDialog() {
           <span className="text-lg font-bold">
             About {isTalk ? 'Talk' : 'Groups'}
           </span>
-          <span className="text-sm text-gray-500">{appDescription}</span>
+          <span className="text-sm text-gray-500">{charge?.info}</span>
+          <div className="flex flex-row items-center text-sm">
+            <span className="font-bold text-gray-500">Version:</span>
+            <code className="ml-1">{charge?.version}</code>
+            <IconButton
+              label="Copy Version"
+              icon={
+                didCopyVersion ? (
+                  <CheckIcon className="h-6 w-6 text-gray-400" />
+                ) : (
+                  <CopyIcon className="h-6 w-6 text-gray-400" />
+                )
+              }
+              action={doCopyVersion}
+            />
+          </div>
           <div className="flex flex-row items-center text-sm">
             <div className="flex flex-row items-end">
               <span className="font-bold text-gray-500">Hash:</span>
@@ -63,7 +74,7 @@ export default function AboutDialog() {
             <span className="font-bold text-gray-500">Source:</span>
             <code className="ml-2 break-all">{pike?.sync?.ship}</code>
             <IconButton
-              label="Copy Hash"
+              label="Copy Source"
               icon={
                 didCopyShip ? (
                   <CheckIcon className="h-6 w-6 text-gray-400" />
