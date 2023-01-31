@@ -52,7 +52,9 @@ function DiaryChannel() {
   const group = useGroup(flag);
   const channel = useChannel(flag, nest);
   const briefs = useAllBriefs();
-  const joined = isChannelJoined(nest, briefs);
+  const joined = Object.keys(briefs).some((k) => k.includes('diary/'))
+    ? isChannelJoined(nest, briefs)
+    : true;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -61,14 +63,12 @@ function DiaryChannel() {
   }, [chFlag]);
 
   const initializeChannel = useCallback(async () => {
-    setTimeout(async () => {
-      await useDiaryState.getState().initialize(chFlag);
-    }, 1000);
+    await useDiaryState.getState().initialize(chFlag);
   }, [chFlag]);
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate(`/groups/${flag}/activity`);
+      navigate(`/groups/${flag}`);
       setRecentChannel('');
     }
   }, [flag, group, channel, vessel, navigate, setRecentChannel]);

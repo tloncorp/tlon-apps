@@ -61,7 +61,9 @@ function HeapChannel({ title }: ViewProps) {
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
   const briefs = useAllBriefs();
-  const joined = isChannelJoined(nest, briefs);
+  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
+    ? isChannelJoined(nest, briefs)
+    : true;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -126,7 +128,7 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (channel && !canRead) {
-      navigate(`/groups/${flag}/activity`);
+      navigate(`/groups/${flag}`);
       setRecentChannel('');
     }
   }, [flag, group, channel, vessel, navigate, setRecentChannel, canRead]);

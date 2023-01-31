@@ -65,6 +65,7 @@ export default function ChatMessageOptions(props: {
           open={pickerOpen}
           setOpen={setPickerOpen}
           onEmojiSelect={onEmoji}
+          withTrigger={false}
         >
           <IconButton
             icon={<FaceIcon className="h-6 w-6 text-gray-400" />}

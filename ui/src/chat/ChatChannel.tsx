@@ -19,6 +19,7 @@ import {
   canReadChannel,
   canWriteChannel,
   isChannelJoined,
+  isTalk,
 } from '@/logic/utils';
 import useAllBriefs from '@/logic/useAllBriefs';
 import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder';
@@ -43,7 +44,9 @@ function ChatChannel({ title }: ViewProps) {
     : false;
   const { sendMessage } = useChatState.getState();
   const briefs = useAllBriefs();
-  const joined = isChannelJoined(nest, briefs);
+  const joined = Object.keys(briefs).some((k) => k.includes('chat/'))
+    ? isChannelJoined(nest, briefs)
+    : true;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -80,7 +83,11 @@ function ChatChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (channel && !canRead) {
-      navigate(`/groups/${groupFlag}/activity`);
+      if (isTalk) {
+        navigate('/');
+      } else {
+        navigate(`/groups/${groupFlag}`);
+      }
       setRecentChannel('');
     }
   }, [groupFlag, group, channel, vessel, navigate, setRecentChannel, canRead]);

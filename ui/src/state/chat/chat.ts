@@ -266,15 +266,9 @@ export const useChatState = createState<ChatState>(
       });
       api.subscribe({
         app: 'chat',
-        path: '/club/new',
-        event: (event: ClubInvite) => {
-          get().batchSet((draft) => {
-            const { id, ...crew } = event;
-            const club = draft.multiDms[id];
-            if (!club) {
-              draft.multiDms[id] = crew;
-            }
-          });
+        path: '/clubs/ui',
+        event: (event: ClubAction) => {
+          get().batchSet(clubReducer(event));
         },
       });
 
@@ -597,14 +591,6 @@ export const useChatState = createState<ChatState>(
         `/club/${id}/writs`,
         `/club/${id}/ui/writs`
       ).initialize();
-
-      api.subscribe({
-        app: 'chat',
-        path: `/club/${id}/ui`,
-        event: (event: ClubDelta) => {
-          get().batchSet(clubReducer(id, event));
-        },
-      });
     },
     createMultiDm: async (id, hive) => {
       get().batchSet((draft) => {

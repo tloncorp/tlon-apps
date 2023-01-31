@@ -18,6 +18,21 @@
         writ/(writ q.s)
     ==
   ::
+  ++  club-action
+    |=  a=action:club:c
+    ^-  json
+    %-  pairs
+    :~  id/s/(scot %uv p.a)
+        diff/(club-diff q.a)
+    ==
+  ::
+  ++  club-diff
+    |=  d=diff:club:c
+    ^-  json
+    %-  pairs
+    :~  echo/(numb p.d)
+        delta/(club-delta q.d)
+    ==
   ++  club-delta
     |=  d=delta:club:c
     %+  frond  -.d

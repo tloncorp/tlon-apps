@@ -252,6 +252,14 @@ export interface Hive {
   add: boolean;
 }
 
+interface ClubDeltaInit {
+  init: {
+    team: string[];
+    hive: string[];
+    meta: GroupMeta;
+  };
+}
+
 interface ClubDeltaEditMetadata {
   meta: GroupMeta;
 }
@@ -276,6 +284,7 @@ interface ClubDeltaWrit {
 }
 
 export type ClubDelta =
+  | ClubDeltaInit
   | ClubDeltaEditMetadata
   | ClubDeltaAddHive
   | ClubDeltaRemoveHive
