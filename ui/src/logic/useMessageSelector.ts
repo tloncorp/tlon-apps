@@ -36,15 +36,15 @@ export default function useMessageSelector() {
   }, [ships]);
 
   const existingMultiDm = useMemo(() => {
+    if (!shipValues.length) {
+      return null;
+    }
     const { briefs } = useChatState.getState();
     const clubId = Object.entries(multiDms).reduce<string>((key, [k, v]) => {
-      const theShips = [...v.hive, ...v.team];
-      const ourShipValues = shipValues.includes(window.our)
-        ? shipValues
-        : [...shipValues, window.our];
+      const theShips = [...v.hive, ...v.team].filter((s) => s !== window.our);
       const sameDM =
-        difference(ourShipValues, theShips).length === 0 &&
-        ourShipValues.length === theShips.length;
+        difference(shipValues, theShips).length === 0 &&
+        shipValues.length === theShips.length;
       const brief = briefs[key];
       const newBrief = briefs[k];
       const newer = !brief || (brief && newBrief && newBrief.last > brief.last);

@@ -27,7 +27,8 @@ export default function MultiDm() {
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
 
-  const { isSelectingMessage } = useMessageSelector();
+  const { isSelectingMessage, sendDm: sendDmFromMessageSelector } =
+    useMessageSelector();
 
   useEffect(() => {
     if (clubId && club) {
@@ -103,10 +104,11 @@ export default function MultiDm() {
             <div className="border-t-2 border-gray-50 p-4">
               <ChatInput
                 whom={clubId}
-                sendMessage={sendMessage}
+                sendMessage={
+                  isSelectingMessage ? sendDmFromMessageSelector : sendMessage
+                }
                 showReply
                 autoFocus={!isSelectingMessage}
-                sendDisabled={isSelectingMessage}
               />
             </div>
           ) : null
