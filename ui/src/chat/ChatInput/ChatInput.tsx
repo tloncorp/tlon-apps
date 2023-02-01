@@ -140,6 +140,7 @@ export default function ChatInput({
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
+      if (sendDisabled) return;
       const blocks = fetchChatBlocks(id);
       if (!editor.getText() && !blocks.length) {
         return;
@@ -205,7 +206,7 @@ export default function ChatInput({
         clearAttachments();
       }, 0);
     },
-    [whom, id, reply, clearAttachments, sendMessage, closeReply]
+    [whom, id, reply, clearAttachments, sendMessage, closeReply, sendDisabled]
   );
 
   /**
