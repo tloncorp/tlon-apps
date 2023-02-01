@@ -84,7 +84,7 @@ export default function HeapDetail() {
       }
     >
       <div className="flex h-full w-full flex-col overflow-y-auto lg:flex-row">
-        <div className="group relative flex-1">
+        <div className="group relative flex flex-1">
           {hasNext ? (
             <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
               <Link
