@@ -2,6 +2,7 @@ env:
   desk: 'groups'
   urbit_path: '~/dev/urbit/urbit'
   repo_path: '~/dev/urbit/landscape-apps'
+  landscape_path: '~/dev/urbit/landscape'
   ship_path: '~/dev/urbit/ships'
 script:
   - merge:
