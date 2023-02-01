@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import _ from 'lodash';
 import { useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
@@ -9,6 +9,7 @@ import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
 import useAppName from '@/logic/useAppName';
+import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
@@ -50,6 +51,35 @@ export default function NoteReference({
     }
   };
 
+  const contentPreview = useMemo(() => {
+    if (!outline) {
+      return '';
+    }
+
+    let charCount = 0;
+    return outline.content.slice(0, 1).map((verse, index) => {
+      if ('inline' in verse) {
+        return (
+          <div key={index}>
+            {verse.inline.map((token, i) => {
+              if (charCount > NOTE_REF_DISPLAY_LIMIT) {
+                return '';
+              }
+              if (typeof token === 'string') {
+                charCount += token.length;
+                return <span key={i}>{token}</span>;
+              }
+              // TODO: handle other types of tokens
+              return '';
+            })}
+          </div>
+        );
+      }
+      // TODO: handle blocks.
+      return '';
+    });
+  }, [outline]);
+
   if (scryError !== undefined) {
     // TODO handle requests for single notes like we do for single writs.
     const time = bigInt(udToDec(id));
@@ -64,7 +94,10 @@ export default function NoteReference({
 
   return (
     <div className="note-inline-block not-prose group">
-      <div className="flex flex-col space-y-2 p-2 group-hover:bg-gray-50">
+      <div
+        onClick={handleOpenReferenceClick}
+        className="flex cursor-pointer flex-col space-y-2 p-2 group-hover:bg-gray-50"
+      >
         {outline.image ? (
           <div
             className="relative h-36 w-full rounded-lg bg-gray-100 bg-cover bg-center px-4"
@@ -99,23 +132,7 @@ export default function NoteReference({
           TODO: render multiple authors when we have that ability.
           note.essay.author ? <Author ship={note.essay.author} /> : null
         */}
-        {outline.content.slice(0, 1).map((verse, index) => {
-          if ('inline' in verse) {
-            return (
-              <div key={index}>
-                {verse.inline.map((token, i) => {
-                  if (typeof token === 'string') {
-                    return <span key={i}>{token}</span>;
-                  }
-                  // TODO: handle other types of tokens
-                  return '';
-                })}
-              </div>
-            );
-          }
-          // TODO: handle blocks.
-          return '';
-        })}
+        {contentPreview}
         <button
           onClick={handleOpenReferenceClick}
           className="small-secondary-button w-[120px]"

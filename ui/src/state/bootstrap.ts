@@ -3,18 +3,21 @@ import { isTalk } from '@/logic/utils';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
+import useDocketState from './docket';
 import { useGroupState } from './groups';
 import useHarkState from './hark';
 import { useHeapState } from './heap/heap';
+import useKilnState from './kiln';
 import { useSettingsState } from './settings';
 import { useStorage } from './storage';
 
-export default function bootstrap() {
+export default async function bootstrap() {
   useGroupState.getState().start();
   useChatState.getState().start();
 
   if (isTalk) {
     useChatState.getState().fetchDms();
+    useChatState.getState().fetchMultiDms();
   } else {
     useHeapState.getState().start();
     useDiaryState.getState().start();
@@ -28,4 +31,7 @@ export default function bootstrap() {
   fetchAll();
 
   useStorage.getState().initialize(api);
+  useKilnState.getState().initializeKiln();
+  const { fetchCharges } = useDocketState.getState();
+  fetchCharges();
 }

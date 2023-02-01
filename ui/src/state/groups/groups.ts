@@ -298,18 +298,57 @@ export const useGroupState = create<GroupState>(
         });
       },
       invite: async (flag, ships) => {
-        await api.poke(
-          groupAction(flag, {
-            cordon: {
-              shut: {
-                'add-ships': {
-                  kind: 'pending',
-                  ships,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, {
+              cordon: {
+                shut: {
+                  'add-ships': {
+                    kind: 'pending',
+                    ships,
+                  },
                 },
               },
+            }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  const { update, diff } = event;
+                  if (update && update.diff) {
+                    if ('cordon' in update.diff) {
+                      const { shut } = update.diff.cordon;
+                      if ('add-ships' in shut) {
+                        const { kind, ships: addedShips } = shut['add-ships'];
+                        return (
+                          kind === 'pending' &&
+                          addedShips.every((ship: string) =>
+                            ships.includes(ship)
+                          )
+                        );
+                      }
+                      return false;
+                    }
+                    return false;
+                  }
+                  if (diff && 'cordon' in diff) {
+                    const { shut } = diff.cordon;
+                    if ('add-ships' in shut) {
+                      const { kind, ships: addedShips } = shut['add-ships'];
+                      return (
+                        kind === 'pending' &&
+                        addedShips.every((ship: string) => ships.includes(ship))
+                      );
+                    }
+                    return false;
+                  }
+                  return false;
+                });
+              resolve();
             },
-          })
-        );
+          });
+        });
 
         const groups = await api.scry<Groups>({
           app: 'groups',
@@ -318,18 +357,60 @@ export const useGroupState = create<GroupState>(
         set(() => ({ groups }));
       },
       revoke: async (flag, ships, kind) => {
-        api.poke(
-          groupAction(flag, {
-            cordon: {
-              shut: {
-                'del-ships': {
-                  kind,
-                  ships,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, {
+              cordon: {
+                shut: {
+                  'del-ships': {
+                    kind,
+                    ships,
+                  },
                 },
               },
+            }),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  const { update, diff } = event;
+                  if (update && update.diff) {
+                    if ('cordon' in update.diff) {
+                      const { shut } = update.diff.cordon;
+                      if ('del-ships' in shut) {
+                        const { kind: returnedKind, ships: addedShips } =
+                          shut['del-ships'];
+                        return (
+                          returnedKind === 'pending' &&
+                          addedShips.every((ship: string) =>
+                            ships.includes(ship)
+                          )
+                        );
+                      }
+                      return false;
+                    }
+                    return false;
+                  }
+                  if (diff && 'cordon' in diff) {
+                    const { shut } = diff.cordon;
+                    if ('del-ships' in shut) {
+                      const { kind: returnedKind, ships: addedShips } =
+                        shut['del-ships'];
+                      return (
+                        returnedKind === 'pending' &&
+                        addedShips.every((ship: string) => ships.includes(ship))
+                      );
+                    }
+                    return false;
+                  }
+                  return false;
+                });
+
+              resolve();
             },
-          })
-        );
+          });
+        });
       },
       reject: async (flag) => {
         await api.poke({
@@ -453,7 +534,36 @@ export const useGroupState = create<GroupState>(
             },
           },
         };
-        await api.poke(groupAction(flag, diff));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...groupAction(flag, diff),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  if ('update' in event) {
+                    const { diff: eventDiff } = event.update;
+                    if ('fleet' in eventDiff) {
+                      const {
+                        ships: fleetShips,
+                        diff: { add },
+                      } = eventDiff.fleet;
+                      return (
+                        fleetShips.every((s: string) =>
+                          fleetShips.includes(s)
+                        ) && add === null
+                      );
+                    }
+                    return false;
+                  }
+
+                  return false;
+                });
+              resolve();
+            },
+          });
+        });
       },
       delMembers: async (flag, ships) => {
         const diff = {

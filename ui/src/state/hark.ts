@@ -140,7 +140,7 @@ const useHarkState = create<HarkState>((set, get) => ({
     );
   },
   sawSeam: async (seam) => {
-    api.poke(
+    await api.poke(
       harkAction({
         'saw-seam': seam,
       })

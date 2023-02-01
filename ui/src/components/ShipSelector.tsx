@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import ob from 'urbit-ob';
 import fuzzy from 'fuzzy';
 import {
@@ -51,6 +51,7 @@ interface ShipSelectorProps {
   placeholder?: string;
   isValidNewOption?: (value: string) => boolean;
   autoFocus?: boolean;
+  containerClassName?: string;
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -152,7 +153,9 @@ function NoShipsMessage() {
   return (
     <div className="flex content-center space-x-1 px-2 py-3">
       <ExclamationPoint className="mr-2 w-[18px] text-gray-300" />
-      <span className="italic">This name was not found.</span>
+      <span className="italic">
+        This is not a known alias or valid ship name.
+      </span>
     </div>
   );
 }
@@ -273,6 +276,7 @@ export default function ShipSelector({
   placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
   isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
   autoFocus = true,
+  containerClassName,
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
     ShipOption,
@@ -381,9 +385,16 @@ export default function ShipSelector({
     }
   };
 
-  const onInputChange = (newValue: string, _actionMeta: InputActionMeta) => {
-    setInputValue(newValue);
-  };
+  const onInputChange = useCallback(
+    (newValue: string, { action }: InputActionMeta) => {
+      if (['input-blur', 'menu-close'].indexOf(action) === -1) {
+        setInputValue(newValue);
+        return newValue;
+      }
+      return inputValue;
+    },
+    [inputValue]
+  );
 
   const onChange = (
     newValue: MultiValue<ShipOption>,
@@ -429,6 +440,7 @@ export default function ShipSelector({
         ref={selectRef}
         formatCreateLabel={AddNewOption}
         autoFocus={autoFocus}
+        className={containerClassName}
         styles={{
           control: (base) => ({}),
           menu: ({ width, borderRadius, ...base }) => ({
@@ -485,6 +497,7 @@ export default function ShipSelector({
             : isValidNewOption(val)
         }
         onKeyDown={onKeyDown}
+        inputValue={inputValue}
         placeholder={isMobile ? mobilePlaceholder : placeholder}
         hideSelectedOptions
         // TODO: create custom filter for sorting potential DM participants.
@@ -517,6 +530,7 @@ export default function ShipSelector({
       formatCreateLabel={AddNewOption}
       autoFocus
       isMulti
+      className={containerClassName}
       styles={{
         control: (base) => ({}),
         menuList: ({ padding, paddingTop, paddingBottom, ...base }) => ({
@@ -580,6 +594,7 @@ export default function ShipSelector({
           : isValidNewOption(val)
       }
       onKeyDown={onKeyDown}
+      inputValue={inputValue}
       placeholder={isMobile ? mobilePlaceholder : placeholder}
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.

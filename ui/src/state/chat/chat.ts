@@ -3,7 +3,7 @@ import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt, { BigInteger } from 'big-integer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Groups } from '@/types/groups';
 import {
   Chat,
@@ -266,15 +266,9 @@ export const useChatState = createState<ChatState>(
       });
       api.subscribe({
         app: 'chat',
-        path: '/club/new',
-        event: (event: ClubInvite) => {
-          get().batchSet((draft) => {
-            const { id, ...crew } = event;
-            const club = draft.multiDms[id];
-            if (!club) {
-              draft.multiDms[id] = crew;
-            }
-          });
+        path: '/clubs/ui',
+        event: (event: ClubAction) => {
+          get().batchSet(clubReducer(event));
         },
       });
 
@@ -285,27 +279,11 @@ export const useChatState = createState<ChatState>(
           get().batchSet((draft) => {
             const {
               flag,
-              update: { diff, time },
+              update: { diff },
             } = event;
             const chat = draft.chats[flag];
-            const pact = draft.pacts[flag];
 
-            if ('writs' in diff && pact) {
-              const { id, delta } = diff.writs;
-              const { index, writs } = pact;
-              if ('add' in delta) {
-                // correct time key in chats
-                const timeKey = index[id];
-                const writ = timeKey && writs.get(timeKey);
-
-                if (writ) {
-                  const newWrits = pact.writs.delete(timeKey);
-                  const newTime = bigInt(udToDec(time));
-                  draft.pacts[flag].writs = newWrits.set(newTime, writ);
-                  draft.pacts[flag].index[id] = newTime;
-                }
-              }
-            } else if ('create' in diff) {
+            if ('create' in diff) {
               draft.chats[flag] = diff.create;
             } else if ('del-sects' in diff) {
               chat.perms.writers = chat.perms.writers.filter(
@@ -445,10 +423,28 @@ export const useChatState = createState<ChatState>(
       });
     },
     joinChat: async (flag) => {
-      await api.poke({
-        app: 'chat',
-        mark: 'flag',
-        json: flag,
+      await new Promise<void>((resolve, reject) => {
+        api.poke({
+          app: 'chat',
+          mark: 'flag',
+          json: flag,
+          onError: () => reject(),
+          onSuccess: async () => {
+            await useSubscriptionState
+              .getState()
+              .track(`chat/ui`, (event: ChatAction) => {
+                const {
+                  update: { diff },
+                  flag: f,
+                } = event;
+                if (f === flag && 'create' in diff) {
+                  return true;
+                }
+                return false;
+              });
+            resolve();
+          },
+        });
       });
     },
     leaveChat: async (flag) => {
@@ -595,14 +591,6 @@ export const useChatState = createState<ChatState>(
         `/club/${id}/writs`,
         `/club/${id}/ui/writs`
       ).initialize();
-
-      api.subscribe({
-        app: 'chat',
-        path: `/club/${id}/ui`,
-        event: (event: ClubDelta) => {
-          get().batchSet(clubReducer(id, event));
-        },
-      });
     },
     createMultiDm: async (id, hive) => {
       get().batchSet((draft) => {
@@ -685,6 +673,7 @@ export const useChatState = createState<ChatState>(
         app: 'chat',
         path: `/chat/${whom}/perm`,
       });
+
       get().batchSet((draft) => {
         const chat = { perms };
         draft.chats[whom] = chat;

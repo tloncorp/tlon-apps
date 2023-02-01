@@ -26,6 +26,10 @@ vi.mock('@/state/groups', () => ({
   usePendingInvites: () => [],
 }));
 
+vi.mock('@/logic/useMigrationInfo', () => ({
+  useHasMigratedChannels: () => true,
+}));
+
 vi.mock('@/logic/utils', () => ({
   createStorageKey: () => 'fake-key',
   randomIntInRange: () => 100,

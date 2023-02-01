@@ -42,7 +42,7 @@ export default function Dm() {
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
 
-  const { existingDm, isSelectingMessage } = useMessageSelector();
+  const { isSelectingMessage } = useMessageSelector();
 
   useEffect(() => {
     if (ship && canStart) {
@@ -58,7 +58,9 @@ export default function Dm() {
       <Layout
         className="h-full grow"
         header={
-          isSelectingMessage ? null : (
+          isSelectingMessage ? (
+            <MessageSelector />
+          ) : (
             <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
               <BackLink mobile={isMobile}>
                 <BackButton
@@ -114,7 +116,6 @@ export default function Dm() {
           ) : null
         }
       >
-        {existingDm ? <MessageSelector /> : null}
         {isAccepted ? (
           <ChatWindow
             whom={ship}

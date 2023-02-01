@@ -101,7 +101,9 @@ export default function MessagesList({
         {allPending &&
           filter !== filters.groups &&
           allPending.map((whom) => (
-            <MessagesSidebarItem pending key={whom} whom={whom} />
+            <div className="pl-2 pb-3 sm:pb-1">
+              <MessagesSidebarItem pending key={whom} whom={whom} />
+            </div>
           ))}
       </>
     ),

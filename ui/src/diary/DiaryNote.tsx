@@ -13,7 +13,7 @@ import { DiaryBrief, DiaryQuip } from '@/types/diary';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
@@ -84,6 +84,7 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 }
 
 export default function DiaryNote() {
+  const [loading, setLoading] = useState(false);
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const flag = useRouteGroup();
@@ -96,6 +97,9 @@ export default function DiaryNote() {
   const brief = useBrief(chFlag);
   const settings = useDiarySettings();
   const sort = useDiaryCommentSortMode(chFlag);
+  const idIsZero = id.isZero();
+  const perms = useDiaryPerms(chFlag);
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const groupedQuips = setNewDays(
     groupQuips(quipArray, brief).sort(([a], [b]) => {
       if (sort === 'asc') {
@@ -106,8 +110,11 @@ export default function DiaryNote() {
     })
   );
 
-  const perms = useDiaryPerms(chFlag);
-  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const load = useCallback(async () => {
+    await useDiaryState.getState().initialize(chFlag);
+    await useDiaryState.getState().fetchNote(chFlag, noteId);
+    setLoading(false);
+  }, [chFlag, noteId]);
 
   const setSort = useCallback(
     (setting: 'asc' | 'dsc') => {
@@ -123,18 +130,13 @@ export default function DiaryNote() {
     },
     [settings, chFlag]
   );
-  const loading = id.isZero();
 
   useEffect(() => {
-    async function load() {
-      await useDiaryState.getState().initialize(chFlag);
-      if (loading) {
-        useDiaryState.getState().fetchNote(chFlag, noteId);
-      }
+    if (idIsZero) {
+      setLoading(true);
+      load();
     }
-
-    load();
-  }, [chFlag, noteId, loading]);
+  }, [load, idIsZero]);
 
   return (
     <Layout
