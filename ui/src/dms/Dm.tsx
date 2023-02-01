@@ -42,7 +42,8 @@ export default function Dm() {
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
 
-  const { isSelectingMessage } = useMessageSelector();
+  const { isSelectingMessage, sendDm: sendDmFromMessageSelector } =
+    useMessageSelector();
 
   useEffect(() => {
     if (ship && canStart) {
@@ -107,10 +108,11 @@ export default function Dm() {
             <div className="border-t-2 border-gray-50 p-4">
               <ChatInput
                 whom={ship}
-                sendMessage={sendMessage}
+                sendMessage={
+                  isSelectingMessage ? sendDmFromMessageSelector : sendMessage
+                }
                 showReply
                 autoFocus={!isSelectingMessage}
-                sendDisabled={isSelectingMessage}
               />
             </div>
           ) : null
