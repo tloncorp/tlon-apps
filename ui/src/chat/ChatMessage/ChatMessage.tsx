@@ -158,7 +158,7 @@ const ChatMessage = React.memo<
               ref={viewRef}
             />
           ) : null}
-          {newDay && !unread ? <DateDivider date={unix} /> : null}
+          {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex w-full">
             {hideOptions ? null : (
