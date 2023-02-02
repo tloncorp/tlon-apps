@@ -21,9 +21,9 @@ import { render } from 'react-dom';
 import App from './app';
 import _api from './api';
 
-import './assets/Inter-roman.var.woff2';
-import './assets/Inter-italic.var.woff2';
-import './assets/SourceCodePro-VariableFont_wght-subset.woff2';
+import './assets/inter-roman.var.woff2';
+import './assets/inter-italic.var.woff2';
+import './assets/source-code-pro.woff2';
 
 import './styles/index.css';
 
