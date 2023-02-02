@@ -1,6 +1,7 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { ContactEditField } from '@urbit/api';
+import { debounce } from 'lodash';
 import ColorPicker from '@/components/ColorPicker';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { normalizeUrbitColor } from '@/logic/utils';
@@ -29,6 +30,8 @@ export default function ProfileFields() {
     });
   };
 
+  const debouncedSetColor = debounce(setColor, 100);
+
   return (
     <>
       <div className="flex">
@@ -38,7 +41,7 @@ export default function ProfileFields() {
             <div className="relative flex w-full items-baseline">
               <ColorPicker
                 color={normalizeUrbitColor(watchSigilColor || '0x0')}
-                setColor={setColor}
+                setColor={debouncedSetColor}
                 className="z-50"
               />
             </div>
