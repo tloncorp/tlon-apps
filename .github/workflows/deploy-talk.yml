@@ -30,13 +30,17 @@ jobs:
         uses: ./.github/actions/glob
         with:
           folder: 'ui/dist/*'
-          docket: 'desk/desk.docket-0'
+          docket: 'talk/desk.docket-0'
       - name: Commit Glob
         uses: EndBug/add-and-commit@v9
         with:
-          add: '-A'
-          pull: 'origin'
+          add: 'talk/desk.docket-0'
+          push: false
           message: 'update glob: ${{ steps.glob.outputs.hash }} [skip actions]'
+      - name: Push Glob
+        uses: EndBug/add-and-commit@v9
+        with:
+          pull: 'origin master'
       - uses: ./.github/actions/release
         with:
           app: 'talk'
