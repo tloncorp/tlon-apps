@@ -21,7 +21,7 @@ jobs:
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/landscape-apps talk marnec-dozzod-marzod us-west1-b
+          ./.github/helpers/deploy.sh tloncorp/landscape-apps talk marnec-dozzod-marzod us-west1-b ${{ github.event.inputs.tag }}
         env:
           SSH_SEC_KEY: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.JANEWAY_SSH_PUB_KEY }}
