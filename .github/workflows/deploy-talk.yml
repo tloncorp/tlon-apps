@@ -37,7 +37,7 @@ jobs:
           git config --global user.email github-actions@github.com
           git add talk/desk.docket-0
           git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]"  || echo "No changes to commit"
-          git pull origin master --ff-only
+          git pull origin master --rebase --autostash
           git push
       - uses: ./.github/actions/release
         with:
