@@ -58,6 +58,23 @@ function groupBinsByDate(bins: Bin[]): DayGrouping[] {
     .sort((a, b) => b.latest - a.latest);
 }
 
+export const isMention = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' mentioned you :');
+
+export const getAllMentions = (notifications: DayGrouping[], flag?: Flag) => {
+  if (!flag) {
+    return notifications
+      .map((n) => n.bins)
+      .flat()
+      .filter((b) => isMention(b.topYarn));
+  }
+
+  return notifications
+    .map((n) => n.bins)
+    .flat()
+    .filter((b) => isMention(b.topYarn) && b.topYarn.rope.group === flag);
+};
+
 export const useNotifications = (flag?: Flag) => {
   const { carpet, blanket } = useHarkState(
     useCallback(
