@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
@@ -22,6 +22,7 @@ export default function HeapDetail() {
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
   const { time, curio } = useCurioFromParams();
+  const [loading, setLoading] = useState(false);
 
   const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
     chFlag,
@@ -38,9 +39,11 @@ export default function HeapDetail() {
 
   const load = useCallback(async () => {
     await useHeapState.getState().initialize(chFlag);
+    setLoading(false);
   }, [chFlag]);
 
   useEffect(() => {
+    setLoading(true);
     load();
   }, [load]);
 
@@ -68,10 +71,6 @@ export default function HeapDetail() {
     }
   });
 
-  if (!curio || !time) {
-    return null;
-  }
-
   return (
     <Layout
       className="flex-1 bg-gray-50"
@@ -79,7 +78,7 @@ export default function HeapDetail() {
         <HeapDetailHeader
           flag={groupFlag}
           chFlag={chFlag}
-          idCurio={time.toString() || ''}
+          idCurio={time?.toString() || ''}
         />
       }
     >
@@ -99,7 +98,7 @@ export default function HeapDetail() {
               </Link>
             </div>
           ) : null}
-          <HeapDetailBody curio={curio} />
+          {curio ? <HeapDetailBody curio={curio} /> : null}
           {hasPrev ? (
             <div className="absolute top-0 right-0 flex h-full w-16 flex-col justify-center">
               <Link
@@ -116,8 +115,12 @@ export default function HeapDetail() {
           ) : null}
         </div>
         <div className="flex w-full flex-col border-gray-50 bg-white sm:mt-5 lg:mt-0 lg:h-full lg:w-72 lg:border-l-2 xl:w-96">
-          <HeapDetailSidebarInfo curio={curio} />
-          <HeapDetailComments time={time} />
+          {curio && time ? (
+            <>
+              <HeapDetailSidebarInfo curio={curio} />
+              <HeapDetailComments time={time} />
+            </>
+          ) : null}
         </div>
       </div>
     </Layout>

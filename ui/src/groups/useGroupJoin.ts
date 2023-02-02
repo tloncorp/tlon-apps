@@ -29,7 +29,10 @@ function getButtonText(
 export default function useGroupJoin(
   flag: string,
   gang: Gang,
-  inModal = false
+  inModal = false,
+  redirectItem:
+    | { nest: string; id: string; type: string }
+    | undefined = undefined
 ) {
   const [status, setStatus] = useState<Status>('initial');
   const location = useLocation();
@@ -79,7 +82,25 @@ export default function useGroupJoin(
       try {
         await useGroupState.getState().join(flag, true);
         setStatus('success');
-        if (isTalk) {
+        if (redirectItem) {
+          if (redirectItem.type === 'chat') {
+            if (isTalk) {
+              const href = `/apps/groups/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}&joinref=true`;
+              window.open(`${window.location.origin}${href}`, '_blank');
+            } else {
+              navigate(
+                `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}&joinref=true`
+              );
+            }
+          } else if (isTalk) {
+            const href = `/apps/groups/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}&joinref=true`;
+            window.open(`${window.location.origin}${href}`, '_blank');
+          } else {
+            navigate(
+              `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}?joinref=true`
+            );
+          }
+        } else if (isTalk) {
           const href = `/apps/groups/groups/${flag}/`;
           window.open(`${window.location.origin}${href}`, '_blank');
         } else {
@@ -100,7 +121,7 @@ export default function useGroupJoin(
         }
       }
     }
-  }, [privacy, invited, flag, navigate, requested]);
+  }, [privacy, invited, flag, navigate, requested, redirectItem]);
 
   const reject = useCallback(async () => {
     /**

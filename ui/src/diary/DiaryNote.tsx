@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
@@ -86,6 +85,7 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 export default function DiaryNote() {
   const [loading, setLoading] = useState(false);
   const { chShip, chName, noteId = '' } = useParams();
+  const joinRef = new URLSearchParams(window.location.search).get('joinref');
   const chFlag = `${chShip}/${chName}`;
   const flag = useRouteGroup();
   const group = useGroup(flag);
@@ -112,9 +112,16 @@ export default function DiaryNote() {
 
   const load = useCallback(async () => {
     await useDiaryState.getState().initialize(chFlag);
-    await useDiaryState.getState().fetchNote(chFlag, noteId);
+    if (joinRef) {
+      setTimeout(async () => {
+        // TODO: figure out why this is setTimeout necessary
+        await useDiaryState.getState().fetchNote(chFlag, noteId);
+      }, 300);
+    } else {
+      await useDiaryState.getState().fetchNote(chFlag, noteId);
+    }
     setLoading(false);
-  }, [chFlag, noteId]);
+  }, [chFlag, noteId, joinRef]);
 
   const setSort = useCallback(
     (setting: 'asc' | 'dsc') => {

@@ -26,6 +26,7 @@ import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder'
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
+  const joinRef = new URLSearchParams(window.location.search).get('joinref');
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
@@ -50,14 +51,26 @@ function ChatChannel({ title }: ViewProps) {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await useChatState.getState().joinChat(chFlag);
+    if (joinRef) {
+      setTimeout(async () => {
+        await useChatState.getState().joinChat(chFlag);
+      }, 300);
+    } else {
+      await useChatState.getState().joinChat(chFlag);
+    }
     setJoining(false);
-  }, [chFlag]);
+  }, [chFlag, joinRef]);
 
   const initializeChannel = useCallback(async () => {
-    await useChatState.getState().initialize(chFlag);
+    if (joinRef) {
+      setTimeout(async () => {
+        await useChatState.getState().initialize(chFlag);
+      }, 300);
+    } else {
+      await useChatState.getState().initialize(chFlag);
+    }
     setLoading(false);
-  }, [chFlag]);
+  }, [chFlag, joinRef]);
 
   useEffect(() => {
     if (!joined) {

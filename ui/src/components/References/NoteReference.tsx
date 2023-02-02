@@ -1,15 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import _ from 'lodash';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useDiaryState, useRemoteOutline } from '@/state/diary';
-import { useChannelPreview } from '@/state/groups';
+import { useChannelPreview, useGang } from '@/state/groups';
 import { makePrettyDate, pluralize } from '@/logic/utils';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
 import useAppName from '@/logic/useAppName';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
+import useGroupJoin from '@/groups/useGroupJoin';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
@@ -27,28 +27,40 @@ export default function NoteReference({
   const preview = useChannelPreview(nest);
   const [scryError, setScryError] = useState<string>();
   const groupFlag = preview?.group?.flag || '~zod/test';
+  const gang = useGang(groupFlag);
+  const { group } = useGroupJoin(groupFlag, gang);
   const outline = useRemoteOutline(chFlag, id, isScrolling);
   const navigate = useNavigate();
+  const location = useLocation();
   const app = useAppName();
+
+  const initialize = useCallback(async () => {
+    try {
+      await useDiaryState.getState().initialize(chFlag);
+    } catch (e) {
+      console.log("Couldn't initialize diary state", e);
+    }
+  }, [chFlag]);
 
   useEffect(() => {
     if (!isScrolling) {
-      useDiaryState
-        .getState()
-        .initialize(chFlag)
-        .catch((reason) => {
-          console.log(reason);
-        });
+      initialize();
     }
-  }, [chFlag, isScrolling]);
+  }, [chFlag, isScrolling, initialize]);
 
   const handleOpenReferenceClick = () => {
+    if (!group) {
+      navigate(`/gangs/${groupFlag}?type=note&nest=${nest}&id=${id}`, {
+        state: { backgroundLocation: location },
+      });
+      return;
+    }
     if (app === 'Talk') {
       const href = `/apps/groups/groups/${groupFlag}/channels/${nest}/note/${id}`;
       window.open(`${window.location.origin}${href}`, '_blank');
-    } else {
-      navigate(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
+      return;
     }
+    navigate(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
   };
 
   const contentPreview = useMemo(() => {
