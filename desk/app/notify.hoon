@@ -215,7 +215,7 @@
     ?+  pole  [~ ~]
     ::
         [%x %note uid=@t ~]
-      =/  =uid  (slav %ux uid.pole)
+      =/  =uid  (slav %uv uid.pole)
       =/  note=notification  (~(got by notifications) uid)
       ``hark-note+!>(note)
     ==
