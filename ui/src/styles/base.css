@@ -4,7 +4,7 @@
   font-display: swap;
   font-style: normal;
   font-named-instance: 'Regular';
-  src: url('../assets/Inter-roman.var.woff2?v=3.13') format('woff2');
+  src: url('../assets/inter-roman.var.woff2?v=3.13') format('woff2');
 }
 @font-face {
   font-family: 'Inter var';
@@ -12,15 +12,14 @@
   font-display: swap;
   font-style: italic;
   font-named-instance: 'Italic';
-  src: url('../assets/Inter-italic.var.woff2?v=3.13') format('woff2');
+  src: url('../assets/inter-italic.var.woff2?v=3.13') format('woff2');
 }
 @font-face {
   font-family: 'Source Code Pro';
   font-weight: 100 900;
   font-display: swap;
   font-style: normal;
-  src: url('../assets/SourceCodePro-VariableFont_wght-subset.woff2')
-    format('woff2');
+  src: url('../assets/source-code-pro.woff2') format('woff2');
 }
 
 /* Works on Firefox */
