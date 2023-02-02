@@ -86,7 +86,7 @@ import AboutDialog from './components/AboutDialog';
 import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
 
-const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
+const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
   <Suspense
     fallback={
