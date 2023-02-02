@@ -33,6 +33,8 @@ jobs:
           docket: 'desk/desk.docket-0'
       - name: Commit and Push Glob
         run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
           git add desk/desk.docket-0
           git commit -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]"
           git pull origin master
