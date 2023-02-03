@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import _ from 'lodash';
 import ob from 'urbit-ob';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -13,6 +13,7 @@ import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { whomIsFlag } from '@/logic/utils';
+import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime, idShip } = useParams<{
@@ -23,6 +24,7 @@ export default function ChatThread() {
     idShip: string;
     idTime: string;
   }>();
+  const [loading, setLoading] = useState(false);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const whom = flag || ship || '';
@@ -69,6 +71,18 @@ export default function ChatThread() {
 
   useEventListener('keydown', onEscape, threadRef);
 
+  const initializeChannel = useCallback(async () => {
+    setLoading(true);
+    await useChatState.getState().initialize(`${chShip}/${chName}`);
+    setLoading(false);
+  }, [chName, chShip]);
+
+  useEffect(() => {
+    if (!time || !writ) {
+      initializeChannel();
+    }
+  }, [initializeChannel, time, writ]);
+
   if (!time || !writ) return null;
 
   const thread = replies.set(time, writ);
@@ -96,13 +110,17 @@ export default function ChatThread() {
         </div>
       </header>
       <div className="flex flex-1 flex-col px-2 py-0">
-        <ChatScroller
-          key={idTime}
-          messages={thread}
-          whom={whom}
-          scrollerRef={scrollerRef}
-          replying
-        />
+        {loading ? (
+          <ChatScrollerPlaceholder count={30} />
+        ) : (
+          <ChatScroller
+            key={idTime}
+            messages={thread}
+            whom={whom}
+            scrollerRef={scrollerRef}
+            replying
+          />
+        )}
       </div>
       <div className="sticky bottom-0 border-t-2 border-gray-50 bg-white p-4">
         {canWrite && (
