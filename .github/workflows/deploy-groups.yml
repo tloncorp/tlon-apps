@@ -39,10 +39,10 @@ jobs:
           git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
           git pull origin master --rebase --autostash
           git push
-      - uses: ./.github/actions/release
-        with:
-          app: 'groups'
-          ship: 'devstream'
-          credentials: ${{ secrets.JANEWAY_SERVICE_KEY }}
-          ssh-sec-key: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
-          ssh-pub-key: ${{ secrets.JANEWAY_SSH_PUB_KEY }}
+      - id: deploy
+        name: Deploy
+        run:
+          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups wannec-dozzod-marzod us-west1-b
+        env:
+          SSH_SEC_KEY: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
+          SSH_PUB_KEY: ${{ secrets.JANEWAY_SSH_PUB_KEY }}

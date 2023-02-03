@@ -12,11 +12,16 @@ jobs:
     name: "Release to ~doznec-dozzod-marzod (external)"
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/release
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
         with:
-          app: 'groups'
-          ship: 'external'
-          credentials: ${{ secrets.JANEWAY_SERVICE_KEY }}
-          ssh-sec-key: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
-          ssh-pub-key: ${{ secrets.JANEWAY_SSH_PUB_KEY }}
-          ref: ${{ github.event.inputs.tag }}
+          credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+      - id: deploy
+        name: Deploy
+        run:
+          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups doznec-dozzod-marzod us-west1-b ${{ github.event.inputs.tag }}
+        env:
+          SSH_SEC_KEY: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
+          SSH_PUB_KEY: ${{ secrets.JANEWAY_SSH_PUB_KEY }}
