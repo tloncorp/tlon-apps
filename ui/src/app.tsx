@@ -277,7 +277,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
               <Route index element={isMobile ? <MobileGroupRoot /> : null} />
-              <Route path="channellist" element={<MobileGroupChannelList />} />
+              <Route
+                path="channellist"
+                element={isMobile ? <MobileGroupChannelList /> : null}
+              />
               <Route
                 path="activity"
                 element={

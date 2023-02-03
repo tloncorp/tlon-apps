@@ -13,6 +13,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import useHarkState from '@/state/hark';
 import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import {
   Bin,
   getAllMentions,
@@ -83,6 +84,8 @@ export default function Notifications({
   const hasUnreads = count > 0;
   const { isPending, setPending, setReady } = useRequestState();
   const [showMentionsOnly, setShowMentionsOnly] = useState(false);
+  const isDarkMode = useIsDark();
+  const isMobile = useIsMobile();
 
   const markAllRead = useCallback(async () => {
     setPending();
@@ -110,12 +113,19 @@ export default function Notifications({
         </title>
       </Helmet>
       <div className="flex w-full items-center justify-between">
-        <div className="flex flex-row">
+        <div
+          className={cn('flex flex-row', {
+            'w-full justify-center': isMobile,
+          })}
+        >
           <button
             onClick={() => setShowMentionsOnly(false)}
             className={cn('small-button rounded-r-none', {
               'bg-gray-800 text-white': !showMentionsOnly,
-              'bg-gray-50 text-gray-800 mix-blend-multiply': showMentionsOnly,
+              'bg-gray-50 text-gray-800 ': showMentionsOnly,
+              'mix-blend-multiply': !isDarkMode && showMentionsOnly,
+              'mix-blend-difference': isDarkMode,
+              'whitespace-nowrap': isMobile,
             })}
           >
             All Notifications{hasUnreads ? ` • ${count} New` : null}
@@ -124,28 +134,62 @@ export default function Notifications({
             onClick={() => setShowMentionsOnly(true)}
             className={cn('small-button rounded-l-none', {
               'bg-gray-800 text-white': showMentionsOnly,
-              'bg-gray-50 text-gray-800 mix-blend-multiply': !showMentionsOnly,
+              'bg-gray-50 text-gray-800': !showMentionsOnly,
+              'mix-blend-multiply': !showMentionsOnly && !isDarkMode,
+              'mix-blend-difference': isDarkMode,
+              'whitespace-nowrap rounded-r-none': isMobile,
             })}
           >
             Mentions Only
             {unreadMentions.length ? ` • ${unreadMentions.length} New` : null}
           </button>
+          {isMobile && !showMentionsOnly && (
+            <button
+              disabled={isPending || !hasUnreads}
+              className={cn('small-button whitespace-nowrap rounded-l-none', {
+                'bg-gray-400 text-gray-800': isPending || !hasUnreads,
+                'bg-blue text-black': !isPending && hasUnreads,
+              })}
+              onClick={markAllRead}
+            >
+              Mark All as Read
+              {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+            </button>
+          )}
+          {isMobile && showMentionsOnly && (
+            <button
+              disabled={isPending || unreadMentions.length === 0}
+              className={cn('small-button whitespace-nowrap rounded-l-none', {
+                'bg-blue text-black': unreadMentions.length > 0 && !isPending,
+                'bg-gray-400 text-gray-800':
+                  isPending || unreadMentions.length === 0,
+              })}
+              onClick={markAllRead}
+            >
+              Mark Mentions as Read
+              {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+            </button>
+          )}
         </div>
 
-        {hasUnreads && !showMentionsOnly && (
+        {!isMobile && hasUnreads && !showMentionsOnly && (
           <button
             disabled={isPending}
-            className="small-button bg-blue"
+            className={cn('small-button bg-blue text-black', {
+              'bg-gray-400 text-gray-800': isPending,
+            })}
             onClick={markAllRead}
           >
             Mark All as Read
             {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
           </button>
         )}
-        {showMentionsOnly && unreadMentions.length > 0 && (
+        {!isMobile && showMentionsOnly && unreadMentions.length > 0 && (
           <button
             disabled={isPending}
-            className="small-button bg-blue"
+            className={cn('small-button bg-blue text-black', {
+              'bg-gray-400 text-gray-800': isPending,
+            })}
             onClick={markAllRead}
           >
             Mark Mentions as Read
