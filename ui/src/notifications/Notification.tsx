@@ -27,7 +27,7 @@ function getContent(content: YarnContent, key: string) {
           ob.isValidPatp(s.replaceAll(PUNCTUATION_REGEX, '')) ? (
             <span
               key={`${s}-${i}`}
-              className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue"
+              className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue mix-blend-multiply"
             >
               <ShipName name={s.replaceAll(PUNCTUATION_REGEX, '')} />
             </span>
