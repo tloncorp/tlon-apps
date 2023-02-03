@@ -137,45 +137,18 @@ export default function Notifications({
               'bg-gray-50 text-gray-800': !showMentionsOnly,
               'mix-blend-multiply': !showMentionsOnly && !isDarkMode,
               'mix-blend-difference': isDarkMode,
-              'whitespace-nowrap rounded-r-none': isMobile,
+              'whitespace-nowrap': isMobile,
             })}
           >
             Mentions Only
             {unreadMentions.length ? ` • ${unreadMentions.length} New` : null}
           </button>
-          {isMobile && !showMentionsOnly && (
-            <button
-              disabled={isPending || !hasUnreads}
-              className={cn('small-button whitespace-nowrap rounded-l-none', {
-                'bg-gray-400 text-gray-800': isPending || !hasUnreads,
-                'bg-blue text-black': !isPending && hasUnreads,
-              })}
-              onClick={markAllRead}
-            >
-              Mark All as Read
-              {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
-            </button>
-          )}
-          {isMobile && showMentionsOnly && (
-            <button
-              disabled={isPending || unreadMentions.length === 0}
-              className={cn('small-button whitespace-nowrap rounded-l-none', {
-                'bg-blue text-black': unreadMentions.length > 0 && !isPending,
-                'bg-gray-400 text-gray-800':
-                  isPending || unreadMentions.length === 0,
-              })}
-              onClick={markAllRead}
-            >
-              Mark Mentions as Read
-              {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
-            </button>
-          )}
         </div>
 
         {!isMobile && hasUnreads && !showMentionsOnly && (
           <button
             disabled={isPending}
-            className={cn('small-button bg-blue text-black', {
+            className={cn('small-button bg-blue text-white', {
               'bg-gray-400 text-gray-800': isPending,
             })}
             onClick={markAllRead}
@@ -187,8 +160,37 @@ export default function Notifications({
         {!isMobile && showMentionsOnly && unreadMentions.length > 0 && (
           <button
             disabled={isPending}
-            className={cn('small-button bg-blue text-black', {
+            className={cn('small-button bg-blue text-white', {
               'bg-gray-400 text-gray-800': isPending,
+            })}
+            onClick={markAllRead}
+          >
+            Mark Mentions as Read
+            {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+          </button>
+        )}
+      </div>
+      <div className="flex flex-row justify-end pt-2">
+        {isMobile && !showMentionsOnly && (
+          <button
+            disabled={isPending || !hasUnreads}
+            className={cn('small-button whitespace-nowrap', {
+              'bg-gray-400 text-gray-800': isPending || !hasUnreads,
+              'text-text-white bg-blue': !isPending && hasUnreads,
+            })}
+            onClick={markAllRead}
+          >
+            Mark All as Read
+            {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+          </button>
+        )}
+        {isMobile && showMentionsOnly && (
+          <button
+            disabled={isPending || unreadMentions.length === 0}
+            className={cn('small-button whitespace-nowrap', {
+              'bg-blue text-white': unreadMentions.length > 0 && !isPending,
+              'bg-gray-400 text-gray-800':
+                isPending || unreadMentions.length === 0,
             })}
             onClick={markAllRead}
           >
