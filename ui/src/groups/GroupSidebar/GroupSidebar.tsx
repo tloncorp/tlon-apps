@@ -15,6 +15,8 @@ import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
+import HomeIcon from '@/components/icons/HomeIcon';
+import HashIcon from '@/components/icons/HashIcon';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -198,7 +200,17 @@ export default function GroupSidebar() {
         <ul>
           <GroupHeader />
           <SidebarItem
-            icon={<HashIcon16 className="m-1 h-4 w-4" />}
+            icon={
+              <HomeIcon className="m-1 h-6 w-6 rounded bg-gray-50 mix-blend-multiply" />
+            }
+            to={`/groups/${flag}/activity`}
+          >
+            Home
+          </SidebarItem>
+          <SidebarItem
+            icon={
+              <HashIcon className="m-1 h-6 w-6 rounded bg-gray-50 mix-blend-multiply" />
+            }
             to={`/groups/${flag}/channels`}
           >
             All Channels

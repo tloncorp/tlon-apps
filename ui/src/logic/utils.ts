@@ -337,6 +337,8 @@ export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
   /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)$/i;
 export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
+// sig and hep explicitly left out
+export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
 
 export function isImageUrl(url: string) {
   return IMAGE_URL_REGEX.test(url);

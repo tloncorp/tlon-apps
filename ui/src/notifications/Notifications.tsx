@@ -93,10 +93,12 @@ export default function Notifications({
         })
       );
     } else {
-      await useHarkState.getState().sawSeam({ desk: 'groups' });
+      await useHarkState
+        .getState()
+        .sawSeam(flag ? { group: flag } : { desk: 'groups' });
     }
     setReady();
-  }, [setPending, setReady, unreadMentions, showMentionsOnly]);
+  }, [setPending, setReady, unreadMentions, showMentionsOnly, flag]);
 
   return (
     <section className="h-full w-full overflow-y-auto bg-gray-50 p-6">
@@ -146,7 +148,7 @@ export default function Notifications({
             className="small-button bg-blue"
             onClick={markAllRead}
           >
-            Mark All as Read
+            Mark Mentions as Read
             {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
           </button>
         )}

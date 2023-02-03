@@ -6,7 +6,7 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ShipName from '@/components/ShipName';
-import { makePrettyTime, pluralize } from '@/logic/utils';
+import { makePrettyTime, pluralize, PUNCTUATION_REGEX } from '@/logic/utils';
 import useHarkState from '@/state/hark';
 import { YarnContent } from '@/types/hark';
 import { Bin, isComment, isMention } from './useNotifications';
@@ -17,34 +17,43 @@ interface NotificationProps {
   avatar?: ReactNode;
 }
 
-function getContent(content: YarnContent) {
+function getContent(content: YarnContent, key: string) {
   if (typeof content === 'string') {
     // this feels pretty grug
     if (content === ' mentioned you :') return ': ';
     return (
-      <span>
-        {content
-          .split(' ')
-          .map((s) =>
-            ob.isValidPatp(s) ? (
-              <span className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue">
-                {s}{' '}
-              </span>
-            ) : (
-              <span>{s} </span>
-            )
-          )}
+      <span key={key}>
+        {content.split(' ').map((s, i) =>
+          ob.isValidPatp(s.replaceAll(PUNCTUATION_REGEX, '')) ? (
+            <span
+              key={`${s}-${i}`}
+              className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue"
+            >
+              <ShipName name={s.replaceAll(PUNCTUATION_REGEX, '')} />
+            </span>
+          ) : (
+            <span key={`${s}-${i}`}>{s} </span>
+          )
+        )}
       </span>
     );
   }
 
   if ('ship' in content) {
     return (
-      <ShipName name={content.ship} className="font-semibold text-gray-800" />
+      <ShipName
+        key={key}
+        name={content.ship}
+        className="font-semibold text-gray-800"
+      />
     );
   }
 
-  return <strong className="text-gray-800">{content.emph}</strong>;
+  return (
+    <strong key={key} className="text-gray-800">
+      {content.emph}
+    </strong>
+  );
 }
 
 export default function Notification({
@@ -74,19 +83,29 @@ export default function Notification({
         onClick={onClick}
       >
         <div className="relative flex-none self-start">{avatar}</div>
-        <div className="min-w-0 grow-0 space-y-2 break-words p-1">
+        <div className="min-w-0 grow-0 break-words p-1">
           {topLine}
-          <p>{bin.topYarn && bin.topYarn.con.map(getContent)}</p>
+          <p className="my-2">
+            {bin.topYarn &&
+              bin.topYarn.con.map((con, i) =>
+                getContent(
+                  con,
+                  // we can have multiple identical content items, so we need to
+                  // use the index as a key
+                  `${bin.topYarn.id}-${i}`
+                )
+              )}
+          </p>
           {moreCount > 0 ? (
-            <p className="text-sm font-semibold">
+            <p className="my-2 text-sm font-semibold">
               {moreCount} more {pluralize('message', moreCount)} from{' '}
               {bin.shipCount > 1 ? `${bin.shipCount} people` : '1 person'}
             </p>
           ) : (
-            <p className="text-sm">&nbsp;</p>
+            <p className="my-2 text-sm">&nbsp;</p>
           )}
           {mention || comment ? (
-            <p className="small-button bg-gray-50 text-gray-800">Reply</p>
+            <p className="small-button mt-0 bg-gray-50 text-gray-800">Reply</p>
           ) : null}
         </div>
       </Link>
