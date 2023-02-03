@@ -61,6 +61,9 @@ function groupBinsByDate(bins: Bin[]): DayGrouping[] {
 export const isMention = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' mentioned you :');
 
+export const isComment = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' commented on ');
+
 export const getAllMentions = (notifications: DayGrouping[], flag?: Flag) => {
   if (!flag) {
     return notifications

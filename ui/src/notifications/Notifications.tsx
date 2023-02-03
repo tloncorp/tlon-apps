@@ -86,12 +86,20 @@ export default function Notifications({
 
   const markAllRead = useCallback(async () => {
     setPending();
-    await useHarkState.getState().sawSeam({ desk: 'groups' });
+    if (showMentionsOnly) {
+      await Promise.all(
+        unreadMentions.map(async (m) => {
+          await useHarkState.getState().sawRope(m.topYarn.rope);
+        })
+      );
+    } else {
+      await useHarkState.getState().sawSeam({ desk: 'groups' });
+    }
     setReady();
-  }, [setPending, setReady]);
+  }, [setPending, setReady, unreadMentions, showMentionsOnly]);
 
   return (
-    <section className="h-full w-full overflow-y-auto bg-white p-6">
+    <section className="h-full w-full overflow-y-auto bg-gray-50 p-6">
       <Helmet>
         <title>
           {group
@@ -105,24 +113,34 @@ export default function Notifications({
             onClick={() => setShowMentionsOnly(false)}
             className={cn('small-button rounded-r-none', {
               'bg-gray-800 text-white': !showMentionsOnly,
-              'bg-gray-50 text-gray-800': showMentionsOnly,
+              'bg-gray-50 text-gray-800 mix-blend-multiply': showMentionsOnly,
             })}
           >
-            All Notifications • {hasUnreads ? `${count} New` : null}
+            All Notifications{hasUnreads ? ` • ${count} New` : null}
           </button>
           <button
             onClick={() => setShowMentionsOnly(true)}
             className={cn('small-button rounded-l-none', {
               'bg-gray-800 text-white': showMentionsOnly,
-              'bg-gray-50 text-gray-800': !showMentionsOnly,
+              'bg-gray-50 text-gray-800 mix-blend-multiply': !showMentionsOnly,
             })}
           >
-            Mentions Only •{' '}
-            {unreadMentions.length ? `${unreadMentions.length} New` : null}
+            Mentions Only
+            {unreadMentions.length ? ` • ${unreadMentions.length} New` : null}
           </button>
         </div>
 
-        {hasUnreads && (
+        {hasUnreads && !showMentionsOnly && (
+          <button
+            disabled={isPending}
+            className="small-button bg-blue"
+            onClick={markAllRead}
+          >
+            Mark All as Read
+            {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+          </button>
+        )}
+        {showMentionsOnly && unreadMentions.length > 0 && (
           <button
             disabled={isPending}
             className="small-button bg-blue"

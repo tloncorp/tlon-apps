@@ -1,5 +1,6 @@
 import cn from 'classnames';
 import React, { ReactNode, useCallback } from 'react';
+import ob from 'urbit-ob';
 import { Link } from 'react-router-dom';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
@@ -8,7 +9,7 @@ import ShipName from '@/components/ShipName';
 import { makePrettyTime, pluralize } from '@/logic/utils';
 import useHarkState from '@/state/hark';
 import { YarnContent } from '@/types/hark';
-import { Bin } from './useNotifications';
+import { Bin, isComment, isMention } from './useNotifications';
 
 interface NotificationProps {
   bin: Bin;
@@ -18,7 +19,23 @@ interface NotificationProps {
 
 function getContent(content: YarnContent) {
   if (typeof content === 'string') {
-    return <span>{content}</span>;
+    // this feels pretty grug
+    if (content === ' mentioned you :') return ': ';
+    return (
+      <span>
+        {content
+          .split(' ')
+          .map((s) =>
+            ob.isValidPatp(s) ? (
+              <span className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue">
+                {s}{' '}
+              </span>
+            ) : (
+              <span>{s} </span>
+            )
+          )}
+      </span>
+    );
   }
 
   if ('ship' in content) {
@@ -37,6 +54,8 @@ export default function Notification({
 }: NotificationProps) {
   const rope = bin.topYarn?.rope;
   const moreCount = bin.count - 1;
+  const mention = isMention(bin.topYarn);
+  const comment = isComment(bin.topYarn);
 
   const onClick = useCallback(() => {
     useHarkState.getState().sawRope(rope);
@@ -46,7 +65,7 @@ export default function Notification({
     <div
       className={cn(
         'flex space-x-3 rounded-xl p-3 text-gray-600',
-        bin.unread ? 'bg-blue-soft dark:bg-blue-900' : 'bg-gray-50'
+        bin.unread ? 'bg-blue-soft dark:bg-blue-900' : 'bg-white'
       )}
     >
       <Link
@@ -66,6 +85,9 @@ export default function Notification({
           ) : (
             <p className="text-sm">&nbsp;</p>
           )}
+          {mention || comment ? (
+            <p className="small-button bg-gray-50 text-gray-800">Reply</p>
+          ) : null}
         </div>
       </Link>
       <div className="flex-none p-1">

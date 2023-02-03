@@ -3,6 +3,7 @@ import Avatar from '@/components/Avatar';
 import { useGang, useGroup } from '@/state/groups';
 import { isYarnShip } from '@/types/hark';
 import GroupAvatar from '@/groups/GroupAvatar';
+import DefaultGroupIcon from '@/components/icons/DefaultGroupIcon';
 import { Bin } from './useNotifications';
 import Notification from './Notification';
 
@@ -22,21 +23,26 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
     <Notification
       bin={bin}
       avatar={
-        <>
+        ship ? (
+          <Avatar size="default" ship={ship.ship} />
+        ) : (
           <GroupAvatar size="w-12 h-12" {...(group || gang?.preview)?.meta} />
-          {ship ? (
-            <div className="absolute -bottom-2 -right-2">
-              <Avatar size="xs" ship={ship.ship} />
-            </div>
-          ) : null}
-        </>
+        )
       }
       topLine={
-        <p className="text-sm font-semibold">
-          {groupTitle}
+        <div className="flex flex-row items-center space-x-1 text-sm font-semibold text-gray-400">
+          {ship ? (
+            <GroupAvatar
+              size="mr-1 w-6 h-6"
+              {...(group || gang?.preview)?.meta}
+            />
+          ) : (
+            <DefaultGroupIcon className="mr-1 h-6 w-6" />
+          )}
+          <p>{groupTitle}</p>
           {channelTitle ? ': ' : null}
-          {channelTitle}
-        </p>
+          <p>{channelTitle}</p>
+        </div>
       }
     />
   );
