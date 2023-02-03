@@ -6,8 +6,10 @@ import {
   DeskData,
 } from '@urbit/api';
 import _ from 'lodash';
+import { useCallback, useEffect } from 'react';
 import { lsDesk } from '@/constants';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import {
   BaseState,
   createState,
@@ -16,6 +18,8 @@ import {
   reduceStateN,
 } from './base';
 import api from '../api';
+import useSubscriptionState from './subscription';
+import { useLocalState } from './local';
 
 interface ChannelSetting {
   flag: string;
@@ -272,4 +276,47 @@ const selGroupSideBarSort = (s: SettingsState) => s.groups.groupSideBarSort;
 export function useGroupSideBarSort() {
   const settings = useSettingsState(selGroupSideBarSort);
   return JSON.parse(settings ?? '{"~": "A → Z"}');
+}
+
+export function useConnectionChecker() {
+  const checkConnection = useCallback(() => {
+    try {
+      asyncCallWithTimeout(
+        new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...doPutEntry('groups', 'meta', 'connection', Date.now()),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track(
+                  'settings-store/desk/groups',
+                  (event: SettingsUpdate) => {
+                    if ('put-entry' in event) {
+                      const entry = event['put-entry'];
+                      // we just care that we received the event
+                      return (
+                        entry['bucket-key'] === 'meta' &&
+                        entry['entry-key'] === 'connection'
+                      );
+                    }
+
+                    return false;
+                  }
+                );
+
+              resolve();
+            },
+          });
+        }),
+        15000
+      );
+    } catch (error) {
+      useLocalState.setState({ subscription: 'disconnected' });
+    }
+  }, []);
+
+  useEffect(() => {
+    setInterval(checkConnection, 1000 * 30);
+  }, [checkConnection]);
 }
