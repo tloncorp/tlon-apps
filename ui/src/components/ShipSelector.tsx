@@ -31,6 +31,7 @@ import { MAX_DISPLAYED_OPTIONS } from '@/constants';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
+import _ from 'lodash';
 import ShipName from './ShipName';
 import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
 
@@ -41,7 +42,7 @@ export interface ShipOption {
 
 interface ShipSelectorProps {
   ships: ShipOption[];
-  setShips: React.Dispatch<React.SetStateAction<ShipOption[]>>;
+  setShips: (ships: ShipOption[]) => void;
   onEnter?: (ships: ShipOption[]) => void;
   isMulti?: boolean;
   isClearable?: boolean;
@@ -387,13 +388,29 @@ export default function ShipSelector({
 
   const onInputChange = useCallback(
     (newValue: string, { action }: InputActionMeta) => {
+      const pattern = /[\s,]+/g;
+      const trimmed = newValue.trim();
+      if (pattern.test(trimmed)) {
+        const parts = trimmed.split(pattern);
+
+        if (parts.every((s) => isValidNewOption(preSig(s)))) {
+          const options: ShipOption[] = parts.map((p) => ({
+            value: p,
+            label: contacts[p]?.nickname || p,
+          }));
+          const newShips = _.uniqBy([...ships, ...options], 'value');
+          setShips(newShips);
+          return '';
+        }
+      }
+
       if (['input-blur', 'menu-close'].indexOf(action) === -1) {
         setInputValue(newValue);
         return newValue;
       }
       return inputValue;
     },
-    [inputValue]
+    [inputValue, ships, contacts, setShips, isValidNewOption]
   );
 
   const onChange = (

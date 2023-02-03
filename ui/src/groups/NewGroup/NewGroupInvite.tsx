@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import _ from 'lodash';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import cn from 'classnames';
@@ -142,26 +142,31 @@ export default function NewGroupInvite({
   setShipsToInvite,
   status,
 }: NewGroupInviteProps) {
-  const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
   const [selectedRole, setSelectedRole] = useState<Role>('Member');
   const submitText =
     shipsToInvite.length > 0 ? 'Invite People & Create Group' : 'Create Group';
   const ready = status === 'initial';
 
-  const handleEnter = (ships: ShipOption[]) => {
-    setShipsToInvite((prevState) => [
-      ...prevState,
-      ...ships
-        .filter(
-          (ship) => !prevState.find((prevShip) => prevShip.patp === ship.value)
-        )
-        .map((ship) => ({
-          patp: ship.value,
-          alias: ship.label,
-          roles: [selectedRole],
-        })),
-    ]);
-  };
+  const handleEnter = useCallback(
+    (ships: ShipOption[]) => {
+      setShipsToInvite((prevState) => {
+        return [
+          ...prevState,
+          ...ships
+            .filter(
+              (ship) =>
+                !prevState.find((prevShip) => prevShip.patp === ship.value)
+            )
+            .map((ship) => ({
+              patp: ship.value,
+              alias: ship.label,
+              roles: [selectedRole],
+            })),
+        ];
+      });
+    },
+    [selectedRole, setShipsToInvite]
+  );
 
   return (
     <div className="flex flex-col space-y-4">
@@ -177,9 +182,9 @@ export default function NewGroupInvite({
         <ShipSelector
           inner
           placeholder={`Search for people or paste a list/.csv to invite as “${selectedRole}”`}
-          ships={shipSelectorShips}
-          setShips={setShipSelectorShips}
           isMulti={true}
+          ships={[]}
+          setShips={handleEnter}
           onEnter={handleEnter}
         />
         <MemberRoleDropDownMenu
