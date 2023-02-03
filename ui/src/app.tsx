@@ -85,6 +85,8 @@ import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
+import ChannelList from './groups/GroupSidebar/ChannelList';
+import MobileGroupChannelList from './groups/MobileGroupChannelList';
 
 const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
 const SuspendedDiaryAddNote = (
@@ -275,6 +277,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
               <Route index element={isMobile ? <MobileGroupRoot /> : null} />
+              <Route path="channellist" element={<MobileGroupChannelList />} />
               <Route
                 path="activity"
                 element={

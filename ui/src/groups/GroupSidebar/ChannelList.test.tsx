@@ -26,7 +26,7 @@ vi.mock('@/logic/useMigrationInfo', () => ({
 
 describe('ChannelList', () => {
   it('renders as expected', () => {
-    const { asFragment } = render(<ChannelList flag={fakeFlag} />);
+    const { asFragment } = render(<ChannelList />);
     expect(asFragment()).toMatchSnapshot();
   });
 });

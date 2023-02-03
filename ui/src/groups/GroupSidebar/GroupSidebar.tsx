@@ -223,7 +223,7 @@ export default function GroupSidebar() {
         </span>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <ChannelList className="p-2 pt-0" flag={flag} />
+        <ChannelList className="p-2 pt-0" />
       </div>
     </nav>
   );
