@@ -3,6 +3,7 @@ import produce from 'immer';
 import create from 'zustand';
 import { Blanket, Carpet, Flag, HarkAction, Rope, Seam } from '@/types/hark';
 import api from '@/api';
+import { decToUd } from '@urbit/api';
 
 export interface HarkState {
   set: (fn: (sta: HarkState) => void) => void;
@@ -93,7 +94,7 @@ const useHarkState = create<HarkState>((set, get) => ({
 
     const blanket = await api.scry<Blanket>({
       app: 'hark',
-      path: `/desk/${window.desk}/quilt/${carpet.stitch}`,
+      path: `/desk/${window.desk}/quilt/${decToUd(carpet.stitch.toString())}`,
     });
 
     get().batchSet((draft) => {
@@ -109,7 +110,7 @@ const useHarkState = create<HarkState>((set, get) => ({
 
     const blanket = await api.scry<Blanket>({
       app: 'hark',
-      path: `/group/${flag}/quilt/${carpet.stitch}`,
+      path: `/group/${flag}/quilt/${decToUd(carpet.stitch.toString())}`,
     });
 
     get().batchSet((draft) => {
