@@ -85,6 +85,7 @@ import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
+import LandscapeWayfinding from './components/LandscapeWayfinding';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -486,6 +487,7 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
+      <LandscapeWayfinding />
       {subscription === 'disconnected' || subscription === 'reconnecting' ? (
         <DisconnectNotice />
       ) : null}
