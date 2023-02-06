@@ -57,7 +57,6 @@ export default function WritBaseReference({
         nest={nest}
         time={time}
         author={writ.memo.author}
-        unSubbed
         groupFlag={preview?.group.flag}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}

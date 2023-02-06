@@ -14,7 +14,6 @@ export default function ReferenceBar({
   channelTitle,
   author,
   top = false,
-  unSubbed = false,
 }: {
   nest: string;
   time: BigInteger;
@@ -23,20 +22,14 @@ export default function ReferenceBar({
   channelTitle?: string;
   author?: string;
   top?: boolean;
-  unSubbed?: boolean;
 }) {
   const groupFlagOrZod = groupFlag || '~zod/test';
   const navigateByApp = useNavigateByApp();
   const unix = new Date(daToUnix(time));
 
   const navigateToChannel = useCallback(() => {
-    if (unSubbed) {
-      // TODO: hook this up to the Join Channel Modal
-      console.log('join channel modal');
-    } else {
-      navigateByApp(`/groups/${groupFlagOrZod}/channels/${nest}`);
-    }
-  }, [nest, groupFlagOrZod, unSubbed, navigateByApp]);
+    navigateByApp(`/groups/${groupFlagOrZod}/channels/${nest}`);
+  }, [nest, groupFlagOrZod, navigateByApp]);
 
   return (
     <div
