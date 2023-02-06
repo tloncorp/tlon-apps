@@ -1,13 +1,14 @@
 import React from 'react';
 import Avatar from '@/components/Avatar';
 import { useGang, useGroup, useGroupFlag } from '@/state/groups';
-import { isYarnShip } from '@/types/hark';
+import { isYarnShip, Rope } from '@/types/hark';
 import GroupAvatar from '@/groups/GroupAvatar';
 import DefaultGroupIcon from '@/components/icons/DefaultGroupIcon';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import NotebookIcon from '@/components/icons/NotebookIcon';
 import ShapesIcon from '@/components/icons/ShapesIcon';
 import AddIcon16 from '@/components/icons/Add16Icon';
+import Person16Icon from '@/components/icons/Person16Icon';
 import { Bin } from './useNotifications';
 import Notification from './Notification';
 
@@ -16,10 +17,16 @@ interface GroupNotificationProps {
 }
 
 interface GroupOrChannelIconProps {
-  channelType?: string;
+  rope: Rope;
 }
 
-function GroupOrChannelIcon({ channelType }: GroupOrChannelIconProps) {
+function GroupSubIcon({ rope }: GroupOrChannelIconProps) {
+  const channelType = rope?.channel?.split('/')[0];
+  const isAdd = rope.thread.endsWith('add');
+  const isJoin = rope.thread.endsWith('joins');
+  const isLeave = rope.thread.endsWith('leaves');
+  const isAddRoles = rope.thread.endsWith('add-roles');
+
   switch (channelType) {
     case 'chat':
       return <ChatSmallIcon className="mr-1 h-4 w-4" />;
@@ -28,6 +35,12 @@ function GroupOrChannelIcon({ channelType }: GroupOrChannelIconProps) {
     case 'heap':
       return <ShapesIcon className="mr-1 h-4 w-4" />;
     default:
+      if (isAdd) {
+        return <AddIcon16 className="mr-1 h-4 w-4" />;
+      }
+      if (isJoin || isAddRoles || isLeave) {
+        return <Person16Icon className="mr-1 h-4 w-4" />;
+      }
       return <DefaultGroupIcon className="mr-1 h-6 w-6" />;
   }
 }
@@ -39,9 +52,7 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
   const gang = useGang(rope?.group || '');
   const groupTitle = group?.meta.title || gang?.preview?.meta.title;
   const channelTitle = group?.channels[rope?.channel || '']?.meta.title;
-  const channelType = rope?.channel?.split('/')[0];
   const ship = bin.topYarn?.con.find(isYarnShip);
-  const isAdd = rope.thread.endsWith('add');
 
   return (
     <Notification
@@ -57,10 +68,8 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
         <div className="flex flex-row items-center space-x-1 text-sm font-semibold text-gray-400">
           {!groupFlag ? (
             <DefaultGroupIcon className="mr-1 h-6 w-6" />
-          ) : isAdd ? (
-            <AddIcon16 className="mr-1 h-4 w-4" />
           ) : (
-            <GroupOrChannelIcon channelType={channelType} />
+            <GroupSubIcon rope={rope} />
           )}
           <p>{groupTitle}</p>
           {channelTitle ? ': ' : null}
