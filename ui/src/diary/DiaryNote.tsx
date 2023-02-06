@@ -85,7 +85,6 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 export default function DiaryNote() {
   const [loading, setLoading] = useState(false);
   const { chShip, chName, noteId = '' } = useParams();
-  const joinRef = new URLSearchParams(window.location.search).get('joinref');
   const chFlag = `${chShip}/${chName}`;
   const flag = useRouteGroup();
   const group = useGroup(flag);
@@ -112,16 +111,13 @@ export default function DiaryNote() {
 
   const load = useCallback(async () => {
     await useDiaryState.getState().initialize(chFlag);
-    if (joinRef) {
-      setTimeout(async () => {
-        // TODO: figure out why this is setTimeout necessary
-        await useDiaryState.getState().fetchNote(chFlag, noteId);
-      }, 300);
-    } else {
+    try {
       await useDiaryState.getState().fetchNote(chFlag, noteId);
+    } catch (e) {
+      console.log("Couldn't load note", e);
     }
     setLoading(false);
-  }, [chFlag, noteId, joinRef]);
+  }, [chFlag, noteId]);
 
   const setSort = useCallback(
     (setting: 'asc' | 'dsc') => {

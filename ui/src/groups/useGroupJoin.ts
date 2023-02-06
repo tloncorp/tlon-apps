@@ -79,11 +79,11 @@ export default function useGroupJoin(
         if (redirectItem) {
           if (redirectItem.type === 'chat') {
             return navigateByApp(
-              `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}&joinref=true`
+              `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}`
             );
           }
           return navigateByApp(
-            `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}?joinref=true`
+            `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}`
           );
         }
         return navigateByApp(`/groups/${flag}`);

@@ -39,7 +39,11 @@ export default function HeapDetail() {
   };
 
   const load = useCallback(async () => {
-    await useHeapState.getState().initialize(chFlag);
+    try {
+      await useHeapState.getState().initialize(chFlag);
+    } catch (e) {
+      console.log("Couldn't load heap", e);
+    }
     setLoading(false);
   }, [chFlag]);
 

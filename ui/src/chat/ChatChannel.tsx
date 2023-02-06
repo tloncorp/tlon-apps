@@ -26,7 +26,6 @@ import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder'
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
-  const joinRef = new URLSearchParams(window.location.search).get('joinref');
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
@@ -51,26 +50,18 @@ function ChatChannel({ title }: ViewProps) {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    if (joinRef) {
-      setTimeout(async () => {
-        await useChatState.getState().joinChat(chFlag);
-      }, 300);
-    } else {
+    try {
       await useChatState.getState().joinChat(chFlag);
+    } catch (e) {
+      console.log("Couldn't join chat (maybe already joined)", e);
     }
     setJoining(false);
-  }, [chFlag, joinRef]);
+  }, [chFlag]);
 
   const initializeChannel = useCallback(async () => {
-    if (joinRef) {
-      setTimeout(async () => {
-        await useChatState.getState().initialize(chFlag);
-      }, 300);
-    } else {
-      await useChatState.getState().initialize(chFlag);
-    }
+    await useChatState.getState().initialize(chFlag);
     setLoading(false);
-  }, [chFlag, joinRef]);
+  }, [chFlag]);
 
   useEffect(() => {
     if (!joined) {
@@ -80,7 +71,7 @@ function ChatChannel({ title }: ViewProps) {
 
   useEffect(() => {
     setLoading(true);
-    if (joined && channel && canRead && !joining) {
+    if (joined && canRead && !joining) {
       initializeChannel();
       setRecentChannel(nest);
     }
