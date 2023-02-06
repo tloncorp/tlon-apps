@@ -7,8 +7,8 @@ import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { ChatWrit } from '@/types/chat';
-import useAppName from '@/logic/useAppName';
 import useGroupJoin from '@/groups/useGroupJoin';
+import useNavigateByApp from '@/logic/useNavigateByApp';
 import ReferenceBar from './ReferenceBar';
 
 export default function WritBaseReference({
@@ -21,7 +21,7 @@ export default function WritBaseReference({
   const preview = useChannelPreview(nest);
   const location = useLocation();
   const navigate = useNavigate();
-  const app = useAppName();
+  const navigateByApp = useNavigateByApp();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
@@ -44,12 +44,7 @@ export default function WritBaseReference({
       });
       return;
     }
-    if (app === 'Talk') {
-      const href = `/apps/groups/groups/${groupFlag}/channels/${nest}?msg=${time}`;
-      window.open(`${window.location.origin}${href}`, '_blank');
-      return;
-    }
-    navigate(`/groups/${groupFlag}/channels/${nest}?msg=${time}`);
+    navigateByApp(`/groups/${groupFlag}/channels/${nest}?msg=${time}`);
   };
 
   return (

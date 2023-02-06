@@ -8,7 +8,7 @@ import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { useLocation, useNavigate } from 'react-router';
-import useAppName from '@/logic/useAppName';
+import useNavigateByApp from '@/logic/useNavigateByApp';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
@@ -27,7 +27,7 @@ export default function CurioReference({
   const preview = useChannelPreview(nest);
   const location = useLocation();
   const navigate = useNavigate();
-  const app = useAppName();
+  const navigateByApp = useNavigateByApp();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
@@ -43,12 +43,7 @@ export default function CurioReference({
       });
       return;
     }
-    if (app === 'Talk') {
-      const href = `/apps/groups/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`;
-      window.open(`${window.location.origin}${href}`, '_blank');
-      return;
-    }
-    navigate(`/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`);
+    navigateByApp(`/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`);
   };
 
   useEffect(() => {

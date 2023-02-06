@@ -7,6 +7,7 @@ import { useGroup, useGroupState } from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
 import { Status } from '@/logic/status';
 import { isTalk } from '@/logic/utils';
+import useNavigateByApp from '@/logic/useNavigateByApp';
 
 function getButtonText(
   privacy: PrivacyType,
@@ -37,6 +38,7 @@ export default function useGroupJoin(
   const [status, setStatus] = useState<Status>('initial');
   const location = useLocation();
   const navigate = useNavigate();
+  const navigateByApp = useNavigateByApp();
   const modalNavigate = useModalNavigate();
   const dismiss = useDismissNavigate();
   const group = useGroup(flag);
@@ -45,22 +47,14 @@ export default function useGroupJoin(
   const invited = gang?.invite;
 
   const open = useCallback(() => {
-    if (isTalk) {
-      if (group) {
-        const href = `/apps/groups/groups/${flag}/`;
-        return window.open(`${window.location.origin}${href}`, '_blank');
-      }
-      const href = `/apps/groups/gangs/${flag}`;
-      return window.open(`${window.location.origin}${href}`, '_blank');
-    }
     if (group) {
-      return navigate(`/groups/${flag}`);
+      return navigateByApp(`/groups/${flag}`);
     }
 
     return navigate(`/gangs/${flag}`, {
       state: { backgroundLocation: location },
     });
-  }, [flag, group, location, navigate]);
+  }, [flag, group, location, navigate, navigateByApp]);
 
   const join = useCallback(async () => {
     setStatus('loading');
@@ -84,28 +78,15 @@ export default function useGroupJoin(
         setStatus('success');
         if (redirectItem) {
           if (redirectItem.type === 'chat') {
-            if (isTalk) {
-              const href = `/apps/groups/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}&joinref=true`;
-              window.open(`${window.location.origin}${href}`, '_blank');
-            } else {
-              navigate(
-                `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}&joinref=true`
-              );
-            }
-          } else if (isTalk) {
-            const href = `/apps/groups/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}&joinref=true`;
-            window.open(`${window.location.origin}${href}`, '_blank');
-          } else {
-            navigate(
-              `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}?joinref=true`
+            return navigateByApp(
+              `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}&joinref=true`
             );
           }
-        } else if (isTalk) {
-          const href = `/apps/groups/groups/${flag}/`;
-          window.open(`${window.location.origin}${href}`, '_blank');
-        } else {
-          navigate(`/groups/${flag}`);
+          return navigateByApp(
+            `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}?joinref=true`
+          );
         }
+        return navigateByApp(`/groups/${flag}`);
       } catch (e) {
         setStatus('error');
         if (requested) {
@@ -113,15 +94,11 @@ export default function useGroupJoin(
         } else {
           await useGroupState.getState().reject(flag);
         }
-        if (isTalk) {
-          const href = `/apps/groups/find/${flag}/`;
-          window.open(`${window.location.origin}${href}`, '_blank');
-        } else {
-          navigate(`/find/${flag}`);
-        }
+        return navigateByApp(`/find/${flag}`);
       }
     }
-  }, [privacy, invited, flag, navigate, requested, redirectItem]);
+    return null;
+  }, [privacy, invited, flag, requested, redirectItem, navigateByApp]);
 
   const reject = useCallback(async () => {
     /**
@@ -136,16 +113,14 @@ export default function useGroupJoin(
       }
       return;
     }
-    if (isTalk) {
-      const href = `/apps/groups/gangs/${flag}/reject`;
-      window.open(`${window.location.origin}${href}`, '_blank');
-    } else {
-      const navFn = inModal ? modalNavigate : navigate;
-      navFn(`/gangs/${flag}/reject`, {
+    if (inModal) {
+      modalNavigate(`/gangs/${flag}/reject`, {
         state: { backgroundLocation: location },
       });
+    } else {
+      navigateByApp(`/gangs/${flag}/reject`);
     }
-  }, [flag, inModal, location, dismiss, navigate, modalNavigate, privacy]);
+  }, [flag, inModal, location, dismiss, modalNavigate, privacy, navigateByApp]);
 
   return {
     group,

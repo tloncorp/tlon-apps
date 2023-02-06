@@ -7,9 +7,9 @@ import { makePrettyDate, pluralize } from '@/logic/utils';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
-import useAppName from '@/logic/useAppName';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
 import useGroupJoin from '@/groups/useGroupJoin';
+import useNavigateByApp from '@/logic/useNavigateByApp';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
@@ -30,9 +30,9 @@ export default function NoteReference({
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
   const outline = useRemoteOutline(chFlag, id, isScrolling);
+  const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
-  const app = useAppName();
 
   const initialize = useCallback(async () => {
     try {
@@ -55,12 +55,8 @@ export default function NoteReference({
       });
       return;
     }
-    if (app === 'Talk') {
-      const href = `/apps/groups/groups/${groupFlag}/channels/${nest}/note/${id}`;
-      window.open(`${window.location.origin}${href}`, '_blank');
-      return;
-    }
-    navigate(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
+
+    navigateByApp(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
   };
 
   const contentPreview = useMemo(() => {
