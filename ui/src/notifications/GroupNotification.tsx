@@ -64,7 +64,7 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
       bin={bin}
       avatar={
         ship ? (
-          <Avatar size="default" ship={ship.ship} />
+          <Avatar size="default" icon={false} ship={ship.ship} />
         ) : (
           <GroupAvatar size="w-12 h-12" {...(group || gang?.preview)?.meta} />
         )
