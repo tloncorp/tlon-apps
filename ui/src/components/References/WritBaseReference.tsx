@@ -8,7 +8,6 @@ import bigInt from 'big-integer';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { ChatWrit } from '@/types/chat';
 import useGroupJoin from '@/groups/useGroupJoin';
-import useNavigateByApp from '@/logic/useNavigateByApp';
 import ReferenceBar from './ReferenceBar';
 
 export default function WritBaseReference({
@@ -21,7 +20,6 @@ export default function WritBaseReference({
   const preview = useChannelPreview(nest);
   const location = useLocation();
   const navigate = useNavigate();
-  const navigateByApp = useNavigateByApp();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
@@ -44,7 +42,7 @@ export default function WritBaseReference({
       });
       return;
     }
-    navigateByApp(`/groups/${groupFlag}/channels/${nest}?msg=${time}`);
+    navigate(`/groups/${groupFlag}/channels/${nest}?msg=${time}`);
   };
 
   return (
