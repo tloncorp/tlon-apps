@@ -9,6 +9,7 @@ import NotebookIcon from '@/components/icons/NotebookIcon';
 import ShapesIcon from '@/components/icons/ShapesIcon';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import Person16Icon from '@/components/icons/Person16Icon';
+import X16Icon from '@/components/icons/X16Icon';
 import { Bin } from './useNotifications';
 import Notification from './Notification';
 
@@ -23,6 +24,7 @@ interface GroupOrChannelIconProps {
 function GroupSubIcon({ rope }: GroupOrChannelIconProps) {
   const channelType = rope?.channel?.split('/')[0];
   const isAdd = rope.thread.endsWith('add');
+  const isDel = rope.thread.endsWith('del');
   const isJoin = rope.thread.endsWith('joins');
   const isLeave = rope.thread.endsWith('leaves');
   const isAddRoles = rope.thread.endsWith('add-roles');
@@ -37,6 +39,9 @@ function GroupSubIcon({ rope }: GroupOrChannelIconProps) {
     default:
       if (isAdd) {
         return <AddIcon16 className="mr-1 h-4 w-4" />;
+      }
+      if (isDel) {
+        return <X16Icon className="mr-1 h-4 w-4" />;
       }
       if (isJoin || isAddRoles || isLeave) {
         return <Person16Icon className="mr-1 h-4 w-4" />;
