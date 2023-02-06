@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useCurio, useHeapState, useRemoteCurio } from '@/state/heap/heap';
+import { useHeapState, useRemoteCurio } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 // eslint-disable-next-line import/no-cycle
 import HeapBlock from '@/heap/HeapBlock';
-import { useChannelPreview } from '@/state/groups';
+import { useChannelPreview, useGang } from '@/state/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
+import useGroupJoin from '@/groups/useGroupJoin';
+import { useLocation, useNavigate } from 'react-router';
+import useNavigateByApp from '@/logic/useNavigateByApp';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
@@ -22,10 +25,26 @@ export default function CurioReference({
 }) {
   const curio = useRemoteCurio(chFlag, idCurio, isScrolling);
   const preview = useChannelPreview(nest);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navigateByApp = useNavigateByApp();
+  const groupFlag = preview?.group?.flag || '~zod/test';
+  const gang = useGang(groupFlag);
+  const { group } = useGroupJoin(groupFlag, gang);
   const [scryError, setScryError] = useState<string>();
   const refToken = preview?.group
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
+
+  const handleOpenReferenceClick = () => {
+    if (!group) {
+      navigate(`/gangs/${groupFlag}?type=curio&nest=${nest}&id=${idCurio}`, {
+        state: { backgroundLocation: location },
+      });
+      return;
+    }
+    navigateByApp(`/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`);
+  };
 
   useEffect(() => {
     if (!isScrolling) {
@@ -49,7 +68,12 @@ export default function CurioReference({
   }
   return (
     <div className="heap-inline-block not-prose group">
-      <HeapBlock curio={curio} time={idCurio} refToken={refToken} asRef />
+      <div
+        onClick={handleOpenReferenceClick}
+        className="flex h-full cursor-pointer flex-col justify-between p-2"
+      >
+        <HeapBlock curio={curio} time={idCurio} refToken={refToken} asRef />
+      </div>
       <ReferenceBar
         nest={nest}
         time={bigInt(idCurio)}

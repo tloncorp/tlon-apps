@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
@@ -10,6 +10,7 @@ import bigInt from 'big-integer';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useEventListener } from 'usehooks-ts';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -22,6 +23,7 @@ export default function HeapDetail() {
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
   const { time, curio } = useCurioFromParams();
+  const [loading, setLoading] = useState(false);
 
   const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
     chFlag,
@@ -37,10 +39,16 @@ export default function HeapDetail() {
   };
 
   const load = useCallback(async () => {
-    await useHeapState.getState().initialize(chFlag);
+    try {
+      await useHeapState.getState().initialize(chFlag);
+    } catch (e) {
+      console.log("Couldn't load heap", e);
+    }
+    setLoading(false);
   }, [chFlag]);
 
   useEffect(() => {
+    setLoading(true);
     load();
   }, [load]);
 
@@ -68,10 +76,6 @@ export default function HeapDetail() {
     }
   });
 
-  if (!curio || !time) {
-    return null;
-  }
-
   return (
     <Layout
       className="flex-1 bg-gray-50"
@@ -79,46 +83,56 @@ export default function HeapDetail() {
         <HeapDetailHeader
           flag={groupFlag}
           chFlag={chFlag}
-          idCurio={time.toString() || ''}
+          idCurio={time?.toString() || ''}
         />
       }
     >
       <div className="flex h-full w-full flex-col overflow-y-auto lg:flex-row">
-        <div className="group relative flex flex-1">
-          {hasNext ? (
-            <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
-              <Link
-                to={curioHref(nextCurio?.[0])}
-                className={
-                  'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
-                }
-              >
-                <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
-                  <CaretLeftIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
+        {loading ? (
+          <LoadingSpinner />
+        ) : (
+          <>
+            <div className="group relative flex flex-1">
+              {hasNext ? (
+                <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
+                  <Link
+                    to={curioHref(nextCurio?.[0])}
+                    className={
+                      'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
+                    }
+                  >
+                    <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
+                      <CaretLeftIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
+                    </div>
+                  </Link>
                 </div>
-              </Link>
-            </div>
-          ) : null}
-          <HeapDetailBody curio={curio} />
-          {hasPrev ? (
-            <div className="absolute top-0 right-0 flex h-full w-16 flex-col justify-center">
-              <Link
-                to={curioHref(prevCurio?.[0])}
-                className={
-                  'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
-                }
-              >
-                <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
-                  <CaretRightIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
+              ) : null}
+              {curio ? <HeapDetailBody curio={curio} /> : null}
+              {hasPrev ? (
+                <div className="absolute top-0 right-0 flex h-full w-16 flex-col justify-center">
+                  <Link
+                    to={curioHref(prevCurio?.[0])}
+                    className={
+                      'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
+                    }
+                  >
+                    <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
+                      <CaretRightIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
+                    </div>
+                  </Link>
                 </div>
-              </Link>
+              ) : null}
             </div>
-          ) : null}
-        </div>
-        <div className="flex w-full flex-col border-gray-50 bg-white sm:mt-5 lg:mt-0 lg:h-full lg:w-72 lg:border-l-2 xl:w-96">
-          <HeapDetailSidebarInfo curio={curio} />
-          <HeapDetailComments time={time} />
-        </div>
+            <div className="flex w-full flex-col border-gray-50 bg-white sm:mt-5 lg:mt-0 lg:h-full lg:w-72 lg:border-l-2 xl:w-96">
+              {curio && time ? (
+                <>
+                  <HeapDetailSidebarInfo curio={curio} />
+                  <HeapDetailComments time={time} />
+                </>
+              ) : null}
+            </div>
+          </>
+        )}
       </div>
     </Layout>
   );
