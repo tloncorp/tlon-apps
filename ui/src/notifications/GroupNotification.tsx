@@ -7,6 +7,7 @@ import DefaultGroupIcon from '@/components/icons/DefaultGroupIcon';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import NotebookIcon from '@/components/icons/NotebookIcon';
 import ShapesIcon from '@/components/icons/ShapesIcon';
+import AddIcon16 from '@/components/icons/Add16Icon';
 import { Bin } from './useNotifications';
 import Notification from './Notification';
 
@@ -40,6 +41,7 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
   const channelTitle = group?.channels[rope?.channel || '']?.meta.title;
   const channelType = rope?.channel?.split('/')[0];
   const ship = bin.topYarn?.con.find(isYarnShip);
+  const isAdd = rope.thread.endsWith('add');
 
   return (
     <Notification
@@ -55,6 +57,8 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
         <div className="flex flex-row items-center space-x-1 text-sm font-semibold text-gray-400">
           {!groupFlag ? (
             <DefaultGroupIcon className="mr-1 h-6 w-6" />
+          ) : isAdd ? (
+            <AddIcon16 className="mr-1 h-4 w-4" />
           ) : (
             <GroupOrChannelIcon channelType={channelType} />
           )}
