@@ -17,7 +17,7 @@ import {
 } from '@/state/diary';
 import {
   DiarySetting,
-  setSetting,
+  setChannelSetting,
   useDiarySettings,
   useDiarySortMode,
   useSettingsState,
@@ -93,7 +93,7 @@ function DiaryChannel() {
   const setSortMode = (
     setting: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc'
   ) => {
-    const newSettings = setSetting<DiarySetting>(
+    const newSettings = setChannelSetting<DiarySetting>(
       settings,
       { sortMode: setting },
       chFlag

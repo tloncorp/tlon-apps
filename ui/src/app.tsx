@@ -21,7 +21,7 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useSettingsState, useTheme } from '@/state/settings';
+import { useCalm, useSettingsState, useTheme } from '@/state/settings';
 import {
   useAirLockErrorCount,
   useErrorCount,
@@ -85,6 +85,7 @@ import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
+import LandscapeWayfinding from './components/LandscapeWayfinding';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -433,6 +434,7 @@ function App() {
   const pike = usePike(isTalk ? 'talk' : 'groups');
   const [baseHash, setBaseHash] = useState('');
   const [needsUpdate, setNeedsUpdate] = useState(false);
+  const { disableWayfinding } = useCalm();
 
   const fetchPikes = useCallback(async () => {
     try {
@@ -486,6 +488,7 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
+      {!disableWayfinding && <LandscapeWayfinding />}
       {subscription === 'disconnected' || subscription === 'reconnecting' ? (
         <DisconnectNotice />
       ) : null}

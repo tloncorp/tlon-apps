@@ -60,6 +60,7 @@ interface BaseSettingsState {
     disableRemoteContent: boolean;
     disableSpellcheck: boolean;
     disableNicknames: boolean;
+    disableWayfinding: boolean;
   };
   heaps: {
     heapSettings: Stringified<HeapSetting[]>;
@@ -132,6 +133,7 @@ export const useSettingsState = createState<BaseSettingsState>(
       disableRemoteContent: false,
       disableSpellcheck: false,
       disableNicknames: false,
+      disableWayfinding: false,
     },
     heaps: {
       heapSettings: '' as Stringified<HeapSetting[]>,
@@ -196,18 +198,25 @@ export function useCalm() {
   return useSettingsState(selCalm);
 }
 
+export function setCalmSetting(
+  key: keyof SettingsState['calmEngine'],
+  val: boolean
+) {
+  useSettingsState.getState().putEntry('calmEngine', key, val);
+}
+
 export function parseSettings<T>(settings: Stringified<T[]>): T[] {
   return settings !== '' ? JSON.parse(settings) : [];
 }
 
-export function getSetting<T extends ChannelSetting>(
+export function getChannelSetting<T extends ChannelSetting>(
   settings: T[],
   flag: string
 ): T | undefined {
   return settings.find((el) => el.flag === flag);
 }
 
-export function setSetting<T extends ChannelSetting>(
+export function setChannelSetting<T extends ChannelSetting>(
   settings: T[],
   newSetting: Partial<T>,
   flag: string
@@ -236,13 +245,13 @@ export function useHeapSettings(): HeapSetting[] {
 
 export function useHeapSortMode(flag: string): HeapSortMode {
   const settings = useHeapSettings();
-  const heapSetting = getSetting(settings, flag);
+  const heapSetting = getChannelSetting(settings, flag);
   return heapSetting?.sortMode ?? 'time';
 }
 
 export function useHeapDisplayMode(flag: string): HeapDisplayMode {
   const settings = useHeapSettings();
-  const heapSetting = getSetting(settings, flag);
+  const heapSetting = getChannelSetting(settings, flag);
   return heapSetting?.displayMode ?? 'grid';
 }
 
@@ -257,13 +266,13 @@ export function useDiarySortMode(
   flag: string
 ): 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc' {
   const settings = useDiarySettings();
-  const heapSetting = getSetting(settings, flag);
+  const heapSetting = getChannelSetting(settings, flag);
   return heapSetting?.sortMode ?? 'time-dsc';
 }
 
 export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
   const settings = useDiarySettings();
-  const setting = getSetting(settings, flag);
+  const setting = getChannelSetting(settings, flag);
   return setting?.commentSortMode ?? 'dsc';
 }
 
