@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import cn from 'classnames';
 import ob from 'urbit-ob';
-import * as Popover from '@radix-ui/react-popover';
+import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import useAppName from '@/logic/useAppName';
 import GroupReference from '@/components/References/GroupReference';
 import { useGang } from '@/state/groups';
@@ -92,45 +92,55 @@ export default function LandscapeWayfinding() {
   };
 
   return (
-    <Popover.Root>
+    <Dropdown.Root>
       <div
         className={cn('absolute left-5 z-50', {
           'bottom-10': !isMobile,
           'bottom-20': isMobile,
         })}
       >
-        <Popover.Trigger className="relative" asChild>
+        <Dropdown.Trigger className="relative" asChild>
           <button className="h-9 w-9 cursor-pointer rounded-lg bg-black text-xl text-white">
             ?
           </button>
-        </Popover.Trigger>
-        <Popover.Content
+        </Dropdown.Trigger>
+        <Dropdown.Content
           side="bottom"
           sideOffset={8}
-          className="mx-4 flex w-[208px] flex-col space-y-4 rounded-lg bg-white p-4 text-sm font-semibold text-black drop-shadow-lg"
+          className="dropdown mx-4 flex w-[208px] flex-col space-y-3 rounded-lg bg-white p-2 text-sm font-semibold text-black drop-shadow-lg"
         >
-          <span
-            onClick={() => setShowModal(true)}
-            className="cursor-pointer text-blue"
-          >
-            Basic Wayfinding
-          </span>
-          <hr className="my-2 border-[1px] border-gray-50" />
-          <span className="cursor-pointer" onClick={open}>
-            Help & Support
-          </span>
-          <a
-            className="no-underline"
-            href="https://airtable.com/shrflFkf5UyDFKhmW"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Submit Feedback
-          </a>
-          <span className="cursor-pointer" onClick={handleHide}>
-            Hide This Button
-          </span>
-        </Popover.Content>
+          <Dropdown.Item asChild className="dropdown-item p-2">
+            <span
+              onClick={() => setShowModal(true)}
+              className="cursor-pointer text-blue"
+            >
+              Basic Wayfinding
+            </span>
+          </Dropdown.Item>
+          <Dropdown.Separator asChild>
+            <hr className="my-2 border-[1px] border-gray-50" />
+          </Dropdown.Separator>
+          <Dropdown.Item asChild className="dropdown-item p-2">
+            <span className="cursor-pointer" onClick={open}>
+              Help & Support
+            </span>
+          </Dropdown.Item>
+          <Dropdown.Item asChild className="dropdown-item p-2">
+            <a
+              className="no-underline"
+              href="https://airtable.com/shrflFkf5UyDFKhmW"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Submit Feedback
+            </a>
+          </Dropdown.Item>
+          <Dropdown.Item asChild className="dropdown-item p-2">
+            <span className="cursor-pointer" onClick={handleHide}>
+              Hide This Button
+            </span>
+          </Dropdown.Item>
+        </Dropdown.Content>
       </div>
       <Dialog open={showModal} onOpenChange={() => setShowModal(false)}>
         <DialogContent showClose={false}>
@@ -138,6 +148,6 @@ export default function LandscapeWayfinding() {
           {app === 'Talk' && <TalkDescription />}
         </DialogContent>
       </Dialog>
-    </Popover.Root>
+    </Dropdown.Root>
   );
 }
