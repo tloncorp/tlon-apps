@@ -5,6 +5,7 @@ import useAppName from '@/logic/useAppName';
 import GroupReference from '@/components/References/GroupReference';
 import { useGang } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
+import { setCalmSetting, SettingsState } from '@/state/settings';
 import Dialog, { DialogContent } from './Dialog';
 
 function GroupsDescription() {
@@ -85,6 +86,10 @@ export default function LandscapeWayfinding() {
   const gang = useGang('~nibset-napwyn/tlon');
   const { open } = useGroupJoin('~nibset-napwyn/tlon', gang);
 
+  const handleHide = () => {
+    setCalmSetting('disableWayfinding', true);
+  };
+
   return (
     <Popover.Root>
       <div className="absolute left-10 bottom-5 z-50">
@@ -116,6 +121,9 @@ export default function LandscapeWayfinding() {
           >
             Submit Feedback
           </a>
+          <span className="cursor-pointer" onClick={handleHide}>
+            Hide This Button
+          </span>
         </Popover.Content>
       </div>
       <Dialog open={showModal} onOpenChange={() => setShowModal(false)}>

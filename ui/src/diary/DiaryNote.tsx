@@ -18,7 +18,7 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import {
   DiarySetting,
-  setSetting,
+  setChannelSetting,
   useDiaryCommentSortMode,
   useDiarySettings,
   useSettingsState,
@@ -121,7 +121,7 @@ export default function DiaryNote() {
 
   const setSort = useCallback(
     (setting: 'asc' | 'dsc') => {
-      const newSettings = setSetting<DiarySetting>(
+      const newSettings = setChannelSetting<DiarySetting>(
         settings,
         { commentSortMode: setting },
         chFlag
