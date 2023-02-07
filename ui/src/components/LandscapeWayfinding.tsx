@@ -3,6 +3,8 @@ import ob from 'urbit-ob';
 import * as Popover from '@radix-ui/react-popover';
 import useAppName from '@/logic/useAppName';
 import GroupReference from '@/components/References/GroupReference';
+import { useGang } from '@/state/groups';
+import useGroupJoin from '@/groups/useGroupJoin';
 import Dialog, { DialogContent } from './Dialog';
 
 function GroupsDescription() {
@@ -80,6 +82,8 @@ function TalkDescription() {
 export default function LandscapeWayfinding() {
   const [showModal, setShowModal] = useState(false);
   const app = useAppName();
+  const gang = useGang('~nibset-napwyn/tlon');
+  const { open } = useGroupJoin('~nibset-napwyn/tlon', gang);
 
   return (
     <Popover.Root>
@@ -101,7 +105,9 @@ export default function LandscapeWayfinding() {
             Basic Wayfinding
           </span>
           <hr className="my-2 border-[1px] border-gray-50" />
-          <p>Help & Support</p>
+          <span className="cursor-pointer" onClick={open}>
+            Help & Support
+          </span>
           <a
             className="no-underline"
             href="https://airtable.com/shrflFkf5UyDFKhmW"
