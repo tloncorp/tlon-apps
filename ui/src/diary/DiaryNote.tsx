@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
@@ -112,7 +111,11 @@ export default function DiaryNote() {
 
   const load = useCallback(async () => {
     await useDiaryState.getState().initialize(chFlag);
-    await useDiaryState.getState().fetchNote(chFlag, noteId);
+    try {
+      await useDiaryState.getState().fetchNote(chFlag, noteId);
+    } catch (e) {
+      console.log("Couldn't load note", e);
+    }
     setLoading(false);
   }, [chFlag, noteId]);
 
