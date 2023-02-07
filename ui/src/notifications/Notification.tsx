@@ -73,7 +73,7 @@ export default function Notification({
   return (
     <div
       className={cn(
-        'flex space-x-3 rounded-xl p-3 text-gray-600',
+        'relative flex space-x-3 rounded-xl p-3 text-gray-600',
         bin.unread ? 'bg-blue-soft dark:bg-blue-900' : 'bg-white'
       )}
     >
@@ -109,7 +109,7 @@ export default function Notification({
           ) : null}
         </div>
       </Link>
-      <div className="flex-none p-1">
+      <div className="absolute right-5 flex-none p-1">
         <Dropdown.Root>
           <Dropdown.Trigger className="flex items-center space-x-1 text-sm">
             {bin.unread ? <Bullet16Icon className="h-4 w-4 text-blue" /> : null}

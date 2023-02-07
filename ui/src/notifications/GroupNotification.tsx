@@ -10,6 +10,7 @@ import ShapesIcon from '@/components/icons/ShapesIcon';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import Person16Icon from '@/components/icons/Person16Icon';
 import X16Icon from '@/components/icons/X16Icon';
+import { useIsMobile } from '@/logic/useMedia';
 import { Bin } from './useNotifications';
 import Notification from './Notification';
 
@@ -20,6 +21,8 @@ interface GroupNotificationProps {
 interface GroupOrChannelIconProps {
   rope: Rope;
 }
+
+const TRUNCATE_LENGTH = 20;
 
 function GroupSubIcon({ rope }: GroupOrChannelIconProps) {
   const channelType = rope?.channel?.split('/')[0];
@@ -46,11 +49,12 @@ function GroupSubIcon({ rope }: GroupOrChannelIconProps) {
       if (isJoin || isAddRoles || isLeave) {
         return <Person16Icon className="mr-1 h-4 w-4" />;
       }
-      return <DefaultGroupIcon className="mr-1 h-6 w-6" />;
+      return <DefaultGroupIcon className="mr-1 h-4 w-4" />;
   }
 }
 
 export default function GroupNotification({ bin }: GroupNotificationProps) {
+  const isMobile = useIsMobile();
   const rope = bin.topYarn?.rope;
   const group = useGroup(rope?.group || '');
   const groupFlag = useGroupFlag();
@@ -58,6 +62,13 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
   const groupTitle = group?.meta.title || gang?.preview?.meta.title;
   const channelTitle = group?.channels[rope?.channel || '']?.meta.title;
   const ship = bin.topYarn?.con.find(isYarnShip);
+  const combinedTitle = `${groupTitle || ''}${
+    channelTitle ? `: ${channelTitle}` : ''
+  }`;
+  const truncatedCombinedTitle = `${combinedTitle.slice(
+    0,
+    TRUNCATE_LENGTH
+  )}...`;
 
   return (
     <Notification
@@ -72,13 +83,15 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
       topLine={
         <div className="flex flex-row items-center space-x-1 text-sm font-semibold text-gray-400">
           {!groupFlag ? (
-            <DefaultGroupIcon className="mr-1 h-6 w-6" />
+            <DefaultGroupIcon className="mr-1 h-4 w-4" />
           ) : (
             <GroupSubIcon rope={rope} />
           )}
-          <p>{groupTitle}</p>
-          {channelTitle ? ': ' : null}
-          <p>{channelTitle}</p>
+          <p>
+            {isMobile && combinedTitle.length > TRUNCATE_LENGTH + 1
+              ? truncatedCombinedTitle
+              : combinedTitle}
+          </p>
         </div>
       }
     />
