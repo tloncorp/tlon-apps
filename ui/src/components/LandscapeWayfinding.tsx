@@ -35,25 +35,23 @@ function GroupsDescription() {
         Here are some groups we recommend joining to learn more about Groups and
         how to use it in interesting ways:
       </p>
-      <ul className="mt-8 list-none space-y-2">
-        <li>
-          <GroupReference
-            flag="~halbex-palheb/uf-public"
-            plain
-            description="Learn about the Urbit Project"
-          />
-          <GroupReference
-            flag="~natnex-ronret/door-link"
-            description="A cult of music lovers"
-            plain
-          />
-          <GroupReference
-            flag="~nibset-napwyn/tlon"
-            description="A place to ask for help"
-            plain
-          />
-        </li>
-      </ul>
+      <div className="mt-8 space-y-2">
+        <GroupReference
+          flag="~halbex-palheb/uf-public"
+          plain
+          description="Learn about the Urbit Project"
+        />
+        <GroupReference
+          flag="~natnex-ronret/door-link"
+          description="A cult of music lovers"
+          plain
+        />
+        <GroupReference
+          flag="~nibset-napwyn/tlon"
+          description="A place to ask for help"
+          plain
+        />
+      </div>
     </div>
   );
 }
@@ -94,7 +92,7 @@ export default function LandscapeWayfinding() {
     <Popover.Root>
       <div className="absolute left-10 bottom-5 z-50">
         <Popover.Trigger className="relative" asChild>
-          <button className="h-9 w-9 rounded-lg bg-black text-xl text-white">
+          <button className="h-9 w-9 cursor-pointer rounded-lg bg-black text-xl text-white">
             ?
           </button>
         </Popover.Trigger>
