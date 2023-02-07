@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import cn from 'classnames';
 import ob from 'urbit-ob';
 import * as Popover from '@radix-ui/react-popover';
 import useAppName from '@/logic/useAppName';
 import GroupReference from '@/components/References/GroupReference';
 import { useGang } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { setCalmSetting, SettingsState } from '@/state/settings';
+import { setCalmSetting } from '@/state/settings';
+import { useIsMobile } from '@/logic/useMedia';
 import Dialog, { DialogContent } from './Dialog';
 
 function GroupsDescription() {
@@ -80,6 +82,7 @@ function TalkDescription() {
 
 export default function LandscapeWayfinding() {
   const [showModal, setShowModal] = useState(false);
+  const isMobile = useIsMobile();
   const app = useAppName();
   const gang = useGang('~nibset-napwyn/tlon');
   const { open } = useGroupJoin('~nibset-napwyn/tlon', gang);
@@ -90,7 +93,12 @@ export default function LandscapeWayfinding() {
 
   return (
     <Popover.Root>
-      <div className="absolute left-10 bottom-5 z-50">
+      <div
+        className={cn('absolute left-5 z-50', {
+          'bottom-10': !isMobile,
+          'bottom-20': isMobile,
+        })}
+      >
         <Popover.Trigger className="relative" asChild>
           <button className="h-9 w-9 cursor-pointer rounded-lg bg-black text-xl text-white">
             ?
