@@ -69,7 +69,7 @@ function TalkDescription() {
       <h1 className="my-8 text-2xl font-bold">What can I do here?</h1>
       <p>
         Talk is simple: It works like any other messaging app you’ve ever used.
-        What makes it special is its’ directly person-to-person nature, no one
+        What makes it special is its directly person-to-person nature, no one
         person or company can ever snoop the messages you send on Talk.
       </p>
       <p className="mt-4 mb-8">
