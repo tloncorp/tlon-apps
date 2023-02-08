@@ -228,3 +228,8 @@ export interface HeapSaid {
   flag: string;
   curio: HeapCurio;
 }
+
+export interface HeapJoin {
+  group: string;
+  chan: HeapFlag;
+}

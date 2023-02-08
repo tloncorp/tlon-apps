@@ -169,10 +169,15 @@
       |=(=flag:d [flag |])
     cor
   ::
-      ?(%flag %channel-join)
-    =+  !<(=flag:d vase)
-    ?<  =(our.bowl p.flag)
-    (join flag)
+      %flag
+    =+  !<(f=flag:d vase)
+    ?<  =(our.bowl p.f)
+    (join [*flag:g f])
+  ::  
+      %channel-join
+    =+  !<(j=join:d vase)
+    ?<  =(our.bowl p.chan.j)
+    (join j)
   ::
       %diary-leave
     =+  !<(=leave:d vase)
@@ -195,10 +200,10 @@
     di-abet:(di-remark-diff:(di-abed:di-core p.act) q.act)
   ==
   ++  join
-    |=  =flag:d
+    |=  =join:d
     ^+  cor
-    ?<  (~(has by shelf) flag)
-    di-abet:(di-join:di-core flag)
+    ?<  (~(has by shelf) chan.join)
+    di-abet:(di-join:di-core join)
   ::
   ++  create
     |=  req=create:d
@@ -830,10 +835,11 @@
     di-core
   ::
   ++  di-join
-    |=  f=flag:d
+    |=  j=join:d
     ^+  di-core
-    =.  shelf  (~(put by shelf) f *diary:d)
-    =.  di-core  (di-abed f)
+    =.  shelf  (~(put by shelf) chan.j *diary:d)
+    =.  di-core  (di-abed chan.j)
+    =.  group.perm.diary  group.j
     =.  cor  (give-brief flag di-brief)
     di-sub
   ::

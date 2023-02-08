@@ -16,6 +16,7 @@ import {
   Stash,
   HeapSaid,
   HeapDisplayMode,
+  HeapJoin,
 } from '@/types/heap';
 import api from '@/api';
 import { nestToFlag, canWriteChannel } from '@/logic/utils';
@@ -178,12 +179,15 @@ export const useHeapState = createState<HeapState>(
         },
       });
     },
-    joinHeap: async (flag) => {
+    joinHeap: async (group, chan) => {
       await new Promise<void>((resolve, reject) => {
-        api.poke({
+        api.poke<HeapJoin>({
           app: 'heap',
-          mark: 'flag',
-          json: flag,
+          mark: 'channel-join',
+          json: {
+            group,
+            chan,
+          },
           onError: () => reject(),
           onSuccess: async () => {
             await useSubscriptionState
@@ -193,7 +197,7 @@ export const useHeapState = createState<HeapState>(
                   update: { diff },
                   flag: f,
                 } = event;
-                if (f === flag && 'create' in diff) {
+                if (f === chan && 'create' in diff) {
                   return true;
                 }
                 return false;

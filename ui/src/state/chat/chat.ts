@@ -12,6 +12,7 @@ import {
   ChatBriefUpdate,
   ChatDiff,
   ChatDraft,
+  ChatJoin,
   ChatMemo,
   ChatPerm,
   Chats,
@@ -422,12 +423,15 @@ export const useChatState = createState<ChatState>(
         delete draft.briefs[ship];
       });
     },
-    joinChat: async (flag) => {
+    joinChat: async (group, flag) => {
       await new Promise<void>((resolve, reject) => {
-        api.poke({
+        api.poke<ChatJoin>({
           app: 'chat',
-          mark: 'flag',
-          json: flag,
+          mark: 'channel-join',
+          json: {
+            group,
+            chan: flag,
+          },
           onError: () => reject(),
           onSuccess: async () => {
             await useSubscriptionState
