@@ -13,22 +13,19 @@ import {
 import { ErrorBoundary } from 'react-error-boundary';
 import Groups from '@/groups/Groups';
 import Channel from '@/channels/Channel';
-import { useGroupState } from '@/state/groups';
-import { useChatState } from '@/state/chat';
-import api, { IS_MOCK } from '@/api';
+import { IS_MOCK } from '@/api';
 import Dms from '@/dms/Dms';
 import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useSettingsState, useTheme } from '@/state/settings';
+import { useCalm, useTheme } from '@/state/settings';
 import {
   useAirLockErrorCount,
   useErrorCount,
   useLocalState,
   useSubscriptionStatus,
 } from '@/state/local';
-import useContactState from '@/state/contact';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import GroupsNav from '@/nav/GroupsNav';
@@ -52,9 +49,6 @@ import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import { useHeapState } from './state/heap/heap';
-import { useDiaryState } from './state/diary';
-import useHarkState from './state/hark';
 import Notifications, {
   GroupWrapper,
   MainWrapper,
@@ -76,10 +70,9 @@ import TalkHead from './dms/TalkHead';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
-import MobileGroupsActions from './groups/MobileGroupsActions';
 import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
-import { useStorage } from './state/storage';
+import MobileGroupsActions from './groups/MobileGroupsActions';
 import { isTalk } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
@@ -87,8 +80,11 @@ import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
 import ChannelList from './groups/GroupSidebar/ChannelList';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
+import useConnectionChecker from './logic/useConnectionChecker';
+import LandscapeWayfinding from './components/LandscapeWayfinding';
 
-const DiaryAddNote = React.lazy(() => import('./diary/DiaryAddNote'));
+
+const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
   <Suspense
     fallback={
@@ -439,6 +435,7 @@ function App() {
   const pike = usePike(isTalk ? 'talk' : 'groups');
   const [baseHash, setBaseHash] = useState('');
   const [needsUpdate, setNeedsUpdate] = useState(false);
+  const { disableWayfinding } = useCalm();
 
   const fetchPikes = useCallback(async () => {
     try {
@@ -481,6 +478,8 @@ function App() {
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
+  useConnectionChecker();
+
   useEffect(() => {
     if (
       (errorCount > 4 || airLockErrorCount > 1) &&
@@ -492,6 +491,7 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
+      {!disableWayfinding && <LandscapeWayfinding />}
       {subscription === 'disconnected' || subscription === 'reconnecting' ? (
         <DisconnectNotice />
       ) : null}

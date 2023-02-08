@@ -50,7 +50,11 @@ function ChatChannel({ title }: ViewProps) {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await useChatState.getState().joinChat(chFlag);
+    try {
+      await useChatState.getState().joinChat(chFlag);
+    } catch (e) {
+      console.log("Couldn't join chat (maybe already joined)", e);
+    }
     setJoining(false);
   }, [chFlag]);
 
@@ -67,7 +71,7 @@ function ChatChannel({ title }: ViewProps) {
 
   useEffect(() => {
     setLoading(true);
-    if (joined && channel && canRead && !joining) {
+    if (joined && canRead && !joining) {
       initializeChannel();
       setRecentChannel(nest);
     }

@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
@@ -19,7 +18,7 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import {
   DiarySetting,
-  setSetting,
+  setChannelSetting,
   useDiaryCommentSortMode,
   useDiarySettings,
   useSettingsState,
@@ -112,13 +111,17 @@ export default function DiaryNote() {
 
   const load = useCallback(async () => {
     await useDiaryState.getState().initialize(chFlag);
-    await useDiaryState.getState().fetchNote(chFlag, noteId);
+    try {
+      await useDiaryState.getState().fetchNote(chFlag, noteId);
+    } catch (e) {
+      console.log("Couldn't load note", e);
+    }
     setLoading(false);
   }, [chFlag, noteId]);
 
   const setSort = useCallback(
     (setting: 'asc' | 'dsc') => {
-      const newSettings = setSetting<DiarySetting>(
+      const newSettings = setChannelSetting<DiarySetting>(
         settings,
         { commentSortMode: setting },
         chFlag

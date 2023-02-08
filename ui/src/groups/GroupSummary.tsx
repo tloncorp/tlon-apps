@@ -7,6 +7,7 @@ import { GroupPreview } from '@/types/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import GroupAvatar from '@/groups/GroupAvatar';
 import Globe16Icon from '@/components/icons/Globe16Icon';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 export type GroupSummarySize = 'default' | 'small';
 
@@ -24,7 +25,11 @@ export default function GroupSummary({
   const { privacy } = useGroupPrivacy(flag);
 
   if (!preview) {
-    return null;
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
   }
   const { meta } = preview;
   const { ship } = getFlagParts(flag);

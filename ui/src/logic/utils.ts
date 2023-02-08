@@ -144,7 +144,7 @@ export function normalizeUrbitColor(color: string): string {
   }
 
   const colorString = color.slice(2).replace('.', '').toUpperCase();
-  const lengthAdjustedColor = _.padEnd(colorString, 6, _.last(colorString));
+  const lengthAdjustedColor = _.padStart(colorString, 6, '0');
   return `#${lengthAdjustedColor}`;
 }
 

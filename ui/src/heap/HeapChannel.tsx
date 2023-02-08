@@ -19,7 +19,7 @@ import {
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
   HeapSetting,
-  setSetting,
+  setChannelSetting,
   useHeapSettings,
   useHeapSortMode,
   useHeapDisplayMode,
@@ -76,7 +76,7 @@ function HeapChannel({ title }: ViewProps) {
   }, [chFlag]);
 
   const setDisplayMode = (setting: HeapDisplayMode) => {
-    const newSettings = setSetting<HeapSetting>(
+    const newSettings = setChannelSetting<HeapSetting>(
       settings,
       { displayMode: setting },
       chFlag
@@ -87,7 +87,7 @@ function HeapChannel({ title }: ViewProps) {
   };
 
   const setSortMode = (setting: HeapSortMode) => {
-    const newSettings = setSetting<HeapSetting>(
+    const newSettings = setChannelSetting<HeapSetting>(
       settings,
       { sortMode: setting },
       chFlag

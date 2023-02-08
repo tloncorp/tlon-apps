@@ -1,12 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import React, { useCallback } from 'react';
+import { useParams } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useCopy } from '@/logic/utils';
 import { useContact } from '@/state/contact';
 import Avatar from '@/components/Avatar';
 import Dialog, { DialogContent } from '@/components/Dialog';
 import ShipName from '@/components/ShipName';
-import useAppName from '@/logic/useAppName';
+import useNavigateByApp from '@/logic/useNavigateByApp';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
@@ -14,11 +14,10 @@ import ProfileBio from './ProfileBio';
 export default function ProfileModal() {
   const { ship } = useParams();
   const { doCopy, didCopy } = useCopy(ship || '');
-  const navigate = useNavigate();
-  const app = useAppName();
   const contact = useContact(ship ? ship : '');
   const cover = contact?.cover || '';
   const dismiss = useDismissNavigate();
+  const navigateByApp = useNavigateByApp();
 
   const onCopy = useCallback(() => {
     doCopy();
@@ -35,12 +34,7 @@ export default function ProfileModal() {
   };
 
   const handleMessageClick = () => {
-    if (app === 'Groups') {
-      const href = `/apps/talk/dm/${ship}`;
-      window.open(`${window.location.origin}${href}`, '_blank');
-    } else {
-      navigate(`/dm/${ship}`);
-    }
+    navigateByApp(`/dm/${ship}`);
   };
 
   const handleCopyClick = () => {

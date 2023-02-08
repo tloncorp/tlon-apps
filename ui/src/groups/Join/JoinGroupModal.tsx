@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import Dialog, { DialogContent } from '@/components/Dialog';
-import { useGang, useRouteGroup } from '@/state/groups';
+import { useGang, useGroupState, useRouteGroup } from '@/state/groups';
 import GroupSummary from '@/groups/GroupSummary';
 import useGroupJoin from '@/groups/useGroupJoin';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -10,10 +10,24 @@ import { matchesBans, pluralRank, toTitleCase } from '@/logic/utils';
 export default function JoinGroupModal() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
+  const nest = new URLSearchParams(window.location.search).get('nest');
+  const id = new URLSearchParams(window.location.search).get('id');
+  const type = new URLSearchParams(window.location.search).get('type');
   const gang = useGang(flag);
-  const { group, dismiss, reject, button, status } = useGroupJoin(flag, gang);
+  const { group, dismiss, reject, button, status } = useGroupJoin(
+    flag,
+    gang,
+    true,
+    nest && id && type ? { nest, id, type } : undefined
+  );
   const cordon = gang.preview?.cordon || group?.cordon;
   const banned = cordon ? matchesBans(cordon, window.our) : null;
+
+  useEffect(() => {
+    if (!gang.preview && !group) {
+      useGroupState.getState().search(flag);
+    }
+  }, [flag, gang.preview, group]);
 
   useEffect(() => {
     if (group) {
@@ -25,7 +39,7 @@ export default function JoinGroupModal() {
     <Dialog defaultOpen onOpenChange={() => dismiss()}>
       <DialogContent containerClass="w-full max-w-md">
         <div className="space-y-6">
-          <h2 className="text-lg font-bold">Join a Group</h2>
+          <h2 className="text-lg font-bold">Join This Group</h2>
           <GroupSummary flag={flag} preview={gang.preview} />
           <p>{gang.preview?.meta.description}</p>
           <div className="flex items-center justify-end space-x-2">

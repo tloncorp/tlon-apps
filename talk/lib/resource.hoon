@@ -1,0 +1,1 @@
+../../desk/lib/resource.hoon
