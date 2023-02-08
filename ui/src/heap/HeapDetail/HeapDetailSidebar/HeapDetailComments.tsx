@@ -32,8 +32,8 @@ export default function HeapDetailComments({ time }: HeapDetailCommentsProps) {
       >
         {Array.from(comments)
           .sort(([a], [b]) => a.compare(b))
-          .map(([, curio]) => (
-            <HeapComment curio={curio} />
+          .map(([id, curio]) => (
+            <HeapComment key={id.toString()} curio={curio} />
           ))}
       </div>
       {canWrite ? <HeapDetailCommentField /> : null}

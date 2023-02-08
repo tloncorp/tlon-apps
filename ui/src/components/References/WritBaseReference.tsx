@@ -1,27 +1,28 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { useWritByFlagAndWritId } from '@/state/chat';
-import { useChannelPreview } from '@/state/groups';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useChannelPreview, useGang } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { ChatWrit } from '@/types/chat';
+import useGroupJoin from '@/groups/useGroupJoin';
 import ReferenceBar from './ReferenceBar';
 
 export default function WritBaseReference({
-  chFlag,
   nest,
   writ,
-  isScrolling,
 }: {
-  chFlag: string;
   nest: string;
   writ?: ChatWrit;
-  isScrolling: boolean;
 }) {
   const preview = useChannelPreview(nest);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const groupFlag = preview?.group?.flag || '~zod/test';
+  const gang = useGang(groupFlag);
+  const { group } = useGroupJoin(groupFlag, gang);
 
   // TODO: handle failure for useWritByFlagAndWritId call.
   if (!writ) {
@@ -34,23 +35,28 @@ export default function WritBaseReference({
     return null;
   }
 
+  const handleOpenReferenceClick = () => {
+    if (!group) {
+      navigate(`/gangs/${groupFlag}?type=chat&nest=${nest}&id=${time}`, {
+        state: { backgroundLocation: location },
+      });
+      return;
+    }
+    navigate(`/groups/${groupFlag}/channels/${nest}?msg=${time}`);
+  };
+
   return (
     <div className="writ-inline-block not-prose group">
-      <Link
-        to={
-          preview?.group
-            ? `/groups/${preview.group.flag}/channels/${nest}?msg=${time}`
-            : ''
-        }
+      <div
+        onClick={handleOpenReferenceClick}
         className="cursor-pointer p-2 group-hover:bg-gray-50"
       >
         <ChatContent story={writ.memo.content.story} isScrolling={false} />
-      </Link>
+      </div>
       <ReferenceBar
         nest={nest}
         time={time}
         author={writ.memo.author}
-        unSubbed
         groupFlag={preview?.group.flag}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}

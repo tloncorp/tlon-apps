@@ -1,0 +1,20 @@
+name: 'glob'
+description: 'Create a glob and push to master'
+inputs:
+  folder:
+    description: "Folder to glob"
+    required: true
+  docket:
+    description: "Docket file to edit"
+    required: true
+outputs:
+  hash:
+    description: "Glob hash"
+    value: ${{ steps.glob.outputs.hash }}
+runs:
+  using: "composite"
+  steps: 
+    - id: glob
+      shell: bash
+      run:
+        ./.github/helpers/glob.sh "${{ inputs.folder }}" ${{ inputs.docket }}

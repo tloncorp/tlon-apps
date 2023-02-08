@@ -8,6 +8,7 @@ import {
   Pact,
   WritDiff,
   ChatAction,
+  DmAction,
 } from '../../types/chat';
 import { BasedChatState } from './type';
 
@@ -19,7 +20,7 @@ interface WritsStore {
 
 export function writsReducer(whom: string) {
   return (
-    json: ChatAction | WritDiff,
+    json: ChatAction | DmAction | WritDiff,
     draft: BasedChatState
   ): BasedChatState => {
     let id: string | undefined;
@@ -29,6 +30,9 @@ export function writsReducer(whom: string) {
         id = json.update.diff.writs.id;
         delta = json.update.diff.writs.delta;
       }
+    } else if ('diff' in json) {
+      id = json.diff.id;
+      delta = json.diff.delta;
     } else {
       id = json.id;
       delta = json.delta;

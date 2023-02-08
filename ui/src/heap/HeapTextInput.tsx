@@ -105,10 +105,11 @@ export default function HeapTextInput({
         content,
       };
 
-      await useHeapState.getState().addCurio(flag, heart);
       setDraft(undefined);
       editor?.commands.setContent('');
       useChatStore.getState().setBlocks(flag, []);
+
+      await useHeapState.getState().addCurio(flag, heart);
       setReady();
     },
     [sendDisabled, setPending, replyTo, flag, setDraft, setReady]
@@ -192,7 +193,6 @@ export default function HeapTextInput({
           <button
             className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
             disabled={
-              sendDisabled ||
               isPending ||
               (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
             }
