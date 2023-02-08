@@ -5,6 +5,7 @@ import { useGroup, useGroupFlag } from '@/state/groups/groups';
 import NavTab from '@/components/NavTab';
 import HashIcon from '@/components/icons/HashIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
+import HomeIcon from '@/components/icons/HomeIcon';
 import GroupAvatar from '../GroupAvatar';
 
 export default function MobileGroupSidebar() {
@@ -18,7 +19,11 @@ export default function MobileGroupSidebar() {
       <footer className="mt-auto flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex items-center">
-            <NavTab to="." end>
+            <NavTab to={`.`} end>
+              <HomeIcon className="mb-0.5 h-6 w-6" />
+              Home
+            </NavTab>
+            <NavTab to={`/groups/${flag}/channellist`} end>
               <HashIcon className="mb-0.5 h-6 w-6" />
               Channels
             </NavTab>

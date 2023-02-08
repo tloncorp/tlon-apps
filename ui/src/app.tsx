@@ -78,6 +78,7 @@ import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
+import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
 
@@ -270,6 +271,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
               <Route index element={isMobile ? <MobileGroupRoot /> : null} />
+              <Route
+                path="channellist"
+                element={isMobile ? <MobileGroupChannelList /> : null}
+              />
               <Route
                 path="activity"
                 element={
