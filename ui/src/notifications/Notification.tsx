@@ -9,7 +9,7 @@ import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import useHarkState from '@/state/hark';
-import { Rope, YarnContent } from '@/types/hark';
+import { YarnContent } from '@/types/hark';
 import { Bin, isComment, isMention, isReply } from './useNotifications';
 
 interface NotificationProps {
@@ -150,14 +150,19 @@ export default function Notification({
             )}
           </div>
           {moreCount > 0 ? (
-            <p className="my-2 text-sm font-semibold">
-              Latest of {moreCount} new messages.
+            <p className="mt-2 text-sm font-semibold">
+              Latest of {moreCount} new messages
             </p>
-          ) : (
-            <div className="my-2" />
-          )}
+          ) : null}
           {mentionBool || commentBool || replyBool ? (
-            <p className="small-button mt-0 bg-gray-50 text-gray-800">Reply</p>
+            <p
+              className={cn(
+                'small-button bg-gray-50 text-gray-800',
+                moreCount > 0 ? 'mt-2' : 'mt-0'
+              )}
+            >
+              Reply
+            </p>
           ) : null}
         </div>
       </Link>
