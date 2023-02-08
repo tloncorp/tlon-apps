@@ -155,11 +155,7 @@ export default function useLeap() {
             onSelect,
             icon: channelIcon,
             title: channel.meta.title,
-            subtitle:
-              channel.meta.description.slice(
-                0,
-                LEAP_DESCRIPTION_TRUNCATE_LENGTH
-              ) || group.meta.title,
+            subtitle: group.meta.title,
             to: `/groups/${groupFlag}/channels/chat/${chFlag}`,
             resultIndex:
               idx +
