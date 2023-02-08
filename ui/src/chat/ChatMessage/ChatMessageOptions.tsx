@@ -15,6 +15,7 @@ import { useChatStore } from '@/chat/useChatStore';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 export default function ChatMessageOptions(props: {
   whom: string;
@@ -28,6 +29,7 @@ export default function ChatMessageOptions(props: {
     `/1/chan/chat/${whom}/msg/${writ.seal.id}`
   );
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const perms = useChatPerms(chFlag);
@@ -120,7 +122,7 @@ export default function ChatMessageOptions(props: {
           icon={<XIcon className="h-6 w-6 text-red" />}
           label="Delete"
           showTooltip
-          action={onDelete}
+          action={() => setDeleteOpen(true)}
         />
       ) : null}
 
@@ -130,6 +132,13 @@ export default function ChatMessageOptions(props: {
         showTooltip
         action={() => console.log('More...')}
       /> */}
+      <ConfirmationModal
+        title="Delete Message"
+        message="Are you sure you want to delete  this message?"
+        onConfirm={onDelete}
+        open={deleteOpen}
+        setOpen={setDeleteOpen}
+      />
     </div>
   );
 }
