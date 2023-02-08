@@ -64,6 +64,9 @@ export const isMention = (yarn: Yarn) =>
 export const isComment = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' commented on ');
 
+export const isReply = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' replied to your message “');
+
 export const getAllMentions = (notifications: DayGrouping[], flag?: Flag) => {
   if (!flag) {
     return notifications

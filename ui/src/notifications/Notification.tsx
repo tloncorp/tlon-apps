@@ -1,4 +1,5 @@
 import cn from 'classnames';
+import _ from 'lodash';
 import React, { ReactNode, useCallback } from 'react';
 import ob from 'urbit-ob';
 import { Link } from 'react-router-dom';
@@ -6,10 +7,10 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ShipName from '@/components/ShipName';
-import { makePrettyTime, pluralize, PUNCTUATION_REGEX } from '@/logic/utils';
+import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import useHarkState from '@/state/hark';
-import { YarnContent } from '@/types/hark';
-import { Bin, isComment, isMention } from './useNotifications';
+import { Rope, YarnContent } from '@/types/hark';
+import { Bin, isComment, isMention, isReply } from './useNotifications';
 
 interface NotificationProps {
   bin: Bin;
@@ -17,42 +18,93 @@ interface NotificationProps {
   avatar?: ReactNode;
 }
 
-function getContent(content: YarnContent, key: string) {
-  if (typeof content === 'string') {
-    // this feels pretty grug
-    if (content === ' mentioned you :') return ': ';
+interface NotificationContentProps {
+  content: YarnContent[];
+  time: number;
+  conIsMention: boolean;
+  conIsReply: boolean;
+  conIsComment: boolean;
+}
+
+function NotificationContent({
+  content,
+  time,
+  conIsMention,
+  conIsReply,
+  conIsComment,
+}: NotificationContentProps) {
+  function renderContent(c: YarnContent, i: number) {
+    if (typeof c === 'string') {
+      return (
+        <span key={`${c}-${time}-${i}`}>
+          {c.split(' ').map((s, index) =>
+            ob.isValidPatp(s.replaceAll(PUNCTUATION_REGEX, '')) ? (
+              <span
+                key={`${s}-${index}`}
+                className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue mix-blend-multiply"
+              >
+                <ShipName name={s.replaceAll(PUNCTUATION_REGEX, '')} />
+              </span>
+            ) : (
+              <span key={`${s}-${index}`}>{s} </span>
+            )
+          )}
+        </span>
+      );
+    }
+
+    if ('ship' in c) {
+      return (
+        <ShipName
+          key={c.ship + time}
+          name={c.ship}
+          className="font-semibold text-gray-800"
+          showAlias={true}
+        />
+      );
+    }
+
+    return <span key={c.emph + time}>&ldquo;{c.emph}&rdquo;</span>;
+  }
+
+  if (conIsMention) {
     return (
-      <span key={key}>
-        {content.split(' ').map((s, i) =>
-          ob.isValidPatp(s.replaceAll(PUNCTUATION_REGEX, '')) ? (
-            <span
-              key={`${s}-${i}`}
-              className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue mix-blend-multiply"
-            >
-              <ShipName name={s.replaceAll(PUNCTUATION_REGEX, '')} />
-            </span>
-          ) : (
-            <span key={`${s}-${i}`}>{s} </span>
-          )
-        )}
-      </span>
+      <>
+        <p className="mb-2 leading-5 text-gray-400 line-clamp-2">
+          {_.map(_.slice(content, 0, 2), (c: YarnContent, i) =>
+            renderContent(c, i)
+          )}
+        </p>
+        <p className="leading-5 text-gray-800 line-clamp-2">
+          {_.map(_.slice(content, 2), (c: YarnContent, i) =>
+            renderContent(c, i)
+          )}
+        </p>
+      </>
     );
   }
 
-  if ('ship' in content) {
+  if (conIsReply || conIsComment) {
     return (
-      <ShipName
-        key={key}
-        name={content.ship}
-        className="font-semibold text-gray-800"
-      />
+      <>
+        <p className="mb-2 leading-5 text-gray-400 line-clamp-2">
+          {_.map(_.slice(content, 0, 4), (c: YarnContent, i) =>
+            renderContent(c, i)
+          )}
+        </p>
+        <p className="leading-5 text-gray-800 line-clamp-2">
+          {_.map(_.slice(content, 6), (c: YarnContent, i) =>
+            renderContent(c, i)
+          )}
+        </p>
+      </>
     );
   }
 
   return (
-    <strong key={key} className="text-gray-800">
-      {content.emph}
-    </strong>
+    <p className="leading-5 text-gray-800 line-clamp-2">
+      {_.map(content, (c: YarnContent, i) => renderContent(c, i))}
+    </p>
   );
 }
 
@@ -63,8 +115,9 @@ export default function Notification({
 }: NotificationProps) {
   const rope = bin.topYarn?.rope;
   const moreCount = bin.count - 1;
-  const mention = isMention(bin.topYarn);
-  const comment = isComment(bin.topYarn);
+  const mentionBool = isMention(bin.topYarn);
+  const commentBool = isComment(bin.topYarn);
+  const replyBool = isReply(bin.topYarn);
 
   const onClick = useCallback(() => {
     useHarkState.getState().sawRope(rope);
@@ -85,17 +138,17 @@ export default function Notification({
         <div className="relative flex-none self-start">{avatar}</div>
         <div className="min-w-0 grow-0 break-words p-1">
           {topLine}
-          <p className="my-2 leading-5">
-            {bin.topYarn &&
-              bin.topYarn.con.map((con, i) =>
-                getContent(
-                  con,
-                  // we can have multiple identical content items, so we need to
-                  // use the index as a key
-                  `${bin.topYarn.id}-${i}`
-                )
-              )}
-          </p>
+          <div className="my-2 leading-5">
+            {bin.topYarn && (
+              <NotificationContent
+                time={bin.time}
+                content={bin.topYarn.con}
+                conIsMention={mentionBool}
+                conIsComment={commentBool}
+                conIsReply={replyBool}
+              />
+            )}
+          </div>
           {moreCount > 0 ? (
             <p className="my-2 text-sm font-semibold">
               Latest of {moreCount} new messages.
@@ -103,7 +156,7 @@ export default function Notification({
           ) : (
             <div className="my-2" />
           )}
-          {mention || comment ? (
+          {mentionBool || commentBool || replyBool ? (
             <p className="small-button mt-0 bg-gray-50 text-gray-800">Reply</p>
           ) : null}
         </div>
@@ -126,7 +179,11 @@ export default function Notification({
               </Dropdown.Item>
             </Dropdown.Content>
           </Dropdown.Root>
-        ) : null}
+        ) : (
+          <span className="text-sm font-semibold">
+            {makePrettyTime(new Date(bin.time))}
+          </span>
+        )}
       </div>
     </div>
   );
