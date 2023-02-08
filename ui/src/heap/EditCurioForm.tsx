@@ -8,14 +8,16 @@ import { useChannelFlag } from '@/hooks';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/core';
-import { inlinesToJSON, inlineToString, JSONToInlines } from '@/logic/tiptap';
+import { inlinesToJSON, JSONToInlines } from '@/logic/tiptap';
 import { ChatBlock } from '@/types/chat';
 import { Inline } from '@/types/content';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import useCurioFromParams from './useCurioFromParams';
 import HeapTextInput from './HeapTextInput';
 
 export default function EditCurioForm() {
   const dismiss = useDismissNavigate();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [draftLink, setDraftLink] = useState<string>();
   const [draftText, setDraftText] = useState<JSONContent>();
   const chFlag = useChannelFlag() || '';
@@ -126,63 +128,73 @@ export default function EditCurioForm() {
   }, [curio, isLinkMode]);
 
   return (
-    <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
-      <div className="sm:w-96">
-        <header className="mb-3 flex items-center">
-          <h2 className="text-lg font-bold">
-            Edit {isLinkMode ? 'Link' : 'Text'}
-          </h2>
-        </header>
-      </div>
-      <label className="mb-3 font-semibold">
-        Title
-        <input
-          {...register('title')}
-          className="input my-2 block w-full p-1"
-          type="text"
-        />
-      </label>
-      {isLinkMode ? (
-        <textarea
-          {...register('content')}
-          className="h-full w-full resize-none rounded-lg bg-gray-50 p-2 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
-          placeholder="Paste Link Here"
-          onKeyDown={onKeyDown}
-          onChange={onLinkChange}
-          defaultValue={draftLink}
-        />
-      ) : (
-        <HeapTextInput
-          draft={draftText}
-          setDraft={setDraftText}
-          flag={chFlag}
-          sendDisabled={true}
-        />
-      )}
+    <>
+      <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
+        <div className="sm:w-96">
+          <header className="mb-3 flex items-center">
+            <h2 className="text-lg font-bold">
+              Edit {isLinkMode ? 'Link' : 'Text'}
+            </h2>
+          </header>
+        </div>
+        <label className="mb-3 font-semibold">
+          Title
+          <input
+            {...register('title')}
+            className="input my-2 block w-full p-1"
+            type="text"
+          />
+        </label>
+        {isLinkMode ? (
+          <textarea
+            {...register('content')}
+            className="h-full w-full resize-none rounded-lg bg-gray-50 p-2 text-gray-800 placeholder:align-text-top placeholder:font-semibold placeholder:text-gray-400"
+            placeholder="Paste Link Here"
+            onKeyDown={onKeyDown}
+            onChange={onLinkChange}
+            defaultValue={draftLink}
+          />
+        ) : (
+          <HeapTextInput
+            draft={draftText}
+            setDraft={setDraftText}
+            flag={chFlag}
+            sendDisabled={true}
+          />
+        )}
 
-      <footer className="mt-4 flex items-center justify-between space-x-2">
-        <div>
-          <button
-            type="button"
-            className="button bg-red-soft text-red"
-            onClick={onDelete}
-          >
-            Delete
-          </button>
-        </div>
-        <div className="ml-auto flex items-center space-x-2">
-          <DialogPrimitive.Close asChild>
-            <button className="secondary-button ml-auto">Cancel</button>
-          </DialogPrimitive.Close>
-          <button
-            type="submit"
-            className="button"
-            disabled={isPending || !isValidInput || !curio}
-          >
-            {isPending ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </footer>
-    </form>
+        <footer className="mt-4 flex items-center justify-between space-x-2">
+          <div>
+            <button
+              type="button"
+              className="button bg-red-soft text-red"
+              onClick={() => setDeleteOpen(true)}
+            >
+              Delete
+            </button>
+          </div>
+          <div className="ml-auto flex items-center space-x-2">
+            <DialogPrimitive.Close asChild>
+              <button className="secondary-button ml-auto">Cancel</button>
+            </DialogPrimitive.Close>
+            <button
+              type="submit"
+              className="button"
+              disabled={isPending || !isValidInput || !curio}
+            >
+              {isPending ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </footer>
+      </form>
+      <ConfirmationModal
+        open={deleteOpen}
+        onConfirm={onDelete}
+        setOpen={setDeleteOpen}
+        title="Delete Gallery Item"
+        confirmText="Delete"
+        message="Are you sure you want to delete this gallery item?"
+      />
+    </>
   );
 }

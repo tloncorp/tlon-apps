@@ -23,6 +23,7 @@ import Avatar from '@/components/Avatar';
 import { useContact } from '@/state/contact';
 import { Status } from '@/logic/status';
 import { Vessel } from '@/types/groups';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 interface GroupMemberItemProps {
   member: string;
@@ -30,6 +31,8 @@ interface GroupMemberItemProps {
 
 function GroupMemberItem({ member }: GroupMemberItemProps) {
   const [sectStatus, setSectStatus] = useState<Status>('initial');
+  const [showKickConfirm, setShowKickConfirm] = useState(false);
+  const [showBanConfirm, setShowBanConfirm] = useState(false);
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const sects = useSects(flag);
@@ -160,14 +163,14 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
           <Dropdown.Content className="dropdown min-w-52 text-gray-800">
             <Dropdown.Item
               className="dropdown-item flex items-center text-red"
-              onSelect={kick(member)}
+              onSelect={() => setShowKickConfirm(true)}
             >
               <LeaveIcon className="mr-2 h-6 w-6" />
               Kick
             </Dropdown.Item>
             <Dropdown.Item
               className="dropdown-item flex items-center text-red"
-              onSelect={ban(member)}
+              onSelect={() => setShowBanConfirm(true)}
             >
               <LeaveIcon className="mr-2 h-6 w-6" />
               Ban
@@ -195,6 +198,22 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
           </Dropdown.Content>
         </Dropdown.Root>
       )}
+      <ConfirmationModal
+        title="Kick Member"
+        message={`Are you sure you want to kick ${member}?`}
+        confirmText="Kick"
+        onConfirm={kick(member)}
+        open={showKickConfirm}
+        setOpen={setShowKickConfirm}
+      />
+      <ConfirmationModal
+        title="Ban Member"
+        message={`Are you sure you want to ban ${member}?`}
+        confirmText="Ban"
+        onConfirm={ban(member)}
+        open={showBanConfirm}
+        setOpen={setShowBanConfirm}
+      />
     </>
   );
 }

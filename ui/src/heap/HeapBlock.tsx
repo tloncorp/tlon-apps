@@ -21,6 +21,7 @@ import useHeapContentType from '@/logic/useHeapContentType';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { inlineToString } from '@/logic/tiptap';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -43,6 +44,7 @@ function TopBar({
   time,
   canEdit,
 }: TopBarProps) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const nest = useNest();
   const {
     didCopy,
@@ -136,7 +138,7 @@ function TopBar({
                   </button>
                   <button
                     className="small-menu-button text-red"
-                    onClick={onDelete}
+                    onClick={() => setDeleteOpen(true)}
                   >
                     Delete
                   </button>
@@ -146,6 +148,14 @@ function TopBar({
           </div>
         )}
       </div>
+      <ConfirmationModal
+        open={deleteOpen}
+        setOpen={setDeleteOpen}
+        onConfirm={onDelete}
+        confirmText="Delete"
+        title="Delete Gallery Item"
+        message="Are you sure you want to delete this gallery item?"
+      />
     </div>
   );
 }
