@@ -9,7 +9,9 @@ export default function Dialog({
 }: DialogPrimitive.DialogProps) {
   return (
     <DialogPrimitive.Root {...props}>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-40 transform-gpu bg-black opacity-30" />
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-40 transform-gpu bg-black opacity-30" />
+      </DialogPrimitive.Portal>
       {children}
     </DialogPrimitive.Root>
   );
@@ -29,16 +31,18 @@ export const DialogContent = React.forwardRef<
     forwardedRef
   ) => (
     <DialogPrimitive.Content asChild {...props} ref={forwardedRef}>
-      <section className={classNames('dialog-container', containerClass)}>
-        <div className={classNames('dialog', className)}>
-          {children}
-          {showClose && (
-            <DialogPrimitive.Close className="icon-button absolute top-6 right-6">
-              <X16Icon className="h-4 w-4" />
-            </DialogPrimitive.Close>
-          )}
-        </div>
-      </section>
+      <DialogPrimitive.Portal>
+        <section className={classNames('dialog-container', containerClass)}>
+          <div className={classNames('dialog', className)}>
+            {children}
+            {showClose && (
+              <DialogPrimitive.Close className="icon-button absolute top-6 right-6">
+                <X16Icon className="h-4 w-4" />
+              </DialogPrimitive.Close>
+            )}
+          </div>
+        </section>
+      </DialogPrimitive.Portal>
     </DialogPrimitive.Content>
   )
 );
