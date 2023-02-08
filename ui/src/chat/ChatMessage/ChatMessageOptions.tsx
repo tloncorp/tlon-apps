@@ -16,6 +16,7 @@ import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import useRequestState from '@/logic/useRequestState';
 
 export default function ChatMessageOptions(props: {
   whom: string;
@@ -30,6 +31,11 @@ export default function ChatMessageOptions(props: {
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const {
+    isPending: isDeletePending,
+    setPending: setDeletePending,
+    setReady,
+  } = useRequestState();
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const perms = useChatPerms(chFlag);
@@ -37,8 +43,14 @@ export default function ChatMessageOptions(props: {
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
-  const onDelete = () => {
-    useChatState.getState().delMessage(whom, writ.seal.id);
+  const onDelete = async () => {
+    setDeletePending();
+    try {
+      await useChatState.getState().delMessage(whom, writ.seal.id);
+    } catch (e) {
+      console.log('Failed to delete message', e);
+    }
+    setReady();
   };
 
   const onCopy = useCallback(() => {
@@ -139,6 +151,7 @@ export default function ChatMessageOptions(props: {
         open={deleteOpen}
         setOpen={setDeleteOpen}
         confirmText="Delete"
+        loading={isDeletePending}
       />
     </div>
   );

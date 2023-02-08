@@ -505,13 +505,53 @@ export const useChatState = createState<ChatState>(
       }
       set((draft) => draft.sentMessages.push(id));
     },
-    delMessage: (whom, id) => {
+    delMessage: async (whom, id) => {
       const isDM = whomIsDm(whom);
       const diff = { del: null };
       if (isDM) {
-        api.poke(dmAction(whom, diff, id));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...dmAction(whom, diff, id),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track(`chat/${whom}`, (event) => {
+                  const {
+                    update: { diff: updateDiff },
+                    flag,
+                  } = event;
+                  if (flag === id && 'del' in updateDiff) {
+                    return true;
+                  }
+                  return false;
+                });
+              resolve();
+            },
+          });
+        });
       } else {
-        api.poke(chatWritDiff(whom, id, diff));
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            ...chatWritDiff(whom, id, diff),
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track(`chat/${whom}`, (event: ChatAction) => {
+                  const {
+                    update: { diff: updateDiff },
+                    flag: f,
+                  } = event;
+                  if (f === whom && 'del' in updateDiff) {
+                    return true;
+                  }
+                  return false;
+                });
+              resolve();
+            },
+          });
+        });
       }
     },
     addFeel: async (whom, id, feel) => {

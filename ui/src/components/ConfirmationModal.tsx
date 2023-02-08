@@ -1,5 +1,6 @@
 import React from 'react';
 import Dialog, { DialogContent } from './Dialog';
+import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export interface ConfirmationModalProps {
   title: string;
@@ -8,6 +9,7 @@ export interface ConfirmationModalProps {
   message: string;
   confirmText?: string;
   onConfirm: () => void;
+  loading?: boolean;
 }
 
 export default function ConfirmationModal({
@@ -17,6 +19,7 @@ export default function ConfirmationModal({
   message,
   confirmText = 'Confirm',
   onConfirm,
+  loading = false,
 }: ConfirmationModalProps) {
   return (
     <Dialog open={open}>
@@ -31,7 +34,12 @@ export default function ConfirmationModal({
             >
               Cancel
             </button>
-            <button className="button w-24 bg-red" onClick={onConfirm}>
+            <button
+              disabled={loading}
+              className="button center-items flex w-24 bg-red"
+              onClick={onConfirm}
+            >
+              {loading && <LoadingSpinner />}
               {confirmText}
             </button>
           </div>
