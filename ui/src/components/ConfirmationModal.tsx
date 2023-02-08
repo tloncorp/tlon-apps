@@ -39,8 +39,7 @@ export default function ConfirmationModal({
               className="button center-items flex w-24 bg-red"
               onClick={onConfirm}
             >
-              {loading && <LoadingSpinner />}
-              {confirmText}
+              {loading ? <LoadingSpinner /> : confirmText}
             </button>
           </div>
         </div>

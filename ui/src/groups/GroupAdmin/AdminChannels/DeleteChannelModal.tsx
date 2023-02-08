@@ -34,6 +34,12 @@ export default function DeleteChannelModal({
         <footer className="mt-4 flex items-center justify-between space-x-2">
           <div className="ml-auto flex items-center space-x-2">
             <button
+              className="secondary-button"
+              onClick={() => setDeleteChannelIsOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
               onClick={() => onDeleteChannelConfirm()}
               className="button bg-red text-white"
               disabled={deleteStatus === 'loading'}
