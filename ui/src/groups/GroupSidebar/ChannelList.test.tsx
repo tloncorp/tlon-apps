@@ -14,6 +14,7 @@ const fakeVessel = fakeGroup.fleet['~hastuc-dibtux'];
 vi.mock('@/state/groups', () => ({
   useGroup: () => fakeGroup,
   useRouteGroup: () => fakeFlag,
+  useGroupFlag: () => fakeFlag,
   useVessel: () => fakeVessel,
   useGroupState: () => ({}),
 }));
@@ -25,8 +26,7 @@ vi.mock('@/logic/useMigrationInfo', () => ({
 }));
 
 describe('ChannelList', () => {
-  // can't pass because of useGroupFlag().
-  it.skip('renders as expected', () => {
+  it('renders as expected', () => {
     const { asFragment } = render(<ChannelList />);
     expect(asFragment()).toMatchSnapshot();
   });
