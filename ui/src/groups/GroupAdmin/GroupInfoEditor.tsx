@@ -181,7 +181,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
             <div className="flex justify-end space-x-2">
               <DialogClose
                 className="secondary-button"
-                // onClick={() => setDeleteDialogOpen(false)}
               >
                 Cancel
               </DialogClose>
