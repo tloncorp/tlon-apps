@@ -134,10 +134,11 @@ export default function ChatMessageOptions(props: {
       /> */}
       <ConfirmationModal
         title="Delete Message"
-        message="Are you sure you want to delete  this message?"
+        message="Are you sure you want to delete this message?"
         onConfirm={onDelete}
         open={deleteOpen}
         setOpen={setDeleteOpen}
+        confirmText="Delete"
       />
     </div>
   );

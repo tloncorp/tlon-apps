@@ -6,6 +6,7 @@ export interface ConfirmationModalProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   message: string;
+  confirmText?: string;
   onConfirm: () => void;
 }
 
@@ -14,6 +15,7 @@ export default function ConfirmationModal({
   open,
   setOpen,
   message,
+  confirmText = 'Confirm',
   onConfirm,
 }: ConfirmationModalProps) {
   return (
@@ -22,12 +24,15 @@ export default function ConfirmationModal({
         <div className="flex flex-col">
           <h1 className="mb-4 text-lg font-bold">{title}</h1>
           <p>{message}</p>
-          <div className="mt-8 flex justify-center space-x-2">
-            <button className="button w-24" onClick={() => setOpen(false)}>
+          <div className="mt-8 flex justify-end space-x-2">
+            <button
+              className="secondary-button w-24"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </button>
             <button className="button w-24 bg-red" onClick={onConfirm}>
-              Confirm
+              {confirmText}
             </button>
           </div>
         </div>
