@@ -17,7 +17,7 @@ function channelUnread(
   const unread = chats[chFlag]?.unread;
 
   if (app === 'chat') {
-    return unread && !unread.seen;
+    return Boolean(unread && !unread.seen);
   }
 
   return (briefs[nest]?.count ?? 0) > 0;
