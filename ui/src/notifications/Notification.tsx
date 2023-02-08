@@ -85,7 +85,7 @@ export default function Notification({
         <div className="relative flex-none self-start">{avatar}</div>
         <div className="min-w-0 grow-0 break-words p-1">
           {topLine}
-          <p className="my-2">
+          <p className="my-2 leading-5">
             {bin.topYarn &&
               bin.topYarn.con.map((con, i) =>
                 getContent(
@@ -98,11 +98,10 @@ export default function Notification({
           </p>
           {moreCount > 0 ? (
             <p className="my-2 text-sm font-semibold">
-              {moreCount} more {pluralize('message', moreCount)} from{' '}
-              {bin.shipCount > 1 ? `${bin.shipCount} people` : '1 person'}
+              Latest of {moreCount} new messages.
             </p>
           ) : (
-            <p className="my-2 text-sm">&nbsp;</p>
+            <div className="my-2" />
           )}
           {mention || comment ? (
             <p className="small-button mt-0 bg-gray-50 text-gray-800">Reply</p>
