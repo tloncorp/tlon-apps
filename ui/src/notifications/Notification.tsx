@@ -110,22 +110,24 @@ export default function Notification({
         </div>
       </Link>
       <div className="absolute right-5 flex-none p-1">
-        <Dropdown.Root>
-          <Dropdown.Trigger className="flex items-center space-x-1 text-sm">
-            {bin.unread ? <Bullet16Icon className="h-4 w-4 text-blue" /> : null}
-            <span className="font-semibold">
-              {makePrettyTime(new Date(bin.time))}
-            </span>
-            <CaretDown16Icon className="h-4 w-4 text-gray-400" />
-          </Dropdown.Trigger>
-          <Dropdown.Content className="dropdown">
-            {bin.unread ? (
+        {bin.unread ? (
+          <Dropdown.Root>
+            <Dropdown.Trigger className="flex items-center space-x-1 text-sm">
+              {bin.unread ? (
+                <Bullet16Icon className="h-4 w-4 text-blue" />
+              ) : null}
+              <span className="font-semibold">
+                {makePrettyTime(new Date(bin.time))}
+              </span>
+              <CaretDown16Icon className="h-4 w-4 text-gray-400" />
+            </Dropdown.Trigger>
+            <Dropdown.Content className="dropdown">
               <Dropdown.Item className="dropdown-item" onSelect={onClick}>
                 Mark Read
               </Dropdown.Item>
-            ) : null}
-          </Dropdown.Content>
-        </Dropdown.Root>
+            </Dropdown.Content>
+          </Dropdown.Root>
+        ) : null}
       </div>
     </div>
   );

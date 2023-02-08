@@ -78,11 +78,9 @@ import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
-import ChannelList from './groups/GroupSidebar/ChannelList';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
-
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
