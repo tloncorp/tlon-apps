@@ -11,7 +11,7 @@ import {
 import { useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
-import menuOptions from './MenuOptions';
+import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
 import UnknownAvatarIcon from '../icons/UnknownAvatarIcon';
@@ -30,6 +30,8 @@ export default function useLeap() {
   const location = useLocation();
   const app = useAppName();
 
+  const menuOptions = app === 'Talk' ? talkMenuOptions : groupsMenuOptions;
+
   const menu =
     inputValue === ''
       ? menuOptions.map((o, idx) => ({
@@ -37,7 +39,11 @@ export default function useLeap() {
           onSelect: () => {
             if (app === 'Groups' && o.title === 'Messages') {
               window.open(`${window.location.origin}/apps/talk`, '_blank');
-            } else if (app === 'Talk' && o.title === 'Find Groups') {
+            } else if (app === 'Groups' && o.title === 'Create New Group') {
+              modalNavigate(`/groups/new`, {
+                state: { backgroundLocation: location },
+              });
+            } else if (app === 'Talk' && o.title === 'Groups') {
               window.open(
                 `${window.location.origin}/apps/groups/find`,
                 '_blank'

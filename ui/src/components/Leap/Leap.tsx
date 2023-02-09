@@ -87,7 +87,7 @@ export default function Leap() {
             onChange={onChange}
           />
         </div>
-        <div className="mt-4 overflow-hidden rounded-lg bg-white">
+        <div className="mt-2 overflow-hidden rounded-lg bg-white">
           {results.length > 0 ? (
             results.map((result, idx) =>
               'section' in result ? (

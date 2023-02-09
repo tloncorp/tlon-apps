@@ -1,11 +1,21 @@
 import React from 'react';
 import TalkIcon from '../icons/TalkIcon';
 import ArrowEIcon16 from '../icons/ArrowEIcon16';
+import AppGroupsIcon from '../icons/AppGroupsIcon';
+import AddIcon16 from '../icons/Add16Icon';
 
 function CommandBadge() {
   return (
     <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-200 p-1 text-white">
       <ArrowEIcon16 />
+    </div>
+  );
+}
+
+function PlusBadge() {
+  return (
+    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-200 p-1 text-white">
+      <AddIcon16 />
     </div>
   );
 }
@@ -17,10 +27,7 @@ export interface IMenuOption {
   to: string;
 }
 
-// TODO: filter the options based on the app; e.g., doesn't make sense to
-// show Find Groups in Talk... or should it open Groups?
-// Also, what if user doesn't have Talk or Groups installed?
-const menuOptions: IMenuOption[] = [
+export const groupsMenuOptions: IMenuOption[] = [
   {
     title: 'Profile',
     subtitle: '',
@@ -44,14 +51,33 @@ const menuOptions: IMenuOption[] = [
     title: 'Create New Group',
     subtitle: '',
     to: '/groups/new',
-    icon: CommandBadge,
+    icon: PlusBadge,
   },
   {
     title: 'Talk',
     subtitle: '',
-    to: '/', // TODO: In Groups, this should open Talk; in Talk, this should go to root? Or should it not be shown at all?
+    to: '/',
     icon: TalkIcon,
   },
 ];
 
-export default menuOptions;
+export const talkMenuOptions: IMenuOption[] = [
+  {
+    title: 'New Message',
+    subtitle: '',
+    to: '/dm/new',
+    icon: PlusBadge,
+  },
+  {
+    title: 'Profile',
+    subtitle: '',
+    to: '/profile/edit',
+    icon: CommandBadge,
+  },
+  {
+    title: 'Groups',
+    subtitle: '',
+    to: '/',
+    icon: AppGroupsIcon,
+  },
+];
