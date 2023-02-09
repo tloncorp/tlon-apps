@@ -34,6 +34,7 @@ rm -rf $source_repo
 rm -rf $urbit_repo
 rm -rf $landscape_repo
 '
+echo "$cmds"
 echo "$cmds" >> "$cmdfile"
 sshpriv=$(mktemp "${TMPDIR:-/tmp/}ssh.XXXXXXXXX")
 sshpub=$sshpriv.pub
