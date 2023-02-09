@@ -11,10 +11,10 @@ function LeapRowTitle({
   const highlightStyle =
     'whitespace-nowrap text-base font-medium text-gray-400';
   const titleStyle = 'whitespace-nowrap text-base font-semibold text-gray-800';
-  if (!input) return <span className={highlightStyle}>{title}</span>;
+  if (!input) return <span className={titleStyle}>{title}</span>;
   const index = title.toLowerCase().indexOf(input.toLowerCase());
   if (index === -1) {
-    return <span className={highlightStyle}>{title}</span>;
+    return <span className={titleStyle}>{title}</span>;
   }
   const start = title.slice(0, index);
   const middle = title.slice(index, index + input.length);
