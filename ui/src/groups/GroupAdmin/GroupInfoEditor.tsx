@@ -156,14 +156,17 @@ export default function GroupInfoEditor({ title }: ViewProps) {
         <p className="mb-4">
           Deleting this group will permanently remove all content and members
         </p>
-        <Dialog open={deleteDialogOpen}>
-          <button
-            onClick={() => setDeleteDialogOpen(true)}
-            className="button bg-red text-white dark:text-black"
-          >
-            Delete {group?.meta.title}
-          </button>
-          <DialogContent containerClass="max-w-[420px]">
+        <button
+          onClick={() => setDeleteDialogOpen(true)}
+          className="button bg-red text-white dark:text-black"
+        >
+          Delete {group?.meta.title}
+        </button>
+        <Dialog
+          open={deleteDialogOpen}
+          onOpenChange={(open) => setDeleteDialogOpen(open)}
+        >
+          <DialogContent showClose={false} containerClass="max-w-[420px]">
             <h2 className="mb-4 text-lg font-bold">Delete Group</h2>
             <p className="mb-4">
               Type the name of the group to confirm deletion. This action is
@@ -175,7 +178,8 @@ export default function GroupInfoEditor({ title }: ViewProps) {
               value={deleteField}
               onChange={onDeleteChange}
             />
-            <div className="flex justify-end">
+            <div className="flex justify-end space-x-2">
+              <DialogClose className="secondary-button">Cancel</DialogClose>
               <DialogClose
                 className="button bg-red text-white dark:text-black"
                 disabled={!eqGroupName(deleteField, group?.meta.title || '')}

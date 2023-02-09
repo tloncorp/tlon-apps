@@ -11,7 +11,7 @@ import {
   isChannelImported,
 } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
-import { useGroup, useVessel } from '@/state/groups';
+import { useGroup, useGroupFlag, useVessel } from '@/state/groups';
 import CaretDown16Icon from '@/components/icons/CaretDownIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
@@ -38,7 +38,6 @@ type ChannelSorterProps = {
 };
 
 interface ChannelListProps {
-  flag: string;
   className?: string;
 }
 
@@ -99,7 +98,8 @@ function UnmigratedChannel({
   );
 }
 
-export default function ChannelList({ flag, className }: ChannelListProps) {
+export default function ChannelList({ className }: ChannelListProps) {
+  const flag = useGroupFlag();
   const group = useGroup(flag);
   const briefs = useAllBriefs();
   const pendingImports = usePendingImports();

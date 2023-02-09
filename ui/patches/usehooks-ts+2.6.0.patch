@@ -1,0 +1,16 @@
+diff --git a/node_modules/usehooks-ts/src/useLocalStorage/useLocalStorage.ts b/node_modules/usehooks-ts/src/useLocalStorage/useLocalStorage.ts
+index 7b23076..29ba2fa 100644
+--- a/node_modules/usehooks-ts/src/useLocalStorage/useLocalStorage.ts
++++ b/node_modules/usehooks-ts/src/useLocalStorage/useLocalStorage.ts
+@@ -64,6 +64,11 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>] {
+       window.dispatchEvent(new Event('local-storage'))
+     } catch (error) {
+       console.warn(`Error setting localStorage key “${key}”:`, error)
++      
++      // Allow value to be a function so we have the same API as useState
++      const newValue = value instanceof Function ? value(storedValue) : value
++      // Save state
++      setStoredValue(newValue)
+     }
+   })
+ 

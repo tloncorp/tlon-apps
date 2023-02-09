@@ -20,6 +20,7 @@ import TextIcon from '@/components/icons/Text16Icon';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import { inlineToString } from '@/logic/tiptap';
 import { useIsMobile } from '@/logic/useMedia';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import useCurioActions from './useCurioActions';
 
 export default function HeapRow({
@@ -31,6 +32,7 @@ export default function HeapRow({
 }) {
   const isMobile = useIsMobile();
   const nest = useNest();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const { didCopy, menuOpen, setMenuOpen, onDelete, onEdit, onCopy } =
     useCurioActions({ nest, time });
   const [embed, setEmbed] = useState<any>();
@@ -161,13 +163,24 @@ export default function HeapRow({
               <button onClick={onEdit} className="small-menu-button">
                 Edit
               </button>
-              <button className="small-menu-button text-red" onClick={onDelete}>
+              <button
+                className="small-menu-button text-red"
+                onClick={() => setDeleteOpen(true)}
+              >
                 Delete
               </button>
             </div>
           </>
         ) : null}
       </div>
+      <ConfirmationModal
+        open={deleteOpen}
+        setOpen={setDeleteOpen}
+        onConfirm={onDelete}
+        confirmText="Delete"
+        title="Delete Gallery Item"
+        message="Are you sure you want to delete this gallery item?"
+      />
     </div>
   );
 }

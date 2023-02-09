@@ -6,6 +6,7 @@ import {
   useSubscriptionStatus,
 } from '@/state/local';
 import bootstrap from '@/state/bootstrap';
+import api from '@/api';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export default function DisconnectNotice() {
@@ -15,6 +16,7 @@ export default function DisconnectNotice() {
   function onClick() {
     if (errorCount < 3) {
       useLocalState.setState({ subscription: 'reconnecting' });
+      api.reset();
       bootstrap();
     } else {
       window.location.reload();

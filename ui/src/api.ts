@@ -159,6 +159,9 @@ const api = {
       throw e;
     }
   },
+  reset() {
+    client.reset();
+  },
 } as Urbit | UrbitMock;
 
 export default api;
