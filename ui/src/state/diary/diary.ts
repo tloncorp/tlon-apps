@@ -117,6 +117,88 @@ export const useDiaryState = createState<DiaryState>(
 
       await api.poke(diaryAction(flag, diff));
     },
+    delQuip: async (flag, noteId, quipId) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            quips: {
+              time: decToUd(quipId),
+              delta: {
+                del: null,
+              },
+            },
+          },
+        },
+      };
+
+      await api.poke(diaryAction(flag, diff));
+    },
+    addFeel: async (flag, noteId, feel) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            'add-feel': {
+              time: decToUd(unixToDa(Date.now()).toString()),
+              feel,
+              ship: window.our,
+            },
+          },
+        },
+      };
+
+      await api.poke(diaryAction(flag, diff));
+    },
+    delFeel: async (flag, noteId) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            'del-feel': window.our,
+          },
+        },
+      };
+
+      await api.poke(diaryAction(flag, diff));
+    },
+    addQuipFeel: async (flag, noteId, quipId, feel) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            quips: {
+              time: decToUd(quipId),
+              delta: {
+                'add-feel': {
+                  feel,
+                  ship: window.our,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      await api.poke(diaryAction(flag, diff));
+    },
+    delQuipFeel: async (flag, noteId, quipId) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            quips: {
+              time: decToUd(quipId),
+              delta: {
+                'del-feel': window.our,
+              },
+            },
+          },
+        },
+      };
+
+      await api.poke(diaryAction(flag, diff));
+    },
     start: async () => {
       // TODO: parallelise
       api
@@ -475,6 +557,14 @@ export function useNote(
       [flag, time]
     )
   );
+}
+
+export function useQuip(flag: DiaryFlag, noteId: string, quipId: string) {
+  const [_, note] = useNote(flag, noteId);
+  return useMemo(() => {
+    const quip = note.seal.quips.get(bigInt(quipId));
+    return quip;
+  }, [note, quipId]);
 }
 
 export function useDiary(flag: DiaryFlag): Diary | undefined {

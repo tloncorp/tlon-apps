@@ -45,5 +45,15 @@ export interface DiaryState {
     noteId: string,
     content: Inline[]
   ) => Promise<void>;
+  delQuip: (flag: DiaryFlag, noteId: string, time: string) => Promise<void>;
+  addFeel: (flag: DiaryFlag, id: string, feel: string) => Promise<void>;
+  delFeel: (flag: DiaryFlag, id: string) => Promise<void>;
+  addQuipFeel: (
+    flag: DiaryFlag,
+    noteId: string,
+    time: string,
+    feel: string
+  ) => Promise<void>;
+  delQuipFeel: (flag: DiaryFlag, noteId: string, time: string) => Promise<void>;
   [key: string]: unknown;
 }

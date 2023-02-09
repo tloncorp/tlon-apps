@@ -30,6 +30,7 @@ import DiaryNoteHeader from './DiaryNoteHeader';
 import DiaryNoteHeadline from './DiaryNoteHeadline';
 
 function groupQuips(
+  noteId: string,
   quips: [bigInt.BigInteger, DiaryQuip][],
   brief: DiaryBrief
 ) {
@@ -42,7 +43,7 @@ function groupQuips(
     const time = t.toString();
     const newAuthor = author !== prev?.[1].memo.author;
     const unreadBrief =
-      brief && brief['read-id'] === q.cork.time ? brief : undefined;
+      brief && brief['read-id'] === q.cork.time.toString() ? brief : undefined;
 
     if (newAuthor) {
       currentTime = time;
@@ -56,6 +57,7 @@ function groupQuips(
       time: t,
       quip: q,
       newAuthor,
+      noteId,
       newDay: false,
       unreadCount: unreadBrief && brief.count,
     });
@@ -88,7 +90,7 @@ export default function DiaryNote() {
   const chFlag = `${chShip}/${chName}`;
   const flag = useRouteGroup();
   const group = useGroup(flag);
-  const [id, note] = useNote(chFlag, noteId)!;
+  const [id, note] = useNote(chFlag, noteId);
   const vessel = useVessel(flag, window.our);
   const isAdmin = useAmAdmin(flag);
   const { quips } = note.seal;
@@ -100,7 +102,7 @@ export default function DiaryNote() {
   const perms = useDiaryPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const groupedQuips = setNewDays(
-    groupQuips(quipArray, brief).sort(([a], [b]) => {
+    groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
       if (sort === 'asc') {
         return a.localeCompare(b);
       }

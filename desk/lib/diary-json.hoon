@@ -45,6 +45,8 @@
     ?+  -.d  ~
       %add  (memo p.d)
       %del  ~
+      %add-feel  (add-feel +.d)
+      %del-feel  (ship p.d)
     ==
   ::
   ++  flag
@@ -381,6 +383,7 @@
     :~  add/memo
         del/ul
         add-feel/add-feel
+        del-feel/ship
     ==
   ::
   ++  story
