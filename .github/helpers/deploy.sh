@@ -8,6 +8,7 @@ desk=$2
 ship=$3
 zone=$4
 ref=${5:-.}
+[ "$desk" == "talk" ] && from="talk" || from="desk"
 folder=$ship/$desk
 
 set -e
@@ -25,7 +26,7 @@ cd $source_repo
 git checkout '$ref'
 cd /home/urb || return
 curl -s --data '\''{"source":{"dojo":"+hood/mount %'$desk'"},"sink":{"app":"hood"}}'\'' http://localhost:12321
-rsync -avL --delete $source_repo/desk/ '$folder'
+rsync -avL --delete $source_repo/'$from'/ '$folder'
 rsync -avL $source_repo/landscape-dev/ '$folder'
 rsync -avL $urbit_repo/pkg/base-dev/ '$folder'
 rsync -avL $landscape_repo/desk-dev/ '$folder'
