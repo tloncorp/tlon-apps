@@ -5,9 +5,11 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { isSameDay } from 'date-fns';
+import { debounce } from 'lodash';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
@@ -145,8 +147,7 @@ export default function ChatScroller({
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const isMobile = useIsMobile();
   const [isScrolling, setIsScrolling] = useState(false);
-  const { atBottom } = useChatStore.getState();
-  const [height, setHeight] = useState(0);
+  const firstPass = useRef(true);
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
@@ -184,12 +185,13 @@ export default function ChatScroller({
     [messages, whom, keys, replying, prefixedElement, scrollTo, isScrolling]
   );
 
+  const itemContent = useCallback(
+    (i: number, realIndex: bigInt.BigInteger) => <Message index={realIndex} />,
+    [Message]
+  );
+
   const TopLoader = useMemo(
     () => <Loader show={fetching === 'top'} />,
-    [fetching]
-  );
-  const BottomLoader = useMemo(
-    () => <Loader show={fetching === 'bottom'} />,
     [fetching]
   );
 
@@ -264,22 +266,20 @@ export default function ChatScroller({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brief, firstUnreadID]);
 
-  const handleScroll = useCallback(
-    (e: boolean) => {
-      if (e !== isScrolling && !atBottom) {
+  const handleScroll = useRef(
+    debounce((e: boolean) => {
+      if (e !== isScrolling && !firstPass.current) {
         setIsScrolling(e);
       }
-    },
-    [isScrolling, atBottom]
+    }, 150)
   );
 
   const components = useMemo(
     () => ({
       Header: () => TopLoader,
-      Footer: () => BottomLoader,
       List,
     }),
-    [BottomLoader, TopLoader]
+    [TopLoader]
   );
 
   // perf: define these outside of render
@@ -294,18 +294,13 @@ export default function ChatScroller({
       bottom(false);
     }
   };
-  const totalListHeightChanged = (newHeight: number) => {
-    if (height < newHeight && atBottom) {
-      scrollerRef.current?.scrollBy({ left: 0, top: newHeight - height });
-      setHeight(newHeight);
-    }
-  };
-  const handleIsScrolling = (e: boolean) => {
-    handleScroll(e);
-  };
-
-  const itemContent = (i: number, realIndex: bigInt.BigInteger) => (
-    <Message index={realIndex} />
+  const totalListHeightChanged = useRef(
+    debounce(() => {
+      if (firstPass.current) {
+        scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+        firstPass.current = false;
+      }
+    }, 200)
   );
 
   return (
@@ -315,17 +310,21 @@ export default function ChatScroller({
         ref={scrollerRef}
         followOutput
         alignToBottom
-        isScrolling={handleIsScrolling}
-        className="h-full overflow-x-hidden p-4"
         {...thresholds}
-        atTopStateChange={atTopStateChange}
-        atBottomStateChange={atBottomStateChange}
-        totalListHeightChanged={totalListHeightChanged}
-        firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={initialTopMostIndex}
+        components={components}
         itemContent={itemContent}
         computeItemKey={computeItemKey}
-        components={components}
+        firstItemIndex={firstItemIndex}
+        initialTopMostItemIndex={initialTopMostIndex}
+        isScrolling={handleScroll.current}
+        atTopStateChange={atTopStateChange}
+        atBottomStateChange={atBottomStateChange}
+        totalListHeightChanged={totalListHeightChanged.current}
+        // DO NOT REMOVE
+        // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
+        // size of elements, triggering a reflow loop in virtual scroller
+        style={{ overflowY: 'scroll' }}
+        className="h-full overflow-x-hidden p-4"
       />
     </div>
   );

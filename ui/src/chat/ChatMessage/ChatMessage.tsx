@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import cn from 'classnames';
-import _ from 'lodash';
+import _, { debounce } from 'lodash';
 import f from 'lodash/fp';
 import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
@@ -44,6 +44,19 @@ function briefMatches(brief: ChatBrief, id: string): boolean {
   return brief['read-id'] === id;
 }
 
+const mergeRefs = (...refs: any[]) => {
+  return (node: any) => {
+    refs.forEach((ref) => {
+      if (!ref) {
+        return;
+      }
+
+      /* eslint-disable-next-line no-param-reassign */
+      ref.current = node;
+    });
+  };
+};
+
 const ChatMessage = React.memo<
   ChatMessageProps & React.RefAttributes<HTMLDivElement>
 >(
@@ -64,9 +77,11 @@ const ChatMessage = React.memo<
       ref
     ) => {
       const { seal, memo } = writ;
+      const container = useRef<HTMLDivElement>(null);
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
+      const [hovering, setHovering] = useState(false);
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -143,13 +158,38 @@ const ChatMessage = React.memo<
         ? new Date(daToUnix(lastReplyWrit[0]))
         : new Date();
 
+      const hover = useRef(false);
+      const setHover = useRef(
+        debounce(() => {
+          if (hover.current) {
+            setHovering(true);
+          }
+        }, 100)
+      );
+      const onOver = useCallback(() => {
+        hover.current = true;
+        setHover.current();
+      }, []);
+      const onOut = useRef(
+        debounce(
+          () => {
+            hover.current = false;
+            setHovering(false);
+          },
+          50,
+          { leading: true }
+        )
+      );
+
       return (
         <div
-          ref={ref}
+          ref={mergeRefs(ref, container)}
           className={cn('flex flex-col break-words', {
             'pt-2': newAuthor,
             'pb-2': isLast,
           })}
+          onMouseEnter={onOver}
+          onMouseLeave={onOut.current}
         >
           {unread && briefMatches(unread.brief, writ.seal.id) ? (
             <DateDivider
@@ -161,7 +201,7 @@ const ChatMessage = React.memo<
           {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex w-full">
-            {hideOptions ? null : (
+            {hideOptions || isScrolling || !hovering ? null : (
               <ChatMessageOptions
                 hideReply={hideReplies}
                 whom={whom}
