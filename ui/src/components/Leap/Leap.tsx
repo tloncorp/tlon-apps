@@ -82,7 +82,7 @@ export default function Leap() {
           <input
             ref={inputRef}
             type="text"
-            className="w-full border-collapse rounded-lg border-0 px-4 py-3 pl-11 text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="w-full border-collapse rounded-lg border-0 bg-transparent px-4 py-3 pl-11 text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-400"
             placeholder="Search"
             onChange={onChange}
           />

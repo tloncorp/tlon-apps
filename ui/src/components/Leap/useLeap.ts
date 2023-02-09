@@ -83,6 +83,7 @@ export default function useLeap() {
           return {
             onSelect,
             icon: PersonIcon,
+            input: inputValue,
             title: contact.nickname
               ? `${contact.nickname} (${cite(patp)})`
               : cite(patp),
@@ -154,6 +155,7 @@ export default function useLeap() {
           return {
             onSelect,
             icon: channelIcon,
+            input: inputValue,
             title: channel.meta.title,
             subtitle: group.meta.title,
             to: `/groups/${groupFlag}/channels/chat/${chFlag}`,
@@ -198,6 +200,7 @@ export default function useLeap() {
           return {
             onSelect,
             icon: GroupIcon,
+            input: inputValue,
             title: group.meta.title,
             subtitle:
               group.meta.description.slice(
