@@ -95,9 +95,9 @@ export const useDiaryState = createState<DiaryState>(
     },
     addQuip: async (flag, noteId, content) => {
       const replying = decToUd(noteId);
-      const story: DiaryStory = { block: [], inline: content };
+      // const story: DiaryStory = { block: [], inline: content };
       const memo: DiaryMemo = {
-        content: story,
+        content,
         author: window.our,
         sent: Date.now(),
       };

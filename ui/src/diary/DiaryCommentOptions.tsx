@@ -16,6 +16,7 @@ import { DiaryQuip } from '@/types/diary';
 import { useDiaryState } from '@/state/diary';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
+import { useSearchParams } from 'react-router-dom';
 
 export default function DiaryCommentOptions({
   whom,
@@ -32,6 +33,7 @@ export default function DiaryCommentOptions({
 }) {
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
+  const [searchParams, setSearchParms] = useSearchParams();
   const { didCopy, doCopy } = useCopy(
     `/1/chan/diary/${whom}/note/${noteId}/msg/${time}`
   );
@@ -66,9 +68,11 @@ export default function DiaryCommentOptions({
     doCopy();
   }, [doCopy]);
 
-  // const reply = useCallback(() => {
-  // useChatStore.getState().reply(whom, writ.seal.id);
-  // }, [writ, whom]);
+  const reply = useCallback(() => {
+    setSearchParms({
+      quip_reply: time,
+    });
+  }, [time, setSearchParms]);
 
   const onEmoji = useCallback(
     async (emoji: { shortcodes: string }) => {
@@ -105,19 +109,14 @@ export default function DiaryCommentOptions({
           />
         </EmojiPicker>
       ) : null}
-      {/* !writ.memo.replying && writ.memo.replying?.length !== 0 && !hideReply ? (
-        <>
-          {/*
-          TODO: Add replies back in post-demo.
-          <IconButton
-            icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
-            label="Reply"
-            showTooltip
-            action={reply}
-          />
-        </>
-      ) : null
-      */}
+      {!hideReply ? (
+        <IconButton
+          icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
+          label="Reply"
+          showTooltip
+          action={reply}
+        />
+      ) : null}
       {groupFlag ? (
         <IconButton
           icon={

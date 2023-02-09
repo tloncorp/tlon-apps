@@ -7,6 +7,7 @@ import {
   DiaryFlag,
   DiaryNoteMap,
   DiaryOutline,
+  DiaryStory,
   NoteEssay,
 } from '@/types/diary';
 
@@ -43,7 +44,7 @@ export interface DiaryState {
   addQuip: (
     flag: DiaryFlag,
     noteId: string,
-    content: Inline[]
+    content: DiaryStory
   ) => Promise<void>;
   delQuip: (flag: DiaryFlag, noteId: string, time: string) => Promise<void>;
   addFeel: (flag: DiaryFlag, id: string, feel: string) => Promise<void>;

@@ -10,6 +10,7 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 import { ChatBlock, ChatStory } from '@/types/chat';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
+import { useChannelFlag } from '@/hooks';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
@@ -27,6 +28,7 @@ export default function NoteCommentReference({
   isScrolling?: boolean;
 }) {
   const preview = useChannelPreview(nest);
+  const isReply = useChannelFlag() === chFlag;
   const [scryError, setScryError] = useState<string>();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
@@ -95,6 +97,7 @@ export default function NoteCommentReference({
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
         comment
+        reply={isReply}
       />
     </div>
   );

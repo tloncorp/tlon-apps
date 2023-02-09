@@ -55,7 +55,6 @@ const DiaryComment = React.memo<
               noteId={noteId}
               quip={quip}
               time={time.toString()}
-              hideReply
             />
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
