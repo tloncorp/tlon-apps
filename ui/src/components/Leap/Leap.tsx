@@ -26,6 +26,10 @@ export default function Leap() {
       setInputValue('');
       setIsOpen((state) => !state);
     }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setIsOpen(false);
+    }
   });
 
   // dialog actions
