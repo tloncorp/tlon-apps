@@ -2,7 +2,6 @@ import React from 'react';
 import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
 import useGroupSort from '@/logic/useGroupSort';
-import { hasKeys } from '@/logic/utils';
 import { usePinnedGroups } from '@/state/chat';
 import { useGroups } from '@/state/groups';
 import GroupList from '@/components/Sidebar/GroupList';
@@ -15,7 +14,6 @@ export default function MobileRoot() {
   const groups = useGroups();
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);
-  const sortedPinnedGroups = sortGroups(pinnedGroups);
 
   return (
     <>
@@ -38,24 +36,11 @@ export default function MobileRoot() {
         </div>
       </header>
       <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
-        {hasKeys(pinnedGroups) ? (
-          <ul className="mb-3 space-y-2 px-2 sm:mb-2 sm:space-y-0 md:mb-0">
-            <GroupList
-              pinned
-              groups={sortedGroups}
-              pinnedGroups={sortedPinnedGroups}
-            />
-          </ul>
-        ) : null}
-        <ul className="mb-3 space-y-2 px-2 sm:mb-2 sm:space-y-0 md:mb-0">
-          <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-            <span className="ml-4 text-sm font-semibold text-gray-400">
-              All Groups
-            </span>
-          </li>
-        </ul>
         <div className="flex-1">
-          <GroupList groups={sortedGroups} pinnedGroups={sortedPinnedGroups} />
+          <GroupList
+            groups={sortedGroups}
+            pinnedGroups={Object.entries(pinnedGroups)}
+          />
         </div>
       </nav>
     </>

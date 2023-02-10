@@ -12,14 +12,11 @@ import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
-import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import { usePinnedGroups } from '@/state/chat';
-import { hasKeys } from '@/logic/utils';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
-import { debounce } from 'lodash';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import AsteriskIcon from '../icons/Asterisk16Icon';
@@ -110,44 +107,15 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const pendingInvites = usePendingInvites();
-  const [scrolledFromTop, setScrolledFromTop] = useState(false);
 
   const pendingInvitesCount = pendingInvites.length;
   const { count } = useNotifications();
 
-  const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
+  const { sortGroups } = useGroupSort();
   const groups = useGroups();
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);
-  const sortedPinnedGroups = sortGroups(pinnedGroups);
   const shipColor = useProfileColor(window.our);
-
-  const ref = useRef<HTMLUListElement>(null);
-
-  const classes = useMemo(
-    () =>
-      cn(
-        'flex w-full flex-col space-y-1 px-2 pt-2',
-        scrolledFromTop && 'bottom-shadow'
-      ),
-    [scrolledFromTop]
-  );
-
-  // to prevent re-render, only set state when necessary
-  const scrollHandler = useCallback(() => {
-    debounce(() => {
-      if (ref.current?.scrollTop === 0) {
-        if (!scrolledFromTop) {
-          setScrolledFromTop(true);
-        }
-      } else {
-        // eslint-disable-next-line no-lonely-if
-        if (scrolledFromTop) {
-          setScrolledFromTop(false);
-        }
-      }
-    }, 100);
-  }, [scrolledFromTop]);
 
   if (isMobile) {
     return <MobileSidebar />;
@@ -155,7 +123,7 @@ export default function Sidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-col bg-white">
-      <ul className={classes}>
+      <ul>
         {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
         <GroupsAppMenu />
         <div className="h-5" />
@@ -194,38 +162,11 @@ export default function Sidebar() {
           Create Group
         </SidebarItem>
       </ul>
-      <ul
-        ref={ref}
-        onScroll={scrollHandler}
-        className="flex-initial overflow-y-auto overflow-x-hidden px-2"
-      >
-        {hasKeys(pinnedGroups) ? (
-          <GroupList
-            className="p-2"
-            pinned
-            groups={sortedGroups}
-            pinnedGroups={sortedPinnedGroups}
-          />
-        ) : null}
-        <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-          <span className="ml-4 text-sm font-semibold text-gray-400">
-            All Groups
-          </span>
-        </li>
-        <li className="relative p-2">
-          <SidebarSorter
-            sortFn={sortFn}
-            setSortFn={setSortFn}
-            sortOptions={sortOptions}
-            isMobile={isMobile}
-          />
-        </li>
-      </ul>
       <div className="flex-auto">
         <GroupList
           className="p-2"
           groups={sortedGroups}
-          pinnedGroups={sortedPinnedGroups}
+          pinnedGroups={Object.entries(pinnedGroups)}
         />
       </div>
     </nav>
