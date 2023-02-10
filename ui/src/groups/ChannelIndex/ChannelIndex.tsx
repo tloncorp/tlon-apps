@@ -74,9 +74,9 @@ function GroupChannelRow({
           ? useHeapState.getState().joinHeap
           : useDiaryState.getState().joinDiary;
 
-      joiner(chFlag);
+      joiner(groupFlag, chFlag);
     },
-    [_app]
+    [groupFlag, _app]
   );
   const leave = useCallback(
     (chFlag: string) => {

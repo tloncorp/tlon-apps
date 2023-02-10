@@ -67,9 +67,9 @@ function HeapChannel({ title }: ViewProps) {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await useHeapState.getState().joinHeap(chFlag);
+    await useHeapState.getState().joinHeap(flag, chFlag);
     setJoining(false);
-  }, [chFlag]);
+  }, [flag, chFlag]);
 
   const initializeChannel = useCallback(async () => {
     await useHeapState.getState().initialize(chFlag);

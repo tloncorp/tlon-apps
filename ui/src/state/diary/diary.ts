@@ -21,6 +21,7 @@ import {
   DiaryStory,
   DiarySaid,
   DiaryUpdate,
+  DiaryJoin,
 } from '@/types/diary';
 import api from '@/api';
 import { nestToFlag } from '@/logic/utils';
@@ -220,12 +221,15 @@ export const useDiaryState = createState<DiaryState>(
         draft.notes[flag] = draft.notes[flag].set(bigInt(noteId), note);
       });
     },
-    joinDiary: async (flag) => {
+    joinDiary: async (group, chan) => {
       await new Promise<void>((resolve, reject) => {
-        api.poke({
+        api.poke<DiaryJoin>({
           app: 'diary',
-          mark: 'flag',
-          json: flag,
+          mark: 'channel-join',
+          json: {
+            group,
+            chan,
+          },
           onError: () => reject(),
           onSuccess: async () => {
             await useSubscriptionState
@@ -235,7 +239,7 @@ export const useDiaryState = createState<DiaryState>(
                   update: { diff },
                   flag: f,
                 } = event;
-                if (f === flag && 'create' in diff) {
+                if (f === chan && 'create' in diff) {
                   return true;
                 }
                 return false;

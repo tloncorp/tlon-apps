@@ -26,7 +26,7 @@ function Channel() {
         ? useHeapState.getState().joinHeap
         : useDiaryState.getState().joinDiary;
 
-    joiner(chFlag);
+    joiner(flag, chFlag);
   };
 
   return (

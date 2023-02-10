@@ -58,9 +58,9 @@ function DiaryChannel() {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await useDiaryState.getState().joinDiary(chFlag);
+    await useDiaryState.getState().joinDiary(flag, chFlag);
     setJoining(false);
-  }, [chFlag]);
+  }, [flag, chFlag]);
 
   const initializeChannel = useCallback(async () => {
     await useDiaryState.getState().initialize(chFlag);

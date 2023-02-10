@@ -51,12 +51,12 @@ function ChatChannel({ title }: ViewProps) {
   const joinChannel = useCallback(async () => {
     setJoining(true);
     try {
-      await useChatState.getState().joinChat(chFlag);
+      await useChatState.getState().joinChat(groupFlag, chFlag);
     } catch (e) {
       console.log("Couldn't join chat (maybe already joined)", e);
     }
     setJoining(false);
-  }, [chFlag]);
+  }, [groupFlag, chFlag]);
 
   const initializeChannel = useCallback(async () => {
     await useChatState.getState().initialize(chFlag);

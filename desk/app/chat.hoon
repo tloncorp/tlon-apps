@@ -224,10 +224,15 @@
     =+  !<(ps=(list whom:c) vase)
     (pin ps)
   ::
-      ?(%flag %channel-join)
-    =+  !<(=flag:c vase)
-    ?<  =(our.bowl p.flag)
-    (join flag)
+      %flag
+    =+  !<(f=flag:c vase)
+    ?<  =(our.bowl p.f)
+    (join [*flag:g f])
+  ::  
+      %channel-join
+    =+  !<(j=join:c vase)
+    ?<  =(our.bowl p.chan.j)
+    (join j)
   ::
       %chat-leave
     =+  !<(=leave:c vase)
@@ -281,10 +286,10 @@
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
   ++  join
-    |=  =flag:c
+    |=  =join:c
     ^+  cor
-    ?<  (~(has by chats) flag)
-    ca-abet:(ca-join:ca-core flag)
+    ?<  (~(has by chats) chan.join)
+    ca-abet:(ca-join:ca-core join)
   ::
   ++  create
     |=  req=create:c
@@ -1306,10 +1311,11 @@
     =.  cor  (emit card)
     ca-core
   ++  ca-join
-    |=  f=flag:c
+    |=  j=join:c
     ^+  ca-core
-    =.  chats  (~(put by chats) f *chat:c)
-    =.  ca-core  (ca-abed f)
+    =.  chats  (~(put by chats) chan.j *chat:c)
+    =.  ca-core  (ca-abed chan.j)
+    =.  group.perm.chat  group.j
     =.  cor  (give-brief flag/flag ca-brief)
     ca-sub
   ::
