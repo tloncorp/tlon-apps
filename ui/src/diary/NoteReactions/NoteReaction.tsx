@@ -7,21 +7,19 @@ import ShipName from '@/components/ShipName';
 import { useDiaryState } from '@/state/diary';
 import { useParams } from 'react-router';
 
-interface QuipReactionProps {
+interface NotReactionProps {
   whom: string;
   feel: string;
   ships: string[];
   time: string;
-  noteId: string;
 }
 
-export default function QuipReaction({
+export default function NoteReaction({
   whom,
   feel,
   ships,
   time,
-  noteId,
-}: QuipReactionProps) {
+}: NotReactionProps) {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const { load } = useEmoji();
@@ -34,13 +32,13 @@ export default function QuipReaction({
 
   const editFeel = useCallback(async () => {
     if (isMine) {
-      await useDiaryState.getState().delQuipFeel(whom, noteId, time);
-      await useDiaryState.getState().fetchNote(chFlag, noteId);
+      await useDiaryState.getState().delFeel(whom, time);
+      await useDiaryState.getState().fetchNote(chFlag, time);
     } else {
-      await useDiaryState.getState().addQuipFeel(whom, noteId, time, feel);
-      await useDiaryState.getState().fetchNote(chFlag, noteId);
+      await useDiaryState.getState().addFeel(whom, time, feel);
+      await useDiaryState.getState().fetchNote(chFlag, time);
     }
-  }, [isMine, whom, feel, noteId, time, chFlag]);
+  }, [isMine, whom, feel, time, chFlag]);
 
   return (
     <div>

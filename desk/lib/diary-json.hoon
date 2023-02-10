@@ -42,7 +42,7 @@
   ++  quips-delta
     |=  d=delta:quips:d
     %+  frond  -.d
-    ?+  -.d  ~
+    ?-  -.d
       %add  (memo p.d)
       %del  ~
       %add-feel  (add-feel +.d)
@@ -134,12 +134,13 @@
   ++  notes-delta
     |=  =delta:notes:d
     %+  frond  -.delta
-    ?+  -.delta  ~
+    ?-  -.delta
       %add       (essay p.delta)
       %edit      (essay p.delta)
       %del       ~
       %quips     (quips-diff p.delta)
       %add-feel  (add-feel +.delta)
+      %del-feel  (ship p.delta)
     ==
   ::
   ++  essay
@@ -413,6 +414,7 @@
         del/ul
         quips/quips-diff
         add-feel/add-feel
+        del-feel/ship
     ==
   ::
   ++  add-sects  (as (se %tas))
