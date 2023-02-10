@@ -3,7 +3,6 @@ import React, {
   HTMLAttributes,
   ReactNode,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -14,16 +13,8 @@ import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { ChatState } from '@/state/chat/type';
-import {
-  useChatState,
-  useGetFirstUnreadID,
-  useLoadedWrits,
-} from '@/state/chat/chat';
-import {
-  INITIAL_MESSAGE_FETCH_PAGE_SIZE,
-  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
-} from '@/constants';
+import { useChatState, useLoadedWrits } from '@/state/chat/chat';
+import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { IChatScroller } from './IChatScroller';
@@ -141,11 +132,9 @@ export default function ChatScroller({
   scrollTo = undefined,
   scrollerRef,
 }: IChatScroller) {
-  const brief = useChatState((s: ChatState) => s.briefs[whom]);
-  const firstUnreadID = useGetFirstUnreadID(whom);
+  const isMobile = useIsMobile();
   const loaded = useLoadedWrits(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
-  const isMobile = useIsMobile();
   const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
 
@@ -245,33 +234,30 @@ export default function ChatScroller({
     return scrollToIdx > -1 ? scrollToIdx : START_INDEX - 1;
   }, [keys, scrollTo]);
 
-  /**
-   * By default, 50 messages are fetched on initial load. If there are more
-   * unreads per the brief, fetch those as well. That way, the user can click
-   * the unread banner and see the unread messages.
-   */
-  useEffect(() => {
-    if (
-      fetching === 'initial' &&
-      brief &&
-      brief.count > INITIAL_MESSAGE_FETCH_PAGE_SIZE &&
-      firstUnreadID &&
-      !keys.includes(firstUnreadID)
-    ) {
-      fetchMessages(false, brief.count);
-    }
-    /**
-     * Only want to track the brief and unread ID
-     */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brief, firstUnreadID]);
-
-  const handleScroll = useRef(
+  const updateScroll = useRef(
     debounce((e: boolean) => {
-      if (e !== isScrolling && !firstPass.current) {
-        setIsScrolling(e);
+      setIsScrolling(e);
+      console.log(performance.now(), 'update scroll', e);
+    }, 1000)
+  );
+
+  /**
+   * we want to know immediately if scrolling, otherwise debounce updates
+   */
+  const handleScroll = useCallback(
+    (scrolling: boolean) => {
+      if (firstPass.current) {
+        return;
       }
-    }, 150)
+
+      if (scrolling && !isScrolling) {
+        setIsScrolling(true);
+        console.log(performance.now(), 'activate scroll', true);
+      } else {
+        updateScroll.current(scrolling);
+      }
+    },
+    [isScrolling]
   );
 
   const components = useMemo(
@@ -289,7 +275,10 @@ export default function ChatScroller({
     if (bot) {
       fetchMessages(true);
       bottom(true);
-      delayedRead(whom, () => useChatState.getState().markRead(whom));
+
+      if (!firstPass.current) {
+        delayedRead(whom, () => useChatState.getState().markRead(whom));
+      }
     } else {
       bottom(false);
     }
@@ -316,7 +305,7 @@ export default function ChatScroller({
         computeItemKey={computeItemKey}
         firstItemIndex={firstItemIndex}
         initialTopMostItemIndex={initialTopMostIndex}
-        isScrolling={handleScroll.current}
+        isScrolling={handleScroll}
         atTopStateChange={atTopStateChange}
         atBottomStateChange={atBottomStateChange}
         totalListHeightChanged={totalListHeightChanged.current}

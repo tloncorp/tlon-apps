@@ -10,14 +10,18 @@ import { ChatWrit } from '@/types/chat';
 import useGroupJoin from '@/groups/useGroupJoin';
 import ReferenceBar from './ReferenceBar';
 
+interface WritBaseReferenceProps {
+  nest: string;
+  writ?: ChatWrit;
+  isScrolling: boolean;
+}
+
 export default function WritBaseReference({
   nest,
   writ,
-}: {
-  nest: string;
-  writ?: ChatWrit;
-}) {
-  const preview = useChannelPreview(nest);
+  isScrolling,
+}: WritBaseReferenceProps) {
+  const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
   const groupFlag = preview?.group?.flag || '~zod/test';

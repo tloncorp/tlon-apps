@@ -141,7 +141,7 @@ const ChatMessage = React.memo<
         : false;
       const replyAuthors = _.flow(
         f.map((k: string) => {
-          const t = pact.index[k];
+          const t = pact?.index[k];
           const mess = t ? pact.writs.get(t) : undefined;
           if (!mess) {
             return undefined;
