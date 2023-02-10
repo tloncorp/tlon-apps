@@ -14,14 +14,14 @@ import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+// import * as Dropdown from '@radix-ui/react-dropdown-menu';
+// import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import {
-  DiarySetting,
-  setChannelSetting,
+  // DiarySetting,
+  // setChannelSetting,
   useDiaryCommentSortMode,
-  useDiarySettings,
-  useSettingsState,
+  // useDiarySettings,
+  // useSettingsState,
 } from '@/state/settings';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
@@ -97,7 +97,7 @@ export default function DiaryNote() {
   const { quips } = note.seal;
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const brief = useBrief(chFlag);
-  const settings = useDiarySettings();
+  // const settings = useDiarySettings();
   const sort = useDiaryCommentSortMode(chFlag);
   const idIsZero = id.isZero();
   const perms = useDiaryPerms(chFlag);
@@ -122,20 +122,20 @@ export default function DiaryNote() {
     setLoading(false);
   }, [chFlag, noteId]);
 
-  const setSort = useCallback(
-    (setting: 'asc' | 'dsc') => {
-      const newSettings = setChannelSetting<DiarySetting>(
-        settings,
-        { commentSortMode: setting },
-        chFlag
-      );
+  // const setSort = useCallback(
+  // (setting: 'asc' | 'dsc') => {
+  // const newSettings = setChannelSetting<DiarySetting>(
+  // settings,
+  // { commentSortMode: setting },
+  // chFlag
+  // );
 
-      useSettingsState
-        .getState()
-        .putEntry('diary', 'settings', JSON.stringify(newSettings));
-    },
-    [settings, chFlag]
-  );
+  // useSettingsState
+  // .getState()
+  // .putEntry('diary', 'settings', JSON.stringify(newSettings));
+  // },
+  // [settings, chFlag]
+  // );
 
   useEffect(() => {
     if (idIsZero) {
@@ -178,6 +178,8 @@ export default function DiaryNote() {
                       : 'No comments'}
                   </h2>
                 </Divider>
+                {/*
+
                 <Dropdown.Root>
                   <Dropdown.Trigger className="secondary-button">
                     {sort === 'asc' ? 'Oldest' : 'Newest'}
@@ -198,6 +200,7 @@ export default function DiaryNote() {
                     </Dropdown.Item>
                   </Dropdown.Content>
                 </Dropdown.Root>
+                */}
               </div>
               {canWrite ? (
                 <DiaryCommentField flag={chFlag} replyTo={noteId} />
