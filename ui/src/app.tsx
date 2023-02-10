@@ -73,6 +73,7 @@ import MobileGroupsNavHome from './nav/MobileRoot';
 import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
 import MobileGroupsActions from './groups/MobileGroupsActions';
+import Leap from './components/Leap/Leap';
 import { isTalk } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
@@ -512,6 +513,7 @@ function App() {
           isSmall={isSmall}
         />
       )}
+      <Leap />
     </div>
   );
 }

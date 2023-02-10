@@ -755,7 +755,7 @@
       |=  [nes=nest:g =channel:g]
       ^-  card
       =/  =dock  [our.bowl p.nes] :: TODO: generally remove chat hard-coding j
-      =/  =cage  channel-join+!>(q.nes)
+      =/  =cage  channel-join+!>([flag q.nes])
       =/  =wire  (snoc go-area %join-pinned)
       [%pass wire %agent dock %poke cage]
     --

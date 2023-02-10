@@ -354,3 +354,8 @@ export interface DiarySaid {
   flag: string;
   outline: DiaryOutline;
 }
+
+export interface DiaryJoin {
+  group: string;
+  chan: DiaryFlag;
+}

@@ -314,3 +314,8 @@ export interface ChatPerm {
   writers: string[];
   group: string;
 }
+
+export interface ChatJoin {
+  group: string;
+  chan: string;
+}

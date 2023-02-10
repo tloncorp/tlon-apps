@@ -27,7 +27,7 @@ export interface HeapState {
   create: (req: HeapCreate) => Promise<void>;
   start: () => Promise<void>;
   initialize: (flag: HeapFlag) => Promise<void>;
-  joinHeap: (flag: HeapFlag) => Promise<void>;
+  joinHeap: (groupFlag: string, flag: HeapFlag) => Promise<void>;
   leaveHeap: (flag: HeapFlag) => Promise<void>;
   viewHeap: (flag: HeapFlag, view: HeapDisplayMode) => Promise<void>;
   markRead: (flag: HeapFlag) => Promise<void>;
