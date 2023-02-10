@@ -29,7 +29,7 @@ export default function DiaryCommentField({
 }: DiaryCommentFieldProps) {
   const isMobile = useIsMobile();
   const [searchParams, setSearchParms] = useSearchParams();
-  const [blocks, setBlocks] = useState<{ cite: Cite }[]>([]);
+  const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const quipReplyId = searchParams.get('quip_reply');
   const { chShip, chName } = useParams<{ chShip: string; chName: string }>();
   const chFlag = `${chShip}/${chName}`;
@@ -44,7 +44,7 @@ export default function DiaryCommentField({
       if (sendDisabled) {
         return;
       }
-      if (!editor.getText() && blocks.length === 0) {
+      if (!editor.getText() && !replyCite) {
         return;
       }
 
@@ -55,10 +55,11 @@ export default function DiaryCommentField({
       );
 
       editor?.commands.setContent('');
-      await useDiaryState
-        .getState()
-        .addQuip(flag, replyTo, { block: blocks, inline });
-      setBlocks([]);
+      await useDiaryState.getState().addQuip(flag, replyTo, {
+        block: replyCite ? [replyCite] : [],
+        inline,
+      });
+      setReplyCite(undefined);
       setSearchParms();
       setReady();
     },
@@ -68,14 +69,14 @@ export default function DiaryCommentField({
       replyTo,
       flag,
       setReady,
-      blocks,
-      setBlocks,
+      replyCite,
+      setReplyCite,
       setSearchParms,
     ]
   );
 
   const clearAttachments = () => {
-    setBlocks([]);
+    setReplyCite(undefined);
     setSearchParms();
   };
 
@@ -109,11 +110,19 @@ export default function DiaryCommentField({
       messageEditor?.commands.insertContent(': ');
       const path = `/1/chan/diary/${flag}/note/${replyTo}/msg/${quipReplyId}`;
       const cite = path ? pathToCite(path) : undefined;
-      if (cite && blocks.length === 0) {
-        setBlocks([{ cite }]);
+      if (cite && !replyCite) {
+        setReplyCite({ cite });
       }
     }
-  }, [quipReplyId, replyTo, setBlocks, blocks, flag, messageEditor, quipReply]);
+  }, [
+    quipReplyId,
+    replyTo,
+    setReplyCite,
+    replyCite,
+    flag,
+    messageEditor,
+    quipReply,
+  ]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -128,7 +137,7 @@ export default function DiaryCommentField({
   return (
     <>
       <div className={cn('flex flex-col items-end', className)}>
-        {blocks.length > 0 && (
+        {replyCite && (
           <div className="mb-2 flex w-full flex-col items-center">
             <div className="mb-4 flex w-full items-center justify-between font-semibold">
               <span className="mr-2 text-gray-600">Replying to:</span>
@@ -161,8 +170,7 @@ export default function DiaryCommentField({
           <button
             className="button mt-2"
             disabled={
-              isPending ||
-              (messageEditor.getText() === '' && blocks.length === 0)
+              isPending || (messageEditor.getText() === '' && !replyCite)
             }
             onClick={onClick}
           >
