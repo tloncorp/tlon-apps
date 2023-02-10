@@ -434,7 +434,7 @@ const makeLink = (link: Link['link']) => ({
   marks: [{ type: 'link', attrs: { href: link.href } }],
   text: link.content,
 });
-const makeMention = (ship: string) => ({
+export const makeMention = (ship: string) => ({
   type: 'mention',
   attrs: { id: ship },
 });

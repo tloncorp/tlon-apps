@@ -8,16 +8,20 @@ import bigInt from 'big-integer';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { ChatWrit } from '@/types/chat';
 import useGroupJoin from '@/groups/useGroupJoin';
+import { useChannelFlag } from '@/hooks';
 import ReferenceBar from './ReferenceBar';
 
 export default function WritBaseReference({
   nest,
   writ,
+  chFlag,
 }: {
   nest: string;
   writ?: ChatWrit;
+  chFlag: string;
 }) {
   const preview = useChannelPreview(nest);
+  const isReply = useChannelFlag() === chFlag;
   const location = useLocation();
   const navigate = useNavigate();
   const groupFlag = preview?.group?.flag || '~zod/test';
@@ -60,6 +64,7 @@ export default function WritBaseReference({
         groupFlag={preview?.group.flag}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
+        reply={isReply}
       />
     </div>
   );

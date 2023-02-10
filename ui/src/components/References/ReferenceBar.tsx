@@ -14,6 +14,7 @@ export default function ReferenceBar({
   channelTitle,
   author,
   top = false,
+  reply = false,
 }: {
   nest: string;
   time: BigInteger;
@@ -22,6 +23,7 @@ export default function ReferenceBar({
   channelTitle?: string;
   author?: string;
   top?: boolean;
+  reply?: boolean;
 }) {
   const groupFlagOrZod = groupFlag || '~zod/test';
   const navigateByApp = useNavigateByApp();
@@ -41,7 +43,7 @@ export default function ReferenceBar({
       )}
     >
       {author ? <Author ship={author} date={unix} hideTime /> : null}
-      {top ? null : (
+      {top || reply ? null : (
         <div
           onClick={navigateToChannel}
           className="flex cursor-pointer items-center space-x-2 text-gray-400 group-hover:text-gray-600"
