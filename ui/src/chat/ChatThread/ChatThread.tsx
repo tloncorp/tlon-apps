@@ -13,6 +13,7 @@ import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { whomIsFlag } from '@/logic/utils';
+import useLeap from '@/components/Leap/useLeap';
 import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -32,6 +33,7 @@ export default function ChatThread() {
   const { sendMessage } = useChatState.getState();
   const location = useLocation();
   const channel = useChannel(groupFlag, `chat/${flag}`)!;
+  const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
   const maybeWrit = useWrit(whom, id);
   const replies = useReplies(whom, id);
@@ -62,11 +64,11 @@ export default function ChatThread() {
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !leapIsOpen) {
         navigate(returnURL());
       }
     },
-    [navigate, returnURL]
+    [navigate, returnURL, leapIsOpen]
   );
 
   useEventListener('keydown', onEscape, threadRef);

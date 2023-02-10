@@ -48,6 +48,7 @@ import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Heading from '@tiptap/extension-heading';
 import Mention from '@tiptap/extension-mention';
 import MentionPopup from '@/components/Mention/MentionPopup';
+import useLeap from '@/components/Leap/useLeap';
 import PrismCodeBlock from './PrismCodeBlock';
 import DiaryCiteNode from './DiaryCiteNode';
 import DiaryLinkNode from './DiaryLinkNode';
@@ -76,7 +77,7 @@ const ActionMenuBar = forwardRef<
   any,
   { items: ActionMenuItemProps[]; command: any }
 >((props, ref) => {
-  console.log(props);
+  const { isOpen: leapIsOpen } = useLeap();
   const { items = [] } = props;
   const [selected, setSelected] = useState(0);
   const selectItem = (index: number) => {
@@ -90,6 +91,7 @@ const ActionMenuBar = forwardRef<
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }: any) => {
+      if (leapIsOpen) return false;
       const len = items.length;
       if (event.key === 'ArrowUp') {
         setSelected((s) => (s + len - 1) % len);

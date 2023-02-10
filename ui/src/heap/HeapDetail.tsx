@@ -11,6 +11,7 @@ import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useEventListener } from 'usehooks-ts';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import useLeap from '@/components/Leap/useLeap';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -24,6 +25,7 @@ export default function HeapDetail() {
   const [, chFlag] = nestToFlag(nest);
   const { time, curio } = useCurioFromParams();
   const [loading, setLoading] = useState(false);
+  const { isOpen: leapIsOpen } = useLeap();
 
   const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
     chFlag,
@@ -53,6 +55,7 @@ export default function HeapDetail() {
   }, [load]);
 
   useEventListener('keydown', (e) => {
+    if (leapIsOpen) return;
     switch (e.key) {
       case 'Escape': {
         navigate('..');
