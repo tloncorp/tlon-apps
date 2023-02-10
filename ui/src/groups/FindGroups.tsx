@@ -194,7 +194,10 @@ export default function FindGroups({ title }: ViewProps) {
       return (
         <span>
           Your search timed out, which may happen when a ship hosts no groups,
-          is under heavy load, or is offline.
+          is under heavy load, or is offline.{' '}
+          <span onClick={searchGroups} className="cursor-pointer text-gray-800">
+            Try again?
+          </span>
         </span>
       );
     }
