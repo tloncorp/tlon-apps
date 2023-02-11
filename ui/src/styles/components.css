@@ -128,6 +128,10 @@
   @apply relative flex h-full w-full flex-col justify-center overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat;
 }
 
+.embed-inline-block {
+  @apply relative flex h-full max-w-fit flex-col justify-center overflow-hidden rounded-lg border-2 border-gray-50 bg-white bg-cover bg-center bg-no-repeat p-2;
+}
+
 .heap-grid {
   @apply grid gap-4;
   /* tailwind crashes when i try to fill grid-cols in with the custom property brackets */

@@ -19,6 +19,8 @@ import ContentReference from '@/components/References/ContentReference';
 import { useLocation } from 'react-router';
 import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
+// eslint-disable-next-line import/no-cycle
+import EmbedContent from '../EmbedContent';
 
 interface ChatContentProps {
   story: ChatStory;
@@ -27,6 +29,7 @@ interface ChatContentProps {
 
 interface InlineContentProps {
   story: Inline;
+  isScrolling?: boolean;
 }
 
 interface BlockContentProps {
@@ -52,7 +55,10 @@ function ShipMention({ ship }: ShipMentionProps) {
   );
 }
 
-export function InlineContent({ story }: InlineContentProps) {
+export function InlineContent({
+  story,
+  isScrolling = false,
+}: InlineContentProps) {
   if (typeof story === 'string') {
     return <span>{story}</span>;
   }
@@ -90,14 +96,20 @@ export function InlineContent({ story }: InlineContentProps) {
   if (isLink(story)) {
     const containsProtocol = story.link.href.match(/https?:\/\//);
     return (
-      <a
-        target="_blank"
-        rel="noreferrer"
-        href={containsProtocol ? story.link.href : `//${story.link.href}`}
-      >
-        {story.link.content || story.link.href}
-      </a>
+      <EmbedContent
+        isScrolling={isScrolling}
+        url={containsProtocol ? story.link.href : `http://${story.link.href}`}
+      />
     );
+    // return (
+    // <a
+    // target="_blank"
+    // rel="noreferrer"
+    // href={containsProtocol ? story.link.href : `//${story.link.href}`}
+    // >
+    // {story.link.content || story.link.href}
+    // </a>
+    // );
   }
 
   if (isBlockquote(story)) {
@@ -235,6 +247,7 @@ export default function ChatContent({
               <InlineContent
                 key={`${storyItem.toString()}-${index}`}
                 story={storyItem}
+                isScrolling={isScrolling}
               />
             );
           })}
