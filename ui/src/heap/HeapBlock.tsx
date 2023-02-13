@@ -22,6 +22,8 @@ import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { inlineToString } from '@/logic/tiptap';
 import ConfirmationModal from '@/components/ConfirmationModal';
+// eslint-disable-next-line import/no-cycle
+import ChatContent from '@/chat/ChatContent/ChatContent';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -206,12 +208,14 @@ function BottomBar({ curio, provider, title, asRef }: BottomBarProps) {
 
 interface HeapBlockProps extends CurioDisplayProps {
   curio: HeapCurio;
+  isComment?: boolean;
 }
 
 export default function HeapBlock({
   curio,
   time,
   asRef = false,
+  isComment = false,
   refToken = undefined,
 }: HeapBlockProps) {
   const [embed, setEmbed] = useState<any>();
@@ -249,6 +253,24 @@ export default function HeapBlock({
     asRef ? refClass || '' : 'heap-block group';
   const topBar = { time, refToken };
   const botBar = { curio, asRef };
+
+  if (isComment) {
+    return (
+      <div className={cnm()}>
+        <TopBar hasIcon canEdit={canEdit} {...topBar} />
+        <div className="flex grow flex-col">
+          <ChatContent
+            story={{ block: content.block, inline: content.inline }}
+          />
+        </div>
+        <BottomBar
+          {...botBar}
+          provider="Urbit Reference"
+          title={curio.heart.title || 'Urbit Reference'}
+        />
+      </div>
+    );
+  }
 
   if (content.block.length > 0 && 'cite' in content.block[0]) {
     return (

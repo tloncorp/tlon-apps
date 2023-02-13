@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import cn from 'classnames';
 import { useHeapState, useRemoteCurio } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 // eslint-disable-next-line import/no-cycle
@@ -74,7 +75,12 @@ export default function CurioReference({
     return <HeapLoadingBlock reference />;
   }
   return (
-    <div className="heap-inline-block not-prose group">
+    <div
+      className={cn('heap-inline-block not-prose group', {
+        'heap-inline-block': !idCurioComment,
+        'writ-inline-block': !!idCurioComment,
+      })}
+    >
       <div
         onClick={handleOpenReferenceClick}
         className="flex h-full cursor-pointer flex-col justify-between p-2"
@@ -82,6 +88,7 @@ export default function CurioReference({
         <HeapBlock
           curio={curioComment || curio}
           time={idCurioComment || idCurio}
+          isComment={!!idCurioComment}
           refToken={refToken}
           asRef
         />
