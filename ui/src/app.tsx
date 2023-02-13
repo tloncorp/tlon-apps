@@ -74,7 +74,7 @@ import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
 import MobileGroupsActions from './groups/MobileGroupsActions';
 import Leap from './components/Leap/Leap';
-import { isTalk } from './logic/utils';
+import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import useKilnState, { usePike } from './state/kiln';
@@ -408,7 +408,16 @@ function checkIfLoggedIn() {
 
   const session = cookies.get(`urbauth-~${window.ship}`);
   if (!session) {
-    authRedirect();
+    fetch('/~/name')
+      .then((res) => res.text())
+      .then((name) => {
+        if (name !== preSig(window.ship)) {
+          authRedirect();
+        }
+      })
+      .catch(() => {
+        authRedirect();
+      });
   }
 }
 
