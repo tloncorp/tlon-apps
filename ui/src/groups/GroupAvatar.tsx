@@ -42,7 +42,8 @@ export default function GroupAvatar({
   loadImage = true,
 }: GroupAvatarProps) {
   const { hasLoaded, load } = useAvatar(image || '');
-  const showImage = hasLoaded || loadImage;
+  const imageIsColor = isColor(image || '');
+  const showImage = hasLoaded || loadImage || imageIsColor;
   const dark = useIsDark();
   const calm = useCalm();
   let background;
