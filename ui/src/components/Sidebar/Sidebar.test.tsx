@@ -24,6 +24,7 @@ vi.mock('@/state/groups', () => ({
   useGroupsInitialized: () => true,
   useGroups: () => [fakeFlag, fakeGroup],
   usePendingInvites: () => [],
+  useGangList: () => [],
 }));
 
 vi.mock('@/logic/useMigrationInfo', () => ({

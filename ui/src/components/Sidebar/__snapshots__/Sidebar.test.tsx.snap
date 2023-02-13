@@ -5,7 +5,9 @@ exports[`Sidebar > renders as expected 1`] = `
   <nav
     class="flex h-full w-64 flex-col bg-white"
   >
-    <ul>
+    <ul
+      class=""
+    >
       <div
         class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
       >

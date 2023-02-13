@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": [
+      "vite/client",
+      "vitest/globals",
+      "@testing-library/jest-dom"
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [],
+  "files": [
+    "src/window.ts",
+    "src/env.d.ts",
+    "src/global.d.ts",
+    "/Users/patrick/workspace/homestead/ui/src/components/Sidebar/GangItem.tsx",
+    "/Users/patrick/workspace/homestead/ui/src/components/Sidebar/GroupList.tsx",
+    "/Users/patrick/workspace/homestead/ui/src/components/Sidebar/GroupsScrollingContext.tsx",
+    "/Users/patrick/workspace/homestead/ui/src/components/Sidebar/GroupsSidebarItem.tsx",
+    "/Users/patrick/workspace/homestead/ui/src/components/Sidebar/Sidebar.test.tsx",
+    "/Users/patrick/workspace/homestead/ui/src/components/Sidebar/Sidebar.tsx",
+    "/Users/patrick/workspace/homestead/ui/src/nav/MobileRoot.tsx"
+  ]
+}
