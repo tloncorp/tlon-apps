@@ -24,7 +24,7 @@ export default function CurioReference({
   isScrolling?: boolean;
 }) {
   const curio = useRemoteCurio(chFlag, idCurio, isScrolling);
-  const preview = useChannelPreview(nest);
+  const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
   const navigateByApp = useNavigateByApp();

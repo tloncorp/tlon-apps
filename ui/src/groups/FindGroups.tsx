@@ -110,11 +110,15 @@ export default function FindGroups({ title }: ViewProps) {
     setGroupIndex(null);
     setPending();
     try {
-      // @ts-expect-error results will always either be a GroupIndex, or the
-      // request will throw an error, which will be caught below
+      /**
+       * results will always either be a GroupIndex, or the
+       * request will throw an error, which will be caught below.
+       * for peers where a route has to be established this can take
+       * upwards of thirty seconds.
+       */
       const results: GroupIndex = await asyncCallWithTimeout(
         useGroupState.getState().index(preSig(ship)),
-        10 * 1000
+        30 * 1000
       );
       setGroupIndex(results);
       setReady();

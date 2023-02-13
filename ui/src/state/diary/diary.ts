@@ -379,6 +379,11 @@ export const useDiaryState = createState<DiaryState>(
         `/diary/${flag}/ui`
       ).initialize();
     },
+    clearSubs: () => {
+      get().batchSet((draft) => {
+        draft.diarySubs = [];
+      });
+    },
   }),
   ['briefs', 'shelf', 'notes'],
   []
