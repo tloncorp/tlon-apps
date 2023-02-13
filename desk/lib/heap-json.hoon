@@ -95,11 +95,12 @@
   ++  curios-delta
     |=  =delta:curios:h
     %+  frond  -.delta
-    ?+  -.delta  ~
+    ?-  -.delta
       %add        (heart p.delta)
       %edit       (heart p.delta)
       %del        ~
       %add-feel   (add-feel +.delta)
+      %del-feel   (ship p.delta)
     ==
   ::
   ++  heart
@@ -172,7 +173,7 @@
     |=  =curios:h
     ^-  json
     %-  pairs
-    %+  turn  (tap:on:curios:h curios) 
+    %+  turn  (tap:on:curios:h curios)
     |=  [key=@da c=curio:h]
     [(scot %ud key) (curio c)]
   ::
@@ -266,6 +267,7 @@
         edit/heart
         del/ul
         add-feel/add-feel
+        del-feel/ship
     ==
   ::
   ++  add-sects  (as (se %tas))

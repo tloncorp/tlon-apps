@@ -8,7 +8,7 @@
     key.u.tim
   =/  unreads
     (lot:on:curios:h cur `last-read ~)
-  =/  read-id=(unit ^time)  
+  =/  read-id=(unit ^time)
     (bind (pry:on:curios:h unreads) |=([key=@da val=curio:h] time.val))
   =/  count
     (lent (skim ~(tap by unreads) |=([tim=^time =curio:h] !=(author.curio our))))
@@ -43,7 +43,7 @@
       cur
     ~|  curio-failed-validation/p.del
     ?>  ?|  ?=(^ replying.p.del)
-            ?&  ?=(^ title.p.del) 
+            ?&  ?=(^ title.p.del)
                 |(?=([~ ^] content.p.del) ?=([[* ~] ~] content.p.del))
             ==
         ==
@@ -107,6 +107,6 @@
   ::
       [%curio %id time=@ ~]
     =/  time  (slav %ud time.pole)
-    ``curio+!>((got `@da`time))
+    ``curio+!>(+:(got `@da`time))
   ==
 --

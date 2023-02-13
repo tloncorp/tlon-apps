@@ -275,6 +275,36 @@ export const useHeapState = createState<HeapState>(
         draft.stash[flag].perms = perms;
       });
     },
+    fetchCurio: async (flag, time) => {
+      const ud = decToUd(time);
+      const curio = await api.scry<HeapCurio>({
+        app: 'heap',
+        path: `/heap/${flag}/curios/curio/id/${ud}`,
+      });
+      get().batchSet((draft) => {
+        draft.curios[flag] = draft.curios[flag].set(bigInt(time), curio);
+      });
+    },
+    addFeel: async (flag, time, feel) => {
+      const ud = decToUd(time);
+      await api.poke(
+        heapCurioDiff(flag, ud, {
+          'add-feel': {
+            time: ud,
+            feel,
+            ship: window.our,
+          },
+        })
+      );
+    },
+    delFeel: async (flag, time) => {
+      const ud = decToUd(time);
+      await api.poke(
+        heapCurioDiff(flag, ud, {
+          'del-feel': window.our,
+        })
+      );
+    },
     initialize: async (flag) => {
       if (get().heapSubs.includes(flag)) {
         return;

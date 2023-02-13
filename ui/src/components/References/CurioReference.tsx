@@ -16,14 +16,21 @@ export default function CurioReference({
   chFlag,
   nest,
   idCurio,
+  idCurioComment,
   isScrolling = false,
 }: {
   chFlag: string;
   nest: string;
   idCurio: string;
+  idCurioComment?: string;
   isScrolling?: boolean;
 }) {
   const curio = useRemoteCurio(chFlag, idCurio, isScrolling);
+  const curioComment = useRemoteCurio(
+    chFlag,
+    idCurioComment || '',
+    isScrolling
+  );
   const preview = useChannelPreview(nest);
   const location = useLocation();
   const navigate = useNavigate();
@@ -72,7 +79,12 @@ export default function CurioReference({
         onClick={handleOpenReferenceClick}
         className="flex h-full cursor-pointer flex-col justify-between p-2"
       >
-        <HeapBlock curio={curio} time={idCurio} refToken={refToken} asRef />
+        <HeapBlock
+          curio={curioComment || curio}
+          time={idCurioComment || idCurio}
+          refToken={refToken}
+          asRef
+        />
       </div>
       <ReferenceBar
         nest={nest}
