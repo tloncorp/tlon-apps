@@ -1,4 +1,5 @@
 import React from 'react';
+import cn from 'classnames';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useChannelPreview, useGang } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
@@ -50,12 +51,20 @@ export default function WritBaseReference({
   };
 
   return (
-    <div className="writ-inline-block not-prose group">
+    <div
+      className={cn('writ-inline-block not-prose group', {
+        'mb-2': isReply,
+      })}
+    >
       <div
         onClick={handleOpenReferenceClick}
-        className="cursor-pointer p-2 group-hover:bg-gray-50"
+        className={'cursor-pointer p-2 group-hover:bg-gray-50'}
       >
-        <ChatContent story={writ.memo.content.story} isScrolling={false} />
+        <ChatContent
+          className="p-4"
+          story={writ.memo.content.story}
+          isScrolling={false}
+        />
       </div>
       <ReferenceBar
         nest={nest}

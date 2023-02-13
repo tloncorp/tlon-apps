@@ -42,7 +42,9 @@ export default function ReferenceBar({
         }
       )}
     >
-      {author ? <Author ship={author} date={unix} hideTime /> : null}
+      {author ? (
+        <Author ship={author} date={unix} hideTime isReply={reply} />
+      ) : null}
       {top || reply ? null : (
         <div
           onClick={navigateToChannel}
