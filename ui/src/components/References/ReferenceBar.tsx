@@ -36,9 +36,11 @@ export default function ReferenceBar({
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-gray-50 p-2 group-hover:bg-gray-50',
+        'flex items-center justify-between border-gray-50 group-hover:bg-gray-50',
         {
           'border-t-2': !top,
+          'py-1 px-2': reply,
+          'p-2': !reply,
         }
       )}
     >
