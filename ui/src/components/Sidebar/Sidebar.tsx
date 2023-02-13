@@ -142,7 +142,7 @@ export default function Sidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-col bg-white">
-      <ul className={cn({ 'bottom-shadow': !atTop })}>
+      <ul className={cn('p-2', { 'bottom-shadow': !atTop })}>
         <GroupsAppMenu />
         <div className="h-5" />
         <SidebarItem
