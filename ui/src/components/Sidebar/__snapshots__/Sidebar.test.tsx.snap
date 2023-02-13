@@ -3,10 +3,10 @@
 exports[`Sidebar > renders as expected 1`] = `
 <DocumentFragment>
   <nav
-    class="flex h-full w-64 flex-col bg-white"
+    class="flex h-full w-64 flex-none flex-col bg-white"
   >
     <ul
-      class="p-2"
+      class="flex w-full flex-col space-y-1 p-2"
     >
       <div
         class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
@@ -295,7 +295,7 @@ exports[`Sidebar > renders as expected 1`] = `
       </li>
     </ul>
     <div
-      class="flex-auto"
+      class="flex-auto space-y-3 overflow-x-hidden px-2 sm:space-y-1"
     >
       <ul
         class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"

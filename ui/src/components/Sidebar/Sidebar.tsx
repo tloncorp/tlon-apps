@@ -141,8 +141,12 @@ export default function Sidebar() {
   }
 
   return (
-    <nav className="flex h-full w-64 flex-col bg-white">
-      <ul className={cn('p-2', { 'bottom-shadow': !atTop })}>
+    <nav className="flex h-full w-64 flex-none flex-col bg-white">
+      <ul
+        className={cn('flex w-full flex-col space-y-1 p-2', {
+          'bottom-shadow': !atTop,
+        })}
+      >
         <GroupsAppMenu />
         <div className="h-5" />
         <SidebarItem
@@ -166,7 +170,7 @@ export default function Sidebar() {
           <div className="flex items-center">
             Find Groups
             {pendingInvitesCount > 0 ? (
-              <span className="ml-auto font-semibold text-blue">
+              <span className="ml-auto pr-2 font-semibold text-blue">
                 {pendingInvitesCount}
               </span>
             ) : null}
@@ -180,7 +184,7 @@ export default function Sidebar() {
           Create Group
         </SidebarItem>
       </ul>
-      <div className="flex-auto">
+      <div className="flex-auto space-y-3 overflow-x-hidden px-2 sm:space-y-1">
         <GroupsScrollingContext.Provider value={isScrolling}>
           <GroupList
             groups={sortedGroups}
@@ -190,7 +194,7 @@ export default function Sidebar() {
           >
             {Object.entries(pinnedGroups).length > 0 && (
               <>
-                <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
+                <li className="-mx-2 mt-3 grow border-t-2 border-gray-50 pt-3 pb-2">
                   <span className="ml-4 text-sm font-semibold text-gray-400">
                     Pinned Groups
                   </span>
@@ -207,7 +211,7 @@ export default function Sidebar() {
                   All Groups
                 </span>
               </li>
-              <li className="relative p-2">
+              <li className="relative py-2">
                 <SidebarSorter
                   sortFn={sortFn}
                   setSortFn={setSortFn}
