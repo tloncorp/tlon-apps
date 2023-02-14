@@ -488,6 +488,17 @@ export const useChatState = createState<ChatState>(
       const diff = { add: memo };
 
       if (isDM) {
+        const { pacts } = get();
+        if (!(whom in pacts)) {
+          set((draft) => ({
+            ...draft,
+            pacts: {
+              ...draft.pacts,
+              [whom]: { index: {}, writs: new BigIntOrderedMap() },
+            },
+          }));
+        }
+
         pokeOptimisticallyN(useChatState, dmAction(whom, { add: memo }, id), [
           writsReducer(whom),
         ]).then(() => set((draft) => draft.postedMessages.push(id)));

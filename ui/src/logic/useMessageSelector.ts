@@ -7,7 +7,8 @@ import { ShipOption } from '@/components/ShipSelector';
 import { useChatState, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
 import { ChatMemo } from '@/types/chat';
-import { createStorageKey, newUv, preSig } from './utils';
+import { BigIntOrderedMap } from '@urbit/api';
+import { createStorageKey, newUv, preSig, whomIsDm } from './utils';
 
 export default function useMessageSelector() {
   const navigate = useNavigate();
