@@ -101,15 +101,6 @@ export function InlineContent({
         url={containsProtocol ? story.link.href : `http://${story.link.href}`}
       />
     );
-    // return (
-    // <a
-    // target="_blank"
-    // rel="noreferrer"
-    // href={containsProtocol ? story.link.href : `//${story.link.href}`}
-    // >
-    // {story.link.content || story.link.href}
-    // </a>
-    // );
   }
 
   if (isBlockquote(story)) {
