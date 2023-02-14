@@ -3,7 +3,7 @@ import cn from 'classnames';
 import _ from 'lodash';
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePact } from '@/state/chat';
-import { ChatImage, ChatMemo } from '@/types/chat';
+import { ChatImage, ChatMemo, Cite } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -16,7 +16,7 @@ import {
 } from '@/chat/useChatStore';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
+import { normalizeInline, JSONToInlines, makeMention } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
@@ -31,6 +31,8 @@ import {
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
 import { useSubscriptionStatus } from '@/state/local';
+import { useSearchParams } from 'react-router-dom';
+import { useGroupFlag } from '@/state/groups';
 
 interface ChatInputProps {
   whom: string;
@@ -40,6 +42,7 @@ interface ChatInputProps {
   className?: string;
   sendDisabled?: boolean;
   sendMessage: (whom: string, memo: ChatMemo) => void;
+  inThread?: boolean;
 }
 
 export function UploadErrorPopover({
@@ -80,14 +83,20 @@ export default function ChatInput({
   showReply = false,
   sendDisabled = false,
   sendMessage,
+  inThread = false,
 }: ChatInputProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const chatReplyId = searchParams.get('chat_reply');
+  const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
+  const groupFlag = useGroupFlag();
   const subscription = useSubscriptionStatus();
   const pact = usePact(whom);
   const id = replying ? `${whom}-${replying}` : whom;
   const chatInfo = useChatInfo(id);
-  const reply = replying || chatInfo?.replying || null;
-  const replyingWrit = reply && pact.writs.get(pact.index[reply]);
+  // const reply = replying || chatInfo?.replying || null;
+  // const replyingWrit = reply && pact.writs.get(pact.index[reply]);
+  const replyingWrit = chatReplyId && pact.writs.get(pact.index[chatReplyId]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
@@ -97,8 +106,9 @@ export default function ChatInput({
   const { setBlocks } = useChatStore.getState();
 
   const closeReply = useCallback(() => {
-    useChatStore.getState().reply(whom, null);
-  }, [whom]);
+    setSearchParams();
+    setReplyCite(undefined);
+  }, [setSearchParams]);
 
   useEffect(() => {
     if (
@@ -113,7 +123,9 @@ export default function ChatInput({
   const clearAttachments = useCallback(() => {
     useChatStore.getState().setBlocks(id, []);
     useFileStore.getState().getUploader(uploadKey)?.clear();
-  }, [id, uploadKey]);
+    setReplyCite(undefined);
+    setSearchParams();
+  }, [id, uploadKey, setSearchParams]);
 
   // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
@@ -142,7 +154,7 @@ export default function ChatInput({
     async (editor: Editor) => {
       if (sendDisabled) return;
       const blocks = fetchChatBlocks(id);
-      if (!editor.getText() && !blocks.length) {
+      if (!editor.getText() && !blocks.length && !replyCite) {
         return;
       }
 
@@ -164,7 +176,7 @@ export default function ChatInput({
           const { width, height } = img;
 
           sendMessage(whom, {
-            replying: reply,
+            replying: replying || chatInfo?.replying || null,
             author: `~${window.ship || 'zod'}`,
             sent: Date.now(),
             content: {
@@ -186,13 +198,13 @@ export default function ChatInput({
         };
       } else {
         const memo: ChatMemo = {
-          replying: reply,
+          replying: replying || chatInfo?.replying || null,
           author: `~${window.ship || 'zod'}`,
           sent: 0, // wait until ID is created so we can share time
           content: {
             story: {
               inline: Array.isArray(data) ? data : [data],
-              block: blocks,
+              block: [...blocks, ...(replyCite ? [replyCite] : [])],
             },
           },
         };
@@ -206,7 +218,17 @@ export default function ChatInput({
         clearAttachments();
       }, 0);
     },
-    [whom, id, reply, clearAttachments, sendMessage, closeReply, sendDisabled]
+    [
+      whom,
+      id,
+      clearAttachments,
+      sendMessage,
+      closeReply,
+      sendDisabled,
+      replyCite,
+      replying,
+      chatInfo,
+    ]
   );
 
   /**
@@ -242,14 +264,42 @@ export default function ChatInput({
 
   useEffect(() => {
     if (
-      (autoFocus || reply) &&
+      (autoFocus || replyCite) &&
       !isMobile &&
       messageEditor &&
       !messageEditor.isDestroyed
     ) {
       messageEditor.commands.focus();
     }
-  }, [autoFocus, reply, isMobile, messageEditor]);
+  }, [autoFocus, replyCite, isMobile, messageEditor]);
+
+  useEffect(() => {
+    if (
+      chatReplyId &&
+      messageEditor &&
+      !messageEditor.isDestroyed &&
+      !inThread
+    ) {
+      messageEditor?.commands.focus();
+      const mention = ship ? makeMention(ship.slice(1)) : null;
+      messageEditor?.commands.setContent(mention);
+      messageEditor?.commands.insertContent(': ');
+      const path = `/1/chan/chat/${id}/msg/${chatReplyId}`;
+      const cite = path ? pathToCite(path) : undefined;
+      if (cite && !replyCite) {
+        setReplyCite({ cite });
+      }
+    }
+  }, [
+    chatReplyId,
+    id,
+    setReplyCite,
+    replyCite,
+    groupFlag,
+    messageEditor,
+    ship,
+    inThread,
+  ]);
 
   const editorText = messageEditor?.getText();
   const editorHTML = messageEditor?.getHTML();
@@ -375,7 +425,7 @@ export default function ChatInput({
             </div>
           ) : null}
 
-          {showReply && ship && reply ? (
+          {showReply && ship && chatReplyId ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="text-gray-600">Replying to</span>
               <Avatar size="xs" ship={ship} className="ml-2" />

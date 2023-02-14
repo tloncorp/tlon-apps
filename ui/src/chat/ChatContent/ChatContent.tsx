@@ -1,5 +1,6 @@
 import React from 'react';
 import { findLastIndex } from 'lodash';
+import cn from 'classnames';
 import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
   isBlockquote,
@@ -23,6 +24,7 @@ import { Link } from 'react-router-dom';
 interface ChatContentProps {
   story: ChatStory;
   isScrolling?: boolean;
+  className?: string;
 }
 
 interface InlineContentProps {
@@ -164,6 +166,7 @@ export function BlockContent({ story, isScrolling }: BlockContentProps) {
 export default function ChatContent({
   story,
   isScrolling = false,
+  className = '',
 }: ChatContentProps) {
   const inlineLength = story.inline.length;
   const blockLength = story.block.length;
@@ -171,7 +174,7 @@ export default function ChatContent({
   const lastBlockCode = findLastIndex(story.inline, isBlockCode);
 
   return (
-    <div className="leading-6">
+    <div className={cn('leading-6', className)}>
       {blockLength > 0 ? (
         <>
           {story.block

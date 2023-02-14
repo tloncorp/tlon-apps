@@ -3,25 +3,18 @@ import React, {
   HTMLAttributes,
   ReactNode,
   useCallback,
-  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { isSameDay } from 'date-fns';
+import { debounce } from 'lodash';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { ChatState } from '@/state/chat/type';
-import {
-  useChatState,
-  useGetFirstUnreadID,
-  useLoadedWrits,
-} from '@/state/chat/chat';
-import {
-  INITIAL_MESSAGE_FETCH_PAGE_SIZE,
-  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
-} from '@/constants';
+import { useChatState, useLoadedWrits } from '@/state/chat/chat';
+import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { IChatScroller } from './IChatScroller';
@@ -139,14 +132,11 @@ export default function ChatScroller({
   scrollTo = undefined,
   scrollerRef,
 }: IChatScroller) {
-  const brief = useChatState((s: ChatState) => s.briefs[whom]);
-  const firstUnreadID = useGetFirstUnreadID(whom);
+  const isMobile = useIsMobile();
   const loaded = useLoadedWrits(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
-  const isMobile = useIsMobile();
   const [isScrolling, setIsScrolling] = useState(false);
-  const { atBottom } = useChatStore.getState();
-  const [height, setHeight] = useState(0);
+  const firstPass = useRef(true);
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
@@ -184,12 +174,13 @@ export default function ChatScroller({
     [messages, whom, keys, replying, prefixedElement, scrollTo, isScrolling]
   );
 
+  const itemContent = useCallback(
+    (i: number, realIndex: bigInt.BigInteger) => <Message index={realIndex} />,
+    [Message]
+  );
+
   const TopLoader = useMemo(
     () => <Loader show={fetching === 'top'} />,
-    [fetching]
-  );
-  const BottomLoader = useMemo(
-    () => <Loader show={fetching === 'bottom'} />,
     [fetching]
   );
 
@@ -243,43 +234,38 @@ export default function ChatScroller({
     return scrollToIdx > -1 ? scrollToIdx : START_INDEX - 1;
   }, [keys, scrollTo]);
 
-  /**
-   * By default, 50 messages are fetched on initial load. If there are more
-   * unreads per the brief, fetch those as well. That way, the user can click
-   * the unread banner and see the unread messages.
-   */
-  useEffect(() => {
-    if (
-      fetching === 'initial' &&
-      brief &&
-      brief.count > INITIAL_MESSAGE_FETCH_PAGE_SIZE &&
-      firstUnreadID &&
-      !keys.includes(firstUnreadID)
-    ) {
-      fetchMessages(false, brief.count);
-    }
-    /**
-     * Only want to track the brief and unread ID
-     */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brief, firstUnreadID]);
+  const updateScroll = useRef(
+    debounce((e: boolean) => {
+      setIsScrolling(e);
+      console.log(performance.now(), 'update scroll', e);
+    }, 1000)
+  );
 
+  /**
+   * we want to know immediately if scrolling, otherwise debounce updates
+   */
   const handleScroll = useCallback(
-    (e: boolean) => {
-      if (e !== isScrolling && !atBottom) {
-        setIsScrolling(e);
+    (scrolling: boolean) => {
+      if (firstPass.current) {
+        return;
+      }
+
+      if (scrolling && !isScrolling) {
+        setIsScrolling(true);
+        console.log(performance.now(), 'activate scroll', true);
+      } else {
+        updateScroll.current(scrolling);
       }
     },
-    [isScrolling, atBottom]
+    [isScrolling]
   );
 
   const components = useMemo(
     () => ({
       Header: () => TopLoader,
-      Footer: () => BottomLoader,
       List,
     }),
-    [BottomLoader, TopLoader]
+    [TopLoader]
   );
 
   // perf: define these outside of render
@@ -289,23 +275,21 @@ export default function ChatScroller({
     if (bot) {
       fetchMessages(true);
       bottom(true);
-      delayedRead(whom, () => useChatState.getState().markRead(whom));
+
+      if (!firstPass.current) {
+        delayedRead(whom, () => useChatState.getState().markRead(whom));
+      }
     } else {
       bottom(false);
     }
   };
-  const totalListHeightChanged = (newHeight: number) => {
-    if (height < newHeight && atBottom) {
-      scrollerRef.current?.scrollBy({ left: 0, top: newHeight - height });
-      setHeight(newHeight);
-    }
-  };
-  const handleIsScrolling = (e: boolean) => {
-    handleScroll(e);
-  };
-
-  const itemContent = (i: number, realIndex: bigInt.BigInteger) => (
-    <Message index={realIndex} />
+  const totalListHeightChanged = useRef(
+    debounce(() => {
+      if (firstPass.current) {
+        scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+        firstPass.current = false;
+      }
+    }, 200)
   );
 
   return (
@@ -315,17 +299,21 @@ export default function ChatScroller({
         ref={scrollerRef}
         followOutput
         alignToBottom
-        isScrolling={handleIsScrolling}
-        className="h-full overflow-x-hidden p-4"
         {...thresholds}
-        atTopStateChange={atTopStateChange}
-        atBottomStateChange={atBottomStateChange}
-        totalListHeightChanged={totalListHeightChanged}
-        firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={initialTopMostIndex}
+        components={components}
         itemContent={itemContent}
         computeItemKey={computeItemKey}
-        components={components}
+        firstItemIndex={firstItemIndex}
+        initialTopMostItemIndex={initialTopMostIndex}
+        isScrolling={handleScroll}
+        atTopStateChange={atTopStateChange}
+        atBottomStateChange={atBottomStateChange}
+        totalListHeightChanged={totalListHeightChanged.current}
+        // DO NOT REMOVE
+        // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
+        // size of elements, triggering a reflow loop in virtual scroller
+        style={{ overflowY: 'scroll' }}
+        className="h-full overflow-x-hidden p-4"
       />
     </div>
   );

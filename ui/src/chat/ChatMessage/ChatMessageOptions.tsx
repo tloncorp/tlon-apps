@@ -17,13 +17,15 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
+import { useSearchParams } from 'react-router-dom';
 
 export default function ChatMessageOptions(props: {
   whom: string;
   writ: ChatWrit;
+  hideThreadReply?: boolean;
   hideReply?: boolean;
 }) {
-  const { whom, writ, hideReply } = props;
+  const { whom, writ, hideThreadReply, hideReply } = props;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const { didCopy, doCopy } = useCopy(
@@ -37,6 +39,7 @@ export default function ChatMessageOptions(props: {
     setReady,
   } = useRequestState();
   const { chShip, chName } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const chFlag = `${chShip}/${chName}`;
   const perms = useChatPerms(chFlag);
   const vessel = useVessel(groupFlag, window.our);
@@ -58,8 +61,8 @@ export default function ChatMessageOptions(props: {
   }, [doCopy]);
 
   const reply = useCallback(() => {
-    useChatStore.getState().reply(whom, writ.seal.id);
-  }, [writ, whom]);
+    setSearchParams({ chat_reply: writ.seal.id });
+  }, [writ, setSearchParams]);
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
@@ -89,25 +92,23 @@ export default function ChatMessageOptions(props: {
           />
         </EmojiPicker>
       ) : null}
-      {!writ.memo.replying && writ.memo.replying?.length !== 0 && !hideReply ? (
-        <>
-          {/*
-          TODO: Add replies back in post-demo.
-          <IconButton
-            icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
-            label="Reply"
-            showTooltip
-            action={reply}
-          />
-
-            */}
-          <IconButton
-            icon={<HashIcon className="h-6 w-6 text-gray-400" />}
-            label="Start Thread"
-            showTooltip
-            action={() => navigate(`message/${writ.seal.id}`)}
-          />
-        </>
+      {!hideReply ? (
+        <IconButton
+          icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
+          label="Reply"
+          showTooltip
+          action={reply}
+        />
+      ) : null}
+      {!writ.memo.replying &&
+      writ.memo.replying?.length !== 0 &&
+      !hideThreadReply ? (
+        <IconButton
+          icon={<HashIcon className="h-6 w-6 text-gray-400" />}
+          label="Start Thread"
+          showTooltip
+          action={() => navigate(`message/${writ.seal.id}`)}
+        />
       ) : null}
       {groupFlag ? (
         <IconButton

@@ -327,6 +327,11 @@ export const useHeapState = createState<HeapState>(
         `/heap/${flag}/ui`
       ).initialize();
     },
+    clearSubs: () => {
+      get().batchSet((draft) => {
+        draft.heapSubs = [];
+      });
+    },
   }),
   ['briefs', 'stash', 'curios'],
   []

@@ -32,7 +32,7 @@ export default function CurioReference({
     idCurioComment || '',
     isScrolling
   );
-  const preview = useChannelPreview(nest);
+  const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
   const navigateByApp = useNavigateByApp();

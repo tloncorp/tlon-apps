@@ -24,7 +24,7 @@ export default function NoteReference({
   id: string;
   isScrolling?: boolean;
 }) {
-  const preview = useChannelPreview(nest);
+  const preview = useChannelPreview(nest, isScrolling);
   const [scryError, setScryError] = useState<string>();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
