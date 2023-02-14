@@ -42,20 +42,24 @@ export default function GroupAvatar({
   loadImage = true,
 }: GroupAvatarProps) {
   const { hasLoaded, load } = useAvatar(image || '');
-  const imageIsColor = isColor(image || '');
-  const showImage = hasLoaded || loadImage || imageIsColor;
-  const dark = useIsDark();
+  const imageIsColor = image && isColor(image);
   const calm = useCalm();
+  const showImage =
+    image &&
+    !calm.disableRemoteContent &&
+    !imageIsColor &&
+    (hasLoaded || loadImage);
+  const dark = useIsDark();
   let background;
   const symbols = [...(title || '')];
 
-  if (showImage && !calm.disableRemoteContent) {
-    background = image || (dark ? '#333333' : '#E5E5E5');
+  if (imageIsColor) {
+    background = image;
   } else {
     background = dark ? '#333333' : '#E5E5E5';
   }
 
-  return image && showImage && !calm.disableRemoteContent && !isColor(image) ? (
+  return showImage ? (
     <img className={cn('rounded', size, className)} src={image} onLoad={load} />
   ) : (
     <ColorBoxIcon
