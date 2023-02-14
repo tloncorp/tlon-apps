@@ -34,7 +34,7 @@ export default function SpotifyEmbed({
       />
       <div
         onClick={() => setShowIframeModal(true)}
-        className="absolute left-[92.5px] flex cursor-pointer items-center text-xl text-white"
+        className="absolute left-[50%] flex -translate-x-1/2 cursor-pointer items-center text-xl text-white"
       >
         <CaretRightIcon className="h-6 w-6" />
         <span>Click to Play</span>

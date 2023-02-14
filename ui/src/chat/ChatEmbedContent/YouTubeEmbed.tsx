@@ -33,14 +33,14 @@ export default function YouTubeEmbed({
           backgroundImage: `url(${thumbnail})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          width: thumbnailWidth,
-          height: thumbnailHeight,
+          width: isMobile ? 300 : thumbnailWidth,
+          height: isMobile ? 300 : thumbnailHeight,
         }}
         className="rounded"
       />
       <div
         onClick={() => setShowIframeModal(true)}
-        className="absolute left-[182.5px] flex cursor-pointer items-center text-xl text-white"
+        className="absolute left-[50%] flex -translate-x-1/2 cursor-pointer items-center text-xl text-white"
       >
         <CaretRightIcon className="h-6 w-6" />
         <span>Click to Play</span>
