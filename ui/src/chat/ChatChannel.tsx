@@ -113,7 +113,13 @@ function ChatChannel({ title }: ViewProps) {
             )}
           >
             {canWrite ? (
-              <ChatInput whom={chFlag} sendMessage={sendMessage} showReply />
+              <ChatInput
+                key={chFlag}
+                whom={chFlag}
+                sendMessage={sendMessage}
+                showReply
+                autoFocus
+              />
             ) : null}
           </div>
         }
