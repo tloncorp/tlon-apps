@@ -126,7 +126,12 @@ export default function ChatThread() {
       </div>
       <div className="sticky bottom-0 border-t-2 border-gray-50 bg-white p-4">
         {canWrite && (
-          <ChatInput whom={whom} replying={id} sendMessage={sendMessage} />
+          <ChatInput
+            whom={whom}
+            replying={id}
+            sendMessage={sendMessage}
+            inThread
+          />
         )}
       </div>
     </div>

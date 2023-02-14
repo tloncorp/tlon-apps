@@ -25,6 +25,7 @@ import {
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
+import { whomIsDm } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '../useChatStore';
 
 export interface ChatMessageProps {
@@ -203,9 +204,10 @@ const ChatMessage = React.memo<
           <div className="group-one relative z-0 flex w-full">
             {hideOptions || isScrolling || !hovering ? null : (
               <ChatMessageOptions
-                hideReply={hideReplies}
+                hideThreadReply={hideReplies}
                 whom={whom}
                 writ={writ}
+                hideReply={whomIsDm(whom) || hideReplies}
               />
             )}
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">

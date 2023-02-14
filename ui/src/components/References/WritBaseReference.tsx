@@ -1,4 +1,5 @@
 import React from 'react';
+import cn from 'classnames';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useChannelPreview, useGang } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
@@ -8,10 +9,12 @@ import bigInt from 'big-integer';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { ChatWrit } from '@/types/chat';
 import useGroupJoin from '@/groups/useGroupJoin';
+import { useChannelFlag } from '@/hooks';
 import ReferenceBar from './ReferenceBar';
 
 interface WritBaseReferenceProps {
   nest: string;
+  chFlag: string;
   writ?: ChatWrit;
   isScrolling: boolean;
 }
@@ -19,8 +22,10 @@ interface WritBaseReferenceProps {
 export default function WritBaseReference({
   nest,
   writ,
+  chFlag,
   isScrolling,
 }: WritBaseReferenceProps) {
+  const isReply = useChannelFlag() === chFlag;
   const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
@@ -50,12 +55,20 @@ export default function WritBaseReference({
   };
 
   return (
-    <div className="writ-inline-block not-prose group">
+    <div
+      className={cn('writ-inline-block not-prose group', {
+        'mb-2': isReply,
+      })}
+    >
       <div
         onClick={handleOpenReferenceClick}
-        className="cursor-pointer p-2 group-hover:bg-gray-50"
+        className={'cursor-pointer p-2 group-hover:bg-gray-50'}
       >
-        <ChatContent story={writ.memo.content.story} isScrolling={false} />
+        <ChatContent
+          className="p-4"
+          story={writ.memo.content.story}
+          isScrolling={false}
+        />
       </div>
       <ReferenceBar
         nest={nest}
@@ -64,6 +77,7 @@ export default function WritBaseReference({
         groupFlag={preview?.group.flag}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
+        reply={isReply}
       />
     </div>
   );
