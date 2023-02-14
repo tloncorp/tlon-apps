@@ -46,7 +46,9 @@ function NotificationContent({
                 <ShipName name={s.replaceAll(PUNCTUATION_REGEX, '')} />
               </span>
             ) : (
-              <span key={`${s}-${index}`}>{s} </span>
+              <span className="break-all" key={`${s}-${index}`}>
+                {s}{' '}
+              </span>
             )
           )}
         </span>
