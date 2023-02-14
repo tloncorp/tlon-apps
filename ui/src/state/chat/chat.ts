@@ -487,10 +487,28 @@ export const useChatState = createState<ChatState>(
       };
       const diff = { add: memo };
 
+      const { pacts } = get();
+      const isNew = !(whom in pacts);
       if (isDM) {
+        if (isNew) {
+          set((draft) => ({
+            ...draft,
+            pacts: {
+              ...draft.pacts,
+              [whom]: { index: {}, writs: new BigIntOrderedMap() },
+            },
+          }));
+        }
+
         pokeOptimisticallyN(useChatState, dmAction(whom, { add: memo }, id), [
           writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
+        ]).then(() =>
+          set((draft) => {
+            if (!isNew) {
+              draft.postedMessages.push(id);
+            }
+          })
+        );
       } else if (isMultiDm) {
         pokeOptimisticallyN(
           useChatState,
@@ -507,7 +525,15 @@ export const useChatState = createState<ChatState>(
           writsReducer(whom),
         ]).then(() => set((draft) => draft.postedMessages.push(id)));
       }
-      set((draft) => draft.sentMessages.push(id));
+
+      set((draft) => {
+        // dms first message won't be heard through a fact
+        if (isDM && isNew) {
+          return;
+        }
+
+        draft.sentMessages.push(id);
+      });
     },
     delMessage: async (whom, id) => {
       const isDM = whomIsDm(whom);
