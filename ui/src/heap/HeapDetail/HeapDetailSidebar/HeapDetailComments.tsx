@@ -1,5 +1,4 @@
 import cn from 'classnames';
-import _ from 'lodash';
 import React from 'react';
 import { BigInteger } from 'big-integer';
 import useNest from '@/logic/useNest';
@@ -33,7 +32,12 @@ export default function HeapDetailComments({ time }: HeapDetailCommentsProps) {
         {Array.from(comments)
           .sort(([a], [b]) => a.compare(b))
           .map(([id, curio]) => (
-            <HeapComment key={id.toString()} curio={curio} />
+            <HeapComment
+              key={id.toString()}
+              curio={curio}
+              parentTime={stringTime}
+              time={id.toString()}
+            />
           ))}
       </div>
       {canWrite ? <HeapDetailCommentField /> : null}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import cn from 'classnames';
 import { useHeapState, useRemoteCurio } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 // eslint-disable-next-line import/no-cycle
@@ -16,14 +17,21 @@ export default function CurioReference({
   chFlag,
   nest,
   idCurio,
+  idCurioComment,
   isScrolling = false,
 }: {
   chFlag: string;
   nest: string;
   idCurio: string;
+  idCurioComment?: string;
   isScrolling?: boolean;
 }) {
   const curio = useRemoteCurio(chFlag, idCurio, isScrolling);
+  const curioComment = useRemoteCurio(
+    chFlag,
+    idCurioComment || '',
+    isScrolling
+  );
   const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
@@ -67,12 +75,23 @@ export default function CurioReference({
     return <HeapLoadingBlock reference />;
   }
   return (
-    <div className="heap-inline-block not-prose group">
+    <div
+      className={cn('heap-inline-block not-prose group', {
+        'heap-inline-block': !idCurioComment,
+        'writ-inline-block': !!idCurioComment,
+      })}
+    >
       <div
         onClick={handleOpenReferenceClick}
         className="flex h-full cursor-pointer flex-col justify-between p-2"
       >
-        <HeapBlock curio={curio} time={idCurio} refToken={refToken} asRef />
+        <HeapBlock
+          curio={curioComment || curio}
+          time={idCurioComment || idCurio}
+          isComment={!!idCurioComment}
+          refToken={refToken}
+          asRef
+        />
       </div>
       <ReferenceBar
         nest={nest}

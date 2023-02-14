@@ -36,6 +36,9 @@ export interface HeapState {
   editCurio: (flag: HeapFlag, time: string, heart: CurioHeart) => Promise<void>;
   addSects: (flag: HeapFlag, writers: string[]) => Promise<void>;
   delSects: (flag: HeapFlag, writers: string[]) => Promise<void>;
+  fetchCurio: (flag: HeapFlag, time: string) => Promise<void>;
+  addFeel: (flag: HeapFlag, time: string, feel: string) => Promise<void>;
+  delFeel: (flag: HeapFlag, time: string) => Promise<void>;
   clearSubs: () => void;
   [key: string]: unknown;
 }
