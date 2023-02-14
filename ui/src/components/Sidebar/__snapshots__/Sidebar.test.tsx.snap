@@ -3,10 +3,10 @@
 exports[`Sidebar > renders as expected 1`] = `
 <DocumentFragment>
   <nav
-    class="flex h-full w-64 flex-col bg-white"
+    class="flex h-full w-64 flex-none flex-col bg-white"
   >
     <ul
-      class="flex w-full flex-col space-y-1 px-2 pt-2"
+      class="flex w-full flex-col space-y-1 p-2"
     >
       <div
         class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
@@ -294,71 +294,8 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </li>
     </ul>
-    <ul
-      class="flex-initial overflow-y-auto overflow-x-hidden px-2"
-    >
-      <li
-        class="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2"
-      >
-        <span
-          class="ml-4 text-sm font-semibold text-gray-400"
-        >
-          All Groups
-        </span>
-      </li>
-      <li
-        class="relative p-2"
-      >
-        <button
-          aria-expanded="false"
-          aria-haspopup="menu"
-          aria-label="Groups Sort Options"
-          class="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
-          data-state="closed"
-          id="radix-1"
-          type="button"
-        >
-          <span
-            class="flex items-center"
-          >
-            <svg
-              class="h-4 w-4 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                class="fill-current"
-                clip-rule="evenodd"
-                d="M17.207 4.793a1 1 0 0 0-1.414 0l-3 3a1 1 0 0 0 1.414 1.414L15.5 7.914V17.5a1 1 0 1 0 2 0V7.914l1.293 1.293a1 1 0 1 0 1.414-1.414l-3-3ZM8.5 5.5a1 1 0 0 0-2 0v9.586l-1.293-1.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l3-3a1 1 0 0 0-1.414-1.414L8.5 15.086V5.5Z"
-                fill-rule="evenodd"
-              />
-            </svg>
-            <span
-              class="mr-2 pl-1"
-            >
-              Sort: A → Z
-            </span>
-          </span>
-          <svg
-            class="h-4 w-4 text-gray-400"
-            fill="none"
-            viewBox="0 0 16 16"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              class="stroke-current"
-              d="m4 6 4 4 4-4"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-            />
-          </svg>
-        </button>
-      </li>
-    </ul>
     <div
-      class="flex-auto"
+      class="flex-auto space-y-3 overflow-x-hidden px-2 sm:space-y-1"
     >
       <ul
         class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"
