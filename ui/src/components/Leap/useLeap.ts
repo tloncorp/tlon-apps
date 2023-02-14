@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { cite, Contact, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
-import { useGroups } from '@/state/groups';
+import { useGroupFlag, useGroups } from '@/state/groups';
 import { Group, GroupChannel } from '@/types/groups';
 import {
   LEAP_DESCRIPTION_TRUNCATE_LENGTH,
@@ -32,6 +32,7 @@ export default function useLeap() {
   const navigate = useNavigate();
   const modalNavigate = useModalNavigate();
   const groups = useGroups();
+  const currentGroupFlag = useGroupFlag();
   const { isGroupUnread } = useIsGroupUnread();
   const isChannelUnread = useCheckChannelUnread();
   const pinnedGroups = usePinnedGroups();
@@ -227,7 +228,7 @@ export default function useLeap() {
       // pinned channels are strong signals
       const isPinned = pinnedChats.includes(nest);
       if (isPinned) {
-        newScore += 10;
+        newScore += 8;
       }
 
       // so are unread channels
@@ -236,7 +237,13 @@ export default function useLeap() {
         newScore += 7;
       }
 
-      // so are pinned groups, but less so
+      // so is if the channel we're looking for is within the current group that we're in
+      const isCurrentGroup = groupFlag === currentGroupFlag;
+      if (isCurrentGroup) {
+        newScore += 6;
+      }
+
+      // so are channels within pinned groups, but less so
       const isGroupPinned = groupFlag in pinnedGroups;
       if (isGroupPinned) {
         newScore += 4;
@@ -306,6 +313,7 @@ export default function useLeap() {
       }),
     ];
   }, [
+    currentGroupFlag,
     groups,
     inputValue,
     isChannelUnread,
