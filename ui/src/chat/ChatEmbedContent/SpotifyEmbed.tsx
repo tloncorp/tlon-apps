@@ -20,6 +20,7 @@ export default function SpotifyEmbed({
 }: SpotifyEmbedProps) {
   const [showIframeModal, setShowIframeModal] = useState(false);
   const trackId = url.split('/')?.pop()?.split('?')[0];
+  const isMobile = useIsMobile();
   return (
     <div className="embed-inline-block">
       <div
@@ -53,7 +54,7 @@ export default function SpotifyEmbed({
         open={showIframeModal}
         onOpenChange={(open) => setShowIframeModal(open)}
       >
-        <DialogContent>
+        <DialogContent className={isMobile ? 'w-[400px]' : ''}>
           <iframe
             className="h-[352px] w-full rounded-lg"
             src={`https://open.spotify.com/embed/track/${trackId}`}

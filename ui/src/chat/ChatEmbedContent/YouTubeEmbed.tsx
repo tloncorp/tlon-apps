@@ -63,7 +63,7 @@ export default function YouTubeEmbed({
         open={showIframeModal}
         onOpenChange={(open) => setShowIframeModal(open)}
       >
-        <DialogContent>
+        <DialogContent containerClass={isMobile ? 'w-[400px]' : ''}>
           <iframe
             className={isMobile ? 'h-[240px] w-[320px]' : 'h-[480px] w-[640px]'}
             src={`https://www.youtube.com/embed/${videoId}`}

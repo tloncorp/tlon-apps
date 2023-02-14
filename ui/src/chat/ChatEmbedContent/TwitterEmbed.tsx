@@ -1,4 +1,5 @@
 import TwitterIcon from '@/components/icons/TwitterIcon';
+import { useIsMobile } from '@/logic/useMedia';
 import React from 'react';
 
 interface TwitterEmbedProps {
@@ -12,6 +13,7 @@ export default function TwitterEmbed({
   author,
   embedHtml,
 }: TwitterEmbedProps) {
+  const isMobile = useIsMobile();
   const twitterHandle = authorUrl.split('/').pop();
   // unavatar now charges for this after 50 requests per day
   const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}?fallback=false`;
@@ -65,13 +67,15 @@ export default function TwitterEmbed({
         <div className="flex items-center space-x-2 text-sm">
           <TwitterIcon className="h-4 w-4" />
           <span className="truncate font-semibold text-black">{author}</span>
-          <span className="text-gray-300">@{twitterHandle}</span>
+          {!isMobile && (
+            <span className="truncate text-gray-300">@{twitterHandle}</span>
+          )}
           <span className="text-gray-300">&middot;</span>
           <a
             target="_blank"
             rel="noreferrer"
             href={tweetUrl}
-            className="text-gray-300 underline"
+            className="truncate text-gray-300 underline"
           >
             {tweetDate}
           </a>
