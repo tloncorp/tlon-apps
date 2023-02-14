@@ -7,7 +7,7 @@ interface MemberScrollerProps {
   members: string[];
 }
 
-const Components: VirtuosoComponents = {
+const Components: VirtuosoComponents<string> = {
   List: forwardRef((props, listRef) => (
     <div className="h-full w-full space-y-6 py-2" {...props} ref={listRef}>
       {props.children}
@@ -40,8 +40,8 @@ export default function MemberScroller({ members }: MemberScrollerProps) {
     <Virtuoso
       {...thresholds}
       data={members}
-      computeItemKey={(i, member) => member}
-      itemContent={(i, member) => <GroupMemberItem member={member} />}
+      computeItemKey={(i, member: string) => member}
+      itemContent={(i, member: string) => <GroupMemberItem member={member} />}
       style={{
         minHeight: '100%',
       }}

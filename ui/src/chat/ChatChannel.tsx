@@ -47,6 +47,7 @@ function ChatChannel({ title }: ViewProps) {
   const joined = Object.keys(briefs).some((k) => k.includes('chat/'))
     ? isChannelJoined(nest, briefs)
     : true;
+  const needsLoader = messages.size === 0;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -70,12 +71,16 @@ function ChatChannel({ title }: ViewProps) {
   }, [joined, joinChannel]);
 
   useEffect(() => {
-    setLoading(true);
+    if (needsLoader) {
+      setLoading(true);
+    }
+
     if (joined && canRead && !joining) {
       initializeChannel();
       setRecentChannel(nest);
     }
   }, [
+    needsLoader,
     nest,
     setRecentChannel,
     initializeChannel,

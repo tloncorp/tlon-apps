@@ -764,6 +764,13 @@ export const useChatState = createState<ChatState>(
         `/dm/${ship}/ui`
       ).initialize();
     },
+    clearSubs: () => {
+      get().batchSet((draft) => {
+        draft.chatSubs = [];
+        draft.dmSubs = [];
+        draft.multiDmSubs = [];
+      });
+    },
   }),
   ['chats', 'dms', 'pendingDms', 'briefs', 'multiDms', 'pins'],
   []

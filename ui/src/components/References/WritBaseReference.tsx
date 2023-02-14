@@ -12,17 +12,21 @@ import useGroupJoin from '@/groups/useGroupJoin';
 import { useChannelFlag } from '@/hooks';
 import ReferenceBar from './ReferenceBar';
 
+interface WritBaseReferenceProps {
+  nest: string;
+  chFlag: string;
+  writ?: ChatWrit;
+  isScrolling: boolean;
+}
+
 export default function WritBaseReference({
   nest,
   writ,
   chFlag,
-}: {
-  nest: string;
-  writ?: ChatWrit;
-  chFlag: string;
-}) {
-  const preview = useChannelPreview(nest);
+  isScrolling,
+}: WritBaseReferenceProps) {
   const isReply = useChannelFlag() === chFlag;
+  const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
   const groupFlag = preview?.group?.flag || '~zod/test';
