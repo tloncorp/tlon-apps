@@ -13,6 +13,7 @@ import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
 import { usePinned, usePinnedGroups } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
+import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
@@ -29,7 +30,9 @@ export default function useLeap() {
   const modalNavigate = useModalNavigate();
   const groups = useGroups();
   const { isGroupUnread } = useIsGroupUnread();
+  const isChannelUnread = useCheckChannelUnread();
   const pinnedGroups = usePinnedGroups();
+  const pinnedChats = usePinned();
   const contacts = useContacts();
   const location = useLocation();
   const app = useAppName();
@@ -77,6 +80,7 @@ export default function useLeap() {
             patp.toLowerCase().includes(inputValue.toLowerCase()) ||
             contact.nickname.toLowerCase().includes(inputValue.toLowerCase())
         )
+        // TODO: with usePals, we can prioritize friends to be sorted to the top
         .map(([patp, contact], idx) => {
           const onSelect = () => {
             if (app === 'Talk') {
@@ -140,6 +144,37 @@ export default function useLeap() {
         .filter(({ channel }) =>
           channel.meta.title.toLowerCase().includes(inputValue.toLowerCase())
         )
+        .sort((a, b) => {
+          // first, sort by membership in pinned chats
+          const isPinnedA = pinnedChats.includes(a.nest);
+          const isPinnedB = pinnedChats.includes(b.nest);
+          if (isPinnedA && !isPinnedB) {
+            return -1;
+          }
+          if (!isPinnedA && isPinnedB) {
+            return 1;
+          }
+          // then, sort by membership in pinned groups
+          const isInPinnedGroupA = a.groupFlag in pinnedGroups;
+          const isInPinnedGroupB = b.groupFlag in pinnedGroups;
+          if (isInPinnedGroupA && !isInPinnedGroupB) {
+            return -1;
+          }
+          if (!isInPinnedGroupA && isInPinnedGroupB) {
+            return 1;
+          }
+          // then, sort by unread status
+          const aUnread = isChannelUnread(a.nest);
+          const bUnread = isChannelUnread(b.nest);
+          if (aUnread && !bUnread) {
+            return -1;
+          }
+          if (!aUnread && bUnread) {
+            return 1;
+          }
+          // finally, sort by name
+          return a.channel.meta.title.localeCompare(b.channel.meta.title);
+        })
         .map(({ groupFlag, group, channel, nest }, idx) => {
           const [chType, chFlag] = nestToFlag(nest);
           const onSelect = () => {
@@ -177,7 +212,15 @@ export default function useLeap() {
           };
         }),
     ];
-  }, [groups, inputValue, navigate, shipResults.length]);
+  }, [
+    groups,
+    inputValue,
+    isChannelUnread,
+    navigate,
+    pinnedChats,
+    pinnedGroups,
+    shipResults.length,
+  ]);
 
   const groupResults = useMemo(() => {
     if (inputValue === '') {
