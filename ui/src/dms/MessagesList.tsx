@@ -89,6 +89,10 @@ export default function MessagesList({
           return false;
         }
 
+        if (isGroupBrief(b) && !group) {
+          return false;
+        }
+
         return true; // is all
       }),
     [allPending, briefs, chats, filter, groups, pinned, sortMessages]
