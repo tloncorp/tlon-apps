@@ -7,6 +7,7 @@ import { useGroups } from '@/state/groups';
 import { Group, GroupChannel } from '@/types/groups';
 import {
   LEAP_DESCRIPTION_TRUNCATE_LENGTH,
+  LEAP_RESULT_SCORE_THRESHOLD,
   LEAP_RESULT_TRUNCATE_SIZE,
 } from '@/constants';
 import { useContacts } from '@/state/contact';
@@ -81,40 +82,48 @@ export default function useLeap() {
       entry: fuzzy.FilterResult<[string, Contact]>
     ): number => {
       const parts = entry.string.split('~');
+      let newScore = entry.score;
 
       // shouldn't happen
       if (parts.length === 1) {
-        return entry.score;
+        return newScore;
       }
 
       const [nickname, ship] = parts;
 
+      // console.log('ship', ship, 'score', newScore);
+
       // boost mutuals significantly
       if (preSiggedMutuals.includes(preSig(ship))) {
-        return entry.score + 200;
+        newScore += 10;
       }
-
-      // downrank comets significantly
-      const score = ship.length > 28 ? entry.score * 0.25 : entry.score;
 
       // making this highest because ships are unique, nicknames are not
       // also prevents someone setting their nickname as someone else's
       // patp taking over prime position
       if (ship === filter) {
-        return score + 120;
+        newScore += 12;
       }
 
       if (nickname === filter) {
-        return score + 100;
+        newScore += 10;
       }
 
       // since ship is in the middle of the string we need to make it work
       // as if it was at the beginning
       if (nickname && ship.startsWith(filter)) {
-        return score + 80;
+        newScore += 8;
       }
 
-      return score;
+      // boost ships that have unread DMs
+      if (isChannelUnread(preSig(ship))) {
+        newScore += 10;
+      }
+
+      // downrank comets significantly
+      newScore = ship.length > 28 ? newScore * 0.25 : newScore;
+
+      return newScore;
     };
 
     const allShips = Object.entries(contacts);
@@ -123,6 +132,9 @@ export default function useLeap() {
       .filter(normalizedQuery, allShips, {
         extract: ([whom, contact]) => `${whom}${contact.nickname}`,
       })
+      .filter(
+        (r) => scoreShipResult(normalizedQuery, r) > LEAP_RESULT_SCORE_THRESHOLD
+      )
       .sort((a, b) => {
         const filter = deSig(normalizedQuery) || '';
         const scoreA = scoreShipResult(filter, a);
@@ -168,6 +180,7 @@ export default function useLeap() {
     app,
     contacts,
     inputValue,
+    isChannelUnread,
     location,
     modalNavigate,
     navigate,
@@ -214,25 +227,25 @@ export default function useLeap() {
       // pinned channels are strong signals
       const isPinned = pinnedChats.includes(nest);
       if (isPinned) {
-        newScore += 100;
+        newScore += 10;
       }
 
       // so are unread channels
       const isUnreadChannel = isChannelUnread(nest);
       if (isUnreadChannel) {
-        newScore += 75;
+        newScore += 7;
       }
 
       // so are pinned groups, but less so
       const isGroupPinned = groupFlag in pinnedGroups;
       if (isGroupPinned) {
-        newScore += 25;
+        newScore += 4;
       }
 
       // so are unread groups, but just a little
       const isUnreadGroup = isGroupUnread(groupFlag);
       if (isUnreadGroup) {
-        newScore += 10;
+        newScore += 2;
       }
 
       return newScore;
@@ -243,6 +256,7 @@ export default function useLeap() {
       .filter(normalizedQuery, allChannels, {
         extract: (c) => `${c.channel.meta.title}`,
       })
+      .filter((r) => scoreChannelResult(r) > LEAP_RESULT_SCORE_THRESHOLD)
       .sort((a, b) => {
         const scoreA = scoreChannelResult(a);
         const scoreB = scoreChannelResult(b);
@@ -318,13 +332,13 @@ export default function useLeap() {
       // pinned groups are strong signals
       const isPinned = groupFlag in pinnedGroups;
       if (isPinned) {
-        newScore += 100;
+        newScore += 10;
       }
 
       // prefer unreads as well
       const isUnread = isGroupUnread(groupFlag);
       if (isUnread) {
-        newScore += 50;
+        newScore += 5;
       }
 
       return newScore;
@@ -334,8 +348,9 @@ export default function useLeap() {
     const normalizedQuery = inputValue.toLocaleLowerCase();
     const filteredGroups = fuzzy
       .filter(normalizedQuery, allGroups, {
-        extract: ([_, g]) => `${g.meta.title}`,
+        extract: ([_, g]) => `${g.meta.title} ${g.meta.description}`,
       })
+      .filter((r) => scoreGroupResult(r) > LEAP_RESULT_SCORE_THRESHOLD)
       .sort((a, b) => {
         const scoreA = scoreGroupResult(a);
         const scoreB = scoreGroupResult(b);
