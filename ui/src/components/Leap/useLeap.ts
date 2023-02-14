@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { cite, preSig } from '@urbit/api';
+import { cite, Contact, deSig, preSig } from '@urbit/api';
+import fuzzy from 'fuzzy';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
 import { Group, GroupChannel } from '@/types/groups';
@@ -75,73 +76,98 @@ export default function useLeap() {
       return [];
     }
 
+    const scoreShipResult = (
+      filter: string,
+      entry: fuzzy.FilterResult<[string, Contact]>
+    ): number => {
+      const parts = entry.string.split('~');
+
+      // shouldn't happen
+      if (parts.length === 1) {
+        return entry.score;
+      }
+
+      const [nickname, ship] = parts;
+
+      // boost mutuals significantly
+      if (preSiggedMutuals.includes(preSig(ship))) {
+        return entry.score + 200;
+      }
+
+      // downrank comets significantly
+      const score = ship.length > 28 ? entry.score * 0.25 : entry.score;
+
+      // making this highest because ships are unique, nicknames are not
+      // also prevents someone setting their nickname as someone else's
+      // patp taking over prime position
+      if (ship === filter) {
+        return score + 120;
+      }
+
+      if (nickname === filter) {
+        return score + 100;
+      }
+
+      // since ship is in the middle of the string we need to make it work
+      // as if it was at the beginning
+      if (nickname && ship.startsWith(filter)) {
+        return score + 80;
+      }
+
+      return score;
+    };
+
+    const allShips = Object.entries(contacts);
+    const normalizedQuery = inputValue.toLocaleLowerCase();
+    const filteredShips = fuzzy
+      .filter(normalizedQuery, allShips, {
+        extract: ([whom, contact]) => `${whom}${contact.nickname}`,
+      })
+      .sort((a, b) => {
+        const filter = deSig(normalizedQuery) || '';
+        const scoreA = scoreShipResult(filter, a);
+        const scoreB = scoreShipResult(filter, b);
+        return scoreB - scoreA;
+      })
+      .map((r) => r.original);
+
     return [
       {
         section: 'Ships',
       },
-      ...Object.entries(contacts)
-        .filter(
-          ([patp, contact]) =>
-            patp.toLowerCase().includes(inputValue.toLowerCase()) ||
-            contact.nickname.toLowerCase().includes(inputValue.toLowerCase())
-        )
-        .sort((a, b) => {
-          // first, sort by mutuals
-          const isMutualA = preSiggedMutuals.includes(a[0]);
-          const isMutualB = preSiggedMutuals.includes(b[0]);
-          if (isMutualA && !isMutualB) {
-            return -1;
+      ...filteredShips.map(([patp, contact], idx) => {
+        const onSelect = () => {
+          if (app === 'Talk') {
+            navigate(`/dm/${patp}`);
+          } else {
+            modalNavigate(`/profile/${patp}`, {
+              state: { backgroundLocation: location },
+            });
           }
-          if (!isMutualA && isMutualB) {
-            return 1;
-          }
-          // then, sort by unreads
-          const isUnreadA = isChannelUnread(`chat/${preSig(a[0])}`);
-          const isUnreadB = isChannelUnread(`chat/${preSig(b[0])}`);
-          if (isUnreadA && !isUnreadB) {
-            return -1;
-          }
-          if (!isUnreadA && isUnreadB) {
-            return 1;
-          }
-          // TODO: should we sort by last message time? or by nickname?
-          // otherwise, do not sort
-          return 0;
-        })
-        .map(([patp, contact], idx) => {
-          const onSelect = () => {
-            if (app === 'Talk') {
-              navigate(`/dm/${patp}`);
-            } else {
-              modalNavigate(`/profile/${patp}`, {
-                state: { backgroundLocation: location },
-              });
-            }
-            setSelectedIndex(0);
-            setInputValue('');
-            setIsOpen(false);
-          };
-          return {
-            onSelect,
-            icon: PersonIcon,
-            input: inputValue,
-            title: contact.nickname
-              ? `${contact.nickname} (${cite(patp)})`
-              : cite(patp),
-            subtitle: (contact.status || contact.bio || '').slice(
-              0,
-              LEAP_DESCRIPTION_TRUNCATE_LENGTH
-            ),
-            to: `/profile/${patp}`,
-            resultIndex: idx,
-          };
-        }),
+          setSelectedIndex(0);
+          setInputValue('');
+          setIsOpen(false);
+        };
+        return {
+          onSelect,
+          icon: PersonIcon,
+          input: inputValue,
+          title: contact.nickname
+            ? `${contact.nickname} (${cite(patp)})`
+            : cite(patp),
+          subtitle: (contact.status || contact.bio || '').slice(
+            0,
+            LEAP_DESCRIPTION_TRUNCATE_LENGTH
+          ),
+          to: `/profile/${patp}`,
+          resultIndex: idx,
+        };
+      }),
     ];
   }, [
     app,
     contacts,
     inputValue,
-    isChannelUnread,
     location,
     modalNavigate,
     navigate,
@@ -172,86 +198,104 @@ export default function useLeap() {
       }[]
     );
 
+    const scoreChannelResult = (
+      entry: fuzzy.FilterResult<{
+        groupFlag: string;
+        group: Group;
+        nest: string;
+        channel: GroupChannel;
+      }>
+    ): number => {
+      const { score, original } = entry;
+      const { nest, groupFlag } = original;
+
+      let newScore = score;
+
+      // pinned channels are strong signals
+      const isPinned = pinnedChats.includes(nest);
+      if (isPinned) {
+        newScore += 100;
+      }
+
+      // so are unread channels
+      const isUnreadChannel = isChannelUnread(nest);
+      if (isUnreadChannel) {
+        newScore += 75;
+      }
+
+      // so are pinned groups, but less so
+      const isGroupPinned = groupFlag in pinnedGroups;
+      if (isGroupPinned) {
+        newScore += 25;
+      }
+
+      // so are unread groups, but just a little
+      const isUnreadGroup = isGroupUnread(groupFlag);
+      if (isUnreadGroup) {
+        newScore += 10;
+      }
+
+      return newScore;
+    };
+
+    const normalizedQuery = inputValue.toLocaleLowerCase();
+    const filteredChannels = fuzzy
+      .filter(normalizedQuery, allChannels, {
+        extract: (c) => `${c.channel.meta.title}`,
+      })
+      .sort((a, b) => {
+        const scoreA = scoreChannelResult(a);
+        const scoreB = scoreChannelResult(b);
+        return scoreB - scoreA;
+      })
+      .map((r) => r.original);
+
     return [
       {
         section: 'Channels',
       },
-      ...allChannels
-        .filter(({ channel }) =>
-          channel.meta.title.toLowerCase().includes(inputValue.toLowerCase())
-        )
-        .sort((a, b) => {
-          // first, sort by membership in pinned chats
-          const isPinnedA = pinnedChats.includes(a.nest);
-          const isPinnedB = pinnedChats.includes(b.nest);
-          if (isPinnedA && !isPinnedB) {
-            return -1;
-          }
-          if (!isPinnedA && isPinnedB) {
-            return 1;
-          }
-          // then, sort by membership in pinned groups
-          const isInPinnedGroupA = a.groupFlag in pinnedGroups;
-          const isInPinnedGroupB = b.groupFlag in pinnedGroups;
-          if (isInPinnedGroupA && !isInPinnedGroupB) {
-            return -1;
-          }
-          if (!isInPinnedGroupA && isInPinnedGroupB) {
-            return 1;
-          }
-          // then, sort by unread status
-          const aUnread = isChannelUnread(a.nest);
-          const bUnread = isChannelUnread(b.nest);
-          if (aUnread && !bUnread) {
-            return -1;
-          }
-          if (!aUnread && bUnread) {
-            return 1;
-          }
-          // finally, sort by name
-          return a.channel.meta.title.localeCompare(b.channel.meta.title);
-        })
-        .map(({ groupFlag, group, channel, nest }, idx) => {
-          const [chType, chFlag] = nestToFlag(nest);
-          const onSelect = () => {
-            navigate(`/groups/${groupFlag}/channels/${nest}`);
-            setSelectedIndex(0);
-            setInputValue('');
-            setIsOpen(false);
-          };
-          let channelIcon;
-          switch (chType) {
-            case 'chat':
-              channelIcon = BubbleIcon;
-              break;
-            case 'heap':
-              channelIcon = ShapesIcon;
-              break;
-            case 'diary':
-              channelIcon = NotebookIcon;
-              break;
-            default:
-              channelIcon = UnknownAvatarIcon;
-          }
-          return {
-            onSelect,
-            icon: channelIcon,
-            input: inputValue,
-            title: channel.meta.title,
-            subtitle: group.meta.title,
-            to: `/groups/${groupFlag}/channels/chat/${chFlag}`,
-            resultIndex:
-              idx +
-              (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
-                ? LEAP_RESULT_TRUNCATE_SIZE
-                : shipResults.length - 1),
-          };
-        }),
+      ...filteredChannels.map(({ groupFlag, group, channel, nest }, idx) => {
+        const [chType, chFlag] = nestToFlag(nest);
+        const onSelect = () => {
+          navigate(`/groups/${groupFlag}/channels/${nest}`);
+          setSelectedIndex(0);
+          setInputValue('');
+          setIsOpen(false);
+        };
+        let channelIcon;
+        switch (chType) {
+          case 'chat':
+            channelIcon = BubbleIcon;
+            break;
+          case 'heap':
+            channelIcon = ShapesIcon;
+            break;
+          case 'diary':
+            channelIcon = NotebookIcon;
+            break;
+          default:
+            channelIcon = UnknownAvatarIcon;
+        }
+        return {
+          onSelect,
+          icon: channelIcon,
+          input: inputValue,
+          title: channel.meta.title,
+          subtitle: group.meta.title,
+          to: `/groups/${groupFlag}/channels/chat/${chFlag}`,
+          resultIndex:
+            idx +
+            (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : shipResults.length - 1),
+        };
+      }),
     ];
   }, [
     groups,
     inputValue,
     isChannelUnread,
+    isGroupUnread,
     navigate,
     pinnedChats,
     pinnedGroups,
@@ -263,73 +307,80 @@ export default function useLeap() {
       return [];
     }
 
+    const scoreGroupResult = (
+      entry: fuzzy.FilterResult<[string, Group]>
+    ): number => {
+      const { score, original } = entry;
+      const [groupFlag] = original;
+
+      let newScore = score;
+
+      // pinned groups are strong signals
+      const isPinned = groupFlag in pinnedGroups;
+      if (isPinned) {
+        newScore += 100;
+      }
+
+      // prefer unreads as well
+      const isUnread = isGroupUnread(groupFlag);
+      if (isUnread) {
+        newScore += 50;
+      }
+
+      return newScore;
+    };
+
+    const allGroups = Object.entries(groups);
+    const normalizedQuery = inputValue.toLocaleLowerCase();
+    const filteredGroups = fuzzy
+      .filter(normalizedQuery, allGroups, {
+        extract: ([_, g]) => `${g.meta.title}`,
+      })
+      .sort((a, b) => {
+        const scoreA = scoreGroupResult(a);
+        const scoreB = scoreGroupResult(b);
+        return scoreB - scoreA;
+      })
+      .map((r) => r.original);
+
     return [
       {
         section: 'Groups',
       },
-      ...Object.entries(groups)
-        .filter(([_flag, group]) =>
-          group.meta.title.toLowerCase().includes(inputValue.toLowerCase())
-        )
-        .sort(([flagA, groupA], [flagB, groupB]) => {
-          // sort pinned groups first
-          const isPinnedA = flagA in pinnedGroups;
-          const isPinnedB = flagB in pinnedGroups;
-          if (isPinnedA && !isPinnedB) {
-            return -1;
+      ...filteredGroups.map(([flag, group], idx) => {
+        const path = `/groups/${flag}`;
+        const onSelect = () => {
+          if (app === 'Talk') {
+            window.open(
+              `${window.location.origin}/apps/groups${path}`,
+              '_blank'
+            );
+          } else {
+            navigate(path);
           }
-          if (!isPinnedA && isPinnedB) {
-            return 1;
-          }
-          // sort by unreads
-          const isUnreadA = isGroupUnread(flagA);
-          const isUnreadB = isGroupUnread(flagB);
-          if (isUnreadA && !isUnreadB) {
-            return -1;
-          }
-          if (!isUnreadA && isUnreadB) {
-            return 1;
-          }
-          // TODO: should sort by last brief?
-          // sort by name
-          return groupA.meta.title.localeCompare(groupB.meta.title);
-        })
-        .map(([flag, group], idx) => {
-          const path = `/groups/${flag}`;
-          const onSelect = () => {
-            if (app === 'Talk') {
-              window.open(
-                `${window.location.origin}/apps/groups${path}`,
-                '_blank'
-              );
-            } else {
-              navigate(path);
-            }
-            setSelectedIndex(0);
-            setInputValue('');
-            setIsOpen(false);
-          };
-          return {
-            onSelect,
-            icon: GroupIcon,
-            input: inputValue,
-            title: group.meta.title,
-            subtitle:
-              group.meta.description.slice(
-                0,
-                LEAP_DESCRIPTION_TRUNCATE_LENGTH
-              ) || getFlagParts(flag).ship,
-            to: path,
-            resultIndex:
-              idx +
-              (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
-                ? LEAP_RESULT_TRUNCATE_SIZE
-                : shipResults.length - 1) +
-              (channelResults.length > LEAP_RESULT_TRUNCATE_SIZE
-                ? LEAP_RESULT_TRUNCATE_SIZE
-                : channelResults.length - 1),
-          };
-        }),
+          setSelectedIndex(0);
+          setInputValue('');
+          setIsOpen(false);
+        };
+        return {
+          onSelect,
+          icon: GroupIcon,
+          input: inputValue,
+          title: group.meta.title,
+          subtitle:
+            group.meta.description.slice(0, LEAP_DESCRIPTION_TRUNCATE_LENGTH) ||
+            getFlagParts(flag).ship,
+          to: path,
+          resultIndex:
+            idx +
+            (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : shipResults.length - 1) +
+            (channelResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : channelResults.length - 1),
+        };
+      }),
     ];
   }, [
     app,
