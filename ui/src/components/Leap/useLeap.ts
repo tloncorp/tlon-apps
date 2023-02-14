@@ -11,6 +11,8 @@ import {
 import { useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
+import { usePinned, usePinnedGroups } from '@/state/chat';
+import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
@@ -26,6 +28,8 @@ export default function useLeap() {
   const navigate = useNavigate();
   const modalNavigate = useModalNavigate();
   const groups = useGroups();
+  const { isGroupUnread } = useIsGroupUnread();
+  const pinnedGroups = usePinnedGroups();
   const contacts = useContacts();
   const location = useLocation();
   const app = useAppName();
@@ -188,6 +192,29 @@ export default function useLeap() {
         .filter(([_flag, group]) =>
           group.meta.title.toLowerCase().includes(inputValue.toLowerCase())
         )
+        .sort(([flagA, groupA], [flagB, groupB]) => {
+          // sort pinned groups first
+          const isPinnedA = flagA in pinnedGroups;
+          const isPinnedB = flagB in pinnedGroups;
+          if (isPinnedA && !isPinnedB) {
+            return -1;
+          }
+          if (!isPinnedA && isPinnedB) {
+            return 1;
+          }
+          // sort by unreads
+          const isUnreadA = isGroupUnread(flagA);
+          const isUnreadB = isGroupUnread(flagB);
+          if (isUnreadA && !isUnreadB) {
+            return -1;
+          }
+          if (!isUnreadA && isUnreadB) {
+            return 1;
+          }
+          // TODO: should sort by last brief?
+          // sort by name
+          return groupA.meta.title.localeCompare(groupB.meta.title);
+        })
         .map(([flag, group], idx) => {
           const path = `/groups/${flag}`;
           const onSelect = () => {
@@ -230,7 +257,9 @@ export default function useLeap() {
     channelResults.length,
     groups,
     inputValue,
+    isGroupUnread,
     navigate,
+    pinnedGroups,
     shipResults.length,
   ]);
 
