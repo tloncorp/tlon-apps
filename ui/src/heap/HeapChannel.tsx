@@ -16,6 +16,7 @@ import {
   useHeapState,
   useHeapPerms,
 } from '@/state/heap/heap';
+import { VirtuosoGrid } from 'react-virtuoso';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
   HeapSetting,
@@ -36,6 +37,7 @@ import {
 import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
 import useAllBriefs from '@/logic/useAllBriefs';
+import makeCuriosStore from '@/state/heap/curios';
 import NewCurioForm from './NewCurioForm';
 
 function HeapChannel({ title }: ViewProps) {
@@ -138,41 +140,90 @@ function HeapChannel({ title }: ViewProps) {
   });
 
   const renderCurio = useCallback(
-    (curio: HeapCurio, time: bigInt.BigInteger) => (
-      <div
-        key={time.toString()}
-        tabIndex={0}
-        className="cursor-pointer"
-        onClick={() => navigateToDetail(time)}
-      >
-        {displayMode === GRID ? (
-          <div className="aspect-h-1 aspect-w-1">
-            <HeapBlock curio={curio} time={time.toString()} />
-          </div>
-        ) : (
-          <HeapRow key={time.toString()} curio={curio} time={time.toString()} />
-        )}
-      </div>
-    ),
-    [displayMode, navigateToDetail]
+    (i: number, curio: HeapCurio, time: bigInt.BigInteger) =>
+      i === 0 && canWrite ? (
+        <NewCurioForm />
+      ) : (
+        <div
+          key={time.toString()}
+          tabIndex={0}
+          className="cursor-pointer"
+          onClick={() => navigateToDetail(time)}
+        >
+          {displayMode === GRID ? (
+            <div className="aspect-h-1 aspect-w-1">
+              <HeapBlock curio={curio} time={time.toString()} />
+            </div>
+          ) : (
+            <HeapRow
+              key={time.toString()}
+              curio={curio}
+              time={time.toString()}
+            />
+          )}
+        </div>
+      ),
+    [displayMode, navigateToDetail, canWrite]
   );
 
   const getCurioTitle = (curio: HeapCurio) =>
     curio.heart.title ||
     curio.heart.content.toString().split(' ').slice(0, 3).join(' ');
 
-  const sortedCurios = Array.from(curios).sort(([a], [b]) => {
-    if (sortMode === 'time') {
-      return b.compare(a);
-    }
-    if (sortMode === 'alpha') {
-      const curioA = curios.get(a);
-      const curioB = curios.get(b);
+  const emptyCurio: HeapCurio = {
+    heart: {
+      title: 'Loading...',
+      content: {
+        inline: [],
+        block: [],
+      },
+      author: '',
+      sent: 0,
+      replying: null,
+    },
+    seal: {
+      time: bigInt(0).toString(),
+      feels: {
+        '': '',
+      },
+      replied: [''],
+    },
+  };
 
-      return getCurioTitle(curioA).localeCompare(getCurioTitle(curioB));
-    }
-    return b.compare(a);
-  });
+  const fakeCurioMap: [bigInt.BigInteger, HeapCurio][] = [
+    [bigInt(1), emptyCurio],
+  ];
+
+  const sortedCurios = fakeCurioMap.concat(
+    Array.from(curios)
+      .sort(([a], [b]) => {
+        if (sortMode === 'time') {
+          return b.compare(a);
+        }
+        if (sortMode === 'alpha') {
+          const curioA = curios.get(a);
+          const curioB = curios.get(b);
+
+          return getCurioTitle(curioA).localeCompare(getCurioTitle(curioB));
+        }
+        return b.compare(a);
+      })
+      .filter(([, c]) => !c.heart.replying)
+  );
+
+  const loadOlderCurios = useCallback(() => {
+    makeCuriosStore(
+      chFlag,
+      () => useHeapState.getState(),
+      `/heap/${chFlag}/curios`,
+      `/heap/${chFlag}/ui`
+    ).getOlder('50');
+  }, [chFlag]);
+
+  const computeItemKey = (
+    _i: number,
+    [time, _curio]: [bigInt.BigInteger, HeapCurio]
+  ) => time.toString();
 
   return (
     <Layout
@@ -197,22 +248,18 @@ function HeapChannel({ title }: ViewProps) {
             : title}
         </title>
       </Helmet>
-      <div className="h-full overflow-y-scroll p-4">
-        <div
-          className={cn(
+      <div className="h-full p-4">
+        <VirtuosoGrid
+          data={canWrite ? sortedCurios : sortedCurios.slice(1)}
+          itemContent={(i, [time, curio]) => renderCurio(i, curio, time)}
+          computeItemKey={computeItemKey}
+          style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
+          atBottomStateChange={loadOlderCurios}
+          listClassName={cn(
             `heap-${displayMode}`,
             displayMode === 'grid' && 'grid-cols-minmax'
           )}
-        >
-          {canWrite ? <NewCurioForm /> : null}
-          {
-            // Here, we sort the array by recently added and then filter out curios with a "replying" property
-            // as those are comments and shouldn't show up in the main view
-            sortedCurios
-              .filter(([, c]) => !c.heart.replying)
-              .map(([time, curio]) => renderCurio(curio, time))
-          }
-        </div>
+        />
       </div>
     </Layout>
   );
