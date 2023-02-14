@@ -20,7 +20,7 @@ import { useLocation } from 'react-router';
 import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
 // eslint-disable-next-line import/no-cycle
-import EmbedContent from '../EmbedContent';
+import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
 
 interface ChatContentProps {
   story: ChatStory;
@@ -96,7 +96,7 @@ export function InlineContent({
   if (isLink(story)) {
     const containsProtocol = story.link.href.match(/https?:\/\//);
     return (
-      <EmbedContent
+      <ChatEmbedContent
         isScrolling={isScrolling}
         url={containsProtocol ? story.link.href : `http://${story.link.href}`}
       />

@@ -22,8 +22,18 @@ const useEmbedState = create<EmbedState>((set, get) => ({
       maxwidth: isMobile ? '320' : '600',
       url,
     });
+    let embed;
+    const isSpotify = url.includes('open.spotify.com');
+    if (isSpotify) {
+      // noembed doesn't support spotify
+      const urlWithoutTracker = url?.split('?')[0];
+      embed = await jsonFetch(
+        `https://open.spotify.com/oembed?url=${urlWithoutTracker}`
+      );
+      return embed;
+    }
 
-    const embed = await jsonFetch(`${OEMBED_PROVIDER}?${search.toString()}`);
+    embed = await jsonFetch(`${OEMBED_PROVIDER}?${search.toString()}`);
     return embed;
   },
   getEmbed: async (url: string, isMobile?: boolean) => {
