@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { cite } from '@urbit/api';
+import { cite, preSig } from '@urbit/api';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
 import { Group, GroupChannel } from '@/types/groups';
@@ -14,6 +14,7 @@ import useAppName from '@/logic/useAppName';
 import { usePinned, usePinnedGroups } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
+import { useMutuals } from '@/state/pals';
 import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
@@ -36,7 +37,11 @@ export default function useLeap() {
   const contacts = useContacts();
   const location = useLocation();
   const app = useAppName();
-
+  const mutuals = useMutuals();
+  const preSiggedMutuals = useMemo(
+    () => Object.keys(mutuals).map((m) => preSig(m)),
+    [mutuals]
+  );
   const menuOptions = app === 'Talk' ? talkMenuOptions : groupsMenuOptions;
 
   const menu =
@@ -80,7 +85,29 @@ export default function useLeap() {
             patp.toLowerCase().includes(inputValue.toLowerCase()) ||
             contact.nickname.toLowerCase().includes(inputValue.toLowerCase())
         )
-        // TODO: with usePals, we can prioritize friends to be sorted to the top
+        .sort((a, b) => {
+          // first, sort by mutuals
+          const isMutualA = preSiggedMutuals.includes(a[0]);
+          const isMutualB = preSiggedMutuals.includes(b[0]);
+          if (isMutualA && !isMutualB) {
+            return -1;
+          }
+          if (!isMutualA && isMutualB) {
+            return 1;
+          }
+          // then, sort by unreads
+          const isUnreadA = isChannelUnread(`chat/${preSig(a[0])}`);
+          const isUnreadB = isChannelUnread(`chat/${preSig(b[0])}`);
+          if (isUnreadA && !isUnreadB) {
+            return -1;
+          }
+          if (!isUnreadA && isUnreadB) {
+            return 1;
+          }
+          // TODO: should we sort by last message time? or by nickname?
+          // otherwise, do not sort
+          return 0;
+        })
         .map(([patp, contact], idx) => {
           const onSelect = () => {
             if (app === 'Talk') {
@@ -110,7 +137,16 @@ export default function useLeap() {
           };
         }),
     ];
-  }, [app, contacts, inputValue, location, modalNavigate, navigate]);
+  }, [
+    app,
+    contacts,
+    inputValue,
+    isChannelUnread,
+    location,
+    modalNavigate,
+    navigate,
+    preSiggedMutuals,
+  ]);
 
   const channelResults = useMemo(() => {
     if (inputValue === '') {
