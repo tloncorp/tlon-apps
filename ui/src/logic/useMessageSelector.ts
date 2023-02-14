@@ -7,7 +7,7 @@ import { ShipOption } from '@/components/ShipSelector';
 import { useChatState, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
 import { ChatMemo } from '@/types/chat';
-import { createStorageKey, newUv, preSig } from './utils';
+import { createStorageKey, newUv } from './utils';
 
 export default function useMessageSelector() {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ export default function useMessageSelector() {
     []
   );
   const isMultiDm = ships.length > 1;
-  const shipValues = useMemo(() => ships.map((o) => preSig(o.value)), [ships]);
+  const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const multiDms = useMultiDms();
 
   const existingDm = useMemo(() => {
@@ -28,7 +28,7 @@ export default function useMessageSelector() {
     const { briefs: chatBriefs } = useChatState.getState();
     return (
       Object.entries(chatBriefs).find(([flag, _brief]) => {
-        const theShip = preSig(ships[0].value);
+        const theShip = ships[0].value;
         const sameDM = theShip === flag;
         return sameDM;
       })?.[0] ?? null
@@ -63,17 +63,15 @@ export default function useMessageSelector() {
       if (existingMultiDm) {
         navigate(`/dm/${existingMultiDm}`);
       } else if (existingDm) {
-        navigate(`/dm/${preSig(existingDm)}`);
+        navigate(`/dm/${existingDm}`);
       } else if (isMultiDm) {
         await createClub(
           newClubId,
-          invites
-            .filter((i) => preSig(i.value) !== window.our)
-            .map((s) => preSig(s.value))
+          invites.filter((i) => i.value !== window.our).map((s) => s.value)
         );
         navigate(`/dm/${newClubId}`);
       } else {
-        navigate(`/dm/${preSig(invites[0].value)}`);
+        navigate(`/dm/${invites[0].value}`);
       }
 
       setShips([]);
@@ -89,7 +87,7 @@ export default function useMessageSelector() {
 
       await useChatState.getState().sendMessage(whom, memo);
       setShips([]);
-      navigate(`/dm/${isMultiDm ? whom : preSig(whom)}`);
+      navigate(`/dm/${isMultiDm ? whom : whom}`);
     },
     [isMultiDm, shipValues, existingMultiDm, setShips, navigate]
   );
@@ -116,7 +114,7 @@ export default function useMessageSelector() {
 
   useEffect(() => {
     if (existingDm) {
-      navigate(`/dm/${preSig(existingDm)}`);
+      navigate(`/dm/${existingDm}`);
     } else if (existingMultiDm) {
       navigate(`/dm/${existingMultiDm}`);
     } else if (shipValues.length > 0) {
