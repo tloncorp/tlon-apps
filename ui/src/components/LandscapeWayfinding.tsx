@@ -8,6 +8,8 @@ import { useGang } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { setCalmSetting } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
+import { useLocation } from 'react-router-dom';
+import { isTalk } from '@/logic/utils';
 import Dialog, { DialogContent } from './Dialog';
 
 function GroupsDescription() {
@@ -18,12 +20,12 @@ function GroupsDescription() {
     <div className="flex flex-col leading-5">
       <h1 className="my-8 text-2xl font-bold">Where am I?</h1>
       <p>
-        Tlon Corporation's "Groups" app, a multi-channel communications
-        platform.
+        Tlon Corporation&rsquo;s &ldquo;Groups&rdquo; app, a multi-channel
+        communications platform.
       </p>
       {groupFlagInLocation && (
         <p className="mt-4">
-          You're currently within a group, which might have a variety of
+          You&rsquo;re currently within a group, which might have a variety of
           channels.
         </p>
       )}
@@ -63,14 +65,14 @@ function TalkDescription() {
     <div className="flex flex-col leading-5">
       <h1 className="my-8 text-2xl font-bold">Where am I?</h1>
       <p>
-        Tlon Corporation’s “Talk” app, a simple, powerful, and secure instant
-        messaging software for individuals or small groups of people.
+        Tlon Corporation&rsquo;s “Talk” app, a simple, powerful, and secure
+        instant messaging software for individuals or small groups of people.
       </p>
       <h1 className="my-8 text-2xl font-bold">What can I do here?</h1>
       <p>
-        Talk is simple: It works like any other messaging app you’ve ever used.
-        What makes it special is its directly person-to-person nature, no one
-        person or company can ever snoop the messages you send on Talk.
+        Talk is simple: It works like any other messaging app you&rsquo;ve ever
+        used. What makes it special is its directly person-to-person nature, no
+        one person or company can ever snoop the messages you send on Talk.
       </p>
       <p className="mt-4 mb-8">
         In addition to the experience you expect, Talk can also aggregate group
@@ -86,17 +88,26 @@ export default function LandscapeWayfinding() {
   const app = useAppName();
   const gang = useGang('~nibset-napwyn/tlon');
   const { open } = useGroupJoin('~nibset-napwyn/tlon', gang);
+  const location = useLocation();
 
   const handleHide = () => {
     setCalmSetting('disableWayfinding', true);
   };
 
+  // Don't show the wayfinding button in DMs or Channels pages on mobile
+  if (
+    (isMobile && location.pathname.includes('dm')) ||
+    location.pathname.includes('channels/')
+  ) {
+    return null;
+  }
+
   return (
     <Dropdown.Root>
       <div
-        className={cn('absolute left-5 z-50', {
-          'bottom-10': !isMobile,
-          'bottom-20': isMobile,
+        className={cn('fixed left-5 z-50', {
+          'bottom-10': !isMobile || (isTalk && isMobile),
+          'bottom-20': isMobile && !isTalk,
         })}
       >
         <Dropdown.Trigger className="relative" asChild>

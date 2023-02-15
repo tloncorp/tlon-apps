@@ -41,12 +41,12 @@ function NotificationContent({
             ob.isValidPatp(s.replaceAll(PUNCTUATION_REGEX, '')) ? (
               <span
                 key={`${s}-${index}`}
-                className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue mix-blend-multiply"
+                className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue mix-blend-multiply dark:mix-blend-normal"
               >
                 <ShipName name={s.replaceAll(PUNCTUATION_REGEX, '')} />
               </span>
             ) : (
-              <span className="break-all" key={`${s}-${index}`}>
+              <span className="break-word text-ellipsis" key={`${s}-${index}`}>
                 {s}{' '}
               </span>
             )

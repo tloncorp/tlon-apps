@@ -30,7 +30,7 @@ export default function DisconnectNotice() {
           <AsteriskIcon className="mr-3 h-4 w-4" />
         )}
         {subscription === 'reconnecting' ? (
-          <span>Reconnecting...</span>
+          <span className="py-1">Reconnecting...</span>
         ) : (
           <span className="mr-1">You are currently offline.</span>
         )}
