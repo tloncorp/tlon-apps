@@ -61,7 +61,7 @@ export default function ChatMessageOptions(props: {
   }, [doCopy]);
 
   const reply = useCallback(() => {
-    setSearchParams({ chat_reply: writ.seal.id });
+    setSearchParams({ chat_reply: writ.seal.id }, { replace: true });
   }, [writ, setSearchParams]);
 
   const onEmoji = useCallback(
