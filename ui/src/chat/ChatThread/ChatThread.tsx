@@ -131,6 +131,7 @@ export default function ChatThread() {
             replying={id}
             sendMessage={sendMessage}
             inThread
+            autoFocus
           />
         )}
       </div>
