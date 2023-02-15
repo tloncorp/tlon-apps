@@ -1,7 +1,13 @@
 import { Editor } from '@tiptap/react';
 import cn from 'classnames';
 import _, { debounce } from 'lodash';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+  useState,
+} from 'react';
 import { usePact } from '@/state/chat';
 import { ChatImage, ChatMemo, Cite } from '@/types/chat';
 import MessageEditor, {
@@ -103,13 +109,16 @@ export default function ChatInput({
   );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const chatReplyId = searchParams.get('chat_reply');
+  const chatReplyId = useMemo(
+    () => searchParams.get('chat_reply'),
+    [searchParams]
+  );
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const groupFlag = useGroupFlag();
   const subscription = useSubscriptionStatus();
   const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
-  // const reply = replying || chatInfo?.replying || null;
+  const reply = replying || null;
   // const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const replyingWrit = chatReplyId && pact.writs.get(pact.index[chatReplyId]);
   const ship = replyingWrit && replyingWrit.memo.author;
@@ -121,7 +130,7 @@ export default function ChatInput({
   const { setBlocks } = useChatStore.getState();
 
   const closeReply = useCallback(() => {
-    setSearchParams();
+    setSearchParams({}, { replace: true });
     setReplyCite(undefined);
   }, [setSearchParams]);
 
@@ -138,9 +147,10 @@ export default function ChatInput({
   const clearAttachments = useCallback(() => {
     useChatStore.getState().setBlocks(id, []);
     useFileStore.getState().getUploader(uploadKey)?.clear();
-    setReplyCite(undefined);
-    setSearchParams();
-  }, [id, uploadKey, setSearchParams]);
+    if (replyCite) {
+      closeReply();
+    }
+  }, [id, uploadKey, closeReply, replyCite]);
 
   // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
@@ -205,7 +215,7 @@ export default function ChatInput({
           const { width, height } = img;
 
           sendMessage(whom, {
-            replying: replying || chatInfo?.replying || null,
+            replying: reply,
             author: `~${window.ship || 'zod'}`,
             sent: Date.now(),
             content: {
@@ -227,7 +237,7 @@ export default function ChatInput({
         };
       } else {
         const memo: ChatMemo = {
-          replying: replying || chatInfo?.replying || null,
+          replying: reply,
           author: `~${window.ship || 'zod'}`,
           sent: 0, // wait until ID is created so we can share time
           content: {
@@ -245,7 +255,6 @@ export default function ChatInput({
       setDraft(inlinesToJSON(['']));
       setTimeout(() => {
         useChatStore.getState().read(whom);
-        closeReply();
         clearAttachments();
       }, 0);
     },
@@ -255,11 +264,9 @@ export default function ChatInput({
       setDraft,
       clearAttachments,
       sendMessage,
-      closeReply,
       sendDisabled,
       replyCite,
-      replying,
-      chatInfo,
+      reply,
     ]
   );
 

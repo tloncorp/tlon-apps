@@ -329,6 +329,16 @@ export default function ChannelHeader({
     }
   }, [hasActivity, notifications, nest]);
 
+  function backTo() {
+    if (isMobile && isTalk) {
+      return '/';
+    }
+    if (isMobile && !isTalk) {
+      return `/groups/${flag}/channellist`;
+    }
+    return `/groups/${flag}`;
+  }
+
   return (
     <div
       className={cn(
@@ -336,7 +346,7 @@ export default function ChannelHeader({
       )}
     >
       <BackButton
-        to={isMobile && isTalk ? '/' : `/groups/${flag}`}
+        to={backTo()}
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
           isMobile && '-ml-2 flex items-center rounded-lg pr-0 hover:bg-gray-50'

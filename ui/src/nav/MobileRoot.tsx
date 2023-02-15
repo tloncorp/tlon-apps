@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
+import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
 import { usePinnedGroups } from '@/state/chat';
 import { useGangList, useGroups } from '@/state/groups';
@@ -9,7 +10,6 @@ import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import AddIcon from '@/components/icons/AddIcon';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
 import GangItem from '@/components/Sidebar/GangItem';
-import { debounce } from 'lodash';
 import { GroupsScrollingContext } from '@/components/Sidebar/GroupsScrollingContext';
 
 export default function MobileRoot() {
@@ -51,7 +51,7 @@ export default function MobileRoot() {
           </Link>
         </div>
       </header>
-      <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
+      <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden px-2">
         <div className="flex-1">
           <GroupsScrollingContext.Provider value={isScrolling}>
             <GroupList
@@ -61,21 +61,21 @@ export default function MobileRoot() {
             >
               {Object.entries(pinnedGroups).length > 0 && (
                 <>
-                  <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-                    <span className="-ml-1 text-sm font-semibold text-gray-400">
+                  <div className="-ml-2 grow border-t-2 border-gray-50 pt-3 pb-2">
+                    <span className="ml-4 text-sm font-semibold text-gray-400">
                       Pinned Groups
                     </span>
-                  </li>
+                  </div>
                   {pinnedGroupsOptions}
                 </>
               )}
-              <ul className="mb-3 space-y-2 px-2 sm:mb-2 sm:space-y-0 md:mb-0">
-                <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-                  <span className="ml-3 text-sm font-semibold text-gray-400">
-                    All Groups
-                  </span>
-                </li>
-              </ul>
+
+              <div className="-ml-2 mt-2 grow border-t-2 border-gray-50 pt-3 pb-2">
+                <span className="ml-4 text-sm font-semibold text-gray-400">
+                  All Groups
+                </span>
+              </div>
+
               {gangs.map((flag) => (
                 <GangItem key={flag} flag={flag} />
               ))}

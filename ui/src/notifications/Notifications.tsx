@@ -1,4 +1,3 @@
-import { useRouteGroup, useGroup } from '@/state/groups';
 import cn from 'classnames';
 import React, {
   ComponentType,
@@ -8,6 +7,7 @@ import React, {
 } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
+import { useRouteGroup, useGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import useHarkState from '@/state/hark';
@@ -122,10 +122,8 @@ export default function Notifications({
             onClick={() => setShowMentionsOnly(false)}
             className={cn('small-button rounded-r-none', {
               'bg-gray-800 text-white': !showMentionsOnly,
-              'bg-gray-50 text-gray-800 ': showMentionsOnly,
-              'mix-blend-multiply': !isDarkMode && showMentionsOnly,
-              'mix-blend-difference': isDarkMode,
-              'whitespace-nowrap': isMobile,
+              'bg-white text-gray-800 ': showMentionsOnly,
+              'grow whitespace-nowrap': isMobile,
             })}
           >
             All Notifications{hasUnreads ? ` • ${count} New` : null}
@@ -134,10 +132,8 @@ export default function Notifications({
             onClick={() => setShowMentionsOnly(true)}
             className={cn('small-button rounded-l-none', {
               'bg-gray-800 text-white': showMentionsOnly,
-              'bg-gray-50 text-gray-800': !showMentionsOnly,
-              'mix-blend-multiply': !showMentionsOnly && !isDarkMode,
-              'mix-blend-difference': isDarkMode,
-              'whitespace-nowrap': isMobile,
+              'bg-white text-gray-800': !showMentionsOnly,
+              'grow whitespace-nowrap': isMobile,
             })}
           >
             Mentions Only
@@ -153,8 +149,11 @@ export default function Notifications({
             })}
             onClick={markAllRead}
           >
-            Mark All as Read
-            {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+            {isPending ? (
+              <LoadingSpinner className="ml-2 h-4 w-4" />
+            ) : (
+              'Mark All as Read'
+            )}
           </button>
         )}
         {!isMobile && showMentionsOnly && unreadMentions.length > 0 && (
@@ -165,8 +164,11 @@ export default function Notifications({
             })}
             onClick={markAllRead}
           >
-            Mark Mentions as Read
-            {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+            {isPending ? (
+              <LoadingSpinner className="ml-2 h-4 w-4" />
+            ) : (
+              'Mark Mentions as Read'
+            )}
           </button>
         )}
       </div>
@@ -180,8 +182,11 @@ export default function Notifications({
             })}
             onClick={markAllRead}
           >
-            Mark All as Read
-            {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+            {isPending ? (
+              <LoadingSpinner className="ml-2 h-4 w-4" />
+            ) : (
+              'Mark All as Read'
+            )}
           </button>
         )}
         {isMobile && showMentionsOnly && (
@@ -194,8 +199,11 @@ export default function Notifications({
             })}
             onClick={markAllRead}
           >
-            Mark Mentions as Read
-            {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
+            {isPending ? (
+              <LoadingSpinner className="ml-2 h-4 w-4" />
+            ) : (
+              'Mark Mentions as Read'
+            )}
           </button>
         )}
       </div>
@@ -206,7 +214,7 @@ export default function Notifications({
             )
             .map((n) => (
               <div key={n.date}>
-                <h2 className="mt-8 mb-4 text-lg font-bold text-gray-400">
+                <h2 className="my-4 text-lg font-bold text-gray-400">
                   {n.date}
                 </h2>
                 <ul className="space-y-2">
@@ -222,7 +230,7 @@ export default function Notifications({
             ))
         : notifications.map((grouping) => (
             <div key={grouping.date}>
-              <h2 className="mt-8 mb-4 text-lg font-bold text-gray-400">
+              <h2 className="my-4 text-lg font-bold text-gray-400">
                 {grouping.date}
               </h2>
               <ul className="space-y-2">
