@@ -16,8 +16,8 @@
 +$  state-0
   $:  %0
       sessions=(map sole-id session)                ::  sole sessions
-      bound=(map flag:chat glyph)                   ::  bound chat glyphs
-      binds=(jug glyph flag:chat)                   ::  chat glyph lookup
+      bound=(map target glyph)                      ::  bound glyphs
+      binds=(jug glyph target)                      ::  glyph lookup
       settings=(set term)                           ::  frontend flags
       width=@ud                                     ::  display width
       timez=(pair ? @ud)                            ::  timezone adjustment
@@ -25,20 +25,20 @@
 ::
 +$  sole-id  sole-id:shoe
 +$  session
-  $:  viewing=(set target)                          ::  connected chats
-      history=(list [flag:chat id:chat])            ::  scrollback pointers
+  $:  viewing=(set target)                          ::  connected targets
+      history=(list [whom:chat id:chat])            ::  scrollback pointers
       count=@ud                                     ::  (lent history)
       audience=target                               ::  active target
   ==
 ::
-+$  target  flag:chat
++$  target  whom:chat                               :: polymorphic id for channels
 ::
 +$  glyph  char
 ++  glyphs  "!@#$%^&()-=_+[]\{}'\\:\",.<>?"
 ::
 +$  command
   $%  [%target target]                              ::  set messaging target
-      [%say (list inline:chat)]                     ::  send message
+      [%say (unit ship) (list inline:chat)]         ::  send message
       :: [%eval cord hoon]                          ::  send #-message
     ::                                              ::
       [%view $?(~ target)]                          ::  notice chat
