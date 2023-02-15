@@ -1,7 +1,7 @@
 import { Editor } from '@tiptap/react';
 import cn from 'classnames';
 import _ from 'lodash';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePact } from '@/state/chat';
 import { ChatImage, ChatMemo, Cite } from '@/types/chat';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
@@ -87,7 +87,10 @@ export default function ChatInput({
 }: ChatInputProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const chatReplyId = searchParams.get('chat_reply');
+  const chatReplyId = useMemo(
+    () => searchParams.get('chat_reply'),
+    [searchParams]
+  );
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const groupFlag = useGroupFlag();
   const subscription = useSubscriptionStatus();
@@ -106,7 +109,7 @@ export default function ChatInput({
   const { setBlocks } = useChatStore.getState();
 
   const closeReply = useCallback(() => {
-    setSearchParams();
+    setSearchParams({}, { replace: true });
     setReplyCite(undefined);
   }, [setSearchParams]);
 
@@ -123,9 +126,10 @@ export default function ChatInput({
   const clearAttachments = useCallback(() => {
     useChatStore.getState().setBlocks(id, []);
     useFileStore.getState().getUploader(uploadKey)?.clear();
-    setReplyCite(undefined);
-    setSearchParams();
-  }, [id, uploadKey, setSearchParams]);
+    if (replyCite) {
+      closeReply();
+    }
+  }, [id, uploadKey, closeReply, replyCite]);
 
   // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
@@ -214,7 +218,6 @@ export default function ChatInput({
       editor?.commands.setContent('');
       setTimeout(() => {
         useChatStore.getState().read(whom);
-        closeReply();
         clearAttachments();
       }, 0);
     },
@@ -223,7 +226,6 @@ export default function ChatInput({
       id,
       clearAttachments,
       sendMessage,
-      closeReply,
       sendDisabled,
       replyCite,
       replying,
