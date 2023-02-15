@@ -36,7 +36,7 @@ export default function NewCurioForm() {
   const isListMode = displayMode === LIST;
   const isLinkMode = inputMode === LINK;
   const isTextMode = inputMode === TEXT;
-  const perms = useHeapPerms(nest);
+  const perms = useHeapPerms(chFlag);
   const vessel = useVessel(flag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
@@ -147,7 +147,9 @@ export default function NewCurioForm() {
   );
 
   return (
-    <div className={cn(isGridMode && 'aspect-h-1 aspect-w-1')}>
+    <div
+      className={cn(isGridMode && 'virtuoso-grid-item aspect-h-1 aspect-w-1')}
+    >
       {isListMode ? modeToggle() : null}
       <div
         className={cn(
