@@ -1,10 +1,19 @@
 import { Editor } from '@tiptap/react';
 import cn from 'classnames';
-import _ from 'lodash';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import _, { debounce } from 'lodash';
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+  useState,
+} from 'react';
 import { usePact } from '@/state/chat';
 import { ChatImage, ChatMemo, Cite } from '@/types/chat';
-import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
+import MessageEditor, {
+  HandlerParams,
+  useMessageEditor,
+} from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
@@ -16,7 +25,13 @@ import {
 } from '@/chat/useChatStore';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { normalizeInline, JSONToInlines, makeMention } from '@/logic/tiptap';
+import {
+  normalizeInline,
+  JSONToInlines,
+  makeMention,
+  inlinesToJSON,
+  tipTapToString,
+} from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
@@ -27,12 +42,14 @@ import {
   isImageUrl,
   pathToCite,
   URL_REGEX,
+  createStorageKey,
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
 import { useSubscriptionStatus } from '@/state/local';
 import { useSearchParams } from 'react-router-dom';
 import { useGroupFlag } from '@/state/groups';
+import { useLocalStorage } from 'usehooks-ts';
 
 interface ChatInputProps {
   whom: string;
@@ -85,6 +102,11 @@ export default function ChatInput({
   sendMessage,
   inThread = false,
 }: ChatInputProps) {
+  const id = replying ? `${whom}-${replying}` : whom;
+  const [draft, setDraft] = useLocalStorage(
+    createStorageKey(`chat-${id}`),
+    inlinesToJSON([''])
+  );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const chatReplyId = useMemo(
@@ -95,7 +117,6 @@ export default function ChatInput({
   const groupFlag = useGroupFlag();
   const subscription = useSubscriptionStatus();
   const pact = usePact(whom);
-  const id = replying ? `${whom}-${replying}` : whom;
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
   // const replyingWrit = reply && pact.writs.get(pact.index[reply]);
@@ -153,6 +174,20 @@ export default function ChatInput({
       );
     }
   }, [files, id]);
+
+  const onUpdate = useRef(
+    debounce(({ editor }: HandlerParams) => {
+      setDraft(editor.getJSON());
+    }, 300)
+  );
+
+  // ensure we store any drafts before dismounting
+  useEffect(
+    () => () => {
+      onUpdate.current.flush();
+    },
+    []
+  );
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
@@ -216,12 +251,23 @@ export default function ChatInput({
         sendMessage(whom, memo);
       }
       editor?.commands.setContent('');
+      onUpdate.current.flush();
+      setDraft(inlinesToJSON(['']));
       setTimeout(() => {
         useChatStore.getState().read(whom);
         clearAttachments();
       }, 0);
     },
-    [whom, id, clearAttachments, sendMessage, sendDisabled, reply, replyCite]
+    [
+      whom,
+      id,
+      setDraft,
+      clearAttachments,
+      sendMessage,
+      sendDisabled,
+      replyCite,
+      reply,
+    ]
   );
 
   /**
@@ -233,7 +279,7 @@ export default function ChatInput({
    */
   const messageEditor = useMessageEditor({
     whom: id,
-    content: '',
+    content: draft,
     uploadKey,
     placeholder: 'Message',
     allowMentions: true,
@@ -247,13 +293,8 @@ export default function ChatInput({
       },
       [onSubmit, subscription]
     ),
+    onUpdate: onUpdate.current,
   });
-
-  useEffect(() => {
-    if (whom && messageEditor && !messageEditor.isDestroyed) {
-      messageEditor?.commands.setContent('');
-    }
-  }, [whom, messageEditor]);
 
   useEffect(() => {
     if (
@@ -262,7 +303,8 @@ export default function ChatInput({
       messageEditor &&
       !messageEditor.isDestroyed
     ) {
-      messageEditor.commands.focus();
+      // end brings the cursor to the end of the content
+      messageEditor.commands.focus('end');
     }
   }, [autoFocus, replyCite, isMobile, messageEditor]);
 

@@ -26,7 +26,14 @@ import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder'
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
-  const { chShip, chName } = useParams();
+  const { chShip, chName, idTime, idShip } = useParams<{
+    name: string;
+    chShip: string;
+    ship: string;
+    chName: string;
+    idShip: string;
+    idTime: string;
+  }>();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
@@ -42,6 +49,7 @@ function ChatChannel({ title }: ViewProps) {
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
+  const inThread = idShip && idTime;
   const { sendMessage } = useChatState.getState();
   const briefs = useAllBriefs();
   const joined = Object.keys(briefs).some((k) => k.includes('chat/'))
@@ -113,7 +121,13 @@ function ChatChannel({ title }: ViewProps) {
             )}
           >
             {canWrite ? (
-              <ChatInput whom={chFlag} sendMessage={sendMessage} showReply />
+              <ChatInput
+                key={chFlag}
+                whom={chFlag}
+                sendMessage={sendMessage}
+                showReply
+                autoFocus={!inThread}
+              />
             ) : null}
           </div>
         }
