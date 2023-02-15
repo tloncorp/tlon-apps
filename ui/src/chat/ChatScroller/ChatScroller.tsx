@@ -237,7 +237,6 @@ export default function ChatScroller({
   const updateScroll = useRef(
     debounce((e: boolean) => {
       setIsScrolling(e);
-      console.log(performance.now(), 'update scroll', e);
     }, 1000)
   );
 
