@@ -97,7 +97,7 @@ export default function ChatInput({
   const pact = usePact(whom);
   const id = replying ? `${whom}-${replying}` : whom;
   const chatInfo = useChatInfo(id);
-  // const reply = replying || chatInfo?.replying || null;
+  const reply = replying || null;
   // const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const replyingWrit = chatReplyId && pact.writs.get(pact.index[chatReplyId]);
   const ship = replyingWrit && replyingWrit.memo.author;
@@ -180,7 +180,7 @@ export default function ChatInput({
           const { width, height } = img;
 
           sendMessage(whom, {
-            replying: replying || chatInfo?.replying || null,
+            replying: reply,
             author: `~${window.ship || 'zod'}`,
             sent: Date.now(),
             content: {
@@ -202,7 +202,7 @@ export default function ChatInput({
         };
       } else {
         const memo: ChatMemo = {
-          replying: replying || chatInfo?.replying || null,
+          replying: reply,
           author: `~${window.ship || 'zod'}`,
           sent: 0, // wait until ID is created so we can share time
           content: {
@@ -221,16 +221,7 @@ export default function ChatInput({
         clearAttachments();
       }, 0);
     },
-    [
-      whom,
-      id,
-      clearAttachments,
-      sendMessage,
-      sendDisabled,
-      replyCite,
-      replying,
-      chatInfo,
-    ]
+    [whom, id, clearAttachments, sendMessage, sendDisabled, reply, replyCite]
   );
 
   /**
