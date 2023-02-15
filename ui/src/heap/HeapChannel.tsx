@@ -38,10 +38,12 @@ import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
 import useAllBriefs from '@/logic/useAllBriefs';
 import makeCuriosStore from '@/state/heap/curios';
+import { useIsMobile } from '@/logic/useMedia';
 import NewCurioForm from './NewCurioForm';
 
 function HeapChannel({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
@@ -211,19 +213,32 @@ function HeapChannel({ title }: ViewProps) {
       .filter(([, c]) => !c.heart.replying)
   );
 
-  const loadOlderCurios = useCallback(() => {
-    makeCuriosStore(
-      chFlag,
-      () => useHeapState.getState(),
-      `/heap/${chFlag}/curios`,
-      `/heap/${chFlag}/ui`
-    ).getOlder('50');
-  }, [chFlag]);
+  const loadOlderCurios = useCallback(
+    (atBottom: boolean) => {
+      if (atBottom) {
+        makeCuriosStore(
+          chFlag,
+          () => useHeapState.getState(),
+          `/heap/${chFlag}/curios`,
+          `/heap/${chFlag}/ui`
+        ).getOlder('50');
+      }
+    },
+    [chFlag]
+  );
 
   const computeItemKey = (
     _i: number,
     [time, _curio]: [bigInt.BigInteger, HeapCurio]
   ) => time.toString();
+
+  const thresholds = {
+    atBottomThreshold: isMobile ? 125 : 250,
+    atTopThreshold: isMobile ? 1200 : 2500,
+    overscan: isMobile
+      ? { main: 200, reverse: 200 }
+      : { main: 400, reverse: 400 },
+  };
 
   return (
     <Layout
@@ -259,6 +274,7 @@ function HeapChannel({ title }: ViewProps) {
             `heap-${displayMode}`,
             displayMode === 'grid' && 'grid-cols-minmax'
           )}
+          {...thresholds}
         />
       </div>
     </Layout>
