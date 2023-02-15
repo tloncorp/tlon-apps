@@ -190,6 +190,7 @@ const ChatMessage = React.memo<
             'pb-2': isLast,
           })}
           onMouseEnter={onOver}
+          onClick={onOver}
           onMouseLeave={onOut.current}
         >
           {unread && briefMatches(unread.brief, writ.seal.id) ? (
