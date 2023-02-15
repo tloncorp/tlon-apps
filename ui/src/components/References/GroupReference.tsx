@@ -101,7 +101,7 @@ export default function GroupReference({
           </span>
         ) : (
           <>
-            {gang.invite && button.text !== 'Go' && status !== 'loading' ? (
+            {gang.invite && !group && status !== 'loading' ? (
               <button
                 className="small-button bg-red text-white dark:text-black"
                 onClick={reject}
