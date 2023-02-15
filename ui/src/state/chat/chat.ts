@@ -138,6 +138,18 @@ export const useChatState = createState<ChatState>(
     loadedRefs: {},
     briefs: {},
     loadedGraphRefs: {},
+    getTime: (whom, id) => {
+      const { pacts } = get();
+      const pact = pacts[whom];
+
+      if (!pact || !pact.index[id]) {
+        // not accurate, won't be in pact, using until chat ref fetching
+        // returns time alongside writ
+        return bigInt(udToDec(id.split('/')[1]));
+      }
+
+      return pact.index[id];
+    },
     togglePin: async (whom, pin) => {
       const { pins } = get();
       let newPins = [];

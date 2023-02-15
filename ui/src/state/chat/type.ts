@@ -55,6 +55,7 @@ export interface ChatState {
   };
   pendingDms: string[];
   briefs: ChatBriefs;
+  getTime: (whom: string, id: string) => bigInt.BigInteger;
   togglePin: (whom: string, pin: boolean) => Promise<void>;
   fetchPins: () => Promise<void>;
   markRead: (whom: string) => Promise<void>;
