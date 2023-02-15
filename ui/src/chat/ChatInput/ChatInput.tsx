@@ -165,6 +165,20 @@ export default function ChatInput({
     }
   }, [files, id]);
 
+  const onUpdate = useRef(
+    debounce(({ editor }: HandlerParams) => {
+      setDraft(editor.getJSON());
+    }, 300)
+  );
+
+  // ensure we store any drafts before dismounting
+  useEffect(
+    () => () => {
+      onUpdate.current.flush();
+    },
+    []
+  );
+
   const onSubmit = useCallback(
     async (editor: Editor) => {
       if (sendDisabled) return;
@@ -227,6 +241,8 @@ export default function ChatInput({
         sendMessage(whom, memo);
       }
       editor?.commands.setContent('');
+      onUpdate.current.flush();
+      setDraft(inlinesToJSON(['']));
       setTimeout(() => {
         useChatStore.getState().read(whom);
         closeReply();
@@ -236,6 +252,7 @@ export default function ChatInput({
     [
       whom,
       id,
+      setDraft,
       clearAttachments,
       sendMessage,
       closeReply,
@@ -244,20 +261,6 @@ export default function ChatInput({
       replying,
       chatInfo,
     ]
-  );
-
-  const onUpdate = useRef(
-    debounce(({ editor }: HandlerParams) => {
-      setDraft(editor.getJSON());
-    }, 300)
-  );
-
-  // ensure we store any drafts before dismounting
-  useEffect(
-    () => () => {
-      onUpdate.current.flush();
-    },
-    []
   );
 
   /**
