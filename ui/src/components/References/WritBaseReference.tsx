@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import cn from 'classnames';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useChannelPreview, useGang } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
-import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { ChatWrit } from '@/types/chat';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { useChannelFlag } from '@/hooks';
+import { useChatState } from '@/state/chat';
+import { unixToDa } from '@urbit/api';
 import ReferenceBar from './ReferenceBar';
 
 interface WritBaseReferenceProps {
@@ -32,13 +33,18 @@ export default function WritBaseReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
+  const time = useMemo(
+    () =>
+      writ
+        ? useChatState.getState().getTime(chFlag, writ.seal.id)
+        : unixToDa(Date.now()),
+    [chFlag, writ]
+  );
 
   // TODO: handle failure for useWritByFlagAndWritId call.
   if (!writ) {
     return <HeapLoadingBlock reference />;
   }
-
-  const time = bigInt(udToDec(writ.seal.id.split('/')[1]));
 
   if (!('story' in writ.memo.content)) {
     return null;

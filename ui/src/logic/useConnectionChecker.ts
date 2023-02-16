@@ -10,8 +10,6 @@ const retryTime = 30 * 1000;
 let checking = false;
 
 async function checkConnection() {
-  checking = true;
-
   try {
     await asyncCallWithTimeout(
       new Promise<void>((resolve, reject) => {
@@ -63,9 +61,10 @@ async function checkConnection() {
 
 export default function useConnectionChecker() {
   useEffect(() => {
-    // only ever check once
+    // only ever check once, wait a minute before starting
     if (!checking) {
-      checkConnection();
+      checking = true;
+      setTimeout(() => checkConnection(), 60 * 1000);
     }
   }, []);
 }
