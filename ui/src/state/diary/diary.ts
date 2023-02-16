@@ -310,7 +310,7 @@ export const useDiaryState = createState<DiaryState>(
               const { update, flag } = event;
               if (
                 'create' in update.diff &&
-                flag === `${req.group.split('/')[0]}/${req.name}`
+                flag === `${window.our}/${req.name}`
               ) {
                 return true;
               }
