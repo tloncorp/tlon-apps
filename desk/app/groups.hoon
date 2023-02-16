@@ -1187,7 +1187,11 @@
       ?-  -.diff
       ::
           %add-ships
-        ?<  &((~(has in p.diff) our.bowl) =(p.flag our.bowl))
+        ?<  ?|  &((~(has in p.diff) our.bowl) =(p.flag our.bowl))              
+                %+  lth  0
+                %~  wyt  in
+                (~(int in p.diff) go-channel-hosts)
+            ==
         =.  fleet.group
         %-  malt
           %+  skip
@@ -1350,8 +1354,6 @@
       ==
     ::
         %del
-      =/  intersect  (~(int in ships) go-channel-hosts)
-      ~&  intersect  
       ?<  ?|  &((~(has in ships) our.bowl) =(p.flag our.bowl))              
               %+  lth  0
               %~  wyt  in
