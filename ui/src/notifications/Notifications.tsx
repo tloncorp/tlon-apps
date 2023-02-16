@@ -104,7 +104,7 @@ export default function Notifications({
   }, [setPending, setReady, unreadMentions, showMentionsOnly, flag]);
 
   return (
-    <section className="h-full w-full overflow-y-auto bg-gray-50 p-6">
+    <section className="h-full w-full overflow-y-scroll bg-gray-50 p-6 pr-4 sm:overflow-y-auto sm:pr-6">
       <Helmet>
         <title>
           {group
