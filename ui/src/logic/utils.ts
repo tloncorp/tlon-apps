@@ -390,6 +390,14 @@ export function isChannelJoined(
   return isChannelHost || (nest && nest in briefs);
 }
 
+export function getChannelHosts(group: Group): string[] {
+  return Object.keys(group.channels).map((c) => {
+    const [, chFlag] = nestToFlag(c);
+    const { ship } = getFlagParts(chFlag);
+    return ship;
+  });
+}
+
 export function canReadChannel(
   channel: GroupChannel,
   vessel: Vessel,

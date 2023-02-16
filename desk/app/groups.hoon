@@ -715,6 +715,14 @@
       out
     (~(put in out) who)
   ::
+  ++  go-channel-hosts
+    ^-  (set ship)
+    %-  ~(gas in *(set ship))
+    %+  turn  
+      ~(tap by channels.group)
+    |=  [=nest:g *]
+    p.q.nest
+  ::
   ++  go-is-banned
     |=  =ship
     =*  cordon  cordon.group
@@ -865,6 +873,9 @@
     ^-  (unit (unit cage))
     :-  ~
     ?+    pole  ~
+        [%hosts ~]
+      `ships+!>(go-channel-hosts)
+      ::
         [%fleet %ships ~]
       `ships+!>(~(key by fleet.group))
       ::
@@ -1339,7 +1350,13 @@
       ==
     ::
         %del
-      ?<  &((~(has in ships) our.bowl) =(p.flag our.bowl))
+      =/  intersect  (~(int in ships) go-channel-hosts)
+      ~&  intersect  
+      ?<  ?|  &((~(has in ships) our.bowl) =(p.flag our.bowl))              
+              %+  lth  0
+              %~  wyt  in
+              (~(int in ships) go-channel-hosts)
+          ==
       ?>  ?|  go-is-bloc
               =(p.flag src.bowl)
               (~(has in ships) src.bowl)
