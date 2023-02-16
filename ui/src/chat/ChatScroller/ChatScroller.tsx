@@ -3,6 +3,7 @@ import React, {
   HTMLAttributes,
   ReactNode,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -11,7 +12,7 @@ import { isSameDay } from 'date-fns';
 import { debounce } from 'lodash';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
-import { Virtuoso } from 'react-virtuoso';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChatState, useLoadedWrits } from '@/state/chat/chat';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
@@ -124,6 +125,25 @@ const List = React.forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   )
 );
 
+function getTopThreshold(isMobile: boolean, msgCount: number) {
+  if (msgCount >= 100) {
+    return isMobile ? 1200 : 2500;
+  }
+
+  return window.innerHeight * 0.6;
+}
+
+function scrollToIndex(
+  keys: bigInt.BigInteger[],
+  scrollerRef: React.RefObject<VirtuosoHandle>,
+  scrollTo?: bigInt.BigInteger
+) {
+  if (scrollerRef.current && scrollTo) {
+    const index = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
+    scrollerRef.current.scrollToIndex(index);
+  }
+}
+
 export default function ChatScroller({
   whom,
   messages,
@@ -140,7 +160,7 @@ export default function ChatScroller({
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
-    atTopThreshold: isMobile ? 1200 : 2500,
+    atTopThreshold: getTopThreshold(isMobile, messages.size),
     overscan: isMobile
       ? { main: 200, reverse: 200 }
       : { main: 400, reverse: 400 },
@@ -234,6 +254,21 @@ export default function ChatScroller({
     return scrollToIdx > -1 ? scrollToIdx : START_INDEX - 1;
   }, [keys, scrollTo]);
 
+  useEffect(() => {
+    // we're at the top so we won't get an atTopChange and so need to
+    // manually trigger fetching, usually when we have a scrollTo
+    if (initialTopMostIndex === 0 && firstPass.current) {
+      fetchMessages(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTopMostIndex]);
+
+  useEffect(() => {
+    // if scrollTo changes, scroll to the new index
+    scrollToIndex(keys, scrollerRef, scrollTo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTo?.toString()]);
+
   const updateScroll = useRef(
     debounce((e: boolean) => {
       setIsScrolling(e);
@@ -251,7 +286,6 @@ export default function ChatScroller({
 
       if (scrolling && !isScrolling) {
         setIsScrolling(true);
-        console.log(performance.now(), 'activate scroll', true);
       } else {
         updateScroll.current(scrolling);
       }
@@ -284,10 +318,11 @@ export default function ChatScroller({
   };
   const totalListHeightChanged = useRef(
     debounce(() => {
-      if (firstPass.current) {
+      if (firstPass.current && !scrollTo) {
         scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
-        firstPass.current = false;
       }
+
+      firstPass.current = false;
     }, 200)
   );
 

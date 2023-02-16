@@ -6,6 +6,17 @@ import { BigInteger } from 'big-integer';
 import ChannelIcon from '@/channels/ChannelIcon';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 
+interface ReferenceBarProps {
+  nest: string;
+  time: BigInteger;
+  groupFlag?: string;
+  groupTitle?: string;
+  channelTitle?: string;
+  author?: string;
+  top?: boolean;
+  reply?: boolean;
+}
+
 export default function ReferenceBar({
   nest,
   time,
@@ -15,16 +26,7 @@ export default function ReferenceBar({
   author,
   top = false,
   reply = false,
-}: {
-  nest: string;
-  time: BigInteger;
-  groupFlag?: string;
-  groupTitle?: string;
-  channelTitle?: string;
-  author?: string;
-  top?: boolean;
-  reply?: boolean;
-}) {
+}: ReferenceBarProps) {
   const groupFlagOrZod = groupFlag || '~zod/test';
   const navigateByApp = useNavigateByApp();
   const unix = new Date(daToUnix(time));
