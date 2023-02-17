@@ -183,6 +183,7 @@ function GroupHeader() {
 
 export default function GroupSidebar() {
   const flag = useGroupFlag();
+  const isDark = useIsDark();
 
   useEffect(() => {
     if (flag !== '') {
@@ -201,7 +202,11 @@ export default function GroupSidebar() {
           <GroupHeader />
           <SidebarItem
             icon={
-              <HomeIcon className="m-1 h-6 w-6 rounded bg-gray-50 mix-blend-multiply" />
+              <HomeIcon
+                className={cn('m-1 h-6 w-6 rounded bg-gray-50', {
+                  'mix-blend-multiply': !isDark,
+                })}
+              />
             }
             to={`/groups/${flag}/activity`}
           >
@@ -209,7 +214,11 @@ export default function GroupSidebar() {
           </SidebarItem>
           <SidebarItem
             icon={
-              <HashIcon className="m-1 h-6 w-6 rounded bg-gray-50 mix-blend-multiply" />
+              <HashIcon
+                className={cn('m-1 h-6 w-6 rounded bg-gray-50 ', {
+                  'mix-blend-multiply': !isDark,
+                })}
+              />
             }
             to={`/groups/${flag}/channels`}
           >
