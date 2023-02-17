@@ -200,6 +200,10 @@ export default function ChatInput({
       const data = normalizeInline(
         JSONToInlines(editor?.getJSON()) as Inline[]
       );
+      // Checking for this prevents an extra <br>
+      // from being added to the end of the message
+      const dataIsJustBreak =
+        data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
 
       const text = editor.getText();
       const textIsImageUrl = isImageUrl(text);
@@ -242,7 +246,11 @@ export default function ChatInput({
           sent: 0, // wait until ID is created so we can share time
           content: {
             story: {
-              inline: Array.isArray(data) ? data : [data],
+              inline: !dataIsJustBreak
+                ? Array.isArray(data)
+                  ? data
+                  : [data]
+                : [],
               block: [...blocks, ...(replyCite ? [replyCite] : [])],
             },
           },
