@@ -91,18 +91,18 @@ export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
       getBin(c.thread, carpet.yarns, true)
     );
 
-    const unreadBins = bins.filter((b) => isMention(b.topYarn));
+    const mentionBins = bins.filter((b) => isMention(b.topYarn));
 
     const oldBins: Bin[] = Object.values(blanket.quilt)
       .map((t) => getBin(t, blanket.yarns, false))
       .filter((b) => (mentionsOnly ? isMention(b.topYarn) : b));
 
+    const finalBins = mentionsOnly ? mentionBins : bins;
+
     return {
-      notifications: groupBinsByDate(
-        (mentionsOnly ? unreadBins : bins).concat(oldBins)
-      ),
-      mentions: unreadBins,
-      count: bins.length,
+      notifications: groupBinsByDate(finalBins.concat(oldBins)),
+      mentions: mentionBins,
+      count: finalBins.length,
     };
   }, [carpet, blanket, mentionsOnly]);
 };

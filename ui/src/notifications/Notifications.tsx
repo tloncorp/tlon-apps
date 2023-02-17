@@ -87,9 +87,11 @@ export default function Notifications({
     setPending();
     if (showMentionsOnly) {
       await Promise.all(
-        mentions.map(async (m) => {
-          await useHarkState.getState().sawRope(m.topYarn.rope);
-        })
+        mentions.map(async (m, index) =>
+          useHarkState
+            .getState()
+            .sawRope(m.topYarn.rope, index === mentions.length - 1)
+        )
       );
     } else {
       await useHarkState
