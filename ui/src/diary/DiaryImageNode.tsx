@@ -19,7 +19,8 @@ function DiaryImageComponent(props: NodeViewProps) {
   const image = useRef<HTMLImageElement>(null);
   const calm = useCalm();
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const uploader = useUploader('diary-image-input');
+  const id = useRef(performance.now());
+  const uploader = useUploader(`diary-image-input-${id.current}`);
   const mostRecentFile = uploader?.getMostRecent();
   const onError = () => {
     setError(true);
@@ -82,7 +83,7 @@ function DiaryImageComponent(props: NodeViewProps) {
     <NodeViewWrapper>
       <div
         className={cn(
-          'min-h-12 br-1 relative flex w-full items-center justify-center rounded-xl bg-gray-100 bg-cover bg-center',
+          'not-prose min-h-12 br-1 relative flex w-full items-center justify-center rounded-xl bg-gray-100 bg-cover bg-center',
           className
         )}
       >
