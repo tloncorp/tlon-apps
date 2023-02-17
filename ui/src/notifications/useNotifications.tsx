@@ -67,21 +67,7 @@ export const isComment = (yarn: Yarn) =>
 export const isReply = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' replied to your message “');
 
-export const getAllMentions = (notifications: DayGrouping[], flag?: Flag) => {
-  if (!flag) {
-    return notifications
-      .map((n) => n.bins)
-      .flat()
-      .filter((b) => isMention(b.topYarn));
-  }
-
-  return notifications
-    .map((n) => n.bins)
-    .flat()
-    .filter((b) => isMention(b.topYarn) && b.topYarn.rope.group === flag);
-};
-
-export const useNotifications = (flag?: Flag) => {
+export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
   const { carpet, blanket } = useHarkState(
     useCallback(
       (state) => {
@@ -100,18 +86,23 @@ export const useNotifications = (flag?: Flag) => {
     )
   );
 
-  const notifications = useMemo(() => {
+  return useMemo(() => {
     const bins: Bin[] = carpet.cable.map((c) =>
       getBin(c.thread, carpet.yarns, true)
     );
-    const oldBins: Bin[] = Object.values(blanket.quilt).map((t) =>
-      getBin(t, blanket.yarns, false)
-    );
-    return groupBinsByDate(bins.concat(oldBins));
-  }, [carpet, blanket]);
 
-  return {
-    count: carpet.cable.length,
-    notifications,
-  };
+    const unreadBins = bins.filter((b) => isMention(b.topYarn));
+
+    const oldBins: Bin[] = Object.values(blanket.quilt)
+      .map((t) => getBin(t, blanket.yarns, false))
+      .filter((b) => (mentionsOnly ? isMention(b.topYarn) : b));
+
+    return {
+      notifications: groupBinsByDate(
+        (mentionsOnly ? unreadBins : bins).concat(oldBins)
+      ),
+      mentions: unreadBins,
+      count: bins.length,
+    };
+  }, [carpet, blanket, mentionsOnly]);
 };

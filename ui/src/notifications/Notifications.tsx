@@ -3,6 +3,7 @@ import React, {
   ComponentType,
   PropsWithChildren,
   useCallback,
+  useMemo,
   useState,
 } from 'react';
 import { Helmet } from 'react-helmet';
@@ -14,12 +15,7 @@ import useHarkState from '@/state/hark';
 import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
-import {
-  Bin,
-  getAllMentions,
-  isMention,
-  useNotifications,
-} from './useNotifications';
+import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
   child: ComponentType<{ bin: Bin }>;
@@ -78,20 +74,20 @@ export default function Notifications({
 }: NotificationsProps) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
-  const { notifications, count } = useNotifications(flag);
-  const mentions = getAllMentions(notifications);
-  const unreadMentions = mentions.filter((m) => m.unread);
-  const hasUnreads = count > 0;
+  const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
   const [showMentionsOnly, setShowMentionsOnly] = useState(false);
-  const isDarkMode = useIsDark();
-  const isMobile = useIsMobile();
+  const { notifications, mentions, count } = useNotifications(
+    flag,
+    showMentionsOnly
+  );
+  const hasUnreads = count > 0;
 
   const markAllRead = useCallback(async () => {
     setPending();
     if (showMentionsOnly) {
       await Promise.all(
-        unreadMentions.map(async (m) => {
+        mentions.map(async (m) => {
           await useHarkState.getState().sawRope(m.topYarn.rope);
         })
       );
@@ -101,10 +97,27 @@ export default function Notifications({
         .sawSeam(flag ? { group: flag } : { desk: 'groups' });
     }
     setReady();
-  }, [setPending, setReady, unreadMentions, showMentionsOnly, flag]);
+  }, [setPending, setReady, mentions, showMentionsOnly, flag]);
+
+  const MarkAsRead = (
+    <button
+      disabled={isPending || !hasUnreads}
+      className={cn('small-button whitespace-nowrap', {
+        'bg-gray-400 text-gray-800': isPending || !hasUnreads,
+        'bg-blue text-white': !isPending && hasUnreads,
+      })}
+      onClick={markAllRead}
+    >
+      {isPending ? (
+        <LoadingSpinner className="h-4 w-4" />
+      ) : (
+        `Mark ${showMentionsOnly ? 'Mentions' : 'All'} as Read`
+      )}
+    </button>
+  );
 
   return (
-    <section className="h-full w-full overflow-y-scroll bg-gray-50 p-6 pr-4 sm:overflow-y-auto sm:pr-6">
+    <section className="h-full w-full overflow-y-scroll bg-gray-50 p-6 pr-4">
       <Helmet>
         <title>
           {group
@@ -137,111 +150,29 @@ export default function Notifications({
             })}
           >
             Mentions Only
-            {unreadMentions.length ? ` • ${unreadMentions.length} New` : null}
+            {mentions.length ? ` • ${mentions.length} New` : null}
           </button>
         </div>
 
-        {!isMobile && hasUnreads && !showMentionsOnly && (
-          <button
-            disabled={isPending}
-            className={cn('small-button bg-blue text-white', {
-              'bg-gray-400 text-gray-800': isPending,
-            })}
-            onClick={markAllRead}
-          >
-            {isPending ? (
-              <LoadingSpinner className="ml-2 h-4 w-4" />
-            ) : (
-              'Mark All as Read'
-            )}
-          </button>
-        )}
-        {!isMobile && showMentionsOnly && unreadMentions.length > 0 && (
-          <button
-            disabled={isPending}
-            className={cn('small-button bg-blue text-white', {
-              'bg-gray-400 text-gray-800': isPending,
-            })}
-            onClick={markAllRead}
-          >
-            {isPending ? (
-              <LoadingSpinner className="ml-2 h-4 w-4" />
-            ) : (
-              'Mark Mentions as Read'
-            )}
-          </button>
-        )}
+        {!isMobile && hasUnreads && MarkAsRead}
       </div>
       <div className="flex flex-row justify-end pt-2">
-        {isMobile && !showMentionsOnly && (
-          <button
-            disabled={isPending || !hasUnreads}
-            className={cn('small-button whitespace-nowrap', {
-              'bg-gray-400 text-gray-800': isPending || !hasUnreads,
-              'text-text-white bg-blue': !isPending && hasUnreads,
-            })}
-            onClick={markAllRead}
-          >
-            {isPending ? (
-              <LoadingSpinner className="ml-2 h-4 w-4" />
-            ) : (
-              'Mark All as Read'
-            )}
-          </button>
-        )}
-        {isMobile && showMentionsOnly && (
-          <button
-            disabled={isPending || unreadMentions.length === 0}
-            className={cn('small-button whitespace-nowrap', {
-              'bg-blue text-white': unreadMentions.length > 0 && !isPending,
-              'bg-gray-400 text-gray-800':
-                isPending || unreadMentions.length === 0,
-            })}
-            onClick={markAllRead}
-          >
-            {isPending ? (
-              <LoadingSpinner className="ml-2 h-4 w-4" />
-            ) : (
-              'Mark Mentions as Read'
-            )}
-          </button>
-        )}
+        {isMobile && hasUnreads && MarkAsRead}
       </div>
-      {showMentionsOnly
-        ? notifications
-            .filter(
-              (n) => n.bins.filter((b) => isMention(b.topYarn)).length > 0
-            )
-            .map((n) => (
-              <div key={n.date}>
-                <h2 className="my-4 text-lg font-bold text-gray-400">
-                  {n.date}
-                </h2>
-                <ul className="space-y-2">
-                  {n.bins
-                    .filter((b) => isMention(b.topYarn))
-                    .map((bin) => (
-                      <li key={bin.time}>
-                        <Notification bin={bin} />
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            ))
-        : notifications.map((grouping) => (
-            <div key={grouping.date}>
-              <h2 className="my-4 text-lg font-bold text-gray-400">
-                {grouping.date}
-              </h2>
-              <ul className="space-y-2">
-                {grouping.bins.map((b) => (
-                  <li key={b.time}>
-                    <Notification bin={b} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+      {notifications.map((grouping) => (
+        <div key={grouping.date}>
+          <h2 className="my-4 text-lg font-bold text-gray-400">
+            {grouping.date}
+          </h2>
+          <ul className="space-y-2">
+            {grouping.bins.map((b) => (
+              <li key={b.time}>
+                <Notification bin={b} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </section>
   );
 }
