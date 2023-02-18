@@ -173,6 +173,8 @@
 ::
 ::TODO  better moon support. (name:title our.bowl)
 ++  our-self  our.bowl
+++  crew  crew:club:chat
+++  club-id  id:club:chat
 ::
 ++  get-session
   |=  =sole-id
@@ -186,11 +188,29 @@
 ::  +get-chats: get known chat channels
 ::
 ++  get-chats  ~+
+  ^-  (set flag:chat)
   (scry-for (set flag:chat) %chat /chat)
-::  +chat-exists: check whether a chat exists
+::  +get-dms: get known dms
 ::
-++  chat-exists
-  ~(has in get-chats)
+++  get-dms  ~+
+  ^-  (set ship)
+  %.  ~(tap in (scry-for (set ship) %chat /dm))
+    ~(gas in (scry-for (set ship) %chat /dm/invited))
+::  +get-clubs: get known clubs
+::
+++  get-clubs  ~+
+  ^-  (map club-id crew)
+  (scry-for (map club-id crew) %chat /clubs)
+::  +target-exists: check whether a channel exists
+::
+++  target-exists
+  |=  =target
+  ^-  ?
+  ?-   -.target
+      %ship  (~(has in get-dms) p.target)
+      %flag  (~(has in get-chats) p.target)
+      %club  (~(has by get-clubs) p.target)
+  ==
 ::  +poke-noun: debug helpers
 ::
 ++  poke-noun
@@ -568,7 +588,7 @@
         [[(show-chats:sh-out ~(tap in viewing))]~ state]
       ::  only view existing chats
       ::
-      ?.  (chat-exists target)
+      ?.  (target-exists target)
         [[(note:sh-out "no such chat")]~ put-ses]
       =.  audience  target
       =.  viewing   (~(put in viewing) target)
@@ -733,7 +753,32 @@
     ::
     ++  chats
       ^-  (quip card _state)
-      [[(show-chats:sh-out ~(tap in get-chats))]~ state]
+      =/  targets=(set target)
+        %-  ~(run in get-chats)
+          |=  =flag:chat
+          [%flag flag]
+      :_  state
+      [(show-targets:sh-out ~(tap in targets))]~ 
+    ::  +dms: display list of known dms
+    ::
+    ++  dms
+      ^-  (quip card _state)
+      =/  targets=(set target)
+        %-  ~(run in get-dms)
+          |=  =ship
+          [%ship ship]
+      :_  state
+      [(show-targets:sh-out ~(tap in targets))]~
+    ::  +clubs: display list of known clubs
+    ::
+    ++  clubs
+      ^-  (quip card _state)
+      =/  targets=(set target)
+        %-  ~(run in ~(key by get-clubs))
+          |=  =club-id
+          [%club club-id]
+      :_  state
+      [(show-targets:sh-out ~(tap in targets))]~
     ::  +help: print (link to) usage instructions
     ::
     ++  help
