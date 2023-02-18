@@ -908,37 +908,45 @@
     ==                             
   --
 ::
-::  +tr: render targets (chat identifiers)
+::  +tr: render targets, one of $whom: ship, flag, or club
 ::
 ++  tr
-  |_  tr=target
-  ::  +full: render target fully, always (as ~ship/path)
+  |_  =target
+  ::  +full: render target fully
   ::
   ++  full
     ^-  tape
-    "{(scow %p p.tr)}/{(trip q.tr)}"
-  ::  +phat: render target with local shorthand
+    ?-   -.target
+        %ship  "{(scow %p p.target)}"
+        %club  "{(scow %uv p.target)}"  :: TODO render name, if avail or first x ships in $team
+        %flag  "{(scow %p p.p.target)}/{(trip q.p.target)}"
+    ==
+  ::  +phat: render chat target with local shorthand
   ::
   ::    renders as ~ship/path.
   ::    for local mailboxes, renders just /path.
   ::
   ++  phat
     ^-  tape
+    ?.  ?=(%flag -.target)
+      ~(full tr target)
     %+  weld
-      ?:  =(our-self p.tr)  ~
-      (scow %p p.tr)
-    "/{(trip q.tr)}"
+      ?:  =(our-self p.p.target)  ~
+      (scow %p p.p.target)
+    "/{(trip q.p.target)}"
   ::  +show: render as tape, as glyph if we can
   ::
   ++  show
     ^-  tape
-    =+  cha=(~(get by bound) tr)
-    ?~(cha phat [u.cha ~])
+    =+  cha=(~(get by bound) target)
+    ?~  cha  ~(phat tr target) 
+    [u.cha ~]
+
   ::  +glyph: tape for glyph of target, defaulting to *
   ::
   ++  glyph
     ^-  tape
-    [(~(gut by bound) tr '*') ~]
+    [(~(gut by bound) target '*') ~]
   --
 ::
 ::  +mr: render messages
