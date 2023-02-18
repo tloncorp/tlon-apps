@@ -497,12 +497,12 @@
   ++  tab-list
     ^-  (list [@t tank])
     :~
-      [';view' leaf+";view ~ship/chat-name (glyph)"]
-      [';flee' leaf+";flee ~ship/chat-name"]
+      [';view' leaf+";view (glyph) (~ship) (club-id) (~ship/chat-name)"]
+      [';flee' leaf+";flee (glyph) (~ship) (club-id) (~ship/chat-name)"]
     ::
-      [';bind' leaf+";bind [glyph] ~ship/chat-name"]
+      [';bind' leaf+";bind [glyph] (~ship) (club-id) (~ship/chat-name)"]
       [';unbind' leaf+";unbind [glyph]"]
-      [';what' leaf+";what (~ship/chat-name) (glyph)"]
+      [';what' leaf+";what (glyph) (~ship) (club-id) (~ship/chat-name)"]
     ::
       [';settings' leaf+";settings"]
       [';set' leaf+";set key (value)"]
