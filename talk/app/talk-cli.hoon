@@ -182,10 +182,10 @@
   (~(gut by sessions) sole-id %*(. *session audience [our-self %$]))
 ::  +tor: term ordering for targets
 ::
-++  tor
-  |=  [[* a=term] [* b=term]]
-  (aor a b)
-::  +get-chats: get known chat channels
+::++  tor     :: TODO support $whom
+::  |=  [[* a=term] [* b=term]]
+::  (aor a b)
+::  +get-chats: get known chats 
 ::
 ++  get-chats  ~+
   ^-  (set flag:chat)
@@ -585,7 +585,7 @@
       ::  without argument, print all we're viewing
       ::
       ?~  target
-        [[(show-chats:sh-out ~(tap in viewing))]~ state]
+        [[(show-targets:sh-out ~(tap in viewing))]~ state]
       ::  only view existing chats
       ::
       ?.  (target-exists target)
@@ -893,15 +893,19 @@
     %+  weld  "set: {[glyph ~]} "
     ?~  target  "unbound"
     ~(phat tr u.target)
-  ::  +show-chats: print list of targets
+  ::  +show-targets: print list of targets
   ::
-  ++  show-chats
-    |=  chats=(list target)
+  ++  show-targets
+    |=  targets=(list target)
     ^-  card
     %-  print-more
-    %+  turn  (sort chats tor)
-    |=  flag:chat
-    "{(nome:mr p)}/{(trip q)}"
+    %+  turn  targets     :: TODO, sort: (sort targets tor)
+    |=  =target
+    ?-   -.target
+        %ship  "{(nome:mr p.target)}"
+        %club  "{(scow %uv p.target)}"  :: TODO create settings term for optional display change 
+        %flag  "{(nome:mr p.p.target)}/{(trip q.p.target)}"
+    ==                             
   --
 ::
 ::  +tr: render targets (chat identifiers)
