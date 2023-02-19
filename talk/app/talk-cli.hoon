@@ -111,7 +111,9 @@
           %kick
         :_  state
         ?+  wire  ~
-          [%chat %ui ~]  ~[connect:tc]
+          [%chat %ui ~]  [chat-connect:tc]~
+          [%dm ship=@ %ui ~]  dm-connect:tc
+          [%club id=@ %ui ~]  club-connect:tc
         ==
       ::
           %fact
@@ -159,19 +161,70 @@
   |=  old=(unit versioned-state)
   ^-  (quip card _state)
   ?~  old
-    [~[connect] state(width 80)]
-  ::
+    :_  state(width 80)
+    ;:  welp  
+       dm-connect
+       club-connect
+       [chat-connect]~ 
+    ==
   ?>  ?=(%0 -.u.old)
   :_  u.old
-  ?:  %-  ~(has by wex.bowl)
-      [/chat/ui our-self %chat]
-    ~
-  ~[connect]
-::  +connect: connect to the chat backend
+  ;:  welp 
+     dm-connect
+     club-connect
+     ?:  %-  ~(has by wex.bowl)
+         [/chat/ui our-self %chat]
+       *(list card)
+     [chat-connect]~
+  ==
+::  +chat-connect: subscribe to chats
 ::
-++  connect
+++  chat-connect
   ^-  card
   [%pass /chat/ui %agent [our-self %chat] %watch /ui]
+::  +dm-connect: subscribe to dms
+::
+++  dm-connect
+  ^-  (list card)
+  =|  cards=(list card)
+  =/  ships=(list ship)  ~(tap in get-dms)
+  |- 
+  ?~  ships  cards
+  ?:  %-  ~(has by wex.bowl)
+      [/dm/(scot %p i.ships)/ui our-self %chat]
+    $(ships t.ships)
+  %=  $
+     cards  
+    ;:  welp  cards
+       :~  :*
+             %pass  /dm/(scot %p i.ships)/ui 
+             %agent  [our-self %chat] 
+             %watch  /dm/(scot %p i.ships)/ui
+    ==  ==  ==
+     ships  t.ships
+  ==
+:: +club-connect: subscribe to clubs
+::
+++  club-connect
+  ^-  (list card)
+  =|  cards=(list card)
+  =/  ids=(list club-id)  
+     ~(tap in ~(key by get-clubs))
+  |- 
+  ?~  ids  cards
+  ?:  %-  ~(has by wex.bowl)
+      [/club/(scot %uv i.ids)/ui our-self %chat]
+    $(ids t.ids)
+  %=  $
+     cards  
+    ;:  welp  cards
+       :~  :*  
+             %pass  /club/(scot %uv i.ids)/ui 
+             %agent  [our-self %chat] 
+             %watch  /club/(scot %uv i.ids)/ui/writs
+    ==  ==  ==
+     ids  t.ids
+  ==
 ::
 ::TODO  better moon support. (name:title our.bowl)
 ++  our-self  our.bowl
