@@ -56,6 +56,8 @@
     ::                                              ::
       [%select $@(rel=@ud [zeros=@u abs=@ud])]      ::  rel/abs msg selection
       [%chats ~]                                    ::  list available chats
+      [%dms ~]                                      ::  list available dms
+      [%clubs ~]                                    ::  list available clubs
       [%help ~]                                     ::  print usage info
   ==                                                ::
 ::
@@ -391,6 +393,8 @@
         ==
       ::
         ;~(plug (tag %chats) (easy ~))
+        ;~(plug (tag %dms) (easy ~))
+        ;~(plug (tag %clubs) (easy ~))
         ;~(plug (tag %help) (easy ~))
       ::
         (stag %select nump)
@@ -529,6 +533,8 @@
       [';unset' leaf+";unset key"]
     ::
       [';chats' leaf+";chats"]
+      [';dms' leaf+";dms"]
+      [';clubs' leaf+";clubs"]
       [';help' leaf+";help"]
     ==
   ::  +work: run user command
@@ -556,6 +562,8 @@
         ::
           %select    (select +.job)
           %chats     chats
+          %dms       dms
+          %clubs     clubs
           %help      help
         ==
     ::  +act: build action card
