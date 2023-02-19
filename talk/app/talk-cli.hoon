@@ -116,11 +116,24 @@
           [%club id=@ %ui ~]  club-connect:tc
         ==
       ::
-          %fact
+          %fact  
         ?+  p.cage.sign  ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
             %chat-action-0
           %-  on-chat-update:tc
           !<(action:chat q.cage.sign)
+        ::
+            %writ-diff
+          ?+    wire  ~
+              [%dm ship=@ %ui ~] 
+            %+  on-dm-update:tc  
+               (slav %p +<:wire)
+            !<(diff:dm:chat q.cage.sign)
+          ::  
+              [%club id=@ %ui ~]
+            %+  on-club-update:tc  
+               (slav %uv +<:wire)
+            !<(diff:writs:chat q.cage.sign)
+          ==
         ==
       ==
     [cards this]
@@ -272,26 +285,58 @@
   |=  a=*
   ^-  (quip card _state)
   ?:  ?=(%connect a)
-    [[connect ~] state]
+    :_  state
+    ;:  welp 
+       dm-connect
+       club-connect
+       [chat-connect]~
+    ==
   [~ state]
-::  +on-chat-update: get new messages
+::  +on-dm-update: get new dms
+::
+++  on-dm-update 
+  |=  [=ship =diff:dm:chat]
+  ^-  (quip card _state)
+  ?.  ?=(%add -.q.diff)  [~ state]
+  =*  id=id:dm:chat         p.diff
+  =*  memo=memo:chat      p.q.diff
+  (update-session [%ship ship] memo id)
+::  +on-club-update: get new club messages
+::
+++  on-club-update
+  |=  [=club-id =diff:writs:chat]
+  ^-  (quip card _state)
+  ?.  ?=(%add -.q.diff)   [~ state]
+  =*  id=id:chat             p.diff
+  =*  memo=memo:chat       p.q.diff
+  (update-session [%club club-id] memo id)
+::  +on-chat-update: get new chat messages
 ::
 ++  on-chat-update
   |=  [=flag:chat =time =diff:chat]
   ^-  (quip card _state)
   ?.  ?=(%writs -.diff)    [~ state]
   ?.  ?=(%add -.q.p.diff)  [~ state]
-  =*  id=id:chat        p.p.diff
-  =*  memo=memo:chat  p.q.p.diff
+  =*  id=id:chat            p.p.diff
+  =*  memo=memo:chat      p.q.p.diff
+  (update-session [%flag flag] memo id)
+::  +update-session: process message updates
+::
+++  update-session
+  |=  $:  =target
+          =memo:chat 
+          =id:chat 
+      ==
+  ^-  (quip card _state)
   =/  sez=(list [=sole-id =session])
     ~(tap by sessions)
   =|  cards=(list card)
   |-
   ?~  sez  [cards state]
   =^  caz  session.i.sez
-    ?.  (~(has in viewing.session.i.sez) flag)
+    ?.  (~(has in viewing.session.i.sez) target)
       [~ session.i.sez]
-    (~(read-post se i.sez) flag id memo)
+    (~(read-post se i.sez) target id memo)
   =.  sessions  (~(put by sessions) i.sez)
   $(sez t.sez, cards (weld cards caz))
 ::  +se: session event handling
