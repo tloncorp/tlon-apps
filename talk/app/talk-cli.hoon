@@ -349,12 +349,30 @@
   ::
   ++  read-post
     |=  [=target =id:chat =memo:chat]
-    ^-  (quip card _session)
+    |^  ^-  (quip card _session)
+    =+  bag=(sack history.session)
+    ?:  (~(has in bag) [target id]) 
+       [~ session] 
     :-  (show-post:sh-out target memo)
     %_  session
       history  [[target id] history.session]
       count    +(count.session)
     ==
+    :: +sack: make set of history pointers
+    ::
+    :: TODO inefficent; possibly just check previous
+    :: x messages for dupes
+    ++  sack
+      |=  =_history:session
+      ^-  (set [whom:chat id:chat])
+      =|  bag=(set [whom:chat id:chat])
+      |-
+      ?~  history  bag
+      %=  $
+        bag  (~(put in bag) i.history)
+        history  t.history
+      ==
+    --
   ::
   ++  notice-remove
     |=  =target
