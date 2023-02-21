@@ -200,7 +200,9 @@
 ++  dm-connect
   ^-  (list card)
   =|  cards=(list card)
-  =/  ships=(list ship)  ~(tap in get-dms)
+  =/  ships=(list ship)
+    %~  tap  in
+    (~(uni in get-accepted-dms) get-pending-dms)
   |- 
   ?~  ships  cards
   ?:  %-  ~(has by wex.bowl)
@@ -258,12 +260,17 @@
 ++  get-chats  ~+
   ^-  (set flag:chat)
   (scry-for (set flag:chat) %chat /chat)
-::  +get-dms: get known dms
+::  +get-accepted-dms: get known dms that are mutual and ones we've
+::  initiated
 ::
-++  get-dms  ~+
+++  get-accepted-dms  ~+
   ^-  (set ship)
-  %.  ~(tap in (scry-for (set ship) %chat /dm))
-    ~(gas in (scry-for (set ship) %chat /dm/invited))
+  (scry-for (set ship) %chat /dm)
+::  +get-pending-dms: get known dm invites
+::
+++  get-pending-dms  ~+
+  ^-  (set ship)
+  (scry-for (set ship) %chat /dm/invited)
 ::  +get-clubs: get known clubs
 ::
 ++  get-clubs  ~+
@@ -275,9 +282,12 @@
   |=  =target
   ^-  ?
   ?-   -.target
-      %ship  (~(has in get-dms) p.target)
       %flag  (~(has in get-chats) p.target)
       %club  (~(has by get-clubs) p.target)
+      %ship
+    %-  %~  has  in 
+        (~(uni in get-accepted-dms) get-pending-dms)
+    p.target
   ==
 ::  +poke-noun: debug helpers
 ::
@@ -973,7 +983,8 @@
     ++  dms
       ^-  (quip card _state)
       =/  targets=(set target)
-        %-  ~(run in get-dms)
+        %-  %~  run  in 
+            (~(uni in get-accepted-dms) get-pending-dms)
           |=  =ship
           [%ship ship]
       :_  state
