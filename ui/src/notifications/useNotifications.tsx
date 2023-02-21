@@ -1,8 +1,9 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useHarkState, { emptyBlanket, emptyCarpet } from '@/state/hark';
 import { Flag, Thread, Yarn, Yarns } from '@/types/hark';
 import _ from 'lodash';
 import { makePrettyDay } from '@/logic/utils';
+import useRequestState from '@/logic/useRequestState';
 
 export interface Bin {
   time: number;
@@ -67,6 +68,14 @@ export const isComment = (yarn: Yarn) =>
 export const isReply = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' replied to your message “');
 
+const startHark = async () => {
+  await useHarkState.getState().start();
+};
+
+const retrieveHark = async () => {
+  await useHarkState.getState().retrieve();
+};
+
 export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
   const { carpet, blanket } = useHarkState(
     useCallback(
@@ -79,7 +88,6 @@ export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
             }
           );
         }
-
         return { carpet: state.carpet, blanket: state.blanket };
       },
       [flag]
@@ -98,7 +106,6 @@ export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
       .filter((b) => (mentionsOnly ? isMention(b.topYarn) : b));
 
     const finalBins = mentionsOnly ? mentionBins : bins;
-
     return {
       notifications: groupBinsByDate(finalBins.concat(oldBins)),
       mentions: mentionBins,

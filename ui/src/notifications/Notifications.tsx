@@ -14,7 +14,8 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import useHarkState from '@/state/hark';
 import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useIsDark, useIsMobile } from '@/logic/useMedia';
+import { useIsMobile } from '@/logic/useMedia';
+import { randomElement, randomIntInRange } from '@/logic/utils';
 import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -68,23 +69,49 @@ export function GroupWrapper({
   );
 }
 
+function NotificationPlaceholder() {
+  const background = `bg-gray-${randomElement([100, 200, 400])}`;
+  const isMobile = useIsMobile();
+  return (
+    <div className="flex w-full animate-pulse flex-col rounded-lg">
+      <div className="flex w-full flex-1 space-x-3 rounded-lg p-2">
+        <div className="flex h-6 w-24 justify-center rounded-md bg-gray-100 text-sm" />
+      </div>
+      <div className="flex w-full flex-1 space-x-3 rounded-lg p-2">
+        <div
+          className={cn(background, 'h-12 w-full rounded-md')}
+          style={{
+            width: `${randomIntInRange(300, isMobile ? 300 : 900)}px`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function Notifications({
   child: Notification,
   title,
 }: NotificationsProps) {
   const flag = useRouteGroup();
+  const loaded = useHarkState((s) => s.loaded);
   const group = useGroup(flag);
   const isMobile = useIsMobile();
-  const { isPending, setPending, setReady } = useRequestState();
+  const {
+    isPending: isMarkReadPending,
+    setPending: setMarkReadPending,
+    setReady: setMarkReadReady,
+  } = useRequestState();
   const [showMentionsOnly, setShowMentionsOnly] = useState(false);
   const { notifications, mentions, count } = useNotifications(
     flag,
     showMentionsOnly
   );
+
   const hasUnreads = count > 0;
 
   const markAllRead = useCallback(async () => {
-    setPending();
+    setMarkReadPending();
     if (showMentionsOnly) {
       await Promise.all(
         mentions.map(async (m, index) =>
@@ -98,19 +125,19 @@ export default function Notifications({
         .getState()
         .sawSeam(flag ? { group: flag } : { desk: 'groups' });
     }
-    setReady();
-  }, [setPending, setReady, mentions, showMentionsOnly, flag]);
+    setMarkReadReady();
+  }, [setMarkReadPending, setMarkReadReady, mentions, showMentionsOnly, flag]);
 
   const MarkAsRead = (
     <button
-      disabled={isPending || !hasUnreads}
+      disabled={isMarkReadPending || !hasUnreads}
       className={cn('small-button whitespace-nowrap', {
-        'bg-gray-400 text-gray-800': isPending || !hasUnreads,
-        'bg-blue text-white': !isPending && hasUnreads,
+        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
+        'bg-blue text-white': !isMarkReadPending && hasUnreads,
       })}
       onClick={markAllRead}
     >
-      {isPending ? (
+      {isMarkReadPending ? (
         <LoadingSpinner className="h-4 w-4" />
       ) : (
         `Mark ${showMentionsOnly ? 'Mentions' : 'All'} as Read`
@@ -161,20 +188,24 @@ export default function Notifications({
       <div className="flex flex-row justify-end pt-2">
         {isMobile && hasUnreads && MarkAsRead}
       </div>
-      {notifications.map((grouping) => (
-        <div key={grouping.date}>
-          <h2 className="my-4 text-lg font-bold text-gray-400">
-            {grouping.date}
-          </h2>
-          <ul className="space-y-2">
-            {grouping.bins.map((b) => (
-              <li key={b.time}>
-                <Notification bin={b} />
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {loaded
+        ? notifications.map((grouping) => (
+            <div key={grouping.date}>
+              <h2 className="my-4 text-lg font-bold text-gray-400">
+                {grouping.date}
+              </h2>
+              <ul className="space-y-2">
+                {grouping.bins.map((b) => (
+                  <li key={b.time}>
+                    <Notification bin={b} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        : new Array(30)
+            .fill(true)
+            .map((_, i) => <NotificationPlaceholder key={i} />)}
     </section>
   );
 }
