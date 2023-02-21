@@ -3,7 +3,6 @@ import React, {
   ComponentType,
   PropsWithChildren,
   useCallback,
-  useMemo,
   useState,
 } from 'react';
 import { Helmet } from 'react-helmet';
@@ -16,6 +15,7 @@ import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
+import GroupSummary from '@/groups/GroupSummary';
 import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -146,7 +146,7 @@ export default function Notifications({
   );
 
   return (
-    <section className="h-full w-full overflow-y-scroll bg-gray-50 p-6 pr-4">
+    <section className="h-full w-full overflow-y-scroll bg-gray-50 p-6">
       <Helmet>
         <title>
           {group
@@ -154,40 +154,55 @@ export default function Notifications({
             : title}
         </title>
       </Helmet>
-      <div className="flex w-full items-center justify-between">
-        <div
-          className={cn('flex flex-row', {
-            'w-full justify-center': isMobile,
-          })}
-        >
-          <button
-            onClick={() => setShowMentionsOnly(false)}
-            className={cn('small-button rounded-r-none', {
-              'bg-gray-800 text-white': !showMentionsOnly,
-              'bg-white text-gray-800 ': showMentionsOnly,
-              'grow whitespace-nowrap': isMobile,
-            })}
-          >
-            All Notifications{hasUnreads ? ` • ${count} New` : null}
-          </button>
-          <button
-            onClick={() => setShowMentionsOnly(true)}
-            className={cn('small-button rounded-l-none', {
-              'bg-gray-800 text-white': showMentionsOnly,
-              'bg-white text-gray-800': !showMentionsOnly,
-              'grow whitespace-nowrap': isMobile,
-            })}
-          >
-            Mentions Only
-            {mentions.length ? ` • ${mentions.length} New` : null}
-          </button>
-        </div>
 
-        {!isMobile && hasUnreads && MarkAsRead}
-      </div>
-      <div className="flex flex-row justify-end pt-2">
-        {isMobile && hasUnreads && MarkAsRead}
-      </div>
+      {!isMobile && group && (
+        <div className="mb-7 flex-col space-y-7 rounded-xl bg-white p-7">
+          <h1 className="text-lg font-bold">Group Info</h1>
+          <GroupSummary flag={flag} preview={{ ...group, flag }} />
+          {group.meta.description && (
+            <p className="leading-6">{group.meta.description}</p>
+          )}
+        </div>
+      )}
+
+      {loaded && notifications.length > 0 && (
+        <div className="flex w-full items-center justify-between">
+          <div
+            className={cn('flex flex-row', {
+              'w-full justify-center': isMobile,
+            })}
+          >
+            <button
+              onClick={() => setShowMentionsOnly(false)}
+              className={cn('small-button rounded-r-none', {
+                'bg-gray-800 text-white': !showMentionsOnly,
+                'bg-white text-gray-800 ': showMentionsOnly,
+                'grow whitespace-nowrap': isMobile,
+              })}
+            >
+              All Notifications{hasUnreads ? ` • ${count} New` : null}
+            </button>
+            <button
+              onClick={() => setShowMentionsOnly(true)}
+              className={cn('small-button rounded-l-none', {
+                'bg-gray-800 text-white': showMentionsOnly,
+                'bg-white text-gray-800': !showMentionsOnly,
+                'grow whitespace-nowrap': isMobile,
+              })}
+            >
+              Mentions Only
+              {mentions.length ? ` • ${mentions.length} New` : null}
+            </button>
+          </div>
+
+          {!isMobile && hasUnreads && MarkAsRead}
+        </div>
+      )}
+
+      {isMobile && hasUnreads && (
+        <div className="flex flex-row justify-end pt-2">{MarkAsRead}</div>
+      )}
+
       {loaded
         ? notifications.map((grouping) => (
             <div key={grouping.date}>

@@ -294,7 +294,7 @@ export interface GroupPreview {
   flag: string;
   meta: GroupMeta;
   cordon: Cordon;
-  time: number;
+  time?: number;
   secret: boolean;
 }
 
