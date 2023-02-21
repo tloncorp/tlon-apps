@@ -478,8 +478,9 @@
     |^
       %+  stag  |
       %+  knee  *command  |.  ~+
-      =-  ;~(pose ;~(pfix mic -) message)
+      =-  ;~(pose ;~(pfix mic -) message)  
       ;~  pose
+        (stag %say dm)
         (stag %target targ)
       ::
         ;~((glue ace) (tag %view) targ)
@@ -541,10 +542,11 @@
     ::     ;~(pfix ace ;~(plug i.opt $(opt t.opt)))
     ::   --
     ::
-    ++  group  ;~((glue fas) ship sym)
-    ++  tag   |*(a=@tas (cold a (jest a)))  ::TODO  into stdlib
-    ++  ship  ;~(pfix sig fed:ag)
-    ++  name  ;~(pfix fas urs:ab)
+    ++  group    ;~((glue fas) ship sym)
+    ++  tag      |*(a=@tas (cold a (jest a)))  ::TODO  into stdlib
+    ++  ship     ;~(pfix sig fed:ag)
+    ++  name     ;~(pfix fas urs:ab)
+    ++  club-id  (cook |=(a=@ `@uv`a) ;~(pfix (jest '0v') viz:ag))
     ::  +tarl: local target, as /path
     ::
     ++  tarl  (stag our-self name)
@@ -552,20 +554,33 @@
     ::
     ++  targ
       ;~  pose
-        tarl
-        ;~(plug ship name)
+        :: TODO reimplement tarl
+         whom
+        :: TODO include method to send $rsvp, if dm connection is not
+        :: already established
         (sear (cury decode-glyph session) glyph)
+      ==
+    ++  whom
+      %+  cook
+        |=  =target
+        target
+      ;~  pose
+        (stag %flag ;~(plug ship name))
+        (stag %club club-id)
+        (stag %ship ship)
       ==
     ::  +tars: set of comma-separated targs
     ::
-    ++  tars
-      %+  cook  ~(gas in *(set target))
-      (most ;~(plug com (star ace)) targ)
+    ::  TODO currently not used, adapt for $whom
+    :: ++  tars
+    ::  %+  cook  ~(gas in *(set target))
+    ::  (most ;~(plug com (star ace)) targ)
     ::  +ships: set of comma-separated ships
     ::
-    ++  ships
-      %+  cook  ~(gas in *(set ^ship))
-      (most ;~(plug com (star ace)) ship)
+    ::  TODO currently not used, adapt for $whom
+    :: ++  ships
+    ::  %+  cook  ~(gas in *(set ^ship))
+    ::  (most ;~(plug com (star ace)) ship)
     ::  +glyph: shorthand character
     ::
     ++  glyph  (mask glyphs)
@@ -588,18 +603,25 @@
         (stag 0 dem:ag)
         (cook lent (star mic))
       ==
+    ::  +dm: send a direct message to a ship
+    ::
+    ++  dm 
+      ;~  (glue ace) 
+        ;~  plug  (cook |=(s=@p [~ s]) ship)
+          content
+      ==  ==
     ::  +message: all messages
     ::
     ++  message
       ;~  pose
         :: ;~(plug (cold %eval hax) expr)
-        (stag %say content)
+        (stag %say ;~(plug (easy [~]) content))
       ==
     ::  +content: simple messages
     ::
     ++  content
       ;~  pose
-        (cook (late ~) (cook |=(url=@t [%link url url]) turl))
+        :: (cook (late ~) (cook |=(url=@t [%link url url]) turl))
         ;~(less mic text)
       ==
     ::  +turl: url parser
