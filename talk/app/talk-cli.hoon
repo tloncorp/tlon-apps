@@ -753,16 +753,57 @@
     ::  +say: send messages
     ::
     ++  say
-      |=  msg=(list inline:chat)
-      ^-  (quip card _state)
-      :_  state
-      :_  ~
-      %^  act  %out-message
-        %chat
-      :-  %chat-action-0
-      !>  ^-  action:chat
-      =/  =memo:chat  [~ our.bowl now.bowl %story ~ msg]
-      [audience now.bowl %writs [our now]:bowl %add memo]
+      |=  [who=(unit ship) msg=(list inline:chat)]
+      |^  ^-  (quip card _state)
+      ?~  who  
+        [[spit]~ put-ses]
+      =/  =whom:chat  [%ship (need who)]
+     :: =/  rsvp=(list card)
+     ::   ?.  (~(has in get-pending-dms) who)
+     ::     *(list card)
+     ::   :_  ~
+     ::   %^  act  %rsvp-response
+     ::     %chat
+     ::   [%dm-rsvp !>(`rsvp:dm:chat`[who %.y])]
+      =.  audience  :: whom 
+        ?.((target-exists whom) !! whom) 
+      =.  viewing  (~(put in viewing) whom)
+      =^  cards  state
+        ?:  (~(has by bound) whom)
+          [~ state]
+        (bind-default-glyph whom)
+      :_  put-ses
+      ;:  welp  cards
+         :: rsvp
+         [spit]~
+         [prompt:sh-out]~
+      ==
+      :: +spit: make a poke card based on audience
+      ::
+      ++  spit
+        %^  act  %out-message
+          %chat
+        ?-   -.audience
+            %ship 
+          :-  %dm-action
+          !>  ^-  action:dm:chat
+          =/  =memo:chat  
+            [~ our.bowl now.bowl %story ~ msg]
+          [p.audience [our now]:bowl %add memo]
+        ::
+            %flag
+          :-  %chat-action-0
+          !>  ^-  action:chat
+          =/  =memo:chat  [~ our.bowl now.bowl %story ~ msg]
+          [p.audience now.bowl %writs [our now]:bowl %add memo]
+       ::
+            %club   
+          :-  %club-action
+          !>  ^-  action:club:chat
+          =/  =memo:chat  [~ our.bowl now.bowl %story ~ msg]
+          [p.audience *echo:club:chat %writ [our now]:bowl %add memo]   
+        ==
+      --
     ::  +eval: run hoon, send code and result as message
     ::
     ::    this double-virtualizes and clams to disable .^ for security reasons
