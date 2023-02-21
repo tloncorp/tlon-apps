@@ -3,7 +3,6 @@ import React, {
   ComponentType,
   PropsWithChildren,
   useCallback,
-  useMemo,
   useState,
 } from 'react';
 import { Helmet } from 'react-helmet';
@@ -16,6 +15,7 @@ import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
+import GroupSummary from '@/groups/GroupSummary';
 import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -154,6 +154,15 @@ export default function Notifications({
             : title}
         </title>
       </Helmet>
+      {!isMobile && group && (
+        <div className="mb-7 flex-col space-y-7 rounded-xl bg-white p-7">
+          <h1 className="text-lg font-bold">Group Info</h1>
+          <GroupSummary flag={flag} preview={{ ...group, flag }} />
+          {group.meta.description && (
+            <p className="leading-6">{group.meta.description}</p>
+          )}
+        </div>
+      )}
       <div className="flex w-full items-center justify-between">
         <div
           className={cn('flex flex-row', {
