@@ -834,22 +834,23 @@
         ?^  u.qur
           =+  gyf=(~(get by bound) u.qur)
           (print:sh-out ?~(gyf "none" [u.gyf]~))
+        :: TODO pass through +nome?
         =+  pan=~(tap in (~(get ju binds) `@t`u.qur))
         ?:  =(~ pan)  (print:sh-out "~")
         =<  (effect:sh-out %mor (turn pan .))
         |=(t=target [%txt ~(phat tr t)])
       %-  print-more:sh-out
       %-  ~(rep by binds)
-      |=  $:  [=glyph tars=(set target)]
+      |=  $:  [=glyph targets=(set target)]
               lis=(list tape)
           ==
       %+  weld  lis
       ^-  (list tape)
-      %-  ~(rep in tars)
-      |=  [t=target l=(list tape)]
+      %-  ~(rep in targets)
+      |=  [=whom:chat l=(list tape)]
       %+  weld  l
       ^-  (list tape)
-      [glyph ' ' ~(phat tr t)]~
+      [glyph ' ' ~(phat tr whom)]~
     ::  +show-settings: print enabled flags, timezone and width settings
     ::
     ++  show-settings
