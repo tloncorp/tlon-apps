@@ -11,6 +11,7 @@ import useSubscriptionState from './subscription';
 export interface HarkState {
   set: (fn: (sta: HarkState) => void) => void;
   batchSet: (fn: (sta: HarkState) => void) => void;
+  loaded: boolean;
   /** carpet: represents unread notifications at the app level */
   carpet: Carpet;
   /** blanket: represents read notifications at the app level */
@@ -70,14 +71,15 @@ const useHarkState = create<HarkState>((set, get) => ({
       get().set(fn);
     });
   },
+  loaded: false,
   carpet: emptyCarpet({ desk: window.desk }),
   blanket: emptyBlanket({ desk: window.desk }),
   textiles: {},
   groupSubs: [],
   start: async () => {
-    get().retrieve();
+    await get().retrieve();
 
-    api.subscribe({
+    await api.subscribe({
       app: 'hark',
       path: '/ui',
       event: (event: HarkAction) => {
@@ -86,6 +88,7 @@ const useHarkState = create<HarkState>((set, get) => ({
         }
       },
     });
+    set({ loaded: true });
   },
   update: async (group) => {
     const { groupSubs, retrieve, retrieveGroup } = get();
@@ -97,15 +100,19 @@ const useHarkState = create<HarkState>((set, get) => ({
     );
   },
   retrieve: async () => {
-    const carpet = await api.scry<Carpet>({
-      app: 'hark',
-      path: `/desk/${window.desk}/latest`,
-    });
+    const carpet = await api
+      .scry<Carpet>({
+        app: 'hark',
+        path: `/desk/${window.desk}/latest`,
+      })
+      .catch(() => emptyCarpet({ desk: window.desk }));
 
-    const blanket = await api.scry<Blanket>({
-      app: 'hark',
-      path: `/desk/${window.desk}/quilt/${decToUd(carpet.stitch.toString())}`,
-    });
+    const blanket = await api
+      .scry<Blanket>({
+        app: 'hark',
+        path: `/desk/${window.desk}/quilt/${decToUd(carpet.stitch.toString())}`,
+      })
+      .catch(() => emptyBlanket({ desk: window.desk }));
 
     get().batchSet((draft) => {
       draft.carpet = carpet;
