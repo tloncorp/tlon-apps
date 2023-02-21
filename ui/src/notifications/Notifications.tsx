@@ -146,7 +146,7 @@ export default function Notifications({
   );
 
   return (
-    <section className="h-full w-full overflow-y-scroll bg-gray-50 p-6">
+    <section className="h-full w-full overflow-y-scroll bg-gray-50 p-6 pr-4">
       <Helmet>
         <title>
           {group
@@ -154,7 +154,6 @@ export default function Notifications({
             : title}
         </title>
       </Helmet>
-
       {!isMobile && group && (
         <div className="mb-7 flex-col space-y-7 rounded-xl bg-white p-7">
           <h1 className="text-lg font-bold">Group Info</h1>
@@ -164,47 +163,49 @@ export default function Notifications({
           )}
         </div>
       )}
-
-      {loaded && notifications.length > 0 && (
-        <div className="flex w-full items-center justify-between">
-          <div
-            className={cn('flex flex-row', {
-              'w-full justify-center': isMobile,
+      <div className="flex w-full items-center justify-between">
+        <div
+          className={cn('flex flex-row', {
+            'w-full justify-center': isMobile,
+          })}
+        >
+          <button
+            onClick={() => setShowMentionsOnly(false)}
+            className={cn('small-button rounded-r-none', {
+              'bg-gray-800 text-white': !showMentionsOnly,
+              'bg-white text-gray-800 ': showMentionsOnly,
+              'grow whitespace-nowrap': isMobile,
             })}
           >
-            <button
-              onClick={() => setShowMentionsOnly(false)}
-              className={cn('small-button rounded-r-none', {
-                'bg-gray-800 text-white': !showMentionsOnly,
-                'bg-white text-gray-800 ': showMentionsOnly,
-                'grow whitespace-nowrap': isMobile,
-              })}
-            >
-              All Notifications{hasUnreads ? ` • ${count} New` : null}
-            </button>
-            <button
-              onClick={() => setShowMentionsOnly(true)}
-              className={cn('small-button rounded-l-none', {
-                'bg-gray-800 text-white': showMentionsOnly,
-                'bg-white text-gray-800': !showMentionsOnly,
-                'grow whitespace-nowrap': isMobile,
-              })}
-            >
-              Mentions Only
-              {mentions.length ? ` • ${mentions.length} New` : null}
-            </button>
-          </div>
-
-          {!isMobile && hasUnreads && MarkAsRead}
+            All Notifications{hasUnreads ? ` • ${count} New` : null}
+          </button>
+          <button
+            onClick={() => setShowMentionsOnly(true)}
+            className={cn('small-button rounded-l-none', {
+              'bg-gray-800 text-white': showMentionsOnly,
+              'bg-white text-gray-800': !showMentionsOnly,
+              'grow whitespace-nowrap': isMobile,
+            })}
+          >
+            Mentions Only
+            {mentions.length ? ` • ${mentions.length} New` : null}
+          </button>
         </div>
-      )}
 
-      {isMobile && hasUnreads && (
-        <div className="flex flex-row justify-end pt-2">{MarkAsRead}</div>
-      )}
-
-      {loaded
-        ? notifications.map((grouping) => (
+        {!isMobile && hasUnreads && MarkAsRead}
+      </div>
+      <div className="flex flex-row justify-end pt-2">
+        {isMobile && hasUnreads && MarkAsRead}
+      </div>
+      {loaded ? (
+        notifications.length === 0 ? (
+          <div className="flex w-full items-center justify-center">
+            <span className="text-xl font-semibold">
+              No notifications for {group ? 'this' : 'any'} group.
+            </span>
+          </div>
+        ) : (
+          notifications.map((grouping) => (
             <div key={grouping.date}>
               <h2 className="my-4 text-lg font-bold text-gray-400">
                 {grouping.date}
@@ -218,9 +219,12 @@ export default function Notifications({
               </ul>
             </div>
           ))
-        : new Array(30)
-            .fill(true)
-            .map((_, i) => <NotificationPlaceholder key={i} />)}
+        )
+      ) : (
+        new Array(30)
+          .fill(true)
+          .map((_, i) => <NotificationPlaceholder key={i} />)
+      )}
     </section>
   );
 }

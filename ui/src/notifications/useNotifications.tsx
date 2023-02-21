@@ -68,14 +68,6 @@ export const isComment = (yarn: Yarn) =>
 export const isReply = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' replied to your message “');
 
-const startHark = async () => {
-  await useHarkState.getState().start();
-};
-
-const retrieveHark = async () => {
-  await useHarkState.getState().retrieve();
-};
-
 export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
   const { carpet, blanket } = useHarkState(
     useCallback(
