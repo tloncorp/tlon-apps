@@ -247,8 +247,8 @@
 ++  get-session
   |=  =sole-id
   ^-  session
-  (~(gut by sessions) sole-id %*(. *session audience [our-self %$]))
-::  +tor: term ordering for targets
+  (~(gut by sessions) sole-id %*(. *session audience [%flag [our-self %$]]))
+::  +tor: term ordering for targets 
 ::
 ::++  tor     :: TODO support $whom
 ::  |=  [[* a=term] [* b=term]]
