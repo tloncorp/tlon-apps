@@ -287,7 +287,7 @@ export default function ChatInput({
    */
   const messageEditor = useMessageEditor({
     whom: id,
-    content: draft,
+    content: '',
     uploadKey,
     placeholder: 'Message',
     allowMentions: true,
@@ -312,9 +312,16 @@ export default function ChatInput({
       !messageEditor.isDestroyed
     ) {
       // end brings the cursor to the end of the content
-      messageEditor.commands.focus('end');
+      messageEditor?.commands.focus('end');
     }
   }, [autoFocus, replyCite, isMobile, messageEditor]);
+
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed) {
+      messageEditor?.commands.setContent(draft);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageEditor]);
 
   useEffect(() => {
     if (

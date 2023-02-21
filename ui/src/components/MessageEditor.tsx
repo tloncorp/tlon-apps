@@ -201,7 +201,7 @@ export function useMessageEditor({
         }
       },
     },
-    [keyMapExt, placeholder, handlePaste]
+    [keyMapExt, placeholder]
   );
 }
 
