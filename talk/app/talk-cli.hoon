@@ -861,16 +861,38 @@
         |=  [number=tape index=@ud]
         ^-  (quip card _state)
         ::NOTE  careful, messages may get deleted, so this may crash...
-        =/  [=flag:chat =id:chat]  (snag index history)
-        =.  audience  flag
+        =/  [=whom:chat =id:chat]  (snag index history)
+        =.  audience  whom
         =+  %^  scry-for-marked  ,[* =writ:chat]
-              %chat
-            /chat/(scot %p p.flag)/[q.flag]/writs/writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ
+              %chat  
+            (forge whom id)         
         :_  put-ses
         ^-  (list card)
         :~  (print:sh-out ['?' ' ' number])
-            (effect:sh-out ~(render-activate mr flag +.writ))
+            (effect:sh-out ~(render-activate mr whom +.writ))
             prompt:sh-out
+        ==
+      ::  +forge: make scry path for writ retrieval
+      ::
+      ++  forge
+        |=  [=whom:chat =id:chat]
+        ^-  path
+        ?-   -.whom 
+            %flag  
+          ;:  welp 
+             (path /chat/(scot %p p.p.whom)/[q.p.whom]/writs)
+             (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
+          ==
+            %ship
+          ;:  welp
+             (path /dm/(scot %p p.whom)/writs)
+             (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
+          ==
+            %club
+          ;:  welp
+             (path /club/(scot %uv p.whom)/writs)
+             (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
+          ==
         ==
       --
     ::  +chats: display list of joined chats
