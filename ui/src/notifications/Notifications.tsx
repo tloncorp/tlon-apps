@@ -188,8 +188,15 @@ export default function Notifications({
       <div className="flex flex-row justify-end pt-2">
         {isMobile && hasUnreads && MarkAsRead}
       </div>
-      {loaded
-        ? notifications.map((grouping) => (
+      {loaded ? (
+        notifications.length === 0 ? (
+          <div className="flex w-full items-center justify-center">
+            <span className="text-xl font-semibold">
+              No notifications for {group ? 'this' : 'any'} group.
+            </span>
+          </div>
+        ) : (
+          notifications.map((grouping) => (
             <div key={grouping.date}>
               <h2 className="my-4 text-lg font-bold text-gray-400">
                 {grouping.date}
@@ -203,9 +210,12 @@ export default function Notifications({
               </ul>
             </div>
           ))
-        : new Array(30)
-            .fill(true)
-            .map((_, i) => <NotificationPlaceholder key={i} />)}
+        )
+      ) : (
+        new Array(30)
+          .fill(true)
+          .map((_, i) => <NotificationPlaceholder key={i} />)
+      )}
     </section>
   );
 }
