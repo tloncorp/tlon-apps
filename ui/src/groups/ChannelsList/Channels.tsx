@@ -70,7 +70,7 @@ export default function Channels({
   }
 
   return (
-    <>
+    <div>
       {channels.length ? (
         channels.map((channel) => (
           <ChannelsListItem
@@ -84,7 +84,6 @@ export default function Channels({
       ) : (
         <div />
       )}
-      ;
-    </>
+    </div>
   );
 }

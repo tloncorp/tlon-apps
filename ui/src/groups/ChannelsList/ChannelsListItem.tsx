@@ -154,7 +154,7 @@ export default function ChannelsListItem({
       <div ref={provided?.innerRef} {...provided?.draggableProps}>
         <div
           className={cn(
-            'flex items-center justify-between rounded-lg py-5 px-6',
+            'flex items-center justify-between rounded-lg py-5 px-8',
             snapshot?.isDragging ? 'bg-gray-50' : 'bg-white'
           )}
         >

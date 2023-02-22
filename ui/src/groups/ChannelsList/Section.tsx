@@ -9,6 +9,8 @@ import EditSectionDropdown from '@/groups/ChannelsList/EditSectionDropdown';
 import SectionNameEditInput from '@/groups/ChannelsList/SectionNameEditInput';
 import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import PinIcon from '@/components/icons/PinIcon';
+import PinIcon16 from '@/components/icons/PinIcon16';
 
 interface SectionProps {
   sectionData: SectionListItem;
@@ -72,35 +74,46 @@ export default function Section({
       >
         {(provided) => (
           <div ref={provided.innerRef} {...provided.draggableProps}>
-            <div className="card mb-4 p-0">
-              <header className="flex items-center justify-between rounded-t-lg bg-gray-100 py-2 pl-3 pr-8">
-                <div className="flex w-full items-center">
-                  {isSectionless || isEditing || !isAdmin ? null : (
-                    <div {...provided.dragHandleProps}>
-                      <SixDotIcon className="my-2 mr-3 h-5 w-5 fill-gray-600" />
-                    </div>
-                  )}
-                  {saveStatus === 'loading' && (
-                    <LoadingSpinner className="mr-2 h-4 w-4" />
-                  )}
-                  {isEditing ? (
-                    <SectionNameEditInput
-                      handleEditingChange={handleEditingChange}
-                      sectionTitle={sectionData.title}
-                      isNew={sectionData.isNew}
-                      onSectionEditNameSubmit={onSectionEditNameSubmit}
-                      channels={sectionData.channels}
-                      sectionKey={sectionKey}
-                      saveStatus={saveStatus}
-                      setSaveStatus={setSaveStatus}
-                    />
-                  ) : (
-                    <h2 className="alt-highlight text-lg font-semibold">
-                      {sectionData.title}
-                    </h2>
-                  )}
+            <div className="card mb-4 px-0 pt-0 pb-3">
+              <header className="flex items-center justify-between rounded-t-lg bg-white px-8 pt-8 pb-2">
+                <div className="flex flex-col">
+                  <div className="flex w-full items-center">
+                    {isSectionless || isEditing ? null : (
+                      <div {...provided.dragHandleProps}>
+                        <SixDotIcon className="my-2 mr-3 h-5 w-5 fill-gray-600" />
+                      </div>
+                    )}
+                    {isSectionless ? (
+                      <PinIcon16 className="my-2 mr-3 h-6 w-6 fill-gray-600" />
+                    ) : null}
+                    {saveStatus === 'loading' && (
+                      <LoadingSpinner className="mr-2 h-4 w-4" />
+                    )}
+                    {isEditing ? (
+                      <SectionNameEditInput
+                        handleEditingChange={handleEditingChange}
+                        sectionTitle={sectionData.title}
+                        isNew={sectionData.isNew}
+                        onSectionEditNameSubmit={onSectionEditNameSubmit}
+                        channels={sectionData.channels}
+                        sectionKey={sectionKey}
+                        saveStatus={saveStatus}
+                        setSaveStatus={setSaveStatus}
+                      />
+                    ) : (
+                      <h2 className="alt-highlight text-lg font-semibold">
+                        {isSectionless ? 'Default' : sectionData.title}
+                      </h2>
+                    )}
+                  </div>
+                  {isSectionless ? (
+                    <span className="ml-[35px] font-semibold leading-4 text-gray-500">
+                      Channels in this section will float to the top of the
+                      channel list{' '}
+                    </span>
+                  ) : null}
                 </div>
-                {isSectionless || isEditing || !isAdmin ? null : (
+                {isSectionless || isEditing ? null : (
                   <EditSectionDropdown
                     handleEditClick={handleEditingChange}
                     handleDeleteClick={handleDeleteClick}
@@ -120,11 +133,11 @@ export default function Section({
     );
   }
   return (
-    <div className="card mb-4 p-0">
-      <header className="flex items-center justify-between rounded-t-lg bg-gray-100 py-2 pl-3 pr-8">
+    <div className="card mb-4 px-0 pt-0 pb-3">
+      <header className="flex items-center justify-between rounded-t-lg bg-white px-8 pt-8 pb-2">
         <div className="flex w-full items-center">
           <h2 className="alt-highlight text-lg font-semibold">
-            {sectionData.title}
+            {isSectionless ? 'Default' : sectionData.title}
           </h2>
         </div>
       </header>
