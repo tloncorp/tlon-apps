@@ -89,7 +89,8 @@ export default function useMessageSelector() {
       setShips([]);
       navigate(`/dm/${isMultiDm ? whom : whom}`);
     },
-    [isMultiDm, shipValues, existingMultiDm, setShips, navigate]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isMultiDm, JSON.stringify(shipValues), existingMultiDm, setShips, navigate]
   );
 
   const whom = useMemo(
