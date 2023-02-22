@@ -5,7 +5,7 @@ import { mix, transparentize } from 'color2k';
 import { useIsDark } from '@/logic/useMedia';
 import { useGroup, useGroupFlag } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
-import HashIcon16 from '@/components/icons/HashIcon16';
+import BellIcon from '@/components/icons/BellIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useHarkState from '@/state/hark';
 import { useCalm } from '@/state/settings';
@@ -15,7 +15,6 @@ import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
-import HomeIcon from '@/components/icons/HomeIcon';
 import HashIcon from '@/components/icons/HashIcon';
 
 function GroupHeader() {
@@ -202,7 +201,7 @@ export default function GroupSidebar() {
           <GroupHeader />
           <SidebarItem
             icon={
-              <HomeIcon
+              <BellIcon
                 className={cn('m-1 h-6 w-6 rounded bg-gray-50', {
                   'mix-blend-multiply': !isDark,
                 })}
@@ -210,7 +209,7 @@ export default function GroupSidebar() {
             }
             to={`/groups/${flag}/activity`}
           >
-            Home
+            Activity
           </SidebarItem>
           <SidebarItem
             icon={

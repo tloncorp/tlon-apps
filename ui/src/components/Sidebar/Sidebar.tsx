@@ -65,7 +65,7 @@ export function GroupsAppMenu() {
               target="_blank"
               rel="noreferrer"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+              <div className="flex h-12 w-12 items-center justify-center rounded-md text-blue">
                 <AsteriskIcon className="h-6 w-6" />
               </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
@@ -218,6 +218,12 @@ export default function Sidebar() {
                   sortOptions={sortOptions}
                   isMobile={isMobile}
                 />
+                {!sortedGroups.length && (
+                  <div className="mt-4 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
+                    Check out <strong>Find Groups</strong> above to find new
+                    groups in your network or view group invites.
+                  </div>
+                )}
               </li>
             </ul>
             {gangs.map((flag) => (

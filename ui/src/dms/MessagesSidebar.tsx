@@ -69,7 +69,7 @@ export function TalkAppMenu() {
               target="_blank"
               rel="noreferrer"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+              <div className="flex h-12 w-12 items-center justify-center rounded-md text-blue">
                 <AsteriskIcon className="h-6 w-6" />
               </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
