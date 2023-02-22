@@ -773,15 +773,26 @@
       ?~  who  
         [[spit]~ put-ses]
       =/  =whom:chat  [%ship (need who)]
-     :: =/  rsvp=(list card)
-     ::   ?.  (~(has in get-pending-dms) who)
-     ::     *(list card)
-     ::   :_  ~
-     ::   %^  act  %rsvp-response
-     ::     %chat
-     ::   [%dm-rsvp !>(`rsvp:dm:chat`[who %.y])]
-      =.  audience  :: whom 
-        ?.((target-exists whom) !! whom) 
+      :: if pending-dm, send an rsvp response
+      ::
+      =/  rsvp=card
+        ?.  (~(has in get-pending-dms) u.who)
+          *card
+        %^  act  %rsvp-response
+          %chat
+        [%dm-rsvp !>(`rsvp:dm:chat`[u.who %.y])]
+      :: if not subscribed, add a watch card so
+      :: we can quickly begin adding messages to state
+      ::
+      =/  connect=card  
+        ?:  %-  ~(has by wex.bowl)
+              [/dm/(scot %p u.who)/ui our-self %chat]
+          *card 
+        :*  %pass  /dm/(scot %p u.who)/ui 
+            %agent  [our-self %chat] 
+            %watch  /dm/(scot %p u.who)/ui
+        ==
+      =.  audience  whom 
       =.  viewing  (~(put in viewing) whom)
       =^  cards  state
         ?:  (~(has by bound) whom)
@@ -789,9 +800,10 @@
         (bind-default-glyph whom)
       :_  put-ses
       ;:  welp  cards
-         :: rsvp
+         [rsvp]~
          [spit]~
-         [prompt:sh-out]~
+         [connect]~
+         [prompt:sh-out]~ 
       ==
       :: +spit: make a poke card based on audience
       ::
