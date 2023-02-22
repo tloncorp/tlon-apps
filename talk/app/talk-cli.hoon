@@ -752,7 +752,12 @@
         ?:  (~(has by bound) target)
           [~ state]
         (bind-default-glyph target)
-      [[prompt:sh-out cards] put-ses]
+      :_  put-ses
+      ;:  welp  cards
+        [prompt:sh-out]~
+        ?.(?=(%ship -.target) ~ dm-connect)
+        ?.(?=(%club -.target) ~ club-connect)
+      ==
     ::  +flee: stop printing messages from a chat
     ::
     ++  flee
@@ -989,7 +994,9 @@
           |=  =ship
           [%ship ship]
       :_  state
-      [(show-targets:sh-out ~(tap in targets))]~
+      ;:  welp  dm-connect
+        [(show-targets:sh-out ~(tap in targets))]~
+      ==
     ::  +clubs: display list of known clubs
     ::
     ++  clubs
@@ -999,7 +1006,9 @@
           |=  =club-id
           [%club club-id]
       :_  state
-      [(show-targets:sh-out ~(tap in targets))]~
+      ;:  welp  club-connect
+        [(show-targets:sh-out ~(tap in targets))]~
+      ==  
     ::  +help: print (link to) usage instructions
     ::
     ++  help
