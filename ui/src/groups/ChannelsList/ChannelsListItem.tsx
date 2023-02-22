@@ -18,7 +18,6 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import { PRIVACY_TYPE } from '@/groups/ChannelsList/ChannelPermsSelector';
 import { Status } from '@/logic/status';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import useRequestState from '@/logic/useRequestState';
 import { useIsMobile } from '@/logic/useMedia';
 import useAllBriefs from '@/logic/useAllBriefs';
@@ -199,7 +198,7 @@ export default function ChannelsListItem({
                 disabled={isPending}
                 onClick={joinChannel}
                 className={cn(
-                  'small-secondary-button mix-blend-multiply disabled:bg-gray-50 dark:mix-blend-screen',
+                  'small-secondary-button mix-blend-multiply dark:mix-blend-screen',
                   {
                     'bg-blue-soft text-blue': isReady || isPending,
                     'bg-red-soft': isFailed,
@@ -210,7 +209,6 @@ export default function ChannelsListItem({
               >
                 {isPending ? (
                   <span className="center-items flex">
-                    <LoadingSpinner />
                     <span className="ml-2">Joining...</span>
                   </span>
                 ) : isFailed ? (
