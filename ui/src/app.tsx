@@ -34,7 +34,7 @@ import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
-import GroupChannelManager from '@/groups/GroupAdmin/GroupChannelManager';
+import GroupChannelManager from '@/groups/ChannelsList/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
 import ProfileModal from '@/profiles/ProfileModal';
@@ -42,7 +42,6 @@ import MultiDMEditModal from '@/dms/MultiDMEditModal';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
 import FindGroups from '@/groups/FindGroups';
 import JoinGroupModal from '@/groups/Join/JoinGroupModal';
-import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
@@ -309,7 +308,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               </Route>
               <Route
                 path="channels"
-                element={<ChannelIndex title={` • ${appHead('').title}`} />}
+                element={
+                  <GroupChannelManager title={` • ${appHead('').title}`} />
+                }
               />
               <Route path="actions" element={<MobileGroupActions />} />
             </Route>

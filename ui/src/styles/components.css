@@ -72,6 +72,10 @@
   @apply fixed top-1/2 left-1/2 z-40 -translate-x-1/2 -translate-y-1/2 transform p-4;
 }
 
+.secondary-dialog-container {
+  @apply fixed top-3/4 left-1/2 z-40 -translate-x-1/2 -translate-y-1/2 transform p-4;
+}
+
 .dialog {
   @apply relative max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] rounded-xl bg-white p-6;
 }

@@ -2,19 +2,20 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { DragDropContext, DraggableLocation } from 'react-beautiful-dnd';
 import bigInt from 'big-integer';
 import { formatUv } from '@urbit/aura';
-import { useGroupState, useRouteGroup } from '@/state/groups';
+import { useAmAdmin, useGroupState, useRouteGroup } from '@/state/groups';
 import { SectionMap } from './types';
-import AdminChannelListSections from './AdminChannelListSections';
 import ChannelManagerHeader from './ChannelManagerHeader';
+import ChannelsListSections from './ChannelsListSections';
 
-interface AdminChannelListContentsProps {
+interface ChannelsListContentsProps {
   sectionedChannels: SectionMap;
 }
 
-export default function AdminChannelListDropContext({
+export default function ChannelsListDropContext({
   sectionedChannels,
-}: AdminChannelListContentsProps) {
+}: ChannelsListContentsProps) {
   const group = useRouteGroup();
+  const isAdmin = useAmAdmin(group);
   const [sections, setSections] = useState<SectionMap>({});
   const [orderedSections, setOrderedSections] = useState<string[]>([]);
 
@@ -222,16 +223,27 @@ export default function AdminChannelListDropContext({
     [orderedSections, reorder, reorderSectionMap, sections, group]
   );
 
+  if (isAdmin) {
+    return (
+      <DragDropContext onDragEnd={onDragEnd}>
+        <ChannelManagerHeader addSection={addSection} />
+        <ChannelsListSections
+          sections={sections}
+          orderedSections={orderedSections}
+          onSectionEditNameSubmit={onSectionEditNameSubmit}
+          onSectionDelete={onSectionDelete}
+          onChannelDelete={onChannelDelete}
+        />
+      </DragDropContext>
+    );
+  }
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <ChannelManagerHeader addSection={addSection} />
-      <AdminChannelListSections
-        sections={sections}
-        orderedSections={orderedSections}
-        onSectionEditNameSubmit={onSectionEditNameSubmit}
-        onSectionDelete={onSectionDelete}
-        onChannelDelete={onChannelDelete}
-      />
-    </DragDropContext>
+    <ChannelsListSections
+      sections={sections}
+      orderedSections={orderedSections}
+      onSectionEditNameSubmit={onSectionEditNameSubmit}
+      onSectionDelete={onSectionDelete}
+      onChannelDelete={onChannelDelete}
+    />
   );
 }

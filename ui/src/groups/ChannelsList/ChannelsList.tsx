@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { useGroup, useRouteGroup } from '@/state/groups';
+import ChannelsListDropContext from './ChannelsListDropContext';
 import { SectionMap } from './types';
-import AdminChannelListDropContext from './AdminChannelListDropContext';
 
-export default function AdminChannelList() {
+export default function ChannelsList() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
 
@@ -32,7 +32,5 @@ export default function AdminChannelList() {
     return sectionedChannels;
   }, [group]);
 
-  return (
-    <AdminChannelListDropContext sectionedChannels={getSectionedChannels} />
-  );
+  return <ChannelsListDropContext sectionedChannels={getSectionedChannels} />;
 }

@@ -3,9 +3,8 @@ import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 import { GroupMeta } from '@/types/groups';
-import { ChannelListItem } from '@/groups/GroupAdmin/AdminChannels/types';
+import { ChannelListItem } from '@/groups/ChannelsList/types';
 import { Status } from '@/logic/status';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface HandleSectionNameEditInputProps {
   handleEditingChange: () => void;
