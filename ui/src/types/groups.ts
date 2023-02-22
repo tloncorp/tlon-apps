@@ -227,7 +227,7 @@ interface ZoneMoveChannel {
   delta: {
     'mov-nest': {
       nest: string;
-      index: number;
+      idx: number;
     };
   };
 }
