@@ -223,10 +223,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 isMobile ? (
                   <MobileGroupsNavHome />
                 ) : (
-                  <Notifications
-                    child={GroupNotification}
-                    title={`All Notifications • ${appHead('').title}`}
-                  />
+                  <FindGroups title={`Find Groups • ${appHead('').title}`} />
                 )
               }
             />

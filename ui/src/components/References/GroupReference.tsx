@@ -72,15 +72,15 @@ export default function GroupReference({
       >
         <div className="flex items-center space-x-3 font-semibold">
           <GroupAvatar {...meta} size="h-12 w-12" />
-          <div className="space-y-2">
-            <div className="flex items-center space-x-3">
-              <h3>{meta?.title || flag}</h3>
+          <div className="leading-5">
+            <h3>
+              {meta?.title || flag}{' '}
               {!plain && (
                 <span className="font-semibold text-gray-400">
-                  by <ShipName name={ship} />
+                  by <ShipName className="whitespace-nowrap" name={ship} />
                 </span>
               )}
-            </div>
+            </h3>
             {!plain && (
               <span className="capitalize text-gray-400">
                 Group • {privacy}
@@ -92,13 +92,13 @@ export default function GroupReference({
           </div>
         </div>
       </button>
-      <div className="absolute right-5 flex flex-row">
+      <div className="mr-2 flex flex-row">
         {banned ? (
-          <span className="inline-block px-2 font-semibold text-gray-600">
+          <div className="rounded-lg bg-gray-100 p-2 text-center text-xs font-semibold leading-3 text-gray-600">
             {banned === 'ship'
-              ? "You've been banned from this group"
+              ? 'You are banned'
               : `${toTitleCase(pluralRank(banned))} are banned`}
-          </span>
+          </div>
         ) : (
           <>
             {gang.invite && !group && status !== 'loading' ? (

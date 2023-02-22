@@ -15,7 +15,6 @@ import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
-import GroupSummary from '@/groups/GroupSummary';
 import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -154,15 +153,6 @@ export default function Notifications({
             : title}
         </title>
       </Helmet>
-      {!isMobile && group && (
-        <div className="mb-7 flex-col space-y-7 rounded-xl bg-white p-7">
-          <h1 className="text-lg font-bold">Group Info</h1>
-          <GroupSummary flag={flag} preview={{ ...group, flag }} />
-          {group.meta.description && (
-            <p className="leading-6">{group.meta.description}</p>
-          )}
-        </div>
-      )}
       <div className="flex w-full items-center justify-between">
         <div
           className={cn('flex flex-row', {
@@ -199,9 +189,9 @@ export default function Notifications({
       </div>
       {loaded ? (
         notifications.length === 0 ? (
-          <div className="flex w-full items-center justify-center">
-            <span className="text-xl font-semibold">
-              No notifications for {group ? 'this' : 'any'} group.
+          <div className="mt-3 flex w-full items-center justify-center">
+            <span className="text-base font-semibold text-gray-400">
+              No notifications from {group ? 'this' : 'any'} group.
             </span>
           </div>
         ) : (
