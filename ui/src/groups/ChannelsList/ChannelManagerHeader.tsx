@@ -1,6 +1,7 @@
 import { useAmAdmin, useRouteGroup } from '@/state/groups';
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import ChannelsListSearch from './ChannelsListSearch';
 
 interface ChannelManagerHeaderProps {
   addSection: () => void;
@@ -34,7 +35,7 @@ export default function ChannelManagerHeader({
           </>
         ) : null}
       </div>
-      <div>Search Placeholder</div>
+      <ChannelsListSearch />
     </div>
   );
 }
