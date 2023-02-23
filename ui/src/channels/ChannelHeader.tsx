@@ -185,6 +185,7 @@ function ChannelActions({
             setEditIsOpen={setEditIsOpen}
             nest={nest}
             channel={channel}
+            setDeleteChannelIsOpen={setDeleteChannelIsOpen}
             app={_app}
           />
           <DeleteChannelModal

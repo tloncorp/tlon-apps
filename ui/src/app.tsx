@@ -299,12 +299,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   <Route path="pending" element={<GroupPendingManager />} />
                   <Route path="banned" element={<div />} />
                 </Route>
-                <Route
-                  path="channels"
-                  element={
-                    <GroupChannelManager title={`• ${appHead('').title}`} />
-                  }
-                />
               </Route>
               <Route
                 path="channels"
