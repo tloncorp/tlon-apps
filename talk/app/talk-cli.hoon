@@ -41,6 +41,9 @@
       [%say (unit ship) (list inline:chat)]         ::  send message
       :: [%eval cord hoon]                          ::  send #-message
     ::                                              ::
+      [%join target]                                ::  postive rsvp response
+      [%deny target]                                ::  negative rsvp response
+    ::                                              ::
       [%view $?(~ target)]                          ::  notice chat
       [%flee target]                                ::  ignore chat
     ::                                              ::
@@ -492,6 +495,9 @@
       ;~  pose
         (stag %say dm)
         (stag %target targ)
+      :: 
+        ;~((glue ace) (tag %join) targ)
+        ;~((glue ace) (tag %deny) targ)
       ::
         ;~((glue ace) (tag %view) targ)
         ;~((glue ace) (tag %flee) targ)
@@ -695,6 +701,9 @@
           %say       (say +.job)
           :: %eval      (eval +.job)
         ::
+          %join      (rsvp %.y +.job)
+          %deny      (rsvp %.n +.job)
+        ::
           %view      (view +.job)
           %flee      (flee +.job)
         ::
@@ -765,6 +774,46 @@
       ^-  (quip card _state)
       =.  viewing  (~(del in viewing) target)
       [~ put-ses]
+    ::  +rsvp: send rsvp response without changing audience
+    ::
+    ++  rsvp
+      |=   [ok=? =target]
+      ^-  (quip card _state)
+      ?-    -.target
+           %flag 
+         :_  put-ses
+         [(note:sh-out "chat invite handling not supported")]~
+      ::
+           %ship
+         =/  =ship  +.target
+         ?.  (~(has in get-pending-dms) ship)
+           :_  put-ses
+           [(note:sh-out "no pending dms for {(scow %p ship)}")]~
+         :_  state
+         :_  ~
+         %^  act  %rsvp-response
+           %chat
+         [%dm-rsvp !>(`rsvp:dm:chat`[ship ok])]
+      ::
+           %club
+         =/  =club-id  +.target
+         =/  crew=(unit crew)  
+           (~(get by get-clubs) club-id)
+         ?~  crew  
+           [[(note:sh-out "no such pending group chats")]~ put-ses]
+         ?.  (~(has in hive.u.crew) our-self)
+           :_  put-ses
+           :~  %-  note:sh-out
+                 "no pending group chat invites for {(scow %uv club-id)}"
+           ==
+         :_  state
+         :_  ~
+         %^  act  %rsvp-response
+           %chat
+         :-  %club-action
+         !>  ^-  action:club:chat
+         [club-id *echo:club:chat %team our-self ok]   
+      ==
     ::  +say: send messages
     ::
     ++  say
