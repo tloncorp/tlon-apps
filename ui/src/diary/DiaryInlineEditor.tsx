@@ -146,6 +146,19 @@ const ActionMenu = Extension.create<ActionMenuOptions>({
       suggestion: {
         char: '/',
         pluginKey: ActionMenuPluginKey,
+        allow: ({ editor }) => {
+          const anchor = editor.state.selection.$anchor;
+          let inList = false;
+
+          for (let i = anchor.depth; i > 0; i -= 1) {
+            const node = editor.state.selection.$anchor.node(i);
+            if (node.type.name === 'listItem') {
+              inList = true;
+            }
+          }
+
+          return !inList;
+        },
         command: ({ editor, range, props }) => {
           props.command({ editor, range });
         },

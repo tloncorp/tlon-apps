@@ -7,6 +7,7 @@ export const MAX_DISPLAYED_OPTIONS = 40;
 export const NOTE_REF_DISPLAY_LIMIT = 600;
 export const LEAP_DESCRIPTION_TRUNCATE_LENGTH = 48;
 export const LEAP_RESULT_TRUNCATE_SIZE = 5;
+export const LEAP_RESULT_SCORE_THRESHOLD = 10;
 
 export const PASTEABLE_IMAGE_TYPES = [
   'image/gif',

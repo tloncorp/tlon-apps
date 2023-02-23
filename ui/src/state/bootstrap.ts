@@ -8,10 +8,18 @@ import { useGroupState } from './groups';
 import useHarkState from './hark';
 import { useHeapState } from './heap/heap';
 import useKilnState from './kiln';
+import usePalsState from './pals';
 import { useSettingsState } from './settings';
 import { useStorage } from './storage';
 
-export default async function bootstrap() {
+export default async function bootstrap(reset = false) {
+  if (reset) {
+    api.reset();
+    useChatState.getState().clearSubs();
+    useHeapState.getState().clearSubs();
+    useDiaryState.getState().clearSubs();
+  }
+
   useGroupState.getState().start();
   useChatState.getState().start();
 
@@ -34,4 +42,6 @@ export default async function bootstrap() {
   useKilnState.getState().initializeKiln();
   const { fetchCharges } = useDocketState.getState();
   fetchCharges();
+
+  usePalsState.getState().initializePals();
 }

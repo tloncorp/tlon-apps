@@ -118,9 +118,9 @@ export default function makeWritsStore(
       const writs = await scry<ChatWrits>(
         `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}`
       );
-      const sta = get();
-      sta.batchSet((draft) => {
-        const pact: Pact = {
+
+      get().batchSet((draft) => {
+        const pact: Pact = draft.pacts[whom] || {
           writs: new BigIntOrderedMap<ChatWrit>(),
           index: {},
         };

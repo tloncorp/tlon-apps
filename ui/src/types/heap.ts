@@ -129,10 +129,15 @@ interface CurioDeltaAddFeel {
   };
 }
 
+interface CurioDeltaDelFeel {
+  'del-feel': string;
+}
+
 export type CurioDelta =
   | CurioDeltaAdd
   | CurioDeltaDel
   | CurioDeltaAddFeel
+  | CurioDeltaDelFeel
   | CurioDeltaEdit;
 
 export interface CurioDiff {

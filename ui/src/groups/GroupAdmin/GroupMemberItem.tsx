@@ -9,7 +9,7 @@ import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipName from '@/components/ShipName';
-import { toTitleCase, getSectTitle } from '@/logic/utils';
+import { toTitleCase, getSectTitle, getChannelHosts } from '@/logic/utils';
 import {
   useAmAdmin,
   useGroup,
@@ -100,6 +100,8 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
     return null;
   }
 
+  const isHost = getChannelHosts(group).includes(member);
+
   return (
     <>
       <div className="cursor-pointer" onClick={() => onViewProfile(member)}>
@@ -150,7 +152,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
           </Dropdown.Content>
         </Dropdown.Root>
       ) : null}
-      {isAdmin ? (
+      {isAdmin && !isHost ? (
         <Dropdown.Root>
           {member !== window.our ? (
             <Dropdown.Trigger className="default-focus ml-auto rounded text-gray-400">

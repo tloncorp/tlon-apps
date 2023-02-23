@@ -29,18 +29,11 @@ export interface IMenuOption {
 
 export const groupsMenuOptions: IMenuOption[] = [
   {
-    title: 'Profile',
-    subtitle: '',
-    to: '/profile/edit',
-    icon: CommandBadge,
-  },
-  {
     title: 'Notifications',
     subtitle: '',
     to: '/',
     icon: CommandBadge,
   },
-
   {
     title: 'Find Groups',
     subtitle: '',
@@ -52,6 +45,12 @@ export const groupsMenuOptions: IMenuOption[] = [
     subtitle: '',
     to: '/groups/new',
     icon: PlusBadge,
+  },
+  {
+    title: 'Profile',
+    subtitle: '',
+    to: '/profile/edit',
+    icon: CommandBadge,
   },
   {
     title: 'Talk',

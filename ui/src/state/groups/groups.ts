@@ -762,20 +762,19 @@ export const useGroupState = create<GroupState>(
           });
         });
       },
-      moveChannel: async (flag, zone, nest, index) => {
+      moveChannel: async (flag, zone, nest, idx) => {
         const diff = {
           zone: {
             zone,
             delta: {
               'mov-nest': {
                 nest,
-                index,
+                idx,
               },
             },
           },
         };
         await api.poke(groupAction(flag, diff));
-        await useGroupState.getState().updateGroups();
       },
       setChannelPerm: async (flag, nest, sects) => {
         const currentReaders = get().groups[flag].channels[nest]?.readers || [];
@@ -1058,7 +1057,7 @@ export function useSects(flag: string) {
 
 const { shouldLoad, newAttempt, finished } = getPreviewTracker();
 
-export function useChannelPreview(nest: string) {
+export function useChannelPreview(nest: string, disableLoading = false) {
   const preview = useGroupState(
     useCallback((s) => s.channelPreviews[nest], [nest])
   );
@@ -1071,11 +1070,11 @@ export function useChannelPreview(nest: string) {
   }, [nest]);
 
   useEffect(() => {
-    if (preview && !shouldLoad(nest)) return;
+    if (disableLoading || (preview && !shouldLoad(nest))) return;
 
     newAttempt(nest);
     getChannelPreview();
-  }, [getChannelPreview, preview, nest]);
+  }, [getChannelPreview, preview, nest, disableLoading]);
 
   return preview;
 }

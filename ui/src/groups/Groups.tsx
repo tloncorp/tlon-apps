@@ -93,7 +93,7 @@ function Groups() {
   }
 
   return (
-    <div className="flex grow bg-gray-50">
+    <div className="flex min-w-0 grow bg-gray-50">
       <Outlet />
     </div>
   );

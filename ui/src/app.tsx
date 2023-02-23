@@ -34,7 +34,7 @@ import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
-import GroupChannelManager from '@/groups/GroupAdmin/GroupChannelManager';
+import GroupChannelManager from '@/groups/ChannelsList/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
 import ProfileModal from '@/profiles/ProfileModal';
@@ -42,7 +42,6 @@ import MultiDMEditModal from '@/dms/MultiDMEditModal';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
 import FindGroups from '@/groups/FindGroups';
 import JoinGroupModal from '@/groups/Join/JoinGroupModal';
-import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
@@ -74,7 +73,7 @@ import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
 import MobileGroupsActions from './groups/MobileGroupsActions';
 import Leap from './components/Leap/Leap';
-import { isTalk } from './logic/utils';
+import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import useKilnState, { usePike } from './state/kiln';
@@ -223,10 +222,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 isMobile ? (
                   <MobileGroupsNavHome />
                 ) : (
-                  <Notifications
-                    child={GroupNotification}
-                    title={`All Notifications • ${appHead('').title}`}
-                  />
+                  <FindGroups title={`Find Groups • ${appHead('').title}`} />
                 )
               }
             />
@@ -300,16 +296,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   <Route path="pending" element={<GroupPendingManager />} />
                   <Route path="banned" element={<div />} />
                 </Route>
-                <Route
-                  path="channels"
-                  element={
-                    <GroupChannelManager title={`• ${appHead('').title}`} />
-                  }
-                />
               </Route>
               <Route
                 path="channels"
-                element={<ChannelIndex title={` • ${appHead('').title}`} />}
+                element={
+                  <GroupChannelManager title={` • ${appHead('').title}`} />
+                }
               />
               <Route path="actions" element={<MobileGroupActions />} />
             </Route>
@@ -408,7 +400,16 @@ function checkIfLoggedIn() {
 
   const session = cookies.get(`urbauth-~${window.ship}`);
   if (!session) {
-    authRedirect();
+    fetch('/~/name')
+      .then((res) => res.text())
+      .then((name) => {
+        if (name !== preSig(window.ship)) {
+          authRedirect();
+        }
+      })
+      .catch(() => {
+        authRedirect();
+      });
   }
 }
 

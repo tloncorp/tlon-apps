@@ -41,19 +41,6 @@ export default function GroupAdmin() {
                     Members
                   </NavLink>
                 </li>
-                <li>
-                  <NavLink
-                    to="channels"
-                    className={({ isActive }) =>
-                      cn(
-                        'default-focus inline-block rounded-md p-2 hover:bg-gray-50',
-                        isActive && 'text-gray-800'
-                      )
-                    }
-                  >
-                    Channels
-                  </NavLink>
-                </li>
               </ul>
             </nav>
           </header>

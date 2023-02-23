@@ -15,6 +15,7 @@ import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
 import { useNavigate, useParams, useLocation } from 'react-router';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { useModalNavigate } from '@/logic/routing';
+import GroupReference from '@/components/References/GroupReference';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 
@@ -110,11 +111,15 @@ export default function FindGroups({ title }: ViewProps) {
     setGroupIndex(null);
     setPending();
     try {
-      // @ts-expect-error results will always either be a GroupIndex, or the
-      // request will throw an error, which will be caught below
+      /**
+       * results will always either be a GroupIndex, or the
+       * request will throw an error, which will be caught below.
+       * for peers where a route has to be established this can take
+       * upwards of thirty seconds.
+       */
       const results: GroupIndex = await asyncCallWithTimeout(
         useGroupState.getState().index(preSig(ship)),
-        10 * 1000
+        30 * 1000
       );
       setGroupIndex(results);
       setReady();
@@ -194,7 +199,10 @@ export default function FindGroups({ title }: ViewProps) {
       return (
         <span>
           Your search timed out, which may happen when a ship hosts no groups,
-          is under heavy load, or is offline.
+          is under heavy load, or is offline.{' '}
+          <span onClick={searchGroups} className="cursor-pointer text-gray-800">
+            Try again?
+          </span>
         </span>
       );
     }
@@ -268,6 +276,35 @@ export default function FindGroups({ title }: ViewProps) {
               <GroupJoinList gangs={pendingGangs} />
             </section>
           ) : null}
+
+          {!hasKeys(pendingGangs) && !selectedShip && (
+            <section
+              className={cn('mb-8 space-y-8', !isMobile && 'card mb-4 sm:p-8')}
+            >
+              <h1 className="text-lg font-bold">Suggested Groups</h1>
+              <p className="leading-6">
+                Here are some groups we recommend joining to learn more about
+                Groups and how to use it in interesting ways:
+              </p>
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                <GroupReference
+                  flag="~halbex-palheb/uf-public"
+                  plain
+                  description="Learn about the Urbit Project"
+                />
+                <GroupReference
+                  flag="~natnex-ronret/door-link"
+                  description="A cult of music lovers"
+                  plain
+                />
+                <GroupReference
+                  flag="~nibset-napwyn/tlon"
+                  description="A place to ask for help"
+                  plain
+                />
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </>

@@ -1,13 +1,17 @@
+import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce from 'immer';
 import create from 'zustand';
 import { Blanket, Carpet, Flag, HarkAction, Rope, Seam } from '@/types/hark';
 import api from '@/api';
 import { decToUd } from '@urbit/api';
+import { asyncForEach } from '@/lib';
+import useSubscriptionState from './subscription';
 
 export interface HarkState {
   set: (fn: (sta: HarkState) => void) => void;
   batchSet: (fn: (sta: HarkState) => void) => void;
+  loaded: boolean;
   /** carpet: represents unread notifications at the app level */
   carpet: Carpet;
   /** blanket: represents read notifications at the app level */
@@ -28,7 +32,8 @@ export interface HarkState {
   retrieveGroup: (flag: Flag) => Promise<void>;
   /** releaseGroup: removes updates from happening */
   releaseGroup: (flag: Flag) => Promise<void>;
-  sawRope: (rope: Rope) => Promise<void>;
+  update: (group: string | null) => Promise<void>;
+  sawRope: (rope: Rope, update?: boolean) => Promise<void>;
   sawSeam: (seam: Seam) => Promise<void>;
 }
 
@@ -66,36 +71,48 @@ const useHarkState = create<HarkState>((set, get) => ({
       get().set(fn);
     });
   },
+  loaded: false,
   carpet: emptyCarpet({ desk: window.desk }),
   blanket: emptyBlanket({ desk: window.desk }),
   textiles: {},
   groupSubs: [],
   start: async () => {
-    get().retrieve();
+    await get().retrieve();
 
-    api.subscribe({
+    await api.subscribe({
       app: 'hark',
       path: '/ui',
-      event: (_event: HarkAction) => {
-        const { groupSubs, retrieve, retrieveGroup } = get();
-        retrieve();
-
-        groupSubs.forEach((g) => {
-          retrieveGroup(g);
-        });
+      event: (event: HarkAction) => {
+        if ('add-yarn' in event) {
+          get().update(null);
+        }
       },
     });
+    set({ loaded: true });
+  },
+  update: async (group) => {
+    const { groupSubs, retrieve, retrieveGroup } = get();
+    await retrieve();
+
+    await asyncForEach(
+      groupSubs.filter((g) => !group || group === g),
+      retrieveGroup
+    );
   },
   retrieve: async () => {
-    const carpet = await api.scry<Carpet>({
-      app: 'hark',
-      path: `/desk/${window.desk}/latest`,
-    });
+    const carpet = await api
+      .scry<Carpet>({
+        app: 'hark',
+        path: `/desk/${window.desk}/latest`,
+      })
+      .catch(() => emptyCarpet({ desk: window.desk }));
 
-    const blanket = await api.scry<Blanket>({
-      app: 'hark',
-      path: `/desk/${window.desk}/quilt/${decToUd(carpet.stitch.toString())}`,
-    });
+    const blanket = await api
+      .scry<Blanket>({
+        app: 'hark',
+        path: `/desk/${window.desk}/quilt/${decToUd(carpet.stitch.toString())}`,
+      })
+      .catch(() => emptyBlanket({ desk: window.desk }));
 
     get().batchSet((draft) => {
       draft.carpet = carpet;
@@ -133,20 +150,51 @@ const useHarkState = create<HarkState>((set, get) => ({
       }
     });
   },
-  sawRope: async (rope) => {
-    await api.poke(
-      harkAction({
-        'saw-rope': rope,
-      })
-    );
-  },
-  sawSeam: async (seam) => {
-    await api.poke(
-      harkAction({
-        'saw-seam': seam,
-      })
-    );
-  },
+  sawRope: async (rope, update = true) =>
+    new Promise<void>((resolve, reject) => {
+      api.poke({
+        ...harkAction({
+          'saw-rope': rope,
+        }),
+        onError: reject,
+        onSuccess: async () => {
+          if (!update) {
+            resolve();
+            return;
+          }
+
+          await useSubscriptionState
+            .getState()
+            .track('hark/ui', (event: HarkAction) => {
+              return (
+                'saw-rope' in event && event['saw-rope'].thread === rope.thread
+              );
+            });
+
+          await get().update(rope.group);
+          resolve();
+        },
+      });
+    }),
+  sawSeam: async (seam) =>
+    new Promise<void>((resolve, reject) => {
+      api.poke({
+        ...harkAction({
+          'saw-seam': seam,
+        }),
+        onError: reject,
+        onSuccess: async () => {
+          await useSubscriptionState
+            .getState()
+            .track('hark/ui', (event: HarkAction) => {
+              return 'saw-seam' in event && _.isEqual(event['saw-seam'], seam);
+            });
+
+          await get().update(('group' in seam && seam.group) || null);
+          resolve();
+        },
+      });
+    }),
 }));
 
 export default useHarkState;

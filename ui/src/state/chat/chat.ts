@@ -138,6 +138,18 @@ export const useChatState = createState<ChatState>(
     loadedRefs: {},
     briefs: {},
     loadedGraphRefs: {},
+    getTime: (whom, id) => {
+      const { pacts } = get();
+      const pact = pacts[whom];
+
+      if (!pact || !pact.index[id]) {
+        // not accurate, won't be in pact, using until chat ref fetching
+        // returns time alongside writ
+        return bigInt(udToDec(id.split('/')[1]));
+      }
+
+      return pact.index[id];
+    },
     togglePin: async (whom, pin) => {
       const { pins } = get();
       let newPins = [];
@@ -487,10 +499,28 @@ export const useChatState = createState<ChatState>(
       };
       const diff = { add: memo };
 
+      const { pacts } = get();
+      const isNew = !(whom in pacts);
       if (isDM) {
+        if (isNew) {
+          set((draft) => ({
+            ...draft,
+            pacts: {
+              ...draft.pacts,
+              [whom]: { index: {}, writs: new BigIntOrderedMap() },
+            },
+          }));
+        }
+
         pokeOptimisticallyN(useChatState, dmAction(whom, { add: memo }, id), [
           writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
+        ]).then(() =>
+          set((draft) => {
+            if (!isNew) {
+              draft.postedMessages.push(id);
+            }
+          })
+        );
       } else if (isMultiDm) {
         pokeOptimisticallyN(
           useChatState,
@@ -507,7 +537,15 @@ export const useChatState = createState<ChatState>(
           writsReducer(whom),
         ]).then(() => set((draft) => draft.postedMessages.push(id)));
       }
-      set((draft) => draft.sentMessages.push(id));
+
+      set((draft) => {
+        // dms first message won't be heard through a fact
+        if (isDM && isNew) {
+          return;
+        }
+
+        draft.sentMessages.push(id);
+      });
     },
     delMessage: async (whom, id) => {
       const isDM = whomIsDm(whom);
@@ -611,7 +649,7 @@ export const useChatState = createState<ChatState>(
               const { update, flag } = event;
               if (
                 'create' in update.diff &&
-                flag === `${req.group.split('/')[0]}/${req.name}`
+                flag === `${window.our}/${req.name}`
               ) {
                 return true;
               }
@@ -763,6 +801,13 @@ export const useChatState = createState<ChatState>(
         `/dm/${ship}/writs`,
         `/dm/${ship}/ui`
       ).initialize();
+    },
+    clearSubs: () => {
+      get().batchSet((draft) => {
+        draft.chatSubs = [];
+        draft.dmSubs = [];
+        draft.multiDmSubs = [];
+      });
     },
   }),
   ['chats', 'dms', 'pendingDms', 'briefs', 'multiDms', 'pins'],

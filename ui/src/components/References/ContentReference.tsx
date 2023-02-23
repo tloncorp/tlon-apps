@@ -38,6 +38,20 @@ function ContentReference({
 
     if (app === 'heap') {
       const idCurio = udToDec(segments[2]);
+      const idCurioComment = segments[3] ? udToDec(segments[3]) : null;
+
+      if (idCurioComment) {
+        return (
+          <CurioReference
+            chFlag={chFlag}
+            nest={nest}
+            idCurio={idCurio}
+            idCurioComment={idCurioComment}
+            isScrolling={isScrolling}
+          />
+        );
+      }
+
       return (
         <CurioReference
           chFlag={chFlag}

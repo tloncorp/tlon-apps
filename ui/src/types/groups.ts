@@ -227,7 +227,7 @@ interface ZoneMoveChannel {
   delta: {
     'mov-nest': {
       nest: string;
-      index: number;
+      idx: number;
     };
   };
 }
@@ -294,7 +294,7 @@ export interface GroupPreview {
   flag: string;
   meta: GroupMeta;
   cordon: Cordon;
-  time: number;
+  time?: number;
   secret: boolean;
 }
 

@@ -7,6 +7,7 @@ import asyncCallWithTimeout from './asyncWithTimeout';
 
 let disconnectedTries = 0;
 const retryTime = 30 * 1000;
+let checking = false;
 
 async function checkConnection() {
   try {
@@ -60,6 +61,10 @@ async function checkConnection() {
 
 export default function useConnectionChecker() {
   useEffect(() => {
-    checkConnection();
+    // only ever check once, wait a minute before starting
+    if (!checking) {
+      checking = true;
+      setTimeout(() => checkConnection(), 60 * 1000);
+    }
   }, []);
 }
