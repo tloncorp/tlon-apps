@@ -82,7 +82,7 @@
         %mov           (numb idx.d)
         ?(%add %edit)  (meta meta.d)
         %mov-nest
-      %-  pairs 
+      %-  pairs
       :~  nest/s/(nest nest.d)
           idx/(numb idx.d)
       ==
@@ -366,7 +366,7 @@
         :-  %mov-nest
         %-  ot
         :~  nest/nest
-            index/ni
+            idx/ni
         ==
     ==
 

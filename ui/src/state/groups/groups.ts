@@ -762,14 +762,14 @@ export const useGroupState = create<GroupState>(
           });
         });
       },
-      moveChannel: async (flag, zone, nest, index) => {
+      moveChannel: async (flag, zone, nest, idx) => {
         const diff = {
           zone: {
             zone,
             delta: {
               'mov-nest': {
                 nest,
-                index,
+                idx,
               },
             },
           },
