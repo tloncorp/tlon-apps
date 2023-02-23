@@ -50,31 +50,34 @@ export default function SectionNameEditInput({
     defaultValues,
   });
 
-  const addChannelsToZone = async (
-    zone: string,
-    groupFlag: string,
-    channelFlag: string
-  ) => {
-    await useGroupState
-      .getState()
-      .addChannelToZone(zone, groupFlag, channelFlag);
-  };
-
   const onSubmit = async (values: GroupMeta) => {
     setSaveStatus('loading');
     const zoneFlag = strToSym(sectionKey);
+    const titleExists = values.title.trim() !== '';
     handleEditingChange();
     try {
       if (isNew === true) {
-        await useGroupState.getState().createZone(group, zoneFlag, values);
+        await useGroupState
+          .getState()
+          .createZone(
+            group,
+            zoneFlag,
+            titleExists ? values : untitledSectionValues
+          );
         await useGroupState.getState().moveZone(group, zoneFlag, 1);
       } else {
-        await useGroupState.getState().editZone(group, zoneFlag, values);
+        await useGroupState
+          .getState()
+          .editZone(
+            group,
+            zoneFlag,
+            titleExists ? values : untitledSectionValues
+          );
       }
-      channels.forEach((channel) => {
-        addChannelsToZone(zoneFlag, group, channel.key);
-      });
-      onSectionEditNameSubmit(zoneFlag, values.title);
+      onSectionEditNameSubmit(
+        zoneFlag,
+        titleExists ? values.title : untitledSectionValues.title
+      );
       setSaveStatus('success');
     } catch (e) {
       setSaveStatus('error');
@@ -83,31 +86,8 @@ export default function SectionNameEditInput({
   };
 
   const onLoseFocus = async () => {
-    setSaveStatus('loading');
-    const zoneFlag = strToSym(sectionKey);
     const values = getValues();
-    handleEditingChange();
-    try {
-      await useGroupState
-        .getState()
-        .createZone(
-          group,
-          zoneFlag,
-          values.title.length > 0 ? values : untitledSectionValues
-        );
-      await useGroupState.getState().moveZone(group, zoneFlag, 1);
-      onSectionEditNameSubmit(
-        zoneFlag,
-        values.title.length > 0 ? values.title : untitledSectionValues.title
-      );
-      channels.forEach((channel) => {
-        addChannelsToZone(zoneFlag, group, channel.key);
-      });
-      setSaveStatus('success');
-    } catch (e) {
-      setSaveStatus('error');
-      console.log(e);
-    }
+    onSubmit(values);
   };
 
   return (
