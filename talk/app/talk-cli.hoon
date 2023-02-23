@@ -800,10 +800,10 @@
         (bind-default-glyph whom)
       :_  put-ses
       ;:  welp  cards
+         [prompt:sh-out]~
          [rsvp]~
          [spit]~
          [connect]~
-         [prompt:sh-out]~ 
       ==
       :: +spit: make a poke card based on audience
       ::
