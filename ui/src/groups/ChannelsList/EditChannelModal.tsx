@@ -34,7 +34,7 @@ export default function EditChannelModal({
           redirect={false}
           setEditIsOpen={setEditIsOpen}
         />
-        <div className="secondary-dialog-container mt-[200px] w-[480px] rounded-lg bg-white sm:max-w-lg">
+        <div className="secondary-dialog-container mt-[200px] w-[480px] rounded-xl bg-white sm:max-w-lg">
           <div className="sm:w-96">
             <h2 className="mb-2 text-lg font-semibold">
               Delete {prettyChannelTypeName(app)}
