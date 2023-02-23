@@ -226,6 +226,7 @@ export default function ChannelsListDropContext({
   if (isAdmin) {
     return (
       <DragDropContext onDragEnd={onDragEnd}>
+        <ChannelManagerHeader addSection={addSection} />
         <ChannelsListSections
           sections={sections}
           orderedSections={orderedSections}

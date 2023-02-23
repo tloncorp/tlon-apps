@@ -46,7 +46,7 @@ export default function SectionNameEditInput({
     cover: '',
   };
 
-  const { handleSubmit, register } = useForm({
+  const { handleSubmit, register, getValues } = useForm({
     defaultValues,
   });
 
@@ -85,13 +85,21 @@ export default function SectionNameEditInput({
   const onLoseFocus = async () => {
     setSaveStatus('loading');
     const zoneFlag = strToSym(sectionKey);
+    const values = getValues();
     handleEditingChange();
     try {
       await useGroupState
         .getState()
-        .createZone(group, zoneFlag, untitledSectionValues);
+        .createZone(
+          group,
+          zoneFlag,
+          values.title.length > 0 ? values : untitledSectionValues
+        );
       await useGroupState.getState().moveZone(group, zoneFlag, 1);
-      onSectionEditNameSubmit(zoneFlag, untitledSectionValues.title);
+      onSectionEditNameSubmit(
+        zoneFlag,
+        values.title.length > 0 ? values.title : untitledSectionValues.title
+      );
       channels.forEach((channel) => {
         addChannelsToZone(zoneFlag, group, channel.key);
       });
