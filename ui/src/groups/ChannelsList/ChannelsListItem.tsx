@@ -152,14 +152,12 @@ export default function ChannelsListItem({
     <>
       <div ref={provided?.innerRef} {...provided?.draggableProps}>
         <div
-          className={cn(
-            'flex items-center justify-between rounded-lg ',
-            snapshot?.isDragging ? 'bg-gray-50' : 'bg-white',
-            {
-              'py-2 px-2': isMobile,
-              'py-5 px-8': !isMobile,
-            }
-          )}
+          className={cn('flex items-center justify-between rounded-lg ', {
+            'py-2 px-2': isMobile,
+            'py-5 px-8': !isMobile,
+            'bg-gray-50': snapshot?.isDragging,
+            'bg-white': !snapshot?.isDragging,
+          })}
         >
           <div className="flex items-center">
             {isAdmin && (
@@ -213,10 +211,9 @@ export default function ChannelsListItem({
                   'small-secondary-button mix-blend-multiply dark:mix-blend-screen',
                   {
                     'bg-blue-soft text-blue': isReady || isPending,
-                    'bg-red-soft': isFailed,
-                    'text-red': isFailed,
-                  },
-                  isMobile ? 'text-sm' : ''
+                    'bg-yellow-soft text-gray-800': isFailed,
+                    'text-sm': isMobile,
+                  }
                 )}
               >
                 {isPending ? (
