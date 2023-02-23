@@ -153,8 +153,12 @@ export default function ChannelsListItem({
       <div ref={provided?.innerRef} {...provided?.draggableProps}>
         <div
           className={cn(
-            'flex items-center justify-between rounded-lg py-5 px-8',
-            snapshot?.isDragging ? 'bg-gray-50' : 'bg-white'
+            'flex items-center justify-between rounded-lg ',
+            snapshot?.isDragging ? 'bg-gray-50' : 'bg-white',
+            {
+              'py-2 px-2': isMobile,
+              'py-5 px-8': !isMobile,
+            }
           )}
         >
           <div className="flex items-center">
@@ -167,12 +171,20 @@ export default function ChannelsListItem({
               <ChannelIcon nest={nest} className="h-5 w-5 text-gray-400" />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
+              <div className="mr-2 flex items-center space-x-2">
                 <h2 className="text-md font-semibold line-clamp-1">
                   {meta.title}
                 </h2>
                 {channel.join && isAdmin ? (
-                  <div className="rounded-md border-2 border-gray-600 px-1 text-sm font-bold text-gray-600">
+                  <div
+                    className={cn(
+                      'rounded-md border-2 border-gray-600 font-bold text-gray-600',
+                      {
+                        'px-0.5 text-xs': isMobile,
+                        'px-1 text-sm': !isMobile,
+                      }
+                    )}
+                  >
                     Default
                   </div>
                 ) : null}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import cn from 'classnames';
 import { Draggable } from 'react-beautiful-dnd';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import { useAmAdmin, useGroupState, useRouteGroup } from '@/state/groups';
@@ -11,6 +12,7 @@ import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PinIcon from '@/components/icons/PinIcon';
 import PinIcon16 from '@/components/icons/PinIcon16';
+import { useIsMobile } from '@/logic/useMedia';
 
 interface SectionProps {
   sectionData: SectionListItem;
@@ -37,6 +39,7 @@ export default function Section({
   const [isEditing, setIsEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<Status>('initial');
   const isSectionless = sectionKey === 'default';
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (sectionData.isNew === true) {
@@ -75,7 +78,15 @@ export default function Section({
         {(provided) => (
           <div ref={provided.innerRef} {...provided.draggableProps}>
             <div className="card mb-4 px-0 pt-0 pb-3">
-              <header className="flex items-center justify-between rounded-t-lg bg-white px-8 pt-8 pb-2">
+              <header
+                className={cn(
+                  'flex items-center justify-between rounded-t-lg bg-white pb-2',
+                  {
+                    'px-2 pt-4': isMobile,
+                    'px-8 pt-8': !isMobile,
+                  }
+                )}
+              >
                 <div className="flex flex-col">
                   <div className="flex w-full items-center">
                     {isSectionless || isEditing ? null : (
@@ -134,7 +145,15 @@ export default function Section({
   }
   return (
     <div className="card mb-4 px-0 pt-0 pb-3">
-      <header className="flex items-center justify-between rounded-t-lg bg-white px-8 pt-8 pb-2">
+      <header
+        className={cn(
+          'flex items-center justify-between rounded-t-lg bg-white pb-2',
+          {
+            'px-2 pt-4': isMobile,
+            'px-8 pt-8': !isMobile,
+          }
+        )}
+      >
         <div className="flex w-full items-center">
           <h2 className="alt-highlight text-lg font-semibold">
             {isSectionless ? 'Default' : sectionData.title}

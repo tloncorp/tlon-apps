@@ -1,9 +1,12 @@
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
+import { useIsMobile } from '@/logic/useMedia';
+import cn from 'classnames';
 import React, { ChangeEvent } from 'react';
 import useChannelSearch from './useChannelSearch';
 
 export default function ChannelsListSearch() {
   const { searchInput, setSearchInput } = useChannelSearch();
+  const isMobile = useIsMobile();
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const input = e.target as HTMLInputElement;
@@ -19,7 +22,12 @@ export default function ChannelsListSearch() {
         <MagnifyingGlass16Icon className="h-4 w-4" />
       </span>
       <input
-        className="input h-10 w-[260px] bg-gray-50 pl-7 mix-blend-multiply placeholder:font-normal"
+        className={cn(
+          'input h-10 w-[260px] bg-gray-50 pl-7 mix-blend-multiply placeholder:font-normal',
+          {
+            'text-sm': isMobile,
+          }
+        )}
         placeholder="Filter Channel Titles and Sections"
         value={searchInput}
         onChange={handleChange}
