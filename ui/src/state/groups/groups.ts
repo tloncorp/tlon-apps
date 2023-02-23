@@ -775,7 +775,6 @@ export const useGroupState = create<GroupState>(
           },
         };
         await api.poke(groupAction(flag, diff));
-        await useGroupState.getState().updateGroups();
       },
       setChannelPerm: async (flag, nest, sects) => {
         const currentReaders = get().groups[flag].channels[nest]?.readers || [];
