@@ -226,7 +226,6 @@ export default function ChannelsListDropContext({
   if (isAdmin) {
     return (
       <DragDropContext onDragEnd={onDragEnd}>
-        <ChannelManagerHeader addSection={addSection} />
         <ChannelsListSections
           sections={sections}
           orderedSections={orderedSections}
@@ -238,12 +237,15 @@ export default function ChannelsListDropContext({
     );
   }
   return (
-    <ChannelsListSections
-      sections={sections}
-      orderedSections={orderedSections}
-      onSectionEditNameSubmit={onSectionEditNameSubmit}
-      onSectionDelete={onSectionDelete}
-      onChannelDelete={onChannelDelete}
-    />
+    <>
+      <ChannelManagerHeader addSection={addSection} />
+      <ChannelsListSections
+        sections={sections}
+        orderedSections={orderedSections}
+        onSectionEditNameSubmit={onSectionEditNameSubmit}
+        onSectionDelete={onSectionDelete}
+        onChannelDelete={onChannelDelete}
+      />
+    </>
   );
 }
