@@ -558,3 +558,16 @@ export function isChannelImported(
     !isImport || (isImport && pending[nest]) || window.our === getNestShip(nest)
   );
 }
+
+export function prettyChannelTypeName(app: string) {
+  switch (app) {
+    case 'chat':
+      return 'Chat';
+    case 'heap':
+      return 'Collection';
+    case 'diary':
+      return 'Notebook';
+    default:
+      return 'Unknown';
+  }
+}

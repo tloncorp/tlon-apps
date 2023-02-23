@@ -3,9 +3,8 @@ import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 import { GroupMeta } from '@/types/groups';
-import { ChannelListItem } from '@/groups/GroupAdmin/AdminChannels/types';
+import { ChannelListItem } from '@/groups/ChannelsList/types';
 import { Status } from '@/logic/status';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface HandleSectionNameEditInputProps {
   handleEditingChange: () => void;
@@ -47,7 +46,7 @@ export default function SectionNameEditInput({
     cover: '',
   };
 
-  const { handleSubmit, register } = useForm({
+  const { handleSubmit, register, getValues } = useForm({
     defaultValues,
   });
 
@@ -86,13 +85,21 @@ export default function SectionNameEditInput({
   const onLoseFocus = async () => {
     setSaveStatus('loading');
     const zoneFlag = strToSym(sectionKey);
+    const values = getValues();
     handleEditingChange();
     try {
       await useGroupState
         .getState()
-        .createZone(group, zoneFlag, untitledSectionValues);
+        .createZone(
+          group,
+          zoneFlag,
+          values.title.length > 0 ? values : untitledSectionValues
+        );
       await useGroupState.getState().moveZone(group, zoneFlag, 1);
-      onSectionEditNameSubmit(zoneFlag, untitledSectionValues.title);
+      onSectionEditNameSubmit(
+        zoneFlag,
+        values.title.length > 0 ? values.title : untitledSectionValues.title
+      );
       channels.forEach((channel) => {
         addChannelsToZone(zoneFlag, group, channel.key);
       });

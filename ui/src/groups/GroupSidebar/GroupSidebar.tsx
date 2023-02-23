@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
 import { useIsDark } from '@/logic/useMedia';
-import { useGroup, useGroupFlag } from '@/state/groups/groups';
+import { useAmAdmin, useGroup, useGroupFlag } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import BellIcon from '@/components/icons/BellIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
@@ -16,6 +16,8 @@ import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import HashIcon from '@/components/icons/HashIcon';
+import AddIcon from '@/components/icons/AddIcon';
+import { Link, useLocation } from 'react-router-dom';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -183,6 +185,8 @@ function GroupHeader() {
 export default function GroupSidebar() {
   const flag = useGroupFlag();
   const isDark = useIsDark();
+  const location = useLocation();
+  const isAdmin = useAmAdmin(flag);
 
   useEffect(() => {
     if (flag !== '') {
@@ -196,7 +200,7 @@ export default function GroupSidebar() {
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
       <div className="h-5" />
-      <div className="flex min-h-0 flex-col px-2">
+      <div className="relative flex min-h-0 flex-col px-2">
         <ul>
           <GroupHeader />
           <SidebarItem
@@ -223,6 +227,15 @@ export default function GroupSidebar() {
           >
             All Channels
           </SidebarItem>
+          {isAdmin && (
+            <Link
+              to={`/groups/${flag}/channels/new`}
+              state={{ backgroundLocation: location }}
+              className="absolute right-5 bottom-3 flex h-6 w-6 items-center justify-center rounded bg-gray-50"
+            >
+              <AddIcon className="h-4 w-4 fill-gray-800" />
+            </Link>
+          )}
         </ul>
       </div>
       <div className="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2">
