@@ -93,9 +93,9 @@ export default function EditChannelForm({
           : useDiaryState.getState();
 
       if (privacy !== 'public') {
-        chState.addSects(channelFlag, ['admin']);
+        await chState.addSects(channelFlag, ['admin']);
       } else {
-        chState.delSects(channelFlag, ['admin']);
+        await chState.delSects(channelFlag, ['admin']);
       }
 
       if (retainRoute === true && setEditIsOpen) {
