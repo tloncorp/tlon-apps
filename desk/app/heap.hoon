@@ -841,6 +841,7 @@
     =.  stash  (~(put by stash) chan.j *heap:h)
     =.  he-core  (he-abed chan.j)
     =.  group.perm.heap  group.j
+    =.  last-read.remark.heap  now.bowl
     =.  cor  (give-brief flag he-brief)
     he-sub
   ::
