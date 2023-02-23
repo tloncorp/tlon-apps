@@ -132,7 +132,7 @@ export default function NewChannelForm() {
       }
       setAddChannelStatus('success');
       navigate(
-        isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/info/channels`
+        isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/channels`
       );
     },
     [section, groupFlag, navigate, isMobile]
