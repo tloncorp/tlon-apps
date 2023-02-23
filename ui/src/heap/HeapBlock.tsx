@@ -410,7 +410,7 @@ export default function HeapBlock({
       <div className="flex grow flex-col items-center justify-center">
         <LinkIcon className="h-16 w-16 text-gray-300" />
       </div>
-      <BottomBar {...botBar} provider="Link" title={url || undefined} />
+      <BottomBar {...botBar} provider="Link" title={curio.heart.title || url} />
     </div>
   );
 }
