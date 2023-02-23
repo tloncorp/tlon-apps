@@ -19,7 +19,6 @@ import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import { PRIVACY_TYPE } from '@/groups/ChannelsList/ChannelPermsSelector';
 import { Status } from '@/logic/status';
 import useRequestState from '@/logic/useRequestState';
-import { useIsMobile } from '@/logic/useMedia';
 import useAllBriefs from '@/logic/useAllBriefs';
 
 interface ChannelsListItemProps {
@@ -58,7 +57,6 @@ export default function ChannelsListItem({
 }: ChannelsListItemProps) {
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
-  const isMobile = useIsMobile();
   const isChannelHost = nest.includes(window.ship);
   const { meta } = channel;
   const [app, channelFlag] = nestToFlag(nest);
@@ -152,12 +150,13 @@ export default function ChannelsListItem({
     <>
       <div ref={provided?.innerRef} {...provided?.draggableProps}>
         <div
-          className={cn('flex items-center justify-between rounded-lg ', {
-            'py-2 px-2': isMobile,
-            'py-5 px-8': !isMobile,
-            'bg-gray-50': snapshot?.isDragging,
-            'bg-white': !snapshot?.isDragging,
-          })}
+          className={cn(
+            'flex items-center justify-between rounded-lg py-2 px-2 md:py-5 md:px-8',
+            {
+              'bg-gray-50': snapshot?.isDragging,
+              'bg-white': !snapshot?.isDragging,
+            }
+          )}
         >
           <div className="flex items-center">
             {isAdmin && (
@@ -174,15 +173,7 @@ export default function ChannelsListItem({
                   {meta.title}
                 </h2>
                 {channel.join && isAdmin ? (
-                  <div
-                    className={cn(
-                      'rounded-md border-2 border-gray-600 font-bold text-gray-600',
-                      {
-                        'px-0.5 text-xs': isMobile,
-                        'px-1 text-sm': !isMobile,
-                      }
-                    )}
-                  >
+                  <div className="rounded-md border-2 border-gray-600 px-0.5 text-xs font-bold text-gray-600 md:px-1 md:text-sm">
                     Default
                   </div>
                 ) : null}
@@ -208,11 +199,10 @@ export default function ChannelsListItem({
                 disabled={isPending}
                 onClick={joinChannel}
                 className={cn(
-                  'small-secondary-button mix-blend-multiply dark:mix-blend-screen',
+                  'small-secondary-button text-sm mix-blend-multiply dark:mix-blend-screen md:text-base',
                   {
                     'bg-blue-soft text-blue': isReady || isPending,
                     'bg-yellow-soft text-gray-800': isFailed,
-                    'text-sm': isMobile,
                   }
                 )}
               >

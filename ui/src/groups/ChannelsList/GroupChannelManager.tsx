@@ -1,5 +1,4 @@
 import React from 'react';
-import cn from 'classnames';
 import { Helmet } from 'react-helmet';
 import { ViewProps } from '@/types/groups';
 import { useRouteGroup, useGroup } from '@/state/groups/groups';
@@ -25,10 +24,7 @@ export default function GroupChannelManager({ title }: ViewProps) {
         <div className="flex flex-row items-center justify-between py-1 px-2 sm:p-4">
           <Link
             to={`/groups/${flag}`}
-            className={cn(
-              'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
-              isMobile && 'flex items-center rounded-lg hover:bg-gray-50'
-            )}
+            className="flex cursor-pointer select-none items-center rounded-lg p-2 hover:bg-gray-50 sm:cursor-text sm:select-text"
             aria-label="Back to Group"
           >
             <CaretLeft16Icon className="mr-1 h-4 w-4 text-gray-400" />

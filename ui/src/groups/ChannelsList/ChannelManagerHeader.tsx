@@ -18,18 +18,10 @@ export default function ChannelManagerHeader({
   const isMobile = useIsMobile();
 
   return (
-    <div
-      className={cn('my-3 flex items-center justify-between', {
-        'flex-col': isMobile,
-      })}
-    >
+    <div className="my-3 flex flex-col items-center justify-between md:flex-row">
       <div>
         {isAdmin ? (
-          <div
-            className={cn({
-              'mb-2': isMobile,
-            })}
-          >
+          <div className="mb-2 md:mb-0">
             <button
               className={cn('mx-2 bg-blue', {
                 button: !isMobile,
