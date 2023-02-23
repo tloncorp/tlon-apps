@@ -244,6 +244,7 @@ export default function ChannelsListItem({
       <EditChannelModal
         editIsOpen={editIsOpen}
         setEditIsOpen={setEditIsOpen}
+        setDeleteChannelIsOpen={setDeleteChannelIsOpen}
         nest={nest}
         channel={channel}
         app={app}

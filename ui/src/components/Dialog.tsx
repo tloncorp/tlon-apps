@@ -45,31 +45,6 @@ export const DialogContent = React.forwardRef<
   )
 );
 
-export const SecondaryDialogContent = React.forwardRef<
-  HTMLDivElement,
-  DialogContentProps
->(
-  (
-    { showClose = true, containerClass, children, className, ...props },
-    forwardedRef
-  ) => (
-    <DialogPrimitive.Content asChild {...props} ref={forwardedRef}>
-      <section
-        className={classNames('secondary-dialog-container', containerClass)}
-      >
-        <div className={classNames('dialog', className)}>
-          {children}
-          {showClose && (
-            <DialogPrimitive.Close className="icon-button absolute top-6 right-6">
-              <X16Icon className="h-4 w-4" />
-            </DialogPrimitive.Close>
-          )}
-        </div>
-      </section>
-    </DialogPrimitive.Content>
-  )
-);
-
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 export const DialogTitle = DialogPrimitive.Title;
