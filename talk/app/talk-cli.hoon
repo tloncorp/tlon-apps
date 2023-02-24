@@ -836,14 +836,6 @@
       ?~  who  
         [[spit]~ put-ses]
       =/  =whom:chat  [%ship (need who)]
-      :: if pending-dm, send an rsvp response
-      ::
-      =/  rsvp=card
-        ?.  (~(has in get-pending-dms) u.who)
-          *card
-        %^  act  %rsvp-response
-          %chat
-        [%dm-rsvp !>(`rsvp:dm:chat`[u.who %.y])]
       :: if not subscribed, add a watch card so
       :: we can quickly begin adding messages to state
       ::
@@ -857,14 +849,18 @@
         ==
       =.  audience  whom 
       =.  viewing  (~(put in viewing) whom)
-      =^  cards  state
+      =^  bind-cards  state
         ?:  (~(has by bound) whom)
           [~ state]
         (bind-default-glyph whom)
+      :: send rsvp response, if needed
+      ::
+      =^  rsvp-cards  state
+        (rsvp | & whom)
       :_  put-ses
-      ;:  welp  cards
+      ;:  welp  bind-cards
          [prompt:sh-out]~
-         [rsvp]~
+         rsvp-cards
          [spit]~
          [connect]~
       ==
