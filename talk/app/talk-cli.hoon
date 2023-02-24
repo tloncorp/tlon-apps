@@ -757,12 +757,21 @@
         [[(note:sh-out "no such chat")]~ put-ses]
       =.  audience  target
       =.  viewing   (~(put in viewing) target)
-      =^  cards  state
+      =^  bind-cards  state
         ?:  (~(has by bound) target)
           [~ state]
         (bind-default-glyph target)
+      ::  send rsvp response, if needed
+      ::
+      =^  rsvp-cards  state
+        ?-   -.target
+            %flag  (rsvp | & target)
+            %ship  (rsvp | & target)
+            %club  (rsvp | & target)
+        ==
       :_  put-ses
-      ;:  welp  cards
+      ;:  welp  bind-cards
+        rsvp-cards
         [prompt:sh-out]~
         ?.(?=(%ship -.target) ~ dm-connect)
         ?.(?=(%club -.target) ~ club-connect)
