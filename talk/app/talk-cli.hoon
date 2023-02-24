@@ -563,40 +563,35 @@
     ++  ship     ;~(pfix sig fed:ag)
     ++  name     ;~(pfix fas urs:ab)
     ++  club-id  (cook |=(a=@ `@uv`a) ;~(pfix (jest '0v') viz:ag))
-    ::  +tarl: local target, as /path
+    ::  +tarl: local flag:chat, as /path
     ::
     ++  tarl  (stag our-self name)
-    ::  +targ: any target, as tarl, tarp, ~ship/path or glyph
+    ::  +targ: any target, as tarl, tarp, 
+    ::  ship, club id, ~ship/path or glyph
     ::
     ++  targ
       ;~  pose
-        :: TODO reimplement tarl
-         whom
-        :: TODO include method to send $rsvp, if dm connection is not
-        :: already established
+        %+  cook
+          |=  =target
+          target
+        ;~  pose
+          (stag %flag tarl)
+          (stag %flag ;~(plug ship name))
+          (stag %club club-id)
+          (stag %ship ship)
+        ==
         (sear (cury decode-glyph session) glyph)
-      ==
-    ++  whom
-      %+  cook
-        |=  =target
-        target
-      ;~  pose
-        (stag %flag ;~(plug ship name))
-        (stag %club club-id)
-        (stag %ship ship)
       ==
     ::  +tars: set of comma-separated targs
     ::
-    ::  TODO currently not used, adapt for $whom
-    :: ++  tars
-    ::  %+  cook  ~(gas in *(set target))
-    ::  (most ;~(plug com (star ace)) targ)
+    ++  tars
+      %+  cook  ~(gas in *(set target))
+      (most ;~(plug com (star ace)) targ)
     ::  +ships: set of comma-separated ships
     ::
-    ::  TODO currently not used, adapt for $whom
-    :: ++  ships
-    ::  %+  cook  ~(gas in *(set ^ship))
-    ::  (most ;~(plug com (star ace)) ship)
+    ++  ships
+      %+  cook  ~(gas in *(set ^ship))
+      (most ;~(plug com (star ace)) ship)
     ::  +glyph: shorthand character
     ::
     ++  glyph  (mask glyphs)
@@ -637,7 +632,7 @@
     ::
     ++  content
       ;~  pose
-        :: (cook (late ~) (cook |=(url=@t [%link url url]) turl))
+        (cook (late ~) (cook |=(url=@t [%link url url]) turl))
         ;~(less mic text)
       ==
     ::  +turl: url parser
