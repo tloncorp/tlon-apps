@@ -278,7 +278,17 @@
 ::
 ++  get-clubs  ~+
   ^-  (map club-id crew)
-  (scry-for (map club-id crew) %chat /clubs)
+  =/  clubs  
+    (scry-for (map club-id crew) %chat /clubs)
+  =/  ids=(list club-id)  
+    ~(tap in ~(key by clubs))
+  |-
+  ?~  ids  clubs
+  =/  team  team:(~(got by clubs) i.ids)
+  =/  hive  hive:(~(got by clubs) i.ids)
+  ?.  &(=(~ team) =(~ hive))
+    $(ids t.ids)
+  $(clubs (~(del by clubs) i.ids), ids t.ids)
 ::  +target-exists: check whether a channel exists
 ::
 ++  target-exists
