@@ -1,5 +1,5 @@
-import Dialog, { DialogContent } from '@/components/Dialog';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
+import LightBox from '@/components/LightBox';
 import { useIsMobile } from '@/logic/useMedia';
 import React, { useState } from 'react';
 
@@ -47,7 +47,7 @@ export default function YouTubeEmbed({
       </div>
       <div className="mt-4 flex flex-row items-center space-x-2 text-sm">
         <span className="font-bold">YouTube</span>
-        <span className="text-gray-300">&middot;</span>
+        <span className="text-gray-800">&middot;</span>
         <a
           href={url}
           className="truncate font-semibold text-gray-800 underline"
@@ -59,20 +59,19 @@ export default function YouTubeEmbed({
           {author}
         </a>
       </div>
-      <Dialog
-        open={showIframeModal}
-        onOpenChange={(open) => setShowIframeModal(open)}
+      <LightBox
+        showLightBox={showIframeModal}
+        setShowLightBox={setShowIframeModal}
+        source={url}
       >
-        <DialogContent containerClass={isMobile ? 'w-[400px]' : ''}>
-          <iframe
-            className={isMobile ? 'h-[240px] w-[320px]' : 'h-[480px] w-[640px]'}
-            src={`https://www.youtube.com/embed/${videoId}`}
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        </DialogContent>
-      </Dialog>
+        <iframe
+          className={isMobile ? 'h-[240px] w-[320px]' : 'h-[480px] w-[640px]'}
+          src={`https://www.youtube.com/embed/${videoId}`}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </LightBox>
     </div>
   );
 }

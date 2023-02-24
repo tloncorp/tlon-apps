@@ -20,7 +20,6 @@ import ContentReference from '@/components/References/ContentReference';
 import { useLocation } from 'react-router';
 import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
-// eslint-disable-next-line import/no-cycle
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
 
 interface ChatContentProps {
@@ -31,7 +30,6 @@ interface ChatContentProps {
 
 interface InlineContentProps {
   story: Inline;
-  isScrolling?: boolean;
 }
 
 interface BlockContentProps {
@@ -57,10 +55,7 @@ function ShipMention({ ship }: ShipMentionProps) {
   );
 }
 
-export function InlineContent({
-  story,
-  isScrolling = false,
-}: InlineContentProps) {
+export function InlineContent({ story }: InlineContentProps) {
   if (typeof story === 'string') {
     return <span>{story}</span>;
   }
@@ -99,7 +94,6 @@ export function InlineContent({
     const containsProtocol = story.link.href.match(/https?:\/\//);
     return (
       <ChatEmbedContent
-        isScrolling={isScrolling}
         url={containsProtocol ? story.link.href : `http://${story.link.href}`}
       />
     );
@@ -166,7 +160,7 @@ export function BlockContent({ story, isScrolling }: BlockContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export default function ChatContent({
+function ChatContent({
   story,
   isScrolling = false,
   className = '',
@@ -241,7 +235,6 @@ export default function ChatContent({
               <InlineContent
                 key={`${storyItem.toString()}-${index}`}
                 story={storyItem}
-                isScrolling={isScrolling}
               />
             );
           })}
@@ -250,3 +243,5 @@ export default function ChatContent({
     </div>
   );
 }
+
+export default React.memo(ChatContent);

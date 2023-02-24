@@ -1,26 +1,16 @@
-import _ from 'lodash';
 import React, { useEffect, useState } from 'react';
-import { isValidUrl, validOembedCheck } from '@/logic/utils';
+import { AUDIO_REGEX, isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import useEmbedState from '@/state/embed';
-// eslint-disable-next-line import/no-cycle
-import useHeapContentType from '@/logic/useHeapContentType';
-import HeapDetailEmbed from '@/heap/HeapDetail/HeapDetailEmbed';
 import YouTubeEmbed from './YouTubeEmbed';
 import TwitterEmbed from './TwitterEmbed';
 import SpotifyEmbed from './SpotifyEmbed';
 import AudioPlayer from './AudioPlayer';
 
-export default function ChatEmbedContent({
-  url,
-  isScrolling,
-}: {
-  url: string;
-  isScrolling: boolean;
-}) {
+function ChatEmbedContent({ url }: { url: string }) {
   const [embed, setEmbed] = useState<any>();
   const calm = useCalm();
-  const { isAudio } = useHeapContentType(url);
+  const isAudio = AUDIO_REGEX.test(url);
 
   useEffect(() => {
     const getOembed = async () => {
@@ -32,13 +22,13 @@ export default function ChatEmbedContent({
     getOembed();
   }, [url]);
 
-  if (isAudio && !calm?.disableRemoteContent) {
-    return <AudioPlayer url={url} />;
+  if (isAudio) {
+    return <AudioPlayer url={url} embed />;
   }
 
   const isOembed = validOembedCheck(embed, url);
 
-  if (isOembed && !calm?.disableRemoteContent && !isScrolling) {
+  if (isOembed && !calm?.disableRemoteContent) {
     const {
       title,
       thumbnail_url: thumbnail,
@@ -100,3 +90,5 @@ export default function ChatEmbedContent({
     </a>
   );
 }
+
+export default React.memo(ChatEmbedContent);

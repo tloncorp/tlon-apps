@@ -1,3 +1,5 @@
+import Dialog, { DialogContent } from '@/components/Dialog';
+import LightBox from '@/components/LightBox';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 function formatTime(num: number) {
@@ -6,27 +8,40 @@ function formatTime(num: number) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export default function AudioPlayer(props: { url: string; title?: string }) {
-  const { url, title = '' } = props;
+function AudioPlayer({
+  url,
+  title,
+  embed,
+}: {
+  url: string;
+  title?: string;
+  embed?: boolean;
+}) {
   const ref = useRef<HTMLAudioElement>(null);
 
   const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [showModal, setShowModal] = useState(false);
 
   const playPause = useCallback(
     (e) => {
       e.stopPropagation();
-      if (playing) {
-        ref.current?.pause();
-      } else {
-        ref.current?.play();
-      }
-      setPlaying((p) => !p);
-    },
-    [ref, playing]
-  );
+      const audio = ref.current;
 
-  const [duration, setDuration] = useState(0);
-  const [progress, setProgress] = useState(0);
+      if (!audio) {
+        return;
+      }
+
+      if (playing) {
+        audio.pause();
+      } else {
+        audio.play();
+      }
+      setPlaying(!playing);
+    },
+    [ref, playing, setPlaying]
+  );
 
   useEffect(() => {
     if (playing) {
@@ -37,50 +52,108 @@ export default function AudioPlayer(props: { url: string; title?: string }) {
 
       const time = setInterval(updateProgress, 250);
 
-      return () => time && clearTimeout(time);
+      return () => time && clearInterval(time);
     }
     return undefined;
   }, [ref, playing]);
 
   useEffect(() => {
-    ref.current?.addEventListener('loadedmetadata', () => {
-      setDuration(ref.current?.duration || 0);
-    });
-  }, []);
+    const audio = ref?.current;
+    const updateDuration = () => {
+      setDuration(audio?.duration || 0);
+    };
+    audio?.addEventListener('loadedmetadata', updateDuration);
+
+    return () => {
+      audio?.removeEventListener('loadedmetadata', updateDuration);
+    };
+  }, [ref]);
 
   return (
-    <div className="flex h-full w-60 flex-col justify-center rounded-lg border-2 border-gray-50 bg-white p-2">
-      <audio ref={ref} src={url} preload="metadata" />
-      <button className="small-button mt-2" onClick={playPause}>
-        {playing ? 'Pause' : 'Play'}
-      </button>
-      <div className="mt-4 flex flex-row items-center space-x-2 text-sm">
-        <span className="font-bold">Audio</span>
-        <span className="text-gray-500">&middot;</span>
-        {title ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            className="w-16 truncate text-gray-500 underline"
-          >
-            {title}
-          </a>
-        ) : (
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            className="w-16 truncate text-gray-500"
-          >
-            {url}
-          </a>
-        )}
-        <span className="text-gray-500">&middot;</span>
-        <p>
-          {formatTime(progress)} / {formatTime(duration)}
-        </p>
+    <>
+      <div className="flex h-20 w-60 flex-col justify-center rounded-lg border-2 border-gray-50 bg-white p-2">
+        {!embed && <audio ref={ref} src={url} preload="metadata" />}
+        <button
+          className="small-button"
+          onClick={embed ? () => setShowModal(true) : playPause}
+        >
+          {!embed && playing ? 'Pause' : 'Play'}
+        </button>
+        <div className="flex flex-row items-center space-x-2 pt-4 text-sm">
+          <span className="font-bold">Audio</span>
+          <span className="text-gray-500">&middot;</span>
+          {title ? (
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="truncate text-gray-500 underline"
+            >
+              {title}
+            </a>
+          ) : (
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="w-24 truncate text-gray-500"
+            >
+              {url}
+            </a>
+          )}
+          {embed ? null : (
+            <>
+              <span className="text-gray-500">&middot;</span>
+              <p>
+                {formatTime(progress)} / {formatTime(duration)}
+              </p>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+      {embed && (
+        <LightBox
+          showLightBox={showModal}
+          setShowLightBox={setShowModal}
+          source={url}
+        >
+          <div className="mt-2 flex h-20 w-60 flex-col justify-center rounded-lg border-2 border-gray-50 bg-white p-2">
+            <audio ref={ref} src={url} preload="metadata" />
+            <button className="small-button" onClick={playPause}>
+              {playing ? 'Pause' : 'Play'}
+            </button>
+            <div className="flex flex-row items-center space-x-2 pt-4 text-sm">
+              <span className="font-bold">Audio</span>
+              <span className="text-gray-500">&middot;</span>
+              {title ? (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-16 truncate text-gray-500 underline"
+                >
+                  {title}
+                </a>
+              ) : (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-16 truncate text-gray-500"
+                >
+                  {url}
+                </a>
+              )}
+              <span className="text-gray-500">&middot;</span>
+              <p>
+                {formatTime(progress)} / {formatTime(duration)}
+              </p>
+            </div>
+          </div>
+        </LightBox>
+      )}
+    </>
   );
 }
+
+export default React.memo(AudioPlayer);

@@ -1,6 +1,5 @@
-import Dialog, { DialogContent } from '@/components/Dialog';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
-import { useIsMobile } from '@/logic/useMedia';
+import LightBox from '@/components/LightBox';
 import React, { useState } from 'react';
 
 interface SpotifyEmbedProps {
@@ -20,7 +19,6 @@ export default function SpotifyEmbed({
 }: SpotifyEmbedProps) {
   const [showIframeModal, setShowIframeModal] = useState(false);
   const trackId = url.split('/')?.pop()?.split('?')[0];
-  const isMobile = useIsMobile();
   return (
     <div className="embed-inline-block">
       <div
@@ -50,20 +48,19 @@ export default function SpotifyEmbed({
           {title}
         </a>
       </div>
-      <Dialog
-        open={showIframeModal}
-        onOpenChange={(open) => setShowIframeModal(open)}
+      <LightBox
+        showLightBox={showIframeModal}
+        setShowLightBox={() => setShowIframeModal(false)}
+        source={`https://open.spotify.com/embed/track/${trackId}`}
       >
-        <DialogContent className={isMobile ? 'w-[400px]' : ''}>
-          <iframe
-            className="h-[352px] w-full rounded-lg"
-            src={`https://open.spotify.com/embed/track/${trackId}`}
-            frameBorder="0"
-            allowFullScreen
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-          />
-        </DialogContent>
-      </Dialog>
+        <iframe
+          className="h-[352px] w-full rounded-lg"
+          src={`https://open.spotify.com/embed/track/${trackId}`}
+          frameBorder="0"
+          allowFullScreen
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        />
+      </LightBox>
     </div>
   );
 }
