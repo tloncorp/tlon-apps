@@ -32,6 +32,12 @@ const CHANNEL_TYPE: Record<ChannelType, ChannelTypeMetadata> = {
     description: 'Longform publishing and discussion',
     color: 'bg-red-soft',
   },
+  draw: {
+    icon: <ShapesIcon className="h-6 w-6 text-gray-600" />,
+    title: 'Whiteboard',
+    description: 'A whiteboard for drawing and sharing',
+    color: 'bg-yellow-soft',
+  },
 };
 
 interface ChannelTypeSelectionProps {

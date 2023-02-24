@@ -81,6 +81,7 @@ import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
+import DrawChannel from './draw/DrawChannel';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -339,6 +340,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
               <Route path="curio/:idCurio" element={<HeapDetail />} />
             </Route>
+            <Route
+              path="channels/diary/:chShip/whiteboard"
+              element={<DrawChannel />}
+            />
             <Route path="channels/diary/:chShip/:chName">
               <Route index element={<DiaryChannel />} />
               <Route path="note/:noteId" element={<DiaryNote />} />

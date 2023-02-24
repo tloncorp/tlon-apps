@@ -567,6 +567,8 @@ export function prettyChannelTypeName(app: string) {
       return 'Collection';
     case 'diary':
       return 'Notebook';
+    case 'draw':
+      return 'Whiteboard';
     default:
       return 'Unknown';
   }
