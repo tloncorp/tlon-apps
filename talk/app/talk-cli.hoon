@@ -701,8 +701,8 @@
           %say       (say +.job)
           :: %eval      (eval +.job)
         ::
-          %join      (rsvp %.y +.job)
-          %deny      (rsvp %.n +.job)
+          %join      (rsvp & & +.job)
+          %deny      (rsvp & | +.job)
         ::
           %view      (view +.job)
           %flee      (flee +.job)
@@ -777,18 +777,20 @@
     ::  +rsvp: send rsvp response without changing audience
     ::
     ++  rsvp
-      |=   [ok=? =target]
+      |=   [note=? ok=? =target]
       ^-  (quip card _state)
       ?-    -.target
-           %flag 
+           %flag
+         ?.  note  [~ state]
          :_  put-ses
          [(note:sh-out "chat invite handling not supported")]~
       ::
            %ship
          =/  =ship  +.target
          ?.  (~(has in get-pending-dms) ship)
+           ?.  note  [~ state]
            :_  put-ses
-           [(note:sh-out "no pending dms for {(scow %p ship)}")]~
+           [(note:sh-out "no pending dm invite from {(scow %p ship)}")]~
          :_  state
          :_  ~
          %^  act  %rsvp-response
@@ -799,12 +801,15 @@
          =/  =club-id  +.target
          =/  crew=(unit crew)  
            (~(get by get-clubs) club-id)
-         ?~  crew  
-           [[(note:sh-out "no such pending group chats")]~ put-ses]
+         ?~  crew
+           ?.  note  [~ state]
+           :_  put-ses
+           [(note:sh-out "no group chat invite for {(scow %uv club-id)}")]~ 
          ?.  (~(has in hive.u.crew) our-self)
+           ?.  note  [~ state]
            :_  put-ses
            :~  %-  note:sh-out
-                 "no pending group chat invites for {(scow %uv club-id)}"
+                 "no pending group chat invite for {(scow %uv club-id)}"
            ==
          :_  state
          :_  ~
