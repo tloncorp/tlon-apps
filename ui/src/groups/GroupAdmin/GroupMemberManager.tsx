@@ -5,11 +5,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import cn from 'classnames';
 import { debounce } from 'lodash';
 import { deSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { Link, useLocation } from 'react-router-dom';
 import { useGroup, useRouteGroup } from '@/state/groups/groups';
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
+import { useAmAdmin } from '@/state/groups';
 import MemberScroller from './MemberScroller';
 
 export default function GroupMemberManager() {
@@ -18,6 +21,7 @@ export default function GroupMemberManager() {
   const group = useGroup(flag);
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
+  const amAdmin = useAmAdmin(flag);
   const members = useMemo(() => {
     if (!group) {
       return [];
@@ -69,25 +73,35 @@ export default function GroupMemberManager() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <p className="mb-4 text-sm font-semibold text-gray-400">
-        {members.length} total
-      </p>
-      <div className="mb-4 flex items-center">
-        <input
-          value={rawInput}
-          onChange={onChange}
-          className="input flex-1 font-semibold"
-          placeholder="Search Members"
-          aria-label="Search Members"
-        />
-        <Link
-          to={`/groups/${flag}/invite`}
-          state={{ backgroundLocation: location }}
-          className="button ml-2 bg-blue dark:text-black"
-        >
-          Invite
-        </Link>
+    <div className={cn(!amAdmin && 'card', 'flex h-full grow flex-col')}>
+      <div
+        className={cn(
+          amAdmin && 'mt-2',
+          'mb-4 flex w-full items-center justify-between'
+        )}
+      >
+        {amAdmin && (
+          <Link
+            to={`/groups/${flag}/invite`}
+            state={{ backgroundLocation: location }}
+            className="button bg-blue dark:text-black"
+          >
+            Invite
+          </Link>
+        )}
+
+        <label className="relative ml-auto flex items-center">
+          <span className="sr-only">Search Prefences</span>
+          <span className="absolute inset-y-[5px] left-0 flex h-8 w-8 items-center pl-2 text-gray-400">
+            <MagnifyingGlass16Icon className="h-4 w-4" />
+          </span>
+          <input
+            className="input h-10 w-[260px] bg-gray-50 pl-7 text-sm mix-blend-multiply placeholder:font-normal md:text-base"
+            placeholder={`Filter Members (${members.length} total)`}
+            value={rawInput}
+            onChange={onChange}
+          />
+        </label>
       </div>
       <div className="grow">
         <MemberScroller members={results} />
