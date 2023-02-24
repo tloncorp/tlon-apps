@@ -24,6 +24,8 @@ export default function LightBox({
           <a
             href={source}
             className="small-button absolute -top-2 right-6 m-4 cursor-pointer bg-white text-gray-800"
+            target="_blank"
+            rel="noreferrer"
           >
             Source
           </a>
