@@ -16,8 +16,9 @@ EditorView.prototype.updateState = function updateState(state) {
   oldUpdateState.call(this, state);
 };
 
-import React from 'react';
-import { render } from 'react-dom';
+// import React from 'react';
+// import { render } from 'react-dom';
+import { render } from 'preact';
 import App from './app';
 import _api from './api';
 
@@ -38,9 +39,4 @@ if (IS_MOCK) {
 window.our = `~${window.ship}`;
 
 const root = document.getElementById('app') as HTMLElement;
-render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  root
-);
+render(<App />, root);

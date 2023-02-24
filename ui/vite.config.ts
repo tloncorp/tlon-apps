@@ -7,6 +7,7 @@ import { visualizer } from 'rollup-plugin-visualizer';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import { fileURLToPath } from 'url';
 import basicSsl from '@vitejs/plugin-basic-ssl';
+import prefreshPlugin from '@prefresh/vite';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -55,9 +56,8 @@ export default ({ mode }: { mode: string }) => {
             changeOrigin: true,
             secure: false,
           }),
-          react({
-            jsxImportSource: '@welldone-software/why-did-you-render',
-          }),
+          prefreshPlugin(),
+          ,
         ];
       default:
         return [
@@ -68,9 +68,7 @@ export default ({ mode }: { mode: string }) => {
             changeOrigin: true,
             secure: false,
           }),
-          react({
-            jsxImportSource: '@welldone-software/why-did-you-render',
-          }),
+          prefreshPlugin(),
         ];
     }
   };
@@ -80,6 +78,11 @@ export default ({ mode }: { mode: string }) => {
 
   return defineConfig({
     base: base(mode, app),
+    esbuild: {
+      jsxFactory: 'h',
+      jsxFragment: 'Fragment',
+      jsxInject: `import { h, Fragment } from 'preact'`,
+    },
     server: {
       https: true,
       host: 'localhost',
@@ -104,6 +107,7 @@ export default ({ mode }: { mode: string }) => {
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        'react': 'preact/compat',
       },
     },
     test: {
