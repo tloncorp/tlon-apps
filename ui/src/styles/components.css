@@ -145,3 +145,13 @@
 .small-menu-button {
   @apply w-full rounded bg-transparent p-2 text-left font-semibold ring-gray-200 hover:bg-gray-50 focus:outline-none focus-visible:ring-2;
 }
+
+/* Conditionally style reply avatars */
+
+.is-active .reply-avatar {
+  @apply outline-gray-50;
+}
+
+.bg-blue-softer .reply-avatar {
+  @apply outline-blue-50;
+}
