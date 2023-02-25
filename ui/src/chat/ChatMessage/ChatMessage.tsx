@@ -237,7 +237,7 @@ const ChatMessage = React.memo<
                     to={`message/${seal.id}`}
                     className={({ isActive }) =>
                       cn(
-                        'group-two -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-blue',
+                        'group-two -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
                         isActive ? 'is-active bg-gray-50' : ''
                       )
                     }
@@ -263,7 +263,12 @@ const ChatMessage = React.memo<
                         ))}
                       </div>
 
-                      <span className="mr-2">
+                      <span
+                        className={cn(
+                          'mr-2',
+                          repliesContainsUnreadId && 'text-blue'
+                        )}
+                      >
                         {numReplies} {numReplies > 1 ? 'replies' : 'reply'}{' '}
                       </span>
                       <span className="text-gray-400">
