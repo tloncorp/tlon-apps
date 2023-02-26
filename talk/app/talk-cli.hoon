@@ -1053,9 +1053,7 @@
     ++  chats
       ^-  (quip card _state)
       =/  targets=(set target)
-        %-  ~(run in get-chats)
-          |=  =flag:chat
-          [%flag flag]
+        (~(run in get-chats) (lead %flag))
       :_  state
       [(show-targets:sh-out ~(tap in targets))]~ 
     ::  +dms: display list of known dms
@@ -1065,10 +1063,10 @@
       =/  targets=(set target)
         %-  %~  run  in 
             (~(uni in get-accepted-dms) get-pending-dms)
-          |=  =ship
-          [%ship ship]
+        (lead %ship)
       :_  state
-      ;:  welp  dm-connect
+      ;:  welp  
+        dm-connect
         [(show-targets:sh-out ~(tap in targets))]~
       ==
     ::  +clubs: display list of known clubs
@@ -1076,11 +1074,10 @@
     ++  clubs
       ^-  (quip card _state)
       =/  targets=(set target)
-        %-  ~(run in ~(key by get-clubs))
-          |=  =club-id
-          [%club club-id]
+        (~(run in ~(key by get-clubs)) (lead %club))
       :_  state
-      ;:  welp  club-connect
+      ;:  welp  
+        club-connect
         [(show-targets:sh-out ~(tap in targets))]~
       ==  
     ::  +targets: display list of known targets
