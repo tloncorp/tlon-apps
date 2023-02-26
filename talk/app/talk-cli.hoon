@@ -677,6 +677,9 @@
       [';view' leaf+";view (glyph) (~ship) (club-id) (~ship/chat-name)"]
       [';flee' leaf+";flee (glyph) (~ship) (club-id) (~ship/chat-name)"]
     ::
+      [';join' leaf+";join (glyph) (~ship) (club-id)"] 
+      [';deny' leaf+";deny (glyph) (~ship) (club-id)"]
+    ::
       [';bind' leaf+";bind [glyph] (~ship) (club-id) (~ship/chat-name)"]
       [';unbind' leaf+";unbind [glyph]"]
       [';what' leaf+";what (glyph) (~ship) (club-id) (~ship/chat-name)"]
