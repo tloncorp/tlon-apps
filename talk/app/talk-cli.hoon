@@ -254,11 +254,11 @@
   |=  =sole-id
   ^-  session
   (~(gut by sessions) sole-id %*(. *session audience [%flag [our-self %$]]))
-::  +tor: term ordering for targets 
+::  +tor: term ordering for chats 
 ::
-::++  tor     :: TODO support $whom
-::  |=  [[* a=term] [* b=term]]
-::  (aor a b)
+++  tor
+  |=  [[* a=term] [* b=term]]
+  (aor a b)
 ::  +get-chats: get known chats 
 ::
 ++  get-chats  ~+
@@ -1202,15 +1202,31 @@
   ::
   ++  show-targets
     |=  targets=(list target)
-    ^-  card
+    |^  ^-  card
     %-  print-more
-    %+  turn  targets     :: TODO, sort: (sort targets tor)
+    %+  turn  (sort targets order)
     |=  =target
-    ?-   -.target
-        %ship  "{(nome:mr p.target)}"
-        %club  "{(scow %uv p.target)}"  :: TODO create settings term for optional display change 
-        %flag  "{(nome:mr p.p.target)}/{(trip q.p.target)}"
-    ==                             
+    ?-  -.target
+      %club  "{(scow %uv p.target)}"
+      %ship  "{(nome:mr p.target)}"
+      %flag  "{(nome:mr p.p.target)}/{(trip q.p.target)}"
+    ==
+    ::  +order: ships go before chats who go before clubs
+    ::
+    ++  order
+      |=  [a=target b=target]
+      ^-  ?
+      ?:  &(?=(%ship -.a) ?=(%flag -.b))  &
+      ?:  &(?=(%ship -.a) ?=(%club -.b))  &
+      ?:  &(?=(%ship -.a) ?=(%ship -.b))  &
+      ?:  &(?=(%club -.a) ?=(%flag -.b))  |
+      ?:  &(?=(%club -.a) ?=(%ship -.b))  |
+      ?:  &(?=(%club -.a) ?=(%club -.b))  & 
+      ?:  &(?=(%flag -.a) ?=(%ship -.b))  |
+      ?:  &(?=(%flag -.a) ?=(%club -.b))  &
+      ?.  &(?=(%flag -.a) ?=(%flag -.b))  |
+        (tor +.a +.b)
+    --
   --
 ::
 ::  +tr: render targets, one of $whom: ship, flag, or club
