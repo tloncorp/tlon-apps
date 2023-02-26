@@ -61,6 +61,7 @@
       [%chats ~]                                    ::  list available chats
       [%dms ~]                                      ::  list available dms
       [%clubs ~]                                    ::  list available clubs
+      [%targets ~]                                  ::  list available targets
       [%help ~]                                     ::  print usage info
   ==                                                ::
 ::
@@ -525,6 +526,7 @@
         ;~(plug (tag %chats) (easy ~))
         ;~(plug (tag %dms) (easy ~))
         ;~(plug (tag %clubs) (easy ~))
+        ;~(plug (tag %targets) (easy ~))
         ;~(plug (tag %help) (easy ~))
       ::
         (stag %select nump)
@@ -681,6 +683,7 @@
       [';chats' leaf+";chats"]
       [';dms' leaf+";dms"]
       [';clubs' leaf+";clubs"]
+      [';targets' leaf+";targets"]
       [';help' leaf+";help"]
     ==
   ::  +work: run user command
@@ -713,6 +716,7 @@
           %chats     chats
           %dms       dms
           %clubs     clubs
+          %targets   targets
           %help      help
         ==
     ::  +act: build action card
@@ -1072,6 +1076,14 @@
       ;:  welp  club-connect
         [(show-targets:sh-out ~(tap in targets))]~
       ==  
+    ::  +targets: display list of known targets
+    ::
+    ++  targets
+      ^-  (quip card _state)
+      =^  dm-cards  state  dms
+      =^  chat-cards  state  chats
+      =^  club-cards  state  clubs
+      [:(weld dm-cards chat-cards club-cards) state]
     ::  +help: print (link to) usage instructions
     ::
     ++  help
