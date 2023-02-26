@@ -130,12 +130,12 @@
           ?+    wire  ~
               [%dm ship=@ %ui ~] 
             %+  on-dm-update:tc  
-               (slav %p +<:wire)
+              (slav %p +<:wire)
             !<(diff:dm:chat q.cage.sign)
           ::  
               [%club id=@ %ui ~]
             %+  on-club-update:tc  
-               (slav %uv +<:wire)
+              (slav %uv +<:wire)
             !<(diff:writs:chat q.cage.sign)
           ==
         ==
@@ -180,19 +180,19 @@
   ?~  old
     :_  state(width 80)
     ;:  welp  
-       dm-connect
-       club-connect
-       [chat-connect]~ 
+      dm-connect
+      club-connect
+      [chat-connect]~ 
     ==
   ?>  ?=(%0 -.u.old)
   :_  u.old
   ;:  welp 
-     dm-connect
-     club-connect
-     ?:  %-  ~(has by wex.bowl)
-         [/chat/ui our-self %chat]
-       *(list card)
-     [chat-connect]~
+    dm-connect
+    club-connect
+    ?:  %-  ~(has by wex.bowl)
+        [/chat/ui our-self %chat]
+      *(list card)
+    [chat-connect]~
   ==
 ::  +chat-connect: subscribe to chats
 ::
@@ -213,14 +213,15 @@
       [/dm/(scot %p i.ships)/ui our-self %chat]
     $(ships t.ships)
   %=  $
-     cards  
-    ;:  welp  cards
-       :~  :*
-             %pass  /dm/(scot %p i.ships)/ui 
-             %agent  [our-self %chat] 
-             %watch  /dm/(scot %p i.ships)/ui
-    ==  ==  ==
-     ships  t.ships
+    cards  ;:  welp  
+             cards
+             :_  ~
+             :*  %pass  /dm/(scot %p i.ships)/ui 
+                 %agent  [our-self %chat] 
+                 %watch  /dm/(scot %p i.ships)/ui
+             ==
+           ==   
+    ships  t.ships
   ==
 :: +club-connect: subscribe to clubs
 ::
@@ -228,21 +229,22 @@
   ^-  (list card)
   =|  cards=(list card)
   =/  ids=(list club-id)  
-     ~(tap in ~(key by get-clubs))
+    ~(tap in ~(key by get-clubs))
   |- 
   ?~  ids  cards
   ?:  %-  ~(has by wex.bowl)
       [/club/(scot %uv i.ids)/ui our-self %chat]
     $(ids t.ids)
   %=  $
-     cards  
-    ;:  welp  cards
-       :~  :*  
-             %pass  /club/(scot %uv i.ids)/ui 
-             %agent  [our-self %chat] 
-             %watch  /club/(scot %uv i.ids)/ui/writs
-    ==  ==  ==
-     ids  t.ids
+    cards  ;:  welp  
+             cards
+             :_  ~
+             :*  %pass  /club/(scot %uv i.ids)/ui 
+                 %agent  [our-self %chat] 
+                 %watch  /club/(scot %uv i.ids)/ui/writs
+             ==
+           ==
+    ids  t.ids
   ==
 ::
 ::TODO  better moon support. (name:title our.bowl)
@@ -296,8 +298,12 @@
   |=  =target
   ^-  ?
   ?-   -.target
-      %flag  (~(has in get-chats) p.target)
-      %club  (~(has by get-clubs) p.target)
+      %flag  
+    (~(has in get-chats) p.target)
+  ::
+      %club  
+    (~(has by get-clubs) p.target)
+  ::  
       %ship
     %-  %~  has  in 
         (~(uni in get-accepted-dms) get-pending-dms)
@@ -308,46 +314,46 @@
 ++  poke-noun
   |=  a=*
   ^-  (quip card _state)
-  ?:  ?=(%connect a)
-    :_  state
-    ;:  welp 
-       dm-connect
-       club-connect
-       [chat-connect]~
-    ==
-  [~ state]
+  ?.  ?=(%connect a)
+    [~ state]
+  :_  state
+  ;:  welp 
+    dm-connect
+    club-connect
+    [chat-connect]~
+  ==
 ::  +on-dm-update: get new dms
 ::
 ++  on-dm-update 
   |=  [=ship =diff:dm:chat]
   ^-  (quip card _state)
   ?.  ?=(%add -.q.diff)  [~ state]
-  =*  id=id:dm:chat         p.diff
-  =*  memo=memo:chat      p.q.diff
+  =*  id=id:dm:chat  p.diff
+  =*  memo=memo:chat  p.q.diff
   (update-session [%ship ship] memo id)
 ::  +on-club-update: get new club messages
 ::
 ++  on-club-update
   |=  [=club-id =diff:writs:chat]
   ^-  (quip card _state)
-  ?.  ?=(%add -.q.diff)   [~ state]
-  =*  id=id:chat             p.diff
-  =*  memo=memo:chat       p.q.diff
+  ?.  ?=(%add -.q.diff)  [~ state]
+  =*  id=id:chat  p.diff
+  =*  memo=memo:chat  p.q.diff
   (update-session [%club club-id] memo id)
 ::  +on-chat-update: get new chat messages
 ::
 ++  on-chat-update
   |=  [=flag:chat =time =diff:chat]
   ^-  (quip card _state)
-  ?.  ?=(%writs -.diff)    [~ state]
+  ?.  ?=(%writs -.diff)  [~ state]
   ?.  ?=(%add -.q.p.diff)  [~ state]
-  =*  id=id:chat            p.p.diff
-  =*  memo=memo:chat      p.q.p.diff
+  =*  id=id:chat  p.p.diff
+  =*  memo=memo:chat  p.q.p.diff
   (update-session [%flag flag] memo id)
 ::  +update-session: process message updates
 ::
 ++  update-session
-  |=  $:  =target
+  |=  $:  =whom:chat
           =memo:chat 
           =id:chat 
       ==
@@ -358,9 +364,9 @@
   |-
   ?~  sez  [cards state]
   =^  caz  session.i.sez
-    ?.  (~(has in viewing.session.i.sez) target)
+    ?.  (~(has in viewing.session.i.sez) whom)
       [~ session.i.sez]
-    (~(read-post se i.sez) target id memo)
+    (~(read-post se i.sez) whom id memo)
   =.  sessions  (~(put by sessions) i.sez)
   $(sez t.sez, cards (weld cards caz))
 ::  +se: session event handling
@@ -617,9 +623,8 @@
     ::
     ++  dm 
       ;~  (glue ace) 
-        ;~  plug  (cook |=(s=@p [~ s]) ship)
-          content
-      ==  ==
+        ;~(plug (cook |=(s=@p [~ s]) ship) content)
+      == 
     ::  +message: all messages
     ::
     ++  message
@@ -760,13 +765,14 @@
       ::  send rsvp response, if needed
       ::
       =^  rsvp-cards  state
-        ?-   -.target
-            %flag  (rsvp | & target)
-            %ship  (rsvp | & target)
-            %club  (rsvp | & target)
+        ?-  -.target
+          %flag  (rsvp | & target)
+          %ship  (rsvp | & target)
+          %club  (rsvp | & target)
         ==
       :_  put-ses
-      ;:  welp  bind-cards
+      ;:  welp 
+        bind-cards
         rsvp-cards
         [prompt:sh-out]~
         ?.(?=(%ship -.target) ~ dm-connect)
@@ -814,7 +820,7 @@
            ?.  note  [~ state]
            :_  put-ses
            :~  %-  note:sh-out
-                 "no pending group chat invite for {(scow %uv club-id)}"
+               "no pending group chat invite for {(scow %uv club-id)}"
            ==
          :_  state
          :_  ~
@@ -835,10 +841,10 @@
       :: if not subscribed, add a watch card so
       :: we can quickly begin adding messages to state
       ::
-      =/  connect=card  
+      =/  connect=card
         ?:  %-  ~(has by wex.bowl)
-              [/dm/(scot %p u.who)/ui our-self %chat]
-          *card 
+            [/dm/(scot %p u.who)/ui our-self %chat]
+          *card
         :*  %pass  /dm/(scot %p u.who)/ui 
             %agent  [our-self %chat] 
             %watch  /dm/(scot %p u.who)/ui
@@ -854,11 +860,12 @@
       =^  rsvp-cards  state
         (rsvp | & whom)
       :_  put-ses
-      ;:  welp  bind-cards
-         [prompt:sh-out]~
-         rsvp-cards
-         [spit]~
-         [connect]~
+      ;:  welp  
+        bind-cards
+        [prompt:sh-out]~
+        rsvp-cards
+        [spit]~
+        [connect]~
       ==
       :: +spit: make a poke card based on audience
       ::
@@ -1026,18 +1033,18 @@
         ?-   -.whom 
             %flag  
           ;:  welp 
-             (path /chat/(scot %p p.p.whom)/[q.p.whom]/writs)
-             (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
+            (path /chat/(scot %p p.p.whom)/[q.p.whom]/writs)
+            (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
           ==
             %ship
           ;:  welp
-             (path /dm/(scot %p p.whom)/writs)
-             (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
+            (path /dm/(scot %p p.whom)/writs)
+            (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
           ==
             %club
           ;:  welp
-             (path /club/(scot %uv p.whom)/writs)
-             (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
+            (path /club/(scot %uv p.whom)/writs)
+            (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
           ==
         ==
       --
