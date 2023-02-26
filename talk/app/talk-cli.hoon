@@ -1094,10 +1094,13 @@
       ^-  (quip card _state)
       :_  state
       =-  (turn - print:sh-out)
-      :~  ";view ~host/chat to print messages for a chat you've already joined."
-          ";flee ~host/chat to stop printing messages for a chat."
+      :~  ";view (~ship) (group chat id) (~host/chat) to print messages for a chat you've already joined."
+          ";flee (~ship) (group chat id) (~host/chat) to stop printing messages for a chat."
+          ";join (~ship) (group chat id) to accept a dm or group chat invite without changing the chat you're viewing."
+          ";deny (~ship) (group chat id) to decline a dm or group chat invite."
+          ";~ship [message] to start or send a dm outside of the current chat you're viewing and begin printing its messages."
           "For more details:"
-          "https://urbit.org/using/operations/using-your-ship/#messaging"
+          "https://urbit.org/getting-started/getting-around"
       ==
     --
   --
