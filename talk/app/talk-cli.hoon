@@ -1207,7 +1207,7 @@
     %+  turn  (sort targets order)
     |=  =target
     ?-  -.target
-      %club  "{(scow %uv p.target)}"
+      %club  ~(full tr target)
       %ship  "{(nome:mr p.target)}"
       %flag  "{(nome:mr p.p.target)}/{(trip q.p.target)}"
     ==
@@ -1236,12 +1236,38 @@
   ::  +full: render target fully
   ::
   ++  full
-    ^-  tape
-    ?-   -.target
-        %ship  "{(scow %p p.target)}"
-        %club  "{(scow %uv p.target)}"  :: TODO render name, if avail or first x ships in $team
-        %flag  "{(scow %p p.p.target)}/{(trip q.p.target)}"
+    |^  ^-  tape
+    ?-  -.target
+      %club  render-club
+      %ship  "{(scow %p p.target)}"
+      %flag  "{(scow %p p.p.target)}/{(trip q.p.target)}"
     ==
+    ::  +render-club: render club id as tape
+    ::  with members appended
+    ::
+    ++  render-club
+      ^-  tape
+      ?>  ?=(%club -.target)
+      =/  members=(list tape)
+        %+  turn  (club-members p.target)
+        |=  =ship
+        "{(nome:mr ship)}"
+      =+  out="{(scow %uv p.target)}"
+      |- 
+      ?~  members  out
+      $(out (weld out i.members), members t.members)
+    ::  +club-members: produce list of club members
+    ::
+    :: TODO: move to top for broader use?
+    ++  club-members
+      |=  =club-id
+      ^-  (list ship)
+      =/  members 
+        %-  %~  uni  in
+            team:(~(got by get-clubs) club-id)
+        hive:(~(got by get-clubs) club-id)
+      (sort ~(tap in members) lth)
+    --
   ::  +phat: render chat target with local shorthand
   ::
   ::    renders as ~ship/path.
