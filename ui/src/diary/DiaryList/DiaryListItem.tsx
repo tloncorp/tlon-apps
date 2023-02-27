@@ -1,11 +1,10 @@
 import React from 'react';
-import { DiaryLetter, DiaryNote } from '@/types/diary';
+import { DiaryLetter } from '@/types/diary';
 import { useChannelFlag } from '@/hooks';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
 import { sampleQuippers } from '@/logic/utils';
 import { useNote } from '@/state/diary';
-import NoteReactions from '../NoteReactions/NoteReactions';
 
 interface DiaryListItemProps {
   letter: DiaryLetter;
@@ -41,11 +40,6 @@ export default function DiaryListItem({ letter, time }: DiaryListItemProps) {
           isInList
         />
       </div>
-      <NoteReactions
-        whom={chFlag || ''}
-        time={time.toString()}
-        seal={note.seal}
-      />
     </div>
   );
 }

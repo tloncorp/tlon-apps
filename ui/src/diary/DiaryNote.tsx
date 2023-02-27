@@ -14,21 +14,12 @@ import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-// import * as Dropdown from '@radix-ui/react-dropdown-menu';
-// import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
-import {
-  // DiarySetting,
-  // setChannelSetting,
-  useDiaryCommentSortMode,
-  // useDiarySettings,
-  // useSettingsState,
-} from '@/state/settings';
+import { useDiaryCommentSortMode } from '@/state/settings';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
 import DiaryNoteHeadline from './DiaryNoteHeadline';
-import NoteReactions from './NoteReactions/NoteReactions';
 
 function groupQuips(
   noteId: string,
@@ -169,7 +160,6 @@ export default function DiaryNote() {
             />
             <DiaryContent content={note.essay.content} />
             <footer id="comments">
-              <NoteReactions whom={chFlag} seal={note.seal} time={noteId} />
               <div className="mb-3 flex items-center py-3">
                 <Divider className="flex-1">
                   <h2 className="font-semibold text-gray-400">
