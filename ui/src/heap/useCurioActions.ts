@@ -27,9 +27,9 @@ export default function useCurioActions({
 
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const onDelete = useCallback(() => {
+  const onDelete = useCallback(async () => {
     setMenuOpen(false);
-    useHeapState.getState().delCurio(chFlag, time);
+    await useHeapState.getState().delCurio(chFlag, time);
   }, [chFlag, time]);
 
   const onEdit = useCallback(() => {
