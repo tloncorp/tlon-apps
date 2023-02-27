@@ -243,19 +243,12 @@ const ChatMessage = React.memo<
                     }
                   >
                     <div className="flex items-center">
-                      {repliesContainsUnreadId ? (
-                        <UnreadIndicator
-                          className="h-6 w-6 text-blue transition-opacity"
-                          aria-label="Unread replies in this thread"
-                        />
-                      ) : null}
-
-                      <div className="mr-2 flex">
+                      <div className="mr-2 flex flex-row-reverse">
                         {replyAuthors.map((ship, i) => (
                           <div
                             className={cn(
                               'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white group-one-focus-within:outline-gray-50 group-one-hover:outline-gray-50',
-                              i !== 0 && '-ml-2'
+                              i !== 0 && '-mr-3'
                             )}
                           >
                             <Avatar key={ship} ship={ship} size="xs" />
@@ -265,12 +258,17 @@ const ChatMessage = React.memo<
 
                       <span
                         className={cn(
-                          'mr-2',
-                          repliesContainsUnreadId && 'text-blue'
+                          repliesContainsUnreadId ? 'text-blue' : 'mr-2'
                         )}
                       >
                         {numReplies} {numReplies > 1 ? 'replies' : 'reply'}{' '}
                       </span>
+                      {repliesContainsUnreadId ? (
+                        <UnreadIndicator
+                          className="h-6 w-6 text-blue transition-opacity"
+                          aria-label="Unread replies in this thread"
+                        />
+                      ) : null}
                       <span className="text-gray-400">
                         <span className="hidden sm:inline-block">
                           Last reply&nbsp;
