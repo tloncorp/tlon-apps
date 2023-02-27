@@ -29,6 +29,8 @@ const textSize = (size: string) => {
       return 'text-xl';
     case 66:
       return 'text-sm';
+    case 44:
+      return 'text-xs';
     default:
       return 'text-sm';
   }
