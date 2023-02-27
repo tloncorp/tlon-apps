@@ -14,6 +14,7 @@ interface ReferenceBarProps {
   channelTitle?: string;
   author?: string;
   top?: boolean;
+  comment?: boolean;
   reply?: boolean;
 }
 
@@ -25,6 +26,7 @@ export default function ReferenceBar({
   channelTitle,
   author,
   top = false,
+  comment = false,
   reply = false,
 }: ReferenceBarProps) {
   const groupFlagOrZod = groupFlag || '~zod/test';
@@ -54,6 +56,9 @@ export default function ReferenceBar({
           onClick={navigateToChannel}
           className="flex cursor-pointer items-center space-x-2 text-gray-400 group-hover:text-gray-600"
         >
+          {comment ? (
+            <span className="pt-0.5 text-sm text-gray-400">Comment in:</span>
+          ) : null}
           <ChannelIcon nest={nest} className="-mr-1 h-4 w-4" />
           <span className="font-semibold">{channelTitle}</span>
           {groupTitle ? (
