@@ -60,7 +60,7 @@ export default function GroupReference({
   return (
     <div
       className={cn(
-        'not-prose relative flex items-center rounded-lg  text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
+        'not-prose relative flex max-w-[250px] items-center rounded-lg bg-white text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
         {
           'border-2 border-gray-50': !plain,
         }
@@ -72,17 +72,19 @@ export default function GroupReference({
       >
         <div className="flex items-center space-x-3 font-semibold">
           <GroupAvatar {...meta} size="h-12 w-12" />
-          <div className="leading-5">
-            <h3>
-              {meta?.title || flag}{' '}
-              {!plain && (
-                <span className="font-semibold text-gray-400">
-                  by <ShipName className="whitespace-nowrap" name={ship} />
-                </span>
-              )}
-            </h3>
+          <div className="overflow-hidden text-ellipsis text-sm leading-5">
+            <h3>{meta?.title || flag} </h3>
             {!plain && (
-              <span className="capitalize text-gray-400">
+              <span className="flex space-x-1 text-sm font-semibold text-gray-400">
+                <span>by</span>
+                <ShipName
+                  className="overflow-hidden text-ellipsis whitespace-nowrap"
+                  name={ship}
+                />
+              </span>
+            )}
+            {!plain && (
+              <span className="text-sm capitalize text-gray-400">
                 Group • {privacy}
               </span>
             )}
@@ -116,7 +118,7 @@ export default function GroupReference({
               </div>
             ) : (
               <button
-                className="small-button ml-2 bg-blue text-white dark:text-black"
+                className="small-button ml-3 whitespace-nowrap bg-blue text-white dark:text-black"
                 onClick={button.action}
                 disabled={button.disabled || status === 'error'}
               >
