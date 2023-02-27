@@ -41,7 +41,7 @@ export interface NoteSeal {
 }
 
 export interface NoteCork {
-  time: string;
+  time: number;
   feels: {
     [ship: Ship]: string;
   };
@@ -226,6 +226,10 @@ interface NoteDeltaAddFeel {
   };
 }
 
+interface NoteDeltaDelFeel {
+  'del-feel': string;
+}
+
 interface DiaryDiffAddSects {
   'add-sects': string[];
 }
@@ -243,6 +247,7 @@ export type NoteDelta =
   | NoteDeltaEdit
   | NoteDeltaDel
   | NoteDeltaAddFeel
+  | NoteDeltaDelFeel
   | NoteDeltaQuips;
 
 export interface NoteDiff {

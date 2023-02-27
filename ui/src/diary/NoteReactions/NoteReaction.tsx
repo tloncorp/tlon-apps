@@ -1,25 +1,27 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { ChatSeal } from '@/types/chat';
-import { useChatState } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
+import { useDiaryState } from '@/state/diary';
+import { useParams } from 'react-router';
 
-interface ChatReactionProps {
+interface NotReactionProps {
   whom: string;
-  seal: ChatSeal;
   feel: string;
   ships: string[];
+  time: string;
 }
 
-export default function ChatReaction({
+export default function NoteReaction({
   whom,
-  seal,
   feel,
   ships,
-}: ChatReactionProps) {
+  time,
+}: NotReactionProps) {
+  const { chShip, chName } = useParams();
+  const chFlag = `${chShip}/${chName}`;
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
@@ -28,13 +30,15 @@ export default function ChatReaction({
     load();
   }, [load]);
 
-  const editFeel = useCallback(() => {
+  const editFeel = useCallback(async () => {
     if (isMine) {
-      useChatState.getState().delFeel(whom, seal.id);
+      await useDiaryState.getState().delFeel(whom, time);
+      await useDiaryState.getState().fetchNote(chFlag, time);
     } else {
-      useChatState.getState().addFeel(whom, seal.id, feel);
+      await useDiaryState.getState().addFeel(whom, time, feel);
+      await useDiaryState.getState().fetchNote(chFlag, time);
     }
-  }, [isMine, whom, seal, feel]);
+  }, [isMine, whom, feel, time, chFlag]);
 
   return (
     <div>
@@ -70,10 +74,10 @@ export default function ChatReaction({
                   <div className="z-[100] w-fit cursor-none rounded bg-gray-400 px-4 py-2">
                     <label className="whitespace-nowrap font-semibold text-white">
                       {ships.map((ship, i) => (
-                        <span key={`${ship}-${i}`}>
+                        <div key={ship}>
                           <ShipName name={ship} showAlias />
                           {i + 1 === ships.length ? '' : ', '}
-                        </span>
+                        </div>
                       ))}
                     </label>
                   </div>
@@ -87,7 +91,6 @@ export default function ChatReaction({
                     >
                       <path
                         d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
-                        // fill="#999999"
                         className="fill-gray-400"
                       />
                     </svg>

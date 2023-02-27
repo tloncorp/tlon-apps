@@ -1,14 +1,17 @@
 import GroupAvatar from '@/groups/GroupAvatar';
 import { useIsMobile } from '@/logic/useMedia';
+import useRequestState from '@/logic/useRequestState';
 import { useGang, useGroupState } from '@/state/groups';
 import * as Popover from '@radix-ui/react-popover';
 import React from 'react';
+import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import SidebarItem from './SidebarItem';
 
 // Gang is a pending group invite
 export default function GangItem(props: { flag: string }) {
   const { flag } = props;
   const { preview, claim } = useGang(flag);
+  const { isPending, setPending, setReady } = useRequestState();
   const isMobile = useIsMobile();
 
   if (!claim) {
@@ -18,10 +21,13 @@ export default function GangItem(props: { flag: string }) {
   const requested = claim.progress === 'knocking';
   const errored = claim.progress === 'error';
   const handleCancel = async () => {
+    setPending();
     if (requested) {
       await useGroupState.getState().rescind(flag);
+      setReady();
     } else {
       await useGroupState.getState().cancel(flag);
+      setReady();
     }
   };
 
@@ -82,7 +88,16 @@ export default function GangItem(props: { flag: string }) {
                   className="small-button bg-gray-50 text-gray-800"
                   onClick={handleCancel}
                 >
-                  {requested ? 'Cancel Request' : 'Cancel Join'}
+                  {isPending ? (
+                    <>
+                      Canceling...
+                      <LoadingSpinner className="h-5 w-4" />
+                    </>
+                  ) : requested ? (
+                    'Cancel Request'
+                  ) : (
+                    'Cancel Join'
+                  )}
                 </button>
               </Popover.Close>
             </div>

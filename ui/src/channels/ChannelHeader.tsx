@@ -98,7 +98,7 @@ function ChannelActions({
   }
 
   const leave = useCallback(
-    (chFlag: string) => {
+    async (chFlag: string) => {
       const leaver =
         _app === 'chat'
           ? useChatState.getState().leaveChat
@@ -106,14 +106,14 @@ function ChannelActions({
           ? useHeapState.getState().leaveHeap
           : useDiaryState.getState().leaveDiary;
 
-      leaver(chFlag);
+      await leaver(chFlag);
     },
     [_app]
   );
 
   const leaveChannel = useCallback(async () => {
     try {
-      leave(flag);
+      await leave(flag);
       navigate(
         isMobile
           ? `/groups/${ship}/${name}`

@@ -12,7 +12,6 @@ import {
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import Groups from '@/groups/Groups';
-import Channel from '@/channels/Channel';
 import { IS_MOCK } from '@/api';
 import Dms from '@/dms/Dms';
 import NewDM from '@/dms/NewDm';
@@ -158,10 +157,6 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           </Route>
 
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
-            <Route
-              path="channels/join/:app/:chShip/:chName"
-              element={<Channel />}
-            />
             <Route path="channels/chat/:chShip/:chName">
               <Route
                 index
@@ -306,10 +301,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
               <Route path="actions" element={<MobileGroupActions />} />
             </Route>
-            <Route
-              path="channels/join/:app/:chShip/:chName"
-              element={<Channel />}
-            />
             <Route path="channels/chat/:chShip/:chName">
               <Route
                 index

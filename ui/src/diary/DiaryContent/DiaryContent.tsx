@@ -252,7 +252,6 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
 });
 
 export default function DiaryContent({ content }: DiaryContentProps) {
-  console.log(content);
   return (
     <article className="prose-lg prose break-words dark:prose-invert">
       {content.map((c, index) => {
