@@ -42,18 +42,18 @@ export default function DmOptions({
     useChatState.getState().archiveDm(whom);
   };
 
-  const markRead = useCallback(() => {
-    useChatState.getState().markRead(whom);
+  const markRead = useCallback(async () => {
+    await useChatState.getState().markRead(whom);
   }, [whom]);
 
   const [dialog, setDialog] = useState(false);
 
-  const leaveMessage = () => {
+  const leaveMessage = async () => {
     navigate('/');
     if (whomIsMultiDm(whom)) {
-      useChatState.getState().multiDmRsvp(whom, false);
+      await useChatState.getState().multiDmRsvp(whom, false);
     } else {
-      useChatState.getState().dmRsvp(whom, false);
+      await useChatState.getState().dmRsvp(whom, false);
     }
   };
   const closeDialog = () => {
@@ -61,10 +61,10 @@ export default function DmOptions({
   };
 
   const handlePin = useCallback(
-    (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    async (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
       const isPinned = pinned.includes(whom);
-      useChatState.getState().togglePin(whom, !isPinned);
+      await useChatState.getState().togglePin(whom, !isPinned);
     },
     [whom, pinned]
   );
@@ -76,17 +76,17 @@ export default function DmOptions({
   const handleAccept = () => {
     useChatState.getState().dmRsvp(whom, true);
   };
-  const handleDecline = () => {
+  const handleDecline = async () => {
     navigate(-1);
-    useChatState.getState().dmRsvp(whom, false);
+    await useChatState.getState().dmRsvp(whom, false);
   };
 
-  const handleMultiAccept = () => {
-    useChatState.getState().multiDmRsvp(whom, true);
+  const handleMultiAccept = async () => {
+    await useChatState.getState().multiDmRsvp(whom, true);
   };
 
-  const handleMultiDecline = () => {
-    useChatState.getState().multiDmRsvp(whom, false);
+  const handleMultiDecline = async () => {
+    await useChatState.getState().multiDmRsvp(whom, false);
   };
 
   return (
