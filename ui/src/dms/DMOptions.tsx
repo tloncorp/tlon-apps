@@ -38,7 +38,7 @@ export default function DmOptions({
   const [isOpen, setIsOpen] = useState(false);
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
   const onArchive = () => {
-    navigate(-1);
+    navigate('/');
     useChatState.getState().archiveDm(whom);
   };
 

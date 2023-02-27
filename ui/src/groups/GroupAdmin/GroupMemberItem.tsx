@@ -105,9 +105,9 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   return (
     <>
       <div className="cursor-pointer" onClick={() => onViewProfile(member)}>
-        <Avatar ship={member} size="small" className="mr-2" />
+        <Avatar ship={member} size="small" icon={false} className="mr-2" />
       </div>
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col space-y-0.5">
         <h2>
           {contact?.nickname ? contact.nickname : <ShipName name={member} />}
         </h2>
@@ -115,12 +115,20 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
           <p className="text-sm text-gray-400">{member}</p>
         ) : null}
       </div>
+      {isHost && (
+        <div className="mr-2 rounded border border-green-500 px-2 py-0.5 text-xs font-medium uppercase text-green-500">
+          Host
+        </div>
+      )}
       {isAdmin && vessel ? (
         <Dropdown.Root>
-          <Dropdown.Trigger className="default-focus mr-2 flex items-center rounded px-2 py-1.5 text-gray-400">
-            {vessel.sects
-              .map((s) => toTitleCase(getSectTitle(group.cabals, s)))
-              .join(', ')}
+          <Dropdown.Trigger className="small-secondary-button default-focus mr-2 flex max-w-xs items-center whitespace-nowrap">
+            {vessel.sects.length > 3
+              ? `${vessel.sects.length} Roles`
+              : vessel.sects
+                  .map((s) => toTitleCase(getSectTitle(group.cabals, s)))
+                  .concat('Member')
+                  .join(', ')}
             <CaretDown16Icon className="ml-2 h-4 w-4" />
           </Dropdown.Trigger>
           <Dropdown.Content className="dropdown min-w-52 text-gray-800">
@@ -129,25 +137,27 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
                 key={s}
                 className={cn(
                   'dropdown-item flex items-center',
-                  !vessel.sects.includes(s) && 'text-gray-400'
+                  !vessel.sects.includes(s) && 'text-gray-800'
                 )}
                 onSelect={toggleSect(member, s, vessel)}
               >
-                {getSectTitle(group.cabals, s)}
                 {sectStatus === 'loading' ? (
-                  <LoadingSpinner className="ml-auto h-4 w-4" />
+                  <div className="mr-2 flex h-6 w-6 items-center justify-center">
+                    <LoadingSpinner className="h-4 w-4" />
+                  </div>
                 ) : vessel.sects.includes(s) ? (
-                  <CheckIcon className="ml-auto h-6 w-6 text-green" />
+                  <CheckIcon className="mr-2 h-6 w-6 text-green" />
                 ) : (
-                  <div className="ml-auto h-6 w-6" />
+                  <div className="mr-2 h-6 w-6" />
                 )}
+                {getSectTitle(group.cabals, s)}
               </Dropdown.Item>
             ))}
             <Dropdown.Item
-              className={cn('dropdown-item flex items-center', 'text-gray-400')}
+              className={cn('dropdown-item flex items-center', 'text-gray-800')}
             >
+              <CheckIcon className="mr-2 h-6 w-6 text-green" />
               Member
-              <CheckIcon className="ml-auto h-6 w-6 text-green" />
             </Dropdown.Item>
           </Dropdown.Content>
         </Dropdown.Root>
@@ -155,13 +165,12 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
       {isAdmin && !isHost ? (
         <Dropdown.Root>
           {member !== window.our ? (
-            <Dropdown.Trigger className="default-focus ml-auto rounded text-gray-400">
-              <ElipsisCircleIcon className="h-6 w-6" />
+            <Dropdown.Trigger className="default-focus ml-auto text-gray-800">
+              <ElipsisIcon className="h-6 w-6" />
             </Dropdown.Trigger>
           ) : (
             <div className="h-6 w-6" />
           )}
-
           <Dropdown.Content className="dropdown min-w-52 text-gray-800">
             <Dropdown.Item
               className="dropdown-item flex items-center text-red"
@@ -181,7 +190,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
         </Dropdown.Root>
       ) : (
         <Dropdown.Root>
-          <Dropdown.Trigger className="default-focus ml-auto rounded text-gray-400">
+          <Dropdown.Trigger className="default-focus ml-auto rounded text-gray-800">
             <ElipsisIcon className="h-6 w-6" />
           </Dropdown.Trigger>
           <Dropdown.Content className="dropdown min-w-52 text-gray-800">
