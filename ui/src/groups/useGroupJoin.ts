@@ -62,6 +62,7 @@ export default function useGroupJoin(
 
     if (privacy === 'private' && !invited) {
       await useGroupState.getState().knock(flag);
+      setStatus('success');
     } else {
       try {
         await useHarkState.getState().sawRope({

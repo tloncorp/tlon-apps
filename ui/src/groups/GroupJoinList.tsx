@@ -88,7 +88,6 @@ interface GroupJoinListProps {
 
 export default function GroupJoinList({ gangs }: GroupJoinListProps) {
   const gangEntries = Object.entries(gangs);
-  console.log({ gangEntries });
   return (
     <ul>
       {gangEntries.map(([flag, gang]) => (
