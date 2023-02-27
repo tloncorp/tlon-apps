@@ -237,8 +237,13 @@ const ChatMessage = React.memo<
                     to={`message/${seal.id}`}
                     className={({ isActive }) =>
                       cn(
-                        'group-two -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
-                        isActive ? 'is-active bg-gray-50' : ''
+                        'group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
+                        isActive
+                          ? 'is-active bg-gray-50 [&>div>div>.reply-avatar]:outline-gray-50'
+                          : '',
+                        isLinked
+                          ? '[&>div>div>.reply-avatar]:outline-blue-100 dark:[&>div>div>.reply-avatar]:outline-blue-900'
+                          : ''
                       )
                     }
                   >
