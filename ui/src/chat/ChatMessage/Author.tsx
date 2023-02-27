@@ -103,21 +103,21 @@ export default function Author({
           <ShipName
             name={ship}
             showAlias
-            className="text-md font-semibold line-clamp-1"
+            className="text-md font-semibold line-clamp-1 break-all"
           />
         )}
       </div>
 
       {hideTime ? (
-        <span className="hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
+        <span className="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
           {prettyDayAndTime}
         </span>
       ) : (
         <>
-          <span className="hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
+          <span className="hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block -mb-0.5">
             {prettyDayAndDateAndTime}
           </span>
-          <span className="block shrink-0 text-sm font-semibold text-gray-500 group-two-hover:hidden">
+          <span className="block shrink-0 text-sm font-semibold text-gray-500 group-two-hover:hidden -mb-0.5">
             {timeOnly ? prettyTime : prettyDayAndTime}
           </span>
         </>
