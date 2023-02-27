@@ -4,6 +4,7 @@ import api from '@/api';
 import { useGroupState } from '@/state/groups';
 import { GroupState } from '@/state/groups/type';
 import { useCallback, useEffect } from 'react';
+import useSchedulerStore from '@/state/scheduler';
 import { getNestShip, isChannelImported } from './utils';
 import usePendingImports from './usePendingImports';
 
@@ -22,19 +23,22 @@ const useWaitStore = create<WaitStore>((set, get) => ({
     }
 
     initialized = true;
-    const wait = await api.scry<string[]>({
-      app: 'group-store',
-      path: '/wait',
-    });
 
-    set({ wait });
-    api.subscribe({
-      app: 'group-store',
-      path: '/wait',
-      event: (newWait: string[]) => {
-        set({ wait: newWait });
-      },
-    });
+    useSchedulerStore.getState().wait(async () => {
+      const wait = await api.scry<string[]>({
+        app: 'group-store',
+        path: '/wait',
+      });
+
+      set({ wait });
+      api.subscribe({
+        app: 'group-store',
+        path: '/wait',
+        event: (newWait: string[]) => {
+          set({ wait: newWait });
+        },
+      });
+    }, 5);
   },
 }));
 

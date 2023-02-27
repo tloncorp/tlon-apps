@@ -81,6 +81,7 @@ import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
+import { useScheduler } from './state/scheduler';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -423,6 +424,11 @@ function handleGridRedirect(navigate: NavigateFunction) {
   }
 }
 
+function Scheduler() {
+  useScheduler();
+  return null;
+}
+
 function App() {
   const navigate = useNavigate();
   const handleError = useErrorHandler();
@@ -575,6 +581,7 @@ function RoutedApp() {
         </Helmet>
         <TooltipProvider skipDelayDuration={400}>
           <App />
+          <Scheduler />
         </TooltipProvider>
       </Router>
     </ErrorBoundary>

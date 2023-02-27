@@ -9,10 +9,12 @@ import useHarkState from './hark';
 import { useHeapState } from './heap/heap';
 import useKilnState from './kiln';
 import usePalsState from './pals';
+import useSchedulerStore from './scheduler';
 import { useSettingsState } from './settings';
 import { useStorage } from './storage';
 
 export default async function bootstrap(reset = false) {
+  const { wait } = useSchedulerStore.getState();
   if (reset) {
     api.reset();
     useChatState.getState().clearSubs();
@@ -31,17 +33,24 @@ export default async function bootstrap(reset = false) {
     useDiaryState.getState().start();
   }
 
-  useHarkState.getState().start();
-  useContactState.getState().initialize(api);
   const { initialize: settingsInitialize, fetchAll } =
     useSettingsState.getState();
-  settingsInitialize(api);
-  fetchAll();
 
-  useStorage.getState().initialize(api);
-  useKilnState.getState().initializeKiln();
-  const { fetchCharges } = useDocketState.getState();
-  fetchCharges();
+  wait(() => {
+    useHarkState.getState().start();
+    useContactState.getState().initialize(api);
+    useStorage.getState().initialize(api);
 
-  usePalsState.getState().initializePals();
+    fetchAll();
+  }, 3);
+
+  wait(() => {
+    settingsInitialize(api);
+    useKilnState.getState().initializeKiln();
+    const { start, fetchCharges } = useDocketState.getState();
+    fetchCharges();
+    start();
+
+    usePalsState.getState().initializePals();
+  }, 5);
 }
