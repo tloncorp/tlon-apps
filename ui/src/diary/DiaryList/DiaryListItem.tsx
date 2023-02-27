@@ -1,10 +1,8 @@
 import React from 'react';
 import { DiaryLetter } from '@/types/diary';
-import { useChannelFlag } from '@/hooks';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
 import { sampleQuippers } from '@/logic/utils';
-import { useNote } from '@/state/diary';
 
 interface DiaryListItemProps {
   letter: DiaryLetter;
@@ -13,10 +11,6 @@ interface DiaryListItemProps {
 
 export default function DiaryListItem({ letter, time }: DiaryListItemProps) {
   const navigate = useNavigate();
-  const chFlag = useChannelFlag();
-  // pulling in the note here defeats the whole purpose of outlines.
-  // we need to include feels in outlines to get ride of this call.
-  const [_, note] = useNote(chFlag || '', time.toString());
   const essay = letter.type === 'outline' ? letter : letter.essay;
   const quippers =
     letter.type === 'outline'
@@ -30,16 +24,15 @@ export default function DiaryListItem({ letter, time }: DiaryListItemProps) {
       className="cursor-pointer rounded-xl bg-white p-8"
       role="link"
       tabIndex={0}
+      onClick={() => navigate(`note/${time.toString()}`)}
     >
-      <div onClick={() => navigate(`note/${time.toString()}`)}>
-        <DiaryNoteHeadline
-          quippers={quippers}
-          quipCount={quipCount}
-          essay={essay}
-          time={time}
-          isInList
-        />
-      </div>
+      <DiaryNoteHeadline
+        quippers={quippers}
+        quipCount={quipCount}
+        essay={essay}
+        time={time}
+        isInList
+      />
     </div>
   );
 }
