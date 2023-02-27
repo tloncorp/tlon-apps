@@ -113,21 +113,6 @@ export default function DiaryNote() {
     setLoading(false);
   }, [chFlag, noteId]);
 
-  // const setSort = useCallback(
-  // (setting: 'asc' | 'dsc') => {
-  // const newSettings = setChannelSetting<DiarySetting>(
-  // settings,
-  // { commentSortMode: setting },
-  // chFlag
-  // );
-
-  // useSettingsState
-  // .getState()
-  // .putEntry('diary', 'settings', JSON.stringify(newSettings));
-  // },
-  // [settings, chFlag]
-  // );
-
   useEffect(() => {
     if (idIsZero) {
       setLoading(true);
@@ -168,29 +153,6 @@ export default function DiaryNote() {
                       : 'No comments'}
                   </h2>
                 </Divider>
-                {/*
-
-                <Dropdown.Root>
-                  <Dropdown.Trigger className="secondary-button">
-                    {sort === 'asc' ? 'Oldest' : 'Newest'}
-                    <CaretDown16Icon className="ml-2 h-4 w-4 text-gray-600" />
-                  </Dropdown.Trigger>
-                  <Dropdown.Content className="dropdown">
-                    <Dropdown.Item
-                      className="dropdown-item"
-                      onSelect={() => setSort('dsc')}
-                    >
-                      Newest
-                    </Dropdown.Item>
-                    <Dropdown.Item
-                      className="dropdown-item"
-                      onSelect={() => setSort('asc')}
-                    >
-                      Oldest
-                    </Dropdown.Item>
-                  </Dropdown.Content>
-                </Dropdown.Root>
-                */}
               </div>
               {canWrite ? (
                 <DiaryCommentField flag={chFlag} replyTo={noteId} />
