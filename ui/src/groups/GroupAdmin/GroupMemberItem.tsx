@@ -32,6 +32,8 @@ interface GroupMemberItemProps {
 function GroupMemberItem({ member }: GroupMemberItemProps) {
   const [sectStatus, setSectStatus] = useState<Status>('initial');
   const [showKickConfirm, setShowKickConfirm] = useState(false);
+  const [loadingKick, setLoadingKick] = useState(false);
+  const [loadingBan, setLoadingBan] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const flag = useGroupFlag();
   const group = useGroup(flag);
@@ -49,15 +51,19 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   };
 
   const kick = useCallback(
-    (ship: string) => () => {
-      useGroupState.getState().delMembers(flag, [ship]);
+    (ship: string) => async () => {
+      setLoadingKick(true);
+      await useGroupState.getState().delMembers(flag, [ship]);
+      setLoadingKick(false);
     },
     [flag]
   );
 
   const ban = useCallback(
-    (ship: string) => () => {
-      useGroupState.getState().banShips(flag, [ship]);
+    (ship: string) => async () => {
+      setLoadingBan(true);
+      await useGroupState.getState().banShips(flag, [ship]);
+      setLoadingBan(false);
     },
     [flag]
   );
@@ -204,6 +210,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
         title="Kick Member"
         message={`Are you sure you want to kick ${member}?`}
         confirmText="Kick"
+        loading={loadingKick}
         onConfirm={kick(member)}
         open={showKickConfirm}
         setOpen={setShowKickConfirm}
@@ -212,6 +219,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
         title="Ban Member"
         message={`Are you sure you want to ban ${member}?`}
         confirmText="Ban"
+        loading={loadingBan}
         onConfirm={ban(member)}
         open={showBanConfirm}
         setOpen={setShowBanConfirm}
