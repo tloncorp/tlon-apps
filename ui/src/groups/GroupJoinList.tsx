@@ -13,7 +13,10 @@ interface GroupJoinItemProps {
 }
 
 function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
-  const { open, reject, button, status, group } = useGroupJoin(flag, gang);
+  const { open, reject, button, status, group, rejectStatus } = useGroupJoin(
+    flag,
+    gang
+  );
   const isMobile = useIsMobile();
   const cordon = gang.preview?.cordon || group?.cordon;
   const banned = cordon ? matchesBans(cordon, window.our) : null;
@@ -42,8 +45,20 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
               <button
                 className="button bg-red-soft text-red mix-blend-multiply dark:bg-red-900 dark:mix-blend-screen"
                 onClick={reject}
+                disabled={
+                  rejectStatus === 'loading' || rejectStatus === 'error'
+                }
               >
-                Reject
+                {rejectStatus === 'loading' ? (
+                  <>
+                    <span className="text-gray-400"> Rejecting... </span>
+                    <LoadingSpinner className="h-4 w-4" />
+                  </>
+                ) : rejectStatus === 'error' ? (
+                  'Errored'
+                ) : (
+                  'Reject'
+                )}
               </button>
             ) : null}
             {status === 'loading' ? (
@@ -73,7 +88,7 @@ interface GroupJoinListProps {
 
 export default function GroupJoinList({ gangs }: GroupJoinListProps) {
   const gangEntries = Object.entries(gangs);
-
+  console.log({ gangEntries });
   return (
     <ul>
       {gangEntries.map(([flag, gang]) => (
