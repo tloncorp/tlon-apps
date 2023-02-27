@@ -68,7 +68,7 @@ export default function EditCurioForm() {
         return;
       }
       const editedContent = isLinkMode
-        ? [content]
+        ? [{ link: { href: content, content } }]
         : (JSONToInlines(draftText || {}) as Inline[]);
 
       const con = {

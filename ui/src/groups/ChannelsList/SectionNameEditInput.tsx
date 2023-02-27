@@ -3,9 +3,8 @@ import { useGroupState, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 import { GroupMeta } from '@/types/groups';
-import { ChannelListItem } from '@/groups/GroupAdmin/AdminChannels/types';
+import { ChannelListItem } from '@/groups/ChannelsList/types';
 import { Status } from '@/logic/status';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface HandleSectionNameEditInputProps {
   handleEditingChange: () => void;
@@ -47,35 +46,38 @@ export default function SectionNameEditInput({
     cover: '',
   };
 
-  const { handleSubmit, register } = useForm({
+  const { handleSubmit, register, getValues } = useForm({
     defaultValues,
   });
-
-  const addChannelsToZone = async (
-    zone: string,
-    groupFlag: string,
-    channelFlag: string
-  ) => {
-    await useGroupState
-      .getState()
-      .addChannelToZone(zone, groupFlag, channelFlag);
-  };
 
   const onSubmit = async (values: GroupMeta) => {
     setSaveStatus('loading');
     const zoneFlag = strToSym(sectionKey);
+    const titleExists = values.title.trim() !== '';
     handleEditingChange();
     try {
       if (isNew === true) {
-        await useGroupState.getState().createZone(group, zoneFlag, values);
+        await useGroupState
+          .getState()
+          .createZone(
+            group,
+            zoneFlag,
+            titleExists ? values : untitledSectionValues
+          );
         await useGroupState.getState().moveZone(group, zoneFlag, 1);
       } else {
-        await useGroupState.getState().editZone(group, zoneFlag, values);
+        await useGroupState
+          .getState()
+          .editZone(
+            group,
+            zoneFlag,
+            titleExists ? values : untitledSectionValues
+          );
       }
-      channels.forEach((channel) => {
-        addChannelsToZone(zoneFlag, group, channel.key);
-      });
-      onSectionEditNameSubmit(zoneFlag, values.title);
+      onSectionEditNameSubmit(
+        zoneFlag,
+        titleExists ? values.title : untitledSectionValues.title
+      );
       setSaveStatus('success');
     } catch (e) {
       setSaveStatus('error');
@@ -84,23 +86,8 @@ export default function SectionNameEditInput({
   };
 
   const onLoseFocus = async () => {
-    setSaveStatus('loading');
-    const zoneFlag = strToSym(sectionKey);
-    handleEditingChange();
-    try {
-      await useGroupState
-        .getState()
-        .createZone(group, zoneFlag, untitledSectionValues);
-      await useGroupState.getState().moveZone(group, zoneFlag, 1);
-      onSectionEditNameSubmit(zoneFlag, untitledSectionValues.title);
-      channels.forEach((channel) => {
-        addChannelsToZone(zoneFlag, group, channel.key);
-      });
-      setSaveStatus('success');
-    } catch (e) {
-      setSaveStatus('error');
-      console.log(e);
-    }
+    const values = getValues();
+    onSubmit(values);
   };
 
   return (

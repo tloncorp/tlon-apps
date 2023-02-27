@@ -70,10 +70,10 @@ export default function ChatReaction({
                   <div className="z-[100] w-fit cursor-none rounded bg-gray-400 px-4 py-2">
                     <label className="whitespace-nowrap font-semibold text-white">
                       {ships.map((ship, i) => (
-                        <div key={ship}>
+                        <span key={`${ship}-${i}`}>
                           <ShipName name={ship} showAlias />
                           {i + 1 === ships.length ? '' : ', '}
-                        </div>
+                        </span>
                       ))}
                     </label>
                   </div>

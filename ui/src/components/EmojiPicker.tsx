@@ -40,7 +40,7 @@ export default function EmojiPicker({
         <Popover.Anchor className={isMobile ? 'fixed inset-x-0 top-12' : ''} />
       )}
       <Popover.Portal>
-        <Popover.Content side="bottom" sideOffset={40} collisionPadding={15}>
+        <Popover.Content side="bottom" sideOffset={30} collisionPadding={15}>
           <div className="z-50 mx-10 flex h-96 w-72 items-center justify-center">
             {data ? (
               <Picker

@@ -390,6 +390,14 @@ export function isChannelJoined(
   return isChannelHost || (nest && nest in briefs);
 }
 
+export function getChannelHosts(group: Group): string[] {
+  return Object.keys(group.channels).map((c) => {
+    const [, chFlag] = nestToFlag(c);
+    const { ship } = getFlagParts(chFlag);
+    return ship;
+  });
+}
+
 export function canReadChannel(
   channel: GroupChannel,
   vessel: Vessel,
@@ -549,4 +557,17 @@ export function isChannelImported(
   return (
     !isImport || (isImport && pending[nest]) || window.our === getNestShip(nest)
   );
+}
+
+export function prettyChannelTypeName(app: string) {
+  switch (app) {
+    case 'chat':
+      return 'Chat';
+    case 'heap':
+      return 'Collection';
+    case 'diary':
+      return 'Notebook';
+    default:
+      return 'Unknown';
+  }
 }

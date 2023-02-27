@@ -392,7 +392,7 @@ export const useDiaryState = createState<DiaryState>(
               const { update, flag } = event;
               if (
                 'create' in update.diff &&
-                flag === `${req.group.split('/')[0]}/${req.name}`
+                flag === `${window.our}/${req.name}`
               ) {
                 return true;
               }
@@ -460,6 +460,11 @@ export const useDiaryState = createState<DiaryState>(
         `/diary/${flag}/notes`,
         `/diary/${flag}/ui`
       ).initialize();
+    },
+    clearSubs: () => {
+      get().batchSet((draft) => {
+        draft.diarySubs = [];
+      });
     },
   }),
   ['briefs', 'shelf', 'notes'],

@@ -5,10 +5,15 @@ import { GroupChannel, ChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupState, useRouteGroup } from '@/state/groups';
-import { channelHref, getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
+import {
+  channelHref,
+  getPrivacyFromChannel,
+  nestToFlag,
+  prettyChannelTypeName,
+} from '@/logic/utils';
 import { useChatState } from '@/state/chat';
-import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
-import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
+import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
+import ChannelJoinSelector from '@/groups/ChannelsList/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import useChannel from '@/logic/useChannel';
@@ -88,9 +93,9 @@ export default function EditChannelForm({
           : useDiaryState.getState();
 
       if (privacy !== 'public') {
-        chState.addSects(channelFlag, ['admin']);
+        await chState.addSects(channelFlag, ['admin']);
       } else {
-        chState.delSects(channelFlag, ['admin']);
+        await chState.delSects(channelFlag, ['admin']);
       }
 
       if (retainRoute === true && setEditIsOpen) {
@@ -118,8 +123,13 @@ export default function EditChannelForm({
   return (
     <FormProvider {...form}>
       <div className="sm:w-96">
-        <header className="mb-3 flex items-center">
-          <h2 className="text-lg font-bold">Edit Chat Channel</h2>
+        <header className="mb-3 flex flex-col">
+          <h2 className="text-lg font-bold leading-6">
+            {prettyChannelTypeName(app)} Channel Details
+          </h2>
+          <p className="text-sm leading-5 text-gray-800">
+            Edit the channel's details
+          </p>
         </header>
       </div>
       <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>

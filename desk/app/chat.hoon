@@ -942,6 +942,7 @@
         (cu-post-notice ship '' ' declined the invite')
       =.  cor  (give-brief club/id cu-brief)
       =.  team.club  (~(put in team.club) ship)
+      =?  last-read.remark.club  =(ship our.bowl)  now.bowl  
       (cu-post-notice ship '' ' joined the chat')
     ::
         %hive
@@ -1315,6 +1316,7 @@
     ^+  ca-core
     =.  chats  (~(put by chats) chan.j *chat:c)
     =.  ca-core  (ca-abed chan.j)
+    =.  last-read.remark.chat  now.bowl
     =.  group.perm.chat  group.j
     =.  cor  (give-brief flag/flag ca-brief)
     ca-sub

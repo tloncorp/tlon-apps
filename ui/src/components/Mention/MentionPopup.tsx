@@ -18,6 +18,7 @@ import { useMultiDms } from '@/state/chat';
 import { preSig } from '@/logic/utils';
 import Avatar from '../Avatar';
 import ShipName from '../ShipName';
+import useLeap from '../Leap/useLeap';
 
 interface MentionListHandle {
   onKeyDown: (event: KeyboardEvent) => boolean;
@@ -33,6 +34,7 @@ const MentionList = React.forwardRef<
   const match = useMatch('/dm/:ship');
   const contacts = useContacts();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const { isOpen: leapIsOpen } = useLeap();
 
   const getMessage = useCallback(
     (ship: string) => {
@@ -74,6 +76,7 @@ const MentionList = React.forwardRef<
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event) => {
+      if (leapIsOpen) return false;
       if (event.key === 'ArrowUp') {
         upHandler();
         return true;

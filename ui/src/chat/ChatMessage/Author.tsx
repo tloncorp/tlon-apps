@@ -15,12 +15,14 @@ interface AuthorProps {
   date?: Date;
   timeOnly?: boolean;
   hideTime?: boolean;
+  isReply?: boolean;
 }
 export default function Author({
   ship,
   date,
   timeOnly,
   hideTime,
+  isReply = false,
 }: AuthorProps) {
   const location = useLocation();
   const { didCopy, doCopy } = useCopy(ship);
@@ -64,7 +66,11 @@ export default function Author({
   return (
     <div className="align-center group flex items-center space-x-3 py-1">
       <div onClick={handleProfileClick} className="shrink-0">
-        <Avatar ship={ship} size="xs" className="cursor-pointer" />
+        <Avatar
+          ship={ship}
+          size={isReply ? 'xxs' : 'xs'}
+          className="cursor-pointer"
+        />
       </div>
       <div
         onClick={doCopy}

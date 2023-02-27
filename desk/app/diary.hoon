@@ -840,6 +840,7 @@
     =.  shelf  (~(put by shelf) chan.j *diary:d)
     =.  di-core  (di-abed chan.j)
     =.  group.perm.diary  group.j
+    =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
     di-sub
   ::

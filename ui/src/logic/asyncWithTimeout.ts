@@ -17,8 +17,10 @@ export default async function asyncCallWithTimeout<T>(
     );
   });
 
-  return Promise.race([asyncPromise, timeoutPromise]).then((result) => {
-    clearTimeout(timeoutHandle);
-    return result;
-  });
+  return (Promise.race([asyncPromise, timeoutPromise]) as Promise<T>).then(
+    (result) => {
+      clearTimeout(timeoutHandle);
+      return result;
+    }
+  );
 }

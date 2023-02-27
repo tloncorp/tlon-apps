@@ -25,7 +25,7 @@ import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useFileStore } from '@/state/storage';
 import MentionPopup from './Mention/MentionPopup';
 
-interface HandlerParams {
+export interface HandlerParams {
   editor: Editor;
 }
 
@@ -201,7 +201,7 @@ export function useMessageEditor({
         }
       },
     },
-    [keyMapExt, placeholder, handlePaste]
+    [keyMapExt, placeholder]
   );
 }
 

@@ -1,8 +1,9 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useHarkState, { emptyBlanket, emptyCarpet } from '@/state/hark';
 import { Flag, Thread, Yarn, Yarns } from '@/types/hark';
 import _ from 'lodash';
 import { makePrettyDay } from '@/logic/utils';
+import useRequestState from '@/logic/useRequestState';
 
 export interface Bin {
   time: number;
@@ -67,21 +68,7 @@ export const isComment = (yarn: Yarn) =>
 export const isReply = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' replied to your message “');
 
-export const getAllMentions = (notifications: DayGrouping[], flag?: Flag) => {
-  if (!flag) {
-    return notifications
-      .map((n) => n.bins)
-      .flat()
-      .filter((b) => isMention(b.topYarn));
-  }
-
-  return notifications
-    .map((n) => n.bins)
-    .flat()
-    .filter((b) => isMention(b.topYarn) && b.topYarn.rope.group === flag);
-};
-
-export const useNotifications = (flag?: Flag) => {
+export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
   const { carpet, blanket } = useHarkState(
     useCallback(
       (state) => {
@@ -93,25 +80,28 @@ export const useNotifications = (flag?: Flag) => {
             }
           );
         }
-
         return { carpet: state.carpet, blanket: state.blanket };
       },
       [flag]
     )
   );
 
-  const notifications = useMemo(() => {
+  return useMemo(() => {
     const bins: Bin[] = carpet.cable.map((c) =>
       getBin(c.thread, carpet.yarns, true)
     );
-    const oldBins: Bin[] = Object.values(blanket.quilt).map((t) =>
-      getBin(t, blanket.yarns, false)
-    );
-    return groupBinsByDate(bins.concat(oldBins));
-  }, [carpet, blanket]);
 
-  return {
-    count: carpet.cable.length,
-    notifications,
-  };
+    const mentionBins = bins.filter((b) => isMention(b.topYarn));
+
+    const oldBins: Bin[] = Object.values(blanket.quilt)
+      .map((t) => getBin(t, blanket.yarns, false))
+      .filter((b) => (mentionsOnly ? isMention(b.topYarn) : b));
+
+    const finalBins = mentionsOnly ? mentionBins : bins;
+    return {
+      notifications: groupBinsByDate(finalBins.concat(oldBins)),
+      mentions: mentionBins,
+      count: finalBins.length,
+    };
+  }, [carpet, blanket, mentionsOnly]);
 };

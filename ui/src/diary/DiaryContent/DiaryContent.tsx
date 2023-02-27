@@ -14,6 +14,7 @@ import {
 import ContentReference from '@/components/References/ContentReference';
 import {
   DiaryBlock,
+  DiaryInline,
   DiaryListing,
   isDiaryImage,
   NoteContent,
@@ -38,6 +39,26 @@ interface InlineContentProps {
 
 interface BlockContentProps {
   story: DiaryBlock;
+}
+
+export function groupByParagraph(inlines: DiaryInline[]): DiaryInline[][] {
+  let index = 0;
+  const final = [];
+
+  while (index < inlines.length) {
+    const remaining = _.slice(inlines, index);
+    const nextParagraph = _.takeWhile(remaining, (i) => !isBreak(i));
+    const head = _.head(remaining);
+    if (nextParagraph.length === 0 && head) {
+      final.push([head]);
+      index += 1;
+    } else {
+      final.push(nextParagraph);
+      index += nextParagraph.length + 1;
+    }
+  }
+
+  return final;
 }
 
 export function InlineContent({ story }: InlineContentProps) {
@@ -231,19 +252,30 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
 });
 
 export default function DiaryContent({ content }: DiaryContentProps) {
+  console.log(content);
   return (
-    <article className="prose-lg prose dark:prose-invert">
+    <article className="prose-lg prose break-words dark:prose-invert">
       {content.map((c, index) => {
         if ('block' in c) {
           return <BlockContent key={index} story={c.block} />;
         }
 
         return (
-          <p key={index}>
-            {c.inline.map((con, i) => (
-              <InlineContent key={i} story={con} />
-            ))}
-          </p>
+          <React.Fragment key={index}>
+            {groupByParagraph(c.inline).map((con, i) => {
+              if (con.length === 1 && isBreak(con[0])) {
+                return <br key={i} />;
+              }
+
+              return (
+                <p key={i}>
+                  {con.map((s, j) => (
+                    <InlineContent key={j} story={s} />
+                  ))}
+                </p>
+              );
+            })}
+          </React.Fragment>
         );
       })}
     </article>

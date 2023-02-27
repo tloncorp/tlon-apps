@@ -395,7 +395,7 @@ export default function ShipSelector({
 
         if (parts.every((s) => isValidNewOption(preSig(s)))) {
           const options: ShipOption[] = parts.map((p) => ({
-            value: p,
+            value: preSig(p),
             label: contacts[p]?.nickname || p,
           }));
           const newShips = _.uniqBy([...ships, ...options], 'value');
@@ -422,9 +422,9 @@ export default function ShipSelector({
         actionMeta.action
       )
     ) {
-      const validPatps = newValue.filter((o) =>
-        isValidNewOption(preSig(o.value))
-      );
+      const validPatps = newValue
+        .map((v) => ({ ...v, value: preSig(v.value) }))
+        .filter((o) => isValidNewOption(o.value));
       setShips(validPatps);
     }
   };
@@ -439,9 +439,10 @@ export default function ShipSelector({
       ) &&
       newValue !== null
     ) {
-      const validPatp = isValidNewOption(preSig(newValue.value));
+      const normValue = { ...newValue, value: preSig(newValue.value) };
+      const validPatp = isValidNewOption(normValue.value);
       if (validPatp) {
-        setShips([newValue]);
+        setShips([normValue]);
       }
     }
   };
