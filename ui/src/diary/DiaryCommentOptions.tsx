@@ -76,7 +76,6 @@ export default function DiaryCommentOptions({
 
   const onEmoji = useCallback(
     async (emoji: { shortcodes: string }) => {
-      console.log({ whom, noteId, time, emoji, feel: emoji.shortcodes });
       try {
         await useDiaryState
           .getState()
