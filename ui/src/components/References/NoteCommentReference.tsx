@@ -87,7 +87,11 @@ export default function NoteCommentReference({
         onClick={handleOpenReferenceClick}
         className="cursor-pointer p-2 group-hover:bg-gray-50"
       >
-        <ChatContent story={normalizedContent} isScrolling={false} />
+        <ChatContent
+          className="p-4"
+          story={normalizedContent}
+          isScrolling={false}
+        />
       </div>
       <ReferenceBar
         nest={nest}
