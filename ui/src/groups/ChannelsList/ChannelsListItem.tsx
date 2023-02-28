@@ -172,11 +172,6 @@ export default function ChannelsListItem({
                 <h2 className="text-md font-semibold line-clamp-1">
                   {meta.title}
                 </h2>
-                {channel.join && isAdmin ? (
-                  <div className="rounded-md border-2 border-gray-600 px-0.5 text-xs font-bold text-gray-600 md:px-1 md:text-sm">
-                    Default
-                  </div>
-                ) : null}
               </div>
               {isAdmin && (
                 <div className="text-sm font-semibold text-gray-400">

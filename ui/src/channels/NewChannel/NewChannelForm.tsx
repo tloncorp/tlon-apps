@@ -125,11 +125,9 @@ export default function NewChannelForm() {
         }
       }
 
-      if (values.join === true) {
-        await useGroupState
-          .getState()
-          .setChannelJoin(groupFlag, newChannelNest, true);
-      }
+      await useGroupState
+        .getState()
+        .setChannelJoin(groupFlag, newChannelNest, true);
       setAddChannelStatus('success');
       navigate(
         isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/channels`
@@ -159,7 +157,6 @@ export default function NewChannelForm() {
           Channel Permissions
           <ChannelPermsSelector />
         </label>
-        <ChannelJoinSelector />
 
         <footer className="mt-4 flex items-center justify-between space-x-2">
           <div className="ml-auto flex items-center space-x-2">
