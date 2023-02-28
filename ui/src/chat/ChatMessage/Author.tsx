@@ -81,7 +81,7 @@ export default function Author({
   return (
     <div
       className={cn(
-        'group-two flex items-center py-1 align-center',
+        'group-two align-center flex items-center py-1',
         isReply || isRef ? 'space-x-2' : 'space-x-3',
         className
       )}
@@ -103,7 +103,7 @@ export default function Author({
           <ShipName
             name={ship}
             showAlias
-            className="text-md font-semibold line-clamp-1 break-all"
+            className="text-md break-all font-semibold line-clamp-1"
           />
         )}
       </div>
@@ -114,10 +114,10 @@ export default function Author({
         </span>
       ) : (
         <>
-          <span className="hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block -mb-0.5">
+          <span className="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
             {prettyDayAndDateAndTime}
           </span>
-          <span className="block shrink-0 text-sm font-semibold text-gray-500 group-two-hover:hidden -mb-0.5">
+          <span className="-mb-0.5 block shrink-0 text-sm font-semibold text-gray-500 group-two-hover:hidden">
             {timeOnly ? prettyTime : prettyDayAndTime}
           </span>
         </>
