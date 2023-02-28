@@ -273,7 +273,7 @@ export function useDiarySortMode(
 export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
   const settings = useDiarySettings();
   const setting = getChannelSetting(settings, flag);
-  return setting?.commentSortMode ?? 'dsc';
+  return setting?.commentSortMode ?? 'asc';
 }
 
 const selGroupSideBarSort = (s: SettingsState) => s.groups.groupSideBarSort;

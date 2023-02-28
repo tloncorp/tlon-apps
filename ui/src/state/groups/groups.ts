@@ -413,10 +413,27 @@ export const useGroupState = create<GroupState>(
         });
       },
       reject: async (flag) => {
-        await api.poke({
-          app: 'groups',
-          mark: 'invite-decline',
-          json: flag,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            app: 'groups',
+            mark: 'invite-decline',
+            json: flag,
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  const { json } = event;
+                  if (json && flag in json) {
+                    return json[flag].invite === null;
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
         });
 
         get().batchSet((draft) => {

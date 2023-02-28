@@ -185,7 +185,7 @@ export default function ChannelsListDropContext({
   );
 
   const onDragEnd = useCallback(
-    (result) => {
+    async (result) => {
       const { source, destination } = result;
 
       if (!destination) {
@@ -204,7 +204,7 @@ export default function ChannelsListDropContext({
           return;
         }
 
-        useGroupState
+        await useGroupState
           .getState()
           .moveZone(group, result.draggableId, destination.index);
         const newOrder = reorder(

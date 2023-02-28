@@ -17,6 +17,7 @@ interface ReferenceBarProps {
   channelTitle?: string;
   author?: string;
   top?: boolean;
+  comment?: boolean;
   reply?: boolean;
 }
 
@@ -29,6 +30,7 @@ export default function ReferenceBar({
   channelTitle,
   author,
   top = false,
+  comment = false,
   reply = false,
 }: ReferenceBarProps) {
   const groupFlagOrZod = groupFlag || '~zod/test';
