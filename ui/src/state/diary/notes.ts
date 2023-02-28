@@ -143,7 +143,7 @@ export default function makeNotesStore(
                   } else {
                     const quip = {
                       cork: {
-                        time: quipId,
+                        time: parseInt(quipId),
                         feels: {},
                       },
                       memo: quipDel.add,

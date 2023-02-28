@@ -1,4 +1,5 @@
 import React from 'react';
+import cn from 'classnames';
 import {
   makePrettyDayAndDateAndTime,
   makePrettyDayAndTime,
@@ -16,13 +17,17 @@ interface AuthorProps {
   timeOnly?: boolean;
   hideTime?: boolean;
   isReply?: boolean;
+  isRef?: boolean;
+  className?: string;
 }
 export default function Author({
   ship,
   date,
   timeOnly,
   hideTime,
+  className,
   isReply = false,
+  isRef = false,
 }: AuthorProps) {
   const location = useLocation();
   const { didCopy, doCopy } = useCopy(ship);
@@ -41,9 +46,19 @@ export default function Author({
 
   if (!date) {
     return (
-      <div className="align-center group flex items-center space-x-3 py-1">
+      <div
+        className={cn(
+          'align-center group flex items-center py-1',
+          isReply || isRef ? 'space-x-2' : 'space-x-3',
+          className
+        )}
+      >
         <div onClick={handleProfileClick} className="shrink-0">
-          <Avatar ship={ship} size="xs" className="cursor-pointer" />
+          <Avatar
+            ship={ship}
+            size={isReply || isRef ? 'xxs' : 'xs'}
+            className="cursor-pointer"
+          />
         </div>
         <div
           onClick={doCopy}
@@ -64,11 +79,17 @@ export default function Author({
   }
 
   return (
-    <div className="align-center group flex items-center space-x-3 py-1">
+    <div
+      className={cn(
+        'group-two align-center flex items-center py-1',
+        isReply || isRef ? 'space-x-2' : 'space-x-3',
+        className
+      )}
+    >
       <div onClick={handleProfileClick} className="shrink-0">
         <Avatar
           ship={ship}
-          size={isReply ? 'xxs' : 'xs'}
+          size={isReply || isRef ? 'xxs' : 'xs'}
           className="cursor-pointer"
         />
       </div>
@@ -82,21 +103,21 @@ export default function Author({
           <ShipName
             name={ship}
             showAlias
-            className="text-md font-semibold line-clamp-1"
+            className="text-md break-all font-semibold line-clamp-1"
           />
         )}
       </div>
 
       {hideTime ? (
-        <span className="hidden shrink-0 text-sm font-semibold text-gray-500 group-hover:block">
+        <span className="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
           {prettyDayAndTime}
         </span>
       ) : (
         <>
-          <span className="hidden shrink-0 text-sm font-semibold text-gray-500 group-hover:block">
+          <span className="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
             {prettyDayAndDateAndTime}
           </span>
-          <span className="block shrink-0 text-sm font-semibold text-gray-500 group-hover:hidden">
+          <span className="-mb-0.5 block shrink-0 text-sm font-semibold text-gray-500 group-two-hover:hidden">
             {timeOnly ? prettyTime : prettyDayAndTime}
           </span>
         </>

@@ -35,7 +35,7 @@ export default function DiaryAddNote() {
     async function load() {
       await useDiaryState.getState().initialize(chFlag);
       if (loading) {
-        useDiaryState.getState().fetchNote(chFlag, id!);
+        await useDiaryState.getState().fetchNote(chFlag, id!);
       }
     }
 

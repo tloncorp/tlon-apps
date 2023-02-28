@@ -81,6 +81,7 @@ export default function WritBaseReference({
         time={time}
         author={writ.memo.author}
         groupFlag={preview?.group.flag}
+        groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
         reply={isReply}

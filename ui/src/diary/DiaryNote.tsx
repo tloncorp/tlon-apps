@@ -19,16 +19,8 @@ import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import useAllBriefs from '@/logic/useAllBriefs';
-import {
-  DiarySetting,
-  setChannelSetting,
-  useDiaryCommentSortMode,
-  useDiarySettings,
-  useSettingsState,
-} from '@/state/settings';
+import { useDiaryCommentSortMode } from '@/state/settings';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
@@ -36,6 +28,7 @@ import DiaryNoteHeader from './DiaryNoteHeader';
 import DiaryNoteHeadline from './DiaryNoteHeadline';
 
 function groupQuips(
+  noteId: string,
   quips: [bigInt.BigInteger, DiaryQuip][],
   brief: DiaryBrief
 ) {
@@ -48,7 +41,7 @@ function groupQuips(
     const time = t.toString();
     const newAuthor = author !== prev?.[1].memo.author;
     const unreadBrief =
-      brief && brief['read-id'] === q.cork.time ? brief : undefined;
+      brief && brief['read-id'] === q.cork.time.toString() ? brief : undefined;
 
     if (newAuthor) {
       currentTime = time;
@@ -62,6 +55,7 @@ function groupQuips(
       time: t,
       quip: q,
       newAuthor,
+      noteId,
       newDay: false,
       unreadCount: unreadBrief && brief.count,
     });
@@ -106,13 +100,13 @@ export default function DiaryNote() {
   const { quips } = note.seal;
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const brief = useBrief(chFlag);
-  const settings = useDiarySettings();
+  // const settings = useDiarySettings();
   const sort = useDiaryCommentSortMode(chFlag);
   const idIsZero = id.isZero();
   const perms = useDiaryPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const groupedQuips = setNewDays(
-    groupQuips(quipArray, brief).sort(([a], [b]) => {
+    groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
       if (sort === 'asc') {
         return a.localeCompare(b);
       }
@@ -130,21 +124,6 @@ export default function DiaryNote() {
     }
     setLoading(false);
   }, [chFlag, noteId]);
-
-  const setSort = useCallback(
-    (setting: 'asc' | 'dsc') => {
-      const newSettings = setChannelSetting<DiarySetting>(
-        settings,
-        { commentSortMode: setting },
-        chFlag
-      );
-
-      useSettingsState
-        .getState()
-        .putEntry('diary', 'settings', JSON.stringify(newSettings));
-    },
-    [settings, chFlag]
-  );
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -198,26 +177,6 @@ export default function DiaryNote() {
                       : 'No comments'}
                   </h2>
                 </Divider>
-                <Dropdown.Root>
-                  <Dropdown.Trigger className="secondary-button">
-                    {sort === 'asc' ? 'Oldest' : 'Newest'}
-                    <CaretDown16Icon className="ml-2 h-4 w-4 text-gray-600" />
-                  </Dropdown.Trigger>
-                  <Dropdown.Content className="dropdown">
-                    <Dropdown.Item
-                      className="dropdown-item"
-                      onSelect={() => setSort('dsc')}
-                    >
-                      Newest
-                    </Dropdown.Item>
-                    <Dropdown.Item
-                      className="dropdown-item"
-                      onSelect={() => setSort('asc')}
-                    >
-                      Oldest
-                    </Dropdown.Item>
-                  </Dropdown.Content>
-                </Dropdown.Root>
               </div>
               {canWrite ? (
                 <DiaryCommentField flag={chFlag} replyTo={noteId} />

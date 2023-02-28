@@ -5,6 +5,8 @@ import { useDismissNavigate } from '@/logic/routing';
 import { useGang, useGroupState, useRouteGroup } from '@/state/groups';
 import { toTitleCase } from '@/logic/utils';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import useRequestState from '@/logic/useRequestState';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 const PRIVATE_COPY =
   "If you reject this invite, you'll need to send a membership request in order to join this group.";
@@ -22,6 +24,8 @@ export default function RejectConfirmModal() {
   const dismiss = useDismissNavigate();
   const { privacy } = useGroupPrivacy(flag);
   const checkboxRef = useRef<HTMLInputElement | null>(null);
+  const { isReady, setReady, setPending, isPending, setFailed } =
+    useRequestState();
   const [skipConfirmation, setSkipConfirmation] = useLocalStorage(
     'groups:skipGroupInviteRejectConfirm',
     false
@@ -32,13 +36,19 @@ export default function RejectConfirmModal() {
   }, [dismiss]);
 
   const reject = useCallback(async () => {
+    setPending();
     if (checkboxRef && checkboxRef.current?.checked) {
       setSkipConfirmation(true);
     }
 
-    await useGroupState.getState().reject(flag);
-    dismiss();
-  }, [dismiss, flag, setSkipConfirmation]);
+    try {
+      await useGroupState.getState().reject(flag);
+      setReady();
+      dismiss();
+    } catch (e) {
+      setFailed();
+    }
+  }, [dismiss, flag, setSkipConfirmation, setPending, setReady, setFailed]);
 
   useEffect(() => {
     if (skipConfirmation) {
@@ -84,10 +94,18 @@ export default function RejectConfirmModal() {
               Cancel
             </button>
             <button
+              disabled={isPending}
               className="button ml-2 bg-red-soft text-red"
               onClick={reject}
             >
-              Reject Invite
+              {isReady ? (
+                'Reject Invite'
+              ) : (
+                <>
+                  'Rejecting...'
+                  <LoadingSpinner className="h-5 w-4" />
+                </>
+              )}
             </button>
           </div>
         </div>
