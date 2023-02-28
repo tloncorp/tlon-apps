@@ -26,14 +26,15 @@ export default function ChatContentImage({
       {calm?.disableRemoteContent ? (
         <span>{src}</span>
       ) : (
-        <img
-          src={src}
-          className="max-w-full cursor-pointer rounded"
-          height={height}
-          width={width}
-          onClick={() => setShowLightBox(true)}
-          alt={altText ? altText : 'A chat image'}
-        />
+        <button onClick={() => setShowLightBox(true)}>
+          <img
+            src={src}
+            className="max-w-full cursor-pointer rounded"
+            height={height}
+            width={width}
+            alt={altText ? altText : 'A chat image'}
+          />
+        </button>
       )}
       <LightBox
         source={src}

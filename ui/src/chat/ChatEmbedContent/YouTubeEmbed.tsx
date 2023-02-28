@@ -38,13 +38,13 @@ export default function YouTubeEmbed({
         }}
         className="rounded"
       />
-      <div
+      <button
         onClick={() => setShowIframeModal(true)}
         className="absolute left-[50%] flex -translate-x-1/2 cursor-pointer items-center text-xl text-white"
       >
         <CaretRightIcon className="h-6 w-6" />
         <span>Click to Play</span>
-      </div>
+      </button>
       <div className="mt-4 flex flex-row items-center space-x-2 text-sm">
         <span className="font-bold">YouTube</span>
         <span className="text-gray-800">&middot;</span>
