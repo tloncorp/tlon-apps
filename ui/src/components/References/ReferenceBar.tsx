@@ -44,7 +44,7 @@ export default function ReferenceBar({
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-gray-50 group-hover:bg-gray-50 @container',
+        'flex items-center justify-between border-gray-50 @container group-hover:bg-gray-50',
         {
           'border-t-2': !top,
           'py-1 px-2': reply,
@@ -65,25 +65,30 @@ export default function ReferenceBar({
       {top || reply ? null : (
         <div
           onClick={navigateToChannel}
-          className="flex cursor-pointer shrink-0 items-center text-gray-400 group-hover:text-gray-600 whitespace-nowrap peer-hover:hidden @lg:peer-hover:flex"
+          className="flex shrink-0 cursor-pointer items-center whitespace-nowrap text-gray-400 group-hover:text-gray-600 peer-hover:hidden @lg:peer-hover:flex"
         >
           <GroupAvatar
-            className="rounded-sm @lg:order-4 mr-1"
+            className="mr-1 rounded-sm @lg:order-5"
             size="w-4 h-4"
             image={groupImage}
             title={groupTitle}
           />
-          <span className="font-semibold hidden @lg:inline @lg:order-5">
+          <span className="hidden font-semibold @lg:order-6 @lg:inline">
             {groupTitle}
           </span>
-          <span className="text-gray-400 hidden @lg:inline @lg:order-3 @lg:mx-1">
+          <span className="hidden text-gray-400 @lg:order-4 @lg:mx-1 @lg:inline">
             &bull;
           </span>
+          {comment ? (
+            <span className="mr-1 hidden font-semibold text-gray-400 @xl:order-1 @xl:inline">
+              Comment in:
+            </span>
+          ) : null}
           <ChannelIcon
             nest={nest}
-            className="h-4 w-4 hidden @lg:block @lg:mr-1 @lg:order-1"
+            className="hidden h-4 w-4 @lg:order-2 @lg:mr-1 @lg:block"
           />
-          <span className="font-semibold @lg:order-2">{channelTitle}</span>
+          <span className="font-semibold @lg:order-3">{channelTitle}</span>
         </div>
       )}
     </div>
