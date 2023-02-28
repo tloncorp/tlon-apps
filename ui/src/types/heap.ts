@@ -19,9 +19,11 @@ export type Ship = string;
 
 export const GRID = 'grid';
 export const LIST = 'list';
+export const FORUM = 'forum';
 export const TIME = 'time';
 export const ALPHA = 'alpha';
-export type HeapDisplayMode = typeof GRID | typeof LIST;
+// we don't have a forum view for heaps yet
+export type HeapDisplayMode = typeof GRID | typeof LIST | typeof FORUM;
 export type HeapSortMode = typeof TIME | typeof ALPHA;
 
 export type HeapInline =
