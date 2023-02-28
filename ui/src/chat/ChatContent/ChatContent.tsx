@@ -20,6 +20,7 @@ import ContentReference from '@/components/References/ContentReference';
 import { useLocation } from 'react-router';
 import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
+import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
 
 interface ChatContentProps {
   story: ChatStory;
@@ -92,13 +93,9 @@ export function InlineContent({ story }: InlineContentProps) {
   if (isLink(story)) {
     const containsProtocol = story.link.href.match(/https?:\/\//);
     return (
-      <a
-        target="_blank"
-        rel="noreferrer"
-        href={containsProtocol ? story.link.href : `//${story.link.href}`}
-      >
-        {story.link.content || story.link.href}
-      </a>
+      <ChatEmbedContent
+        url={containsProtocol ? story.link.href : `http://${story.link.href}`}
+      />
     );
   }
 
@@ -163,7 +160,7 @@ export function BlockContent({ story, isScrolling }: BlockContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export default function ChatContent({
+function ChatContent({
   story,
   isScrolling = false,
   className = '',
@@ -246,3 +243,5 @@ export default function ChatContent({
     </div>
   );
 }
+
+export default React.memo(ChatContent);

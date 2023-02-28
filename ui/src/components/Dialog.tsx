@@ -20,6 +20,7 @@ export default function Dialog({
 interface DialogContentProps extends DialogPrimitive.DialogContentProps {
   containerClass?: string;
   showClose?: boolean;
+  lightbox?: boolean;
 }
 
 export const DialogContent = React.forwardRef<
@@ -27,19 +28,31 @@ export const DialogContent = React.forwardRef<
   DialogContentProps
 >(
   (
-    { showClose = true, containerClass, children, className, ...props },
+    {
+      showClose = true,
+      lightbox = false,
+      containerClass,
+      children,
+      className,
+      ...props
+    },
     forwardedRef
   ) => (
     <DialogPrimitive.Content asChild {...props} ref={forwardedRef}>
       <section className={classNames('dialog-container', containerClass)}>
         <div className={classNames('dialog', className)}>
           {children}
-          {showClose && (
+          {showClose && !lightbox && (
             <DialogPrimitive.Close className="icon-button absolute top-6 right-6">
               <X16Icon className="h-4 w-4" />
             </DialogPrimitive.Close>
           )}
         </div>
+        {showClose && lightbox && (
+          <DialogPrimitive.Close className="icon-button absolute top-6 right-6 bg-white">
+            <X16Icon className="h-4 w-4" />
+          </DialogPrimitive.Close>
+        )}
       </section>
     </DialogPrimitive.Content>
   )
