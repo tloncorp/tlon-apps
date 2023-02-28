@@ -718,7 +718,7 @@
   ++  go-channel-hosts
     ^-  (set ship)
     %-  ~(gas in *(set ship))
-    %+  turn  
+    %+  turn
       ~(tap by channels.group)
     |=  [=nest:g *]
     p.q.nest
@@ -759,7 +759,7 @@
         %+  skim
           ~(tap by channels.group)
         |=  [nes=nest:g =channel:g]
-        join.channel
+        %.y
       |=  [nes=nest:g =channel:g]
       ^-  card
       =/  =dock  [our.bowl p.nes] :: TODO: generally remove chat hard-coding j
@@ -1187,7 +1187,7 @@
       ?-  -.diff
       ::
           %add-ships
-        ?<  ?|  &((~(has in p.diff) our.bowl) =(p.flag our.bowl))              
+        ?<  ?|  &((~(has in p.diff) our.bowl) =(p.flag our.bowl))
                 %+  lth  0
                 %~  wyt  in
                 (~(int in p.diff) go-channel-hosts)
@@ -1354,7 +1354,7 @@
       ==
     ::
         %del
-      ?<  ?|  &((~(has in ships) our.bowl) =(p.flag our.bowl))              
+      ?<  ?|  &((~(has in ships) our.bowl) =(p.flag our.bowl))
               %+  lth  0
               %~  wyt  in
               (~(int in ships) go-channel-hosts)
