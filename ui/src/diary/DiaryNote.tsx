@@ -1,6 +1,11 @@
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
+import {
+  canWriteChannel,
+  isChannelJoined,
+  pluralize,
+  sampleQuippers,
+} from '@/logic/utils';
 import { useBrief, useDiaryState, useNote, useDiaryPerms } from '@/state/diary';
 import {
   useRouteGroup,
@@ -16,6 +21,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import useAllBriefs from '@/logic/useAllBriefs';
 import {
   DiarySetting,
   setChannelSetting,
@@ -84,13 +90,19 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 
 export default function DiaryNote() {
   const [loading, setLoading] = useState(false);
+  const [joining, setJoining] = useState(false);
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
-  const flag = useRouteGroup();
-  const group = useGroup(flag);
+  const nest = `diary/${chFlag}`;
+  const groupFlag = useRouteGroup();
+  const group = useGroup(groupFlag);
   const [id, note] = useNote(chFlag, noteId)!;
-  const vessel = useVessel(flag, window.our);
-  const isAdmin = useAmAdmin(flag);
+  const vessel = useVessel(groupFlag, window.our);
+  const briefs = useAllBriefs();
+  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
+    ? isChannelJoined(nest, briefs)
+    : true;
+  const isAdmin = useAmAdmin(groupFlag);
   const { quips } = note.seal;
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const brief = useBrief(chFlag);
@@ -134,12 +146,24 @@ export default function DiaryNote() {
     [settings, chFlag]
   );
 
+  const joinChannel = useCallback(async () => {
+    setJoining(true);
+    await useDiaryState.getState().joinDiary(groupFlag, chFlag);
+    setJoining(false);
+  }, [chFlag, groupFlag]);
+
   useEffect(() => {
-    if (idIsZero) {
+    if (!joined) {
+      joinChannel();
+    }
+  }, [joined, joinChannel]);
+
+  useEffect(() => {
+    if (idIsZero && !joining) {
       setLoading(true);
       load();
     }
-  }, [load, idIsZero]);
+  }, [load, idIsZero, joining]);
 
   return (
     <Layout
