@@ -233,7 +233,7 @@ export default function HeapBlock({
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
-  const canEdit = isAdmin || window.our === curio.heart.author;
+  const canEdit = asRef ? false : isAdmin || window.our === curio.heart.author;
 
   useEffect(() => {
     const getOembed = async () => {
@@ -321,7 +321,7 @@ export default function HeapBlock({
           backgroundImage: `url(${url})`,
         }}
       >
-        <TopBar canEdit {...topBar} />
+        <TopBar canEdit={canEdit} {...topBar} />
         <BottomBar
           {...botBar}
           provider="Image"
@@ -334,7 +334,7 @@ export default function HeapBlock({
   if (isAudio && !calm?.disableRemoteContent) {
     return (
       <div className={cnm()}>
-        <TopBar hasIcon canEdit {...topBar} />
+        <TopBar hasIcon canEdit={canEdit} {...topBar} />
         <div className="flex grow flex-col items-center justify-center">
           <MusicLargeIcon className="h-16 w-16 text-gray-300" />
         </div>

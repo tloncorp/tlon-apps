@@ -1,6 +1,11 @@
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
+import {
+  canWriteChannel,
+  isChannelJoined,
+  pluralize,
+  sampleQuippers,
+} from '@/logic/utils';
 import { useBrief, useDiaryState, useNote, useDiaryPerms } from '@/state/diary';
 import {
   useRouteGroup,
@@ -14,6 +19,7 @@ import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
+import useAllBriefs from '@/logic/useAllBriefs';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
@@ -78,13 +84,19 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 
 export default function DiaryNote() {
   const [loading, setLoading] = useState(false);
+  const [joining, setJoining] = useState(false);
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
-  const flag = useRouteGroup();
-  const group = useGroup(flag);
-  const [id, note] = useNote(chFlag, noteId);
-  const vessel = useVessel(flag, window.our);
-  const isAdmin = useAmAdmin(flag);
+  const nest = `diary/${chFlag}`;
+  const groupFlag = useRouteGroup();
+  const group = useGroup(groupFlag);
+  const [id, note] = useNote(chFlag, noteId)!;
+  const vessel = useVessel(groupFlag, window.our);
+  const briefs = useAllBriefs();
+  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
+    ? isChannelJoined(nest, briefs)
+    : true;
+  const isAdmin = useAmAdmin(groupFlag);
   const { quips } = note.seal;
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const brief = useBrief(chFlag);
@@ -113,12 +125,24 @@ export default function DiaryNote() {
     setLoading(false);
   }, [chFlag, noteId]);
 
+  const joinChannel = useCallback(async () => {
+    setJoining(true);
+    await useDiaryState.getState().joinDiary(groupFlag, chFlag);
+    setJoining(false);
+  }, [chFlag, groupFlag]);
+
   useEffect(() => {
-    if (idIsZero) {
+    if (!joined) {
+      joinChannel();
+    }
+  }, [joined, joinChannel]);
+
+  useEffect(() => {
+    if (idIsZero && !joining) {
       setLoading(true);
       load();
     }
-  }, [load, idIsZero]);
+  }, [load, idIsZero, joining]);
 
   return (
     <Layout
