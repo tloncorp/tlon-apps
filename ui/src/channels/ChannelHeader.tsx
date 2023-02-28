@@ -38,8 +38,8 @@ import useHarkState from '@/state/hark';
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
   nest: string;
-  displayMode?: 'grid' | 'list';
-  setDisplayMode?: (displayType: 'grid' | 'list') => void;
+  displayMode?: 'grid' | 'list' | 'forum';
+  setDisplayMode?: (displayType: 'grid' | 'list' | 'forum') => void;
   sortMode?:
     | 'time-dsc'
     | 'quip-dsc'
@@ -404,6 +404,18 @@ export default function ChannelHeader({
                   <ListIcon className="-m-1 h-8 w-8" />
                 </div>
                 <span className="font-semibold">List</span>
+              </Dropdown.Item>
+              <Dropdown.Item
+                className={cn(
+                  'dropdown-item-icon',
+                  displayMode === 'forum' && 'hover-bg-gray-100 bg-gray-100'
+                )}
+                onClick={() => setDisplayMode('forum')}
+              >
+                <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
+                  <ListIcon className="-m-1 h-8 w-8" />
+                </div>
+                <span className="font-semibold">Forum</span>
               </Dropdown.Item>
               <Dropdown.Item
                 className={cn(

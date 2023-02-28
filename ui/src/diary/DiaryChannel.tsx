@@ -37,6 +37,7 @@ import {
 import useAllBriefs from '@/logic/useAllBriefs';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
+import DiaryForumListItem from './DiaryList/DiaryForumListItem';
 
 function DiaryChannel() {
   const [joining, setJoining] = useState(false);
@@ -87,6 +88,7 @@ function DiaryChannel() {
   const sortMode = useDiarySortMode(chFlag);
 
   const setDisplayMode = async (view: DiaryDisplayMode) => {
+    console.log('setting display mode', view);
     await useDiaryState.getState().viewDiary(chFlag, view);
   };
 
@@ -184,6 +186,23 @@ function DiaryChannel() {
     </div>
   );
 
+  const forumItemContent = (
+    i: number,
+    [time, letter]: [bigInt.BigInteger, DiaryLetter]
+  ) => (
+    <div className="m-4">
+      <DiaryForumListItem letter={letter} time={time} />
+    </div>
+  );
+
+  const forumHeader = () => (
+    <div className="mx-4 mt-4 grid w-full grid-cols-3 justify-between px-3 pt-4 text-lg font-bold leading-6 text-gray-400">
+      <span>Topic</span>
+      <span>Op</span>
+      <span className="mr-16 flex justify-end">Replies</span>
+    </div>
+  );
+
   return (
     <Layout
       stickyHeader
@@ -232,6 +251,22 @@ function DiaryChannel() {
       <div className="h-full">
         {displayMode === 'grid' ? (
           <DiaryGridView notes={sortedNotes} loadOlderNotes={loadOlderNotes} />
+        ) : displayMode === 'forum' ? (
+          <div className="h-full">
+            <div className="flex h-full w-full flex-col">
+              <Virtuoso
+                style={{ paddingTop: '1rem' }}
+                data={sortedNotes}
+                itemContent={forumItemContent}
+                overscan={200}
+                atBottomStateChange={loadOlderNotes}
+                components={{
+                  Header: () => forumHeader(),
+                  Footer: () => <div className="h-4 w-full" />,
+                }}
+              />
+            </div>
+          </div>
         ) : (
           <div className="h-full">
             <div className="mx-auto flex h-full w-full flex-col">

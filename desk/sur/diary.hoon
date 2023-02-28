@@ -7,7 +7,7 @@
 ::  $feel: either an emoji identifier like :diff or a URL for custom
 +$  feel  @ta
 ::  $view: the persisted display format for a diary
-+$  view  ?(%grid %list)
++$  view  ?(%grid %list %forum)
 ::  $sort: the persisted sort type for a diary
 +$  sort  ?(%alpha %time)
 ::  $shelf: my ship's diaries

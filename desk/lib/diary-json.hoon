@@ -367,7 +367,7 @@
     ^-  $-(json diff:d)
     %-  of
     :~  notes/notes-diff
-        view/(su (perk %grid %list ~))
+        view/(su (perk %grid %list %forum ~))
         sort/(su (perk %time %alpha ~))
         add-sects/add-sects
         del-sects/del-sects
