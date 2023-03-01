@@ -753,15 +753,16 @@
         [flag now.bowl %fleet (silt our.bowl ~) %del ~]
       [%pass wire %agent dock %poke cage]
     ::
-    ++  join-pinned
+    ++  join-channels
+      |=  nests=(list nest:g)
       ^-  (list card)
       %+  turn
-          ~(tap by channels.group)
-      |=  [nes=nest:g =channel:g]
+          nests
+      |=  nes=nest:g
       ^-  card
       =/  =dock  [our.bowl p.nes] :: TODO: generally remove chat hard-coding j
       =/  =cage  channel-join+!>([flag q.nes])
-      =/  =wire  (snoc go-area %join-pinned)
+      =/  =wire  (snoc go-area %join-channels)
       [%pass wire %agent dock %poke cage]
     --
   ::
@@ -925,7 +926,7 @@
     ?+  wire  !!
         [%updates ~]  (go-take-update sign)
     ::
-        [%join-pinned ~]
+        [%join-channels ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign
         go-core
@@ -1054,7 +1055,7 @@
     =.  cor
       (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
     =.  cor
-      (emil join-pinned:go-pass)
+      (emil (join-channels:go-pass ~(tap in ~(key by channels.group))))
     go-core
   ::
   ++  go-give-update
@@ -1461,6 +1462,8 @@
             ==
         ==
       =.  cor  (emit (pass-hark & & yarn))
+      ?:  =(our.bowl p.flag)  go-core
+      =.  cor  (emil (join-channels:go-pass ~[ch]))
       go-core
     ::
         %edit
