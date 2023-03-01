@@ -2,6 +2,11 @@
 
 These instructions are for working on Groups and Talk as a developer at Tlon.
 
+## Requirements
+
+- node v14.19.0
+- npm v8.16.0
+
 ## Project Structure
 
 - `/desk`: The folder containing the desk for Groups. This currently contains the agents for all other apps.

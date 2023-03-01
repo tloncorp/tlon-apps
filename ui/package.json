@@ -1,9 +1,10 @@
 {
   "name": "landscape-apps",
-  "version": "2.3.2",
+  "version": "2.7.1",
   "private": true,
   "engines": {
-    "node": "14.19.0"
+    "node": "14.19.0",
+    "npm": "8.16.0"
   },
   "scripts": {
     "prepare": "cd .. && husky install ui/.husky",
