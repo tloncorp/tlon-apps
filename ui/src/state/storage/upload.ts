@@ -133,6 +133,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     });
   },
   removeByURL: (uploader, url) => {
+    console.log('removeByURL', uploader, url);
     get().update(uploader, (draft) => {
       const { files } = draft;
       draft.files = Object.fromEntries(
