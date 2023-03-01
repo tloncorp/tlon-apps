@@ -3,7 +3,8 @@
   "version": "2.3.2",
   "private": true,
   "engines": {
-    "node": "14.19.0"
+    "node": "16.19.1",
+    "npm": "8.19.3"
   },
   "scripts": {
     "prepare": "cd .. && husky install ui/.husky",
