@@ -199,14 +199,14 @@ export default function GroupSidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
-      <div className="h-5" />
+      <div className="h-2" />
       <div className="relative flex min-h-0 flex-col px-2">
-        <ul>
+        <ul className="space-y-0.5">
           <GroupHeader />
           <SidebarItem
             icon={
               <BellIcon
-                className={cn('m-1 h-6 w-6 rounded bg-gray-50', {
+                className={cn('h-6 w-6 rounded', {
                   'mix-blend-multiply': !isDark,
                 })}
               />
@@ -218,7 +218,7 @@ export default function GroupSidebar() {
           <SidebarItem
             icon={
               <HashIcon
-                className={cn('m-1 h-6 w-6 rounded bg-gray-50 ', {
+                className={cn('h-6 w-6 rounded', {
                   'mix-blend-multiply': !isDark,
                 })}
               />
@@ -231,7 +231,7 @@ export default function GroupSidebar() {
             <Link
               to={`/groups/${flag}/channels/new`}
               state={{ backgroundLocation: location }}
-              className="absolute right-5 bottom-3 flex h-6 w-6 items-center justify-center rounded bg-gray-50"
+              className="absolute right-5 bottom-3 flex h-6 w-6 items-center justify-center rounded"
             >
               <AddIcon className="h-4 w-4 fill-gray-800" />
             </Link>

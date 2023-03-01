@@ -6,10 +6,10 @@ exports[`Sidebar > renders as expected 1`] = `
     class="flex h-full w-64 flex-none flex-col bg-white"
   >
     <ul
-      class="flex w-full flex-col space-y-1 p-2"
+      class="flex w-full flex-col space-y-0.5 p-2"
     >
       <div
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
       >
         <button
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold text-black hover:text-gray-800 group"
@@ -85,7 +85,7 @@ exports[`Sidebar > renders as expected 1`] = `
         class="h-5"
       />
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600"
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
@@ -201,7 +201,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </li>
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 bg-gray-100"
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600 bg-gray-100"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
@@ -235,7 +235,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </li>
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
@@ -266,7 +266,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </li>
       <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"

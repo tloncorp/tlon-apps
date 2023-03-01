@@ -192,10 +192,10 @@ export default function ChannelList({ className }: ChannelListProps) {
         </SidebarItem>
       )}
       {!isMobile && <ChannelSorter isMobile={false} />}
-      <ul className={cn('space-y-1', isMobile && 'flex-none space-y-3')}>
+      <ul className={cn('space-y-0.5', isMobile && 'flex-none space-y-3')}>
         {isDefaultSort
           ? filteredSections.map((s) => (
-              <div className="space-y-1" key={s}>
+              <div className="space-y-0.5" key={s}>
                 {s !== UNZONED ? (
                   <Divider>
                     {s in group.zones ? group.zones[s].meta.title : ''}

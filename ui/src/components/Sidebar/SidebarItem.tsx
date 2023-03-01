@@ -123,7 +123,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
           } as React.CSSProperties
         }
         className={cn(
-          'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base',
+          'group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base',
           color,
           !hasHoverColor() && !active ? `hover:${highlight}` : null,
           !hasHoverColor() && active && to !== '/' ? 'bg-gray-100' : null

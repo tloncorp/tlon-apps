@@ -143,7 +143,7 @@ export default function Sidebar() {
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
       <ul
-        className={cn('flex w-full flex-col space-y-1 p-2', {
+        className={cn('flex w-full flex-col space-y-0.5 p-2', {
           'bottom-shadow': !atTop,
         })}
       >
