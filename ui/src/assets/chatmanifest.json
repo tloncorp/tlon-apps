@@ -5,7 +5,7 @@
   "scope": "./",
   "icons": [
     {
-      "src": "/apps/grid/android-chrome-512x512.png",
+      "src": "/apps/talk/android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

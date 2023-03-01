@@ -80,6 +80,8 @@ import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
+import chatmanifestURL from './assets/chatmanifest.json?url';
+import manifestURL from './assets/manifest.json?url';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -559,9 +561,9 @@ function RoutedApp() {
           />
           <meta name="theme-color" content={userThemeColor} />
           {app === 'groups' ? (
-            <link rel="manifest" href="/src/assets/manifest.json" />
+            <link rel="manifest" href={manifestURL} />
           ) : (
-            <link rel="manifest" href="/src/assets/chatmanifest.json" />
+            <link rel="manifest" href={chatmanifestURL} />
           )}
         </Helmet>
         <TooltipProvider skipDelayDuration={400}>
