@@ -410,7 +410,7 @@ export default function ChatInput({
       const blocks = fetchChatBlocks(whom);
       if ('image' in blocks[idx]) {
         // @ts-expect-error type check on previous line
-        uploader.removeByURL(blocks[idx]);
+        uploader.removeByURL(blocks[idx].image.src);
       }
       useChatStore.getState().setBlocks(
         whom,
@@ -531,6 +531,7 @@ export default function ChatInput({
             subscription === 'disconnected' ||
             mostRecentFile?.status === 'loading' ||
             mostRecentFile?.status === 'error' ||
+            mostRecentFile?.url === '' ||
             (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
           }
           onMouseDown={(e) => {
