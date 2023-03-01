@@ -125,9 +125,6 @@ export default function NewChannelForm() {
         }
       }
 
-      await useGroupState
-        .getState()
-        .setChannelJoin(groupFlag, newChannelNest, true);
       setAddChannelStatus('success');
       navigate(
         isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/channels`
