@@ -828,10 +828,25 @@
       =/  =cage  club-action+!>(`action:club:c`[id diff])
       [%pass wire %agent dock %poke cage]
     ::
+    ++  ship-list
+      ^-  (list ship)
+      =/  roster  ~(tap in cu-out)
+      ?:  (lte ~(wyt in cu-out) 3)
+        roster
+      =/  rng  ~(. og eny.bowl)
+      =|  ships=(set ship)
+      |-
+      ?:  =(~(wyt in ships) (div (lent roster) 2))
+        ~(tap in ships)
+      =^  rand  rng  (rads:rng (sub (lent roster) 1))
+      =/  candidate  (snag rand roster)
+      $(ships (~(put in ships) candidate))
+    ::
     ++  gossip
       |=  =diff:club:c
-      ^-  (list card)
-      %+  turn  ~(tap in cu-out)
+      ^-  (list card)    
+      %+  turn 
+        ship-list 
       |=  =ship
       (act ship diff)
     --
