@@ -6,16 +6,12 @@ interface SpotifyEmbedProps {
   url: string;
   title: string;
   thumbnailUrl: string;
-  thumbnailWidth: number;
-  thumbnailHeight: number;
 }
 
 export default function SpotifyEmbed({
   url,
   title,
   thumbnailUrl,
-  thumbnailWidth,
-  thumbnailHeight,
 }: SpotifyEmbedProps) {
   const [showIframeModal, setShowIframeModal] = useState(false);
   const trackId = url.split('/')?.pop()?.split('?')[0];
@@ -24,12 +20,8 @@ export default function SpotifyEmbed({
       <div
         style={{
           backgroundImage: `url(${thumbnailUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          width: thumbnailWidth,
-          height: thumbnailHeight,
         }}
-        className="rounded"
+        className="h-[250px] w-[250px] rounded bg-cover bg-center"
       />
       <button
         onClick={() => setShowIframeModal(true)}

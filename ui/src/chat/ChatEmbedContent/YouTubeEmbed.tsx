@@ -9,8 +9,6 @@ interface YouTubeEmbedProps {
   thumbnail: string;
   author: string;
   authorUrl: string;
-  thumbnailWidth: number;
-  thumbnailHeight: number;
 }
 
 export default function YouTubeEmbed({
@@ -19,8 +17,6 @@ export default function YouTubeEmbed({
   thumbnail,
   author,
   authorUrl,
-  thumbnailWidth,
-  thumbnailHeight,
 }: YouTubeEmbedProps) {
   const videoId = url.split('v=')[1];
   const [showIframeModal, setShowIframeModal] = useState(false);
@@ -31,12 +27,8 @@ export default function YouTubeEmbed({
       <div
         style={{
           backgroundImage: `url(${thumbnail})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          width: isMobile ? 300 : thumbnailWidth,
-          height: isMobile ? 300 : thumbnailHeight,
         }}
-        className="rounded"
+        className="h-[200px] w-[250px] rounded bg-cover bg-center"
       />
       <button
         onClick={() => setShowIframeModal(true)}

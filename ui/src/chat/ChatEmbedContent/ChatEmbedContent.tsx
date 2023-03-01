@@ -32,8 +32,6 @@ function ChatEmbedContent({ url }: { url: string }) {
     const {
       title,
       thumbnail_url: thumbnail,
-      thumbnail_width: thumbnailWidth,
-      thumbnail_height: thumbnailHeight,
       provider_name: provider,
       url: embedUrl,
       author_name: author,
@@ -49,8 +47,6 @@ function ChatEmbedContent({ url }: { url: string }) {
           thumbnail={thumbnail}
           author={author}
           authorUrl={authorUrl}
-          thumbnailWidth={thumbnailWidth}
-          thumbnailHeight={thumbnailHeight}
         />
       );
     }
@@ -66,15 +62,7 @@ function ChatEmbedContent({ url }: { url: string }) {
     }
 
     if (provider === 'Spotify') {
-      return (
-        <SpotifyEmbed
-          url={url}
-          title={title}
-          thumbnailUrl={thumbnail}
-          thumbnailWidth={thumbnailWidth}
-          thumbnailHeight={thumbnailHeight}
-        />
-      );
+      return <SpotifyEmbed url={url} title={title} thumbnailUrl={thumbnail} />;
     }
 
     return (
