@@ -1,20 +1,16 @@
 import cn from 'classnames';
 import React from 'react';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
-import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { Link } from 'react-router-dom';
-import DiaryNoteOptionsDropdown from './DiaryNoteOptionsDropdown';
 
 export interface DiaryNoteHeaderProps {
   title: string;
-  flag: string;
   time: string;
   canEdit: boolean;
 }
 
 export default function DiaryNoteHeader({
   title,
-  flag,
   time,
   canEdit,
 }: DiaryNoteHeaderProps) {
@@ -39,17 +35,6 @@ export default function DiaryNoteHeader({
             Edit Post
           </Link>
         ) : null}
-        <button className="secondary-button" disabled>
-          Share
-        </button>
-        <DiaryNoteOptionsDropdown
-          time={time}
-          flag={flag}
-          canEdit={canEdit}
-          triggerClassName={'secondary-button'}
-        >
-          <EllipsisIcon className="h-6 w-6" />
-        </DiaryNoteOptionsDropdown>
       </div>
     </div>
   );
