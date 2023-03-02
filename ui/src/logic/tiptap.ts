@@ -294,9 +294,7 @@ export function JSONToInlines(
           typeof lastMessage !== 'string' &&
           'break' in lastMessage;
         if (isContentFinal && !isBreakDirectlyBefore) {
-          return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang), [
-            { break: null },
-          ]);
+          return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang));
         }
         return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang));
       }, [] as (Inline | DiaryBlock)[]);
