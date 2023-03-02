@@ -60,8 +60,12 @@ export default function useSidebarSort({
 }: UseSidebarSort) {
   const { sideBarSort } = useSettingsState(selSideBarSort);
   const groupSideBarSort = useGroupSideBarSort();
-  const sortFn = defaultSort || groupSideBarSort[flag] || sideBarSort;
-
+  const sortFn = useMemo(
+    () =>
+      defaultSort ||
+      (flag !== '~' ? groupSideBarSort[flag] ?? DEFAULT : sideBarSort),
+    [defaultSort, flag, groupSideBarSort, sideBarSort]
+  );
   const setSideBarSort = (mode: string) => {
     useSettingsState.getState().putEntry('groups', 'sideBarSort', mode);
   };
