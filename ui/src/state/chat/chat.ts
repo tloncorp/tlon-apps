@@ -102,7 +102,7 @@ function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
     json: {
       id,
       diff: {
-        echo: 0,
+        uid: '0v0',
         delta,
       },
     },

@@ -292,7 +292,7 @@ export type ClubDelta =
   | ClubDeltaWrit;
 
 export type ClubDiff = {
-  echo: number;
+  uid: string;
   delta: ClubDelta;
 };
 
