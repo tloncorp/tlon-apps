@@ -980,8 +980,11 @@ export function useMultiDms() {
   const dms = useChatState(selMultiDms);
 
   useEffect(() => {
-    useChatState.getState().fetchMultiDms();
-  }, []);
+    if (Object.entries(dms).length === 0) {
+      console.log('fetching multi dms');
+      useChatState.getState().fetchMultiDms();
+    }
+  }, [dms]);
 
   return dms;
 }
@@ -991,8 +994,11 @@ export function useDms() {
   const dms = useChatState(selDms);
 
   useEffect(() => {
-    useChatState.getState().fetchDms();
-  }, []);
+    if (Object.entries(dms).length === 0) {
+      console.log('fetching dms');
+      useChatState.getState().fetchDms();
+    }
+  }, [dms]);
 
   return dms;
 }
