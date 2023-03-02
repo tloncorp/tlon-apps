@@ -23,7 +23,7 @@ export default function YouTubeEmbed({
   const isMobile = useIsMobile();
 
   return (
-    <div className="embed-inline-block">
+    <div className="embed-inline-block w-[286px] break-normal">
       <div
         style={{
           backgroundImage: `url(${thumbnail})`,
@@ -47,7 +47,10 @@ export default function YouTubeEmbed({
           {title}
         </a>
         <span className="font-semibold text-gray-800">&middot;</span>
-        <a href={authorUrl} className="font-semibold text-gray-800 underline">
+        <a
+          href={authorUrl}
+          className="truncate font-semibold text-gray-800 underline"
+        >
           {author}
         </a>
       </div>
