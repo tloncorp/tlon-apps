@@ -13,9 +13,15 @@ import {
 import { useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
-import { usePinned, usePinnedGroups } from '@/state/chat';
+import {
+  useMultiDms,
+  usePinned,
+  usePinnedClubs,
+  usePinnedGroups,
+} from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
+import { Club } from '@/types/chat';
 import { useMutuals } from '@/state/pals';
 import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
@@ -24,6 +30,7 @@ import UnknownAvatarIcon from '../icons/UnknownAvatarIcon';
 import BubbleIcon from '../icons/BubbleIcon';
 import ShapesIcon from '../icons/ShapesIcon';
 import NotebookIcon from '../icons/NotebookIcon';
+import PeopleIcon from '../icons/PeopleIcon';
 
 export default function useLeap() {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,6 +43,8 @@ export default function useLeap() {
   const { isGroupUnread } = useIsGroupUnread();
   const isChannelUnread = useCheckChannelUnread();
   const pinnedGroups = usePinnedGroups();
+  const multiDms = useMultiDms();
+  const pinnedMultiDms = usePinnedClubs();
   const pinnedChats = usePinned();
   const contacts = useContacts();
   const location = useLocation();
@@ -416,6 +425,96 @@ export default function useLeap() {
     shipResults.length,
   ]);
 
+  const multiDmResults = useMemo(() => {
+    if (inputValue === '') {
+      return [];
+    }
+
+    const scoreMultiDmResult = (
+      entry: fuzzy.FilterResult<[string, Club]>
+    ): number => {
+      const { score, original } = entry;
+      const [multiDmFlag] = original;
+
+      let newScore = score;
+
+      // pinned groups are strong signals
+      const isPinned = multiDmFlag in pinnedMultiDms;
+      if (isPinned) {
+        newScore += 10;
+      }
+
+      // prefer unreads as well
+      const isUnread = isChannelUnread(multiDmFlag);
+      if (isUnread) {
+        newScore += 5;
+      }
+
+      return newScore;
+    };
+
+    const allMultiDms = Object.entries(multiDms);
+    const normalizedQuery = inputValue.toLocaleLowerCase();
+    const filteredMultiDms = fuzzy
+      .filter(normalizedQuery, allMultiDms, {
+        extract: ([_, g]) => `${g.meta.title} ${g.meta.description}`,
+      })
+      .filter((r) => scoreMultiDmResult(r) > LEAP_RESULT_SCORE_THRESHOLD)
+      .sort((a, b) => {
+        const scoreA = scoreMultiDmResult(a);
+        const scoreB = scoreMultiDmResult(b);
+        return scoreB - scoreA;
+      })
+      .map((r) => r.original);
+
+    return [
+      {
+        section: 'Group DMs',
+      },
+      ...filteredMultiDms.map(([flag, multiDm], idx) => {
+        const path = `/dm/${flag}`;
+        const onSelect = () => {
+          if (app === 'Talk') {
+            navigate(path);
+          } else {
+            window.open(`${window.location.origin}/apps/talk${path}`, '_blank');
+          }
+          setSelectedIndex(0);
+          setInputValue('');
+          setIsOpen(false);
+        };
+        return {
+          onSelect,
+          icon: PeopleIcon,
+          input: inputValue,
+          title: multiDm.meta.title,
+          to: path,
+          resultIndex:
+            idx +
+            (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : shipResults.length - 1) +
+            (channelResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : channelResults.length - 1) +
+            (groupResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : groupResults.length - 1),
+        };
+      }),
+    ];
+  }, [
+    app,
+    channelResults.length,
+    inputValue,
+    multiDms,
+    navigate,
+    pinnedMultiDms,
+    shipResults.length,
+    groupResults.length,
+    isChannelUnread,
+  ]);
+
   // If changing the order, update the resultIndex calculations above
   const results = [
     ...menu,
@@ -427,6 +526,9 @@ export default function useLeap() {
       : []), // +1 to account for section header
     ...(groupResults.length > 1
       ? groupResults.slice(0, LEAP_RESULT_TRUNCATE_SIZE + 1)
+      : []), // +1 to account for section header
+    ...(multiDmResults.length > 1
+      ? multiDmResults.slice(0, LEAP_RESULT_TRUNCATE_SIZE + 1)
       : []), // +1 to account for section header
   ];
 
