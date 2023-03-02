@@ -41,28 +41,36 @@ function ChatEmbedContent({ url }: { url: string }) {
 
     if (provider === 'YouTube') {
       return (
-        <YouTubeEmbed
-          url={embedUrl}
-          title={title}
-          thumbnail={thumbnail}
-          author={author}
-          authorUrl={authorUrl}
-        />
+        <div className="flex flex-col @container">
+          <YouTubeEmbed
+            url={embedUrl}
+            title={title}
+            thumbnail={thumbnail}
+            author={author}
+            authorUrl={authorUrl}
+          />
+        </div>
       );
     }
 
     if (provider === 'Twitter') {
       return (
-        <TwitterEmbed
-          authorUrl={authorUrl}
-          author={author}
-          embedHtml={embedHtml}
-        />
+        <div className="flex flex-col @container">
+          <TwitterEmbed
+            authorUrl={authorUrl}
+            author={author}
+            embedHtml={embedHtml}
+          />
+        </div>
       );
     }
 
     if (provider === 'Spotify') {
-      return <SpotifyEmbed url={url} title={title} thumbnailUrl={thumbnail} />;
+      return (
+        <div className="flex flex-col @container">
+          <SpotifyEmbed url={url} title={title} thumbnailUrl={thumbnail} />
+        </div>
+      );
     }
 
     return (
