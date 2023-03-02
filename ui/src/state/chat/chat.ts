@@ -986,6 +986,17 @@ export function useMultiDms() {
   return dms;
 }
 
+const selDms = (s: ChatState) => s.dms;
+export function useDms() {
+  const dms = useChatState(selDms);
+
+  useEffect(() => {
+    useChatState.getState().fetchDms();
+  }, []);
+
+  return dms;
+}
+
 export function useMultiDm(id: string): Club | undefined {
   const multiDm = useChatState(useCallback((s) => s.multiDms[id], [id]));
 

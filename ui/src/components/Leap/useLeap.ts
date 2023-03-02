@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { uniqBy } from 'lodash';
 import { useLocation, useNavigate } from 'react-router';
 import { cite, Contact, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
@@ -14,6 +15,7 @@ import { useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
 import {
+  useDms,
   useMultiDms,
   usePinned,
   usePinnedClubs,
@@ -47,6 +49,7 @@ export default function useLeap() {
   const pinnedMultiDms = usePinnedClubs();
   const pinnedChats = usePinned();
   const contacts = useContacts();
+  const dms = useDms();
   const location = useLocation();
   const app = useAppName();
   const mutuals = useMutuals();
@@ -136,7 +139,17 @@ export default function useLeap() {
       return newScore;
     };
 
-    const allShips = Object.entries(contacts);
+    const allShips = uniqBy(
+      Object.entries(contacts).concat(
+        // accounting for ships not in contact store, but in DMs
+        // this fix is temporary until we fix the contact store
+        Object.entries(dms).map(([ship, _dm]) => [
+          ship,
+          { nickname: '' } as Contact,
+        ])
+      ),
+      ([ship]) => ship
+    );
     const normalizedQuery = inputValue.toLocaleLowerCase();
     const filteredShips = fuzzy
       .filter(normalizedQuery, allShips, {
@@ -195,6 +208,7 @@ export default function useLeap() {
     modalNavigate,
     navigate,
     preSiggedMutuals,
+    dms,
   ]);
 
   const channelResults = useMemo(() => {
