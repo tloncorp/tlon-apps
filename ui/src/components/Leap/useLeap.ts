@@ -502,6 +502,7 @@ export default function useLeap() {
           icon: PeopleIcon,
           input: inputValue,
           title: multiDm.meta.title,
+          subtitle: multiDm.meta.description,
           to: path,
           resultIndex:
             idx +
