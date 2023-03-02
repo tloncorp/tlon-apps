@@ -93,9 +93,11 @@ export function InlineContent({ story }: InlineContentProps) {
   if (isLink(story)) {
     const containsProtocol = story.link.href.match(/https?:\/\//);
     return (
-      <ChatEmbedContent
-        url={containsProtocol ? story.link.href : `http://${story.link.href}`}
-      />
+      <div className="flex flex-col @container">
+        <ChatEmbedContent
+          url={containsProtocol ? story.link.href : `http://${story.link.href}`}
+        />
+      </div>
     );
   }
 
