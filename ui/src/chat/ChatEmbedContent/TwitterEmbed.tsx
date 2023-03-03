@@ -10,12 +10,14 @@ interface TwitterEmbedProps {
   authorUrl: string;
   author: string;
   embedHtml: string;
+  writId: string;
 }
 
 export default function TwitterEmbed({
   authorUrl,
   author,
   embedHtml,
+  writId,
 }: TwitterEmbedProps) {
   const { chShip, chName } = useParams<{
     chShip: string;
@@ -24,7 +26,7 @@ export default function TwitterEmbed({
   const whom = `${chShip}/${chName}`;
   const { open: showIframeModal, setOpen: setShowIframeModal } = useChatDialog(
     whom,
-    'twitter',
+    writId,
     'twitter'
   );
   const isMobile = useIsMobile();

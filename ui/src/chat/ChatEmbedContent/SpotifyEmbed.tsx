@@ -8,12 +8,14 @@ interface SpotifyEmbedProps {
   url: string;
   title: string;
   thumbnailUrl: string;
+  writId: string;
 }
 
 export default function SpotifyEmbed({
   url,
   title,
   thumbnailUrl,
+  writId,
 }: SpotifyEmbedProps) {
   const { chShip, chName } = useParams<{
     chShip: string;
@@ -22,7 +24,7 @@ export default function SpotifyEmbed({
   const whom = `${chShip}/${chName}`;
   const { open: showIframeModal, setOpen: setShowIframeModal } = useChatDialog(
     whom,
-    'spotify',
+    writId,
     'spotify'
   );
   const trackId = url.split('/')?.pop()?.split('?')[0];

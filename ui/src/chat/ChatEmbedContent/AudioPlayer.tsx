@@ -13,10 +13,12 @@ function AudioPlayer({
   url,
   title,
   embed,
+  writId,
 }: {
   url: string;
   title?: string;
   embed?: boolean;
+  writId?: string;
 }) {
   const { chShip, chName } = useParams<{
     chShip: string;
@@ -25,7 +27,7 @@ function AudioPlayer({
   const whom = `${chShip}/${chName}`;
   const { open: showModal, setOpen: setShowModal } = useChatDialog(
     whom,
-    'audio',
+    writId || 'not-writ',
     'audio'
   );
 

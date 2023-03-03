@@ -11,6 +11,7 @@ interface YouTubeEmbedProps {
   thumbnail: string;
   author: string;
   authorUrl: string;
+  writId: string;
 }
 
 export default function YouTubeEmbed({
@@ -19,6 +20,7 @@ export default function YouTubeEmbed({
   thumbnail,
   author,
   authorUrl,
+  writId,
 }: YouTubeEmbedProps) {
   const { chShip, chName } = useParams<{
     chShip: string;
@@ -28,7 +30,7 @@ export default function YouTubeEmbed({
   const videoId = url.split('v=')[1];
   const { open: showIframeModal, setOpen: setShowIframeModal } = useChatDialog(
     whom,
-    'youtube',
+    writId,
     'youtube'
   );
   const isMobile = useIsMobile();

@@ -26,15 +26,18 @@ interface ChatContentProps {
   story: ChatStory;
   isScrolling?: boolean;
   className?: string;
+  writId?: string;
 }
 
 interface InlineContentProps {
   story: Inline;
+  writId?: string;
 }
 
 interface BlockContentProps {
   story: ChatBlock;
   isScrolling: boolean;
+  writId: string;
 }
 
 interface ShipMentionProps {
@@ -55,7 +58,10 @@ function ShipMention({ ship }: ShipMentionProps) {
   );
 }
 
-export function InlineContent({ story }: InlineContentProps) {
+export function InlineContent({
+  story,
+  writId = 'not-writ',
+}: InlineContentProps) {
   if (typeof story === 'string') {
     return <span>{story}</span>;
   }
@@ -94,6 +100,7 @@ export function InlineContent({ story }: InlineContentProps) {
     const containsProtocol = story.link.href.match(/https?:\/\//);
     return (
       <ChatEmbedContent
+        writId={writId}
         url={containsProtocol ? story.link.href : `http://${story.link.href}`}
       />
     );
@@ -142,7 +149,11 @@ export function InlineContent({ story }: InlineContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export function BlockContent({ story, isScrolling }: BlockContentProps) {
+export function BlockContent({
+  story,
+  isScrolling,
+  writId,
+}: BlockContentProps) {
   if (isChatImage(story)) {
     return (
       <ChatContentImage
@@ -150,6 +161,7 @@ export function BlockContent({ story, isScrolling }: BlockContentProps) {
         height={story.image.height}
         width={story.image.width}
         altText={story.image.alt}
+        writId={writId}
       />
     );
   }
@@ -164,6 +176,7 @@ function ChatContent({
   story,
   isScrolling = false,
   className = '',
+  writId = 'not-writ',
 }: ChatContentProps) {
   const inlineLength = story.inline.length;
   const blockLength = story.block.length;
@@ -181,7 +194,11 @@ function ChatContent({
                 key={`${storyItem.toString()}-${index}`}
                 className="flex flex-col"
               >
-                <BlockContent story={storyItem} isScrolling={isScrolling} />
+                <BlockContent
+                  story={storyItem}
+                  isScrolling={isScrolling}
+                  writId={writId}
+                />
               </div>
             ))}
         </>
@@ -235,6 +252,7 @@ function ChatContent({
               <InlineContent
                 key={`${storyItem.toString()}-${index}`}
                 story={storyItem}
+                writId={writId}
               />
             );
           })}

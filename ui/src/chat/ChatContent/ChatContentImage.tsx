@@ -9,6 +9,7 @@ interface ChatContentImage {
   height?: number;
   width?: number;
   altText?: string;
+  writId?: string;
 }
 
 export default function ChatContentImage({
@@ -16,6 +17,7 @@ export default function ChatContentImage({
   height,
   width,
   altText,
+  writId,
 }: ChatContentImage) {
   const { chShip, chName } = useParams<{
     chShip: string;
@@ -25,7 +27,7 @@ export default function ChatContentImage({
   const calm = useCalm();
   const { open: showLightBox, setOpen: setShowLightBox } = useChatDialog(
     whom,
-    'image',
+    writId || 'not-writ',
     'image'
   );
 
