@@ -3,6 +3,12 @@ import React from 'react';
 import { render } from '../../../test/utils';
 import ChatInput from './ChatInput';
 
+vi.mock('@/components/Leap/useLeap', () => ({
+  default: () => ({
+    isOpen: false,
+  }),
+}));
+
 describe('ChatInput', () => {
   it('renders as expected', () => {
     const { asFragment } = render(
