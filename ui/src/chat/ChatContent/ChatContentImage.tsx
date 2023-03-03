@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useCalm } from '@/state/settings';
 import LightBox from '@/components/LightBox';
+import { useParams } from 'react-router';
+import { useChatDialog } from '../useChatStore';
 
 interface ChatContentImage {
   src: string;
@@ -15,8 +17,17 @@ export default function ChatContentImage({
   width,
   altText,
 }: ChatContentImage) {
+  const { chShip, chName } = useParams<{
+    chShip: string;
+    chName: string;
+  }>();
+  const whom = `${chShip}/${chName}`;
   const calm = useCalm();
-  const [showLightBox, setShowLightBox] = useState(false);
+  const { open: showLightBox, setOpen: setShowLightBox } = useChatDialog(
+    whom,
+    'image',
+    'image'
+  );
 
   return (
     <div

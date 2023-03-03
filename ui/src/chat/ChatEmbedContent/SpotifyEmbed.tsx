@@ -1,6 +1,8 @@
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LightBox from '@/components/LightBox';
-import React, { useState } from 'react';
+import React from 'react';
+import { useParams } from 'react-router';
+import { useChatDialog } from '../useChatStore';
 
 interface SpotifyEmbedProps {
   url: string;
@@ -13,7 +15,16 @@ export default function SpotifyEmbed({
   title,
   thumbnailUrl,
 }: SpotifyEmbedProps) {
-  const [showIframeModal, setShowIframeModal] = useState(false);
+  const { chShip, chName } = useParams<{
+    chShip: string;
+    chName: string;
+  }>();
+  const whom = `${chShip}/${chName}`;
+  const { open: showIframeModal, setOpen: setShowIframeModal } = useChatDialog(
+    whom,
+    'spotify',
+    'spotify'
+  );
   const trackId = url.split('/')?.pop()?.split('?')[0];
   return (
     <div className="embed-inline-block">

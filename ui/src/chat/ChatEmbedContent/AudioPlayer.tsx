@@ -1,6 +1,7 @@
-import Dialog, { DialogContent } from '@/components/Dialog';
 import LightBox from '@/components/LightBox';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router';
+import { useChatDialog } from '../useChatStore';
 
 function formatTime(num: number) {
   const minutes = Math.floor(num / 60);
@@ -17,12 +18,22 @@ function AudioPlayer({
   title?: string;
   embed?: boolean;
 }) {
+  const { chShip, chName } = useParams<{
+    chShip: string;
+    chName: string;
+  }>();
+  const whom = `${chShip}/${chName}`;
+  const { open: showModal, setOpen: setShowModal } = useChatDialog(
+    whom,
+    'audio',
+    'audio'
+  );
+
   const ref = useRef<HTMLAudioElement>(null);
 
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [showModal, setShowModal] = useState(false);
 
   const playPause = useCallback(
     (e) => {

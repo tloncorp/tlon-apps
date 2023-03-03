@@ -11,6 +11,7 @@ export interface ChatInfo {
     seen: boolean;
     brief: ChatBrief; // lags behind actual brief, only gets update if unread
   };
+  dialogs: Record<string, Record<string, boolean>>;
 }
 
 export interface ChatStore {
@@ -21,6 +22,11 @@ export interface ChatStore {
   current: string;
   reply: (flag: string, msgId: string | null) => void;
   setBlocks: (whom: string, blocks: ChatBlock[]) => void;
+  setDialogs: (
+    whom: string,
+    writId: string,
+    dialogs: Record<string, boolean>
+  ) => void;
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
@@ -33,6 +39,7 @@ const emptyInfo: ChatInfo = {
   replying: null,
   blocks: [],
   unread: undefined,
+  dialogs: {},
 };
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -46,6 +53,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           draft.chats[whom] = { replying: null, blocks };
         } else {
           draft.chats[whom].blocks = blocks;
+        }
+      })
+    );
+  },
+  setDialogs: (whom, writId, dialogs) => {
+    set(
+      produce((draft) => {
+        if (!draft.chats[whom]) {
+          draft.chats[whom] = {
+            replying: null,
+            blocks: [],
+            dialogs: { [writId]: dialogs },
+          };
+        } else {
+          draft.chats[whom].dialogs[writId] = dialogs;
         }
       })
     );
@@ -159,4 +181,24 @@ export function useChatBlocks(whom?: string): ChatBlock[] {
   return useChatStore(
     useCallback((s) => (whom ? s.chats[whom]?.blocks || [] : []), [whom])
   );
+}
+
+export function useChatDialog(
+  whom: string,
+  writId: string,
+  dialog: string
+): { open: boolean; setOpen: (open: boolean) => void } {
+  const { setDialogs } = useChatStore.getState();
+  // const dialogs = useChatStore.getState().chats[whom]?.dialogs || {};
+  // const dialogs = useChatStore.getState().chats[whom]?.dialogs?.[writId] || {};
+  const dialogs = useChatStore(
+    useCallback((s) => s.chats[whom]?.dialogs?.[writId] || {}, [whom, writId])
+  );
+
+  return {
+    open: dialogs[dialog] || false,
+    setOpen: (open: boolean) => {
+      setDialogs(whom, writId, { ...dialogs, [dialog]: open });
+    },
+  };
 }

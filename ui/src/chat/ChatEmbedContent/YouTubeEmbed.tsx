@@ -1,7 +1,9 @@
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LightBox from '@/components/LightBox';
 import { useIsMobile } from '@/logic/useMedia';
-import React, { useState } from 'react';
+import React from 'react';
+import { useParams } from 'react-router';
+import { useChatDialog } from '../useChatStore';
 
 interface YouTubeEmbedProps {
   url: string;
@@ -18,8 +20,17 @@ export default function YouTubeEmbed({
   author,
   authorUrl,
 }: YouTubeEmbedProps) {
+  const { chShip, chName } = useParams<{
+    chShip: string;
+    chName: string;
+  }>();
+  const whom = `${chShip}/${chName}`;
   const videoId = url.split('v=')[1];
-  const [showIframeModal, setShowIframeModal] = useState(false);
+  const { open: showIframeModal, setOpen: setShowIframeModal } = useChatDialog(
+    whom,
+    'youtube',
+    'youtube'
+  );
   const isMobile = useIsMobile();
 
   return (
