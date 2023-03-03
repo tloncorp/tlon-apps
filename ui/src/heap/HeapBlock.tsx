@@ -239,8 +239,13 @@ export default function HeapBlock({
   useEffect(() => {
     const getOembed = async () => {
       if (isValidUrl(url) && !notEmbed) {
-        const oembed = await useEmbedState.getState().getEmbed(url);
-        setEmbed(oembed);
+        try {
+          const oembed = await useEmbedState.getState().getEmbed(url);
+          setEmbed(oembed);
+        } catch (e) {
+          setEmbed(null);
+          console.log("HeapBlock::getOembed: couldn't get embed", e);
+        }
       }
     };
     getOembed();
