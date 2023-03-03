@@ -13,7 +13,7 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
-export default function NoteReference({
+function NoteReference({
   chFlag,
   nest,
   id,
@@ -160,3 +160,5 @@ export default function NoteReference({
     </div>
   );
 }
+
+export default React.memo(NoteReference);

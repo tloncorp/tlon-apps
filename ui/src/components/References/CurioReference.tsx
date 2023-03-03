@@ -13,7 +13,7 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
-export default function CurioReference({
+function CurioReference({
   chFlag,
   nest,
   idCurio,
@@ -108,3 +108,5 @@ export default function CurioReference({
     </div>
   );
 }
+
+export default React.memo(CurioReference);
