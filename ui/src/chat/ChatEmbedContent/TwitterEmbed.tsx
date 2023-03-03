@@ -2,20 +2,33 @@ import TwitterIcon from '@/components/icons/TwitterIcon';
 import LightBox from '@/components/LightBox';
 import { useIsMobile } from '@/logic/useMedia';
 import EmbedContainer from 'react-oembed-container';
-import React, { useState } from 'react';
+import React from 'react';
+import { useParams } from 'react-router';
+import { useChatDialog } from '../useChatStore';
 
 interface TwitterEmbedProps {
   authorUrl: string;
   author: string;
   embedHtml: string;
+  writId: string;
 }
 
 export default function TwitterEmbed({
   authorUrl,
   author,
   embedHtml,
+  writId,
 }: TwitterEmbedProps) {
-  const [showIframeModal, setShowIframeModal] = useState(false);
+  const { chShip, chName } = useParams<{
+    chShip: string;
+    chName: string;
+  }>();
+  const whom = `${chShip}/${chName}`;
+  const { open: showIframeModal, setOpen: setShowIframeModal } = useChatDialog(
+    whom,
+    writId,
+    'twitter'
+  );
   const isMobile = useIsMobile();
   const twitterHandle = authorUrl.split('/').pop();
   // unavatar now charges for this after 50 requests per day

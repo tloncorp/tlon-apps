@@ -7,7 +7,7 @@ import TwitterEmbed from './TwitterEmbed';
 import SpotifyEmbed from './SpotifyEmbed';
 import AudioPlayer from './AudioPlayer';
 
-function ChatEmbedContent({ url }: { url: string }) {
+function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
   const [embed, setEmbed] = useState<any>();
   const calm = useCalm();
   const isAudio = AUDIO_REGEX.test(url);
@@ -23,7 +23,7 @@ function ChatEmbedContent({ url }: { url: string }) {
   }, [url]);
 
   if (isAudio) {
-    return <AudioPlayer url={url} embed />;
+    return <AudioPlayer url={url} embed writId={writId} />;
   }
 
   const isOembed = validOembedCheck(embed, url);
@@ -48,6 +48,7 @@ function ChatEmbedContent({ url }: { url: string }) {
             thumbnail={thumbnail}
             author={author}
             authorUrl={authorUrl}
+            writId={writId}
           />
         </div>
       );
@@ -60,6 +61,7 @@ function ChatEmbedContent({ url }: { url: string }) {
             authorUrl={authorUrl}
             author={author}
             embedHtml={embedHtml}
+            writId={writId}
           />
         </div>
       );
@@ -68,7 +70,12 @@ function ChatEmbedContent({ url }: { url: string }) {
     if (provider === 'Spotify') {
       return (
         <div className="flex flex-col @container">
-          <SpotifyEmbed url={url} title={title} thumbnailUrl={thumbnail} />
+          <SpotifyEmbed
+            url={url}
+            title={title}
+            thumbnailUrl={thumbnail}
+            writId={writId}
+          />
         </div>
       );
     }

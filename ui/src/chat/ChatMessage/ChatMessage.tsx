@@ -227,6 +227,7 @@ const ChatMessage = React.memo<
                   <ChatContent
                     story={memo.content.story}
                     isScrolling={isScrolling}
+                    writId={seal.id}
                   />
                 ) : null}
                 {Object.keys(seal.feels).length > 0 && (
