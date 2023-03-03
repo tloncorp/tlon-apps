@@ -2,6 +2,7 @@ import cn from 'classnames';
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect } from 'react';
 import { HeapInline, CurioHeart, HeapInlineKey, LIST } from '@/types/heap';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
@@ -15,6 +16,7 @@ import {
   useChatStore,
 } from '@/chat/useChatStore';
 import X16Icon from '@/components/icons/X16Icon';
+import ArrowNIcon16 from '@/components/icons/ArrowNIcon16';
 
 interface HeapTextInputProps {
   flag: string;
@@ -25,6 +27,7 @@ interface HeapTextInputProps {
   replyTo?: string | null;
   className?: string;
   inputClass?: string;
+  comment?: boolean;
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
@@ -58,6 +61,13 @@ function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
   );
 }
 
+function SubmitLabel({ comment }: { comment?: boolean }) {
+  if (comment) {
+    return <ArrowNIcon16 className="h-4 w-4" />;
+  }
+  return <span>Post</span>;
+}
+
 export default function HeapTextInput({
   flag,
   draft,
@@ -67,6 +77,7 @@ export default function HeapTextInput({
   placeholder,
   className,
   inputClass,
+  comment = false,
 }: HeapTextInputProps) {
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
@@ -164,11 +175,11 @@ export default function HeapTextInput({
   return (
     <>
       <div
-        className={cn('relative', className)}
+        className={cn('items-end', className)}
         onClick={() => messageEditor.commands.focus()}
       >
         {chatInfo.blocks.length > 0 ? (
-          <div className="my-2 flex items-center justify-start font-semibold">
+          <div className="my-2 flex w-full items-center justify-start font-semibold">
             <span className="mr-2 text-gray-600">Attached: </span>
             {chatInfo.blocks.length} reference
             {chatInfo.blocks.length === 1 ? '' : 's'}
@@ -180,27 +191,41 @@ export default function HeapTextInput({
             </button>
           </div>
         ) : null}
-        <MessageEditor
-          editor={messageEditor}
-          className={cn('h-full w-full rounded-lg', inputClass)}
-          inputClassName={cn(
-            // Since TipTap simulates an input using a <p> tag, only style
-            // the fake placeholder when the field is empty
-            messageEditor.getText() === '' ? 'font-semibold text-gray-400' : ''
+        <div
+          className={cn(
+            'w-full',
+            comment ? 'flex flex-row items-end' : 'relative flex h-full'
           )}
-        />
-        {!sendDisabled ? (
-          <button
-            className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
-            disabled={
-              isPending ||
-              (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
-            }
-            onClick={onClick}
-          >
-            {isPending ? 'Posting...' : 'Post'}
-          </button>
-        ) : null}
+        >
+          <MessageEditor
+            editor={messageEditor}
+            className={cn('w-full rounded-lg', inputClass)}
+            inputClassName={cn(
+              // Since TipTap simulates an input using a <p> tag, only style
+              // the fake placeholder when the field is empty
+              messageEditor.getText() === '' ? 'text-gray-400' : ''
+            )}
+          />
+          {!sendDisabled ? (
+            <button
+              className={cn(
+                'button',
+                comment ? 'ml-2 shrink-0' : 'absolute bottom-2 right-2'
+              )}
+              disabled={
+                isPending ||
+                (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
+              }
+              onClick={onClick}
+            >
+              {isPending ? (
+                <LoadingSpinner secondary="black" />
+              ) : (
+                <SubmitLabel comment={comment} />
+              )}
+            </button>
+          ) : null}
+        </div>
       </div>
       {isMobile && messageEditor.isFocused ? (
         <ChatInputMenu editor={messageEditor} />

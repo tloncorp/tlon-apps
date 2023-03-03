@@ -17,6 +17,7 @@ interface GroupReferenceProps {
   flag: string;
   isScrolling?: boolean;
   plain?: boolean;
+  onlyButton?: boolean;
   description?: string;
 }
 
@@ -24,6 +25,7 @@ export default function GroupReference({
   flag,
   isScrolling = false,
   plain = false,
+  onlyButton = false,
   description,
 }: GroupReferenceProps) {
   const gang = useGang(flag);
@@ -53,6 +55,45 @@ export default function GroupReference({
       <div className="relative flex h-16 items-center space-x-3 rounded-lg border-2 border-gray-50 bg-gray-50 p-2 text-base font-semibold text-gray-600">
         <ExclamationPoint className="h-8 w-8 text-gray-400" />
         <span>This content is unavailable to you</span>
+      </div>
+    );
+  }
+
+  if (onlyButton) {
+    return (
+      <div>
+        {banned ? (
+          <div className="rounded-lg bg-gray-100 p-2 text-center text-xs font-semibold leading-3 text-gray-600">
+            {banned === 'ship'
+              ? 'You are banned'
+              : `${toTitleCase(pluralRank(banned))} are banned`}
+          </div>
+        ) : (
+          <>
+            {gang.invite && !group && status !== 'loading' ? (
+              <button
+                className="small-button bg-red text-white dark:text-black"
+                onClick={reject}
+              >
+                Reject
+              </button>
+            ) : null}
+            {status === 'loading' ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-400">Joining...</span>
+                <LoadingSpinner />
+              </div>
+            ) : (
+              <button
+                className="small-button ml-3 whitespace-nowrap bg-blue text-white dark:text-black"
+                onClick={button.action}
+                disabled={button.disabled || status === 'error'}
+              >
+                {status === 'error' ? 'Errored' : button.text}
+              </button>
+            )}
+          </>
+        )}
       </div>
     );
   }

@@ -32,8 +32,6 @@ function ChatEmbedContent({ url }: { url: string }) {
     const {
       title,
       thumbnail_url: thumbnail,
-      thumbnail_width: thumbnailWidth,
-      thumbnail_height: thumbnailHeight,
       provider_name: provider,
       url: embedUrl,
       author_name: author,
@@ -43,37 +41,35 @@ function ChatEmbedContent({ url }: { url: string }) {
 
     if (provider === 'YouTube') {
       return (
-        <YouTubeEmbed
-          url={embedUrl}
-          title={title}
-          thumbnail={thumbnail}
-          author={author}
-          authorUrl={authorUrl}
-          thumbnailWidth={thumbnailWidth}
-          thumbnailHeight={thumbnailHeight}
-        />
+        <div className="flex flex-col @container">
+          <YouTubeEmbed
+            url={embedUrl}
+            title={title}
+            thumbnail={thumbnail}
+            author={author}
+            authorUrl={authorUrl}
+          />
+        </div>
       );
     }
 
     if (provider === 'Twitter') {
       return (
-        <TwitterEmbed
-          authorUrl={authorUrl}
-          author={author}
-          embedHtml={embedHtml}
-        />
+        <div className="flex flex-col @container">
+          <TwitterEmbed
+            authorUrl={authorUrl}
+            author={author}
+            embedHtml={embedHtml}
+          />
+        </div>
       );
     }
 
     if (provider === 'Spotify') {
       return (
-        <SpotifyEmbed
-          url={url}
-          title={title}
-          thumbnailUrl={thumbnail}
-          thumbnailWidth={thumbnailWidth}
-          thumbnailHeight={thumbnailHeight}
-        />
+        <div className="flex flex-col @container">
+          <SpotifyEmbed url={url} title={title} thumbnailUrl={thumbnail} />
+        </div>
       );
     }
 

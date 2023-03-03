@@ -1,6 +1,8 @@
 import TwitterIcon from '@/components/icons/TwitterIcon';
+import LightBox from '@/components/LightBox';
 import { useIsMobile } from '@/logic/useMedia';
-import React from 'react';
+import EmbedContainer from 'react-oembed-container';
+import React, { useState } from 'react';
 
 interface TwitterEmbedProps {
   authorUrl: string;
@@ -13,13 +15,15 @@ export default function TwitterEmbed({
   author,
   embedHtml,
 }: TwitterEmbedProps) {
+  const [showIframeModal, setShowIframeModal] = useState(false);
   const isMobile = useIsMobile();
   const twitterHandle = authorUrl.split('/').pop();
   // unavatar now charges for this after 50 requests per day
   const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}?fallback=false`;
   const element = document.createElement('html');
   element.innerHTML = embedHtml;
-  const tweetText = element.querySelector('p')?.innerHTML || '';
+  const baseTweetText = element.querySelector('p')?.innerHTML || '';
+  const tweetText = baseTweetText.replace(/<br\s*\/?>/gm, '\n');
   const tweetContainsLink = tweetText.includes('<a href=');
   const tweetTextWithoutLink = tweetText.split('<a href=')[0];
   const tweetLink = tweetContainsLink
@@ -41,12 +45,15 @@ export default function TwitterEmbed({
       .getAttribute('href') || '';
 
   return (
-    <div className="embed-inline-block max-w-[370px]">
+    <div className="embed-inline-block max-w-[400px]">
       <div className="flex grow flex-col justify-center space-y-2">
-        <blockquote>
+        <blockquote
+          className="cursor-pointer"
+          onClick={() => setShowIframeModal(true)}
+        >
           {tweetContainsLink ? (
             <>
-              <p className="font-medium text-gray-900">
+              <p className="whitespace-pre-wrap font-medium text-gray-900">
                 {tweetTextWithoutLink}
               </p>
               <p className="font-medium text-gray-900">
@@ -61,7 +68,9 @@ export default function TwitterEmbed({
               </p>
             </>
           ) : (
-            <p className="font-medium text-gray-900">{tweetText}</p>
+            <p className="whitespace-pre-wrap font-medium text-gray-900">
+              {tweetText}
+            </p>
           )}
         </blockquote>
         <div className="flex items-center space-x-2 text-sm">
@@ -81,6 +90,15 @@ export default function TwitterEmbed({
           </a>
         </div>
       </div>
+      <LightBox
+        showLightBox={showIframeModal}
+        setShowLightBox={() => setShowIframeModal(false)}
+        source={tweetUrl}
+      >
+        <EmbedContainer markup={embedHtml}>
+          <div dangerouslySetInnerHTML={{ __html: embedHtml }} />
+        </EmbedContainer>
+      </LightBox>
     </div>
   );
 }
