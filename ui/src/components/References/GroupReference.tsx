@@ -21,7 +21,7 @@ interface GroupReferenceProps {
   description?: string;
 }
 
-export default function GroupReference({
+function GroupReference({
   flag,
   isScrolling = false,
   plain = false,
@@ -172,3 +172,5 @@ export default function GroupReference({
     </div>
   );
 }
+
+export default React.memo(GroupReference);

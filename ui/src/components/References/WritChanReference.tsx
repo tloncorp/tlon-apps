@@ -3,7 +3,7 @@ import { useWritByFlagAndWritId } from '@/state/chat';
 // eslint-disable-next-line import/no-cycle
 import WritBaseReference from './WritBaseReference';
 
-export default function WritChanReference(props: {
+function WritChanReference(props: {
   chFlag: string;
   nest: string;
   idWrit: string;
@@ -13,3 +13,5 @@ export default function WritChanReference(props: {
   const writ = useWritByFlagAndWritId(chFlag, idWrit, isScrolling);
   return <WritBaseReference writ={writ} {...props} />;
 }
+
+export default React.memo(WritChanReference);
