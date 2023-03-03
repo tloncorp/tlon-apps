@@ -2,8 +2,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
-import { Contact, ContactEditField, uxToHex } from '@urbit/api';
+import { uxToHex } from '@urbit/api';
 import { ViewProps } from '@/types/groups';
+import {
+  Contact,
+  ContactEditField,
+  ContactAddGroup,
+  ContactDelGroup,
+} from '@/types/contact';
 import useContactState, {
   useOurContact,
   isOurContactPublic,
@@ -16,8 +22,7 @@ import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
 
-interface ProfileFormSchema extends ContactEditField {
-  isContactPrivate: boolean;
+interface ProfileFormSchema extends Omit<Contact, 'groups'> {
   groups: GroupOption[];
 }
 
@@ -34,8 +39,7 @@ const emptyContact = {
 
 const onFormSubmit = (
   values: ProfileFormSchema,
-  contact: Contact | undefined,
-  ship: string
+  contact: Contact | undefined
 ) => {
   if (!contact) {
     return;
@@ -50,39 +54,28 @@ const onFormSubmit = (
     return groupResource;
   };
 
-  Object.entries(values as ProfileFormSchema).forEach((formValue) => {
-    const [key, value] = formValue;
-    const newValue = key !== 'color' ? value : uxToHex(value.replace('#', ''));
-    if (value !== contact[key as keyof Contact]) {
-      if (key === 'isContactPrivate') {
-        // We're flipping the value here, Contact-store expects a checkbox called "Make Public" and Here we're using "Make Private"
-        useContactState.getState().setContactPublic(!newValue);
-      } else if (key === 'groups') {
-        const toRemove: string[] = _.difference(
-          contact?.groups || [],
-          values.groups.map((group) => `/ship/${group.value}`)
-        );
-        const toAdd: string[] = _.difference(
-          values.groups.map((group) => `/ship/${group.value}`),
-          contact?.groups || []
-        );
-        toRemove.forEach((i) => {
-          const group = resourceifyGroup(i);
-          useContactState
-            .getState()
-            .editContactField(ship, { 'remove-group': group });
-        });
-        toAdd.forEach((i) => {
-          const group = resourceifyGroup(i);
-          useContactState
-            .getState()
-            .editContactField(ship, { 'add-group': group });
-        });
-      } else {
-        useContactState.getState().editContactField(ship, { [key]: newValue });
-      }
-    }
-  });
+  const fields = Object.entries(values as ProfileFormSchema)
+    .filter(
+      ([key, value]) =>
+        key !== 'groups' && value !== contact[key as keyof Contact]
+    )
+    .map(
+      ([key, value]) =>
+        ({
+          [key]: key !== 'color' ? value : uxToHex(value.replace('#', '')),
+        } as ContactEditField)
+    );
+
+  const toRemove: ContactDelGroup[] = _.difference(
+    contact?.groups || [],
+    values.groups.map((group) => `/ship/${group.value}`)
+  ).map((v) => ({ 'del-group': resourceifyGroup(v) }));
+  const toAdd: ContactAddGroup[] = _.difference(
+    values.groups.map((group) => `/ship/${group.value}`),
+    contact?.groups || []
+  ).map((v) => ({ 'add-group': resourceifyGroup(v) }));
+
+  useContactState.getState().edit(fields.concat(toRemove, toAdd));
 };
 
 function EditProfileContent() {
@@ -113,7 +106,6 @@ function EditProfileContent() {
       ...emptyContact,
       ...contact,
       groups: objectifyGroups(contact?.groups || []),
-      isContactPrivate: !isPublic,
     },
   });
 
@@ -127,16 +119,15 @@ function EditProfileContent() {
       ...emptyContact,
       ...contact,
       groups: objectifyGroups(contact?.groups || []),
-      isContactPrivate: !isPublic,
     });
   }, [form, contact, objectifyGroups, isPublic]);
 
   const onSubmit = useCallback(
     (values: ProfileFormSchema) => {
-      onFormSubmit(values, contact, ship);
+      onFormSubmit(values, contact);
       form.reset(values);
     },
-    [contact, ship, form]
+    [contact, form]
   );
 
   const uniqueGroupOptions = (groups: GroupOption[]) => {

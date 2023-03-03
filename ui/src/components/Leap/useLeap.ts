@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { cite, Contact, deSig, preSig } from '@urbit/api';
+import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useGroupFlag, useGroups } from '@/state/groups';
@@ -17,6 +17,7 @@ import { usePinned, usePinnedGroups } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import { useMutuals } from '@/state/pals';
+import { Contact } from '@/types/contact';
 import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
