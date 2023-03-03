@@ -234,18 +234,19 @@ export default function HeapBlock({
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit = asRef ? false : isAdmin || window.our === curio.heart.author;
+  const notEmbed = isImage && isAudio && isText && isComment;
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(url)) {
+      if (isValidUrl(url) && !notEmbed) {
         const oembed = await useEmbedState.getState().getEmbed(url);
         setEmbed(oembed);
       }
     };
     getOembed();
-  }, [url]);
+  }, [url, notEmbed]);
 
-  if (isValidUrl(url) && embed === undefined) {
+  if (isValidUrl(url) && embed === undefined && !notEmbed) {
     return <HeapLoadingBlock />;
   }
 
