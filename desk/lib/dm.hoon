@@ -94,7 +94,6 @@
   =*  on   on:writs:c
   ?+    pole  [~ ~]
   ::
-  ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
     ``chat-writs+!>((gas:on *writs:c (top:mope wit.pac count)))
