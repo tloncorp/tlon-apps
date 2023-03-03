@@ -189,8 +189,6 @@ export function useChatDialog(
   dialog: string
 ): { open: boolean; setOpen: (open: boolean) => void } {
   const { setDialogs } = useChatStore.getState();
-  // const dialogs = useChatStore.getState().chats[whom]?.dialogs || {};
-  // const dialogs = useChatStore.getState().chats[whom]?.dialogs?.[writId] || {};
   const dialogs = useChatStore(
     useCallback((s) => s.chats[whom]?.dialogs?.[writId] || {}, [whom, writId])
   );
