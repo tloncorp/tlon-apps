@@ -91,12 +91,12 @@
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``heap-curios+!>((gas:on  *curios:h (bat:mope cur `start count)))
+    ``heap-curios+!>((gas:on *curios:h (bat:mope cur `start count)))
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``heap-curios+!>((gas:on  *curios:h (tab:mope cur `start count)))
+    ``heap-curios+!>((gas:on *curios:h (tab:on cur `start count)))
   ::
       [%curio %id time=@ ~]
     =/  time  (slav %ud time.pole)

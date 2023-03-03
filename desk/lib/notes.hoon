@@ -148,12 +148,12 @@
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``diary-notes+!>((gas:on  *notes:d (bat:mope not `start count)))
+    ``diary-notes+!>((gas:on *notes:d (bat:mope not `start count)))
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    =-  ``diary-notes+!>((gas:on  *notes:d (tab:mope not `start count)))
+    ``diary-notes+!>((gas:on *notes:d (tab:on not `start count)))
   ::
       [%note time=@ ~]
     =/  time  (slav %ud time.pole)

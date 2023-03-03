@@ -65,12 +65,12 @@
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``diary-quips+!>((gas:on  *quips:d (bat:mope qup `start count)))
+    ``diary-quips+!>((gas:on *quips:d (bat:mope qup `start count)))
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    =-  ``diary-quips+!>((gas:on  *quips:d (tab:on qup `start count)))
+    ``diary-quips+!>((gas:on *quips:d (tab:on qup `start count)))
   ::
       [%quip %id time=@ ~]
     =/  time  (slav %ud time.pole)

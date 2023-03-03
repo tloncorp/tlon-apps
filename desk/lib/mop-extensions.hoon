@@ -2,9 +2,9 @@
 =>  |%
     +$  item  [key=key val=val]
     --
-~%  %comp  +>+  ~
+~%  %mope-comp  ..zuse  ~
 |=  compare=$-([key key] ?)
-~%  %core    +  ~
+~%  %mope-core  ..zuse  ~
 |%
 ::  +bat: tabulate a subset excluding start element with a max count (backwards)
 ::
