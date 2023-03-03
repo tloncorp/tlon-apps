@@ -5,13 +5,11 @@ import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 // eslint-disable-next-line import/no-cycle
 import HeapBlock from '@/heap/HeapBlock';
 import { useChannelPreview, useGang } from '@/state/groups';
-import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { useLocation, useNavigate } from 'react-router';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import ReferenceBar from './ReferenceBar';
-import UnavailableReference from './UnavailableReference';
 
 function CurioReference({
   chFlag,
@@ -39,7 +37,6 @@ function CurioReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
-  const [scryError, setScryError] = useState<string>();
   const refToken = preview?.group
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
@@ -53,23 +50,6 @@ function CurioReference({
     }
     navigateByApp(`/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`);
   };
-
-  useEffect(() => {
-    if (!isScrolling) {
-      useHeapState
-        .getState()
-        .initialize(chFlag)
-        .catch((reason) => {
-          console.log(reason);
-        });
-    }
-  }, [chFlag, isScrolling]);
-
-  if (scryError !== undefined) {
-    // TODO handle requests for single curios like we do for single writs.
-    const time = bigInt(udToDec(idCurio));
-    return <UnavailableReference time={time} nest={nest} preview={preview} />;
-  }
 
   if (!curio) {
     return <HeapLoadingBlock reference />;
