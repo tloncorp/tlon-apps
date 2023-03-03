@@ -387,7 +387,7 @@ describe('JSONToInlines', () => {
       content: [{ type: 'text', text: 'bar' }],
     };
     const output = JSONToInlines(input);
-    const expected: Inline[] = ['bar'];
+    const expected: Inline[] = ['bar', { break: null }];
     expect(output).toEqual(expected);
   });
 
@@ -403,6 +403,7 @@ describe('JSONToInlines', () => {
     const expected: Inline[] = [
       'the following should be bold:',
       { bold: ['foobar'] },
+      { break: null },
     ];
     expect(output).toEqual(expected);
   });
@@ -419,7 +420,10 @@ describe('JSONToInlines', () => {
       ],
     };
     const output = JSONToInlines(input);
-    const expected: Inline[] = [{ italics: [{ bold: ['foobar'] }] }];
+    const expected: Inline[] = [
+      { italics: [{ bold: ['foobar'] }] },
+      { break: null },
+    ];
     expect(output).toEqual(expected);
   });
 
@@ -439,7 +443,7 @@ describe('JSONToInlines', () => {
       ],
     };
     const output = JSONToInlines(input);
-    const expected: Inline[] = ['some text'];
+    const expected: Inline[] = ['some text', { break: null }];
     expect(output).toEqual(expected);
   });
 
@@ -475,7 +479,9 @@ describe('JSONToInlines', () => {
     const expected: Inline[] = [
       'some text',
       { break: null },
+      { break: null },
       { bold: ['foofoo'] },
+      { break: null },
     ];
     expect(output).toEqual(expected);
   });
@@ -519,6 +525,7 @@ describe('JSONToInlines', () => {
       { break: null },
       { break: null },
       'some more text',
+      { break: null },
     ];
     expect(output).toEqual(expected);
   });
@@ -539,7 +546,10 @@ describe('JSONToInlines', () => {
       ],
     };
     const output = JSONToInlines(input);
-    const expected: Inline[] = [{ 'inline-code': 'console.log()' }];
+    const expected: Inline[] = [
+      { 'inline-code': 'console.log()' },
+      { break: null },
+    ];
     expect(output).toEqual(expected);
   });
 
@@ -566,6 +576,7 @@ describe('JSONToInlines', () => {
     const output = JSONToInlines(input);
     const expected: Inline[] = [
       { link: { href: 'https://urbit.org', content: 'click here' } },
+      { break: null },
     ];
     expect(output).toEqual(expected);
   });
@@ -617,7 +628,9 @@ describe('JSONToInlines', () => {
         blockquote: [
           'foo bar baz',
           { break: null },
+          { break: null },
           { bold: ['bold statement'] },
+          { break: null },
         ],
       },
     ];
@@ -740,7 +753,7 @@ describe('JSONToInlines', () => {
               {
                 list: {
                   type: 'unordered',
-                  contents: ['two'],
+                  contents: ['two', { break: null }],
                   items: [{ item: ['three'] }],
                 },
               },
