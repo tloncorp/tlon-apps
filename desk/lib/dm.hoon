@@ -1,7 +1,5 @@
 /-  c=chat
-/+  mp=mop-extensions
 |_  pac=pact:c
-++  mope  ((mp time writ:c) lte)
 ++  gas
   |=  ls=(list [=time =writ:c])
   ^+  pac
@@ -92,21 +90,30 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   =*  on   on:writs:c
+  =*  rev  ((^on time writ:c) gte)
   ?+    pole  [~ ~]
   ::
+  ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    ``chat-writs+!>((gas:on *writs:c (top:mope wit.pac count)))
+    =/  ls    (scag count (bap:on wit.pac))
+    ``chat-writs+!>((gas:on *writs:c ls))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``chat-writs+!>((gas:on *writs:c (bat:mope wit.pac `start count)))
+    =/  inverse  (gas:rev *writs:c (tap:on wit.pac))
+    =-  ``chat-writs+!>(-)
+    %+  gas:on  *writs:c
+    (tab:rev inverse `start count)
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``chat-writs+!>((gas:on *writs:c (tab:on wit.pac `start count)))
+    =-  ``chat-writs+!>(-)
+    %+  gas:on  *writs:c
+    (scag count (tap:on (lot:on wit.pac `start ~)))
+
   ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)

@@ -1,7 +1,5 @@
 /-  h=heap
-/+  mp=mop-extensions
 |_  cur=curios:h
-++  mope  ((mp time curio:h) lte)
 ++  brief
   |=  [our=ship last-read=time]
   ^-  brief:briefs:h
@@ -82,21 +80,30 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   =*  on   on:curios:h
+  =*  rev  ((^on time curio:h) gte)
   ?+    pole  [~ ~]
   ::
+  ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    ``heap-curios+!>((gas:on *curios:h (top:mope cur count)))
+    =/  ls    (scag count (bap:on cur))
+    ``heap-curios+!>((gas:on *curios:h ls))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``heap-curios+!>((gas:on *curios:h (bat:mope cur `start count)))
+    =/  inverse  (gas:rev *curios:h (tap:on cur))
+    =-  ``heap-curios+!>(-)
+    %+  gas:on  *curios:h
+    (tab:rev inverse `start count)
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``heap-curios+!>((gas:on *curios:h (tab:on cur `start count)))
+    =-  ``heap-curios+!>(-)
+    %+  gas:on  *curios:h
+    (scag count (tap:on (lot:on cur `start ~)))
+
   ::
       [%curio %id time=@ ~]
     =/  time  (slav %ud time.pole)

@@ -1,8 +1,7 @@
 /-  d=diary
 /-  ha=hark
-/+  qip=quips, mp=mop-extensions
+/+  qip=quips
 |_  not=notes:d
-++  mope  ((mp time note:d) lte)
 ++  brief
   |=  [our=ship last-read=time]
   ^-  brief:briefs:d
@@ -134,11 +133,13 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   =*  on   on:notes:d
+  =*  rev  ((^on time note:d) gte)
   ?+    pole  [~ ~]
   ::
+  ::  TODO: less iterations?
       [%newest count=@ mode=?(%outline %note) ~]
     =/  count  (slav %ud count.pole)
-    =/  ls    (top:mope not count)
+    =/  ls    (scag count (bap:on not))
     ?:  =(mode.pole %note)
       ``diary-notes+!>((gas:on *notes:d ls))
     =-  ``diary-outlines+!>(-)
@@ -148,12 +149,18 @@
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``diary-notes+!>((gas:on *notes:d (bat:mope not `start count)))
+    =/  inverse  (gas:rev *notes:d (tap:on not))
+    =-  ``diary-notes+!>(-)
+    %+  gas:on  *notes:d
+    (tab:rev inverse `start count)
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``diary-notes+!>((gas:on *notes:d (tab:on not `start count)))
+    =-  ``diary-notes+!>(-)
+    %+  gas:on  *notes:d
+    (scag count (tap:on (lot:on not `start ~)))
+
   ::
       [%note time=@ ~]
     =/  time  (slav %ud time.pole)
