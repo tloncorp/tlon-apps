@@ -78,7 +78,6 @@ function CurioReference({
         time={bigInt(idCurio)}
         author={curio.heart.author}
         groupFlag={preview?.group.flag}
-        groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
       />
