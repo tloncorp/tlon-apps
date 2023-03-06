@@ -14,10 +14,12 @@ import { foregroundFromBackground } from '@/components/Avatar';
 import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
-import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import HashIcon from '@/components/icons/HashIcon';
 import AddIcon from '@/components/icons/AddIcon';
 import { Link, useLocation } from 'react-router-dom';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import { useSubscriptionStatus } from '@/state/local';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -33,6 +35,7 @@ function GroupHeader() {
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
   const calm = useCalm();
   const defaultImportCover = group?.meta.cover === '0x0';
+  const subscription = useSubscriptionStatus();
 
   const onError = useCallback(() => {
     setNoCors(true);
@@ -171,10 +174,21 @@ function GroupHeader() {
             >
               {group?.meta.title}
             </div>
-            <ElipsisIcon
-              aria-label="Open Menu"
-              className={cn('h-6 w-6 opacity-0 group-hover:opacity-100')}
-            />
+
+            <div style={coverTitleStyles()}>
+              {subscription === 'reconnecting' ? (
+                <LoadingSpinner
+                  fill={`fill-${coverTitleStyles().color}`}
+                  primary={`fill-${coverTitleStyles().color}`}
+                  secondary={`fill-${coverTitleStyles().color} opacity-25`}
+                  className="h-4 w-4 group-hover:hidden"
+                />
+              ) : null}
+              <CaretDown16Icon
+                aria-label="Open Menu"
+                className={cn('hidden h-4 w-4 group-hover:block')}
+              />
+            </div>
           </button>
         </GroupActions>
       </div>
