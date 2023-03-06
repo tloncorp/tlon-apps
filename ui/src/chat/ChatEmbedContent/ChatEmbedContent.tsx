@@ -7,20 +7,43 @@ import TwitterEmbed from './TwitterEmbed';
 import SpotifyEmbed from './SpotifyEmbed';
 import AudioPlayer from './AudioPlayer';
 
+const trustedProviders = [
+  {
+    name: 'YouTube',
+    regex: /youtube\.com\/watch\?v=|youtu\.be\//,
+  },
+  {
+    name: 'Twitter',
+    regex: /twitter\.com\/\w+\/status\//,
+  },
+  {
+    name: 'Spotify',
+    regex: /open\.spotify\.com\/track\//,
+  },
+];
+
 function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
   const [embed, setEmbed] = useState<any>();
   const calm = useCalm();
   const isAudio = AUDIO_REGEX.test(url);
+  const isTrusted = trustedProviders.some((provider) =>
+    provider.regex.test(url)
+  );
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(url)) {
+      if (
+        isValidUrl(url) &&
+        isTrusted &&
+        !calm?.disableRemoteContent &&
+        !isAudio
+      ) {
         const oembed = await useEmbedState.getState().getEmbed(url);
         setEmbed(oembed);
       }
     };
     getOembed();
-  }, [url]);
+  }, [url, calm, isTrusted, isAudio]);
 
   if (isAudio) {
     return <AudioPlayer url={url} embed writId={writId} />;
