@@ -471,8 +471,6 @@ function App() {
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
-  useConnectionChecker();
-
   useEffect(() => {
     if (
       (errorCount > 4 || airLockErrorCount > 1) &&
