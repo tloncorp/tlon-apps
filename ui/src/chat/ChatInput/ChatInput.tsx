@@ -19,7 +19,6 @@ import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import {
   fetchChatBlocks,
-  useChatBlocks,
   useChatInfo,
   useChatStore,
 } from '@/chat/useChatStore';
@@ -46,7 +45,6 @@ import {
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
-import { useSubscriptionStatus } from '@/state/local';
 import { useSearchParams } from 'react-router-dom';
 import { useGroupFlag } from '@/state/groups';
 import { useLocalStorage } from 'usehooks-ts';
@@ -115,7 +113,6 @@ export default function ChatInput({
   );
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const groupFlag = useGroupFlag();
-  const subscription = useSubscriptionStatus();
   const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
@@ -293,13 +290,10 @@ export default function ChatInput({
     allowMentions: true,
     onEnter: useCallback(
       ({ editor }) => {
-        if (subscription === 'connected') {
-          onSubmit(editor);
-          return true;
-        }
-        return false;
+        onSubmit(editor);
+        return true;
       },
-      [onSubmit, subscription]
+      [onSubmit]
     ),
     onUpdate: onUpdate.current,
   });
@@ -527,8 +521,6 @@ export default function ChatInput({
           className={cn('button', isMobile && 'px-2')}
           disabled={
             sendDisabled ||
-            subscription === 'reconnecting' ||
-            subscription === 'disconnected' ||
             mostRecentFile?.status === 'loading' ||
             mostRecentFile?.status === 'error' ||
             mostRecentFile?.url === '' ||
