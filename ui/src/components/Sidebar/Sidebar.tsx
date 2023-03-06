@@ -98,7 +98,10 @@ export function GroupsAppMenu() {
           <LoadingSpinner
             primary="fill-gray-600"
             secondary="fill-gray-600 opacity-50"
-            className="h-4 w-4 group-hover:hidden"
+            className={cn(
+              'h-4 w-4 group-hover:hidden',
+              menuOpen ? 'hidden' : 'block'
+            )}
           />
         ) : null}
         <a
