@@ -63,7 +63,7 @@ export default function GroupList({
       computeItemKey={(_i, [flag]) => flag}
       itemContent={itemContent}
       components={components}
-      className="h-full w-full overflow-x-hidden"
+      className="h-full w-full list-none overflow-x-hidden"
       isScrolling={isScrolling}
       atTopStateChange={atTopChange}
     />

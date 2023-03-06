@@ -194,8 +194,8 @@ export default function Sidebar() {
           >
             {Object.entries(pinnedGroups).length > 0 && (
               <>
-                <li className="-mx-2 mt-3 grow border-t-2 border-gray-50 pt-3 pb-2">
-                  <span className="-ml-1 text-sm font-semibold text-gray-400">
+                <li className="ml-0 mt-3 grow border-t-2 border-gray-50 pl-0 pt-3 pb-2">
+                  <span className="pl-2 text-sm font-semibold text-gray-400">
                     Pinned Groups
                   </span>
                 </li>
