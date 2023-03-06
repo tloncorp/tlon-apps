@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import cn from 'classnames';
 import { useHeapState, useRemoteCurio } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
@@ -63,10 +63,7 @@ function CurioReference({
     >
       <div
         onClick={handleOpenReferenceClick}
-        className={cn(
-          'flex h-full cursor-pointer flex-col justify-between',
-          idCurioComment ? 'p-6' : 'p-2'
-        )}
+        className="flex h-full cursor-pointer flex-col justify-between p-2"
       >
         <HeapBlock
           curio={curioComment || curio}

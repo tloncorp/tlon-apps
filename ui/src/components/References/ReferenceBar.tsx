@@ -68,27 +68,22 @@ export default function ReferenceBar({
           className="flex shrink-0 cursor-pointer items-center whitespace-nowrap text-gray-400 group-hover:text-gray-600 peer-hover:hidden @lg:peer-hover:flex"
         >
           <GroupAvatar
-            className="mr-1 rounded-sm @lg:order-5"
+            className="mr-1 rounded-sm @lg:order-4"
             size="w-4 h-4"
             image={groupImage}
             title={groupTitle}
           />
-          <span className="hidden font-semibold @lg:order-6 @lg:inline">
+          <span className="hidden font-semibold @lg:order-5 @lg:inline">
             {groupTitle}
           </span>
-          <span className="hidden text-gray-400 @lg:order-4 @lg:mx-1 @lg:inline">
+          <span className="hidden text-gray-400 @lg:order-3 @lg:mx-1 @lg:inline">
             &bull;
           </span>
-          {comment ? (
-            <span className="mr-1 hidden font-semibold text-gray-400 @xl:order-1 @xl:inline">
-              Comment in:
-            </span>
-          ) : null}
           <ChannelIcon
             nest={nest}
-            className="hidden h-4 w-4 @lg:order-2 @lg:mr-1 @lg:block"
+            className="hidden h-4 w-4 @lg:order-1 @lg:mr-1 @lg:block"
           />
-          <span className="font-semibold @lg:order-3">{channelTitle}</span>
+          <span className="font-semibold @lg:order-2">{channelTitle}</span>
         </div>
       )}
     </div>
