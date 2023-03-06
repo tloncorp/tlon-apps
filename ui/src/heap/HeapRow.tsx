@@ -55,7 +55,11 @@ export default function HeapRow({
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(contentString) && !notEmbed) {
+      if (
+        isValidUrl(contentString) &&
+        !notEmbed &&
+        !calm?.disableRemoteContent
+      ) {
         try {
           const oembed = await useEmbedState.getState().getEmbed(contentString);
           setEmbed(oembed);
@@ -66,7 +70,7 @@ export default function HeapRow({
       }
     };
     getOembed();
-  }, [contentString, notEmbed]);
+  }, [contentString, notEmbed, calm?.disableRemoteContent]);
 
   if (isValidUrl(contentString) && embed === undefined && !notEmbed) {
     return <HeapLoadingRow />;
