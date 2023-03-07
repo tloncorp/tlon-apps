@@ -145,6 +145,9 @@ module.exports = {
         8: '8',
         9: '9',
       },
+      zIndex: {
+        45: '45',
+      },
     },
   },
   screens: {
