@@ -1114,22 +1114,13 @@
       ++  forge
         |=  [=whom:chat =id:chat]
         ^-  path
-        ?-   -.whom 
-            %flag  
-          ;:  welp 
-            (path /chat/(scot %p p.p.whom)/[q.p.whom]/writs)
-            (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
-          ==
-            %ship
-          ;:  welp
-            (path /dm/(scot %p p.whom)/writs)
-            (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
-          ==
-            %club
-          ;:  welp
-            (path /club/(scot %uv p.whom)/writs)
-            (path /writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ)
-          ==
+        =;  chap=path
+          %+  weld  chap
+          /writs/writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ
+        ?-  -.whom
+           %flag  /chat/(scot %p p.p.whom)/[q.p.whom]
+           %ship  /dm/(scot %p p.whom)
+           %club  /club/(scot %uv p.whom)
         ==
       --
     ::  +chats: display list of joined chats
