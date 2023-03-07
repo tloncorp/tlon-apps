@@ -722,15 +722,15 @@
   ++  tab-list
     ^-  (list [@t tank])
     :~
-      [';view' leaf+";view (glyph) (~ship) (club-id) (~ship/chat-name)"]
-      [';flee' leaf+";flee (glyph) (~ship) (club-id) (~ship/chat-name)"]
+      [';view' leaf+";view (glyph / ~ship / 0v.group.chat.id / ~host/chat)"]
+      [';flee' leaf+";flee [glyph / ~ship / 0v.group.chat.id / ~host/chat]"]
     ::
-      [';join' leaf+";join (glyph) (~ship) (club-id)"] 
-      [';deny' leaf+";deny (glyph) (~ship) (club-id)"]
+      [';join' leaf+";join [glyph / ~ship / 0v.group.chat.id]"]
+      [';deny' leaf+";deny [glyph / ~ship / 0v.group.chat.id]"]
     ::
-      [';bind' leaf+";bind [glyph] (~ship) (club-id) (~ship/chat-name)"]
-      [';unbind' leaf+";unbind [glyph]"]
-      [';what' leaf+";what (glyph) (~ship) (club-id) (~ship/chat-name)"]
+      [';bind' leaf+";bind [glyph] [~ship / 0v.group.chat.id / ~host/chat]"]
+      [';unbind' leaf+";unbind [glyph] (~ship / 0v.group.chat.id / ~host/chat)"]
+      [';what' leaf+";what (glyph / ~ship / 0v.group.chat.id / ~host/chat)"]
     ::
       [';settings' leaf+";settings"]
       [';set' leaf+";set key (value)"]
@@ -1163,10 +1163,10 @@
       ^-  (quip card _state)
       :_  state
       =-  (turn - print:sh-out)
-      :~  ";view (~ship) (group chat id) (~host/chat) to print messages for a chat you've already joined."
-          ";flee (~ship) (group chat id) (~host/chat) to stop printing messages for a chat."
-          ";join (~ship) (group chat id) to accept a dm or group chat invite without changing the chat you're viewing."
-          ";deny (~ship) (group chat id) to decline a dm or group chat invite."
+      :~  ";view (~ship / 0vgroup.chat.id / ~host/chat) to print messages for a chat you've already joined."
+          ";flee [~ship / 0vgroup.chat.id / ~host/chat] to stop printing messages for a chat."
+          ";join [~ship / 0vgroup.chat.id] to accept a dm or group chat invite without changing the chat you're viewing."
+          ";deny [~ship / 0vgroup.chat.id] to decline a dm or group chat invite."
           ";~ship [message] to start or send a dm outside of the current chat you're viewing and begin printing its messages."
           "For more details:"
           "https://urbit.org/getting-started/getting-around"
