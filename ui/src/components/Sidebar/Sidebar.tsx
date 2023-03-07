@@ -31,7 +31,7 @@ import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
-  const subscription = useSubscriptionStatus();
+  const { subscription } = useSubscriptionStatus();
 
   return (
     <SidebarItem

@@ -512,9 +512,12 @@ export const useChatState = createState<ChatState>(
           }));
         }
 
-        pokeOptimisticallyN(useChatState, dmAction(whom, { add: memo }, id), [
-          writsReducer(whom),
-        ]).then(() =>
+        pokeOptimisticallyN(
+          useChatState,
+          dmAction(whom, { add: memo }, id),
+          [writsReducer(whom)],
+          false
+        ).then(() =>
           set((draft) => {
             if (!isNew) {
               draft.postedMessages.push(id);
@@ -530,12 +533,16 @@ export const useChatState = createState<ChatState>(
               delta: { add: { ...memo, sent: Date.now() } },
             },
           }),
-          [writsReducer(whom)]
+          [writsReducer(whom)],
+          false
         ).then(() => set((draft) => draft.postedMessages.push(id)));
       } else {
-        pokeOptimisticallyN(useChatState, chatWritDiff(whom, id, diff), [
-          writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
+        pokeOptimisticallyN(
+          useChatState,
+          chatWritDiff(whom, id, diff),
+          [writsReducer(whom)],
+          false
+        ).then(() => set((draft) => draft.postedMessages.push(id)));
       }
 
       set((draft) => {

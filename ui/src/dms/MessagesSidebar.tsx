@@ -35,7 +35,7 @@ const selMessagesFilter = (s: SettingsState) => ({
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
-  const subscription = useSubscriptionStatus();
+  const { subscription } = useSubscriptionStatus();
 
   return (
     <SidebarItem

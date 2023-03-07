@@ -35,7 +35,7 @@ function GroupHeader() {
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
   const calm = useCalm();
   const defaultImportCover = group?.meta.cover === '0x0';
-  const subscription = useSubscriptionStatus();
+  const { subscription } = useSubscriptionStatus();
 
   const onError = useCallback(() => {
     setNoCors(true);
