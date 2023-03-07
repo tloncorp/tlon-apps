@@ -79,6 +79,21 @@ export default function GangItem(props: { flag: string }) {
                 It may take a few minutes depending on the host&apos;s and your
                 connection.
               </span>
+              <button
+                className="small-button bg-gray-50 text-gray-800"
+                onClick={handleCancel}
+              >
+                {isPending ? (
+                  <>
+                    Canceling...
+                    <LoadingSpinner className="h-5 w-4" />
+                  </>
+                ) : requested ? (
+                  'Cancel Request'
+                ) : (
+                  'Cancel Join'
+                )}
+              </button>
             </>
           )}
           {(errored || requested) && (
