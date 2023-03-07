@@ -769,6 +769,8 @@
     ++  set-target
       |=  =target
       ^-  (quip card _state)
+      ?:  (~(has in viewing) target)
+        (compose-channel target)
       =.  audience  target
       [[prompt:sh-out ~] put-ses]
     ::  +view: start printing messages from a chat
