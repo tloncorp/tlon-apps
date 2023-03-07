@@ -108,7 +108,10 @@ export default function TwitterEmbed({
         setShowLightBox={() => setShowIframeModal(false)}
         source={tweetUrl}
       >
-        <EmbedContainer markup={embedHtml}>
+        <EmbedContainer
+          className="h-[500px] w-[500px] overflow-y-auto md:h-full"
+          markup={embedHtml}
+        >
           <div dangerouslySetInnerHTML={{ __html: embedHtml }} />
         </EmbedContainer>
       </LightBox>
