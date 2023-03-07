@@ -83,16 +83,7 @@ export default function GangItem(props: { flag: string }) {
                 className="small-button bg-gray-50 text-gray-800"
                 onClick={handleCancel}
               >
-                {isPending ? (
-                  <>
-                    Canceling...
-                    <LoadingSpinner className="h-5 w-4" />
-                  </>
-                ) : requested ? (
-                  'Cancel Request'
-                ) : (
-                  'Cancel Join'
-                )}
+                {isPending ? <LoadingSpinner className="h-5 w-4" /> : 'Cancel'}
               </button>
             </>
           )}
