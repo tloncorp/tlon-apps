@@ -483,9 +483,7 @@ function App() {
   return (
     <div className="flex h-full w-full flex-col">
       {!disableWayfinding && <LandscapeWayfinding />}
-      {subscription === 'disconnected' || subscription === 'reconnecting' ? (
-        <DisconnectNotice />
-      ) : null}
+      {subscription === 'disconnected' ? <DisconnectNotice /> : null}
       {needsUpdate ? <UpdateNotice /> : null}
       {isTalk ? (
         <>
