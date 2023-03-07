@@ -717,6 +717,53 @@
           %poke
           cage
       ==
+    ::  +make-bind: bind an unbound target
+    ::
+    ++  make-bind
+      |=  =target
+      ^-  (quip card _state)
+      ?:  (~(has by bound) target)
+        [~ state]
+      (bind-default-glyph target)
+    ::  +subscribe: send watch card for target not in view
+    ::
+    ++  subscribe
+      |=  =target
+      ^-  (quip card _state)
+      ?:  (~(has in viewing) target)
+        [~ state]
+      [[(connect target)]~ state]
+    ::  +compose-channel: set audience and 
+    ::  render message history
+    ::
+    ++  compose-channel
+      |=  =target
+      ^-  (quip card _state)
+      =.  audience  target
+      =.  viewing  (~(put in viewing) target)
+      =^  history-cards  state
+        (build-history sole-id session target)
+      :_  put-ses
+      %+  weld  [prompt:sh-out]~
+      `(list card)`history-cards
+    ::  +change-channel: send rsvp response, bind glyph,
+    ::  subscribe, set audience, and render message history
+    ::
+    ++  switch-channel
+      |=  =target
+      ^-  (quip card _state)
+      =^  rsvp-cards  state  (rsvp | & target)
+      =^  bind-cards  state  (make-bind target)
+      =^  watch-cards  state  (subscribe target)
+      =^  compose-cards  state  (compose-channel target)
+      :_  state 
+      ^-  (list card)
+      ;:  weld 
+        rsvp-cards
+        bind-cards
+        compose-cards
+        watch-cards
+      ==
     ::  +set-target: set audience, update prompt
     ::
     ++  set-target
@@ -737,28 +784,7 @@
       ::
       ?.  (target-exists target)
         [[(note:sh-out "no such chat")]~ put-ses]
-      =.  audience  target
-      =.  viewing   (~(put in viewing) target)
-      =^  bind-cards  state
-        ?:  (~(has by bound) target)
-          [~ state]
-        (bind-default-glyph target)
-      ::  send rsvp response, if needed
-      ::
-      =^  rsvp-cards  state
-        ?-  -.target
-          %flag  (rsvp | & target)
-          %ship  (rsvp | & target)
-          %club  (rsvp | & target)
-        ==
-      :_  put-ses
-      ;:  welp 
-        bind-cards
-        rsvp-cards
-        [prompt:sh-out]~
-        ?.(?=(%ship -.target) ~ dm-connect)
-        ?.(?=(%club -.target) ~ club-connect)
-      ==
+      (switch-channel target)
     ::  +flee: stop printing messages from a chat
     ::
     ++  flee
@@ -844,35 +870,15 @@
       ?~  who  
         [[spit]~ put-ses]
       =/  =whom:chat  [%ship (need who)]
-      :: if not subscribed, add a watch card so
-      :: we can quickly begin adding messages to state
-      ::
-      =/  connect=card
-        ?:  %-  ~(has by wex.bowl)
-            [/dm/(scot %p u.who)/ui our-self %chat]
-          *card
-        :*  %pass  /dm/(scot %p u.who)/ui 
-            %agent  [our-self %chat] 
-            %watch  /dm/(scot %p u.who)/ui
-        ==
-      =.  audience  whom 
-      =.  viewing  (~(put in viewing) whom)
-      =^  bind-cards  state
-        ?:  (~(has by bound) whom)
-          [~ state]
-        (bind-default-glyph whom)
-      :: send rsvp response, if needed
-      ::
-      =^  rsvp-cards  state
-        (rsvp | & whom)
-      :_  put-ses
-      ;:  welp  
-        bind-cards
-        [prompt:sh-out]~
-        rsvp-cards
-        [spit]~
-        [connect]~
-      ==
+      =.  audience  whom
+      =^  cards  state
+        :: TODO use behn to delay scry based on dm existence
+        :: ?:  (target-exists whom)
+        ::   scry then poke
+        :: poke then scry
+        (switch-channel whom)
+      :_  state
+      (into `(list card)`cards 0 spit)
       :: +spit: make a poke card based on audience
       ::
       ++  spit
