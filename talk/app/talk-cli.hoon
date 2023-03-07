@@ -114,10 +114,19 @@
       ::
           %kick
         :_  state
-        ?+  wire  ~
-          [%chat %ui ~]  [chat-connect:tc]~
-          [%dm ship=@ %ui ~]  dm-connect:tc
-          [%club id=@ %ui ~]  club-connect:tc
+        ?+    wire  ~
+            [%dm ship=@ %ui ~]  
+          =/  =ship  (slav %p +<.wire)
+          [(connect:tc [%ship ship])]~
+        ::
+            [%club id=@ %ui ~]  
+          =/  =club-id  (slav %uv +<.wire)
+          [(connect:tc [%club club-id])]~
+        ::
+            [%chat ship=@ name=@ %ui ~]  
+          =/  =ship  (slav %p +<.wire)
+          =/  name=term  (slav %tas +>-.wire)
+          [(connect:tc [%flag [ship name]])]~
         ==
       ::
           %fact  
@@ -178,73 +187,45 @@
   |=  old=(unit versioned-state)
   ^-  (quip card _state)
   ?~  old
-    :_  state(width 80)
-    ;:  welp  
-      dm-connect
-      club-connect
-      [chat-connect]~ 
-    ==
+    [~ state(width 80)]
   ?>  ?=(%0 -.u.old)
-  :_  u.old
-  ;:  welp 
-    dm-connect
-    club-connect
-    ?:  %-  ~(has by wex.bowl)
-        [/chat/ui our-self %chat]
-      *(list card)
-    [chat-connect]~
-  ==
-::  +chat-connect: subscribe to chats
+  [~ u.old]
+::  +connect: subscribe to chats, dms, and clubs
 ::
-++  chat-connect
+++  connect
+  |=  =target
   ^-  card
-  [%pass /chat/ui %agent [our-self %chat] %watch /ui]
-::  +dm-connect: subscribe to dms
-::
-++  dm-connect
-  ^-  (list card)
-  =|  cards=(list card)
-  =/  ships=(list ship)
-    %~  tap  in
-    (~(uni in get-accepted-dms) get-pending-dms)
-  |- 
-  ?~  ships  cards
-  ?:  %-  ~(has by wex.bowl)
-      [/dm/(scot %p i.ships)/ui our-self %chat]
-    $(ships t.ships)
-  %=  $
-    cards  ;:  welp  
-             cards
-             :_  ~
-             :*  %pass  /dm/(scot %p i.ships)/ui 
-                 %agent  [our-self %chat] 
-                 %watch  /dm/(scot %p i.ships)/ui
-             ==
-           ==   
-    ships  t.ships
-  ==
-:: +club-connect: subscribe to clubs
-::
-++  club-connect
-  ^-  (list card)
-  =|  cards=(list card)
-  =/  ids=(list club-id)  
-    ~(tap in ~(key by get-clubs))
-  |- 
-  ?~  ids  cards
-  ?:  %-  ~(has by wex.bowl)
-      [/club/(scot %uv i.ids)/ui our-self %chat]
-    $(ids t.ids)
-  %=  $
-    cards  ;:  welp  
-             cards
-             :_  ~
-             :*  %pass  /club/(scot %uv i.ids)/ui 
-                 %agent  [our-self %chat] 
-                 %watch  /club/(scot %uv i.ids)/ui/writs
-             ==
-           ==
-    ids  t.ids
+  ?-   -.target
+      %ship
+    =/  =ship  p.target
+    ?:  %-  ~(has by wex.bowl)
+        [/dm/(scot %p ship)/ui our-self %chat]
+      *card
+    :*  %pass   /dm/(scot %p ship)/ui 
+        %agent  [our-self %chat] 
+        %watch  /dm/(scot %p ship)/ui
+    ==
+  ::
+       %club
+    =/  =club-id  p.target
+    ?:  %-  ~(has by wex.bowl)
+        [/club/(scot %uv club-id)/ui our-self %chat]
+      *card
+    :*  %pass   /club/(scot %uv club-id)/ui 
+        %agent  [our-self %chat] 
+        %watch  /club/(scot %uv club-id)/ui/writs
+    ==
+  ::
+      %flag
+    =/  =ship  -.p.target
+    =/  name=term  +.p.target
+    ?:  %-  ~(has by wex.bowl)
+        [/chat/(scot %p ship)/(scot %tas name)/ui our-self %chat]
+      *card
+    :*  %pass   /chat/(scot %p ship)/(scot %tas name)/ui 
+        %agent  [our-self %chat] 
+        %watch  /chat/(scot %p ship)/(scot %tas name)/ui/writs
+    ==
   ==
 ::
 ::TODO  better moon support. (name:title our.bowl)
@@ -327,15 +308,13 @@
 ++  poke-noun
   |=  a=*
   ^-  (quip card _state)
-  ?.  ?=(%connect a)
-    [~ state]
-  :_  state
-  ;:  welp 
-    dm-connect
-    club-connect
-    [chat-connect]~
-  ==
-::  +on-dm-update: get new dms
+  [~ state]
+:: TODO old functionality; what else to use this arm for?
+::  ?.  ?=(%connect a)
+::    [~ state]
+::  :_  state
+::  [chat-connect]~
+::  +on-update: get new messages
 ::
 ++  on-dm-update 
   |=  [=ship =diff:dm:chat]
@@ -799,8 +778,33 @@
     ++  flee
       |=  =target
       ^-  (quip card _state)
+      ?.  (~(has in viewing) target)  
+        [~ put-ses]
       =.  viewing  (~(del in viewing) target)
-      [~ put-ses]
+      ?-   -.target
+          %flag
+        =/  =ship  p.p.target
+        =/  name=term  q.p.target
+        :_  put-ses
+        :_  ~
+        :*  %pass  /chat/(scot %p ship)/(scot %tas name)/ui
+            %agent  [our-self %chat]  %leave  ~
+        ==
+      ::
+          %club
+        =/  =club-id  p.target
+        :_  put-ses
+        :_  ~
+        :*  %pass  /club/(scot %uv club-id)/ui 
+            %agent  [our-self %chat]  %leave  ~
+        ==
+      ::
+          %ship
+        =/  =ship  p.target
+        :_  put-ses
+        :_  ~
+        [%pass /dm/(scot %p ship)/ui %agent [our-self %chat] %leave ~] 
+      ==
     ::  +rsvp: send rsvp response without changing audience
     ::
     ++  rsvp
@@ -1081,10 +1085,7 @@
             (~(uni in get-accepted-dms) get-pending-dms)
         (lead %ship)
       :_  state
-      ;:  welp  
-        dm-connect
-        [(show-targets:sh-out ~(tap in targets))]~
-      ==
+      [(show-targets:sh-out ~(tap in targets))]~
     ::  +clubs: display list of known clubs
     ::
     ++  clubs
@@ -1092,10 +1093,7 @@
       =/  targets=(set target)
         (~(run in ~(key by get-clubs)) (lead %club))
       :_  state
-      ;:  welp  
-        club-connect
-        [(show-targets:sh-out ~(tap in targets))]~
-      ==  
+      [(show-targets:sh-out ~(tap in targets))]~
     ::  +targets: display list of known targets
     ::
     ++  targets
