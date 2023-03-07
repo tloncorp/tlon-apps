@@ -16,7 +16,7 @@ export default function HeapDetailEmbed({ oembed, url }: HeapDetailEmbedProps) {
 
   return (
     <div className="flex h-full w-full items-center justify-center overflow-y-scroll">
-      <EmbedContainer className="max-h-full" markup={html}>
+      <EmbedContainer className="max-h-full w-[500px]" markup={html}>
         <div dangerouslySetInnerHTML={{ __html: html }} />
       </EmbedContainer>
     </div>
