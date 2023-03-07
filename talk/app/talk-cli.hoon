@@ -130,21 +130,26 @@
         ==
       ::
           %fact  
-        ?+  p.cage.sign  ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
-            %chat-action-0
-          %-  on-chat-update:tc
-          !<(action:chat q.cage.sign)
-        ::
+        ?+     p.cage.sign  ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
             %writ-diff
           ?+    wire  ~
               [%dm ship=@ %ui ~] 
-            %+  on-dm-update:tc  
+            %+  on-update:tc  
+              :-  %ship 
               (slav %p +<:wire)
             !<(diff:dm:chat q.cage.sign)
           ::  
               [%club id=@ %ui ~]
-            %+  on-club-update:tc  
+            %+  on-update:tc  
+              :-  %club 
               (slav %uv +<:wire)
+            !<(diff:writs:chat q.cage.sign)
+          ::
+              [%chat ship=@ name=@ %ui ~]
+            %+  on-update:tc
+              :+  %flag  
+                (slav %p +<:wire)
+              (slav %tas +>-.wire)
             !<(diff:writs:chat q.cage.sign)
           ==
         ==
@@ -316,32 +321,13 @@
 ::  [chat-connect]~
 ::  +on-update: get new messages
 ::
-++  on-dm-update 
-  |=  [=ship =diff:dm:chat]
+++  on-update 
+  |=  [=whom:chat =diff:writs:chat]
   ^-  (quip card _state)
   ?.  ?=(%add -.q.diff)  [~ state]
   =*  id=id:dm:chat  p.diff
   =*  memo=memo:chat  p.q.diff
-  (update-session [%ship ship] memo id)
-::  +on-club-update: get new club messages
-::
-++  on-club-update
-  |=  [=club-id =diff:writs:chat]
-  ^-  (quip card _state)
-  ?.  ?=(%add -.q.diff)  [~ state]
-  =*  id=id:chat  p.diff
-  =*  memo=memo:chat  p.q.diff
-  (update-session [%club club-id] memo id)
-::  +on-chat-update: get new chat messages
-::
-++  on-chat-update
-  |=  [=flag:chat =time =diff:chat]
-  ^-  (quip card _state)
-  ?.  ?=(%writs -.diff)  [~ state]
-  ?.  ?=(%add -.q.p.diff)  [~ state]
-  =*  id=id:chat  p.p.diff
-  =*  memo=memo:chat  p.q.p.diff
-  (update-session [%flag flag] memo id)
+  (update-session whom memo id)
 ::  +update-session: process message updates
 ::
 ++  update-session
