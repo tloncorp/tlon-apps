@@ -1303,16 +1303,12 @@
     ++  order
       |=  [a=target b=target]
       ^-  ?
-      ?:  &(?=(%ship -.a) ?=(%flag -.b))  &
-      ?:  &(?=(%ship -.a) ?=(%club -.b))  &
-      ?:  &(?=(%ship -.a) ?=(%ship -.b))  &
-      ?:  &(?=(%club -.a) ?=(%flag -.b))  |
-      ?:  &(?=(%club -.a) ?=(%ship -.b))  |
-      ?:  &(?=(%club -.a) ?=(%club -.b))  & 
-      ?:  &(?=(%flag -.a) ?=(%ship -.b))  |
-      ?:  &(?=(%flag -.a) ?=(%club -.b))  &
-      ?.  &(?=(%flag -.a) ?=(%flag -.b))  |
-        (tor +.a +.b)
+      ?:  &(?=(%ship -.a) ?=(%ship -.b))  
+        (aor (scot %p p.a) (scot %p p.b))
+      ?:  ?=(%ship -.a)  &
+      ?:  ?=(%ship -.b)  |
+      ?:  &(?=(%flag -.a) ?=(%flag -.b))  (tor +.a +.b)
+      (gte -.a -.b)  ::  %flag before %club
     --
   --
 ::
