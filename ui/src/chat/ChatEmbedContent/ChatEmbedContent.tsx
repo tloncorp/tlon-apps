@@ -64,7 +64,7 @@ function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
 
     if (provider === 'YouTube') {
       return (
-        <div className="flex flex-col @container">
+        <div className="flex flex-col">
           <YouTubeEmbed
             url={embedUrl}
             title={title}
@@ -79,7 +79,7 @@ function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
 
     if (provider === 'Twitter') {
       return (
-        <div className="flex flex-col @container">
+        <div className="flex flex-col">
           <TwitterEmbed
             authorUrl={authorUrl}
             author={author}
@@ -92,7 +92,7 @@ function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
 
     if (provider === 'Spotify') {
       return (
-        <div className="flex flex-col @container">
+        <div className="flex flex-col">
           <SpotifyEmbed
             url={url}
             title={title}

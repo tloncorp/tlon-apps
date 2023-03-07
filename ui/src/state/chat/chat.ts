@@ -985,13 +985,13 @@ export function useDmIsPending(ship: string) {
 const selMultiDms = (s: ChatState) => s.multiDms;
 export function useMultiDms() {
   const dms = useChatState(selMultiDms);
+  const noDms = Object.entries(dms).length === 0;
 
   useEffect(() => {
-    if (Object.entries(dms).length === 0) {
-      console.log('fetching multi dms');
+    if (noDms) {
       useChatState.getState().fetchMultiDms();
     }
-  }, [dms]);
+  }, [noDms]);
 
   return dms;
 }
@@ -999,13 +999,13 @@ export function useMultiDms() {
 const selDms = (s: ChatState) => s.dms;
 export function useDms() {
   const dms = useChatState(selDms);
+  const noDms = Object.entries(dms).length === 0;
 
   useEffect(() => {
-    if (Object.entries(dms).length === 0) {
-      console.log('fetching dms');
+    if (noDms) {
       useChatState.getState().fetchDms();
     }
-  }, [dms]);
+  }, [noDms]);
 
   return dms;
 }

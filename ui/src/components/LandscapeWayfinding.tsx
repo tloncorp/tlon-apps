@@ -105,7 +105,7 @@ export default function LandscapeWayfinding() {
   return (
     <Dropdown.Root>
       <div
-        className={cn('fixed left-5 z-50', {
+        className={cn('fixed left-5 z-45', {
           'bottom-10': !isMobile || (isTalk && isMobile),
           'bottom-20': isMobile && !isTalk,
         })}
@@ -153,8 +153,8 @@ export default function LandscapeWayfinding() {
           </Dropdown.Item>
         </Dropdown.Content>
       </div>
-      <Dialog open={showModal} onOpenChange={() => setShowModal(false)}>
-        <DialogContent showClose={false}>
+      <Dialog open={showModal} onOpenChange={(o) => setShowModal(o)}>
+        <DialogContent containerClass="md:w-1/2 w-full z-50" showClose={false}>
           {app === 'Groups' && <GroupsDescription />}
           {app === 'Talk' && <TalkDescription />}
         </DialogContent>

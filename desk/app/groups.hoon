@@ -314,10 +314,9 @@
     %-  ~(run by groups)
     |=  [=net:g =group:g]
     =.  fleet.group
-      ::  not sure how this would be the case, but better to be safe
-      ?.  (~(has by fleet.group) our.bowl)
-        *fleet:g
-      (~(put by *fleet:g) our.bowl (~(got by fleet.group) our.bowl))
+      %+  ~(put by *fleet:g)
+        our.bowl
+      (~(gut by fleet.group) our.bowl *vessel:fleet:g)
     group
   ::
       [%x %gangs ~]

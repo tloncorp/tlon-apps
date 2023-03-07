@@ -22,6 +22,8 @@ import { Link, useLocation } from 'react-router-dom';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroupState } from '@/state/groups';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { useSubscriptionStatus } from '@/state/local';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -33,6 +35,8 @@ const selMessagesFilter = (s: SettingsState) => ({
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const { subscription } = useSubscriptionStatus();
+
   return (
     <SidebarItem
       div
@@ -94,6 +98,13 @@ export function TalkAppMenu() {
     >
       <div className="flex items-center justify-between">
         Talk
+        {subscription === 'reconnecting' ? (
+          <LoadingSpinner
+            primary="fill-gray-600"
+            secondary="fill-gray-600 opacity-50"
+            className="h-4 w-4 group-hover:hidden"
+          />
+        ) : null}
         <a
           title="Back to Landscape"
           aria-label="Back to Landscape"
