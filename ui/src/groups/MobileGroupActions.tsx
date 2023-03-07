@@ -52,6 +52,7 @@ export default function MobileGroupActions() {
         {flag.includes(ship) ? null : (
           <SidebarItem
             to={`/groups/${flag}/leave`}
+            state={{ backgroundLocation: location }}
             color="text-red"
             icon={
               <div className="flex h-12 w-12 items-center justify-center rounded-md bg-red-soft dark:bg-red-800">
