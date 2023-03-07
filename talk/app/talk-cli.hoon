@@ -920,7 +920,7 @@
         =+  pan=~(tap in (~(get ju binds) `@t`u.qur))
         ?:  =(~ pan)  (print:sh-out "~")
         =<  (effect:sh-out %mor (turn pan .))
-        |=(t=target [%txt ~(phat tr t)])
+        |=(t=target [%txt ~(meta tr t)])
       %-  print-more:sh-out
       %-  ~(rep by binds)
       |=  $:  [=glyph targets=(set target)]
@@ -932,7 +932,7 @@
       |=  [=whom:chat l=(list tape)]
       %+  weld  l
       ^-  (list tape)
-      [glyph ' ' ~(phat tr whom)]~
+      [glyph ' ' ~(meta tr whom)]~
     ::  +show-settings: print enabled flags, timezone and width settings
     ::
     ++  show-settings
@@ -1217,7 +1217,7 @@
     %+  turn  (sort targets order)
     |=  =target
     ?-  -.target
-      %club  ~(full tr target)
+      %club  ~(meta tr target)
       %ship  "{(nome:mr p.target)}"
       %flag  "{(nome:mr p.p.target)}/{(trip q.p.target)}"
     ==
@@ -1246,38 +1246,12 @@
   ::  +full: render target fully
   ::
   ++  full
-    |^  ^-  tape
-    ?-  -.target
-      %club  render-club
-      %ship  "{(scow %p p.target)}"
-      %flag  "{(scow %p p.p.target)}/{(trip q.p.target)}"
+    ^-  tape
+    ?-   -.target
+        %ship  "{(scow %p p.target)}"
+        %club  "{(scow %uv p.target)}"
+        %flag  "{(scow %p p.p.target)}/{(trip q.p.target)}"
     ==
-    ::  +render-club: render club id as tape
-    ::  with members appended
-    ::
-    ++  render-club
-      ^-  tape
-      ?>  ?=(%club -.target)
-      =/  members=(list tape)
-        %+  turn  (club-members p.target)
-        |=  =ship
-        "{(nome:mr ship)}"
-      =+  out="{(scow %uv p.target)}"
-      |- 
-      ?~  members  out
-      $(out (weld out i.members), members t.members)
-    ::  +club-members: produce list of club members
-    ::
-    :: TODO: move to top for broader use?
-    ++  club-members
-      |=  =club-id
-      ^-  (list ship)
-      =/  members 
-        %-  %~  uni  in
-            team:(~(got by get-clubs) club-id)
-        hive:(~(got by get-clubs) club-id)
-      (sort ~(tap in members) lth)
-    --
   ::  +phat: render chat target with local shorthand
   ::
   ::    renders as ~ship/path.
@@ -1296,14 +1270,63 @@
   ++  show
     ^-  tape
     =+  cha=(~(get by bound) target)
-    ?~  cha  ~(phat tr target) 
+    ?~  cha  ~(phat tr target)
     [u.cha ~]
-
   ::  +glyph: tape for glyph of target, defaulting to *
   ::
   ++  glyph
     ^-  tape
     [(~(gut by bound) target '*') ~]
+  ::  +meta: render target with meta data
+  ::
+  ++  meta
+    |^  ^-  tape
+    ?-   -.target
+        %flag  ~(phat tr target)
+        %ship  ~(full tr target)
+        %club
+      =/  =club-id  p.target
+      =+  met:(~(got by get-clubs) club-id)   
+      ?:  =(*cord title.-)
+        (render-club-members club-id)
+      (render-club-title club-id title.-)
+    ==
+    ::  +render-club-title: produce club name
+    ::
+    ++  render-club-title
+      |=  [=club-id title=cord]
+      ^-  tape
+      %+  weld
+        "{(scow %uv club-id)}"
+      "  {(trip title)}"
+    ::  +render-club-members: produce club members
+    ::
+    ::    print up to four members and produce
+    ::    a count for the rest.
+    ::
+    ++  render-club-members
+      |=  =club-id
+      ^-  tape
+      =/  members=(list tape)
+        %+  turn  (club-members club-id)
+        |=  =ship
+        "  {(cite:title ship)}"
+      =+  out="{(scow %uv club-id)}"
+      =+  tally=0
+      |- 
+      ?~  members  
+        %+  weld  
+          out
+        ?:  (lte tally 4)  ~ 
+        " +{(scow %ud (sub tally 4))}"
+      ?:  (gte tally 4)  
+        $(tally +(tally), members t.members)
+      %=  $
+        tally  +(tally)
+        out  (weld out i.members)
+        members  t.members
+      ==
+    --
   --
 ::
 ::  +mr: render messages
