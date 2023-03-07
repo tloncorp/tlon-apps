@@ -2,7 +2,6 @@ import React, { useCallback, useEffect } from 'react';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { useLocalState, useSubscriptionStatus } from '@/state/local';
 import bootstrap from '@/state/bootstrap';
-import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export default function DisconnectNotice() {
   const { subscription, errorCount, airLockErrorCount } =
@@ -25,17 +24,6 @@ export default function DisconnectNotice() {
       window.location.reload();
     }
   }, [errorCount]);
-
-  if (subscription === 'reconnecting') {
-    return (
-      <div className="z-50 flex items-center justify-between bg-yellow py-1 px-2 text-sm font-medium text-black dark:text-white">
-        <div className="flex items-center">
-          <LoadingSpinner className="mr-3 h-4 w-4" />
-          <span className="py-1">Reconnecting...</span>
-        </div>
-      </div>
-    );
-  }
 
   if (subscription === 'disconnected') {
     return (
