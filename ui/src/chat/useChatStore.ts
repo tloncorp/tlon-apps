@@ -50,10 +50,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set(
       produce((draft) => {
         if (!draft.chats[whom]) {
-          draft.chats[whom] = { replying: null, blocks };
-        } else {
-          draft.chats[whom].blocks = blocks;
+          draft.chats[whom] = emptyInfo;
         }
+
+        draft.chats[whom].blocks = blocks;
       })
     );
   },
@@ -61,32 +61,32 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set(
       produce((draft) => {
         if (!draft.chats[whom]) {
-          draft.chats[whom] = {
-            replying: null,
-            blocks: [],
-            dialogs: { [writId]: dialogs },
-          };
-        } else {
-          draft.chats[whom].dialogs[writId] = dialogs;
+          draft.chats[whom] = emptyInfo;
         }
+
+        draft.chats[whom].dialogs[writId] = dialogs;
       })
     );
   },
-  reply: (flag, msgId) => {
+  reply: (whom, msgId) => {
     set(
       produce((draft) => {
-        if (!draft.chats[flag]) {
-          draft.chats[flag] = { replying: msgId, blocks: [] };
-        } else {
-          draft.chats[flag].replying = msgId;
+        if (!draft.chats[whom]) {
+          draft.chats[whom] = emptyInfo;
         }
+
+        draft.chats[whom].replying = msgId;
       })
     );
   },
   seen: (whom) => {
     set(
       produce((draft: ChatStore) => {
-        const chat = draft.chats[whom] || emptyInfo;
+        if (!draft.chats[whom]) {
+          draft.chats[whom] = emptyInfo;
+        }
+
+        const chat = draft.chats[whom];
         const unread = chat.unread || {
           brief: { last: 0, count: 0, 'read-id': '' },
           readTimeout: 0,
