@@ -1,4 +1,5 @@
 import { BaitCite } from '@/types/chat';
+import { Init } from '@/types/ui';
 import {
   Gangs,
   Group,
@@ -55,7 +56,7 @@ export interface GroupState {
   edit: (flag: string, metadata: GroupMeta) => Promise<void>;
   delete: (flag: string) => Promise<void>;
   updateGroups: () => Promise<void>;
-  start: () => Promise<void>;
+  start: (init: Pick<Init, 'groups' | 'gangs'>) => Promise<void>;
   channelPreview: (nest: string) => Promise<void>;
   search: (flag: string) => Promise<void>;
   index: (ship: string) => Promise<GroupIndex>;

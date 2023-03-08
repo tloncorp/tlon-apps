@@ -1,5 +1,6 @@
 import api from '@/api';
 import { isTalk } from '@/logic/utils';
+import { Init } from '@/types/ui';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
@@ -22,15 +23,20 @@ export default async function bootstrap(reset = false) {
     useDiaryState.getState().clearSubs();
   }
 
-  useGroupState.getState().start();
-  useChatState.getState().start();
+  const { chat, heap, diary, ...groups } = await api.scry<Init>({
+    app: 'groups-ui',
+    path: '/init',
+  });
+
+  useGroupState.getState().start(groups);
+  useChatState.getState().start(chat);
 
   if (isTalk) {
     useChatState.getState().fetchDms();
     useChatState.getState().fetchMultiDms();
   } else {
-    useHeapState.getState().start();
-    useDiaryState.getState().start();
+    useHeapState.getState().start(heap);
+    useDiaryState.getState().start(diary);
   }
 
   const { initialize: settingsInitialize, fetchAll } =

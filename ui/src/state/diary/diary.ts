@@ -201,32 +201,12 @@ export const useDiaryState = createState<DiaryState>(
 
       await api.poke(diaryAction(flag, diff));
     },
-    start: async () => {
+    start: async ({ briefs, shelf }) => {
       const { wait } = useSchedulerStore.getState();
-
-      wait(() => {
-        api
-          .scry<DiaryBriefs>({
-            app: 'diary',
-            path: '/briefs',
-          })
-          .then((briefs) => {
-            get().batchSet((draft) => {
-              draft.briefs = briefs;
-            });
-          });
-
-        api
-          .scry<Shelf>({
-            app: 'diary',
-            path: '/shelf',
-          })
-          .then((shelf) => {
-            get().batchSet((draft) => {
-              draft.shelf = shelf;
-            });
-          });
-      }, 1);
+      get().batchSet((draft) => {
+        draft.briefs = briefs;
+        draft.shelf = shelf;
+      });
 
       wait(() => {
         api.subscribe({

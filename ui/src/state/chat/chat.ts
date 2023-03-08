@@ -191,40 +191,22 @@ export const useChatState = createState<ChatState>(
         },
       });
     },
-    start: async () => {
+    start: async ({ briefs, chats }) => {
       const { wait } = useSchedulerStore.getState();
+      get().batchSet((draft) => {
+        draft.chats = chats;
+        draft.briefs = briefs;
+      });
+
+      Object.entries(briefs).forEach(([whom, brief]) => {
+        const isUnread = brief.count > 0 && brief['read-id'];
+        if (isUnread) {
+          useChatStore.getState().unread(whom, brief);
+        }
+      });
 
       wait(() => {
-        api
-          .scry<ChatBriefs>({
-            app: 'chat',
-            path: '/briefs',
-          })
-          .then((briefs) => {
-            get().batchSet((draft) => {
-              draft.briefs = briefs;
-            });
-
-            const { unread } = useChatStore.getState();
-            Object.entries(briefs).forEach(([whom, brief]) => {
-              const isUnread = brief.count > 0 && brief['read-id'];
-              if (isUnread) {
-                unread(whom, brief);
-              }
-            });
-          });
-
         get().fetchPins();
-        api
-          .scry<Chats>({
-            app: 'chat',
-            path: '/chats',
-          })
-          .then((chats) => {
-            get().batchSet((draft) => {
-              draft.chats = chats;
-            });
-          });
       }, 1);
 
       wait(() => {
@@ -257,8 +239,13 @@ export const useChatState = createState<ChatState>(
               draft.briefs[whom] = brief;
             });
 
-            const { read, unread, atBottom, chats, current } =
-              useChatStore.getState();
+            const {
+              read,
+              unread,
+              atBottom,
+              chats: chatInfo,
+              current,
+            } = useChatStore.getState();
             const isUnread = brief.count > 0 && brief['read-id'];
             if (
               isUnread &&
@@ -269,7 +256,7 @@ export const useChatState = createState<ChatState>(
               get().markRead(whom);
             } else if (isUnread) {
               unread(whom, brief);
-            } else if (!isUnread && chats[whom]?.unread?.readTimeout === 0) {
+            } else if (!isUnread && chatInfo[whom]?.unread?.readTimeout === 0) {
               read(whom);
             }
           },

@@ -12,6 +12,7 @@ import {
   ChatWrit,
   Clubs,
   Chats,
+  ChatInit,
 } from '../../types/chat';
 import { BaseState } from '../base';
 import { GroupMeta } from '../../types/groups';
@@ -59,7 +60,7 @@ export interface ChatState {
   togglePin: (whom: string, pin: boolean) => Promise<void>;
   fetchPins: () => Promise<void>;
   markRead: (whom: string) => Promise<void>;
-  start: () => Promise<void>;
+  start: (init: ChatInit) => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
   fetchNewer: (ship: string, count: string) => Promise<boolean>;

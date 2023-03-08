@@ -319,3 +319,8 @@ export interface ChatJoin {
   group: string;
   chan: string;
 }
+
+export interface ChatInit {
+  briefs: ChatBriefs;
+  chats: Chats;
+}

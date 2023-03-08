@@ -95,32 +95,12 @@ export const useHeapState = createState<HeapState>(
         },
       });
     },
-    start: async () => {
+    start: async ({ briefs, stash }) => {
       const { wait } = useSchedulerStore.getState();
-
-      wait(() => {
-        api
-          .scry<HeapBriefs>({
-            app: 'heap',
-            path: '/briefs',
-          })
-          .then((briefs) => {
-            get().batchSet((draft) => {
-              draft.briefs = briefs;
-            });
-          });
-
-        api
-          .scry<Stash>({
-            app: 'heap',
-            path: '/stash',
-          })
-          .then((stash) => {
-            get().batchSet((draft) => {
-              draft.stash = stash;
-            });
-          });
-      }, 1);
+      get().batchSet((draft) => {
+        draft.briefs = briefs;
+        draft.stash = stash;
+      });
 
       wait(() => {
         api.subscribe({

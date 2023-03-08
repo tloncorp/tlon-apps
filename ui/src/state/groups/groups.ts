@@ -833,26 +833,14 @@ export const useGroupState = create<GroupState>(
         });
         set(() => ({ groups }));
       },
-      start: async () => {
+      start: async ({ groups, gangs }) => {
         const { wait } = useSchedulerStore.getState();
-        wait(async () => {
-          const [groups, gangs] = await Promise.all([
-            api.scry<Groups>({
-              app: 'groups',
-              path: '/groups/light',
-            }),
-            api.scry<Gangs>({
-              app: 'groups',
-              path: '/gangs',
-            }),
-          ]);
-
-          set((s) => ({
-            ...s,
-            groups: _.merge(groups, s.groups),
-            gangs,
-          }));
-        }, 1);
+        set(
+          produce((draft: GroupState) => {
+            draft.groups = _.merge(groups, draft.groups);
+            draft.gangs = gangs;
+          })
+        );
 
         wait(() => {
           api.subscribe({

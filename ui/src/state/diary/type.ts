@@ -5,6 +5,7 @@ import {
   DiaryCreate,
   DiaryDisplayMode,
   DiaryFlag,
+  DiaryInit,
   DiaryNoteMap,
   DiaryOutline,
   DiaryStory,
@@ -27,7 +28,7 @@ export interface DiaryState {
   briefs: DiaryBriefs;
   pendingImports: Record<string, boolean>;
   create: (req: DiaryCreate) => Promise<void>;
-  start: () => Promise<void>;
+  start: (init: DiaryInit) => Promise<void>;
   fetchNote: (flag: DiaryFlag, noteId: string) => Promise<void>;
   initialize: (flag: DiaryFlag) => Promise<void>;
   joinDiary: (groupFlag: string, flag: DiaryFlag) => Promise<void>;
