@@ -20,6 +20,7 @@ vi.mock('@/state/groups', () => ({
 }));
 
 vi.mock('@/logic/useMigrationInfo', () => ({
+  usePendingImports: () => ({}),
   useStartedMigration: () => ({
     hasStarted: (ship: string) => true,
   }),

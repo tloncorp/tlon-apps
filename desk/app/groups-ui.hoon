@@ -1,4 +1,4 @@
-/-  g=groups, c=chat, d=diary, h=heap
+/-  u=ui, g=groups, c=chat, d=diary, h=heap
 /+  default-agent, dbug, verb
 ^-  agent:gall
 =>
@@ -48,15 +48,25 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
-    =-  ``ui-init+!>(-)
-    :~  .^(groups:g (scry %gx %groups /groups/light))
-        .^(gangs:g (scry %gx %groups /gangs))
-        :-  .^((map flag:c chat:c) (scry %gx %chat /chats))
-            .^(briefs:c (scry %gx %chat /briefs))
-        :-  .^(stash:h (scry %gx %heap /stash))
-            .^(briefs:h (scry %gx %heap /briefs))
-        :-  .^(shelf:d (scry %gx %diary /shelf))
-            .^(briefs:d (scry %gx %diary /briefs))
-    ==
+    =/  =init:u
+      :*  .^(groups:g (scry %gx %groups /groups/light/noun))
+          .^(gangs:g (scry %gx %groups /gangs/noun))
+          :-  .^(briefs:c (scry %gx %chat /briefs/noun))
+              .^((map flag:c chat:c) (scry %gx %chat /chats/noun))
+          :-  .^(briefs:h (scry %gx %heap /briefs/noun))
+              .^(stash:h (scry %gx %heap /stash/noun))
+          :-  .^(briefs:d (scry %gx %diary /briefs/noun))
+              .^(shelf:d (scry %gx %diary /shelf/noun))
+      ==
+    ``ui-init+!>(init)
+  ::
+      [%x %migration ~]
+    =/  =migration:u
+      :*  .^(imported:u (scry %gx %chat /imp/noun))
+          .^(imported:u (scry %gx %heap /imp/noun))
+          .^(imported:u (scry %gx %diary /imp/noun))
+          .^((list ship) (scry %gx %group-store /wait/noun))
+      ==
+    ``ui-migration+!>(migration)
   ==
 --

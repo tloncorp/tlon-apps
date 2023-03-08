@@ -146,28 +146,7 @@ export const useHeapState = createState<HeapState>(
             });
           },
         });
-      }, 3);
-
-      wait(async () => {
-        const pendingImports = await api.scry<Record<string, boolean>>({
-          app: 'heap',
-          path: '/imp',
-        });
-
-        get().batchSet((draft) => {
-          draft.pendingImports = pendingImports;
-        });
-
-        api.subscribe({
-          app: 'heap',
-          path: '/imp',
-          event: (imports: Record<string, boolean>) => {
-            get().batchSet((draft) => {
-              draft.pendingImports = imports;
-            });
-          },
-        });
-      }, 5);
+      }, 4);
     },
     joinHeap: async (group, chan) => {
       await new Promise<void>((resolve, reject) => {
@@ -318,6 +297,11 @@ export const useHeapState = createState<HeapState>(
         `/heap/${flag}/curios`,
         `/heap/${flag}/ui`
       ).initialize();
+    },
+    initImports: (init) => {
+      get().batchSet((draft) => {
+        draft.pendingImports = init;
+      });
     },
     clearSubs: () => {
       get().batchSet((draft) => {

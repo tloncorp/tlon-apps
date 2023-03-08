@@ -6,19 +6,16 @@ import { useCallback, useEffect, useMemo } from 'react';
 import {
   NoteDelta,
   Diary,
-  DiaryBriefs,
   DiaryBriefUpdate,
   DiaryNote,
   DiaryDiff,
   DiaryFlag,
   DiaryPerm,
-  Shelf,
   DiaryMemo,
   DiaryQuip,
   DiaryAction,
   DiaryDisplayMode,
   DiaryLetter,
-  DiaryStory,
   DiarySaid,
   DiaryUpdate,
   DiaryJoin,
@@ -252,28 +249,7 @@ export const useDiaryState = createState<DiaryState>(
             });
           },
         });
-      }, 3);
-
-      wait(async () => {
-        const pendingImports = await api.scry<Record<string, boolean>>({
-          app: 'diary',
-          path: '/imp',
-        });
-
-        get().batchSet((draft) => {
-          draft.pendingImports = pendingImports;
-        });
-
-        api.subscribe({
-          app: 'diary',
-          path: '/imp',
-          event: (imports: Record<string, boolean>) => {
-            get().batchSet((draft) => {
-              draft.pendingImports = imports;
-            });
-          },
-        });
-      }, 5);
+      }, 4);
     },
     fetchNote: async (flag, noteId) => {
       const note = await api.scry<DiaryNote>({
@@ -448,6 +424,11 @@ export const useDiaryState = createState<DiaryState>(
         `/diary/${flag}/notes`,
         `/diary/${flag}/ui`
       ).initialize();
+    },
+    initImports: (init) => {
+      get().batchSet((draft) => {
+        draft.pendingImports = init;
+      });
     },
     clearSubs: () => {
       get().batchSet((draft) => {

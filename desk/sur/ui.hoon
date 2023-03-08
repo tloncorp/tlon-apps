@@ -1,7 +1,7 @@
 /-  g=groups, c=chat, d=diary, h=heap
 |%
 +$  init
-  $%  =groups:g
+  $:  =groups:g
       =gangs:g
       =chat
       =heap
@@ -9,24 +9,24 @@
   ==
 ::
 +$  chat
-  $%  =briefs:c
+  $:  =briefs:c
       chats=(map flag:c chat:c)
   ==
 ::
 +$  heap
-  $%  =briefs:h
+  $:  =briefs:h
       =stash:h
   ==
 ::
 +$  diary
-  $%  =briefs:d
+  $:  =briefs:d
       =shelf:d
   ==
 ::
 +$  imported  (map flag:g ?)
 ::
 +$  migration
-  $%  chat-imports=imported
+  $:  chat-imports=imported
       heap-imports=imported
       diary-imports=imported
       wait=(list ship)

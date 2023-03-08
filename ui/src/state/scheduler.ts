@@ -45,7 +45,7 @@ const useSchedulerStore = create<SchedulerStore>((set, get) => ({
       w.callback();
     });
 
-    requestAnimationFrame(() => get().next());
+    setTimeout(() => get().next(), 100);
   },
   wait: (cb, phase) => {
     return new Promise((resolve) => {

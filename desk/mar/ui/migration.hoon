@@ -1,5 +1,4 @@
-/-  u=ui
-::  group flag + channel flag
+/-  u=ui, g=groups
 |_  mig=migration:u
 ++  grad  %noun
 ++  grow
@@ -9,10 +8,10 @@
     =,  enjs:format
     |^
     %-  pairs
-    :~  chat-imports/(imported chat-imports.mig)
-        heap-imports/(imported heap-imports.mig)
-        diary-imports/(imported diary-imports.mig)
-        wait/a/(turn wait.mig |=(=ship s/(scot %p ship)))
+    :~  chat/(imported chat-imports.mig)
+        heap/(imported heap-imports.mig)
+        diary/(imported diary-imports.mig)
+        wait/a/(turn wait.mig ship)
     ==
     ++  imported
       |=  =imported:u

@@ -1,5 +1,5 @@
 import api from '@/api';
-import { isTalk } from '@/logic/utils';
+import { asyncWithDefault, isTalk } from '@/logic/utils';
 import { Init } from '@/types/ui';
 import { useChatState } from './chat';
 import useContactState from './contact';
@@ -14,6 +14,14 @@ import useSchedulerStore from './scheduler';
 import { useSettingsState } from './settings';
 import { useStorage } from './storage';
 
+const emptyInit: Init = {
+  groups: {},
+  gangs: {},
+  chat: { briefs: {}, chats: {} },
+  heap: { briefs: {}, stash: {} },
+  diary: { briefs: {}, shelf: {} },
+};
+
 export default async function bootstrap(reset = false) {
   const { wait } = useSchedulerStore.getState();
   if (reset) {
@@ -23,10 +31,15 @@ export default async function bootstrap(reset = false) {
     useDiaryState.getState().clearSubs();
   }
 
-  const { chat, heap, diary, ...groups } = await api.scry<Init>({
-    app: 'groups-ui',
-    path: '/init',
-  });
+  // make sure if this errors we don't kill the entire app
+  const { chat, heap, diary, ...groups } = await asyncWithDefault(
+    () =>
+      api.scry<Init>({
+        app: 'groups-ui',
+        path: '/init',
+      }),
+    emptyInit
+  );
 
   useGroupState.getState().start(groups);
   useChatState.getState().start(chat);

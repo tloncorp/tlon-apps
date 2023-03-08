@@ -9,6 +9,7 @@
   ++  json
     =,  enjs:format
     |^
+    ^-  ^json
     %-  pairs
     :~  groups/(groups:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
@@ -18,18 +19,21 @@
     ==
     ++  chat
       |=  =chat:u
+      ^-  ^json
       %-  pairs
       :~  briefs/(briefs:enjs:cj -.chat)
           chats/(chats:enjs:cj +.chat)
       ==
     ++  heap
       |=  =heap:u
+      ^-  ^json
       %-  pairs
       :~  briefs/(briefs:enjs:hj -.heap)
           stash/(stash:enjs:hj +.heap)
       ==
     ++  diary
       |=  =diary:u
+      ^-  ^json
       %-  pairs
       :~  briefs/(briefs:enjs:dj -.diary)
           shelf/(shelf:enjs:dj +.diary)

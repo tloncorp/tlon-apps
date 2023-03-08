@@ -27,7 +27,13 @@ import {
   WritDelta,
 } from '@/types/chat';
 import api from '@/api';
-import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
+import {
+  whomIsDm,
+  whomIsMultiDm,
+  whomIsFlag,
+  nestToFlag,
+  isTalk,
+} from '@/logic/utils';
 import { useChannelFlag } from '@/hooks';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
@@ -206,10 +212,11 @@ export const useChatState = createState<ChatState>(
       });
 
       wait(() => {
-        get().fetchPins();
-      }, 1);
+        if (!isTalk) {
+          return;
+        }
 
-      wait(() => {
+        get().fetchPins();
         api
           .scry<string[]>({
             app: 'chat',
@@ -261,22 +268,6 @@ export const useChatState = createState<ChatState>(
             }
           },
         });
-        api.subscribe({
-          app: 'chat',
-          path: '/dm/invited',
-          event: (event: unknown) => {
-            get().batchSet((draft) => {
-              draft.pendingDms = event as string[];
-            });
-          },
-        });
-        api.subscribe({
-          app: 'chat',
-          path: '/clubs/ui',
-          event: (event: ClubAction) => {
-            get().batchSet(clubReducer(event));
-          },
-        });
 
         api.subscribe({
           app: 'chat',
@@ -303,28 +294,28 @@ export const useChatState = createState<ChatState>(
             });
           },
         });
-      }, 3);
 
-      wait(async () => {
-        const pendingImports = await api.scry<Record<string, boolean>>({
-          app: 'chat',
-          path: '/imp',
-        });
-
-        get().batchSet((draft) => {
-          draft.pendingImports = pendingImports;
-        });
+        if (!isTalk) {
+          return;
+        }
 
         api.subscribe({
           app: 'chat',
-          path: '/imp',
-          event: (imports: Record<string, boolean>) => {
+          path: '/dm/invited',
+          event: (event: unknown) => {
             get().batchSet((draft) => {
-              draft.pendingImports = imports;
+              draft.pendingDms = event as string[];
             });
           },
         });
-      }, 5);
+        api.subscribe({
+          app: 'chat',
+          path: '/clubs/ui',
+          event: (event: ClubAction) => {
+            get().batchSet(clubReducer(event));
+          },
+        });
+      }, 3);
     },
     fetchNewer: async (whom: string, count: string) => {
       const isDM = whomIsDm(whom);
@@ -772,6 +763,11 @@ export const useChatState = createState<ChatState>(
         `/chat/${whom}/writs`,
         `/chat/${whom}/ui/writs`
       ).initialize();
+    },
+    initImports: (init) => {
+      get().batchSet((draft) => {
+        draft.pendingImports = init;
+      });
     },
     getDraft: async (whom) => {
       const chatDraft = await api.scry<ChatDraft>({

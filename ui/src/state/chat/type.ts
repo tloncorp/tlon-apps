@@ -100,6 +100,7 @@ export interface ChatState {
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;
   initializeMultiDm: (id: string) => Promise<void>; // id is `@uw`, the Club ID
+  initImports: (init: Record<string, boolean>) => void;
   [key: string]: unknown;
   clearSubs: () => void;
 }
