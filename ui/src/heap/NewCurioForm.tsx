@@ -214,8 +214,8 @@ export default function NewCurioForm() {
             )}
             inputClass={cn(
               isListMode
-                ? 'border-gray-100 bg-white focus-within:border-gray-300 mb-4 focus:outline-none rounded-tl-none min-h-[60px]'
-                : 'border-gray-50 overflow-y-auto focus-within:border-gray-50 bg-gray-50 focus-within:bg-gray-50 focus:outline-none'
+                ? 'border-gray-100 bg-white focus-within:border-gray-300 mb-12 focus:outline-none rounded-tl-none min-h-[60px]'
+                : 'overflow-y-auto focus-within:border-white focus:outline-none bg-transparent mb-12'
             )}
           />
         )}

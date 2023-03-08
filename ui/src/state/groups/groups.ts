@@ -1007,6 +1007,12 @@ export function useChannel(
   );
 }
 
+export function useChannelList(flag: string): string[] {
+  return useGroupState(
+    useCallback((s) => Object.keys(s.groups[flag]?.channels || {}), [flag])
+  );
+}
+
 export function useAmAdmin(flag: string) {
   const group = useGroup(flag);
   const vessel = group?.fleet[window.our];

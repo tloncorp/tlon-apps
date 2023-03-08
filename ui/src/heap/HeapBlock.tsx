@@ -233,19 +233,25 @@ export default function HeapBlock({
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
-  const canEdit = isAdmin || window.our === curio.heart.author;
+  const canEdit = asRef ? false : isAdmin || window.our === curio.heart.author;
+  const notEmbed = isImage && isAudio && isText && isComment;
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(url)) {
-        const oembed = await useEmbedState.getState().getEmbed(url);
-        setEmbed(oembed);
+      if (isValidUrl(url) && !notEmbed && !calm.disableRemoteContent) {
+        try {
+          const oembed = await useEmbedState.getState().getEmbed(url);
+          setEmbed(oembed);
+        } catch (e) {
+          setEmbed(null);
+          console.log("HeapBlock::getOembed: couldn't get embed", e);
+        }
       }
     };
     getOembed();
-  }, [url]);
+  }, [url, notEmbed, calm]);
 
-  if (isValidUrl(url) && embed === undefined) {
+  if (isValidUrl(url) && embed === undefined && !notEmbed) {
     return <HeapLoadingBlock />;
   }
 
@@ -321,7 +327,7 @@ export default function HeapBlock({
           backgroundImage: `url(${url})`,
         }}
       >
-        <TopBar canEdit {...topBar} />
+        <TopBar canEdit={canEdit} {...topBar} />
         <BottomBar
           {...botBar}
           provider="Image"
@@ -334,7 +340,7 @@ export default function HeapBlock({
   if (isAudio && !calm?.disableRemoteContent) {
     return (
       <div className={cnm()}>
-        <TopBar hasIcon canEdit {...topBar} />
+        <TopBar hasIcon canEdit={canEdit} {...topBar} />
         <div className="flex grow flex-col items-center justify-center">
           <MusicLargeIcon className="h-16 w-16 text-gray-300" />
         </div>

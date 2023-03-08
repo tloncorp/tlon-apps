@@ -25,7 +25,7 @@ export default function HeapComment({
     <div className="group-one flex w-full flex-col">
       <Author ship={author} date={unixDate} timeOnly />
       <div className="relative flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50">
-        <HeapContent className="ml-9" content={content} />
+        <HeapContent className="ml-9 break-words" content={content} />
         <HeapCommentOptions
           whom={flag || ''}
           curio={curio}

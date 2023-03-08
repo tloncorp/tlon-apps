@@ -507,9 +507,12 @@ export const useChatState = createState<ChatState>(
           }));
         }
 
-        pokeOptimisticallyN(useChatState, dmAction(whom, { add: memo }, id), [
-          writsReducer(whom),
-        ]).then(() =>
+        pokeOptimisticallyN(
+          useChatState,
+          dmAction(whom, { add: memo }, id),
+          [writsReducer(whom)],
+          false
+        ).then(() =>
           set((draft) => {
             if (!isNew) {
               draft.postedMessages.push(id);
@@ -525,12 +528,16 @@ export const useChatState = createState<ChatState>(
               delta: { add: { ...memo, sent: Date.now() } },
             },
           }),
-          [writsReducer(whom)]
+          [writsReducer(whom)],
+          false
         ).then(() => set((draft) => draft.postedMessages.push(id)));
       } else {
-        pokeOptimisticallyN(useChatState, chatWritDiff(whom, id, diff), [
-          writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
+        pokeOptimisticallyN(
+          useChatState,
+          chatWritDiff(whom, id, diff),
+          [writsReducer(whom)],
+          false
+        ).then(() => set((draft) => draft.postedMessages.push(id)));
       }
 
       set((draft) => {
@@ -975,10 +982,27 @@ export function useDmIsPending(ship: string) {
 const selMultiDms = (s: ChatState) => s.multiDms;
 export function useMultiDms() {
   const dms = useChatState(selMultiDms);
+  const noDms = Object.entries(dms).length === 0;
 
   useEffect(() => {
-    useChatState.getState().fetchMultiDms();
-  }, []);
+    if (noDms) {
+      useChatState.getState().fetchMultiDms();
+    }
+  }, [noDms]);
+
+  return dms;
+}
+
+const selDms = (s: ChatState) => s.dms;
+export function useDms() {
+  const dms = useChatState(selDms);
+  const noDms = Object.entries(dms).length === 0;
+
+  useEffect(() => {
+    if (noDms) {
+      useChatState.getState().fetchDms();
+    }
+  }, [noDms]);
 
   return dms;
 }

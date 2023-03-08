@@ -3,7 +3,8 @@
   "version": "2.3.2",
   "private": true,
   "engines": {
-    "node": "14.19.0"
+    "node": "16.19.1",
+    "npm": "8.19.3"
   },
   "scripts": {
     "prepare": "cd .. && husky install ui/.husky",
@@ -14,7 +15,7 @@
     "build:chat": "tsc && cross-env APP=chat vite build",
     "coverage": "vitest run --coverage",
     "dev": "vite",
-    "chat": "cross-env APP=chat vite",
+    "chat": "cross-env APP=chat vite --host",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
@@ -50,6 +51,7 @@
     "@radix-ui/react-switch": "^1.0.1",
     "@radix-ui/react-toast": "^1.0.0",
     "@radix-ui/react-tooltip": "^1.0.0",
+    "@tailwindcss/container-queries": "^0.1.0",
     "@tailwindcss/line-clamp": "^0.4.0",
     "@testing-library/react": "^12.1.5",
     "@testing-library/user-event": "^14.2.0",
@@ -181,7 +183,6 @@
     "postcss": "^8.4.12",
     "postcss-import": "^14.1.0",
     "prettier": "^2.6.2",
-    "prettier-plugin-tailwindcss": "^0.1.10",
     "react-test-renderer": "^17.0.2",
     "rollup-plugin-analyzer": "^4.0.0",
     "rollup-plugin-visualizer": "^5.6.0",

@@ -14,7 +14,7 @@ import { useChannelFlag } from '@/hooks';
 import ReferenceBar from './ReferenceBar';
 import UnavailableReference from './UnavailableReference';
 
-export default function NoteCommentReference({
+function NoteCommentReference({
   chFlag,
   nest,
   noteId,
@@ -102,3 +102,5 @@ export default function NoteCommentReference({
     </div>
   );
 }
+
+export default React.memo(NoteCommentReference);

@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { Suspense, useEffect, useState, useCallback } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import {
   BrowserRouter as Router,
@@ -19,12 +19,7 @@ import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useCalm, useTheme } from '@/state/settings';
-import {
-  useAirLockErrorCount,
-  useErrorCount,
-  useLocalState,
-  useSubscriptionStatus,
-} from '@/state/local';
+import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import GroupsNav from '@/nav/GroupsNav';
@@ -75,12 +70,13 @@ import Leap from './components/Leap/Leap';
 import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
-import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
+import chatmanifestURL from './assets/chatmanifest.json?url';
+import manifestURL from './assets/manifest.json?url';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -426,21 +422,7 @@ function App() {
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
-  const subscription = useSubscriptionStatus();
-  const errorCount = useErrorCount();
-  const airLockErrorCount = useAirLockErrorCount();
-  const pike = usePike(isTalk ? 'talk' : 'groups');
-  const [baseHash, setBaseHash] = useState('');
-  const [needsUpdate, setNeedsUpdate] = useState(false);
   const { disableWayfinding } = useCalm();
-
-  const fetchPikes = useCallback(async () => {
-    try {
-      await useKilnState.getState().fetchPikes();
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
 
   useEffect(() => {
     handleError(() => {
@@ -455,44 +437,15 @@ function App() {
     })();
   }, [handleError]);
 
-  useEffect(() => {
-    if (pike && baseHash === '') {
-      setBaseHash(pike.hash);
-    }
-  }, [pike, baseHash]);
-
-  useEffect(() => {
-    setInterval(() => {
-      fetchPikes();
-    }, 1000 * 60 * 5);
-  }, [fetchPikes]);
-
-  useEffect(() => {
-    if (pike && pike.hash !== baseHash && baseHash !== '' && !needsUpdate) {
-      setNeedsUpdate(true);
-    }
-  }, [pike, baseHash, needsUpdate]);
-
   const state = location.state as { backgroundLocation?: Location } | null;
 
   useConnectionChecker();
 
-  useEffect(() => {
-    if (
-      (errorCount > 4 || airLockErrorCount > 1) &&
-      subscription === 'connected'
-    ) {
-      useLocalState.setState({ subscription: 'disconnected' });
-    }
-  }, [errorCount, subscription, airLockErrorCount]);
-
   return (
     <div className="flex h-full w-full flex-col">
       {!disableWayfinding && <LandscapeWayfinding />}
-      {subscription === 'disconnected' || subscription === 'reconnecting' ? (
-        <DisconnectNotice />
-      ) : null}
-      {needsUpdate ? <UpdateNotice /> : null}
+      <DisconnectNotice />
+      <UpdateNotice />
       {isTalk ? (
         <>
           <TalkHead />
@@ -565,9 +518,9 @@ function RoutedApp() {
           />
           <meta name="theme-color" content={userThemeColor} />
           {app === 'groups' ? (
-            <link rel="manifest" href="/src/assets/manifest.json" />
+            <link rel="manifest" href={manifestURL} />
           ) : (
-            <link rel="manifest" href="/src/assets/chatmanifest.json" />
+            <link rel="manifest" href={chatmanifestURL} />
           )}
         </Helmet>
         <TooltipProvider skipDelayDuration={400}>

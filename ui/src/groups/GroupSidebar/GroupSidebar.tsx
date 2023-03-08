@@ -14,10 +14,12 @@ import { foregroundFromBackground } from '@/components/Avatar';
 import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
-import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import HashIcon from '@/components/icons/HashIcon';
 import AddIcon from '@/components/icons/AddIcon';
 import { Link, useLocation } from 'react-router-dom';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import { useSubscriptionStatus } from '@/state/local';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -33,6 +35,7 @@ function GroupHeader() {
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
   const calm = useCalm();
   const defaultImportCover = group?.meta.cover === '0x0';
+  const { subscription } = useSubscriptionStatus();
 
   const onError = useCallback(() => {
     setNoCors(true);
@@ -171,10 +174,21 @@ function GroupHeader() {
             >
               {group?.meta.title}
             </div>
-            <ElipsisIcon
-              aria-label="Open Menu"
-              className={cn('h-6 w-6 opacity-0 group-hover:opacity-100')}
-            />
+
+            <div style={coverTitleStyles()}>
+              {subscription === 'reconnecting' ? (
+                <LoadingSpinner
+                  fill={`fill-${coverTitleStyles().color}`}
+                  primary={`fill-${coverTitleStyles().color}`}
+                  secondary={`fill-${coverTitleStyles().color} opacity-25`}
+                  className="h-4 w-4 group-hover:hidden"
+                />
+              ) : null}
+              <CaretDown16Icon
+                aria-label="Open Menu"
+                className={cn('hidden h-4 w-4 group-hover:block')}
+              />
+            </div>
           </button>
         </GroupActions>
       </div>
@@ -199,14 +213,14 @@ export default function GroupSidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
-      <div className="h-5" />
+      <div className="h-2" />
       <div className="relative flex min-h-0 flex-col px-2">
-        <ul>
+        <ul className="space-y-0.5">
           <GroupHeader />
           <SidebarItem
             icon={
               <BellIcon
-                className={cn('m-1 h-6 w-6 rounded bg-gray-50', {
+                className={cn('h-6 w-6 rounded', {
                   'mix-blend-multiply': !isDark,
                 })}
               />
@@ -218,7 +232,7 @@ export default function GroupSidebar() {
           <SidebarItem
             icon={
               <HashIcon
-                className={cn('m-1 h-6 w-6 rounded bg-gray-50 ', {
+                className={cn('h-6 w-6 rounded', {
                   'mix-blend-multiply': !isDark,
                 })}
               />
@@ -231,7 +245,7 @@ export default function GroupSidebar() {
             <Link
               to={`/groups/${flag}/channels/new`}
               state={{ backgroundLocation: location }}
-              className="absolute right-5 bottom-3 flex h-6 w-6 items-center justify-center rounded bg-gray-50"
+              className="absolute right-5 bottom-3 flex h-6 w-6 items-center justify-center rounded"
             >
               <AddIcon className="h-4 w-4 fill-gray-800" />
             </Link>
