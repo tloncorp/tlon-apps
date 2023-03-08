@@ -38,6 +38,7 @@ interface BlockContentProps {
   story: ChatBlock;
   isScrolling: boolean;
   writId: string;
+  blockIndex: number;
 }
 
 interface ShipMentionProps {
@@ -153,6 +154,7 @@ export function BlockContent({
   story,
   isScrolling,
   writId,
+  blockIndex,
 }: BlockContentProps) {
   if (isChatImage(story)) {
     return (
@@ -162,6 +164,7 @@ export function BlockContent({
         width={story.image.width}
         altText={story.image.alt}
         writId={writId}
+        blockIndex={blockIndex}
       />
     );
   }
@@ -198,6 +201,7 @@ function ChatContent({
                   story={storyItem}
                   isScrolling={isScrolling}
                   writId={writId}
+                  blockIndex={index}
                 />
               </div>
             ))}

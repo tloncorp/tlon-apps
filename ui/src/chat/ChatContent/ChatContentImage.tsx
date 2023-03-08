@@ -10,6 +10,7 @@ interface ChatContentImage {
   width?: number;
   altText?: string;
   writId?: string;
+  blockIndex: number;
 }
 
 export default function ChatContentImage({
@@ -18,6 +19,7 @@ export default function ChatContentImage({
   width,
   altText,
   writId,
+  blockIndex,
 }: ChatContentImage) {
   const { chShip, chName } = useParams<{
     chShip: string;
@@ -28,7 +30,7 @@ export default function ChatContentImage({
   const { open: showLightBox, setOpen: setShowLightBox } = useChatDialog(
     whom,
     writId || 'not-writ',
-    'image'
+    `image-${blockIndex}`
   );
 
   return (
