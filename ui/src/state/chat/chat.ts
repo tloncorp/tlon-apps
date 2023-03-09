@@ -8,7 +8,6 @@ import { Groups } from '@/types/groups';
 import {
   Chat,
   ChatAction,
-  ChatBriefs,
   ChatBriefUpdate,
   ChatDiff,
   ChatDraft,
@@ -20,20 +19,13 @@ import {
   Club,
   ClubAction,
   ClubDelta,
-  ClubInvite,
   Clubs,
   DmAction,
   Pins,
   WritDelta,
 } from '@/types/chat';
 import api from '@/api';
-import {
-  whomIsDm,
-  whomIsMultiDm,
-  whomIsFlag,
-  nestToFlag,
-  isTalk,
-} from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
 import { useChannelFlag } from '@/hooks';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
@@ -128,7 +120,7 @@ export const useChatState = createState<ChatState>(
       });
     },
     chats: {},
-    dms: {},
+    dms: [],
     multiDms: {},
     dmArchive: [],
     pacts: {},
@@ -212,24 +204,6 @@ export const useChatState = createState<ChatState>(
       });
 
       wait(() => {
-        if (!isTalk) {
-          return;
-        }
-
-        get().fetchPins();
-        api
-          .scry<string[]>({
-            app: 'chat',
-            path: '/dm/invited',
-          })
-          .then((pendingDms) => {
-            get().batchSet((draft) => {
-              draft.pendingDms = pendingDms;
-            });
-          });
-      }, 2);
-
-      wait(() => {
         api.subscribe({
           app: 'chat',
           path: '/briefs',
@@ -294,11 +268,20 @@ export const useChatState = createState<ChatState>(
             });
           },
         });
+      }, 3);
+    },
+    startTalk: async (init) => {
+      const { wait } = useSchedulerStore.getState();
+      get().start(init);
 
-        if (!isTalk) {
-          return;
-        }
+      get().batchSet((draft) => {
+        draft.multiDms = init.clubs;
+        draft.dms = init.dms;
+        draft.pendingDms = init.invited;
+        draft.pins = init.pins;
+      });
 
+      wait(() => {
         api.subscribe({
           app: 'chat',
           path: '/dm/invited',
@@ -340,16 +323,14 @@ export const useChatState = createState<ChatState>(
       ).getOlder(count);
     },
     fetchMultiDms: async () => {
-      useSchedulerStore.getState().wait(async () => {
-        const dms = await api.scry<Clubs>({
-          app: 'chat',
-          path: '/clubs',
-        });
+      const dms = await api.scry<Clubs>({
+        app: 'chat',
+        path: '/clubs',
+      });
 
-        get().batchSet((draft) => {
-          draft.multiDms = dms;
-        });
-      }, 1);
+      get().batchSet((draft) => {
+        draft.multiDms = dms;
+      });
     },
     fetchMultiDm: async (id, force) => {
       const { multiDms } = get();
@@ -384,23 +365,14 @@ export const useChatState = createState<ChatState>(
       return dm;
     },
     fetchDms: async () => {
-      useSchedulerStore.getState().wait(async () => {
-        const dms = await api.scry<string[]>({
-          app: 'chat',
-          path: '/dm',
-        });
-        get().batchSet((draft) => {
-          dms.forEach((ship) => {
-            const chat = {
-              perms: {
-                writers: [],
-                group: '',
-              },
-            };
-            draft.dms[ship] = chat;
-          });
-        });
-      }, 1);
+      const dms = await api.scry<string[]>({
+        app: 'chat',
+        path: '/dm',
+      });
+
+      get().batchSet((draft) => {
+        draft.dms = dms;
+      });
     },
     unarchiveDm: async (ship) => {
       await api.poke({
@@ -417,8 +389,8 @@ export const useChatState = createState<ChatState>(
       });
       get().batchSet((draft) => {
         delete draft.pacts[ship];
-        delete draft.dms[ship];
         delete draft.briefs[ship];
+        draft.dms = draft.dms.filter((s) => s !== ship);
       });
     },
     joinChat: async (group, flag) => {
@@ -461,8 +433,8 @@ export const useChatState = createState<ChatState>(
         draft.pendingDms = draft.pendingDms.filter((d) => d !== ship);
         if (!ok) {
           delete draft.pacts[ship];
-          delete draft.dms[ship];
           delete draft.briefs[ship];
+          draft.dms = draft.dms.filter((s) => s !== ship);
         }
       });
       await api.poke({
@@ -992,7 +964,7 @@ export function useMultiDms() {
 const selDms = (s: ChatState) => s.dms;
 export function useDms() {
   const dms = useChatState(selDms);
-  const noDms = Object.entries(dms).length === 0;
+  const noDms = dms.length === 0;
 
   useEffect(() => {
     if (noDms) {

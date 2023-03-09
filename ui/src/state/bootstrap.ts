@@ -1,6 +1,6 @@
 import api from '@/api';
 import { asyncWithDefault, isTalk } from '@/logic/utils';
-import { Init } from '@/types/ui';
+import { TalkInit, GroupsInit } from '@/types/ui';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
@@ -14,12 +14,23 @@ import useSchedulerStore from './scheduler';
 import { useSettingsState } from './settings';
 import { useStorage } from './storage';
 
-const emptyInit: Init = {
+const emptyGroupsInit: GroupsInit = {
   groups: {},
   gangs: {},
   chat: { briefs: {}, chats: {} },
   heap: { briefs: {}, stash: {} },
   diary: { briefs: {}, shelf: {} },
+};
+
+const emptyTalkInit: TalkInit = {
+  groups: {},
+  gangs: {},
+  briefs: {},
+  chats: {},
+  clubs: {},
+  dms: [],
+  invited: [],
+  pins: [],
 };
 
 export default async function bootstrap(reset = false) {
@@ -31,23 +42,32 @@ export default async function bootstrap(reset = false) {
     useDiaryState.getState().clearSubs();
   }
 
-  // make sure if this errors we don't kill the entire app
-  const { chat, heap, diary, ...groups } = await asyncWithDefault(
-    () =>
-      api.scry<Init>({
-        app: 'groups-ui',
-        path: '/init',
-      }),
-    emptyInit
-  );
-
-  useGroupState.getState().start(groups);
-  useChatState.getState().start(chat);
-
   if (isTalk) {
-    useChatState.getState().fetchDms();
-    useChatState.getState().fetchMultiDms();
+    // make sure if this errors we don't kill the entire app
+    const { groups, gangs, ...chat } = await asyncWithDefault(
+      () =>
+        api.scry<TalkInit>({
+          app: 'talk-ui',
+          path: '/init',
+        }),
+      emptyTalkInit
+    );
+
+    useGroupState.getState().start({ groups, gangs });
+    useChatState.getState().startTalk(chat);
   } else {
+    // make sure if this errors we don't kill the entire app
+    const { chat, heap, diary, ...groups } = await asyncWithDefault(
+      () =>
+        api.scry<GroupsInit>({
+          app: 'groups-ui',
+          path: '/init',
+        }),
+      emptyGroupsInit
+    );
+
+    useGroupState.getState().start(groups);
+    useChatState.getState().start(chat);
     useHeapState.getState().start(heap);
     useDiaryState.getState().start(diary);
   }
@@ -61,7 +81,7 @@ export default async function bootstrap(reset = false) {
     useStorage.getState().initialize(api);
 
     fetchAll();
-  }, 3);
+  }, 4);
 
   wait(() => {
     settingsInitialize(api);
