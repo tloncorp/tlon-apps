@@ -70,7 +70,7 @@ function WritBaseReference({
         className={'cursor-pointer p-2 group-hover:bg-gray-50'}
       >
         <ChatContent
-          className="p-4"
+          className="p-2"
           story={writ.memo.content.story}
           isScrolling={false}
         />

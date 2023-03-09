@@ -81,7 +81,7 @@ function NoteReference({
     <div className="note-inline-block not-prose group">
       <div
         onClick={handleOpenReferenceClick}
-        className="flex cursor-pointer flex-col space-y-2 p-2 group-hover:bg-gray-50"
+        className="flex cursor-pointer flex-col space-y-2 p-4 group-hover:bg-gray-50"
       >
         {outline.image ? (
           <div
@@ -91,7 +91,7 @@ function NoteReference({
             }}
           />
         ) : null}
-        <span className="text-2xl font-bold">{outline.title}</span>
+        <span className="text-2xl font-semibold">{outline.title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
         {outline.quipCount > 0 ? (
           <div className="flex space-x-2">

@@ -43,7 +43,7 @@ export default function ReferenceBar({
         'flex items-center justify-between border-gray-50 group-hover:bg-gray-50',
         {
           'border-t-2': !top,
-          'py-1 px-2': reply,
+          'py-0 px-2': reply,
           'p-2': !reply,
         }
       )}
