@@ -305,22 +305,12 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
+      [%x %gangs ~]  ``gangs+!>(xeno)
+      [%x %init ~]  ``noun+!>([groups-light xeno])
+      [%x %groups %light ~]  ``groups+!>(groups-light)
+  ::
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
-  ::
-      [%x %groups %light ~]
-    =-  ``groups+!>(-)
-    ^-  groups:g
-    %-  ~(run by groups)
-    |=  [=net:g =group:g]
-    =.  fleet.group
-      %+  ~(put by *fleet:g)
-        our.bowl
-      (~(gut by fleet.group) our.bowl *vessel:fleet:g)
-    group
-  ::
-      [%x %gangs ~]
-    ``gangs+!>(`gangs:g`xeno)
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
@@ -333,6 +323,15 @@
       ``noun+!>((~(has by groups) [src name.pole]))
   ==
 ::
+++  groups-light
+  ^-  groups:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  =.  fleet.group
+    %+  ~(put by *fleet:g)
+      our.bowl
+    (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+  group
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor

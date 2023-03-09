@@ -77,15 +77,13 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
+    =+  .^([=groups:g =gangs:g] (scry %gx %groups /init/noun))
     =/  =init:u
-      :*  .^(groups:g (scry %gx %groups /groups/light/noun))
-          .^(gangs:g (scry %gx %groups /gangs/noun))
-          :-  .^(briefs:c (scry %gx %chat /briefs/noun))
-              .^((map flag:c chat:c) (scry %gx %chat /chats/noun))
-          :-  .^(briefs:h (scry %gx %heap /briefs/noun))
-              .^(stash:h (scry %gx %heap /stash/noun))
-          :-  .^(briefs:d (scry %gx %diary /briefs/noun))
-              .^(shelf:d (scry %gx %diary /shelf/noun))
+      :*  groups
+          gangs
+          .^(chat:u (scry %gx %chat /init/noun))
+          .^(heap:u (scry %gx %heap /init/noun))
+          .^(diary:u (scry %gx %diary /init/noun))
       ==
     ``ui-init+!>(init)
   ::
