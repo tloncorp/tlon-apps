@@ -17,14 +17,28 @@
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
-    `this
+    =^  cards  state
+      abet:init:cor
+    [cards this]
+  ::
   ++  on-save   on-save:def
-  ++  on-load   on-load:def
+  ++  on-load
+    |=  =vase
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:load:cor
+    [cards this]
+  ::
   ++  on-poke   on-poke:def
   ++  on-watch  on-watch:def
   ++  on-leave  on-leave:def
   ++  on-agent  on-agent:def
-  ++  on-arvo   on-arvo:def
+  ++  on-arvo
+    |=  [=wire sign=sign-arvo]
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(arvo:cor wire sign)
+    [cards this]
   ++  on-fail   on-fail:def
   ++  on-peek   peek:cor
   --
@@ -43,6 +57,15 @@
       (scot %da now)
       path
   ==
+::
+++  init
+  ^+  cor
+  (emit %pass /build %arvo [%c %warp our q.byk ~ %sing %c da+now /ui-init/json])
+::
+++  load
+  ^+  cor
+  (emit %pass /build %arvo [%c %warp our q.byk ~ %sing %c da+now /ui-init/json])
+::
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
@@ -59,5 +82,11 @@
           .^((list whom:c) (scry %gx %chat /pins/noun))
       ==
     ``ui-init+!>(init)
+  ==
+++  arvo
+  |=  [=wire sign=sign-arvo]
+  ^+  cor
+  ?+  wire  !!
+    [%build ~]  cor
   ==
 --
