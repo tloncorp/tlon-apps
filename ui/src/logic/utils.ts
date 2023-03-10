@@ -571,3 +571,14 @@ export function prettyChannelTypeName(app: string) {
       return 'Unknown';
   }
 }
+
+export async function asyncWithDefault<T>(
+  cb: () => Promise<T>,
+  def: T
+): Promise<T> {
+  try {
+    return cb();
+  } catch (error) {
+    return def;
+  }
+}

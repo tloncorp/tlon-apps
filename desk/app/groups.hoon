@@ -1308,7 +1308,6 @@
                   ?(%open %afar)  |
                   %shut
                 =/  cross  (~(int in pend.cordon) ships)
-                ~&  [cross ~(wyt in ships) ~(wyt in cross)]
                 !=(~(wyt in ships) ~(wyt in cross))
               ==
           ==
@@ -1713,7 +1712,6 @@
           ga-core
           ::
             %kick
-          ~&  [(~(has by xeno) flag) (~(has by groups) flag) pev.gang]
           ?.  (~(has by xeno) flag)  ga-core
           ?^  pev.gang  ga-core
           ga-core(cor (emit get-preview:ga-pass))

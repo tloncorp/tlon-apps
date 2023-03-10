@@ -6,19 +6,16 @@ import { useCallback, useEffect, useMemo } from 'react';
 import {
   NoteDelta,
   Diary,
-  DiaryBriefs,
   DiaryBriefUpdate,
   DiaryNote,
   DiaryDiff,
   DiaryFlag,
   DiaryPerm,
-  Shelf,
   DiaryMemo,
   DiaryQuip,
   DiaryAction,
   DiaryDisplayMode,
   DiaryLetter,
-  DiaryStory,
   DiarySaid,
   DiaryUpdate,
   DiaryJoin,
@@ -30,6 +27,7 @@ import { DiaryState } from './type';
 import makeNotesStore from './notes';
 import useSubscriptionState from '../subscription';
 import { createState } from '../base';
+import useSchedulerStore from '../scheduler';
 
 setAutoFreeze(false);
 
@@ -200,92 +198,58 @@ export const useDiaryState = createState<DiaryState>(
 
       await api.poke(diaryAction(flag, diff));
     },
-    start: async () => {
-      // TODO: parallelise
-      api
-        .scry<DiaryBriefs>({
+    start: async ({ briefs, shelf }) => {
+      const { wait } = useSchedulerStore.getState();
+      get().batchSet((draft) => {
+        draft.briefs = briefs;
+        draft.shelf = shelf;
+      });
+
+      wait(() => {
+        api.subscribe({
           app: 'diary',
           path: '/briefs',
-        })
-        .then((briefs) => {
-          get().batchSet((draft) => {
-            draft.briefs = briefs;
-          });
-        });
-
-      api
-        .scry<Shelf>({
-          app: 'diary',
-          path: '/shelf',
-        })
-        .then((shelf) => {
-          get().batchSet((draft) => {
-            draft.shelf = shelf;
-          });
-        });
-
-      api.subscribe({
-        app: 'diary',
-        path: '/briefs',
-        event: (event: unknown, mark: string) => {
-          if (mark === 'diary-leave') {
-            get().batchSet((draft) => {
-              delete draft.briefs[event as string];
-            });
-            return;
-          }
-
-          const { flag, brief } = event as DiaryBriefUpdate;
-          get().batchSet((draft) => {
-            draft.briefs[flag] = brief;
-          });
-        },
-      });
-
-      api.subscribe({
-        app: 'diary',
-        path: '/ui',
-        event: (event: DiaryAction) => {
-          get().batchSet((draft) => {
-            const {
-              flag,
-              update: { diff },
-            } = event;
-            const diary = draft.shelf[flag];
-
-            if ('view' in diff) {
-              diary.view = diff.view;
-            } else if ('del-sects' in diff) {
-              diary.perms.writers = diary.perms.writers.filter(
-                (w) => !diff['del-sects'].includes(w)
-              );
-            } else if ('add-sects' in diff) {
-              diary.perms.writers = diary.perms.writers.concat(
-                diff['add-sects']
-              );
+          event: (event: unknown, mark: string) => {
+            if (mark === 'diary-leave') {
+              get().batchSet((draft) => {
+                delete draft.briefs[event as string];
+              });
+              return;
             }
-          });
-        },
-      });
 
-      const pendingImports = await api.scry<Record<string, boolean>>({
-        app: 'diary',
-        path: '/imp',
-      });
+            const { flag, brief } = event as DiaryBriefUpdate;
+            get().batchSet((draft) => {
+              draft.briefs[flag] = brief;
+            });
+          },
+        });
 
-      get().batchSet((draft) => {
-        draft.pendingImports = pendingImports;
-      });
+        api.subscribe({
+          app: 'diary',
+          path: '/ui',
+          event: (event: DiaryAction) => {
+            get().batchSet((draft) => {
+              const {
+                flag,
+                update: { diff },
+              } = event;
+              const diary = draft.shelf[flag];
 
-      api.subscribe({
-        app: 'diary',
-        path: '/imp',
-        event: (imports: Record<string, boolean>) => {
-          get().batchSet((draft) => {
-            draft.pendingImports = imports;
-          });
-        },
-      });
+              if ('view' in diff) {
+                diary.view = diff.view;
+              } else if ('del-sects' in diff) {
+                diary.perms.writers = diary.perms.writers.filter(
+                  (w) => !diff['del-sects'].includes(w)
+                );
+              } else if ('add-sects' in diff) {
+                diary.perms.writers = diary.perms.writers.concat(
+                  diff['add-sects']
+                );
+              }
+            });
+          },
+        });
+      }, 4);
     },
     fetchNote: async (flag, noteId) => {
       const note = await api.scry<DiaryNote>({
@@ -460,6 +424,11 @@ export const useDiaryState = createState<DiaryState>(
         `/diary/${flag}/notes`,
         `/diary/${flag}/ui`
       ).initialize();
+    },
+    initImports: (init) => {
+      get().batchSet((draft) => {
+        draft.pendingImports = init;
+      });
     },
     clearSubs: () => {
       get().batchSet((draft) => {
