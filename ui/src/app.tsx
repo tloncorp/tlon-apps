@@ -78,6 +78,7 @@ import { useScheduler } from './state/scheduler';
 import chatmanifestURL from './assets/chatmanifest.json?url';
 import manifestURL from './assets/manifest.json?url';
 import { LeapProvider } from './components/Leap/useLeap';
+import Grid from './components/Grid/Grid';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -342,6 +343,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route path="/grid" element={<Grid />} />
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />

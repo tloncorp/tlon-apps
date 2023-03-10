@@ -128,7 +128,7 @@ export default function useLeap() {
                 '_blank'
               );
             } else {
-              navigate(o.to);
+              navigate(o.to, { state: { backgroundLocation: location } });
             }
             setIsOpen(false);
             setSelectedIndex(0);

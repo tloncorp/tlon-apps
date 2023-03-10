@@ -1,0 +1,363 @@
+// Vitest Snapshot v1
+
+exports[`Sidebar > renders as expected 1`] = `
+<DocumentFragment>
+  <nav
+    class="flex h-full w-64 flex-none flex-col bg-white"
+  >
+    <ul
+      class="flex w-full flex-col space-y-0.5 p-2"
+    >
+      <div
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+      >
+        <button
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold text-black hover:text-gray-800 group"
+        >
+          <div
+            aria-expanded="false"
+            aria-haspopup="menu"
+            class="appearance-none h-6 w-6 rounded group-hover:bg-gray-100"
+            data-state="closed"
+            id="radix-0"
+            type="button"
+          >
+            <svg
+              class="h-6 w-6 group-hover:hidden"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                d="M11.0833 17.9583V16.5833C11.0833 16.0771 11.4937 15.6667 12 15.6667C12.5063 15.6667 12.9167 16.0771 12.9167 16.5833V17.9583C12.9167 20.7428 15.1739 23 17.9583 23C20.7428 23 23 20.7428 23 17.9583C23 15.1739 20.7428 12.9167 17.9583 12.9167H16.5833V13.8333C16.5833 14.3396 16.1729 14.75 15.6667 14.75C15.1604 14.75 14.75 14.3396 14.75 13.8333V10.1667C14.75 9.66041 15.1604 9.25 15.6667 9.25C16.1729 9.25 16.5833 9.66041 16.5833 10.1667V11.0833H17.9583C20.7428 11.0833 23 8.8261 23 6.04167C23 3.25723 20.7428 1 17.9583 1C15.1739 1 12.9167 3.25723 12.9167 6.04167V7.41667C12.9167 7.92293 12.5063 8.33333 12 8.33333C11.4937 8.33333 11.0833 7.92293 11.0833 7.41667V6.04167C11.0833 3.25723 8.8261 1 6.04167 1C3.25723 1 1 3.25723 1 6.04167C1 8.8261 3.25723 11.0833 6.04167 11.0833H7.41667V10.1667C7.41667 9.66041 7.82707 9.25 8.33333 9.25C8.83959 9.25 9.25 9.66041 9.25 10.1667V13.8333C9.25 14.3396 8.83959 14.75 8.33333 14.75C7.82707 14.75 7.41667 14.3396 7.41667 13.8333V12.9167H6.04167C3.25723 12.9167 1 15.1739 1 17.9583C1 20.7428 3.25723 23 6.04167 23C8.8261 23 11.0833 20.7428 11.0833 17.9583Z"
+              />
+            </svg>
+            <svg
+              class="m-1 h-4 w-4 text-gray-800 hidden group-hover:block"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="fill-current"
+                clip-rule="evenodd"
+                d="M5 6c0-.55228.44772-1 1-1h12c.5523 0 1 .44772 1 1s-.4477 1-1 1H6c-.55228 0-1-.44772-1-1Zm0 6c0-.5523.44772-1 1-1h12c.5523 0 1 .4477 1 1s-.4477 1-1 1H6c-.55228 0-1-.4477-1-1Zm1 5c-.55228 0-1 .4477-1 1s.44772 1 1 1h12c.5523 0 1-.4477 1-1s-.4477-1-1-1H6Z"
+                fill-rule="evenodd"
+              />
+            </svg>
+          </div>
+          <div
+            class="max-w-full flex-1 text-left truncate"
+          >
+            <div
+              class="flex items-center justify-between"
+            >
+              Groups
+              <a
+                aria-label="Back to Landscape"
+                class="h-6 w-6 no-underline hidden group-hover:block"
+                href="/apps/grid"
+                rel="noreferrer"
+                target="_blank"
+                title="Back to Landscape"
+              >
+                <svg
+                  class="text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    class="stroke-current"
+                    d="M8 14V8M8 8H14M8 8L15 15"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                  />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </button>
+      </div>
+      <button
+        class="flex w-full cursor-pointer flex-row space-x-2 px-1 text-gray-400 hover:text-gray-800"
+      >
+        <div
+          class="flex flex-row items-center space-x-2"
+        >
+          <svg
+            class="h-8 w-8"
+            fill="none"
+            viewBox="0 0 32 32"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              class="fill-current"
+              clip-rule="evenodd"
+              d="M8 9a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9Zm6 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V9Zm7-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-2Zm-1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2Zm-5-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-2Zm-7 1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2Zm1 5a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H9Zm5 1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2Zm7-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-2Z"
+              fill-rule="evenodd"
+            />
+          </svg>
+          <span
+            class="font-semibold"
+          >
+            Leap
+          </span>
+          <span>
+            (Ctrl + K)
+          </span>
+        </div>
+      </button>
+      <li
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600"
+      >
+        <a
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          href="/profile/edit"
+        >
+          <div
+            class="relative flex flex-none items-center justify-center rounded bg-black w-6 h-6 rounded p-1.5"
+            style="background-color: rgb(204, 204, 204);"
+          >
+            <svg
+              class=""
+              style="display: block; width: 12px; height: 12px;"
+              version="1.1"
+              viewBox="0 0 12 12"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                fill="hsla(0, 0%, 80%, 1)"
+                height="12px"
+                width="12px"
+                x="0px"
+                y="0px"
+              />
+              <g
+                transform="matrix(0.046875,0,0,0.046875,0,0)"
+              >
+                <g
+                  fill="none"
+                  transform="matrix(1,0,0,1,0,0)"
+                >
+                  <rect
+                    dataisgeon="true"
+                    fill="white"
+                    height="128"
+                    stroke="hsla(0, 0%, 80%, 1)"
+                    stroke-linecap="square"
+                    stroke-width="0.8px"
+                    vector-effect="non-scaling-stroke"
+                    width="128"
+                  />
+                </g>
+                <g
+                  fill="none"
+                  transform="matrix(1,0,0,1,128,0)"
+                >
+                  <circle
+                    cx="64"
+                    cy="64"
+                    dataisgeon="true"
+                    fill="white"
+                    r="64"
+                    stroke="hsla(0, 0%, 80%, 1)"
+                    stroke-linecap="square"
+                    stroke-width="0.8px"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </g>
+                <g
+                  fill="none"
+                  transform="matrix(1,0,0,1,0,128)"
+                >
+                  <path
+                    d="M0.0541 0C70.7217 0.0292317 128 57.3256 128 128C57.3177 128 0.0164917 70.7089 7.62806e-06 0.0305091C7.62851e-06 0.0203397 -4.44317e-10 0.01017 0 0H0.0541Z"
+                    dataisgeon="true"
+                    fill="white"
+                    stroke="hsla(0, 0%, 80%, 1)"
+                    stroke-linecap="square"
+                    stroke-width="0.8px"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </g>
+                <g
+                  fill="none"
+                  transform="matrix(1,0,0,1,128,128)"
+                >
+                  <path
+                    d="M64 128H0L5.59506e-06 0L64 5.59506e-06C99.3462 8.68512e-06 128 28.6538 128 64C128 99.3462 99.3462 128 64 128Z"
+                    dataisgeon="true"
+                    fill="white"
+                    stroke="hsla(0, 0%, 80%, 1)"
+                    stroke-linecap="square"
+                    stroke-width="0.8px"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </g>
+              </g>
+            </svg>
+          </div>
+          <div
+            class="max-w-full flex-1 text-left truncate"
+          >
+            <span>
+              <span
+                aria-hidden="true"
+              >
+                ~
+              </span>
+              <span>
+                finned
+              </span>
+              <span
+                aria-hidden="true"
+              >
+                -
+              </span>
+              <span
+                aria-hidden="false"
+              >
+                palmer
+              </span>
+            </span>
+          </div>
+        </a>
+      </li>
+      <li
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600 bg-gray-100"
+      >
+        <a
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          href="/notifications"
+        >
+          <div
+            class="flex h-6 w-6 items-center justify-center rounded text-sm font-semibold bg-gray-100"
+          >
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                class="fill-current"
+                height="8"
+                rx="4"
+                width="8"
+                x="8"
+                y="8"
+              />
+            </svg>
+          </div>
+          <div
+            class="max-w-full flex-1 text-left truncate"
+            title="Notifications"
+          >
+            Notifications
+          </div>
+        </a>
+      </li>
+      <li
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+      >
+        <a
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          href="/find"
+        >
+          <svg
+            class="m-1 h-4 w-4"
+            fill="none"
+            viewBox="0 0 16 16"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              class="fill-current"
+              clip-rule="evenodd"
+              d="M6.00003 7c0-1.65685 1.34314-3 3-3C10.6569 4 12 5.34315 12 7s-1.3431 3-2.99997 3c-1.65686 0-3-1.34315-3-3Zm3-5c-2.76142 0-5 2.23858-5 5 0 1.01907.30487 1.96694.82838 2.75737l-.53552.53553-2 2c-.39052.3905-.39052 1.0237 0 1.4142.39053.3905 1.02369.3905 1.41422 0l2-2 .53551-.5355c.79044.5235 1.73832.8284 2.75741.8284C11.7615 12 14 9.76142 14 7s-2.2385-5-4.99997-5Z"
+              fill-rule="evenodd"
+            />
+          </svg>
+          <div
+            class="max-w-full flex-1 text-left truncate"
+          >
+            <div
+              class="flex items-center"
+            >
+              Find Groups
+            </div>
+          </div>
+        </a>
+      </li>
+      <li
+        class="group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+      >
+        <a
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          href="/groups/new"
+        >
+          <svg
+            class="m-1 h-4 w-4"
+            fill="none"
+            viewBox="0 0 16 16"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              class="stroke-current"
+              d="M3 8h10M8 3v10"
+              stroke-linecap="round"
+              stroke-width="2"
+            />
+          </svg>
+          <div
+            class="max-w-full flex-1 text-left truncate"
+            title="Create Group"
+          >
+            Create Group
+          </div>
+        </a>
+      </li>
+    </ul>
+    <div
+      class="flex-auto space-y-3 overflow-x-hidden px-2 sm:space-y-1"
+    >
+      <ul
+        class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"
+      >
+        <li
+          class="relative flex w-full items-center justify-between rounded-lg"
+        >
+          <div
+            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
+          >
+            <div
+              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
+            />
+            <div
+              class="bg-gray-100 h-4 rounded-md"
+              style="width: 100px;"
+            />
+          </div>
+        </li>
+        <li
+          class="relative flex w-full items-center justify-between rounded-lg"
+        >
+          <div
+            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
+          >
+            <div
+              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
+            />
+            <div
+              class="bg-gray-100 h-4 rounded-md"
+              style="width: 100px;"
+            />
+          </div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+</DocumentFragment>
+`;
