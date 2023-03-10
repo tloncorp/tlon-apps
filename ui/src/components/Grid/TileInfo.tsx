@@ -1,14 +1,16 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useCharge } from '@/state/docket';
 import { usePike } from '@/state/kiln';
-import { useDismissNavigate } from '@/logic/routing';
 import Dialog, { DialogContent } from '../Dialog';
 import AppInfo from './AppInfo';
 
 export default function TileInfo() {
   const { desk } = useParams<{ desk: string }>();
-  const dismiss = useDismissNavigate();
+  const navigate = useNavigate();
+  const {
+    state: { backgroundLocation },
+  } = useLocation();
   const charge = useCharge(desk ?? '');
   const pike = usePike(desk ?? '');
 
@@ -18,7 +20,7 @@ export default function TileInfo() {
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
-      dismiss();
+      navigate('/grid', { state: { backgroundLocation } });
     }
   };
 
