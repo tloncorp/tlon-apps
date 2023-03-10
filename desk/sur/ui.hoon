@@ -11,6 +11,7 @@
 +$  chat
   $:  =briefs:c
       chats=(map flag:c chat:c)
+      pins=(list whom:c)
   ==
 ::
 +$  heap

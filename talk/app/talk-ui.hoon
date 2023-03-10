@@ -71,15 +71,11 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
+    =+  .^([=groups:g =gangs:g] (scry %gx %groups /init/noun))
     =/  =init:u
-      :*  .^(groups:g (scry %gx %groups /groups/light/noun))
-          .^(gangs:g (scry %gx %groups /gangs/noun))
-          .^(briefs:c (scry %gx %chat /briefs/noun))
-          .^((map flag:c chat:c) (scry %gx %chat /chats/noun))
-          .^((map id:club:c crew:club:c) (scry %gx %chat /clubs/noun))
-          .^((set ship) (scry %gx %chat /dm/noun))
-          .^((set ship) (scry %gx %chat /dm/invited/noun))
-          .^((list whom:c) (scry %gx %chat /pins/noun))
+      :*  groups
+          gangs
+          .^(talk:u (scry %gx %chat /init/talk/noun))
       ==
     ``ui-init+!>(init)
   ==

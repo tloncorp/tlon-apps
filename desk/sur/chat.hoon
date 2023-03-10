@@ -191,7 +191,7 @@
   +$  rsvp    [=ship ok=?]
   --
 ::
-::  $log: a time ordered map of all modifications to groups
+::  $log: a time ordered map of all modifications to chats
 ::
 +$  log
   ((mop time diff) lte)

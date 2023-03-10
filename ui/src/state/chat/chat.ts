@@ -189,11 +189,12 @@ export const useChatState = createState<ChatState>(
         },
       });
     },
-    start: async ({ briefs, chats }) => {
+    start: async ({ briefs, chats, pins }) => {
       const { wait } = useSchedulerStore.getState();
       get().batchSet((draft) => {
         draft.chats = chats;
         draft.briefs = briefs;
+        draft.pins = pins;
       });
 
       Object.entries(briefs).forEach(([whom, brief]) => {
