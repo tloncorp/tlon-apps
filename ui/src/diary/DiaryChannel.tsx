@@ -37,6 +37,7 @@ import {
 import useAllBriefs from '@/logic/useAllBriefs';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
+import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 
 function DiaryChannel() {
   const [joining, setJoining] = useState(false);
@@ -230,7 +231,9 @@ function DiaryChannel() {
         </div>
       </Toast.Provider>
       <div className="h-full">
-        {displayMode === 'grid' ? (
+        {sortedNotes.length === 0 ? (
+          <DiaryChannelListPlaceholder count={30} />
+        ) : displayMode === 'grid' ? (
           <DiaryGridView notes={sortedNotes} loadOlderNotes={loadOlderNotes} />
         ) : (
           <div className="h-full">
