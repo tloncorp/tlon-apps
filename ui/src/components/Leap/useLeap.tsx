@@ -25,6 +25,7 @@ import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import { Club } from '@/types/chat';
 import { useMutuals } from '@/state/pals';
+import { ChargeWithDesk, useCharges } from '@/state/docket';
 import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
@@ -33,6 +34,7 @@ import BubbleIcon from '../icons/BubbleIcon';
 import ShapesIcon from '../icons/ShapesIcon';
 import NotebookIcon from '../icons/NotebookIcon';
 import PeopleIcon from '../icons/PeopleIcon';
+import GridIcon from '../icons/GridIcon';
 
 interface LeapContext {
   isOpen: boolean;
@@ -102,6 +104,7 @@ export default function useLeap() {
   const pinnedChats = usePinned();
   const contacts = useContacts();
   const dms = useDms();
+  const charges = useCharges();
   const location = useLocation();
   const app = useAppName();
   const mutuals = useMutuals();
@@ -591,6 +594,98 @@ export default function useLeap() {
     setIsOpen,
   ]);
 
+  const chargeResults = useMemo(() => {
+    if (inputValue === '') {
+      return [];
+    }
+
+    const scoreChargeResult = (
+      entry: fuzzy.FilterResult<[string, ChargeWithDesk]>
+    ): number => {
+      const { score, original } = entry;
+      const [_, charge] = original;
+
+      const newScore = score;
+
+      // pinned charges are strong signals
+      // const isPinned = charge in pinnedCharges;
+      // if (isPinned) {
+      //  newScore += 10;
+      //  }
+      //  prefer unreads as well
+      //  const isUnread = isChannelUnread(charge);
+      //  if (isUnread) {
+      //  newScore += 5;
+      //  }
+      return newScore;
+    };
+
+    const allCharges = Object.entries(charges)
+      .filter(([desk, _charge]) => desk !== window.desk)
+      .filter(([desk, _charge]) => desk !== 'landscape');
+    const normalizedQuery = inputValue.toLocaleLowerCase();
+    const filteredCharges = fuzzy
+      .filter(normalizedQuery, allCharges, {
+        extract: ([_, c]) => `${c.title}`,
+      })
+      .filter((r) => scoreChargeResult(r) > LEAP_RESULT_SCORE_THRESHOLD)
+      .sort((a, b) => {
+        const scoreA = scoreChargeResult(a);
+        const scoreB = scoreChargeResult(b);
+        return scoreB - scoreA;
+      })
+      .map((r) => r.original);
+
+    return [
+      {
+        section: 'Apps',
+      },
+      ...filteredCharges.map(([desk, charge], idx) => {
+        const onSelect = () => {
+          const path =
+            'site' in charge.href ? charge.href.site : `/apps/${desk}`;
+          window.open(`${window.location.origin}${path}`, '_blank');
+          setSelectedIndex(0);
+          setInputValue('');
+          setIsOpen(false);
+        };
+
+        return {
+          onSelect,
+          icon: GridIcon,
+          input: inputValue,
+          title: charge.title,
+          subtitle: charge.info ?? '',
+          to: 'site' in charge.href ? charge.href.site : `/apps/${desk}`,
+          resultIndex:
+            idx +
+            (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : shipResults.length - 1) +
+            (channelResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : channelResults.length - 1) +
+            (groupResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : groupResults.length - 1) +
+            (multiDmResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : multiDmResults.length - 1),
+        };
+      }),
+    ];
+  }, [
+    channelResults.length,
+    inputValue,
+    charges,
+    shipResults.length,
+    groupResults.length,
+    setSelectedIndex,
+    setInputValue,
+    setIsOpen,
+    multiDmResults.length,
+  ]);
+
   // If changing the order, update the resultIndex calculations above
   const results = [
     ...menu,
@@ -605,6 +700,9 @@ export default function useLeap() {
       : []), // +1 to account for section header
     ...(multiDmResults.length > 1
       ? multiDmResults.slice(0, LEAP_RESULT_TRUNCATE_SIZE + 1)
+      : []), // +1 to account for section header
+    ...(chargeResults.length > 1
+      ? chargeResults.slice(0, LEAP_RESULT_TRUNCATE_SIZE + 1)
       : []), // +1 to account for section header
   ];
 
