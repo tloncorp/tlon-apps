@@ -282,3 +282,8 @@ export function useGroupSideBarSort() {
   const settings = useSettingsState(selGroupSideBarSort);
   return JSON.parse(settings ?? '{"~": "A → Z"}');
 }
+
+export function useSideBarSortMode() {
+  const settings = useSettingsState((s) => s.groups.sideBarSort);
+  return settings ?? DEFAULT;
+}

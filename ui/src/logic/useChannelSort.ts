@@ -40,7 +40,7 @@ export default function useChannelSort() {
 
   const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({
     sortOptions,
-    flag: groupFlag,
+    flag: groupFlag === '' ? '~' : groupFlag,
   });
 
   function sortChannels(channels: Channels) {
