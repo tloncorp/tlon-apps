@@ -3,7 +3,7 @@
 /-  m-one=metadata-store
 /-  meta
 /-  e=epic
-/+  default-agent, verb, dbug, vita-client
+/+  default-agent, verb, dbug
 /+  groups-json  :: unused, nice for perf
 /+  of
 /+  epos-lib=saga
@@ -28,7 +28,6 @@
 =<
   %+  verb  |
   %-  agent:dbug
-  %-  (agent:vita-client [& ~sogryp-dister-dozzod-dozzod])
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
@@ -273,9 +272,8 @@
   ?+  pole  ~|(bad-watch/pole !!)
     [%init ~]             (give %kick ~ ~)
     [%groups ~]           cor
+    [%groups %ui ~]       cor
     [%gangs %updates ~]   cor
-  ::
-    [%groups %ui ~]  (emit (active:vita-client bowl))
   ::
     [%epic ~]  (give %fact ~ epic+!>(okay))
   ::

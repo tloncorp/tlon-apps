@@ -1,5 +1,5 @@
 /-  u=ui, g=groups, c=chat, d=diary, h=heap
-/+  default-agent, dbug, verb
+/+  default-agent, dbug, verb, vita-client
 ^-  agent:gall
 =>
   |%
@@ -11,6 +11,7 @@
 =<
   %+  verb  |
   %-  agent:dbug
+  %-  (agent:vita-client [& ~sogryp-dister-dozzod-dozzod])
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %.n) bowl)
@@ -29,7 +30,12 @@
       abet:load:cor
     [cards this]
   ::
-  ++  on-poke   on-poke:def
+  ++  on-poke
+    |=  [=mark =vase]
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(poke:cor mark vase)
+    [cards this]
   ++  on-watch  on-watch:def
   ++  on-leave  on-leave:def
   ++  on-agent  on-agent:def
@@ -96,6 +102,14 @@
       ==
     ``ui-migration+!>(migration)
   ==
+::
+++  poke
+  |=  [=mark =vase]
+  ^+  cor
+  ?+    mark  ~|(bad-mark/mark !!)
+    %ui-vita  (emit (active:vita-client bowl))
+  ==
+::
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor

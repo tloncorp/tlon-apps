@@ -30,7 +30,12 @@
       abet:load:cor
     [cards this]
   ::
-  ++  on-poke   on-poke:def
+  ++  on-poke
+    |=  [=mark =vase]
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(poke:cor mark vase)
+    [cards this]
   ++  on-watch  on-watch:def
   ++  on-leave  on-leave:def
   ++  on-agent  on-agent:def
@@ -80,6 +85,14 @@
       ==
     ``ui-init+!>(init)
   ==
+::
+++  poke
+  |=  [=mark =vase]
+  ^+  cor
+  ?+    mark  ~|(bad-mark/mark !!)
+    %ui-vita  (emit (active:vita-client bowl))
+  ==
+::
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
