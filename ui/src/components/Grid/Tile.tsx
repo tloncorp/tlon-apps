@@ -10,7 +10,7 @@ import useTileColor from './useTileColor';
 // eslint-disable-next-line import/no-cycle
 import { dragTypes, useRecentsStore } from './Grid';
 import BulletIcon from '../icons/BulletIcon';
-import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
+import Spinner from './Spinner';
 
 type TileProps = {
   charge: ChargeWithDesk;
@@ -68,7 +68,7 @@ export default function Tile({ charge, desk, disabled = false }: TileProps) {
           )}
           {!active && (
             <>
-              {loading && <LoadingSpinner className="mr-2 h-6 w-6" />}
+              {loading && <Spinner className="mr-2 h-6 w-6" />}
               <span className="text-gray-500">
                 {suspended
                   ? 'Suspended'

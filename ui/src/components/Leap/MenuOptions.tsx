@@ -69,6 +69,12 @@ export const groupsMenuOptions: IMenuOption[] = [
 
 export const talkMenuOptions: IMenuOption[] = [
   {
+    title: 'Apps',
+    subtitle: '',
+    to: '/grid',
+    icon: GridIcon,
+  },
+  {
     title: 'New Message',
     subtitle: '',
     to: '/dm/new',

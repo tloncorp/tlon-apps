@@ -84,6 +84,14 @@ export const useRecentsStore = create<RecentsStore>((set) => ({
 
 window.recents = useRecentsStore.getState;
 
+export function addRecentDev(dev: string) {
+  return useRecentsStore.getState().addRecentDev(dev);
+}
+
+export function addRecentApp(app: string) {
+  return useRecentsStore.getState().addRecentApp(app);
+}
+
 export default function Grid() {
   const dismiss = useDismissNavigate();
   const charges = useCharges();

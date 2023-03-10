@@ -79,6 +79,7 @@ import chatmanifestURL from './assets/chatmanifest.json?url';
 import manifestURL from './assets/manifest.json?url';
 import { LeapProvider } from './components/Leap/useLeap';
 import Grid from './components/Grid/Grid';
+import TileInfo from './components/Grid/TileInfo';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -191,6 +192,8 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route path="/grid" element={<Grid />} />
+          <Route path="/app/:desk" element={<TileInfo />} />
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
@@ -344,6 +347,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
           <Route path="/grid" element={<Grid />} />
+          <Route path="/app/:desk" element={<TileInfo />} />
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />

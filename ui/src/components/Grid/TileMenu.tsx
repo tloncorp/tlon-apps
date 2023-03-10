@@ -1,7 +1,7 @@
 import React, { ReactElement, useCallback, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import classNames from 'classnames';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Chad, chadIsRunning } from '@urbit/api';
 import useDocketState from '@/state/docket';
 import { useIsMobile } from '@/logic/useMedia';
@@ -49,6 +49,9 @@ export default function TileMenu({
   className,
 }: TileMenuProps) {
   const [open, setOpen] = useState(false);
+  const {
+    state: { backgroundLocation },
+  } = useLocation();
   const toggleDocket = useDocketState((s) => s.toggleDocket);
   const menuBg = { backgroundColor: menuColor };
   const linkOnSelect = useCallback(() => handleDropdownLink(setOpen), []);
@@ -90,7 +93,11 @@ export default function TileMenu({
               onSelect={isMobile ? (e) => e.preventDefault() : linkOnSelect}
               asChild
             >
-              <Link to={`/app/${desk}`} className="block w-full px-4 py-3">
+              <Link
+                to={`/app/${desk}`}
+                state={{ backgroundLocation }}
+                className="block w-full px-4 py-3"
+              >
                 App Info
               </Link>
             </Item>

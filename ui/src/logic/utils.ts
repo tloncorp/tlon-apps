@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
 import { BigInteger } from 'big-integer';
-import { DocketHref, unixToDa } from '@urbit/api';
+import { Docket, DocketHref, Treaty, unixToDa } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
@@ -603,4 +603,14 @@ export function handleDropdownLink(
     e.preventDefault();
     setTimeout(() => setOpen?.(false), 15);
   };
+}
+
+export function getAppName(
+  app: (Docket & { desk: string }) | Treaty | undefined
+): string {
+  if (!app) {
+    return '';
+  }
+
+  return app.title || app.desk;
 }
