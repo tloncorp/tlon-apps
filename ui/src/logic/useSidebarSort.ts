@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import {
-  SettingsState,
   useSettingsState,
   useGroupSideBarSort,
+  useSideBarSortMode,
 } from '@/state/settings';
 import useAllBriefs from './useAllBriefs';
 
@@ -22,10 +22,6 @@ interface UseSidebarSort {
 
 export const sortAlphabetical = (aNest: string, bNest: string) =>
   aNest.localeCompare(bNest);
-
-const selSideBarSort = (s: SettingsState) => ({
-  sideBarSort: s.groups.sideBarSort,
-});
 
 export function useRecentSort() {
   const briefs = useAllBriefs();
@@ -58,10 +54,14 @@ export default function useSidebarSort({
   sortOptions,
   flag = '~',
 }: UseSidebarSort) {
-  const { sideBarSort } = useSettingsState(selSideBarSort);
+  const sideBarSort = useSideBarSortMode();
   const groupSideBarSort = useGroupSideBarSort();
-  const sortFn = defaultSort || groupSideBarSort[flag] || sideBarSort;
-
+  const sortFn = useMemo(
+    () =>
+      defaultSort ||
+      (flag !== '~' ? groupSideBarSort[flag] ?? DEFAULT : sideBarSort),
+    [defaultSort, flag, groupSideBarSort, sideBarSort]
+  );
   const setSideBarSort = (mode: string) => {
     useSettingsState.getState().putEntry('groups', 'sideBarSort', mode);
   };

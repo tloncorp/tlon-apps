@@ -36,7 +36,7 @@ function Groups() {
       navigate('/');
     } else if (initialized && group && root) {
       const found = Object.entries(group.channels).find(
-        ([nest, channel]) => recentChannel === nest
+        ([nest, _c]) => recentChannel === nest
       );
 
       let canRead = found && canReadChannel(found[1], vessel, group?.bloc);

@@ -150,7 +150,6 @@ export default function DiaryNote() {
       header={
         <DiaryNoteHeader
           title={note.essay.title}
-          flag={chFlag}
           time={noteId}
           canEdit={isAdmin || window.our === note.essay.author}
         />

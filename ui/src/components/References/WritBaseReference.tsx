@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useChannelPreview, useGang } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
-import bigInt from 'big-integer';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { ChatWrit } from '@/types/chat';
 import useGroupJoin from '@/groups/useGroupJoin';
@@ -20,7 +19,7 @@ interface WritBaseReferenceProps {
   isScrolling: boolean;
 }
 
-export default function WritBaseReference({
+function WritBaseReference({
   nest,
   writ,
   chFlag,
@@ -81,7 +80,6 @@ export default function WritBaseReference({
         time={time}
         author={writ.memo.author}
         groupFlag={preview?.group.flag}
-        groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
         reply={isReply}
@@ -89,3 +87,5 @@ export default function WritBaseReference({
     </div>
   );
 }
+
+export default React.memo(WritBaseReference);

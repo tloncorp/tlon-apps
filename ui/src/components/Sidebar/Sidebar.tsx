@@ -3,10 +3,10 @@ import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useGangList, useGroups, usePendingInvites } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
@@ -18,6 +18,7 @@ import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
+import { useSubscriptionStatus } from '@/state/local';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import AsteriskIcon from '../icons/Asterisk16Icon';
@@ -25,10 +26,13 @@ import GroupsSidebarItem from './GroupsSidebarItem';
 import SidebarSorter from './SidebarSorter';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
+import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const { subscription } = useSubscriptionStatus();
+
   return (
     <SidebarItem
       div
@@ -90,6 +94,16 @@ export function GroupsAppMenu() {
     >
       <div className="flex items-center justify-between">
         Groups
+        {subscription === 'reconnecting' ? (
+          <LoadingSpinner
+            primary="fill-gray-600"
+            secondary="fill-gray-600 opacity-50"
+            className={cn(
+              'h-4 w-4 group-hover:hidden',
+              menuOpen ? 'hidden' : 'block'
+            )}
+          />
+        ) : null}
         <a
           title="Back to Landscape"
           aria-label="Back to Landscape"
@@ -143,7 +157,7 @@ export default function Sidebar() {
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
       <ul
-        className={cn('flex w-full flex-col space-y-1 p-2', {
+        className={cn('flex w-full flex-col space-y-0.5 p-2', {
           'bottom-shadow': !atTop,
         })}
       >
@@ -194,8 +208,8 @@ export default function Sidebar() {
           >
             {Object.entries(pinnedGroups).length > 0 && (
               <>
-                <li className="-mx-2 mt-3 grow border-t-2 border-gray-50 pt-3 pb-2">
-                  <span className="-ml-1 text-sm font-semibold text-gray-400">
+                <li className="ml-0 mt-3 grow border-t-2 border-gray-50 pl-0 pt-3 pb-2">
+                  <span className="pl-2 text-sm font-semibold text-gray-400">
                     Pinned Groups
                   </span>
                 </li>

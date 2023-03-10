@@ -11,7 +11,7 @@ import FaceIcon from '@/components/icons/FaceIcon';
 import HashIcon from '@/components/icons/HashIcon';
 import ShareIcon from '@/components/icons/ShareIcon';
 import XIcon from '@/components/icons/XIcon';
-import { useChatStore } from '@/chat/useChatStore';
+import { useChatDialog, useChatStore } from '@/chat/useChatStore';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
@@ -31,8 +31,16 @@ export default function ChatMessageOptions(props: {
   const { didCopy, doCopy } = useCopy(
     `/1/chan/chat/${whom}/msg/${writ.seal.id}`
   );
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
+    whom,
+    writ.seal.id,
+    'picker'
+  );
+  const { open: deleteOpen, setOpen: setDeleteOpen } = useChatDialog(
+    whom,
+    writ.seal.id,
+    'delete'
+  );
   const {
     isPending: isDeletePending,
     setPending: setDeletePending,
@@ -69,7 +77,7 @@ export default function ChatMessageOptions(props: {
       useChatState.getState().addFeel(whom, writ.seal.id, emoji.shortcodes);
       setPickerOpen(false);
     },
-    [whom, writ]
+    [whom, writ, setPickerOpen]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

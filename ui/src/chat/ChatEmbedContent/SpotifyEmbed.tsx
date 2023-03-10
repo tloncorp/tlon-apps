@@ -1,35 +1,40 @@
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LightBox from '@/components/LightBox';
-import React, { useState } from 'react';
+import React from 'react';
+import { useParams } from 'react-router';
+import { useChatDialog } from '../useChatStore';
 
 interface SpotifyEmbedProps {
   url: string;
   title: string;
   thumbnailUrl: string;
-  thumbnailWidth: number;
-  thumbnailHeight: number;
+  writId: string;
 }
 
 export default function SpotifyEmbed({
   url,
   title,
   thumbnailUrl,
-  thumbnailWidth,
-  thumbnailHeight,
+  writId,
 }: SpotifyEmbedProps) {
-  const [showIframeModal, setShowIframeModal] = useState(false);
+  const { chShip, chName } = useParams<{
+    chShip: string;
+    chName: string;
+  }>();
+  const whom = `${chShip}/${chName}`;
+  const { open: showIframeModal, setOpen: setShowIframeModal } = useChatDialog(
+    whom,
+    writId,
+    'spotify'
+  );
   const trackId = url.split('/')?.pop()?.split('?')[0];
   return (
     <div className="embed-inline-block">
       <div
         style={{
           backgroundImage: `url(${thumbnailUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          width: thumbnailWidth,
-          height: thumbnailHeight,
         }}
-        className="rounded"
+        className="h-[250px] w-[250px] rounded bg-cover bg-center"
       />
       <button
         onClick={() => setShowIframeModal(true)}

@@ -19,7 +19,10 @@ export default function useGroupSort() {
     }),
     [sortRecent]
   );
-  const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({ sortOptions });
+  const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({
+    sortOptions,
+    flag: '~',
+  });
   const { sortChannels } = useChannelSort();
 
   function sortGroups(groups: Groups) {

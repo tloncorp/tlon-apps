@@ -1,7 +1,9 @@
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LightBox from '@/components/LightBox';
 import { useIsMobile } from '@/logic/useMedia';
-import React, { useState } from 'react';
+import React from 'react';
+import { useParams } from 'react-router';
+import { useChatDialog } from '../useChatStore';
 
 interface YouTubeEmbedProps {
   url: string;
@@ -9,8 +11,7 @@ interface YouTubeEmbedProps {
   thumbnail: string;
   author: string;
   authorUrl: string;
-  thumbnailWidth: number;
-  thumbnailHeight: number;
+  writId: string;
 }
 
 export default function YouTubeEmbed({
@@ -19,24 +20,28 @@ export default function YouTubeEmbed({
   thumbnail,
   author,
   authorUrl,
-  thumbnailWidth,
-  thumbnailHeight,
+  writId,
 }: YouTubeEmbedProps) {
+  const { chShip, chName } = useParams<{
+    chShip: string;
+    chName: string;
+  }>();
+  const whom = `${chShip}/${chName}`;
   const videoId = url.split('v=')[1];
-  const [showIframeModal, setShowIframeModal] = useState(false);
+  const { open: showIframeModal, setOpen: setShowIframeModal } = useChatDialog(
+    whom,
+    writId,
+    'youtube'
+  );
   const isMobile = useIsMobile();
 
   return (
-    <div className="embed-inline-block">
+    <div className="embed-inline-block w-[286px] break-normal">
       <div
         style={{
           backgroundImage: `url(${thumbnail})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          width: isMobile ? 300 : thumbnailWidth,
-          height: isMobile ? 300 : thumbnailHeight,
         }}
-        className="rounded"
+        className="h-[200px] w-[250px] rounded bg-cover bg-center"
       />
       <button
         onClick={() => setShowIframeModal(true)}
@@ -55,7 +60,10 @@ export default function YouTubeEmbed({
           {title}
         </a>
         <span className="font-semibold text-gray-800">&middot;</span>
-        <a href={authorUrl} className="font-semibold text-gray-800 underline">
+        <a
+          href={authorUrl}
+          className="truncate font-semibold text-gray-800 underline"
+        >
           {author}
         </a>
       </div>

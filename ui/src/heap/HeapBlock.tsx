@@ -234,18 +234,24 @@ export default function HeapBlock({
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit = asRef ? false : isAdmin || window.our === curio.heart.author;
+  const notEmbed = isImage && isAudio && isText && isComment;
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(url)) {
-        const oembed = await useEmbedState.getState().getEmbed(url);
-        setEmbed(oembed);
+      if (isValidUrl(url) && !notEmbed && !calm.disableRemoteContent) {
+        try {
+          const oembed = await useEmbedState.getState().getEmbed(url);
+          setEmbed(oembed);
+        } catch (e) {
+          setEmbed(null);
+          console.log("HeapBlock::getOembed: couldn't get embed", e);
+        }
       }
     };
     getOembed();
-  }, [url]);
+  }, [url, notEmbed, calm]);
 
-  if (isValidUrl(url) && embed === undefined) {
+  if (isValidUrl(url) && embed === undefined && !notEmbed) {
     return <HeapLoadingBlock />;
   }
 
