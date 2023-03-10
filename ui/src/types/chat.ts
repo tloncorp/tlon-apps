@@ -323,6 +323,7 @@ export interface ChatJoin {
 export interface ChatInit {
   briefs: ChatBriefs;
   chats: Chats;
+  pins: string[];
 }
 
 export interface TalkChatInit extends ChatInit {

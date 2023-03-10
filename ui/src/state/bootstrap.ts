@@ -17,7 +17,7 @@ import { useStorage } from './storage';
 const emptyGroupsInit: GroupsInit = {
   groups: {},
   gangs: {},
-  chat: { briefs: {}, chats: {} },
+  chat: { briefs: {}, chats: {}, pins: [] },
   heap: { briefs: {}, stash: {} },
   diary: { briefs: {}, shelf: {} },
 };

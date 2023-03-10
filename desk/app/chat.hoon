@@ -677,7 +677,7 @@
   ::
     [%x %briefs ~]  ``chat-briefs+!>(briefs)
   ::
-    [%x %init ~]  ``noun+!>([briefs chats-light])
+    [%x %init ~]  ``noun+!>([briefs chats-light pins])
   ::
       [%x %init %talk ~]
     =-  ``noun+!>(-)

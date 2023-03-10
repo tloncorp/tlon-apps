@@ -21,8 +21,9 @@
       |=  =chat:u
       ^-  ^json
       %-  pairs
-      :~  briefs/(briefs:enjs:cj -.chat)
-          chats/(chats:enjs:cj +.chat)
+      :~  briefs/(briefs:enjs:cj briefs.chat)
+          chats/(chats:enjs:cj chats.chat)
+          pins/a/(turn pins.chat (cork whom:enjs:cj (lead %s)))
       ==
     ++  heap
       |=  =heap:u
