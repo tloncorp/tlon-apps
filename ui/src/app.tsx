@@ -77,6 +77,7 @@ import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import chatmanifestURL from './assets/chatmanifest.json?url';
 import manifestURL from './assets/manifest.json?url';
+import { LeapProvider } from './components/Leap/useLeap';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -446,25 +447,27 @@ function App() {
       {!disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
       <UpdateNotice />
-      {isTalk ? (
-        <>
-          <TalkHead />
-          <ChatRoutes
+      <LeapProvider>
+        {isTalk ? (
+          <>
+            <TalkHead />
+            <ChatRoutes
+              state={state}
+              location={location}
+              isMobile={isMobile}
+              isSmall={isSmall}
+            />
+          </>
+        ) : (
+          <GroupsRoutes
             state={state}
             location={location}
             isMobile={isMobile}
             isSmall={isSmall}
           />
-        </>
-      ) : (
-        <GroupsRoutes
-          state={state}
-          location={location}
-          isMobile={isMobile}
-          isSmall={isSmall}
-        />
-      )}
-      <Leap />
+        )}
+        <Leap />
+      </LeapProvider>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { uniqBy } from 'lodash';
 import { useLocation, useNavigate } from 'react-router';
 import { cite, Contact, deSig, preSig } from '@urbit/api';
@@ -34,10 +34,62 @@ import ShapesIcon from '../icons/ShapesIcon';
 import NotebookIcon from '../icons/NotebookIcon';
 import PeopleIcon from '../icons/PeopleIcon';
 
+interface LeapContext {
+  isOpen: boolean;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  inputValue: string;
+  setInputValue: React.Dispatch<React.SetStateAction<string>>;
+  selectedIndex: number;
+  setSelectedIndex: React.Dispatch<React.SetStateAction<number>>;
+}
+
+const LeapContext = React.createContext({
+  isOpen: false,
+  setIsOpen: (_isOpen: boolean) => null,
+  inputValue: '',
+  setInputValue: (_inputValue: string) => null,
+  selectedIndex: 0,
+  setSelectedIndex: (_selectedIndex: number) => null,
+} as LeapContext);
+
+export function LeapProvider({ children }: { children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [inputValue, setInputValue] = React.useState('');
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
+
+  const contextValue = useMemo(
+    () => ({
+      isOpen,
+      setIsOpen,
+      inputValue,
+      setInputValue,
+      selectedIndex,
+      setSelectedIndex,
+    }),
+    [
+      isOpen,
+      setIsOpen,
+      inputValue,
+      setInputValue,
+      selectedIndex,
+      setSelectedIndex,
+    ]
+  );
+
+  return (
+    <LeapContext.Provider value={contextValue}>{children}</LeapContext.Provider>
+  );
+}
+
 export default function useLeap() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const {
+    isOpen,
+    setIsOpen,
+    inputValue,
+    setInputValue,
+    selectedIndex,
+    setSelectedIndex,
+  } = React.useContext(LeapContext);
   const navigate = useNavigate();
   const modalNavigate = useModalNavigate();
   const groups = useGroups();
@@ -206,6 +258,9 @@ export default function useLeap() {
     navigate,
     preSiggedMutuals,
     dms,
+    setInputValue,
+    setIsOpen,
+    setSelectedIndex,
   ]);
 
   const channelResults = useMemo(() => {
@@ -342,6 +397,9 @@ export default function useLeap() {
     pinnedChats,
     pinnedGroups,
     shipResults.length,
+    setSelectedIndex,
+    setInputValue,
+    setIsOpen,
   ]);
 
   const groupResults = useMemo(() => {
@@ -434,6 +492,9 @@ export default function useLeap() {
     navigate,
     pinnedGroups,
     shipResults.length,
+    setSelectedIndex,
+    setInputValue,
+    setIsOpen,
   ]);
 
   const multiDmResults = useMemo(() => {
@@ -525,6 +586,9 @@ export default function useLeap() {
     shipResults.length,
     groupResults.length,
     isChannelUnread,
+    setSelectedIndex,
+    setInputValue,
+    setIsOpen,
   ]);
 
   // If changing the order, update the resultIndex calculations above
