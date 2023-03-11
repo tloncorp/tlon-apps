@@ -1,1 +1,1 @@
-desk/lib/vita-client.hoon
+../../desk/lib/vita-client.hoon

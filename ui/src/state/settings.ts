@@ -70,11 +70,13 @@ interface BaseSettingsState {
   };
   talk: {
     messagesFilter: SidebarFilter;
+    showVitaMessage: boolean;
   };
   groups: {
     orderedGroupPins: string[];
     sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
     groupSideBarSort: Stringified<GroupSideBarSort>;
+    showVitaMessage: boolean;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -145,9 +147,11 @@ export const useSettingsState = createState<BaseSettingsState>(
       orderedGroupPins: [],
       sideBarSort: DEFAULT,
       groupSideBarSort: '{"~": "A → Z"}' as Stringified<GroupSideBarSort>,
+      showVitaMessage: false,
     },
     talk: {
       messagesFilter: filters.dms,
+      showVitaMessage: false,
     },
     loaded: false,
     putEntry: async (bucket, key, val) => {
@@ -286,4 +290,11 @@ export function useGroupSideBarSort() {
 export function useSideBarSortMode() {
   const settings = useSettingsState((s) => s.groups.sideBarSort);
   return settings ?? DEFAULT;
+}
+
+export function useShowVitaMessage() {
+  const setting = useSettingsState(
+    (s) => s[window.desk as 'groups' | 'talk']?.showVitaMessage
+  );
+  return setting;
 }
