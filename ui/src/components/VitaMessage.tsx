@@ -5,7 +5,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { useCallback } from 'react';
 
 export function disableVita() {
-  api.poke({
+  return api.poke({
     app: isTalk ? 'talk-ui' : 'groups-ui',
     mark: 'ui-vita-toggle',
     json: false,

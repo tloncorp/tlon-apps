@@ -1,11 +1,15 @@
 import { useDismissNavigate } from '@/logic/routing';
+import useRequestState from '@/logic/useRequestState';
 import { isTalk, useCopy } from '@/logic/utils';
 import { useCharge } from '@/state/docket';
 import { usePike } from '@/state/kiln';
+import { useCallback } from 'react';
 import Dialog, { DialogContent } from './Dialog';
 import IconButton from './IconButton';
 import CheckIcon from './icons/CheckIcon';
 import CopyIcon from './icons/CopyIcon';
+import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
+import { disableVita } from './VitaMessage';
 
 export default function AboutDialog() {
   const dismiss = useDismissNavigate();
@@ -20,6 +24,13 @@ export default function AboutDialog() {
   const { didCopy: didCopyVersion, doCopy: doCopyVersion } = useCopy(
     charge?.version || ''
   );
+  const { isPending, setPending, setReady } = useRequestState();
+
+  const disable = useCallback(async () => {
+    setPending();
+    await disableVita();
+    setTimeout(setReady, 1000);
+  }, [setPending, setReady]);
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
@@ -84,6 +95,15 @@ export default function AboutDialog() {
               }
               action={doCopyShip}
             />
+          </div>
+          <div className="flex flex-row items-center text-sm">
+            <button
+              className="small-secondary-button"
+              onClick={disable}
+              disabled={isPending}
+            >
+              {isPending ? <LoadingSpinner /> : 'Disable Usage Tracking'}
+            </button>
           </div>
         </div>
       </DialogContent>
