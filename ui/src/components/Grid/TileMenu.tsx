@@ -94,7 +94,7 @@ export default function TileMenu({
               asChild
             >
               <Link
-                to={`/app/${desk}`}
+                to={`/app/${desk}/info`}
                 state={{ backgroundLocation }}
                 className="block w-full px-4 py-3"
               >

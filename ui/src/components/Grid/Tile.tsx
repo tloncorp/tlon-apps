@@ -5,6 +5,7 @@ import { getAppHref } from '@/logic/utils';
 import { chadIsRunning } from '@urbit/api';
 import { usePike } from '@/state/kiln';
 import { ChargeWithDesk } from '@/state/docket';
+import { Link, useLocation } from 'react-router-dom';
 import TileMenu from './TileMenu';
 import useTileColor from './useTileColor';
 // eslint-disable-next-line import/no-cycle
@@ -20,6 +21,9 @@ type TileProps = {
 
 export default function Tile({ charge, desk, disabled = false }: TileProps) {
   const addRecentApp = useRecentsStore((state) => state.addRecentApp);
+  const {
+    state: { backgroundLocation },
+  } = useLocation();
   const { title, image, color, chad, href } = charge;
   const pike = usePike(desk);
   const { lightText, tileColor, menuColor, suspendColor, suspendMenuColor } =
@@ -29,7 +33,7 @@ export default function Tile({ charge, desk, disabled = false }: TileProps) {
   const hung = 'hung' in chad;
   // TODO should held zest be considered inactive? suspended? also, null sync?
   const active = !disabled && chadIsRunning(chad);
-  const link = getAppHref(href);
+  const link = `/app/${desk}`;
   const backgroundColor = suspended
     ? suspendColor
     : active
@@ -45,11 +49,10 @@ export default function Tile({ charge, desk, disabled = false }: TileProps) {
   // }));
 
   return (
-    <a
+    <Link
       // ref={drag}
-      href={active ? link : undefined}
-      target="_blank"
-      rel="noreferrer"
+      to={active ? link : ''}
+      state={{ backgroundLocation }}
       className={classNames(
         'default-ring group absolute h-full w-full overflow-hidden rounded-3xl font-semibold focus-visible:ring-4',
         suspended && 'opacity-50 grayscale',
@@ -104,6 +107,6 @@ export default function Tile({ charge, desk, disabled = false }: TileProps) {
           />
         )}
       </div>
-    </a>
+    </Link>
   );
 }
