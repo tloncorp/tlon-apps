@@ -43,8 +43,8 @@ export default function ChatContentImage({
     return (
       <div className="embed-inline-block group">
         <div className="flex h-full flex-col items-center justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-            <ExclamationPoint className="h-6 w-6 text-red-600" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+            <ExclamationPoint className="h-6 w-6 text-gray-400" />
           </div>
           <p className="mt-2 text-sm font-medium text-gray-900">
             Failed to load image
