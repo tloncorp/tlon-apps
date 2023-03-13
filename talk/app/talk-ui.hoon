@@ -12,7 +12,7 @@
 =<
   %+  verb  |
   %-  agent:dbug
-  %-  (agent:vita-client [& ~sogryp-dister-dozzod-dozzod])
+  %-  (agent:vita-client [| ~sogryp-dister-dozzod-dozzod])
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %.n) bowl)

@@ -4,25 +4,25 @@ import { useSettingsState, useShowVitaMessage } from '@/state/settings';
 import * as Popover from '@radix-ui/react-popover';
 import { useCallback } from 'react';
 
-export function disableVita() {
+export function enableVita() {
   return api.poke({
     app: isTalk ? 'talk-ui' : 'groups-ui',
     mark: 'ui-vita-toggle',
-    json: false,
+    json: true,
   });
 }
 
 export default function VitaMessage() {
   const show = useShowVitaMessage();
   const close = useCallback(
-    (disable: boolean) => () => {
-      if (disable) {
-        disableVita();
-      }
-
+    (enable: boolean) => () => {
       useSettingsState
         .getState()
         .putEntry(window.desk, 'showVitaMessage', false);
+
+      if (enable) {
+        enableVita();
+      }
     },
     []
   );
@@ -36,7 +36,7 @@ export default function VitaMessage() {
       <Popover.Anchor className="fixed bottom-4 right-4" />
       <Popover.Portal>
         <Popover.Content
-          className="w-full max-w-sm space-y-4 rounded-xl bg-white p-6 shadow-lg dark:border dark:border-gray-50"
+          className="w-full max-w-md space-y-4 rounded-xl bg-white p-6 shadow-lg dark:border dark:border-gray-50"
           side="top"
           align="end"
           onPointerDownOutside={disableDefault}
@@ -45,8 +45,7 @@ export default function VitaMessage() {
           onInteractOutside={disableDefault}
         >
           <p>
-            <strong>{toTitleCase(window.desk)}</strong> now tracks daily usage
-            with{' '}
+            Your ship may now use{' '}
             <a
               href="https://github.com/assemblycapital/vita"
               rel="noreferrer"
@@ -54,19 +53,25 @@ export default function VitaMessage() {
               className="underline"
             >
               <strong>%vita</strong>
-            </a>
-            .
+            </a>{' '}
+            to tell <strong>Tlon</strong> when you open{' '}
+            <strong>{toTitleCase(window.desk)}</strong>, once per day.
           </p>
           <p>
-            You can disable it now or in the future using the
-            &ldquo;About&rdquo; menu in the top left.
+            This information is anonymized and used for product analytics only.
+          </p>
+          <p>
+            This action increments a single counter for all{' '}
+            <strong>{toTitleCase(window.desk)}</strong> users and does not
+            contain information about your ship, the groups you are in, or the
+            messages you've sent.
           </p>
           <div className="flex justify-end space-x-2">
-            <Popover.Close className="secondary-button" onClick={close(true)}>
-              Disable
+            <Popover.Close className="secondary-button" onClick={close(false)}>
+              Ignore
             </Popover.Close>
-            <Popover.Close className="button" onClick={close(false)}>
-              Okay
+            <Popover.Close className="button" onClick={close(true)}>
+              Enable and Continue
             </Popover.Close>
           </div>
         </Popover.Content>
