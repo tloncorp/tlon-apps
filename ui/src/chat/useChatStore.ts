@@ -12,6 +12,7 @@ export interface ChatInfo {
     brief: ChatBrief; // lags behind actual brief, only gets update if unread
   };
   dialogs: Record<string, Record<string, boolean>>;
+  failedToLoadContent: Record<string, Record<number, boolean>>;
 }
 
 export interface ChatStore {
@@ -27,6 +28,12 @@ export interface ChatStore {
     writId: string,
     dialogs: Record<string, boolean>
   ) => void;
+  setFailedToLoadContent: (
+    whom: string,
+    writId: string,
+    blockIndex: number,
+    failureState: boolean
+  ) => void;
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
@@ -40,6 +47,7 @@ const emptyInfo: ChatInfo = {
   blocks: [],
   unread: undefined,
   dialogs: {},
+  failedToLoadContent: {},
 };
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -65,6 +73,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
 
         draft.chats[whom].dialogs[writId] = dialogs;
+      })
+    );
+  },
+  setFailedToLoadContent: (whom, writId, blockIndex, failureState) => {
+    set(
+      produce((draft) => {
+        if (!draft.chats[whom]) {
+          draft.chats[whom] = emptyInfo;
+        }
+
+        if (!draft.chats[whom].failedToLoadContent[writId]) {
+          draft.chats[whom].failedToLoadContent[writId] = {};
+        }
+
+        draft.chats[whom].failedToLoadContent[writId][blockIndex] =
+          failureState;
       })
     );
   },
@@ -197,6 +221,28 @@ export function useChatDialog(
     open: dialogs[dialog] || false,
     setOpen: (open: boolean) => {
       setDialogs(whom, writId, { ...dialogs, [dialog]: open });
+    },
+  };
+}
+
+export function useChatFailedToLoadContent(
+  whom: string,
+  writId: string,
+  blockIndex: number
+): { failedToLoad: boolean; setFailedToLoad: (failed: boolean) => void } {
+  const { setFailedToLoadContent } = useChatStore.getState();
+  const failedToLoadContent = useChatStore(
+    useCallback(
+      (s) =>
+        s.chats[whom]?.failedToLoadContent?.[writId]?.[blockIndex] || false,
+      [whom, writId, blockIndex]
+    )
+  );
+
+  return {
+    failedToLoad: failedToLoadContent,
+    setFailedToLoad: (failed: boolean) => {
+      setFailedToLoadContent(whom, writId, blockIndex, failed);
     },
   };
 }

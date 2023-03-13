@@ -271,9 +271,11 @@ export const useChatState = createState<ChatState>(
         });
       }, 3);
     },
-    startTalk: async (init) => {
+    startTalk: async (init, startBase = true) => {
       const { wait } = useSchedulerStore.getState();
-      get().start(init);
+      if (startBase) {
+        get().start(init);
+      }
 
       get().batchSet((draft) => {
         draft.multiDms = init.clubs;
@@ -950,30 +952,12 @@ export function useDmIsPending(ship: string) {
 
 const selMultiDms = (s: ChatState) => s.multiDms;
 export function useMultiDms() {
-  const dms = useChatState(selMultiDms);
-  const noDms = Object.entries(dms).length === 0;
-
-  useEffect(() => {
-    if (noDms) {
-      useChatState.getState().fetchMultiDms();
-    }
-  }, [noDms]);
-
-  return dms;
+  return useChatState(selMultiDms);
 }
 
 const selDms = (s: ChatState) => s.dms;
 export function useDms() {
-  const dms = useChatState(selDms);
-  const noDms = dms.length === 0;
-
-  useEffect(() => {
-    if (noDms) {
-      useChatState.getState().fetchDms();
-    }
-  }, [noDms]);
-
-  return dms;
+  return useChatState(selDms);
 }
 
 export function useMultiDm(id: string): Club | undefined {

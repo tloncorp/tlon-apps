@@ -107,10 +107,11 @@ const useHarkState = create<HarkState>((set, get) => ({
       })
       .catch(() => emptyCarpet({ desk: window.desk }));
 
+    const quilt = carpet.stitch === 0 ? '0' : decToUd(carpet.stitch.toString());
     const blanket = await api
       .scry<Blanket>({
         app: 'hark',
-        path: `/desk/${window.desk}/quilt/${decToUd(carpet.stitch.toString())}`,
+        path: `/desk/${window.desk}/quilt/${quilt}`,
       })
       .catch(() => emptyBlanket({ desk: window.desk }));
 
@@ -125,9 +126,10 @@ const useHarkState = create<HarkState>((set, get) => ({
       path: `/group/${flag}/latest`,
     });
 
+    const quilt = carpet.stitch === 0 ? '0' : decToUd(carpet.stitch.toString());
     const blanket = await api.scry<Blanket>({
       app: 'hark',
-      path: `/group/${flag}/quilt/${decToUd(carpet.stitch.toString())}`,
+      path: `/group/${flag}/quilt/${quilt}`,
     });
 
     get().batchSet((draft) => {
