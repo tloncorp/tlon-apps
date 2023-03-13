@@ -56,6 +56,8 @@ export default function YouTubeEmbed({
         <a
           href={url}
           className="truncate font-semibold text-gray-800 underline"
+          target="_blank"
+          rel="noreferrer"
         >
           {title}
         </a>
@@ -63,6 +65,8 @@ export default function YouTubeEmbed({
         <a
           href={authorUrl}
           className="truncate font-semibold text-gray-800 underline"
+          target="_blank"
+          rel="noreferrer"
         >
           {author}
         </a>

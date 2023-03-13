@@ -48,6 +48,8 @@ export default function SpotifyEmbed({
         <span className="text-gray-300">&middot;</span>
         <a
           href={url}
+          target="_blank"
+          rel="noreferrer"
           className="truncate font-semibold text-gray-800 underline"
         >
           {title}
