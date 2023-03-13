@@ -43,6 +43,10 @@ function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
       }
     };
     getOembed();
+
+    return () => {
+      setEmbed(null);
+    };
   }, [url, calm, isTrusted, isAudio]);
 
   if (isAudio) {
