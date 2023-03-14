@@ -259,9 +259,8 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
-              <Route index element={isMobile ? <MobileGroupRoot /> : null} />
               <Route
-                path="channellist"
+                index
                 element={isMobile ? <MobileGroupChannelList /> : null}
               />
               <Route
