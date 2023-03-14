@@ -123,7 +123,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
           } as React.CSSProperties
         }
         className={cn(
-          'group relative flex w-full items-center justify-between rounded-lg py-0.5 text-lg font-semibold sm:text-base',
+          'group relative my-0.5 flex w-full items-center justify-between rounded-lg',
           color,
           !hasHoverColor() && !active ? `hover:${highlight}` : null,
           !hasHoverColor() && active && to !== '/' ? 'bg-gray-100' : null
@@ -132,7 +132,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
         <Action
           to={to}
           className={cn(
-            'default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold',
+            'default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2',
             className
           )}
           {...rest}
@@ -141,7 +141,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
           <div
             title={typeof children === 'string' ? children : undefined}
             className={cn(
-              'max-w-full flex-1 text-left',
+              'sm:text-semibold max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:text-gray-600',
               isMobile ? 'line-clamp-1' : 'truncate',
               actions && 'pr-4'
             )}
@@ -150,7 +150,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
           </div>
         </Action>
         {actions ? (
-          <div className={cn('absolute right-0')}>{actions}</div>
+          <div className={cn('absolute right-2 sm:right-1')}>{actions}</div>
         ) : null}
       </Wrapper>
     );

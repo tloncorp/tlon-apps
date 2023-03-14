@@ -136,7 +136,7 @@ export default function Sidebar() {
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);
   const shipColor = useProfileColor(window.our);
-  const ref = useRef<HTMLUListElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const pinnedGroupsOptions = useMemo(
     () =>
       Object.entries(pinnedGroups).map(([flag]) => (
@@ -208,38 +208,36 @@ export default function Sidebar() {
           >
             {Object.entries(pinnedGroups).length > 0 && (
               <>
-                <li className="ml-0 mt-3 grow border-t-2 border-gray-50 pl-0 pt-3 pb-2">
-                  <span className="pl-2 text-sm font-semibold text-gray-400">
+                <div className="flex h-10 items-center border-t-2 border-gray-50 p-2 pb-1">
+                  <h2 className="text-sm font-bold text-gray-400">
                     Pinned Groups
-                  </span>
-                </li>
+                  </h2>
+                </div>
                 {pinnedGroupsOptions}
               </>
             )}
-            <ul
-              ref={ref}
-              className="flex-initial overflow-y-auto overflow-x-hidden px-2"
-            >
-              <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-                <span className="ml-3 text-sm font-semibold text-gray-400">
-                  All Groups
-                </span>
-              </li>
-              <li className="relative py-2">
-                <SidebarSorter
-                  sortFn={sortFn}
-                  setSortFn={setSortFn}
-                  sortOptions={sortOptions}
-                  isMobile={isMobile}
-                />
+            <div ref={ref} className="flex-initial">
+              <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1">
+                <h2 className="text-sm font-bold text-gray-400">
+                  {sortFn === 'A → Z' ? 'Groups A → Z' : 'Recent Activity'}
+                </h2>
+                <div>
+                  <SidebarSorter
+                    sortFn={sortFn}
+                    setSortFn={setSortFn}
+                    sortOptions={sortOptions}
+                  />
+                </div>
+              </div>
+              <div className="relative">
                 {!sortedGroups.length && (
                   <div className="mt-4 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
                     Check out <strong>Find Groups</strong> above to find new
                     groups in your network or view group invites.
                   </div>
                 )}
-              </li>
-            </ul>
+              </div>
+            </div>
             {gangs.map((flag) => (
               <GangItem key={flag} flag={flag} />
             ))}

@@ -180,21 +180,20 @@ export default function ChannelList({ className }: ChannelListProps) {
 
   return (
     <div className={className}>
-      {isMobile && (
-        <SidebarItem
-          icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-              <HashIcon16 className="m-1 h-4 w-4" />
-            </div>
-          }
-          to={`/groups/${flag}/channels`}
-          className="mb-3"
-        >
-          All Channels
-        </SidebarItem>
-      )}
       {!isMobile && <ChannelSorter isMobile={false} />}
-      <ul className={cn('space-y-0.5', isMobile && 'flex-none space-y-3')}>
+      <ul className={cn('space-y-0.5', isMobile && 'flex-none')}>
+        {isMobile && (
+          <SidebarItem
+            icon={
+              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                <HashIcon16 className="m-1 h-4 w-4" />
+              </div>
+            }
+            to={`/groups/${flag}/channels`}
+          >
+            All Channels
+          </SidebarItem>
+        )}
         {isDefaultSort
           ? filteredSections.map((s) => (
               <div className="space-y-0.5" key={s}>

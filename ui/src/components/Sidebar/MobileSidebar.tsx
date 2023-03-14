@@ -14,24 +14,24 @@ export default function MobileSidebar() {
   const profileMatch = useMatch('/profile/edit');
 
   return (
-    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-r-2 border-gray-50 bg-white">
+    <section className="fixed inset-0 z-40 flex h-full w-full flex-col  border-gray-50 bg-white">
       <Outlet />
       <footer className="mobile-bottom-nav flex-none border-t-2 border-gray-50">
         <nav>
-          <ul className="flex justify-items-stretch">
-            <NavTab to="/">
+          <ul className="flex">
+            <NavTab to="/" linkClass="basis-1/5">
               <AppGroupsIcon className="mb-0.5 h-6 w-6" />
               Groups
             </NavTab>
-            <NavTab to="/notifications">
+            <NavTab to="/notifications" linkClass="basis-1/5">
               <BellIcon className="mb-0.5 h-6 w-6" />
               Activity
             </NavTab>
-            <NavTab to="/find">
+            <NavTab to="/find" linkClass="basis-1/5">
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
               Find Groups
             </NavTab>
-            <NavTab to="/profile/edit">
+            <NavTab to="/profile/edit" linkClass="basis-1/5">
               <Avatar
                 size="xs"
                 ship={ship}
@@ -42,7 +42,7 @@ export default function MobileSidebar() {
               />
               Profile
             </NavTab>
-            <NavTab to="/actions">
+            <NavTab to="/actions" linkClass="basis-1/5">
               <ElipsisIcon className="mb-0.5 h-6 w-6" />
               Options
             </NavTab>

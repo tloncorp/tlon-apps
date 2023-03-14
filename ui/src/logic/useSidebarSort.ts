@@ -8,7 +8,7 @@ import useAllBriefs from './useAllBriefs';
 
 export const ALPHABETICAL = 'A → Z';
 export const DEFAULT = 'Arranged';
-export const RECENT = 'Recent';
+export const RECENT = 'Recent Activity';
 
 type SortMode = typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
 export interface Sorter {
