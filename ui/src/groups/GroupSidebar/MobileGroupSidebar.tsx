@@ -20,12 +20,12 @@ export default function MobileGroupSidebar() {
         <nav>
           <ul className="flex items-center">
             <NavTab to={`.`} end>
-              <BellIcon className="mb-0.5 h-6 w-6" />
-              Activity
-            </NavTab>
-            <NavTab to={`/groups/${flag}/channellist`} end>
               <HashIcon className="mb-0.5 h-6 w-6" />
               Channels
+            </NavTab>
+            <NavTab to={`/groups/${flag}/activity`}>
+              <BellIcon className="mb-0.5 h-6 w-6" />
+              Activity
             </NavTab>
             <NavTab to={`/groups/${flag}/info`}>
               <GroupAvatar
