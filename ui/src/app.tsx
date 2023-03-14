@@ -228,7 +228,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route
               path="/notifications"
               element={
-                <MainWrapper isMobile={isMobile}>
+                <MainWrapper title="Notifications" isMobile={isMobile}>
                   <Notifications
                     child={GroupNotification}
                     title={`All Notifications • ${appHead('').title}`}
@@ -263,6 +263,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               }
             />
             <Route path="/actions" element={<MobileGroupsActions />} />
+            <Route
+              path="/leap"
+              element={
+                <MainWrapper title="Leap" isMobile={isMobile}>
+                  <Leap openDefault />
+                </MainWrapper>
+              }
+            />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>

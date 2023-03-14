@@ -2,8 +2,6 @@ import { getAppHref } from '@/logic/utils';
 import { useCharge } from '@/state/docket';
 import { useNavigate, useParams } from 'react-router';
 import Dialog, { DialogContent } from '../Dialog';
-import ArrowEIcon16 from '../icons/ArrowEIcon16';
-import ArrowNWIcon from '../icons/ArrowNWIcon';
 import OpenSmallIcon from '../icons/OpenSmallIcon';
 
 export default function AppModal() {
@@ -25,7 +23,10 @@ export default function AppModal() {
         className="mt-7 h-full w-full overflow-y-auto bg-transparent"
         appModal
       >
-        <iframe className="mt-3 h-3/4 w-full rounded-lg bg-white" src={path} />
+        <iframe
+          className="mt-3 h-5/6 w-full rounded-lg bg-white sm:h-3/4"
+          src={path}
+        />
         <a
           href={path}
           className="small-button absolute -top-3 right-6 m-4 h-6 w-6 cursor-pointer bg-white p-1 text-gray-600 hover:bg-gray-50"

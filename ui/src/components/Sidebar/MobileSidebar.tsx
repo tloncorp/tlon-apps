@@ -8,6 +8,7 @@ import BellIcon from '../icons/BellIcon';
 import Avatar from '../Avatar';
 
 import MagnifyingGlassIcon from '../icons/MagnifyingGlass16Icon';
+import GridIcon from '../icons/GridIcon';
 
 export default function MobileSidebar() {
   const ship = window.our;
@@ -31,6 +32,7 @@ export default function MobileSidebar() {
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
               Find Groups
             </NavTab>
+            {/*
             <NavTab to="/profile/edit">
               <Avatar
                 size="xs"
@@ -41,6 +43,11 @@ export default function MobileSidebar() {
                 )}
               />
               Profile
+            </NavTab>
+            */}
+            <NavTab to="/leap">
+              <GridIcon className="-mx-1 h-7 w-7" />
+              Leap
             </NavTab>
             <NavTab to="/actions">
               <ElipsisIcon className="mb-0.5 h-6 w-6" />
