@@ -1,17 +1,15 @@
 import { uniq, take, remove } from 'lodash';
 import { ChargeWithDesk, useCharges } from '@/state/docket';
 import { SettingsState, useSettingsState } from '@/state/settings';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import create from 'zustand';
 import produce from 'immer';
 import { useEventListener } from 'usehooks-ts';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import useLeap from '@/components/Leap/useLeap';
 import Dialog, { DialogContent } from '../Dialog';
 // eslint-disable-next-line import/no-cycle
 import Tile from './Tile';
-// eslint-disable-next-line import/no-cycle
-import TileContainer from './TileContainer';
 
 export const selTiles = (s: SettingsState) => ({
   order: s.tiles.order,
@@ -85,15 +83,62 @@ export function addRecentApp(app: string) {
 
 export default function Grid() {
   const navigate = useNavigate();
+  const location = useLocation();
   const charges = useCharges();
-  const { setIsOpen } = useLeap();
-  const chargesLoaded = Object.keys(charges).length > 0;
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const { setIsOpen: setLeapIsOpen } = useLeap();
   const { order, loaded } = useSettingsState(selTiles);
+  const chargesLoaded = Object.keys(charges).length > 0;
+  const tilesToDisplay = order.filter(
+    (t) => t !== 'landscape' && t !== window.desk
+  );
+  const totalTiles = tilesToDisplay.length;
+  const gridRef = React.useRef<HTMLDivElement>(null);
+  const gridWidth = gridRef.current?.clientWidth || 0;
+  const numCols = Math.floor(gridWidth / 200);
 
   useEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      setIsOpen(true);
-      navigate(-1);
+      setLeapIsOpen(true);
+      navigate(location.state.backgroundLocation);
+    }
+    if (e.key === 'ArrowRight' || e.key === 'l' || e.key === 'Tab') {
+      e.preventDefault();
+      if (selectedIndex > totalTiles - 1) {
+        setSelectedIndex(0);
+      } else {
+        setSelectedIndex((index) => index + 1);
+      }
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'h') {
+      e.preventDefault();
+      if (selectedIndex < 1) {
+        setSelectedIndex(0);
+      } else {
+        setSelectedIndex((index) => index - 1);
+      }
+    }
+    if (e.key === 'ArrowUp' || e.key === 'k') {
+      e.preventDefault();
+      if (selectedIndex < 1) {
+        setSelectedIndex(0);
+      } else {
+        setSelectedIndex((index) => index - numCols);
+      }
+    }
+    if (e.key === 'ArrowDown' || e.key === 'j') {
+      e.preventDefault();
+      if (selectedIndex > totalTiles - 1 - numCols) {
+        setSelectedIndex(0);
+      } else {
+        setSelectedIndex((index) => index + numCols);
+      }
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      navigate(`/app/${tilesToDisplay[selectedIndex]}`, {
+        state: { backgroundLocation: location.state.backgroundLocation },
+      });
     }
   });
 
@@ -131,26 +176,31 @@ export default function Grid() {
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
-      setIsOpen(true);
+      setLeapIsOpen(true);
       navigate(-1);
     }
   };
+
   return (
     <Dialog defaultOpen modal onOpenChange={onOpenChange}>
       <DialogContent
         className="overflow-y-auto bg-transparent"
         containerClass="w-full"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="grid h-fit w-full max-w-6xl grid-cols-2 justify-center gap-4 px-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,200px))] md:px-8">
-          {order
-            .filter((d) => d !== window.desk && d in charges)
-            .filter((d) => d !== 'landscape')
-            .filter((d) => d !== 'garden')
-            .map((desk, index) => (
-              <TileContainer key={desk} desk={desk} tabIndex={index}>
-                <Tile charge={charges[desk]} desk={desk} />
-              </TileContainer>
-            ))}
+        <div
+          ref={gridRef}
+          className="grid h-fit w-full max-w-6xl grid-cols-2 justify-center gap-4 px-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,200px))] md:px-8"
+        >
+          {tilesToDisplay.map((desk, index) => (
+            <Tile
+              key={desk}
+              index={index}
+              selectedIndex={selectedIndex}
+              charge={charges[desk]}
+              desk={desk}
+            />
+          ))}
         </div>
       </DialogContent>
     </Dialog>

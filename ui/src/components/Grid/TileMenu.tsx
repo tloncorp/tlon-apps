@@ -6,6 +6,7 @@ import { Chad, chadIsRunning } from '@urbit/api';
 import useDocketState from '@/state/docket';
 import { useIsMobile } from '@/logic/useMedia';
 import { disableDefault, handleDropdownLink } from '@/logic/utils';
+import { useEventListener } from 'usehooks-ts';
 
 export interface TileMenuProps {
   desk: string;

@@ -8,12 +8,10 @@ import React from 'react';
 
 interface TileContainerProps {
   desk: string;
-  tabIndex: number;
 }
 
 export default function TileContainer({
   desk,
-  tabIndex,
   children,
 }: React.PropsWithChildren<TileContainerProps>) {
   // const { order } = useSettingsState(selTiles);
@@ -62,7 +60,6 @@ export default function TileContainer({
         // isOver && 'ring-blue-500',
         // !isOver && 'ring-transparent'
       )}
-      tabIndex={tabIndex}
     >
       {children}
     </div>
