@@ -642,9 +642,9 @@ export default function useLeap() {
       },
       ...filteredCharges.map(([desk, charge], idx) => {
         const onSelect = () => {
-          const path =
-            'site' in charge.href ? charge.href.site : `/apps/${desk}`;
-          window.open(`${window.location.origin}${path}`, '_blank');
+          navigate(`/app/${desk}`, {
+            state: { backgroundLocation: location },
+          });
           setSelectedIndex(0);
           setInputValue('');
           setIsOpen(false);
@@ -656,7 +656,7 @@ export default function useLeap() {
           input: inputValue,
           title: charge.title,
           subtitle: charge.info ?? '',
-          to: 'site' in charge.href ? charge.href.site : `/apps/${desk}`,
+          to: `/app/${desk}`,
           resultIndex:
             idx +
             (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
@@ -684,6 +684,8 @@ export default function useLeap() {
     setInputValue,
     setIsOpen,
     multiDmResults.length,
+    navigate,
+    location,
   ]);
 
   // If changing the order, update the resultIndex calculations above
