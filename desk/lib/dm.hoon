@@ -54,7 +54,7 @@
   ^+  pac
   ?-  -.del
       %add
-    =/  =seal:c  [id ~ ~]
+    =/  =seal:c  [id ~ ~ [%fray ~]]
     ?:  (~(has by dex.pac) id)
       pac
     =.  wit.pac
