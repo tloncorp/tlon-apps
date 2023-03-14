@@ -308,34 +308,27 @@
         (~(uni in get-accepted-dms) get-pending-dms)
     p.target
   ==
-::  +build-history: add messages to history 
-::  and output to session
+::  +build-history: add messages to history
+::  and output to a given session
 ::
 ++  build-history
   |=  [=sole-id =session =target]
   ^-  (quip card _state)
   =/  messages  
     (flop (bap:on:writs:chat (get-messages target)))
-  =/  tally=@ud  (lent messages)
   =|  cards=(list card)
   |-  
   ?~  messages  [cards state] 
   =/  =writ:chat  +.i.messages
   =/  =id:chat    -<.writ
   =/  =memo:chat  +.writ
-  =+  print-index=?:(=(0 (mod tally 5)) & |)
   =^  caz  session
-    %:  ~(read-post se sole-id session) 
-      target 
-      id  
-      memo
-      print-index
-    ==
-  %=  $
-    tally  (dec tally)
-    messages  t.messages
-    cards  (weld cards caz)
-  ==
+    %^    ~(read-post se sole-id session) 
+        target
+      id
+    memo
+  =.  sessions  (~(put by sessions) sole-id session)  
+  $(messages t.messages, cards (weld cards caz))
 ::  +get-messages: scry for latest 20 messages
 ::
 ++  get-messages
@@ -396,7 +389,7 @@
   =^  caz  session.i.sez
     ?.  (~(has in viewing.session.i.sez) whom)
       [~ session.i.sez]
-    (~(read-post se i.sez) whom id memo |)
+    (~(read-post se i.sez) whom id memo)
   =.  sessions  (~(put by sessions) i.sez)
   $(sez t.sez, cards (weld cards caz))
 ::  +se: session event handling
@@ -408,21 +401,9 @@
   ::  +read-post: add message to state and show it to user
   ::
   ++  read-post
-    |=  $:  =target 
-            =id:chat 
-            =memo:chat 
-            print-index=?
-        ==
+    |=  [=target =id:chat =memo:chat]
     ^-  (quip card _session)
-    =/  index
-      (number-reference session target id)
-    :-  %:  show-post:sh-out 
-          target 
-          memo 
-          index 
-          print-index
-        ==
-    ?.  =(~ index)  session 
+    :-  (show-post:sh-out target memo) 
     %_  session
       history  [[target id] history.session]
       count    +(count.session)
@@ -436,18 +417,6 @@
     :-  [(show-delete:sh-out target) ~]
     session(viewing (~(del in viewing.session) target))
   --
-::  +number-reference: search history for number reference 
-::
-++  number-reference
-  |=  [=session =target =id:chat]
-  ^-  (unit @ud)
-  =/  bag  
-    %-  ~(gas in *(set [whom:chat id:chat]))
-      history.session
-  ?.  (~(has in bag) [target id]) 
-    *(unit @ud)  
-  (find [[target id]]~ (flop history.session))
-::
 ::  +bind-default-glyph: bind to default, or random available
 ::
 ++  bind-default-glyph
@@ -813,7 +782,7 @@
       =.  viewing  (~(put in viewing) target)
       =^  history-cards  state
         (build-history sole-id session target)
-      :_  put-ses
+      :_  state
       %+  weld  [prompt:sh-out]~
       `(list card)`history-cards
     ::  +change-channel: send rsvp response, bind glyph,
@@ -1235,26 +1204,15 @@
   ::    and the %notify flag is set, emit a bell.
   ::
   ++  show-post
-    |=  $:  =target 
-            =memo:chat 
-            index=(unit @ud)
-            print-index=?
-        ==
+    |=  [=target =memo:chat]
     ^-  (list card)
     %+  weld
       ^-  (list card)
-      =;  num=(unit tape)
-          ?~  num  ~
-          :_  ~
-          %-  print
-          %+  runt
-            [(sub 13 (lent (need num))) '-'] 
-          "[{(need num)}]"
-      ?~  index
-        ?.  =(0 (mod count 5))  ~
-        `(scow %ud count)
-      ?.  print-index  ~
-      `(scow %ud (need index))
+      ?.  =(0 (mod count 5))  ~
+      :_  ~
+      =+  num=(scow %ud count)
+      %-  print
+      (runt [(sub 13 (lent num)) '-'] "[{num}]")
     ^-  (list card)
     :-  (effex ~(render-inline mr target memo))
     =;  mentioned=?
