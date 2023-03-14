@@ -35,7 +35,7 @@ export default function MobileRoot() {
     <>
       <header className="flex items-center justify-between px-6 pt-10 pb-4">
         <h1 className="text-lg font-bold text-gray-800">My Groups</h1>
-        <div className="flex flex-row space-x-4 self-end ">
+        <div className="flex flex-row space-x-4 self-end">
           <SidebarSorter
             sortFn={sortFn}
             setSortFn={setSortFn}
@@ -61,7 +61,7 @@ export default function MobileRoot() {
             >
               {Object.entries(pinnedGroups).length > 0 && (
                 <>
-                  <h2 className="mb-2 p-2 text-lg font-bold text-gray-400">
+                  <h2 className="mb-0.5 p-2 text-lg font-bold text-gray-400">
                     Pinned Groups
                   </h2>
                   {pinnedGroupsOptions}

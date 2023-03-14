@@ -3,7 +3,6 @@ import { mix } from 'color2k';
 import React, {
   ButtonHTMLAttributes,
   PropsWithChildren,
-  ReactHTML,
   useState,
 } from 'react';
 import { Link, LinkProps, useMatch } from 'react-router-dom';
@@ -54,7 +53,6 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
       className,
       children,
       inexact = false,
-      div = false,
       defaultRoute = false,
       ...rest
     },
@@ -67,7 +65,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
     );
     const active = !!matches;
     const isMobile = useIsMobile();
-    const Wrapper: keyof ReactHTML = div ? 'div' : 'li';
+    const Wrapper = 'div';
     const currentTheme = useCurrentTheme();
 
     const hasHoverColor = () => {

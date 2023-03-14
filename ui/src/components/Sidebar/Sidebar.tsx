@@ -156,13 +156,12 @@ export default function Sidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
-      <ul
+      <div
         className={cn('flex w-full flex-col space-y-0.5 p-2', {
           'bottom-shadow': !atTop,
         })}
       >
         <GroupsAppMenu />
-        <div className="h-5" />
         <SidebarItem
           highlight={shipColor}
           icon={<Avatar size="xs" ship={window.our} />}
@@ -197,7 +196,7 @@ export default function Sidebar() {
         >
           Create Group
         </SidebarItem>
-      </ul>
+      </div>
       <div className="flex-auto space-y-3 overflow-x-hidden px-2 sm:space-y-1">
         <GroupsScrollingContext.Provider value={isScrolling}>
           <GroupList
@@ -207,14 +206,14 @@ export default function Sidebar() {
             atTopChange={atTopChange}
           >
             {Object.entries(pinnedGroups).length > 0 && (
-              <>
+              <div className="mb-4">
                 <div className="flex h-10 items-center border-t-2 border-gray-50 p-2 pb-1">
                   <h2 className="text-sm font-bold text-gray-400">
                     Pinned Groups
                   </h2>
                 </div>
                 {pinnedGroupsOptions}
-              </>
+              </div>
             )}
             <div ref={ref} className="flex-initial">
               <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1">
