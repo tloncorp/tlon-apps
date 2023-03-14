@@ -1,21 +1,12 @@
-import { useDismissNavigate } from '@/logic/routing';
-import _ from 'lodash';
-import { useIsMobile } from '@/logic/useMedia';
+import { uniq, take, remove } from 'lodash';
 import { ChargeWithDesk, useCharges } from '@/state/docket';
 import { SettingsState, useSettingsState } from '@/state/settings';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import { TouchBackend } from 'react-dnd-touch-backend';
-import { uniq } from 'lodash';
 import React, { useEffect } from 'react';
-import { DndProvider } from 'react-dnd';
 import create from 'zustand';
-import { persist } from 'zustand/middleware';
 import produce from 'immer';
-import {
-  clearStorageMigration,
-  createStorageKey,
-  storageVersion,
-} from '@/logic/utils';
+import { useEventListener } from 'usehooks-ts';
+import { useNavigate } from 'react-router';
+import useLeap from '@/components/Leap/useLeap';
 import Dialog, { DialogContent } from '../Dialog';
 // eslint-disable-next-line import/no-cycle
 import Tile from './Tile';
@@ -57,7 +48,7 @@ export const useRecentsStore = create<RecentsStore>((set) => ({
           draft.recentApps.unshift(desk);
         }
 
-        draft.recentApps = _.take(draft.recentApps, 3);
+        draft.recentApps = take(draft.recentApps, 3);
       })
     );
   },
@@ -69,14 +60,14 @@ export const useRecentsStore = create<RecentsStore>((set) => ({
           draft.recentDevs.unshift(dev);
         }
 
-        draft.recentDevs = _.take(draft.recentDevs, 3);
+        draft.recentDevs = take(draft.recentDevs, 3);
       })
     );
   },
   removeRecentApp: (desk: string) => {
     set(
       produce((draft: RecentsStore) => {
-        _.remove(draft.recentApps, (test) => test === desk);
+        remove(draft.recentApps, (test) => test === desk);
       })
     );
   },
@@ -93,11 +84,18 @@ export function addRecentApp(app: string) {
 }
 
 export default function Grid() {
-  const dismiss = useDismissNavigate();
+  const navigate = useNavigate();
   const charges = useCharges();
+  const { setIsOpen } = useLeap();
   const chargesLoaded = Object.keys(charges).length > 0;
   const { order, loaded } = useSettingsState(selTiles);
-  const isMobile = useIsMobile();
+
+  useEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      setIsOpen(true);
+      navigate(-1);
+    }
+  });
 
   useEffect(() => {
     const hasKeys = order && !!order.length;
@@ -133,7 +131,8 @@ export default function Grid() {
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
-      dismiss();
+      setIsOpen(true);
+      navigate(-1);
     }
   };
   return (
@@ -142,16 +141,13 @@ export default function Grid() {
         className="overflow-y-auto bg-transparent"
         containerClass="w-full"
       >
-        <div
-          // This version of tailwind does not have h-fit
-          style={{ height: 'fit-content' }}
-          className="grid w-full max-w-6xl grid-cols-2 justify-center gap-4 px-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,200px))] md:px-8"
-        >
+        <div className="grid h-fit w-full max-w-6xl grid-cols-2 justify-center gap-4 px-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,200px))] md:px-8">
           {order
             .filter((d) => d !== window.desk && d in charges)
             .filter((d) => d !== 'landscape')
-            .map((desk) => (
-              <TileContainer key={desk} desk={desk}>
+            .filter((d) => d !== 'garden')
+            .map((desk, index) => (
+              <TileContainer key={desk} desk={desk} tabIndex={index}>
                 <Tile charge={charges[desk]} desk={desk} />
               </TileContainer>
             ))}

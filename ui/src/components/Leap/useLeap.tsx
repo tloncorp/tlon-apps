@@ -125,6 +125,10 @@ export default function useLeap() {
               modalNavigate(`/groups/new`, {
                 state: { backgroundLocation: location },
               });
+            } else if (app === 'Groups' && o.title === 'Find Groups') {
+              navigate('/find');
+            } else if (app === 'Groups' && o.title === 'Profile') {
+              navigate('/profile/edit');
             } else if (app === 'Talk' && o.title === 'Groups') {
               window.open(
                 `${window.location.origin}/apps/groups/find`,

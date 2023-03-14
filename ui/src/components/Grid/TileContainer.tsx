@@ -1,20 +1,22 @@
-import { useSettingsState } from '@/state/settings';
+// import { useSettingsState } from '@/state/settings';
 import classNames from 'classnames';
-import { uniq, without } from 'lodash';
+// import { uniq, without } from 'lodash';
 import React from 'react';
-import { useDrop } from 'react-dnd';
+// import { useDrop } from 'react-dnd';
 // eslint-disable-next-line import/no-cycle
-import { dragTypes, selTiles } from './Grid';
+// import { dragTypes, selTiles } from './Grid';
 
 interface TileContainerProps {
   desk: string;
+  tabIndex: number;
 }
 
 export default function TileContainer({
   desk,
+  tabIndex,
   children,
 }: React.PropsWithChildren<TileContainerProps>) {
-  const { order } = useSettingsState(selTiles);
+  // const { order } = useSettingsState(selTiles);
   // const [{ isOver }, drop] = useDrop<
   // { desk: string },
   // undefined,
@@ -56,10 +58,11 @@ export default function TileContainer({
     <div
       // ref={drop}
       className={classNames(
-        'aspect-w-1 aspect-h-1 relative rounded-3xl'
+        'aspect-w-1 aspect-h-1 relative rounded-3xl ring-transparent'
         // isOver && 'ring-blue-500',
         // !isOver && 'ring-transparent'
       )}
+      tabIndex={tabIndex}
     >
       {children}
     </div>
