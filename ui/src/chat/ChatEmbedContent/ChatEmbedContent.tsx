@@ -7,23 +7,50 @@ import TwitterEmbed from './TwitterEmbed';
 import SpotifyEmbed from './SpotifyEmbed';
 import AudioPlayer from './AudioPlayer';
 
-function ChatEmbedContent({ url }: { url: string }) {
+const trustedProviders = [
+  {
+    name: 'YouTube',
+    regex: /youtube\.com\/watch\?v=|youtu\.be\//,
+  },
+  {
+    name: 'Twitter',
+    regex: /twitter\.com\/\w+\/status\//,
+  },
+  {
+    name: 'Spotify',
+    regex: /open\.spotify\.com\/track\//,
+  },
+];
+
+function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
   const [embed, setEmbed] = useState<any>();
   const calm = useCalm();
   const isAudio = AUDIO_REGEX.test(url);
+  const isTrusted = trustedProviders.some((provider) =>
+    provider.regex.test(url)
+  );
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(url)) {
+      if (
+        isValidUrl(url) &&
+        isTrusted &&
+        !calm?.disableRemoteContent &&
+        !isAudio
+      ) {
         const oembed = await useEmbedState.getState().getEmbed(url);
         setEmbed(oembed);
       }
     };
     getOembed();
-  }, [url]);
+
+    return () => {
+      setEmbed(null);
+    };
+  }, [url, calm, isTrusted, isAudio]);
 
   if (isAudio) {
-    return <AudioPlayer url={url} embed />;
+    return <AudioPlayer url={url} embed writId={writId} />;
   }
 
   const isOembed = validOembedCheck(embed, url);
@@ -41,13 +68,14 @@ function ChatEmbedContent({ url }: { url: string }) {
 
     if (provider === 'YouTube') {
       return (
-        <div className="flex flex-col @container">
+        <div className="flex flex-col">
           <YouTubeEmbed
             url={embedUrl}
             title={title}
             thumbnail={thumbnail}
             author={author}
             authorUrl={authorUrl}
+            writId={writId}
           />
         </div>
       );
@@ -55,11 +83,12 @@ function ChatEmbedContent({ url }: { url: string }) {
 
     if (provider === 'Twitter') {
       return (
-        <div className="flex flex-col @container">
+        <div className="flex flex-col">
           <TwitterEmbed
             authorUrl={authorUrl}
             author={author}
             embedHtml={embedHtml}
+            writId={writId}
           />
         </div>
       );
@@ -67,8 +96,13 @@ function ChatEmbedContent({ url }: { url: string }) {
 
     if (provider === 'Spotify') {
       return (
-        <div className="flex flex-col @container">
-          <SpotifyEmbed url={url} title={title} thumbnailUrl={thumbnail} />
+        <div className="flex flex-col">
+          <SpotifyEmbed
+            url={url}
+            title={title}
+            thumbnailUrl={thumbnail}
+            writId={writId}
+          />
         </div>
       );
     }

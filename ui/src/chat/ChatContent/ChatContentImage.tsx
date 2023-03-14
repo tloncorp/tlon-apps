@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { useCalm } from '@/state/settings';
 import LightBox from '@/components/LightBox';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import { useParams } from 'react-router';
+import { useChatDialog, useChatFailedToLoadContent } from '../useChatStore';
 
 interface ChatContentImage {
   src: string;
   height?: number;
   width?: number;
   altText?: string;
+  writId?: string;
+  blockIndex: number;
 }
 
 export default function ChatContentImage({
@@ -14,9 +19,48 @@ export default function ChatContentImage({
   height,
   width,
   altText,
+  writId,
+  blockIndex,
 }: ChatContentImage) {
+  const { chShip, chName } = useParams<{
+    chShip: string;
+    chName: string;
+  }>();
+  const whom = `${chShip}/${chName}`;
   const calm = useCalm();
-  const [showLightBox, setShowLightBox] = useState(false);
+  const { failedToLoad, setFailedToLoad } = useChatFailedToLoadContent(
+    whom,
+    writId || 'not-writ',
+    blockIndex
+  );
+  const { open: showLightBox, setOpen: setShowLightBox } = useChatDialog(
+    whom,
+    writId || 'not-writ',
+    `image-${blockIndex}`
+  );
+
+  if (failedToLoad) {
+    return (
+      <div className="embed-inline-block group">
+        <div className="flex h-full flex-col items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+            <ExclamationPoint className="h-6 w-6 text-gray-400" />
+          </div>
+          <p className="mt-2 text-sm font-medium text-gray-900">
+            Failed to load image
+          </p>
+          <a
+            href={src}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 text-sm text-gray-900 underline"
+          >
+            {src}
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -24,11 +68,14 @@ export default function ChatContentImage({
       style={{ maxWidth: width ? (width > 600 ? 600 : width) : 600 }}
     >
       {calm?.disableRemoteContent ? (
-        <span>{src}</span>
+        <a ref={src} target="_blank" rel="noreferrer">
+          {src}
+        </a>
       ) : (
         <button onClick={() => setShowLightBox(true)}>
           <img
             src={src}
+            onError={() => setFailedToLoad(true)}
             className="max-w-full cursor-pointer rounded"
             height={height}
             width={width}

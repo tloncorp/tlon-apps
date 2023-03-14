@@ -179,7 +179,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           </div>
         </div>
         <div
-          class="flex items-end rounded-r group-one-hover:bg-gray-50"
+          class="relative flex w-5 items-end rounded-r group-one-hover:bg-gray-50"
         />
       </div>
     </div>

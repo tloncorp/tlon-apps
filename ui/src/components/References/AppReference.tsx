@@ -11,7 +11,7 @@ interface AppReferenceProps {
   isScrolling: boolean;
 }
 
-export default function AppReference({ flag, isScrolling }: AppReferenceProps) {
+function AppReference({ flag, isScrolling }: AppReferenceProps) {
   const { ship, name: deskId } = getFlagParts(flag);
   const treaty = useTreaty(ship, deskId);
   const calm = useCalm();
@@ -94,3 +94,5 @@ export default function AppReference({ flag, isScrolling }: AppReferenceProps) {
     </div>
   );
 }
+
+export default React.memo(AppReference);

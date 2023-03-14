@@ -1,6 +1,7 @@
 import cookies from 'browser-cookies';
-import React, { Suspense, useEffect, useState, useCallback } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import _ from 'lodash';
 import {
   BrowserRouter as Router,
   Routes,
@@ -19,12 +20,7 @@ import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useCalm, useTheme } from '@/state/settings';
-import {
-  useAirLockErrorCount,
-  useErrorCount,
-  useLocalState,
-  useSubscriptionStatus,
-} from '@/state/local';
+import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import GroupsNav from '@/nav/GroupsNav';
@@ -75,13 +71,14 @@ import Leap from './components/Leap/Leap';
 import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
-import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
+import { useScheduler } from './state/scheduler';
 import chatmanifestURL from './assets/chatmanifest.json?url';
 import manifestURL from './assets/manifest.json?url';
+import { useGroups } from './state/groups';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -207,7 +204,54 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   );
 }
 
+function HomeRoute({
+  isMobile = true,
+  isInGroups = false,
+}: {
+  isMobile: boolean;
+  isInGroups: boolean;
+}) {
+  if (!isInGroups) {
+    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
+  }
+
+  if (isMobile && isInGroups) {
+    return <MobileGroupsNavHome />;
+  }
+
+  return (
+    <Notifications
+      child={GroupNotification}
+      title={`All Notifications • ${appHead('').title}`}
+    />
+  );
+}
+
+function ActivityRoute({
+  isMobile = true,
+  isInGroups = false,
+}: {
+  isMobile: boolean;
+  isInGroups: boolean;
+}) {
+  if (!isInGroups) {
+    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
+  }
+
+  return (
+    <MainWrapper isMobile={isMobile}>
+      <Notifications
+        child={GroupNotification}
+        title={`All Notifications • ${appHead('').title}`}
+      />
+    </MainWrapper>
+  );
+}
+
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
+  const groups = useGroups();
+  const isInGroups = _.isEmpty(groups) ? false : true;
+
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -216,22 +260,13 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route
               index
               element={
-                isMobile ? (
-                  <MobileGroupsNavHome />
-                ) : (
-                  <FindGroups title={`Find Groups • ${appHead('').title}`} />
-                )
+                <HomeRoute isMobile={isMobile} isInGroups={isInGroups} />
               }
             />
             <Route
               path="/notifications"
               element={
-                <MainWrapper isMobile={isMobile}>
-                  <Notifications
-                    child={GroupNotification}
-                    title={`All Notifications • ${appHead('').title}`}
-                  />
-                </MainWrapper>
+                <ActivityRoute isMobile={isMobile} isInGroups={isInGroups} />
               }
             />
             {/* Find by Invite URL */}
@@ -264,9 +299,8 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
-              <Route index element={isMobile ? <MobileGroupRoot /> : null} />
               <Route
-                path="channellist"
+                index
                 element={isMobile ? <MobileGroupChannelList /> : null}
               />
               <Route
@@ -416,27 +450,18 @@ function handleGridRedirect(navigate: NavigateFunction) {
   }
 }
 
+function Scheduler() {
+  useScheduler();
+  return null;
+}
+
 function App() {
   const navigate = useNavigate();
   const handleError = useErrorHandler();
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
-  const subscription = useSubscriptionStatus();
-  const errorCount = useErrorCount();
-  const airLockErrorCount = useAirLockErrorCount();
-  const pike = usePike(isTalk ? 'talk' : 'groups');
-  const [baseHash, setBaseHash] = useState('');
-  const [needsUpdate, setNeedsUpdate] = useState(false);
   const { disableWayfinding } = useCalm();
-
-  const fetchPikes = useCallback(async () => {
-    try {
-      await useKilnState.getState().fetchPikes();
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
 
   useEffect(() => {
     handleError(() => {
@@ -451,44 +476,15 @@ function App() {
     })();
   }, [handleError]);
 
-  useEffect(() => {
-    if (pike && baseHash === '') {
-      setBaseHash(pike.hash);
-    }
-  }, [pike, baseHash]);
-
-  useEffect(() => {
-    setInterval(() => {
-      fetchPikes();
-    }, 1000 * 60 * 5);
-  }, [fetchPikes]);
-
-  useEffect(() => {
-    if (pike && pike.hash !== baseHash && baseHash !== '' && !needsUpdate) {
-      setNeedsUpdate(true);
-    }
-  }, [pike, baseHash, needsUpdate]);
-
   const state = location.state as { backgroundLocation?: Location } | null;
 
   useConnectionChecker();
 
-  useEffect(() => {
-    if (
-      (errorCount > 4 || airLockErrorCount > 1) &&
-      subscription === 'connected'
-    ) {
-      useLocalState.setState({ subscription: 'disconnected' });
-    }
-  }, [errorCount, subscription, airLockErrorCount]);
-
   return (
     <div className="flex h-full w-full flex-col">
       {!disableWayfinding && <LandscapeWayfinding />}
-      {subscription === 'disconnected' || subscription === 'reconnecting' ? (
-        <DisconnectNotice />
-      ) : null}
-      {needsUpdate ? <UpdateNotice /> : null}
+      <DisconnectNotice />
+      <UpdateNotice />
       {isTalk ? (
         <>
           <TalkHead />
@@ -568,6 +564,7 @@ function RoutedApp() {
         </Helmet>
         <TooltipProvider skipDelayDuration={400}>
           <App />
+          <Scheduler />
         </TooltipProvider>
       </Router>
     </ErrorBoundary>

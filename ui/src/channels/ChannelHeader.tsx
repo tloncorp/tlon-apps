@@ -272,7 +272,6 @@ function DiarySortControls({
             'dropdown-item',
             sortMode === 'quip-asc' && 'bg-gray-100 hover:bg-gray-100'
           )}
-          // onClick={() => setSortMode('quip-asc')}
         >
           <span className="font-semibold text-gray-400">
             New Comments First
@@ -283,7 +282,6 @@ function DiarySortControls({
             'dropdown-item',
             sortMode === 'quip-dsc' && 'bg-gray-100 hover:bg-gray-100'
           )}
-          // onClick={() => setSortMode('quip-dsc')}
         >
           <span className="font-semibold text-gray-400">
             Old Comments First
@@ -334,9 +332,6 @@ export default function ChannelHeader({
   function backTo() {
     if (isMobile && isTalk) {
       return '/';
-    }
-    if (isMobile && !isTalk) {
-      return `/groups/${flag}/channellist`;
     }
     return `/groups/${flag}`;
   }

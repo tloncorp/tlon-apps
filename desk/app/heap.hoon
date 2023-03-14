@@ -386,21 +386,23 @@
   ::
     [%x %stash ~]  ``stash+!>(stash)
     [%x %imp ~]    ``migrate-map+!>(imp)
+    [%x %init ~]  ``noun+!>([briefs stash])
+    [%x %briefs ~]  ``heap-briefs+!>(briefs)
   ::
       [%x %heap @ @ *]
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path
     (he-peek:(he-abed:he-core ship name) t.t.t.t.path)
     ::
-      [%x %briefs ~]
-    =-  ``heap-briefs+!>(-)
-    ^-  briefs:h
-    %-  ~(gas by *briefs:h)
-    %+  turn  ~(tap in ~(key by stash))
-    |=  =flag:h
-    :-  flag
-    he-brief:(he-abed:he-core flag)
   ==
+::
+++  briefs
+  ^-  briefs:h
+  %-  ~(gas by *briefs:h)
+  %+  turn  ~(tap in ~(key by stash))
+  |=  =flag:h
+  :-  flag
+  he-brief:(he-abed:he-core flag)
 ::
 ++  import-graphs
   |=  =imports:h

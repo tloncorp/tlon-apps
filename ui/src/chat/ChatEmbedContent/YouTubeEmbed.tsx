@@ -1,7 +1,9 @@
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LightBox from '@/components/LightBox';
 import { useIsMobile } from '@/logic/useMedia';
-import React, { useState } from 'react';
+import React from 'react';
+import { useParams } from 'react-router';
+import { useChatDialog } from '../useChatStore';
 
 interface YouTubeEmbedProps {
   url: string;
@@ -9,6 +11,7 @@ interface YouTubeEmbedProps {
   thumbnail: string;
   author: string;
   authorUrl: string;
+  writId: string;
 }
 
 export default function YouTubeEmbed({
@@ -17,9 +20,19 @@ export default function YouTubeEmbed({
   thumbnail,
   author,
   authorUrl,
+  writId,
 }: YouTubeEmbedProps) {
+  const { chShip, chName } = useParams<{
+    chShip: string;
+    chName: string;
+  }>();
+  const whom = `${chShip}/${chName}`;
   const videoId = url.split('v=')[1];
-  const [showIframeModal, setShowIframeModal] = useState(false);
+  const { open: showIframeModal, setOpen: setShowIframeModal } = useChatDialog(
+    whom,
+    writId,
+    'youtube'
+  );
   const isMobile = useIsMobile();
 
   return (
@@ -43,6 +56,8 @@ export default function YouTubeEmbed({
         <a
           href={url}
           className="truncate font-semibold text-gray-800 underline"
+          target="_blank"
+          rel="noreferrer"
         >
           {title}
         </a>
@@ -50,6 +65,8 @@ export default function YouTubeEmbed({
         <a
           href={authorUrl}
           className="truncate font-semibold text-gray-800 underline"
+          target="_blank"
+          rel="noreferrer"
         >
           {author}
         </a>

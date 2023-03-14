@@ -143,10 +143,7 @@ export default function useLeap() {
       Object.entries(contacts).concat(
         // accounting for ships not in contact store, but in DMs
         // this fix is temporary until we fix the contact store
-        Object.entries(dms).map(([ship, _dm]) => [
-          ship,
-          { nickname: '' } as Contact,
-        ])
+        dms.map((ship) => [ship, { nickname: '' } as Contact])
       ),
       ([ship]) => ship
     );

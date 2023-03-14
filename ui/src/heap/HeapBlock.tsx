@@ -238,7 +238,7 @@ export default function HeapBlock({
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(url) && !notEmbed) {
+      if (isValidUrl(url) && !notEmbed && !calm.disableRemoteContent) {
         try {
           const oembed = await useEmbedState.getState().getEmbed(url);
           setEmbed(oembed);
@@ -249,7 +249,7 @@ export default function HeapBlock({
       }
     };
     getOembed();
-  }, [url, notEmbed]);
+  }, [url, notEmbed, calm]);
 
   if (isValidUrl(url) && embed === undefined && !notEmbed) {
     return <HeapLoadingBlock />;

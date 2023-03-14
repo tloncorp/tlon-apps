@@ -708,11 +708,25 @@
   ::
     [%x %chat ~]  ``flags+!>(~(key by chats))
   ::
-    [%x %chats ~]  ``chats+!>(chats)
+    [%x %chats ~]  ``chats+!>(chats-light)
   ::
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c +.+.+.club)))
   ::
     [%x %pins ~]  ``chat-pins+!>(pins)
+  ::
+    [%x %briefs ~]  ``chat-briefs+!>(briefs)
+  ::
+    [%x %init ~]  ``noun+!>([briefs chats-light pins])
+  ::
+      [%x %init %talk ~]
+    =-  ``noun+!>(-)
+    :*  briefs
+        chats-light
+        (~(run by clubs) |=(=club:c +.+.club))
+        ~(key by accepted-dms)
+        ~(key by pending-dms)
+        pins
+    ==
   ::
       [%x %chat @ @ *]
     =/  =ship  (slav %p i.t.t.path)
@@ -748,28 +762,33 @@
     =-  ``chat-draft+!>(-)
     `draft:c`[whom (~(gut by drafts) whom *story:c)]
   ::
-      [%x %briefs ~]
-    =-  ``chat-briefs+!>(-)
-    ^-  briefs:c
-    %-  ~(gas by *briefs:c)
-    %+  welp
-      %+  turn  ~(tap in ~(key by clubs))
-      |=  =id:club:c
-      =/  cu  (cu-abed id)
-      [club/id cu-brief:cu]
-    %+  welp
-      %+  murn  ~(tap in ~(key by dms))
-      |=  =ship
-      =/  di  (di-abed:di-core ship)
-      ?:  ?=(?(%invited %archive) net.dm.di)  ~
-      ?:  =([~ ~] pact.dm.di)  ~
-      `[ship/ship di-brief:di]
-    %+  turn  ~(tap in ~(key by chats))
-    |=  =flag:c
-    :-  flag/flag
-    ca-brief:(ca-abed:ca-core flag)
   ==
 ::
+++  chats-light
+  ^-  (map flag:c chat:c)
+  %-  ~(run by chats)
+  |=  =chat:c
+  chat(pact *pact:c, log *log:c)
+::
+++  briefs
+  ^-  briefs:c
+  %-  ~(gas by *briefs:c)
+  %+  welp
+    %+  turn  ~(tap in ~(key by clubs))
+    |=  =id:club:c
+    =/  cu  (cu-abed id)
+    [club/id cu-brief:cu]
+  %+  welp
+    %+  murn  ~(tap in ~(key by dms))
+    |=  =ship
+    =/  di  (di-abed:di-core ship)
+    ?:  ?=(?(%invited %archive) net.dm.di)  ~
+    ?:  =([~ ~] pact.dm.di)  ~
+    `[ship/ship di-brief:di]
+  %+  turn  ~(tap in ~(key by chats))
+  |=  =flag:c
+  :-  flag/flag
+  ca-brief:(ca-abed:ca-core flag)
 ++  give-brief
   |=  [=whom:c =brief:briefs:c]
   (give %fact ~[/briefs] chat-brief-update+!>([whom brief]))

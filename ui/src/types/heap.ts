@@ -238,3 +238,8 @@ export interface HeapJoin {
   group: string;
   chan: HeapFlag;
 }
+
+export interface HeapInit {
+  briefs: HeapBriefs;
+  stash: Stash;
+}

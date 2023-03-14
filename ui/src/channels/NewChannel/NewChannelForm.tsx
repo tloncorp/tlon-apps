@@ -45,6 +45,7 @@ export default function NewChannelForm() {
     async (values: NewChannelFormSchema) => {
       setAddChannelStatus('loading');
       const { privacy, type, ...nextChannel } = values;
+      const titleIsNumber = Number.isInteger(Number(values.meta.title));
       /*
         For now channel names are used as keys for pacts. Therefore we need to
         check if a channel with the same name already exists in the chat store. If it does, we
@@ -55,10 +56,9 @@ export default function NewChannelForm() {
         In the future, we will index channels by their full path (including group name), and this will no
         longer be necessary. That change will require a migration of existing channels.
        */
-      const tempChannelName = strToSym(values.meta.title).replace(
-        /[^a-z]*([a-z][-\w\d]+)/i,
-        '$1'
-      );
+      const tempChannelName = titleIsNumber
+        ? `channel-${values.meta.title}`
+        : strToSym(values.meta.title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
       const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
       const existingChannel = () => {
         if (type === 'chat') {
@@ -111,7 +111,7 @@ export default function NewChannelForm() {
         });
       } catch (e) {
         setAddChannelStatus('error');
-        console.log(e);
+        console.log('NewChannelForm::onSubmit::createChannel', e);
       }
 
       if (section) {
@@ -121,7 +121,7 @@ export default function NewChannelForm() {
             .addChannelToZone(section, groupFlag, newChannelNest);
         } catch (e) {
           setAddChannelStatus('error');
-          console.log(e);
+          console.log('NewChannelForm::onSubmit::addChannelToZone', e);
         }
       }
 

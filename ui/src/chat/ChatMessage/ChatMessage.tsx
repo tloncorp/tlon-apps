@@ -227,6 +227,7 @@ const ChatMessage = React.memo<
                   <ChatContent
                     story={memo.content.story}
                     isScrolling={isScrolling}
+                    writId={seal.id}
                   />
                 ) : null}
                 {Object.keys(seal.feels).length > 0 && (
@@ -251,6 +252,7 @@ const ChatMessage = React.memo<
                       <div className="mr-2 flex flex-row-reverse">
                         {replyAuthors.map((ship, i) => (
                           <div
+                            key={ship}
                             className={cn(
                               'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white group-one-focus-within:outline-gray-50 group-one-hover:outline-gray-50',
                               i !== 0 && '-mr-3'
@@ -288,10 +290,10 @@ const ChatMessage = React.memo<
                   </NavLink>
                 ) : null}
               </div>
-              <div className="flex items-end rounded-r group-one-hover:bg-gray-50">
+              <div className="relative flex w-5 items-end rounded-r group-one-hover:bg-gray-50">
                 {!isMessageDelivered && (
                   <DoubleCaretRightIcon
-                    className="h-5 w-5"
+                    className="absolute left-0 bottom-2 h-5 w-5"
                     primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />

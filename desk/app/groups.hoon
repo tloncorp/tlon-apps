@@ -305,23 +305,12 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
+      [%x %gangs ~]  ``gangs+!>(xeno)
+      [%x %init ~]  ``noun+!>([groups-light xeno])
+      [%x %groups %light ~]  ``groups+!>(groups-light)
+  ::
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
-  ::
-      [%x %groups %light ~]
-    =-  ``groups+!>(-)
-    ^-  groups:g
-    %-  ~(run by groups)
-    |=  [=net:g =group:g]
-    =.  fleet.group
-      ::  not sure how this would be the case, but better to be safe
-      ?.  (~(has by fleet.group) our.bowl)
-        *fleet:g
-      (~(put by *fleet:g) our.bowl (~(got by fleet.group) our.bowl))
-    group
-  ::
-      [%x %gangs ~]
-    ``gangs+!>(`gangs:g`xeno)
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
@@ -334,6 +323,15 @@
       ``noun+!>((~(has by groups) [src name.pole]))
   ==
 ::
+++  groups-light
+  ^-  groups:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  =.  fleet.group
+    %+  ~(put by *fleet:g)
+      our.bowl
+    (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+  group
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
@@ -1309,7 +1307,6 @@
                   ?(%open %afar)  |
                   %shut
                 =/  cross  (~(int in pend.cordon) ships)
-                ~&  [cross ~(wyt in ships) ~(wyt in cross)]
                 !=(~(wyt in ships) ~(wyt in cross))
               ==
           ==
@@ -1714,7 +1711,6 @@
           ga-core
           ::
             %kick
-          ~&  [(~(has by xeno) flag) (~(has by groups) flag) pev.gang]
           ?.  (~(has by xeno) flag)  ga-core
           ?^  pev.gang  ga-core
           ga-core(cor (emit get-preview:ga-pass))
