@@ -52,19 +52,20 @@ export default function VitaMessage() {
               target="_blank"
               className="underline"
             >
-              <strong>%vita</strong>
+              %vita
             </a>{' '}
-            to tell <strong>Tlon</strong> when you open{' '}
-            <strong>{toTitleCase(window.desk)}</strong>, once per day.
+            to tell Tlon{' '}
+            <strong>
+              when you open {toTitleCase(window.desk)}, once per day.
+            </strong>
           </p>
           <p>
             This information is anonymized and used for product analytics only.
           </p>
           <p>
             This action increments a single counter for all{' '}
-            <strong>{toTitleCase(window.desk)}</strong> users and does not
-            contain information about your ship, the groups you are in, or the
-            messages you've sent.
+            {toTitleCase(window.desk)} users and does not contain information
+            about your ship, the groups you are in, or the messages you've sent.
           </p>
           <div className="flex justify-end space-x-2">
             <Popover.Close className="secondary-button" onClick={close(false)}>
