@@ -1,6 +1,7 @@
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import _ from 'lodash';
 import {
   BrowserRouter as Router,
   Routes,
@@ -77,6 +78,7 @@ import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import chatmanifestURL from './assets/chatmanifest.json?url';
 import manifestURL from './assets/manifest.json?url';
+import { useGroups } from './state/groups';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -202,7 +204,54 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   );
 }
 
+function HomeRoute({
+  isMobile = true,
+  isInGroups = false,
+}: {
+  isMobile: boolean;
+  isInGroups: boolean;
+}) {
+  if (!isInGroups) {
+    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
+  }
+
+  if (isMobile && isInGroups) {
+    return <MobileGroupsNavHome />;
+  }
+
+  return (
+    <Notifications
+      child={GroupNotification}
+      title={`All Notifications • ${appHead('').title}`}
+    />
+  );
+}
+
+function ActivityRoute({
+  isMobile = true,
+  isInGroups = false,
+}: {
+  isMobile: boolean;
+  isInGroups: boolean;
+}) {
+  if (!isInGroups) {
+    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
+  }
+
+  return (
+    <MainWrapper isMobile={isMobile}>
+      <Notifications
+        child={GroupNotification}
+        title={`All Notifications • ${appHead('').title}`}
+      />
+    </MainWrapper>
+  );
+}
+
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
+  const groups = useGroups();
+  const isInGroups = _.isEmpty(groups) ? false : true;
+
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -211,22 +260,13 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route
               index
               element={
-                isMobile ? (
-                  <MobileGroupsNavHome />
-                ) : (
-                  <FindGroups title={`Find Groups • ${appHead('').title}`} />
-                )
+                <HomeRoute isMobile={isMobile} isInGroups={isInGroups} />
               }
             />
             <Route
               path="/notifications"
               element={
-                <MainWrapper isMobile={isMobile}>
-                  <Notifications
-                    child={GroupNotification}
-                    title={`All Notifications • ${appHead('').title}`}
-                  />
-                </MainWrapper>
+                <ActivityRoute isMobile={isMobile} isInGroups={isInGroups} />
               }
             />
             {/* Find by Invite URL */}
