@@ -31,8 +31,11 @@
       [%snub =ship]  :: XX list?
   ==
 ::
-+$  update
++$  update                ::  network
   $%  [%set c=contact]
       [%del wen=@da]
   ==
+::
++$  log                   ::  local
+  (pair ship (unit contact))
 --

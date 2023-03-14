@@ -70,6 +70,14 @@
       %set  (contact c.u)
       %del  (time wen.u)
     ==
+  ::
+  ++  log
+    |=  l=log:c
+    ^-  json
+    %-  pairs
+    :~  who+(ship p.l)
+        con+?~(q.l ~ (contact u.q.l))
+    ==
   --
 ::
 ++  dejs

@@ -50,6 +50,11 @@
   ?:  (lth old new)  new
   (add old ^~((div ~s1 (bex 16))))
 ::
+++  give-log
+  |=  l=log
+  ^-  card
+  [%give %fact [/logs ~] %contact-log !>(l)]
+::
 ++  give-update
   |=  u=update
   ^-  card
@@ -59,7 +64,7 @@
 =|  state-0
 =*  state  -
 %-  agent:dbug
-%+  verb  |
+%+  verb  &
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
@@ -85,13 +90,26 @@
   ==
 ::
 ++  on-watch
-  |=  =path
+  |=  pat=(pole knot)
   ^-  (quip card _this)
   :_  this
-  ?~  rof  ~
-  ?-  -.rof
-    %gon  [(give-update %del wen.rof) ~]
-    %hav  [(give-update %set con.rof) ~]
+  ?+    pat  ~|(bad-watch-path+pat !!)
+      [%contacts %at wen=@ ~]
+    =/  wen  (slav %da wen.pat)
+    ?~  rof  ~
+    ?-  -.rof
+      %gon  ?:((lte wen.rof wen) ~ [(give-update %del wen.rof) ~])
+      %hav  ?:((lte last-updated.con.rof wen) ~ [(give-update %set con.rof) ~])
+    ==
+  ::
+      [%contacts ~]
+    ?~  rof  ~
+    ?-  -.rof
+      %gon  [(give-update %del wen.rof) ~]
+      %hav  [(give-update %set con.rof) ~]
+    ==
+  ::
+      [%logs ~]  ~
   ==
 ::
 ++  on-poke
@@ -118,7 +136,7 @@
                  ==
                [~ this]
              :_  this       ::  XX track state
-             [%pass /contact %agent [ship.act dap.bowl] %watch /contact]~
+             [%pass /contact %agent [ship.act dap.bowl] %watch /contact]~ :: XX watch at
     ::
       %snub  ?:  ?|  =(our.bowl ship.act)
                      !(~(has by wex.bowl) [/contact ship.act dap.bowl])
@@ -170,7 +188,8 @@
                   (gth last-updated.c.dat last-updated.u.con)
               ==
             [~ this]
-          [~ this(rol (~(put by rol) src.bowl c.dat))]
+          :-  [(give-log src.bowl `c.dat) ~]
+          this(rol (~(put by rol) src.bowl c.dat))
         ::
             %del
           =/  con  (~(get by rol) src.bowl)
@@ -178,13 +197,18 @@
                   (gth wen.dat last-updated.u.con)
               ==
             [~ this]
-          [~ this(rol (~(del by rol) src.bowl))]
+          :-  [(give-log src.bowl ~) ~]
+          this(rol (~(del by rol) src.bowl)) :: XX track deletion state
         ==
       ==
     ::
         %kick
-      :_  this       ::  XX backoff, track state
-      [%pass /contact %agent [src.bowl dap.bowl] %watch /contact]~
+      =/  pat=path
+        ?~  con=(~(get by rol) src.bowl)     :: XX check deletion state
+          /contact
+        /contact/at/(scot %da last-updated.u.con)
+      :_  this                               ::  XX track subscription state
+      [%pass /contact %agent [src.bowl dap.bowl] %watch pat]~
     ==
   ==
 ::
