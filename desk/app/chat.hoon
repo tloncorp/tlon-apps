@@ -25,7 +25,7 @@
   ++  okay  `epic:e`0
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %2
+    $:  %3
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
@@ -120,8 +120,9 @@
   ?-  -.old
     %0  $(old (state-0-to-1 old))
     %1  $(old (state-1-to-2 old))
+    %2  $(old (state-2-to-3 old))
     ::
-      %2
+      %3
     =.  state  old      
     =.  cor  restore-missing-subs
     ?:  =(okay cool)  cor
@@ -149,7 +150,7 @@
     ~&  >  %keep
     [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
   ::
-  +$  versioned-state  $%(current-state state-1 state-0)
+  +$  versioned-state  $%(current-state state-2 state-1 state-0)
   +$  state-0
     $:  %0
         chats=(map flag:zero chat:zero)
@@ -178,10 +179,25 @@
         ::  true represents imported, false pending import
         imp=(map flag:one ?)
     ==
-  +$  state-2  current-state
+  +$  state-2
+    $:  %2
+        chats=(map flag:two chat:two)
+        dms=(map ship dm:two)
+        clubs=(map id:club:two club:two)
+        drafts=(map whom:two story:two)
+        pins=(list whom:two)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:two id:two] (unit said:two))
+        fish=(map [flag:two @] id:two)
+        ::  true represents imported, false pending import
+        imp=(map flag:two ?)
+    ==
+  +$  state-3  current-state
   ++  zero     zero:old:c
   ++  one      one:old:c
-  ++  two      c
+  ++  two      two:old:c
+  ++  three    c
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -195,6 +211,41 @@
       fish    fish.s
       voc     voc.s
       chats   chats.s
+    ==
+  ++  state-2-to-3
+    |=  s=state-2
+    ^-  state-3
+    %*  .  *state-3
+      dms     dms.s  :: TODO
+      clubs   clubs.s  :: TODO
+      drafts  drafts.s
+      pins    pins.s
+      bad     bad.s
+      inv     inv.s
+      fish    fish.s
+      voc     voc.s
+      chats   (chats-2-to-3 chats.s)
+    ==
+  ::
+  ++  chats-2-to-3
+    |=  chats=(map flag:two chat:two)
+    ^-  (map flag:c chat:c)
+    %-  ~(run by chats)
+    |=  old-chat=chat:two
+    ^-  chat:c
+    :*  net.old-chat
+        remark.old-chat
+        ;;  log:c  log.old-chat  ::  ???
+        perm.old-chat
+        ^-  pact:c
+      :_  dex.pact.old-chat
+      %+  run:on:writs:two  wit.pact.old-chat
+      |=  old-writ=writ:two
+      ^-  writ:c
+      :_  +:old-writ
+      :*  id:-:old-writ  feels:-:old-writ  replied:-:old-writ
+        [%fray ~]
+      ==
     ==
   ::
   ++  clubs-1-to-2

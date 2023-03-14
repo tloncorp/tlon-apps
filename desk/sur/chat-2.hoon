@@ -1,4 +1,4 @@
-/-  g=groups, graph-store, dos=chat-2, uno=chat-1, zer=chat-0
+/-  g=groups, graph-store, uno=chat-1, zer=chat-0
 /-  meta
 /-  metadata-store
 /-  cite
@@ -9,7 +9,6 @@
   |%
   ++  zero  zer
   ++  one  uno
-  ++  two  dos
   --
 ::
 ::  $writ: a chat message
@@ -22,27 +21,15 @@
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
-::    id: the id of the message
+::    id: the id of the message  
 ::    feels: reactions to a message
 ::    replied: set of replies to a message
-::    threaded:
-::      fray: unthreaded
-::      knot: top of a thread
-::      strand: middle of a thread
 ::
 +$  seal
   $:  =id
       feels=(map ship feel)
       replied=(set id)
-      threaded=$%([%knot ~] [%fray ~] [%strand =id])
   ==
-::  $thread: a miniature chat that hangs off of a particular message
-+$  thread
-  $:  =brief:briefs
-      =pact
-  ==
-::
-+$  threads  (map id thread)
 ::
 ::  $whom: a polymorphic identifier for chats
 ::
@@ -120,7 +107,7 @@
   ::  $net: status of club
   ::
   +$  net  ?(%archive %invited %done)
-  +$  club  [=heard =remark =pact =crew]
+  +$  club  [=heard =remark =pact crew]
   ::
   ::  $crew: a container for the metadata for the club
   ::
@@ -153,7 +140,6 @@
   ::  $heard: the set of action uid's we've already heard
   ::
   +$  heard  (set uid)
-  ::
   +$  diff    (pair uid delta)
   ::
   +$  delta    
@@ -209,7 +195,7 @@
   +$  rsvp    [=ship ok=?]
   --
 ::
-::  $log: a time ordered map of all modifications to chats
+::  $log: a time ordered map of all modifications to groups
 ::
 +$  log
   ((mop time diff) lte)
