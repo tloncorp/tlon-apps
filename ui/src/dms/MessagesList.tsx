@@ -23,11 +23,7 @@ type MessagesListProps = PropsWithChildren<{
 }>;
 
 function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
-  return (
-    <div className="pl-2 pb-3 sm:pb-1">
-      <MessagesSidebarItem key={whom} whom={whom} />
-    </div>
-  );
+  return <MessagesSidebarItem key={whom} whom={whom} />;
 }
 
 const computeItemKey = (_i: number, [whom, _brief]: [string, ChatBrief]) =>
@@ -105,9 +101,7 @@ export default function MessagesList({
         {allPending &&
           filter !== filters.groups &&
           allPending.map((whom) => (
-            <div className="pl-2 pb-3 sm:pb-1">
-              <MessagesSidebarItem pending key={whom} whom={whom} />
-            </div>
+            <MessagesSidebarItem pending key={whom} whom={whom} />
           ))}
       </>
     ),
