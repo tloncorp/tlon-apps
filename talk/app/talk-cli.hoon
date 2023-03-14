@@ -136,22 +136,41 @@
               [%dm ship=@ %ui ~] 
             %+  on-update:tc  
               :-  %ship 
-              (slav %p +<:wire)
+              (slav %p +<.wire)
             !<(diff:dm:chat q.cage.sign)
           ::  
               [%club id=@ %ui ~]
             %+  on-update:tc  
               :-  %club 
-              (slav %uv +<:wire)
+              (slav %uv +<.wire)
             !<(diff:writs:chat q.cage.sign)
           ::
               [%chat ship=@ name=@ %ui ~]
             %+  on-update:tc
               :+  %flag  
-                (slav %p +<:wire)
+                (slav %p +<.wire)
               (slav %tas +>-.wire)
             !<(diff:writs:chat q.cage.sign)
           ==
+        ==
+      ==
+    [cards this]
+  ++  on-arvo
+    |=  [=wire =sign-arvo]
+    ^-  (quip card _this)
+    =^  cards  state
+      ?+    wire  (on-arvo:def wire sign-arvo)
+          [%timer %view-dm who=@ ses=@ ship=@ ~]
+        ?+    sign-arvo  (on-arvo:def wire sign-arvo)
+            [%behn %wake *]
+          =/  ship=@p  (slav %p +>+>-.wire)
+          =/  =sole-id  
+            :-  (slav %p +>-.wire) 
+            (slav %ta +>+<.wire)
+          =/  =command  [%view [%ship ship]]
+          ?~  error.sign-arvo
+            (work:(make:sh:tc sole-id) command)
+          (on-arvo:def wire sign-arvo)
         ==
       ==
     [cards this]
@@ -159,7 +178,6 @@
   ++  on-watch  on-watch:def
   ++  on-leave  on-leave:def
   ++  on-peek   on-peek:def
-  ++  on-arvo   on-arvo:def
   ++  on-fail   on-fail:def
   ::
   ++  command-parser
@@ -800,8 +818,8 @@
       ;:  weld 
         rsvp-cards
         bind-cards
-        compose-cards
         watch-cards
+        compose-cards
       ==
     ::  +set-target: set audience, update prompt
     ::
@@ -908,18 +926,35 @@
     ++  say
       |=  [who=(unit ship) msg=(list inline:chat)]
       |^  ^-  (quip card _state)
-      ?~  who  
+      ?~  who 
         [[spit]~ put-ses]
       =/  =whom:chat  [%ship (need who)]
       =.  audience  whom
       =^  cards  state
-        :: TODO use behn to delay scry based on dm existence
-        :: ?:  (target-exists whom)
-        ::   scry then poke
-        :: poke then scry
-        (switch-channel whom)
-      :_  state
-      (into `(list card)`cards 0 spit)
+        ?:  (target-exists whom)
+          ::  for existing dm, switch channel 
+          ::  then pass message
+          ::
+          =+  (switch-channel whom)
+          [(weld -.- [spit]~) +.-]
+        ::  for new dm, pass message 
+        ::  then switch channel
+        ::
+        :_  state
+        %+  welp  [spit]~
+        :_  ~ 
+        :*  %pass
+            %:  weld 
+              /timer/view-dm
+              /(scot %p who.sole-id)
+              /(scot %ta ses.sole-id)/(scot %p u.who)
+            ==
+            %arvo
+            %b
+            %wait
+            (add now.bowl ~s0)
+        ==
+      [cards state]
       :: +spit: make a poke card based on audience
       ::
       ++  spit
@@ -938,7 +973,7 @@
           !>  ^-  action:chat
           =/  =memo:chat  [~ our.bowl now.bowl %story ~ msg]
           [p.audience now.bowl %writs [our now]:bowl %add memo]
-       ::
+        ::
             %club   
           :-  %club-action
           !>  ^-  action:club:chat
