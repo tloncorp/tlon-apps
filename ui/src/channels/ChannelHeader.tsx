@@ -23,7 +23,7 @@ import { useDiaryState } from '@/state/diary';
 import { useHeapState } from '@/state/heap/heap';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ChannelIcon from '@/channels/ChannelIcon';
 import Divider from '@/components/Divider';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
@@ -147,8 +147,11 @@ function ChannelActions({
     <>
       <Dropdown.Root open={dropdownIsOpen} onOpenChange={setDropdownIsOpen}>
         <Dropdown.Trigger asChild>
-          <button className="icon-button h-8 w-8 bg-transparent">
-            <EllipsisIcon className="h-6 w-6" />
+          <button
+            className="flex h-6 w-6 items-center justify-center rounded p-1  text-gray-400 hover:bg-gray-50"
+            aria-label="Channel Options"
+          >
+            <EllipsisIcon className="h-4 w-4" />
           </button>
         </Dropdown.Trigger>
         <Dropdown.Content className="dropdown">
@@ -208,8 +211,8 @@ function HeapSortControls({
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
-        <button className="icon-button h-8 w-8 bg-transparent">
-          <SortIcon className="h-6 w-6" />
+        <button className="flex h-6 w-6 items-center justify-center rounded p-1 text-gray-400 hover:bg-gray-50 ">
+          <SortIcon className="h-4 w-4" />
         </button>
       </Dropdown.Trigger>
       <Dropdown.Content className="dropdown">
@@ -243,8 +246,8 @@ function DiarySortControls({
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
-        <button className="icon-button h-8 w-8 bg-transparent">
-          <SortIcon className="h-6 w-6" />
+        <button className="flex h-6 w-6 items-center justify-center rounded p-1 text-gray-400 hover:bg-gray-50 ">
+          <SortIcon className="h-4 w-4" />
         </button>
       </Dropdown.Trigger>
       <Dropdown.Content className="dropdown">
@@ -338,92 +341,83 @@ export default function ChannelHeader({
   return (
     <div
       className={cn(
-        'flex h-full items-center justify-between border-b-2 border-gray-50 bg-white p-2'
+        'flex items-center justify-between bg-white',
+        isMobile ? 'px-6 pt-10 pb-4' : 'border-b-2 border-gray-50 px-4 py-4'
       )}
     >
       <BackButton
         to={backTo()}
         className={cn(
-          'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
-          isMobile && '-ml-2 flex items-center rounded-lg pr-0 hover:bg-gray-50'
+          'default-focus ellipsis inline-flex appearance-none items-center pr-2 text-lg font-bold text-gray-800 hover:bg-gray-50 sm:text-base sm:font-semibold',
+          isMobile && ''
         )}
         aria-label="Open Channels Menu"
       >
         {isMobile ? (
-          <CaretLeftIcon className="mr-1 h-5 w-5 shrink-0 text-gray-500" />
+          <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
         ) : null}
-        <div className="flex items-center space-x-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gray-50">
-            <ChannelIcon nest={nest} className="h-4 w-4 text-gray-400" />
-          </div>
-          <div className="flex shrink flex-col items-start text-left">
-            <div className="text-md font-semibold line-clamp-1">
-              {channel?.meta.title}
-            </div>
-            <span className="text-sm font-medium text-gray-600 line-clamp-1">
-              {groupName}
-            </span>
-          </div>
+        <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
+          <ChannelIcon nest={nest} className="h-5 w-5 text-gray-400" />
         </div>
+        <span className="ellipsis line-clamp-1">{channel?.meta.title}</span>
       </BackButton>
+      <div className="flex flex-row space-x-4 self-end">
+        {showControls && displayMode && setDisplayMode && setSortMode ? (
+          <>
+            {children}
+            <Dropdown.Root>
+              <Dropdown.Trigger asChild>
+                <button className="flex h-6 w-6 items-center justify-center rounded p-1 text-gray-400 hover:bg-gray-50 ">
+                  {displayMode === 'grid' ? (
+                    <GridIcon className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <ListIcon className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              </Dropdown.Trigger>
+              <Dropdown.Content className="dropdown">
+                <Dropdown.Item
+                  className={cn(
+                    'dropdown-item-icon',
+                    displayMode === 'list' && 'hover-bg-gray-100 bg-gray-100'
+                  )}
+                  onClick={() => setDisplayMode('list')}
+                >
+                  <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
+                    <ListIcon className="-m-1 h-8 w-8" />
+                  </div>
+                  <span className="font-semibold">List</span>
+                </Dropdown.Item>
+                <Dropdown.Item
+                  className={cn(
+                    'dropdown-item-icon',
+                    displayMode === 'grid' && 'bg-gray-100 hover:bg-gray-100'
+                  )}
+                  onClick={() => setDisplayMode('grid')}
+                >
+                  <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
+                    <GridIcon className="-m-1 h-8 w-8" />
+                  </div>
+                  <span className="font-semibold">Grid</span>
+                </Dropdown.Item>
+              </Dropdown.Content>
+            </Dropdown.Root>
 
-      {showControls && displayMode && setDisplayMode && setSortMode ? (
-        <div
-          className={cn(
-            'flex items-center',
-            isMobile ? 'shrink space-x-2' : 'space-x-3'
-          )}
-        >
-          {children}
-          {/* TODO: Switch the popovers to dropdowns */}
-          <Dropdown.Root>
-            <Dropdown.Trigger asChild>
-              <button className="icon-button h-8 w-8 bg-transparent">
-                {displayMode === 'grid' ? (
-                  <GridIcon className="-m-1 h-8 w-8" />
-                ) : (
-                  <ListIcon className="-m-1 h-8 w-8" />
-                )}
-              </button>
-            </Dropdown.Trigger>
-            <Dropdown.Content className="dropdown">
-              <Dropdown.Item
-                className={cn(
-                  'dropdown-item-icon',
-                  displayMode === 'list' && 'hover-bg-gray-100 bg-gray-100'
-                )}
-                onClick={() => setDisplayMode('list')}
-              >
-                <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
-                  <ListIcon className="-m-1 h-8 w-8" />
-                </div>
-                <span className="font-semibold">List</span>
-              </Dropdown.Item>
-              <Dropdown.Item
-                className={cn(
-                  'dropdown-item-icon',
-                  displayMode === 'grid' && 'bg-gray-100 hover:bg-gray-100'
-                )}
-                onClick={() => setDisplayMode('grid')}
-              >
-                <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
-                  <GridIcon className="-m-1 h-8 w-8" />
-                </div>
-                <span className="font-semibold">Grid</span>
-              </Dropdown.Item>
-            </Dropdown.Content>
-          </Dropdown.Root>
-          {isDiary ? (
-            <DiarySortControls setSortMode={setSortMode} sortMode={sortMode} />
-          ) : (
-            <HeapSortControls setSortMode={setSortMode} sortMode={sortMode} />
-          )}
+            {isDiary ? (
+              <DiarySortControls
+                setSortMode={setSortMode}
+                sortMode={sortMode}
+              />
+            ) : (
+              <HeapSortControls setSortMode={setSortMode} sortMode={sortMode} />
+            )}
 
+            <ChannelActions {...{ nest, channel, isAdmin }} />
+          </>
+        ) : (
           <ChannelActions {...{ nest, channel, isAdmin }} />
-        </div>
-      ) : (
-        <ChannelActions {...{ nest, channel, isAdmin }} />
-      )}
+        )}
+      </div>
     </div>
   );
 }

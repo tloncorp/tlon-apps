@@ -139,7 +139,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
           <div
             title={typeof children === 'string' ? children : undefined}
             className={cn(
-              'sm:text-semibold max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:text-gray-600',
+              'max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600',
               isMobile ? 'line-clamp-1' : 'truncate',
               actions && 'pr-4'
             )}

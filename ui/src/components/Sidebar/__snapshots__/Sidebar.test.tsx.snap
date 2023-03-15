@@ -48,7 +48,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="sm:text-semibold max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
           >
             <div
               class="flex items-center justify-between"
@@ -172,7 +172,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="sm:text-semibold max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
           >
             <span>
               <span
@@ -224,7 +224,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="sm:text-semibold max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
             title="Notifications"
           >
             Notifications
@@ -252,7 +252,7 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="sm:text-semibold max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
           >
             <div
               class="flex items-center"
@@ -283,7 +283,7 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="sm:text-semibold max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
             title="Create Group"
           >
             Create Group

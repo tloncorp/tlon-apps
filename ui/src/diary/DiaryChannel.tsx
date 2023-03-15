@@ -206,7 +206,7 @@ function DiaryChannel() {
           {canWrite ? (
             <Link
               to="edit"
-              className="button shrink-0 bg-blue text-white dark:text-black"
+              className="small-button shrink-0 bg-blue text-white"
             >
               Add Note
             </Link>
