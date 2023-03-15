@@ -3,12 +3,22 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { Link, useLocation } from 'react-router-dom';
 import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
+import Avatar from '@/components/Avatar';
 
 export default function MobileGroupsActions() {
   const location = useLocation();
   return (
     <nav className="h-full flex-1 overflow-y-auto p-2">
       <ul className="space-y-3">
+        <SidebarItem
+          icon={
+            <Avatar className="h-12 w-12" ship={window.our} size="default" />
+          }
+        >
+          <Link to="/profile/edit" className="no-underline">
+            Profile
+          </Link>
+        </SidebarItem>
         <SidebarItem
           icon={
             <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
