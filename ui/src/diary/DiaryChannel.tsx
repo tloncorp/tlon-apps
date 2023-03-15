@@ -37,9 +37,11 @@ import {
 import useAllBriefs from '@/logic/useAllBriefs';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
+import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 
 function DiaryChannel() {
   const [joining, setJoining] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
@@ -64,6 +66,7 @@ function DiaryChannel() {
 
   const initializeChannel = useCallback(async () => {
     await useDiaryState.getState().initialize(chFlag);
+    setInitialized(true);
   }, [chFlag]);
 
   useEffect(() => {
@@ -230,7 +233,9 @@ function DiaryChannel() {
         </div>
       </Toast.Provider>
       <div className="h-full">
-        {displayMode === 'grid' ? (
+        {!initialized ? (
+          <DiaryChannelListPlaceholder count={4} />
+        ) : displayMode === 'grid' ? (
           <DiaryGridView notes={sortedNotes} loadOlderNotes={loadOlderNotes} />
         ) : (
           <div className="h-full">

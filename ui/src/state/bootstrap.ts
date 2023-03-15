@@ -17,7 +17,7 @@ import { useStorage } from './storage';
 const emptyGroupsInit: GroupsInit = {
   groups: {},
   gangs: {},
-  chat: { briefs: {}, chats: {} },
+  chat: { briefs: {}, chats: {}, pins: [] },
   heap: { briefs: {}, stash: {} },
   diary: { briefs: {}, shelf: {} },
 };
@@ -33,6 +33,42 @@ const emptyTalkInit: TalkInit = {
   pins: [],
 };
 
+async function startGroups(talkStarted: boolean) {
+  // make sure if this errors we don't kill the entire app
+  const { chat, heap, diary, ...groups } = await asyncWithDefault(
+    () =>
+      api.scry<GroupsInit>({
+        app: 'groups-ui',
+        path: '/init',
+      }),
+    emptyGroupsInit
+  );
+
+  if (!talkStarted) {
+    useGroupState.getState().start(groups);
+    useChatState.getState().start(chat);
+  }
+  useHeapState.getState().start(heap);
+  useDiaryState.getState().start(diary);
+}
+
+async function startTalk(groupsStarted: boolean) {
+  // make sure if this errors we don't kill the entire app
+  const { groups, gangs, ...chat } = await asyncWithDefault(
+    () =>
+      api.scry<TalkInit>({
+        app: 'talk-ui',
+        path: '/init',
+      }),
+    emptyTalkInit
+  );
+
+  if (!groupsStarted) {
+    useGroupState.getState().start({ groups, gangs });
+  }
+  useChatState.getState().startTalk(chat, !groupsStarted);
+}
+
 export default async function bootstrap(reset = false) {
   const { wait } = useSchedulerStore.getState();
   if (reset) {
@@ -43,33 +79,11 @@ export default async function bootstrap(reset = false) {
   }
 
   if (isTalk) {
-    // make sure if this errors we don't kill the entire app
-    const { groups, gangs, ...chat } = await asyncWithDefault(
-      () =>
-        api.scry<TalkInit>({
-          app: 'talk-ui',
-          path: '/init',
-        }),
-      emptyTalkInit
-    );
-
-    useGroupState.getState().start({ groups, gangs });
-    useChatState.getState().startTalk(chat);
+    startTalk(false);
+    wait(() => startGroups(true), 5);
   } else {
-    // make sure if this errors we don't kill the entire app
-    const { chat, heap, diary, ...groups } = await asyncWithDefault(
-      () =>
-        api.scry<GroupsInit>({
-          app: 'groups-ui',
-          path: '/init',
-        }),
-      emptyGroupsInit
-    );
-
-    useGroupState.getState().start(groups);
-    useChatState.getState().start(chat);
-    useHeapState.getState().start(heap);
-    useDiaryState.getState().start(diary);
+    startGroups(false);
+    wait(async () => startTalk(true), 5);
   }
 
   const { initialize: settingsInitialize, fetchAll } =

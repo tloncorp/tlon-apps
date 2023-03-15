@@ -3,7 +3,11 @@
 +$  init
   $:  =groups:g
       =gangs:g
-      =briefs:c
+      talk
+  ==
+::
++$  talk
+  $:  =briefs:c
       chats=(map flag:c chat:c)
       clubs=(map id:club:c crew:club:c)
       dms=(set ship)

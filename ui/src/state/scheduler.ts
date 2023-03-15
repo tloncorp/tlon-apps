@@ -31,32 +31,25 @@ const useSchedulerStore = create<SchedulerStore>((set, get) => ({
     set(
       produce((draft) => {
         draft.phase += 1;
-        console.log('advancing to phase', draft.phase);
       })
     );
   },
   start: (phase) => {
     const waiters = get().waiting[phase];
-    console.log(
-      `executing phase ${phase}:`,
-      waiters?.map((w) => w.id)
-    );
     waiters?.forEach((w) => {
       w.callback();
     });
 
-    setTimeout(() => get().next(), 100);
+    setTimeout(() => get().next(), 16);
   },
   wait: (cb, phase) => {
     return new Promise((resolve) => {
       const id = Date.now().toString();
       const { phase: p } = get();
 
-      console.log('adding', id, 'current', p, 'requested', phase);
       if (phase <= p) {
         cb();
 
-        console.log('phase', phase, 'already passed, executing');
         resolve(id);
         return;
       }
