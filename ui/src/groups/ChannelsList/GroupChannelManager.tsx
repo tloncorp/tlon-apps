@@ -21,18 +21,21 @@ export default function GroupChannelManager({ title }: ViewProps) {
         </title>
       </Helmet>
       {isMobile && (
-        <div className="flex flex-row items-center justify-between py-1 px-2 sm:p-4">
+        <header className="flex items-center justify-between bg-white px-6 pt-10 pb-4">
           <Link
             to={`/groups/${flag}`}
-            className="flex cursor-pointer select-none items-center rounded-lg p-2 hover:bg-gray-50 sm:cursor-text sm:select-text"
+            className="default-focus inline-flex items-center text-base font-semibold text-gray-800 hover:bg-gray-50"
             aria-label="Back to Group"
           >
-            <CaretLeft16Icon className="mr-1 h-4 w-4 text-gray-400" />
-            <h1 className="text-base font-semibold sm:text-lg">All Channels</h1>
+            <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
+            {/* <GroupAvatar {...group?.meta} size="h-6 w-6" className="mr-3" /> */}
+            <h1 className="shrink text-lg font-bold text-gray-800 line-clamp-1">
+              All Channels in {group?.meta.title}
+            </h1>
           </Link>
-        </div>
+        </header>
       )}
-      <div className="m-4 flex grow flex-col sm:my-5 sm:mx-8">
+      <div className="flex grow flex-col bg-gray-50 px-2 sm:px-6">
         <ChannelSearchProvider>
           <ChannelsList />
         </ChannelSearchProvider>
