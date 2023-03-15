@@ -213,7 +213,7 @@ export default function ChannelList({ className }: ChannelListProps) {
           ? filteredSections.map((s) => (
               <div className="space-y-0.5" key={s}>
                 {s !== UNZONED ? (
-                  <Divider>
+                  <Divider isMobile={isMobile}>
                     {s in group.zones ? group.zones[s].meta.title : ''}
                   </Divider>
                 ) : null}

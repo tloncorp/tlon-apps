@@ -266,7 +266,6 @@ function DiarySortControls({
         >
           <span className="font-semibold">Old Posts First</span>
         </Dropdown.Item>
-        <Divider />
         <Dropdown.Item
           className={cn(
             'dropdown-item',
