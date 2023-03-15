@@ -14,4 +14,6 @@
       invited=(set ship)
       pins=(list whom:c)
   ==
+::
++$  vita-enabled  ?
 --

@@ -105,5 +105,10 @@ export default async function bootstrap(reset = false) {
     start();
 
     usePalsState.getState().initializePals();
+    api.poke({
+      app: isTalk ? 'talk-ui' : 'groups-ui',
+      mark: 'ui-vita',
+      json: null,
+    });
   }, 5);
 }

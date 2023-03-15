@@ -78,6 +78,7 @@ import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import chatmanifestURL from './assets/chatmanifest.json?url';
 import manifestURL from './assets/manifest.json?url';
+import VitaMessage from './components/VitaMessage';
 import { useGroups } from './state/groups';
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
@@ -504,6 +505,7 @@ function App() {
         />
       )}
       <Leap />
+      <VitaMessage />
     </div>
   );
 }
