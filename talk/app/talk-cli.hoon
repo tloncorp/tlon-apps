@@ -944,7 +944,7 @@
         %+  welp  [spit]~
         :_  ~ 
         :*  %pass
-            %:  weld 
+            ;:  weld 
               /timer/view-dm
               /(scot %p who.sole-id)
               /(scot %ta ses.sole-id)/(scot %p u.who)
