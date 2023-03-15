@@ -14,20 +14,20 @@ export default function MobileGroupSidebar() {
   const match = useMatch('/groups/:ship/:name/info');
 
   return (
-    <section className="flex h-full w-full flex-col overflow-x-hidden border-r-2 border-gray-50 bg-white">
+    <section className="flex h-full w-full flex-col overflow-x-hidden  bg-white">
       <Outlet />
       <footer className="mt-auto flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex items-center">
-            <NavTab to={`.`} end>
+            <NavTab to={`.`} className="basis-1/4">
               <HashIcon className="mb-0.5 h-6 w-6" />
               Channels
             </NavTab>
-            <NavTab to={`/groups/${flag}/activity`}>
+            <NavTab to={`/groups/${flag}/activity`} className="basis-1/4">
               <BellIcon className="mb-0.5 h-6 w-6" />
               Activity
             </NavTab>
-            <NavTab to={`/groups/${flag}/info`}>
+            <NavTab to={`/groups/${flag}/info`} className="basis-1/4">
               <GroupAvatar
                 {...group?.meta}
                 size="h-6 w-6"
@@ -35,7 +35,7 @@ export default function MobileGroupSidebar() {
               />
               Group Info
             </NavTab>
-            <NavTab to={`/groups/${flag}/actions`}>
+            <NavTab to={`/groups/${flag}/actions`} className="basis-1/4">
               <ElipsisIcon className="mb-0.5 h-6 w-6" />
               Options
             </NavTab>

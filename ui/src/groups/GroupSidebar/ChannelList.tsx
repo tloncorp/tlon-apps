@@ -45,31 +45,41 @@ interface ChannelListProps {
 
 export function ChannelSorter({ isMobile }: ChannelSorterProps) {
   const { sortFn, sortOptions, setSortFn } = useChannelSort();
+
+  function sortLabel() {
+    switch (sortFn) {
+      case 'Arranged':
+        return 'Arranged Channels';
+      case 'Recent Activity':
+        return 'Recent Activity';
+      case 'A → Z':
+        return 'Channels A → Z';
+      default:
+        return 'Channels';
+    }
+  }
   return (
-    <DropdownMenu.Root>
-      {isMobile ? (
+    <div
+      className={cn(
+        isMobile
+          ? ''
+          : 'flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1'
+      )}
+    >
+      {!isMobile && (
+        <h2 className="text-sm font-bold text-gray-400">{sortLabel()}</h2>
+      )}
+      <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          className="default-focus flex items-center rounded-lg p-0 text-base font-semibold"
+          className="default-focus flex items-center rounded-lg p-1 text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen"
           aria-label="Groups Sort Options"
         >
-          <SortIcon className="h-6 w-6 text-gray-400" />
+          <SortIcon className="h-4 w-4 text-gray-400" />
         </DropdownMenu.Trigger>
-      ) : (
-        <div className="p-2">
-          <DropdownMenu.Trigger
-            className="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
-            aria-label="Channels Sort Options"
-          >
-            <span className="flex items-center">
-              <SortIcon className="h-4 w-4 text-gray-400" />
-              <span className="mr-2 pl-1">{`Sort: ${sortFn}`}</span>
-            </span>
-            <CaretDown16Icon className="h-4 w-4 text-gray-400" />
-          </DropdownMenu.Trigger>
-        </div>
-      )}
-      <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
-    </DropdownMenu.Root>
+
+        <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
+      </DropdownMenu.Root>
+    </div>
   );
 }
 
@@ -179,9 +189,14 @@ export default function ChannelList({ className }: ChannelListProps) {
   );
 
   return (
-    <div className={className}>
+    <div
+      className={cn(
+        'h-full w-full flex-1 overflow-y-auto',
+        isMobile ? 'px-4' : 'px-2'
+      )}
+    >
       {!isMobile && <ChannelSorter isMobile={false} />}
-      <ul className={cn('space-y-0.5', isMobile && 'flex-none')}>
+      <div className={cn('space-y-0.5')}>
         {isMobile && (
           <SidebarItem
             icon={
@@ -206,7 +221,7 @@ export default function ChannelList({ className }: ChannelListProps) {
               </div>
             ))
           : renderChannels(unsectionedChannels)}
-      </ul>
+      </div>
     </div>
   );
 }

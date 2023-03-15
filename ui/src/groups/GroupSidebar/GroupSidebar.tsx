@@ -112,7 +112,7 @@ function GroupHeader() {
   };
 
   return (
-    <li className="relative mb-2 w-full rounded-lg" style={coverStyles()}>
+    <div className="relative mb-2 w-full rounded-lg" style={coverStyles()}>
       {group &&
         !calm?.disableRemoteContent &&
         !isColor(group?.meta.cover) &&
@@ -192,7 +192,7 @@ function GroupHeader() {
           </button>
         </GroupActions>
       </div>
-    </li>
+    </div>
   );
 }
 
@@ -213,9 +213,8 @@ export default function GroupSidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
-      <div className="h-2" />
-      <div className="relative flex min-h-0 flex-col px-2">
-        <ul className="space-y-0.5">
+      <div className="flex min-h-0 flex-col">
+        <div className="flex flex-col space-y-0.5 px-2 pt-2 pb-4">
           <GroupHeader />
           <SidebarItem
             icon={
@@ -238,27 +237,25 @@ export default function GroupSidebar() {
               />
             }
             to={`/groups/${flag}/channels`}
+            className="relative"
           >
-            All Channels
+            <div className="flex w-full flex-1 items-center justify-between">
+              All Channels
+              {isAdmin && (
+                <Link
+                  to={`/groups/${flag}/channels/new`}
+                  state={{ backgroundLocation: location }}
+                  className="flex h-6 w-6 items-center justify-center rounded mix-blend-multiply hover:bg-gray-50 dark:mix-blend-screen"
+                >
+                  <AddIcon className="h-4 w-4 fill-gray-800" />
+                </Link>
+              )}
+            </div>
           </SidebarItem>
-          {isAdmin && (
-            <Link
-              to={`/groups/${flag}/channels/new`}
-              state={{ backgroundLocation: location }}
-              className="absolute right-5 bottom-3 flex h-6 w-6 items-center justify-center rounded"
-            >
-              <AddIcon className="h-4 w-4 fill-gray-800" />
-            </Link>
-          )}
-        </ul>
-      </div>
-      <div className="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2">
-        <span className="ml-4 text-sm font-semibold text-gray-400">
-          Channels
-        </span>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <ChannelList className="p-2 pt-0" />
+        <ChannelList />
       </div>
     </nav>
   );
