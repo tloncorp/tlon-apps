@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import _ from 'lodash';
 import ob from 'urbit-ob';
+import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -14,6 +15,8 @@ import X16Icon from '@/components/icons/X16Icon';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { whomIsFlag } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
+import { useIsMobile } from '@/logic/useMedia';
 import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -26,6 +29,7 @@ export default function ChatThread() {
     idTime: string;
   }>();
   const [loading, setLoading] = useState(false);
+  const isMobile = useIsMobile();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const whom = flag || ship || '';
@@ -88,30 +92,46 @@ export default function ChatThread() {
   if (!time || !writ) return null;
 
   const thread = replies.set(time, writ);
+  const BackButton = isMobile ? Link : 'div';
 
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-y-auto border-gray-50 bg-white lg:w-96 lg:border-l-2"
+      className="relative flex h-full w-full flex-col overflow-y-auto  bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
     >
       <header className={'header z-40'}>
-        <div className="flex h-full w-full items-center justify-between border-b-2 border-gray-50 bg-white p-4">
-          <div className="flex items-center space-x-3 font-semibold">
-            <div className="rounded bg-gray-50 p-1">
-              <BranchIcon className="h-6 w-6 text-gray-400" />
+        <div
+          className={cn(
+            'flex items-center justify-between bg-white',
+            isMobile ? 'px-6 pt-10 pb-4' : 'border-b-2 border-gray-50 px-4 py-4'
+          )}
+        >
+          <BackButton to={returnURL()} aria-label="Close" className="">
+            <div className="flex items-center">
+              {isMobile && (
+                <CaretLeft16Icon className="mr-2 h-4 w-4 text-gray-400" />
+              )}
+              <div className="mr-3 flex h-6 w-6 items-center justify-center rounded bg-gray-100 p-1">
+                <BranchIcon className="h-4 w-4 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-bold line-clamp-1 sm:text-base sm:font-semibold">
+                Thread: {threadTitle}
+              </h3>
             </div>
-            <div>Thread: {threadTitle}</div>
-          </div>
-          <Link
-            to={returnURL()}
-            aria-label="Close"
-            className="icon-button h-8 w-8 bg-transparent"
-          >
-            <X16Icon className="h-6 w-6 text-gray-400" />
-          </Link>
+          </BackButton>
+
+          {!isMobile && (
+            <Link
+              to={returnURL()}
+              aria-label="Close"
+              className="icon-button h-6 w-6 bg-transparent"
+            >
+              <X16Icon className="h-4 w-4 text-gray-400" />
+            </Link>
+          )}
         </div>
       </header>
-      <div className="flex flex-1 flex-col px-2 py-0">
+      <div className="flex flex-1 flex-col p-0 pr-2">
         {loading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
