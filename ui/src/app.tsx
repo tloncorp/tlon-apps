@@ -43,10 +43,7 @@ import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import Notifications, {
-  GroupWrapper,
-  MainWrapper,
-} from './notifications/Notifications';
+import Notifications from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
@@ -239,12 +236,10 @@ function ActivityRoute({
   }
 
   return (
-    <MainWrapper isMobile={isMobile}>
-      <Notifications
-        child={GroupNotification}
-        title={`All Notifications • ${appHead('').title}`}
-      />
-    </MainWrapper>
+    <Notifications
+      child={GroupNotification}
+      title={`All Notifications • ${appHead('').title}`}
+    />
   );
 }
 
@@ -306,12 +301,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               <Route
                 path="activity"
                 element={
-                  <GroupWrapper isMobile={isMobile}>
-                    <Notifications
-                      child={GroupNotification}
-                      title={`• ${appHead('').title}`}
-                    />
-                  </GroupWrapper>
+                  <Notifications
+                    child={GroupNotification}
+                    title={`• ${appHead('').title}`}
+                  />
                 }
               />
               <Route path="info" element={<GroupAdmin />}>
