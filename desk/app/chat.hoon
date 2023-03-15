@@ -23,11 +23,14 @@
         veb=|
     ==
   ++  okay  `epic:e`0
+  ++  club-eq  2 :: reverb control: max number of forwards for clubs
+  ++  club-version  1
   +$  current-state
     $:  %2
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
+        club-schedule=schedule:club:c
         drafts=(map whom:c story:c)
         pins=(list whom:c)
         bad=(set ship)
@@ -187,6 +190,7 @@
     %*  .  *state-2
       dms     dms.s
       clubs   (clubs-1-to-2 clubs.s)
+      club-schedule  *schedule:club:c
       drafts  drafts.s
       pins    pins.s
       bad     bad.s
@@ -317,7 +321,12 @@
       %club-create
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
-      %club-action
+      %club-action-0
+    =+  !<(=action:club:one:old:c vase)
+    =/  cu  (cu-abed p.action)
+    cu-abet:(cu-diff-0:cu q.action)
+  ::
+      ?(%club-action %club-action-1)
     =+  !<(=action:club:c vase)
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
@@ -710,7 +719,7 @@
   ::
     [%x %chats ~]  ``chats+!>(chats-light)
   ::
-    [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c +.+.+.club)))
+    [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
   ::
     [%x %pins ~]  ``chat-pins+!>(pins)
   ::
@@ -722,7 +731,7 @@
     =-  ``noun+!>(-)
     :*  briefs
         chats-light
-        (~(run by clubs) |=(=club:c +.+.club))
+        (~(run by clubs) |=(=club:c crew.club))
         ~(key by accepted-dms)
         ~(key by pending-dms)
         pins
@@ -865,7 +874,7 @@
     cu-core(id i, club (~(gut by clubs) i *club:c))
   ++  cu-out  (~(del in cu-circle) our.bowl)
   ++  cu-circle
-    (~(uni in team.club) hive.club)
+    (~(uni in team.crew.club) hive.crew.club)
   ::
   ++  cu-area  `wire`/club/(scot %uv id)
   ::
@@ -880,20 +889,73 @@
   ::
   ++  cu-pass
     |%
-    ++  act
-      |=  [=ship =diff:club:c]
+    ++  poke
+      |=  [=ship =cage]
       ^-  card
       =/  =wire  (snoc cu-area %gossip)
       =/  =dock  [ship dap.bowl]
-      =/  =cage  club-action+!>(`action:club:c`[id diff])
       [%pass wire %agent dock %poke cage]
     ::
-    ++  gossip
-      |=  =diff:club:c
+    ++  pass-upgrade
+      |=  [=ship vers=@ud cards=(list card)]
+      ?:  =(club-version vers)  cards
+      :_  cards
+      (act ship [cu-uid %upgrade club-version ship])
+    ++  act-0
+      =,  club:one:old:c
+      |=  [=ship =diff]
+      (poke ship club-action-0+!>(`action`[^^id diff]))
+    ++  act
+      |=  [=ship =diff:club:c]
+      %+  poke  ship
+      club-action+!>(`action:club:c`[id diff])
+    ++  pass-0
+      |=  =diff:club:one:old:c
+      %-  gossip
+      |=  [=ship vers=marker:club:c]
       ^-  (list card)
+      =/  content-hash  `@uv`(shax (jam q.diff))
+      =.  heard.club  (~(put in heard.club) content-hash)
+      :_  ~   
+      ?:  (lth theirs.vers club-version)
+        (act-0 ship diff)
+      (act ship content-hash q.diff)
+    ++  pass-1
+      |=  =diff:club:c
+      %-  gossip
+      |=  [=ship vers=marker:club:c]
+      ^-  (list card)
+      :_  ~
+      ?.  (lth theirs.vers club-version)
+        (act ship diff)
+      ?+  -.q.diff  (act-0 ship club-eq q.diff)
+        %upgrade  *card
+      ==
+    ++  send
+      |=  =diff:club:c
+      %-  gossip
+      |=  [=ship vers=marker:club:c]
+      =/  current  (act ship diff)
+      =/  old
+        ?+  -.q.diff  (act-0 ship (sub club-eq 1) q.diff)
+          %upgrade  *card
+        ==
+      ?:  =(club-version theirs.vers)  ~[current]
+      ?+  -.q.diff  ~[old]
+          %init
+        ~[current old]
+      ==
+    ::
+    ++  gossip
+      |=  distribute=$-([ship marker:club:c] (list card))
+      ^-  (list card)
+      %-  zing
       %+  turn  ~(tap in cu-out)
       |=  =ship
-      (act ship diff)
+      ^-  (list card)
+      =/  vers=marker:club:c  (~(gut by club-schedule) ship [0 0])
+      %^  pass-upgrade  ship  ours.vers
+      (distribute ship vers)
     --
   ::
   ++  cu-init
@@ -907,7 +969,7 @@
   ++  cu-create
     |=  =create:club:c
     =.  cu-core  (cu-init %done create)
-    =.  cu-core  (cu-diff 0v0 [%init team hive met]:club)
+    =.  cu-core  (cu-diff 0v0 [%init team hive met]:crew.club)
     =/  =notice:c
       :-  ''
       (rap 3 ' started a group chat with ' (scot %ud ~(wyt in hive.create)) ' other members' ~)
@@ -941,30 +1003,58 @@
       (emit %give %fact ~[(welp cu-area /ui/writs)] cage)
     cu-core
   ::
+  ++  cu-diff-0
+    =,  club:one:old:c
+    |=  [=echo =delta]
+    =?  cor  (lth echo club-eq)
+      (emil (pass-0:cu-pass +(echo) delta))
+    =.  cu-core  (cu-diff-inner delta)
+    =/  action  [^^id [0v0 delta]]  :: don't need the hash on the frontend
+    ?+  -.delta  (cu-give-action action)
+        %writ  (cu-give-writs-diff diff.delta)
+    ==
   ++  cu-diff
     |=  [=uid:club:c =delta:club:c]
     =?  uid  from-self  cu-uid
     =/  diff  [uid delta]
     ?:  (~(has in heard.club) uid)  cu-core
     =.  heard.club  (~(put in heard.club) uid)
-    =.  cor  (emil (gossip:cu-pass diff))
+    =.  cor  
+      ?:  from-self  (emil (send:cu-pass diff))
+      (emil (pass-1:cu-pass diff))
+    =.  cu-core  (cu-diff-inner delta)
     =/  =action:club:c  [id diff]
+    ?+  -.delta  (cu-give-action action)
+        %writ  (cu-give-writs-diff diff.delta)
+    ==
+  ++  cu-diff-inner
+    |=  =delta:club:c
     ?-    -.delta
     ::
-        %init
-      =:  hive.club  hive.delta
-          team.club  team.delta
-          met.club   met.delta
-      ==
-      (cu-give-action action)
-    ::
         %meta
-      =.  met.club  meta.delta
-      (cu-give-action action)
+      =.  met.crew.club  meta.delta
+      cu-core
+    ::
+        %upgrade
+      =/  =marker:club:c  (~(gut by club-schedule) ship.delta *marker:club:c)
+      =.  club-schedule  (~(put by club-schedule) ship.delta [version.delta ours.marker])
+      cu-core
+    ::
+        %init
+      ::  ignore if already initialized
+      ?:  ?|  !=(~ hive.crew.club)
+              !=(~ team.crew.club)
+              !=(~ met.crew.club)
+          ==
+        cu-core  
+      =:  hive.crew.club  hive.delta
+          team.crew.club  team.delta
+          met.crew.club   met.delta
+      ==
+      cu-core
     ::
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
-      =.  cu-core  (cu-give-writs-diff diff.delta)      
       ?-  -.q.diff.delta  
           ?(%del %add-feel %del-feel)  cu-core
           %add
@@ -990,37 +1080,34 @@
     ::
         %team
       =*  ship  ship.delta
-      =.  cu-core  (cu-give-action action)
-      =/  loyal  (~(has in team.club) ship)
+      =/  loyal  (~(has in team.crew.club) ship)
       ?:  &(!ok.delta loyal)
         ?.  =(our src):bowl
           cu-core
         cu-core(gone &)
       ?:  &(ok.delta loyal)  cu-core
-      ?.  (~(has in hive.club) ship)
+      ?.  (~(has in hive.crew.club) ship)
         cu-core
-      =.  hive.club  (~(del in hive.club) ship)
+      =.  hive.crew.club  (~(del in hive.crew.club) ship)
       ?.  ok.delta
         (cu-post-notice ship '' ' declined the invite')
       =.  cor  (give-brief club/id cu-brief)
-      =.  team.club  (~(put in team.club) ship)
+      =.  team.crew.club  (~(put in team.crew.club) ship)
       =?  last-read.remark.club  =(ship our.bowl)  now.bowl  
       (cu-post-notice ship '' ' joined the chat')
     ::
         %hive
-      =.  cu-core  (cu-give-action action)
       ?:  add.delta
-        ?:  (~(has in hive.club) for.delta)
+        ?:  (~(has in hive.crew.club) for.delta)
           cu-core
-        =.  hive.club   (~(put in hive.club) for.delta)
-        =.  cor
-          (emit (act:cu-pass for.delta cu-uid %init [team hive met]:club))
-        :: TODO include inviter's name in message? requires rework of
-        :: notice messages though :(
+        =.  hive.crew.club   (~(put in hive.crew.club) for.delta)
+        =.  cor  (emit (act:cu-pass for.delta cu-uid %init [team hive met]:crew.club))
+        :: don't allow gossip of the init
+        =.  cor  (emit (act-0:cu-pass for.delta club-eq %init [team hive met]:crew.club))
         (cu-post-notice for.delta '' ' was invited to the chat')
-      ?.  (~(has in hive.club) for.delta)
+      ?.  (~(has in hive.crew.club) for.delta)
         cu-core
-      =.  hive.club  (~(del in hive.club) for.delta)
+      =.  hive.crew.club  (~(del in hive.crew.club) for.delta)
       (cu-post-notice for.delta '' ' was uninvited from the chat')
     ==
   ::
@@ -1047,7 +1134,7 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
       [%writs *]  (peek:cu-pact t.path)
-      [%crew ~]   ``club-crew+!>(+.+.+.club)
+      [%crew ~]   ``club-crew+!>(crew.club)
     ==
   ::
   ++  cu-watch

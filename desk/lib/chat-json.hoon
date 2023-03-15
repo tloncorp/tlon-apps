@@ -41,6 +41,12 @@
     ::
         %meta  (meta meta.d)
     ::
+        %upgrade
+      %-  pairs
+      :~  version/(numb version.d)
+          ship/(ship ship.d)
+      ==
+    ::
         %team
       %-  pairs
       :~  ship/(ship ship.d)
