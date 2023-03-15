@@ -105,7 +105,11 @@ function TopBar({
           )}
         </div>
         {canEdit && (
-          <div className={longPress ? 'relative' : ' hidden group-hover:block'}>
+          <div
+            className={
+              longPress ? 'relative' : 'relative hidden group-hover:block'
+            }
+          >
             {asRef ? (
               <IconButton
                 icon={<ElipsisSmallIcon className="h-4 w-4" />}
