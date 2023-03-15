@@ -182,7 +182,7 @@ function DiaryChannel() {
     i: number,
     [time, letter]: [bigInt.BigInteger, DiaryLetter]
   ) => (
-    <div className="my-4 mx-auto max-w-[600px]">
+    <div className="my-6 mx-auto max-w-[600px] px-6">
       <DiaryListItem letter={letter} time={time} />
     </div>
   );
