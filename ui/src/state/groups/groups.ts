@@ -952,6 +952,17 @@ export function useRouteGroup() {
   }, [ship, name]);
 }
 
+export function useGroupName() {
+  const { name } = useParams();
+  return useMemo(() => {
+    if (!name) {
+      return '';
+    }
+
+    return name;
+  }, [name]);
+}
+
 /**
  * Alias for useRouteGroup
  * @returns group flag - a string

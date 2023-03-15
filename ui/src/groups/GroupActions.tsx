@@ -14,6 +14,7 @@ import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
 import { useAmAdmin, useGroup } from '@/state/groups';
+import { useGroupInviteUrl, useLureEnabled } from '@/state/lure/lure';
 
 const { ship } = window;
 
@@ -24,6 +25,11 @@ export function useGroupActions(flag: string) {
   const pinned = usePinnedGroups();
   const isPinned = Object.keys(pinned).includes(flag);
   const isAdmin = useAmAdmin(flag);
+  const [groupInviteUrl] = useGroupInviteUrl(flag);
+  const [groupInviteUrlText, setGroupInviteUrlText] =
+    useState('Copy Invite URL');
+  const doCopyInviteUrlText = useCopy(groupInviteUrl).doCopy;
+  const [lureEnabled] = useLureEnabled(flag);
 
   const onCopy = useCallback(() => {
     doCopy();
@@ -33,6 +39,15 @@ export function useGroupActions(flag: string) {
       setIsOpen(false);
     }, 2000);
   }, [doCopy]);
+
+  const onInviteUrl = useCallback(() => {
+    doCopyInviteUrlText();
+    setGroupInviteUrlText('Copied!');
+    setTimeout(() => {
+      setCopyItemText('Copy Invite URL');
+      setIsOpen(false);
+    }, 2000);
+  }, [doCopyInviteUrlText]);
 
   const onPinClick = useCallback(
     // eslint-disable-next-line prefer-arrow-callback
@@ -50,6 +65,10 @@ export function useGroupActions(flag: string) {
     copyItemText,
     onCopy,
     onPinClick,
+    groupInviteUrl,
+    groupInviteUrlText,
+    onInviteUrl,
+    lureEnabled,
   };
 }
 
@@ -67,8 +86,26 @@ const GroupActions = React.memo(
     const privacy = group ? getPrivacyFromGroup(group) : 'public';
     const isAdmin = useAmAdmin(flag);
 
-    const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
-      useGroupActions(flag);
+    const {
+      isOpen,
+      setIsOpen,
+      isPinned,
+      copyItemText,
+      onCopy,
+      onPinClick,
+      groupInviteUrlText,
+      onInviteUrl,
+      groupInviteUrl,
+      lureEnabled,
+    } = useGroupActions(flag);
+
+    const onInviteUrlSelect = useCallback(
+      (event: Event) => {
+        event.preventDefault();
+        onInviteUrl();
+      },
+      [onInviteUrl]
+    );
 
     const onCopySelect = useCallback(
       (event: Event) => {
@@ -121,12 +158,21 @@ const GroupActions = React.memo(
             )}
             <DropdownMenu.Item
               className={
-                'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900'
+              'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900'
               }
               onSelect={onCopySelect}
             >
               <LinkIcon16 className="h-6 w-6 opacity-60" />
               <span className="pr-2">{copyItemText}</span>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              className={`dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900${
+                groupInviteUrl === '' || !lureEnabled ? ' hidden' : ''
+              }`}
+              onSelect={onInviteUrlSelect}
+            >
+              <LinkIcon16 className="h-6 w-6 opacity-60" />
+              <span className="pr-2">{groupInviteUrlText}</span>
             </DropdownMenu.Item>
             <DropdownMenu.Item
               className="dropdown-item flex items-center space-x-2"

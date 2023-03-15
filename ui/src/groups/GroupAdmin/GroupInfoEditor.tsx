@@ -15,6 +15,18 @@ import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GroupInfoFields from '../GroupInfoFields';
 import PrivacySelector from '../PrivacySelector';
+import { useGroupName } from '@/state/groups/groups';
+import {
+  useLureBait,
+  lureEnableGroup,
+  lureDisableGroup,
+  useLureEnabled,
+  useLureWelcome,
+  lurePokeDescribe,
+  useLureMetadataExists,
+  useGroupInviteUrl,
+} from '@/state/lure/lure';
+import CheckIcon from '@/components/icons/CheckIcon';
 
 const emptyMeta = {
   title: '',
@@ -36,6 +48,16 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [status, setStatus] = useState<Status>('initial');
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const name = useGroupName();
+  const [lureEnabled, setLureEnabled] = useLureEnabled(groupFlag);
+  const [lureURL, checkLureURL] = useGroupInviteUrl(groupFlag);
+  const [copyButtonLabel, setCopyButtonLabel] = useState('Copy');
+  const [lureWelcome, setLureWelcome] = useLureWelcome(name);
+  const [lureWelcomeSaveLabel, setLureWelcomeSaveLabel] = useState('Save');
+  const [lureMetadataExists, checkLureMetadataExists] = useLureMetadataExists(
+    name,
+    lureURL
+  );
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -151,6 +173,99 @@ export default function GroupInfoEditor({ title }: ViewProps) {
           </footer>
         </form>
       </FormProvider>
+      <div className="card mb-4">
+        <div className="flex flex-row">
+          <label
+            className={
+            'flex cursor-pointer items-start justify-between space-x-2 py-2'
+            }
+          >
+            <div className="flex items-center">
+              {lureEnabled ? (
+                <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
+                  <CheckIcon className="h-3 w-3 fill-gray-400" />
+                </div>
+              ) : (
+                <div className="h-4 w-4 rounded-sm border-2 border-gray-200" />
+              )}
+            </div>
+
+            <div className="flex w-full flex-col">
+              <div className="flex flex-row space-x-2">
+                <div className="flex w-full flex-col justify-start text-left">
+                  <span className="font-semibold">Invite Links Enabled</span>
+                </div>
+              </div>
+            </div>
+
+            <input
+              checked={lureEnabled}
+              onChange={async () => {
+                if (lureEnabled) {
+                  await lureDisableGroup(name);
+                } else {
+                  await lureEnableGroup(name);
+                }
+                setLureEnabled(!lureEnabled);
+              }}
+              className="sr-only"
+              type="checkbox"
+            />
+          </label>
+        </div>
+        <div className={`flex flex-col ${lureEnabled ? 'visible' : 'hidden'}`}>
+          <label htmlFor="title" className="mt-2 font-bold">
+            Invite Description
+          </label>
+          <textarea
+            value={lureWelcome}
+            className="input mt-0"
+            onChange={(e) => {
+              setLureWelcome(e.target.value);
+              setLureWelcomeSaveLabel('Save');
+            }}
+          />
+          <button
+            className="button mt-2 whitespace-nowrap"
+            onClick={async () => {
+              await lurePokeDescribe(name, {
+                tag: 'groups-0',
+                fields: {
+                  welcome: lureWelcome,
+                  description: group?.meta.description,
+                  cover: group?.meta.cover,
+                  title: group?.meta.title,
+                  image: group?.meta.image,
+                },
+              });
+              checkLureURL();
+              checkLureMetadataExists();
+              setLureWelcomeSaveLabel('Saved');
+            }}
+          >
+            {lureWelcomeSaveLabel}
+          </button>
+        </div>
+        <div
+          className={`flex flex-row ${
+            lureMetadataExists && lureEnabled ? 'visible' : 'hidden'
+          }`}
+        >
+          <label htmlFor="title" className="mt-2 font-bold">
+            Invite Link
+          </label>
+          <input value={lureURL} className="input mt-0" type="text" readOnly />
+          <button
+            className="small-button mt-1 h-6 whitespace-nowrap"
+            onClick={() => {
+              navigator.clipboard.writeText(lureURL);
+              setCopyButtonLabel('Copied');
+            }}
+          >
+            {copyButtonLabel}
+          </button>
+        </div>
+      </div>
       <div className="card">
         <h2 className="mb-1 text-lg font-bold">Delete Group</h2>
         <p className="mb-4">
