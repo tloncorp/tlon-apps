@@ -35,6 +35,7 @@ import {
   isChannelJoined,
 } from '@/logic/utils';
 import useAllBriefs from '@/logic/useAllBriefs';
+import AddIcon16 from '@/components/icons/Add16Icon';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
@@ -206,9 +207,12 @@ function DiaryChannel() {
           {canWrite ? (
             <Link
               to="edit"
-              className="small-button shrink-0 bg-blue text-white"
+              className={
+                'small-button shrink-0 bg-blue px-1 text-white sm:px-2'
+              }
             >
-              Add Note
+              <AddIcon16 className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Add Note</span>
             </Link>
           ) : null}
         </ChannelHeader>

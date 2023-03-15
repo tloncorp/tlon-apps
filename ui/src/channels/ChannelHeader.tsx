@@ -348,7 +348,7 @@ export default function ChannelHeader({
       <BackButton
         to={backTo()}
         className={cn(
-          'default-focus ellipsis inline-flex appearance-none items-center pr-2 text-lg font-bold text-gray-800 hover:bg-gray-50 sm:text-base sm:font-semibold',
+          'default-focus ellipsis inline-flex appearance-none items-center pr-2 text-lg font-bold text-gray-800 sm:text-base sm:font-semibold',
           isMobile && ''
         )}
         aria-label="Open Channels Menu"

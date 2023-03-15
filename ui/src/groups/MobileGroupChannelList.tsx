@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useGroupFlag, useGroup, useAmAdmin } from '@/state/groups';
 import ChannelList, { ChannelSorter } from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
-import CaretLeftIcon from '@/components/icons/CaretLeft16Icon';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Add16Icon from '@/components/icons/Add16Icon';
 
 export default function MobileGroupChannelList() {
@@ -17,9 +17,9 @@ export default function MobileGroupChannelList() {
       <header className="flex items-center justify-between px-6 pt-10 pb-4">
         <Link
           to="/"
-          className="default-focus inline-flex items-center text-base font-semibold text-gray-800 hover:bg-gray-50"
+          className="default-focus inline-flex items-center text-base font-semibold text-gray-800"
         >
-          <CaretLeftIcon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
+          <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
           <GroupAvatar {...group?.meta} size="h-6 w-6" className="mr-3" />
           <h1 className="shrink text-lg font-bold text-gray-800 line-clamp-1">
             {group?.meta.title}

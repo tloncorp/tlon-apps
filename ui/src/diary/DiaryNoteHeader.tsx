@@ -1,7 +1,9 @@
 import cn from 'classnames';
 import React from 'react';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import ChannelIcon from '@/channels/ChannelIcon';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { Link } from 'react-router-dom';
+import { useIsMobile } from '@/logic/useMedia';
 
 export interface DiaryNoteHeaderProps {
   title: string;
@@ -14,25 +16,35 @@ export default function DiaryNoteHeader({
   time,
   canEdit,
 }: DiaryNoteHeaderProps) {
+  const isMobile = useIsMobile();
+
   return (
     <div
       className={cn(
-        'flex h-full items-center border-b-2 border-gray-50 bg-white p-4'
+        'flex items-center justify-between bg-white',
+        isMobile ? 'px-6 pt-10 pb-4' : 'border-b-2 border-gray-50 px-4 py-4'
       )}
     >
       <Link
         to=".."
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gray-50"
-        aria-label="Back to notebook"
+        className={cn(
+          'default-focus ellipsis -ml-2 -mt-2 -mb-2 inline-flex appearance-none items-center rounded-md p-2 pr-4 text-lg font-bold text-gray-800 hover:bg-gray-50 sm:text-base sm:font-semibold',
+          isMobile && ''
+        )}
+        aria-label="Open Channels Menu"
       >
-        <CaretLeftIcon className="h-6 w-6 text-gray-600" />
-      </Link>
-      <h1 className="mx-2 ml-3 grow-0 truncate font-semibold">{title}</h1>
+        <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
 
-      <div className="ml-auto flex min-w-fit items-center space-x-3">
+        <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
+          <ChannelIcon nest="diary" className="h-5 w-5 text-gray-400" />
+        </div>
+        <span className="ellipsis line-clamp-1">{title}</span>
+      </Link>
+
+      <div className="">
         {canEdit ? (
-          <Link to={`../edit/${time}`} className="secondary-button">
-            Edit Post
+          <Link to={`../edit/${time}`} className="small-button">
+            Edit
           </Link>
         ) : null}
       </div>
