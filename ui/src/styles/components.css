@@ -81,7 +81,7 @@
 }
 
 .sheet-container {
-  @apply fixed bottom-0 w-full left-0 z-50;
+  @apply fixed bottom-0 left-0 z-50 w-full;
 }
 
 .sheet {
