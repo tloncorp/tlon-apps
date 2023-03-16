@@ -271,8 +271,8 @@
   ^+  cor
   ?+  pole  ~|(bad-watch/pole !!)
     [%init ~]             (give %kick ~ ~)
-    [%groups %ui ~]       cor
     [%groups ~]           cor
+    [%groups %ui ~]       cor
     [%gangs %updates ~]   cor
   ::
     [%epic ~]  (give %fact ~ epic+!>(okay))

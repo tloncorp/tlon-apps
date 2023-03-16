@@ -582,3 +582,7 @@ export async function asyncWithDefault<T>(
     return def;
   }
 }
+
+export function disableDefault<T extends Event>(e: T): void {
+  e.preventDefault();
+}

@@ -12,8 +12,8 @@ import { useChatState, usePinnedGroups } from '@/state/chat';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import { citeToPath, useCopy } from '@/logic/utils';
-import { useAmAdmin } from '@/state/groups';
+import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
+import { useAmAdmin, useGroup } from '@/state/groups';
 
 const { ship } = window;
 
@@ -63,6 +63,8 @@ const GroupActions = React.memo(
     const { isGroupUnread } = useIsGroupUnread();
     const location = useLocation();
     const hasActivity = isGroupUnread(flag);
+    const group = useGroup(flag);
+    const privacy = group ? getPrivacyFromGroup(group) : 'public';
     const isAdmin = useAmAdmin(flag);
 
     const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
@@ -102,7 +104,7 @@ const GroupActions = React.memo(
             )}
           </DropdownMenu.Trigger>
           <DropdownMenu.Content className="dropdown min-w-52 text-gray-800">
-            {isAdmin && (
+            {(privacy === 'public' || isAdmin) && (
               <DropdownMenu.Item
                 asChild
                 className="dropdown-item text-blue hover:bg-blue-soft hover:dark:bg-blue-900"

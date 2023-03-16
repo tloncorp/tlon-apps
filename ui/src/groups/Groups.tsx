@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Outlet, useMatch, useNavigate } from 'react-router';
 import {
   useGang,
@@ -90,7 +90,7 @@ function Groups() {
     let id = null as number | null;
     useGroupState
       .getState()
-      .initialize(flag)
+      .initialize(flag, true)
       .then((i) => {
         id = i;
       });

@@ -13,6 +13,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useGroup, useRouteGroup } from '@/state/groups/groups';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import { useAmAdmin } from '@/state/groups';
+import { getPrivacyFromGroup } from '@/logic/utils';
 import MemberScroller from './MemberScroller';
 
 export default function GroupMemberManager() {
@@ -22,6 +23,7 @@ export default function GroupMemberManager() {
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
   const amAdmin = useAmAdmin(flag);
+  const privacy = group ? getPrivacyFromGroup(group) : 'public';
   const members = useMemo(() => {
     if (!group) {
       return [];
@@ -76,11 +78,11 @@ export default function GroupMemberManager() {
     <div className={cn(!amAdmin && 'card', 'flex h-full grow flex-col')}>
       <div
         className={cn(
-          amAdmin && 'mt-2',
+          (privacy === 'public' || amAdmin) && 'mt-2',
           'mb-4 flex w-full items-center justify-between'
         )}
       >
-        {amAdmin && (
+        {(privacy === 'public' || amAdmin) && (
           <Link
             to={`/groups/${flag}/invite`}
             state={{ backgroundLocation: location }}
