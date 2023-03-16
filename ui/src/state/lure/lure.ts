@@ -27,7 +27,7 @@ export function useLureEnabled(flag: string): [boolean, (b: boolean) => void] {
         .subscribeOnce('grouper', `/group-enabled/${flag}`, 20000)
         .then((result) => setLureEnabled(result));
     }
-  }, [currentFlag]);
+  }, [flag, currentFlag]);
 
   return [lureEnabled, setLureEnabled];
 }
@@ -81,7 +81,7 @@ export function useGroupInviteUrl(flag: string): [string, () => void] {
     }
   }
 
-  useEffect(checkInviteUrl, [currentFlag]);
+  useEffect(checkInviteUrl, [flag, currentFlag]);
 
   return [url, checkInviteUrl];
 }

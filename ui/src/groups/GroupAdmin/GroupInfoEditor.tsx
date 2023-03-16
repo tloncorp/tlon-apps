@@ -54,6 +54,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [copyButtonLabel, setCopyButtonLabel] = useState('Copy');
   const [lureWelcome, setLureWelcome] = useLureWelcome(name);
   const [lureWelcomeSaveLabel, setLureWelcomeSaveLabel] = useState('Save');
+  const lureBait = useLureBait();
   const [lureMetadataExists, checkLureMetadataExists] = useLureMetadataExists(
     name,
     lureURL
@@ -173,7 +174,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
           </footer>
         </form>
       </FormProvider>
-      <div className="card mb-4">
+      <div className={`card mb-4 ${lureBait === '' ? 'hidden' : 'visible'}`}>
         <div className="flex flex-row">
           <label
             className={
