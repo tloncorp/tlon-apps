@@ -6,6 +6,7 @@ import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import { fileURLToPath } from 'url';
+import { VitePWA } from 'vite-plugin-pwa';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 
 // https://vitejs.dev/config/
@@ -58,6 +59,12 @@ export default ({ mode }: { mode: string }) => {
           react({
             jsxImportSource: '@welldone-software/why-did-you-render',
           }),
+          VitePWA({
+            registerType: 'autoUpdate',
+            devOptions: {
+              enabled: true,
+            },
+          }),
         ];
       default:
         return [
@@ -70,6 +77,12 @@ export default ({ mode }: { mode: string }) => {
           }),
           react({
             jsxImportSource: '@welldone-software/why-did-you-render',
+          }),
+          VitePWA({
+            registerType: 'autoUpdate',
+            devOptions: {
+              enabled: true,
+            },
           }),
         ];
     }
