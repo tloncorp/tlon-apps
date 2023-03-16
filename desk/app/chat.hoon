@@ -321,15 +321,15 @@
       %club-create
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
-      %club-action-0
-    =+  !<(=action:club:one:old:c vase)
-    =/  cu  (cu-abed p.action)
-    cu-abet:(cu-diff-0:cu q.action)
-  ::
-      ?(%club-action %club-action-1)
-    =+  !<(=action:club:c vase)
-    =/  cu  (cu-abed p.action)
-    cu-abet:(cu-diff:cu q.action)
+      %club-action
+    =/  maybe-action=(each action:club:c tang)
+      (mule |.(!<(action:club:c vase)))
+    ?+  -.maybe-action  (club-action-1 p.maybe-action)
+        %|
+      ::  if not new, then must be original or newer
+      =+  !<(=action:club:one:old:c vase)
+      (club-action-0 action)
+    ==
   ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
@@ -368,6 +368,14 @@
     |=  ps=(list whom:c)
     =.  pins  ps
     cor
+  ++  club-action-0
+    |=  =action:club:one:old:c
+    =/  cu  (cu-abed p.action)
+    cu-abet:(cu-diff-0:cu q.action)
+  ++  club-action-1
+    |=  =action:club:c
+    =/  cu  (cu-abed p.action)
+    cu-abet:(cu-diff:cu q.action)
   --
 ++  watch
   |=  =(pole knot)
@@ -904,7 +912,7 @@
     ++  act-0
       =,  club:one:old:c
       |=  [=ship =diff]
-      (poke ship club-action-0+!>(`action`[^^id diff]))
+      (poke ship club-action+!>(`action`[^^id diff]))
     ++  act
       |=  [=ship =diff:club:c]
       %+  poke  ship
