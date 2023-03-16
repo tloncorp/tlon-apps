@@ -140,12 +140,6 @@
   ::  $heard: the set of action uid's we've already heard
   ::
   +$  heard  (set uid)
-  ::  $marker: the current version heard from/told to a particular ship
-  ::
-  +$  marker  [theirs=@ud ours=@ud]
-  ::  $schedule: the current version for each ship in the club
-  ::
-  +$  schedule  (map ship marker)
   ::
   +$  diff    (pair uid delta)
   ::
@@ -155,7 +149,6 @@
         [%team =ship ok=?]
         [%hive by=ship for=ship add=?]
         [%init team=(set ship) hive=(set ship) met=data:meta]
-        [%upgrade version=@ud =ship]
     ==
   ::
   +$  action  (pair id diff)

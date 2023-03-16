@@ -24,13 +24,11 @@
     ==
   ++  okay  `epic:e`0
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
-  ++  club-version  1
   +$  current-state
     $:  %2
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
-        club-schedule=schedule:club:c
         drafts=(map whom:c story:c)
         pins=(list whom:c)
         bad=(set ship)
@@ -190,7 +188,6 @@
     %*  .  *state-2
       dms     dms.s
       clubs   (clubs-1-to-2 clubs.s)
-      club-schedule  *schedule:club:c
       drafts  drafts.s
       pins    pins.s
       bad     bad.s
@@ -322,14 +319,9 @@
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
       %club-action
-    =/  maybe-action=(each action:club:c tang)
-      (mule |.(!<(action:club:c vase)))
-    ?+  -.maybe-action  (club-action-1 p.maybe-action)
-        %|
-      ::  if not new, then must be original or newer
-      =+  !<(=action:club:one:old:c vase)
-      (club-action-0 action)
-    ==
+    =+  !<(=action:club:c vase)
+    =/  cu  (cu-abed p.action)
+    cu-abet:(cu-diff:cu q.action)
   ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
@@ -368,14 +360,6 @@
     |=  ps=(list whom:c)
     =.  pins  ps
     cor
-  ++  club-action-0
-    |=  =action:club:one:old:c
-    =/  cu  (cu-abed p.action)
-    cu-abet:(cu-diff-0:cu q.action)
-  ++  club-action-1
-    |=  =action:club:c
-    =/  cu  (cu-abed p.action)
-    cu-abet:(cu-diff:cu q.action)
   --
 ++  watch
   |=  =(pole knot)
@@ -897,73 +881,20 @@
   ::
   ++  cu-pass
     |%
-    ++  poke
-      |=  [=ship =cage]
+    ++  act
+      |=  [=ship =diff:club:c]
       ^-  card
       =/  =wire  (snoc cu-area %gossip)
       =/  =dock  [ship dap.bowl]
+      =/  =cage  club-action+!>(`action:club:c`[id diff])
       [%pass wire %agent dock %poke cage]
     ::
-    ++  pass-upgrade
-      |=  [=ship vers=@ud cards=(list card)]
-      ?:  =(club-version vers)  cards
-      :_  cards
-      (act ship [cu-uid %upgrade club-version ship])
-    ++  act-0
-      =,  club:one:old:c
-      |=  [=ship =diff]
-      (poke ship club-action+!>(`action`[^^id diff]))
-    ++  act
-      |=  [=ship =diff:club:c]
-      %+  poke  ship
-      club-action+!>(`action:club:c`[id diff])
-    ++  pass-0
-      |=  =diff:club:one:old:c
-      %-  gossip
-      |=  [=ship vers=marker:club:c]
-      ^-  (list card)
-      =/  content-hash  `@uv`(shax (jam q.diff))
-      =.  heard.club  (~(put in heard.club) content-hash)
-      :_  ~   
-      ?:  (lth theirs.vers club-version)
-        (act-0 ship diff)
-      (act ship content-hash q.diff)
-    ++  pass-1
-      |=  =diff:club:c
-      %-  gossip
-      |=  [=ship vers=marker:club:c]
-      ^-  (list card)
-      :_  ~
-      ?.  (lth theirs.vers club-version)
-        (act ship diff)
-      ?+  -.q.diff  (act-0 ship club-eq q.diff)
-        %upgrade  *card
-      ==
-    ++  send
-      |=  =diff:club:c
-      %-  gossip
-      |=  [=ship vers=marker:club:c]
-      =/  current  (act ship diff)
-      =/  old
-        ?+  -.q.diff  (act-0 ship (sub club-eq 1) q.diff)
-          %upgrade  *card
-        ==
-      ?:  =(club-version theirs.vers)  ~[current]
-      ?+  -.q.diff  ~[old]
-          %init
-        ~[current old]
-      ==
-    ::
     ++  gossip
-      |=  distribute=$-([ship marker:club:c] (list card))
+      |=  =diff:club:c
       ^-  (list card)
-      %-  zing
       %+  turn  ~(tap in cu-out)
       |=  =ship
-      ^-  (list card)
-      =/  vers=marker:club:c  (~(gut by club-schedule) ship [0 0])
-      %^  pass-upgrade  ship  ours.vers
-      (distribute ship vers)
+      (act ship diff)
     --
   ::
   ++  cu-init
@@ -1011,48 +942,29 @@
       (emit %give %fact ~[(welp cu-area /ui/writs)] cage)
     cu-core
   ::
-  ++  cu-diff-0
-    =,  club:one:old:c
-    |=  [=echo =delta]
-    =?  cor  (lth echo club-eq)
-      (emil (pass-0:cu-pass +(echo) delta))
-    =.  cu-core  (cu-diff-inner delta)
-    =/  action  [^^id [0v0 delta]]  :: don't need the hash on the frontend
-    ?+  -.delta  (cu-give-action action)
-        %writ  (cu-give-writs-diff diff.delta)
-    ==
   ++  cu-diff
     |=  [=uid:club:c =delta:club:c]
-    =?  uid  from-self  cu-uid
+    ::  generate a uid if we're hearing from a pre-upgrade ship or if we're sending
+    =?  uid  |(from-self (lte uid club-eq))  cu-uid
     =/  diff  [uid delta]
     ?:  (~(has in heard.club) uid)  cu-core
     =.  heard.club  (~(put in heard.club) uid)
-    =.  cor  
-      ?:  from-self  (emil (send:cu-pass diff))
-      (emil (pass-1:cu-pass diff))
-    =.  cu-core  (cu-diff-inner delta)
-    =/  =action:club:c  [id diff]
-    ?+  -.delta  (cu-give-action action)
-        %writ  (cu-give-writs-diff diff.delta)
-    ==
-  ++  cu-diff-inner
-    |=  =delta:club:c
+    =.  cor  (emil (gossip:cu-pass diff))
+    =.  cu-core
+      ?+  -.delta  (cu-give-action [id diff])
+          %writ  (cu-give-writs-diff diff.delta)
+      ==
     ?-    -.delta
     ::
         %meta
       =.  met.crew.club  meta.delta
       cu-core
     ::
-        %upgrade
-      =/  =marker:club:c  (~(gut by club-schedule) ship.delta *marker:club:c)
-      =.  club-schedule  (~(put by club-schedule) ship.delta [version.delta ours.marker])
-      cu-core
-    ::
         %init
       ::  ignore if already initialized
       ?:  ?|  !=(~ hive.crew.club)
               !=(~ team.crew.club)
-              !=(~ met.crew.club)
+              !=(*data:meta met.crew.club)
           ==
         cu-core  
       =:  hive.crew.club  hive.delta
@@ -1110,8 +1022,6 @@
           cu-core
         =.  hive.crew.club   (~(put in hive.crew.club) for.delta)
         =.  cor  (emit (act:cu-pass for.delta cu-uid %init [team hive met]:crew.club))
-        :: don't allow gossip of the init
-        =.  cor  (emit (act-0:cu-pass for.delta club-eq %init [team hive met]:crew.club))
         (cu-post-notice for.delta '' ' was invited to the chat')
       ?.  (~(has in hive.crew.club) for.delta)
         cu-core
