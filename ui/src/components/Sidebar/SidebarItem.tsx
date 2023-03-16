@@ -120,7 +120,8 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
             ...(hasHoverColor() && active && !transparent
               ? customActiveHiglightStyles()
               : null),
-            ...((transparent && hover) || active
+            ...((transparent === true && hover) ||
+            (transparent === true && active)
               ? { backgroundColor: 'transparent' }
               : null),
           } as React.CSSProperties
