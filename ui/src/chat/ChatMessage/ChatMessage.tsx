@@ -272,7 +272,7 @@ const ChatMessage = React.memo<
                       </span>
                       {repliesContainsUnreadId ? (
                         <UnreadIndicator
-                          className="h-6 w-6 text-blue transition-opacity"
+                          className="m-0.5 h-5 w-5 text-blue transition-opacity"
                           aria-label="Unread replies in this thread"
                         />
                       ) : null}

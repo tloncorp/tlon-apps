@@ -47,7 +47,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
     {
       icon,
       to,
-      color = 'text-gray-600',
+      color = 'text-gray-800 sm:text-gray-600',
       highlight = 'bg-gray-50',
       actions,
       className,

@@ -9,7 +9,7 @@ exports[`Sidebar > renders as expected 1`] = `
       class="flex w-full flex-col space-y-0.5 p-2"
     >
       <div
-        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-600 hover:bg-gray-50"
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 hover:bg-gray-50"
       >
         <button
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 text-black hover:text-gray-800 group"
@@ -48,7 +48,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
           >
             <div
               class="flex items-center justify-between"
@@ -82,7 +82,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </button>
       </div>
       <div
-        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-600"
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
@@ -172,7 +172,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
           >
             <span>
               <span
@@ -198,7 +198,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </div>
       <div
-        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-600 bg-gray-100"
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 bg-gray-100"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
@@ -208,7 +208,7 @@ exports[`Sidebar > renders as expected 1`] = `
             class="flex h-6 w-6 items-center justify-center rounded text-sm font-semibold bg-gray-100"
           >
             <svg
-              class="h-6 w-6"
+              class="m-0.5 h-5 w-5"
               fill="none"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
@@ -224,7 +224,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
             title="Notifications"
           >
             Notifications
@@ -232,7 +232,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </div>
       <div
-        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-600 hover:bg-gray-50"
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 hover:bg-gray-50"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
@@ -252,7 +252,7 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
           >
             <div
               class="flex items-center"
@@ -263,7 +263,7 @@ exports[`Sidebar > renders as expected 1`] = `
         </a>
       </div>
       <div
-        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-600 hover:bg-gray-50"
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 hover:bg-gray-50"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
@@ -283,7 +283,7 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
             title="Create Group"
           >
             Create Group

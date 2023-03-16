@@ -177,7 +177,11 @@ export default function ChannelList({ className }: ChannelListProps) {
             key={nest}
             icon={icon}
             to={channelHref(flag, nest)}
-            actions={isChannelUnread(nest) ? <UnreadIndicator /> : null}
+            actions={
+              isChannelUnread(nest) ? (
+                <UnreadIndicator className="m-0.5 h-5 w-5 text-gray-400" />
+              ) : null
+            }
           >
             {channel.meta.title || nest}
           </SidebarItem>
