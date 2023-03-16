@@ -15,6 +15,8 @@
     "build:chat": "tsc && cross-env APP=chat vite build",
     "coverage": "vitest run --coverage",
     "dev": "vite",
+    "dev-sw": "vite --mode sw",
+    "chat-sw": "cross-env APP=chat vite --mode sw",
     "chat": "cross-env APP=chat vite --host",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
