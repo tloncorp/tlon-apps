@@ -108,7 +108,7 @@ export default function DmOptions({
               )}
               aria-label="Open Message Options"
             >
-              <EllipsisIcon className="h-6 w-6" />
+              <EllipsisIcon className="m-1 h-4 w-4 text-inherit" />
             </button>
           </div>
         </DropdownMenu.Trigger>

@@ -14,6 +14,8 @@ import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import DMHero from '@/dms/DMHero';
 import useMessageSelector from '@/logic/useMessageSelector';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MessageSelector from './MessageSelector';
 
 function BackLink({
@@ -33,6 +35,7 @@ function BackLink({
 }
 
 export default function Dm() {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const ship = useParams<{ ship: string }>().ship!;
   const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
@@ -62,44 +65,52 @@ export default function Dm() {
           isSelectingMessage ? (
             <MessageSelector />
           ) : (
-            <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
+            <div
+              className={cn(
+                'flex items-center justify-between bg-white',
+                isMobile
+                  ? 'px-6 pt-10 pb-4'
+                  : 'border-b-2 border-gray-50 px-4 py-4'
+              )}
+            >
               <BackLink mobile={isMobile}>
                 <BackButton
                   to="/"
                   className={cn(
-                    'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
-                    isMobile &&
-                      '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
+                    'default-focus ellipsis inline-flex appearance-none items-center pr-2 text-lg font-bold text-gray-800 sm:text-base sm:font-semibold'
                   )}
                   aria-label={isMobile ? 'Open Messages Menu' : undefined}
                 >
                   {isMobile ? (
-                    <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
+                    <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
                   ) : null}
-                  <div className="flex items-center space-x-3">
-                    <Avatar size="small" ship={ship} />
-                    <div className="flex flex-col items-start">
-                      {contact?.nickname ? (
-                        <>
-                          <span className="font-semibold">
-                            {contact.nickname}
-                          </span>
-                          <span className="text-gray-600">{ship}</span>
-                        </>
-                      ) : (
-                        <span className="font-semibold">{ship}</span>
-                      )}
-                    </div>
+                  <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
+                    <Avatar size="xs" ship={ship} />
                   </div>
+                  <span className="ellipsis text-gray-200 line-clamp-1">
+                    {contact?.nickname ? (
+                      <>
+                        <span className="text-gray-800">
+                          {contact.nickname}
+                        </span>
+                        <span className="ml-2 text-gray-400">{ship}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-800">{ship}</span>
+                    )}
+                  </span>
                 </BackButton>
               </BackLink>
-              {canStart ? (
-                <DmOptions
-                  whom={ship}
-                  pending={!isAccepted}
-                  alwaysShowEllipsis
-                />
-              ) : null}
+              <div className="flex shrink-0 flex-row items-center space-x-4 self-end">
+                {isMobile && <ReconnectingSpinner />}
+                {canStart ? (
+                  <DmOptions
+                    whom={ship}
+                    pending={!isAccepted}
+                    alwaysShowEllipsis
+                  />
+                ) : null}
+              </div>
             </div>
           )
         }
