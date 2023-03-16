@@ -1,4 +1,5 @@
 import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import CheckIcon from '@/components/icons/CheckIcon';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
@@ -13,8 +14,6 @@ import {
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import GroupInfoFields from '../GroupInfoFields';
-import PrivacySelector from '../PrivacySelector';
 import { useGroupName } from '@/state/groups/groups';
 import {
   useLureBait,
@@ -26,7 +25,8 @@ import {
   useLureMetadataExists,
   useGroupInviteUrl,
 } from '@/state/lure/lure';
-import CheckIcon from '@/components/icons/CheckIcon';
+import GroupInfoFields from '../GroupInfoFields';
+import PrivacySelector from '../PrivacySelector';
 
 const emptyMeta = {
   title: '',
