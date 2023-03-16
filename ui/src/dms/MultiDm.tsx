@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -11,7 +11,6 @@ import {
   useMultiDmMessages,
 } from '@/state/chat';
 import ChatWindow from '@/chat/ChatWindow';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
@@ -24,6 +23,7 @@ import DmOptions from './DMOptions';
 import MessageSelector from './MessageSelector';
 
 export default function MultiDm() {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const clubId = useParams<{ ship: string }>().ship!;
   const isMobile = useIsMobile();
   const isAccepted = !useMultiDmIsPending(clubId);
@@ -99,6 +99,7 @@ export default function MultiDm() {
                   pending={!isAccepted}
                   isMulti
                   alwaysShowEllipsis
+                  className="text-gray-400"
                 />
               </div>
             </div>

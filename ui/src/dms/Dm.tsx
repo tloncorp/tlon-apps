@@ -10,7 +10,6 @@ import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
 import DmOptions from '@/dms/DMOptions';
 import { useContact } from '@/state/contact';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import DMHero from '@/dms/DMHero';
 import useMessageSelector from '@/logic/useMessageSelector';
@@ -108,6 +107,7 @@ export default function Dm() {
                     whom={ship}
                     pending={!isAccepted}
                     alwaysShowEllipsis
+                    className="text-gray-400"
                   />
                 ) : null}
               </div>
