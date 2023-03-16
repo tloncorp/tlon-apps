@@ -17,6 +17,7 @@ import {
 } from '@/state/settings';
 import { useGroupState } from '@/state/groups';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -53,7 +54,8 @@ export default function MobileMessagesSidebar() {
         <h1 className="text-lg font-bold text-gray-800 sm:text-base">
           Messages
         </h1>
-        <div className="flex flex-row space-x-4 self-end">
+        <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+          <ReconnectingSpinner />
           <Link
             to="/dm/new"
             className="default-focus flex items-center rounded-md bg-blue p-1 text-base"

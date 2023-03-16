@@ -16,6 +16,7 @@ import { useNavigate, useParams, useLocation } from 'react-router';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { useModalNavigate } from '@/logic/routing';
 import GroupReference from '@/components/References/GroupReference';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 import GroupAvatar from './GroupAvatar';
@@ -220,7 +221,9 @@ export default function FindGroups({ title }: ViewProps) {
       {isMobile && (
         <header className="flex items-center justify-between bg-white px-6 pt-10 pb-4 sm:hidden">
           <h1 className="text-lg font-bold text-gray-800">Find Groups</h1>
-          <div className="flex flex-row space-x-4 self-end">&nbsp;</div>
+          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+            {isMobile && <ReconnectingSpinner />}
+          </div>
         </header>
       )}
       <div className={cn('flex grow overflow-y-auto bg-gray-50')}>

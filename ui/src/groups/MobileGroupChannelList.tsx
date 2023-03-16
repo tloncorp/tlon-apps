@@ -5,6 +5,7 @@ import ChannelList, { ChannelSorter } from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Add16Icon from '@/components/icons/Add16Icon';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 
 export default function MobileGroupChannelList() {
   const flag = useGroupFlag();
@@ -26,7 +27,8 @@ export default function MobileGroupChannelList() {
           </h1>
         </Link>
 
-        <div className="flex flex-row space-x-4 self-end">
+        <div className="flex flex-row items-center space-x-4 self-end">
+          <ReconnectingSpinner />
           <ChannelSorter isMobile={true} />
           {isAdmin && (
             <Link

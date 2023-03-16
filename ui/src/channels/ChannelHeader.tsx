@@ -25,7 +25,6 @@ import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ChannelIcon from '@/channels/ChannelIcon';
-import Divider from '@/components/Divider';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import GridIcon from '@/components/icons/GridIcon';
 import ListIcon from '@/components/icons/ListIcon';
@@ -34,6 +33,7 @@ import { Status } from '@/logic/status';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useNotifications } from '@/notifications/useNotifications';
 import useHarkState from '@/state/hark';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
@@ -305,10 +305,8 @@ export default function ChannelHeader({
   isDiary = false,
   showControls = false,
 }: ChannelHeaderProps) {
-  const group = useGroup(flag);
   const isMobile = useIsMobile();
   const channel = useChannel(flag, nest);
-  const groupName = group?.meta.title;
   const BackButton = isMobile ? Link : 'div';
   const isAdmin = useAmAdmin(flag);
   const { isGroupUnread } = useIsGroupUnread();
@@ -361,7 +359,8 @@ export default function ChannelHeader({
         </div>
         <span className="ellipsis line-clamp-1">{channel?.meta.title}</span>
       </BackButton>
-      <div className="flex flex-row space-x-4 self-end">
+      <div className="flex shrink-0 flex-row items-center space-x-4 self-end">
+        {isMobile && <ReconnectingSpinner />}
         {showControls && displayMode && setDisplayMode && setSortMode ? (
           <>
             {children}
@@ -411,7 +410,6 @@ export default function ChannelHeader({
             ) : (
               <HeapSortControls setSortMode={setSortMode} sortMode={sortMode} />
             )}
-
             <ChannelActions {...{ nest, channel, isAdmin }} />
           </>
         ) : (

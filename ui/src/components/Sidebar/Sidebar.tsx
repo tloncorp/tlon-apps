@@ -18,7 +18,6 @@ import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
-import { useSubscriptionStatus } from '@/state/local';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import AsteriskIcon from '../icons/Asterisk16Icon';
@@ -26,12 +25,11 @@ import GroupsSidebarItem from './GroupsSidebarItem';
 import SidebarSorter from './SidebarSorter';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
-import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
+import ReconnectingSpinner from '../ReconnectingSpinner';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
-  const { subscription } = useSubscriptionStatus();
 
   return (
     <SidebarItem
@@ -93,16 +91,12 @@ export function GroupsAppMenu() {
     >
       <div className="flex items-center justify-between">
         Groups
-        {subscription === 'reconnecting' ? (
-          <LoadingSpinner
-            primary="fill-gray-600"
-            secondary="fill-gray-600 opacity-50"
-            className={cn(
-              'h-4 w-4 group-hover:hidden',
-              menuOpen ? 'hidden' : 'block'
-            )}
-          />
-        ) : null}
+        <ReconnectingSpinner
+          className={cn(
+            'h-4 w-4 group-hover:hidden',
+            menuOpen ? 'hidden' : 'block'
+          )}
+        />
         <a
           title="Back to Landscape"
           aria-label="Back to Landscape"

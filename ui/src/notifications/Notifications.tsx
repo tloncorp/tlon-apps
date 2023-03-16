@@ -1,20 +1,15 @@
 import cn from 'classnames';
-import React, {
-  ComponentType,
-  PropsWithChildren,
-  useCallback,
-  useState,
-} from 'react';
+import React, { ComponentType, useCallback, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import useHarkState from '@/state/hark';
 import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -103,7 +98,8 @@ export default function Notifications({
       {isMobile && (
         <header className="flex items-center justify-between bg-white px-6 pt-10 pb-4">
           <h1 className="text-lg font-bold text-gray-800">Activity</h1>
-          <div className="flex flex-row space-x-4 self-end">
+          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+            {isMobile && <ReconnectingSpinner />}
             {isMobile && hasUnreads && MarkAsRead}
           </div>
         </header>

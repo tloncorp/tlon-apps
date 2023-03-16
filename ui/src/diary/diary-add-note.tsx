@@ -15,8 +15,8 @@ import { Inline } from '@/types/content';
 import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PencilIcon from '@/components/icons/PencilIcon';
-import ChannelIcon from '@/channels/ChannelIcon';
 import { useIsMobile } from '@/logic/useMedia';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
@@ -149,24 +149,27 @@ export default function DiaryAddNote() {
             <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
               <PencilIcon className="h-3 w-3 text-gray-400" />
             </div>
-            <span className="ellipsis line-clamp-1">Editing Post</span>
+            <span className="ellipsis line-clamp-1">Editing</span>
           </Link>
 
-          <button
-            disabled={!editor?.getText() || status === 'loading'}
-            className={cn(
-              'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
-            )}
-            onClick={publish}
-          >
-            {status === 'loading' ? (
-              <LoadingSpinner className="h-4 w-4" />
-            ) : status === 'error' ? (
-              'Error'
-            ) : (
-              'Save'
-            )}
-          </button>
+          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+            {isMobile && <ReconnectingSpinner />}
+            <button
+              disabled={!editor?.getText() || status === 'loading'}
+              className={cn(
+                'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
+              )}
+              onClick={publish}
+            >
+              {status === 'loading' ? (
+                <LoadingSpinner className="h-4 w-4" />
+              ) : status === 'error' ? (
+                'Error'
+              ) : (
+                'Save'
+              )}
+            </button>
+          </div>
         </header>
       }
     >

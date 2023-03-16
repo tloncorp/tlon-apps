@@ -13,6 +13,7 @@ import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import { isLink } from '@/types/heap';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useNest from '@/logic/useNest';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useCurioActions from '../useCurioActions';
 
 export interface ChannelHeaderProps {
@@ -82,7 +83,8 @@ export default function HeapDetailHeader({
             {!isImageLink && !curioTitle ? prettyDayAndTime : null}
           </span>
         </Link>
-        <div className="shink-0 flex space-x-3">
+        <div className="shink-0 flex items-center space-x-3 self-end">
+          {isMobile && <ReconnectingSpinner />}
           {canEdit ? (
             <button onClick={onEdit} className="small-button">
               Edit

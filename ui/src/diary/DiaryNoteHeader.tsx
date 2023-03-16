@@ -4,6 +4,7 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 
 export interface DiaryNoteHeaderProps {
   title: string;
@@ -41,7 +42,8 @@ export default function DiaryNoteHeader({
         <span className="ellipsis line-clamp-1">{title}</span>
       </Link>
 
-      <div className="">
+      <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+        {isMobile && <ReconnectingSpinner />}
         {canEdit ? (
           <Link to={`../edit/${time}`} className="small-button">
             Edit
