@@ -73,6 +73,9 @@
 ::
 ++  init
   ^+  cor
+  =/  =cage  settings-event+!>([%put-entry %talk %talk %'showVitaMessage' [%b &]])  
+  =?  cor  first-load  (emit %pass /set-vita %agent [our.bowl %settings-store] %poke cage)
+  =.  first-load  |
   (emit %pass /build %arvo [%c %warp our.bowl q.byk.bowl ~ %sing %c da+now.bowl /ui-init/json])
 ::
 ++  load
@@ -80,10 +83,7 @@
   ^+  cor
   =+  !<(old=versioned-state vase)
   =.  state  ?~(old *current-state old)
-  =/  =cage  settings-event+!>([%put-entry %talk %talk %'showVitaMessage' [%b &]])  
-  =?  cor  first-load  (emit %pass /set-vita %agent [our.bowl %settings-store] %poke cage)
-  =.  first-load  |
-  (emit %pass /build %arvo [%c %warp our.bowl q.byk.bowl ~ %sing %c da+now.bowl /ui-init/json])
+  init
 ::
 ++  peek
   |=  =(pole knot)
