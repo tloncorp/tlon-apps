@@ -62,8 +62,6 @@ import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
 import MobileGroupRoot from './nav/MobileGroupRoot';
-import MobileGroupActions from './groups/MobileGroupActions';
-import MobileGroupsActions from './groups/MobileGroupsActions';
 import Leap from './components/Leap/Leap';
 import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
@@ -290,7 +288,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 <EditProfile title={`Edit Profile • ${appHead('').title}`} />
               }
             />
-            <Route path="/actions" element={<MobileGroupsActions />} />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
@@ -327,7 +324,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   <GroupChannelManager title={` • ${appHead('').title}`} />
                 }
               />
-              <Route path="actions" element={<MobileGroupActions />} />
             </Route>
             <Route path="channels/chat/:chShip/:chName">
               <Route

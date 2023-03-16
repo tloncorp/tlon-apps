@@ -80,6 +80,14 @@
   @apply relative max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] rounded-xl bg-white p-6;
 }
 
+.sheet-container {
+  @apply fixed bottom-0 w-full left-0 z-50;
+}
+
+.sheet {
+  @apply relative max-h-[calc(100vh-2rem)] w-full rounded-t-xl bg-white p-6 pb-12;
+}
+
 .dialog-inner-container {
   @apply h-full space-y-8 overflow-y-auto p-4 md:p-8;
 }
