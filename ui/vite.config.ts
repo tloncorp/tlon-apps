@@ -68,6 +68,10 @@ export default ({ mode }: { mode: string }) => {
             devOptions: {
               enabled: mode === 'sw',
             },
+            workbox: {
+              globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+              maximumFileSizeToCacheInBytes: 100000000,
+            },
           }),
         ];
       default:
@@ -88,6 +92,10 @@ export default ({ mode }: { mode: string }) => {
             registerType: 'autoUpdate',
             devOptions: {
               enabled: mode === 'sw',
+            },
+            workbox: {
+              globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+              maximumFileSizeToCacheInBytes: 100000000,
             },
           }),
         ];
