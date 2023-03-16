@@ -60,6 +60,7 @@ export default ({ mode }: { mode: string }) => {
             jsxImportSource: '@welldone-software/why-did-you-render',
           }),
           VitePWA({
+            base: '/apps/talk/',
             registerType: 'autoUpdate',
             devOptions: {
               enabled: true,
@@ -79,6 +80,7 @@ export default ({ mode }: { mode: string }) => {
             jsxImportSource: '@welldone-software/why-did-you-render',
           }),
           VitePWA({
+            base: '/apps/groups/',
             registerType: 'autoUpdate',
             devOptions: {
               enabled: true,

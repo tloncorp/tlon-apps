@@ -1,0 +1,1569 @@
+diff --git a/node_modules/vite-plugin-pwa/dist/index.js b/node_modules/vite-plugin-pwa/dist/index.js
+index 6450db5..f343b7a 100644
+--- a/node_modules/vite-plugin-pwa/dist/index.js
++++ b/node_modules/vite-plugin-pwa/dist/index.js
+@@ -1,4 +1,4 @@
+-"use strict";
++'use strict';
+ var __create = Object.create;
+ var __defProp = Object.defineProperty;
+ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+@@ -10,25 +10,34 @@ var __export = (target, all) => {
+     __defProp(target, name, { get: all[name], enumerable: true });
+ };
+ var __copyProps = (to, from, except, desc) => {
+-  if (from && typeof from === "object" || typeof from === "function") {
++  if ((from && typeof from === 'object') || typeof from === 'function') {
+     for (let key of __getOwnPropNames(from))
+       if (!__hasOwnProp.call(to, key) && key !== except)
+-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++        __defProp(to, key, {
++          get: () => from[key],
++          enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable,
++        });
+   }
+   return to;
+ };
+-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+-  mod
+-));
+-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++var __toESM = (mod, isNodeMode, target) => (
++  (target = mod != null ? __create(__getProtoOf(mod)) : {}),
++  __copyProps(
++    isNodeMode || !mod || !mod.__esModule
++      ? __defProp(target, 'default', { value: mod, enumerable: true })
++      : target,
++    mod
++  )
++);
++var __toCommonJS = (mod) =>
++  __copyProps(__defProp({}, '__esModule', { value: true }), mod);
+ 
+ // src/index.ts
+ var src_exports = {};
+ __export(src_exports, {
+   VitePWA: () => VitePWA,
+   cachePreset: () => cachePreset,
+-  defaultInjectManifestVitePlugins: () => defaultInjectManifestVitePlugins
++  defaultInjectManifestVitePlugins: () => defaultInjectManifestVitePlugins,
+ });
+ module.exports = __toCommonJS(src_exports);
+ 
+@@ -39,47 +48,49 @@ function createContext(userOptions) {
+     options: void 0,
+     viteConfig: void 0,
+     useImportRegister: false,
+-    devEnvironment: false
++    devEnvironment: false,
+   };
+ }
+ 
+ // src/constants.ts
+-var FILE_SW_REGISTER = "registerSW.js";
++var FILE_SW_REGISTER = 'registerSW.js';
+ var VIRTUAL_MODULES_MAP = {
+-  "virtual:pwa-register": "register",
+-  "virtual:pwa-register/vue": "vue",
+-  "virtual:pwa-register/svelte": "svelte",
+-  "virtual:pwa-register/react": "react",
+-  "virtual:pwa-register/preact": "preact",
+-  "virtual:pwa-register/solid": "solid"
++  'virtual:pwa-register': 'register',
++  'virtual:pwa-register/vue': 'vue',
++  'virtual:pwa-register/svelte': 'svelte',
++  'virtual:pwa-register/react': 'react',
++  'virtual:pwa-register/preact': 'preact',
++  'virtual:pwa-register/solid': 'solid',
+ };
+-var VIRTUAL_MODULES_RESOLVE_PREFIX = "/@vite-plugin-pwa/";
++var VIRTUAL_MODULES_RESOLVE_PREFIX = `/@vite-plugin-pwa/`;
+ var VIRTUAL_MODULES = Object.keys(VIRTUAL_MODULES_MAP);
+ var defaultInjectManifestVitePlugins = [
+-  "alias",
+-  "commonjs",
+-  "vite:resolve",
+-  "vite:esbuild",
+-  "replace",
+-  "vite:define",
+-  "rollup-plugin-dynamic-import-variables",
+-  "vite:esbuild-transpile",
+-  "vite:json",
+-  "vite:terser"
++  'alias',
++  'commonjs',
++  'vite:resolve',
++  'vite:esbuild',
++  'replace',
++  'vite:define',
++  'rollup-plugin-dynamic-import-variables',
++  'vite:esbuild-transpile',
++  'vite:json',
++  'vite:terser',
+ ];
+-var PWA_INFO_VIRTUAL = "virtual:pwa-info";
++var PWA_INFO_VIRTUAL = 'virtual:pwa-info';
+ var RESOLVED_PWA_INFO_VIRTUAL = `\0${PWA_INFO_VIRTUAL}`;
+-var DEV_SW_NAME = "dev-sw.js?dev-sw";
++var DEV_SW_NAME = 'dev-sw.js?dev-sw';
+ var DEV_SW_VIRTUAL = `${VIRTUAL_MODULES_RESOLVE_PREFIX}pwa-entry-point-loaded`;
+ var RESOLVED_DEV_SW_VIRTUAL = `\0${DEV_SW_VIRTUAL}`;
+-var DEV_READY_NAME = "vite-pwa-plugin:dev-ready";
+-var DEV_REGISTER_SW_NAME = "vite-plugin-pwa:register-sw";
++var DEV_READY_NAME = 'vite-pwa-plugin:dev-ready';
++var DEV_REGISTER_SW_NAME = 'vite-plugin-pwa:register-sw';
+ 
+ // src/html.ts
+ function generateSimpleSWRegister(options2, dev) {
+-  const path = dev ? `${options2.base}${DEV_SW_NAME}` : `${options2.buildBase}${options2.filename}`;
++  const path = dev
++    ? `${options2.base}${DEV_SW_NAME}`
++    : `${options2.buildBase}${options2.filename}`;
+   if (dev) {
+-    const swType = options2.devOptions.type ?? "classic";
++    const swType = options2.devOptions.type ?? 'classic';
+     return `if('serviceWorker' in navigator) navigator.serviceWorker.register('${path}', { scope: '${options2.scope}', type: '${swType}' })`;
+   }
+   return `
+@@ -87,43 +98,50 @@ if('serviceWorker' in navigator) {
+ window.addEventListener('load', () => {
+ navigator.serviceWorker.register('${path}', { scope: '${options2.scope}' })
+ })
+-}`.replace(/\n/g, "");
++}`.replace(/\n/g, '');
+ }
+ function injectServiceWorker(html, options2, dev) {
+   const manifest = generateWebManifest(options2, dev);
+   if (!dev) {
+     const script = generateRegisterSW(options2, dev);
+     if (script) {
+-      return html.replace(
+-        "</head>",
+-        `${manifest}${script}</head>`
+-      );
++      return html.replace('</head>', `${manifest}${script}</head>`);
+     }
+   }
+-  return html.replace(
+-    "</head>",
+-    `${manifest}</head>`
+-  );
++  return html.replace('</head>', `${manifest}</head>`);
+ }
+ function generateWebManifest(options2, dev) {
+-  const crossorigin = options2.useCredentials ? ' crossorigin="use-credentials"' : "";
++  const crossorigin = options2.useCredentials
++    ? ' crossorigin="use-credentials"'
++    : '';
+   if (dev) {
+-    const name = options2.devOptions.webManifestUrl ?? `${options2.base}${options2.manifestFilename}`;
+-    return options2.manifest ? `<link rel="manifest" href="${name}"${crossorigin}>` : "";
++    const name =
++      options2.devOptions.webManifestUrl ??
++      `${options2.base}${options2.manifestFilename}`;
++    return options2.manifest
++      ? `<link rel="manifest" href="${name}"${crossorigin}>`
++      : '';
+   } else {
+-    return options2.manifest ? `<link rel="manifest" href="${options2.buildBase}${options2.manifestFilename}"${crossorigin}>` : "";
++    return options2.manifest
++      ? `<link rel="manifest" href="${options2.buildBase}${options2.manifestFilename}"${crossorigin}>`
++      : '';
+   }
+ }
+ function generateRegisterSW(options2, dev) {
+-  if (options2.injectRegister === "inline")
+-    return `<script id="vite-plugin-pwa:inline-sw">${generateSimpleSWRegister(options2, dev)}<\/script>`;
+-  else if (options2.injectRegister === "script")
+-    return `<script id="vite-plugin-pwa:register-sw" src="${dev ? options2.base : options2.buildBase}${FILE_SW_REGISTER}"><\/script>`;
++  if (options2.injectRegister === 'inline')
++    return `<script id="vite-plugin-pwa:inline-sw">${generateSimpleSWRegister(
++      options2,
++      dev
++    )}<\/script>`;
++  else if (options2.injectRegister === 'script')
++    return `<script id="vite-plugin-pwa:register-sw" src="${
++      dev ? options2.base : options2.buildBase
++    }${FILE_SW_REGISTER}"><\/script>`;
+   return void 0;
+ }
+-function generateRegisterDevSW() {
++function generateRegisterDevSW(base) {
+   return `<script id="vite-plugin-pwa:register-dev-sw" type="module">
+-import registerDevSW from '${DEV_SW_VIRTUAL}';
++import registerDevSW from '${base.slice(0,-1)}${DEV_SW_VIRTUAL}';
+ registerDevSW();
+ <\/script>`;
+ }
+@@ -154,56 +172,68 @@ export default registerDevSW;
+ }
+ 
+ // src/api.ts
+-var import_path4 = require("path");
+-var import_fs3 = require("fs");
++var import_path4 = require('path');
++var import_fs3 = require('fs');
+ 
+ // src/modules.ts
+-var import_path2 = require("path");
+-var import_fs = require("fs");
+-var import_url = require("url");
++var import_path2 = require('path');
++var import_fs = require('fs');
++var import_url = require('url');
+ 
+ // src/log.ts
+-var import_path = require("path");
++var import_path = require('path');
+ 
+ // node_modules/.pnpm/kolorist@1.6.0/node_modules/kolorist/dist/esm/index.mjs
+ var enabled = true;
+-var globalVar = typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : {};
++var globalVar =
++  typeof self !== 'undefined'
++    ? self
++    : typeof window !== 'undefined'
++    ? window
++    : typeof global !== 'undefined'
++    ? global
++    : {};
+ var supportLevel = 0;
+ if (globalVar.process && globalVar.process.env && globalVar.process.stdout) {
+   const { FORCE_COLOR, NODE_DISABLE_COLORS, TERM } = globalVar.process.env;
+-  if (NODE_DISABLE_COLORS || FORCE_COLOR === "0") {
++  if (NODE_DISABLE_COLORS || FORCE_COLOR === '0') {
+     enabled = false;
+-  } else if (FORCE_COLOR === "1") {
++  } else if (FORCE_COLOR === '1') {
+     enabled = true;
+-  } else if (TERM === "dumb") {
++  } else if (TERM === 'dumb') {
+     enabled = false;
+-  } else if ("CI" in globalVar.process.env && [
+-    "TRAVIS",
+-    "CIRCLECI",
+-    "APPVEYOR",
+-    "GITLAB_CI",
+-    "GITHUB_ACTIONS",
+-    "BUILDKITE",
+-    "DRONE"
+-  ].some((vendor) => vendor in globalVar.process.env)) {
++  } else if (
++    'CI' in globalVar.process.env &&
++    [
++      'TRAVIS',
++      'CIRCLECI',
++      'APPVEYOR',
++      'GITLAB_CI',
++      'GITHUB_ACTIONS',
++      'BUILDKITE',
++      'DRONE',
++    ].some((vendor) => vendor in globalVar.process.env)
++  ) {
+     enabled = true;
+   } else {
+     enabled = process.stdout.isTTY;
+   }
+   if (enabled) {
+-    supportLevel = TERM && TERM.endsWith("-256color") ? 2 : 1;
++    supportLevel = TERM && TERM.endsWith('-256color') ? 2 : 1;
+   }
+ }
+ var options = {
+   enabled,
+-  supportLevel
++  supportLevel,
+ };
+ function kolorist(start, end, level = 1) {
+   const open = `\x1B[${start}m`;
+   const close = `\x1B[${end}m`;
+-  const regex = new RegExp(`\\x1b\\[${end}m`, "g");
++  const regex = new RegExp(`\\x1b\\[${end}m`, 'g');
+   return (str) => {
+-    return options.enabled && options.supportLevel >= level ? open + ("" + str).replace(regex, open) + close : "" + str;
++    return options.enabled && options.supportLevel >= level
++      ? open + ('' + str).replace(regex, open) + close
++      : '' + str;
+   };
+ }
+ var reset = kolorist(0, 0);
+@@ -248,56 +278,75 @@ var bgLightCyan = kolorist(106, 49);
+ var bgLightGray = kolorist(47, 49);
+ 
+ // package.json
+-var version = "0.14.4";
++var version = '0.14.4';
+ 
+ // src/log.ts
+ function logWorkboxResult(strategy, buildResult, viteOptions) {
+-  const { root, logLevel = "info" } = viteOptions;
+-  if (logLevel === "silent")
+-    return;
++  const { root, logLevel = 'info' } = viteOptions;
++  if (logLevel === 'silent') return;
+   const { count, size, filePaths, warnings } = buildResult;
+-  if (logLevel === "info") {
+-    console.info([
+-      "",
+-      `${cyan(`PWA v${version}`)}`,
+-      `mode      ${magenta(strategy)}`,
+-      `precache  ${green(`${count} entries`)} ${dim(`(${(size / 1024).toFixed(2)} KiB)`)}`,
+-      "files generated",
+-      ...filePaths.map((p) => `  ${dim((0, import_path.relative)(root, p))}`)
+-    ].join("\n"));
++  if (logLevel === 'info') {
++    console.info(
++      [
++        '',
++        `${cyan(`PWA v${version}`)}`,
++        `mode      ${magenta(strategy)}`,
++        `precache  ${green(`${count} entries`)} ${dim(
++          `(${(size / 1024).toFixed(2)} KiB)`
++        )}`,
++        'files generated',
++        ...filePaths.map((p) => `  ${dim((0, import_path.relative)(root, p))}`),
++      ].join('\n')
++    );
+   }
+-  warnings && warnings.length > 0 && console.warn(yellow([
+-    "warnings",
+-    ...warnings.map((w) => `  ${w}`),
+-    ""
+-  ].join("\n")));
++  warnings &&
++    warnings.length > 0 &&
++    console.warn(
++      yellow(['warnings', ...warnings.map((w) => `  ${w}`), ''].join('\n'))
++    );
+ }
+ 
+ // src/modules.ts
+ var import_meta = {};
+-var _dirname = typeof __dirname !== "undefined" ? __dirname : (0, import_path2.dirname)((0, import_url.fileURLToPath)(import_meta.url));
++var _dirname =
++  typeof __dirname !== 'undefined'
++    ? __dirname
++    : (0, import_path2.dirname)((0, import_url.fileURLToPath)(import_meta.url));
+ async function loadWorkboxBuild() {
+   try {
+-    const workbox = await import("workbox-build");
++    const workbox = await import('workbox-build');
+     return workbox.default ?? workbox;
+   } catch (_) {
+-    return require("workbox-build");
++    return require('workbox-build');
+   }
+ }
+ async function loadRollupReplacePlugin() {
+   try {
+-    const { createRequire } = await import("module").then((m) => m.default || m);
++    const { createRequire } = await import('module').then(
++      (m) => m.default || m
++    );
+     const nodeRequire = createRequire(_dirname);
+-    return nodeRequire("@rollup/plugin-replace");
++    return nodeRequire('@rollup/plugin-replace');
+   } catch (_) {
+-    return require("@rollup/plugin-replace");
++    return require('@rollup/plugin-replace');
+   }
+ }
+-async function generateRegisterSW2(options2, mode, source = "register") {
++async function generateRegisterSW2(options2, mode, source = 'register') {
+   const sw = options2.buildBase + options2.filename;
+   const scope = options2.scope;
+-  const content = await import_fs.promises.readFile((0, import_path2.resolve)(_dirname, `client/${mode}/${source}.mjs`), "utf-8");
+-  return content.replace(/__SW__/g, sw).replace("__SCOPE__", scope).replace("__SW_AUTO_UPDATE__", `${options2.registerType === "autoUpdate"}`).replace("__SW_SELF_DESTROYING__", `${options2.selfDestroying}`).replace("__TYPE__", `${options2.devOptions.enabled ? options2.devOptions.type : "classic"}`);
++  const content = await import_fs.promises.readFile(
++    (0, import_path2.resolve)(_dirname, `client/${mode}/${source}.mjs`),
++    'utf-8'
++  );
++  return content
++    .replace(/__SW__/g, sw)
++    .replace('__SCOPE__', scope)
++    .replace('__SW_AUTO_UPDATE__', `${options2.registerType === 'autoUpdate'}`)
++    .replace('__SW_SELF_DESTROYING__', `${options2.selfDestroying}`)
++    .replace(
++      '__TYPE__',
++      `${options2.devOptions.enabled ? options2.devOptions.type : 'classic'}`
++    );
+ }
+ async function generateServiceWorker(options2, viteOptions) {
+   if (options2.selfDestroying) {
+@@ -315,17 +364,21 @@ self.addEventListener('activate', function(e) {
+     });
+ });
+     `;
+-    await import_fs.promises.writeFile(options2.swDest.replace(/\\/g, "/"), selfDestroyingSW, { encoding: "utf8" });
++    await import_fs.promises.writeFile(
++      options2.swDest.replace(/\\/g, '/'),
++      selfDestroyingSW,
++      { encoding: 'utf8' }
++    );
+     return {
+       count: 1,
+       size: selfDestroyingSW.length,
+       warnings: [],
+-      filePaths: [options2.filename]
++      filePaths: [options2.filename],
+     };
+   }
+   const { generateSW } = await loadWorkboxBuild();
+   const buildResult = await generateSW(options2.workbox);
+-  logWorkboxResult("generateSW", buildResult, viteOptions);
++  logWorkboxResult('generateSW', buildResult, viteOptions);
+   return buildResult;
+ }
+ async function generateInjectManifest(options2, viteOptions) {
+@@ -336,82 +389,89 @@ async function generateInjectManifest(options2, viteOptions) {
+   }
+   const vitePlugins = options2.vitePlugins;
+   const includedPluginNames = [];
+-  if (typeof vitePlugins === "function")
+-    includedPluginNames.push(...vitePlugins(viteOptions.plugins.map((p) => p.name)));
+-  else
+-    includedPluginNames.push(...vitePlugins);
++  if (typeof vitePlugins === 'function')
++    includedPluginNames.push(
++      ...vitePlugins(viteOptions.plugins.map((p) => p.name))
++    );
++  else includedPluginNames.push(...vitePlugins);
+   if (includedPluginNames.length === 0)
+     includedPluginNames.push(...defaultInjectManifestVitePlugins);
+   const replace = await loadRollupReplacePlugin();
+   const plugins = [
+     replace({
+-      "preventAssignment": true,
+-      "process.env.NODE_ENV": JSON.stringify(options2.mode)
++      preventAssignment: true,
++      'process.env.NODE_ENV': JSON.stringify(options2.mode),
+     }),
+-    ...viteOptions.plugins.filter((p) => includedPluginNames.includes(p.name))
++    ...viteOptions.plugins.filter((p) => includedPluginNames.includes(p.name)),
+   ];
+-  const { rollup } = await import("rollup");
++  const { rollup } = await import('rollup');
+   const bundle = await rollup({
+     input: options2.swSrc,
+-    plugins
++    plugins,
+   });
+   try {
+     await bundle.write({
+       format: options2.rollupFormat,
+-      exports: "none",
++      exports: 'none',
+       inlineDynamicImports: true,
+       file: options2.injectManifest.swDest,
+-      sourcemap: viteOptions.build.sourcemap
++      sourcemap: viteOptions.build.sourcemap,
+     });
+   } finally {
+     await bundle.close();
+   }
+-  if (!options2.injectManifest.injectionPoint)
+-    return;
++  if (!options2.injectManifest.injectionPoint) return;
+   const injectManifestOptions = {
+     ...options2.injectManifest,
+-    swSrc: options2.injectManifest.swDest
++    swSrc: options2.injectManifest.swDest,
+   };
+   const { injectManifest } = await loadWorkboxBuild();
+   const buildResult = await injectManifest(injectManifestOptions);
+-  logWorkboxResult("injectManifest", buildResult, viteOptions);
++  logWorkboxResult('injectManifest', buildResult, viteOptions);
+ }
+ 
+ // src/assets.ts
+-var import_path3 = require("path");
+-var import_fs2 = __toESM(require("fs"));
+-var import_crypto = __toESM(require("crypto"));
+-var import_fast_glob = __toESM(require("fast-glob"));
++var import_path3 = require('path');
++var import_fs2 = __toESM(require('fs'));
++var import_crypto = __toESM(require('crypto'));
++var import_fast_glob = __toESM(require('fast-glob'));
+ function buildManifestEntry(publicDir, url) {
+   return new Promise((resolve5, reject) => {
+-    const cHash = import_crypto.default.createHash("MD5");
+-    const stream = import_fs2.default.createReadStream((0, import_path3.resolve)(publicDir, url));
+-    stream.on("error", (err) => {
++    const cHash = import_crypto.default.createHash('MD5');
++    const stream = import_fs2.default.createReadStream(
++      (0, import_path3.resolve)(publicDir, url)
++    );
++    stream.on('error', (err) => {
+       reject(err);
+     });
+-    stream.on("data", (chunk) => {
++    stream.on('data', (chunk) => {
+       cHash.update(chunk);
+     });
+-    stream.on("end", () => {
++    stream.on('end', () => {
+       return resolve5({
+         url,
+-        revision: `${cHash.digest("hex")}`
++        revision: `${cHash.digest('hex')}`,
+       });
+     });
+   });
+ }
+-function lookupAdditionalManifestEntries(useInjectManifest, injectManifest, workbox) {
+-  return useInjectManifest ? injectManifest.additionalManifestEntries || [] : workbox.additionalManifestEntries || [];
++function lookupAdditionalManifestEntries(
++  useInjectManifest,
++  injectManifest,
++  workbox
++) {
++  return useInjectManifest
++    ? injectManifest.additionalManifestEntries || []
++    : workbox.additionalManifestEntries || [];
+ }
+ function normalizeIconPath(path) {
+-  return path.startsWith("/") ? path.substring(1) : path;
++  return path.startsWith('/') ? path.substring(1) : path;
+ }
+ function includeIcons(icons, globs) {
+   Object.keys(icons).forEach((key) => {
+     const icon = icons[key];
+     const src = normalizeIconPath(icon.src);
+-    if (!globs.includes(src))
+-      globs.push(src);
++    if (!globs.includes(src)) globs.push(src);
+   });
+ }
+ async function configureStaticAssets(resolvedVitePWAOptions, viteConfig) {
+@@ -422,9 +482,9 @@ async function configureStaticAssets(resolvedVitePWAOptions, viteConfig) {
+     workbox,
+     includeAssets,
+     includeManifestIcons,
+-    manifestFilename
++    manifestFilename,
+   } = resolvedVitePWAOptions;
+-  const useInjectManifest = strategies === "injectManifest";
++  const useInjectManifest = strategies === 'injectManifest';
+   const { publicDir } = viteConfig;
+   const globs = [];
+   const manifestEntries = lookupAdditionalManifestEntries(
+@@ -435,51 +495,47 @@ async function configureStaticAssets(resolvedVitePWAOptions, viteConfig) {
+   if (includeAssets) {
+     if (Array.isArray(includeAssets))
+       globs.push(...includeAssets.map(normalizeIconPath));
+-    else
+-      globs.push(normalizeIconPath(includeAssets));
++    else globs.push(normalizeIconPath(includeAssets));
+   }
+   if (includeManifestIcons && manifest) {
+     manifest.icons && includeIcons(manifest.icons, globs);
+-    manifest.shortcuts && manifest.shortcuts.forEach((s) => {
+-      s.icons && includeIcons(s.icons, globs);
+-    });
++    manifest.shortcuts &&
++      manifest.shortcuts.forEach((s) => {
++        s.icons && includeIcons(s.icons, globs);
++      });
+   }
+   if (globs.length > 0) {
+-    let assets = await (0, import_fast_glob.default)(
+-      globs,
+-      {
+-        cwd: publicDir,
+-        onlyFiles: true,
+-        unique: true
+-      }
+-    );
++    let assets = await (0, import_fast_glob.default)(globs, {
++      cwd: publicDir,
++      onlyFiles: true,
++      unique: true,
++    });
+     if (manifestEntries.length > 0) {
+       const included = manifestEntries.map((me) => {
+-        if (typeof me === "string")
+-          return me;
+-        else
+-          return me.url;
++        if (typeof me === 'string') return me;
++        else return me.url;
+       });
+       assets = assets.filter((a) => !included.includes(a));
+     }
+-    const assetsEntries = await Promise.all(assets.map((a) => {
+-      return buildManifestEntry(publicDir, a);
+-    }));
++    const assetsEntries = await Promise.all(
++      assets.map((a) => {
++        return buildManifestEntry(publicDir, a);
++      })
++    );
+     manifestEntries.push(...assetsEntries);
+   }
+   if (manifest) {
+-    const cHash = import_crypto.default.createHash("MD5");
++    const cHash = import_crypto.default.createHash('MD5');
+     cHash.update(generateWebManifestFile(resolvedVitePWAOptions));
+     manifestEntries.push({
+       url: manifestFilename,
+-      revision: `${cHash.digest("hex")}`
++      revision: `${cHash.digest('hex')}`,
+     });
+   }
+   if (manifestEntries.length > 0) {
+     if (useInjectManifest)
+       injectManifest.additionalManifestEntries = manifestEntries;
+-    else
+-      workbox.additionalManifestEntries = manifestEntries;
++    else workbox.additionalManifestEntries = manifestEntries;
+   }
+ }
+ function generateWebManifestFile(options2) {
+@@ -489,34 +545,39 @@ function generateWebManifestFile(options2) {
+ 
+ // src/api.ts
+ async function _generateSW({ options: options2, viteConfig }) {
+-  if (options2.disable)
+-    return;
+-  if (options2.strategies === "injectManifest")
++  if (options2.disable) return;
++  if (options2.strategies === 'injectManifest')
+     await generateInjectManifest(options2, viteConfig);
+-  else
+-    await generateServiceWorker(options2, viteConfig);
++  else await generateServiceWorker(options2, viteConfig);
+ }
+-function _generateBundle({ options: options2, viteConfig, useImportRegister }, bundle) {
+-  if (options2.disable || !bundle)
+-    return;
++function _generateBundle(
++  { options: options2, viteConfig, useImportRegister },
++  bundle
++) {
++  if (options2.disable || !bundle) return;
+   if (options2.manifest) {
+     bundle[options2.manifestFilename] = {
+       isAsset: true,
+-      type: "asset",
++      type: 'asset',
+       name: void 0,
+       source: generateWebManifestFile(options2),
+-      fileName: options2.manifestFilename
++      fileName: options2.manifestFilename,
+     };
+   }
+-  if (options2.injectRegister === "auto")
+-    options2.injectRegister = useImportRegister ? null : "script";
+-  if (options2.injectRegister === "script" && !(0, import_fs3.existsSync)((0, import_path4.resolve)(viteConfig.publicDir, FILE_SW_REGISTER))) {
++  if (options2.injectRegister === 'auto')
++    options2.injectRegister = useImportRegister ? null : 'script';
++  if (
++    options2.injectRegister === 'script' &&
++    !(0, import_fs3.existsSync)(
++      (0, import_path4.resolve)(viteConfig.publicDir, FILE_SW_REGISTER)
++    )
++  ) {
+     bundle[FILE_SW_REGISTER] = {
+       isAsset: true,
+-      type: "asset",
++      type: 'asset',
+       name: void 0,
+       source: generateSimpleSWRegister(options2, false),
+-      fileName: FILE_SW_REGISTER
++      fileName: FILE_SW_REGISTER,
+     };
+   }
+   return bundle;
+@@ -525,44 +586,59 @@ function createAPI(ctx) {
+   return {
+     get disabled() {
+       var _a;
+-      return (_a = ctx == null ? void 0 : ctx.options) == null ? void 0 : _a.disable;
++      return (_a = ctx == null ? void 0 : ctx.options) == null
++        ? void 0
++        : _a.disable;
+     },
+     get pwaInDevEnvironment() {
+       return (ctx == null ? void 0 : ctx.devEnvironment) === true;
+     },
+     webManifestData() {
+       const options2 = ctx == null ? void 0 : ctx.options;
+-      if (!options2 || options2.disable || !options2.manifest || ctx.devEnvironment && !ctx.options.devOptions.enabled)
++      if (
++        !options2 ||
++        options2.disable ||
++        !options2.manifest ||
++        (ctx.devEnvironment && !ctx.options.devOptions.enabled)
++      )
+         return void 0;
+       let url = options2.manifestFilename;
+       let manifest;
+       if (ctx.devEnvironment && ctx.options.devOptions.enabled === true) {
+-        url = ctx.options.devOptions.webManifestUrl ?? options2.manifestFilename;
++        url =
++          ctx.options.devOptions.webManifestUrl ?? options2.manifestFilename;
+         manifest = generateWebManifest(options2, true);
+       } else {
+         manifest = generateWebManifest(options2, false);
+       }
+       return {
+-        href: `${ctx.devEnvironment ? options2.base : options2.buildBase}${url}`,
++        href: `${
++          ctx.devEnvironment ? options2.base : options2.buildBase
++        }${url}`,
+         useCredentials: ctx.options.useCredentials,
+         toLinkTag() {
+           return manifest;
+-        }
++        },
+       };
+     },
+     registerSWData() {
+       const options2 = ctx == null ? void 0 : ctx.options;
+-      if (!options2 || options2.disable || ctx.devEnvironment && !ctx.options.devOptions.enabled)
++      if (
++        !options2 ||
++        options2.disable ||
++        (ctx.devEnvironment && !ctx.options.devOptions.enabled)
++      )
+         return void 0;
+       const mode = options2.injectRegister;
+-      if (!mode || ctx.useImportRegister)
+-        return void 0;
+-      let type = "classic";
++      if (!mode || ctx.useImportRegister) return void 0;
++      let type = 'classic';
+       let script;
+-      let shouldRegisterSW = options2.injectRegister === "inline" || options2.injectRegister === "script";
++      let shouldRegisterSW =
++        options2.injectRegister === 'inline' ||
++        options2.injectRegister === 'script';
+       if (ctx.devEnvironment && ctx.options.devOptions.enabled === true) {
+-        type = ctx.options.devOptions.type ?? "classic";
+-        script = generateRegisterDevSW();
++        type = ctx.options.devOptions.type ?? 'classic';
++        script = generateRegisterDevSW(options2.base);
+         shouldRegisterSW = true;
+       } else if (shouldRegisterSW) {
+         script = generateRegisterSW(options2, false);
+@@ -570,14 +646,16 @@ function createAPI(ctx) {
+       const base = ctx.devEnvironment ? options2.base : options2.buildBase;
+       return {
+         shouldRegisterSW,
+-        inline: options2.injectRegister === "inline",
++        inline: options2.injectRegister === 'inline',
+         scope: options2.scope,
+-        inlinePath: `${base}${ctx.devEnvironment ? DEV_SW_NAME : options2.filename}`,
++        inlinePath: `${base}${
++          ctx.devEnvironment ? DEV_SW_NAME : options2.filename
++        }`,
+         registerPath: `${base}${FILE_SW_REGISTER}`,
+         type,
+         toScriptTag() {
+           return script;
+-        }
++        },
+       };
+     },
+     generateBundle(bundle) {
+@@ -588,13 +666,13 @@ function createAPI(ctx) {
+     },
+     extendManifestEntries(fn) {
+       const { options: options2 } = ctx;
+-      if (options2.disable)
+-        return;
+-      const configField = options2.strategies === "generateSW" ? "workbox" : "injectManifest";
++      if (options2.disable) return;
++      const configField =
++        options2.strategies === 'generateSW' ? 'workbox' : 'injectManifest';
+       const result = fn(options2[configField].additionalManifestEntries || []);
+       if (result != null)
+         options2[configField].additionalManifestEntries = result;
+-    }
++    },
+   };
+ }
+ 
+@@ -602,90 +680,100 @@ function createAPI(ctx) {
+ function BuildPlugin(ctx) {
+   var _a, _b;
+   return {
+-    name: "vite-plugin-pwa:build",
+-    enforce: "post",
+-    apply: "build",
++    name: 'vite-plugin-pwa:build',
++    enforce: 'post',
++    apply: 'build',
+     transformIndexHtml: {
+-      enforce: "post",
++      enforce: 'post',
+       transform(html) {
+         const { options: options2, useImportRegister } = ctx;
+-        if (options2.disable)
+-          return html;
+-        if (options2.injectRegister === "auto")
+-          options2.injectRegister = useImportRegister ? null : "script";
++        if (options2.disable) return html;
++        if (options2.injectRegister === 'auto')
++          options2.injectRegister = useImportRegister ? null : 'script';
+         return injectServiceWorker(html, options2, false);
+-      }
++      },
+     },
+     generateBundle(_, bundle) {
+       return _generateBundle(ctx, bundle);
+     },
+     closeBundle: {
+       sequential: true,
+-      order: (_b = (_a = ctx.userOptions) == null ? void 0 : _a.integration) == null ? void 0 : _b.closeBundleOrder,
++      order:
++        (_b = (_a = ctx.userOptions) == null ? void 0 : _a.integration) == null
++          ? void 0
++          : _b.closeBundleOrder,
+       async handler() {
+         if (!ctx.viteConfig.build.ssr && !ctx.options.disable)
+           await _generateSW(ctx);
+-      }
++      },
+     },
+     async buildEnd(error) {
+-      if (error)
+-        throw error;
+-    }
++      if (error) throw error;
++    },
+   };
+ }
+ 
+ // src/plugins/dev.ts
+-var import_path5 = require("path");
+-var import_fs4 = require("fs");
++var import_path5 = require('path');
++var import_fs4 = require('fs');
+ 
+ // src/utils.ts
+ function resolveBasePath(base) {
+-  if (isAbsolute(base))
+-    return base;
+-  return !base.startsWith("/") && !base.startsWith("./") ? `/${base}` : base;
++  if (isAbsolute(base)) return base;
++  return !base.startsWith('/') && !base.startsWith('./') ? `/${base}` : base;
+ }
+ function isAbsolute(url) {
+   return url.match(/^(?:[a-z]+:)?\/\//i);
+ }
+ function normalizePath(path) {
+-  return path.replace(/\\/g, "/");
++  return path.replace(/\\/g, '/');
+ }
+ 
+ // src/plugins/dev.ts
+ var swDevOptions = {
+   swUrl: DEV_SW_NAME,
+   swDevGenerated: false,
+-  workboxPaths: /* @__PURE__ */ new Map()
++  workboxPaths: /* @__PURE__ */ new Map(),
+ };
+ function DevPlugin(ctx) {
+   return {
+-    name: "vite-plugin-pwa:dev-sw",
+-    apply: "serve",
++    name: 'vite-plugin-pwa:dev-sw',
++    apply: 'serve',
+     transformIndexHtml: {
+-      enforce: "post",
++      enforce: 'post',
+       async transform(html) {
+         const { options: options2 } = ctx;
+-        if (options2.disable || !options2.manifest || !options2.devOptions.enabled)
++        if (
++          options2.disable ||
++          !options2.manifest ||
++          !options2.devOptions.enabled
++        )
+           return html;
+         html = injectServiceWorker(html, options2, true);
+         return html.replace(
+-          "</body>",
+-          `${generateRegisterDevSW()}
++          '</body>',
++          `${generateRegisterDevSW(options2.base)}
+ </body>`
+         );
+-      }
++      },
+     },
+     configureServer(server) {
+       ctx.devEnvironment = true;
+       const { options: options2 } = ctx;
+-      if (!options2.disable && options2.manifest && options2.devOptions.enabled) {
++      if (
++        !options2.disable &&
++        options2.manifest &&
++        options2.devOptions.enabled
++      ) {
+         server.ws.on(DEV_READY_NAME, createSWResponseHandler(server, ctx));
+-        const name = options2.devOptions.webManifestUrl ?? `${options2.base}${options2.manifestFilename}`;
++        const name =
++          options2.devOptions.webManifestUrl ??
++          `${options2.base}${options2.manifestFilename}`;
+         server.middlewares.use((req, res, next) => {
+           if (req.url === name) {
+             res.statusCode = 200;
+-            res.setHeader("Content-Type", "application/manifest+json");
+-            res.write(generateWebManifestFile(options2), "utf-8");
++            res.setHeader('Content-Type', 'application/manifest+json');
++            res.write(generateWebManifestFile(options2), 'utf-8');
+             res.end();
+           } else {
+             next();
+@@ -694,97 +782,141 @@ function DevPlugin(ctx) {
+       }
+     },
+     resolveId(id) {
+-      if (id === DEV_SW_VIRTUAL)
+-        return RESOLVED_DEV_SW_VIRTUAL;
++      if (id === DEV_SW_VIRTUAL) return RESOLVED_DEV_SW_VIRTUAL;
+       const { options: options2 } = ctx;
+-      if (!options2.disable && options2.devOptions.enabled && options2.strategies === "injectManifest" && !options2.selfDestroying) {
+-        const name = id.startsWith("/") ? id.slice(1) : id;
+-        return name === swDevOptions.swUrl || name === options2.injectManifest.swSrc ? options2.injectManifest.swSrc : void 0;
++      if (
++        !options2.disable &&
++        options2.devOptions.enabled &&
++        options2.strategies === 'injectManifest' &&
++        !options2.selfDestroying
++      ) {
++        const name = id.startsWith('/') ? id.slice(1) : id;
++        return name === swDevOptions.swUrl ||
++          name === options2.injectManifest.swSrc
++          ? options2.injectManifest.swSrc
++          : void 0;
+       }
+       return void 0;
+     },
+     async load(id) {
+-      if (id === RESOLVED_DEV_SW_VIRTUAL)
+-        return generateSWHMR();
++      if (id === RESOLVED_DEV_SW_VIRTUAL) return generateSWHMR();
+       const { options: options2, viteConfig } = ctx;
+       if (!options2.disable && options2.devOptions.enabled) {
+-        if (options2.strategies === "injectManifest" && !options2.selfDestroying) {
++        if (
++          options2.strategies === 'injectManifest' &&
++          !options2.selfDestroying
++        ) {
+           const swSrc = normalizePath(options2.injectManifest.swSrc);
+           if (id === swSrc) {
+-            let content = await import_fs4.promises.readFile(options2.injectManifest.swSrc, "utf-8");
++            let content = await import_fs4.promises.readFile(
++              options2.injectManifest.swSrc,
++              'utf-8'
++            );
+             const resolvedIP = options2.injectManifest.injectionPoint;
+             if (resolvedIP) {
+-              const ip = new RegExp(resolvedIP, "g");
++              const ip = new RegExp(resolvedIP, 'g');
+               const navigateFallback = options2.devOptions.navigateFallback;
+               if (navigateFallback)
+-                content = content.replace(ip, `[{ url: '${navigateFallback}' }]`);
+-              else
+-                content = content.replace(ip, "[]");
++                content = content.replace(
++                  ip,
++                  `[{ url: '${navigateFallback}' }]`
++                );
++              else content = content.replace(ip, '[]');
+             }
+             return content;
+           }
+           if (swDevOptions.workboxPaths.has(id))
+-            return await import_fs4.promises.readFile(swDevOptions.workboxPaths.get(id), "utf-8");
++            return await import_fs4.promises.readFile(
++              swDevOptions.workboxPaths.get(id),
++              'utf-8'
++            );
+           return void 0;
+         }
+         if (id.endsWith(swDevOptions.swUrl)) {
+-          const globDirectory = await resolveDevDistFolder(options2, viteConfig);
++          const globDirectory = await resolveDevDistFolder(
++            options2,
++            viteConfig
++          );
+           if (!(0, import_fs4.existsSync)(globDirectory))
+             (0, import_fs4.mkdirSync)(globDirectory, { recursive: true });
+-          const swDest = (0, import_path5.resolve)(globDirectory, "sw.js");
+-          if (!swDevOptions.swDevGenerated || !(0, import_fs4.existsSync)(swDest)) {
++          const swDest = (0, import_path5.resolve)(globDirectory, 'sw.js');
++          if (
++            !swDevOptions.swDevGenerated ||
++            !(0, import_fs4.existsSync)(swDest)
++          ) {
+             const navigateFallback = options2.workbox.navigateFallback;
+             const { filePaths } = await generateServiceWorker(
+-              Object.assign(
+-                {},
+-                options2,
+-                {
+-                  swDest: options2.selfDestroying ? swDest : options2.swDest,
+-                  workbox: {
+-                    ...options2.workbox,
+-                    navigateFallbackAllowlist: options2.devOptions.navigateFallbackAllowlist ?? [/^\/$/],
+-                    runtimeCaching: options2.devOptions.disableRuntimeConfig ? void 0 : options2.workbox.runtimeCaching,
+-                    additionalManifestEntries: navigateFallback ? [navigateFallback] : void 0,
+-                    cleanupOutdatedCaches: true,
+-                    globDirectory: globDirectory.replace(/\\/g, "/"),
+-                    swDest: swDest.replace(/\\/g, "/")
+-                  }
+-                }
+-              ),
++              Object.assign({}, options2, {
++                swDest: options2.selfDestroying ? swDest : options2.swDest,
++                workbox: {
++                  ...options2.workbox,
++                  navigateFallbackAllowlist: options2.devOptions
++                    .navigateFallbackAllowlist ?? [/^\/$/],
++                  runtimeCaching: options2.devOptions.disableRuntimeConfig
++                    ? void 0
++                    : options2.workbox.runtimeCaching,
++                  additionalManifestEntries: navigateFallback
++                    ? [navigateFallback]
++                    : void 0,
++                  cleanupOutdatedCaches: true,
++                  globDirectory: globDirectory.replace(/\\/g, '/'),
++                  swDest: swDest.replace(/\\/g, '/'),
++                },
++              }),
+               viteConfig
+             );
+             filePaths.forEach((we) => {
+               const name = (0, import_path5.basename)(we);
+-              if (name !== "sw.js")
+-                swDevOptions.workboxPaths.set(normalizePath(`${options2.base}${name}`), we);
++              if (name !== 'sw.js')
++                swDevOptions.workboxPaths.set(
++                  normalizePath(`${options2.base}${name}`),
++                  we
++                );
+             });
+             swDevOptions.swDevGenerated = true;
+           }
+-          return await import_fs4.promises.readFile(swDest, "utf-8");
++          return await import_fs4.promises.readFile(swDest, 'utf-8');
+         }
+-        const key = normalizePath(`${options2.base}${id.startsWith("/") ? id.slice(1) : id}`);
++        const key = normalizePath(
++          `${options2.base}${id.startsWith('/') ? id.slice(1) : id}`
++        );
+         if (swDevOptions.workboxPaths.has(key))
+-          return await import_fs4.promises.readFile(swDevOptions.workboxPaths.get(key), "utf-8");
++          return await import_fs4.promises.readFile(
++            swDevOptions.workboxPaths.get(key),
++            'utf-8'
++          );
+       }
+-    }
++    },
+   };
+ }
+ async function resolveDevDistFolder(options2, viteConfig) {
+-  return options2.devOptions.resolveTempFolder ? await options2.devOptions.resolveTempFolder() : (0, import_path5.resolve)(viteConfig.root, "dev-dist");
++  return options2.devOptions.resolveTempFolder
++    ? await options2.devOptions.resolveTempFolder()
++    : (0, import_path5.resolve)(viteConfig.root, 'dev-dist');
+ }
+ async function createDevRegisterSW(options2, viteConfig) {
+-  if (options2.injectRegister === "script") {
++  if (options2.injectRegister === 'script') {
+     const devDist = await resolveDevDistFolder(options2, viteConfig);
+     if (!(0, import_fs4.existsSync)(devDist))
+       (0, import_fs4.mkdirSync)(devDist);
+     const registerSW = (0, import_path5.resolve)(devDist, FILE_SW_REGISTER);
+     if ((0, import_fs4.existsSync)(registerSW)) {
+       if (!swDevOptions.workboxPaths.has(registerSW))
+-        swDevOptions.workboxPaths.set(normalizePath(`${options2.base}${FILE_SW_REGISTER}`), registerSW);
++        swDevOptions.workboxPaths.set(
++          normalizePath(`${options2.base}${FILE_SW_REGISTER}`),
++          registerSW
++        );
+       return;
+     }
+-    await import_fs4.promises.writeFile(registerSW, generateSimpleSWRegister(options2, true), { encoding: "utf8" });
+-    swDevOptions.workboxPaths.set(normalizePath(`${options2.base}${FILE_SW_REGISTER}`), registerSW);
++    await import_fs4.promises.writeFile(
++      registerSW,
++      generateSimpleSWRegister(options2, true),
++      { encoding: 'utf8' }
++    );
++    swDevOptions.workboxPaths.set(
++      normalizePath(`${options2.base}${FILE_SW_REGISTER}`),
++      registerSW
++    );
+   }
+ }
+ function createSWResponseHandler(server, ctx) {
+@@ -792,69 +924,77 @@ function createSWResponseHandler(server, ctx) {
+     const { options: options2, useImportRegister } = ctx;
+     const { injectRegister, scope, base } = options2;
+     if (!useImportRegister && injectRegister) {
+-      if (injectRegister === "auto")
+-        options2.injectRegister = "script";
++      if (injectRegister === 'auto') options2.injectRegister = 'script';
+       await createDevRegisterSW(options2, ctx.viteConfig);
+       server.ws.send({
+-        type: "custom",
++        type: 'custom',
+         event: DEV_REGISTER_SW_NAME,
+         data: {
+-          inline: options2.injectRegister === "inline",
++          inline: options2.injectRegister === 'inline',
+           scope,
+           inlinePath: `${base}${DEV_SW_NAME}`,
+           registerPath: `${base}${FILE_SW_REGISTER}`,
+-          swType: options2.devOptions.type
+-        }
++          swType: options2.devOptions.type,
++        },
+       });
+     }
+   };
+ }
+ 
+ // src/options.ts
+-var import_fs5 = __toESM(require("fs"));
+-var import_path6 = require("path");
++var import_fs5 = __toESM(require('fs'));
++var import_path6 = require('path');
+ function resolveSwPaths(injectManifest, root, srcDir, outDir, filename) {
+   const swSrc = (0, import_path6.resolve)(root, srcDir, filename);
+-  if (injectManifest && (0, import_path6.extname)(filename) === ".ts" && import_fs5.default.existsSync(swSrc)) {
+-    const useFilename = `${filename.substring(0, filename.lastIndexOf("."))}.js`;
++  if (
++    injectManifest &&
++    (0, import_path6.extname)(filename) === '.ts' &&
++    import_fs5.default.existsSync(swSrc)
++  ) {
++    const useFilename = `${filename.substring(
++      0,
++      filename.lastIndexOf('.')
++    )}.js`;
+     return {
+       swSrc,
+       swDest: (0, import_path6.resolve)(root, outDir, useFilename),
+-      useFilename
++      useFilename,
+     };
+   }
+   return {
+     swSrc,
+-    swDest: (0, import_path6.resolve)(root, outDir, filename)
++    swDest: (0, import_path6.resolve)(root, outDir, filename),
+   };
+ }
+ async function resolveOptions(options2, viteConfig) {
+   var _a;
+   const root = viteConfig.root;
+-  const pkg = import_fs5.default.existsSync("package.json") ? JSON.parse(import_fs5.default.readFileSync("package.json", "utf-8")) : {};
++  const pkg = import_fs5.default.existsSync('package.json')
++    ? JSON.parse(import_fs5.default.readFileSync('package.json', 'utf-8'))
++    : {};
+   const {
+-    mode = process["env"]["NODE_ENV"] || "production",
+-    srcDir = "public",
+-    outDir = viteConfig.build.outDir || "dist",
+-    injectRegister = "auto",
+-    registerType = "prompt",
+-    filename = "sw.js",
+-    manifestFilename = "manifest.webmanifest",
+-    strategies = "generateSW",
++    mode = process['env']['NODE_ENV'] || 'production',
++    srcDir = 'public',
++    outDir = viteConfig.build.outDir || 'dist',
++    injectRegister = 'auto',
++    registerType = 'prompt',
++    filename = 'sw.js',
++    manifestFilename = 'manifest.webmanifest',
++    strategies = 'generateSW',
+     minify = true,
+     base = viteConfig.base,
+     includeAssets = void 0,
+     includeManifestIcons = true,
+     useCredentials = false,
+     disable = false,
+-    devOptions = { enabled: false, type: "classic" },
++    devOptions = { enabled: false, type: 'classic' },
+     selfDestroying = false,
+     integration = {},
+-    buildBase
++    buildBase,
+   } = options2;
+   const basePath = resolveBasePath(base);
+   const { swSrc, swDest, useFilename } = resolveSwPaths(
+-    strategies === "injectManifest",
++    strategies === 'injectManifest',
+     root,
+     srcDir,
+     outDir,
+@@ -869,46 +1009,56 @@ async function resolveOptions(options2, viteConfig) {
+     cleanupOutdatedCaches: true,
+     dontCacheBustURLsMatching: /[.-][a-f0-9]{8}\./,
+     mode,
+-    navigateFallback: "index.html"
++    navigateFallback: 'index.html',
+   };
+   const defaultInjectManifest = {
+     swSrc,
+     swDest,
+     globDirectory: outDirRoot,
+     dontCacheBustURLsMatching: /[.-][a-f0-9]{8}\./,
+-    injectionPoint: "self.__WB_MANIFEST"
++    injectionPoint: 'self.__WB_MANIFEST',
+   };
+   const defaultManifest = {
+     name: pkg.name,
+     short_name: pkg.name,
+     start_url: basePath,
+-    display: "standalone",
+-    background_color: "#ffffff",
+-    lang: "en",
+-    scope
++    display: 'standalone',
++    background_color: '#ffffff',
++    lang: 'en',
++    scope,
+   };
+   const workbox = Object.assign({}, defaultWorkbox, options2.workbox || {});
+-  const manifest = typeof options2.manifest === "boolean" && !options2.manifest ? false : Object.assign({}, defaultManifest, options2.manifest || {});
++  const manifest =
++    typeof options2.manifest === 'boolean' && !options2.manifest
++      ? false
++      : Object.assign({}, defaultManifest, options2.manifest || {});
+   const {
+     vitePlugins = defaultInjectManifestVitePlugins,
+-    rollupFormat = "es",
++    rollupFormat = 'es',
+     ...userInjectManifest
+   } = options2.injectManifest || {};
+-  const injectManifest = Object.assign({}, defaultInjectManifest, userInjectManifest);
+-  if ((injectRegister === "auto" || injectRegister == null) && registerType === "autoUpdate") {
++  const injectManifest = Object.assign(
++    {},
++    defaultInjectManifest,
++    userInjectManifest
++  );
++  if (
++    (injectRegister === 'auto' || injectRegister == null) &&
++    registerType === 'autoUpdate'
++  ) {
+     workbox.skipWaiting = true;
+     workbox.clientsClaim = true;
+   }
+-  if (strategies === "generateSW" && workbox.sourcemap === void 0) {
++  if (strategies === 'generateSW' && workbox.sourcemap === void 0) {
+     const sourcemap = (_a = viteConfig.build) == null ? void 0 : _a.sourcemap;
+-    workbox.sourcemap = sourcemap === true || sourcemap === "inline" || sourcemap === "hidden";
++    workbox.sourcemap =
++      sourcemap === true || sourcemap === 'inline' || sourcemap === 'hidden';
+   }
+-  if (devOptions.enabled && viteConfig.command === "serve") {
+-    if (strategies === "generateSW")
+-      devOptions.type = "classic";
++  if (devOptions.enabled && viteConfig.command === 'serve') {
++    if (strategies === 'generateSW') devOptions.type = 'classic';
+   } else {
+     devOptions.enabled = false;
+-    devOptions.type = "classic";
++    devOptions.type = 'classic';
+   }
+   const resolvedVitePWAOptions = {
+     base: basePath,
+@@ -936,7 +1086,7 @@ async function resolveOptions(options2, viteConfig) {
+     rollupFormat,
+     vitePlugins,
+     selfDestroying,
+-    buildBase: buildBase ?? basePath
++    buildBase: buildBase ?? basePath,
+   };
+   await configureStaticAssets(resolvedVitePWAOptions, viteConfig);
+   return resolvedVitePWAOptions;
+@@ -945,71 +1095,79 @@ async function resolveOptions(options2, viteConfig) {
+ // src/plugins/main.ts
+ function MainPlugin(ctx, api) {
+   return {
+-    name: "vite-plugin-pwa",
+-    enforce: "pre",
++    name: 'vite-plugin-pwa',
++    enforce: 'pre',
+     config() {
+       return {
+         ssr: {
+-          noExternal: ["workbox-window"]
+-        }
++          noExternal: ['workbox-window'],
++        },
+       };
+     },
+     async configResolved(config) {
+       var _a, _b, _c;
+       ctx.useImportRegister = false;
+       ctx.viteConfig = config;
+-      (_c = (_b = (_a = ctx.userOptions) == null ? void 0 : _a.integration) == null ? void 0 : _b.configureOptions) == null ? void 0 : _c.call(_b, config, ctx.userOptions);
++      (_c =
++        (_b = (_a = ctx.userOptions) == null ? void 0 : _a.integration) == null
++          ? void 0
++          : _b.configureOptions) == null
++        ? void 0
++        : _c.call(_b, config, ctx.userOptions);
+       ctx.options = await resolveOptions(ctx.userOptions, config);
+     },
+     resolveId(id) {
+-      return VIRTUAL_MODULES.includes(id) ? VIRTUAL_MODULES_RESOLVE_PREFIX + id : void 0;
++      return VIRTUAL_MODULES.includes(id)
++        ? VIRTUAL_MODULES_RESOLVE_PREFIX + id
++        : void 0;
+     },
+     load(id) {
+       if (id.startsWith(VIRTUAL_MODULES_RESOLVE_PREFIX))
+         id = id.slice(VIRTUAL_MODULES_RESOLVE_PREFIX.length);
+-      else
+-        return;
++      else return;
+       if (VIRTUAL_MODULES.includes(id)) {
+         ctx.useImportRegister = true;
+-        if (ctx.viteConfig.command === "serve" && ctx.options.devOptions.enabled) {
++        if (
++          ctx.viteConfig.command === 'serve' &&
++          ctx.options.devOptions.enabled
++        ) {
+           return generateRegisterSW2(
+             { ...ctx.options, filename: swDevOptions.swUrl },
+-            "build",
++            'build',
+             VIRTUAL_MODULES_MAP[id]
+           );
+         } else {
+           return generateRegisterSW2(
+             ctx.options,
+-            !ctx.options.disable && ctx.viteConfig.command === "build" ? "build" : "dev",
++            !ctx.options.disable && ctx.viteConfig.command === 'build'
++              ? 'build'
++              : 'dev',
+             VIRTUAL_MODULES_MAP[id]
+           );
+         }
+       }
+     },
+-    api
++    api,
+   };
+ }
+ 
+ // src/plugins/info.ts
+ function InfoPlugin(ctx, api) {
+   return {
+-    name: "vite-plugin-pwa:info",
+-    enforce: "post",
++    name: 'vite-plugin-pwa:info',
++    enforce: 'post',
+     resolveId(id) {
+-      if (id === PWA_INFO_VIRTUAL)
+-        return RESOLVED_PWA_INFO_VIRTUAL;
++      if (id === PWA_INFO_VIRTUAL) return RESOLVED_PWA_INFO_VIRTUAL;
+       return void 0;
+     },
+     load(id) {
+-      if (id === RESOLVED_PWA_INFO_VIRTUAL)
+-        return generatePwaInfo(ctx, api);
+-    }
++      if (id === RESOLVED_PWA_INFO_VIRTUAL) return generatePwaInfo(ctx, api);
++    },
+   };
+ }
+ function generatePwaInfo(ctx, api) {
+   const webManifestData = api.webManifestData();
+-  if (!webManifestData)
+-    return "export const pwaInfo = undefined;";
++  if (!webManifestData) return 'export const pwaInfo = undefined;';
+   const { href, useCredentials, toLinkTag } = webManifestData;
+   const registerSWData = api.registerSWData();
+   const entry = {
+@@ -1017,8 +1175,8 @@ function generatePwaInfo(ctx, api) {
+     webManifest: {
+       href,
+       useCredentials,
+-      linkTag: toLinkTag()
+-    }
++      linkTag: toLinkTag(),
++    },
+   };
+   if (registerSWData) {
+     const scriptTag = registerSWData.toScriptTag();
+@@ -1030,7 +1188,7 @@ function generatePwaInfo(ctx, api) {
+         registerPath,
+         type,
+         scope,
+-        scriptTag
++        scriptTag,
+       };
+     }
+   }
+@@ -1041,95 +1199,95 @@ function generatePwaInfo(ctx, api) {
+ var cachePreset = [
+   {
+     urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+-    handler: "CacheFirst",
++    handler: 'CacheFirst',
+     options: {
+-      cacheName: "google-fonts",
++      cacheName: 'google-fonts',
+       expiration: {
+         maxEntries: 4,
+-        maxAgeSeconds: 365 * 24 * 60 * 60
+-      }
+-    }
++        maxAgeSeconds: 365 * 24 * 60 * 60,
++      },
++    },
+   },
+   {
+     urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
+-    handler: "StaleWhileRevalidate",
++    handler: 'StaleWhileRevalidate',
+     options: {
+-      cacheName: "static-font-assets",
++      cacheName: 'static-font-assets',
+       expiration: {
+         maxEntries: 4,
+-        maxAgeSeconds: 7 * 24 * 60 * 60
+-      }
+-    }
++        maxAgeSeconds: 7 * 24 * 60 * 60,
++      },
++    },
+   },
+   {
+     urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
+-    handler: "StaleWhileRevalidate",
++    handler: 'StaleWhileRevalidate',
+     options: {
+-      cacheName: "static-image-assets",
++      cacheName: 'static-image-assets',
+       expiration: {
+         maxEntries: 64,
+-        maxAgeSeconds: 24 * 60 * 60
+-      }
+-    }
++        maxAgeSeconds: 24 * 60 * 60,
++      },
++    },
+   },
+   {
+     urlPattern: /\.(?:js)$/i,
+-    handler: "StaleWhileRevalidate",
++    handler: 'StaleWhileRevalidate',
+     options: {
+-      cacheName: "static-js-assets",
++      cacheName: 'static-js-assets',
+       expiration: {
+         maxEntries: 32,
+-        maxAgeSeconds: 24 * 60 * 60
+-      }
+-    }
++        maxAgeSeconds: 24 * 60 * 60,
++      },
++    },
+   },
+   {
+     urlPattern: /\.(?:css|less)$/i,
+-    handler: "StaleWhileRevalidate",
++    handler: 'StaleWhileRevalidate',
+     options: {
+-      cacheName: "static-style-assets",
++      cacheName: 'static-style-assets',
+       expiration: {
+         maxEntries: 32,
+-        maxAgeSeconds: 24 * 60 * 60
+-      }
+-    }
++        maxAgeSeconds: 24 * 60 * 60,
++      },
++    },
+   },
+   {
+     urlPattern: /\.(?:json|xml|csv)$/i,
+-    handler: "NetworkFirst",
++    handler: 'NetworkFirst',
+     options: {
+-      cacheName: "static-data-assets",
++      cacheName: 'static-data-assets',
+       expiration: {
+         maxEntries: 32,
+-        maxAgeSeconds: 24 * 60 * 60
+-      }
+-    }
++        maxAgeSeconds: 24 * 60 * 60,
++      },
++    },
+   },
+   {
+     urlPattern: /\/api\/.*$/i,
+-    handler: "NetworkFirst",
+-    method: "GET",
++    handler: 'NetworkFirst',
++    method: 'GET',
+     options: {
+-      cacheName: "apis",
++      cacheName: 'apis',
+       expiration: {
+         maxEntries: 16,
+-        maxAgeSeconds: 24 * 60 * 60
++        maxAgeSeconds: 24 * 60 * 60,
+       },
+-      networkTimeoutSeconds: 10
+-    }
++      networkTimeoutSeconds: 10,
++    },
+   },
+   {
+     urlPattern: /.*/i,
+-    handler: "NetworkFirst",
++    handler: 'NetworkFirst',
+     options: {
+-      cacheName: "others",
++      cacheName: 'others',
+       expiration: {
+         maxEntries: 32,
+-        maxAgeSeconds: 24 * 60 * 60
++        maxAgeSeconds: 24 * 60 * 60,
+       },
+-      networkTimeoutSeconds: 10
+-    }
+-  }
++      networkTimeoutSeconds: 10,
++    },
++  },
+ ];
+ 
+ // src/index.ts
+@@ -1140,12 +1298,13 @@ function VitePWA(userOptions = {}) {
+     MainPlugin(ctx, api),
+     InfoPlugin(ctx, api),
+     BuildPlugin(ctx),
+-    DevPlugin(ctx)
++    DevPlugin(ctx),
+   ];
+ }
+ // Annotate the CommonJS export names for ESM import in node:
+-0 && (module.exports = {
+-  VitePWA,
+-  cachePreset,
+-  defaultInjectManifestVitePlugins
+-});
++0 &&
++  (module.exports = {
++    VitePWA,
++    cachePreset,
++    defaultInjectManifestVitePlugins,
++  });
