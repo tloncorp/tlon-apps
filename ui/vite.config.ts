@@ -8,6 +8,8 @@ import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import { fileURLToPath } from 'url';
 import { VitePWA } from 'vite-plugin-pwa';
 import basicSsl from '@vitejs/plugin-basic-ssl';
+import manifest from './src/assets/manifest';
+import chatmanifest from './src/assets/chatmanifest';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -61,6 +63,7 @@ export default ({ mode }: { mode: string }) => {
           }),
           VitePWA({
             base: '/apps/talk/',
+            manifest: chatmanifest,
             registerType: 'autoUpdate',
             devOptions: {
               enabled: mode === 'sw',
@@ -81,6 +84,7 @@ export default ({ mode }: { mode: string }) => {
           }),
           VitePWA({
             base: '/apps/groups/',
+            manifest: manifest,
             registerType: 'autoUpdate',
             devOptions: {
               enabled: mode === 'sw',
