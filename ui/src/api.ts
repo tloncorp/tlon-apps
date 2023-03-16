@@ -76,25 +76,28 @@ const api = {
   },
   async subscribe(params: SubscriptionRequestInterface) {
     const eventListener =
-      (listener?: (event: any, mark: string) => void) =>
-      (event: any, mark: string) => {
-        const { watchers, remove } = useSubscriptionState.getState();
-        const path = params.app + params.path;
-        const relevantWatchers = watchers[path];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
-        if (relevantWatchers) {
-          relevantWatchers.forEach((w) => {
-            if (w.hook(event, mark)) {
-              w.resolve();
-              remove(path, w.id);
-            }
-          });
-        }
+        (listener?: (event: any, mark: string) => void) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (event: any, mark: string) => {
+          const { watchers, remove } = useSubscriptionState.getState();
+          const path = params.app + params.path;
+          const relevantWatchers = watchers[path];
 
-        if (listener) {
-          listener(event, mark);
-        }
-      };
+          if (relevantWatchers) {
+            relevantWatchers.forEach((w) => {
+              if (w.hook(event, mark)) {
+                w.resolve();
+                remove(path, w.id);
+              }
+            });
+          }
+
+          if (listener) {
+            listener(event, mark);
+          }
+        };
 
     try {
       if (!client) {

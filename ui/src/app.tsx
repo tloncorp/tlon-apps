@@ -61,7 +61,6 @@ import TalkHead from './dms/TalkHead';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
-import MobileGroupRoot from './nav/MobileGroupRoot';
 import Leap from './components/Leap/Leap';
 import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
@@ -222,13 +221,7 @@ function HomeRoute({
   );
 }
 
-function ActivityRoute({
-  isMobile = true,
-  isInGroups = false,
-}: {
-  isMobile: boolean;
-  isInGroups: boolean;
-}) {
+function ActivityRoute({ isInGroups = false }: { isInGroups: boolean }) {
   if (!isInGroups) {
     return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
   }
@@ -258,9 +251,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             />
             <Route
               path="/notifications"
-              element={
-                <ActivityRoute isMobile={isMobile} isInGroups={isInGroups} />
-              }
+              element={<ActivityRoute isInGroups={isInGroups} />}
             />
             {/* Find by Invite URL */}
             <Route
@@ -433,8 +424,10 @@ function handleGridRedirect(navigate: NavigateFunction) {
   const query = new URLSearchParams(window.location.search);
 
   if (query.has('grid-note')) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     navigate(decodeURIComponent(query.get('grid-note')!));
   } else if (query.has('grid-link')) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     navigate(decodeURIComponent(query.get('grid-link')!));
   }
 }
