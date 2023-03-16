@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
@@ -122,7 +122,7 @@ export default function MessagesSidebar() {
     const nest = `chat/${p}`;
     const { groups } = useGroupState.getState();
     const groupFlag = Object.entries(groups).find(
-      ([k, v]) => nest in v.channels
+      ([, v]) => nest in v.channels
     )?.[0];
     const channel = groups[groupFlag || '']?.channels[nest];
     return !!channel || whomIsDm(p) || whomIsMultiDm(p);

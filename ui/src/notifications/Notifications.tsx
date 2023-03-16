@@ -1,7 +1,6 @@
 import cn from 'classnames';
 import React, { ComponentType, useCallback, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
 import useHarkState from '@/state/hark';

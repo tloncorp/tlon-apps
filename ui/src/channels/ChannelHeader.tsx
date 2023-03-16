@@ -12,7 +12,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import useIsChannelHost from '@/logic/useIsChannelHost';
 import { nestToFlag, getFlagParts, isTalk } from '@/logic/utils';
 import {
-  useGroup,
   useChannel,
   useAmAdmin,
   useRouteGroup,
@@ -47,12 +46,14 @@ export type ChannelHeaderProps = PropsWithChildren<{
     | 'quip-asc'
     | 'alpha'
     | 'time';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setSortMode?: (sortType: any) => void;
   isDiary?: boolean;
   showControls?: boolean;
 }>;
 
 interface ChannelHeaderSortControlsProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setSortMode?: (sortType: any) => void;
   sortMode:
     | 'time-dsc'
@@ -121,6 +122,7 @@ function ChannelActions({
       );
     } catch (error) {
       if (error) {
+        // eslint-disable-next-line no-console
         console.error(`[ChannelHeader:LeaveError] ${error}`);
       }
     }
@@ -139,6 +141,7 @@ function ChannelActions({
       setDeleteChannelIsOpen(!deleteChannelIsOpen);
     } catch (error) {
       setDeleteStatus('error');
+      // eslint-disable-next-line no-console
       console.error(error);
     }
   }, [deleteChannelIsOpen, groupFlag, isMobile, name, navigate, nest, ship]);

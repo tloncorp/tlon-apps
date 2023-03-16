@@ -34,7 +34,7 @@ export default function MobileMessagesSidebar() {
     const nest = `chat/${p}`;
     const { groups } = useGroupState.getState();
     const groupFlag = Object.entries(groups).find(
-      ([k, v]) => nest in v.channels
+      ([, v]) => nest in v.channels
     )?.[0];
     const channel = groups[groupFlag || '']?.channels[nest];
     return !!channel || whomIsDm(p) || whomIsMultiDm(p);

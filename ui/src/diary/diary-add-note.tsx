@@ -39,6 +39,7 @@ export default function DiaryAddNote() {
     async function load() {
       await useDiaryState.getState().initialize(chFlag);
       if (loading) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         await useDiaryState.getState().fetchNote(chFlag, id!);
       }
     }
