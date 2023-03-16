@@ -54,9 +54,6 @@ function GroupHeader() {
       )}
       style={bgStyle()}
     >
-      {group && !isColor(group.meta.cover) && (
-        <div className="absolute h-32 w-full rounded-lg bg-gradient-to-b from-black/75 to-transparent mix-blend-multiply" />
-      )}
       <GroupActions
         className="relative cursor-pointer bg-transparent"
         flag={flag}
