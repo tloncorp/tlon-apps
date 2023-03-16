@@ -245,13 +245,13 @@ function DiaryChannel() {
           <div className="h-full">
             <div className="mx-auto flex h-full w-full flex-col">
               <Virtuoso
-                style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
+                style={{ height: '100%', width: '100%' }}
                 data={sortedNotes}
                 itemContent={itemContent}
                 overscan={200}
                 atBottomStateChange={loadOlderNotes}
                 components={{
-                  Header: () => <div className="h-8 w-full" />,
+                  Header: () => <div />,
                   Footer: () => <div className="h-4 w-full" />,
                 }}
               />

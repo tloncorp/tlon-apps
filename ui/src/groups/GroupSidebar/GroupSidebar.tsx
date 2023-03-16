@@ -1,4 +1,5 @@
 import cn from 'classnames';
+import _ from 'lodash';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
@@ -24,174 +25,74 @@ import { useSubscriptionStatus } from '@/state/local';
 function GroupHeader() {
   const flag = useGroupFlag();
   const group = useGroup(flag);
-  const [groupCoverHover, setGroupCoverHover] = useState(false);
-  const [noCors, setNoCors] = useState(false);
-  const [coverImgColor, setCoverImgColor] = useState('');
-  const cover = useRef(null);
-  const fac = new FastAverageColor();
-  const averageSucceeded = isColor(coverImgColor);
-  const dark = useIsDark();
-  const hoverFallbackForeground = dark ? 'white' : 'black';
-  const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
-  const calm = useCalm();
   const defaultImportCover = group?.meta.cover === '0x0';
-  const { subscription } = useSubscriptionStatus();
+  const calm = useCalm();
 
-  const onError = useCallback(() => {
-    setNoCors(true);
-  }, []);
-
-  const getCoverImageColor = () => {
-    fac
-      .getColorAsync(cover.current)
-      .then((color) => {
-        setCoverImgColor(color.hex);
-      })
-      .catch(() => null);
-  };
-
-  const coverStyles = () => {
-    if (group && isColor(group.meta.cover)) {
+  const bgStyle = () => {
+    if (
+      group &&
+      !isColor(group?.meta.cover) &&
+      !defaultImportCover &&
+      !calm.disableRemoteContent
+    )
       return {
-        backgroundColor: group.meta.cover,
+        height: '240px',
+        backgroundImage: `url(${group?.meta.cover}`,
       };
-    }
-    if (group && defaultImportCover) {
+    if (group && isColor(group?.meta.cover) && !defaultImportCover)
       return {
-        backgroundColor: '#D9D9D9',
+        backgroundColor: group?.meta.cover,
       };
-    }
     return {};
-  };
-
-  const coverButtonStyles = () => {
-    if (group && defaultImportCover) {
-      return {
-        backgroundColor:
-          groupCoverHover === true
-            ? mix('#D9D9D9', 'black', 0.33)
-            : 'transparent',
-        color: foregroundFromBackground('#D9D9D9'),
-      };
-    }
-    if (group && isColor(group.meta.cover))
-      return {
-        backgroundColor:
-          groupCoverHover === true
-            ? mix(group.meta.cover, 'black', 0.33)
-            : 'transparent',
-        color: foregroundFromBackground(group.meta.cover),
-      };
-    if (group && !isColor(group.meta.cover)) {
-      return {
-        color: averageSucceeded
-          ? foregroundFromBackground(coverImgColor)
-          : hoverFallbackForeground,
-        backgroundColor:
-          groupCoverHover === true
-            ? transparentize(
-                averageSucceeded ? coverImgColor : hoverFallbackBackground,
-                0.33
-              )
-            : 'transparent',
-      };
-    }
-    return {};
-  };
-
-  const coverTitleStyles = () => {
-    if (group && isColor(group.meta.cover))
-      return {
-        color: foregroundFromBackground(group.meta.cover),
-      };
-    return {
-      color: averageSucceeded
-        ? foregroundFromBackground(coverImgColor)
-        : hoverFallbackForeground,
-    };
   };
 
   return (
-    <div className="relative mb-2 w-full rounded-lg" style={coverStyles()}>
-      {group &&
-        !calm?.disableRemoteContent &&
-        !isColor(group?.meta.cover) &&
-        !defaultImportCover && (
-          <img
-            {...(noCors ? {} : { crossOrigin: 'anonymous' })}
-            src={group?.meta.cover}
-            ref={cover}
-            onError={onError}
-            onLoad={() => getCoverImageColor()}
-            className="absolute h-full w-full flex-none rounded-lg object-cover"
-          />
-        )}
-      {group &&
-        calm.disableRemoteContent &&
-        !isColor(group?.meta.cover) &&
-        !defaultImportCover && (
-          <div className="absolute h-full w-full flex-none rounded-lg bg-gray-400" />
-        )}
-      <div
-        style={
-          group && !isColor(group?.meta.cover) && !defaultImportCover
-            ? { height: '240px' }
-            : {}
-        }
-        className="group relative mb-2 flex w-full flex-col justify-between text-lg font-semibold text-gray-600 sm:text-base"
+    <div
+      className={cn(
+        'relative mb-2 w-full rounded-lg bg-cover bg-center',
+        _.isEmpty(bgStyle()) && 'bg-gray-400'
+      )}
+      style={bgStyle()}
+    >
+      {group && !isColor(group.meta.cover) && (
+        <div className="absolute h-32 w-full rounded-lg bg-gradient-to-b from-black/75 to-transparent mix-blend-multiply" />
+      )}
+      <GroupActions
+        className="relative cursor-pointer bg-transparent"
+        flag={flag}
       >
         <SidebarItem
-          icon={
-            <CaretLeft16Icon
-              className={cn(
-                'm-1 h-4 w-4',
-                !averageSucceeded &&
-                  dark &&
-                  'drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]'
-              )}
-            />
+          color={
+            group && isColor(group.meta.cover)
+              ? `text-${foregroundFromBackground(group.meta.cover)}`
+              : 'text-white'
           }
-          to="/"
-          onMouseEnter={() => setGroupCoverHover(true)}
-          onMouseLeave={() => setGroupCoverHover(false)}
-          highlight="hover:bg-transparent"
-          style={coverButtonStyles()}
-          div
+          highlight="#666666"
+          className={cn(
+            'pl-11',
+            group && !isColor(group.meta.cover) && 'hover:bg-black/50'
+          )}
+          transparent={true}
+          icon={<GroupAvatar {...group?.meta} />}
+          actions={<CaretDown16Icon className="mr-2 h-4 w-4" />}
         >
-          {groupCoverHover && <span>Back to Groups</span>}
+          <span
+            style={
+              group && !isColor(group.meta.cover)
+                ? { textShadow: '0px 1px 3px black' }
+                : {}
+            }
+          >
+            {group?.meta.title}
+          </span>
         </SidebarItem>
-        <GroupActions flag={flag} className="">
-          <button className="group flex w-full items-center space-x-3 rounded-lg p-2 font-semibold focus:outline-none">
-            <GroupAvatar {...group?.meta} />
-            <div
-              title={group?.meta.title}
-              style={coverTitleStyles()}
-              className={cn(
-                'max-w-full flex-1 truncate text-left',
-                coverTitleStyles().color === 'white' &&
-                  'drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]'
-              )}
-            >
-              {group?.meta.title}
-            </div>
-
-            <div style={coverTitleStyles()}>
-              {subscription === 'reconnecting' ? (
-                <LoadingSpinner
-                  fill={`fill-${coverTitleStyles().color}`}
-                  primary={`fill-${coverTitleStyles().color}`}
-                  secondary={`fill-${coverTitleStyles().color} opacity-25`}
-                  className="h-4 w-4 group-hover:hidden"
-                />
-              ) : null}
-              <CaretDown16Icon
-                aria-label="Open Menu"
-                className={cn('hidden h-4 w-4 group-hover:block')}
-              />
-            </div>
-          </button>
-        </GroupActions>
-      </div>
+      </GroupActions>
+      <Link
+        to=".."
+        className="h-6-w-6 absolute top-2.5 left-2 z-40 flex items-center justify-center rounded bg-white bg-transparent p-1 text-gray-400"
+      >
+        <CaretLeft16Icon className="h-4 w-4" />
+      </Link>
     </div>
   );
 }

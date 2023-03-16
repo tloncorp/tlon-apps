@@ -22,6 +22,7 @@ type SidebarProps = PropsWithChildren<{
   color?: string;
   div?: boolean;
   highlight?: string;
+  transparent?: boolean;
 }> &
   ButtonHTMLAttributes<HTMLButtonElement> &
   Omit<LinkProps, 'to'>;
@@ -54,6 +55,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
       children,
       inexact = false,
       defaultRoute = false,
+      transparent = false,
       ...rest
     },
     ref
@@ -112,11 +114,14 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
         }}
         style={
           {
-            ...(hasHoverColor() && hover && !active
+            ...(hasHoverColor() && hover && !active && !transparent
               ? customHoverHiglightStyles()
               : null),
-            ...(hasHoverColor() && active
+            ...(hasHoverColor() && active && !transparent
               ? customActiveHiglightStyles()
+              : null),
+            ...((transparent && hover) || active
+              ? { backgroundColor: 'transparent' }
               : null),
           } as React.CSSProperties
         }
@@ -139,9 +144,10 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
           <div
             title={typeof children === 'string' ? children : undefined}
             className={cn(
-              'max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600',
+              'max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold ',
               isMobile ? 'line-clamp-1' : 'truncate',
-              actions && 'pr-4'
+              actions && 'pr-4',
+              !color ? 'text-gray-800 sm:text-gray-600' : color
             )}
           >
             {children}

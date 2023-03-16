@@ -48,7 +48,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
           >
             <div
               class="flex items-center justify-between"
@@ -172,7 +172,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
           >
             <span>
               <span
@@ -199,6 +199,7 @@ exports[`Sidebar > renders as expected 1`] = `
       </div>
       <div
         class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-600 bg-gray-100"
+        style="background-color: transparent;"
       >
         <a
           class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
@@ -224,7 +225,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
             title="Notifications"
           >
             Notifications
@@ -252,7 +253,7 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
           >
             <div
               class="flex items-center"
@@ -283,7 +284,7 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="max-w-full flex-1 text-left text-lg font-bold text-gray-800 sm:text-base sm:font-semibold sm:text-gray-600 truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-600"
             title="Create Group"
           >
             Create Group
