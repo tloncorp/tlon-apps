@@ -20,7 +20,6 @@ type SidebarProps = PropsWithChildren<{
   // the link's 'to' attribute
   inexact?: boolean;
   color?: string;
-  div?: boolean;
   highlight?: string;
   transparent?: boolean;
 }> &
@@ -43,7 +42,7 @@ function Action({
   return <button {...rest}>{children}</button>;
 }
 
-const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
+const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
   (
     {
       icon,

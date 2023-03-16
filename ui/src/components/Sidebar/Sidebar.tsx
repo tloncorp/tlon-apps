@@ -35,7 +35,6 @@ export function GroupsAppMenu() {
 
   return (
     <SidebarItem
-      div
       className={cn(
         menuOpen
           ? 'bg-gray-100 text-gray-800'
