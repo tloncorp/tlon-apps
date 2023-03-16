@@ -231,7 +231,7 @@ export default function useLeap() {
           if (app === 'Talk') {
             navigate(`/dm/${patp}`);
           } else {
-            modalNavigate(`/profile/${patp}`, {
+            modalNavigate(`/profile/${preSig(patp)}`, {
               state: { backgroundLocation: location },
             });
           }
