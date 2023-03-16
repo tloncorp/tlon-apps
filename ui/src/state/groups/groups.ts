@@ -963,6 +963,17 @@ export function useGroupName() {
   }, [name]);
 }
 
+export function useGroupShip() {
+  const { ship } = useParams();
+  return useMemo(() => {
+    if (!ship) {
+      return '';
+    }
+
+    return ship;
+  }, [ship]);
+}
+
 /**
  * Alias for useRouteGroup
  * @returns group flag - a string

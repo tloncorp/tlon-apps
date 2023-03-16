@@ -158,7 +158,7 @@ const GroupActions = React.memo(
             )}
             <DropdownMenu.Item
               className={
-              'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900'
+                'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900'
               }
               onSelect={onCopySelect}
             >

@@ -14,7 +14,7 @@ import {
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useGroupName } from '@/state/groups/groups';
+import { useGroupName, useGroupShip } from '@/state/groups/groups';
 import {
   useLureBait,
   lureEnableGroup,
@@ -49,6 +49,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const name = useGroupName();
+  const groupShip = useGroupShip();
   const [lureEnabled, setLureEnabled] = useLureEnabled(groupFlag);
   const [lureURL, checkLureURL] = useGroupInviteUrl(groupFlag);
   const [copyButtonLabel, setCopyButtonLabel] = useState('Copy');
@@ -174,11 +175,17 @@ export default function GroupInfoEditor({ title }: ViewProps) {
           </footer>
         </form>
       </FormProvider>
-      <div className={`card mb-4 ${lureBait === '' ? 'hidden' : 'visible'}`}>
+      <div
+        className={`card mb-4 ${
+          lureBait === '' || groupShip !== `~${window.ship}`
+            ? 'hidden'
+            : 'visible'
+        }`}
+      >
         <div className="flex flex-row">
           <label
             className={
-            'flex cursor-pointer items-start justify-between space-x-2 py-2'
+              'flex cursor-pointer items-start justify-between space-x-2 py-2'
             }
           >
             <div className="flex items-center">
