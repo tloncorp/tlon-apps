@@ -32,4 +32,6 @@
       diary-imports=imported
       wait=(list ship)
   ==
+::
++$  vita-enabled  ?
 --

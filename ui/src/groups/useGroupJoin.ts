@@ -6,9 +6,7 @@ import useHarkState from '@/state/hark';
 import { useGroup, useGroupState } from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
 import { Status } from '@/logic/status';
-import { isTalk } from '@/logic/utils';
 import useNavigateByApp from '@/logic/useNavigateByApp';
-import { useIsMobile } from '@/logic/useMedia';
 
 function getButtonText(
   privacy: PrivacyType,
@@ -39,7 +37,6 @@ export default function useGroupJoin(
   const [status, setStatus] = useState<Status>('initial');
   const [rejectStatus, setRejectStatus] = useState<Status>('initial');
   const location = useLocation();
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const navigateByApp = useNavigateByApp();
   const modalNavigate = useModalNavigate();
@@ -90,9 +87,6 @@ export default function useGroupJoin(
             `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}`
           );
         }
-        if (isMobile) {
-          return navigateByApp(`/groups/${flag}/channellist`);
-        }
         return navigateByApp(`/groups/${flag}`);
       } catch (e) {
         setStatus('error');
@@ -105,15 +99,7 @@ export default function useGroupJoin(
       }
     }
     return null;
-  }, [
-    privacy,
-    invited,
-    flag,
-    requested,
-    redirectItem,
-    navigateByApp,
-    isMobile,
-  ]);
+  }, [privacy, invited, flag, requested, redirectItem, navigateByApp]);
 
   const reject = useCallback(async () => {
     setRejectStatus('loading');

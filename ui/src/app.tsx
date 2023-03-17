@@ -78,6 +78,7 @@ import { useScheduler } from './state/scheduler';
 import chatmanifestURL from './assets/chatmanifest.json?url';
 import manifestURL from './assets/manifest.json?url';
 import { LeapProvider } from './components/Leap/useLeap';
+import VitaMessage from './components/VitaMessage';
 import { useGroups } from './state/groups';
 import Dialog, { DialogContent } from './components/Dialog';
 
@@ -583,6 +584,7 @@ function App() {
         )}
         <Leap />
       </LeapProvider>
+      <VitaMessage />
     </div>
   );
 }
