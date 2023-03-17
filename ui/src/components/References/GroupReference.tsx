@@ -101,7 +101,7 @@ function GroupReference({
   return (
     <div
       className={cn(
-        'not-prose relative flex max-w-[250px] items-center rounded-lg bg-white text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
+        'not-prose relative flex max-w-[250px] items-center rounded-lg bg-white text-base transition-colors group-one-hover:border-gray-100 group-one-hover:bg-white hover:border-gray-100 hover:bg-white',
         {
           'border-2 border-gray-50': !plain,
         }

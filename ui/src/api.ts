@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type UrbitMock from '@tloncorp/mock-http-api';
 import Urbit, {
   PokeInterface,
@@ -76,28 +77,25 @@ const api = {
   },
   async subscribe(params: SubscriptionRequestInterface) {
     const eventListener =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (listener?: (event: any, mark: string) => void) =>
+      (event: any, mark: string) => {
+        const { watchers, remove } = useSubscriptionState.getState();
+        const path = params.app + params.path;
+        const relevantWatchers = watchers[path];
 
-        (listener?: (event: any, mark: string) => void) =>
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (event: any, mark: string) => {
-          const { watchers, remove } = useSubscriptionState.getState();
-          const path = params.app + params.path;
-          const relevantWatchers = watchers[path];
+        if (relevantWatchers) {
+          relevantWatchers.forEach((w) => {
+            if (w.hook(event, mark)) {
+              w.resolve();
+              remove(path, w.id);
+            }
+          });
+        }
 
-          if (relevantWatchers) {
-            relevantWatchers.forEach((w) => {
-              if (w.hook(event, mark)) {
-                w.resolve();
-                remove(path, w.id);
-              }
-            });
-          }
-
-          if (listener) {
-            listener(event, mark);
-          }
-        };
+        if (listener) {
+          listener(event, mark);
+        }
+      };
 
     try {
       if (!client) {
