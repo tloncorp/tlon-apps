@@ -185,12 +185,29 @@ function ChatContent({
   const blockLength = story.block.length;
   const firstBlockCode = story.inline.findIndex(isBlockCode);
   const lastBlockCode = findLastIndex(story.inline, isBlockCode);
+  const blockContentImages = story.block.filter(isChatImage);
+  const blockContentNonImages = story.block.filter((b) => !isChatImage(b));
 
   return (
     <div className={cn('leading-6', className)}>
       {blockLength > 0 ? (
         <>
-          {story.block
+          {blockContentNonImages
+            .filter((a) => !!a)
+            .map((storyItem, index) => (
+              <div
+                key={`${storyItem.toString()}-${index}`}
+                className="flex flex-col"
+              >
+                <BlockContent
+                  story={storyItem}
+                  isScrolling={isScrolling}
+                  writId={writId}
+                  blockIndex={index}
+                />
+              </div>
+            ))}
+          {blockContentImages
             .filter((a) => !!a)
             .map((storyItem, index) => (
               <div
