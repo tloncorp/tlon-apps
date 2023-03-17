@@ -154,7 +154,7 @@ export default function MessagesSidebar() {
           New Message
         </SidebarItem>
       </div>
-      <div className="flex flex-1 flex-col overflow-y-auto px-2">
+      <div className="flex flex-1 flex-col overflow-y-auto">
         <MessagesScrollingContext.Provider value={isScrolling}>
           <MessagesList
             filter={messagesFilter}
@@ -162,19 +162,18 @@ export default function MessagesSidebar() {
             isScrolling={scroll.current}
           >
             {filteredPins && filteredPins.length > 0 ? (
-              <div className="mb-4">
-                <div className="flex h-10 items-center border-t-2 border-gray-50 p-2 pb-1">
-                  <h2 className="text-sm font-bold text-gray-400">
-                    Pinned Messages
-                  </h2>
-                </div>
+              <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 px-2 pb-1">
+                <h2 className="my-2 px-2 text-sm font-bold text-gray-400">
+                  Pinned Messages
+                </h2>
+
                 {filteredPins.map((ship: string) => (
                   <MessagesSidebarItem key={ship} whom={ship} />
                 ))}
               </div>
             ) : null}
 
-            <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1">
+            <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 px-4 pt-2 pb-1">
               <h2 className="text-sm font-bold text-gray-400">
                 {messagesFilter}
               </h2>

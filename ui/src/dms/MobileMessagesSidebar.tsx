@@ -65,26 +65,26 @@ export default function MobileMessagesSidebar() {
           </Link>
         </div>
       </header>
-      <nav className={cn('flex h-full w-full flex-col bg-white px-4')}>
+      <nav className={cn('flex h-full w-full flex-col bg-white')}>
         <MessagesScrollingContext.Provider value={isScrolling}>
           <MessagesList filter={messagesFilter} isScrolling={scroll.current}>
             {filteredPins && filteredPins.length > 0 ? (
-              <>
+              <div className="px-4">
                 <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
                   Pinned Messages
                 </h2>
                 {pinned.map((ship: string) => (
                   <MessagesSidebarItem key={ship} whom={ship} />
                 ))}
-              </>
+              </div>
             ) : null}
-            <div className="flex flex-row items-center justify-between">
+            <div className="flex flex-row items-center justify-between px-4">
               <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
                 {messagesFilter}
               </h2>
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger
-                  className={'default-focus mr-1 px-2'}
+                  className={'default-focus -mr-0.5 p-1'}
                   aria-label="Groups Filter Options"
                 >
                   <Filter16Icon className="h-4 w-4 text-gray-400" />

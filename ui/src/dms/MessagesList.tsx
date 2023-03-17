@@ -23,7 +23,11 @@ type MessagesListProps = PropsWithChildren<{
 }>;
 
 function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
-  return <MessagesSidebarItem key={whom} whom={whom} />;
+  return (
+    <div className="px-4 sm:px-2">
+      <MessagesSidebarItem key={whom} whom={whom} />
+    </div>
+  );
 }
 
 const computeItemKey = (_i: number, [whom, _brief]: [string, ChatBrief]) =>
