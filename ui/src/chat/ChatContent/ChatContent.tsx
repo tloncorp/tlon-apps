@@ -98,13 +98,7 @@ export function InlineContent({
   }
 
   if (isLink(story)) {
-    const containsProtocol = story.link.href.match(/https?:\/\//);
-    return (
-      <ChatEmbedContent
-        writId={writId}
-        url={containsProtocol ? story.link.href : `http://${story.link.href}`}
-      />
-    );
+    return <ChatEmbedContent writId={writId} url={story.link.href} />;
   }
 
   if (isBlockquote(story)) {
