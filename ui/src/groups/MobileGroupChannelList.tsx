@@ -27,7 +27,7 @@ export default function MobileGroupChannelList() {
           </h1>
         </Link>
 
-        <div className="flex flex-row items-center space-x-4 self-end">
+        <div className="flex flex-row items-center space-x-3 self-end">
           <ReconnectingSpinner />
           <ChannelSorter isMobile={true} />
           {isAdmin && (

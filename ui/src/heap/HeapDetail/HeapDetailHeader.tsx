@@ -92,15 +92,15 @@ export default function HeapDetailHeader({
           ) : null}
 
           <button
-            className="h-6 w-6 rounded p-1 text-gray-400 hover:bg-gray-50"
+            className="h-6 w-6 rounded text-gray-400 hover:bg-gray-50"
             aria-controls="copy"
             onClick={onCopy}
             aria-label="Copy Link"
           >
             {didCopy ? (
-              <CheckIcon className="h-4 w-4" />
+              <CheckIcon className="h-6 w-6" />
             ) : (
-              <CopyIcon className="h-4 w-4" />
+              <CopyIcon className="h-6 w-6" />
             )}
           </button>
         </div>

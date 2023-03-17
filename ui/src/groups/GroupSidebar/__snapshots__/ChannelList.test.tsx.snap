@@ -6,10 +6,10 @@ exports[`ChannelList > renders as expected 1`] = `
     class="h-full w-full flex-1 overflow-y-auto"
   >
     <div
-      class="border-gray-50 p-2 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2"
+      class="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3"
     >
       <h2
-        class="p-2 pb-0 text-sm font-bold text-gray-400"
+        class="px-2 pb-0 text-sm font-bold text-gray-400"
       >
         Arranged Channels
       </h2>
@@ -17,13 +17,13 @@ exports[`ChannelList > renders as expected 1`] = `
         aria-expanded="false"
         aria-haspopup="menu"
         aria-label="Groups Sort Options"
-        class="default-focus flex items-center rounded-lg p-1 text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen"
+        class="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
         data-state="closed"
         id="radix-0"
         type="button"
       >
         <svg
-          class="h-4 w-4 text-gray-400"
+          class="h-6 w-6 text-gray-400 sm:h-4 sm:w-4"
           fill="none"
           viewBox="0 0 24 24"
           xmlns="http://www.w3.org/2000/svg"

@@ -30,10 +30,10 @@ export default function SidebarSorter({
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
-        className="default-focus flex h-6 w-6 items-center rounded text-base font-semibold hover:bg-gray-50"
+        className="default-focus flex h-6 w-6 items-center rounded text-base font-semibold hover:bg-gray-50 sm:p-1"
         aria-label="Groups Sort Options"
       >
-        <SortIcon className="m-1 h-4 w-4 text-gray-400" />
+        <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
       </DropdownMenu.Trigger>
       <DropdownMenu.Content className="dropdown w-56">
         <DropdownMenu.Item

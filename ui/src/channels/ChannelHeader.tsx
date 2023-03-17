@@ -151,10 +151,10 @@ function ChannelActions({
       <Dropdown.Root open={dropdownIsOpen} onOpenChange={setDropdownIsOpen}>
         <Dropdown.Trigger asChild>
           <button
-            className="flex h-6 w-6 items-center justify-center rounded p-1  text-gray-400 hover:bg-gray-50"
+            className="flex h-6 w-6 items-center justify-center rounded  text-gray-400 hover:bg-gray-50"
             aria-label="Channel Options"
           >
-            <EllipsisIcon className="h-4 w-4" />
+            <EllipsisIcon className="h-6 w-6" />
           </button>
         </Dropdown.Trigger>
         <Dropdown.Content className="dropdown">
@@ -214,8 +214,8 @@ function HeapSortControls({
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
-        <button className="flex h-6 w-6 items-center justify-center rounded p-1 text-gray-400 hover:bg-gray-50 ">
-          <SortIcon className="h-4 w-4" />
+        <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-400 hover:bg-gray-50 ">
+          <SortIcon className="h-6 w-6" />
         </button>
       </Dropdown.Trigger>
       <Dropdown.Content className="dropdown">
@@ -249,8 +249,8 @@ function DiarySortControls({
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
-        <button className="flex h-6 w-6 items-center justify-center rounded p-1 text-gray-400 hover:bg-gray-50 ">
-          <SortIcon className="h-4 w-4" />
+        <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-400 hover:bg-gray-50 ">
+          <SortIcon className="h-6 w-6" />
         </button>
       </Dropdown.Trigger>
       <Dropdown.Content className="dropdown">
@@ -362,18 +362,18 @@ export default function ChannelHeader({
         </div>
         <span className="ellipsis line-clamp-1">{channel?.meta.title}</span>
       </BackButton>
-      <div className="flex shrink-0 flex-row items-center space-x-4 self-end">
+      <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
         {isMobile && <ReconnectingSpinner />}
         {showControls && displayMode && setDisplayMode && setSortMode ? (
           <>
             {children}
             <Dropdown.Root>
               <Dropdown.Trigger asChild>
-                <button className="flex h-6 w-6 items-center justify-center rounded p-1 text-gray-400 hover:bg-gray-50 ">
+                <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-50 ">
                   {displayMode === 'grid' ? (
-                    <GridIcon className="h-4 w-4 text-gray-400" />
+                    <GridIcon className="h-6 w-6 text-gray-400" />
                   ) : (
-                    <ListIcon className="h-4 w-4 text-gray-400" />
+                    <ListIcon className="h-6 w-6 text-gray-400" />
                   )}
                 </button>
               </Dropdown.Trigger>

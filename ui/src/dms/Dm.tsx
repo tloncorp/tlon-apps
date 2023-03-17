@@ -100,7 +100,7 @@ export default function Dm() {
                   </span>
                 </BackButton>
               </BackLink>
-              <div className="flex shrink-0 flex-row items-center space-x-4 self-end">
+              <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
                 {isMobile && <ReconnectingSpinner />}
                 {canStart ? (
                   <DmOptions

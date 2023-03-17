@@ -59,18 +59,18 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
     }
   }
   return (
-    <div className="border-gray-50 p-2 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2">
+    <div className="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3">
       {!isMobile && (
-        <h2 className="p-2 pb-0 text-sm font-bold text-gray-400">
+        <h2 className="px-2 pb-0 text-sm font-bold text-gray-400">
           {sortLabel()}
         </h2>
       )}
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          className="default-focus flex items-center rounded-lg p-1 text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen"
+          className="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
           aria-label="Groups Sort Options"
         >
-          <SortIcon className="h-4 w-4 text-gray-400" />
+          <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
         </DropdownMenu.Trigger>
 
         <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />

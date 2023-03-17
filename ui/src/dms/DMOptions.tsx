@@ -96,7 +96,7 @@ export default function DmOptions({
           <div className={cn('relative h-6 w-6', className)}>
             {!alwaysShowEllipsis && !isOpen && hasActivity ? (
               <BulletIcon
-                className="absolute m-0.5 h-5 w-5 text-gray-400 transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+                className="absolute h-6 w-6 text-gray-400 transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
                 aria-label="Has Activity"
               />
             ) : null}
@@ -108,7 +108,7 @@ export default function DmOptions({
               )}
               aria-label="Open Message Options"
             >
-              <EllipsisIcon className="m-1 h-4 w-4 text-inherit" />
+              <EllipsisIcon className="h-6 w-6 text-inherit" />
             </button>
           </div>
         </DropdownMenu.Trigger>

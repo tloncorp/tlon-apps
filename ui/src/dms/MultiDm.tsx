@@ -92,7 +92,7 @@ export default function MultiDm() {
                   </span>
                 </span>
               </BackButton>
-              <div className="flex shrink-0 flex-row items-center space-x-4 self-end">
+              <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
                 {isMobile && <ReconnectingSpinner />}
                 <DmOptions
                   whom={clubId}

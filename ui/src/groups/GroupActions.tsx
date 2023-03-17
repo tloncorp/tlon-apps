@@ -86,7 +86,7 @@ const GroupActions = React.memo(
               <div className="relative h-6 w-6">
                 {!isOpen && hasActivity ? (
                   <UnreadIndicator
-                    className="absolute m-0.5 h-5 w-5 text-gray-400 transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+                    className="absolute h-6 w-6 text-gray-400 transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
                     aria-label="Has Activity"
                   />
                 ) : null}
@@ -98,7 +98,7 @@ const GroupActions = React.memo(
                   )}
                   aria-label="Open Group Options"
                 >
-                  <EllipsisIcon className="h-4 w-4" />
+                  <EllipsisIcon className="h-6 w-6" />
                 </button>
               </div>
             )}
