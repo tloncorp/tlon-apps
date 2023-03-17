@@ -611,16 +611,6 @@ export default function useLeap() {
 
       const newScore = score;
 
-      // pinned charges are strong signals
-      // const isPinned = charge in pinnedCharges;
-      // if (isPinned) {
-      //  newScore += 10;
-      //  }
-      //  prefer unreads as well
-      //  const isUnread = isChannelUnread(charge);
-      //  if (isUnread) {
-      //  newScore += 5;
-      //  }
       return newScore;
     };
 
