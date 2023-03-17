@@ -78,7 +78,7 @@ export default function Notifications({
   const MarkAsRead = (
     <button
       disabled={isMarkReadPending || !hasUnreads}
-      className={cn('small-button whitespace-nowrap', {
+      className={cn('whitespace-nowrap', isMobile ? 'small-button' : 'button', {
         'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
         'bg-blue text-white': !isMarkReadPending && hasUnreads,
       })}
@@ -121,7 +121,7 @@ export default function Notifications({
             >
               <button
                 onClick={() => setShowMentionsOnly(false)}
-                className={cn('small-button rounded-r-none', {
+                className={cn('button rounded-r-none', {
                   'bg-gray-800 text-white': !showMentionsOnly,
                   'bg-white text-gray-800 ': showMentionsOnly,
                   'grow whitespace-nowrap': isMobile,
@@ -131,7 +131,7 @@ export default function Notifications({
               </button>
               <button
                 onClick={() => setShowMentionsOnly(true)}
-                className={cn('small-button rounded-l-none', {
+                className={cn('button rounded-l-none', {
                   'bg-gray-800 text-white': showMentionsOnly,
                   'bg-white text-gray-800': !showMentionsOnly,
                   'grow whitespace-nowrap': isMobile,

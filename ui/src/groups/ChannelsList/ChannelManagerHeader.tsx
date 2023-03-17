@@ -18,7 +18,7 @@ export default function ChannelManagerHeader({
   const isMobile = useIsMobile();
 
   return (
-    <div className="my-4 flex w-full flex-col items-center justify-between space-y-2 sm:flex-row sm:space-x-2">
+    <div className="my-4 flex w-full flex-col justify-between space-y-2 sm:flex-row sm:items-center sm:space-x-2">
       {isAdmin ? (
         <div className="mt-2 flex flex-row space-x-2 whitespace-nowrap">
           <button
@@ -34,7 +34,7 @@ export default function ChannelManagerHeader({
             to={`/groups/${flag}/channels/new`}
             state={{ backgroundLocation: location }}
             className={cn(
-              'bg-blue text-center',
+              'bg-blue-soft text-center text-blue',
               isMobile ? 'small-button' : 'button'
             )}
           >
