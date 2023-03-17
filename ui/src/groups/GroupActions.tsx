@@ -92,7 +92,7 @@ const GroupActions = React.memo(
                 ) : null}
                 <button
                   className={cn(
-                    'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 hover:opacity-100',
+                    'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
                     hasActivity && 'text-gray-400',
                     isOpen ? 'opacity:100' : 'opacity-0'
                   )}

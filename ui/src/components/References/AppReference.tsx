@@ -29,7 +29,7 @@ function AppReference({ flag, isScrolling }: AppReferenceProps) {
   }, [treaty, ship, isScrolling, deskId]);
 
   return (
-    <div className="relative flex items-center rounded-lg border-2 border-gray-50 text-base transition-colors group-one-hover:border-gray-100 group-one-hover:bg-white hover:border-gray-100 hover:bg-white">
+    <div className="relative flex items-center rounded-lg border-2 border-gray-50 text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white">
       {treaty ? (
         <div className="flex w-full flex-row flex-wrap items-center justify-between">
           <div className="flex items-center justify-start rounded-lg p-2 text-left">

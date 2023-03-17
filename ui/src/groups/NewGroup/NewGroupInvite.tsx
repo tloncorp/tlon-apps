@@ -48,7 +48,7 @@ function MemberRoleDropDownMenu({
         <DropdownMenu.Trigger asChild className="appearance-none">
           <button
             className={cn(
-              'default-focus text-md mx-2 flex items-center rounded-lg bg-gray-400 py-0.5 px-2 font-bold text-black mix-blend-multiply transition-opacity focus-within:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 hover:opacity-100 dark:mix-blend-screen'
+              'default-focus text-md mx-2 flex items-center rounded-lg bg-gray-400 py-0.5 px-2 font-bold text-black mix-blend-multiply transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 dark:mix-blend-screen'
             )}
             aria-label="Open Member Role Options"
           >

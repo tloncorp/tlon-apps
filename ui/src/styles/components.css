@@ -19,11 +19,11 @@
 }
 
 .icon-button {
-  @apply inline-flex h-6 w-6 items-center justify-center rounded-lg bg-gray-100 p-0 text-sm font-bold leading-4 text-gray-600 ring-gray-200 ring-offset-2 transition-colors focus:outline-none focus-visible:ring-2 disabled:text-gray-300 hover:bg-gray-50 sm:text-base;
+  @apply inline-flex h-6 w-6 items-center justify-center rounded-lg bg-gray-100 p-0 text-sm font-bold leading-4 text-gray-600 ring-gray-200 ring-offset-2 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 disabled:text-gray-300 sm:text-base;
 }
 
 .icon-toggle {
-  @apply inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white p-0 text-sm font-bold leading-4 text-gray-400 ring-gray-200 ring-offset-2 transition-colors focus:outline-none focus-visible:ring-2 disabled:text-gray-200 hover:bg-gray-50 sm:text-base;
+  @apply inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white p-0 text-sm font-bold leading-4 text-gray-400 ring-gray-200 ring-offset-2 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 disabled:text-gray-200 sm:text-base;
 }
 
 .icon-toggle-active {
@@ -97,7 +97,7 @@
 }
 
 .dropdown-item {
-  @apply cursor-pointer rounded p-4 ring-gray-200 focus:outline-none hover:bg-gray-50;
+  @apply cursor-pointer rounded p-4 ring-gray-200 hover:bg-gray-50 focus:outline-none;
 }
 
 .dropdown-item-icon {
@@ -155,5 +155,5 @@
 }
 
 .small-menu-button {
-  @apply w-full rounded bg-transparent p-2 text-left font-semibold ring-gray-200 focus:outline-none focus-visible:ring-2 hover:bg-gray-50;
+  @apply w-full rounded bg-transparent p-2 text-left font-semibold ring-gray-200 hover:bg-gray-50 focus:outline-none focus-visible:ring-2;
 }
