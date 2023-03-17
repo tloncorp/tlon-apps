@@ -59,15 +59,11 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
     }
   }
   return (
-    <div
-      className={cn(
-        isMobile
-          ? ''
-          : 'flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1'
-      )}
-    >
+    <div className="border-gray-50 p-2 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2">
       {!isMobile && (
-        <h2 className="text-sm font-bold text-gray-400">{sortLabel()}</h2>
+        <h2 className="p-2 pb-0 text-sm font-bold text-gray-400">
+          {sortLabel()}
+        </h2>
       )}
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
@@ -193,14 +189,9 @@ export default function ChannelList({ className }: ChannelListProps) {
   );
 
   return (
-    <div
-      className={cn(
-        'h-full w-full flex-1 overflow-y-auto',
-        isMobile ? 'px-4' : 'px-2'
-      )}
-    >
+    <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
       {!isMobile && <ChannelSorter isMobile={false} />}
-      <div className={cn('space-y-0.5')}>
+      <div className="mx-2 space-y-0.5">
         {isMobile && (
           <SidebarItem
             icon={

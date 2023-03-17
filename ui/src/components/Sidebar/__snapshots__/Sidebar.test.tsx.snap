@@ -292,7 +292,7 @@ exports[`Sidebar > renders as expected 1`] = `
       </div>
     </div>
     <div
-      class="flex-auto space-y-3 overflow-x-hidden px-2 sm:space-y-1"
+      class="flex-auto space-y-3 overflow-x-hidden sm:space-y-1"
     >
       <ul
         class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"

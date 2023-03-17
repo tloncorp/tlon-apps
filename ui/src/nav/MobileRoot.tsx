@@ -53,7 +53,7 @@ export default function MobileRoot() {
         </div>
       </header>
 
-      <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden px-4">
+      <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
         <div className="flex-1">
           <GroupsScrollingContext.Provider value={isScrolling}>
             <GroupList
@@ -62,21 +62,23 @@ export default function MobileRoot() {
               isScrolling={scroll.current}
             >
               {Object.entries(pinnedGroups).length > 0 && (
-                <>
+                <div className="px-4">
                   <h2 className="mb-0.5 p-2 text-lg font-bold text-gray-400">
                     Pinned Groups
                   </h2>
                   {pinnedGroupsOptions}
-                </>
+                </div>
               )}
 
-              <h2 className="my-2 p-2 text-lg font-bold text-gray-400">
+              <h2 className="my-2 ml-2 p-2 pl-4 text-lg font-bold text-gray-400">
                 All Groups
               </h2>
 
-              {gangs.map((flag) => (
-                <GangItem key={flag} flag={flag} />
-              ))}
+              <div className="px-4">
+                {gangs.map((flag) => (
+                  <GangItem key={flag} flag={flag} />
+                ))}
+              </div>
             </GroupList>
           </GroupsScrollingContext.Provider>
         </div>

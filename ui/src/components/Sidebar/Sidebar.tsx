@@ -190,7 +190,7 @@ export default function Sidebar() {
           Create Group
         </SidebarItem>
       </div>
-      <div className="flex-auto space-y-3 overflow-x-hidden px-2 sm:space-y-1">
+      <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
         <GroupsScrollingContext.Provider value={isScrolling}>
           <GroupList
             groups={sortedGroups}
@@ -199,21 +199,19 @@ export default function Sidebar() {
             atTopChange={atTopChange}
           >
             {Object.entries(pinnedGroups).length > 0 && (
-              <div className="mb-4">
-                <div className="flex h-10 items-center border-t-2 border-gray-50 p-2 pb-1">
-                  <h2 className="text-sm font-bold text-gray-400">
-                    Pinned Groups
-                  </h2>
-                </div>
+              <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
+                <h2 className="p-2 text-sm font-bold text-gray-400">
+                  Pinned Groups
+                </h2>
                 {pinnedGroupsOptions}
               </div>
             )}
             <div ref={ref} className="flex-initial">
               <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1">
-                <h2 className="text-sm font-bold text-gray-400">
+                <h2 className="px-2 text-sm font-bold text-gray-400">
                   {sortFn === 'A → Z' ? 'Groups A → Z' : 'Recent Activity'}
                 </h2>
-                <div>
+                <div className="pr-1">
                   <SidebarSorter
                     sortFn={sortFn}
                     setSortFn={setSortFn}

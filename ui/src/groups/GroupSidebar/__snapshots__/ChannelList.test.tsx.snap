@@ -3,13 +3,13 @@
 exports[`ChannelList > renders as expected 1`] = `
 <DocumentFragment>
   <div
-    class="h-full w-full flex-1 overflow-y-auto px-2"
+    class="h-full w-full flex-1 overflow-y-auto"
   >
     <div
-      class="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1"
+      class="border-gray-50 p-2 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2"
     >
       <h2
-        class="text-sm font-bold text-gray-400"
+        class="p-2 pb-0 text-sm font-bold text-gray-400"
       >
         Arranged Channels
       </h2>
@@ -38,7 +38,7 @@ exports[`ChannelList > renders as expected 1`] = `
       </button>
     </div>
     <div
-      class="space-y-0.5"
+      class="mx-2 space-y-0.5"
     />
   </div>
 </DocumentFragment>
