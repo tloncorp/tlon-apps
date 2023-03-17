@@ -477,6 +477,12 @@ function App() {
     })();
   }, [handleError]);
 
+  useEffect(() => {
+    if (window.bootstrapApi) {
+      bootstrap();
+    }
+  }, []);
+
   const state = location.state as { backgroundLocation?: Location } | null;
 
   useConnectionChecker();
