@@ -118,42 +118,37 @@
   ::
   ++  pub
     |%
-    ++  news  |=(l=log (give %fact [/logs ~] %contact-log !>(l)))
-    ++  init  |=(u=update (give %fact ~ %contact-update-0 !>(u)))
+    ++  news
+      |=(n=^news (give %fact [/news ~] %contact-news !>(n)))
     ::
     ++  diff
       |=  u=update  ::  XX scrape thru paths
       (give %fact [/contact ~] %contact-update-0 !>(u))
     ::
-    ++  join
+    ++  init
+      =>  |%
+          ++  fact
+            |=(u=update (give %fact ~ %contact-update-0 !>(u)))
+          --
+      ::
       |=  wen=(unit @da)
       ^+  cor
       ?~  rof  cor
+      ::  XX reject subscriptions for future dates?
+      ::
       ?-  -.rof
         %gon  ?:  &(?=(^ wen) (lte wen.rof u.wen))
                 cor
-              (init %del wen.rof)
+              (fact %del wen.rof)
       ::
         %hav  ?:  &(?=(^ wen) (lte last-updated.con.rof u.wen))
                 cor
-              (init %set con.rof)
+              (fact %set con.rof)
       ==
     --
   ::
   ++  sub
     |_  who=ship
-    ::
-    ++  have   (~(has by wex.bowl) [/contact who dap.bowl])
-    ::
-    ++  heed
-      ^+  cor
-      ?:  |(=(our.bowl who) have)  :: XX skip comets? moons?
-        cor
-      =/  pat=path
-        :-  %contact
-        ?~  con=(~(get by rol) who)  /     :: XX check deletion state
-        /at/(scot %da last-updated.u.con)
-      (pass /contact %agent [who dap.bowl] %watch pat) ::  XX track subscription state
     ::
     ++  hear
       |=  u=update
@@ -171,7 +166,23 @@
         (news:pub(rol (~(del by rol) src.bowl)) src.bowl ~) :: XX track deletion state
       ==
     ::
-    ++  snub   :: XX path?, track state
+    ++  have   (~(has by wex.bowl) [/contact who dap.bowl])
+    ::
+    ++  meet  cor :: XX track state, don't subscribe
+    ::
+    ++  heed
+      ^+  cor
+      ?:  |(=(our.bowl who) have)  :: XX skip comets? moons?
+        cor
+      =/  pat=path
+        :-  %contact
+        ?~  con=(~(get by rol) who)  /     :: XX check deletion state
+        /at/(scot %da last-updated.u.con)
+      (pass /contact %agent [who dap.bowl] %watch pat) ::  XX track subscription state
+    ::
+    ++  drop  cor  :: XX delete & unsubscribe
+    ::
+    ++  snub   :: XX path?, track subscription state
       ?:  |(=(our.bowl who) !have)
         cor
       (pass /contact %agent [who dap.bowl] %leave ~)
@@ -214,7 +225,7 @@
         ?(%contact-action %contact-action-0)
       =/  act  !<(action vase)
       ?-  -.act
-        %drop  ?.  ?=([%hav *] rof)
+        %anon  ?.  ?=([%hav *] rof)
                  cor
                =/  wen=@da  (mono last-updated.con.rof now.bowl)
                (diff:pub(rof [%gon wen]) %del wen)
@@ -225,8 +236,10 @@
                =.  last-updated.u.new  (mono last-updated.u.new now.bowl)
                (diff:pub(rof [%hav u.new]) %set u.new)
       ::
-        %heed  ~(heed sub ship.act)
-        %snub  ~(snub sub ship.act)
+        %meet  (roll p.act |=([who=@p acc=_cor] ~(meet sub:acc who)))
+        %heed  (roll p.act |=([who=@p acc=_cor] ~(heed sub:acc who)))
+        %drop  (roll p.act |=([who=@p acc=_cor] ~(drop sub:acc who)))
+        %snub  (roll p.act |=([who=@p acc=_cor] ~(snub sub:acc who)))
       ==
     ==
   ::
@@ -254,9 +267,9 @@
     |=  pat=(pole knot)
     ^+  cor
     ?+  pat  ~|(bad-watch-path+pat !!)
-      [%contacts %at wen=@ ~]  (join:pub `(slav %da wen.pat))
-      [%contacts ~]            (join:pub ~)
-      [%logs ~]                cor
+      [%contacts %at wen=@ ~]  (init:pub `(slav %da wen.pat))
+      [%contacts ~]  (init:pub ~)
+      [%news ~]  ~|(local-news+src.bowl ?>(=(our src):bowl cor))
     ==
   ::
   ++  agent
@@ -265,15 +278,13 @@
     ?+  wire  ~|(evil-agent+wire !!)
         [%contact ~]
       ?-  -.sign
-          %poke-ack   ~|(strange-poke-ack+wire !!)
-          %watch-ack  cor :: XX handle
-          %kick       ~(heed sub src.bowl)
-          %fact
-        ?+    p.cage.sign  ~!(fake-news+p.cage.sign !!)
-            ?(%contact-update %contact-update-0)
-          (~(hear sub src.bowl) !<(update q.cage.sign))
-        ==
-      ==
+        %poke-ack   ~|(strange-poke-ack+wire !!)
+        %watch-ack  cor :: XX handle
+        %kick       ~(heed sub src.bowl)
+        %fact       ?+    p.cage.sign  ~!(fake-news+p.cage.sign !!)
+                        ?(%contact-update %contact-update-0)
+                      (~(hear sub src.bowl) !<(update q.cage.sign))
+      ==            ==
     ==
   --
 --

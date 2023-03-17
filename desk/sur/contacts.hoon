@@ -25,10 +25,19 @@
   ==
 ::
 +$  action
-  $%  [%drop ~]
+  ::  %anon: delete our profile
+  ::  %edit: change our profile
+  ::  %meet: track a peer
+  ::  %heed: follow a peer
+  ::  %drop: discard a peer
+  ::  %snub: unfollow a peer
+  ::
+  $%  [%anon ~]
       [%edit p=(list field)]
-      [%heed =ship]  :: XX list?
-      [%snub =ship]  :: XX list?
+      [%meet p=(list ship)]
+      [%heed p=(list ship)]
+      [%drop p=(list ship)]
+      [%snub p=(list ship)]
   ==
 ::
 +$  update                ::  network
@@ -36,6 +45,6 @@
       [%del wen=@da]
   ==
 ::
-+$  log                   ::  local
++$  news                  ::  local
   (pair ship (unit contact))
 --

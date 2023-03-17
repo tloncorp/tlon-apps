@@ -15,10 +15,12 @@
     ^-  json
     %+  frond  -.a
     ?-  -.a
-      %drop  ~
+      %anon  ~
       %edit  a+(turn p.a field)
-      %heed  (ship ship.a)
-      %snub  (ship ship.a)
+      %meet  a+(turn p.a ship)
+      %heed  a+(turn p.a ship)
+      %drop  a+(turn p.a ship)
+      %snub  a+(turn p.a ship)
     ==
   ::
   ++  contact
@@ -71,12 +73,12 @@
       %del  (time wen.u)
     ==
   ::
-  ++  log
-    |=  l=log:c
+  ++  news
+    |=  n=news:c
     ^-  json
     %-  pairs
-    :~  who+(ship p.l)
-        con+?~(q.l ~ (contact u.q.l))
+    :~  who+(ship p.n)
+        con+?~(q.n ~ (contact u.q.n))
     ==
   --
 ::
@@ -86,10 +88,12 @@
   ++  action
     ^-  $-(json action:c)
     %-  of
-    :~  drop+ul
+    :~  anon+ul
         edit+(ar field)
-        heed+(se %p)
-        snub+(se %p)
+        meet+(ar (se %p))
+        heed+(ar (se %p))
+        drop+(ar (se %p))
+        snub+(ar (se %p))
     ==
   ::
   ++  contact
