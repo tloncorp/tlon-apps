@@ -5,13 +5,61 @@
 +$  card     card:agent:gall
 +$  profile  ?(~ $%([%gon wen=@da] [%hav con=contact]))
 +$  state-0  [%0 rol=rolodex rof=profile]
-::
-+$  versioned-state
-  $%  state-0
-  ==
 --
 ::
+%-  agent:dbug
+%+  verb  &
+^-  agent:gall
+=|  state-0
+=*  state  -
+::
+=<  |_  =bowl:gall
+    +*  this  .
+        def   ~(. (default-agent this %|) bowl)
+        cor   ~(. raw bowl)
+    ::
+    ++  on-init
+      ^-  (quip card _this)
+      =^  cards  state  abet:init:cor
+      [cards this]
+    ::
+    ++  on-save  !>(state)
+    ::
+    ++  on-load
+      |=  old=vase
+      ^-  (quip card _this)
+      =^  cards  state  abet:(load:cor old)
+      [cards this]
+    ::
+    ++  on-watch
+      |=  =path
+      ^-  (quip card _this)
+      =^  cards  state  abet:(peer:cor path)
+      [cards this]
+    ::
+    ++  on-poke
+      |=  [=mark =vase]
+      ^-  (quip card _this)
+      =^  cards  state  abet:(poke:cor mark vase)
+      [cards this]
+    ::
+    ++  on-peek   peek:cor
+    ++  on-leave  on-leave:def
+    ::
+    ++  on-agent
+      |=  [=wire =sign:agent:gall]
+      ^-  (quip card _this)
+      =^  cards  state  abet:(agent:cor wire sign)
+      [cards this]
+    ::
+    ++  on-arvo   on-arvo:def
+    ++  on-fail   on-fail:def
+    --
+::
 |%
+::
++|  %help
+::
 ++  do-edit
   |=  [c=contact f=field]
   ^+  c
@@ -50,168 +98,182 @@
   ?:  (lth old new)  new
   (add old ^~((div ~s1 (bex 16))))
 ::
-++  give-log
-  |=  l=log
-  ^-  card
-  [%give %fact [/logs ~] %contact-log !>(l)]
++|  %state
 ::
-++  give-update
-  |=  u=update
-  ^-  card
-  [%give %fact [/contact ~] %contact-update-0 !>(u)]
---
+::    namespaced to avoid accidental direct reference
 ::
-=|  state-0
-=*  state  -
-%-  agent:dbug
-%+  verb  &
-^-  agent:gall
-|_  =bowl:gall
-+*  this  .
-    def   ~(. (default-agent this %|) bowl)
-::
-++  on-init
-  ?.  .^(? gu+/=contact-store=)
-    `this
-  =/  ful  .^(rolodex gx+/=contact-store=/all/noun)
-  =/  old  (~(get by ful) our.bowl)
-  ?:  |(?=(~ old) =(*@da last-updated.u.old))
-    `this
-  [~ this(rof [%hav u.old])]
-::
-++  on-save  !>(state)
-::
-++  on-load
-  |=  old-vase=vase
-  ^-  (quip card _this)
-  =/  old  !<(versioned-state old-vase)
-  ?-  -.old
-    %0  [~ this(state old)]
-  ==
-::
-++  on-watch
-  |=  pat=(pole knot)
-  ^-  (quip card _this)
-  :_  this
-  ?+    pat  ~|(bad-watch-path+pat !!)
-      [%contacts %at wen=@ ~]
-    =/  wen  (slav %da wen.pat)
-    ?~  rof  ~
-    ?-  -.rof
-      %gon  ?:((lte wen.rof wen) ~ [(give-update %del wen.rof) ~])
-      %hav  ?:((lte last-updated.con.rof wen) ~ [(give-update %set con.rof) ~])
-    ==
+++  raw
+  =|  out=(list card)
+  |_  =bowl:gall
   ::
-      [%contacts ~]
-    ?~  rof  ~
-    ?-  -.rof
-      %gon  [(give-update %del wen.rof) ~]
-      %hav  [(give-update %set con.rof) ~]
-    ==
+  +|  %generic
   ::
-      [%logs ~]  ~
-  ==
-::
-++  on-poke
-  |=  [=mark =vase]
-  ^-  (quip card _this)
-  ?>  (team:title our.bowl src.bowl)
-  ?+  mark  (on-poke:def mark vase)
-      ?(%contact-action %contact-action-0)
-    =/  act  !<(action vase)
-    ?-  -.act
-      %drop  ?.  ?=([%hav *] rof)
-               [~ this]
-             :-  [(give-update %del now.bowl) ~]  :: XX debounce?
-             this(rof [%gon now.bowl])
-    ::
-      %edit  ?~  new=(do-edits ?.(?=([%hav *] rof) *contact con.rof) p.act)
-               [~ this]
-              =.  last-updated.u.new  (mono last-updated.u.new now.bowl)
-              :_  this(rof [%hav u.new])
-              [(give-update %set u.new) ~]  :: XX debounce?
-    ::
-      %heed  ?:  ?|  =(our.bowl ship.act) :: XX skip comets? moons?
-                     (~(has by wex.bowl) [/contact ship.act dap.bowl])
-                 ==
-               [~ this]
-             :_  this       ::  XX track state
-             [%pass /contact %agent [ship.act dap.bowl] %watch /contact]~ :: XX watch at
-    ::
-      %snub  ?:  ?|  =(our.bowl ship.act)
-                     !(~(has by wex.bowl) [/contact ship.act dap.bowl])
-                 ==
-               [~ this]
-             :_  this       ::  XX track state
-             [%pass /contact %agent [ship.act dap.bowl] %leave ~]~
-    ==
-  ==
-::
-++  on-peek
-  |=  =path
-  ^-  (unit (unit cage))
-  ?+    path  (on-peek:def path)
-      [%x %all ~]
-    =/  lor=rolodex
-      ?.(?=([%hav *] rof) rol (~(put by rol) our.bowl con.rof))
-    ``noun+!>(lor)
+  ++  abet  [(flop out) state]
+  ++  cor   .
+  ++  emit  |=(c=card cor(out [c out]))
+  ++  give  |=(=gift:agent:gall (emit %give gift))
+  ++  pass  |=([=wire =note:agent:gall] (emit %pass wire note))
   ::
-      [%x %contact @ ~]
-    ?~  who=`(unit @p)`(slaw %p i.t.t.path)
-      [~ ~]
-    =/  tac=(unit contact)
-      ?:  =(our.bowl u.who)
-        ?.(?=([%hav *] rof) ~ `con.rof)
-      (~(get by rol) u.who)
-    ?~  tac  [~ ~]
-    ``[%contact !>(u.tac)]
-  ==
-::
-++  on-leave  on-leave:def
-::
-++  on-agent
-  |=  [=wire =sign:agent:gall]
-  ^-  (quip card _this)
-  ?+  wire  ~|(evil-agent+wire !!)
-      [%contact ~]
-    ?-  -.sign
-        %poke-ack   [~ this]
-        %watch-ack  [~ this]
-        %fact
-      ?+    p.cage.sign  ~!(fake-news+p.cage.sign !!)
-          ?(%contact-update %contact-update-0)
-        =/  dat  !<(update q.cage.sign)
-        ?-    -.dat
-            %set
-          =/  con  (~(get by rol) src.bowl)
-          ?.  ?|  ?=(~ con)
-                  (gth last-updated.c.dat last-updated.u.con)
-              ==
-            [~ this]
-          :-  [(give-log src.bowl `c.dat) ~]
-          this(rol (~(put by rol) src.bowl c.dat))
-        ::
-            %del
-          =/  con  (~(get by rol) src.bowl)
-          ?.  ?|  ?=(~ con)
-                  (gth wen.dat last-updated.u.con)
-              ==
-            [~ this]
-          :-  [(give-log src.bowl ~) ~]
-          this(rol (~(del by rol) src.bowl)) :: XX track deletion state
-        ==
+  +|  %operations
+  ::
+  ++  pub
+    |%
+    ++  news  |=(l=log (give %fact [/logs ~] %contact-log !>(l)))
+    ++  init  |=(u=update (give %fact ~ %contact-update-0 !>(u)))
+    ::
+    ++  diff
+      |=  u=update  ::  XX scrape thru paths
+      (give %fact [/contact ~] %contact-update-0 !>(u))
+    ::
+    ++  join
+      |=  wen=(unit @da)
+      ^+  cor
+      ?~  rof  cor
+      ?-  -.rof
+        %gon  ?:  &(?=(^ wen) (lte wen.rof u.wen))
+                cor
+              (init %del wen.rof)
+      ::
+        %hav  ?:  &(?=(^ wen) (lte last-updated.con.rof u.wen))
+                cor
+              (init %set con.rof)
+      ==
+    --
+  ::
+  ++  sub
+    |_  who=ship
+    ::
+    ++  have   (~(has by wex.bowl) [/contact who dap.bowl])
+    ::
+    ++  heed
+      ^+  cor
+      ?:  |(=(our.bowl who) have)  :: XX skip comets? moons?
+        cor
+      =/  pat=path
+        :-  %contact
+        ?~  con=(~(get by rol) who)  /     :: XX check deletion state
+        /at/(scot %da last-updated.u.con)
+      (pass /contact %agent [who dap.bowl] %watch pat) ::  XX track subscription state
+    ::
+    ++  hear
+      |=  u=update
+      ^+  cor
+      =/  con  (~(get by rol) who)
+      ?-    -.u
+          %set
+        ?.  |(?=(~ con) (gth last-updated.c.u last-updated.u.con))
+          cor
+        (news:pub(rol (~(put by rol) who c.u)) who `c.u)
+      ::
+          %del
+        ?.  |(?=(~ con) (gth wen.u last-updated.u.con))
+          cor
+        (news:pub(rol (~(del by rol) src.bowl)) src.bowl ~) :: XX track deletion state
       ==
     ::
-        %kick
-      =/  pat=path
-        ?~  con=(~(get by rol) src.bowl)     :: XX check deletion state
-          /contact
-        /contact/at/(scot %da last-updated.u.con)
-      :_  this                               ::  XX track subscription state
-      [%pass /contact %agent [src.bowl dap.bowl] %watch pat]~
+    ++  snub   :: XX path?, track state
+      ?:  |(=(our.bowl who) !have)
+        cor
+      (pass /contact %agent [who dap.bowl] %leave ~)
+    --
+  ::
+  ++  migrate
+    ^+  cor
+    ?.  .^(? gu+/=contact-store=)
+      cor
+    =/  ful  .^(rolodex gx+/=contact-store=/all/noun)
+    =/  old  (~(get by ful) our.bowl)
+    ::  XX migrate all
+    ::
+    ?:  |(?=(~ old) =(*@da last-updated.u.old))
+      cor
+    cor(rof [%hav u.old])
+  ::
+  +|  %implementation
+  ::
+  ++  init  migrate
+  ::
+  ++  load
+    |=  old-vase=vase
+    ^+  cor
+    |^  =/  old  !<(versioned-state old-vase)
+        ?-  -.old
+          %0  cor(state old)
+        ==
+    ::
+    +$  versioned-state
+      $%  state-0
+      ==
+    --
+  ::
+  ++  poke
+    |=  [=mark =vase]
+    ^+  cor
+    ?>  (team:title our.bowl src.bowl)
+    ?+    mark  ~|(bad-mark+mark !!)
+        ?(%contact-action %contact-action-0)
+      =/  act  !<(action vase)
+      ?-  -.act
+        %drop  ?.  ?=([%hav *] rof)
+                 cor
+               =/  wen=@da  (mono last-updated.con.rof now.bowl)
+               (diff:pub(rof [%gon wen]) %del wen)
+      ::
+        %edit   =*  old  ?.(?=([%hav *] rof) *contact con.rof)
+                ?~  new=(do-edits old p.act)
+                 cor
+               =.  last-updated.u.new  (mono last-updated.u.new now.bowl)
+               (diff:pub(rof [%hav u.new]) %set u.new)
+      ::
+        %heed  ~(heed sub ship.act)
+        %snub  ~(snub sub ship.act)
+      ==
     ==
-  ==
-::
-++  on-arvo   on-arvo:def
-++  on-fail   on-fail:def
+  ::
+  ++  peek
+    |=  pat=(pole knot)
+    ^-  (unit (unit cage))
+    ?+    pat  [~ ~]
+        [%x %all ~]
+      =/  lor=rolodex
+        ?.(?=([%hav *] rof) rol (~(put by rol) our.bowl con.rof))
+      ``noun+!>(lor)
+    ::
+        [%x %contact her=@ ~]
+      ?~  who=`(unit @p)`(slaw %p her.pat)
+        [~ ~]
+      =/  tac=(unit contact)
+        ?:  =(our.bowl u.who)
+          ?.(?=([%hav *] rof) ~ `con.rof)
+        (~(get by rol) u.who)
+      ?~  tac  [~ ~]
+      ``[%contact !>(u.tac)]
+    ==
+  ::
+  ++  peer
+    |=  pat=(pole knot)
+    ^+  cor
+    ?+  pat  ~|(bad-watch-path+pat !!)
+      [%contacts %at wen=@ ~]  (join:pub `(slav %da wen.pat))
+      [%contacts ~]            (join:pub ~)
+      [%logs ~]                cor
+    ==
+  ::
+  ++  agent
+    |=  [=wire =sign:agent:gall]
+    ^+  cor
+    ?+  wire  ~|(evil-agent+wire !!)
+        [%contact ~]
+      ?-  -.sign
+          %poke-ack   ~|(strange-poke-ack+wire !!)
+          %watch-ack  cor :: XX handle
+          %kick       ~(heed sub src.bowl)
+          %fact
+        ?+    p.cage.sign  ~!(fake-news+p.cage.sign !!)
+            ?(%contact-update %contact-update-0)
+          (~(hear sub src.bowl) !<(update q.cage.sign))
+        ==
+      ==
+    ==
+  --
 --
