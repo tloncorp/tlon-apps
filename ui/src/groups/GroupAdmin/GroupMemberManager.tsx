@@ -14,6 +14,8 @@ import { useGroup, useRouteGroup } from '@/state/groups/groups';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import { useAmAdmin } from '@/state/groups';
 import { getPrivacyFromGroup } from '@/logic/utils';
+import InviteIcon16 from '@/components/icons/InviteIcon16';
+import { useIsMobile } from '@/logic/useMedia';
 import MemberScroller from './MemberScroller';
 
 export default function GroupMemberManager() {
@@ -23,6 +25,7 @@ export default function GroupMemberManager() {
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
   const amAdmin = useAmAdmin(flag);
+  const isMobile = useIsMobile();
   const privacy = group ? getPrivacyFromGroup(group) : 'public';
   const members = useMemo(() => {
     if (!group) {
@@ -86,9 +89,9 @@ export default function GroupMemberManager() {
           <Link
             to={`/groups/${flag}/invite`}
             state={{ backgroundLocation: location }}
-            className="button bg-blue dark:text-black"
+            className="button bg-blue px-2 dark:text-black sm:px-4"
           >
-            Invite
+            {isMobile ? <InviteIcon16 className="h-5 w-5" /> : 'Invite'}
           </Link>
         )}
 
@@ -98,7 +101,7 @@ export default function GroupMemberManager() {
             <MagnifyingGlass16Icon className="h-4 w-4" />
           </span>
           <input
-            className="input h-10 w-[260px] bg-gray-50 pl-7 text-sm mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
+            className="input h-10 w-[240px] bg-gray-50 pl-7 text-sm mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
             placeholder={`Filter Members (${members.length} total)`}
             value={rawInput}
             onChange={onChange}
