@@ -90,7 +90,7 @@ export default function App() {
         <Text style={tailwind('text-center text-xl')}>
           Your are offline. Please connect to the internet and try again.
         </Text>
-        <StatusBar translucent />
+        <StatusBar backgroundColor="white" barStyle="dark-content" />
       </SafeAreaView>
     );
   }
@@ -106,6 +106,7 @@ export default function App() {
       ) : (
         <WebApp />
       )}
+      <StatusBar backgroundColor="white" barStyle="dark-content" />
     </SafeAreaView>
   );
 }
