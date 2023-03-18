@@ -1,7 +1,19 @@
-/-  *contacts
+/-  *contacts, e=epic
 /+  default-agent, dbug, verb
 ::
 |%
+++  okay  `epic:e`0
+++  mar
+  |%
+  ++  base
+    |%
+    +$  act  %contact-action
+    +$  upd  %contact-update
+    --
+  ++  act  `mark`^~((rap 3 *act:base '-' (scot %ud okay) ~))
+  ++  upd  `mark`^~((rap 3 *upd:base '-' (scot %ud okay) ~))
+  --
+::
 +$  card     card:agent:gall
 +$  profile  ?(~ $%([%gon wen=@da] [%hav con=contact]))
 +$  state-0  [%0 rol=rolodex rof=profile]
@@ -23,9 +35,10 @@
       =^  cards  state  abet:init:cor
       [cards this]
     ::
-    ++  on-save  !>(state)
+    ++  on-save  !>([state okay])
     ::
     ++  on-load
+      :: =-  _`this
       |=  old=vase
       ^-  (quip card _this)
       =^  cards  state  abet:(load:cor old)
@@ -186,6 +199,34 @@
       ?:  |(=(our.bowl who) !have)
         cor
       (pass /contact %agent [who dap.bowl] %leave ~)
+    ::
+    ++  odd
+      |=  =mark
+      =*  upd  *upd:base:mar
+      =*  wid  ^~((met 3 upd))
+      ?.  =(upd (end [3 wid] mark))
+        ~|(fake-news+mark !!)
+      ~|  bad-update-mark+mark
+      =/  cool  (slav %ud (rsh 3^+(wid) mark))
+      ?>  (gth cool okay)
+      ::  XX set sub state to %dex
+      ::
+      peer:epic(cor snub)
+    ::
+    ++  epic
+      |%
+      ++  take
+        |=  =epic:e
+        ::  XX unsub from /epic
+        ::  XX switch on sub state, do the needful
+        ::  - %dex -> %dex
+        ::  - %lev -> %chi | %lev
+        ::  - %chi -> %dex
+        !!
+      ::
+      ++  peer
+        (pass /epic %agent [who dap.bowl] %watch /epic)
+      --
     --
   ::
   ++  migrate
@@ -207,10 +248,16 @@
   ++  load
     |=  old-vase=vase
     ^+  cor
-    |^  =/  old  !<(versioned-state old-vase)
-        ?-  -.old
-          %0  cor(state old)
-        ==
+    |^  =+  !<([old=versioned-state cool=epic:e] old-vase)
+        =.  state
+          ?-  -.old
+            %0  old
+          ==
+        ?>  (gte okay cool)
+        ?:  =(okay cool)  cor
+        ::  XX scrape thru subscription state and resub
+        ::
+        (give %fact [/epic ~] epic+!>(okay))
     ::
     +$  versioned-state
       $%  state-0
@@ -222,7 +269,12 @@
     ^+  cor
     ?>  (team:title our.bowl src.bowl)
     ?+    mark  ~|(bad-mark+mark !!)
-        ?(%contact-action %contact-action-0)
+        ::  incompatible changes get a mark version bump
+        ::
+        ::    the agent should maintain compatibility by either
+        ::    directly handling or upconverting old-marked pokes
+        ::
+        ?(act:base:mar %contact-action-0)
       =/  act  !<(action vase)
       ?-  -.act
         %anon  ?.  ?=([%hav *] rof)
@@ -269,6 +321,7 @@
     ?+  pat  ~|(bad-watch-path+pat !!)
       [%contacts %at wen=@ ~]  (init:pub `(slav %da wen.pat))
       [%contacts ~]  (init:pub ~)
+      [%epic ~]  (give %fact ~ epic+!>(okay))
       [%news ~]  ~|(local-news+src.bowl ?>(=(our src):bowl cor))
     ==
   ::
@@ -279,11 +332,24 @@
         [%contact ~]
       ?-  -.sign
         %poke-ack   ~|(strange-poke-ack+wire !!)
-        %watch-ack  cor :: XX handle
+        %watch-ack  cor :: XX handle with epic sub?
         %kick       ~(heed sub src.bowl)
-        %fact       ?+    p.cage.sign  ~!(fake-news+p.cage.sign !!)
-                        ?(%contact-update %contact-update-0)
+        %fact       ?+    p.cage.sign  (~(odd sub src.bowl) p.cage.sign)
+                        ::  incompatible changes get a mark version bump
+                        ::
+                        ::    XX details
+                        ::
+                        ?(upd:base:mar %contact-update-0)
                       (~(hear sub src.bowl) !<(update q.cage.sign))
+      ==            ==
+    ::
+        [%epic ~]
+      ?-  -.sign
+        %poke-ack   ~|(strange-poke-ack+wire !!)
+        %watch-ack  cor :: XX handle nack w/ failure state?
+        %kick       peer:~(epic sub src.bowl)
+        %fact       ?+  p.cage.sign  ~|(not-epic+p.cage.sign !!) :: XX drop? set sub state?
+                      %epic  (take:~(epic sub src.bowl) !<(epic:e q.cage.sign))
       ==            ==
     ==
   --
