@@ -110,7 +110,6 @@ module.exports = {
     fontFamily: {
       sans: [
         'Inter',
-        'Inter UI',
         '-apple-system',
         'BlinkMacSystemFont',
         'San Francisco',

@@ -1,26 +1,5 @@
-@font-face {
-  font-family: 'Inter var';
-  font-weight: 100 900;
-  font-display: swap;
-  font-style: normal;
-  font-named-instance: 'Regular';
-  src: url('../assets/inter-roman.var.woff2?v=3.13') format('woff2');
-}
-@font-face {
-  font-family: 'Inter var';
-  font-weight: 100 900;
-  font-display: swap;
-  font-style: italic;
-  font-named-instance: 'Italic';
-  src: url('../assets/inter-italic.var.woff2?v=3.13') format('woff2');
-}
-@font-face {
-  font-family: 'Source Code Pro';
-  font-weight: 100 900;
-  font-display: swap;
-  font-style: normal;
-  src: url('../assets/source-code-pro.woff2') format('woff2');
-}
+@import url('https://rsms.me/inter/inter.css');
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap');
 
 /* Works on Firefox */
 * {
@@ -50,6 +29,7 @@ body,
   /* adding for mobile bottom bars */
   @apply h-full min-h-screen w-full;
   min-height: -webkit-fill-available;
+  font-variant-ligatures: contextual;
 }
 
 @media all and (display-mode: standalone) {
