@@ -82,9 +82,9 @@ import VitaMessage from './components/VitaMessage';
 import { useGroups } from './state/groups';
 import Dialog, { DialogContent } from './components/Dialog';
 
-const Grid = React.lazy(() => import('./components/Grid/Grid'));
-const TileInfo = React.lazy(() => import('./components/Grid/TileInfo'));
-const AppModal = React.lazy(() => import('./components/Grid/AppModal'));
+const Grid = React.lazy(() => import('./components/Grid/grid'));
+const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
+const AppModal = React.lazy(() => import('./components/Grid/appmodal'));
 
 function SuspendedModal({ children }: { children: React.ReactNode }) {
   return (

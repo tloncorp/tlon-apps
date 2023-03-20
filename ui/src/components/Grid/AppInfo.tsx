@@ -9,7 +9,7 @@ import DocketHeader from './DocketHeader';
 import Spinner from './Spinner';
 import PikeMeta from './PikeMeta';
 import TreatyMeta from './TreatyMeta';
-import { addRecentApp } from './Grid';
+import { addRecentApp } from './grid';
 import Dialog, { DialogClose, DialogContent, DialogTrigger } from '../Dialog';
 
 type InstallStatus = 'uninstalled' | 'installing' | 'installed';
