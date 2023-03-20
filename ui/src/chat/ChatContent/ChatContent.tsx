@@ -179,12 +179,22 @@ function ChatContent({
   const blockLength = story.block.length;
   const firstBlockCode = story.inline.findIndex(isBlockCode);
   const lastBlockCode = findLastIndex(story.inline, isBlockCode);
+  const blockContent = story.block.sort((a, b) => {
+    // Sort images to the end
+    if (isChatImage(a) && !isChatImage(b)) {
+      return 1;
+    }
+    if (!isChatImage(a) && isChatImage(b)) {
+      return -1;
+    }
+    return 0;
+  });
 
   return (
     <div className={cn('leading-6', className)}>
       {blockLength > 0 ? (
         <>
-          {story.block
+          {blockContent
             .filter((a) => !!a)
             .map((storyItem, index) => (
               <div

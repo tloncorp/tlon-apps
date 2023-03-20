@@ -184,9 +184,10 @@ export default function Grid() {
   return (
     <Dialog defaultOpen modal onOpenChange={onOpenChange}>
       <DialogContent
-        className="overflow-y-auto bg-transparent"
+        className="flex justify-center overflow-y-auto bg-transparent"
         containerClass="w-full"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        lightbox
       >
         <div
           ref={gridRef}
