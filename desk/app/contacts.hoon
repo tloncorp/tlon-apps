@@ -310,7 +310,7 @@
       =/  lor=rolodex
         ?:  |(?=(~ rof) ?=(~ con.rof))  rol
         (~(put by rol) our.bowl rof ~)
-      ``noun+!>(lor)
+      ``contact-rolodex+!>(lor)
     ::
         [%x %contact her=@ ~]
       ?~  who=`(unit @p)`(slaw %p her.pat)
@@ -321,7 +321,7 @@
         ?:  |(?=(~ for) ?=(~ p.u.for))  ~
         con.p.u.for
       ?~  tac  [~ ~]
-      ``[%contact !>(`contact`tac)]
+      ``contact+!>(`contact`tac)
     ==
   ::
   ++  peer

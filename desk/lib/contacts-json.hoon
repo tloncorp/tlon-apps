@@ -63,15 +63,6 @@
     =-  [[(scot %p who) -] j]
     ?:(|(?=(~ p) ?=(~ con.p)) ~ (contact con.p))  :: XX stale flag per sub state?
   ::
-  ++  update
-    |=  u=update:c
-    ^-  json
-    %+  frond  -.u
-    ?-  -.u
-      %set  (contact c.u)
-      %del  (time wen.u)
-    ==
-  ::
   ++  news
     |=  n=news:c
     ^-  json
@@ -118,13 +109,6 @@
         cover+(mu so)
         add-group+dejs:res
         del-group+dejs:res
-    ==
-  ::
-  ++  update
-    ^-  $-(json update:c)
-    %-  of
-    :~  set+contact
-        del+di
     ==
   --
 --
