@@ -98,7 +98,13 @@ export function InlineContent({
   }
 
   if (isLink(story)) {
-    return <ChatEmbedContent writId={writId} url={story.link.href} />;
+    return (
+      <ChatEmbedContent
+        writId={writId}
+        url={story.link.href}
+        content={story.link.content}
+      />
+    );
   }
 
   if (isBlockquote(story)) {
