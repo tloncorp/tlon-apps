@@ -723,6 +723,26 @@
     =-  ``chat-draft+!>(-)
     `draft:c`[whom (~(gut by drafts) whom *story:c)]
   ::
+      [%u %dm @ *]
+    =/  =ship  (slav %p i.t.t.path)
+    ?.  (~(has by dms) ship)
+      ``flag+!>(|)
+    (di-peek:(di-abed:di-core ship) t.t.t.path)
+  ::
+      [%u %club @ *]
+    =/  =id:club:c  (slav %uv i.t.t.path)
+    ?.  (~(has by clubs) id)
+      ``flag+!>(|)
+    (cu-peek:(cu-abed:cu-core id) t.t.t.path)
+  ::
+      [%u %chat @ @ *]
+    =/  =flag:c
+        :-  (slav %p i.t.t.path)
+        (slav %tas i.t.t.t.path)
+    ?.  (~(has by chats) flag)
+      ``flag+!>(|)
+    (ca-peek:(ca-abed:ca-core flag) t.t.t.t.path)
+  ::
   ==
 ::
 ++  chats-light
