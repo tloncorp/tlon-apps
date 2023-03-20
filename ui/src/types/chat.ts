@@ -314,3 +314,21 @@ export interface ChatPerm {
   writers: string[];
   group: string;
 }
+
+export interface ChatJoin {
+  group: string;
+  chan: string;
+}
+
+export interface ChatInit {
+  briefs: ChatBriefs;
+  chats: Chats;
+  pins: string[];
+}
+
+export interface TalkChatInit extends ChatInit {
+  clubs: Clubs;
+  dms: string[];
+  invited: string[];
+  pins: string[];
+}

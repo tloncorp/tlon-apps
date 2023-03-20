@@ -23,11 +23,13 @@ import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import usePendingImports from '@/logic/usePendingImports';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
 import MigrationTooltip from '@/components/MigrationTooltip';
-import { useStartedMigration } from '@/logic/useMigrationInfo';
+import {
+  usePendingImports,
+  useStartedMigration,
+} from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
 import ChannelSortOptions from './ChannelSortOptions';
 
@@ -192,10 +194,10 @@ export default function ChannelList({ className }: ChannelListProps) {
         </SidebarItem>
       )}
       {!isMobile && <ChannelSorter isMobile={false} />}
-      <ul className={cn('space-y-1', isMobile && 'flex-none space-y-3')}>
+      <ul className={cn('space-y-0.5', isMobile && 'flex-none space-y-3')}>
         {isDefaultSort
           ? filteredSections.map((s) => (
-              <div className="space-y-1" key={s}>
+              <div className="space-y-0.5" key={s}>
                 {s !== UNZONED ? (
                   <Divider>
                     {s in group.zones ? group.zones[s].meta.title : ''}

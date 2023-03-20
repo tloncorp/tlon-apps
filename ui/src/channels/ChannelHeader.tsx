@@ -21,8 +21,8 @@ import {
 import { useChatState } from '@/state/chat';
 import { useDiaryState } from '@/state/diary';
 import { useHeapState } from '@/state/heap/heap';
-import EditChannelModal from '@/groups/GroupAdmin/AdminChannels/EditChannelModal';
-import DeleteChannelModal from '@/groups/GroupAdmin/AdminChannels/DeleteChannelModal';
+import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
+import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
 import Divider from '@/components/Divider';
@@ -98,7 +98,7 @@ function ChannelActions({
   }
 
   const leave = useCallback(
-    (chFlag: string) => {
+    async (chFlag: string) => {
       const leaver =
         _app === 'chat'
           ? useChatState.getState().leaveChat
@@ -106,14 +106,14 @@ function ChannelActions({
           ? useHeapState.getState().leaveHeap
           : useDiaryState.getState().leaveDiary;
 
-      leaver(chFlag);
+      await leaver(chFlag);
     },
     [_app]
   );
 
   const leaveChannel = useCallback(async () => {
     try {
-      leave(flag);
+      await leave(flag);
       navigate(
         isMobile
           ? `/groups/${ship}/${name}`
@@ -121,7 +121,7 @@ function ChannelActions({
       );
     } catch (error) {
       if (error) {
-        console.error(`[ChannelIndex:LeaveError] ${error}`);
+        console.error(`[ChannelHeader:LeaveError] ${error}`);
       }
     }
   }, [flag, ship, name, navigate, leave, isMobile]);
@@ -185,6 +185,8 @@ function ChannelActions({
             setEditIsOpen={setEditIsOpen}
             nest={nest}
             channel={channel}
+            setDeleteChannelIsOpen={setDeleteChannelIsOpen}
+            app={_app}
           />
           <DeleteChannelModal
             deleteChannelIsOpen={deleteChannelIsOpen}
@@ -270,7 +272,6 @@ function DiarySortControls({
             'dropdown-item',
             sortMode === 'quip-asc' && 'bg-gray-100 hover:bg-gray-100'
           )}
-          // onClick={() => setSortMode('quip-asc')}
         >
           <span className="font-semibold text-gray-400">
             New Comments First
@@ -281,7 +282,6 @@ function DiarySortControls({
             'dropdown-item',
             sortMode === 'quip-dsc' && 'bg-gray-100 hover:bg-gray-100'
           )}
-          // onClick={() => setSortMode('quip-dsc')}
         >
           <span className="font-semibold text-gray-400">
             Old Comments First
@@ -329,6 +329,13 @@ export default function ChannelHeader({
     }
   }, [hasActivity, notifications, nest]);
 
+  function backTo() {
+    if (isMobile && isTalk) {
+      return '/';
+    }
+    return `/groups/${flag}`;
+  }
+
   return (
     <div
       className={cn(
@@ -336,7 +343,7 @@ export default function ChannelHeader({
       )}
     >
       <BackButton
-        to={isMobile && isTalk ? '/' : `/groups/${flag}`}
+        to={backTo()}
         className={cn(
           'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
           isMobile && '-ml-2 flex items-center rounded-lg pr-0 hover:bg-gray-50'

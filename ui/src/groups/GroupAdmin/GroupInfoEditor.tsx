@@ -179,11 +179,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
               onChange={onDeleteChange}
             />
             <div className="flex justify-end space-x-2">
-              <DialogClose
-                className="secondary-button"
-              >
-                Cancel
-              </DialogClose>
+              <DialogClose className="secondary-button">Cancel</DialogClose>
               <DialogClose
                 className="button bg-red text-white dark:text-black"
                 disabled={!eqGroupName(deleteField, group?.meta.title || '')}

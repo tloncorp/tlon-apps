@@ -1,47 +1,43 @@
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
-import {
-  useErrorCount,
-  useLocalState,
-  useSubscriptionStatus,
-} from '@/state/local';
+import { useLocalState, useSubscriptionStatus } from '@/state/local';
 import bootstrap from '@/state/bootstrap';
-import api from '@/api';
-import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export default function DisconnectNotice() {
-  const errorCount = useErrorCount();
-  const subscription = useSubscriptionStatus();
+  const { subscription, errorCount, airLockErrorCount } =
+    useSubscriptionStatus();
 
-  function onClick() {
+  useEffect(() => {
+    if (
+      (errorCount > 4 || airLockErrorCount > 1) &&
+      subscription === 'connected'
+    ) {
+      useLocalState.setState({ subscription: 'disconnected' });
+    }
+  }, [errorCount, subscription, airLockErrorCount]);
+
+  const onClick = useCallback(() => {
     if (errorCount < 3) {
       useLocalState.setState({ subscription: 'reconnecting' });
-      api.reset();
-      bootstrap();
+      bootstrap(true);
     } else {
       window.location.reload();
     }
-  }
+  }, [errorCount]);
 
-  return (
-    <div className="z-50 flex items-center justify-between bg-yellow py-1 px-2 text-sm font-medium text-black dark:text-white">
-      <div className="flex items-center">
-        {subscription === 'reconnecting' ? (
-          <LoadingSpinner className="mr-3 h-4 w-4" />
-        ) : (
+  if (subscription === 'disconnected') {
+    return (
+      <div className="z-50 flex items-center justify-between bg-yellow py-1 px-2 text-sm font-medium text-black dark:text-white">
+        <div className="flex items-center">
           <AsteriskIcon className="mr-3 h-4 w-4" />
-        )}
-        {subscription === 'reconnecting' ? (
-          <span>Reconnecting...</span>
-        ) : (
           <span className="mr-1">You are currently offline.</span>
-        )}
-      </div>
-      {subscription === 'reconnecting' ? null : (
+        </div>
         <button className="py-1 px-2" onClick={onClick}>
           Reconnect
         </button>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  return null;
 }

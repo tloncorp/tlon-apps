@@ -224,10 +224,15 @@
     =+  !<(ps=(list whom:c) vase)
     (pin ps)
   ::
-      ?(%flag %channel-join)
-    =+  !<(=flag:c vase)
-    ?<  =(our.bowl p.flag)
-    (join flag)
+      %flag
+    =+  !<(f=flag:c vase)
+    ?<  =(our.bowl p.f)
+    (join [*flag:g f])
+  ::  
+      %channel-join
+    =+  !<(j=join:c vase)
+    ?<  =(our.bowl p.chan.j)
+    (join j)
   ::
       %chat-leave
     =+  !<(=leave:c vase)
@@ -281,10 +286,10 @@
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
   ==
   ++  join
-    |=  =flag:c
+    |=  =join:c
     ^+  cor
-    ?<  (~(has by chats) flag)
-    ca-abet:(ca-join:ca-core flag)
+    ?<  (~(has by chats) chan.join)
+    ca-abet:(ca-join:ca-core join)
   ::
   ++  create
     |=  req=create:c
@@ -664,11 +669,25 @@
   ::
     [%x %chat ~]  ``flags+!>(~(key by chats))
   ::
-    [%x %chats ~]  ``chats+!>(chats)
+    [%x %chats ~]  ``chats+!>(chats-light)
   ::
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c +.+.club)))
   ::
     [%x %pins ~]  ``chat-pins+!>(pins)
+  ::
+    [%x %briefs ~]  ``chat-briefs+!>(briefs)
+  ::
+    [%x %init ~]  ``noun+!>([briefs chats-light pins])
+  ::
+      [%x %init %talk ~]
+    =-  ``noun+!>(-)
+    :*  briefs
+        chats-light
+        (~(run by clubs) |=(=club:c +.+.club))
+        ~(key by accepted-dms)
+        ~(key by pending-dms)
+        pins
+    ==
   ::
       [%x %chat @ @ *]
     =/  =ship  (slav %p i.t.t.path)
@@ -704,28 +723,33 @@
     =-  ``chat-draft+!>(-)
     `draft:c`[whom (~(gut by drafts) whom *story:c)]
   ::
-      [%x %briefs ~]
-    =-  ``chat-briefs+!>(-)
-    ^-  briefs:c
-    %-  ~(gas by *briefs:c)
-    %+  welp
-      %+  turn  ~(tap in ~(key by clubs))
-      |=  =id:club:c
-      =/  cu  (cu-abed id)
-      [club/id cu-brief:cu]
-    %+  welp
-      %+  murn  ~(tap in ~(key by dms))
-      |=  =ship
-      =/  di  (di-abed:di-core ship)
-      ?:  ?=(?(%invited %archive) net.dm.di)  ~
-      ?:  =([~ ~] pact.dm.di)  ~
-      `[ship/ship di-brief:di]
-    %+  turn  ~(tap in ~(key by chats))
-    |=  =flag:c
-    :-  flag/flag
-    ca-brief:(ca-abed:ca-core flag)
   ==
 ::
+++  chats-light
+  ^-  (map flag:c chat:c)
+  %-  ~(run by chats)
+  |=  =chat:c
+  chat(pact *pact:c, log *log:c)
+::
+++  briefs
+  ^-  briefs:c
+  %-  ~(gas by *briefs:c)
+  %+  welp
+    %+  turn  ~(tap in ~(key by clubs))
+    |=  =id:club:c
+    =/  cu  (cu-abed id)
+    [club/id cu-brief:cu]
+  %+  welp
+    %+  murn  ~(tap in ~(key by dms))
+    |=  =ship
+    =/  di  (di-abed:di-core ship)
+    ?:  ?=(?(%invited %archive) net.dm.di)  ~
+    ?:  =([~ ~] pact.dm.di)  ~
+    `[ship/ship di-brief:di]
+  %+  turn  ~(tap in ~(key by chats))
+  |=  =flag:c
+  :-  flag/flag
+  ca-brief:(ca-abed:ca-core flag)
 ++  give-brief
   |=  [=whom:c =brief:briefs:c]
   (give %fact ~[/briefs] chat-brief-update+!>([whom brief]))
@@ -937,6 +961,7 @@
         (cu-post-notice ship '' ' declined the invite')
       =.  cor  (give-brief club/id cu-brief)
       =.  team.club  (~(put in team.club) ship)
+      =?  last-read.remark.club  =(ship our.bowl)  now.bowl  
       (cu-post-notice ship '' ' joined the chat')
     ::
         %hive
@@ -1306,10 +1331,12 @@
     =.  cor  (emit card)
     ca-core
   ++  ca-join
-    |=  f=flag:c
+    |=  j=join:c
     ^+  ca-core
-    =.  chats  (~(put by chats) f *chat:c)
-    =.  ca-core  (ca-abed f)
+    =.  chats  (~(put by chats) chan.j *chat:c)
+    =.  ca-core  (ca-abed chan.j)
+    =.  last-read.remark.chat  now.bowl
+    =.  group.perm.chat  group.j
     =.  cor  (give-brief flag/flag ca-brief)
     ca-sub
   ::

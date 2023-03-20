@@ -23,7 +23,6 @@ export function getPreviewTracker(wait = DEFAULT_WAIT) {
       return isPastWaiting(attempted) && !inProgress;
     },
     newAttempt: (k: string) => {
-      console.log(k);
       tracked[k] = {
         inProgress: true,
         attempted: Date.now(),

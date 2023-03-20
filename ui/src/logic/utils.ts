@@ -1,13 +1,13 @@
 import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
 import { BigInteger } from 'big-integer';
-import { unixToDa } from '@urbit/api';
+import { Docket, DocketHref, Treaty, unixToDa } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
 import f from 'lodash/fp';
-import { parseToRgba } from 'color2k';
+import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
@@ -390,6 +390,14 @@ export function isChannelJoined(
   return isChannelHost || (nest && nest in briefs);
 }
 
+export function getChannelHosts(group: Group): string[] {
+  return Object.keys(group.channels).map((c) => {
+    const [, chFlag] = nestToFlag(c);
+    const { ship } = getFlagParts(chFlag);
+    return ship;
+  });
+}
+
 export function canReadChannel(
   channel: GroupChannel,
   vessel: Vessel,
@@ -549,4 +557,60 @@ export function isChannelImported(
   return (
     !isImport || (isImport && pending[nest]) || window.our === getNestShip(nest)
   );
+}
+
+export function prettyChannelTypeName(app: string) {
+  switch (app) {
+    case 'chat':
+      return 'Chat';
+    case 'heap':
+      return 'Collection';
+    case 'diary':
+      return 'Notebook';
+    default:
+      return 'Unknown';
+  }
+}
+
+export async function asyncWithDefault<T>(
+  cb: () => Promise<T>,
+  def: T
+): Promise<T> {
+  try {
+    return cb();
+  } catch (error) {
+    return def;
+  }
+}
+
+export function getDarkColor(color: string): string {
+  const hslaColor = parseToHsla(color);
+  return hsla(hslaColor[0], hslaColor[1], 1 - hslaColor[2], 1);
+}
+export function getAppHref(href: DocketHref) {
+  return 'site' in href ? href.site : `/apps/${href.glob.base}/`;
+}
+
+export function disableDefault<T extends Event>(e: T): void {
+  e.preventDefault();
+}
+
+export function handleDropdownLink(
+  setOpen?: (open: boolean) => void
+): (e: Event) => void {
+  return (e: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setTimeout(() => setOpen?.(false), 15);
+  };
+}
+
+export function getAppName(
+  app: (Docket & { desk: string }) | Treaty | undefined
+): string {
+  if (!app) {
+    return '';
+  }
+
+  return app.title || app.desk;
 }

@@ -1,7 +1,5 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
-import _ from 'lodash';
-import f from 'lodash/fp';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ChatSeal } from '@/types/chat';
 import { useChatState } from '@/state/chat';
@@ -72,10 +70,10 @@ export default function ChatReaction({
                   <div className="z-[100] w-fit cursor-none rounded bg-gray-400 px-4 py-2">
                     <label className="whitespace-nowrap font-semibold text-white">
                       {ships.map((ship, i) => (
-                        <>
-                          <ShipName key={ship} name={ship} showAlias />
+                        <span key={`${ship}-${i}`}>
+                          <ShipName name={ship} showAlias />
                           {i + 1 === ships.length ? '' : ', '}
-                        </>
+                        </span>
                       ))}
                     </label>
                   </div>

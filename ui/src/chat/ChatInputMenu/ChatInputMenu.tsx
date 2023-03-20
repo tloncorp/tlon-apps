@@ -13,6 +13,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import useLeap from '@/components/Leap/useLeap';
 import ChatInputMenuToolbar, {
   MenuState,
   LinkEditorForm,
@@ -31,6 +32,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
   const [selectionPos, setSelectionPos] = useState<DOMRect>();
   const [status, setStatus] = useState<MenuState>('closed');
   const isMobile = useIsMobile();
+  const { isOpen: leapIsOpen } = useLeap();
 
   const onSelection = useCallback(
     ({ editor: currentEditor }: { editor: CoreEditor }) => {
@@ -107,7 +109,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
   const onNavigation = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       event.stopPropagation();
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !leapIsOpen) {
         if (status === 'open') {
           setStatus('closed');
           setSelected(-1);
@@ -131,7 +133,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
         setSelected((total + selected - 1) % total);
       }
     },
-    [selected, status, editor]
+    [selected, status, editor, leapIsOpen]
   );
   if (isMobile) {
     return (

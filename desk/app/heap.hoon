@@ -109,10 +109,15 @@
       |=(=flag:h [flag |])
     cor
   ::
-      ?(%flag %channel-join)
-    =+  !<(=flag:h vase)
-    ?<  =(our.bowl p.flag)
-    (join flag)
+      %flag
+    =+  !<(f=flag:h vase)
+    ?<  =(our.bowl p.f)
+    (join [*flag:g f])
+  ::  
+      %channel-join
+    =+  !<(j=join:h vase)
+    ?<  =(our.bowl p.chan.j)
+    (join j)
   ::
       %heap-leave
     =+  !<(=leave:h vase)
@@ -135,10 +140,10 @@
     he-abet:(he-remark-diff:(he-abed:he-core p.act) q.act)
   ==
   ++  join
-    |=  =flag:h
+    |=  =join:h
     ^+  cor
-    ?<  (~(has by stash) flag)
-    he-abet:(he-join:he-core flag)
+    ?<  (~(has by stash) chan.join)
+    he-abet:(he-join:he-core join)
   ::
   ++  create
     |=  req=create:h
@@ -381,21 +386,23 @@
   ::
     [%x %stash ~]  ``stash+!>(stash)
     [%x %imp ~]    ``migrate-map+!>(imp)
+    [%x %init ~]  ``noun+!>([briefs stash])
+    [%x %briefs ~]  ``heap-briefs+!>(briefs)
   ::
       [%x %heap @ @ *]
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path
     (he-peek:(he-abed:he-core ship name) t.t.t.t.path)
     ::
-      [%x %briefs ~]
-    =-  ``heap-briefs+!>(-)
-    ^-  briefs:h
-    %-  ~(gas by *briefs:h)
-    %+  turn  ~(tap in ~(key by stash))
-    |=  =flag:h
-    :-  flag
-    he-brief:(he-abed:he-core flag)
   ==
+::
+++  briefs
+  ^-  briefs:h
+  %-  ~(gas by *briefs:h)
+  %+  turn  ~(tap in ~(key by stash))
+  |=  =flag:h
+  :-  flag
+  he-brief:(he-abed:he-core flag)
 ::
 ++  import-graphs
   |=  =imports:h
@@ -831,10 +838,12 @@
     =.  cor  (emit card)
     he-core
   ++  he-join
-    |=  f=flag:h
+    |=  j=join:h
     ^+  he-core
-    =.  stash  (~(put by stash) f *heap:h)
-    =.  he-core  (he-abed f)
+    =.  stash  (~(put by stash) chan.j *heap:h)
+    =.  he-core  (he-abed chan.j)
+    =.  group.perm.heap  group.j
+    =.  last-read.remark.heap  now.bowl
     =.  cor  (give-brief flag he-brief)
     he-sub
   ::

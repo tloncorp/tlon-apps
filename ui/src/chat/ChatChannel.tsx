@@ -26,7 +26,14 @@ import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder'
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
-  const { chShip, chName } = useParams();
+  const { chShip, chName, idTime, idShip } = useParams<{
+    name: string;
+    chShip: string;
+    ship: string;
+    chName: string;
+    idShip: string;
+    idTime: string;
+  }>();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
@@ -42,21 +49,23 @@ function ChatChannel({ title }: ViewProps) {
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
+  const inThread = idShip && idTime;
   const { sendMessage } = useChatState.getState();
   const briefs = useAllBriefs();
   const joined = Object.keys(briefs).some((k) => k.includes('chat/'))
     ? isChannelJoined(nest, briefs)
     : true;
+  const needsLoader = messages.size === 0;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
     try {
-      await useChatState.getState().joinChat(chFlag);
+      await useChatState.getState().joinChat(groupFlag, chFlag);
     } catch (e) {
       console.log("Couldn't join chat (maybe already joined)", e);
     }
     setJoining(false);
-  }, [chFlag]);
+  }, [groupFlag, chFlag]);
 
   const initializeChannel = useCallback(async () => {
     await useChatState.getState().initialize(chFlag);
@@ -70,12 +79,16 @@ function ChatChannel({ title }: ViewProps) {
   }, [joined, joinChannel]);
 
   useEffect(() => {
-    setLoading(true);
+    if (needsLoader) {
+      setLoading(true);
+    }
+
     if (joined && canRead && !joining) {
       initializeChannel();
       setRecentChannel(nest);
     }
   }, [
+    needsLoader,
     nest,
     setRecentChannel,
     initializeChannel,
@@ -108,7 +121,13 @@ function ChatChannel({ title }: ViewProps) {
             )}
           >
             {canWrite ? (
-              <ChatInput whom={chFlag} sendMessage={sendMessage} showReply />
+              <ChatInput
+                key={chFlag}
+                whom={chFlag}
+                sendMessage={sendMessage}
+                showReply
+                autoFocus={!inThread}
+              />
             ) : null}
           </div>
         }

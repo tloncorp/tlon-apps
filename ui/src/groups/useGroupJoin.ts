@@ -6,7 +6,6 @@ import useHarkState from '@/state/hark';
 import { useGroup, useGroupState } from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
 import { Status } from '@/logic/status';
-import { isTalk } from '@/logic/utils';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 
 function getButtonText(
@@ -36,6 +35,7 @@ export default function useGroupJoin(
     | undefined = undefined
 ) {
   const [status, setStatus] = useState<Status>('initial');
+  const [rejectStatus, setRejectStatus] = useState<Status>('initial');
   const location = useLocation();
   const navigate = useNavigate();
   const navigateByApp = useNavigateByApp();
@@ -61,6 +61,7 @@ export default function useGroupJoin(
 
     if (privacy === 'private' && !invited) {
       await useGroupState.getState().knock(flag);
+      setStatus('success');
     } else {
       try {
         await useHarkState.getState().sawRope({
@@ -101,12 +102,18 @@ export default function useGroupJoin(
   }, [privacy, invited, flag, requested, redirectItem, navigateByApp]);
 
   const reject = useCallback(async () => {
+    setRejectStatus('loading');
     /**
      * No need to confirm if the group is public, since it's easy to re-initiate
      * a join request
      */
     if (privacy === 'public') {
-      await useGroupState.getState().reject(flag);
+      try {
+        await useGroupState.getState().reject(flag);
+        setRejectStatus('success');
+      } catch (e) {
+        setRejectStatus('error');
+      }
 
       if (inModal) {
         dismiss();
@@ -130,6 +137,7 @@ export default function useGroupJoin(
     open,
     join,
     status,
+    rejectStatus,
     reject,
     button: {
       disabled: requested && !invited,

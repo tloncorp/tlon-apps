@@ -15,8 +15,10 @@ import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
 import { useNavigate, useParams, useLocation } from 'react-router';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { useModalNavigate } from '@/logic/routing';
+import GroupReference from '@/components/References/GroupReference';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
+import GroupAvatar from './GroupAvatar';
 
 export default function FindGroups({ title }: ViewProps) {
   const { ship, name } = useParams<{ ship: string; name: string }>();
@@ -110,11 +112,15 @@ export default function FindGroups({ title }: ViewProps) {
     setGroupIndex(null);
     setPending();
     try {
-      // @ts-expect-error results will always either be a GroupIndex, or the
-      // request will throw an error, which will be caught below
+      /**
+       * results will always either be a GroupIndex, or the
+       * request will throw an error, which will be caught below.
+       * for peers where a route has to be established this can take
+       * upwards of thirty seconds.
+       */
       const results: GroupIndex = await asyncCallWithTimeout(
         useGroupState.getState().index(preSig(ship)),
-        10 * 1000
+        30 * 1000
       );
       setGroupIndex(results);
       setReady();
@@ -194,7 +200,10 @@ export default function FindGroups({ title }: ViewProps) {
       return (
         <span>
           Your search timed out, which may happen when a ship hosts no groups,
-          is under heavy load, or is offline.
+          is under heavy load, or is offline.{' '}
+          <span onClick={searchGroups} className="cursor-pointer text-gray-800">
+            Try again?
+          </span>
         </span>
       );
     }
@@ -268,6 +277,55 @@ export default function FindGroups({ title }: ViewProps) {
               <GroupJoinList gangs={pendingGangs} />
             </section>
           ) : null}
+
+          {!hasKeys(pendingGangs) && !selectedShip && (
+            <section
+              className={cn('mb-8 space-y-8', !isMobile && 'card mb-4 sm:p-8')}
+            >
+              <h1 className="text-lg font-bold">Suggested Groups</h1>
+              <p className="leading-6">
+                Here are some groups we recommend joining to learn more about
+                Groups and how to use it in interesting ways:
+              </p>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="flex items-center justify-between">
+                  <GroupAvatar
+                    image="https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png"
+                    size="h-12 w-12 shrink-0"
+                  />
+                  <div className="mx-2 grow">
+                    <h2 className="text-base font-semibold">
+                      Urbit Foundation
+                    </h2>
+                    <p className="text-xs">Learn about the Urbit project</p>
+                  </div>
+                  <GroupReference flag="~halbex-palheb/uf-public" onlyButton />
+                </div>
+                <div className="flex items-center justify-between">
+                  <GroupAvatar
+                    image="https://www.door.link/logowhite.svg"
+                    size="h-12 w-12 shrink-0"
+                  />
+                  <div className="mx-2 grow">
+                    <h2 className="text-base font-semibold">door.link</h2>
+                    <p className="text-xs">A cult of music lovers</p>
+                  </div>
+                  <GroupReference flag="~natnex-ronret/door-link" onlyButton />
+                </div>
+                <div className="flex items-center justify-between">
+                  <GroupAvatar
+                    image="https://sfo3.digitaloceanspaces.com/zurbit-images/dovsem-bornyl/2022.6.16..19.11.20-flooring.jpeg"
+                    size="h-12 w-12 shrink-0"
+                  />
+                  <div className="mx-2 grow">
+                    <h2 className="text-base font-semibold">Tlon Public</h2>
+                    <p className="text-xs">A place to ask for help</p>
+                  </div>
+                  <GroupReference flag="~nibset-napwyn/tlon" onlyButton />
+                </div>
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </>

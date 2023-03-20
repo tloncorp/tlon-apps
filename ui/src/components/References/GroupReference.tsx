@@ -17,13 +17,15 @@ interface GroupReferenceProps {
   flag: string;
   isScrolling?: boolean;
   plain?: boolean;
+  onlyButton?: boolean;
   description?: string;
 }
 
-export default function GroupReference({
+function GroupReference({
   flag,
   isScrolling = false,
   plain = false,
+  onlyButton = false,
   description,
 }: GroupReferenceProps) {
   const gang = useGang(flag);
@@ -57,51 +59,18 @@ export default function GroupReference({
     );
   }
 
-  return (
-    <div
-      className={cn(
-        'not-prose relative flex items-center rounded-lg  text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
-        {
-          'border-2 border-gray-50': !plain,
-        }
-      )}
-    >
-      <button
-        className="flex w-full items-center justify-start rounded-lg p-2 text-left"
-        onClick={open}
-      >
-        <div className="flex items-center space-x-3 font-semibold">
-          <GroupAvatar {...meta} size="h-12 w-12" />
-          <div className="space-y-2">
-            <div className="flex items-center space-x-3">
-              <h3>{meta?.title || flag}</h3>
-              {!plain && (
-                <span className="font-semibold text-gray-400">
-                  by <ShipName name={ship} />
-                </span>
-              )}
-            </div>
-            {!plain && (
-              <span className="capitalize text-gray-400">
-                Group • {privacy}
-              </span>
-            )}
-            {description && (
-              <span className="text-sm text-gray-400">{description}</span>
-            )}
-          </div>
-        </div>
-      </button>
-      <div className="absolute right-5 flex flex-row">
+  if (onlyButton) {
+    return (
+      <div>
         {banned ? (
-          <span className="inline-block px-2 font-semibold text-gray-600">
+          <div className="rounded-lg bg-gray-100 p-2 text-center text-xs font-semibold leading-3 text-gray-600">
             {banned === 'ship'
-              ? "You've been banned from this group"
+              ? 'You are banned'
               : `${toTitleCase(pluralRank(banned))} are banned`}
-          </span>
+          </div>
         ) : (
           <>
-            {gang.invite && status !== 'loading' ? (
+            {gang.invite && !group && status !== 'loading' ? (
               <button
                 className="small-button bg-red text-white dark:text-black"
                 onClick={reject}
@@ -116,7 +85,81 @@ export default function GroupReference({
               </div>
             ) : (
               <button
-                className="small-button ml-2 bg-blue text-white dark:text-black"
+                className="small-button ml-3 whitespace-nowrap bg-blue text-white dark:text-black"
+                onClick={button.action}
+                disabled={button.disabled || status === 'error'}
+              >
+                {status === 'error' ? 'Errored' : button.text}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        'not-prose relative flex max-w-[250px] items-center rounded-lg bg-white text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
+        {
+          'border-2 border-gray-50': !plain,
+        }
+      )}
+    >
+      <button
+        className="flex w-full items-center justify-start rounded-lg p-2 text-left"
+        onClick={open}
+      >
+        <div className="flex items-center space-x-3 font-semibold">
+          <GroupAvatar {...meta} size="h-12 w-12" />
+          <div className="overflow-hidden text-ellipsis text-sm leading-5">
+            <h3>{meta?.title || flag} </h3>
+            {!plain && (
+              <span className="flex space-x-1 text-sm font-semibold text-gray-400">
+                <span>by</span>
+                <ShipName
+                  className="overflow-hidden text-ellipsis whitespace-nowrap"
+                  name={ship}
+                />
+              </span>
+            )}
+            {!plain && (
+              <span className="text-sm capitalize text-gray-400">
+                Group • {privacy}
+              </span>
+            )}
+            {description && (
+              <span className="text-sm text-gray-400">{description}</span>
+            )}
+          </div>
+        </div>
+      </button>
+      <div className="mr-2 flex flex-row">
+        {banned ? (
+          <div className="rounded-lg bg-gray-100 p-2 text-center text-xs font-semibold leading-3 text-gray-600">
+            {banned === 'ship'
+              ? 'You are banned'
+              : `${toTitleCase(pluralRank(banned))} are banned`}
+          </div>
+        ) : (
+          <>
+            {gang.invite && !group && status !== 'loading' ? (
+              <button
+                className="small-button bg-red text-white dark:text-black"
+                onClick={reject}
+              >
+                Reject
+              </button>
+            ) : null}
+            {status === 'loading' ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-400">Joining...</span>
+                <LoadingSpinner />
+              </div>
+            ) : (
+              <button
+                className="small-button ml-3 whitespace-nowrap bg-blue text-white dark:text-black"
                 onClick={button.action}
                 disabled={button.disabled || status === 'error'}
               >
@@ -129,3 +172,5 @@ export default function GroupReference({
     </div>
   );
 }
+
+export default React.memo(GroupReference);

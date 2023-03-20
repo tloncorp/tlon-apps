@@ -145,6 +145,9 @@ module.exports = {
         8: '8',
         9: '9',
       },
+      zIndex: {
+        45: '45',
+      },
     },
   },
   screens: {
@@ -171,5 +174,6 @@ module.exports = {
     }),
     require('@tailwindcss/line-clamp'),
     require('@tailwindcss/typography'),
+    require('@tailwindcss/container-queries'),
   ],
 };

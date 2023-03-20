@@ -1,7 +1,5 @@
 import React from 'react';
-import _ from 'lodash';
-import f from 'lodash/fp';
-import { DiaryLetter, DiaryNote } from '@/types/diary';
+import { DiaryLetter } from '@/types/diary';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
 import { sampleQuippers } from '@/logic/utils';

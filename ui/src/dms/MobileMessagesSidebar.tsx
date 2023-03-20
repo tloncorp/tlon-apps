@@ -16,6 +16,10 @@ import {
   SidebarFilter,
   useSettingsState,
 } from '@/state/settings';
+import { useGroupState } from '@/state/groups';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import GridIcon from '@/components/icons/GridIcon';
+import useLeap from '@/components/Leap/useLeap';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -26,8 +30,18 @@ const selMessagesFilter = (s: SettingsState) => ({
 
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
+  const { setIsOpen } = useLeap();
   const { messagesFilter } = useSettingsState(selMessagesFilter);
   const pinned = usePinned();
+  const filteredPins = pinned.filter((p) => {
+    const nest = `chat/${p}`;
+    const { groups } = useGroupState.getState();
+    const groupFlag = Object.entries(groups).find(
+      ([k, v]) => nest in v.channels
+    )?.[0];
+    const channel = groups[groupFlag || '']?.channels[nest];
+    return !!channel || whomIsDm(p) || whomIsMultiDm(p);
+  });
 
   const setFilterMode = (mode: SidebarFilter) => {
     useSettingsState.getState().putEntry('talk', 'messagesFilter', mode);
@@ -45,7 +59,7 @@ export default function MobileMessagesSidebar() {
     >
       <MessagesScrollingContext.Provider value={isScrolling}>
         <MessagesList filter={messagesFilter} isScrolling={scroll.current}>
-          {pinned && pinned.length > 0 ? (
+          {filteredPins && filteredPins.length > 0 ? (
             <div className="-mb-2 md:mb-0">
               <div className="-mb-2 flex items-center p-2 md:m-0">
                 <Divider>Pinned</Divider>
@@ -103,9 +117,18 @@ export default function MobileMessagesSidebar() {
                 </DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu.Root>
-            <Link to="/dm/new" aria-label="New Direct Message" className="mr-2">
-              <NewMessageIcon className="h-6 w-6 text-blue" />
-            </Link>
+            <div className="mr-2 flex items-center space-x-2">
+              <button title="Open Leap" onClick={() => setIsOpen(true)}>
+                <GridIcon className="h-7 w-7 text-gray-600" />
+              </button>
+              <Link
+                to="/dm/new"
+                aria-label="New Direct Message"
+                className="mr-2"
+              >
+                <NewMessageIcon className="h-6 w-6 text-blue" />
+              </Link>
+            </div>
           </header>
         </MessagesList>
       </MessagesScrollingContext.Provider>

@@ -7,6 +7,7 @@ import asyncCallWithTimeout from './asyncWithTimeout';
 
 let disconnectedTries = 0;
 const retryTime = 30 * 1000;
+let checking = false;
 
 async function checkConnection() {
   try {
@@ -48,18 +49,31 @@ async function checkConnection() {
     disconnectedTries = 0;
     setTimeout(checkConnection, retryTime);
   } catch (error) {
-    useLocalState.setState({ subscription: 'disconnected' });
+    const { errorCount } = useLocalState.getState();
     disconnectedTries += 1;
-    // exponential backoff up to 32 mins
+    const isDisconnected = errorCount >= 4 || disconnectedTries >= 2;
+
+    if (isDisconnected) {
+      useLocalState.setState({ subscription: 'disconnected' });
+    } else {
+      useLocalState.setState((state) => ({ errorCount: state.errorCount + 1 }));
+    }
+    // exponential backoff up to 32 mins if disconnected
     setTimeout(
       checkConnection,
-      retryTime * 2 ** Math.min(disconnectedTries, 6)
+      !isDisconnected
+        ? retryTime
+        : retryTime * 2 ** Math.min(disconnectedTries, 6)
     );
   }
 }
 
 export default function useConnectionChecker() {
   useEffect(() => {
-    checkConnection();
+    // only ever check once, wait a bit before starting
+    if (!checking) {
+      checking = true;
+      setTimeout(() => checkConnection(), 30 * 1000);
+    }
   }, []);
 }

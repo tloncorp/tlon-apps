@@ -18,6 +18,7 @@ import { useMultiDms } from '@/state/chat';
 import { preSig } from '@/logic/utils';
 import Avatar from '../Avatar';
 import ShipName from '../ShipName';
+import useLeap from '../Leap/useLeap';
 
 interface MentionListHandle {
   onKeyDown: (event: KeyboardEvent) => boolean;
@@ -33,14 +34,23 @@ const MentionList = React.forwardRef<
   const match = useMatch('/dm/:ship');
   const contacts = useContacts();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const { isOpen: leapIsOpen } = useLeap();
 
   const getMessage = useCallback(
     (ship: string) => {
+      if (ship === window.our) {
+        return null;
+      }
+
       if (match) {
         const multiDm = match && multiDms[match.params.ship || ''];
-        return !multiDm || ![...multiDm.hive, ...multiDm.team].includes(ship)
-          ? 'Not in message'
-          : null;
+        if (multiDm) {
+          return ![...multiDm.hive, ...multiDm.team].includes(ship)
+            ? 'Not in message'
+            : null;
+        }
+
+        return ship !== match.params.ship ? 'Not in message' : null;
       }
 
       return !group?.fleet[ship] ? 'Not in group' : null;
@@ -74,6 +84,7 @@ const MentionList = React.forwardRef<
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event) => {
+      if (leapIsOpen) return false;
       if (event.key === 'ArrowUp') {
         upHandler();
         return true;

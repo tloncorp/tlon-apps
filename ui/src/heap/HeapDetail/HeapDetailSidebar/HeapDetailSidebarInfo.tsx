@@ -42,7 +42,9 @@ export default function HeapDetailSidebarInfo({
           </a>
         )}
       </div>
-      <Author ship={author} date={unixDate} timeOnly />
+      <div className="text-ellipsis break-all line-clamp-1">
+        <Author ship={author} date={unixDate} timeOnly />
+      </div>
     </div>
   );
 }

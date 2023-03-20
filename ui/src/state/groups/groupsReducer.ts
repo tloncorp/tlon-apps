@@ -150,7 +150,7 @@ export default function groupsReducer(flag: string, data: GroupUpdate) {
         group.zones[f].idx = group.zones[f].idx.filter(
           (nest) => nest !== d['mov-nest'].nest
         );
-        group.zones[f].idx.splice(d['mov-nest'].index, 0, d['mov-nest'].nest);
+        group.zones[f].idx.splice(d['mov-nest'].idx, 0, d['mov-nest'].nest);
       } else if ('mov' in d) {
         group['zone-ord'] = group['zone-ord'].filter((zone) => zone !== f);
         group['zone-ord'].splice(d.mov, 0, f);

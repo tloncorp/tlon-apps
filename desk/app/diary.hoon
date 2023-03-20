@@ -169,10 +169,15 @@
       |=(=flag:d [flag |])
     cor
   ::
-      ?(%flag %channel-join)
-    =+  !<(=flag:d vase)
-    ?<  =(our.bowl p.flag)
-    (join flag)
+      %flag
+    =+  !<(f=flag:d vase)
+    ?<  =(our.bowl p.f)
+    (join [*flag:g f])
+  ::  
+      %channel-join
+    =+  !<(j=join:d vase)
+    ?<  =(our.bowl p.chan.j)
+    (join j)
   ::
       %diary-leave
     =+  !<(=leave:d vase)
@@ -195,10 +200,10 @@
     di-abet:(di-remark-diff:(di-abed:di-core p.act) q.act)
   ==
   ++  join
-    |=  =flag:d
+    |=  =join:d
     ^+  cor
-    ?<  (~(has by shelf) flag)
-    di-abet:(di-join:di-core flag)
+    ?<  (~(has by shelf) chan.join)
+    di-abet:(di-join:di-core join)
   ::
   ++  create
     |=  req=create:d
@@ -503,23 +508,25 @@
   ?+  path  [~ ~]
   ::
     [%x %imp ~]    ``migrate-map+!>(imp)
-  ::
     [%x %shelf ~]  ``shelf+!>(shelf)
+    [%x %init ~]   ``noun+!>([briefs shelf])
+    [%x %briefs ~]  ``diary-briefs+!>(briefs)
   ::
       [%x %diary @ @ *]
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path
     (di-peek:(di-abed:di-core ship name) t.t.t.t.path)
     ::
-      [%x %briefs ~]
-    =-  ``diary-briefs+!>(-)
-    ^-  briefs:d
-    %-  ~(gas by *briefs:d)
-    %+  turn  ~(tap in ~(key by shelf))
-    |=  =flag:d
-    :-  flag
-    di-brief:(di-abed:di-core flag)
+    
   ==
+::
+++  briefs
+  ^-  briefs:d
+  %-  ~(gas by *briefs:d)
+  %+  turn  ~(tap in ~(key by shelf))
+  |=  =flag:d
+  :-  flag
+  di-brief:(di-abed:di-core flag)
 ::
 ++  give-brief
   |=  [=flag:d =brief:briefs:d]
@@ -830,10 +837,12 @@
     di-core
   ::
   ++  di-join
-    |=  f=flag:d
+    |=  j=join:d
     ^+  di-core
-    =.  shelf  (~(put by shelf) f *diary:d)
-    =.  di-core  (di-abed f)
+    =.  shelf  (~(put by shelf) chan.j *diary:d)
+    =.  di-core  (di-abed chan.j)
+    =.  group.perm.diary  group.j
+    =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
     di-sub
   ::

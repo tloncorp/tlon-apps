@@ -12,7 +12,8 @@ import { useChatState, usePinnedGroups } from '@/state/chat';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import { citeToPath, useCopy } from '@/logic/utils';
+import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
+import { useAmAdmin, useGroup } from '@/state/groups';
 
 const { ship } = window;
 
@@ -22,6 +23,7 @@ export function useGroupActions(flag: string) {
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
   const pinned = usePinnedGroups();
   const isPinned = Object.keys(pinned).includes(flag);
+  const isAdmin = useAmAdmin(flag);
 
   const onCopy = useCallback(() => {
     doCopy();
@@ -61,6 +63,9 @@ const GroupActions = React.memo(
     const { isGroupUnread } = useIsGroupUnread();
     const location = useLocation();
     const hasActivity = isGroupUnread(flag);
+    const group = useGroup(flag);
+    const privacy = group ? getPrivacyFromGroup(group) : 'public';
+    const isAdmin = useAmAdmin(flag);
 
     const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
       useGroupActions(flag);
@@ -99,19 +104,21 @@ const GroupActions = React.memo(
             )}
           </DropdownMenu.Trigger>
           <DropdownMenu.Content className="dropdown min-w-52 text-gray-800">
-            <DropdownMenu.Item
-              asChild
-              className="dropdown-item text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
-            >
-              <Link
-                to={`/groups/${flag}/invite`}
-                state={{ backgroundLocation: location }}
-                className="flex items-center space-x-2"
+            {(privacy === 'public' || isAdmin) && (
+              <DropdownMenu.Item
+                asChild
+                className="dropdown-item text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
               >
-                <InviteIcon16 className="h-6 w-6 opacity-60" />
-                <span className="pr-2">Invite People</span>
-              </Link>
-            </DropdownMenu.Item>
+                <Link
+                  to={`/groups/${flag}/invite`}
+                  state={{ backgroundLocation: location }}
+                  className="flex items-center space-x-2"
+                >
+                  <InviteIcon16 className="h-6 w-6 opacity-60" />
+                  <span className="pr-2">Invite People</span>
+                </Link>
+              </DropdownMenu.Item>
+            )}
             <DropdownMenu.Item
               className={
                 'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900'

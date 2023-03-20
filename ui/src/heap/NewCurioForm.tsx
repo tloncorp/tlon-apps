@@ -36,7 +36,7 @@ export default function NewCurioForm() {
   const isListMode = displayMode === LIST;
   const isLinkMode = inputMode === LINK;
   const isTextMode = inputMode === TEXT;
-  const perms = useHeapPerms(nest);
+  const perms = useHeapPerms(chFlag);
   const vessel = useVessel(flag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
@@ -79,9 +79,10 @@ export default function NewCurioForm() {
       });
 
       setDraftLink(undefined);
+      uploader?.clear();
       reset();
     },
-    [chFlag, reset]
+    [chFlag, reset, uploader]
   );
 
   const watchedContent = watch('content');
@@ -147,7 +148,9 @@ export default function NewCurioForm() {
   );
 
   return (
-    <div className={cn(isGridMode && 'aspect-h-1 aspect-w-1')}>
+    <div
+      className={cn(isGridMode && 'virtuoso-grid-item aspect-h-1 aspect-w-1')}
+    >
       {isListMode ? modeToggle() : null}
       <div
         className={cn(
@@ -198,7 +201,7 @@ export default function NewCurioForm() {
             <input
               value={isPending ? 'Posting...' : 'Post'}
               type="submit"
-              className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
+              className="button absolute bottom-3 right-3 cursor-pointer rounded-md px-2 py-1"
               disabled={isPending || !isValidInput}
             />
           </form>
@@ -212,8 +215,8 @@ export default function NewCurioForm() {
             )}
             inputClass={cn(
               isListMode
-                ? 'border-gray-100 bg-white focus-within:border-gray-300 mb-4 focus:outline-none rounded-tl-none min-h-[60px]'
-                : 'border-gray-50 overflow-y-auto focus-within:border-gray-50 bg-gray-50 focus-within:bg-gray-50 focus:outline-none'
+                ? 'border-gray-100 bg-white focus-within:border-gray-300 mb-12 focus:outline-none rounded-tl-none min-h-[60px]'
+                : 'overflow-y-auto focus-within:border-white focus:outline-none bg-transparent mb-12'
             )}
           />
         )}

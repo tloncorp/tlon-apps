@@ -29,6 +29,7 @@ import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import groupsReducer from './groupsReducer';
 import { GroupState } from './type';
 import useSubscriptionState from '../subscription';
+import useSchedulerStore from '../scheduler';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -413,10 +414,27 @@ export const useGroupState = create<GroupState>(
         });
       },
       reject: async (flag) => {
-        await api.poke({
-          app: 'groups',
-          mark: 'invite-decline',
-          json: flag,
+        await new Promise<void>((resolve, reject) => {
+          api.poke({
+            app: 'groups',
+            mark: 'invite-decline',
+            json: flag,
+            onError: () => reject(),
+            onSuccess: async () => {
+              await useSubscriptionState
+                .getState()
+                .track('groups/groups/ui', (event) => {
+                  const { json } = event;
+                  if (json && flag in json) {
+                    return json[flag].invite === null;
+                  }
+
+                  return false;
+                });
+
+              resolve();
+            },
+          });
         });
 
         get().batchSet((draft) => {
@@ -762,20 +780,19 @@ export const useGroupState = create<GroupState>(
           });
         });
       },
-      moveChannel: async (flag, zone, nest, index) => {
+      moveChannel: async (flag, zone, nest, idx) => {
         const diff = {
           zone: {
             zone,
             delta: {
               'mov-nest': {
                 nest,
-                index,
+                idx,
               },
             },
           },
         };
         await api.poke(groupAction(flag, diff));
-        await useGroupState.getState().updateGroups();
       },
       setChannelPerm: async (flag, nest, sects) => {
         const currentReaders = get().groups[flag].channels[nest]?.readers || [];
@@ -816,75 +833,71 @@ export const useGroupState = create<GroupState>(
         });
         set(() => ({ groups }));
       },
-      start: async () => {
-        const [groups, gangs] = await Promise.all([
-          api.scry<Groups>({
-            app: 'groups',
-            path: '/groups/light',
-          }),
-          api.scry<Gangs>({
-            app: 'groups',
-            path: '/gangs',
-          }),
-        ]);
+      start: async ({ groups, gangs }) => {
+        const { wait } = useSchedulerStore.getState();
+        set(
+          produce((draft: GroupState) => {
+            draft.groups = _.merge(groups, draft.groups);
+            draft.gangs = gangs;
+          })
+        );
 
-        set((s) => ({
-          ...s,
-          groups: _.merge(groups, s.groups),
-          gangs,
-        }));
-        await api.subscribe({
-          app: 'groups',
-          path: '/gangs/updates',
-          event: (data) => {
-            get().batchSet((draft) => {
-              draft.gangs = data;
-            });
-          },
-        });
-        await api.subscribe({
-          app: 'groups',
-          path: '/groups/ui',
-          event: (data, mark) => {
-            if (mark === 'gang-gone') {
+        wait(() => {
+          api.subscribe({
+            app: 'groups',
+            path: '/gangs/updates',
+            event: (data) => {
               get().batchSet((draft) => {
-                delete draft.gangs[data];
+                draft.gangs = data;
               });
-            }
-
-            const { flag, update } = data as GroupAction;
-            if (update) {
-              // check if update exists, sometimes we just get back the flag.
-              // TODO: figure out why this happens
-              if ('create' in update.diff) {
-                const group = update.diff.create;
+            },
+          });
+          api.subscribe({
+            app: 'groups',
+            path: '/groups/ui',
+            event: (data, mark) => {
+              if (mark === 'gang-gone') {
                 get().batchSet((draft) => {
-                  draft.groups[flag] = group;
+                  delete draft.gangs[data];
                 });
               }
 
-              if ('del' in update.diff) {
-                get().batchSet((draft) => {
-                  delete draft.groups[flag];
-                });
+              const { flag, update } = data as GroupAction;
+              if (update) {
+                // check if update exists, sometimes we just get back the flag.
+                // TODO: figure out why this happens
+                if ('create' in update.diff) {
+                  const group = update.diff.create;
+                  get().batchSet((draft) => {
+                    draft.groups[flag] = group;
+                  });
+                }
+
+                if ('del' in update.diff) {
+                  get().batchSet((draft) => {
+                    delete draft.groups[flag];
+                  });
+                }
               }
-            }
-          },
-        });
+            },
+          });
+        }, 3);
 
         get().batchSet((draft) => {
           draft.initialized = true;
         });
       },
-      initialize: async (flag: string) => {
-        const group = await api.scry<Group>({
-          app: 'groups',
-          path: `/groups/${flag}`,
-        });
+      initialize: async (flag: string, getMembers = false) => {
+        if (getMembers) {
+          const group = await api.scry<Group>({
+            app: 'groups',
+            path: `/groups/${flag}`,
+          });
 
-        get().batchSet((draft) => {
-          draft.groups[flag] = group;
-        });
+          get().batchSet((draft) => {
+            draft.groups[flag] = group;
+          });
+        }
 
         return api.subscribe({
           app: 'groups',
@@ -994,6 +1007,12 @@ export function useChannel(
   );
 }
 
+export function useChannelList(flag: string): string[] {
+  return useGroupState(
+    useCallback((s) => Object.keys(s.groups[flag]?.channels || {}), [flag])
+  );
+}
+
 export function useAmAdmin(flag: string) {
   const group = useGroup(flag);
   const vessel = group?.fleet[window.our];
@@ -1058,7 +1077,7 @@ export function useSects(flag: string) {
 
 const { shouldLoad, newAttempt, finished } = getPreviewTracker();
 
-export function useChannelPreview(nest: string) {
+export function useChannelPreview(nest: string, disableLoading = false) {
   const preview = useGroupState(
     useCallback((s) => s.channelPreviews[nest], [nest])
   );
@@ -1071,11 +1090,11 @@ export function useChannelPreview(nest: string) {
   }, [nest]);
 
   useEffect(() => {
-    if (preview && !shouldLoad(nest)) return;
+    if (disableLoading || (preview && !shouldLoad(nest))) return;
 
     newAttempt(nest);
     getChannelPreview();
-  }, [getChannelPreview, preview, nest]);
+  }, [getChannelPreview, preview, nest, disableLoading]);
 
   return preview;
 }

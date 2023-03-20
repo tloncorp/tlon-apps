@@ -20,6 +20,11 @@ import {
 import { debounce } from 'lodash';
 import { Link, useLocation } from 'react-router-dom';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { useGroupState } from '@/state/groups';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import SystemChrome from '@/components/Sidebar/SystemChrome';
+import { useSubscriptionStatus } from '@/state/local';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -31,6 +36,8 @@ const selMessagesFilter = (s: SettingsState) => ({
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const { subscription } = useSubscriptionStatus();
+
   return (
     <SidebarItem
       div
@@ -67,7 +74,7 @@ export function TalkAppMenu() {
               target="_blank"
               rel="noreferrer"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+              <div className="flex h-12 w-12 items-center justify-center rounded-md text-blue">
                 <AsteriskIcon className="h-6 w-6" />
               </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
@@ -92,6 +99,13 @@ export function TalkAppMenu() {
     >
       <div className="flex items-center justify-between">
         Talk
+        {subscription === 'reconnecting' ? (
+          <LoadingSpinner
+            primary="fill-gray-600"
+            secondary="fill-gray-600 opacity-50"
+            className="h-4 w-4 group-hover:hidden"
+          />
+        ) : null}
         <a
           title="Back to Landscape"
           aria-label="Back to Landscape"
@@ -115,6 +129,15 @@ export default function MessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
   const { messagesFilter } = useSettingsState(selMessagesFilter);
   const pinned = usePinned();
+  const filteredPins = pinned.filter((p) => {
+    const nest = `chat/${p}`;
+    const { groups } = useGroupState.getState();
+    const groupFlag = Object.entries(groups).find(
+      ([k, v]) => nest in v.channels
+    )?.[0];
+    const channel = groups[groupFlag || '']?.channels[nest];
+    return !!channel || whomIsDm(p) || whomIsMultiDm(p);
+  });
 
   const setFilterMode = (mode: SidebarFilter) => {
     useSettingsState.getState().putEntry('talk', 'messagesFilter', mode);
@@ -130,12 +153,12 @@ export default function MessagesSidebar() {
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
       <ul
         className={cn(
-          'flex w-full flex-col space-y-1 px-2 pt-2',
+          'flex w-full flex-col space-y-1 p-2',
           !atTop && 'bottom-shadow'
         )}
       >
         <TalkAppMenu />
-        <div className="h-5" />
+        <SystemChrome />
         <SidebarItem
           icon={<Avatar size="xs" ship={window.our} />}
           to={'/profile/edit'}
@@ -153,14 +176,14 @@ export default function MessagesSidebar() {
           isScrolling={scroll.current}
         >
           <div className="flex w-full flex-col space-y-3 overflow-x-hidden px-2 sm:space-y-1">
-            {pinned && pinned.length > 0 ? (
+            {filteredPins && filteredPins.length > 0 ? (
               <>
                 <div className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
                   <span className="ml-4 text-sm font-semibold text-gray-400">
                     Pinned Messages
                   </span>
                 </div>
-                {pinned.map((ship: string) => (
+                {filteredPins.map((ship: string) => (
                   <MessagesSidebarItem key={ship} whom={ship} />
                 ))}
               </>

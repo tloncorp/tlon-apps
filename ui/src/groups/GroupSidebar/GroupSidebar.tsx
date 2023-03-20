@@ -3,9 +3,9 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FastAverageColor } from 'fast-average-color';
 import { mix, transparentize } from 'color2k';
 import { useIsDark } from '@/logic/useMedia';
-import { useGroup, useGroupFlag } from '@/state/groups/groups';
+import { useAmAdmin, useGroup, useGroupFlag } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
-import HashIcon16 from '@/components/icons/HashIcon16';
+import BellIcon from '@/components/icons/BellIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useHarkState from '@/state/hark';
 import { useCalm } from '@/state/settings';
@@ -14,9 +14,12 @@ import { foregroundFromBackground } from '@/components/Avatar';
 import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import GroupActions from '@/groups/GroupActions';
-import ElipsisIcon from '@/components/icons/EllipsisIcon';
-import HomeIcon from '@/components/icons/HomeIcon';
 import HashIcon from '@/components/icons/HashIcon';
+import AddIcon from '@/components/icons/AddIcon';
+import { Link, useLocation } from 'react-router-dom';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
+import { useSubscriptionStatus } from '@/state/local';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -32,6 +35,7 @@ function GroupHeader() {
   const hoverFallbackBackground = dark ? '#333333' : '#CCCCCC';
   const calm = useCalm();
   const defaultImportCover = group?.meta.cover === '0x0';
+  const { subscription } = useSubscriptionStatus();
 
   const onError = useCallback(() => {
     setNoCors(true);
@@ -170,10 +174,21 @@ function GroupHeader() {
             >
               {group?.meta.title}
             </div>
-            <ElipsisIcon
-              aria-label="Open Menu"
-              className={cn('h-6 w-6 opacity-0 group-hover:opacity-100')}
-            />
+
+            <div style={coverTitleStyles()}>
+              {subscription === 'reconnecting' ? (
+                <LoadingSpinner
+                  fill={`fill-${coverTitleStyles().color}`}
+                  primary={`fill-${coverTitleStyles().color}`}
+                  secondary={`fill-${coverTitleStyles().color} opacity-25`}
+                  className="h-4 w-4 group-hover:hidden"
+                />
+              ) : null}
+              <CaretDown16Icon
+                aria-label="Open Menu"
+                className={cn('hidden h-4 w-4 group-hover:block')}
+              />
+            </div>
           </button>
         </GroupActions>
       </div>
@@ -183,6 +198,9 @@ function GroupHeader() {
 
 export default function GroupSidebar() {
   const flag = useGroupFlag();
+  const isDark = useIsDark();
+  const location = useLocation();
+  const isAdmin = useAmAdmin(flag);
 
   useEffect(() => {
     if (flag !== '') {
@@ -195,26 +213,43 @@ export default function GroupSidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
-      <div className="h-5" />
-      <div className="flex min-h-0 flex-col px-2">
-        <ul>
+      <div className="h-2" />
+      <div className="relative flex min-h-0 flex-col px-2">
+        <ul className="space-y-0.5">
           <GroupHeader />
           <SidebarItem
             icon={
-              <HomeIcon className="m-1 h-6 w-6 rounded bg-gray-50 mix-blend-multiply" />
+              <BellIcon
+                className={cn('h-6 w-6 rounded', {
+                  'mix-blend-multiply': !isDark,
+                })}
+              />
             }
             to={`/groups/${flag}/activity`}
           >
-            Home
+            Activity
           </SidebarItem>
           <SidebarItem
             icon={
-              <HashIcon className="m-1 h-6 w-6 rounded bg-gray-50 mix-blend-multiply" />
+              <HashIcon
+                className={cn('h-6 w-6 rounded', {
+                  'mix-blend-multiply': !isDark,
+                })}
+              />
             }
             to={`/groups/${flag}/channels`}
           >
             All Channels
           </SidebarItem>
+          {isAdmin && (
+            <Link
+              to={`/groups/${flag}/channels/new`}
+              state={{ backgroundLocation: location }}
+              className="absolute right-5 bottom-3 flex h-6 w-6 items-center justify-center rounded"
+            >
+              <AddIcon className="h-4 w-4 fill-gray-800" />
+            </Link>
+          )}
         </ul>
       </div>
       <div className="mt-5 flex border-t-2 border-gray-50 pt-3 pb-2">

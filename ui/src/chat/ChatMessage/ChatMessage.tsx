@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import cn from 'classnames';
-import _ from 'lodash';
+import _, { debounce } from 'lodash';
 import f from 'lodash/fp';
 import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
@@ -25,6 +25,7 @@ import {
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
+import { whomIsDm } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '../useChatStore';
 
 export interface ChatMessageProps {
@@ -43,6 +44,19 @@ export interface ChatMessageProps {
 function briefMatches(brief: ChatBrief, id: string): boolean {
   return brief['read-id'] === id;
 }
+
+const mergeRefs =
+  (...refs: any[]) =>
+  (node: any) => {
+    refs.forEach((ref) => {
+      if (!ref) {
+        return;
+      }
+
+      /* eslint-disable-next-line no-param-reassign */
+      ref.current = node;
+    });
+  };
 
 const ChatMessage = React.memo<
   ChatMessageProps & React.RefAttributes<HTMLDivElement>
@@ -64,9 +78,11 @@ const ChatMessage = React.memo<
       ref
     ) => {
       const { seal, memo } = writ;
+      const container = useRef<HTMLDivElement>(null);
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
+      const [hovering, setHovering] = useState(false);
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -126,7 +142,7 @@ const ChatMessage = React.memo<
         : false;
       const replyAuthors = _.flow(
         f.map((k: string) => {
-          const t = pact.index[k];
+          const t = pact?.index[k];
           const mess = t ? pact.writs.get(t) : undefined;
           if (!mess) {
             return undefined;
@@ -143,13 +159,39 @@ const ChatMessage = React.memo<
         ? new Date(daToUnix(lastReplyWrit[0]))
         : new Date();
 
+      const hover = useRef(false);
+      const setHover = useRef(
+        debounce(() => {
+          if (hover.current) {
+            setHovering(true);
+          }
+        }, 100)
+      );
+      const onOver = useCallback(() => {
+        hover.current = true;
+        setHover.current();
+      }, []);
+      const onOut = useRef(
+        debounce(
+          () => {
+            hover.current = false;
+            setHovering(false);
+          },
+          50,
+          { leading: true }
+        )
+      );
+
       return (
         <div
-          ref={ref}
+          ref={mergeRefs(ref, container)}
           className={cn('flex flex-col break-words', {
             'pt-2': newAuthor,
             'pb-2': isLast,
           })}
+          onMouseEnter={onOver}
+          onClick={onOver}
+          onMouseLeave={onOut.current}
         >
           {unread && briefMatches(unread.brief, writ.seal.id) ? (
             <DateDivider
@@ -161,11 +203,12 @@ const ChatMessage = React.memo<
           {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex w-full">
-            {hideOptions ? null : (
+            {hideOptions || isScrolling || !hovering ? null : (
               <ChatMessageOptions
-                hideReply={hideReplies}
+                hideThreadReply={hideReplies}
                 whom={whom}
                 writ={writ}
+                hideReply={whomIsDm(whom) || hideReplies}
               />
             )}
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
@@ -184,6 +227,7 @@ const ChatMessage = React.memo<
                   <ChatContent
                     story={memo.content.story}
                     isScrolling={isScrolling}
+                    writId={seal.id}
                   />
                 ) : null}
                 {Object.keys(seal.feels).length > 0 && (
@@ -194,39 +238,62 @@ const ChatMessage = React.memo<
                     to={`message/${seal.id}`}
                     className={({ isActive }) =>
                       cn(
-                        'rounded p-2 text-sm font-semibold text-blue',
-                        isActive ? 'bg-gray-50' : ''
+                        'group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
+                        isActive
+                          ? 'is-active bg-gray-50 [&>div>div>.reply-avatar]:outline-gray-50'
+                          : '',
+                        isLinked
+                          ? '[&>div>div>.reply-avatar]:outline-blue-100 dark:[&>div>div>.reply-avatar]:outline-blue-900'
+                          : ''
                       )
                     }
                   >
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center">
+                      <div className="mr-2 flex flex-row-reverse">
+                        {replyAuthors.map((ship, i) => (
+                          <div
+                            key={ship}
+                            className={cn(
+                              'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white group-one-focus-within:outline-gray-50 group-one-hover:outline-gray-50',
+                              i !== 0 && '-mr-3'
+                            )}
+                          >
+                            <Avatar key={ship} ship={ship} size="xs" />
+                          </div>
+                        ))}
+                      </div>
+
+                      <span
+                        className={cn(
+                          repliesContainsUnreadId ? 'text-blue' : 'mr-2'
+                        )}
+                      >
+                        {numReplies} {numReplies > 1 ? 'replies' : 'reply'}{' '}
+                      </span>
                       {repliesContainsUnreadId ? (
                         <UnreadIndicator
                           className="h-6 w-6 text-blue transition-opacity"
                           aria-label="Unread replies in this thread"
                         />
                       ) : null}
-                      {replyAuthors.map((ship) => (
-                        <Avatar key={ship} ship={ship} size="xs" />
-                      ))}
-
-                      <span>
-                        {numReplies} {numReplies > 1 ? 'replies' : 'reply'}{' '}
-                      </span>
                       <span className="text-gray-400">
-                        Last reply{' '}
-                        {isToday(lastReplyTime)
-                          ? `${formatDistanceToNow(lastReplyTime)} ago`
-                          : formatRelative(lastReplyTime, new Date())}
+                        <span className="hidden sm:inline-block">
+                          Last reply&nbsp;
+                        </span>
+                        <span className="inline-block first-letter:capitalize sm:first-letter:normal-case">
+                          {isToday(lastReplyTime)
+                            ? `${formatDistanceToNow(lastReplyTime)} ago`
+                            : formatRelative(lastReplyTime, new Date())}
+                        </span>
                       </span>
                     </div>
                   </NavLink>
                 ) : null}
               </div>
-              <div className="flex items-end rounded-r group-one-hover:bg-gray-50">
+              <div className="relative flex w-5 items-end rounded-r group-one-hover:bg-gray-50">
                 {!isMessageDelivered && (
                   <DoubleCaretRightIcon
-                    className="h-5 w-5"
+                    className="absolute left-0 bottom-2 h-5 w-5"
                     primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />

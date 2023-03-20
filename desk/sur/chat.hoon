@@ -191,7 +191,7 @@
   +$  rsvp    [=ship ok=?]
   --
 ::
-::  $log: a time ordered map of all modifications to groups
+::  $log: a time ordered map of all modifications to chats
 ::
 +$  log
   ((mop time diff) lte)
@@ -315,7 +315,12 @@
   $:  writers=(set sect:g)
       group=flag:g
   ==
+::  $join: a group + channel flag to join a channel, group required for perms
 ::
++$  join
+  $:  group=flag:g
+      chan=flag:g
+  ==
 ::  $leave: a flag to pass for a channel leave
 ::
 +$  leave  flag:g

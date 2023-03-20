@@ -13,7 +13,7 @@ import NoteReference from './NoteReference';
 // eslint-disable-next-line import/no-cycle
 import WritBaitReference from './WritBaitReference';
 
-export default function BaitReference({
+function BaitReference({
   bait,
   isScrolling,
 }: {
@@ -75,3 +75,5 @@ export default function BaitReference({
 
   return <HeapLoadingBlock reference />;
 }
+
+export default React.memo(BaitReference);
