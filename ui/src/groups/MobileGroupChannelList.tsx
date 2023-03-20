@@ -15,7 +15,7 @@ export default function MobileGroupChannelList() {
 
   return (
     <>
-      <header className="flex items-center justify-between px-6 pt-10 pb-4">
+      <header className="flex items-center justify-between border-b-2 border-gray-50 px-6 py-4">
         <Link
           to="/"
           className="default-focus inline-flex items-center text-base font-semibold text-gray-800"

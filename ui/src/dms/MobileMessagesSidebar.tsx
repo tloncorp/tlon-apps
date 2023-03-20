@@ -53,7 +53,10 @@ export default function MobileMessagesSidebar() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <header className="flex items-center justify-between px-6 pt-10 pb-4">
+      <header
+        className="flex items-center justify-between border-b-2
+       border-gray-50 bg-white px-6 py-4"
+      >
         <h1 className="text-lg font-bold text-gray-800 sm:text-base">
           Messages
         </h1>

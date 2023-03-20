@@ -33,8 +33,8 @@ export function MainWrapper({
 
   return (
     <>
-      <header className="flex h-14 items-center justify-between px-5 py-4">
-        <h1 className="text-base font-bold">{title}</h1>
+      <header className="flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4">
+        <h1 className="text-lg font-bold text-gray-800">{title}</h1>
       </header>
       <nav className="h-full flex-1 overflow-y-auto">{children}</nav>
     </>
@@ -103,10 +103,14 @@ export default function Notifications({
   const MarkAsRead = (
     <button
       disabled={isMarkReadPending || !hasUnreads}
-      className={cn('whitespace-nowrap', isMobile ? 'small-button' : 'button', {
-        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
-        'bg-blue text-white': !isMarkReadPending && hasUnreads,
-      })}
+      className={cn(
+        'whitespace-nowrap text-sm',
+        isMobile ? 'small-button' : 'button',
+        {
+          'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
+          'bg-blue text-white': !isMarkReadPending && hasUnreads,
+        }
+      )}
       onClick={markAllRead}
     >
       {isMarkReadPending ? (
@@ -120,7 +124,7 @@ export default function Notifications({
   return (
     <>
       {isMobile && (
-        <header className="flex items-center justify-between bg-white px-6 pt-10 pb-4">
+        <header className="flex items-center justify-between bg-white px-6 py-4">
           <h1 className="text-lg font-bold text-gray-800">Activity</h1>
           <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
             {isMobile && <ReconnectingSpinner />}
@@ -146,21 +150,31 @@ export default function Notifications({
             >
               <button
                 onClick={() => setShowMentionsOnly(false)}
-                className={cn('button rounded-r-none', {
-                  'bg-gray-800 text-white': !showMentionsOnly,
-                  'bg-white text-gray-800 ': showMentionsOnly,
-                  'grow whitespace-nowrap': isMobile,
-                })}
+                className={cn(
+                  'button whitespace-nowrap rounded-r-none text-sm',
+                  {
+                    'bg-gray-800 text-white': !showMentionsOnly,
+                    'bg-white text-gray-800 ': showMentionsOnly,
+                    'small-button grow': isMobile,
+                  }
+                )}
               >
-                All Notifications{hasUnreads ? ` • ${count} New` : null}
+                All{' '}
+                <span className="hidden sm:inline">
+                  &nbsp;Notifications&nbsp;
+                </span>
+                {hasUnreads ? ` • ${count} New` : null}
               </button>
               <button
                 onClick={() => setShowMentionsOnly(true)}
-                className={cn('button rounded-l-none', {
-                  'bg-gray-800 text-white': showMentionsOnly,
-                  'bg-white text-gray-800': !showMentionsOnly,
-                  'grow whitespace-nowrap': isMobile,
-                })}
+                className={cn(
+                  'button whitespace-nowrap rounded-l-none text-sm',
+                  {
+                    'bg-gray-800 text-white': showMentionsOnly,
+                    'bg-white text-gray-800': !showMentionsOnly,
+                    'small-button grow': isMobile,
+                  }
+                )}
               >
                 Mentions Only
                 {mentions.length ? ` • ${mentions.length} New` : null}

@@ -21,7 +21,7 @@ export default function GroupChannelManager({ title }: ViewProps) {
         </title>
       </Helmet>
       {isMobile && (
-        <header className="flex items-center justify-between bg-white px-6 pt-10 pb-4">
+        <header className="flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4">
           <Link
             to={`/groups/${flag}`}
             className="default-focus inline-flex items-center text-base font-semibold text-gray-800 hover:bg-gray-50"

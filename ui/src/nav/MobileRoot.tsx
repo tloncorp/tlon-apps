@@ -34,8 +34,8 @@ export default function MobileRoot() {
 
   return (
     <>
-      <header className="flex items-center justify-between px-6 pt-10 pb-4">
-        <h1 className="text-lg font-bold text-gray-800">My Groups</h1>
+      <header className="flex items-center justify-between border-b-2 border-gray-50 px-6 py-4">
+        <h1 className="text-lg font-bold text-gray-800">All Groups</h1>
         <div className="flex flex-row items-center space-x-3 self-end">
           <ReconnectingSpinner />
           <SidebarSorter

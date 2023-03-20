@@ -50,7 +50,7 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
     switch (sortFn) {
       case 'Arranged':
         return 'Arranged Channels';
-      case 'Recent Activity':
+      case 'Recent':
         return 'Recent Activity';
       case 'A → Z':
         return 'Channels A → Z';
