@@ -63,7 +63,10 @@ function CurioReference({
     >
       <div
         onClick={handleOpenReferenceClick}
-        className="flex h-full cursor-pointer flex-col justify-between p-2"
+        className={cn(
+          'flex h-full cursor-pointer flex-col justify-between',
+          idCurioComment ? 'p-6' : 'p-2'
+        )}
       >
         <HeapBlock
           curio={curioComment || curio}
@@ -78,6 +81,7 @@ function CurioReference({
         time={bigInt(idCurio)}
         author={curio.heart.author}
         groupFlag={preview?.group.flag}
+        groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
       />

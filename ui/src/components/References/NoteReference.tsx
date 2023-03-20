@@ -130,6 +130,7 @@ function NoteReference({
         time={bigInt(id)}
         author={outline.author}
         groupFlag={preview?.group.flag}
+        groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
       />
