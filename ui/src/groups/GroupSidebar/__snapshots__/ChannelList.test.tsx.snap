@@ -38,7 +38,7 @@ exports[`ChannelList > renders as expected 1`] = `
       </button>
     </div>
     <div
-      class="mx-2 space-y-0.5"
+      class="mx-4 space-y-0.5 sm:mx-2"
     />
   </div>
 </DocumentFragment>

@@ -1,5 +1,10 @@
 import cn from 'classnames';
-import React, { ComponentType, useCallback, useState } from 'react';
+import React, {
+  ComponentType,
+  useCallback,
+  useState,
+  PropsWithChildren,
+} from 'react';
 import { Helmet } from 'react-helmet';
 import { useRouteGroup, useGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
@@ -14,6 +19,26 @@ import { Bin, useNotifications } from './useNotifications';
 export interface NotificationsProps {
   child: ComponentType<{ bin: Bin }>;
   title?: ViewProps['title'];
+}
+
+export function MainWrapper({
+  isMobile,
+  title,
+  children,
+}: PropsWithChildren<{ title: string; isMobile: boolean }>) {
+  if (!isMobile) {
+    // eslint-disable-next-line react/jsx-no-useless-fragment
+    return <>{children}</>;
+  }
+
+  return (
+    <>
+      <header className="flex h-14 items-center justify-between px-5 py-4">
+        <h1 className="text-base font-bold">{title}</h1>
+      </header>
+      <nav className="h-full flex-1 overflow-y-auto">{children}</nav>
+    </>
+  );
 }
 
 function NotificationPlaceholder() {

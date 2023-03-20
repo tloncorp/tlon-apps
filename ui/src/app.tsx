@@ -43,7 +43,7 @@ import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import Notifications from './notifications/Notifications';
+import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
@@ -329,9 +329,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route
               path="/leap"
               element={
-                // <MainWrapper title="Leap" isMobile={isMobile}>
-                <Leap openDefault />
-                // </MainWrapper>
+                <MainWrapper title="Leap" isMobile={isMobile}>
+                  <Leap openDefault />
+                </MainWrapper>
               }
             />
           </Route>

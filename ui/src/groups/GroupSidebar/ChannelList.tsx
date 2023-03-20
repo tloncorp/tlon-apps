@@ -191,7 +191,7 @@ export default function ChannelList({ className }: ChannelListProps) {
   return (
     <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
       {!isMobile && <ChannelSorter isMobile={false} />}
-      <div className="mx-2 space-y-0.5">
+      <div className="mx-4 space-y-0.5 sm:mx-2">
         {isMobile && (
           <SidebarItem
             icon={
