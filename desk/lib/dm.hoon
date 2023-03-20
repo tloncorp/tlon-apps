@@ -94,6 +94,11 @@
   =*  on   on:writs:c
   ?+    pole  [~ ~]
   ::
+      [%exists author=@ time=@ ~]
+    =/  author  (slav %p author.pole)
+    =/  time  (slav %ud time.pole)
+    ``flag+!>(?~((get author `@da`time) | &))
+  ::
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
     ``chat-writs+!>((gas:on *writs:c (top:mope wit.pac count)))
