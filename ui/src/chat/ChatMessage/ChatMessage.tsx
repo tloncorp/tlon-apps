@@ -25,7 +25,7 @@ import {
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import { whomIsDm } from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '../useChatStore';
 
 export interface ChatMessageProps {
@@ -208,7 +208,7 @@ const ChatMessage = React.memo<
                 hideThreadReply={hideReplies}
                 whom={whom}
                 writ={writ}
-                hideReply={whomIsDm(whom) || hideReplies}
+                hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
               />
             )}
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
