@@ -26,6 +26,7 @@ import SidebarSorter from './SidebarSorter';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
 import ReconnectingSpinner from '../ReconnectingSpinner';
+import SystemChrome from './SystemChrome';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -155,6 +156,7 @@ export default function Sidebar() {
         })}
       >
         <GroupsAppMenu />
+        <SystemChrome />
         <SidebarItem
           highlight={shipColor}
           icon={<Avatar size="xs" ship={window.our} />}

@@ -81,6 +81,35 @@ exports[`Sidebar > renders as expected 1`] = `
           </div>
         </button>
       </div>
+      <button
+        class="flex w-full cursor-pointer flex-row space-x-2 px-1 text-gray-400 hover:text-gray-800"
+      >
+        <div
+          class="flex flex-row items-center space-x-2"
+        >
+          <svg
+            class="h-8 w-8"
+            fill="none"
+            viewBox="0 0 32 32"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              class="fill-current"
+              clip-rule="evenodd"
+              d="M8 9a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9Zm6 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V9Zm7-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-2Zm-1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2Zm-5-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-2Zm-7 1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2Zm1 5a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H9Zm5 1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2Zm7-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-2Z"
+              fill-rule="evenodd"
+            />
+          </svg>
+          <span
+            class="font-semibold"
+          >
+            Leap
+          </span>
+          <span>
+            (Ctrl + K)
+          </span>
+        </div>
+      </button>
       <div
         class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600"
       >

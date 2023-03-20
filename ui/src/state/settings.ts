@@ -62,6 +62,9 @@ interface BaseSettingsState {
     disableNicknames: boolean;
     disableWayfinding: boolean;
   };
+  tiles: {
+    order: string[];
+  };
   heaps: {
     heapSettings: Stringified<HeapSetting[]>;
   };
@@ -128,6 +131,9 @@ export const useSettingsState = createState<BaseSettingsState>(
   (set, get) => ({
     display: {
       theme: 'auto',
+    },
+    tiles: {
+      order: [],
     },
     calmEngine: {
       disableAppTileUnreads: false,

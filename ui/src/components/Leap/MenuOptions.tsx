@@ -3,6 +3,7 @@ import TalkIcon from '../icons/TalkIcon';
 import ArrowEIcon16 from '../icons/ArrowEIcon16';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
 import AddIcon16 from '../icons/Add16Icon';
+import GridIcon from '../icons/GridIcon';
 
 function CommandBadge() {
   return (
@@ -28,6 +29,12 @@ export interface IMenuOption {
 }
 
 export const groupsMenuOptions: IMenuOption[] = [
+  {
+    title: 'Apps',
+    subtitle: '',
+    to: '/grid',
+    icon: GridIcon,
+  },
   {
     title: 'Notifications',
     subtitle: '',
@@ -61,6 +68,12 @@ export const groupsMenuOptions: IMenuOption[] = [
 ];
 
 export const talkMenuOptions: IMenuOption[] = [
+  {
+    title: 'Apps',
+    subtitle: '',
+    to: '/grid',
+    icon: GridIcon,
+  },
   {
     title: 'New Message',
     subtitle: '',

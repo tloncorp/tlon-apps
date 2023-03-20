@@ -9,14 +9,15 @@ import BellIcon from '../icons/BellIcon';
 import Avatar from '../Avatar';
 import Sheet, { SheetContent } from '../Sheet';
 import MagnifyingGlassIcon from '../icons/MagnifyingGlass16Icon';
+import GridIcon from '../icons/GridIcon';
 import AsteriskIcon from '../icons/Asterisk16Icon';
 import SidebarItem from './SidebarItem';
 
 export default function MobileSidebar() {
   const ship = window.our;
-  const location = useLocation();
   const profileMatch = useMatch('/profile/edit');
   const [showSheet, setShowSheet] = useState(false);
+  const location = useLocation();
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col  border-gray-50 bg-white">
@@ -36,16 +37,9 @@ export default function MobileSidebar() {
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
               Find Groups
             </NavTab>
-            <NavTab to="/profile/edit" linkClass="basis-1/5">
-              <Avatar
-                size="xs"
-                ship={ship}
-                className={cn(
-                  'mb-1 h-6 w-6',
-                  !profileMatch && 'opacity-50 grayscale'
-                )}
-              />
-              Profile
+            <NavTab to="/leap">
+              <GridIcon className="-mx-1 h-7 w-7" />
+              Leap
             </NavTab>
             <NavTab onClick={() => setShowSheet(true)} linkClass="basis-1/5">
               <ElipsisIcon className="mb-0.5 h-6 w-6" />

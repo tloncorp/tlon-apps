@@ -72,8 +72,30 @@ import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import chatmanifestURL from './assets/chatmanifest.json?url';
 import manifestURL from './assets/manifest.json?url';
+import { LeapProvider } from './components/Leap/useLeap';
 import VitaMessage from './components/VitaMessage';
 import { useGroups } from './state/groups';
+import Dialog, { DialogContent } from './components/Dialog';
+
+const Grid = React.lazy(() => import('./components/Grid/grid'));
+const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
+const AppModal = React.lazy(() => import('./components/Grid/appmodal'));
+
+function SuspendedModal({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <Dialog defaultOpen modal>
+          <DialogContent className="bg-transparent" containerClass="w-full">
+            <LoadingSpinner />
+          </DialogContent>
+        </Dialog>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -186,6 +208,30 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route
+            path="/grid"
+            element={
+              <SuspendedModal>
+                <Grid />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk"
+            element={
+              <SuspendedModal>
+                <AppModal />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk/info"
+            element={
+              <SuspendedModal>
+                <TileInfo />
+              </SuspendedModal>
+            }
+          />
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
@@ -280,6 +326,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 <EditProfile title={`Edit Profile • ${appHead('').title}`} />
               }
             />
+            <Route
+              path="/leap"
+              element={
+                // <MainWrapper title="Leap" isMobile={isMobile}>
+                <Leap openDefault />
+                // </MainWrapper>
+              }
+            />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
@@ -361,6 +415,30 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route
+            path="/grid"
+            element={
+              <SuspendedModal>
+                <Grid />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk"
+            element={
+              <SuspendedModal>
+                <AppModal />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk/info"
+            element={
+              <SuspendedModal>
+                <TileInfo />
+              </SuspendedModal>
+            }
+          />
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
@@ -468,25 +546,27 @@ function App() {
       {!disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
       <UpdateNotice />
-      {isTalk ? (
-        <>
-          <TalkHead />
-          <ChatRoutes
+      <LeapProvider>
+        {isTalk ? (
+          <>
+            <TalkHead />
+            <ChatRoutes
+              state={state}
+              location={location}
+              isMobile={isMobile}
+              isSmall={isSmall}
+            />
+          </>
+        ) : (
+          <GroupsRoutes
             state={state}
             location={location}
             isMobile={isMobile}
             isSmall={isSmall}
           />
-        </>
-      ) : (
-        <GroupsRoutes
-          state={state}
-          location={location}
-          isMobile={isMobile}
-          isSmall={isSmall}
-        />
-      )}
-      <Leap />
+        )}
+        <Leap />
+      </LeapProvider>
       <VitaMessage />
     </div>
   );

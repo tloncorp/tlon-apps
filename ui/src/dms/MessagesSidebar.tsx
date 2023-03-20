@@ -22,6 +22,7 @@ import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroupState } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import SystemChrome from '@/components/Sidebar/SystemChrome';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -144,6 +145,7 @@ export default function MessagesSidebar() {
         className={cn('flex w-full flex-col p-2', !atTop && 'bottom-shadow')}
       >
         <TalkAppMenu />
+        <SystemChrome />
         <SidebarItem
           icon={<Avatar size="xs" ship={window.our} />}
           to={'/profile/edit'}
