@@ -252,6 +252,7 @@ const ChatMessage = React.memo<
                       <div className="mr-2 flex flex-row-reverse">
                         {replyAuthors.map((ship, i) => (
                           <div
+                            key={ship}
                             className={cn(
                               'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white group-one-focus-within:outline-gray-50 group-one-hover:outline-gray-50',
                               i !== 0 && '-mr-3'

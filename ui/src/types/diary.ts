@@ -359,3 +359,8 @@ export interface DiaryJoin {
   group: string;
   chan: DiaryFlag;
 }
+
+export interface DiaryInit {
+  briefs: DiaryBriefs;
+  shelf: Shelf;
+}

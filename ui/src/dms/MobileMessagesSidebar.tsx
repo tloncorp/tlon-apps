@@ -18,6 +18,8 @@ import {
 } from '@/state/settings';
 import { useGroupState } from '@/state/groups';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import GridIcon from '@/components/icons/GridIcon';
+import useLeap from '@/components/Leap/useLeap';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -28,6 +30,7 @@ const selMessagesFilter = (s: SettingsState) => ({
 
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
+  const { setIsOpen } = useLeap();
   const { messagesFilter } = useSettingsState(selMessagesFilter);
   const pinned = usePinned();
   const filteredPins = pinned.filter((p) => {
@@ -114,9 +117,18 @@ export default function MobileMessagesSidebar() {
                 </DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu.Root>
-            <Link to="/dm/new" aria-label="New Direct Message" className="mr-2">
-              <NewMessageIcon className="h-6 w-6 text-blue" />
-            </Link>
+            <div className="mr-2 flex items-center space-x-2">
+              <button title="Open Leap" onClick={() => setIsOpen(true)}>
+                <GridIcon className="h-7 w-7 text-gray-600" />
+              </button>
+              <Link
+                to="/dm/new"
+                aria-label="New Direct Message"
+                className="mr-2"
+              >
+                <NewMessageIcon className="h-6 w-6 text-blue" />
+              </Link>
+            </div>
           </header>
         </MessagesList>
       </MessagesScrollingContext.Provider>

@@ -1,10 +1,10 @@
-import { Inline } from '@/types/content';
 import {
   Diary,
   DiaryBriefs,
   DiaryCreate,
   DiaryDisplayMode,
   DiaryFlag,
+  DiaryInit,
   DiaryNoteMap,
   DiaryOutline,
   DiaryStory,
@@ -27,9 +27,10 @@ export interface DiaryState {
   briefs: DiaryBriefs;
   pendingImports: Record<string, boolean>;
   create: (req: DiaryCreate) => Promise<void>;
-  start: () => Promise<void>;
+  start: (init: DiaryInit) => Promise<void>;
   fetchNote: (flag: DiaryFlag, noteId: string) => Promise<void>;
   initialize: (flag: DiaryFlag) => Promise<void>;
+  initImports: (init: Record<string, boolean>) => void;
   joinDiary: (groupFlag: string, flag: DiaryFlag) => Promise<void>;
   leaveDiary: (flag: DiaryFlag) => Promise<void>;
   viewDiary: (flag: DiaryFlag, view: DiaryDisplayMode) => Promise<void>;

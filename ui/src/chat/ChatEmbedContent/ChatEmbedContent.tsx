@@ -22,7 +22,15 @@ const trustedProviders = [
   },
 ];
 
-function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
+function ChatEmbedContent({
+  url,
+  content,
+  writId,
+}: {
+  url: string;
+  content: string;
+  writId: string;
+}) {
   const [embed, setEmbed] = useState<any>();
   const calm = useCalm();
   const isAudio = AUDIO_REGEX.test(url);
@@ -43,6 +51,10 @@ function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
       }
     };
     getOembed();
+
+    return () => {
+      setEmbed(null);
+    };
   }, [url, calm, isTrusted, isAudio]);
 
   if (isAudio) {
@@ -105,14 +117,14 @@ function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
 
     return (
       <a target="_blank" rel="noreferrer" href={url}>
-        {url}
+        {content}
       </a>
     );
   }
 
   return (
     <a target="_blank" rel="noreferrer" href={url}>
-      {url}
+      {content}
     </a>
   );
 }

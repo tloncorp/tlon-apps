@@ -38,11 +38,19 @@ const MentionList = React.forwardRef<
 
   const getMessage = useCallback(
     (ship: string) => {
+      if (ship === window.our) {
+        return null;
+      }
+
       if (match) {
         const multiDm = match && multiDms[match.params.ship || ''];
-        return !multiDm || ![...multiDm.hive, ...multiDm.team].includes(ship)
-          ? 'Not in message'
-          : null;
+        if (multiDm) {
+          return ![...multiDm.hive, ...multiDm.team].includes(ship)
+            ? 'Not in message'
+            : null;
+        }
+
+        return ship !== match.params.ship ? 'Not in message' : null;
       }
 
       return !group?.fleet[ship] ? 'Not in group' : null;

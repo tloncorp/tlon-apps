@@ -24,8 +24,9 @@ export interface NotificationsProps {
 
 export function MainWrapper({
   isMobile,
+  title,
   children,
-}: PropsWithChildren<{ isMobile: boolean }>) {
+}: PropsWithChildren<{ title: string; isMobile: boolean }>) {
   if (!isMobile) {
     // eslint-disable-next-line react/jsx-no-useless-fragment
     return <>{children}</>;
@@ -34,7 +35,7 @@ export function MainWrapper({
   return (
     <>
       <header className="flex h-14 items-center justify-between px-5 py-4">
-        <h1 className="text-base font-bold">Notifications</h1>
+        <h1 className="text-base font-bold">{title}</h1>
       </header>
       <nav className="h-full flex-1 overflow-y-auto">{children}</nav>
     </>
