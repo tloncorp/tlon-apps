@@ -15,8 +15,7 @@
   --
 ::
 +$  card     card:agent:gall
-+$  profile  ?(~ $%([%gon wen=@da] [%hav con=contact]))
-+$  state-0  [%0 rol=rolodex rof=profile]
++$  state-0  [%0 rof=profile rol=rolodex]
 --
 ::
 %-  agent:dbug
@@ -134,70 +133,51 @@
     ++  news
       |=(n=^news (give %fact [/news ~] %contact-news !>(n)))
     ::
-    ++  diff
-      |=  u=update  ::  XX scrape thru paths
-      (give %fact [/contact ~] %contact-update-0 !>(u))
+    ++  diff  ::  XX scrape thru paths
+      |=  con=?(~ contact)
+      =/  u=update  [?~(rof now.bowl (mono wen.rof now.bowl)) con]
+      %-  give:(news(rof u) our.bowl con)
+      [%fact [/contact ~] %contact-update-0 !>(u)]
     ::
     ++  init
-      =>  |%
-          ++  fact
-            |=(u=update (give %fact ~ %contact-update-0 !>(u)))
-          --
-      ::
       |=  wen=(unit @da)
       ^+  cor
       ?~  rof  cor
-      ::  XX reject subscriptions for future dates?
-      ::
-      ?-  -.rof
-        %gon  ?:  &(?=(^ wen) (lte wen.rof u.wen))
-                cor
-              (fact %del wen.rof)
-      ::
-        %hav  ?:  &(?=(^ wen) (lte last-updated.con.rof u.wen))
-                cor
-              (fact %set con.rof)
-      ==
+      =/  gif  [%fact ~ %contact-update-0 !>(`update`rof)]
+      ?~  wen  (give gif)
+      ?:  =(u.wen wen.rof)  cor
+      ?>((lth u.wen wen.rof) (give gif)) :: no future subs
     --
   ::
   ++  sub
-    |_  who=ship
-    ::
+    |=  who=ship
+    ?<  =(our.bowl who)
+    =/  for=(pair profile ?(~ saga:e))
+      (~(gut by rol) who [~ ~])
+    |%
     ++  hear
       |=  u=update
       ^+  cor
-      =/  con  (~(get by rol) who)
-      ?-    -.u
-          %set
-        ?.  |(?=(~ con) (gth last-updated.c.u last-updated.u.con))
-          cor
-        (news:pub(rol (~(put by rol) who c.u)) who `c.u)
-      ::
-          %del
-        ?.  |(?=(~ con) (gth wen.u last-updated.u.con))
-          cor
-        (news:pub(rol (~(del by rol) src.bowl)) src.bowl ~) :: XX track deletion state
-      ==
+      ?:  &(?=(^ p.for) (lte wen.u wen.p.for))
+        cor
+      (news:pub(rol (~(put by rol) who for(p u))) who con.u)
     ::
-    ++  have   (~(has by wex.bowl) [/contact who dap.bowl])
+    ++  have  (~(has by wex.bowl) [/contact who dap.bowl]) :: XX check state
     ::
-    ++  meet  cor :: XX track state, don't subscribe
+    ++  meet  cor(rol (~(put by rol) who for))
     ::
     ++  heed
       ^+  cor
-      ?:  |(=(our.bowl who) have)  :: XX skip comets? moons?
-        cor
-      =/  pat=path
-        :-  %contact
-        ?~  con=(~(get by rol) who)  /     :: XX check deletion state
-        /at/(scot %da last-updated.u.con)
-      (pass /contact %agent [who dap.bowl] %watch pat) ::  XX track subscription state
+      ?:  have  cor
+      =/  pat  ?~(p.for / /at/(scot %da wen.p.for))
+      (pass /contact %agent [who dap.bowl] %watch [%contact pat]) ::  XX track subscription state
     ::
-    ++  drop  cor  :: XX delete & unsubscribe
+    ++  drop
+      =.  cor  snub
+      cor(rol (~(del by rol) who)) :: XX delete, or just ~ the profile?
     ::
-    ++  snub   :: XX path?, track subscription state
-      ?:  |(=(our.bowl who) !have)
-        cor
+    ++  snub   :: XX track subscription state
+      ?.  have  cor
       (pass /contact %agent [who dap.bowl] %leave ~)
     ::
     ++  odd
@@ -230,16 +210,46 @@
     --
   ::
   ++  migrate
+    =>  |%
+        ++  legacy
+          |%
+          +$  rolodex  (map ship contact)
+          +$  contact
+            $:  nickname=@t
+                bio=@t
+                status=@t
+                color=@ux
+                avatar=(unit @t)
+                cover=(unit @t)
+                groups=(set resource)
+                last-updated=@da
+            ==
+          --
+        --
+    ::
     ^+  cor
     ?.  .^(? gu+/=contact-store=)
       cor
-    =/  ful  .^(rolodex gx+/=contact-store=/all/noun)
-    =/  old  (~(get by ful) our.bowl)
-    ::  XX migrate all
+    =/  ful  .^(rolodex:legacy gx+/=contact-store=/all/noun)
     ::
-    ?:  |(?=(~ old) =(*@da last-updated.u.old))
-      cor
-    cor(rof [%hav u.old])
+    |^  cor(rof us, rol them)
+    ++  us
+      ^-  profile
+      ?~  old=(~(get by ful) our.bowl)  ~
+      (convert u.old)
+    ::
+    ++  them
+      ^-  rolodex
+      %-  ~(rep by ful)
+      |=  [[who=ship con=contact:legacy] rol=rolodex]
+      (~(put by rol) who (convert con) ~)  :: XX subscribe to any?
+    ::
+    ++  convert
+      |=  con=contact:legacy
+      ^-  profile
+      ?:  =(*contact:legacy con)  ~
+      [last-updated.con con(|6 groups.con)]
+    --
   ::
   +|  %implementation
   ::
@@ -253,7 +263,7 @@
           ?-  -.old
             %0  old
           ==
-        ?>  (gte okay cool)
+        ?>  (gte okay cool)  :: no time loops!
         ?:  =(okay cool)  cor
         ::  XX scrape thru subscription state and resub
         ::
@@ -267,7 +277,6 @@
   ++  poke
     |=  [=mark =vase]
     ^+  cor
-    ?>  (team:title our.bowl src.bowl)
     ?+    mark  ~|(bad-mark+mark !!)
         ::  incompatible changes get a mark version bump
         ::
@@ -275,23 +284,21 @@
         ::    directly handling or upconverting old-marked pokes
         ::
         ?(act:base:mar %contact-action-0)
+      ?>  =(our src):bowl
       =/  act  !<(action vase)
       ?-  -.act
-        %anon  ?.  ?=([%hav *] rof)
+        %anon  ?.  ?=([@ ^] rof)
                  cor
-               =/  wen=@da  (mono last-updated.con.rof now.bowl)
-               (diff:pub(rof [%gon wen]) %del wen)
+               (diff:pub ~)
       ::
-        %edit   =*  old  ?.(?=([%hav *] rof) *contact con.rof)
-                ?~  new=(do-edits old p.act)
+        %edit   ?~  new=(do-edits ?.(?=([@ ^] rof) *contact con.rof) p.act)
                  cor
-               =.  last-updated.u.new  (mono last-updated.u.new now.bowl)
-               (diff:pub(rof [%hav u.new]) %set u.new)
+               (diff:pub u.new)
       ::
-        %meet  (roll p.act |=([who=@p acc=_cor] ~(meet sub:acc who)))
-        %heed  (roll p.act |=([who=@p acc=_cor] ~(heed sub:acc who)))
-        %drop  (roll p.act |=([who=@p acc=_cor] ~(drop sub:acc who)))
-        %snub  (roll p.act |=([who=@p acc=_cor] ~(snub sub:acc who)))
+        %meet  (roll p.act |=([who=@p acc=_cor] meet:(sub:acc who)))
+        %heed  (roll p.act |=([who=@p acc=_cor] heed:(sub:acc who)))
+        %drop  (roll p.act |=([who=@p acc=_cor] drop:(sub:acc who)))
+        %snub  (roll p.act |=([who=@p acc=_cor] snub:(sub:acc who)))
       ==
     ==
   ::
@@ -301,18 +308,20 @@
     ?+    pat  [~ ~]
         [%x %all ~]
       =/  lor=rolodex
-        ?.(?=([%hav *] rof) rol (~(put by rol) our.bowl con.rof))
+        ?:  |(?=(~ rof) ?=(~ con.rof))  rol
+        (~(put by rol) our.bowl rof ~)
       ``noun+!>(lor)
     ::
         [%x %contact her=@ ~]
       ?~  who=`(unit @p)`(slaw %p her.pat)
         [~ ~]
-      =/  tac=(unit contact)
-        ?:  =(our.bowl u.who)
-          ?.(?=([%hav *] rof) ~ `con.rof)
-        (~(get by rol) u.who)
+      =/  tac=?(~ contact)
+        ?:  =(our.bowl u.who)  ?~(rof ~ con.rof)
+        =/  for  (~(get by rol) u.who)
+        ?:  |(?=(~ for) ?=(~ p.u.for))  ~
+        con.p.u.for
       ?~  tac  [~ ~]
-      ``[%contact !>(u.tac)]
+      ``[%contact !>(`contact`tac)]
     ==
   ::
   ++  peer
@@ -333,23 +342,23 @@
       ?-  -.sign
         %poke-ack   ~|(strange-poke-ack+wire !!)
         %watch-ack  cor :: XX handle with epic sub?
-        %kick       ~(heed sub src.bowl)
-        %fact       ?+    p.cage.sign  (~(odd sub src.bowl) p.cage.sign)
+        %kick       heed:(sub src.bowl)
+        %fact       ?+    p.cage.sign  (odd:(sub src.bowl) p.cage.sign)
                         ::  incompatible changes get a mark version bump
                         ::
                         ::    XX details
                         ::
                         ?(upd:base:mar %contact-update-0)
-                      (~(hear sub src.bowl) !<(update q.cage.sign))
+                      (hear:(sub src.bowl) !<(update q.cage.sign))
       ==            ==
     ::
         [%epic ~]
       ?-  -.sign
         %poke-ack   ~|(strange-poke-ack+wire !!)
         %watch-ack  cor :: XX handle nack w/ failure state?
-        %kick       peer:~(epic sub src.bowl)
+        %kick       peer:epic:(sub src.bowl)
         %fact       ?+  p.cage.sign  ~|(not-epic+p.cage.sign !!) :: XX drop? set sub state?
-                      %epic  (take:~(epic sub src.bowl) !<(epic:e q.cage.sign))
+                      %epic  (take:epic:(sub src.bowl) !<(epic:e q.cage.sign))
       ==            ==
     ==
   --

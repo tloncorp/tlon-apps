@@ -1,7 +1,5 @@
-/-  *resource
+/-  *resource, e=epic
 |%
-+$  rolodex  (map ship contact)
-::
 +$  contact
   $:  nickname=@t
       bio=@t
@@ -10,8 +8,10 @@
       avatar=(unit @t)
       cover=(unit @t)
       groups=(set resource)
-      last-updated=@da  :: XX move out?
   ==
+::
++$  profile  ?(~ update)
++$  rolodex  (map ship (pair profile ?(~ saga:e)))
 ::
 +$  field
   $%  [%nickname nickname=@t]
@@ -41,10 +41,8 @@
   ==
 ::
 +$  update                ::  network
-  $%  [%set c=contact]
-      [%del wen=@da]
-  ==
+  [wen=@da con=?(~ contact)]
 ::
 +$  news                  ::  local
-  (pair ship (unit contact))
+  (pair ship ?(~ contact))
 --

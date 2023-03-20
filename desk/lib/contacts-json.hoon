@@ -1,4 +1,4 @@
-/-  c=contacts
+/-  c=contacts, e=epic
 /+  res=resource
 |%
 ++  enjs
@@ -37,8 +37,6 @@
         =-  groups+a+-
         %-  ~(rep in groups.c)
         |=([r=resource:res j=(list json)] [s+(enjs-path:res r) j])
-    ::
-        last-updated+(time last-updated.c)
     ==
   ::
   ++  field
@@ -61,8 +59,9 @@
     ^-  json
     %-  pairs
     %-  ~(rep by r)
-    |=  [[who=@p c=contact:c] j=(list [@t json])]
-    [[(scot %p who) (contact c)] j]
+    |=  [[who=@p (pair profile:c ?(~ saga:e))] j=(list [@t json])]
+    =-  [[(scot %p who) -] j]
+    ?:(|(?=(~ p) ?=(~ con.p)) ~ (contact con.p))  :: XX stale flag per sub state?
   ::
   ++  update
     |=  u=update:c
@@ -78,7 +77,7 @@
     ^-  json
     %-  pairs
     :~  who+(ship p.n)
-        con+?~(q.n ~ (contact u.q.n))
+        con+?~(q.n ~ (contact q.n))
     ==
   --
 ::
@@ -106,7 +105,6 @@
         avatar+(mu so)
         cover+(mu so)
         groups+(as dejs:res)
-        last-updated+di
     ==
   ::
   ++  field
