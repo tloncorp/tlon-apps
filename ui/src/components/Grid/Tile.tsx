@@ -9,7 +9,7 @@ import { Link, useLocation } from 'react-router-dom';
 import TileMenu from './TileMenu';
 import useTileColor from './useTileColor';
 // eslint-disable-next-line import/no-cycle
-import { dragTypes, useRecentsStore } from './Grid';
+import { dragTypes, useRecentsStore } from './grid';
 import BulletIcon from '../icons/BulletIcon';
 import Spinner from './Spinner';
 
