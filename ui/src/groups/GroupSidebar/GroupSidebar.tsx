@@ -66,12 +66,11 @@ function GroupHeader() {
           }
           highlight="#666666"
           className={cn(
-            'pl-11',
+            'relative pl-11',
             group && !isColor(group.meta.cover) && 'hover:bg-black/50'
           )}
           transparent={true}
           icon={<GroupAvatar {...group?.meta} />}
-          actions={<CaretDown16Icon className="mr-2 h-4 w-4" />}
         >
           <span
             style={
@@ -82,6 +81,7 @@ function GroupHeader() {
           >
             {group?.meta.title}
           </span>
+          <CaretDown16Icon className="absolute top-3 right-2 h-4 w-4" />
         </SidebarItem>
       </GroupActions>
       <Link
