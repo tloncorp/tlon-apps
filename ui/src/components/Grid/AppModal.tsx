@@ -2,12 +2,14 @@ import { getAppHref } from '@/logic/utils';
 import { useCharge } from '@/state/docket';
 import { useNavigate, useParams } from 'react-router';
 import Dialog, { DialogContent } from '../Dialog';
+import ArrowNEIcon from '../icons/ArrowNEIcon';
+import ArrowNWIcon from '../icons/ArrowNWIcon';
 import OpenSmallIcon from '../icons/OpenSmallIcon';
 
 export default function AppModal() {
   const navigate = useNavigate();
   const { desk } = useParams<{ desk: string }>();
-  const { href } = useCharge(desk || '');
+  const { href, title, image, color } = useCharge(desk || '');
   const path = getAppHref(href);
 
   const onOpenChange = (open: boolean) => {
@@ -19,23 +21,37 @@ export default function AppModal() {
   return (
     <Dialog defaultOpen modal onOpenChange={onOpenChange}>
       <DialogContent
-        containerClass="w-full h-full pt-0"
-        className="mt-7 h-full w-full overflow-y-auto bg-transparent"
+        containerClass="w-full h-full rounded-xl pt-0"
+        className="mt-7 h-5/6 w-full bg-white px-0 pb-0"
         appModal
       >
         <iframe
-          className="mt-3 h-5/6 w-full rounded-lg bg-white sm:h-3/4"
+          className="mt-6 h-full w-full overflow-y-auto rounded-b-xl border-t-2 border-gray-50 bg-white"
           src={path}
         />
-        <a
-          href={path}
-          className="small-button absolute -top-3 right-6 m-4 h-6 w-6 cursor-pointer bg-white p-1 text-gray-600 hover:bg-gray-50"
-          title="Open in new tab"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <OpenSmallIcon className="h-3 w-3" />
-        </a>
+        <div className="absolute -top-2 left-0 m-4 flex items-center justify-center space-x-2">
+          {(image || color) && (
+            <div
+              className="h-8 w-8 items-center justify-center rounded"
+              style={{
+                backgroundColor: color,
+                backgroundImage: `url(${image})`,
+                backgroundSize: 'cover',
+              }}
+            />
+          )}
+          {title && <span className="font-semibold text-black">{title}</span>}
+        </div>
+        <div className="absolute top-1 right-10 flex cursor-pointer items-center justify-center rounded-md bg-white text-gray-600 hover:bg-gray-50">
+          <a
+            href={path}
+            title="Open in new tab"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ArrowNEIcon className="h-8 w-8" />
+          </a>
+        </div>
       </DialogContent>
     </Dialog>
   );
