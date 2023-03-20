@@ -62,6 +62,9 @@ interface BaseSettingsState {
     disableNicknames: boolean;
     disableWayfinding: boolean;
   };
+  tiles: {
+    order: string[];
+  };
   heaps: {
     heapSettings: Stringified<HeapSetting[]>;
   };
@@ -70,11 +73,13 @@ interface BaseSettingsState {
   };
   talk: {
     messagesFilter: SidebarFilter;
+    showVitaMessage: boolean;
   };
   groups: {
     orderedGroupPins: string[];
     sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
     groupSideBarSort: Stringified<GroupSideBarSort>;
+    showVitaMessage: boolean;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -127,6 +132,9 @@ export const useSettingsState = createState<BaseSettingsState>(
     display: {
       theme: 'auto',
     },
+    tiles: {
+      order: [],
+    },
     calmEngine: {
       disableAppTileUnreads: false,
       disableAvatars: false,
@@ -145,9 +153,11 @@ export const useSettingsState = createState<BaseSettingsState>(
       orderedGroupPins: [],
       sideBarSort: DEFAULT,
       groupSideBarSort: '{"~": "A → Z"}' as Stringified<GroupSideBarSort>,
+      showVitaMessage: false,
     },
     talk: {
       messagesFilter: filters.dms,
+      showVitaMessage: false,
     },
     loaded: false,
     putEntry: async (bucket, key, val) => {
@@ -198,11 +208,13 @@ export function useCalm() {
   return useSettingsState(selCalm);
 }
 
-export function setCalmSetting(
+export async function setCalmSetting(
   key: keyof SettingsState['calmEngine'],
   val: boolean
 ) {
-  useSettingsState.getState().putEntry('calmEngine', key, val);
+  // use garden desk for calm settings so that they're universal.
+  const poke = doPutEntry('garden', 'calmEngine', key, val);
+  await pokeOptimisticallyN(useSettingsState, poke, reduceUpdate);
 }
 
 export function parseSettings<T>(settings: Stringified<T[]>): T[] {
@@ -281,4 +293,22 @@ const selGroupSideBarSort = (s: SettingsState) => s.groups.groupSideBarSort;
 export function useGroupSideBarSort() {
   const settings = useSettingsState(selGroupSideBarSort);
   return JSON.parse(settings ?? '{"~": "A → Z"}');
+}
+
+export function useSideBarSortMode() {
+  const settings = useSettingsState((s) => s.groups.sideBarSort);
+  return settings ?? DEFAULT;
+}
+
+export function useShowVitaMessage() {
+  const setting = useSettingsState(
+    (s) => s[window.desk as 'groups' | 'talk']?.showVitaMessage
+  );
+  return setting;
+}
+
+const selLoaded = (s: SettingsState) => s.loaded;
+export function useSettingsLoaded() {
+  const loaded = useSettingsState(selLoaded);
+  return loaded;
 }

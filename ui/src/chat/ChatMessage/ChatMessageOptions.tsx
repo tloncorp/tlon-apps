@@ -84,7 +84,7 @@ export default function ChatMessageOptions(props: {
 
   const navigate = useNavigate();
   return (
-    <div className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle opacity-0 group-one-hover:opacity-100">
+    <div className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle">
       {canWrite ? (
         <EmojiPicker
           open={pickerOpen}

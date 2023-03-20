@@ -1,6 +1,7 @@
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import _ from 'lodash';
 import {
   BrowserRouter as Router,
   Routes,
@@ -18,7 +19,7 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, useTheme } from '@/state/settings';
+import { useCalm, useSettingsLoaded, useTheme } from '@/state/settings';
 import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -63,7 +64,6 @@ import TalkHead from './dms/TalkHead';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
-import MobileGroupRoot from './nav/MobileGroupRoot';
 import MobileGroupActions from './groups/MobileGroupActions';
 import MobileGroupsActions from './groups/MobileGroupsActions';
 import Leap from './components/Leap/Leap';
@@ -74,8 +74,33 @@ import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
+import { useScheduler } from './state/scheduler';
 import chatmanifestURL from './assets/chatmanifest.json?url';
 import manifestURL from './assets/manifest.json?url';
+import { LeapProvider } from './components/Leap/useLeap';
+import VitaMessage from './components/VitaMessage';
+import { useGroups } from './state/groups';
+import Dialog, { DialogContent } from './components/Dialog';
+
+const Grid = React.lazy(() => import('./components/Grid/grid'));
+const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
+const AppModal = React.lazy(() => import('./components/Grid/appmodal'));
+
+function SuspendedModal({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <Dialog defaultOpen modal>
+          <DialogContent className="bg-transparent" containerClass="w-full">
+            <LoadingSpinner />
+          </DialogContent>
+        </Dialog>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -188,6 +213,30 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route
+            path="/grid"
+            element={
+              <SuspendedModal>
+                <Grid />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk"
+            element={
+              <SuspendedModal>
+                <AppModal />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk/info"
+            element={
+              <SuspendedModal>
+                <TileInfo />
+              </SuspendedModal>
+            }
+          />
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
@@ -201,7 +250,54 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   );
 }
 
+function HomeRoute({
+  isMobile = true,
+  isInGroups = false,
+}: {
+  isMobile: boolean;
+  isInGroups: boolean;
+}) {
+  if (!isInGroups) {
+    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
+  }
+
+  if (isMobile && isInGroups) {
+    return <MobileGroupsNavHome />;
+  }
+
+  return (
+    <Notifications
+      child={GroupNotification}
+      title={`All Notifications • ${appHead('').title}`}
+    />
+  );
+}
+
+function ActivityRoute({
+  isMobile = true,
+  isInGroups = false,
+}: {
+  isMobile: boolean;
+  isInGroups: boolean;
+}) {
+  if (!isInGroups) {
+    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
+  }
+
+  return (
+    <MainWrapper title="Notifications" isMobile={isMobile}>
+      <Notifications
+        child={GroupNotification}
+        title={`All Notifications • ${appHead('').title}`}
+      />
+    </MainWrapper>
+  );
+}
+
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
+  const groups = useGroups();
+  const isInGroups = _.isEmpty(groups) ? false : true;
+
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -210,22 +306,13 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route
               index
               element={
-                isMobile ? (
-                  <MobileGroupsNavHome />
-                ) : (
-                  <FindGroups title={`Find Groups • ${appHead('').title}`} />
-                )
+                <HomeRoute isMobile={isMobile} isInGroups={isInGroups} />
               }
             />
             <Route
               path="/notifications"
               element={
-                <MainWrapper isMobile={isMobile}>
-                  <Notifications
-                    child={GroupNotification}
-                    title={`All Notifications • ${appHead('').title}`}
-                  />
-                </MainWrapper>
+                <ActivityRoute isMobile={isMobile} isInGroups={isInGroups} />
               }
             />
             {/* Find by Invite URL */}
@@ -255,12 +342,19 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               }
             />
             <Route path="/actions" element={<MobileGroupsActions />} />
+            <Route
+              path="/leap"
+              element={
+                <MainWrapper title="Leap" isMobile={isMobile}>
+                  <Leap openDefault />
+                </MainWrapper>
+              }
+            />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
-              <Route index element={isMobile ? <MobileGroupRoot /> : null} />
               <Route
-                path="channellist"
+                index
                 element={isMobile ? <MobileGroupChannelList /> : null}
               />
               <Route
@@ -340,6 +434,30 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route
+            path="/grid"
+            element={
+              <SuspendedModal>
+                <Grid />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk"
+            element={
+              <SuspendedModal>
+                <AppModal />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk/info"
+            element={
+              <SuspendedModal>
+                <TileInfo />
+              </SuspendedModal>
+            }
+          />
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
@@ -410,12 +528,18 @@ function handleGridRedirect(navigate: NavigateFunction) {
   }
 }
 
+function Scheduler() {
+  useScheduler();
+  return null;
+}
+
 function App() {
   const navigate = useNavigate();
   const handleError = useErrorHandler();
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
+  const settingsLoaded = useSettingsLoaded();
   const { disableWayfinding } = useCalm();
 
   useEffect(() => {
@@ -437,28 +561,31 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      {!disableWayfinding && <LandscapeWayfinding />}
+      {settingsLoaded && !disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
       <UpdateNotice />
-      {isTalk ? (
-        <>
-          <TalkHead />
-          <ChatRoutes
+      <LeapProvider>
+        {isTalk ? (
+          <>
+            <TalkHead />
+            <ChatRoutes
+              state={state}
+              location={location}
+              isMobile={isMobile}
+              isSmall={isSmall}
+            />
+          </>
+        ) : (
+          <GroupsRoutes
             state={state}
             location={location}
             isMobile={isMobile}
             isSmall={isSmall}
           />
-        </>
-      ) : (
-        <GroupsRoutes
-          state={state}
-          location={location}
-          isMobile={isMobile}
-          isSmall={isSmall}
-        />
-      )}
-      <Leap />
+        )}
+        <Leap />
+      </LeapProvider>
+      <VitaMessage />
     </div>
   );
 }
@@ -519,6 +646,7 @@ function RoutedApp() {
         </Helmet>
         <TooltipProvider skipDelayDuration={400}>
           <App />
+          <Scheduler />
         </TooltipProvider>
       </Router>
     </ErrorBoundary>

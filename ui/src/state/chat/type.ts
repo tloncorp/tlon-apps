@@ -12,6 +12,8 @@ import {
   ChatWrit,
   Clubs,
   Chats,
+  ChatInit,
+  TalkChatInit,
 } from '../../types/chat';
 import { BaseState } from '../base';
 import { GroupMeta } from '../../types/groups';
@@ -21,9 +23,7 @@ export interface ChatState {
   batchSet: (fn: (sta: BasedChatState) => void) => void;
   chats: Chats;
   multiDms: Clubs;
-  dms: {
-    [ship: string]: Chat;
-  };
+  dms: string[];
   drafts: {
     [whom: string]: ChatStory;
   };
@@ -59,7 +59,8 @@ export interface ChatState {
   togglePin: (whom: string, pin: boolean) => Promise<void>;
   fetchPins: () => Promise<void>;
   markRead: (whom: string) => Promise<void>;
-  start: () => Promise<void>;
+  start: (init: ChatInit) => Promise<void>;
+  startTalk: (init: TalkChatInit, startBase?: boolean) => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
   fetchNewer: (ship: string, count: string) => Promise<boolean>;
@@ -99,6 +100,7 @@ export interface ChatState {
   initialize: (flag: string) => Promise<void>;
   initializeDm: (ship: string) => Promise<void>;
   initializeMultiDm: (id: string) => Promise<void>; // id is `@uw`, the Club ID
+  initImports: (init: Record<string, boolean>) => void;
   [key: string]: unknown;
   clearSubs: () => void;
 }
