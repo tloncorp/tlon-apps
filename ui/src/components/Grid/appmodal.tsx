@@ -26,7 +26,7 @@ export default function AppModal() {
         appModal
       >
         <iframe
-          className="mt-6 h-full w-full overflow-y-auto rounded-b-xl border-t-2 border-gray-50 bg-white"
+          className="mt-6 h-full w-full overflow-y-auto rounded-b-xl border-t-2 border-gray-50 bg-[#fff]"
           src={path}
         />
         <div className="absolute -top-2 left-0 m-4 flex items-center justify-center space-x-2">
