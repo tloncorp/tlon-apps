@@ -129,24 +129,38 @@
   +|  %operations
   ::
   ++  pub
+    =>  |%
+        ::  if this proves to be too slow, the set of paths
+        ::  should be maintained statefully: put on +init:pub,
+        ::  and filtered on +load (to avoid a space leak).
+        ::
+        ++  subs
+          ^-  (set path)
+          %-  ~(rep by sup.bowl)
+          |=  [[duct ship pat=path] acc=(set path)]
+          ?.(?=([%contact *] pat) acc (~(put in acc) pat))
+        ::
+        ++  fact
+          |=  [pat=(list path) u=update]
+          ^-  gift:agent:gall
+          [%fact pat %contact-update-0 !>(u)]
+        --
+    ::
     |%
     ++  news
       |=(n=^news (give %fact [/news ~] %contact-news !>(n)))
     ::
-    ++  diff  ::  XX scrape thru paths
+    ++  diff
       |=  con=?(~ contact)
       =/  u=update  [?~(rof now.bowl (mono wen.rof now.bowl)) con]
-      %-  give:(news(rof u) our.bowl con)
-      [%fact [/contact ~] %contact-update-0 !>(u)]
+      (give:(news(rof u) our.bowl con) (fact ~(tap in subs) u))
     ::
     ++  init
       |=  wen=(unit @da)
-      ^+  cor
       ?~  rof  cor
-      =/  gif  [%fact ~ %contact-update-0 !>(`update`rof)]
-      ?~  wen  (give gif)
+      ?~  wen  (give (fact ~ rof))
       ?:  =(u.wen wen.rof)  cor
-      ?>((lth u.wen wen.rof) (give gif)) :: no future subs
+      ?>((lth u.wen wen.rof) (give (fact ~ rof))) :: no future subs
     --
   ::
   ++  sub
