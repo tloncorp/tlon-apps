@@ -3,8 +3,6 @@ import { useCharge } from '@/state/docket';
 import { useNavigate, useParams } from 'react-router';
 import Dialog, { DialogContent } from '../Dialog';
 import ArrowNEIcon from '../icons/ArrowNEIcon';
-import ArrowNWIcon from '../icons/ArrowNWIcon';
-import OpenSmallIcon from '../icons/OpenSmallIcon';
 
 export default function AppModal() {
   const navigate = useNavigate();
