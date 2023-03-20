@@ -1,131 +1,178 @@
 import api from '@/api';
-import { useState, useEffect } from 'react';
-import { useEffectOnce } from 'usehooks-ts';
-import { useGroupFlag, useGroupName } from '../groups';
+import { getPreviewTracker } from '@/logic/subscriptionTracking';
+import {
+  asyncWithDefault,
+  clearStorageMigration,
+  createStorageKey,
+  getFlagParts,
+  storageVersion,
+} from '@/logic/utils';
+import produce from 'immer';
+import { useEffect, useCallback } from 'react';
+import create from 'zustand';
+import { persist } from 'zustand/middleware';
 
-export function useLureBait() {
-  const [lureBait, setLureBait] = useState('');
-  useEffectOnce(() => {
-    api
-      .scry<{ url: string; ship: string }>({
-        app: 'reel',
-        path: '/bait',
-      })
-      .then((result) => setLureBait(result.url));
-  });
-
-  return lureBait;
+interface LureMetadata {
+  tag: string;
+  fields: Record<string, string | undefined>;
 }
 
-export async function lurePokeDescribe(token: string, metadata: any) {
-  await api.poke({
-    app: 'reel',
-    mark: 'reel-describe',
-    json: {
-      token,
-      metadata,
-    },
-  });
+interface Lure {
+  url: string;
+  enabled?: boolean;
+  metadata?: LureMetadata;
 }
 
-export async function lurePokeUndescribe(token: string) {
-  await api.poke({
-    app: 'reel',
-    mark: 'reel-undescribe',
-    json: {
-      token,
-    },
-  });
+interface Bait {
+  ship: string;
+  url: string;
 }
 
-export function useLureEnabled(flag: string): [boolean, (b: boolean) => void] {
-  const [lureEnabled, setLureEnabled] = useState<boolean>(false);
-  const currentFlag = useGroupFlag();
-  const name = useGroupName();
+type Lures = Record<string, Lure>;
+
+interface LureState {
+  bait: Bait | null;
+  lures: Lures;
+  fetchLure: (flag: string, fetchIfData?: boolean) => Promise<void>;
+  describe: (flag: string, metadata: LureMetadata) => Promise<void>;
+  toggle: (flag: string) => Promise<void>;
+  start: () => Promise<void>;
+}
+
+export const useLureState = create<LureState>(
+  persist<LureState>(
+    (set, get) => ({
+      bait: null,
+      lures: {},
+      describe: async (flag, metadata) => {
+        const { name } = getFlagParts(flag);
+        await api.poke({
+          app: 'reel',
+          mark: 'reel-describe',
+          json: {
+            token: name,
+            metadata,
+          },
+        });
+
+        return get().fetchLure(flag);
+      },
+      toggle: async (flag) => {
+        const { name } = getFlagParts(flag);
+        const lure = get().lures[flag];
+        const enabled = !lure?.enabled;
+        if (!enabled) {
+          api.poke({
+            app: 'reel',
+            mark: 'reel-undescribe',
+            json: {
+              token: getFlagParts(flag).name,
+            },
+          });
+        }
+
+        set(
+          produce((draft: LureState) => {
+            draft.lures[flag] = {
+              ...lure,
+              enabled,
+            };
+          })
+        );
+
+        await api.poke({
+          app: 'grouper',
+          mark: enabled ? 'grouper-enable' : 'grouper-disable',
+          json: name,
+        });
+
+        return get().fetchLure(flag);
+      },
+      start: async () => {
+        const bait = await api.scry<Bait>({
+          app: 'reel',
+          path: '/bait',
+        });
+
+        set(
+          produce((draft: LureState) => {
+            draft.bait = bait;
+          })
+        );
+      },
+      fetchLure: async (flag) => {
+        const { name } = getFlagParts(flag);
+        const enabled = await asyncWithDefault(
+          () => api.subscribeOnce('grouper', `/group-enabled/${flag}`, 20000),
+          undefined
+        );
+        const url = await asyncWithDefault(
+          () => api.subscribeOnce('reel', `/token-link/${flag}`, 20000),
+          ''
+        );
+        const metadata = await asyncWithDefault(
+          () =>
+            api.scry<LureMetadata>({
+              app: 'reel',
+              path: `/metadata/${name}`,
+            }),
+          undefined
+        );
+
+        set(
+          produce((draft: LureState) => {
+            draft.lures[flag] = {
+              enabled,
+              url,
+              metadata,
+            };
+          })
+        );
+      },
+    }),
+    {
+      name: createStorageKey('lure'),
+      version: storageVersion,
+      migrate: clearStorageMigration,
+    }
+  )
+);
+
+const selLure = (flag: string) => (s: LureState) => ({
+  lure: s.lures[flag] || { url: '' },
+  bait: s.bait,
+});
+const { shouldLoad, newAttempt, finished } = getPreviewTracker();
+export function useLure(flag: string, disableLoading = false) {
+  const { bait, lure } = useLureState(selLure(flag));
 
   useEffect(() => {
-    if (flag === currentFlag) {
-      api
-        .subscribeOnce('grouper', `/group-enabled/${flag}`, 20000)
-        .then((result) => setLureEnabled(result));
+    if (!bait || disableLoading || !shouldLoad(flag)) {
+      return;
     }
-  }, [flag, currentFlag]);
 
-  function enableOrDisable(b: boolean) {
-    if (!b) {
-      lurePokeUndescribe(name);
-    }
-    setLureEnabled(b);
-  }
-  return [lureEnabled, enableOrDisable];
-}
+    newAttempt(flag);
+    useLureState
+      .getState()
+      .fetchLure(flag)
+      .finally(() => finished(flag));
+  }, [bait, flag, disableLoading]);
 
-export function useLureMetadataExists(
-  name: string,
-  lureURL: string
-): [boolean, () => void] {
-  const [lureMetadataExists, setLureMetadataExists] = useState<boolean>(false);
+  const toggle = useCallback(async () => {
+    return useLureState.getState().toggle(flag);
+  }, [flag]);
 
-  function checkLureMetadataExists() {
-    api
-      .scry<{ tag: string; fields: any }>({
-        app: 'reel',
-        path: `/metadata/${name}`,
-      })
-      .then((result) => setLureMetadataExists(result.tag !== ''));
-  }
-
-  useEffect(checkLureMetadataExists, [name, lureURL]);
-
-  return [lureMetadataExists, checkLureMetadataExists];
-}
-
-export function useLureWelcome(name: string): [string, (s: string) => void] {
-  const [lureWelcome, setLureWelcome] = useState<string>(
-    'Write a welcome message for your group'
+  const describe = useCallback(
+    (metadata: LureMetadata) => {
+      return useLureState.getState().describe(flag, metadata);
+    },
+    [flag]
   );
 
-  useEffectOnce(() => {
-    api
-      .scry<{ tag: string; fields: any }>({
-        app: 'reel',
-        path: `/metadata/${name}`,
-      })
-      .then((result) => setLureWelcome(result.fields.welcome));
-  });
-
-  return [lureWelcome, setLureWelcome];
-}
-
-export function useGroupInviteUrl(flag: string): [string, () => void] {
-  const [url, setUrl] = useState<string>('');
-  const currentFlag = useGroupFlag();
-
-  function checkInviteUrl() {
-    if (flag === currentFlag) {
-      api.subscribeOnce('reel', `/token-link/${flag}`, 20000).then((result) => {
-        setUrl(result);
-      });
-    }
-  }
-
-  useEffect(checkInviteUrl, [flag, currentFlag]);
-
-  return [url, checkInviteUrl];
-}
-
-export async function lureEnableGroup(name: string) {
-  await api.poke({
-    app: 'grouper',
-    mark: 'grouper-enable',
-    json: name,
-  });
-}
-
-export async function lureDisableGroup(name: string) {
-  await api.poke({
-    app: 'grouper',
-    mark: 'grouper-disable',
-    json: name,
-  });
+  return {
+    ...lure,
+    supported: bait,
+    describe,
+    toggle,
+  };
 }

@@ -390,6 +390,11 @@ export function isChannelJoined(
   return isChannelHost || (nest && nest in briefs);
 }
 
+export function isGroupHost(flag: string) {
+  const { ship } = getFlagParts(flag);
+  return ship === window.our;
+}
+
 export function getChannelHosts(group: Group): string[] {
   return Object.keys(group.channels).map((c) => {
     const [, chFlag] = nestToFlag(c);
@@ -577,7 +582,7 @@ export async function asyncWithDefault<T>(
   def: T
 ): Promise<T> {
   try {
-    return cb();
+    return await cb();
   } catch (error) {
     return def;
   }

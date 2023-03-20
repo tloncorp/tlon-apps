@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { Helmet } from 'react-helmet';
@@ -13,18 +14,9 @@ import {
 } from '@/types/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { Status } from '@/logic/status';
+import { isGroupHost } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useGroupName, useGroupShip } from '@/state/groups/groups';
-import {
-  useLureBait,
-  lureEnableGroup,
-  lureDisableGroup,
-  useLureEnabled,
-  useLureWelcome,
-  lurePokeDescribe,
-  useLureMetadataExists,
-  useGroupInviteUrl,
-} from '@/state/lure/lure';
+import { useLure } from '@/state/lure/lure';
 import GroupInfoFields from '../GroupInfoFields';
 import PrivacySelector from '../PrivacySelector';
 
@@ -48,18 +40,10 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [status, setStatus] = useState<Status>('initial');
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const name = useGroupName();
-  const groupShip = useGroupShip();
-  const [lureEnabled, setLureEnabled] = useLureEnabled(groupFlag);
-  const [lureURL, checkLureURL] = useGroupInviteUrl(groupFlag);
   const [copyButtonLabel, setCopyButtonLabel] = useState('Copy');
-  const [lureWelcome, setLureWelcome] = useLureWelcome(name);
-  const [lureWelcomeSaveLabel, setLureWelcomeSaveLabel] = useState('Save');
-  const lureBait = useLureBait();
-  const [lureMetadataExists, checkLureMetadataExists] = useLureMetadataExists(
-    name,
-    lureURL
-  );
+  const { supported, enabled, url, metadata, toggle } = useLure(groupFlag);
+  const lureMetadataExists = metadata && metadata.tag !== '';
+  const lureWelcome = metadata?.fields.welcome;
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -176,11 +160,10 @@ export default function GroupInfoEditor({ title }: ViewProps) {
         </form>
       </FormProvider>
       <div
-        className={`card mb-4 ${
-          lureBait === '' || groupShip !== `~${window.ship}`
-            ? 'hidden'
-            : 'visible'
-        }`}
+        className={cn(
+          'card mb-4',
+          (!supported || !isGroupHost(groupFlag)) && 'hidden'
+        )}
       >
         <div className="flex flex-row">
           <label
@@ -189,7 +172,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
             }
           >
             <div className="flex items-center">
-              {lureEnabled ? (
+              {enabled ? (
                 <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
                   <CheckIcon className="h-3 w-3 fill-gray-400" />
                 </div>
@@ -207,72 +190,35 @@ export default function GroupInfoEditor({ title }: ViewProps) {
             </div>
 
             <input
-              checked={lureEnabled}
-              onChange={async () => {
-                if (lureEnabled) {
-                  await lureDisableGroup(name);
-                } else {
-                  await lureEnableGroup(name);
-                }
-                setLureEnabled(!lureEnabled);
-              }}
+              checked={enabled}
+              onChange={toggle}
               className="sr-only"
               type="checkbox"
             />
           </label>
         </div>
-        <div className={`flex flex-col ${lureEnabled ? 'visible' : 'hidden'}`}>
-          <label htmlFor="title" className="mt-2 font-bold">
-            Invite Description
-          </label>
-          <textarea
-            value={lureWelcome}
-            className="input mt-0"
-            onChange={(e) => {
-              setLureWelcome(e.target.value);
-              setLureWelcomeSaveLabel('Save');
-            }}
-          />
-          <button
-            className="button mt-2 whitespace-nowrap"
-            onClick={async () => {
-              await lurePokeDescribe(name, {
-                tag: 'groups-0',
-                fields: {
-                  welcome: lureWelcome,
-                  description: group?.meta.description,
-                  cover: group?.meta.cover,
-                  title: group?.meta.title,
-                  image: group?.meta.image,
-                },
-              });
-              checkLureURL();
-              checkLureMetadataExists();
-              setLureWelcomeSaveLabel('Saved');
-            }}
+        {enabled ? (
+          <div
+            className={cn(
+              'flex flex-row',
+              lureMetadataExists && enabled ? 'flex' : 'hidden'
+            )}
           >
-            {lureWelcomeSaveLabel}
-          </button>
-        </div>
-        <div
-          className={`flex flex-row ${
-            lureMetadataExists && lureEnabled ? 'visible' : 'hidden'
-          }`}
-        >
-          <label htmlFor="title" className="mt-2 font-bold">
-            Invite Link
-          </label>
-          <input value={lureURL} className="input mt-0" type="text" readOnly />
-          <button
-            className="small-button mt-1 h-6 whitespace-nowrap"
-            onClick={() => {
-              navigator.clipboard.writeText(lureURL);
-              setCopyButtonLabel('Copied');
-            }}
-          >
-            {copyButtonLabel}
-          </button>
-        </div>
+            <label htmlFor="title" className="mt-2 font-bold">
+              Invite Link
+            </label>
+            <input value={url} className="input mt-0" type="text" readOnly />
+            <button
+              className="small-button mt-1 h-6 whitespace-nowrap"
+              onClick={() => {
+                navigator.clipboard.writeText(url);
+                setCopyButtonLabel('Copied');
+              }}
+            >
+              {copyButtonLabel}
+            </button>
+          </div>
+        ) : null}
       </div>
       <div className="card">
         <h2 className="mb-1 text-lg font-bold">Delete Group</h2>
