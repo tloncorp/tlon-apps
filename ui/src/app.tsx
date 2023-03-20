@@ -19,7 +19,7 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, useTheme } from '@/state/settings';
+import { useCalm, useSettingsLoaded, useTheme } from '@/state/settings';
 import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -539,6 +539,7 @@ function App() {
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
+  const settingsLoaded = useSettingsLoaded();
   const { disableWayfinding } = useCalm();
 
   useEffect(() => {
@@ -560,7 +561,7 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      {!disableWayfinding && <LandscapeWayfinding />}
+      {settingsLoaded && !disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
       <UpdateNotice />
       <LeapProvider>
