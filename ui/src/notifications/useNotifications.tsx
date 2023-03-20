@@ -102,6 +102,7 @@ export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
       notifications: groupBinsByDate(finalBins.concat(oldBins)),
       mentions: mentionBins,
       count: finalBins.length,
+      unreadNotifications: groupBinsByDate(finalBins),
     };
   }, [carpet, blanket, mentionsOnly]);
 };

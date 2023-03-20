@@ -21,7 +21,8 @@
     "react-native-storage": "^1.0.1",
     "react-native-webview": "11.26.0",
     "tailwind-rn": "^4.2.0",
-    "zustand": "^4.3.6"
+    "zustand": "^4.3.6",
+    "expo-notifications": "~0.18.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

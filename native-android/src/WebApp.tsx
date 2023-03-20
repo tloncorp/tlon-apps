@@ -10,7 +10,16 @@ import {
 } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
 import useStore from './state/store';
+import * as Notifications from 'expo-notifications';
 import { WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false
+  })
+});
 
 export default function WebApp() {
   const { shipUrl } = useStore();
@@ -26,7 +35,7 @@ export default function WebApp() {
     return false;
   }, [webviewRef.current]);
 
-  const handleUrlError = useCallback((event: WebViewHttpErrorEvent) => {
+  const handleUrlError = (event: WebViewHttpErrorEvent) => {
     if (event.nativeEvent.statusCode > 399) {
       Alert.alert(
         'Error',
@@ -48,7 +57,33 @@ export default function WebApp() {
         { cancelable: true }
       );
     }
-  }, []);
+  };
+
+  const handleWebviewMessage = (event: any) => {
+    const { data } = event.nativeEvent;
+    const { type, payload } = JSON.parse(data);
+    if (type === 'notification') {
+      const { date, latest, bins } = payload;
+      const topYarn = bins[0].topYarn;
+      const content = topYarn.con;
+      const desk = topYarn.rope.desk;
+      if (desk === 'talk') {
+        const title = `New message from ${content[0].ship}`;
+        const body = content[2];
+        console.log({ title, body });
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title,
+            body
+          },
+          trigger: null
+        });
+        webviewRef?.current?.postMessage(
+          JSON.stringify({ type: 'hark-read', payload: topYarn.rope })
+        );
+      }
+    }
+  };
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -74,13 +109,25 @@ export default function WebApp() {
     };
   }, []);
 
+  useEffect(() => {
+    // Request notification permissions
+    const requestPermissions = async () => {
+      await Notifications.requestPermissionsAsync();
+    };
+
+    requestPermissions();
+  }, []);
+
+  console.log({ shipUrl });
+
   return (
     <SafeAreaView style={tailwind('flex-1')}>
       <WebView
-        source={{ uri: `${shipUrl}/apps/talk` }}
+        source={{ uri: `${shipUrl}/apps/talk/` }}
         ref={webviewRef}
         androidHardwareAccelerationDisabled={false}
         onHttpError={handleUrlError}
+        onMessage={handleWebviewMessage}
         sharedCookiesEnabled
         scalesPageToFit
       />

@@ -152,8 +152,10 @@ const useHarkState = create<HarkState>((set, get) => ({
       }
     });
   },
-  sawRope: async (rope, update = true) =>
-    new Promise<void>((resolve, reject) => {
+  sawRope: async (rope, update = true) => {
+    console.log('sawRope', rope);
+
+    return new Promise<void>((resolve, reject) => {
       api.poke({
         ...harkAction({
           'saw-rope': rope,
@@ -177,7 +179,8 @@ const useHarkState = create<HarkState>((set, get) => ({
           resolve();
         },
       });
-    }),
+    });
+  },
   sawSeam: async (seam) =>
     new Promise<void>((resolve, reject) => {
       api.poke({

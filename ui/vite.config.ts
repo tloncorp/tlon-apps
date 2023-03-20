@@ -48,7 +48,7 @@ export default ({ mode }: { mode: string }) => {
     switch (app) {
       case 'chat':
         return [
-          basicSsl(),
+          mode === 'native' ? undefined : basicSsl(),
           urbitPlugin({
             base: 'talk',
             target: SHIP_URL,
@@ -61,7 +61,7 @@ export default ({ mode }: { mode: string }) => {
         ];
       default:
         return [
-          basicSsl(),
+          mode === 'native' ? undefined : basicSsl(),
           urbitPlugin({
             base: 'groups',
             target: SHIP_URL,
@@ -81,7 +81,7 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode, app),
     server: {
-      https: true,
+      https: mode !== 'native',
       host: 'localhost',
       port: 3000,
     },
