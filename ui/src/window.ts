@@ -4,6 +4,7 @@ declare global {
     desk: string;
     our: string;
     scroller?: string;
+    recents: any;
   }
 }
 

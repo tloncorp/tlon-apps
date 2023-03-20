@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import create, { SetState } from 'zustand';
+import React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { omit, pick } from 'lodash';
 import {
@@ -245,7 +246,26 @@ export function useCharges() {
 }
 
 export function useCharge(desk: string) {
-  return useDocketState(useCallback((state) => state.charges[desk], [desk]));
+  const defaultCharge = React.useMemo(
+    () => ({
+      desk,
+      ship: '',
+      color: '0x0',
+      title: '',
+      description: '',
+      href: {
+        site: '',
+      },
+      chad: {},
+    }),
+    [desk]
+  );
+  return useDocketState(
+    useCallback(
+      (state) => state.charges[desk] ?? defaultCharge,
+      [desk, defaultCharge]
+    )
+  );
 }
 
 const selRequest = (s: DocketState) => s.requestTreaty;

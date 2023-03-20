@@ -21,6 +21,7 @@ interface DialogContentProps extends DialogPrimitive.DialogContentProps {
   containerClass?: string;
   showClose?: boolean;
   lightbox?: boolean;
+  appModal?: boolean;
 }
 
 export const DialogContent = React.forwardRef<
@@ -31,6 +32,7 @@ export const DialogContent = React.forwardRef<
     {
       showClose = true,
       lightbox = false,
+      appModal = false,
       containerClass,
       children,
       className,
@@ -42,7 +44,7 @@ export const DialogContent = React.forwardRef<
       <section className={classNames('dialog-container', containerClass)}>
         <div className={classNames('dialog', className)}>
           {children}
-          {showClose && !lightbox && (
+          {showClose && !lightbox && !appModal && (
             <DialogPrimitive.Close className="icon-button absolute top-6 right-6">
               <X16Icon className="h-4 w-4" />
             </DialogPrimitive.Close>
@@ -50,6 +52,11 @@ export const DialogContent = React.forwardRef<
         </div>
         {showClose && lightbox && (
           <DialogPrimitive.Close className="icon-button absolute top-6 right-6 bg-white">
+            <X16Icon className="h-4 w-4" />
+          </DialogPrimitive.Close>
+        )}
+        {showClose && appModal && (
+          <DialogPrimitive.Close className="icon-button absolute top-8 right-6 bg-white">
             <X16Icon className="h-4 w-4" />
           </DialogPrimitive.Close>
         )}
