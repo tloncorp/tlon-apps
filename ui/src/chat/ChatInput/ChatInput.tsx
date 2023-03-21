@@ -530,6 +530,7 @@ export default function ChatInput({
             e.preventDefault();
             onClick();
           }}
+          aria-label="Send message"
         >
           <ArrowNWIcon16 className="h-4 w-4" />
         </button>
