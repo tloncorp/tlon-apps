@@ -7,7 +7,11 @@ import GroupListPlaceholder from './GroupListPlaceholder';
 import GroupsSidebarItem from './GroupsSidebarItem';
 
 function itemContent(_i: number, [flag, _group]: [string, Group]) {
-  return <GroupsSidebarItem key={flag} flag={flag} />;
+  return (
+    <div className="px-4 sm:px-2">
+      <GroupsSidebarItem key={flag} flag={flag} />
+    </div>
+  );
 }
 
 interface GroupListProps {

@@ -209,7 +209,7 @@ export default function HeapTextInput({
           {!sendDisabled ? (
             <button
               className={cn(
-                'button',
+                'button px-2',
                 comment ? 'ml-2 shrink-0' : 'absolute bottom-2 right-2'
               )}
               disabled={

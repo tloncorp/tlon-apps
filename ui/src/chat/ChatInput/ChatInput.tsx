@@ -518,7 +518,7 @@ export default function ChatInput({
           </div>
         </div>
         <button
-          className={cn('button', isMobile && 'px-2')}
+          className={cn('button px-2')}
           disabled={
             sendDisabled ||
             mostRecentFile?.status === 'loading' ||
@@ -531,7 +531,7 @@ export default function ChatInput({
             onClick();
           }}
         >
-          {isMobile ? <ArrowNWIcon16 className="h-4 w-4" /> : 'Send'}
+          <ArrowNWIcon16 className="h-4 w-4" />
         </button>
       </div>
       {isMobile ? <ChatInputMenu editor={messageEditor} /> : null}

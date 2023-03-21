@@ -194,7 +194,7 @@ export default function ChannelsListItem({
                 disabled={isPending}
                 onClick={joinChannel}
                 className={cn(
-                  'small-secondary-button text-sm mix-blend-multiply dark:mix-blend-screen md:text-base',
+                  'small-secondary-button text-sm mix-blend-multiply dark:mix-blend-screen',
                   {
                     'bg-blue-soft text-blue': isReady || isPending,
                     'bg-yellow-soft text-gray-800': isFailed,

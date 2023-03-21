@@ -22,7 +22,7 @@ export default function MobileGroupRoot() {
 
   return (
     <>
-      <header className="flex items-center justify-between p-4 pt-3 pr-5">
+      <header className="flex items-center justify-between p-4">
         <div>
           <Link
             to="/"

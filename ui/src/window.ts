@@ -9,6 +9,7 @@ declare global {
     bootstrapApi: boolean;
     ReactNativeWebView?: any;
     markRead: Rope;
+    recents: any;
   }
 }
 

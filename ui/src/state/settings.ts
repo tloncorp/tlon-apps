@@ -62,6 +62,9 @@ interface BaseSettingsState {
     disableNicknames: boolean;
     disableWayfinding: boolean;
   };
+  tiles: {
+    order: string[];
+  };
   heaps: {
     heapSettings: Stringified<HeapSetting[]>;
   };
@@ -128,6 +131,9 @@ export const useSettingsState = createState<BaseSettingsState>(
   (set, get) => ({
     display: {
       theme: 'auto',
+    },
+    tiles: {
+      order: [],
     },
     calmEngine: {
       disableAppTileUnreads: false,
@@ -202,11 +208,13 @@ export function useCalm() {
   return useSettingsState(selCalm);
 }
 
-export function setCalmSetting(
+export async function setCalmSetting(
   key: keyof SettingsState['calmEngine'],
   val: boolean
 ) {
-  useSettingsState.getState().putEntry('calmEngine', key, val);
+  // use garden desk for calm settings so that they're universal.
+  const poke = doPutEntry('garden', 'calmEngine', key, val);
+  await pokeOptimisticallyN(useSettingsState, poke, reduceUpdate);
 }
 
 export function parseSettings<T>(settings: Stringified<T[]>): T[] {
@@ -297,4 +305,10 @@ export function useShowVitaMessage() {
     (s) => s[window.desk as 'groups' | 'talk']?.showVitaMessage
   );
   return setting;
+}
+
+const selLoaded = (s: SettingsState) => s.loaded;
+export function useSettingsLoaded() {
+  const loaded = useSettingsState(selLoaded);
+  return loaded;
 }

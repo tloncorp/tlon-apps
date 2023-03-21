@@ -8,8 +8,8 @@ export default function GroupAdmin() {
   const isAdmin = useAmAdmin(flag);
 
   return (
-    <section className="flex w-full grow flex-col overflow-y-scroll">
-      <div className="m-4 flex grow flex-col sm:my-5 sm:mx-8">
+    <section className="flex h-full w-full flex-1 grow flex-col overflow-y-auto bg-gray-50">
+      <div className="bg-gray-50 p-6">
         {isAdmin ? (
           <header className="card mb-4 p-2">
             <nav>

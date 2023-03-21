@@ -1,20 +1,19 @@
 import cn from 'classnames';
 import React, {
   ComponentType,
-  PropsWithChildren,
   useCallback,
   useState,
+  PropsWithChildren,
 } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
 import { useRouteGroup, useGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import useHarkState from '@/state/hark';
 import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Bin, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -24,8 +23,9 @@ export interface NotificationsProps {
 
 export function MainWrapper({
   isMobile,
+  title,
   children,
-}: PropsWithChildren<{ isMobile: boolean }>) {
+}: PropsWithChildren<{ title: string; isMobile: boolean }>) {
   if (!isMobile) {
     // eslint-disable-next-line react/jsx-no-useless-fragment
     return <>{children}</>;
@@ -33,37 +33,10 @@ export function MainWrapper({
 
   return (
     <>
-      <header className="flex h-14 items-center justify-between px-5 py-4">
-        <h1 className="text-base font-bold">Notifications</h1>
+      <header className="flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4">
+        <h1 className="text-lg font-bold text-gray-800">{title}</h1>
       </header>
       <nav className="h-full flex-1 overflow-y-auto">{children}</nav>
-    </>
-  );
-}
-
-export function GroupWrapper({
-  isMobile,
-  children,
-}: PropsWithChildren<{ isMobile: boolean }>) {
-  if (!isMobile) {
-    // eslint-disable-next-line react/jsx-no-useless-fragment
-    return <>{children}</>;
-  }
-
-  return (
-    <>
-      <header className="flex-none px-2 py-1">
-        <Link
-          to="../"
-          className="default-focus inline-flex items-center rounded-lg p-2 text-base font-semibold text-gray-800 hover:bg-gray-50"
-        >
-          <CaretLeft16Icon className="mr-1 h-4 w-4 text-gray-400" />
-          Activity
-        </Link>
-      </header>
-      <div className="h-full w-full flex-1 overflow-y-scroll p-2 pr-0">
-        {children}
-      </div>
     </>
   );
 }
@@ -130,10 +103,14 @@ export default function Notifications({
   const MarkAsRead = (
     <button
       disabled={isMarkReadPending || !hasUnreads}
-      className={cn('small-button whitespace-nowrap', {
-        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
-        'bg-blue text-white': !isMarkReadPending && hasUnreads,
-      })}
+      className={cn(
+        'whitespace-nowrap text-sm',
+        isMobile ? 'small-button' : 'button',
+        {
+          'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
+          'bg-blue text-white': !isMarkReadPending && hasUnreads,
+        }
+      )}
       onClick={markAllRead}
     >
       {isMarkReadPending ? (
@@ -145,76 +122,98 @@ export default function Notifications({
   );
 
   return (
-    <section className="h-full w-full overflow-y-scroll bg-gray-50 p-6 pr-4">
-      <Helmet>
-        <title>
-          {group
-            ? `All Notifications for ${group?.meta?.title} ${title}`
-            : title}
-        </title>
-      </Helmet>
-      <div className="flex w-full items-center justify-between">
-        <div
-          className={cn('flex flex-row', {
-            'w-full justify-center': isMobile,
-          })}
-        >
-          <button
-            onClick={() => setShowMentionsOnly(false)}
-            className={cn('small-button rounded-r-none', {
-              'bg-gray-800 text-white': !showMentionsOnly,
-              'bg-white text-gray-800 ': showMentionsOnly,
-              'grow whitespace-nowrap': isMobile,
-            })}
-          >
-            All Notifications{hasUnreads ? ` • ${count} New` : null}
-          </button>
-          <button
-            onClick={() => setShowMentionsOnly(true)}
-            className={cn('small-button rounded-l-none', {
-              'bg-gray-800 text-white': showMentionsOnly,
-              'bg-white text-gray-800': !showMentionsOnly,
-              'grow whitespace-nowrap': isMobile,
-            })}
-          >
-            Mentions Only
-            {mentions.length ? ` • ${mentions.length} New` : null}
-          </button>
-        </div>
-
-        {!isMobile && hasUnreads && MarkAsRead}
-      </div>
-      <div className="flex flex-row justify-end pt-2">
-        {isMobile && hasUnreads && MarkAsRead}
-      </div>
-      {loaded ? (
-        notifications.length === 0 ? (
-          <div className="mt-3 flex w-full items-center justify-center">
-            <span className="text-base font-semibold text-gray-400">
-              No notifications from {group ? 'this' : 'any'} group.
-            </span>
+    <>
+      {isMobile && (
+        <header className="flex items-center justify-between bg-white px-6 py-4">
+          <h1 className="text-lg font-bold text-gray-800">Activity</h1>
+          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+            {isMobile && <ReconnectingSpinner />}
+            {isMobile && hasUnreads && MarkAsRead}
           </div>
-        ) : (
-          notifications.map((grouping) => (
-            <div key={grouping.date}>
-              <h2 className="my-4 text-lg font-bold text-gray-400">
-                {grouping.date}
-              </h2>
-              <ul className="space-y-2">
-                {grouping.bins.map((b) => (
-                  <li key={b.time}>
-                    <Notification bin={b} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
-        )
-      ) : (
-        new Array(30)
-          .fill(true)
-          .map((_, i) => <NotificationPlaceholder key={i} />)
+        </header>
       )}
-    </section>
+      <section className="h-full w-full overflow-y-scroll bg-gray-50">
+        <Helmet>
+          <title>
+            {group
+              ? `All Notifications for ${group?.meta?.title} ${title}`
+              : title}
+          </title>
+        </Helmet>
+
+        <div className="p-6">
+          <div className="flex w-full items-center justify-between">
+            <div
+              className={cn('flex flex-row', {
+                'w-full justify-center': isMobile,
+              })}
+            >
+              <button
+                onClick={() => setShowMentionsOnly(false)}
+                className={cn(
+                  'button whitespace-nowrap rounded-r-none text-sm',
+                  {
+                    'bg-gray-800 text-white': !showMentionsOnly,
+                    'bg-white text-gray-800 ': showMentionsOnly,
+                    'small-button grow': isMobile,
+                  }
+                )}
+              >
+                All{' '}
+                <span className="hidden sm:inline">
+                  &nbsp;Notifications&nbsp;
+                </span>
+                {hasUnreads ? ` • ${count} New` : null}
+              </button>
+              <button
+                onClick={() => setShowMentionsOnly(true)}
+                className={cn(
+                  'button whitespace-nowrap rounded-l-none text-sm',
+                  {
+                    'bg-gray-800 text-white': showMentionsOnly,
+                    'bg-white text-gray-800': !showMentionsOnly,
+                    'small-button grow': isMobile,
+                  }
+                )}
+              >
+                Mentions Only
+                {mentions.length ? ` • ${mentions.length} New` : null}
+              </button>
+            </div>
+
+            {!isMobile && hasUnreads && MarkAsRead}
+          </div>
+
+          {loaded ? (
+            notifications.length === 0 ? (
+              <div className="mt-3 flex w-full items-center justify-center">
+                <span className="text-base font-semibold text-gray-400">
+                  No notifications from {group ? 'this' : 'any'} group.
+                </span>
+              </div>
+            ) : (
+              notifications.map((grouping) => (
+                <div key={grouping.date}>
+                  <h2 className="my-4 text-lg font-bold text-gray-400">
+                    {grouping.date}
+                  </h2>
+                  <ul className="space-y-2">
+                    {grouping.bins.map((b) => (
+                      <li key={b.time}>
+                        <Notification bin={b} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            )
+          ) : (
+            new Array(30)
+              .fill(true)
+              .map((_, i) => <NotificationPlaceholder key={i} />)
+          )}
+        </div>
+      </section>
+    </>
   );
 }

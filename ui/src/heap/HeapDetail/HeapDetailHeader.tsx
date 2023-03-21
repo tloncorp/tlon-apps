@@ -1,18 +1,19 @@
 import cn from 'classnames';
 import React from 'react';
 import Helmet from 'react-helmet';
-import { useGroup } from '@/state/groups';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import { useAmAdmin, useGroup } from '@/state/groups';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import { Link } from 'react-router-dom';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
 import { useCurio } from '@/state/heap/heap';
-import XIcon from '@/components/icons/XIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import { isLink } from '@/types/heap';
 import useHeapContentType from '@/logic/useHeapContentType';
+import useNest from '@/logic/useNest';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useCurioActions from '../useCurioActions';
 
 export interface ChannelHeaderProps {
@@ -29,6 +30,7 @@ export default function HeapDetailHeader({
   const curioObject = useCurio(chFlag, idCurio);
   const group = useGroup(flag);
   const isMobile = useIsMobile();
+  const nest = useNest();
   const curio = curioObject ? curioObject[1] : null;
   const content = curio ? curio.heart.content : { block: [], inline: [] };
   const curioContent =
@@ -36,19 +38,17 @@ export default function HeapDetailHeader({
       ? curio?.heart.content.inline[0].link.href
       : (curio?.heart.content.inline[0] || '').toString()) || '';
   const { description } = useHeapContentType(curioContent);
+  const isAdmin = useAmAdmin(flag);
+  const canEdit = isAdmin || window.our === curio?.heart.author;
   // TODO: a better title fallback
   const prettyDayAndTime = makePrettyDayAndTime(
     new Date(curio?.heart.sent || Date.now())
   );
   const isImageLink = isImageUrl(curioContent);
   const curioTitle = curio?.heart.title;
-  const { onCopy, didCopy } = useCurioActions({
-    nest: `heap/${chFlag}`,
-    time: idCurio,
-  });
+  const { onEdit, onCopy, didCopy } = useCurioActions({ nest, time: idCurio });
 
   const isCite = content.block.length > 0 && 'cite' in content.block[0];
-  const BackButton = isMobile ? Link : 'div';
 
   return (
     <>
@@ -60,44 +60,41 @@ export default function HeapDetailHeader({
       </Helmet>
       <div
         className={cn(
-          'flex h-full w-full items-center justify-between border-b-2 border-gray-50 bg-white p-2'
+          'flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4'
         )}
       >
-        <BackButton
+        <Link
           to="../"
           className={cn(
-            'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
-            isMobile && '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
+            'default-focus ellipsis -ml-2 -mt-2 -mb-2 inline-flex max-w-md appearance-none items-center rounded-md p-2 pr-4 text-lg font-bold text-gray-800 hover:bg-gray-50 sm:text-base sm:font-semibold',
+            isMobile && ''
           )}
-          aria-label={isMobile ? 'Open Channels Menu' : undefined}
+          aria-label="Back to Gallery"
         >
-          {isMobile ? (
-            <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
-          ) : null}
-          <div className="flex items-center space-x-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-gray-50">
-              <ChannelIcon
-                nest={`heap/${chFlag}`}
-                className="h-4 w-4 text-gray-400"
-              />
-            </div>
-            <div className="flex flex-col items-start text-left lg:max-w-prose">
-              <span className="text-md w-44 truncate font-semibold lg:w-full">
-                {curioTitle && curioTitle}
-                {isImageLink && !curioTitle ? curioContent : null}
-                {!isImageLink && !curioTitle ? prettyDayAndTime : null}
-              </span>
-              <div className="text-md font-semibold text-gray-600">
-                {isCite ? 'Reference' : description()}
-              </div>
-            </div>
+          <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
+          <div className=" mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
+            <ChannelIcon nest="heap" className="h-5 w-5 text-gray-400" />
           </div>
-        </BackButton>
-        <div>
+          <span className="ellipsis line-clamp-1">
+            {isCite ? 'Reference' : `${description()}: `}
+            {curioTitle && curioTitle}
+            {isImageLink && !curioTitle ? curioContent : null}
+            {!isImageLink && !curioTitle ? prettyDayAndTime : null}
+          </span>
+        </Link>
+        <div className="shink-0 flex items-center space-x-3 self-end">
+          {isMobile && <ReconnectingSpinner />}
+          {canEdit ? (
+            <button onClick={onEdit} className="small-button">
+              Edit
+            </button>
+          ) : null}
+
           <button
-            className="icon-button h-8 w-8 bg-transparent"
+            className="h-6 w-6 rounded text-gray-400 hover:bg-gray-50"
             aria-controls="copy"
             onClick={onCopy}
+            aria-label="Copy Link"
           >
             {didCopy ? (
               <CheckIcon className="h-6 w-6" />
@@ -105,12 +102,6 @@ export default function HeapDetailHeader({
               <CopyIcon className="h-6 w-6" />
             )}
           </button>
-          <Link
-            className="icon-button h-8 w-8 bg-transparent"
-            to={`/groups/${flag}/channels/heap/${chFlag}`}
-          >
-            <XIcon className="h-6 w-6" />
-          </Link>
         </div>
       </div>
     </>
