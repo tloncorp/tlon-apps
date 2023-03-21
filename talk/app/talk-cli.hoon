@@ -1601,6 +1601,9 @@
   ::
   ++  render-activate
     ^-  sole-effect:shoe
+    ?:  ?=(%notice -.content)
+      =+  render-notice
+      +.-
     ~[%mor [%tan meta] body]
   ::  +meta: render message metadata (serial, timestamp, author, target)
   ::
