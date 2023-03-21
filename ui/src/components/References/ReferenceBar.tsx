@@ -6,7 +6,6 @@ import { BigInteger } from 'big-integer';
 import ChannelIcon from '@/channels/ChannelIcon';
 import GroupAvatar from '@/groups/GroupAvatar';
 import useNavigateByApp from '@/logic/useNavigateByApp';
-import { useGroup } from '@/state/groups';
 
 interface ReferenceBarProps {
   nest: string;

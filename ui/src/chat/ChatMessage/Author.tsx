@@ -89,9 +89,6 @@ export default function Author({
       <div onClick={handleProfileClick} className="shrink-0">
         <Avatar
           ship={ship}
-          // The conditional here appears to have scoping
-          // which affects the author avatar's size in both "chats themselves"
-          // as well as within ReferenceRow components.
           size={isReply || isRef ? 'xxs' : 'xs'}
           className="cursor-pointer"
         />
