@@ -39,6 +39,10 @@
 +$  command
   $%  [%target target]                              ::  set messaging target
       [%say (unit ship) (list inline:chat)]         ::  send message
+      $:  %reply                                    ::  reply to a message
+          $@(rel=@ud [zeros=@u abs=@ud])            ::
+          (list inline:chat)                        ::
+      ==                                            ::
       :: [%eval cord hoon]                          ::  send #-message
     ::                                              ::
       [%join target]                                ::  postive rsvp response
@@ -595,6 +599,7 @@
         ;~(plug (tag %targets) (easy ~))
         ;~(plug (tag %help) (easy ~))
       ::
+        ;~((glue ace) (stag %reply ;~(plug nump content)))
         (stag %select nump)
       ==
     ::
@@ -682,9 +687,7 @@
     ::  +dm: send a direct message to a ship
     ::
     ++  dm 
-      ;~  (glue ace) 
-        ;~(plug (cook |=(s=@p [~ s]) ship) content)
-      == 
+      ;~(plug (cook |=(s=@p [~ s]) ship) content)
     ::  +message: all messages
     ::
     ++  message
@@ -762,6 +765,7 @@
     |^  ?-  -.job
           %target    (set-target +.job)
           %say       (say +.job)
+          %reply     (reply +.job)
           :: %eval      (eval +.job)
         ::
           %join      (rsvp & & +.job)
@@ -951,13 +955,43 @@
          !>  ^-  action:club:chat
          [club-id *echo:club:chat %team our-self ok]   
       ==
+    :: +spit: make a poke card based on audience
+    ::
+    ++  spit
+      |=  $:  msg=(list inline:chat)
+              replying=(unit id:chat)
+          ==
+      %^  act  %out-message
+        %chat
+      ?-   -.audience
+          %ship 
+        :-  %dm-action
+        !>  ^-  action:dm:chat
+        =/  =memo:chat 
+          [replying our.bowl now.bowl %story ~ msg]
+        [p.audience [our now]:bowl %add memo]
+      ::
+          %flag
+        :-  %chat-action-0
+        !>  ^-  action:chat
+        =/  =memo:chat  
+          [replying our.bowl now.bowl %story ~ msg]
+        [p.audience now.bowl %writs [our now]:bowl %add memo]
+      ::
+          %club   
+        :-  %club-action
+        !>  ^-  action:club:chat
+        =/  =memo:chat
+          [replying our.bowl now.bowl %story ~ msg]
+        [p.audience *echo:club:chat %writ [our now]:bowl %add memo]   
+      ==
     ::  +say: send messages
     ::
     ++  say
       |=  [who=(unit ship) msg=(list inline:chat)]
-      |^  ^-  (quip card _state)
+      ^-  (quip card _state)
       ?~  who 
-        [[spit]~ put-ses]
+        [[(spit msg ~)]~ put-ses]
       =/  =whom:chat  [%ship (need who)]
       =.  audience  whom
       =^  cards  state
@@ -966,12 +1000,12 @@
           ::  then pass message
           ::
           =+  (switch-channel whom)
-          [(weld -.- [spit]~) +.-]
+          [(weld -.- [(spit msg ~)]~) +.-]
         ::  for new dm, pass message 
         ::  then switch channel
         ::
         :_  state
-        %+  welp  [spit]~
+        %+  welp  [(spit msg ~)]~
         :_  ~ 
         :*  %pass
             ;:  weld 
@@ -985,32 +1019,26 @@
             (add now.bowl ~s0)
         ==
       [cards state]
-      :: +spit: make a poke card based on audience
-      ::
-      ++  spit
-        %^  act  %out-message
-          %chat
-        ?-   -.audience
-            %ship 
-          :-  %dm-action
-          !>  ^-  action:dm:chat
-          =/  =memo:chat  
-            [~ our.bowl now.bowl %story ~ msg]
-          [p.audience [our now]:bowl %add memo]
-        ::
-            %flag
-          :-  %chat-action-0
-          !>  ^-  action:chat
-          =/  =memo:chat  [~ our.bowl now.bowl %story ~ msg]
-          [p.audience now.bowl %writs [our now]:bowl %add memo]
-        ::
-            %club   
-          :-  %club-action
-          !>  ^-  action:club:chat
-          =/  =memo:chat  [~ our.bowl now.bowl %story ~ msg]
-          [p.audience *echo:club:chat %writ [our now]:bowl %add memo]   
-        ==
-      --
+    ::  +reply: respond to a message with pointer reference
+    ::
+    ++  reply
+      |=  $:  num=$@(rel=@ud [zeros=@u abs=@ud])
+              msg=(list inline:chat)
+          ==
+      ^-  (quip card _state)
+      =/  package=[(unit [whom:chat writ:chat]) (unit tape)]
+        (pointer-to-message num)
+      ?~  -.package
+        (just-print (need +.package))
+      =/  =whom:chat  -:(need -.package)
+      =/  =writ:chat  +:(need -.package)
+      =/  replying=(unit id:chat)
+        ?~  +<.writ
+          `-<.writ
+        +<.writ
+      =.  audience  whom
+      :_  put-ses
+      [(spit msg replying)]~
     ::  +eval: run hoon, send code and result as message
     ::
     ::    this double-virtualizes and clams to disable .^ for security reasons
