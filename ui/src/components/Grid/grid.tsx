@@ -176,8 +176,7 @@ export default function Grid() {
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
-      setLeapIsOpen(true);
-      navigate(-1);
+      navigate(location.state.backgroundLocation);
     }
   };
 
