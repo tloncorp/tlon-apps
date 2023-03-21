@@ -73,7 +73,7 @@ export default function HeapDetailHeader({
         >
           <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
           <div className=" mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
-            <ChannelIcon nest="diary" className="h-5 w-5 text-gray-400" />
+            <ChannelIcon nest="heap" className="h-5 w-5 text-gray-400" />
           </div>
           <span className="ellipsis line-clamp-1">
             {isCite ? 'Reference' : `${description()}: `}
