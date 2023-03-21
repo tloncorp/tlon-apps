@@ -326,6 +326,31 @@
         (~(uni in get-accepted-dms) get-pending-dms)
     p.target
   ==
+::  +message-exists: check whether a message exists
+::
+++  message-exists
+  |=  [=whom:chat =id:chat]
+  ^-  ?
+  =/  =time  +.id
+  =/  author=ship  -.id
+  =;  chap=path
+    %+  scry-for-existence  %chat
+    %+  weld  chap
+    /writs/exists/(scot %p author)/(scot %ud time)
+  ?-   -.whom
+      %ship
+    =/  =ship  +.whom
+    /dm/(scot %p ship)
+  ::
+      %club
+    =/  =club-id  +.whom
+    /club/(scot %uv club-id)
+  ::
+      %flag
+    =/  =ship  +<.whom
+    =/  name=term  +>.whom
+    /chat/(scot %p ship)/(scot %tas name)
+  ==
 ::  +build-history: add messages to history
 ::  and output to a given session
 ::
@@ -1621,6 +1646,23 @@
     [(sub wid u.ace) &]
   :-  (tufa (scag end `(list @)`txt))
   $(txt (slag ?:(nex +(end) end) `tape`txt))
+::  +forge: make scry path for writ retrieval
+::
+++  forge
+  |=  [=whom:chat =id:chat]
+  ^-  path
+  =;  chap=path
+    %+  weld  chap
+    /writs/writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ
+  ?-  -.whom
+    %flag  /chat/(scot %p p.p.whom)/[q.p.whom]
+    %ship  /dm/(scot %p p.whom)
+    %club  /club/(scot %uv p.whom)
+  ==
+::
+++  scry-for-existence
+  |*  [app=term =path]
+  .^(? %gu (scot %p our.bowl) app (scot %da now.bowl) path)
 ::
 ++  scry-for-marked
   |*  [=mold app=term =path]
