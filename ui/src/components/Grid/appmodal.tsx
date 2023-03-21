@@ -1,18 +1,21 @@
 import { getAppHref } from '@/logic/utils';
 import { useCharge } from '@/state/docket';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import Dialog, { DialogContent } from '../Dialog';
 import ArrowNEIcon from '../icons/ArrowNEIcon';
 
 export default function AppModal() {
   const navigate = useNavigate();
+  const {
+    state: { backgroundLocation },
+  } = useLocation();
   const { desk } = useParams<{ desk: string }>();
   const { href, title, image, color } = useCharge(desk || '');
   const path = getAppHref(href);
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
-      navigate(-1);
+      navigate(backgroundLocation);
     }
   };
 

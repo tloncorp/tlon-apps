@@ -120,7 +120,7 @@ export default function useLeap() {
           ...o,
           onSelect: () => {
             if (app === 'Groups' && o.title === 'Messages') {
-              window.open(`${window.location.origin}/apps/talk`, '_blank');
+              window.open(`${window.location.origin}/apps/talk/`, '_blank');
             } else if (app === 'Groups' && o.title === 'Create New Group') {
               modalNavigate(`/groups/new`, {
                 state: { backgroundLocation: location },
@@ -130,10 +130,7 @@ export default function useLeap() {
             } else if (app === 'Groups' && o.title === 'Profile') {
               navigate('/profile/edit');
             } else if (app === 'Talk' && o.title === 'Groups') {
-              window.open(
-                `${window.location.origin}/apps/groups/find`,
-                '_blank'
-              );
+              window.open(`${window.location.origin}/apps/groups/`, '_blank');
             } else {
               navigate(o.to, { state: { backgroundLocation: location } });
             }
