@@ -175,7 +175,7 @@ export default function ChannelList({ className }: ChannelListProps) {
             to={channelHref(flag, nest)}
             actions={
               isChannelUnread(nest) ? (
-                <UnreadIndicator className="m-0.5 h-5 w-5 text-gray-400" />
+                <UnreadIndicator className="m-0.5 h-5 w-5 text-blue" />
               ) : null
             }
           >
