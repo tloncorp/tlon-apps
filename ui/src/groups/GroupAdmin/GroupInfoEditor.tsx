@@ -41,9 +41,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [copyButtonLabel, setCopyButtonLabel] = useState('Copy');
-  const { supported, enabled, url, metadata, toggle } = useLure(groupFlag);
-  const lureMetadataExists = metadata && metadata.tag !== '';
-  const lureWelcome = metadata?.fields.welcome;
+  const { supported, enabled, url, toggle, describe } = useLure(groupFlag);
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -86,6 +84,11 @@ export default function GroupInfoEditor({ title }: ViewProps) {
       setStatus('loading');
       try {
         await useGroupState.getState().edit(groupFlag, values);
+
+        if (enabled) {
+          describe(values);
+        }
+
         const privacyChanged = values.privacy !== privacy;
         if (privacyChanged) {
           await useGroupState.getState().swapCordon(
@@ -113,7 +116,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
         setStatus('error');
       }
     },
-    [groupFlag, privacy]
+    [groupFlag, privacy, enabled, describe]
   );
 
   return (
@@ -161,7 +164,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
       </FormProvider>
       <div
         className={cn(
-          'card mb-4',
+          'card mb-4 space-y-4',
           (!supported || !isGroupHost(groupFlag)) && 'hidden'
         )}
       >
@@ -174,7 +177,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
             <div className="flex items-center">
               {enabled ? (
                 <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
-                  <CheckIcon className="h-3 w-3 fill-gray-400" />
+                  <CheckIcon className="h-4 w-4" />
                 </div>
               ) : (
                 <div className="h-4 w-4 rounded-sm border-2 border-gray-200" />
@@ -184,39 +187,49 @@ export default function GroupInfoEditor({ title }: ViewProps) {
             <div className="flex w-full flex-col">
               <div className="flex flex-row space-x-2">
                 <div className="flex w-full flex-col justify-start text-left">
-                  <span className="font-semibold">Invite Links Enabled</span>
+                  <span className="font-semibold">Invite Link Enabled</span>
                 </div>
               </div>
             </div>
 
             <input
               checked={enabled}
-              onChange={toggle}
+              onChange={toggle(group?.meta || emptyMeta)}
               className="sr-only"
               type="checkbox"
             />
           </label>
         </div>
         {enabled ? (
-          <div
-            className={cn(
-              'flex flex-row',
-              lureMetadataExists && enabled ? 'flex' : 'hidden'
-            )}
-          >
-            <label htmlFor="title" className="mt-2 font-bold">
+          <div>
+            <label htmlFor="invite-url" className="block pb-2 font-bold">
               Invite Link
             </label>
-            <input value={url} className="input mt-0" type="text" readOnly />
-            <button
-              className="small-button mt-1 h-6 whitespace-nowrap"
-              onClick={() => {
-                navigator.clipboard.writeText(url);
-                setCopyButtonLabel('Copied');
-              }}
-            >
-              {copyButtonLabel}
-            </button>
+            <div className="flex flex-row">
+              <div className="relative max-w-md flex-1">
+                {url === '' ? (
+                  <LoadingSpinner className="absolute right-2 my-2 h-4 w-4" />
+                ) : null}
+                <input
+                  name="invite-url"
+                  value={url}
+                  className="input mt-0 w-full"
+                  type="text"
+                  readOnly
+                />
+              </div>
+              <button
+                className="button ml-2 flex-none whitespace-nowrap"
+                onClick={() => {
+                  navigator.clipboard.writeText(url);
+                  setCopyButtonLabel('Copied');
+
+                  setTimeout(() => setCopyButtonLabel('Copy'), 750);
+                }}
+              >
+                {copyButtonLabel}
+              </button>
+            </div>
           </div>
         ) : null}
       </div>

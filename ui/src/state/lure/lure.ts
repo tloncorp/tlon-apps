@@ -7,6 +7,7 @@ import {
   getFlagParts,
   storageVersion,
 } from '@/logic/utils';
+import { GroupMeta } from '@/types/groups';
 import produce from 'immer';
 import { useEffect, useCallback } from 'react';
 import create from 'zustand';
@@ -35,8 +36,15 @@ interface LureState {
   lures: Lures;
   fetchLure: (flag: string, fetchIfData?: boolean) => Promise<void>;
   describe: (flag: string, metadata: LureMetadata) => Promise<void>;
-  toggle: (flag: string) => Promise<void>;
+  toggle: (flag: string, metadata: GroupMeta) => Promise<void>;
   start: () => Promise<void>;
+}
+
+function groupsDescribe(meta: GroupMeta) {
+  return {
+    tag: 'groups-0',
+    fields: { ...meta }, // makes typescript happy
+  };
 }
 
 export const useLureState = create<LureState>(
@@ -57,7 +65,7 @@ export const useLureState = create<LureState>(
 
         return get().fetchLure(flag);
       },
-      toggle: async (flag) => {
+      toggle: async (flag, meta) => {
         const { name } = getFlagParts(flag);
         const lure = get().lures[flag];
         const enabled = !lure?.enabled;
@@ -69,6 +77,8 @@ export const useLureState = create<LureState>(
               token: getFlagParts(flag).name,
             },
           });
+        } else {
+          get().describe(flag, groupsDescribe(meta));
         }
 
         set(
@@ -158,13 +168,16 @@ export function useLure(flag: string, disableLoading = false) {
       .finally(() => finished(flag));
   }, [bait, flag, disableLoading]);
 
-  const toggle = useCallback(async () => {
-    return useLureState.getState().toggle(flag);
-  }, [flag]);
+  const toggle = useCallback(
+    (meta: GroupMeta) => async () => {
+      return useLureState.getState().toggle(flag, meta);
+    },
+    [flag]
+  );
 
   const describe = useCallback(
-    (metadata: LureMetadata) => {
-      return useLureState.getState().describe(flag, metadata);
+    (meta: GroupMeta) => {
+      return useLureState.getState().describe(flag, groupsDescribe(meta));
     },
     [flag]
   );
