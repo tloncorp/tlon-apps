@@ -3,10 +3,10 @@
 exports[`ChatMessage > renders as expected 1`] = `
 <DocumentFragment>
   <div
-    class="flex flex-col break-words pt-2"
+    class="flex flex-col break-words pt-3"
   >
     <div
-      class="flex w-full items-center py-4"
+      class="flex w-full items-center pt-4 pb-6"
     >
       <div
         class="h-[2px] w-8 rounded-sm bg-gray-200"

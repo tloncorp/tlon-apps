@@ -186,7 +186,7 @@ const ChatMessage = React.memo<
         <div
           ref={mergeRefs(ref, container)}
           className={cn('flex flex-col break-words', {
-            'pt-2': newAuthor,
+            'pt-3': newAuthor,
             'pb-2': isLast,
           })}
           onMouseEnter={onOver}
