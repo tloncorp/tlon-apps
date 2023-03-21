@@ -59,7 +59,7 @@ async function startTalk(groupsStarted: boolean) {
     () =>
       api.scry<TalkInit>({
         app: 'talk-ui',
-        path: '/test',
+        path: '/init',
       }),
     async () => {
       const [
