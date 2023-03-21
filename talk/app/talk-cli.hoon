@@ -799,6 +799,11 @@
           %poke
           cage
       ==
+    ::  +just-print: full [cards state] output with a single print card
+    ::
+    ++  just-print
+      |=  txt=tape
+      [[(print:sh-out txt) ~] state]
     ::  +make-bind: bind an unbound target
     ::
     ++  make-bind
@@ -1094,24 +1099,38 @@
       ::
       |=  num=$@(rel=@ud [zeros=@u abs=@ud])
       ^-  (quip card _state)
+      =/  package=[(unit [whom:chat writ:chat]) (unit tape)]
+        (pointer-to-message num)
+      ?~  -.package
+        (just-print (need +.package))
+      =/  =whom:chat  -:(need -.package)
+      =/  =writ:chat  +:(need -.package)
+      =/  number=tape 
+        (need +.package)
+      =.  audience  whom
+      :_  put-ses
+      ^-  (list card)
+      :~  (print:sh-out ['?' ' ' number])
+          (effect:sh-out ~(render-activate mr whom writ))
+          prompt:sh-out
+      ==
+    ::  +pointer-to-message: get message from number reference
+    ::  or reason why it's not there
+    ::
+    ++  pointer-to-message
+      |=  num=$@(rel=@ud [zeros=@u abs=@ud])
+      ^-  [(unit [whom:chat writ:chat]) (unit tape)]
       |^  ?@  num
             =+  tum=(scow %s (new:si | +(num)))
             ?:  (gte rel.num count)
-              %-  just-print
-              "{tum}: no such telegram"
-            (activate tum rel.num)
+              [~ `"{tum}: no such telegram"]
+            (produce tum rel.num)
           ?.  (gte abs.num count)
             ?:  =(count 0)
-              (just-print "0: no messages")
+              [~ `"0: no messages"]
             =+  msg=(index (dec count) num)
-            (activate (scow %ud msg) (sub count +(msg)))
-          %-  just-print
-          "…{(reap zeros.num '0')}{(scow %ud abs.num)}: no such telegram"
-      ::  +just-print: full [cards state] output with a single print card
-      ::
-      ++  just-print
-        |=  txt=tape
-        [[(print:sh-out txt) ~] state]
+            (produce (scow %ud msg) (sub count +(msg)))
+          [~ `"…{(reap zeros.num '0')}{(scow %ud abs.num)}: no such telegram"]
       ::  +index: get message index from absolute reference
       ::
       ++  index
@@ -1121,36 +1140,19 @@
         =.  dog  (mul dog (pow 10 nul))
         =-  ?:((lte - max) - (sub - dog))
         (add fin (sub max (mod max dog)))
-      ::  +activate: echo message selector and print details
+      ::  +produce: produce message if it exists
       ::
-      ++  activate
+      ++  produce
         |=  [number=tape index=@ud]
-        ^-  (quip card _state)
-        ::NOTE  careful, messages may get deleted, so this may crash...
-        =/  [=whom:chat =id:chat]  (snag index history)
-        =.  audience  whom
+        ^-  [(unit [whom:chat writ:chat]) (unit tape)]
+        =/  [=whom:chat =id:chat]  
+          (snag index history)
+        ?.  (message-exists whom id)
+          [~ `"…{number}: telegram was deleted"]
         =+  %^  scry-for-marked  ,[* =writ:chat]
-              %chat  
-            (forge whom id)         
-        :_  put-ses
-        ^-  (list card)
-        :~  (print:sh-out ['?' ' ' number])
-            (effect:sh-out ~(render-activate mr whom +.writ))
-            prompt:sh-out
-        ==
-      ::  +forge: make scry path for writ retrieval
-      ::
-      ++  forge
-        |=  [=whom:chat =id:chat]
-        ^-  path
-        =;  chap=path
-          %+  weld  chap
-          /writs/writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ
-        ?-  -.whom
-           %flag  /chat/(scot %p p.p.whom)/[q.p.whom]
-           %ship  /dm/(scot %p p.whom)
-           %club  /club/(scot %uv p.whom)
-        ==
+              %chat
+            (forge whom id)
+        [`[whom writ] `number]
       --
     ::  +chats: display list of joined chats
     ::
