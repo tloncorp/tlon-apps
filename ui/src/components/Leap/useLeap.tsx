@@ -119,20 +119,14 @@ export default function useLeap() {
       ? menuOptions.map((o, idx) => ({
           ...o,
           onSelect: () => {
-            if (app === 'Groups' && o.title === 'Messages') {
-              window.open(`${window.location.origin}/apps/talk/`, '_blank');
-            } else if (app === 'Groups' && o.title === 'Create New Group') {
-              modalNavigate(`/groups/new`, {
-                state: { backgroundLocation: location },
-              });
-            } else if (app === 'Groups' && o.title === 'Find Groups') {
-              navigate('/find');
-            } else if (app === 'Groups' && o.title === 'Profile') {
-              navigate('/profile/edit');
-            } else if (app === 'Talk' && o.title === 'Groups') {
+            if (app === 'Talk' && o.title === 'Groups') {
               window.open(`${window.location.origin}/apps/groups/`, '_blank');
-            } else {
+            } else if (app === 'Groups' && o.title === 'Talk') {
+              window.open(`${window.location.origin}/apps/talk/`, '_blank');
+            } else if (o.modal === true) {
               navigate(o.to, { state: { backgroundLocation: location } });
+            } else {
+              navigate(o.to);
             }
             setIsOpen(false);
             setSelectedIndex(0);
