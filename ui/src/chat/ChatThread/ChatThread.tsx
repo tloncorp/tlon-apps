@@ -102,8 +102,7 @@ export default function ChatThread() {
       <header className={'header z-40'}>
         <div
           className={cn(
-            'flex items-center justify-between bg-white',
-            isMobile ? 'px-6 pt-10 pb-4' : 'border-b-2 border-gray-50 px-4 py-4'
+            'flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4'
           )}
         >
           <BackButton to={returnURL()} aria-label="Close" className="">
