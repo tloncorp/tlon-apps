@@ -201,55 +201,57 @@ function EditProfileContent() {
             </div>
           </div>
         </div>
-        <form
-          className="card mb-4 flex flex-col space-y-6"
-          onSubmit={form.handleSubmit(onSubmit)}
-        >
-          <ProfileFields />
-          <div className="flex flex-col space-y-2">
-            <label htmlFor="groups" className="font-bold">
-              Favorite Groups
-            </label>
-            <GroupSelector
-              autoFocus={false}
-              groups={allGroups}
-              onEnter={onEnter}
-              setGroups={setAllGroups}
-              isMulti={false}
-              isValidNewOption={(value) => groupFlags.includes(value)}
-            />
-            <div className="text-sm font-semibold text-gray-600">
-              Share your favorite groups on your profile
+        <div className="card">
+          <form
+            className="flex flex-col space-y-8"
+            onSubmit={form.handleSubmit(onSubmit)}
+          >
+            <ProfileFields />
+            <div className="flex flex-col space-y-2">
+              <label htmlFor="groups" className="font-bold">
+                Favorite Groups
+              </label>
+              <GroupSelector
+                autoFocus={false}
+                groups={allGroups}
+                onEnter={onEnter}
+                setGroups={setAllGroups}
+                isMulti={false}
+                isValidNewOption={(value) => groupFlags.includes(value)}
+              />
+              <div className="text-sm font-semibold text-gray-600">
+                Share your favorite groups on your profile
+              </div>
+              <div className="flex flex-wrap pt-2">
+                {form.watch('groups').map((group) => (
+                  <ProfileGroup
+                    key={group.value}
+                    groupFlag={group.value}
+                    onRemoveGroupClick={onRemoveGroupClick}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap pt-2">
-              {form.watch('groups').map((group) => (
-                <ProfileGroup
-                  key={group.value}
-                  groupFlag={group.value}
-                  onRemoveGroupClick={onRemoveGroupClick}
-                />
-              ))}
-            </div>
-          </div>
 
-          <footer className="flex items-center justify-end space-x-2">
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={!form.formState.isDirty}
-              onClick={() => form.reset()}
-            >
-              Reset
-            </button>
-            <button
-              type="submit"
-              className="button"
-              disabled={!form.formState.isDirty}
-            >
-              Save
-            </button>
-          </footer>
-        </form>
+            <footer className="flex items-center justify-end space-x-2">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!form.formState.isDirty}
+                onClick={() => form.reset()}
+              >
+                Reset
+              </button>
+              <button
+                type="submit"
+                className="button"
+                disabled={!form.formState.isDirty}
+              >
+                Save
+              </button>
+            </footer>
+          </form>
+        </div>
       </FormProvider>
     </div>
   );
@@ -261,7 +263,7 @@ export default function EditProfile({ title }: ViewProps) {
       <Helmet>
         <title>{title}</title>
       </Helmet>
-      <div className="m-4 w-full sm:my-5 sm:mx-8">
+      <div className="w-full p-6">
         <EditProfileContent />
       </div>
     </div>

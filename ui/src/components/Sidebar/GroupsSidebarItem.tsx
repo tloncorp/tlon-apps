@@ -44,7 +44,7 @@ const GroupsSidebarItem = React.memo(({ flag }: { flag: string }) => {
     <SidebarItem
       icon={
         <GroupAvatar
-          size="h-12 w-12 sm:h-6 sm:w-6"
+          size="h-12 w-12 sm:h-6 sm:w-6 rounded-lg sm:rounded"
           {...group?.meta}
           loadImage={!isScrolling}
         />

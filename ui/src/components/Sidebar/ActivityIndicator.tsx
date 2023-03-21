@@ -22,7 +22,7 @@ export default function ActivityIndicator({
       )}
     >
       {count === 0 ? (
-        <BulletIcon className="h-6 w-6" />
+        <BulletIcon className="m-0.5 h-5 w-5" />
       ) : count > 99 ? (
         '99+'
       ) : (

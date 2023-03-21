@@ -6,11 +6,11 @@ function DiaryChannelListItemPlaceholder() {
   const background = `bg-gray-${randomElement([100, 200, 400])}`;
 
   return (
-    <div className="flex-col items-center justify-center">
+    <div className="flex-col items-center justify-center px-5 sm:px-5">
       <div
         className={cn(
           background,
-          'my-4 mx-auto h-[248px] min-w-[400px] max-w-[600px] rounded-md'
+          'my-4 mx-auto h-48 w-full max-w-[560px] rounded-lg'
         )}
       />
     </div>

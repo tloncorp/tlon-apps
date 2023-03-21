@@ -43,10 +43,7 @@ import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import Notifications, {
-  GroupWrapper,
-  MainWrapper,
-} from './notifications/Notifications';
+import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
@@ -64,8 +61,6 @@ import TalkHead from './dms/TalkHead';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
-import MobileGroupActions from './groups/MobileGroupActions';
-import MobileGroupsActions from './groups/MobileGroupsActions';
 import Leap from './components/Leap/Leap';
 import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
@@ -273,24 +268,16 @@ function HomeRoute({
   );
 }
 
-function ActivityRoute({
-  isMobile = true,
-  isInGroups = false,
-}: {
-  isMobile: boolean;
-  isInGroups: boolean;
-}) {
+function ActivityRoute({ isInGroups = false }: { isInGroups: boolean }) {
   if (!isInGroups) {
     return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
   }
 
   return (
-    <MainWrapper title="Notifications" isMobile={isMobile}>
-      <Notifications
-        child={GroupNotification}
-        title={`All Notifications • ${appHead('').title}`}
-      />
-    </MainWrapper>
+    <Notifications
+      child={GroupNotification}
+      title={`All Notifications • ${appHead('').title}`}
+    />
   );
 }
 
@@ -311,9 +298,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             />
             <Route
               path="/notifications"
-              element={
-                <ActivityRoute isMobile={isMobile} isInGroups={isInGroups} />
-              }
+              element={<ActivityRoute isInGroups={isInGroups} />}
             />
             {/* Find by Invite URL */}
             <Route
@@ -341,7 +326,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 <EditProfile title={`Edit Profile • ${appHead('').title}`} />
               }
             />
-            <Route path="/actions" element={<MobileGroupsActions />} />
             <Route
               path="/leap"
               element={
@@ -360,12 +344,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               <Route
                 path="activity"
                 element={
-                  <GroupWrapper isMobile={isMobile}>
-                    <Notifications
-                      child={GroupNotification}
-                      title={`• ${appHead('').title}`}
-                    />
-                  </GroupWrapper>
+                  <Notifications
+                    child={GroupNotification}
+                    title={`• ${appHead('').title}`}
+                  />
                 }
               />
               <Route path="info" element={<GroupAdmin />}>
@@ -388,7 +370,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   <GroupChannelManager title={` • ${appHead('').title}`} />
                 }
               />
-              <Route path="actions" element={<MobileGroupActions />} />
             </Route>
             <Route path="channels/chat/:chShip/:chName">
               <Route
@@ -522,8 +503,10 @@ function handleGridRedirect(navigate: NavigateFunction) {
   const query = new URLSearchParams(window.location.search);
 
   if (query.has('grid-note')) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     navigate(decodeURIComponent(query.get('grid-note')!));
   } else if (query.has('grid-link')) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     navigate(decodeURIComponent(query.get('grid-link')!));
   }
 }

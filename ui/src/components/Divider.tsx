@@ -3,13 +3,23 @@ import React, { PropsWithChildren } from 'react';
 
 type DividerProps = PropsWithChildren<{
   className?: string;
+  isMobile?: boolean;
 }>;
 
-export default function Divider({ className, children }: DividerProps) {
+export default function Divider({
+  className,
+  isMobile,
+  children,
+}: DividerProps) {
+  if (isMobile) {
+    return (
+      <h2 className="mb-0.5 p-2 text-lg font-bold text-gray-400">{children}</h2>
+    );
+  }
+
   return (
-    <div className={cn('flex items-center space-x-2 p-2', className)}>
-      <span className="text-sm font-semibold text-gray-400">{children}</span>
-      <div className="grow border-b-2 border-gray-50" />
+    <div className={cn('mt-3 flex items-center space-x-2 p-2', className)}>
+      <span className="text-sm font-bold text-gray-400">{children}</span>
     </div>
   );
 }

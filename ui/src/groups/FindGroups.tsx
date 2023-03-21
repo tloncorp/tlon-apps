@@ -16,6 +16,7 @@ import { useNavigate, useParams, useLocation } from 'react-router';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { useModalNavigate } from '@/logic/routing';
 import GroupReference from '@/components/References/GroupReference';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 import GroupAvatar from './GroupAvatar';
@@ -218,23 +219,21 @@ export default function FindGroups({ title }: ViewProps) {
   return (
     <>
       {isMobile && (
-        <header className="flex h-14 items-center justify-between px-5 py-4">
-          <h1 className="text-base font-bold">Find Groups</h1>
+        <header className="flex items-center justify-between bg-white px-6 py-4 sm:hidden">
+          <h1 className="text-lg font-bold text-gray-800">Find Groups</h1>
+          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+            {isMobile && <ReconnectingSpinner />}
+          </div>
         </header>
       )}
-      <div
-        className={cn('flex grow overflow-y-auto', !isMobile && 'bg-gray-50')}
-      >
+      <div className={cn('flex grow overflow-y-auto bg-gray-50')}>
         <Helmet>
           <title>{title ? title : document.title}</title>
         </Helmet>
-        <div className="w-full p-4">
-          <section
-            className={cn('mb-8 space-y-8', !isMobile && 'card mb-4 sm:p-8')}
-          >
-            {!isMobile && <h1 className="text-lg font-bold">Find Groups</h1>}
+        <div className="w-full p-6">
+          <section className={cn('card mb-6 space-y-8')}>
             <div>
-              <label htmlFor="flag" className="mb-1.5 block font-semibold">
+              <label htmlFor="flag" className="mb-2 block font-semibold">
                 Join Groups via Nickname or Urbit ID
               </label>
               <div className="flex flex-col space-y-2">
@@ -245,7 +244,7 @@ export default function FindGroups({ title }: ViewProps) {
                   isClearable={true}
                   isLoading={isPending}
                   hasPrompt={false}
-                  placeholder={''}
+                  placeholder={'e.g. ~nibset-napwyn/tlon'}
                   isValidNewOption={isValidNewOption}
                   autoFocus={isMobile ? false : true}
                 />
@@ -263,12 +262,7 @@ export default function FindGroups({ title }: ViewProps) {
             ) : null}
           </section>
           {hasKeys(pendingGangs) ? (
-            <section
-              className={cn(
-                'mb-4 space-y-4',
-                !isMobile && 'card space-y-8 sm:p-8'
-              )}
-            >
+            <section className={cn('card mb-6 space-y-4')}>
               <h1
                 className={cn('font-bold', isMobile ? 'text-base' : 'text-lg')}
               >
@@ -279,9 +273,7 @@ export default function FindGroups({ title }: ViewProps) {
           ) : null}
 
           {!hasKeys(pendingGangs) && !selectedShip && (
-            <section
-              className={cn('mb-8 space-y-8', !isMobile && 'card mb-4 sm:p-8')}
-            >
+            <section className={cn('card mb-6 space-y-8')}>
               <h1 className="text-lg font-bold">Suggested Groups</h1>
               <p className="leading-6">
                 Here are some groups we recommend joining to learn more about

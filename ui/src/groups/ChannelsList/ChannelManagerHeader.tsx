@@ -18,33 +18,33 @@ export default function ChannelManagerHeader({
   const isMobile = useIsMobile();
 
   return (
-    <div className="my-3 flex flex-col items-center justify-between md:flex-row">
-      <div>
-        {isAdmin ? (
-          <div className="mb-2 md:mb-0">
-            <button
-              className={cn('mx-2 bg-blue', {
-                button: !isMobile,
-                'small-button text-center': isMobile,
-              })}
-              onClick={() => addSection()}
-            >
-              New Section
-            </button>
-            <Link
-              to={`/groups/${flag}/channels/new`}
-              state={{ backgroundLocation: location }}
-              className={cn('bg-blue', {
-                button: !isMobile,
-                'small-button text-center': isMobile,
-              })}
-            >
-              New Channel
-            </Link>
-          </div>
-        ) : null}
+    <div className="my-4 flex w-full flex-col justify-between space-y-2 sm:flex-row sm:items-center sm:space-x-2">
+      {isAdmin ? (
+        <div className="mt-2 flex flex-row space-x-2 whitespace-nowrap">
+          <button
+            className={cn(
+              'bg-blue text-center',
+              isMobile ? 'small-button' : 'button'
+            )}
+            onClick={() => addSection()}
+          >
+            New Section
+          </button>
+          <Link
+            to={`/groups/${flag}/channels/new`}
+            state={{ backgroundLocation: location }}
+            className={cn(
+              'bg-blue-soft text-center text-blue',
+              isMobile ? 'small-button' : 'button'
+            )}
+          >
+            New Channel
+          </Link>
+        </div>
+      ) : null}
+      <div className="w-full md:w-[300px]">
+        <ChannelsListSearch />
       </div>
-      <ChannelsListSearch />
     </div>
   );
 }
