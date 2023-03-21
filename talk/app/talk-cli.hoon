@@ -368,12 +368,15 @@
   ?~  messages  [cards state] 
   =/  =writ:chat  +.i.messages
   =/  =id:chat    -<.writ
+  =/  =seal:chat  -.writ
   =/  =memo:chat  +.writ
   =^  caz  session
-    %^    ~(read-post se sole-id session) 
-        target
+    %:  ~(read-post se sole-id session) 
+      target
       id
-    memo
+      seal
+      memo
+    ==
   =.  sessions  (~(put by sessions) sole-id session)  
   $(messages t.messages, cards (weld cards caz))
 ::  +get-messages: scry for latest 20 messages
@@ -436,7 +439,7 @@
   =^  caz  session.i.sez
     ?.  (~(has in viewing.session.i.sez) whom)
       [~ session.i.sez]
-    (~(read-post se i.sez) whom id memo)
+    (~(read-post se i.sez) whom id *seal:chat memo)
   =.  sessions  (~(put by sessions) i.sez)
   $(sez t.sez, cards (weld cards caz))
 ::  +se: session event handling
@@ -448,9 +451,13 @@
   ::  +read-post: add message to state and show it to user
   ::
   ++  read-post
-    |=  [=target =id:chat =memo:chat]
+    |=  $:  =target
+            =id:chat
+            =seal:chat
+            =memo:chat
+        ==
     ^-  (quip card _session)
-    :-  (show-post:sh-out target memo) 
+    :-  (show-post:sh-out target seal memo) 
     %_  session
       history  [[target id] history.session]
       count    +(count.session)
@@ -1294,7 +1301,7 @@
   ::    and the %notify flag is set, emit a bell.
   ::
   ++  show-post
-    |=  [=target =memo:chat]
+    |=  [=target =seal:chat =memo:chat]
     ^-  (list card)
     %+  weld
       ^-  (list card)
@@ -1304,7 +1311,7 @@
       %-  print
       (runt [(sub 13 (lent num)) '-'] "[{num}]")
     ^-  (list card)
-    :-  (effex ~(render-inline mr target memo))
+    :-  (effex ~(render-inline mr target seal memo))
     =;  mentioned=?
       ?.  mentioned  ~
       [(effect %bel ~)]~
@@ -1454,6 +1461,7 @@
 ::
 ++  mr
   |_  $:  source=target
+          seal:chat
           memo:chat
       ==
   +*  showtime  (~(has in settings) %showtime)
@@ -1476,11 +1484,19 @@
     ?.  ?=(%story -.content)
       render-notice
     :+  %row
-      :-  15
+      :-  16
       ?.  showtime
-        ~[(sub width 16)]
-      ~[(sub width 26) 9]
-    :+  t+(crip (weld (nome author) ~(glyph tr source)))
+        ~[(sub width 17)]
+      ~[(sub width 27) 10]
+    :+  :-  %t
+        %-  crip
+        ;:  weld
+          (nome author)
+          ~(glyph tr source)
+          ?.  &(=(~ replying) =(~ replied))
+            "^"
+          *tape
+        ==
       t+(crip line)
     ?.  showtime  ~
     :_  ~
