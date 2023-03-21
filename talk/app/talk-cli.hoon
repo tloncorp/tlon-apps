@@ -1583,10 +1583,6 @@
     ::
         %cite
       ?-  -.cite.block
-          %chan   =,  cite.block
-        ::NOTE  we cannot safely scry because of no existence checks...
-        "#{(trip p.nest)}: <ref>"
-      ::
           %group  =,  cite.block
         "#group: {(scow %p p.flag)}/{(trip q.flag)}"
       ::
@@ -1595,6 +1591,26 @@
       ::
           %bait
         "#bait"  ::TODO  scry once we can do it safely
+      ::
+          %chan   =,  cite.block
+        =/  =path   (flop wer)
+        =/  =id:chat
+          :-  (slav %p +<.path)
+          (slav %ud -.path)
+        =/  =whom:chat  [%flag q.nest]
+        ?.  (message-exists whom id)
+          "#chat: telegram was deleted"
+        ?.  ?=(%story -.content)
+          "#chat: telegram was a notice"
+        =+  %^  scry-for-marked  ,[* =writ:chat]
+              %chat
+            (forge whom id)
+        =/  message=tape
+          =+  %+  scag  100
+              ~(line mr whom -.writ +.writ)
+          ?.  =(100 (lent -))  -
+          (snoc - '…')
+        (weld "#chat {(scow %p -.id)}: " message)
       ==
     ==
   ::  +activate: produce sole-effect for printing message details
