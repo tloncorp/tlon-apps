@@ -108,7 +108,7 @@ export default function GroupMemberManager() {
           />
         </label>
       </div>
-      <div className="grow">
+      <div className={cn('grow', amAdmin && 'pb-2')}>
         <MemberScroller members={results} />
       </div>
     </div>
