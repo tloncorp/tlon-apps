@@ -12,6 +12,10 @@ import { useTailwind } from 'tailwind-rn';
 import useStore from './state/store';
 import * as Notifications from 'expo-notifications';
 import { WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
+import useHarkState from './state/hark';
+import { useNotifications } from './notifications/useNotifications';
+import { YarnContentShip } from './types/hark';
+import api from './api';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -26,6 +30,9 @@ export default function WebApp() {
   const tailwind = useTailwind();
   const webviewRef = useRef<WebView>(null);
   const appState = useRef(AppState.currentState);
+  const loaded = useHarkState(s => s.loaded);
+  const { count, unreadNotifications } = useNotifications('');
+  const hasUnreads = count > 0;
 
   const handleBackPressed = useCallback(() => {
     if (webviewRef?.current) {
@@ -59,18 +66,21 @@ export default function WebApp() {
     }
   };
 
-  const handleWebviewMessage = (event: any) => {
-    const { data } = event.nativeEvent;
-    const { type, payload } = JSON.parse(data);
-    if (type === 'notification') {
-      const { date, latest, bins } = payload;
-      const topYarn = bins[0].topYarn;
-      const content = topYarn.con;
-      const desk = topYarn.rope.desk;
-      if (desk === 'talk') {
-        const title = `New message from ${content[0].ship}`;
-        const body = content[2];
-        console.log({ title, body });
+  useEffect(() => {
+    const initialize = async () => {
+      await useHarkState.getState().start();
+    };
+
+    initialize();
+  }, []);
+
+  useEffect(() => {
+    if (loaded && hasUnreads) {
+      unreadNotifications.forEach(n => {
+        const content = n.bins[0].topYarn.con;
+        const ship = (content[0] as YarnContentShip).ship;
+        const title = `New message from ${ship}`;
+        const body = content[2] as string;
         Notifications.scheduleNotificationAsync({
           content: {
             title,
@@ -78,12 +88,9 @@ export default function WebApp() {
           },
           trigger: null
         });
-        webviewRef?.current?.postMessage(
-          JSON.stringify({ type: 'hark-read', payload: topYarn.rope })
-        );
-      }
+      });
     }
-  };
+  }, [loaded, hasUnreads, unreadNotifications]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -118,8 +125,6 @@ export default function WebApp() {
     requestPermissions();
   }, []);
 
-  console.log({ shipUrl });
-
   return (
     <SafeAreaView style={tailwind('flex-1')}>
       <WebView
@@ -127,7 +132,6 @@ export default function WebApp() {
         ref={webviewRef}
         androidHardwareAccelerationDisabled={false}
         onHttpError={handleUrlError}
-        onMessage={handleWebviewMessage}
         sharedCookiesEnabled
         scalesPageToFit
       />

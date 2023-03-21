@@ -75,9 +75,6 @@ import manifestURL from './assets/manifest.json?url';
 import { LeapProvider } from './components/Leap/useLeap';
 import VitaMessage from './components/VitaMessage';
 import { useGroups } from './state/groups';
-import useHarkState from './state/hark';
-import { useNotifications } from './notifications/useNotifications';
-import { Rope } from './types/hark';
 import Dialog, { DialogContent } from './components/Dialog';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
@@ -522,9 +519,6 @@ function Scheduler() {
 function App() {
   const navigate = useNavigate();
   const handleError = useErrorHandler();
-  const loaded = useHarkState((s) => s.loaded);
-  const { count, unreadNotifications } = useNotifications('');
-  const hasUnreads = count > 0;
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
@@ -543,45 +537,6 @@ function App() {
       bootstrap();
     })();
   }, [handleError]);
-
-  useEffect(() => {
-    if (window.bootstrapApi) {
-      bootstrap();
-    }
-  }, [location]);
-
-  useEffect(() => {
-    const markRead = async (rope: Rope) => {
-      await useHarkState.getState().sawRope(rope);
-    };
-    if (loaded && hasUnreads && window.ReactNativeWebView) {
-      unreadNotifications.forEach((n) => {
-        window.ReactNativeWebView.postMessage(
-          JSON.stringify({ type: 'notification', payload: n })
-        );
-        markRead(n.bins[0].topYarn.rope);
-      });
-    }
-  }, [loaded, hasUnreads, unreadNotifications]);
-
-  // useEffect(() => {
-  // const markRead = async (rope: Rope) => {
-  // await useHarkState.getState().sawRope(rope);
-  // };
-
-  // console.log('adding message listener');
-  // window.addEventListener('message', (message: any) => {
-  // const { data } = JSON.parse(message);
-  // console.log('message', data);
-  // if (data.type === 'hark-read') {
-  // markRead(data.payload);
-  // }
-
-  // return () => {
-  // window.removeEventListener('message', () => ({}));
-  // };
-  // });
-  // });
 
   const state = location.state as { backgroundLocation?: Location } | null;
 

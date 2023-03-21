@@ -1,6 +1,8 @@
+import Urbit from '@uqbar/react-native-api';
 import { create } from 'zustand';
 import storage from '../lib/storage';
 import { deSig } from '@urbit/api';
+import _api from '../api';
 
 export interface ShipConnection {
   ship: string;
@@ -13,6 +15,7 @@ interface Store {
   needLogin: boolean;
   ship: string;
   shipUrl: string;
+  api: Urbit | null;
   authCookie: string;
   ships: ShipConnection[];
   setNeedLogin: (needLogin: boolean) => void;
@@ -47,10 +50,20 @@ const useStore = create<Store>(set => ({
   needLogin: true,
   ship: '',
   shipUrl: '',
+  api: null,
   authCookie: '',
   ships: [],
   setNeedLogin: (needLogin: boolean) => set(() => ({ needLogin })),
-  loadStore: (store: any) => set(() => store),
+  loadStore: (store: any) => {
+    window.ship = deSig(store.ship);
+    global.window.ship = deSig(store.ship);
+
+    const api = _api(store.ship, store.shipUrl);
+    global.api = api;
+    window.api = api;
+
+    set(() => ({ ...store, api }));
+  },
   setShipUrl: (shipUrl: string) => set({ shipUrl }),
   setLoading: (loading: boolean) => set({ loading }),
   addShip: (shipConnection: ShipConnection) =>

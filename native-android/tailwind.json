@@ -122,11 +122,6 @@
 			"paddingRight": 12
 		}
 	},
-	"pt-8": {
-		"style": {
-			"paddingTop": 32
-		}
-	},
 	"text-center": {
 		"style": {
 			"textAlign": "center"

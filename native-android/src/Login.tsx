@@ -157,7 +157,7 @@ export default function Login() {
             addShip({
               ship,
               shipUrl,
-              authCookie: authCookieHeader
+              authCookie: authCookieHeader,
             });
           }
         })
