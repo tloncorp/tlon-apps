@@ -1,5 +1,5 @@
-import Urbit from '@uqbar/react-native-api';
-import { configureApi } from '@uqbar/react-native-api/configureApi';
+import Urbit from '@uqbar/react-native-api/index';
+import { deSig } from '@urbit/api';
 import { PokeInterface, Scry, Thread } from '@urbit/http-api';
 import { useLocalState } from './state/local';
 import useSubscriptionState from './state/subscription';
@@ -10,7 +10,7 @@ const { errorCount, airLockErrorCount } = useLocalState.getState();
 
 async function setupAPI(ship: string, shipUrl: string) {
   if (!client) {
-    const api = configureApi(ship, shipUrl);
+    const api = new Urbit(shipUrl, '', 'talk', deSig(ship)!);
     api.ship = ship;
     api.verbose = true;
     client = api;
