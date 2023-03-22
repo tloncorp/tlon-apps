@@ -1013,7 +1013,13 @@
     |=  =update:g
     ^+  go-core
     =*  diff  q.update
-    ?>  ?|(go-is-bloc ?&(?=(%fleet -.diff) ?=([%add ~] q.diff)))
+    ?>  ?|  go-is-bloc
+            ::  if group is open, allow invites from anyone
+            ?&  ?=(%fleet -.diff) 
+                ?=([%add ~] q.diff)
+                ?=(%open -.cordon.group)
+            ==
+        ==
     =/  =wire  (snoc go-area %proxy)
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  group-action+!>([flag update])
