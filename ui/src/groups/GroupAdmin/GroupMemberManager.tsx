@@ -85,7 +85,7 @@ export default function GroupMemberManager() {
           'mb-4 flex w-full items-center justify-between'
         )}
       >
-        {amAdmin && (
+        {(privacy === 'public' || amAdmin) && (
           <Link
             to={`/groups/${flag}/invite`}
             state={{ backgroundLocation: location }}

@@ -12,6 +12,7 @@ import InviteIcon from '@/components/icons/InviteIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import PersonIcon from '@/components/icons/PersonIcon';
+import { getPrivacyFromGroup } from '@/logic/utils';
 import GroupAvatar from '../GroupAvatar';
 import { useGroupActions } from '../GroupActions';
 
@@ -19,6 +20,7 @@ export default function MobileGroupSidebar() {
   const { ship } = window;
   const flag = useGroupFlag();
   const group = useGroup(flag);
+  const privacy = group ? getPrivacyFromGroup(group) : 'public';
   const match = useMatch('/groups/:ship/:name/info');
   const location = useLocation();
   const [showSheet, setShowSheet] = useState(false);
@@ -55,7 +57,7 @@ export default function MobileGroupSidebar() {
           <Sheet open={showSheet} onOpenChange={(o) => setShowSheet(o)}>
             <SheetContent showClose={true}>
               <div className="flex flex-col pt-4">
-                {isAdmin && (
+                {(privacy === 'public' || isAdmin) && (
                   <SidebarItem
                     onClick={() => setShowSheet(false)}
                     to={`/groups/${flag}/invite`}
