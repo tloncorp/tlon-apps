@@ -1,8 +1,8 @@
-/-  *contacts, e=epic
+/-  *contacts
 /+  default-agent, dbug, verb
 ::
 |%
-++  okay  `epic:e`0
+++  okay  `epic`0
 ++  mar
   |%
   ++  base
@@ -164,64 +164,126 @@
     --
   ::
   ++  sub
-    |=  who=ship
-    ?<  =(our.bowl who)
-    =/  for=(pair profile ?(~ saga:e))
-      (~(gut by rol) who [~ ~])
-    |%
-    ++  hear
-      |=  u=update
+    |^  |=  who=ship
+        ^+  impl
+        ?<  =(our.bowl who)
+        ~(. impl who (~(gut by rol) who [~ ~]) %live)
+    ::
+    ++  many
+      |=  [l=(list ship) f=$-(_impl _impl)]
       ^+  cor
-      ?:  &(?=(^ p.for) (lte wen.u wen.p.for))
-        cor
-      (news:pub(rol (~(put by rol) who for(p u))) who con.u)
+      %+  roll  l
+      |=  [who=@p acc=_cor]
+      ?:  =(our.bowl who)  acc
+      abet:(f (sub:acc who))
     ::
-    ++  have  (~(has by wex.bowl) [/contact who dap.bowl]) :: XX check state
-    ::
-    ++  meet  cor(rol (~(put by rol) who for))
-    ::
-    ++  heed
-      ^+  cor
-      ?:  have  cor
-      =/  pat  ?~(p.for / /at/(scot %da wen.p.for))
-      (pass /contact %agent [who dap.bowl] %watch [%contact pat]) ::  XX track subscription state
-    ::
-    ++  drop
-      =.  cor  snub
-      cor(rol (~(del by rol) who)) :: XX delete, or just ~ the profile?
-    ::
-    ++  snub   :: XX track subscription state
-      ?.  have  cor
-      (pass /contact %agent [who dap.bowl] %leave ~)
-    ::
-    ++  odd
-      |=  =mark
-      =*  upd  *upd:base:mar
-      =*  wid  ^~((met 3 upd))
-      ?.  =(upd (end [3 wid] mark))
-        ~|(fake-news+mark !!)
-      ~|  bad-update-mark+mark
-      =/  cool  (slav %ud (rsh 3^+(wid) mark))
-      ?>  (gth cool okay)
-      ::  XX set sub state to %dex
+    ++  impl
+      |_  [who=ship for=(pair profile ?(~ saga)) sas=?(%dead %live)]
       ::
-      peer:epic(cor snub)
-    ::
-    ++  epic
-      |%
+      ++  s-cor  .
+      ::
+      ++  abet
+        %_  cor
+          rol  ?-  sas
+                 %live  (~(put by rol) who for)
+                 %dead  (~(del by rol) who)
+        ==     ==
+      ::
       ++  take
-        |=  =epic:e
-        ::  XX unsub from /epic
-        ::  XX switch on sub state, do the needful
-        ::  - %dex -> %dex
-        ::  - %lev -> %chi | %lev
-        ::  - %chi -> %dex
-        !!
+        |=  =sign:agent:gall
+        ^+  s-cor
+        ?-  -.sign
+          %poke-ack   ~|(strange-poke-ack+wire !!)
+        ::
+          %watch-ack  s-cor(q.for ?~(p.sign %chi %fal)) :: XX handle with epic sub? check state?
+        ::
+          %kick       heed
+        ::
+          %fact       ?+    p.cage.sign  (odd p.cage.sign)
+                          ::  incompatible changes get a mark version bump
+                          ::
+                          ::    XX details
+                          ::
+                          ?(upd:base:mar %contact-update-0)
+                        (hear !<(update q.cage.sign))
+        ==            ==
+
+      ++  hear
+        |=  u=update
+        ^+  s-cor
+        ?:  &(?=(^ p.for) (lte wen.u wen.p.for))
+          s-cor
+        s-cor(p.for u, cor (news:pub who con.u))
       ::
-      ++  peer
-        (pass /epic %agent [who dap.bowl] %watch /epic)
+      ++  meet  s-cor  :: init key in +abet
+      ::
+      ++  heed
+        ^+  s-cor
+        ?.  ?=(~ q.for)
+          s-cor  :: XX other states
+        =/  pat  ?~(p.for / /at/(scot %da wen.p.for))
+        %=  s-cor
+          cor    (pass /contact %agent [who dap.bowl] %watch [%contact pat])
+          q.for  %try
+        ==
+      ::
+      ++  drop  snub(sas %dead)  :: XX confirm
+      ::
+      ++  snub
+        %_  s-cor
+          q.for  ~
+          cor    ?+    q.for   cor
+                     ?(%lev [%dex *])
+                   (pass /epic %agent [who dap.bowl] %leave ~)
+                 ::
+                     %chi  :: XX %try? %fal?
+                   (pass /contact %agent [who dap.bowl] %leave ~)
+        ==       ==
+      ::
+      ++  odd
+        |=  =mark
+        ^+  s-cor
+        =*  upd  *upd:base:mar
+        =*  wid  ^~((met 3 upd))
+        ?.  =(upd (end [3 wid] mark))
+          ~|(fake-news+mark !!)
+        ~|  bad-update-mark+mark
+        =/  cool  (slav %ud (rsh 3^+(wid) mark))
+        ?<  =(okay cool)
+        peer:epic:snub(q.for ?:((lth cool okay) %lev [%dex cool]))  :: XX recheck
+      ::
+      ++  epic
+        |%
+        ++  take
+          |=  =sign:agent:gall
+          ^+  s-cor
+          ?-  -.sign
+            %poke-ack   ~|(strange-poke-ack+wire !!)
+            %watch-ack  s-cor :: XX handle nack w/ failure state?
+            %kick       peer
+            %fact       ?+  p.cage.sign  ~|(not-epic+p.cage.sign !!) :: XX drop? set sub state?
+                          %epic  (hear !<(^epic q.cage.sign))
+          ==            ==
+        ::
+        ++  hear
+          |=  =^epic
+          ^+  s-cor
+          ?+  q.for  ~|(%strange-epic !!)
+            [%dex *]  ~!  q.for  ?>((gth epic okay) s-cor(ver.q.for epic))
+          ::
+            %lev      ?:  =(okay epic)
+                        heed:snub :: XX switch to %chi, unsub from /epic
+                      ?>((lth epic okay) s-cor)
+          ==
+        ::
+        ++  peer  s-cor(cor (pass /epic %agent [who dap.bowl] %watch /epic))
+        --
       --
     --
+  ::  +migrate: from :contact-store
+  ::
+  ::    all known ships, non-default profiles,
+  ::    no subscriptions
   ::
   ++  migrate
     =>  |%
@@ -256,7 +318,7 @@
       ^-  rolodex
       %-  ~(rep by ful)
       |=  [[who=ship con=contact:legacy] rol=rolodex]
-      (~(put by rol) who (convert con) ~)  :: XX subscribe to any?
+      (~(put by rol) who (convert con) ~)
     ::
     ++  convert
       |=  con=contact:legacy
@@ -272,20 +334,30 @@
   ++  load
     |=  old-vase=vase
     ^+  cor
-    |^  =+  !<([old=versioned-state cool=epic:e] old-vase)
+    |^  =+  !<([old=versioned-state cool=^epic] old-vase)
         =.  state
           ?-  -.old
             %0  old
           ==
-        ?>  (gte okay cool)  :: no time loops!
+        ?>  (gte okay cool)  :: XX confirm
         ?:  =(okay cool)  cor
-        ::  XX scrape thru subscription state and resub
-        ::
-        (give %fact [/epic ~] epic+!>(okay))
+        bump(cor epic)
     ::
     +$  versioned-state
       $%  state-0
       ==
+    ::
+    ++  epic  (give %fact [/epic ~] epic+!>(okay))
+    ::
+    ++  bump
+      ^+  cor
+      %-  ~(rep by rol)
+      |=  [[who=ship for=(pair profile ?(~ saga))] =_cor]
+      ?.  ?&  ?=([%dex *] q.for)
+              =(okay ver.q.for)
+          ==
+        cor
+      abet:heed:snub:(sub:cor who)
     --
   ::
   ++  poke
@@ -309,10 +381,10 @@
                  cor
                (diff:pub u.new)
       ::
-        %meet  (roll p.act |=([who=@p acc=_cor] meet:(sub:acc who)))
-        %heed  (roll p.act |=([who=@p acc=_cor] heed:(sub:acc who)))
-        %drop  (roll p.act |=([who=@p acc=_cor] drop:(sub:acc who)))
-        %snub  (roll p.act |=([who=@p acc=_cor] snub:(sub:acc who)))
+        %meet  (many:sub p.act |=(s=_impl:sub meet:s))
+        %heed  (many:sub p.act |=(s=_impl:sub heed:s))
+        %drop  (many:sub p.act |=(s=_impl:sub drop:s))
+        %snub  (many:sub p.act |=(s=_impl:sub snub:s))
       ==
     ==
   ::
@@ -352,28 +424,8 @@
     |=  [=wire =sign:agent:gall]
     ^+  cor
     ?+  wire  ~|(evil-agent+wire !!)
-        [%contact ~]
-      ?-  -.sign
-        %poke-ack   ~|(strange-poke-ack+wire !!)
-        %watch-ack  cor :: XX handle with epic sub?
-        %kick       heed:(sub src.bowl)
-        %fact       ?+    p.cage.sign  (odd:(sub src.bowl) p.cage.sign)
-                        ::  incompatible changes get a mark version bump
-                        ::
-                        ::    XX details
-                        ::
-                        ?(upd:base:mar %contact-update-0)
-                      (hear:(sub src.bowl) !<(update q.cage.sign))
-      ==            ==
-    ::
-        [%epic ~]
-      ?-  -.sign
-        %poke-ack   ~|(strange-poke-ack+wire !!)
-        %watch-ack  cor :: XX handle nack w/ failure state?
-        %kick       peer:epic:(sub src.bowl)
-        %fact       ?+  p.cage.sign  ~|(not-epic+p.cage.sign !!) :: XX drop? set sub state?
-                      %epic  (take:epic:(sub src.bowl) !<(epic:e q.cage.sign))
-      ==            ==
+      [%contact ~]  abet:(take:(sub src.bowl) sign)
+      [%epic ~]     abet:(take:epic:(sub src.bowl) sign)
     ==
   --
 --

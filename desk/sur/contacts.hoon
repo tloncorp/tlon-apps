@@ -1,4 +1,4 @@
-/-  *resource, e=epic
+/-  *resource
 |%
 +$  contact
   $:  nickname=@t
@@ -11,7 +11,17 @@
   ==
 ::
 +$  profile  ?(~ update)
-+$  rolodex  (map ship (pair profile ?(~ saga:e)))
++$  rolodex  (map ship (pair profile ?(~ saga)))
+::
++$  epic  @ud
++$  saga
+  $@  $?  %try     ::  subscribing
+          %fal     ::  failed
+          %lev     ::  ahead
+          %chi     ::  sympatico
+          ~        ::  none intended
+      ==           ::
+  [%dex ver=epic]  ::  behind
 ::
 +$  field
   $%  [%nickname nickname=@t]
