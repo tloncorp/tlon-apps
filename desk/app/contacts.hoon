@@ -2,6 +2,22 @@
 /+  default-agent, dbug, verb
 ::
 |%
+::  [compat] protocol-versioning scheme
+::
+::    adopted from :groups, slightly modified.
+::
+::    for our action/update marks, we
+::      - *must* support our version (+okay)
+::      - *should* support previous versions (especially actions)
+::      - but *can't* support future versions
+::
+::    in the case of updates at unsupported protocol versions,
+::    we backoff and subscribe for version changes (/epic).
+::    (this alone is unlikely to help with future versions,
+::    but perhaps our peer will downgrade. in the meantime,
+::    we wait to be upgraded.)
+::
++|  %compat
 ++  okay  `epic`0
 ++  mar
   |%
@@ -13,7 +29,15 @@
   ++  act  `mark`^~((rap 3 *act:base '-' (scot %ud okay) ~))
   ++  upd  `mark`^~((rap 3 *upd:base '-' (scot %ud okay) ~))
   --
+::  conventions
 ::
+::    .con: a contact
+::    .rof: our profile
+::    .rol: our full rolodex
+::    .for: foreign profile
+::    .sag: foreign subscription state
+::
++|  %types
 +$  card     card:agent:gall
 +$  state-0  [%0 rof=profile rol=rolodex]
 --
@@ -122,11 +146,24 @@
   ::
   +|  %operations
   ::
+  ::  |pub: publication mgmt
+  ::
+  ::    - /news: local updates to our profile and rolodex
+  ::    - /contact: updates to our profile
+  ::
+  ::    as these publications are trivial, |pub does *not*
+  ::    make use of the +abet pattern. the only behavior of note
+  ::    is wrt the /contact/at/$date path, which exists to minimize
+  ::    redundant network traffic.
+  ::
+  ::    /epic protocol versions are even more trivial,
+  ::    published ad-hoc, elsewhere.
+  ::
   ++  pub
     =>  |%
         ::  if this proves to be too slow, the set of paths
         ::  should be maintained statefully: put on +p-init:pub,
-        ::  and filtered on +load (to avoid a space leak).
+        ::  filtered at some interval (on +load?) to avoid a space leak.
         ::
         ++  subs
           ^-  (set path)
@@ -165,6 +202,24 @@
     ::
     ++  p-news  |=(n=news (give %fact [/news ~] %contact-news !>(n)))
     --
+  ::
+  ::  +sub: subscription mgmt
+  ::
+  ::    /epic: foreign protocol versions, |si-epic:s-impl
+  ::    /contact/*: foreign profiles, |s-impl
+  ::
+  ::    subscription state is tracked per peer in .sag
+  ::
+  ::    ~:     no subscription
+  ::    %want: /contact/* being attempted
+  ::    %fail: /contact/* failed, /epic being attempted
+  ::    %lost: /epic failed
+  ::    %chi:  /contact/* established
+  ::    %lev:  we're (incompatibly) ahead of the publisher
+  ::    %dex:  we're behind the publisher
+  ::
+  ::    for a given peer, we always have at most one subscription,
+  ::    to either /contact/* or /epic.
   ::
   ++  sub
     |^  |=  who=ship
@@ -206,11 +261,17 @@
         ::
           %kick       si-heed
         ::
+        ::  [compat] we *should* maintain backcompat here
+        ::
+        ::    by either directly handling or upconverting
+        ::    old actions. but if we don't, we'll fall back
+        ::    to /epic and wait for our peer to upgrade.
+        ::
+        ::    %fact's from the future are also /epic,
+        ::    in case our peer downgrades. if not, we'll
+        ::    handle it on +load.
+        ::
           %fact       ?+    p.cage.sign  (si-odd p.cage.sign)
-                          ::  incompatible changes get a mark version bump
-                          ::
-                          ::    XX details
-                          ::
                           ?(upd:base:mar %contact-update-0)
                         (si-hear !<(update q.cage.sign))
         ==            ==
@@ -304,8 +365,7 @@
     --
   ::  +migrate: from :contact-store
   ::
-  ::    all known ships, non-default profiles,
-  ::    no subscriptions
+  ::    all known ships, non-default profiles, no subscriptions
   ::
   ++  migrate
     =>  |%
@@ -358,6 +418,11 @@
           ?-  -.old
             %0  old
           ==
+        ::  [compat] if our protocol version changed
+        ::
+        ::    we first tell the world, then see if we can now understand
+        ::    any of our friends who were sending messages from the future.
+        ::
         ?:(=(okay cool) cor l-bump(cor l-epic))
     ::
     +$  versioned-state
@@ -370,6 +435,9 @@
       ^+  cor
       %-  ~(rep by rol)
       |=  [[who=ship foreign] =_cor]
+      ::  XX to fully support downgrade, we'd need to also
+      ::  save an epic in %lev
+      ::
       ?.  ?&  ?=([%dex *] sag)
               =(okay ver.sag)
           ==
@@ -380,12 +448,11 @@
   ++  poke
     |=  [=mark =vase]
     ^+  cor
+    ::  [compat] we *should* maintain backcompat here
+    ::
+    ::    by either directly handling or upconverting old actions
+    ::
     ?+    mark  ~|(bad-mark+mark !!)
-        ::  incompatible changes get a mark version bump
-        ::
-        ::    the agent should maintain compatibility by either
-        ::    directly handling or upconverting old-marked pokes
-        ::
         ?(act:base:mar %contact-action-0)
       ?>  =(our src):bowl
       =/  act  !<(action vase)
