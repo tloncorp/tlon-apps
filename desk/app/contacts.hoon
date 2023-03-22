@@ -98,12 +98,6 @@
     %del-group  c(groups (~(del in groups.c) resource.f))
   ==
 ::
-++  do-edits
-  |=  [c=contact l=(list field)]
-  ^-  (unit contact)
-  =-  ?:(=(- c) ~ `-)
-  (roll l |=([f=field c=_c] (do-edit c f)))
-::
 ++  mono
   |=  [old=@da new=@da]
   ^-  @da
@@ -147,8 +141,15 @@
         --
     ::
     |%
-    ++  p-news
-      |=(n=news (give %fact [/news ~] %contact-news !>(n)))
+    ++  p-anon  ?.(?=([@ ^] rof) cor (p-diff ~))
+    ::
+    ++  p-edit
+      |=  l=(list field)
+      =/  old  ?.(?=([@ ^] rof) *contact con.rof)
+      =/  new  (roll l |=([f=field c=_old] (do-edit c f)))
+      ?:  =(old new)
+        cor
+      (p-diff:pub new)
     ::
     ++  p-diff
       |=  con=?(~ contact)
@@ -161,6 +162,8 @@
       ?~  wen  (give (fact ~ rof))
       ?:  =(u.wen wen.rof)  cor
       ?>((lth u.wen wen.rof) (give (fact ~ rof))) :: no future subs
+    ::
+    ++  p-news  |=(n=news (give %fact [/news ~] %contact-news !>(n)))
     --
   ::
   ++  sub
@@ -373,14 +376,8 @@
       ?>  =(our src):bowl
       =/  act  !<(action vase)
       ?-  -.act
-        %anon  ?.  ?=([@ ^] rof)
-                 cor
-               (p-diff:pub ~)
-      ::
-        %edit   ?~  new=(do-edits ?.(?=([@ ^] rof) *contact con.rof) p.act)
-                 cor
-               (p-diff:pub u.new)
-      ::
+        %anon  p-anon:pub
+        %edit  (p-edit:pub p.act)
         %meet  (s-many:sub p.act |=(s=_s-impl:sub si-meet:s))
         %heed  (s-many:sub p.act |=(s=_s-impl:sub si-heed:s))
         %drop  (s-many:sub p.act |=(s=_s-impl:sub si-drop:s))
