@@ -4,11 +4,10 @@
 ++  enjs
   =,  enjs:format
   |%
-  ::  XX shadowed for compat/parsing
-  ::  remove for performance? (and in groups?)
+  ::  XX shadowed for compat, +ship:enjs removes the ~
   ::
   ++  ship
-    |=(her=@p s+(scot %p her))
+    |=(her=@p n+(rap 3 '"' (scot %p her) '"' ~))
   ::
   ++  action
     |=  a=action:c
@@ -74,15 +73,34 @@
 ++  dejs
   =,  dejs:format
   |%
+  ::  for performance, @p is serialized above to json %n (no escape)
+  ::  for mark roundtrips, ships are parsed from either %s or %n
+  ::  XX do this elsewhere in groups?
+  ::
+  ++  ship  (se-ne %p)
+  ++  se-ne
+    |=  aur=@tas
+    |=  jon=json
+    ?+  jon  !!
+      [%s *]  (slav aur p.jon)
+    ::
+      [%n *]  ~|  bad-n+p.jon
+              =/  wyd  (met 3 p.jon)
+              ?>  ?&  =('"' (end 3 p.jon))
+                      =('"' (cut 3 [(dec wyd) 1] p.jon))
+                  ==
+              (slav aur (cut 3 [1 (sub wyd 2)] p.jon))
+    ==
+  ::
   ++  action
     ^-  $-(json action:c)
     %-  of
     :~  anon+ul
         edit+(ar field)
-        meet+(ar (se %p))
-        heed+(ar (se %p))
-        drop+(ar (se %p))
-        snub+(ar (se %p))
+        meet+(ar ship)
+        heed+(ar ship)
+        drop+(ar ship)
+        snub+(ar ship)
     ==
   ::
   ++  contact
