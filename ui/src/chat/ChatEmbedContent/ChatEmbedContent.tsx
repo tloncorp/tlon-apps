@@ -57,6 +57,14 @@ function ChatEmbedContent({
     };
   }, [url, calm, isTrusted, isAudio]);
 
+  if (url !== content) {
+    return (
+      <a target="_blank" rel="noreferrer" href={url}>
+        {content}
+      </a>
+    );
+  }
+
   if (isAudio) {
     return <AudioPlayer url={url} embed writId={writId} />;
   }
