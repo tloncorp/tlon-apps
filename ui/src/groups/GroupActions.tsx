@@ -104,7 +104,7 @@ const GroupActions = React.memo(
             )}
           </DropdownMenu.Trigger>
           <DropdownMenu.Content className="dropdown min-w-52 text-gray-800">
-            {isAdmin && (
+            {(privacy === 'public' || isAdmin) && (
               <DropdownMenu.Item
                 asChild
                 className="dropdown-item text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
