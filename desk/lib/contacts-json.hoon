@@ -1,4 +1,4 @@
-/-  c=contacts, e=epic
+/-  c=contacts
 /+  res=resource
 |%
 ++  enjs
@@ -59,9 +59,8 @@
     ^-  json
     %-  pairs
     %-  ~(rep by r)
-    |=  [[who=@p (pair profile:c ?(~ saga:e))] j=(list [@t json])]
-    =-  [[(scot %p who) -] j]
-    ?:(|(?=(~ p) ?=(~ con.p)) ~ (contact con.p))  :: XX stale flag per sub state?
+    |=  [[who=@p foreign:c] j=(list [@t json])]
+    [[(scot %p who) ?.(?=([@ ^] for) ~ (contact con.for))] j]  :: XX stale flag per sub state?
   ::
   ++  news
     |=  n=news:c

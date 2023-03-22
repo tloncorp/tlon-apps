@@ -167,7 +167,7 @@
     |^  |=  who=ship
         ^+  s-impl
         ?<  =(our.bowl who)
-        ~(. s-impl who (~(gut by rol) who [~ ~]) %live)
+        ~(. s-impl who %live (~(gut by rol) who [~ ~]))
     ::
     ++  s-many
       |=  [l=(list ship) f=$-(_s-impl _s-impl)]
@@ -178,14 +178,14 @@
       si-abet:(f (sub:acc who))
     ::
     ++  s-impl
-      |_  [who=ship for=(pair profile ?(~ saga)) sas=?(%dead %live)]
+      |_  [who=ship sas=?(%dead %live) foreign]
       ::
       ++  si-cor  .
       ::
       ++  si-abet
         %_  cor
           rol  ?-  sas
-                 %live  (~(put by rol) who for)
+                 %live  (~(put by rol) who for sag)
                  %dead  (~(del by rol) who)
         ==     ==
       ::
@@ -195,7 +195,7 @@
         ?-  -.sign
           %poke-ack   ~|(strange-poke-ack+wire !!)
         ::
-          %watch-ack  si-cor(q.for ?~(p.sign %chi %fal)) :: XX handle with epic sub? check state?
+          %watch-ack  si-cor(sag ?~(p.sign %chi %fal)) :: XX handle with epic sub? check state?
         ::
           %kick       si-heed
         ::
@@ -211,34 +211,34 @@
       ++  si-hear
         |=  u=update
         ^+  si-cor
-        ?:  &(?=(^ p.for) (lte wen.u wen.p.for))
+        ?:  &(?=(^ for) (lte wen.u wen.for))
           si-cor
-        si-cor(p.for u, cor (p-news:pub who con.u))
+        si-cor(for u, cor (p-news:pub who con.u))
       ::
       ++  si-meet  si-cor  :: init key in +si-abet
       ::
       ++  si-heed
         ^+  si-cor
-        ?.  ?=(~ q.for)
+        ?.  ?=(~ sag)
           si-cor  :: XX other states
-        =/  pat  ?~(p.for / /at/(scot %da wen.p.for))
+        =/  pat  ?~(for / /at/(scot %da wen.for))
         %=  si-cor
-          cor    (pass /contact %agent [who dap.bowl] %watch [%contact pat])
-          q.for  %try
+          cor  (pass /contact %agent [who dap.bowl] %watch [%contact pat])
+          sag  %try
         ==
       ::
       ++  si-drop  si-snub(sas %dead)  :: XX confirm
       ::
       ++  si-snub
         %_  si-cor
-          q.for  ~
-          cor    ?+    q.for   cor
-                     ?(%lev [%dex *])
-                   (pass /epic %agent [who dap.bowl] %leave ~)
-                 ::
-                     %chi  :: XX %try? %fal?
-                   (pass /contact %agent [who dap.bowl] %leave ~)
-        ==       ==
+          sag  ~
+          cor  ?+    sag   cor
+                   ?(%lev [%dex *])
+                 (pass /epic %agent [who dap.bowl] %leave ~)
+               ::
+                   %chi  :: XX %try? %fal?
+                 (pass /contact %agent [who dap.bowl] %leave ~)
+        ==     ==
       ::
       ++  si-odd
         |=  =mark
@@ -250,7 +250,7 @@
         ~|  bad-update-mark+mark
         =/  cool  (slav %ud (rsh 3^+(wid) mark))
         ?<  =(okay cool)
-        pe-peer:si-epic:si-snub(q.for ?:((lth cool okay) %lev [%dex cool]))  :: XX recheck
+        pe-peer:si-epic:si-snub(sag ?:((lth cool okay) %lev [%dex cool]))  :: XX recheck
       ::
       ++  si-epic
         |%
@@ -268,8 +268,8 @@
         ++  pe-hear
           |=  =epic
           ^+  si-cor
-          ?+  q.for  ~|(%strange-epic !!)
-            [%dex *]  ~!  q.for  ?>((gth epic okay) si-cor(ver.q.for epic))
+          ?+  sag  ~|(%strange-epic !!)
+            [%dex *]  ?>((gth epic okay) si-cor(ver.sag epic))
           ::
             %lev      ?:  =(okay epic)
                         si-heed:si-snub :: XX switch to %chi, unsub from /epic
@@ -352,9 +352,9 @@
     ++  l-bump
       ^+  cor
       %-  ~(rep by rol)
-      |=  [[who=ship for=(pair profile ?(~ saga))] =_cor]
-      ?.  ?&  ?=([%dex *] q.for)
-              =(okay ver.q.for)
+      |=  [[who=ship foreign] =_cor]
+      ?.  ?&  ?=([%dex *] sag)
+              =(okay ver.sag)
           ==
         cor
       si-abet:si-heed:si-snub:(sub:cor who)
@@ -403,9 +403,9 @@
         [~ ~]
       =/  tac=?(~ contact)
         ?:  =(our.bowl u.who)  ?~(rof ~ con.rof)
-        =/  for  (~(get by rol) u.who)
-        ?:  |(?=(~ for) ?=(~ p.u.for))  ~
-        con.p.u.for
+        =+  (~(get by rol) u.who)
+        ?:  |(?=(~ -) ?=(~ for.u.-))  ~
+        con.for.u.-
       ?~  tac  [~ ~]
       ``contact+!>(`contact`tac)
     ==

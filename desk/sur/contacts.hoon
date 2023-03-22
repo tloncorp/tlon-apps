@@ -10,8 +10,9 @@
       groups=(set resource)
   ==
 ::
++$  foreign  [for=profile sag=?(~ saga)]
 +$  profile  ?(~ update)
-+$  rolodex  (map ship (pair profile ?(~ saga)))
++$  rolodex  (map ship foreign)
 ::
 +$  epic  @ud
 +$  saga
