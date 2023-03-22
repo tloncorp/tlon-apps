@@ -81,11 +81,11 @@ export default function GroupMemberManager() {
     <div className={cn(!amAdmin && 'card', 'flex h-full grow flex-col')}>
       <div
         className={cn(
-          (privacy === 'public' || amAdmin) && 'mt-2',
+          amAdmin && 'mt-2',
           'mb-4 flex w-full items-center justify-between'
         )}
       >
-        {(privacy === 'public' || amAdmin) && (
+        {amAdmin && (
           <Link
             to={`/groups/${flag}/invite`}
             state={{ backgroundLocation: location }}
