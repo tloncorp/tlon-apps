@@ -69,7 +69,7 @@ export default function VitaMessage() {
           </p>
           <div className="flex justify-end space-x-2">
             <Popover.Close className="secondary-button" onClick={close(false)}>
-              Ignore
+              Decline
             </Popover.Close>
             <Popover.Close className="button" onClick={close(true)}>
               Enable and Continue
