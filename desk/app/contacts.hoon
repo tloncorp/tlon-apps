@@ -152,7 +152,7 @@
       (p-diff:pub new)
     ::
     ++  p-diff
-      |=  con=?(~ contact)
+      |=  con=$@(~ contact)
       =/  u=update  [?~(rof now.bowl (mono wen.rof now.bowl)) con]
       (give:(p-news(rof u) our.bowl con) (fact subs u))
     ::
@@ -198,9 +198,13 @@
         ?-  -.sign
           %poke-ack   ~|(strange-poke-ack+wire !!)
         ::
-          %watch-ack  si-cor(sag ?~(p.sign %chi %fal)) :: XX handle with epic sub? check state?
+          %watch-ack  ~|  strange-watch-ack+wire
+                      ?>  ?=(%want sag)
+                      ?~  p.sign  si-cor(sag [%chi ~])
+                      %-  (slog 'contact-fail' u.p.sign)
+                      pe-peer:si-epic(sag %fail)
         ::
-          %kick       si-heed
+          %kick       si-heed :: XX review
         ::
           %fact       ?+    p.cage.sign  (si-odd p.cage.sign)
                           ::  incompatible changes get a mark version bump
@@ -223,23 +227,23 @@
       ++  si-heed
         ^+  si-cor
         ?.  ?=(~ sag)
-          si-cor  :: XX other states
-        =/  pat  ?~(for / /at/(scot %da wen.for))
+          si-cor
+        =/  pat  [%contact ?~(for / /at/(scot %da wen.for))]
         %=  si-cor
-          cor  (pass /contact %agent [who dap.bowl] %watch [%contact pat])
-          sag  %try
+          cor  (pass /contact %agent [who dap.bowl] %watch pat)
+          sag  %want
         ==
       ::
-      ++  si-drop  si-snub(sas %dead)  :: XX confirm
+      ++  si-drop  si-snub(sas %dead)
       ::
       ++  si-snub
         %_  si-cor
           sag  ~
           cor  ?+    sag   cor
-                   ?(%lev [%dex *])
+                   ?(%fail [?(%lev %dex) *])
                  (pass /epic %agent [who dap.bowl] %leave ~)
                ::
-                   %chi  :: XX %try? %fal?
+                   ?(%want [%chi *])
                  (pass /contact %agent [who dap.bowl] %leave ~)
         ==     ==
       ::
@@ -253,7 +257,9 @@
         ~|  bad-update-mark+mark
         =/  cool  (slav %ud (rsh 3^+(wid) mark))
         ?<  =(okay cool)
-        pe-peer:si-epic:si-snub(sag ?:((lth cool okay) %lev [%dex cool]))  :: XX recheck
+        =.  si-cor  si-snub  :: unsub before .sag update
+        =.  sag  ?:((lth cool okay) [%lev ~] [%dex cool])
+        pe-peer:si-epic
       ::
       ++  si-epic
         |%
@@ -262,24 +268,36 @@
           ^+  si-cor
           ?-  -.sign
             %poke-ack   ~|(strange-poke-ack+wire !!)
-            %watch-ack  si-cor :: XX handle nack w/ failure state?
-            %kick       pe-peer
-            %fact       ?+  p.cage.sign  ~|(not-epic+p.cage.sign !!) :: XX drop? set sub state?
+          ::
+            %watch-ack  ?~  p.sign  si-cor
+                        %-  (slog 'epic-fail' u.p.sign)
+                        si-cor(sag %lost)
+          ::
+            %kick       ?.  ?=(?(%fail [?(%dex %lev) *]) sag)
+                          si-cor  :: XX strange
+                        pe-peer
+          ::
+            %fact       ?+  p.cage.sign  ~|(not-epic+p.cage.sign !!)
                           %epic  (pe-hear !<(epic q.cage.sign))
           ==            ==
         ::
         ++  pe-hear
           |=  =epic
           ^+  si-cor
-          ?+  sag  ~|(%strange-epic !!)
+          ?+  sag  ~|(%strange-epic !!) :: XX dangerous!
+            %fail     ?:  =(okay epic)
+                        si-cor(sag %lost)
+                      si-cor(sag ?:((gth epic okay) [%dex epic] [%lev ~]))
+          ::
             [%dex *]  ?>((gth epic okay) si-cor(ver.sag epic))
           ::
-            %lev      ?:  =(okay epic)
-                        si-heed:si-snub :: XX switch to %chi, unsub from /epic
+            [%lev *]  ?:  =(okay epic)
+                        si-heed:si-snub
                       ?>((lth epic okay) si-cor)
           ==
         ::
-        ++  pe-peer  si-cor(cor (pass /epic %agent [who dap.bowl] %watch /epic))
+        ++  pe-peer
+          si-cor(cor (pass /epic %agent [who dap.bowl] %watch /epic))
         --
       --
     --
@@ -342,9 +360,7 @@
           ?-  -.old
             %0  old
           ==
-        ?>  (gte okay cool)  :: XX confirm
-        ?:  =(okay cool)  cor
-        l-bump(cor l-epic)
+        ?:(=(okay cool) cor l-bump(cor l-epic))
     ::
     +$  versioned-state
       $%  state-0
@@ -411,8 +427,8 @@
     |=  pat=(pole knot)
     ^+  cor
     ?+  pat  ~|(bad-watch-path+pat !!)
-      [%contacts %at wen=@ ~]  (p-init:pub `(slav %da wen.pat))
-      [%contacts ~]  (p-init:pub ~)
+      [%contact %at wen=@ ~]  (p-init:pub `(slav %da wen.pat))
+      [%contact ~]  (p-init:pub ~)
       [%epic ~]  (give %fact ~ epic+!>(okay))
       [%news ~]  ~|(local-news+src.bowl ?>(=(our src):bowl cor))
     ==

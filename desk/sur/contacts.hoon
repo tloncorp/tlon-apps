@@ -1,4 +1,4 @@
-/-  *resource
+/-  *resource, e=epic
 |%
 +$  contact
   $:  nickname=@t
@@ -10,19 +10,18 @@
       groups=(set resource)
   ==
 ::
-+$  foreign  [for=profile sag=?(~ saga)]
-+$  profile  ?(~ update)
++$  foreign  [for=profile sag=$@(~ saga)]
++$  profile  $@(~ update)
 +$  rolodex  (map ship foreign)
 ::
-+$  epic  @ud
++$  epic  epic:e
 +$  saga
-  $@  $?  %try     ::  subscribing
-          %fal     ::  failed
-          %lev     ::  ahead
-          %chi     ::  sympatico
+  $@  $?  %want    ::  subscribing
+          %fail    ::  %want failed
+          %lost    ::  epic %fail
           ~        ::  none intended
-      ==           ::
-  [%dex ver=epic]  ::  behind
+      ==
+  saga:e
 ::
 +$  field
   $%  [%nickname nickname=@t]
@@ -52,8 +51,8 @@
   ==
 ::
 +$  update                ::  network
-  [wen=@da con=?(~ contact)]
+  [wen=@da con=$@(~ contact)]
 ::
 +$  news                  ::  local
-  (pair ship ?(~ contact))
+  (pair ship $@(~ contact))
 --
