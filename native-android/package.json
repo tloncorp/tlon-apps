@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "main.tsx",
   "scripts": {
+    "dev": "cd ../ui && npm run dev:native & cd ../native-android && npm run dev:tailwind & npm run start",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
