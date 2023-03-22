@@ -694,7 +694,10 @@
     ::  +dm: send a direct message to a ship
     ::
     ++  dm 
-      ;~(plug (cook |=(s=@p [~ s]) ship) content)
+      ;~  plug 
+        (cook |=(s=@p [~ s]) ship)
+        ;~(pfix ace content)
+      ==
     ::  +message: all messages
     ::
     ++  message
