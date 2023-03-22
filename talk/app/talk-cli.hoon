@@ -3,7 +3,7 @@
 ::    pulls all known messages into a single stream.
 ::    type ;help for usage instructions.
 ::
-/-  chat
+/-  chat, cite, groups
 /+  shoe, default-agent, verb, dbug
 ::
 |%
@@ -39,7 +39,11 @@
 +$  command
   $%  [%target target]                              ::  set messaging target
       [%say (unit ship) (list inline:chat)]         ::  send message
-      $:  %reply                                    ::  reply to a message
+      $:  %reference                                ::  reference a message
+          $@(rel=@ud [zeros=@u abs=@ud])            ::
+          (list inline:chat)                        ::
+      ==                                            ::
+      $:  %thread                                   ::  reply to a message thread
           $@(rel=@ud [zeros=@u abs=@ud])            ::
           (list inline:chat)                        ::
       ==                                            ::
@@ -606,7 +610,8 @@
         ;~(plug (tag %targets) (easy ~))
         ;~(plug (tag %help) (easy ~))
       ::
-        ;~((glue ace) (stag %reply ;~(plug nump content)))
+        (stag %reference ;~(plug ;~(pfix hax nump) ;~(pfix ace content)))
+        (stag %thread ;~(plug nump ;~(pfix ace content)))
         (stag %select nump)
       ==
     ::
@@ -773,33 +778,34 @@
     |=  job=command
     ^-  (quip card _state)
     |^  ?-  -.job
-          %target    (set-target +.job)
-          %say       (say +.job)
-          %reply     (reply +.job)
+          %target     (set-target +.job)
+          %say        (say +.job)
+          %reference  (reference +.job)
+          %thread     (thread +.job)
           :: %eval      (eval +.job)
         ::
-          %join      (rsvp & & +.job)
-          %deny      (rsvp & | +.job)
+          %join       (rsvp & & +.job)
+          %deny       (rsvp & | +.job)
         ::
-          %view      (view +.job)
-          %flee      (flee +.job)
+          %view       (view +.job)
+          %flee       (flee +.job)
         ::
-          %bind      (bind-glyph +.job)
-          %unbind    (unbind-glyph +.job)
-          %what      (lookup-glyph +.job)
+          %bind       (bind-glyph +.job)
+          %unbind     (unbind-glyph +.job)
+          %what       (lookup-glyph +.job)
         ::
-          %settings  show-settings
-          %set       (set-setting +.job)
-          %unset     (unset-setting +.job)
-          %width     (set-width +.job)
-          %timezone  (set-timezone +.job)
+          %settings   show-settings
+          %set        (set-setting +.job)
+          %unset      (unset-setting +.job)
+          %width      (set-width +.job)
+          %timezone   (set-timezone +.job)
         ::
-          %select    (select +.job)
-          %chats     chats
-          %dms       dms
-          %clubs     clubs
-          %targets   targets
-          %help      help
+          %select     (select +.job)
+          %chats      chats
+          %dms        dms
+          %clubs      clubs
+          %targets    targets
+          %help       help
         ==
     ::  +act: build action card
     ::
@@ -965,11 +971,12 @@
          !>  ^-  action:club:chat
          [club-id *echo:club:chat %team our-self ok]   
       ==
-    :: +spit: make a poke card based on audience
+    :: +send: make a poke card based on audience
     ::
-    ++  spit
+    ++  send
       |=  $:  msg=(list inline:chat)
               replying=(unit id:chat)
+              block=(list block:chat)
           ==
       %^  act  %out-message
         %chat
@@ -978,21 +985,21 @@
         :-  %dm-action
         !>  ^-  action:dm:chat
         =/  =memo:chat 
-          [replying our.bowl now.bowl %story ~ msg]
+          [replying our.bowl now.bowl %story block msg]
         [p.audience [our now]:bowl %add memo]
       ::
           %flag
         :-  %chat-action-0
         !>  ^-  action:chat
         =/  =memo:chat  
-          [replying our.bowl now.bowl %story ~ msg]
+          [replying our.bowl now.bowl %story block msg]
         [p.audience now.bowl %writs [our now]:bowl %add memo]
       ::
           %club   
         :-  %club-action
         !>  ^-  action:club:chat
         =/  =memo:chat
-          [replying our.bowl now.bowl %story ~ msg]
+          [replying our.bowl now.bowl %story block msg]
         [p.audience *echo:club:chat %writ [our now]:bowl %add memo]   
       ==
     ::  +say: send messages
@@ -1001,7 +1008,7 @@
       |=  [who=(unit ship) msg=(list inline:chat)]
       ^-  (quip card _state)
       ?~  who 
-        [[(spit msg ~)]~ put-ses]
+        [[(send msg ~ ~)]~ put-ses]
       =/  =whom:chat  [%ship (need who)]
       =.  audience  whom
       =^  cards  state
@@ -1010,12 +1017,12 @@
           ::  then pass message
           ::
           =+  (switch-channel whom)
-          [(weld -.- [(spit msg ~)]~) +.-]
+          [(weld -.- [(send msg ~ ~)]~) +.-]
         ::  for new dm, pass message 
         ::  then switch channel
         ::
         :_  state
-        %+  welp  [(spit msg ~)]~
+        %+  welp  [(send msg ~ ~)]~
         :_  ~ 
         :*  %pass
             ;:  weld 
@@ -1029,9 +1036,40 @@
             (add now.bowl ~s0)
         ==
       [cards state]
-    ::  +reply: respond to a message with pointer reference
+    ::  +reference: use a pointer to reference a message
     ::
-    ++  reply
+    ++  reference
+      |=  $:  num=$@(rel=@ud [zeros=@u abs=@ud])
+              msg=(list inline:chat)
+          ==
+      ^-  (quip card _state)
+      =/  package=[(unit [whom:chat writ:chat]) (unit tape)]
+        (pointer-to-message num)
+      ?~  -.package
+        (just-print (need +.package))
+      =/  =whom:chat  -:(need -.package)
+      ?.  ?=(%flag -.whom)
+        (just-print "message referencing is only available in group chats")
+      =/  =seal:chat   +<:(need -.package)
+      =/  =memo:chat   +>:(need -.package)
+      =/  host=ship    +<.whom
+      =/  name=@tas    +>.whom
+      =/  =time        +.id.seal 
+      =/  author=ship  author.memo
+      =/  =path
+        ;:  weld
+          /1/chan/chat
+          /(scot %p host)/(scot %tas name)
+          /msg/(scot %p author)/(scot %ud time)
+        ==
+      =/  =block:chat
+        [%cite `cite:cite`[%chan `nest:groups`[%chat [host name]] path]]
+      =.  audience  whom
+      :_  put-ses
+      [(send ?~(msg ~ msg) ~ [block]~)]~
+    ::  +thread: thread reply with pointer reference
+    ::
+    ++  thread
       |=  $:  num=$@(rel=@ud [zeros=@u abs=@ud])
               msg=(list inline:chat)
           ==
@@ -1048,7 +1086,7 @@
         +<.writ
       =.  audience  whom
       :_  put-ses
-      [(spit msg replying)]~
+      [(send msg replying ~)]~
     ::  +eval: run hoon, send code and result as message
     ::
     ::    this double-virtualizes and clams to disable .^ for security reasons
