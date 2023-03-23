@@ -10,8 +10,8 @@
       groups=(set resource)
   ==
 ::
-+$  foreign  [for=profile sag=$@(~ saga)]
-+$  profile  $@(~ update)
++$  foreign  [for=$@(~ profile) sag=$@(~ saga)]
++$  profile  [wen=@da con=$@(~ contact)]
 +$  rolodex  (map ship foreign)
 ::
 +$  epic  epic:e
@@ -51,8 +51,9 @@
   ==
 ::
 +$  update                ::  network
-  [wen=@da con=$@(~ contact)]
+  $%  [%full profile]
+  ==
 ::
 +$  news                  ::  local
-  (pair ship $@(~ contact))
+  [who=ship con=$@(~ contact)]
 --

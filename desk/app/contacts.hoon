@@ -39,7 +39,7 @@
 ::
 +|  %types
 +$  card     card:agent:gall
-+$  state-0  [%0 rof=profile rol=rolodex]
++$  state-0  [%0 rof=$@(~ profile) rol=rolodex]
 --
 ::
 %-  agent:dbug
@@ -190,15 +190,15 @@
     ::
     ++  p-diff
       |=  con=$@(~ contact)
-      =/  u=update  [?~(rof now.bowl (mono wen.rof now.bowl)) con]
-      (give:(p-news(rof u) our.bowl con) (fact subs u))
+      =/  p=profile  [?~(rof now.bowl (mono wen.rof now.bowl)) con]
+      (give:(p-news(rof p) our.bowl con) (fact subs full+p))
     ::
     ++  p-init
       |=  wen=(unit @da)
       ?~  rof  cor
-      ?~  wen  (give (fact ~ rof))
+      ?~  wen  (give (fact ~ full+rof))
       ?:  =(u.wen wen.rof)  cor
-      ?>((lth u.wen wen.rof) (give (fact ~ rof))) :: no future subs
+      ?>((lth u.wen wen.rof) (give (fact ~ full+rof))) :: no future subs
     ::
     ++  p-news  |=(n=news (give %fact [/news ~] %contact-news !>(n)))
     --
@@ -281,7 +281,7 @@
         ^+  si-cor
         ?:  &(?=(^ for) (lte wen.u wen.for))
           si-cor
-        si-cor(for u, cor (p-news:pub who con.u))
+        si-cor(for +.u, cor (p-news:pub who con.u))
       ::
       ++  si-meet  si-cor  :: init key in +si-abet
       ::
@@ -401,7 +401,7 @@
     ::
     ++  convert
       |=  con=contact:legacy
-      ^-  profile
+      ^-  $@(~ profile)
       ?:  =(*contact:legacy con)  ~
       [last-updated.con con(|6 groups.con)]
     --

@@ -65,8 +65,8 @@
     |=  n=news:c
     ^-  json
     %-  pairs
-    :~  who+(ship p.n)
-        con+?~(q.n ~ (contact q.n))
+    :~  who+(ship who.n)
+        con+?~(con.n ~ (contact con.n))
     ==
   --
 ::
