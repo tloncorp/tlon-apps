@@ -325,19 +325,16 @@
         --
     ::
     ^+  cor
-    ?.  .^(? gu+/=contact-store=)
-      cor
-    =/  ful  .^(rolodex:legacy gx+/=contact-store=/all/noun)
+    =/  bas  /(scot %p our.bowl)/contact-store/(scot %da now.bowl)
+    ?.  .^(? gu+bas)  cor
+    =/  ful  .^(rolodex:legacy gx+(weld bas /all/noun))
     ::
     |^  cor(rof us, rol them)
-    ++  us
-      ^-  profile
-      ?~  old=(~(get by ful) our.bowl)  ~
-      (convert u.old)
+    ++  us  (biff (~(get by ful) our.bowl) convert)
     ::
     ++  them
       ^-  rolodex
-      %-  ~(rep by ful)
+      %-  ~(rep by (~(del by ful) our.bowl))
       |=  [[who=ship con=contact:legacy] rol=rolodex]
       (~(put by rol) who (convert con) ~)
     ::
