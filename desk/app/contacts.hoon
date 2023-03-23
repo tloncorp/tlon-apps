@@ -204,7 +204,7 @@
                       %-  (slog 'contact-fail' u.p.sign)
                       pe-peer:si-epic(sag %fail)
         ::
-          %kick       si-heed :: XX review
+          %kick       si-heed
         ::
           %fact       ?+    p.cage.sign  (si-odd p.cage.sign)
                           ::  incompatible changes get a mark version bump
@@ -253,12 +253,13 @@
         =*  upd  *upd:base:mar
         =*  wid  ^~((met 3 upd))
         ?.  =(upd (end [3 wid] mark))
-          ~|(fake-news+mark !!)
-        ~|  bad-update-mark+mark
-        =/  cool  (slav %ud (rsh 3^+(wid) mark))
-        ?<  =(okay cool)
+          ~&(fake-news+mark si-cor)   ::  XX unsub?
+        ?~  ver=(slaw %ud (rsh 3^+(wid) mark))
+          ~&(weird-news+mark si-cor)  ::  XX unsub?
+        ?:  =(okay u.ver)
+          ~|(odd-not-odd+mark !!)     ::  oops!
         =.  si-cor  si-snub  :: unsub before .sag update
-        =.  sag  ?:((lth cool okay) [%lev ~] [%dex cool])
+        =.  sag  ?:((lth u.ver okay) [%lev ~] [%dex u.ver])
         pe-peer:si-epic
       ::
       ++  si-epic
@@ -277,24 +278,24 @@
                           si-cor  :: XX strange
                         pe-peer
           ::
-            %fact       ?+  p.cage.sign  ~|(not-epic+p.cage.sign !!)
+            %fact       ?+  p.cage.sign
+                                 ~&(fact-not-epic+p.cage.sign si-cor)
                           %epic  (pe-hear !<(epic q.cage.sign))
           ==            ==
         ::
         ++  pe-hear
           |=  =epic
           ^+  si-cor
-          ?+  sag  ~|(%strange-epic !!) :: XX dangerous!
-            %fail     ?:  =(okay epic)
-                        si-cor(sag %lost)
-                      si-cor(sag ?:((gth epic okay) [%dex epic] [%lev ~]))
+          ?.  ?=(?(%fail [?(%dex %lev) *]) sag)
+            ~|(strange-epic+[okay epic] !!)  :: get %kick'd
+          ?:  =(okay epic)
+            ?:  ?=(%fail sag)
+              si-cor(sag %lost)  :: abandon hope
+            si-heed:si-snub
           ::
-            [%dex *]  ?>((gth epic okay) si-cor(ver.sag epic))
+          ::  handled generically to support peer downgrade
           ::
-            [%lev *]  ?:  =(okay epic)
-                        si-heed:si-snub
-                      ?>((lth epic okay) si-cor)
-          ==
+          si-cor(sag ?:((gth epic okay) [%dex epic] [%lev ~]))
         ::
         ++  pe-peer
           si-cor(cor (pass /epic %agent [who dap.bowl] %watch /epic))
