@@ -31,8 +31,8 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
 
   if (content.block.length > 0 && 'cite' in content.block[0]) {
     return (
-      <div className="mx-auto flex h-full w-full items-center justify-center p-8 text-[18px] leading-[26px]">
-        <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto">
+      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[18px] leading-[26px]">
+        <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">
           <ContentReference cite={content.block[0].cite} />
         </div>
       </div>
@@ -41,7 +41,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
 
   if (isText) {
     return (
-      <div className="mx-auto flex h-full w-full items-center justify-center p-8 text-[18px] leading-[26px]">
+      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[18px] leading-[26px]">
         <div className="max-h-[100%] max-w-prose overflow-y-auto">
           <HeapContent content={content} />
         </div>
@@ -59,7 +59,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
 
   if (isImage) {
     return (
-      <div className="flex h-full w-full justify-center">
+      <div className="flex justify-center bg-gray-50 lg:h-full lg:w-full">
         <img className="object-contain" src={url} alt="" />
       </div>
     );

@@ -124,7 +124,7 @@ export default function HeapDetail() {
     </div>
   ) : (
     <Layout
-      className="flex-1 bg-gray-50"
+      className="flex-1 bg-white"
       header={
         <HeapDetailHeader
           flag={groupFlag}
@@ -133,8 +133,8 @@ export default function HeapDetail() {
         />
       }
     >
-      <div className="flex h-full w-full flex-col overflow-y-auto lg:flex-row">
-        <div className="group relative flex flex-1">
+      <div className="flex h-full flex-col overflow-y-auto lg:flex-row">
+        <div className="flex flex-1">
           {hasNext ? (
             <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
               <Link
@@ -165,7 +165,7 @@ export default function HeapDetail() {
             </div>
           ) : null}
         </div>
-        <div className="flex w-full flex-col border-gray-50 bg-white sm:mt-5 lg:mt-0 lg:h-full lg:w-72 lg:border-l-2 xl:w-96">
+        <div className="flex w-full flex-col justify-items-stretch space-y-2 p-2 lg:h-full lg:w-72 xl:w-96">
           {curio && time ? (
             <>
               <HeapDetailSidebarInfo curio={curio} />

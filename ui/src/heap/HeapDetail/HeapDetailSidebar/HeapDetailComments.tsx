@@ -7,6 +7,7 @@ import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useComments, useHeapPerms } from '@/state/heap/heap';
 import { canWriteChannel, nestToFlag } from '@/logic/utils';
 import { HeapCurio } from '@/types/heap';
+import useMedia from '@/logic/useMedia';
 import HeapDetailCommentField from './HeapDetailCommentField';
 import HeapComment from './HeapComment';
 
@@ -21,7 +22,7 @@ export default function HeapDetailComments({ time }: HeapDetailCommentsProps) {
   const [, chFlag] = nestToFlag(nest);
   const stringTime = time.toString();
   const comments = useComments(chFlag, stringTime);
-
+  const isSmall = useMedia('(max-width: 1023px)');
   const perms = useHeapPerms(chFlag);
   const vessel = useVessel(flag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
@@ -42,21 +43,20 @@ export default function HeapDetailComments({ time }: HeapDetailCommentsProps) {
   );
 
   return (
-    <div className="flex h-full flex-col justify-between p-4 sm:overflow-y-auto">
-      <div
-        className={cn(
-          'flex h-full flex-col space-y-2',
-          comments.size !== 0 && 'mb-4'
-        )}
-      >
-        <Virtuoso
-          data={sortedComments}
-          computeItemKey={computeItemKey}
-          itemContent={(i, [id, curio]) => itemContent(i, id, curio)}
-          followOutput={true}
-          style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
-        />
-      </div>
+    <div className="space-y-2 lg:relative lg:h-full lg:space-y-0">
+      <Virtuoso
+        useWindowScroll={isSmall}
+        data={sortedComments}
+        computeItemKey={computeItemKey}
+        itemContent={(i, [id, curio]) => itemContent(i, id, curio)}
+        followOutput={true}
+        style={{
+          height: '100%',
+          width: '100%',
+          maxHeight: 'calc(100% - 2.5rem)',
+        }}
+      />
+
       {canWrite ? <HeapDetailCommentField /> : null}
     </div>
   );
