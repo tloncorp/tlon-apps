@@ -4,7 +4,7 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
-import Dialog, { DialogClose, DialogContent } from '@/components/Dialog';
+import Dialog, { DialogClose } from '@/components/Dialog';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
 import {
   GroupFormSchema,
@@ -14,7 +14,7 @@ import {
 } from '@/types/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { Status } from '@/logic/status';
-import { isGroupHost } from '@/logic/utils';
+import { isGroupHost, useCopy } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useLure } from '@/state/lure/lure';
 import GroupInfoFields from '../GroupInfoFields';
@@ -40,8 +40,8 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [status, setStatus] = useState<Status>('initial');
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [copyButtonLabel, setCopyButtonLabel] = useState('Copy');
   const { supported, enabled, url, toggle, describe } = useLure(groupFlag);
+  const { didCopy, doCopy } = useCopy(url);
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -220,14 +220,9 @@ export default function GroupInfoEditor({ title }: ViewProps) {
               </div>
               <button
                 className="button ml-2 flex-none whitespace-nowrap"
-                onClick={() => {
-                  navigator.clipboard.writeText(url);
-                  setCopyButtonLabel('Copied');
-
-                  setTimeout(() => setCopyButtonLabel('Copy'), 750);
-                }}
+                onClick={doCopy}
               >
-                {copyButtonLabel}
+                {didCopy ? 'Copied!' : 'Copy'}
               </button>
             </div>
           </div>
@@ -247,36 +242,36 @@ export default function GroupInfoEditor({ title }: ViewProps) {
         <Dialog
           open={deleteDialogOpen}
           onOpenChange={(open) => setDeleteDialogOpen(open)}
+          showClose={false}
+          containerClass="max-w-[420px]"
         >
-          <DialogContent showClose={false} containerClass="max-w-[420px]">
-            <h2 className="mb-4 text-lg font-bold">Delete Group</h2>
-            <p className="mb-4">
-              Type the name of the group to confirm deletion. This action is
-              irreversible.
-            </p>
-            <input
-              className="input mb-9 w-full"
-              placeholder="Name"
-              value={deleteField}
-              onChange={onDeleteChange}
-            />
-            <div className="flex justify-end space-x-2">
-              <DialogClose className="secondary-button">Cancel</DialogClose>
-              <DialogClose
-                className="button bg-red text-white dark:text-black"
-                disabled={!eqGroupName(deleteField, group?.meta.title || '')}
-                onClick={onDelete}
-              >
-                {deleteStatus === 'loading' ? (
-                  <LoadingSpinner />
-                ) : deleteStatus === 'error' ? (
-                  'Error'
-                ) : (
-                  'Delete'
-                )}
-              </DialogClose>
-            </div>
-          </DialogContent>
+          <h2 className="mb-4 text-lg font-bold">Delete Group</h2>
+          <p className="mb-4">
+            Type the name of the group to confirm deletion. This action is
+            irreversible.
+          </p>
+          <input
+            className="input mb-9 w-full"
+            placeholder="Name"
+            value={deleteField}
+            onChange={onDeleteChange}
+          />
+          <div className="flex justify-end space-x-2">
+            <DialogClose className="secondary-button">Cancel</DialogClose>
+            <DialogClose
+              className="button bg-red text-white dark:text-black"
+              disabled={!eqGroupName(deleteField, group?.meta.title || '')}
+              onClick={onDelete}
+            >
+              {deleteStatus === 'loading' ? (
+                <LoadingSpinner />
+              ) : deleteStatus === 'error' ? (
+                'Error'
+              ) : (
+                'Delete'
+              )}
+            </DialogClose>
+          </div>
         </Dialog>
       </div>
     </>

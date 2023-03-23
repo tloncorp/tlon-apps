@@ -10,7 +10,7 @@ import { setCalmSetting } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import { useLocation } from 'react-router-dom';
 import { isTalk } from '@/logic/utils';
-import Dialog, { DialogContent } from './Dialog';
+import Dialog from './Dialog';
 
 function GroupsDescription() {
   const location = window.location.pathname;
@@ -153,11 +153,14 @@ export default function LandscapeWayfinding() {
           </Dropdown.Item>
         </Dropdown.Content>
       </div>
-      <Dialog open={showModal} onOpenChange={(o) => setShowModal(o)}>
-        <DialogContent containerClass="md:w-1/2 w-full z-50" showClose={false}>
-          {app === 'Groups' && <GroupsDescription />}
-          {app === 'Talk' && <TalkDescription />}
-        </DialogContent>
+      <Dialog
+        open={showModal}
+        onOpenChange={(o) => setShowModal(o)}
+        containerClass="md:w-1/2 w-full z-50"
+        showClose={false}
+      >
+        {app === 'Groups' && <GroupsDescription />}
+        {app === 'Talk' && <TalkDescription />}
       </Dialog>
     </Dropdown.Root>
   );

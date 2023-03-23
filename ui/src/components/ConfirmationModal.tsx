@@ -1,5 +1,5 @@
 import React from 'react';
-import Dialog, { DialogContent } from './Dialog';
+import Dialog from './Dialog';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export interface ConfirmationModalProps {
@@ -22,28 +22,26 @@ export default function ConfirmationModal({
   loading = false,
 }: ConfirmationModalProps) {
   return (
-    <Dialog open={open}>
-      <DialogContent showClose={false} containerClass="z-50">
-        <div className="flex flex-col">
-          <h1 className="mb-4 text-lg font-bold">{title}</h1>
-          <p>{message}</p>
-          <div className="mt-8 flex justify-end space-x-2">
-            <button
-              className="secondary-button w-24"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </button>
-            <button
-              disabled={loading}
-              className="button center-items flex w-24 bg-red"
-              onClick={onConfirm}
-            >
-              {loading ? <LoadingSpinner /> : confirmText}
-            </button>
-          </div>
+    <Dialog open={open} showClose={false} containerClass="z-50">
+      <div className="flex flex-col">
+        <h1 className="mb-4 text-lg font-bold">{title}</h1>
+        <p>{message}</p>
+        <div className="mt-8 flex justify-end space-x-2">
+          <button
+            className="secondary-button w-24"
+            onClick={() => setOpen(false)}
+          >
+            Cancel
+          </button>
+          <button
+            disabled={loading}
+            className="button center-items flex w-24 bg-red"
+            onClick={onConfirm}
+          >
+            {loading ? <LoadingSpinner /> : confirmText}
+          </button>
         </div>
-      </DialogContent>
+      </div>
     </Dialog>
   );
 }
