@@ -165,7 +165,7 @@ export default function HeapDetail() {
             </div>
           ) : null}
         </div>
-        <div className="flex w-full flex-col justify-items-stretch space-y-2 p-2 lg:h-full lg:w-72 xl:w-96">
+        <div className="flex w-full flex-col lg:h-full lg:w-72 lg:border-l-2 lg:border-gray-50 xl:w-96">
           {curio && time ? (
             <>
               <HeapDetailSidebarInfo curio={curio} />

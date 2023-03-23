@@ -22,7 +22,7 @@ export default function HeapDetailSidebarInfo({
   const isURL = URL_REGEX.test(stringContent);
 
   return (
-    <div className="flex flex-col space-y-4 rounded-lg bg-gray-50 p-4">
+    <div className="m-4 flex flex-col space-y-4 rounded-lg bg-gray-50 p-4">
       <h2 className="break-all text-base font-semibold text-gray-800 line-clamp-1">
         {title && title}
         {!title && !isURL ? textPreview : null}

@@ -22,7 +22,7 @@ export default function HeapComment({
   const flag = useChannelFlag();
 
   return (
-    <div className="group-one flex w-full flex-col space-y-0 p-2">
+    <div className="group-one flex w-full flex-col pb-2">
       <Author ship={author} date={unixDate} timeOnly />
       <div className="relative ml-[28px] rounded-md p-2 group-one-hover:bg-gray-50 ">
         <HeapContent className="break-words leading-5" content={content} />
