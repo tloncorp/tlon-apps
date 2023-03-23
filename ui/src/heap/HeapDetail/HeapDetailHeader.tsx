@@ -45,10 +45,13 @@ export default function HeapDetailHeader({
     new Date(curio?.heart.sent || Date.now())
   );
   const isImageLink = isImageUrl(curioContent);
+  const isCite = content.block.length > 0 && 'cite' in content.block[0];
   const curioTitle = curio?.heart.title;
   const { onEdit, onCopy, didCopy } = useCurioActions({ nest, time: idCurio });
 
-  const isCite = content.block.length > 0 && 'cite' in content.block[0];
+  function truncate({ str, n }: { str: string; n: number }) {
+    return str.length > n ? `${str.slice(0, n - 1)}…` : str;
+  }
 
   return (
     <>
@@ -75,11 +78,15 @@ export default function HeapDetailHeader({
           <div className=" mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
             <ChannelIcon nest="heap" className="h-5 w-5 text-gray-400" />
           </div>
-          <span className="ellipsis line-clamp-1">
+          <span className="whitespace-nobreak line-clamp-1">
             {isCite ? 'Reference' : `${description()}: `}
-            {curioTitle && curioTitle}
-            {isImageLink && !curioTitle ? curioContent : null}
-            {!isImageLink && !curioTitle ? prettyDayAndTime : null}
+            {curioTitle && truncate({ str: curioTitle, n: 12 })}
+            {isImageLink && !curioTitle
+              ? truncate({ str: curioContent, n: 12 })
+              : null}
+            {!isImageLink && !curioTitle
+              ? truncate({ str: prettyDayAndTime, n: 12 })
+              : null}
           </span>
         </Link>
         <div className="shink-0 flex items-center space-x-3 self-end">
