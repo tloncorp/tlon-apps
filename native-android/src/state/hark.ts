@@ -81,9 +81,7 @@ const useHarkState = create<HarkState>((set, get) => ({
     if (api === null) {
       return;
     }
-    console.log('starting hark');
     await get().retrieve();
-    console.log('retrieve done');
 
     await api.subscribe({
       app: 'hark',
@@ -95,7 +93,6 @@ const useHarkState = create<HarkState>((set, get) => ({
       }
     });
 
-    console.log('subscribed');
     set({ loaded: true });
   },
   update: async group => {
@@ -118,7 +115,6 @@ const useHarkState = create<HarkState>((set, get) => ({
         path: '/desk/talk/latest'
       })
       .catch(() => emptyCarpet({ desk: 'talk' }));
-    console.log({ carpet });
 
     const quilt = carpet.stitch === 0 ? '0' : decToUd(carpet.stitch.toString());
     const blanket = await api
@@ -127,7 +123,7 @@ const useHarkState = create<HarkState>((set, get) => ({
         path: '/desk/talk/quilt/${quilt}'
       })
       .catch(() => emptyBlanket({ desk: 'talk' }));
-    console.log({ blanket });
+
     get().batchSet(draft => {
       draft.carpet = carpet;
       draft.blanket = blanket;

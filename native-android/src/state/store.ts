@@ -58,7 +58,7 @@ const useStore = create<Store>(set => ({
     window.ship = deSig(store.ship);
     global.window.ship = deSig(store.ship);
 
-    const api = _api(store.ship, store.shipUrl);
+    const api = _api(deSig(store.ship)!, store.shipUrl);
     global.api = api;
     window.api = api;
 

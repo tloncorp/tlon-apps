@@ -10,7 +10,7 @@ const { errorCount, airLockErrorCount } = useLocalState.getState();
 
 async function setupAPI(ship: string, shipUrl: string) {
   if (!client) {
-    const api = new Urbit(shipUrl, '', 'talk', deSig(ship)!);
+    const api = new Urbit(shipUrl, '', '', deSig(ship)!);
     api.ship = ship;
     api.verbose = true;
     client = api;
@@ -57,37 +57,13 @@ const api = (ship: string, shipUrl: string) =>
       event?: (payload?: any) => void;
       quit?: (payload?: any) => void;
     }) {
-      const eventListener =
-        (listener?: (event: any, mark: string) => void) =>
-        (payload: { event: any; mark: string }) => {
-          console.log({ payload });
-          const { event, mark } = payload;
-          const { watchers, remove } = useSubscriptionState.getState();
-          const path = params.app + params.path;
-          const relevantWatchers = watchers[path];
-
-          if (relevantWatchers) {
-            relevantWatchers.forEach(w => {
-              if (w.hook(event, mark)) {
-                w.resolve();
-                remove(path, w.id);
-              }
-            });
-          }
-
-          if (listener) {
-            listener(event, mark);
-          }
-        };
-
       try {
         if (!client) {
           await setupAPI(ship, shipUrl);
         }
 
         const clientSubscribe = await client.subscribe({
-          ...params,
-          event: eventListener(params.event)
+          ...params
         });
         useLocalState.setState({ subscription: 'connected' });
         useLocalState.setState({ errorCount: 0 });

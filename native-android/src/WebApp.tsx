@@ -71,6 +71,51 @@ export default function WebApp() {
       await useHarkState.getState().start();
     };
 
+    const getCategories = async () => {
+      const categories = await Notifications.getNotificationCategoriesAsync();
+    };
+
+    const setMessageCategory = async () => {
+      await Notifications.setNotificationCategoryAsync('message', [
+        {
+          identifier: 'reply',
+          buttonTitle: 'Reply',
+          options: {
+            opensAppToForeground: true
+          }
+        }
+        // {
+        // identifier: 'dismiss',
+        // buttonTitle: 'Dismiss',
+        // options: {
+        // opensAppToForeground: false
+        // }
+        // }
+      ]);
+    };
+
+    getCategories();
+    setMessageCategory();
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      response => {
+        const action = response.actionIdentifier;
+        const identifier = JSON.parse(response.notification.request.identifier);
+        const { rope } = identifier;
+        if (action === 'reply') {
+          const url = `${shipUrl}/apps/talk${rope.thread}`;
+          webviewRef?.current?.injectJavaScript(
+            `window.location.href = '${url}';`
+          );
+        }
+
+        // if (action === 'dismiss') {
+        // console.log({ rope });
+        // useHarkState.getState().sawRope(rope);
+        // }
+      }
+    );
+
     initialize();
   }, []);
 
@@ -81,12 +126,15 @@ export default function WebApp() {
         const ship = (content[0] as YarnContentShip).ship;
         const title = `New message from ${ship}`;
         const body = content[2] as string;
+        const rope = n.bins[0].topYarn.rope;
         Notifications.scheduleNotificationAsync({
           content: {
             title,
-            body
+            body,
+            categoryIdentifier: 'message'
           },
-          trigger: null
+          trigger: null,
+          identifier: JSON.stringify({ ship, rope })
         });
       });
     }
