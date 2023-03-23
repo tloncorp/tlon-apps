@@ -23,23 +23,10 @@ export default function HeapDetailSidebarInfo({
 
   return (
     <div className="flex flex-col space-y-4 rounded-lg bg-gray-50 p-4">
-      {title ||
-        (!isURL && (
-          <h2 className="break-all text-base font-semibold text-gray-800 line-clamp-1">
-            {title && title}
-            {!title && !isURL ? textPreview : null}
-          </h2>
-        ))}
-      {isURL && (
-        <a
-          href={stringContent}
-          target="_blank"
-          rel="noreferrer"
-          className="break-all text-base font-semibold text-gray-800 line-clamp-1"
-        >
-          {stringContent}
-        </a>
-      )}
+      <h2 className="break-all text-base font-semibold text-gray-800 line-clamp-1">
+        {title && title}
+        {!title && !isURL ? textPreview : null}
+      </h2>
 
       <time className="text-base font-semibold text-gray-400">
         {makePrettyDay(unixDate)}
