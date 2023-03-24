@@ -28,7 +28,7 @@ export default function EditChannelModal({
       open={editIsOpen}
       onOpenChange={setEditIsOpen}
       containerClass="w-full sm:max-w-lg"
-      showClose={false}
+      close="none"
     >
       <EditChannelForm
         nest={nest}

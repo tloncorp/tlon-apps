@@ -26,7 +26,7 @@ export default function GroupInviteDialog() {
       defaultOpen
       onOpenChange={onOpenChange}
       containerClass="w-full max-w-lg"
-      showClose={false}
+      close="none"
     >
       <div className="flex flex-col">
         <h2 className="text-lg font-bold">Leave Group</h2>

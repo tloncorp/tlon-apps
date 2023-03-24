@@ -17,7 +17,7 @@ export default function NewChannelModal() {
       defaultOpen
       onOpenChange={onOpenChange}
       containerClass="w-full sm:max-w-lg"
-      showClose={false}
+      close="none"
     >
       <NewChannelForm />
     </Dialog>

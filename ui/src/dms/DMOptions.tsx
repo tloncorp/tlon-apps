@@ -93,7 +93,7 @@ export default function DmOptions({
     <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
         <DropdownMenu.Trigger asChild className="appearance-none">
-          <div className="relative h-6 w-6">
+          <div className={cn('relative h-6 w-6', className)}>
             {!alwaysShowEllipsis && !isOpen && hasActivity ? (
               <BulletIcon
                 className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
@@ -108,7 +108,7 @@ export default function DmOptions({
               )}
               aria-label="Open Message Options"
             >
-              <EllipsisIcon className="h-6 w-6" />
+              <EllipsisIcon className="h-6 w-6 text-inherit" />
             </button>
           </div>
         </DropdownMenu.Trigger>

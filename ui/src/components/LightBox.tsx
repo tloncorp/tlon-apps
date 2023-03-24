@@ -17,7 +17,7 @@ export default function LightBox({
       open={showLightBox}
       onOpenChange={(open) => setShowLightBox(open)}
       className="flex h-screen w-screen items-center justify-center bg-transparent"
-      lightbox
+      close="lightbox"
       onClick={() => setShowLightBox(false)}
     >
       {children}

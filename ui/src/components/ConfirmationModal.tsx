@@ -22,7 +22,7 @@ export default function ConfirmationModal({
   loading = false,
 }: ConfirmationModalProps) {
   return (
-    <Dialog open={open} showClose={false} containerClass="z-50">
+    <Dialog open={open} close="none" containerClass="z-50">
       <div className="flex flex-col">
         <h1 className="mb-4 text-lg font-bold">{title}</h1>
         <p>{message}</p>

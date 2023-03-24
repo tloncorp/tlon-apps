@@ -43,7 +43,6 @@ export default function DmInviteDialog({
       open={inviteIsOpen}
       onOpenChange={setInviteIsOpen}
       containerClass="w-full sm:max-w-lg"
-      showClose
     >
       <div>
         <div className="flex flex-col">

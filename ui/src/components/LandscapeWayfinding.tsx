@@ -157,7 +157,7 @@ export default function LandscapeWayfinding() {
         open={showModal}
         onOpenChange={(o) => setShowModal(o)}
         containerClass="md:w-1/2 w-full z-50"
-        showClose={false}
+        close="none"
       >
         {app === 'Groups' && <GroupsDescription />}
         {app === 'Talk' && <TalkDescription />}

@@ -1,13 +1,13 @@
 import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
 import { BigInteger } from 'big-integer';
-import { unixToDa } from '@urbit/api';
+import { Docket, DocketHref, Treaty, unixToDa } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
 import f from 'lodash/fp';
-import { parseToRgba } from 'color2k';
+import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
@@ -588,6 +588,45 @@ export async function asyncWithDefault<T>(
   }
 }
 
+export async function asyncWithFallback<T>(
+  cb: () => Promise<T>,
+  def: (error: any) => Promise<T>
+): Promise<T> {
+  try {
+    return await cb();
+  } catch (error) {
+    return def(error);
+  }
+}
+
+export function getDarkColor(color: string): string {
+  const hslaColor = parseToHsla(color);
+  return hsla(hslaColor[0], hslaColor[1], 1 - hslaColor[2], 1);
+}
+export function getAppHref(href: DocketHref) {
+  return 'site' in href ? href.site : `/apps/${href.glob.base}/`;
+}
+
 export function disableDefault<T extends Event>(e: T): void {
   e.preventDefault();
+}
+
+export function handleDropdownLink(
+  setOpen?: (open: boolean) => void
+): (e: Event) => void {
+  return (e: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setTimeout(() => setOpen?.(false), 15);
+  };
+}
+
+export function getAppName(
+  app: (Docket & { desk: string }) | Treaty | undefined
+): string {
+  if (!app) {
+    return '';
+  }
+
+  return app.title || app.desk;
 }

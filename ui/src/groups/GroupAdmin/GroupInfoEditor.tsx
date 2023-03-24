@@ -242,7 +242,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
         <Dialog
           open={deleteDialogOpen}
           onOpenChange={(open) => setDeleteDialogOpen(open)}
-          showClose={false}
+          close="none"
           containerClass="max-w-[420px]"
         >
           <h2 className="mb-4 text-lg font-bold">Delete Group</h2>

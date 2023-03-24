@@ -34,7 +34,7 @@ export default function ErrorAlert({
       defaultOpen
       modal
       onOpenChange={() => resetErrorBoundary()}
-      showClose={false}
+      close="none"
       className={cn('space-y-6 pr-8', className)}
       containerClass="w-full max-w-3xl"
     >

@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import React from 'react';
-import { URL_REGEX } from '@/logic/utils';
+import { URL_REGEX, makePrettyDay } from '@/logic/utils';
 import { inlineToString } from '@/logic/tiptap';
 import { HeapCurio } from '@/types/heap';
 import Author from '@/chat/ChatMessage/Author';
@@ -22,29 +22,17 @@ export default function HeapDetailSidebarInfo({
   const isURL = URL_REGEX.test(stringContent);
 
   return (
-    <div className="flex w-full flex-col space-y-4 break-words border-b-2 border-gray-50 p-4">
-      <div className="flex flex-col space-y-1">
-        {title ||
-          (!isURL && (
-            <h2 className="text-ellipsis break-all font-semibold text-gray-800 line-clamp-1">
-              {title && title}
-              {!title && !isURL ? textPreview : null}
-            </h2>
-          ))}
-        {isURL && (
-          <a
-            href={stringContent}
-            target="_blank"
-            rel="noreferrer"
-            className="text-ellipsis break-all font-semibold text-gray-800 underline line-clamp-1"
-          >
-            {stringContent}
-          </a>
-        )}
-      </div>
-      <div className="text-ellipsis break-all line-clamp-1">
-        <Author ship={author} date={unixDate} timeOnly />
-      </div>
+    <div className="m-4 flex flex-col space-y-4 rounded-lg bg-gray-50 p-4">
+      <h2 className="break-all text-base font-semibold text-gray-800 line-clamp-1">
+        {title && title}
+        {!title && !isURL ? textPreview : null}
+      </h2>
+
+      <time className="text-base font-semibold text-gray-400">
+        {makePrettyDay(unixDate)}
+      </time>
+
+      <Author ship={author} />
     </div>
   );
 }

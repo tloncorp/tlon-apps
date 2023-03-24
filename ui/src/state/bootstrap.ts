@@ -1,5 +1,6 @@
 import api from '@/api';
-import { asyncWithDefault, isTalk } from '@/logic/utils';
+import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
+import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
 import { useChatState } from './chat';
 import useContactState from './contact';
@@ -23,16 +24,16 @@ const emptyGroupsInit: GroupsInit = {
   diary: { briefs: {}, shelf: {} },
 };
 
-const emptyTalkInit: TalkInit = {
-  groups: {},
-  gangs: {},
-  briefs: {},
-  chats: {},
-  clubs: {},
-  dms: [],
-  invited: [],
-  pins: [],
-};
+async function chatScry<T>(path: string, def: T) {
+  return asyncWithDefault(
+    () =>
+      api.scry<T>({
+        app: 'chat',
+        path,
+      }),
+    def
+  );
+}
 
 async function startGroups(talkStarted: boolean) {
   // make sure if this errors we don't kill the entire app
@@ -54,14 +55,58 @@ async function startGroups(talkStarted: boolean) {
 }
 
 async function startTalk(groupsStarted: boolean) {
-  // make sure if this errors we don't kill the entire app
-  const { groups, gangs, ...chat } = await asyncWithDefault(
+  // since talk is a separate desk we need to offer a fallback
+  const { groups, gangs, ...chat } = await asyncWithFallback(
     () =>
       api.scry<TalkInit>({
         app: 'talk-ui',
         path: '/init',
       }),
-    emptyTalkInit
+    async () => {
+      const [
+        groupsRes,
+        gangsRes,
+        briefs,
+        chats,
+        dms,
+        clubs,
+        invited,
+        pinsResp,
+      ] = await Promise.all([
+        asyncWithDefault(
+          () =>
+            api.scry<Groups>({
+              app: 'groups',
+              path: '/groups/light',
+            }),
+          {}
+        ),
+        asyncWithDefault(
+          () =>
+            api.scry<Gangs>({
+              app: 'groups',
+              path: '/gangs',
+            }),
+          {}
+        ),
+        chatScry('/briefs', {}),
+        chatScry('/chats', {}),
+        chatScry('/dm', []),
+        chatScry('/clubs', {}),
+        chatScry('/dm/invited', []),
+        chatScry('/pins', { pins: [] }),
+      ]);
+      return {
+        groups: groupsRes,
+        gangs: gangsRes,
+        briefs,
+        chats,
+        dms,
+        clubs,
+        invited,
+        pins: pinsResp.pins,
+      };
+    }
   );
 
   if (!groupsStarted) {

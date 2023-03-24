@@ -21,7 +21,7 @@ export default function DiaryListItem({ letter, time }: DiaryListItemProps) {
 
   return (
     <div
-      className="cursor-pointer rounded-xl bg-white p-8"
+      className="card cursor-pointer"
       role="link"
       tabIndex={0}
       onClick={() => navigate(`note/${time.toString()}`)}
