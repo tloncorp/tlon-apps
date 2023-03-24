@@ -172,6 +172,7 @@ const useHarkState = create<HarkState>((set, get) => ({
     }
 
     return new Promise<void>((resolve, reject) => {
+      console.log('saw rope', rope)
       api.poke({
         ...harkAction({
           'saw-rope': rope

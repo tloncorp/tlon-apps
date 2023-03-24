@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { WebView } from 'react-native-webview';
 import {
   SafeAreaView,
@@ -9,13 +9,13 @@ import {
   Alert
 } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
+import * as Device from 'expo-device';
 import useStore from './state/store';
 import * as Notifications from 'expo-notifications';
 import { WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
 import useHarkState from './state/hark';
 import { useNotifications } from './notifications/useNotifications';
 import { YarnContentShip } from './types/hark';
-import api from './api';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -25,10 +25,53 @@ Notifications.setNotificationHandler({
   })
 });
 
+Notifications.registerTaskAsync('HANDLE_NOTIFICATION_BACKGROUND');
+
+async function registerForPushNotificationsAsync() {
+  let token;
+  if (Device.isDevice) {
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      alert('Failed to get push token for push notification!');
+      return;
+    }
+    token = (await Notifications.getExpoPushTokenAsync()).data;
+    console.log(token);
+  } else {
+    alert('Must use physical device for Push Notifications');
+  }
+
+  if (Platform.OS === 'android') {
+    Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C'
+    });
+  }
+
+  return token;
+}
+
 export default function WebApp() {
   const { shipUrl } = useStore();
   const tailwind = useTailwind();
+  const [expoPushToken, setExpoPushToken] = useState('');
+  const [notification, setNotification] =
+    useState<Notifications.Notification>();
   const webviewRef = useRef<WebView>(null);
+  const notificationListener =
+    useRef<ReturnType<typeof Notifications.addNotificationReceivedListener>>();
+  const responseListener =
+    useRef<
+      ReturnType<typeof Notifications.addNotificationResponseReceivedListener>
+    >();
   const appState = useRef(AppState.currentState);
   const loaded = useHarkState(s => s.loaded);
   const { count, unreadNotifications } = useNotifications('');
@@ -67,12 +110,22 @@ export default function WebApp() {
   };
 
   useEffect(() => {
+    registerForPushNotificationsAsync().then(
+      token => token && setExpoPushToken(token)
+    );
+
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener(notification => {
+        setNotification(notification);
+      });
+
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener(response => {
+        console.log(response);
+      });
+
     const initialize = async () => {
       await useHarkState.getState().start();
-    };
-
-    const getCategories = async () => {
-      const categories = await Notifications.getNotificationCategoriesAsync();
     };
 
     const setMessageCategory = async () => {
@@ -83,19 +136,36 @@ export default function WebApp() {
           options: {
             opensAppToForeground: true
           }
+        },
+        {
+          identifier: 'dismiss',
+          buttonTitle: 'Dismiss',
+          options: {
+            opensAppToForeground: false
+          }
         }
-        // {
-        // identifier: 'dismiss',
-        // buttonTitle: 'Dismiss',
-        // options: {
-        // opensAppToForeground: false
-        // }
-        // }
       ]);
     };
 
-    getCategories();
     setMessageCategory();
+
+    const pokeNotify = async () => {
+      const api = useStore.getState().api;
+
+      if (api) {
+        await api.poke({
+          app: 'notify',
+          mark: 'notify-client-action',
+          json: {
+            'connect-provider': {
+              who: `~${window.ship}`,
+              service: 'talk-android',
+              address: 'token'
+            }
+          }
+        });
+      }
+    };
 
     const subscription = Notifications.addNotificationResponseReceivedListener(
       response => {
@@ -109,14 +179,19 @@ export default function WebApp() {
           );
         }
 
-        // if (action === 'dismiss') {
-        // console.log({ rope });
-        // useHarkState.getState().sawRope(rope);
-        // }
+        if (action === 'dismiss') {
+          useHarkState.getState().sawRope(rope);
+        }
       }
     );
 
     initialize();
+
+    return () => {
+      subscription.remove();
+      if (notificationListener.current) notificationListener.current.remove();
+      if (responseListener.current) responseListener.current.remove();
+    };
   }, []);
 
   useEffect(() => {

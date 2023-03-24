@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "915294976501",
+    "project_id": "talk-android-def89",
+    "storage_bucket": "talk-android-def89.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:915294976501:android:cd0c25112099ee22b488bc",
+        "android_client_info": {
+          "package_name": "io.tlon.talk"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "915294976501-mq7j12hfmvads4d7m4tccjhv3iaeiu5a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_PcNxgT9BJpZKenN_ZtNiS4UldzcjjgA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "915294976501-mq7j12hfmvads4d7m4tccjhv3iaeiu5a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
