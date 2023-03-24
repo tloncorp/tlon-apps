@@ -2,7 +2,8 @@
   "name": "Talk",
   "short_name": "Talk",
   "start_url": "/apps/talk/",
-  "scope": "./",
+  "scope": "/apps/talk/",
+  "id": "/apps/talk/",
   "icons": [
     {
       "src": "/apps/talk/talk.svg",

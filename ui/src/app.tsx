@@ -76,6 +76,8 @@ import { LeapProvider } from './components/Leap/useLeap';
 import VitaMessage from './components/VitaMessage';
 import { useGroups } from './state/groups';
 import Dialog, { DialogContent } from './components/Dialog';
+import useIsStandaloneMode from './logic/useIsStandaloneMode';
+import useIsIOSSafariPWA from './logic/useIsIOSSfari';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -524,6 +526,9 @@ function App() {
   const isSmall = useMedia('(max-width: 1023px)');
   const settingsLoaded = useSettingsLoaded();
   const { disableWayfinding } = useCalm();
+  const isStandAlone = useIsStandaloneMode();
+  const isIOSSafariPWA = useIsIOSSafariPWA();
+  const body = document.querySelector('body');
 
   useEffect(() => {
     handleError(() => {
@@ -537,6 +542,16 @@ function App() {
       bootstrap();
     })();
   }, [handleError]);
+
+  useEffect(() => {
+    if (isStandAlone) {
+      if (!isIOSSafariPWA) {
+        body?.style.setProperty('padding-bottom', '0px');
+      } else {
+        body?.style.setProperty('padding-bottom', '16px');
+      }
+    }
+  }, [isStandAlone, isIOSSafariPWA, body]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
@@ -585,9 +600,9 @@ function RoutedApp() {
 
     switch (appName) {
       case 'chat':
-        return '/apps/talk';
+        return '/apps/talk/';
       default:
-        return '/apps/groups';
+        return '/apps/groups/';
     }
   };
 
