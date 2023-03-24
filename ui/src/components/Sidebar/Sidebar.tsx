@@ -18,7 +18,6 @@ import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
-import { useSubscriptionStatus } from '@/state/local';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import AsteriskIcon from '../icons/Asterisk16Icon';
@@ -26,16 +25,15 @@ import GroupsSidebarItem from './GroupsSidebarItem';
 import SidebarSorter from './SidebarSorter';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
-import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
+import ReconnectingSpinner from '../ReconnectingSpinner';
+import SystemChrome from './SystemChrome';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
-  const { subscription } = useSubscriptionStatus();
 
   return (
     <SidebarItem
-      div
       className={cn(
         menuOpen
           ? 'bg-gray-100 text-gray-800'
@@ -94,16 +92,12 @@ export function GroupsAppMenu() {
     >
       <div className="flex items-center justify-between">
         Groups
-        {subscription === 'reconnecting' ? (
-          <LoadingSpinner
-            primary="fill-gray-600"
-            secondary="fill-gray-600 opacity-50"
-            className={cn(
-              'h-4 w-4 group-hover:hidden',
-              menuOpen ? 'hidden' : 'block'
-            )}
-          />
-        ) : null}
+        <ReconnectingSpinner
+          className={cn(
+            'h-4 w-4 group-hover:hidden',
+            menuOpen ? 'hidden' : 'block'
+          )}
+        />
         <a
           title="Back to Landscape"
           aria-label="Back to Landscape"
@@ -136,7 +130,7 @@ export default function Sidebar() {
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);
   const shipColor = useProfileColor(window.our);
-  const ref = useRef<HTMLUListElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const pinnedGroupsOptions = useMemo(
     () =>
       Object.entries(pinnedGroups).map(([flag]) => (
@@ -156,13 +150,13 @@ export default function Sidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
-      <ul
+      <div
         className={cn('flex w-full flex-col space-y-0.5 p-2', {
           'bottom-shadow': !atTop,
         })}
       >
         <GroupsAppMenu />
-        <div className="h-5" />
+        <SystemChrome />
         <SidebarItem
           highlight={shipColor}
           icon={<Avatar size="xs" ship={window.our} />}
@@ -197,8 +191,8 @@ export default function Sidebar() {
         >
           Create Group
         </SidebarItem>
-      </ul>
-      <div className="flex-auto space-y-3 overflow-x-hidden px-2 sm:space-y-1">
+      </div>
+      <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
         <GroupsScrollingContext.Provider value={isScrolling}>
           <GroupList
             groups={sortedGroups}
@@ -207,39 +201,35 @@ export default function Sidebar() {
             atTopChange={atTopChange}
           >
             {Object.entries(pinnedGroups).length > 0 && (
-              <>
-                <li className="ml-0 mt-3 grow border-t-2 border-gray-50 pl-0 pt-3 pb-2">
-                  <span className="pl-2 text-sm font-semibold text-gray-400">
-                    Pinned Groups
-                  </span>
-                </li>
+              <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
+                <h2 className="p-2 text-sm font-bold text-gray-400">
+                  Pinned Groups
+                </h2>
                 {pinnedGroupsOptions}
-              </>
+              </div>
             )}
-            <ul
-              ref={ref}
-              className="flex-initial overflow-y-auto overflow-x-hidden px-2"
-            >
-              <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-                <span className="ml-3 text-sm font-semibold text-gray-400">
-                  All Groups
-                </span>
-              </li>
-              <li className="relative py-2">
-                <SidebarSorter
-                  sortFn={sortFn}
-                  setSortFn={setSortFn}
-                  sortOptions={sortOptions}
-                  isMobile={isMobile}
-                />
+            <div ref={ref} className="flex-initial">
+              <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1">
+                <h2 className="px-2 text-sm font-bold text-gray-400">
+                  {sortFn === 'A → Z' ? 'Groups A → Z' : 'Recent Activity'}
+                </h2>
+                <div className="pr-1">
+                  <SidebarSorter
+                    sortFn={sortFn}
+                    setSortFn={setSortFn}
+                    sortOptions={sortOptions}
+                  />
+                </div>
+              </div>
+              <div className="relative">
                 {!sortedGroups.length && (
                   <div className="mt-4 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
                     Check out <strong>Find Groups</strong> above to find new
                     groups in your network or view group invites.
                   </div>
                 )}
-              </li>
-            </ul>
+              </div>
+            </div>
             {gangs.map((flag) => (
               <GangItem key={flag} flag={flag} />
             ))}
