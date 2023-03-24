@@ -20,12 +20,12 @@ export function DesktopNav() {
   };
 
   return (
-    <div className="relative flex h-full w-64 flex-none overflow-hidden bg-white">
+    <div className="relative flex h-full w-64 flex-none overflow-hidden border-r-2 border-gray-50 bg-white">
       <AnimatePresence initial={false}>
         {match || backgroundLocationMatch ? (
           <motion.div
             key="group"
-            className="absolute h-full"
+            className="absolute h-full w-full"
             initial={{ x: 256 }}
             animate={{ x: 0 }}
             exit={{ x: 256 }}
@@ -36,7 +36,7 @@ export function DesktopNav() {
         ) : (
           <motion.div
             key="main"
-            className="absolute h-full"
+            className="absolute h-full w-full"
             initial={{ x: -256 }}
             animate={{ x: 0 }}
             exit={{ x: -256 }}
