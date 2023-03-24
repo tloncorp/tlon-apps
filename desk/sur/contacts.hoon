@@ -1,4 +1,4 @@
-/-  *resource, e=epic
+/-  e=epic, g=groups
 |%
 +$  contact
   $:  nickname=@t
@@ -7,7 +7,7 @@
       color=@ux
       avatar=(unit @t)
       cover=(unit @t)
-      groups=(set resource)
+      groups=(set flag:g)
   ==
 ::
 +$  foreign  [for=$@(~ profile) sag=$@(~ saga)]
@@ -30,8 +30,8 @@
       [%color color=@ux]
       [%avatar avatar=(unit @t)]
       [%cover cover=(unit @t)]
-      [%add-group =resource]
-      [%del-group =resource]
+      [%add-group =flag:g]
+      [%del-group =flag:g]
   ==
 ::
 +$  action

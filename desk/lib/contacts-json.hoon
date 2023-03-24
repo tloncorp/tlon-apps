@@ -1,5 +1,5 @@
-/-  c=contacts
-/+  res=resource
+/-  c=contacts, g=groups
+/+  gj=groups-json
 |%
 ++  enjs
   =,  enjs:format
@@ -35,7 +35,7 @@
     ::
         =-  groups+a+-
         %-  ~(rep in groups.c)
-        |=([r=resource:res j=(list json)] [s+(enjs-path:res r) j])
+        |=([f=flag:g j=(list json)] [s+(flag:enjs:gj f) j])
     ==
   ::
   ++  field
@@ -49,8 +49,8 @@
       %color      s+(rsh 3^2 (scot %ux color.f))  :: XX confirm
       %avatar     ?~(avatar.f ~ s+u.avatar.f)
       %cover      ?~(cover.f ~ s+u.cover.f)
-      %add-group  s+(enjs-path:res resource.f)
-      %del-group  s+(enjs-path:res resource.f)
+      %add-group  s+(flag:enjs:gj flag.f)
+      %del-group  s+(flag:enjs:gj flag.f)
     ==
   ::
   ++  rolodex
@@ -112,7 +112,7 @@
         color+nu
         avatar+(mu so)
         cover+(mu so)
-        groups+(as dejs:res)
+        groups+(as flag:dejs:gj)
     ==
   ::
   ++  field
@@ -124,8 +124,8 @@
         color+nu
         avatar+(mu so)
         cover+(mu so)
-        add-group+dejs:res
-        del-group+dejs:res
+        add-group+flag:dejs:gj
+        del-group+flag:dejs:gj
     ==
   --
 --

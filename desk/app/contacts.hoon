@@ -117,9 +117,9 @@
                     ==
                 c(cover cover.f)
   ::
-    %add-group  c(groups (~(put in groups.c) resource.f))
+    %add-group  c(groups (~(put in groups.c) flag.f))
   ::
-    %del-group  c(groups (~(del in groups.c) resource.f))
+    %del-group  c(groups (~(del in groups.c) flag.f))
   ==
 ::
 ++  mono
@@ -379,7 +379,9 @@
     =>  |%
         ++  legacy
           |%
-          +$  rolodex  (map ship contact)
+          +$  rolodex   (map ship contact)
+          +$  resource  [=entity name=term]
+          +$  entity    ship
           +$  contact
             $:  nickname=@t
                 bio=@t
