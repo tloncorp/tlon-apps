@@ -225,7 +225,8 @@
     |^  |=  who=ship
         ^+  s-impl
         ?<  =(our.bowl who)
-        ~(. s-impl who %live (~(gut by rol) who [~ ~]))
+        =/  old  (~(get by rol) who)
+        ~(. s-impl who %live ?=(~ old) (fall old [~ ~]))
     ::
     ++  s-many
       |=  [l=(list ship) f=$-(_s-impl _s-impl)]
@@ -236,16 +237,23 @@
       si-abet:(f (sub:acc who))
     ::
     ++  s-impl
-      |_  [who=ship sas=?(%dead %live) foreign]
+      |_  [who=ship sas=?(%dead %live) new=? foreign]
       ::
       ++  si-cor  .
       ::
       ++  si-abet
-        %_  cor
-          rol  ?-  sas
-                 %live  (~(put by rol) who for sag)
-                 %dead  (~(del by rol) who)
-        ==     ==
+        ^+  cor
+        ?-  sas
+          %live  =.  rol  (~(put by rol) who for sag)
+                 ::  NB: this assumes con.for is only set in +si-hear
+                 ::
+                 ?.(new cor (p-news:pub who ~))
+        ::
+          %dead  ::
+                 ::  XX reflect deletion in /news ?
+                 ::
+                 cor(rol (~(del by rol) who))
+        ==
       ::
       ++  si-take
         |=  =sign:agent:gall
