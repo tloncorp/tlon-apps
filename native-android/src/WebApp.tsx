@@ -9,13 +9,18 @@ import {
   Alert
 } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
-import * as Device from 'expo-device';
 import useStore from './state/store';
 import * as Notifications from 'expo-notifications';
 import { WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
 import useHarkState from './state/hark';
-import { useNotifications } from './notifications/useNotifications';
-import { YarnContentShip } from './types/hark';
+// import { useNotifications } from './notifications/useNotifications';
+// import { YarnContentShip } from './types/hark';
+import {
+  pokeNotify,
+  registerForPushNotificationsAsync,
+  requestNotificationPermissions,
+  setMessageCategory
+} from './lib/notifications';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -27,42 +32,10 @@ Notifications.setNotificationHandler({
 
 Notifications.registerTaskAsync('HANDLE_NOTIFICATION_BACKGROUND');
 
-async function registerForPushNotificationsAsync() {
-  let token;
-  if (Device.isDevice) {
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
-      alert('Failed to get push token for push notification!');
-      return;
-    }
-    token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log(token);
-  } else {
-    alert('Must use physical device for Push Notifications');
-  }
-
-  if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C'
-    });
-  }
-
-  return token;
-}
-
 export default function WebApp() {
   const { shipUrl } = useStore();
   const tailwind = useTailwind();
-  const [expoPushToken, setExpoPushToken] = useState('');
+  const [fcmDeviceToken, setFcmDeviceToken] = useState('');
   const [notification, setNotification] =
     useState<Notifications.Notification>();
   const webviewRef = useRef<WebView>(null);
@@ -73,9 +46,9 @@ export default function WebApp() {
       ReturnType<typeof Notifications.addNotificationResponseReceivedListener>
     >();
   const appState = useRef(AppState.currentState);
-  const loaded = useHarkState(s => s.loaded);
-  const { count, unreadNotifications } = useNotifications('');
-  const hasUnreads = count > 0;
+  // const loaded = useHarkState(s => s.loaded);
+  // const { count, unreadNotifications } = useNotifications('');
+  // const hasUnreads = count > 0;
 
   const handleBackPressed = useCallback(() => {
     if (webviewRef?.current) {
@@ -110,9 +83,9 @@ export default function WebApp() {
   };
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then(
-      token => token && setExpoPushToken(token)
-    );
+    registerForPushNotificationsAsync().then(token => {
+      setFcmDeviceToken(token);
+    });
 
     notificationListener.current =
       Notifications.addNotificationReceivedListener(notification => {
@@ -128,44 +101,7 @@ export default function WebApp() {
       await useHarkState.getState().start();
     };
 
-    const setMessageCategory = async () => {
-      await Notifications.setNotificationCategoryAsync('message', [
-        {
-          identifier: 'reply',
-          buttonTitle: 'Reply',
-          options: {
-            opensAppToForeground: true
-          }
-        },
-        {
-          identifier: 'dismiss',
-          buttonTitle: 'Dismiss',
-          options: {
-            opensAppToForeground: false
-          }
-        }
-      ]);
-    };
-
     setMessageCategory();
-
-    const pokeNotify = async () => {
-      const api = useStore.getState().api;
-
-      if (api) {
-        await api.poke({
-          app: 'notify',
-          mark: 'notify-client-action',
-          json: {
-            'connect-provider': {
-              who: `~${window.ship}`,
-              service: 'talk-android',
-              address: 'token'
-            }
-          }
-        });
-      }
-    };
 
     const subscription = Notifications.addNotificationResponseReceivedListener(
       response => {
@@ -195,27 +131,40 @@ export default function WebApp() {
   }, []);
 
   useEffect(() => {
-    if (loaded && hasUnreads) {
-      unreadNotifications.forEach(n => {
-        const content = n.bins[0].topYarn.con;
-        const ship = (content[0] as YarnContentShip).ship;
-        const title = `New message from ${ship}`;
-        const body = content[2] as string;
-        const rope = n.bins[0].topYarn.rope;
-        Notifications.scheduleNotificationAsync({
-          content: {
-            title,
-            body,
-            categoryIdentifier: 'message'
-          },
-          trigger: null,
-          identifier: JSON.stringify({ ship, rope })
-        });
-      });
+    if (fcmDeviceToken) {
+      pokeNotify(fcmDeviceToken);
     }
-  }, [loaded, hasUnreads, unreadNotifications]);
+  }, [fcmDeviceToken]);
 
   useEffect(() => {
+    if (notification) {
+      console.log(notification);
+    }
+  }, [notification]);
+
+  // useEffect(() => {
+  // if (loaded && hasUnreads) {
+  // unreadNotifications.forEach(n => {
+  // const content = n.bins[0].topYarn.con;
+  // const ship = (content[0] as YarnContentShip).ship;
+  // const title = `New message from ${ship}`;
+  // const body = content[2] as string;
+  // const rope = n.bins[0].topYarn.rope;
+  // Notifications.scheduleNotificationAsync({
+  // content: {
+  // title,
+  // body,
+  // categoryIdentifier: 'message'
+  // },
+  // trigger: null,
+  // identifier: JSON.stringify({ ship, rope })
+  // });
+  // });
+  // }
+  // }, [loaded, hasUnreads, unreadNotifications]);
+
+  useEffect(() => {
+    requestNotificationPermissions();
     if (Platform.OS === 'android') {
       BackHandler.addEventListener('hardwareBackPress', handleBackPressed);
     }
@@ -237,15 +186,6 @@ export default function WebApp() {
       BackHandler.removeEventListener('hardwareBackPress', handleBackPressed);
       listener.remove();
     };
-  }, []);
-
-  useEffect(() => {
-    // Request notification permissions
-    const requestPermissions = async () => {
-      await Notifications.requestPermissionsAsync();
-    };
-
-    requestPermissions();
   }, []);
 
   return (

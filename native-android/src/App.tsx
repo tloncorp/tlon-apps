@@ -26,8 +26,7 @@ export default function App() {
     authCookie,
     loadStore,
     needLogin,
-    setNeedLogin,
-    setShip
+    setNeedLogin
   } = useStore();
   const [connected, setConnected] = useState(false);
   const appState = useRef(AppState.currentState);

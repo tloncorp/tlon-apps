@@ -23,12 +23,3 @@ export function makePrettyDay(date: Date) {
   }
 }
 
-export function convertDeviceTokenToHex(token: string) {
-  return token
-    .split('')
-    .map((c, i) => {
-      const hex = c.charCodeAt(0).toString(16);
-      return i % 2 === 0 ? `0x${hex}` : hex;
-    })
-    .join('');
-}
