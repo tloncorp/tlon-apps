@@ -1,10 +1,11 @@
 import cn from 'classnames';
 import { useLure } from '@/state/lure/lure';
 import TlonIcon from '@/components/icons/TlonIcon';
-import { isGroupHost, useCopy } from '@/logic/utils';
+import { getFlagParts, isGroupHost, useCopy } from '@/logic/utils';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { Group } from '@/types/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ShipName from '@/components/ShipName';
 
 interface LureInviteBlock {
   flag: string;
@@ -100,7 +101,13 @@ export default function LureInviteBlock({
       ) : !isGroupHost(flag) ? (
         <div className="flex items-center space-x-2 font-semibold">
           {fetched ? (
-            'Link not enabled, contact group host'
+            <span>
+              Link not enabled, contact{' '}
+              <ShipName
+                name={getFlagParts(flag).ship}
+                className="font-semibold"
+              />
+            </span>
           ) : (
             <>
               <LoadingSpinner className="h-4 w-4" />
