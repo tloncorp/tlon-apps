@@ -20,7 +20,7 @@ export function DesktopNav() {
   };
 
   return (
-    <div className="relative flex h-full w-64 flex-none overflow-hidden border-r-2 border-gray-50 bg-white">
+    <div className="relative flex h-full w-64 flex-none overflow-hidden bg-white">
       <AnimatePresence initial={false}>
         {match || backgroundLocationMatch ? (
           <motion.div

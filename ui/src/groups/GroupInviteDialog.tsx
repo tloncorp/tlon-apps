@@ -56,7 +56,7 @@ export default function GroupInviteDialog() {
       className="bg-transparent p-0"
       close="none"
     >
-      <div className="dialog-inner-container flex flex-col">
+      <div className="flex flex-col space-y-6">
         {enabled && url ? (
           <div className="card space-y-4 bg-blue-soft">
             <div>
