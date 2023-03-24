@@ -600,9 +600,9 @@ function RoutedApp() {
 
     switch (appName) {
       case 'chat':
-        return '/apps/talk';
+        return '/apps/talk/';
       default:
-        return '/apps/groups';
+        return '/apps/groups/';
     }
   };
 
