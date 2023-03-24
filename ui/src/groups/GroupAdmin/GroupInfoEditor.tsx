@@ -1,6 +1,4 @@
-import cn from 'classnames';
 import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
-import CheckIcon from '@/components/icons/CheckIcon';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
@@ -14,11 +12,11 @@ import {
 } from '@/types/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { Status } from '@/logic/status';
-import { isGroupHost, useCopy } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useLure } from '@/state/lure/lure';
 import GroupInfoFields from '../GroupInfoFields';
 import PrivacySelector from '../PrivacySelector';
+import LureInviteBlock from '../LureInviteBlock';
 
 const emptyMeta = {
   title: '',
@@ -40,8 +38,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [status, setStatus] = useState<Status>('initial');
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const { supported, enabled, url, toggle, describe } = useLure(groupFlag);
-  const { didCopy, doCopy } = useCopy(url);
+  const { enabled, describe } = useLure(groupFlag);
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -162,72 +159,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
           </footer>
         </form>
       </FormProvider>
-      <div
-        className={cn(
-          'card mb-4 space-y-4',
-          (!supported || !isGroupHost(groupFlag)) && 'hidden'
-        )}
-      >
-        <div className="flex flex-row">
-          <label
-            className={
-              'flex cursor-pointer items-start justify-between space-x-2 py-2'
-            }
-          >
-            <div className="flex items-center">
-              {enabled ? (
-                <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
-                  <CheckIcon className="h-4 w-4" />
-                </div>
-              ) : (
-                <div className="h-4 w-4 rounded-sm border-2 border-gray-200" />
-              )}
-            </div>
-
-            <div className="flex w-full flex-col">
-              <div className="flex flex-row space-x-2">
-                <div className="flex w-full flex-col justify-start text-left">
-                  <span className="font-semibold">Invite Link Enabled</span>
-                </div>
-              </div>
-            </div>
-
-            <input
-              checked={enabled}
-              onChange={toggle(group?.meta || emptyMeta)}
-              className="sr-only"
-              type="checkbox"
-            />
-          </label>
-        </div>
-        {enabled ? (
-          <div>
-            <label htmlFor="invite-url" className="block pb-2 font-bold">
-              Invite Link
-            </label>
-            <div className="flex flex-row">
-              <div className="relative max-w-md flex-1">
-                {url === '' ? (
-                  <LoadingSpinner className="absolute right-2 my-2 h-4 w-4" />
-                ) : null}
-                <input
-                  name="invite-url"
-                  value={url}
-                  className="input mt-0 w-full"
-                  type="text"
-                  readOnly
-                />
-              </div>
-              <button
-                className="button ml-2 flex-none whitespace-nowrap"
-                onClick={doCopy}
-              >
-                {didCopy ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </div>
+      <LureInviteBlock flag={groupFlag} group={group} className="mb-4" />
       <div className="card">
         <h2 className="mb-1 text-lg font-bold">Delete Group</h2>
         <p className="mb-4">

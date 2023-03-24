@@ -19,6 +19,7 @@ interface LureMetadata {
 }
 
 interface Lure {
+  fetched: boolean;
   url: string;
   enabled?: boolean;
   metadata?: LureMetadata;
@@ -132,6 +133,7 @@ export const useLureState = create<LureState>(
         set(
           produce((draft: LureState) => {
             draft.lures[flag] = {
+              fetched: true,
               enabled,
               url,
               metadata,
@@ -149,7 +151,7 @@ export const useLureState = create<LureState>(
 );
 
 const selLure = (flag: string) => (s: LureState) => ({
-  lure: s.lures[flag] || { url: '' },
+  lure: s.lures[flag] || { fetched: false, url: '' },
   bait: s.bait,
 });
 const { shouldLoad, newAttempt, finished } = getPreviewTracker();

@@ -5,12 +5,11 @@ import Dialog, { DialogClose } from '@/components/Dialog';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroup, useGroupState, useRouteGroup } from '@/state/groups/groups';
-import { getPrivacyFromGroup, preSig, useCopy } from '@/logic/utils';
+import { getPrivacyFromGroup, preSig } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
-import { useLure } from '@/state/lure/lure';
-import TlonIcon from '@/components/icons/TlonIcon';
+import LureInviteBlock from './LureInviteBlock';
 
 export default function GroupInviteDialog() {
   const dismiss = useDismissNavigate();
@@ -24,8 +23,6 @@ export default function GroupInviteDialog() {
       : false;
   const { isPending, setPending, setReady, setFailed, isFailed } =
     useRequestState();
-  const { enabled, url } = useLure(flag);
-  const { didCopy, doCopy } = useCopy(url);
 
   const onInvite = useCallback(async () => {
     setPending();
@@ -57,34 +54,7 @@ export default function GroupInviteDialog() {
       close="none"
     >
       <div className="flex flex-col space-y-6">
-        {enabled && url ? (
-          <div className="card space-y-4 bg-blue-soft">
-            <div>
-              <h2 className="mb-1 flex text-lg font-bold">
-                <span>Send Landscape Invite to Someone</span>
-                <TlonIcon className="ml-auto h-6 w-6 p-1" />
-              </h2>
-              <p className="text-sm font-semibold text-gray-400">
-                Courtesy of Tlon Hosting
-              </p>
-            </div>
-            <p className="leading-5">
-              Invite someone to this group and gift them an urbit, all with one
-              link. Send these to friends, family, and collaborators to get them
-              into Urbit easily.
-            </p>
-            <div className="flex items-center space-x-2">
-              <input
-                value={url}
-                readOnly
-                className="flex flex-1 rounded-lg border-2 border-blue-soft bg-blue-soft py-1 px-2 text-lg font-semibold  leading-5 text-blue caret-blue-400 mix-blend-multiply focus:outline-none dark:mix-blend-screen sm:text-base sm:leading-5"
-              />
-              <button className="button bg-blue" onClick={doCopy}>
-                {didCopy ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-          </div>
-        ) : null}
+        <LureInviteBlock flag={flag} group={group} />
         <div className="card">
           <h2 className="mb-4 text-lg font-bold">Invite People To Group</h2>
           <div className="w-full py-3">
