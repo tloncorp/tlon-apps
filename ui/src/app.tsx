@@ -2,7 +2,6 @@ import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
-import cn from 'classnames';
 import {
   BrowserRouter as Router,
   Routes,
