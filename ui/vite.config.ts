@@ -64,6 +64,7 @@ export default ({ mode }: { mode: string }) => {
           VitePWA({
             base: '/apps/talk/',
             manifest: chatmanifest,
+            injectRegister: 'inline',
             registerType: 'autoUpdate',
             devOptions: {
               enabled: mode === 'sw',
@@ -89,6 +90,7 @@ export default ({ mode }: { mode: string }) => {
           VitePWA({
             base: '/apps/groups/',
             manifest: manifest,
+            injectRegister: 'inline',
             registerType: 'autoUpdate',
             devOptions: {
               enabled: mode === 'sw',
