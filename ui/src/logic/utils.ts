@@ -577,9 +577,20 @@ export async function asyncWithDefault<T>(
   def: T
 ): Promise<T> {
   try {
-    return cb();
+    return await cb();
   } catch (error) {
     return def;
+  }
+}
+
+export async function asyncWithFallback<T>(
+  cb: () => Promise<T>,
+  def: (error: any) => Promise<T>
+): Promise<T> {
+  try {
+    return await cb();
+  } catch (error) {
+    return def(error);
   }
 }
 

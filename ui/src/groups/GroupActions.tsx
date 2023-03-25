@@ -86,14 +86,14 @@ const GroupActions = React.memo(
               <div className="relative h-6 w-6">
                 {!isOpen && hasActivity ? (
                   <UnreadIndicator
-                    className="absolute h-6 w-6 text-gray-400 transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+                    className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
                     aria-label="Has Activity"
                   />
                 ) : null}
                 <button
                   className={cn(
                     'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                    hasActivity && 'text-gray-400',
+                    hasActivity && 'text-blue',
                     isOpen ? 'opacity:100' : 'opacity-0'
                   )}
                   aria-label="Open Group Options"

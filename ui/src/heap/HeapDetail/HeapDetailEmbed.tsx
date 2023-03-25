@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react/no-danger */
 import React from 'react';
 import EmbedContainer from 'react-oembed-container';
 import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
@@ -15,8 +17,8 @@ export default function HeapDetailEmbed({ oembed, url }: HeapDetailEmbedProps) {
   }
 
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-y-scroll">
-      <EmbedContainer className="max-h-full w-[500px]" markup={html}>
+    <div className="flex h-full w-full items-center justify-center overflow-y-auto bg-gray-50">
+      <EmbedContainer className="max-h-full" markup={html}>
         <div dangerouslySetInnerHTML={{ __html: html }} />
       </EmbedContainer>
     </div>

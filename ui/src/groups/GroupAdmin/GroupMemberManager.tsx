@@ -81,7 +81,7 @@ export default function GroupMemberManager() {
     <div className={cn(!amAdmin && 'card', 'flex h-full grow flex-col')}>
       <div
         className={cn(
-          (privacy === 'public' || amAdmin) && 'mt-2',
+          amAdmin && 'mt-2',
           'mb-4 flex w-full items-center justify-between'
         )}
       >
@@ -108,7 +108,7 @@ export default function GroupMemberManager() {
           />
         </label>
       </div>
-      <div className="grow">
+      <div className={cn('grow', amAdmin && 'pb-2')}>
         <MemberScroller members={results} />
       </div>
     </div>

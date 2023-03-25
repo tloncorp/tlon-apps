@@ -360,10 +360,10 @@ export default function ChatInput({
           if (!cite || !path) {
             return;
           }
-          if (!whom) {
+          if (!id) {
             return;
           }
-          setBlocks(whom, [{ cite }]);
+          setBlocks(id, [{ cite }]);
           messageEditor.commands.deleteRange({
             from: editorText.indexOf(path),
             to: editorText.indexOf(path) + path.length + 1,
@@ -392,7 +392,7 @@ export default function ChatInput({
         }
       }
     }
-  }, [messageEditor, editorText, editorHTML, whom, setBlocks]);
+  }, [messageEditor, editorText, editorHTML, id, setBlocks]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -530,6 +530,7 @@ export default function ChatInput({
             e.preventDefault();
             onClick();
           }}
+          aria-label="Send message"
         >
           <ArrowNWIcon16 className="h-4 w-4" />
         </button>

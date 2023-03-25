@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import cn from 'classnames';
 import { Outlet, useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
+import useIsIOSSafariPWA from '@/logic/useIsIOSSfari';
+import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import NavTab from '../NavTab';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
 import ElipsisIcon from '../icons/EllipsisIcon';
@@ -14,27 +16,16 @@ import SidebarItem from './SidebarItem';
 
 export default function MobileSidebar() {
   const [showSheet, setShowSheet] = useState(false);
-  const [displayMode, setDisplayMode] = useState('browser tab');
   const location = useLocation();
-
-  useEffect(() => {
-    // check if we're in safari on ios and if we're in a standalone app
-    const ua = window.navigator.userAgent;
-    const iOS = !!ua.match(/iPad/i) || !!ua.match(/iPhone/i);
-    const webkit = !!ua.match(/WebKit/i);
-    const iOSSafari = iOS && webkit && !ua.match(/CriOS/i);
-
-    if (iOSSafari && matchMedia('(display-mode: standalone)').matches) {
-      setDisplayMode('ios');
-    }
-  }, []);
+  const isIOSSafari = useIsIOSSafariPWA();
+  const isStandAlone = useIsStandaloneMode();
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col  border-gray-50 bg-white">
       <Outlet />
       <footer
         className={cn('flex-none border-t-2 border-gray-50', {
-          'pb-4': displayMode === 'ios',
+          'pb-4': isIOSSafari && isStandAlone,
         })}
       >
         <nav>

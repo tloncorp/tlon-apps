@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import cn from 'classnames';
 import { Outlet, useLocation, useMatch } from 'react-router';
-import { useGroup, useGroupFlag } from '@/state/groups/groups';
+import { useAmAdmin, useGroup, useGroupFlag } from '@/state/groups/groups';
 import NavTab from '@/components/NavTab';
 import HashIcon from '@/components/icons/HashIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
@@ -12,6 +12,7 @@ import InviteIcon from '@/components/icons/InviteIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import PersonIcon from '@/components/icons/PersonIcon';
+import { getPrivacyFromGroup } from '@/logic/utils';
 import GroupAvatar from '../GroupAvatar';
 import { useGroupActions } from '../GroupActions';
 
@@ -19,10 +20,12 @@ export default function MobileGroupSidebar() {
   const { ship } = window;
   const flag = useGroupFlag();
   const group = useGroup(flag);
+  const privacy = group ? getPrivacyFromGroup(group) : 'public';
   const match = useMatch('/groups/:ship/:name/info');
   const location = useLocation();
   const [showSheet, setShowSheet] = useState(false);
   const { onCopy, copyItemText } = useGroupActions(flag);
+  const isAdmin = useAmAdmin(flag);
 
   return (
     <section className="flex h-full w-full flex-col overflow-x-hidden  bg-white">
@@ -54,18 +57,20 @@ export default function MobileGroupSidebar() {
           <Sheet open={showSheet} onOpenChange={(o) => setShowSheet(o)}>
             <SheetContent showClose={true}>
               <div className="flex flex-col pt-4">
-                <SidebarItem
-                  onClick={() => setShowSheet(false)}
-                  to={`/groups/${flag}/invite`}
-                  state={{ backgroundLocation: location }}
-                  icon={
-                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                      <InviteIcon className="h-6 w-6" />
-                    </div>
-                  }
-                >
-                  Invite People
-                </SidebarItem>
+                {(privacy === 'public' || isAdmin) && (
+                  <SidebarItem
+                    onClick={() => setShowSheet(false)}
+                    to={`/groups/${flag}/invite`}
+                    state={{ backgroundLocation: location }}
+                    icon={
+                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                        <InviteIcon className="h-6 w-6" />
+                      </div>
+                    }
+                  >
+                    Invite People
+                  </SidebarItem>
+                )}
                 <SidebarItem
                   icon={
                     <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">

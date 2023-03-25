@@ -125,6 +125,7 @@ exports[`ChatInput > renders as expected 1`] = `
       </div>
     </div>
     <button
+      aria-label="Send message"
       class="button px-2"
       disabled=""
     >
