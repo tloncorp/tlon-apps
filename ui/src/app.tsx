@@ -526,9 +526,6 @@ function App() {
   const isSmall = useMedia('(max-width: 1023px)');
   const settingsLoaded = useSettingsLoaded();
   const { disableWayfinding } = useCalm();
-  const isStandAlone = useIsStandaloneMode();
-  const isIOSSafariPWA = useIsIOSSafariPWA();
-  const body = document.querySelector('body');
 
   useEffect(() => {
     handleError(() => {
@@ -542,16 +539,6 @@ function App() {
       bootstrap();
     })();
   }, [handleError]);
-
-  useEffect(() => {
-    if (isStandAlone) {
-      if (!isIOSSafariPWA) {
-        body?.style.setProperty('padding-bottom', '0px');
-      } else {
-        body?.style.setProperty('padding-bottom', '16px');
-      }
-    }
-  }, [isStandAlone, isIOSSafariPWA, body]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
@@ -592,17 +579,20 @@ function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
+  const isStandAlone = useIsStandaloneMode();
+  const isIOSSafariPWA = useIsIOSSafariPWA();
+  const body = document.querySelector('body');
 
-  const basename = (modeName: string, appName: string) => {
+  const basename = (appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return '/';
     }
 
     switch (appName) {
       case 'chat':
-        return '/apps/talk/';
+        return isStandAlone ? '/apps/talk/' : '/apps/talk';
       default:
-        return '/apps/groups/';
+        return isStandAlone ? '/apps/groups/' : '/apps/groups';
     }
   };
 
@@ -621,12 +611,22 @@ function RoutedApp() {
     }
   }, [isDarkMode, theme]);
 
+  useEffect(() => {
+    if (isStandAlone) {
+      if (!isIOSSafariPWA) {
+        body?.style.setProperty('padding-bottom', '0px');
+      } else {
+        body?.style.setProperty('padding-bottom', '16px');
+      }
+    }
+  }, [isStandAlone, isIOSSafariPWA, body]);
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
       onReset={() => window.location.reload()}
     >
-      <Router basename={basename(mode, app)}>
+      <Router basename={basename(app)}>
         <Helmet>
           <title>{appHead(app).title}</title>
           <link
