@@ -1012,7 +1012,8 @@
   ++  go-proxy
     |=  =update:g
     ^+  go-core
-    ?>  go-is-bloc
+    =*  diff  q.update
+    ?>  ?|(go-is-bloc ?&(?=(%fleet -.diff) ?=([%add ~] q.diff)))
     =/  =wire  (snoc go-area %proxy)
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  group-action+!>([flag update])

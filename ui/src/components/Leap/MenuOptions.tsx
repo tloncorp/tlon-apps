@@ -3,6 +3,7 @@ import TalkIcon from '../icons/TalkIcon';
 import ArrowEIcon16 from '../icons/ArrowEIcon16';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
 import AddIcon16 from '../icons/Add16Icon';
+import GridIcon from '../icons/GridIcon';
 
 function CommandBadge() {
   return (
@@ -25,58 +26,81 @@ export interface IMenuOption {
   title: string;
   subtitle: string;
   to: string;
+  modal: boolean;
 }
 
 export const groupsMenuOptions: IMenuOption[] = [
   {
+    title: 'Apps',
+    subtitle: '',
+    to: '/grid',
+    icon: GridIcon,
+    modal: true,
+  },
+  {
     title: 'Notifications',
     subtitle: '',
-    to: '/',
+    to: '/notifications',
     icon: CommandBadge,
+    modal: false,
   },
   {
     title: 'Find Groups',
     subtitle: '',
     to: '/find',
     icon: CommandBadge,
+    modal: false,
   },
   {
     title: 'Create New Group',
     subtitle: '',
     to: '/groups/new',
     icon: PlusBadge,
+    modal: true,
   },
   {
     title: 'Profile',
     subtitle: '',
     to: '/profile/edit',
     icon: CommandBadge,
+    modal: false,
   },
   {
     title: 'Talk',
     subtitle: '',
     to: '/',
     icon: TalkIcon,
+    modal: false,
   },
 ];
 
 export const talkMenuOptions: IMenuOption[] = [
   {
+    title: 'Apps',
+    subtitle: '',
+    to: '/grid',
+    icon: GridIcon,
+    modal: true,
+  },
+  {
     title: 'New Message',
     subtitle: '',
     to: '/dm/new',
     icon: PlusBadge,
+    modal: false,
   },
   {
     title: 'Profile',
     subtitle: '',
     to: '/profile/edit',
     icon: CommandBadge,
+    modal: false,
   },
   {
     title: 'Groups',
     subtitle: '',
     to: '/',
     icon: AppGroupsIcon,
+    modal: false,
   },
 ];

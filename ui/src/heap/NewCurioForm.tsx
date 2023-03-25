@@ -79,9 +79,10 @@ export default function NewCurioForm() {
       });
 
       setDraftLink(undefined);
+      uploader?.clear();
       reset();
     },
-    [chFlag, reset]
+    [chFlag, reset, uploader]
   );
 
   const watchedContent = watch('content');
@@ -200,7 +201,7 @@ export default function NewCurioForm() {
             <input
               value={isPending ? 'Posting...' : 'Post'}
               type="submit"
-              className="button absolute bottom-3 right-3 rounded-md px-2 py-1"
+              className="button absolute bottom-3 right-3 cursor-pointer rounded-md px-2 py-1"
               disabled={isPending || !isValidInput}
             />
           </form>

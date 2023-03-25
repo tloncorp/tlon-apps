@@ -14,7 +14,7 @@ function DateDividerComponent(
   const prettyDay = makePrettyDay(date);
 
   return (
-    <div ref={ref} className="flex w-full items-center py-4">
+    <div ref={ref} className="flex w-full items-center pt-4 pb-6">
       <div
         className={cn(
           'h-[2px] w-8 rounded-sm',

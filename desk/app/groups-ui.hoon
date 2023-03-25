@@ -6,6 +6,7 @@
   +$  card  card:agent:gall
   +$  state-0  [%0 first-load=?]
   +$  current-state  state-0
+  +$  versioned-state  $%(~ current-state)
   --
 =|  current-state
 =*  state  -
@@ -72,6 +73,9 @@
 ::
 ++  init
   ^+  cor
+  =/  =cage  settings-event+!>([%put-entry %groups %groups %'showVitaMessage' [%b &]])
+  =?  cor  first-load  (emit %pass /set-vita %agent [our.bowl %settings-store] %poke cage)
+  =.  first-load  |
   %-  emil 
   :~  [%pass /build %arvo [%c %warp our.bowl q.byk.bowl ~ %sing %c da+now.bowl /ui-init/json]]
       [%pass /build %arvo [%c %warp our.bowl q.byk.bowl ~ %sing %c da+now.bowl /ui-migration/json]]
@@ -80,16 +84,9 @@
 ++  load
   |=  =vase
   ^+  cor
-  =+  !<(old=current-state vase)
-  =.  state  old
-  ~&  state
-  =/  =cage  settings-event+!>([%put-entry %groups %groups %'showVitaMessage' [%b &]])  
-  =?  cor  first-load  (emit %pass /set-vita %agent [our.bowl %settings-store] %poke cage)
-  =.  first-load  |
-  %-  emil 
-  :~  [%pass /build %arvo [%c %warp our.bowl q.byk.bowl ~ %sing %c da+now.bowl /ui-init/json]]
-      [%pass /build %arvo [%c %warp our.bowl q.byk.bowl ~ %sing %c da+now.bowl /ui-migration/json]]
-  ==
+  =+  !<(old=versioned-state vase)
+  =.  state  ?~(old *current-state old)
+  init
 ::
 ++  peek
   |=  =(pole knot)
