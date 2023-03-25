@@ -62,7 +62,7 @@ function GroupHeader() {
           color={
             group && isColor(group.meta.cover)
               ? `text-${foregroundFromBackground(group.meta.cover)}`
-              : 'text-white'
+              : 'text-white dark:text-black'
           }
           highlight="#666666"
           className={cn(
