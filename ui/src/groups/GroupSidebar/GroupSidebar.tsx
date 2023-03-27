@@ -27,6 +27,7 @@ function GroupHeader() {
   const group = useGroup(flag);
   const defaultImportCover = group?.meta.cover === '0x0';
   const calm = useCalm();
+  const isDark = useIsDark();
 
   const bgStyle = () => {
     if (
@@ -46,6 +47,21 @@ function GroupHeader() {
     return {};
   };
 
+  const fgStyle = () => {
+    if (group && !isColor(group?.meta.cover) && !defaultImportCover)
+      return {
+        color: 'text-white dark:text-black',
+        style: { textShadow: '0px 1px 3px black' },
+      };
+    if (group && isColor(group?.meta.cover) && !defaultImportCover) {
+      const fg = foregroundFromBackground(group?.meta.cover);
+      if (fg === 'white' && isDark) return { color: 'text-gray-800' };
+      if (fg === 'black' && isDark) return { color: 'text-gray-50' };
+      return { color: `text-${fg}` };
+    }
+    return { color: 'text-gray-800' };
+  };
+
   return (
     <div
       className={cn(
@@ -59,11 +75,6 @@ function GroupHeader() {
         flag={flag}
       >
         <SidebarItem
-          color={
-            group && isColor(group.meta.cover)
-              ? `text-${foregroundFromBackground(group.meta.cover)}`
-              : 'text-white dark:text-black'
-          }
           highlight="#666666"
           className={cn(
             'relative pl-11',
@@ -71,14 +82,9 @@ function GroupHeader() {
           )}
           transparent={true}
           icon={<GroupAvatar {...group?.meta} />}
+          {...fgStyle()}
         >
-          <span
-            style={
-              group && !isColor(group.meta.cover)
-                ? { textShadow: '0px 1px 3px black' }
-                : {}
-            }
-          >
+          <span className="inline-block max-w-[130px] truncate">
             {group?.meta.title}
           </span>
           <CaretDown16Icon className="absolute top-3 right-2 h-4 w-4" />
