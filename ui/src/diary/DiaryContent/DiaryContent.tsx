@@ -20,7 +20,7 @@ import {
   NoteContent,
 } from '@/types/diary';
 import _ from 'lodash';
-import { refractor } from 'refractor';
+import { refractor } from 'refractor/lib/common.js';
 import { toH } from 'hast-to-hyperscript';
 import hoon from 'refractor/lang/hoon.js';
 import { useIsDark } from '@/logic/useMedia';
@@ -252,7 +252,6 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
 });
 
 export default function DiaryContent({ content }: DiaryContentProps) {
-  console.log(content);
   return (
     <article className="prose-lg prose break-words dark:prose-invert">
       {content.map((c, index) => {

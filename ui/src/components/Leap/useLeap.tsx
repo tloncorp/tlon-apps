@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import { uniqBy } from 'lodash';
 import { useLocation, useNavigate } from 'react-router';
 import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
@@ -13,11 +14,19 @@ import {
 import { useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
-import { usePinned, usePinnedGroups } from '@/state/chat';
+import {
+  useDms,
+  useMultiDms,
+  usePinned,
+  usePinnedClubs,
+  usePinnedGroups,
+} from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
+import { Club } from '@/types/chat';
 import { useMutuals } from '@/state/pals';
 import { Contact } from '@/types/contact';
+import { ChargeWithDesk, useCharges } from '@/state/docket';
 import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
@@ -25,11 +34,65 @@ import UnknownAvatarIcon from '../icons/UnknownAvatarIcon';
 import BubbleIcon from '../icons/BubbleIcon';
 import ShapesIcon from '../icons/ShapesIcon';
 import NotebookIcon from '../icons/NotebookIcon';
+import PeopleIcon from '../icons/PeopleIcon';
+import GridIcon from '../icons/GridIcon';
+
+interface LeapContext {
+  isOpen: boolean;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  inputValue: string;
+  setInputValue: React.Dispatch<React.SetStateAction<string>>;
+  selectedIndex: number;
+  setSelectedIndex: React.Dispatch<React.SetStateAction<number>>;
+}
+
+const LeapContext = React.createContext({
+  isOpen: false,
+  setIsOpen: (_isOpen: boolean) => null,
+  inputValue: '',
+  setInputValue: (_inputValue: string) => null,
+  selectedIndex: 0,
+  setSelectedIndex: (_selectedIndex: number) => null,
+} as LeapContext);
+
+export function LeapProvider({ children }: { children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [inputValue, setInputValue] = React.useState('');
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
+
+  const contextValue = useMemo(
+    () => ({
+      isOpen,
+      setIsOpen,
+      inputValue,
+      setInputValue,
+      selectedIndex,
+      setSelectedIndex,
+    }),
+    [
+      isOpen,
+      setIsOpen,
+      inputValue,
+      setInputValue,
+      selectedIndex,
+      setSelectedIndex,
+    ]
+  );
+
+  return (
+    <LeapContext.Provider value={contextValue}>{children}</LeapContext.Provider>
+  );
+}
 
 export default function useLeap() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const {
+    isOpen,
+    setIsOpen,
+    inputValue,
+    setInputValue,
+    selectedIndex,
+    setSelectedIndex,
+  } = React.useContext(LeapContext);
   const navigate = useNavigate();
   const modalNavigate = useModalNavigate();
   const groups = useGroups();
@@ -37,8 +100,12 @@ export default function useLeap() {
   const { isGroupUnread } = useIsGroupUnread();
   const isChannelUnread = useCheckChannelUnread();
   const pinnedGroups = usePinnedGroups();
+  const multiDms = useMultiDms();
+  const pinnedMultiDms = usePinnedClubs();
   const pinnedChats = usePinned();
   const contacts = useContacts();
+  const dms = useDms();
+  const charges = useCharges();
   const location = useLocation();
   const app = useAppName();
   const mutuals = useMutuals();
@@ -53,17 +120,12 @@ export default function useLeap() {
       ? menuOptions.map((o, idx) => ({
           ...o,
           onSelect: () => {
-            if (app === 'Groups' && o.title === 'Messages') {
-              window.open(`${window.location.origin}/apps/talk`, '_blank');
-            } else if (app === 'Groups' && o.title === 'Create New Group') {
-              modalNavigate(`/groups/new`, {
-                state: { backgroundLocation: location },
-              });
-            } else if (app === 'Talk' && o.title === 'Groups') {
-              window.open(
-                `${window.location.origin}/apps/groups/find`,
-                '_blank'
-              );
+            if (app === 'Talk' && o.title === 'Groups') {
+              window.open(`${window.location.origin}/apps/groups/`, '_blank');
+            } else if (app === 'Groups' && o.title === 'Talk') {
+              window.open(`${window.location.origin}/apps/talk/`, '_blank');
+            } else if (o.modal === true) {
+              navigate(o.to, { state: { backgroundLocation: location } });
             } else {
               navigate(o.to);
             }
@@ -128,7 +190,14 @@ export default function useLeap() {
       return newScore;
     };
 
-    const allShips = Object.entries(contacts);
+    const allShips = uniqBy(
+      Object.entries(contacts).concat(
+        // accounting for ships not in contact store, but in DMs
+        // this fix is temporary until we fix the contact store
+        dms.map((ship) => [ship, { nickname: '' } as Contact])
+      ),
+      ([ship]) => ship
+    );
     const normalizedQuery = inputValue.toLocaleLowerCase();
     const filteredShips = fuzzy
       .filter(normalizedQuery, allShips, {
@@ -154,7 +223,7 @@ export default function useLeap() {
           if (app === 'Talk') {
             navigate(`/dm/${patp}`);
           } else {
-            modalNavigate(`/profile/${patp}`, {
+            modalNavigate(`/profile/${preSig(patp)}`, {
               state: { backgroundLocation: location },
             });
           }
@@ -187,6 +256,10 @@ export default function useLeap() {
     modalNavigate,
     navigate,
     preSiggedMutuals,
+    dms,
+    setInputValue,
+    setIsOpen,
+    setSelectedIndex,
   ]);
 
   const channelResults = useMemo(() => {
@@ -323,6 +396,9 @@ export default function useLeap() {
     pinnedChats,
     pinnedGroups,
     shipResults.length,
+    setSelectedIndex,
+    setInputValue,
+    setIsOpen,
   ]);
 
   const groupResults = useMemo(() => {
@@ -415,6 +491,187 @@ export default function useLeap() {
     navigate,
     pinnedGroups,
     shipResults.length,
+    setSelectedIndex,
+    setInputValue,
+    setIsOpen,
+  ]);
+
+  const multiDmResults = useMemo(() => {
+    if (inputValue === '') {
+      return [];
+    }
+
+    const scoreMultiDmResult = (
+      entry: fuzzy.FilterResult<[string, Club]>
+    ): number => {
+      const { score, original } = entry;
+      const [multiDmFlag] = original;
+
+      let newScore = score;
+
+      // pinned groups are strong signals
+      const isPinned = multiDmFlag in pinnedMultiDms;
+      if (isPinned) {
+        newScore += 10;
+      }
+
+      // prefer unreads as well
+      const isUnread = isChannelUnread(multiDmFlag);
+      if (isUnread) {
+        newScore += 5;
+      }
+
+      return newScore;
+    };
+
+    const allMultiDms = Object.entries(multiDms);
+    const normalizedQuery = inputValue.toLocaleLowerCase();
+    const filteredMultiDms = fuzzy
+      .filter(normalizedQuery, allMultiDms, {
+        extract: ([_, g]) => `${g.meta.title} ${g.meta.description}`,
+      })
+      .filter((r) => scoreMultiDmResult(r) > LEAP_RESULT_SCORE_THRESHOLD)
+      .sort((a, b) => {
+        const scoreA = scoreMultiDmResult(a);
+        const scoreB = scoreMultiDmResult(b);
+        return scoreB - scoreA;
+      })
+      .map((r) => r.original);
+
+    return [
+      {
+        section: 'Group DMs',
+      },
+      ...filteredMultiDms.map(([flag, multiDm], idx) => {
+        const path = `/dm/${flag}`;
+        const onSelect = () => {
+          if (app === 'Talk') {
+            navigate(path);
+          } else {
+            window.open(`${window.location.origin}/apps/talk${path}`, '_blank');
+          }
+          setSelectedIndex(0);
+          setInputValue('');
+          setIsOpen(false);
+        };
+        return {
+          onSelect,
+          icon: PeopleIcon,
+          input: inputValue,
+          title: multiDm.meta.title,
+          subtitle: multiDm.meta.description,
+          to: path,
+          resultIndex:
+            idx +
+            (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : shipResults.length - 1) +
+            (channelResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : channelResults.length - 1) +
+            (groupResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : groupResults.length - 1),
+        };
+      }),
+    ];
+  }, [
+    app,
+    channelResults.length,
+    inputValue,
+    multiDms,
+    navigate,
+    pinnedMultiDms,
+    shipResults.length,
+    groupResults.length,
+    isChannelUnread,
+    setSelectedIndex,
+    setInputValue,
+    setIsOpen,
+  ]);
+
+  const chargeResults = useMemo(() => {
+    if (inputValue === '') {
+      return [];
+    }
+
+    const scoreChargeResult = (
+      entry: fuzzy.FilterResult<[string, ChargeWithDesk]>
+    ): number => {
+      const { score, original } = entry;
+      const [_, charge] = original;
+
+      const newScore = score;
+
+      return newScore;
+    };
+
+    const allCharges = Object.entries(charges)
+      .filter(([desk, _charge]) => desk !== window.desk)
+      .filter(([desk, _charge]) => desk !== 'landscape');
+    const normalizedQuery = inputValue.toLocaleLowerCase();
+    const filteredCharges = fuzzy
+      .filter(normalizedQuery, allCharges, {
+        extract: ([_, c]) => `${c.title}`,
+      })
+      .filter((r) => scoreChargeResult(r) > LEAP_RESULT_SCORE_THRESHOLD)
+      .sort((a, b) => {
+        const scoreA = scoreChargeResult(a);
+        const scoreB = scoreChargeResult(b);
+        return scoreB - scoreA;
+      })
+      .map((r) => r.original);
+
+    return [
+      {
+        section: 'Apps',
+      },
+      ...filteredCharges.map(([desk, charge], idx) => {
+        const onSelect = () => {
+          navigate(`/app/${desk}`, {
+            state: { backgroundLocation: location },
+          });
+          setSelectedIndex(0);
+          setInputValue('');
+          setIsOpen(false);
+        };
+
+        return {
+          onSelect,
+          icon: GridIcon,
+          input: inputValue,
+          title: charge.title,
+          subtitle: charge.info ?? '',
+          to: `/app/${desk}`,
+          resultIndex:
+            idx +
+            (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : shipResults.length - 1) +
+            (channelResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : channelResults.length - 1) +
+            (groupResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : groupResults.length - 1) +
+            (multiDmResults.length > LEAP_RESULT_TRUNCATE_SIZE
+              ? LEAP_RESULT_TRUNCATE_SIZE
+              : multiDmResults.length - 1),
+        };
+      }),
+    ];
+  }, [
+    channelResults.length,
+    inputValue,
+    charges,
+    shipResults.length,
+    groupResults.length,
+    setSelectedIndex,
+    setInputValue,
+    setIsOpen,
+    multiDmResults.length,
+    navigate,
+    location,
   ]);
 
   // If changing the order, update the resultIndex calculations above
@@ -428,6 +685,12 @@ export default function useLeap() {
       : []), // +1 to account for section header
     ...(groupResults.length > 1
       ? groupResults.slice(0, LEAP_RESULT_TRUNCATE_SIZE + 1)
+      : []), // +1 to account for section header
+    ...(multiDmResults.length > 1
+      ? multiDmResults.slice(0, LEAP_RESULT_TRUNCATE_SIZE + 1)
+      : []), // +1 to account for section header
+    ...(chargeResults.length > 1
+      ? chargeResults.slice(0, LEAP_RESULT_TRUNCATE_SIZE + 1)
       : []), // +1 to account for section header
   ];
 

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import create, { SetState } from 'zustand';
+import React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { omit, pick } from 'lodash';
 import {
@@ -54,11 +55,15 @@ interface DocketState {
   uninstallDocket: (desk: string) => Promise<number | void>;
   //
   addAlly: (ship: string) => Promise<number>;
+  start: () => void;
   set: SetState<DocketState>;
 }
 
 const useDocketState = create<DocketState>((set, get) => ({
   defaultAlly: null,
+  treaties: {},
+  charges: {},
+  allies: {},
   fetchDefaultAlly: async () => {
     const defaultAlly = await api.scry<string>(scryDefaultAlly);
     set({ defaultAlly });
@@ -136,15 +141,65 @@ const useDocketState = create<DocketState>((set, get) => ({
       await api.poke(kilnSuspend(desk));
     }
   },
-  treaties: {},
-  charges: {},
-  allies: {},
   addAlly: async (ship) => {
     set((draft) => {
       draft.allies[ship] = [];
     });
 
     return api.poke(allyShip(ship));
+  },
+  start: () => {
+    api.subscribe({
+      app: 'docket',
+      path: '/charges',
+      event: (data: ChargeUpdate) => {
+        useDocketState.setState((state) => {
+          if ('add-charge' in data) {
+            const { desk, charge } = data['add-charge'];
+            return addCharge(state, desk, charge);
+          }
+
+          if ('del-charge' in data) {
+            const desk = data['del-charge'];
+            return delCharge(state, desk);
+          }
+
+          return { charges: state.charges };
+        });
+      },
+    });
+
+    api.subscribe({
+      app: 'treaty',
+      path: '/treaties',
+      event: (data: TreatyUpdate) => {
+        useDocketState.getState().set((draft) => {
+          if ('add' in data) {
+            const { ship, desk } = data.add;
+            const treaty = normalizeDocket(data.add, desk);
+            draft.treaties[`${ship}/${desk}`] = treaty;
+          }
+
+          if ('ini' in data) {
+            const treaties = normalizeDockets(data.ini);
+            draft.treaties = { ...draft.treaties, ...treaties };
+          }
+        });
+      },
+    });
+
+    api.subscribe({
+      app: 'treaty',
+      path: '/allies',
+      event: (data: AllyUpdateNew) => {
+        useDocketState.getState().set((draft) => {
+          if ('new' in data) {
+            const { ship, alliance } = data.new;
+            draft.allies[ship] = alliance;
+          }
+        });
+      },
+    });
   },
   set,
 }));
@@ -184,58 +239,6 @@ function delCharge(state: DocketState, desk: string) {
   return { charges: omit(state.charges, desk) };
 }
 
-api.subscribe({
-  app: 'docket',
-  path: '/charges',
-  event: (data: ChargeUpdate) => {
-    useDocketState.setState((state) => {
-      if ('add-charge' in data) {
-        const { desk, charge } = data['add-charge'];
-        return addCharge(state, desk, charge);
-      }
-
-      if ('del-charge' in data) {
-        const desk = data['del-charge'];
-        return delCharge(state, desk);
-      }
-
-      return { charges: state.charges };
-    });
-  },
-});
-
-api.subscribe({
-  app: 'treaty',
-  path: '/treaties',
-  event: (data: TreatyUpdate) => {
-    useDocketState.getState().set((draft) => {
-      if ('add' in data) {
-        const { ship, desk } = data.add;
-        const treaty = normalizeDocket(data.add, desk);
-        draft.treaties[`${ship}/${desk}`] = treaty;
-      }
-
-      if ('ini' in data) {
-        const treaties = normalizeDockets(data.ini);
-        draft.treaties = { ...draft.treaties, ...treaties };
-      }
-    });
-  },
-});
-
-api.subscribe({
-  app: 'treaty',
-  path: '/allies',
-  event: (data: AllyUpdateNew) => {
-    useDocketState.getState().set((draft) => {
-      if ('new' in data) {
-        const { ship, alliance } = data.new;
-        draft.allies[ship] = alliance;
-      }
-    });
-  },
-});
-
 const selCharges = (s: DocketState) => s.charges;
 
 export function useCharges() {
@@ -243,7 +246,26 @@ export function useCharges() {
 }
 
 export function useCharge(desk: string) {
-  return useDocketState(useCallback((state) => state.charges[desk], [desk]));
+  const defaultCharge = React.useMemo(
+    () => ({
+      desk,
+      ship: '',
+      color: '0x0',
+      title: '',
+      description: '',
+      href: {
+        site: '',
+      },
+      chad: {},
+    }),
+    [desk]
+  );
+  return useDocketState(
+    useCallback(
+      (state) => state.charges[desk] ?? defaultCharge,
+      [desk, defaultCharge]
+    )
+  );
 }
 
 const selRequest = (s: DocketState) => s.requestTreaty;

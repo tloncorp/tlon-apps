@@ -1,7 +1,5 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
-import _ from 'lodash';
-import f from 'lodash/fp';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ChatSeal } from '@/types/chat';
 import { useChatState } from '@/state/chat';

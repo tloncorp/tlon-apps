@@ -271,8 +271,8 @@
   ^+  cor
   ?+  pole  ~|(bad-watch/pole !!)
     [%init ~]             (give %kick ~ ~)
-    [%groups %ui ~]       cor
     [%groups ~]           cor
+    [%groups %ui ~]       cor
     [%gangs %updates ~]   cor
   ::
     [%epic ~]  (give %fact ~ epic+!>(okay))
@@ -305,23 +305,12 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
+      [%x %gangs ~]  ``gangs+!>(xeno)
+      [%x %init ~]  ``noun+!>([groups-light xeno])
+      [%x %groups %light ~]  ``groups+!>(groups-light)
+  ::
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
-  ::
-      [%x %groups %light ~]
-    =-  ``groups+!>(-)
-    ^-  groups:g
-    %-  ~(run by groups)
-    |=  [=net:g =group:g]
-    =.  fleet.group
-      ::  not sure how this would be the case, but better to be safe
-      ?.  (~(has by fleet.group) our.bowl)
-        *fleet:g
-      (~(put by *fleet:g) our.bowl (~(got by fleet.group) our.bowl))
-    group
-  ::
-      [%x %gangs ~]
-    ``gangs+!>(`gangs:g`xeno)
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
@@ -334,6 +323,15 @@
       ``noun+!>((~(has by groups) [src name.pole]))
   ==
 ::
+++  groups-light
+  ^-  groups:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  =.  fleet.group
+    %+  ~(put by *fleet:g)
+      our.bowl
+    (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+  group
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
@@ -718,7 +716,7 @@
   ++  go-channel-hosts
     ^-  (set ship)
     %-  ~(gas in *(set ship))
-    %+  turn  
+    %+  turn
       ~(tap by channels.group)
     |=  [=nest:g *]
     p.q.nest
@@ -753,18 +751,16 @@
         [flag now.bowl %fleet (silt our.bowl ~) %del ~]
       [%pass wire %agent dock %poke cage]
     ::
-    ++  join-pinned
+    ++  join-channels
+      |=  nests=(list nest:g)
       ^-  (list card)
       %+  turn
-        %+  skim
-          ~(tap by channels.group)
-        |=  [nes=nest:g =channel:g]
-        join.channel
-      |=  [nes=nest:g =channel:g]
+          nests
+      |=  nes=nest:g
       ^-  card
       =/  =dock  [our.bowl p.nes] :: TODO: generally remove chat hard-coding j
       =/  =cage  channel-join+!>([flag q.nes])
-      =/  =wire  (snoc go-area %join-pinned)
+      =/  =wire  (snoc go-area %join-channels)
       [%pass wire %agent dock %poke cage]
     --
   ::
@@ -928,7 +924,7 @@
     ?+  wire  !!
         [%updates ~]  (go-take-update sign)
     ::
-        [%join-pinned ~]
+        [%join-channels ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign
         go-core
@@ -1016,7 +1012,8 @@
   ++  go-proxy
     |=  =update:g
     ^+  go-core
-    ?>  go-is-bloc
+    =*  diff  q.update
+    ?>  ?|(go-is-bloc ?&(?=(%fleet -.diff) ?=([%add ~] q.diff)))
     =/  =wire  (snoc go-area %proxy)
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  group-action+!>([flag update])
@@ -1057,7 +1054,7 @@
     =.  cor
       (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
     =.  cor
-      (emil join-pinned:go-pass)
+      (emil (join-channels:go-pass ~(tap in ~(key by channels.group))))
     go-core
   ::
   ++  go-give-update
@@ -1187,7 +1184,7 @@
       ?-  -.diff
       ::
           %add-ships
-        ?<  ?|  &((~(has in p.diff) our.bowl) =(p.flag our.bowl))              
+        ?<  ?|  &((~(has in p.diff) our.bowl) =(p.flag our.bowl))
                 %+  lth  0
                 %~  wyt  in
                 (~(int in p.diff) go-channel-hosts)
@@ -1311,7 +1308,6 @@
                   ?(%open %afar)  |
                   %shut
                 =/  cross  (~(int in pend.cordon) ships)
-                ~&  [cross ~(wyt in ships) ~(wyt in cross)]
                 !=(~(wyt in ships) ~(wyt in cross))
               ==
           ==
@@ -1354,7 +1350,7 @@
       ==
     ::
         %del
-      ?<  ?|  &((~(has in ships) our.bowl) =(p.flag our.bowl))              
+      ?<  ?|  &((~(has in ships) our.bowl) =(p.flag our.bowl))
               %+  lth  0
               %~  wyt  in
               (~(int in ships) go-channel-hosts)
@@ -1464,6 +1460,8 @@
             ==
         ==
       =.  cor  (emit (pass-hark & & yarn))
+      ?:  =(our.bowl p.flag)  go-core
+      =.  cor  (emil (join-channels:go-pass ~[ch]))
       go-core
     ::
         %edit
@@ -1714,7 +1712,6 @@
           ga-core
           ::
             %kick
-          ~&  [(~(has by xeno) flag) (~(has by groups) flag) pev.gang]
           ?.  (~(has by xeno) flag)  ga-core
           ?^  pev.gang  ga-core
           ga-core(cor (emit get-preview:ga-pass))

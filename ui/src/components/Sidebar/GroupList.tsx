@@ -7,7 +7,11 @@ import GroupListPlaceholder from './GroupListPlaceholder';
 import GroupsSidebarItem from './GroupsSidebarItem';
 
 function itemContent(_i: number, [flag, _group]: [string, Group]) {
-  return <GroupsSidebarItem key={flag} flag={flag} />;
+  return (
+    <div className="px-4 sm:px-2">
+      <GroupsSidebarItem key={flag} flag={flag} />
+    </div>
+  );
 }
 
 interface GroupListProps {
@@ -63,7 +67,7 @@ export default function GroupList({
       computeItemKey={(_i, [flag]) => flag}
       itemContent={itemContent}
       components={components}
-      className="h-full w-full overflow-x-hidden"
+      className="h-full w-full list-none overflow-x-hidden"
       isScrolling={isScrolling}
       atTopStateChange={atTopChange}
     />

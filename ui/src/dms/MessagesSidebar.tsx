@@ -1,10 +1,9 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
 import Filter16Icon from '@/components/icons/Filter16Icon';
-import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
-import { useBriefs, usePinned } from '@/state/chat';
+import { usePinned } from '@/state/chat';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -22,6 +21,8 @@ import { Link, useLocation } from 'react-router-dom';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroupState } from '@/state/groups';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import SystemChrome from '@/components/Sidebar/SystemChrome';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -33,9 +34,9 @@ const selMessagesFilter = (s: SettingsState) => ({
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+
   return (
     <SidebarItem
-      div
       className={cn(
         menuOpen
           ? 'bg-gray-100 text-gray-800'
@@ -94,6 +95,7 @@ export function TalkAppMenu() {
     >
       <div className="flex items-center justify-between">
         Talk
+        <ReconnectingSpinner className="h-4 w-4 group-hover:hidden" />
         <a
           title="Back to Landscape"
           aria-label="Back to Landscape"
@@ -121,7 +123,7 @@ export default function MessagesSidebar() {
     const nest = `chat/${p}`;
     const { groups } = useGroupState.getState();
     const groupFlag = Object.entries(groups).find(
-      ([k, v]) => nest in v.channels
+      ([, v]) => nest in v.channels
     )?.[0];
     const channel = groups[groupFlag || '']?.channels[nest];
     return !!channel || whomIsDm(p) || whomIsMultiDm(p);
@@ -139,14 +141,11 @@ export default function MessagesSidebar() {
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
-      <ul
-        className={cn(
-          'flex w-full flex-col space-y-1 p-2',
-          !atTop && 'bottom-shadow'
-        )}
+      <div
+        className={cn('flex w-full flex-col p-2', !atTop && 'bottom-shadow')}
       >
         <TalkAppMenu />
-        <div className="h-5" />
+        <SystemChrome />
         <SidebarItem
           icon={<Avatar size="xs" ship={window.our} />}
           to={'/profile/edit'}
@@ -156,44 +155,36 @@ export default function MessagesSidebar() {
         <SidebarItem to="/dm/new" icon={<AddIcon className="m-1 h-4 w-4" />}>
           New Message
         </SidebarItem>
-      </ul>
-      <MessagesScrollingContext.Provider value={isScrolling}>
-        <MessagesList
-          filter={messagesFilter}
-          atTopChange={atTopChange}
-          isScrolling={scroll.current}
-        >
-          <div className="flex w-full flex-col space-y-3 overflow-x-hidden px-2 sm:space-y-1">
+      </div>
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <MessagesScrollingContext.Provider value={isScrolling}>
+          <MessagesList
+            filter={messagesFilter}
+            atTopChange={atTopChange}
+            isScrolling={scroll.current}
+          >
             {filteredPins && filteredPins.length > 0 ? (
-              <>
-                <div className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-                  <span className="ml-4 text-sm font-semibold text-gray-400">
-                    Pinned Messages
-                  </span>
-                </div>
+              <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 px-2 pb-1">
+                <h2 className="my-2 px-2 text-sm font-bold text-gray-400">
+                  Pinned Messages
+                </h2>
+
                 {filteredPins.map((ship: string) => (
                   <MessagesSidebarItem key={ship} whom={ship} />
                 ))}
-              </>
+              </div>
             ) : null}
-            <div className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-              <span className="ml-4 text-sm font-semibold text-gray-400">
-                Messages
-              </span>
-            </div>
-            <div className="p-2">
+
+            <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 px-4 pt-2 pb-1">
+              <h2 className="text-sm font-bold text-gray-400">
+                {messagesFilter}
+              </h2>
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger
-                  className={
-                    'default-focus flex w-full items-center justify-between space-x-2 rounded-lg bg-gray-50 px-2 py-1 text-sm font-semibold'
-                  }
+                  className={'default-focus'}
                   aria-label="Groups Filter Options"
                 >
-                  <span className="flex items-center">
-                    <Filter16Icon className="w-4 text-gray-400" />
-                    <span className="pl-1">Filter: {messagesFilter}</span>
-                  </span>
-                  <CaretDown16Icon className="w-4 text-gray-400" />
+                  <Filter16Icon className="w-4 text-gray-400" />
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content className="dropdown w-56 text-gray-600">
                   <DropdownMenu.Item
@@ -229,9 +220,9 @@ export default function MessagesSidebar() {
                 </DropdownMenu.Content>
               </DropdownMenu.Root>
             </div>
-          </div>
-        </MessagesList>
-      </MessagesScrollingContext.Provider>
+          </MessagesList>
+        </MessagesScrollingContext.Provider>
+      </div>
     </nav>
   );
 }

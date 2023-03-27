@@ -13,12 +13,12 @@ export default function DmInvite({ ship }: DmInviteProps) {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const navigate = useNavigate();
   const contact = useContact(ship);
-  const onAccept = () => {
-    useChatState.getState().dmRsvp(ship, true);
+  const onAccept = async () => {
+    await useChatState.getState().dmRsvp(ship, true);
   };
-  const onDecline = () => {
+  const onDecline = async () => {
     navigate(-1);
-    useChatState.getState().dmRsvp(ship, false);
+    await useChatState.getState().dmRsvp(ship, false);
   };
   return (
     <div className="relative flex h-full w-full">

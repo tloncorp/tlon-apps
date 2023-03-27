@@ -7,6 +7,7 @@ import {
   HeapCurioMap,
   HeapDisplayMode,
   HeapFlag,
+  HeapInit,
 } from '@/types/heap';
 
 export interface HeapState {
@@ -25,8 +26,9 @@ export interface HeapState {
   briefs: HeapBriefs;
   pendingImports: Record<string, boolean>;
   create: (req: HeapCreate) => Promise<void>;
-  start: () => Promise<void>;
+  start: (heap: HeapInit) => Promise<void>;
   initialize: (flag: HeapFlag) => Promise<void>;
+  initImports: (init: Record<string, boolean>) => void;
   joinHeap: (groupFlag: string, flag: HeapFlag) => Promise<void>;
   leaveHeap: (flag: HeapFlag) => Promise<void>;
   viewHeap: (flag: HeapFlag, view: HeapDisplayMode) => Promise<void>;

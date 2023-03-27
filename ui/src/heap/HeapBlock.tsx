@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { HeapCurio, isLink } from '@/types/heap';
 import cn from 'classnames';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
@@ -24,6 +24,8 @@ import { inlineToString } from '@/logic/tiptap';
 import ConfirmationModal from '@/components/ConfirmationModal';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
+import { useNavigate } from 'react-router';
+import useLongPress from '@/logic/useLongPress';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -36,6 +38,7 @@ interface TopBarProps extends CurioDisplayProps {
   isTwitter?: boolean;
   hasIcon?: boolean;
   canEdit: boolean;
+  longPress: boolean;
 }
 
 function TopBar({
@@ -43,6 +46,7 @@ function TopBar({
   isTwitter = false,
   refToken = undefined,
   asRef = false,
+  longPress = false,
   time,
   canEdit,
 }: TopBarProps) {
@@ -61,11 +65,12 @@ function TopBar({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className={
-        hasIcon || isTwitter
-          ? 'absolute hidden w-full items-center justify-between px-4 group-hover:flex'
-          : 'absolute hidden w-full items-center justify-end px-4 group-hover:flex'
-      }
+      className={cn('absolute w-full select-none items-center px-4', {
+        'justify-between': hasIcon || isTwitter,
+        'justify-end': !hasIcon && !isTwitter,
+        flex: longPress,
+        'hidden group-hover:flex': !longPress,
+      })}
     >
       {isTwitter ? <TwitterIcon className="m-2 h-6 w-6" /> : null}
       {hasIcon ? <div className="m-2 h-6 w-6" /> : null}
@@ -76,7 +81,7 @@ function TopBar({
         })}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="hidden group-hover:block">
+        <div className={longPress ? 'block' : 'hidden group-hover:block'}>
           {asRef ? (
             <button
               onClick={navigateToCurio}
@@ -100,7 +105,11 @@ function TopBar({
           )}
         </div>
         {canEdit && (
-          <div className="relative hidden group-hover:block">
+          <div
+            className={
+              longPress ? 'relative' : 'relative hidden group-hover:block'
+            }
+          >
             {asRef ? (
               <IconButton
                 icon={<ElipsisSmallIcon className="h-4 w-4" />}
@@ -165,11 +174,18 @@ function TopBar({
 interface BottomBarProps {
   curio: HeapCurio;
   provider: string;
+  longPress: boolean;
   title?: string;
   asRef?: boolean;
 }
 
-function BottomBar({ curio, provider, title, asRef }: BottomBarProps) {
+function BottomBar({
+  curio,
+  provider,
+  title,
+  asRef,
+  longPress,
+}: BottomBarProps) {
   const { content, sent } = curio.heart;
   const replyCount = curio.seal.replied.length;
   const url =
@@ -183,8 +199,15 @@ function BottomBar({ curio, provider, title, asRef }: BottomBarProps) {
   }
 
   return (
-    <div className="absolute bottom-0 -mx-2 h-[50px] w-full">
-      <div className="hidden h-[50px] w-full border-t-2 border-gray-100 bg-white p-2 group-hover:block">
+    <div className="absolute bottom-0 -mx-2 h-[50px] w-full select-none">
+      <div
+        className={cn(
+          'h-[50px] w-full border-t-2 border-gray-100 bg-white p-2',
+          {
+            'hidden group-hover:block': !longPress,
+          }
+        )}
+      >
         <div className="flex flex-col">
           <span className="truncate font-semibold text-gray-800">
             {title ? title : url}
@@ -206,6 +229,36 @@ function BottomBar({ curio, provider, title, asRef }: BottomBarProps) {
   );
 }
 
+function HeapBlockWrapper({
+  time,
+  setLongPress,
+  children,
+}: React.PropsWithChildren<{
+  time: string;
+  setLongPress: (b: boolean) => void;
+}>) {
+  const navigate = useNavigate();
+  const { action, handlers } = useLongPress();
+  const navigateToDetail = useCallback(
+    (blockTime: string) => {
+      navigate(`curio/${blockTime}`);
+    },
+    [navigate]
+  );
+
+  useEffect(() => {
+    if (action === 'click') {
+      navigateToDetail(time);
+    }
+
+    if (action === 'longpress') {
+      setLongPress(true);
+    }
+  }, [action, navigateToDetail, time, setLongPress]);
+
+  return <div {...handlers}>{children}</div>;
+}
+
 interface HeapBlockProps extends CurioDisplayProps {
   curio: HeapCurio;
   isComment?: boolean;
@@ -219,6 +272,7 @@ export default function HeapBlock({
   refToken = undefined,
 }: HeapBlockProps) {
   const [embed, setEmbed] = useState<any>();
+  const [longPress, setLongPress] = useState(false);
   const { content } = curio.heart;
   const url =
     content.inline.length > 0 && isLink(content.inline[0])
@@ -233,117 +287,133 @@ export default function HeapBlock({
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
-  const canEdit = isAdmin || window.our === curio.heart.author;
+  const canEdit = asRef ? false : isAdmin || window.our === curio.heart.author;
+  const notEmbed = isImage && isAudio && isText && isComment;
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(url)) {
-        const oembed = await useEmbedState.getState().getEmbed(url);
-        setEmbed(oembed);
+      if (isValidUrl(url) && !notEmbed && !calm.disableRemoteContent) {
+        try {
+          const oembed = await useEmbedState.getState().getEmbed(url);
+          setEmbed(oembed);
+        } catch (e) {
+          setEmbed(null);
+          console.log("HeapBlock::getOembed: couldn't get embed", e);
+        }
       }
     };
     getOembed();
-  }, [url]);
+  }, [url, notEmbed, calm]);
 
-  if (isValidUrl(url) && embed === undefined) {
+  if (isValidUrl(url) && embed === undefined && !notEmbed) {
     return <HeapLoadingBlock />;
   }
 
   const cnm = (refClass?: string) =>
     asRef ? refClass || '' : 'heap-block group';
-  const topBar = { time, refToken };
-  const botBar = { curio, asRef };
+  const topBar = { time, refToken, longPress };
+  const botBar = { curio, asRef, longPress };
 
   if (isComment) {
     return (
-      <div className={cnm()}>
-        <TopBar hasIcon canEdit={canEdit} {...topBar} />
-        <div className="flex grow flex-col">
-          <ChatContent
-            story={{ block: content.block, inline: content.inline }}
+      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+        <div className={cnm()}>
+          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <div className="flex grow flex-col">
+            <ChatContent
+              story={{ block: content.block, inline: content.inline }}
+            />
+          </div>
+          <BottomBar
+            {...botBar}
+            provider="Urbit Reference"
+            title={curio.heart.title || 'Urbit Reference'}
           />
         </div>
-        <BottomBar
-          {...botBar}
-          provider="Urbit Reference"
-          title={curio.heart.title || 'Urbit Reference'}
-        />
-      </div>
+      </HeapBlockWrapper>
     );
   }
 
   if (content.block.length > 0 && 'cite' in content.block[0]) {
     return (
-      <div className={cnm()}>
-        <TopBar hasIcon canEdit={canEdit} {...topBar} />
-        <div className="flex grow flex-col items-center justify-center">
-          <HeapContent
-            className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
-            content={content}
+      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+        <div className={cnm()}>
+          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <div className="flex grow flex-col items-center justify-center">
+            <HeapContent
+              className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
+              content={content}
+            />
+          </div>
+          <BottomBar
+            {...botBar}
+            provider="Urbit Reference"
+            title={curio.heart.title || 'Urbit Reference'}
           />
         </div>
-        <BottomBar
-          {...botBar}
-          provider="Urbit Reference"
-          title={curio.heart.title || 'Urbit Reference'}
-        />
-      </div>
+      </HeapBlockWrapper>
     );
   }
 
   if (isText) {
     return (
-      <div className={cnm()}>
-        <TopBar hasIcon canEdit={canEdit} {...topBar} />
-        <HeapContent
-          className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
-          leading-6
-          content={content}
-        />
-        <BottomBar
-          {...botBar}
-          provider="Text"
-          title={
-            curio.heart.title || _.truncate(textFallbackTitle, { length: 20 })
-          }
-        />
-      </div>
+      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+        <div className={cnm()}>
+          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <HeapContent
+            className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
+            leading-6
+            content={content}
+          />
+          <BottomBar
+            {...botBar}
+            provider="Text"
+            title={
+              curio.heart.title || _.truncate(textFallbackTitle, { length: 20 })
+            }
+          />
+        </div>
+      </HeapBlockWrapper>
     );
   }
 
   if (isImage && !calm?.disableRemoteContent) {
     return (
-      <div
-        className={cnm(
-          'h-full w-full bg-gray-50 bg-contain bg-center bg-no-repeat'
-        )}
-        style={{
-          backgroundImage: `url(${url})`,
-        }}
-      >
-        <TopBar canEdit {...topBar} />
-        <BottomBar
-          {...botBar}
-          provider="Image"
-          title={curio.heart.title || url}
-        />
-      </div>
+      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+        <div
+          className={cnm(
+            'h-full w-full bg-gray-50 bg-contain bg-center bg-no-repeat'
+          )}
+          style={{
+            backgroundImage: `url(${url})`,
+          }}
+        >
+          <TopBar canEdit={canEdit} {...topBar} />
+          <BottomBar
+            {...botBar}
+            provider="Image"
+            title={curio.heart.title || url}
+          />
+        </div>
+      </HeapBlockWrapper>
     );
   }
 
   if (isAudio && !calm?.disableRemoteContent) {
     return (
-      <div className={cnm()}>
-        <TopBar hasIcon canEdit {...topBar} />
-        <div className="flex grow flex-col items-center justify-center">
-          <MusicLargeIcon className="h-16 w-16 text-gray-300" />
+      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+        <div className={cnm()}>
+          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <div className="flex grow flex-col items-center justify-center">
+            <MusicLargeIcon className="h-16 w-16 text-gray-300" />
+          </div>
+          <BottomBar
+            {...botBar}
+            provider="Audio"
+            title={curio.heart.title || url}
+          />
         </div>
-        <BottomBar
-          {...botBar}
-          provider="Audio"
-          title={curio.heart.title || url}
-        />
-      </div>
+      </HeapBlockWrapper>
     );
   }
 
@@ -354,15 +424,17 @@ export default function HeapBlock({
 
     if (thumbnail) {
       return (
-        <div
-          className={cnm('h-full w-full bg-cover bg-center bg-no-repeat')}
-          style={{
-            backgroundImage: `url(${thumbnail})`,
-          }}
-        >
-          <TopBar canEdit={canEdit} {...topBar} />
-          <BottomBar {...botBar} provider={provider} title={title || url} />
-        </div>
+        <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+          <div
+            className={cnm('h-full w-full bg-cover bg-center bg-no-repeat')}
+            style={{
+              backgroundImage: `url(${thumbnail})`,
+            }}
+          >
+            <TopBar canEdit={canEdit} {...topBar} />
+            <BottomBar {...botBar} provider={provider} title={title || url} />
+          </div>
+        </HeapBlockWrapper>
       );
     }
     if (provider === 'Twitter') {
@@ -370,26 +442,46 @@ export default function HeapBlock({
       const twitterHandle = embed.author_url.split('/').pop();
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
-        <div className={cnm()}>
-          <TopBar isTwitter canEdit={canEdit} {...topBar} />
-          <div className="flex grow flex-col items-center justify-center space-y-2">
-            <img
-              className="h-[46px] w-[46px] rounded-full"
-              src={twitterProfilePic}
-              alt={author}
+        <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+          <div className={cnm()}>
+            <TopBar isTwitter canEdit={canEdit} {...topBar} />
+            <div className="flex grow flex-col items-center justify-center space-y-2">
+              <img
+                className="h-[46px] w-[46px] rounded-full"
+                src={twitterProfilePic}
+                alt={author}
+              />
+              <span className="font-semibold text-black">{author}</span>
+              <span className="text-gray-300">@{twitterHandle}</span>
+            </div>
+            <BottomBar
+              {...botBar}
+              provider={provider}
+              title={twitterHandle || url}
             />
-            <span className="font-semibold text-black">{author}</span>
-            <span className="text-gray-300">@{twitterHandle}</span>
           </div>
-          <BottomBar
-            {...botBar}
-            provider={provider}
-            title={twitterHandle || url}
-          />
-        </div>
+        </HeapBlockWrapper>
       );
     }
     return (
+      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+        <div className={cnm()}>
+          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <div className="flex grow flex-col items-center justify-center">
+            <LinkIcon className="h-16 w-16 text-gray-300" />
+          </div>
+          <BottomBar
+            {...botBar}
+            provider={provider ? provider : 'Link'}
+            title={title || url}
+          />
+        </div>
+      </HeapBlockWrapper>
+    );
+  }
+
+  return (
+    <HeapBlockWrapper time={time} setLongPress={setLongPress}>
       <div className={cnm()}>
         <TopBar hasIcon canEdit={canEdit} {...topBar} />
         <div className="flex grow flex-col items-center justify-center">
@@ -397,20 +489,10 @@ export default function HeapBlock({
         </div>
         <BottomBar
           {...botBar}
-          provider={provider ? provider : 'Link'}
-          title={title || url}
+          provider="Link"
+          title={curio.heart.title || url}
         />
       </div>
-    );
-  }
-
-  return (
-    <div className={cnm()}>
-      <TopBar hasIcon canEdit={canEdit} {...topBar} />
-      <div className="flex grow flex-col items-center justify-center">
-        <LinkIcon className="h-16 w-16 text-gray-300" />
-      </div>
-      <BottomBar {...botBar} provider="Link" title={curio.heart.title || url} />
-    </div>
+    </HeapBlockWrapper>
   );
 }

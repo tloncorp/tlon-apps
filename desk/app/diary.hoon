@@ -508,23 +508,25 @@
   ?+  path  [~ ~]
   ::
     [%x %imp ~]    ``migrate-map+!>(imp)
-  ::
     [%x %shelf ~]  ``shelf+!>(shelf)
+    [%x %init ~]   ``noun+!>([briefs shelf])
+    [%x %briefs ~]  ``diary-briefs+!>(briefs)
   ::
       [%x %diary @ @ *]
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path
     (di-peek:(di-abed:di-core ship name) t.t.t.t.path)
     ::
-      [%x %briefs ~]
-    =-  ``diary-briefs+!>(-)
-    ^-  briefs:d
-    %-  ~(gas by *briefs:d)
-    %+  turn  ~(tap in ~(key by shelf))
-    |=  =flag:d
-    :-  flag
-    di-brief:(di-abed:di-core flag)
+    
   ==
+::
+++  briefs
+  ^-  briefs:d
+  %-  ~(gas by *briefs:d)
+  %+  turn  ~(tap in ~(key by shelf))
+  |=  =flag:d
+  :-  flag
+  di-brief:(di-abed:di-core flag)
 ::
 ++  give-brief
   |=  [=flag:d =brief:briefs:d]

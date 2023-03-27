@@ -1,4 +1,5 @@
 import { nestToFlag, citeToPath, useCopy } from '@/logic/utils';
+import { useGroupFlag } from '@/state/groups';
 import { useHeapState } from '@/state/heap/heap';
 import { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router';
@@ -16,6 +17,7 @@ export default function useCurioActions({
 }: useCurioActionsProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const flag = useGroupFlag();
   const [, chFlag] = nestToFlag(nest);
   const chanPath = citeToPath({
     chan: {
@@ -27,17 +29,17 @@ export default function useCurioActions({
 
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const onDelete = useCallback(() => {
+  const onDelete = useCallback(async () => {
     setMenuOpen(false);
-    useHeapState.getState().delCurio(chFlag, time);
+    await useHeapState.getState().delCurio(chFlag, time);
   }, [chFlag, time]);
 
   const onEdit = useCallback(() => {
     setMenuOpen(false);
-    navigate(`curio/${time}/edit`, {
+    navigate(`/groups/${flag}/channels/heap/${chFlag}/curio/${time}/edit`, {
       state: { backgroundLocation: location },
     });
-  }, [location, navigate, time]);
+  }, [location, navigate, time, flag, chFlag]);
 
   const navigateToCurio = useCallback(() => {
     navigate(`/groups/${refToken}`);

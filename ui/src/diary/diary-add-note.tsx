@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import _ from 'lodash';
 import CoverImageInput from '@/components/CoverImageInput';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
 import { diaryMixedToJSON, JSONToInlines } from '@/logic/tiptap';
 import { useDiaryState, useNote } from '@/state/diary';
@@ -14,12 +14,16 @@ import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
 import { Inline } from '@/types/content';
 import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import PencilIcon from '@/components/icons/PencilIcon';
+import { useIsMobile } from '@/logic/useMedia';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const group = useRouteGroup();
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [idNote, note] = useNote(chFlag, id || '');
   const [status, setStatus] = useState<Status>('initial');
@@ -35,7 +39,8 @@ export default function DiaryAddNote() {
     async function load() {
       await useDiaryState.getState().initialize(chFlag);
       if (loading) {
-        useDiaryState.getState().fetchNote(chFlag, id!);
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await useDiaryState.getState().fetchNote(chFlag, id!);
       }
     }
 
@@ -126,32 +131,45 @@ export default function DiaryAddNote() {
       className="align-center w-full flex-1 bg-white"
       mainClass="overflow-y-auto"
       header={
-        <header className="flex h-full items-center justify-between border-b-2 border-gray-50 bg-white p-4">
+        <header
+          className={cn(
+            'flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4'
+          )}
+        >
           <Link
-            to="../.."
-            className="flex h-8 w-8 items-center justify-center rounded bg-gray-50"
-            aria-label="Back to notebook"
-          >
-            <CaretLeftIcon className="h-6 w-6 text-gray-600" />
-          </Link>
-          <button
-            disabled={!editor?.getText() || status === 'loading'}
+            to={!editor?.getText() ? `../..` : `../../note/${id}`}
             className={cn(
-              'button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:text-black dark:disabled:text-gray-400'
+              'default-focus ellipsis -ml-2 -mt-2 -mb-2 inline-flex appearance-none items-center rounded-md p-2 pr-4 text-lg font-bold text-gray-800 hover:bg-gray-50 sm:text-base sm:font-semibold',
+              isMobile && ''
             )}
-            onClick={publish}
+            aria-label="Exit Editor"
           >
-            {status === 'loading' ? (
-              <>
-                <LoadingSpinner className="mr-2 h-4 w-4" />
-                Publishing
-              </>
-            ) : status === 'error' ? (
-              'Error'
-            ) : (
-              'Publish'
-            )}
-          </button>
+            <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
+
+            <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
+              <PencilIcon className="h-3 w-3 text-gray-400" />
+            </div>
+            <span className="ellipsis line-clamp-1">Editing</span>
+          </Link>
+
+          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+            {isMobile && <ReconnectingSpinner />}
+            <button
+              disabled={!editor?.getText() || status === 'loading'}
+              className={cn(
+                'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
+              )}
+              onClick={publish}
+            >
+              {status === 'loading' ? (
+                <LoadingSpinner className="h-4 w-4" />
+              ) : status === 'error' ? (
+                'Error'
+              ) : (
+                'Save'
+              )}
+            </button>
+          </div>
         </header>
       }
     >

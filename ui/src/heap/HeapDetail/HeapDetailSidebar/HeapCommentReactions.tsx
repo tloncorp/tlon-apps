@@ -32,7 +32,7 @@ export default function HeapCommentReactions({
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
   return (
-    <div className="my-2 flex items-center space-x-2">
+    <div className="mt-2 flex items-center space-x-2">
       {Object.entries(feels).map(([feel, ships]) => (
         <HeapCommentReaction
           key={feel}

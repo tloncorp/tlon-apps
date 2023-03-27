@@ -11,12 +11,12 @@ interface AppReferenceProps {
   isScrolling: boolean;
 }
 
-export default function AppReference({ flag, isScrolling }: AppReferenceProps) {
+function AppReference({ flag, isScrolling }: AppReferenceProps) {
   const { ship, name: deskId } = getFlagParts(flag);
   const treaty = useTreaty(ship, deskId);
   const calm = useCalm();
   const dark = useIsDark();
-  const href = `/apps/grid/leap/search/${ship}/apps/${ship}/${deskId}`;
+  const href = `/apps/grid/search/${ship}/apps/${ship}/${deskId}`;
 
   function openLink() {
     window.open(`${window.location.origin}${href}`);
@@ -94,3 +94,5 @@ export default function AppReference({ flag, isScrolling }: AppReferenceProps) {
     </div>
   );
 }
+
+export default React.memo(AppReference);

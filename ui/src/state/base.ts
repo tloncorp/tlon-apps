@@ -205,7 +205,8 @@ export async function doOptimistically<A, S extends Record<string, unknown>>(
 export async function pokeOptimisticallyN<A, S extends Record<string, unknown>>(
   state: UseStore<S & BaseState<S>>,
   poke: Poke<any>,
-  reduce: ((a: A, fn: S & BaseState<S>) => S & BaseState<S>)[]
+  reduce: ((a: A, fn: S & BaseState<S>) => S & BaseState<S>)[],
+  withRollback = true
 ) {
   let num: string | undefined;
   try {
@@ -213,6 +214,10 @@ export async function pokeOptimisticallyN<A, S extends Record<string, unknown>>(
     await api.poke(poke);
     state.getState().removePatch(num);
   } catch (e) {
+    if (!withRollback) {
+      throw e;
+    }
+
     console.error(e);
     if (num) {
       state.getState().rollback(num);

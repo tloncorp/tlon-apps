@@ -110,7 +110,6 @@ module.exports = {
     fontFamily: {
       sans: [
         'Inter',
-        'Inter UI',
         '-apple-system',
         'BlinkMacSystemFont',
         'San Francisco',
@@ -145,6 +144,25 @@ module.exports = {
         8: '8',
         9: '9',
       },
+      zIndex: {
+        45: '45',
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            code: {
+              display: 'inline-block',
+              padding: '0 0.25rem',
+            },
+            'code::before': {
+              content: '""',
+            },
+            'code::after': {
+              content: '""',
+            },
+          },
+        },
+      },
     },
   },
   screens: {
@@ -171,5 +189,6 @@ module.exports = {
     }),
     require('@tailwindcss/line-clamp'),
     require('@tailwindcss/typography'),
+    require('@tailwindcss/container-queries'),
   ],
 };

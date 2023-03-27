@@ -18,7 +18,7 @@ import {
   ClearIndicatorProps,
   InputActionMeta,
 } from 'react-select';
-import { includes } from 'lodash';
+import _, { includes } from 'lodash';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
 import { deSig } from '@urbit/api';
@@ -31,7 +31,6 @@ import { MAX_DISPLAYED_OPTIONS } from '@/constants';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
-import _ from 'lodash';
 import ShipName from './ShipName';
 import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
 

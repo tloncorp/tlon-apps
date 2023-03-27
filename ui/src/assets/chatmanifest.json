@@ -1,11 +1,12 @@
 {
   "name": "Talk",
   "short_name": "Talk",
-  "start_url": "./apps/talk",
-  "scope": "./",
+  "start_url": "/apps/talk/",
+  "scope": "/apps/talk/",
+  "id": "/apps/talk/",
   "icons": [
     {
-      "src": "/apps/grid/android-chrome-512x512.png",
+      "src": "/apps/talk/talk.svg",
       "sizes": "512x512",
       "type": "image/png"
     }

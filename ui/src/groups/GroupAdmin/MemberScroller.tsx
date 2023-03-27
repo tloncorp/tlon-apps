@@ -9,13 +9,17 @@ interface MemberScrollerProps {
 
 const Components: VirtuosoComponents<string> = {
   List: forwardRef((props, listRef) => (
-    <div className="h-full w-full space-y-6 py-2" {...props} ref={listRef}>
+    <div className="h-full w-full" {...props} ref={listRef}>
       {props.children}
     </div>
   )),
   Item: forwardRef((props, itemRef) => (
-    // @ts-expect-error tsc complains about the ref prop, but it's fine
-    <div className="flex items-center font-semibold" {...props} ref={itemRef}>
+    <div
+      className="flex items-center border-t border-gray-100 py-3 font-semibold hover:bg-gray-50"
+      {...props}
+      // @ts-expect-error tsc complains about the ref prop, but it's fine
+      ref={itemRef}
+    >
       {props.children}
     </div>
   )),

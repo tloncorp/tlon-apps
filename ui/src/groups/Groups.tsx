@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Outlet, useMatch, useNavigate } from 'react-router';
 import {
   useGang,
@@ -32,11 +32,24 @@ function Groups() {
   const { recentChannel } = useRecentChannel(flag);
 
   useEffect(() => {
+    // 1) If we've initialized and the group doesn't exist and you don't have
+    // an invite to it, navigate back to home.
+    // 2) If we've initialized and we have a group and we're at the root of
+    // that group (/~ship/group-name), then check if we have stored a "recent
+    // channel" for that group that matches one of the group's current channels.
+    // 3) If we found a channel that matches what we have for "recent channel"
+    // and you can read that channel (and you're not on mobile), navigate
+    // directly to that channel.
+    // 4) If we don't have a recent channel, grab a channel from our briefs for
+    // that group, check if we can read it, and if we're not on mobile, then
+    // navigate to that channel.
+    // 5) If we're on mobile, just navigate to the channel list for the group.
+
     if (initialized && !group && !gang) {
       navigate('/');
     } else if (initialized && group && root) {
       const found = Object.entries(group.channels).find(
-        ([nest, channel]) => recentChannel === nest
+        ([nest, _c]) => recentChannel === nest
       );
 
       let canRead = found && canReadChannel(found[1], vessel, group?.bloc);
@@ -77,7 +90,7 @@ function Groups() {
     let id = null as number | null;
     useGroupState
       .getState()
-      .initialize(flag)
+      .initialize(flag, true)
       .then((i) => {
         id = i;
       });

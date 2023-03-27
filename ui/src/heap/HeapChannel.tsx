@@ -146,22 +146,19 @@ function HeapChannel({ title }: ViewProps) {
       i === 0 && canWrite ? (
         <NewCurioForm />
       ) : (
-        <div
-          key={time.toString()}
-          tabIndex={0}
-          className="cursor-pointer"
-          onClick={() => navigateToDetail(time)}
-        >
+        <div key={time.toString()} tabIndex={0} className="cursor-pointer">
           {displayMode === GRID ? (
             <div className="aspect-h-1 aspect-w-1">
               <HeapBlock curio={curio} time={time.toString()} />
             </div>
           ) : (
-            <HeapRow
-              key={time.toString()}
-              curio={curio}
-              time={time.toString()}
-            />
+            <div onClick={() => navigateToDetail(time)}>
+              <HeapRow
+                key={time.toString()}
+                curio={curio}
+                time={time.toString()}
+              />
+            </div>
           )}
         </div>
       ),

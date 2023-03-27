@@ -19,7 +19,6 @@ import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import {
   fetchChatBlocks,
-  useChatBlocks,
   useChatInfo,
   useChatStore,
 } from '@/chat/useChatStore';
@@ -46,7 +45,6 @@ import {
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
-import { useSubscriptionStatus } from '@/state/local';
 import { useSearchParams } from 'react-router-dom';
 import { useGroupFlag } from '@/state/groups';
 import { useLocalStorage } from 'usehooks-ts';
@@ -115,7 +113,6 @@ export default function ChatInput({
   );
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const groupFlag = useGroupFlag();
-  const subscription = useSubscriptionStatus();
   const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
@@ -293,13 +290,10 @@ export default function ChatInput({
     allowMentions: true,
     onEnter: useCallback(
       ({ editor }) => {
-        if (subscription === 'connected') {
-          onSubmit(editor);
-          return true;
-        }
-        return false;
+        onSubmit(editor);
+        return true;
       },
-      [onSubmit, subscription]
+      [onSubmit]
     ),
     onUpdate: onUpdate.current,
   });
@@ -366,10 +360,10 @@ export default function ChatInput({
           if (!cite || !path) {
             return;
           }
-          if (!whom) {
+          if (!id) {
             return;
           }
-          setBlocks(whom, [{ cite }]);
+          setBlocks(id, [{ cite }]);
           messageEditor.commands.deleteRange({
             from: editorText.indexOf(path),
             to: editorText.indexOf(path) + path.length + 1,
@@ -398,7 +392,7 @@ export default function ChatInput({
         }
       }
     }
-  }, [messageEditor, editorText, editorHTML, whom, setBlocks]);
+  }, [messageEditor, editorText, editorHTML, id, setBlocks]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -410,7 +404,7 @@ export default function ChatInput({
       const blocks = fetchChatBlocks(whom);
       if ('image' in blocks[idx]) {
         // @ts-expect-error type check on previous line
-        uploader.removeByURL(blocks[idx]);
+        uploader.removeByURL(blocks[idx].image.src);
       }
       useChatStore.getState().setBlocks(
         whom,
@@ -524,21 +518,21 @@ export default function ChatInput({
           </div>
         </div>
         <button
-          className={cn('button', isMobile && 'px-2')}
+          className={cn('button px-2')}
           disabled={
             sendDisabled ||
-            subscription === 'reconnecting' ||
-            subscription === 'disconnected' ||
             mostRecentFile?.status === 'loading' ||
             mostRecentFile?.status === 'error' ||
+            mostRecentFile?.url === '' ||
             (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
           }
           onMouseDown={(e) => {
             e.preventDefault();
             onClick();
           }}
+          aria-label="Send message"
         >
-          {isMobile ? <ArrowNWIcon16 className="h-4 w-4" /> : 'Send'}
+          <ArrowNWIcon16 className="h-4 w-4" />
         </button>
       </div>
       {isMobile ? <ChatInputMenu editor={messageEditor} /> : null}

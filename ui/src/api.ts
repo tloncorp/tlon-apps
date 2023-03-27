@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type UrbitMock from '@tloncorp/mock-http-api';
 import Urbit, {
   PokeInterface,

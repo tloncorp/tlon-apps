@@ -49,21 +49,30 @@ export default function HeapRow({
     .map((inline) => inlineToString(inline))
     .join(' ')
     .toString();
-
   const { isText, isImage, isUrl, isAudio, description } =
     useHeapContentType(contentString);
+  const notEmbed = isImage && isAudio && isText;
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(contentString)) {
-        const oembed = await useEmbedState.getState().getEmbed(contentString);
-        setEmbed(oembed);
+      if (
+        isValidUrl(contentString) &&
+        !notEmbed &&
+        !calm?.disableRemoteContent
+      ) {
+        try {
+          const oembed = await useEmbedState.getState().getEmbed(contentString);
+          setEmbed(oembed);
+        } catch (e) {
+          setEmbed(null);
+          console.log("HeapRow::getOembed: couldn't get oembed", e);
+        }
       }
     };
     getOembed();
-  }, [contentString]);
+  }, [contentString, notEmbed, calm?.disableRemoteContent]);
 
-  if (isValidUrl(contentString) && embed === undefined) {
+  if (isValidUrl(contentString) && embed === undefined && !notEmbed) {
     return <HeapLoadingRow />;
   }
 
