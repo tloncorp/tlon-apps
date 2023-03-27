@@ -8,7 +8,6 @@ export interface Contact {
   avatar: string | null;
   cover: string | null;
   groups: string[];
-  'last-updated': string;
 }
 
 export interface ContactAddGroup {
@@ -29,14 +28,23 @@ export type ContactEditField =
   | ContactAddGroup
   | ContactDelGroup;
 
-export type ContactsAction = ContactDrop | ContactEdit;
+export type ContactsAction = ContactAnon | ContactEdit | ContactHeed;
 
-export interface ContactDrop {
-  drop: null;
+export interface ContactAnon {
+  anon: null;
 }
 
 export interface ContactEdit {
   edit: ContactEditField[];
 }
 
+export interface ContactHeed {
+  heed: string[];
+}
+
 export type ContactRolodex = Record<string, Contact>;
+
+export interface ContactNews {
+  who: string;
+  con: Contact | null;
+}

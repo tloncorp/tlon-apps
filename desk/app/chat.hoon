@@ -1555,6 +1555,9 @@
     |=  =diff:dm:c
     =/  =path  (snoc di-area %ui)
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
+    =/  =wire  /contacts/(scot %p ship)
+    =/  =cage  contact-action-0+!>([%heed ~[ship]])
+    =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))

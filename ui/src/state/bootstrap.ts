@@ -32,7 +32,7 @@ export default async function bootstrap(reset = false) {
   }
 
   useHarkState.getState().start();
-  useContactState.getState().initialize(api);
+  useContactState.getState().start();
   const { initialize: settingsInitialize, fetchAll } =
     useSettingsState.getState();
   settingsInitialize(api);

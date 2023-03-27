@@ -10,10 +10,7 @@ import {
   ContactAddGroup,
   ContactDelGroup,
 } from '@/types/contact';
-import useContactState, {
-  useOurContact,
-  isOurContactPublic,
-} from '@/state/contact';
+import useContactState, { useOurContact } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -26,25 +23,7 @@ interface ProfileFormSchema extends Omit<Contact, 'groups'> {
   groups: GroupOption[];
 }
 
-const emptyContact = {
-  nickname: '',
-  bio: '',
-  status: '',
-  color: '0x0',
-  avatar: null,
-  cover: null,
-  groups: [] as GroupOption[],
-  isContactPrivate: false,
-};
-
-const onFormSubmit = (
-  values: ProfileFormSchema,
-  contact: Contact | undefined
-) => {
-  if (!contact) {
-    return;
-  }
-
+const onFormSubmit = (values: ProfileFormSchema, contact: Contact) => {
   const resourceifyGroup = (group: string) => {
     const groupFlag = group.replace('/ship/', '');
     const groupResource = {
@@ -84,7 +63,6 @@ function EditProfileContent() {
   const groupFlags = Object.keys(groupData);
   const ship = window.our;
   const contact = useOurContact();
-  const isPublic = isOurContactPublic();
 
   const objectifyGroups = useCallback(
     (groups: string[]) => {
@@ -103,7 +81,6 @@ function EditProfileContent() {
 
   const form = useForm<ProfileFormSchema>({
     defaultValues: {
-      ...emptyContact,
       ...contact,
       groups: objectifyGroups(contact?.groups || []),
     },
@@ -116,11 +93,10 @@ function EditProfileContent() {
 
   useEffect(() => {
     form.reset({
-      ...emptyContact,
       ...contact,
       groups: objectifyGroups(contact?.groups || []),
     });
-  }, [form, contact, objectifyGroups, isPublic]);
+  }, [form, contact, objectifyGroups]);
 
   const onSubmit = useCallback(
     (values: ProfileFormSchema) => {
@@ -161,7 +137,7 @@ function EditProfileContent() {
   );
 
   const avatarPreviewData = {
-    previewColor: form.watch('color') || emptyContact.color,
+    previewColor: form.watch('color') || contact.color,
     previewAvatar: form.watch('avatar') || '',
   };
 
