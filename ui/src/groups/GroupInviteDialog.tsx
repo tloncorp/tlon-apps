@@ -56,12 +56,16 @@ export default function GroupInviteDialog() {
       <div className="flex flex-col space-y-6">
         <LureInviteBlock flag={flag} group={group} />
         <div className="card">
-          <h2 className="mb-4 text-lg font-bold">Invite People To Group</h2>
+          <h2 className="mb-1 text-lg font-bold">Invite by Urbit ID</h2>
+          <p className="mb-4 text-gray-600">
+            (e.g. ~sampel-palnet) or display name.
+          </p>
           <div className="w-full py-3">
             <ShipSelector
               ships={ships}
               setShips={setShips}
               onEnter={onInvite}
+              placeholder="Search"
             />
           </div>
           <div className="flex items-center justify-end space-x-2">
@@ -75,7 +79,7 @@ export default function GroupInviteDialog() {
               })}
               disabled={!validShips || isPending || isFailed}
             >
-              Invite
+              Send Invites
               {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
               {isFailed ? <ExclamationPoint className="ml-2 h-4 w-4" /> : null}
             </button>

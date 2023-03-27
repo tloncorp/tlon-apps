@@ -36,17 +36,21 @@ export default function LureInviteBlock({
     <div className={cn('card space-y-4 bg-blue-soft', className)}>
       <div>
         <h2 className="mb-1 flex text-lg font-bold">
-          <span>Send Landscape Invite to Someone</span>
-          <TlonIcon className="ml-auto h-6 w-6 p-1" />
+          <span>Invite someone from outside the Urbit network</span>
+          <span className=" small-button ml-auto self-start bg-blue-soft uppercase text-blue mix-blend-multiply dark:bg-blue-softer dark:mix-blend-normal">
+            New
+          </span>
         </h2>
         <p className="text-sm font-semibold text-gray-400">
           Courtesy of Tlon Hosting
         </p>
       </div>
       <p className="leading-5">
-        Invite someone to this group and gift them an urbit, all with one link.
-        Send these to friends, family, and collaborators to get them into Urbit
-        easily.
+        Have friends, family or collaborators who aren't on Urbit?
+      </p>
+      <p className="leading-5">
+        You can now gift them an Urbit ID and onboard them to your group all in
+        one free and easy sweep. Just copy and share the link below.
       </p>
       {isGroupHost(flag) && (
         <div className="flex flex-row">
