@@ -76,7 +76,6 @@ import { useGroups } from './state/groups';
 import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import useIsIOSSafariPWA from './logic/useIsIOSSfari';
-import InstallPrompt from './components/InstallPrompt';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -570,7 +569,6 @@ function App() {
         <Leap />
       </LeapProvider>
       <VitaMessage />
-      <InstallPrompt />
     </div>
   );
 }
