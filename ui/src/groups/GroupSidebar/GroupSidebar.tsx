@@ -84,9 +84,7 @@ function GroupHeader() {
           icon={<GroupAvatar {...group?.meta} />}
           {...fgStyle()}
         >
-          <span className="inline-block max-w-[130px] truncate">
-            {group?.meta.title}
-          </span>
+          <div className="max-w-[130px] truncate">{group?.meta.title}</div>
           <CaretDown16Icon className="absolute top-3 right-2 h-4 w-4" />
         </SidebarItem>
       </GroupActions>
