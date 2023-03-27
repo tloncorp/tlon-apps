@@ -10,6 +10,7 @@ import { useGroupState } from './groups';
 import useHarkState from './hark';
 import { useHeapState } from './heap/heap';
 import useKilnState from './kiln';
+import { useLureState } from './lure/lure';
 import usePalsState from './pals';
 import useSchedulerStore from './scheduler';
 import { useSettingsState } from './settings';
@@ -148,6 +149,7 @@ export default async function bootstrap(reset = false) {
     const { start, fetchCharges } = useDocketState.getState();
     fetchCharges();
     start();
+    useLureState.getState().start();
 
     usePalsState.getState().initializePals();
     api.poke({
