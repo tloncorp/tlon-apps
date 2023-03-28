@@ -68,7 +68,7 @@ export default function ChatContentImage({
       style={{ maxWidth: width ? (width > 600 ? 600 : width) : 600 }}
     >
       {calm?.disableRemoteContent ? (
-        <a ref={src} target="_blank" rel="noreferrer">
+        <a href={src} target="_blank" rel="noreferrer">
           {src}
         </a>
       ) : (
