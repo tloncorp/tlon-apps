@@ -69,7 +69,7 @@
 }
 
 .dialog-container {
-  @apply fixed top-1/2 left-1/2 z-40 max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 transform overflow-auto p-4;
+  @apply fixed top-1/2 left-1/2 z-40 max-h-[100vh] max-w-[100vw] -translate-x-1/2 -translate-y-1/2 transform overflow-auto p-4;
 }
 
 .secondary-dialog-container {

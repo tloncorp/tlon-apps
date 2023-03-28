@@ -114,11 +114,11 @@ export default function Leap({
     <Dialog
       open={isOpen}
       onOpenChange={setIsOpen}
-      className="fixed top-1/4 w-full bg-transparent p-0"
-      containerClass="w-full sm:max-w-lg top-[10%]"
+      className="max-h-full w-full overflow-y-auto bg-transparent p-2"
+      containerClass="w-full h-full sm:max-w-lg overflow-visible sm:pt-[10%] p-2"
       close="none"
     >
-      <div className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white text-base">
+      <div className="relative flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white text-base">
         <MagnifyingGlassIcon className="absolute left-3 h-6 w-6 text-gray-600" />
         <input
           ref={inputRef}
