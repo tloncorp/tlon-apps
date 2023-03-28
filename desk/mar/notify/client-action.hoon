@@ -23,6 +23,7 @@
       :~  who+(su fed:ag)
           service+so
           address+so
+          binding+so
       ==
     ++  remove-provider
       %-  ot

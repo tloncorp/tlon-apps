@@ -1,10 +1,13 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import WebView from 'react-native-webview';
+import useHarkState from '../state/hark';
 import useStore from '../state/store';
 
 export async function registerForPushNotificationsAsync() {
   let token;
+  let expoToken;
   if (Device.isDevice) {
     const { status: existingStatus } =
       await Notifications.getPermissionsAsync();
@@ -18,7 +21,7 @@ export async function registerForPushNotificationsAsync() {
       return;
     }
     token = (await Notifications.getDevicePushTokenAsync()).data;
-    console.log(token);
+    expoToken = (await Notifications.getExpoPushTokenAsync()).data;
   } else {
     alert('Must use physical device for Push Notifications');
   }
@@ -32,7 +35,7 @@ export async function registerForPushNotificationsAsync() {
     });
   }
 
-  return token;
+  return { token, expoToken };
 }
 
 export const setMessageCategory = async () => {
@@ -63,9 +66,10 @@ export const pokeNotify = async (token: string) => {
       mark: 'notify-client-action',
       json: {
         'connect-provider': {
-          who: `rivfur-livmet`,
-          service: 'pocket-dev',
-          address: token
+          who: `dilreb-dapbel-finned-palmer`,
+          service: 'android',
+          address: token,
+          binding: 'fcm'
         }
       }
     });
@@ -74,4 +78,28 @@ export const pokeNotify = async (token: string) => {
 
 export const requestNotificationPermissions = async () => {
   await Notifications.requestPermissionsAsync();
+};
+
+export const handleNotification = (
+  notification: Notifications.Notification
+) => {
+  console.log({ notification });
+};
+
+export const handleNotificationResponse = (
+  response: Notifications.NotificationResponse,
+  webviewRef: React.RefObject<WebView>
+) => {
+  const { shipUrl } = useStore.getState();
+  const action = response.actionIdentifier;
+  const identifier = JSON.parse(response.notification.request.identifier);
+  const { rope } = identifier;
+  if (action === 'reply') {
+    const url = `${shipUrl}/apps/talk${rope.thread}`;
+    webviewRef?.current?.injectJavaScript(`window.location.href = '${url}';`);
+  }
+
+  if (action === 'dismiss') {
+    useHarkState.getState().sawRope(rope);
+  }
 };

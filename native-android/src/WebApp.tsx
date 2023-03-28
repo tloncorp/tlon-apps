@@ -16,6 +16,8 @@ import useHarkState from './state/hark';
 // import { useNotifications } from './notifications/useNotifications';
 // import { YarnContentShip } from './types/hark';
 import {
+  handleNotification,
+  handleNotificationResponse,
   pokeNotify,
   registerForPushNotificationsAsync,
   requestNotificationPermissions,
@@ -30,21 +32,11 @@ Notifications.setNotificationHandler({
   })
 });
 
-Notifications.registerTaskAsync('HANDLE_NOTIFICATION_BACKGROUND');
-
 export default function WebApp() {
   const { shipUrl } = useStore();
   const tailwind = useTailwind();
   const [fcmDeviceToken, setFcmDeviceToken] = useState('');
-  const [notification, setNotification] =
-    useState<Notifications.Notification>();
   const webviewRef = useRef<WebView>(null);
-  const notificationListener =
-    useRef<ReturnType<typeof Notifications.addNotificationReceivedListener>>();
-  const responseListener =
-    useRef<
-      ReturnType<typeof Notifications.addNotificationResponseReceivedListener>
-    >();
   const appState = useRef(AppState.currentState);
   // const loaded = useHarkState(s => s.loaded);
   // const { count, unreadNotifications } = useNotifications('');
@@ -83,19 +75,35 @@ export default function WebApp() {
   };
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then(token => {
+    requestNotificationPermissions();
+    if (Platform.OS === 'android') {
+      BackHandler.addEventListener('hardwareBackPress', handleBackPressed);
+    }
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        webviewRef?.current?.injectJavaScript('window.bootstrapApi(true)');
+      }
+
+      appState.current = nextAppState;
+    };
+
+    const listener = AppState.addEventListener('change', handleAppStateChange);
+
+    registerForPushNotificationsAsync().then((response) => {
+      if (!response) {
+        return;
+      }
+      const { token, expoToken } = response;
+      console.log({token, expoToken})
       setFcmDeviceToken(token);
     });
 
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener(notification => {
-        setNotification(notification);
-      });
-
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener(response => {
-        console.log(response);
-      });
+    const notificationSubscription =
+      Notifications.addNotificationReceivedListener(handleNotification);
 
     const initialize = async () => {
       await useHarkState.getState().start();
@@ -103,30 +111,19 @@ export default function WebApp() {
 
     setMessageCategory();
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      response => {
-        const action = response.actionIdentifier;
-        const identifier = JSON.parse(response.notification.request.identifier);
-        const { rope } = identifier;
-        if (action === 'reply') {
-          const url = `${shipUrl}/apps/talk${rope.thread}`;
-          webviewRef?.current?.injectJavaScript(
-            `window.location.href = '${url}';`
-          );
-        }
-
-        if (action === 'dismiss') {
-          useHarkState.getState().sawRope(rope);
-        }
-      }
-    );
+    const notificationResponseReceivedSubscription =
+      Notifications.addNotificationResponseReceivedListener(response => {
+        handleNotificationResponse(response, webviewRef);
+      });
 
     initialize();
 
     return () => {
-      subscription.remove();
-      if (notificationListener.current) notificationListener.current.remove();
-      if (responseListener.current) responseListener.current.remove();
+      if (notificationSubscription) notificationSubscription.remove();
+      if (notificationResponseReceivedSubscription)
+        notificationResponseReceivedSubscription.remove();
+      BackHandler.removeEventListener('hardwareBackPress', handleBackPressed);
+      listener.remove();
     };
   }, []);
 
@@ -135,12 +132,6 @@ export default function WebApp() {
       pokeNotify(fcmDeviceToken);
     }
   }, [fcmDeviceToken]);
-
-  useEffect(() => {
-    if (notification) {
-      console.log(notification);
-    }
-  }, [notification]);
 
   // useEffect(() => {
   // if (loaded && hasUnreads) {
@@ -162,31 +153,6 @@ export default function WebApp() {
   // });
   // }
   // }, [loaded, hasUnreads, unreadNotifications]);
-
-  useEffect(() => {
-    requestNotificationPermissions();
-    if (Platform.OS === 'android') {
-      BackHandler.addEventListener('hardwareBackPress', handleBackPressed);
-    }
-
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === 'active'
-      ) {
-        webviewRef?.current?.injectJavaScript('window.bootstrapApi(true)');
-      }
-
-      appState.current = nextAppState;
-    };
-
-    const listener = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      BackHandler.removeEventListener('hardwareBackPress', handleBackPressed);
-      listener.remove();
-    };
-  }, []);
 
   return (
     <SafeAreaView style={tailwind('flex-1')}>
