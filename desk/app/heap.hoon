@@ -21,14 +21,14 @@
   --
 =|  current-state
 =*  state  -
-=< 
+=<
   %+  verb  |
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
       cor   ~(. +> [bowl ~])
-  ++  on-init  
+  ++  on-init
     ^-  (quip card _this)
     =^  cards  state
       abet:init:cor
@@ -96,7 +96,7 @@
 ::
 ++  poke
   |=  [=mark =vase]
-  |^  ^+  cor 
+  |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %graph-imports  (import-graphs !<(imports:h vase))
@@ -105,7 +105,7 @@
     =.  imp  %-  ~(gas by *(map flag:h ?))
       ^-  (list [flag:h ?])
       %+  turn
-        ~(tap in flags) 
+        ~(tap in flags)
       |=(=flag:h [flag |])
     cor
   ::
@@ -113,7 +113,7 @@
     =+  !<(f=flag:h vase)
     ?<  =(our.bowl p.f)
     (join [*flag:g f])
-  ::  
+  ::
       %channel-join
     =+  !<(j=join:h vase)
     ?<  =(our.bowl p.chan.j)
@@ -349,7 +349,7 @@
     `flag
   ?+    q.q.action  cor
       [%fleet * %del ~]
-    ~&  'revoke perms for'
+    ~&  '%heap: revoke perms for {<affected>}'
     %+  roll  affected
     |=  [=flag:h co=_cor]
     ^+  cor
@@ -360,14 +360,14 @@
     he-abet:(he-revoke:he ship)
   ::
       [%fleet * %del-sects *]
-    ~&  'recheck permissions'
+    ~&  '%heap recheck permissions for {<affected>}'
     %+  roll  affected
     |=  [=flag:h co=_cor]
     =/  he  (he-abed:he-core:co flag)
     he-abet:he-recheck:he
   ::
       [%channel * %del-sects *]
-    ~&  'recheck permissions'
+    ~&  '%heap recheck permissions for {<affected>}'
     %+  roll  affected
     |=  [=flag:h co=_cor]
     =/  he  (he-abed:he-core:co flag)
@@ -457,9 +457,9 @@
     =/  replies   ~(key by curios)
     =/  =seal:h  [time ~ replies]
     ?~  pos=(node-to-post node)
-     :: discard comments on deleted 
+     :: discard comments on deleted
      :: XX: review
-      *curios:h 
+      *curios:h
     =*  con  contents.u.pos
     ?.  ?=([[%text @] $%([%url @] [%reference *]) ~] con)
       :: invariant
@@ -494,7 +494,7 @@
     ;<  =post:gra:h            _biff  (node-to-post latest)
     =/  =seal:h  [time ~ ~]
     =/  =content:h  (con:nert:chat-migrate contents.post)
-    =/  =heart:h  
+    =/  =heart:h
       =,(post [~ content author time-sent `reply])
     `[seal heart]
   ::
@@ -512,7 +512,7 @@
       ~
     `p.post.node
   --
-      
+
 
 ::
 ++  give-brief
@@ -555,9 +555,9 @@
   +*  he-curios  ~(. cur curios.heap)
   ++  he-core  .
   ::  TODO: archive??
-  ++  he-abet  
+  ++  he-abet
     %_  cor
-        stash  
+        stash
       ?:(gone (~(del by stash) flag) (~(put by stash) flag heap))
     ==
   ++  he-abed
@@ -569,7 +569,7 @@
     =*  group  group.perm.heap
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
-    =/  link  
+    =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/heap/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
   ::
@@ -754,7 +754,7 @@
       he-core
     ::
         %fact
-      =*  cage  cage.sign 
+      =*  cage  cage.sign
       ?+  p.cage  (he-odd-update p.cage)
         %epic                             (he-take-epic !<(epic:e q.cage))
         ?(%heap-logs-0 %heap-logs)      (he-apply-logs !<(log:h q.cage))
@@ -786,12 +786,12 @@
   ::
   ++  he-can-write
     ?:  =(p.flag src.bowl)  &
-    =/  =path 
+    =/  =path
       %+  welp  he-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
     =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
     ?~  write  |
-    =/  perms  (need write) 
+    =/  perms  (need write)
     ?:  |(bloc.perms =(~ writers.perm.heap))  &
     !=(~ (~(int in writers.perm.heap) sects.perms))
   ::
@@ -829,7 +829,7 @@
     =/  tim=(unit time)
       (bind (ram:log-on:h log.heap) head)
     =/  base=wire  (snoc he-area %updates)
-    =/  =path 
+    =/  =path
       %+  weld  base
       ?~  tim  ~
       /(scot %da u.tim)
@@ -950,7 +950,7 @@
                 ': '
                 (flatten q.content.heart)
             ==
-          ~  
+          ~
         =.  cor  (emit (pass-hark & & yarn))
         he-core
       ==
