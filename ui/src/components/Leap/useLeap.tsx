@@ -11,7 +11,7 @@ import {
   LEAP_RESULT_SCORE_THRESHOLD,
   LEAP_RESULT_TRUNCATE_SIZE,
 } from '@/constants';
-import { useContacts } from '@/state/contact';
+import { emptyContact, useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
 import {
@@ -191,11 +191,15 @@ export default function useLeap() {
     };
 
     const allShips = uniqBy(
-      Object.entries(contacts).concat(
-        // accounting for ships not in contact store, but in DMs
-        // this fix is temporary until we fix the contact store
-        dms.map((ship) => [ship, { nickname: '' } as Contact])
-      ),
+      Object.entries(contacts)
+        .map(
+          ([s, contact]) => [s, contact || emptyContact] as [string, Contact]
+        )
+        .concat(
+          // accounting for ships not in contact store, but in DMs
+          // this fix is temporary until we fix the contact store
+          dms.map((ship) => [ship, { nickname: '' } as Contact])
+        ),
       ([ship]) => ship
     );
     const normalizedQuery = inputValue.toLocaleLowerCase();

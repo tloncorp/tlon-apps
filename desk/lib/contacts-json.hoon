@@ -29,7 +29,7 @@
     :~  nickname+s+nickname.c
         bio+s+bio.c
         status+s+status.c
-        color+s+(rsh 3^2 (scot %ux color.c))  :: XX confirm
+        color+s+(scot %ux color.c)
         avatar+?~(avatar.c ~ s+u.avatar.c)
         cover+?~(cover.c ~ s+u.cover.c)
     ::

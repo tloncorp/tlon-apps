@@ -42,7 +42,7 @@ export interface ContactHeed {
   heed: string[];
 }
 
-export type ContactRolodex = Record<string, Contact>;
+export type ContactRolodex = Record<string, Contact | null>;
 
 export interface ContactNews {
   who: string;

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
-import { uxToHex } from '@urbit/api';
 import { ViewProps } from '@/types/groups';
 import {
   Contact,
@@ -15,6 +14,7 @@ import { useGroups } from '@/state/groups';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import GroupSelector, { GroupOption } from '@/components/GroupSelector';
+import { getFlagParts } from '@/logic/utils';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
@@ -24,15 +24,6 @@ interface ProfileFormSchema extends Omit<Contact, 'groups'> {
 }
 
 const onFormSubmit = (values: ProfileFormSchema, contact: Contact) => {
-  const resourceifyGroup = (group: string) => {
-    const groupFlag = group.replace('/ship/', '');
-    const groupResource = {
-      name: groupFlag.split('/')[1],
-      ship: groupFlag.split('/')[0] || '',
-    };
-    return groupResource;
-  };
-
   const fields = Object.entries(values as ProfileFormSchema)
     .filter(
       ([key, value]) =>
@@ -41,18 +32,18 @@ const onFormSubmit = (values: ProfileFormSchema, contact: Contact) => {
     .map(
       ([key, value]) =>
         ({
-          [key]: key !== 'color' ? value : uxToHex(value.replace('#', '')),
+          [key]: key !== 'color' ? value : value.replace('#', ''),
         } as ContactEditField)
     );
 
   const toRemove: ContactDelGroup[] = _.difference(
     contact?.groups || [],
-    values.groups.map((group) => `/ship/${group.value}`)
-  ).map((v) => ({ 'del-group': resourceifyGroup(v) }));
+    values.groups.map((group) => group.value)
+  ).map((v) => ({ 'del-group': getFlagParts(v) }));
   const toAdd: ContactAddGroup[] = _.difference(
-    values.groups.map((group) => `/ship/${group.value}`),
+    values.groups.map((group) => group.value),
     contact?.groups || []
-  ).map((v) => ({ 'add-group': resourceifyGroup(v) }));
+  ).map((v) => ({ 'add-group': getFlagParts(v) }));
 
   useContactState.getState().edit(fields.concat(toRemove, toAdd));
 };
