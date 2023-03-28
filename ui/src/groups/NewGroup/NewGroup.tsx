@@ -7,7 +7,7 @@ import { strToSym } from '@/logic/utils';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
 import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
-import Dialog, { DialogContent } from '@/components/Dialog';
+import Dialog from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
@@ -148,23 +148,24 @@ export default function NewGroup() {
   }
 
   return (
-    <Dialog defaultOpen modal={true} onOpenChange={onOpenChange}>
-      <DialogContent
-        onInteractOutside={(e) => e.preventDefault()}
-        className="w-[500px] sm:inset-y-24"
-        containerClass="w-full h-full sm:max-w-lg"
-      >
-        <FormProvider {...form}>
-          <div className="flex flex-col">{currentStepComponent}</div>
-        </FormProvider>
-        <div className="flex flex-col items-center pt-4">
-          <NavigationDots
-            maxStep={maxStep}
-            currentStep={currentStep}
-            setStep={(step) => setStep(step + 1)}
-          />
-        </div>
-      </DialogContent>
+    <Dialog
+      defaultOpen
+      modal
+      onOpenChange={onOpenChange}
+      onInteractOutside={(e) => e.preventDefault()}
+      className="w-[500px] sm:inset-y-24"
+      containerClass="w-full h-full sm:max-w-lg"
+    >
+      <FormProvider {...form}>
+        <div className="flex flex-col">{currentStepComponent}</div>
+      </FormProvider>
+      <div className="flex flex-col items-center pt-4">
+        <NavigationDots
+          maxStep={maxStep}
+          currentStep={currentStep}
+          setStep={(step) => setStep(step + 1)}
+        />
+      </div>
     </Dialog>
   );
 }

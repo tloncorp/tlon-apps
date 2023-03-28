@@ -1,6 +1,6 @@
 import React from 'react';
 import cn from 'classnames';
-import Dialog, { DialogClose, DialogContent } from './Dialog';
+import Dialog, { DialogClose } from './Dialog';
 
 interface ErrorAlertProps {
   error: Error;
@@ -30,28 +30,29 @@ export default function ErrorAlert({
   className,
 }: ErrorAlertProps) {
   return (
-    <Dialog defaultOpen modal onOpenChange={() => resetErrorBoundary()}>
-      <DialogContent
-        showClose={false}
-        className={cn('space-y-6 pr-8', className)}
-        containerClass="w-full max-w-3xl"
-      >
-        <h2 className="h4">
-          <span className="mr-3 text-orange-500">Encountered error:</span>
-          <span className="font-mono">{error.message}</span>
-        </h2>
-        {error.stack && (
-          <div className="w-full overflow-x-auto rounded bg-gray-50 p-2">
-            <pre>{error.stack}</pre>
-          </div>
-        )}
-        <div className="flex space-x-6">
-          <DialogClose className="button">Try Again</DialogClose>
-          <DialogClose asChild>
-            <SubmitIssue error={error} />
-          </DialogClose>
+    <Dialog
+      defaultOpen
+      modal
+      onOpenChange={() => resetErrorBoundary()}
+      close="none"
+      className={cn('space-y-6 pr-8', className)}
+      containerClass="w-full max-w-3xl"
+    >
+      <h2 className="h4">
+        <span className="mr-3 text-orange-500">Encountered error:</span>
+        <span className="font-mono">{error.message}</span>
+      </h2>
+      {error.stack && (
+        <div className="w-full overflow-x-auto rounded bg-gray-50 p-2">
+          <pre>{error.stack}</pre>
         </div>
-      </DialogContent>
+      )}
+      <div className="flex space-x-6">
+        <DialogClose className="button">Try Again</DialogClose>
+        <DialogClose asChild>
+          <SubmitIssue error={error} />
+        </DialogClose>
+      </div>
     </Dialog>
   );
 }

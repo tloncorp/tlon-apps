@@ -7,14 +7,12 @@ import LinkIcon16 from '@/components/icons/LinkIcon16';
 import PinIcon16 from '@/components/icons/PinIcon16';
 import Person16Icon from '@/components/icons/Person16Icon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import BulletIcon from '@/components/icons/BulletIcon';
 import { useChatState, usePinnedGroups } from '@/state/chat';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
 import { useAmAdmin, useGroup } from '@/state/groups';
-import { useLure } from '@/state/lure/lure';
 
 const { ship } = window;
 
@@ -51,45 +49,6 @@ export function useGroupActions(flag: string) {
     onCopy,
     onPinClick,
   };
-}
-
-function LureInviteAction({
-  flag,
-  setIsOpen,
-}: {
-  flag: string;
-  setIsOpen: (open: boolean) => void;
-}) {
-  const { enabled: lureEnabled, url: groupInviteUrl } = useLure(flag);
-  const [groupInviteUrlText, setGroupInviteUrlText] =
-    useState('Copy Invite URL');
-  const { doCopy } = useCopy(groupInviteUrl);
-
-  const onInviteUrl = useCallback(
-    (event: Event) => {
-      event.preventDefault();
-      doCopy();
-      setGroupInviteUrlText('Copied!');
-      setTimeout(() => {
-        setGroupInviteUrlText('Copy Invite URL');
-        setIsOpen(false);
-      }, 2000);
-    },
-    [doCopy, setIsOpen]
-  );
-
-  return (
-    <DropdownMenu.Item
-      className={cn(
-        'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900',
-        (groupInviteUrl === '' || !lureEnabled) && 'hidden'
-      )}
-      onSelect={onInviteUrl}
-    >
-      <LinkIcon16 className="h-6 w-6 opacity-60" />
-      <span className="pr-2">{groupInviteUrlText}</span>
-    </DropdownMenu.Item>
-  );
 }
 
 type GroupActionsProps = PropsWithChildren<{
@@ -167,9 +126,6 @@ const GroupActions = React.memo(
               <LinkIcon16 className="h-6 w-6 opacity-60" />
               <span className="pr-2">{copyItemText}</span>
             </DropdownMenu.Item>
-            {isOpen ? (
-              <LureInviteAction flag={flag} setIsOpen={setIsOpen} />
-            ) : null}
             <DropdownMenu.Item
               className="dropdown-item flex items-center space-x-2"
               onClick={onPinClick}

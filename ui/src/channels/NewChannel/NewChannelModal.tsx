@@ -1,5 +1,5 @@
 import React from 'react';
-import Dialog, { DialogContent } from '@/components/Dialog';
+import Dialog from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
 import NewChannelForm from './NewChannelForm';
 
@@ -13,10 +13,13 @@ export default function NewChannelModal() {
   };
 
   return (
-    <Dialog defaultOpen onOpenChange={onOpenChange}>
-      <DialogContent containerClass="w-full sm:max-w-lg" showClose={false}>
-        <NewChannelForm />
-      </DialogContent>
+    <Dialog
+      defaultOpen
+      onOpenChange={onOpenChange}
+      containerClass="w-full sm:max-w-lg"
+      close="none"
+    >
+      <NewChannelForm />
     </Dialog>
   );
 }
