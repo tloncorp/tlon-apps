@@ -1155,7 +1155,7 @@
         !>  ^-  action:club:chat
         =/  =memo:chat
           [replying our.bowl now.bowl %story block msg]
-        [p.audience *echo:club:chat %writ [our now]:bowl %add memo]   
+        [p.audience 1 %writ [our now]:bowl %add memo]   
       ==
     ::  +say: send messages
     ::
