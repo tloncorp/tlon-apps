@@ -893,35 +893,47 @@
   ++  work
     |=  job=command
     ^-  (quip card _state)
-    |^  ?-  -.job
-          %target     (set-target +.job)
-          %say        (say +.job)
-          %reference  (reference +.job)
-          %thread     (thread +.job)
-          :: %eval      (eval +.job)
+    |^  ?-   -.job
+            %target     (set-target +.job)
+            %say        (say +.job)
+            %reference  (reference +.job)
+            %thread     (thread +.job)
+            :: %eval      (eval +.job)
         ::
-          %join       (rsvp & & +.job)
-          %deny       (rsvp & | +.job)
+            %view       (view +.job)
+            %flee       (flee +.job)
         ::
-          %view       (view +.job)
-          %flee       (flee +.job)
+            %bind       (bind-glyph +.job)
+            %unbind     (unbind-glyph +.job)
+            %what       (lookup-glyph +.job)
         ::
-          %bind       (bind-glyph +.job)
-          %unbind     (unbind-glyph +.job)
-          %what       (lookup-glyph +.job)
+            %settings   show-settings
+            %set        (set-setting +.job)
+            %unset      (unset-setting +.job)
+            %width      (set-width +.job)
+            %timezone   (set-timezone +.job)
         ::
-          %settings   show-settings
-          %set        (set-setting +.job)
-          %unset      (unset-setting +.job)
-          %width      (set-width +.job)
-          %timezone   (set-timezone +.job)
+            %select     (select +.job)
+            %chats      chats
+            %dms        dms
+            %clubs      clubs
+            %targets    targets
+            %help       help
         ::
-          %select     (select +.job)
-          %chats      chats
-          %dms        dms
-          %clubs      clubs
-          %targets    targets
-          %help       help
+            %join
+          =^  rsvp-cards  state
+            (rsvp & +.job)
+          =^  print-cards  state
+            (feedback +.job %rsvp)
+          [(weld rsvp-cards print-cards) state]
+        ::
+            %deny
+          =^  rsvp-cards  state
+            (rsvp | +.job)
+          =^  print-cards  state
+            (feedback +.job %rsvp)
+          [(weld rsvp-cards print-cards) state]
+        ::
         ==
     ::  +act: build action card
     ::
@@ -939,7 +951,47 @@
     ::
     ++  just-print
       |=  txt=tape
-      [[(print:sh-out txt) ~] state]
+      [[(note:sh-out txt) ~] state]
+    ::  +-feedback: custom arm printouts based on target type
+    ::
+    ++  feedback
+      |=  [=target arm=?(%rsvp)]
+      ^-  (quip card _state)
+      ?-   -.target
+          %flag
+        ?-   arm
+            %rsvp
+          :_  put-ses
+          [(note:sh-out "chat invite handling not supported")]~
+        ==
+      ::
+          %ship
+        ?-   arm
+            %rsvp
+          =/  =ship  +.target
+          ?:  (~(has in get-pending-dms) ship)
+            [~ state]
+          :_  put-ses
+          [(note:sh-out "no pending dm invite from {(scow %p ship)}")]~
+        ==
+      ::
+          %club
+        ?-   arm
+            %rsvp
+          =/  =club-id  +.target
+          =/  crew=(unit crew)  
+            (~(get by get-clubs) club-id)
+          ?~  crew
+            :_  put-ses
+            [(note:sh-out "no group chat invite for {(scow %uv club-id)}")]~ 
+          ?:  (~(has in hive.u.crew) our-self)
+            [~ state]
+          :_  put-ses
+          :~  %-  note:sh-out
+              "no pending group chat invite for {(scow %uv club-id)}"
+          ==
+        ==
+      ==
     ::  +make-bind: bind an unbound target
     ::
     ++  make-bind
@@ -975,7 +1027,7 @@
     ++  switch-channel
       |=  =target
       ^-  (quip card _state)
-      =^  rsvp-cards  state  (rsvp | & target)
+      =^  rsvp-cards  state  (rsvp & target)
       =^  bind-cards  state  (make-bind target)
       =^  watch-cards  state  (subscribe target)
       =^  compose-cards  state  (compose-channel target)
@@ -1045,47 +1097,34 @@
     ::  +rsvp: send rsvp response without changing audience
     ::
     ++  rsvp
-      |=   [note=? ok=? =target]
+      |=   [ok=? =target]
       ^-  (quip card _state)
-      ?-    -.target
-           %flag
-         ?.  note  [~ state]
-         :_  put-ses
-         [(note:sh-out "chat invite handling not supported")]~
+      ?-   -.target
+          %flag  [~ state]
+          %ship
+        =/  =ship  +.target
+        ?.  (~(has in get-pending-dms) ship)
+          [~ state]
+        :_  state
+        :_  ~
+        %^  act  %rsvp-response
+          %chat
+        [%dm-rsvp !>(`rsvp:dm:chat`[ship ok])]
       ::
-           %ship
-         =/  =ship  +.target
-         ?.  (~(has in get-pending-dms) ship)
-           ?.  note  [~ state]
-           :_  put-ses
-           [(note:sh-out "no pending dm invite from {(scow %p ship)}")]~
-         :_  state
-         :_  ~
-         %^  act  %rsvp-response
-           %chat
-         [%dm-rsvp !>(`rsvp:dm:chat`[ship ok])]
-      ::
-           %club
-         =/  =club-id  +.target
-         =/  crew=(unit crew)  
-           (~(get by get-clubs) club-id)
-         ?~  crew
-           ?.  note  [~ state]
-           :_  put-ses
-           [(note:sh-out "no group chat invite for {(scow %uv club-id)}")]~ 
-         ?.  (~(has in hive.u.crew) our-self)
-           ?.  note  [~ state]
-           :_  put-ses
-           :~  %-  note:sh-out
-               "no pending group chat invite for {(scow %uv club-id)}"
-           ==
-         :_  state
-         :_  ~
-         %^  act  %rsvp-response
-           %chat
-         :-  %club-action
-         !>  ^-  action:club:chat
-         [club-id *echo:club:chat %team our-self ok]   
+          %club
+        =/  =club-id  +.target
+        =/  crew=(unit crew)  
+          (~(get by get-clubs) club-id)
+        ?~  crew  [~ state]
+        ?.  (~(has in hive.u.crew) our-self)
+          [~ state]
+        :_  state
+        :_  ~
+        %^  act  %rsvp-response
+          %chat
+        :-  %club-action
+        !>  ^-  action:club:chat
+        [club-id *echo:club:chat %team our-self ok]   
       ==
     :: +send: make a poke card based on audience
     ::
