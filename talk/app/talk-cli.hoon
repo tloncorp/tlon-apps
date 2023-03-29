@@ -1337,7 +1337,7 @@
       :_  put-ses
       ^-  (list card)
       :~  (print:sh-out ['?' ' ' number])
-          (effect:sh-out ~(render-activate mr whom writ))
+          (effect:sh-out ~(render-activate mr whom +.writ))
           prompt:sh-out
       ==
     ::  +pointer-to-message: get message from number reference
