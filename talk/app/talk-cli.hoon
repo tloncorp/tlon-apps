@@ -511,12 +511,30 @@
 ++  poke-noun
   |=  a=*
   ^-  (quip card _state)
-  [~ state]
-:: TODO old functionality; what else to use this arm for?
-::  ?.  ?=(%connect a)
-::    [~ state]
-::  :_  state
-::  [chat-connect]~
+  ?.  ?=(%connect a)
+    [~ state]
+  ::  reestablish subscriptions for all targets in view
+  ::
+  =/  sez=(list [=sole-id =session])
+    ~(tap by sessions)
+  =|  cards=(list card)
+  |-
+  ?~  sez  [cards state]
+  =^  caz  session.i.sez
+    =/  targets=(list target)
+      ~(tap in viewing.session.i.sez)
+    =|  connect-cards=(list card)
+    |-
+    ?~  targets  
+      [connect-cards session.i.sez]
+    %=    $
+        connect-cards  
+      %+  snoc  connect-cards 
+      (connect i.targets)
+    ::
+      targets  t.targets
+    ==
+  $(sez t.sez, cards (weld cards caz))
 ::  +on-update: get new messages
 ::
 ++  on-update 
