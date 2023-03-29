@@ -1147,21 +1147,16 @@
         (just-print (need +.package))
       =/  =whom:chat  -:(need -.package)
       ?.  ?=(%flag -.whom)
-        (just-print "message referencing is only available in group chats")
+        (just-print "message referencing is only available in chats from a group")
       =/  =seal:chat   +<:(need -.package)
       =/  =memo:chat   +>:(need -.package)
       =/  host=ship    +<.whom
       =/  name=@tas    +>.whom
-      =/  =time        +.id.seal 
+      =/  =time        +.id.seal
       =/  author=ship  author.memo
-      =/  =path
-        ;:  weld
-          /1/chan/chat
-          /(scot %p host)/(scot %tas name)
-          /msg/(scot %p author)/(scot %ud time)
-        ==
+      =/  wer=path  /msg/(scot %p author)/(scot %ud time)
       =/  =block:chat
-        [%cite `cite:cite`[%chan `nest:groups`[%chat [host name]] path]]
+        [%cite `cite:cite`[%chan `nest:groups`[%chat [host name]] wer]]
       =.  audience  whom
       :_  put-ses
       [(send ?~(msg ~ msg) ~ [block]~)]~
