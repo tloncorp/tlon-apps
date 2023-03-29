@@ -1273,7 +1273,7 @@
       |=  [=whom:chat l=(list tape)]
       %+  weld  l
       ^-  (list tape)
-      [glyph ' ' ~(meta tr whom)]~
+      [~(meta tr whom)]~
     ::  +show-settings: print enabled flags, timezone and width settings
     ::
     ++  show-settings
@@ -1492,7 +1492,7 @@
     =+  ?:((gth (lent lis) 0) (snag 0 lis) "")
     :-  (weld line-break -)
     %+  turn  (slag 1 lis)
-    |=(a=tape (runt [14 ' '] '|' ' ' a))
+    |=(a=tape (runt [16 ' '] '|' ' ' a))
   ::  +prompt: update prompt to display current audience
   ::
   ++  prompt
@@ -1516,7 +1516,7 @@
       :_  ~
       =+  num=(scow %ud count)
       %-  print
-      (runt [(sub 13 (lent num)) '-'] "[{num}]")
+      (runt [(sub 15 (lent num)) '-'] "[{num}]")
     ^-  (list card)
     :-  (effex ~(render-inline mr target memo))
     =;  mentioned=?
@@ -1555,11 +1555,7 @@
     %-  print-more
     %+  turn  (sort targets order)
     |=  =target
-    ?-  -.target
-      %club  ~(meta tr target)
-      %ship  "{(nome:mr p.target)}"
-      %flag  "{(nome:mr p.p.target)}/{(trip q.p.target)}"
-    ==
+    ~(meta tr target)
     ::  +order: ships go before chats who go before clubs
     ::
     ++  order
@@ -1617,8 +1613,18 @@
   ++  meta
     |^  ^-  tape
     ?-   -.target
-        %flag  ~(phat tr target)
-        %ship  ~(full tr target)
+        %flag
+      %+  weld
+        ?:(=(glyph "*") "  " (snoc glyph ' '))
+      "{(nome:mr p.p.target)}/{(trip q.p.target)}"
+    ::
+        %ship  
+      %+  weld
+        ?:  =(glyph "*") 
+          "  " 
+        (snoc glyph ' ')
+      (nome:mr p.target)
+    ::
         %club
       =/  =club-id  p.target
       =+  met:(~(got by get-clubs) club-id)   
@@ -1632,7 +1638,7 @@
       |=  [=club-id title=cord]
       ^-  tape
       %+  weld
-        "{(scow %uv club-id)}"
+        "{?:(=(glyph "*") " " glyph)} {(scow %uv club-id)}"
       "  {(trip title)}"
     ::  +render-club-members: produce club members
     ::
@@ -1646,7 +1652,8 @@
         %+  turn  (club-members club-id)
         |=  =ship
         "  {(cite:title ship)}"
-      =+  out="{(scow %uv club-id)}"
+      =/  out=tape
+        "{?:(=(glyph "*") " " glyph)} {(scow %uv club-id)}"
       =+  tally=0
       |- 
       ?~  members  
@@ -1676,8 +1683,8 @@
   ++  content-width
     ::  termwidth, minus author, timestamp, and padding
     %+  sub  width
-    %+  add  15
-    ?:(showtime 11 0)
+    %+  add  16
+    ?:(showtime 12 0)
   ::
   ++  render-notice
     ?>  ?=(%notice -.content)
