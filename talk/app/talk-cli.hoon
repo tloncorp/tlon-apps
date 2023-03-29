@@ -1431,14 +1431,21 @@
     ++  help
       ^-  (quip card _state)
       :_  state
-      =-  (turn - print:sh-out)
-      :~  ";view (~ship / 0vgroup.chat.id / ~host/chat) to print messages for a chat you've already joined."
-          ";flee [~ship / 0vgroup.chat.id / ~host/chat] to stop printing messages for a chat."
-          ";join [~ship / 0vgroup.chat.id] to accept a dm or group chat invite without changing the chat you're viewing."
-          ";deny [~ship / 0vgroup.chat.id] to decline a dm or group chat invite."
-          ";~ship [message] to start or send a dm outside of the current chat you're viewing and begin printing its messages."
-          "For more details:"
-          "https://urbit.org/getting-started/getting-around"
+      =-  (turn - print-more:sh-out)
+      :~  %-  limo
+          :*  ";[targets / chats / clubs / dms] to print available chat channels."
+              ";view [~ship / 0vgroup.chat.id / ~host/chat] to print messages for a chat you've already joined."
+              ";flee [~ship / 0vgroup.chat.id / ~host/chat] to stop printing messages for a chat."
+              ";join [~ship / 0vgroup.chat.id] to accept a dm or group chat invite without changing the chat you're viewing."
+              ";deny [~ship / 0vgroup.chat.id] to decline a dm or group chat invite."
+              ";~ship [message] to send a dm and print its messages."
+              ";[scrollback.pointer] to select a message."
+              ";[scrollback.pointer] [message] to reference a message with a response (only chats from groups supported)."
+              ";^[scrollback.pointer] [message] to send a thread response."
+              "For more details:"
+              "https://urbit.org/getting-started/getting-around"
+              ~
+          ==
       ==
     --
   --
