@@ -1528,7 +1528,12 @@
   ::
   ++  render-notice
     ?>  ?=(%notice -.content)
+    =/  glyph=(unit glyph)
+      (~(get by bound) source)
+    =/  prepend=tape
+      (runt [16 '-'] ?~(glyph '|' u.glyph) ' ' " ") 
     :+  %sole  %klr
+    %+  weld  prepend
     ^-  styx
     [[`%un ~ ~] ~[pfix.p.content (scot %p author) sfix.p.content]]~
   ::
