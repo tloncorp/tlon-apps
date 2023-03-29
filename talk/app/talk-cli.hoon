@@ -1520,19 +1520,35 @@
     ^-  shoe-effect:shoe
     ?.  ?=(%story -.content)
       render-notice
-    :+  %row
-      :-  16
+    =/  box=(list @ud)
       ?.  showtime
         ~[(sub width 17)]
-      ~[(sub width 27) 10]
+      ~[(sub width 27) 12]
+    :+  %row
+      :-  18
+      ?~  replying  box
+      %:  into
+        %+  turn  box
+        |=  a=@
+        ?.  (gth a 12)  
+          a
+        (sub a 3)
+        0
+        1
+      ==
+    =;  cols=(list dime)
+      ?~  replying
+        cols
+      (into cols 1 `dime`[%t ''])
     :+  :-  %t
         %-  crip
         ;:  weld
+          "  "
           (nome author)
           ~(glyph tr source)
-          ?.  &(=(~ replying) =(~ replied))
-            "^"
-          *tape
+          ?~  replying
+            *tape
+          "^"
         ==
       t+(crip line)
     ?.  showtime  ~
