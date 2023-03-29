@@ -7,15 +7,6 @@ export default function DisconnectNotice() {
   const { subscription, errorCount, airLockErrorCount } =
     useSubscriptionStatus();
 
-  useEffect(() => {
-    if (
-      (errorCount > 4 || airLockErrorCount > 1) &&
-      subscription === 'connected'
-    ) {
-      useLocalState.setState({ subscription: 'disconnected' });
-    }
-  }, [errorCount, subscription, airLockErrorCount]);
-
   const onClick = useCallback(() => {
     if (errorCount < 3) {
       useLocalState.setState({ subscription: 'reconnecting' });
