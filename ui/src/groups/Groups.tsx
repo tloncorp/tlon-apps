@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { Outlet, useMatch, useNavigate } from 'react-router';
 import {
   useGang,
@@ -8,7 +8,6 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import api from '@/api';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
@@ -16,12 +15,25 @@ import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import _ from 'lodash';
 import { canReadChannel } from '@/logic/utils';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import { Group } from '@/types/groups';
 
 function Groups() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
   const initialized = useGroupsInitialized();
-  const group = useGroup(flag);
+  const { isLoading: isLoadingGroupData, data: groupData } =
+    useReactQuerySubscription({
+      queryKey: ['group', flag],
+      app: 'groups',
+      path: `/groups/${flag}/ui`,
+      initialScryPath: `/groups/${flag}`,
+    });
+  console.log({ groupData });
+  const group = useMemo(
+    () => (isLoadingGroupData ? undefined : (groupData as Group)),
+    [groupData, isLoadingGroupData]
+  );
   const gang = useGang(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -86,20 +98,20 @@ function Groups() {
     navigate,
   ]);
 
-  useEffect(() => {
-    let id = null as number | null;
-    useGroupState
-      .getState()
-      .initialize(flag, true)
-      .then((i) => {
-        id = i;
-      });
-    return () => {
-      if (id) {
-        api.unsubscribe(id);
-      }
-    };
-  }, [flag]);
+  // useEffect(() => {
+  // let id = null as number | null;
+  // useGroupState
+  // .getState()
+  // .initialize(flag, true)
+  // .then((i) => {
+  // id = i;
+  // });
+  // return () => {
+  // if (id) {
+  // api.unsubscribe(id);
+  // }
+  // };
+  // }, [flag]);
 
   if (!group) {
     return null;

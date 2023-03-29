@@ -1,5 +1,8 @@
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
+import { QueryClient } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import {
@@ -43,6 +46,7 @@ import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import indexedDBPersistor from './indexedDBPersistor';
 import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
@@ -575,6 +579,14 @@ function App() {
   );
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      cacheTime: Infinity,
+    },
+  },
+});
+
 function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
@@ -642,10 +654,16 @@ function RoutedApp() {
             <link rel="manifest" href={chatmanifestURL} />
           )}
         </Helmet>
-        <TooltipProvider skipDelayDuration={400}>
-          <App />
-          <Scheduler />
-        </TooltipProvider>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister: indexedDBPersistor(app) }}
+        >
+          <TooltipProvider skipDelayDuration={400}>
+            <App />
+            <Scheduler />
+          </TooltipProvider>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </PersistQueryClientProvider>
       </Router>
     </ErrorBoundary>
   );

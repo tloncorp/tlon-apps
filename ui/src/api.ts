@@ -79,6 +79,7 @@ const api = {
     const eventListener =
       (listener?: (event: any, mark: string) => void) =>
       (event: any, mark: string) => {
+        console.log({ event, mark });
         const { watchers, remove } = useSubscriptionState.getState();
         const path = params.app + params.path;
         const relevantWatchers = watchers[path];
