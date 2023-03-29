@@ -607,8 +607,8 @@
         ;~(plug (tag %targets) (easy ~))
         ;~(plug (tag %help) (easy ~))
       ::
-        (stag %reference ;~(plug ;~(pfix hax nump) ;~(pfix ace content)))
-        (stag %thread ;~(plug nump ;~(pfix ace content)))
+        (stag %thread ;~(plug ;~(pfix ket nump) ;~(pfix ace content)))
+        (stag %reference ;~(plug nump ;~(pfix ace content)))
         (stag %select nump)
       ==
     ::
