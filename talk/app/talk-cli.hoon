@@ -1789,15 +1789,26 @@
     ?>  ?=(%story -.content)
     |-  ^-  sole-effect:shoe
     :-  %mor
-    %+  weld
+    ;:  weld
+      ::  if a part of a thread, print top-level message
+      ::
+      ?~  replying  ~
+      =-  (snoc - [%txt "---"])
+      ?.  (message-exists source u.replying)
+        [txt+"^   …telegram was deleted"]~
+      =+  %^  scry-for-marked  ,[* =writ:chat]
+            %chat
+          (forge source u.replying)
+      [[%txt (weld "^   " ~(line mr source +.writ))]]~
+      ::  if block is referenced, print it, too
+      ::
       ?:  =(~ p.p.content)  ~
       =-  (snoc - [%txt "---"])
-      %+  turn  p.p.content
-      |=  =block:chat
-      txt+(block-as-tape block)
-    ::TODO  we could actually be doing styling here with %klr
-    ::      instead of producing plain %txt output. maybe one day...
-    (turn (inlines-as-tapes | q.p.content) (lead %txt))
+      (turn (blocks-as-tapes p.p.content) (lead %txt))
+      ::TODO  we could actually be doing styling here with %klr
+      ::      instead of producing plain %txt output. maybe one day...
+      (turn (inlines-as-tapes | q.p.content) (lead %txt))
+    ==
   ::  +nome: prints a ship name in 14 characters, left-padding with spaces
   ::
   ++  nome
