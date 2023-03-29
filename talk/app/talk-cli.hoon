@@ -372,13 +372,11 @@
   ?~  messages  [cards state] 
   =/  =writ:chat  +.i.messages
   =/  =id:chat    -<.writ
-  =/  =seal:chat  -.writ
   =/  =memo:chat  +.writ
   =^  caz  session
     %:  ~(read-post se sole-id session) 
       target
       id
-      seal
       memo
     ==
   =.  sessions  (~(put by sessions) sole-id session)  
@@ -443,7 +441,7 @@
   =^  caz  session.i.sez
     ?.  (~(has in viewing.session.i.sez) whom)
       [~ session.i.sez]
-    (~(read-post se i.sez) whom id *seal:chat memo)
+    (~(read-post se i.sez) whom id memo)
   =.  sessions  (~(put by sessions) i.sez)
   $(sez t.sez, cards (weld cards caz))
 ::  +se: session event handling
@@ -457,11 +455,10 @@
   ++  read-post
     |=  $:  =target
             =id:chat
-            =seal:chat
             =memo:chat
         ==
     ^-  (quip card _session)
-    :-  (show-post:sh-out target seal memo) 
+    :-  (show-post:sh-out target memo) 
     %_  session
       history  [[target id] history.session]
       count    +(count.session)
@@ -1342,7 +1339,7 @@
   ::    and the %notify flag is set, emit a bell.
   ::
   ++  show-post
-    |=  [=target =seal:chat =memo:chat]
+    |=  [=target =memo:chat]
     ^-  (list card)
     %+  weld
       ^-  (list card)
@@ -1352,7 +1349,7 @@
       %-  print
       (runt [(sub 13 (lent num)) '-'] "[{num}]")
     ^-  (list card)
-    :-  (effex ~(render-inline mr target seal memo))
+    :-  (effex ~(render-inline mr target memo))
     =;  mentioned=?
       ?.  mentioned  ~
       [(effect %bel ~)]~
@@ -1502,7 +1499,6 @@
 ::
 ++  mr
   |_  $:  source=target
-          seal:chat
           memo:chat
       ==
   +*  showtime  (~(has in settings) %showtime)
