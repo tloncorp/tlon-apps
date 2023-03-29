@@ -423,8 +423,7 @@ export const useGroupState = create<GroupState>(
             onSuccess: async () => {
               await useSubscriptionState
                 .getState()
-                .track('groups/groups/ui', (event) => {
-                  const { json } = event;
+                .track('groups/gangs/updates', (json) => {
                   if (json && flag in json) {
                     return json[flag].invite === null;
                   }
