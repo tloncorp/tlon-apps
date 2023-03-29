@@ -349,7 +349,7 @@
     `flag
   ?+    q.q.action  cor
       [%fleet * %del ~]
-    ~&  '%heap: revoke perms for {<affected>}'
+    ~&  "%heap: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=flag:h co=_cor]
     ^+  cor
@@ -360,14 +360,14 @@
     he-abet:(he-revoke:he ship)
   ::
       [%fleet * %del-sects *]
-    ~&  '%heap recheck permissions for {<affected>}'
+    ~&  "%heap recheck permissions for {<affected>}"
     %+  roll  affected
     |=  [=flag:h co=_cor]
     =/  he  (he-abed:he-core:co flag)
     he-abet:he-recheck:he
   ::
       [%channel * %del-sects *]
-    ~&  '%heap recheck permissions for {<affected>}'
+    ~&  "%heap recheck permissions for {<affected>}"
     %+  roll  affected
     |=  [=flag:h co=_cor]
     =/  he  (he-abed:he-core:co flag)

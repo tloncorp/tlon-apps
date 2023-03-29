@@ -472,7 +472,7 @@
     `flag
   ?+    q.q.action  cor
       [%fleet * %del ~]
-    ~&  '%diary: revoke perms for {<affected>}'
+    ~&  "%diary: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=flag:d co=_cor]
     ^+  cor
@@ -483,14 +483,14 @@
     di-abet:(di-revoke:di ship)
   ::
       [%fleet * %del-sects *]
-    ~&  '%diary recheck permissions for {<affected>}'
+    ~&  "%diary recheck permissions for {<affected>}"
     %+  roll  affected
     |=  [=flag:d co=_cor]
     =/  di  (di-abed:di-core:co flag)
     di-abet:di-recheck:di
   ::
       [%channel * %del-sects *]
-    ~&  '%diary recheck permissions for {<affected>}'
+    ~&  "%diary recheck permissions for {<affected>}"
     %+  roll  affected
     |=  [=flag:d co=_cor]
     =/  di  (di-abed:di-core:co flag)
