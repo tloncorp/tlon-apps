@@ -10,11 +10,29 @@
 +$  card  card:shoe
 ::
 +$  versioned-state
-  $%  state-0
+  $%  state-1
+      state-0
   ==
 ::
 +$  state-0
   $:  %0
+      sessions=(map sole-id session-0)              ::  sole sessions
+      bound=(map flag:chat glyph)                   ::  bound chat glyphs
+      binds=(jug glyph flag:chat)                   ::  chat glyph lookup
+      settings=(set term)                           ::  frontend flags
+      width=@ud                                     ::  display width
+      timez=(pair ? @ud)                            ::  timezone adjustment
+  ==
+::
++$  session-0
+  $:  viewing=(set flag:chat)                       ::  connected chats
+      history=(list [flag:chat id:chat])            ::  scrollback pointers
+      count=@ud                                     ::  (lent history)
+      audience=flag:chat                            ::  active target
+  ==
+::
++$  state-1
+  $:  %1
       sessions=(map sole-id session)                ::  sole sessions
       bound=(map target glyph)                      ::  bound glyphs
       binds=(jug glyph target)                      ::  glyph lookup
@@ -31,7 +49,7 @@
       audience=target                               ::  active target
   ==
 ::
-+$  target  whom:chat                               :: polymorphic id for channels
++$  target  whom:chat                               ::  polymorphic id for channels
 ::
 +$  glyph  char
 ++  glyphs  "!@#$%^&()-=_+[]\{}'\\:\",.<>?"
@@ -74,7 +92,7 @@
   ==                                                ::
 ::
 --
-=|  state-0
+=|  state-1
 =*  state  -
 ::
 %-  agent:dbug
@@ -216,11 +234,92 @@
 ::
 ++  prep
   |=  old=(unit versioned-state)
-  ^-  (quip card _state)
+  |^  ^-  (quip card _state)
   ?~  old
     [~ state(width 80)]
-  ?>  ?=(%0 -.u.old)
-  [~ u.old]
+  ?-  -.u.old
+    %1  [~ u.old]
+    %0  [~ (zero-to-one u.old)]
+  ==
+  ::  +zero-to-one: state-0 to state-1
+  ::
+  ++  zero-to-one
+    |=  =state-0
+    ^-  state-1
+    :*  %1
+        (sessions sessions.state-0)
+        (bound bound.state-0)
+        (binds binds.state-0 bound.state-0)
+        settings.state-0
+        width.state-0
+        timez.state-0
+    ==
+    ::
+    ++  sessions
+      |=  sessions=(map sole-id session-0)
+      ^-  (map sole-id session)
+      %-  ~(run by sessions)
+      |=  =session-0
+      :*  (flag-to-whom viewing.session-0)
+          (history history.session-0)
+          count.session-0
+          (audience audience.session-0)
+      ==
+    ::
+    ++  audience
+      |=  =flag:chat
+      ^-  whom:chat
+      [%flag flag]
+    ::
+    ++  flag-to-whom
+      |=  flags=(set flag:chat)
+      ^-  (set whom:chat)
+      %-  ~(run in flags)
+      |=  =flag:chat
+      [%flag flag]
+    ::
+    ++  history
+      |=  history=(list [flag:chat id:chat])
+      ^-  (list [whom:chat id:chat])
+      %+  turn  history
+      |=  [=flag:chat =id:chat]
+      [[%flag flag] id]
+    ::
+    ++  bound
+      |=  bound=(map flag:chat glyph)
+      ^-  (map whom:chat glyph)
+      %-  malt
+      %+  turn  ~(tap by bound)
+      |=  [=flag:chat =glyph]
+      [[%flag flag] glyph]
+    ::
+    ++  binds
+      |=  $:  binds=(jug glyph flag:chat)
+              bound=(map flag:chat glyph)
+          ==
+      ^-  (jug glyph whom:chat)
+      =/  glyphs=(list glyph)
+        ~(val by bound)
+      =|  new-binds=(jug glyph whom:chat)
+      |-
+      ?~  glyphs  new-binds
+      %=    $
+          new-binds
+        =/  targets=(list whom:chat)
+          %~  tap  in
+          %-  flag-to-whom
+          (~(get ju binds) i.glyphs)
+        |-  ^-  (jug glyph whom:chat)
+        ?~  targets  new-binds
+        %=  $
+          new-binds  (~(put ju new-binds) i.glyphs i.targets)
+          targets  t.targets
+        ==
+      ::
+          glyphs
+        t.glyphs
+      ==
+  --
 ::  +connect: subscribe to chats, dms, and clubs
 ::
 ++  connect
@@ -295,6 +394,8 @@
   ^-  (map club-id crew)
   =/  clubs  
     (scry-for (map club-id crew) %chat /clubs)
+  ::  remove archived
+  ::
   =/  ids=(list club-id)  
     ~(tap in ~(key by clubs))
   |-
