@@ -1560,8 +1560,9 @@
     =+  dat=(yore sent)
     =*  t   (d-co:co 2)
     =,  t.dat
+    =+  begin=?~(replying " ~" "  ~")
     %-  crip
-    :(weld "~" (t h) "." (t m) "." (t s))
+    :(weld begin (t h) "." (t m) "." (t s))
   ::
   ++  line
     ^-  tape
@@ -1569,7 +1570,7 @@
     %-  zing
     %+  join  "\0a"
     %+  weld
-      (turn p.p.content block-as-tape)
+      (blocks-as-tapes p.p.content)
     (inlines-as-tapes & q.p.content)
   ::
   ++  inlines-as-tapes
@@ -1674,44 +1675,99 @@
       (snap content last new)
     --
   ::
-  ++  block-as-tape
-    |=  =block:chat
-    ^-  tape
-    ?-  -.block
-      %image  "[img: {(trip alt.block)}]"
+  ++  blocks-as-tapes
+    |=  blocks=(list block:chat)
+    |^  ^-  (list tape)
+        (zing (turn blocks process-block))
+    ::  +process-block: build a block
     ::
-        %cite
-      ?-  -.cite.block
-          %group  =,  cite.block
-        "#group: {(scow %p p.flag)}/{(trip q.flag)}"
+    ++  process-block
+      |=  =block:chat
+      ^-  (list tape)
+      ?-  -.block
+        %image  ["[ #img: {(trip alt.block)} ]"]~
       ::
-          %desk   =,  cite.block
-        "#desk: {(scow %p p.flag)}/{(trip q.flag)}{(spud wer)}"
-      ::
-          %bait
-        "#bait"  ::TODO  scry once we can do it safely
-      ::
-          %chan   =,  cite.block
-        =/  =path   (flop wer)
-        =/  =id:chat
-          :-  (slav %p +<.path)
-          (slav %ud -.path)
-        =/  =whom:chat  [%flag q.nest]
-        ?.  (message-exists whom id)
-          "#chat: telegram was deleted"
-        ?.  ?=(%story -.content)
-          "#chat: telegram was a notice"
-        =+  %^  scry-for-marked  ,[* =writ:chat]
-              %chat
-            (forge whom id)
-        =/  message=tape
-          =+  %+  scag  100
-              ~(line mr whom -.writ +.writ)
-          ?.  =(100 (lent -))  -
-          (snoc - '…')
-        (weld "#chat {(scow %p -.id)}: " message)
+          %cite
+        ?-  -.cite.block
+            %group  =,  cite.block
+          ["[ #group: {(scow %p p.flag)}/{(trip q.flag)} ]"]~
+        ::
+            %desk   =,  cite.block
+          ["[ #desk: {(scow %p p.flag)}/{(trip q.flag)}{(spud wer)} ]"]~
+        ::
+            %bait
+          ["[ #bait: ]"]~  ::TODO  implement once %lure is released
+        ::
+            %chan   =,  cite.block
+          =/  =path   (flop wer)
+          =/  =id:chat
+            :-  (slav %p +<.path)
+            (slav %ud -.path)
+          =/  =whom:chat  [%flag q.nest]
+          ?.  (message-exists whom id)
+            ["[ #chat: telegram was deleted ]"]~
+          ?.  ?=(%story -.content)
+            ["[ #chat: telegram was a notice ]"]~
+          =+  %^  scry-for-marked  ,[* =writ:chat]
+                %chat
+              (forge whom id)
+          %-  render-message-block
+          %+  simple-wrap  
+            %+  weld
+              "{(cite:title -.id)} said: "
+            ~(line mr whom +.writ)
+          (sub content-width 7)
+        ==
       ==
-    ==
+    ::  +render-message-block: make a message block
+    ::
+    ++  render-message-block
+      |=  msg=(list tape)
+      ^-  (list tape)
+      =+  in=(scag 2 msg)
+      =|  out=(list tape)
+      =/  aces=[line-one=@ud line-two=(unit @ud)]
+        (block-width in)
+      |-
+      ?~  in  out
+      =/  line=(list tape)
+        (scag 1 `(list tape)`in)
+      %=    $
+          out
+        %^    into
+            out
+          ?~(out 0 1)
+        %-  zing
+        %^    into
+            (weld ["[ "]~ line)
+          ?~(out 2 5)
+        %+  runt
+          :_  ' '
+          ?~(out line-one.aces (need line-two.aces))
+        ?~  out  " ]"
+        ?.((gth (lent msg) 2) " ]" "…]")
+      ::
+          in
+        t.in
+      ==
+    ::  +block-width: determine number of aces needed for line
+    ::  blocks
+    ::
+    ++  block-width
+      |=  in=(list tape)
+      ^-  [@ud (unit @ud)]
+      =/  one=@ud
+        (sub content-width (add 7 (lent -.in)))
+      =/  two=(unit @ud)
+        ?~  +.in  ~
+        `(sub content-width (add 7 (lent +<.in)))
+      ?~  two  [0 ~]
+      ?:  |(=(0 one) =(0 u.two))
+        [one two]
+      ?:  (gth one u.two)
+        [(sub (lent +<.in) (lent -.in)) `0]
+      [0 `(sub (lent -.in) (lent +<.in))]
+    --
   ::  +activate: produce sole-effect for printing message details
   ::
   ++  render-activate
