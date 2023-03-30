@@ -1,7 +1,7 @@
 import React from 'react';
 import Avatar from '@/components/Avatar';
 import { useGang, useGroup, useGroupFlag } from '@/state/groups';
-import { isYarnShip, Rope } from '@/types/hark';
+import { isYarnShip, Rope, Skein } from '@/types/hark';
 import GroupAvatar from '@/groups/GroupAvatar';
 import DefaultGroupIcon from '@/components/icons/DefaultGroupIcon';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
@@ -11,11 +11,10 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import Person16Icon from '@/components/icons/Person16Icon';
 import X16Icon from '@/components/icons/X16Icon';
 import { useIsMobile } from '@/logic/useMedia';
-import { Bin } from './useNotifications';
 import Notification from './Notification';
 
 interface GroupNotificationProps {
-  bin: Bin;
+  bin: Skein;
 }
 
 interface GroupOrChannelIconProps {
@@ -55,13 +54,13 @@ function GroupSubIcon({ rope }: GroupOrChannelIconProps) {
 
 export default function GroupNotification({ bin }: GroupNotificationProps) {
   const isMobile = useIsMobile();
-  const rope = bin.topYarn?.rope;
+  const rope = bin.top?.rope;
   const group = useGroup(rope?.group || '');
   const groupFlag = useGroupFlag();
   const gang = useGang(rope?.group || '');
   const groupTitle = group?.meta.title || gang?.preview?.meta.title;
   const channelTitle = group?.channels[rope?.channel || '']?.meta.title;
-  const ship = bin.topYarn?.con.find(isYarnShip);
+  const ship = bin.top?.con.find(isYarnShip);
   const combinedTitle = `${groupTitle || ''}${
     channelTitle ? `: ${channelTitle}` : ''
   }`;
