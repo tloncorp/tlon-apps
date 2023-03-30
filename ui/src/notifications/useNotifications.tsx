@@ -64,14 +64,15 @@ export const useNotifications = (
   }, [flag, refresh, retrieve, retrieveGroup]);
 
   return useMemo(() => {
+    const unreads = skeins.filter((s) => s.unread);
     const filteredSkeins = skeins.filter((s) =>
       mentionsOnly ? isMention(s.top) : s
     );
 
     return {
       notifications: groupSkeinsByDate(filteredSkeins),
-      mentions: skeins.filter((s) => isMention(s.top)),
-      count: skeins.filter((s) => s.unread).length,
+      mentions: unreads.filter((s) => isMention(s.top)),
+      count: unreads.length,
     };
   }, [skeins, mentionsOnly]);
 };
