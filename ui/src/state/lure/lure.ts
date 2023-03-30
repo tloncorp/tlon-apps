@@ -154,7 +154,7 @@ const selLure = (flag: string) => (s: LureState) => ({
   lure: s.lures[flag] || { fetched: false, url: '' },
   bait: s.bait,
 });
-const { shouldLoad, newAttempt, finished } = getPreviewTracker();
+const { shouldLoad, newAttempt, finished } = getPreviewTracker(30 * 1000);
 export function useLure(flag: string, disableLoading = false) {
   const { bait, lure } = useLureState(selLure(flag));
 
