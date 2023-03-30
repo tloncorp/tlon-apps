@@ -90,7 +90,7 @@ export default function ChatContentImage({
       >
         <img
           src={src}
-          className="max-w-full rounded"
+          className="max-h-full w-auto max-w-full rounded-lg"
           height={height}
           width={width}
           alt={altText ? altText : 'A chat image'}

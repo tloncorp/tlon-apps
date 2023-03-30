@@ -16,7 +16,8 @@ export default function LightBox({
     <Dialog
       open={showLightBox}
       onOpenChange={(open) => setShowLightBox(open)}
-      className="flex h-screen w-screen items-center justify-center bg-transparent"
+      containerClass="h-full w-full"
+      className="flex h-full w-full items-center justify-center bg-transparent p-0"
       close="lightbox"
       onClick={() => setShowLightBox(false)}
     >
