@@ -3,7 +3,6 @@ import useHarkState, { emptyBlanket, emptyCarpet } from '@/state/hark';
 import { Flag, Thread, Yarn, Yarns } from '@/types/hark';
 import _ from 'lodash';
 import { makePrettyDay } from '@/logic/utils';
-import useRequestState from '@/logic/useRequestState';
 
 export interface Bin {
   time: number;

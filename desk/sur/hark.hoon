@@ -92,4 +92,12 @@
   +$  quilt  ((mop @ud thread) lte)
   ++  on  ((^on @ud thread) lte)
   --
+::
+++  skein
+  $:  =time
+      count=@ud
+      ship-count=@ud
+      top=yarn
+      unread=?
+  ==
 --
