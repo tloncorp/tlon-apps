@@ -323,11 +323,16 @@ export default function ChannelHeader({
         ?.bins.filter((b) => b.unread === true);
 
       if (unreadBins) {
-        unreadBins
-          .filter((b) => b.topYarn.wer.includes(nest))
-          .forEach((n) => {
-            useHarkState.getState().sawRope(n.topYarn.rope);
-          });
+        const unreadsHere = unreadBins.filter((b) =>
+          b.topYarn.wer.includes(nest)
+        );
+
+        unreadsHere.forEach((n, index) => {
+          // update on the last call
+          useHarkState
+            .getState()
+            .sawRope(n.topYarn.rope, index === unreadsHere.length - 1);
+        });
       }
     }
   }, [hasActivity, notifications, nest]);

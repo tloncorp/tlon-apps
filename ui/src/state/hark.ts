@@ -5,7 +5,6 @@ import create from 'zustand';
 import { Blanket, Carpet, Flag, HarkAction, Rope, Seam } from '@/types/hark';
 import api from '@/api';
 import { decToUd } from '@urbit/api';
-import { asyncForEach } from '@/lib';
 import useSubscriptionState from './subscription';
 
 export interface HarkState {
@@ -23,16 +22,12 @@ export interface HarkState {
       blanket: Blanket;
     };
   };
-  groupSubs: Flag[];
   /** start: fetches app-wide notifications and subscribes to updates */
   start: () => Promise<void>;
   /** retrieve: refreshes app-wide notifications to latest  */
   retrieve: () => Promise<void>;
-  /** retrieveGroup: fetches group's notifications and adds to "subs" */
+  /** retrieveGroup: fetches group's notifications */
   retrieveGroup: (flag: Flag) => Promise<void>;
-  /** releaseGroup: removes updates from happening */
-  releaseGroup: (flag: Flag) => Promise<void>;
-  update: (group: string | null) => Promise<void>;
   sawRope: (rope: Rope, update?: boolean) => Promise<void>;
   sawSeam: (seam: Seam) => Promise<void>;
 }
@@ -75,29 +70,20 @@ const useHarkState = create<HarkState>((set, get) => ({
   carpet: emptyCarpet({ desk: window.desk }),
   blanket: emptyBlanket({ desk: window.desk }),
   textiles: {},
-  groupSubs: [],
   start: async () => {
-    await get().retrieve();
+    const { retrieve } = get();
+    retrieve();
 
     await api.subscribe({
       app: 'hark',
       path: '/ui',
       event: (event: HarkAction) => {
         if ('add-yarn' in event) {
-          get().update(null);
+          retrieve();
         }
       },
     });
     set({ loaded: true });
-  },
-  update: async (group) => {
-    const { groupSubs, retrieve, retrieveGroup } = get();
-    await retrieve();
-
-    await asyncForEach(
-      groupSubs.filter((g) => !group || group === g),
-      retrieveGroup
-    );
   },
   retrieve: async () => {
     const carpet = await api
@@ -137,19 +123,6 @@ const useHarkState = create<HarkState>((set, get) => ({
         carpet,
         blanket,
       };
-
-      if (!get().groupSubs.includes(flag)) {
-        draft.groupSubs.push(flag);
-      }
-    });
-  },
-  releaseGroup: async (flag) => {
-    get().batchSet((draft) => {
-      const index = draft.groupSubs.indexOf(flag);
-
-      if (index !== -1) {
-        draft.groupSubs.splice(index, 1);
-      }
     });
   },
   sawRope: async (rope, update = true) =>
@@ -173,7 +146,7 @@ const useHarkState = create<HarkState>((set, get) => ({
               );
             });
 
-          await get().update(rope.group);
+          await get().retrieve();
           resolve();
         },
       });
@@ -192,7 +165,7 @@ const useHarkState = create<HarkState>((set, get) => ({
               return 'saw-seam' in event && _.isEqual(event['saw-seam'], seam);
             });
 
-          await get().update(('group' in seam && seam.group) || null);
+          await get().retrieve();
           resolve();
         },
       });

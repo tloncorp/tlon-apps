@@ -68,23 +68,42 @@ export const isComment = (yarn: Yarn) =>
 export const isReply = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' replied to your message “');
 
-export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
-  const { carpet, blanket } = useHarkState(
+export const useNotifications = (
+  flag?: Flag,
+  mentionsOnly = false,
+  refresh = false
+) => {
+  const { carpet, blanket, retrieve, retrieveGroup } = useHarkState(
     useCallback(
       (state) => {
-        if (flag) {
-          return (
-            state.textiles[flag] || {
+        const textile = !flag
+          ? { carpet: state.carpet, blanket: state.blanket }
+          : state.textiles[flag] || {
               carpet: emptyCarpet({ group: flag }),
               blanket: emptyBlanket({ group: flag }),
-            }
-          );
-        }
-        return { carpet: state.carpet, blanket: state.blanket };
+            };
+
+        return {
+          ...textile,
+          retrieve: state.retrieve,
+          retrieveGroup: state.retrieveGroup,
+        };
       },
       [flag]
     )
   );
+
+  useEffect(() => {
+    if (!refresh) {
+      return;
+    }
+
+    if (flag) {
+      retrieveGroup(flag);
+    } else {
+      retrieve();
+    }
+  }, [flag, refresh, retrieve, retrieveGroup]);
 
   return useMemo(() => {
     const bins: Bin[] = carpet.cable.map((c) =>

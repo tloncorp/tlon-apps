@@ -77,7 +77,8 @@ export default function Notifications({
   const [showMentionsOnly, setShowMentionsOnly] = useState(false);
   const { notifications, mentions, count } = useNotifications(
     flag,
-    showMentionsOnly
+    showMentionsOnly,
+    true
   );
 
   const hasUnreads = count > 0;
