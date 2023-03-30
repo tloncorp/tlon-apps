@@ -1,7 +1,11 @@
 import React, { useCallback } from 'react';
 import Dialog, { DialogClose } from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { useGroupState, useRouteGroup, useGroup } from '@/state/groups/groups';
+import {
+  useRouteGroup,
+  useGroup,
+  useGroupLeaveMutation,
+} from '@/state/groups/groups';
 import { useNavigate } from 'react-router';
 
 export default function GroupInviteDialog() {
@@ -9,6 +13,7 @@ export default function GroupInviteDialog() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const navigate = useNavigate();
+  const { mutate: leaveGroupMutation } = useGroupLeaveMutation();
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -17,9 +22,9 @@ export default function GroupInviteDialog() {
   };
 
   const onLeave = useCallback(async () => {
-    await useGroupState.getState().leave(flag);
+    leaveGroupMutation({ flag });
     navigate('/');
-  }, [flag, navigate]);
+  }, [flag, navigate, leaveGroupMutation]);
 
   return (
     <Dialog

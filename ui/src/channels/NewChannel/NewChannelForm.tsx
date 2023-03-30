@@ -3,11 +3,10 @@ import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
 import { useNavigate, useParams } from 'react-router';
-import { useGroupState, useRouteGroup } from '@/state/groups';
+import { useAddChannelMutation, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
-import ChannelJoinSelector from '@/groups/ChannelsList/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
@@ -21,6 +20,7 @@ export default function NewChannelForm() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
+  const { mutate: mutateAddChannel } = useAddChannelMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
     zone: 'default',
@@ -116,9 +116,11 @@ export default function NewChannelForm() {
 
       if (section) {
         try {
-          await useGroupState
-            .getState()
-            .addChannelToZone(section, groupFlag, newChannelNest);
+          mutateAddChannel({
+            flag: groupFlag,
+            nest: newChannelNest,
+            zone: section,
+          });
         } catch (e) {
           setAddChannelStatus('error');
           console.log('NewChannelForm::onSubmit::addChannelToZone', e);
@@ -130,7 +132,7 @@ export default function NewChannelForm() {
         isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/channels`
       );
     },
-    [section, groupFlag, navigate, isMobile]
+    [section, groupFlag, navigate, isMobile, mutateAddChannel]
   );
 
   return (

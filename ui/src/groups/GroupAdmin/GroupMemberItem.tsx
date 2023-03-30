@@ -13,8 +13,11 @@ import { toTitleCase, getSectTitle, getChannelHosts } from '@/logic/utils';
 import {
   useAmAdmin,
   useGroup,
+  useGroupAddSectsMutation,
+  useGroupBanShipsMutation,
+  useGroupDelMembersMutation,
+  useGroupDelSectsMutation,
   useGroupFlag,
-  useGroupState,
   useSects,
   useVessel,
 } from '@/state/groups';
@@ -43,6 +46,10 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const contact = useContact(member);
   const location = useLocation();
   const modalNavigate = useModalNavigate();
+  const { mutate: delMembersMutation } = useGroupDelMembersMutation();
+  const { mutate: banShipsMutation } = useGroupBanShipsMutation();
+  const { mutate: delSectsMutation } = useGroupDelSectsMutation();
+  const { mutate: addSectsMutation } = useGroupAddSectsMutation();
 
   const onViewProfile = (ship: string) => {
     modalNavigate(`/profile/${ship}`, {
@@ -53,19 +60,19 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const kick = useCallback(
     (ship: string) => async () => {
       setLoadingKick(true);
-      await useGroupState.getState().delMembers(flag, [ship]);
+      delMembersMutation({ flag, ships: [ship] });
       setLoadingKick(false);
     },
-    [flag]
+    [flag, delMembersMutation]
   );
 
   const ban = useCallback(
     (ship: string) => async () => {
       setLoadingBan(true);
-      await useGroupState.getState().banShips(flag, [ship]);
+      banShipsMutation({ flag, ships: [ship] });
       setLoadingBan(false);
     },
-    [flag]
+    [flag, banShipsMutation]
   );
 
   const toggleSect = useCallback(
@@ -83,7 +90,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
       }
       if (inSect) {
         try {
-          await useGroupState.getState().delSects(flag, ship, [sect]);
+          delSectsMutation({ flag, ship, sects: [sect] });
           setSectStatus('success');
         } catch (e) {
           setSectStatus('error');
@@ -91,7 +98,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
         }
       } else {
         try {
-          await useGroupState.getState().addSects(flag, ship, [sect]);
+          addSectsMutation({ flag, ship, sects: [sect] });
           setSectStatus('success');
         } catch (e) {
           setSectStatus('error');
@@ -99,7 +106,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
         }
       }
     },
-    [flag]
+    [flag, delSectsMutation, addSectsMutation]
   );
 
   if (!group) {

@@ -4,7 +4,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { GroupChannel, ChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
-import { useGroupState, useRouteGroup } from '@/state/groups';
+import { useEditChannelMutation, useRouteGroup } from '@/state/groups';
 import {
   channelHref,
   getPrivacyFromChannel,
@@ -43,6 +43,7 @@ export default function EditChannelForm({
   const groupFlag = useRouteGroup();
   const [app, channelFlag] = nestToFlag(nest);
   const chan = useChannel(nest);
+  const { mutate: mutateEditChannel } = useEditChannelMutation();
   const defaultValues: ChannelFormSchema = {
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
@@ -76,9 +77,7 @@ export default function EditChannelForm({
         nextChannel.zone = presetSection;
       }
       try {
-        await useGroupState
-          .getState()
-          .editChannel(groupFlag, nest, nextChannel);
+        mutateEditChannel({ channel: nextChannel, flag: groupFlag, nest });
         setEditStatus('success');
       } catch (e) {
         setEditStatus('error');
@@ -109,14 +108,15 @@ export default function EditChannelForm({
     [
       app,
       channelFlag,
-      groupFlag,
       nest,
+      groupFlag,
       dismiss,
       navigate,
       redirect,
       retainRoute,
       setEditIsOpen,
       presetSection,
+      mutateEditChannel,
     ]
   );
 

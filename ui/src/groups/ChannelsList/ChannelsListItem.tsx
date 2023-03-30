@@ -5,7 +5,11 @@ import { GroupChannel } from '@/types/groups';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
-import { useAmAdmin, useGroupState, useRouteGroup } from '@/state/groups';
+import {
+  useAmAdmin,
+  useDeleteChannelMutation,
+  useRouteGroup,
+} from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import {
   getPrivacyFromChannel,
@@ -72,11 +76,12 @@ export default function ChannelsListItem({
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const privacy = getPrivacyFromChannel(channel, getChannel(app, channelFlag));
   const permissionText = PRIVACY_TYPE[privacy].title;
+  const { mutate: deleteChannelMutation } = useDeleteChannelMutation();
 
   const onDeleteChannelConfirm = useCallback(async () => {
     setDeleteStatus('loading');
     try {
-      await useGroupState.getState().deleteChannel(groupFlag, nest);
+      deleteChannelMutation({ flag: groupFlag, nest });
       onChannelDelete(nest, sectionKey);
       setDeleteStatus('success');
       setDeleteChannelIsOpen(!deleteChannelIsOpen);
@@ -84,7 +89,14 @@ export default function ChannelsListItem({
       setDeleteStatus('error');
       console.log(e);
     }
-  }, [nest, deleteChannelIsOpen, onChannelDelete, sectionKey, groupFlag]);
+  }, [
+    nest,
+    deleteChannelIsOpen,
+    onChannelDelete,
+    sectionKey,
+    groupFlag,
+    deleteChannelMutation,
+  ]);
 
   const join = useCallback(
     async (chFlag: string) => {

@@ -3,7 +3,13 @@ import { useLocation, useNavigate } from 'react-router';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
 import useHarkState from '@/state/hark';
-import { useGroup, useGroupState } from '@/state/groups';
+import {
+  useGroup,
+  useGroupJoinMutation,
+  useGroupKnockMutation,
+  useGroupRejectMutation,
+  useGroupRescindMutation,
+} from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
 import { Status } from '@/logic/status';
 import useNavigateByApp from '@/logic/useNavigateByApp';
@@ -45,6 +51,10 @@ export default function useGroupJoin(
   const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
+  const { mutate: joinMutation } = useGroupJoinMutation();
+  const { mutate: knockMutation } = useGroupKnockMutation();
+  const { mutate: rescindMutation } = useGroupRescindMutation();
+  const { mutate: rejectMutation } = useGroupRejectMutation();
 
   const open = useCallback(() => {
     if (group) {
@@ -60,7 +70,7 @@ export default function useGroupJoin(
     setStatus('loading');
 
     if (privacy === 'private' && !invited) {
-      await useGroupState.getState().knock(flag);
+      knockMutation({ flag });
       setStatus('success');
     } else {
       try {
@@ -75,7 +85,7 @@ export default function useGroupJoin(
       }
 
       try {
-        await useGroupState.getState().join(flag, true);
+        joinMutation({ flag });
         setStatus('success');
         if (redirectItem) {
           if (redirectItem.type === 'chat') {
@@ -91,15 +101,26 @@ export default function useGroupJoin(
       } catch (e) {
         setStatus('error');
         if (requested) {
-          await useGroupState.getState().rescind(flag);
+          rescindMutation({ flag });
         } else {
-          await useGroupState.getState().reject(flag);
+          rejectMutation({ flag });
         }
         return navigateByApp(`/find/${flag}`);
       }
     }
     return null;
-  }, [privacy, invited, flag, requested, redirectItem, navigateByApp]);
+  }, [
+    privacy,
+    invited,
+    flag,
+    requested,
+    redirectItem,
+    navigateByApp,
+    joinMutation,
+    knockMutation,
+    rescindMutation,
+    rejectMutation,
+  ]);
 
   const reject = useCallback(async () => {
     setRejectStatus('loading');
@@ -109,7 +130,7 @@ export default function useGroupJoin(
      */
     if (privacy === 'public') {
       try {
-        await useGroupState.getState().reject(flag);
+        rejectMutation({ flag });
         setRejectStatus('success');
       } catch (e) {
         setRejectStatus('error');
@@ -127,7 +148,16 @@ export default function useGroupJoin(
     } else {
       navigateByApp(`/gangs/${flag}/reject`);
     }
-  }, [flag, inModal, location, dismiss, modalNavigate, privacy, navigateByApp]);
+  }, [
+    flag,
+    inModal,
+    location,
+    dismiss,
+    modalNavigate,
+    privacy,
+    navigateByApp,
+    rejectMutation,
+  ]);
 
   return {
     group,

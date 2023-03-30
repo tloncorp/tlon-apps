@@ -1,7 +1,11 @@
 import GroupAvatar from '@/groups/GroupAvatar';
 import { useIsMobile } from '@/logic/useMedia';
 import useRequestState from '@/logic/useRequestState';
-import { useGang, useGroupState } from '@/state/groups';
+import {
+  useGang,
+  useGroupCancelMutation,
+  useGroupRescindMutation,
+} from '@/state/groups';
 import * as Popover from '@radix-ui/react-popover';
 import React from 'react';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
@@ -13,6 +17,8 @@ export default function GangItem(props: { flag: string }) {
   const { preview, claim } = useGang(flag);
   const { isPending, setPending, setReady } = useRequestState();
   const isMobile = useIsMobile();
+  const { mutate: rescindMutation } = useGroupRescindMutation();
+  const { mutate: cancelMutation } = useGroupCancelMutation();
 
   if (!claim) {
     return null;
@@ -23,10 +29,10 @@ export default function GangItem(props: { flag: string }) {
   const handleCancel = async () => {
     setPending();
     if (requested) {
-      await useGroupState.getState().rescind(flag);
+      rescindMutation({ flag });
       setReady();
     } else {
-      await useGroupState.getState().cancel(flag);
+      cancelMutation({ flag });
       setReady();
     }
   };

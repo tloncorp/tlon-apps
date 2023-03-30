@@ -1,8 +1,7 @@
 import _ from 'lodash';
 import create from 'zustand';
 import api from '@/api';
-import { useGroupState } from '@/state/groups';
-import { GroupState } from '@/state/groups/type';
+import { useGroup } from '@/state/groups';
 import { useCallback, useEffect, useMemo } from 'react';
 import useSchedulerStore from '@/state/scheduler';
 import { useChatState } from '@/state/chat';
@@ -73,9 +72,7 @@ const selWait = (s: WaitStore) => s.wait;
 export function useStartedMigration(flag: string) {
   const wait = useWaitStore(selWait);
   const pendingImports = usePendingImports();
-  const channels = useGroupState(
-    useCallback((s: GroupState) => s.groups[flag]?.channels, [flag])
-  );
+  const group = useGroup(flag);
   const pendingShips = Object.keys(pendingImports).map(getNestShip);
 
   useEffect(() => {
@@ -93,7 +90,7 @@ export function useStartedMigration(flag: string) {
       },
       [pendingImports, pendingShips, wait]
     ),
-    channels,
+    channels: group?.channels,
     pendingImports,
   };
 }

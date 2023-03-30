@@ -1,10 +1,8 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useMatch, useNavigate } from 'react-router';
 import {
   useGang,
   useGroup,
-  useGroupsInitialized,
-  useGroupState,
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
@@ -15,25 +13,11 @@ import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import _ from 'lodash';
 import { canReadChannel } from '@/logic/utils';
-import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { Group } from '@/types/groups';
 
 function Groups() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
-  const initialized = useGroupsInitialized();
-  const { isLoading: isLoadingGroupData, data: groupData } =
-    useReactQuerySubscription({
-      queryKey: ['group', flag],
-      app: 'groups',
-      path: `/groups/${flag}/ui`,
-      initialScryPath: `/groups/${flag}`,
-    });
-  console.log({ groupData });
-  const group = useMemo(
-    () => (isLoadingGroupData ? undefined : (groupData as Group)),
-    [groupData, isLoadingGroupData]
-  );
+  const group = useGroup(flag);
   const gang = useGang(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -57,9 +41,9 @@ function Groups() {
     // navigate to that channel.
     // 5) If we're on mobile, just navigate to the channel list for the group.
 
-    if (initialized && !group && !gang) {
+    if (!group && !gang) {
       navigate('/');
-    } else if (initialized && group && root) {
+    } else if (group && root) {
       const found = Object.entries(group.channels).find(
         ([nest, _c]) => recentChannel === nest
       );
@@ -87,31 +71,7 @@ function Groups() {
         navigate('./channels');
       }
     }
-  }, [
-    root,
-    gang,
-    group,
-    vessel,
-    isMobile,
-    initialized,
-    recentChannel,
-    navigate,
-  ]);
-
-  // useEffect(() => {
-  // let id = null as number | null;
-  // useGroupState
-  // .getState()
-  // .initialize(flag, true)
-  // .then((i) => {
-  // id = i;
-  // });
-  // return () => {
-  // if (id) {
-  // api.unsubscribe(id);
-  // }
-  // };
-  // }, [flag]);
+  }, [root, gang, group, vessel, isMobile, recentChannel, navigate]);
 
   if (!group) {
     return null;

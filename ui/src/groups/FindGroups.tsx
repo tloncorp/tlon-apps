@@ -4,7 +4,7 @@ import cn from 'classnames';
 import ob from 'urbit-ob';
 import {
   useGangs,
-  useGroupState,
+  useGroupIndex,
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
@@ -13,7 +13,6 @@ import { Gangs, GroupIndex, ViewProps } from '@/types/groups';
 import useRequestState from '@/logic/useRequestState';
 import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
 import { useNavigate, useParams, useLocation } from 'react-router';
-import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { useModalNavigate } from '@/logic/routing';
 import GroupReference from '@/components/References/GroupReference';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
@@ -30,6 +29,7 @@ export default function FindGroups({ title }: ViewProps) {
   const existingGangs = useGangs();
   const pendingGangs = usePendingGangsWithoutClaim();
   const isMobile = useIsMobile();
+  const data = useGroupIndex(ship || '');
 
   /**
    *  Search results for render:
@@ -82,20 +82,6 @@ export default function FindGroups({ title }: ViewProps) {
         }, {} as Gangs)
     : null;
 
-  useEffect(() => {
-    if (indexedGangs && hasKeys(indexedGangs)) {
-      const indexedFlags = Object.keys(indexedGangs);
-      if (indexedFlags.every((f) => f in existingGangs)) {
-        // The gangs state has already been merged with the indexed gangs,
-        // so no need to update again
-        return;
-      }
-      useGroupState.setState((draft) => ({
-        gangs: { ...draft.gangs, ...indexedGangs },
-      }));
-    }
-  }, [existingGangs, indexedGangs]);
-
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
 
   const selectedShip =
@@ -119,10 +105,7 @@ export default function FindGroups({ title }: ViewProps) {
        * for peers where a route has to be established this can take
        * upwards of thirty seconds.
        */
-      const results: GroupIndex = await asyncCallWithTimeout(
-        useGroupState.getState().index(preSig(ship)),
-        30 * 1000
-      );
+      const results: GroupIndex | null = data;
       setGroupIndex(results);
       setReady();
     } catch (error) {
@@ -132,7 +115,7 @@ export default function FindGroups({ title }: ViewProps) {
       setGroupIndex({});
       setReady(); // TODO: show error state? e.g. request timed out... or "Is the host online?"
     }
-  }, [setPending, setReady, ship]);
+  }, [setPending, setReady, ship, data]);
 
   // if ship in query params, do query
   useEffect(() => {

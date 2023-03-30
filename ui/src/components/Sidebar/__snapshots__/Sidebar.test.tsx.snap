@@ -323,40 +323,70 @@ exports[`Sidebar > renders as expected 1`] = `
     <div
       class="flex-auto space-y-3 overflow-x-hidden sm:space-y-1"
     >
-      <ul
-        class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"
+      <div
+        class="h-full w-full list-none overflow-x-hidden"
+        data-test-id="virtuoso-scroller"
+        data-virtuoso-scroller="true"
+        style="height: 100%; outline: none; overflow-y: auto; position: relative;"
+        tabindex="0"
       >
-        <li
-          class="relative flex w-full items-center justify-between rounded-lg"
+        <div
+          data-viewport-type="element"
+          style="width: 100%; height: 100%; position: absolute; top: 0px;"
         >
-          <div
-            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
-          >
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
-            />
-            <div
-              class="bg-gray-100 h-4 rounded-md"
-              style="width: 100px;"
-            />
+          <div>
+            <div>
+              <div
+                class="flex-initial"
+              >
+                <div
+                  class="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1"
+                >
+                  <h2
+                    class="px-2 text-sm font-bold text-gray-400"
+                  >
+                    Recent Activity
+                  </h2>
+                  <div
+                    class="pr-1"
+                  >
+                    <button
+                      aria-expanded="false"
+                      aria-haspopup="menu"
+                      aria-label="Groups Sort Options"
+                      class="default-focus flex h-6 w-6 items-center rounded text-base font-semibold hover:bg-gray-50 sm:p-1"
+                      data-state="closed"
+                      id="radix-1"
+                      type="button"
+                    >
+                      <svg
+                        class="h-6 w-6 text-gray-400 sm:h-4 sm:w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          class="fill-current"
+                          clip-rule="evenodd"
+                          d="M17.207 4.793a1 1 0 0 0-1.414 0l-3 3a1 1 0 0 0 1.414 1.414L15.5 7.914V17.5a1 1 0 1 0 2 0V7.914l1.293 1.293a1 1 0 1 0 1.414-1.414l-3-3ZM8.5 5.5a1 1 0 0 0-2 0v9.586l-1.293-1.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l3-3a1 1 0 0 0-1.414-1.414L8.5 15.086V5.5Z"
+                          fill-rule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div
+                  class="relative"
+                />
+              </div>
+            </div>
           </div>
-        </li>
-        <li
-          class="relative flex w-full items-center justify-between rounded-lg"
-        >
           <div
-            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
-          >
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
-            />
-            <div
-              class="bg-gray-100 h-4 rounded-md"
-              style="width: 100px;"
-            />
-          </div>
-        </li>
-      </ul>
+            data-test-id="virtuoso-item-list"
+            style="box-sizing: border-box; padding-top: 0px; padding-bottom: 0px; margin-top: 0px;"
+          />
+        </div>
+      </div>
     </div>
   </nav>
 </DocumentFragment>

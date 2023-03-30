@@ -3,7 +3,14 @@ import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import Dialog, { DialogClose } from '@/components/Dialog';
-import { useGroup, useGroupState, useRouteGroup } from '@/state/groups';
+import {
+  useDeleteGroupMutation,
+  useEditGroupMutation,
+  useGroup,
+  useGroupSetSecretMutation,
+  useGroupSwapCordonMutation,
+  useRouteGroup,
+} from '@/state/groups';
 import {
   GroupFormSchema,
   GroupMeta,
@@ -39,6 +46,10 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { enabled, describe } = useLure(groupFlag);
+  const { mutate: deleteMutation } = useDeleteGroupMutation();
+  const { mutate: editMutation } = useEditGroupMutation();
+  const { mutate: swapCordonMutation } = useGroupSwapCordonMutation();
+  const { mutate: setSecretMutation } = useGroupSetSecretMutation();
 
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -67,20 +78,20 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const onDelete = useCallback(async () => {
     setDeleteStatus('loading');
     try {
-      await useGroupState.getState().delete(groupFlag);
+      deleteMutation({ flag: groupFlag });
       setDeleteStatus('success');
       setDeleteDialogOpen(false);
       navigate('/');
     } catch (e) {
       setDeleteStatus('error');
     }
-  }, [groupFlag, navigate]);
+  }, [groupFlag, navigate, deleteMutation]);
 
   const onSubmit = useCallback(
     async (values: GroupMeta & { privacy: PrivacyType }) => {
       setStatus('loading');
       try {
-        await useGroupState.getState().edit(groupFlag, values);
+        editMutation({ flag: groupFlag, metadata: values });
 
         if (enabled) {
           describe(values);
@@ -88,32 +99,43 @@ export default function GroupInfoEditor({ title }: ViewProps) {
 
         const privacyChanged = values.privacy !== privacy;
         if (privacyChanged) {
-          await useGroupState.getState().swapCordon(
-            groupFlag,
-            values.privacy === 'public'
-              ? {
-                  open: {
-                    ships: [],
-                    ranks: [],
+          swapCordonMutation({
+            flag: groupFlag,
+            cordon:
+              values.privacy === 'public'
+                ? {
+                    open: {
+                      ships: [],
+                      ranks: [],
+                    },
+                  }
+                : {
+                    shut: {
+                      pending: [],
+                      ask: [],
+                    },
                   },
-                }
-              : {
-                  shut: {
-                    pending: [],
-                    ask: [],
-                  },
-                }
-          );
-          await useGroupState
-            .getState()
-            .setSecret(groupFlag, values.privacy === 'secret');
+          });
+
+          setSecretMutation({
+            flag: groupFlag,
+            isSecret: values.privacy === 'secret',
+          });
         }
         setStatus('success');
       } catch (e) {
         setStatus('error');
       }
     },
-    [groupFlag, privacy, enabled, describe]
+    [
+      groupFlag,
+      privacy,
+      enabled,
+      describe,
+      editMutation,
+      swapCordonMutation,
+      setSecretMutation,
+    ]
   );
 
   return (
@@ -159,7 +181,9 @@ export default function GroupInfoEditor({ title }: ViewProps) {
           </footer>
         </form>
       </FormProvider>
-      <LureInviteBlock flag={groupFlag} group={group} className="mb-4" />
+      {group && (
+        <LureInviteBlock flag={groupFlag} group={group} className="mb-4" />
+      )}
       <div className="card">
         <h2 className="mb-1 text-lg font-bold">Delete Group</h2>
         <p className="mb-4">

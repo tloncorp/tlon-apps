@@ -15,7 +15,7 @@ import {
   useChannel,
   useAmAdmin,
   useRouteGroup,
-  useGroupState,
+  useDeleteChannelMutation,
 } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import { useDiaryState } from '@/state/diary';
@@ -84,6 +84,7 @@ function ChannelActions({
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const isChannelHost = useIsChannelHost(flag);
+  const { mutate: deleteChannelMutate } = useDeleteChannelMutation();
 
   function prettyAppName() {
     switch (_app) {
@@ -131,7 +132,7 @@ function ChannelActions({
   const onDeleteChannelConfirm = useCallback(async () => {
     setDeleteStatus('loading');
     try {
-      await useGroupState.getState().deleteChannel(groupFlag, nest);
+      deleteChannelMutate({ flag, nest });
       navigate(
         isMobile
           ? `/groups/${ship}/${name}`
@@ -144,7 +145,16 @@ function ChannelActions({
       // eslint-disable-next-line no-console
       console.error(error);
     }
-  }, [deleteChannelIsOpen, groupFlag, isMobile, name, navigate, nest, ship]);
+  }, [
+    deleteChannelIsOpen,
+    flag,
+    nest,
+    deleteChannelMutate,
+    isMobile,
+    name,
+    navigate,
+    ship,
+  ]);
 
   return (
     <>

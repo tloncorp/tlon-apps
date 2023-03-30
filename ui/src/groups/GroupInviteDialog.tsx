@@ -4,7 +4,12 @@ import cn from 'classnames';
 import Dialog, { DialogClose } from '@/components/Dialog';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { useDismissNavigate } from '@/logic/routing';
-import { useGroup, useGroupState, useRouteGroup } from '@/state/groups/groups';
+import {
+  useGroup,
+  useGroupAddMembersMutation,
+  useGroupInviteMutation,
+  useRouteGroup,
+} from '@/state/groups/groups';
 import { getPrivacyFromGroup, preSig } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -23,6 +28,8 @@ export default function GroupInviteDialog() {
       : false;
   const { isPending, setPending, setReady, setFailed, isFailed } =
     useRequestState();
+  const { mutate: inviteMutation } = useGroupInviteMutation();
+  const { mutate: addMembersMutation } = useGroupAddMembersMutation();
 
   const onInvite = useCallback(async () => {
     setPending();
@@ -30,9 +37,9 @@ export default function GroupInviteDialog() {
 
     try {
       if (privacy !== 'public') {
-        await useGroupState.getState().invite(flag, shipList);
+        inviteMutation({ flag, ships: shipList });
       } else {
-        await useGroupState.getState().addMembers(flag, shipList);
+        addMembersMutation({ flag, ships: shipList });
       }
       setReady();
       dismiss();
@@ -43,7 +50,17 @@ export default function GroupInviteDialog() {
         setReady();
       }, 3000);
     }
-  }, [flag, privacy, ships, setPending, setReady, setFailed, dismiss]);
+  }, [
+    flag,
+    privacy,
+    ships,
+    setPending,
+    setReady,
+    setFailed,
+    dismiss,
+    inviteMutation,
+    addMembersMutation,
+  ]);
 
   return (
     <Dialog
@@ -54,7 +71,7 @@ export default function GroupInviteDialog() {
       close="none"
     >
       <div className="flex flex-col space-y-6">
-        <LureInviteBlock flag={flag} group={group} />
+        {group && <LureInviteBlock flag={flag} group={group} />}
         <div className="card">
           <h2 className="mb-1 text-lg font-bold">Invite by Urbit ID</h2>
           <p className="mb-4 text-gray-600">

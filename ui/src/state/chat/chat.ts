@@ -24,7 +24,7 @@ import {
   Pins,
   WritDelta,
 } from '@/types/chat';
-import api from '@/api';
+import api, { useSubscriptionState } from '@/api';
 import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
 import { useChannelFlag } from '@/hooks';
 import { useChatStore } from '@/chat/useChatStore';
@@ -34,7 +34,6 @@ import makeWritsStore, { writsReducer } from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
-import useSubscriptionState from '../subscription';
 import useSchedulerStore from '../scheduler';
 
 setAutoFreeze(false);

@@ -2,7 +2,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { DragDropContext, DraggableLocation } from 'react-beautiful-dnd';
 import bigInt from 'big-integer';
 import { formatUv } from '@urbit/aura';
-import { useAmAdmin, useGroupState, useRouteGroup } from '@/state/groups';
+import {
+  useAddChannelMutation,
+  useAmAdmin,
+  useGroupMoveChannelMutation,
+  useGroupMoveZoneMutation,
+  useRouteGroup,
+} from '@/state/groups';
 import { SectionMap } from './types';
 import ChannelManagerHeader from './ChannelManagerHeader';
 import ChannelsListSections from './ChannelsListSections';
@@ -18,6 +24,9 @@ export default function ChannelsListDropContext({
   const isAdmin = useAmAdmin(group);
   const [sections, setSections] = useState<SectionMap>({});
   const [orderedSections, setOrderedSections] = useState<string[]>([]);
+  const { mutate: addChannelMutation } = useAddChannelMutation();
+  const { mutate: moveChannelMutation } = useGroupMoveChannelMutation();
+  const { mutate: moveZoneMutation } = useGroupMoveZoneMutation();
 
   useEffect(() => {
     setSections(sectionedChannels);
@@ -105,11 +114,13 @@ export default function ChannelsListDropContext({
 
   const setChannelZone = useCallback(
     async (nest: string, zoneName: string, groupFlag: string) => {
-      await useGroupState
-        .getState()
-        .addChannelToZone(zoneName, groupFlag, nest);
+      addChannelMutation({
+        flag: groupFlag,
+        nest,
+        zone: zoneName,
+      });
     },
-    []
+    [addChannelMutation]
   );
 
   const setChannelIndex = useCallback(
@@ -119,11 +130,14 @@ export default function ChannelsListDropContext({
       groupFlag: string,
       destinationIndex: number
     ) => {
-      await useGroupState
-        .getState()
-        .moveChannel(groupFlag, zoneID, nest, destinationIndex);
+      moveChannelMutation({
+        flag: groupFlag,
+        nest,
+        zone: zoneID,
+        idx: destinationIndex,
+      });
     },
-    []
+    [moveChannelMutation]
   );
 
   const reorderSectionMap = useCallback(
@@ -204,9 +218,12 @@ export default function ChannelsListDropContext({
           return;
         }
 
-        await useGroupState
-          .getState()
-          .moveZone(group, result.draggableId, destination.index);
+        moveZoneMutation({
+          flag: group,
+          zone: result.draggableId,
+          index: destination.index,
+        });
+
         const newOrder = reorder(
           orderedSections,
           source.index,
@@ -220,7 +237,14 @@ export default function ChannelsListDropContext({
 
       setSections(nextMap);
     },
-    [orderedSections, reorder, reorderSectionMap, sections, group]
+    [
+      orderedSections,
+      reorder,
+      reorderSectionMap,
+      sections,
+      group,
+      moveZoneMutation,
+    ]
   );
 
   if (isAdmin) {

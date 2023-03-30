@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import SixDotIcon from '@/components/icons/SixDotIcon';
-import { useAmAdmin, useGroupState, useRouteGroup } from '@/state/groups';
+import {
+  useAddChannelMutation,
+  useAmAdmin,
+  useGroupDeleteZoneMutation,
+  useRouteGroup,
+} from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { SectionListItem } from '@/groups/ChannelsList/types';
 import Channels from '@/groups/ChannelsList/Channels';
@@ -36,6 +41,8 @@ export default function Section({
   const [isEditing, setIsEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<Status>('initial');
   const isSectionless = sectionKey === 'default';
+  const { mutate: addChannelMutation } = useAddChannelMutation();
+  const { mutate: deleteZoneMutation } = useGroupDeleteZoneMutation();
 
   useEffect(() => {
     if (sectionData.isNew === true) {
@@ -47,9 +54,16 @@ export default function Section({
     setIsEditing(!isEditing);
   }, [isEditing]);
 
-  const removeChannelsFromZone = async (groupFlag: string, nest: string) => {
-    await useGroupState.getState().addChannelToZone('default', groupFlag, nest);
-  };
+  const removeChannelsFromZone = useCallback(
+    (groupFlag: string, nest: string) => {
+      addChannelMutation({
+        flag: groupFlag,
+        nest,
+        zone: 'default',
+      });
+    },
+    [addChannelMutation]
+  );
 
   const handleDeleteClick = useCallback(async () => {
     const sectionFlag = strToSym(sectionKey);
@@ -57,8 +71,18 @@ export default function Section({
     sectionData.channels.forEach((channel) => {
       removeChannelsFromZone(group, channel.key);
     });
-    await useGroupState.getState().deleteZone(group, sectionFlag);
-  }, [sectionData, group, onSectionDelete, sectionKey]);
+    deleteZoneMutation({
+      flag: group,
+      zone: sectionFlag,
+    });
+  }, [
+    sectionData,
+    group,
+    onSectionDelete,
+    sectionKey,
+    deleteZoneMutation,
+    removeChannelsFromZone,
+  ]);
 
   if (isSectionless && !isAdmin && sectionData.channels.length === 0) {
     return null;

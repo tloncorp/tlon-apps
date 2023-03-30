@@ -2,7 +2,7 @@ import React, { ReactElement, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useStep } from 'usehooks-ts';
-import { useGroupState } from '@/state/groups';
+import { useCreateGroupMutation } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
@@ -28,6 +28,7 @@ export default function NewGroup() {
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
   const [status, setStatus] = useState<Status>('initial');
   // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
+  const { mutate: createGroupMutation } = useCreateGroupMutation();
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -83,7 +84,7 @@ export default function NewGroup() {
     setStatus('loading');
 
     try {
-      await useGroupState.getState().create({
+      createGroupMutation({
         ...values,
         name,
         members,
@@ -97,7 +98,7 @@ export default function NewGroup() {
     } catch (error) {
       setStatus('error');
     }
-  }, [shipsToInvite, navigate, form]);
+  }, [shipsToInvite, navigate, form, createGroupMutation]);
 
   // const nextWithTemplate = (template?: string) => {
   //   setTemplateType(template ? (template as TemplateTypes) : 'none');

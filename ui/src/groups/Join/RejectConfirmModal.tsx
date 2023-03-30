@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { useLocalStorage } from 'usehooks-ts';
 import Dialog from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { useGang, useGroupState, useRouteGroup } from '@/state/groups';
+import { useGang, useGroupRejectMutation, useRouteGroup } from '@/state/groups';
 import { toTitleCase } from '@/logic/utils';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import useRequestState from '@/logic/useRequestState';
@@ -30,6 +30,7 @@ export default function RejectConfirmModal() {
     'groups:skipGroupInviteRejectConfirm',
     false
   );
+  const { mutate: rejectMutation } = useGroupRejectMutation();
 
   const cancel = useCallback(async () => {
     dismiss();
@@ -42,13 +43,21 @@ export default function RejectConfirmModal() {
     }
 
     try {
-      await useGroupState.getState().reject(flag);
+      rejectMutation({ flag });
       setReady();
       dismiss();
     } catch (e) {
       setFailed();
     }
-  }, [dismiss, flag, setSkipConfirmation, setPending, setReady, setFailed]);
+  }, [
+    dismiss,
+    flag,
+    setSkipConfirmation,
+    setPending,
+    setReady,
+    setFailed,
+    rejectMutation,
+  ]);
 
   useEffect(() => {
     if (skipConfirmation) {

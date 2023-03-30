@@ -1,16 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
-import useNest from '@/logic/useNest';
 import Layout from '@/components/Layout/Layout';
-import {
-  useChannel,
-  useGroup,
-  useGroupState,
-  useRouteGroup,
-  useVessel,
-} from '@/state/groups';
-import { canReadChannel, isChannelJoined, nestToFlag } from '@/logic/utils';
+import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import { canReadChannel, isChannelJoined } from '@/logic/utils';
 import { Link } from 'react-router-dom';
 import bigInt from 'big-integer';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';

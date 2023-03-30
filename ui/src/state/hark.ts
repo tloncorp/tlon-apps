@@ -3,10 +3,9 @@ import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce from 'immer';
 import create from 'zustand';
 import { Blanket, Carpet, Flag, HarkAction, Rope, Seam } from '@/types/hark';
-import api from '@/api';
+import api, { useSubscriptionState } from '@/api';
 import { decToUd } from '@urbit/api';
 import { asyncForEach } from '@/lib';
-import useSubscriptionState from './subscription';
 
 export interface HarkState {
   set: (fn: (sta: HarkState) => void) => void;

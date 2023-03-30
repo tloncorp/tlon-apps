@@ -17,7 +17,8 @@ import { useContacts } from '@/state/contact';
 import {
   useAmAdmin,
   useGroup,
-  useGroupState,
+  useGroupInviteMutation,
+  useGroupRevokeMutation,
   useRouteGroup,
 } from '@/state/groups/groups';
 import bigInt from 'big-integer';
@@ -52,6 +53,8 @@ export default function GroupPendingManager() {
     isFailed: isRevokeFailed,
     setFailed: setRevokeFailed,
   } = useRequestState();
+  const { mutate: revokeMutation } = useGroupRevokeMutation();
+  const { mutate: inviteMutation } = useGroupInviteMutation();
 
   const pending = useMemo(() => {
     let members: string[] = [];
@@ -108,7 +111,7 @@ export default function GroupPendingManager() {
     (ship: string, kind: 'ask' | 'pending') => async () => {
       setRevokePending();
       try {
-        await useGroupState.getState().revoke(flag, [ship], kind);
+        revokeMutation({ flag, ships: [ship], kind });
         setRevokeReady();
       } catch (e) {
         console.error('Error revoking invite, poke failed');
@@ -118,14 +121,14 @@ export default function GroupPendingManager() {
         }, 3000);
       }
     },
-    [flag, setRevokePending, setRevokeReady, setRevokeFailed]
+    [flag, setRevokePending, setRevokeReady, setRevokeFailed, revokeMutation]
   );
 
   const approve = useCallback(
     (ship: string) => async () => {
       setPending();
       try {
-        await useGroupState.getState().invite(flag, [ship]);
+        inviteMutation({ flag, ships: [ship] });
         setReady();
       } catch (e) {
         console.error('Error approving invite, poke failed');
@@ -135,7 +138,7 @@ export default function GroupPendingManager() {
         }, 3000);
       }
     },
-    [flag, setPending, setReady, setFailed]
+    [flag, setPending, setReady, setFailed, inviteMutation]
   );
 
   const onViewProfile = (ship: string) => {

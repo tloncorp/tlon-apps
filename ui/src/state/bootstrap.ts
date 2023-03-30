@@ -6,7 +6,6 @@ import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
 import useDocketState from './docket';
-import { useGroupState } from './groups';
 import useHarkState from './hark';
 import { useHeapState } from './heap/heap';
 import useKilnState from './kiln';
@@ -37,7 +36,7 @@ async function chatScry<T>(path: string, def: T) {
 
 async function startGroups(talkStarted: boolean) {
   // make sure if this errors we don't kill the entire app
-  const { chat, heap, diary, ...groups } = await asyncWithDefault(
+  const { chat, heap, diary } = await asyncWithDefault(
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
@@ -47,7 +46,6 @@ async function startGroups(talkStarted: boolean) {
   );
 
   if (!talkStarted) {
-    useGroupState.getState().start(groups);
     useChatState.getState().start(chat);
   }
   useHeapState.getState().start(heap);
@@ -56,7 +54,7 @@ async function startGroups(talkStarted: boolean) {
 
 async function startTalk(groupsStarted: boolean) {
   // since talk is a separate desk we need to offer a fallback
-  const { groups, gangs, ...chat } = await asyncWithFallback(
+  const { ...chat } = await asyncWithFallback(
     () =>
       api.scry<TalkInit>({
         app: 'talk-ui',
@@ -109,9 +107,6 @@ async function startTalk(groupsStarted: boolean) {
     }
   );
 
-  if (!groupsStarted) {
-    useGroupState.getState().start({ groups, gangs });
-  }
   useChatState.getState().startTalk(chat, !groupsStarted);
 }
 

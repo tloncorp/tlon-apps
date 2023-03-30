@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { useIsMobile } from '@/logic/useMedia';
-import { useGroupsInitialized } from '@/state/groups/groups';
 import { Group } from '@/types/groups';
 import GroupListPlaceholder from './GroupListPlaceholder';
 import GroupsSidebarItem from './GroupsSidebarItem';
@@ -30,7 +29,6 @@ export default function GroupList({
   atTopChange,
 }: GroupListProps) {
   const isMobile = useIsMobile();
-  const initialized = useGroupsInitialized();
   const thresholds = {
     atBottomThreshold: 125,
     atTopThreshold: 125,
@@ -56,8 +54,8 @@ export default function GroupList({
     [head]
   );
 
-  if (!initialized) {
-    return <GroupListPlaceholder count={groups.length || 5} />;
+  if (!groups) {
+    return <GroupListPlaceholder count={5} />;
   }
 
   return (
