@@ -249,10 +249,13 @@
                  ::
                  ?.(new cor (p-news:pub who ~))
         ::
-          %dead  ::
-                 ::  XX reflect deletion in /news ?
+          %dead  ?:  new  cor
+                 =.  rol  (~(del by rol) who)
                  ::
-                 cor(rol (~(del by rol) who))
+                 ::  this is not quite right, reflecting *total* deletion
+                 ::  as *contact* deletion. but it's close, and keeps /news simpler
+                 ::
+                 (p-news:pub who ~)
         ==
       ::
       ++  si-take
