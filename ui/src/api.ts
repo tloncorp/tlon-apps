@@ -41,6 +41,10 @@ async function setupAPI() {
     client = api;
   }
 
+  client.onReconnect = () => {
+    console.log('reconnecting!');
+  };
+
   client.onRetry = () => {
     useLocalState.setState((state) => ({
       subscription: 'reconnecting',

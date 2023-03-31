@@ -542,7 +542,7 @@ function App() {
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
-  useConnectionChecker();
+  // useConnectionChecker();
 
   return (
     <div className="flex h-full w-full flex-col">

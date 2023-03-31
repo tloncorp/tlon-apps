@@ -112,5 +112,8 @@ export default ({ mode }: { mode: string }) => {
       setupFiles: './test/setup.ts',
       deps: {},
     },
+    optimizeDeps: {
+      exclude: ['@urbit/http-api'],
+    },
   });
 };
