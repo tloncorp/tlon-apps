@@ -42,12 +42,16 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const group = useGroup(groupFlag);
   const [deleteField, setDeleteField] = useState('');
   const { privacy } = useGroupPrivacy(groupFlag);
-  const [status, setStatus] = useState<Status>('initial');
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { enabled, describe } = useLure(groupFlag);
   const { mutate: deleteMutation } = useDeleteGroupMutation();
-  const { mutate: editMutation } = useEditGroupMutation();
+  const {
+    mutate: editMutation,
+    isLoading,
+    isError,
+    isSuccess,
+  } = useEditGroupMutation();
   const { mutate: swapCordonMutation } = useGroupSwapCordonMutation();
   const { mutate: setSecretMutation } = useGroupSetSecretMutation();
 
@@ -58,14 +62,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
       privacy,
     },
   });
-
-  useEffect(() => {
-    form.reset({
-      ...emptyMeta,
-      ...group?.meta,
-      privacy,
-    });
-  }, [group, form, privacy]);
 
   const onDeleteChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -89,7 +85,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
 
   const onSubmit = useCallback(
     async (values: GroupMeta & { privacy: PrivacyType }) => {
-      setStatus('loading');
       try {
         editMutation({ flag: groupFlag, metadata: values });
 
@@ -122,9 +117,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
             isSecret: values.privacy === 'secret',
           });
         }
-        setStatus('success');
+        if (isSuccess) {
+          form.reset({
+            ...values,
+          });
+        }
       } catch (e) {
-        setStatus('error');
+        console.log("GroupInfoEditor: couldn't edit group", e);
       }
     },
     [
@@ -135,6 +134,8 @@ export default function GroupInfoEditor({ title }: ViewProps) {
       editMutation,
       swapCordonMutation,
       setSecretMutation,
+      form,
+      isSuccess,
     ]
   );
 
@@ -170,13 +171,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
               className="button"
               disabled={!form.formState.isDirty}
             >
-              {status === 'loading' ? (
-                <LoadingSpinner />
-              ) : status === 'error' ? (
-                'Error'
-              ) : (
-                'Save'
-              )}
+              {isLoading ? <LoadingSpinner /> : isError ? 'Error' : 'Save'}
             </button>
           </footer>
         </form>

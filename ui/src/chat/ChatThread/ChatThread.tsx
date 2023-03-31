@@ -49,7 +49,7 @@ export default function ChatThread() {
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
   const threadTitle = whomIsFlag(whom)
-    ? channel.meta.title || ''
+    ? channel?.meta?.title || ''
     : isClub
     ? club?.meta.title || ship
     : ship;

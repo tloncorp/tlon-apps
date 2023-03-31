@@ -1,7 +1,11 @@
-import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import { useParams } from 'react-router';
 import { useMemo } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  MutationFunction,
+  useMutation,
+  UseMutationOptions,
+  useQueryClient,
+} from '@tanstack/react-query';
 import {
   Gangs,
   GroupChannel,
@@ -17,10 +21,8 @@ import {
 } from '@/types/groups';
 import api, { useSubscriptionState } from '@/api';
 import { BaitCite } from '@/types/chat';
-import _ from 'lodash';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
-import { GroupState } from './type';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -38,64 +40,21 @@ function groupAction(flag: string, diff: GroupDiff) {
   };
 }
 
-const emptyGroup: Group = {
-  fleet: {},
-  cabals: {},
-  channels: {
-    '~': {
-      readers: [],
-      added: 0,
-      join: false,
-      meta: {
-        title: '',
-        description: '',
-        image: '',
-        cover: '',
-      },
-      zone: '',
-    },
-  },
-  cordon: {
-    open: {
-      ships: [],
-      ranks: [],
-    },
-  },
-  meta: {
-    title: '',
-    description: '',
-    image: '',
-    cover: '',
-  },
-  zones: {
-    '~': {
-      meta: {
-        title: '',
-        description: '',
-        image: '',
-        cover: '',
-      },
-      idx: [''],
-    },
-  },
-  'zone-ord': [],
-  bloc: [],
-  secret: false,
-};
-
-export function useGroup(flag: string) {
+export function useGroup(flag: string, withMembers = false) {
+  const queryClient = useQueryClient();
+  const initialData = queryClient.getQueryData(['groups']) as Groups;
+  const group = initialData?.[flag];
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['group', flag],
     app: 'groups',
     path: `/groups/${flag}/ui`,
     initialScryPath: `/groups/${flag}`,
-    options: {
-      enabled: !!flag && flag !== '',
-    },
+    enabled: !!flag && flag !== '' && withMembers,
+    initialData: group,
   });
 
   if (rest.isLoading || rest.isError) {
-    return null;
+    return undefined;
   }
 
   return {
@@ -108,13 +67,11 @@ export function useGroups() {
     queryKey: ['groups'],
     app: 'groups',
     path: `/groups/ui`,
-    initialScryPath: `/groups`,
+    initialScryPath: `/groups/light`,
   });
 
   if (rest.isLoading || rest.isError) {
-    return {
-      '~zod/fake': emptyGroup,
-    };
+    return {} as Groups;
   }
 
   return data as Groups;
@@ -170,9 +127,7 @@ export function useGroupList(): string[] {
 }
 
 export function useVessel(flag: string, ship: string) {
-  const queryClient = useQueryClient();
-
-  const data = queryClient.getQueryData(['group', flag]) as Group;
+  const data = useGroup(flag);
 
   return (
     data?.fleet[ship] || {
@@ -191,7 +146,7 @@ const defGang = {
 export function useGang(flag: string) {
   const queryClient = useQueryClient();
 
-  const data = queryClient.getQueryData(['gangs']) as Gangs;
+  const data = queryClient.getQueryData(['gangs', flag]) as Gangs;
 
   return data?.[flag] || defGang;
 }
@@ -202,12 +157,14 @@ export function useGangs() {
     app: 'groups',
     path: `/gangs/updates`,
     initialScryPath: `/gangs`,
+    options: {
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+    },
   });
 
   if (rest.isLoading || rest.isError) {
-    return {
-      '~zod/fake': defGang,
-    } as Gangs;
+    return {} as Gangs;
   }
 
   return {
@@ -244,24 +201,20 @@ export function useChannel(
   flag: string,
   channel: string
 ): GroupChannel | undefined {
-  const queryClient = useQueryClient();
+  const data = useGroup(flag);
 
-  const data = queryClient.getQueryData(['group', flag]) as Group;
-
-  return data?.channels[channel];
+  return data?.channels?.[channel];
 }
 
 export function useChannelList(flag: string): string[] {
-  const queryClient = useQueryClient();
-
-  const data = queryClient.getQueryData(['group', flag]) as Group;
+  const data = useGroup(flag);
 
   return Object.keys(data?.channels || {});
 }
 
 export function useAmAdmin(flag: string) {
-  const group = useGroup(flag);
-  const vessel = group?.fleet[window.our];
+  const group = useGroup(flag, true);
+  const vessel = group?.fleet?.[window.our];
   return vessel && vessel.sects.includes(GROUP_ADMIN);
 }
 
@@ -323,6 +276,8 @@ export function useChannelPreview(nest: string, disableLoading = false) {
     path: `/chan/${nest}`,
     options: {
       enabled: !disableLoading,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
     },
   });
 
@@ -347,8 +302,114 @@ export function useShoal(bait: BaitCite['bait']) {
   return data;
 }
 
+export function useGroupMutation<TResponse>(
+  mutationFn: MutationFunction<TResponse, any>,
+  options?: UseMutationOptions<TResponse, unknown, any, unknown>
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['group', variables.flag]);
+
+      const data = await queryClient.getQueryData(['group', variables.flag]);
+      const previousGroup = data as Group;
+
+      const { zone, nest, idx, meta, index, metadata } = variables;
+
+      if (metadata) {
+        // edit group metadata
+        queryClient.setQueryData(['group', variables.flag], {
+          ...previousGroup,
+          meta: {
+            ...previousGroup.meta,
+            ...metadata,
+          },
+        });
+      }
+
+      if (zone) {
+        const previousZone = (previousGroup as Group)?.zones[zone];
+
+        if (previousZone) {
+          if (index !== undefined) {
+            // move a zone
+            const newZoneOrd = previousGroup['zone-ord'].filter(
+              (z) => z !== zone
+            );
+            newZoneOrd.splice(index, 0, zone);
+            queryClient.setQueryData(['group', variables.flag], {
+              ...previousGroup,
+              'zone-ord': newZoneOrd,
+            });
+          }
+
+          if (meta) {
+            // edit zone metadata
+            queryClient.setQueryData(['group', variables.flag], {
+              ...previousGroup,
+              zones: {
+                ...previousGroup.zones,
+                [zone]: {
+                  ...previousZone,
+                  meta: {
+                    ...previousZone.meta,
+                    ...meta,
+                  },
+                },
+              },
+            });
+          }
+
+          if (idx !== undefined && nest) {
+            // move a channel within a zone
+            const newIdxArray = previousZone.idx.filter((n) => n !== nest);
+            newIdxArray.splice(idx, 0, nest);
+
+            queryClient.setQueryData(['group', variables.flag], {
+              ...previousGroup,
+              zones: {
+                ...previousGroup.zones,
+                [zone]: {
+                  ...previousZone,
+                  idx: newIdxArray,
+                },
+              },
+            });
+          }
+        }
+        if (zone && !previousZone && meta) {
+          // add a new zone
+          const newZoneOrd = previousGroup['zone-ord'];
+          newZoneOrd.splice(1, 0, zone);
+          queryClient.setQueryData(['group', variables.flag], {
+            ...previousGroup,
+            zones: {
+              ...previousGroup.zones,
+              [zone]: {
+                idx: [],
+                meta,
+              },
+            },
+            'zone-ord': newZoneOrd,
+          });
+        }
+      }
+
+      return data;
+    },
+    onError: (err, variables, previousGroup) => {
+      queryClient.setQueryData(['group', variables.flag], previousGroup);
+    },
+    onSettled: (_data, _error, variables) =>
+      queryClient.invalidateQueries(['group', variables.flag]),
+    ...options,
+  });
+}
+
 export function useEditChannelMutation() {
-  const mutateFn = (variables: {
+  const mutationFn = (variables: {
     flag: string;
     nest: string;
     channel: GroupChannel;
@@ -382,11 +443,11 @@ export function useEditChannelMutation() {
       });
     });
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useDeleteChannelMutation() {
-  const mutateFn = (variables: { flag: string; nest: string }) =>
+  const mutationFn = (variables: { flag: string; nest: string }) =>
     new Promise<void>((resolve, reject) => {
       api.poke({
         ...groupAction(variables.flag, {
@@ -416,11 +477,11 @@ export function useDeleteChannelMutation() {
       });
     });
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useAddChannelMutation() {
-  const mutateFn = (variables: {
+  const mutationFn = (variables: {
     flag: string;
     zone: string;
     nest: string;
@@ -460,11 +521,11 @@ export function useAddChannelMutation() {
     });
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupCreateZoneMutation() {
-  const mutateFn = async (variables: {
+  const mutationFn = async (variables: {
     flag: string;
     zone: string;
     meta: GroupMeta;
@@ -500,11 +561,11 @@ export function useGroupCreateZoneMutation() {
     });
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupEditZoneMutation() {
-  const mutateFn = async (variables: {
+  const mutationFn = async (variables: {
     flag: string;
     zone: string;
     meta: GroupMeta;
@@ -521,11 +582,11 @@ export function useGroupEditZoneMutation() {
     await api.poke(groupAction(variables.flag, diff));
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupMoveZoneMutation() {
-  const mutateFn = async (variables: {
+  const mutationFn = async (variables: {
     flag: string;
     zone: string;
     index: number;
@@ -542,11 +603,11 @@ export function useGroupMoveZoneMutation() {
     await api.poke(groupAction(variables.flag, diff));
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupDeleteZoneMutation() {
-  const mutateFn = async (variables: { flag: string; zone: string }) => {
+  const mutationFn = async (variables: { flag: string; zone: string }) => {
     const diff = {
       zone: {
         zone: variables.zone,
@@ -559,11 +620,11 @@ export function useGroupDeleteZoneMutation() {
     await api.poke(groupAction(variables.flag, diff));
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupMoveChannelMutation() {
-  const mutateFn = async (variables: {
+  const mutationFn = async (variables: {
     flag: string;
     nest: string;
     idx: number;
@@ -584,11 +645,11 @@ export function useGroupMoveChannelMutation() {
     await api.poke(groupAction(variables.flag, diff));
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useEditGroupMutation() {
-  const mutateFn = (variables: { flag: string; metadata: GroupMeta }) =>
+  const mutationFn = (variables: { flag: string; metadata: GroupMeta }) =>
     new Promise<void>((resolve, reject) => {
       api.poke({
         ...groupAction(variables.flag, { meta: variables.metadata }),
@@ -613,11 +674,11 @@ export function useEditGroupMutation() {
         },
       });
     });
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useCreateGroupMutation() {
-  const mutateFn = (variables: {
+  const mutationFn = (variables: {
     name: string;
     title: string;
     description: string;
@@ -651,11 +712,11 @@ export function useCreateGroupMutation() {
       });
     });
 
-  return useMutation(mutateFn);
+  return useMutation(mutationFn);
 }
 
 export function useDeleteGroupMutation() {
-  const mutateFn = (variables: { flag: string }) =>
+  const mutationFn = (variables: { flag: string }) =>
     new Promise<void>((resolve, reject) => {
       api.poke({
         ...groupAction(variables.flag, { del: null }),
@@ -677,11 +738,11 @@ export function useDeleteGroupMutation() {
       });
     });
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupJoinMutation() {
-  const mutateFn = (variables: { flag: string }) =>
+  const mutationFn = (variables: { flag: string }) =>
     new Promise<void>((resolve, reject) => {
       api.poke({
         app: 'groups',
@@ -707,11 +768,11 @@ export function useGroupJoinMutation() {
       });
     });
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupLeaveMutation() {
-  return useMutation(async (variables: { flag: string }) => {
+  return useGroupMutation(async (variables: { flag: string }) => {
     await api.poke({
       app: 'groups',
       mark: 'group-leave',
@@ -721,7 +782,7 @@ export function useGroupLeaveMutation() {
 }
 
 export function useGroupRescindMutation() {
-  return useMutation(async (variables: { flag: string }) => {
+  return useGroupMutation(async (variables: { flag: string }) => {
     await api.poke({
       app: 'groups',
       mark: 'group-rescind',
@@ -731,7 +792,7 @@ export function useGroupRescindMutation() {
 }
 
 export function useGroupCancelMutation() {
-  return useMutation(async (variables: { flag: string }) => {
+  return useGroupMutation(async (variables: { flag: string }) => {
     await api.poke({
       app: 'groups',
       mark: 'group-cancel',
@@ -741,7 +802,7 @@ export function useGroupCancelMutation() {
 }
 
 export function useGroupKnockMutation() {
-  return useMutation(async (variables: { flag: string }) => {
+  return useGroupMutation(async (variables: { flag: string }) => {
     await api.poke({
       app: 'groups',
       mark: 'group-knock',
@@ -751,7 +812,7 @@ export function useGroupKnockMutation() {
 }
 
 export function useGroupInviteMutation() {
-  const mutateFn = (variables: { flag: string; ships: string[] }) =>
+  const mutationFn = (variables: { flag: string; ships: string[] }) =>
     new Promise<void>((resolve, reject) => {
       api.poke({
         ...groupAction(variables.flag, {
@@ -806,11 +867,11 @@ export function useGroupInviteMutation() {
       });
     });
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupRevokeMutation() {
-  const mutateFn = (variables: {
+  const mutationFn = (variables: {
     flag: string;
     ships: string[];
     kind: 'ask' | 'pending';
@@ -872,11 +933,12 @@ export function useGroupRevokeMutation() {
       });
     });
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupRejectMutation() {
-  const mutateFn = (variables: { flag: string }) =>
+  const queryClient = useQueryClient();
+  const mutationFn = (variables: { flag: string }) =>
     new Promise<void>((resolve, reject) => {
       api.poke({
         app: 'groups',
@@ -886,7 +948,7 @@ export function useGroupRejectMutation() {
         onSuccess: async () => {
           await useSubscriptionState
             .getState()
-            .track('groups/groups/ui', (event) => {
+            .track('gangs/updates', (event) => {
               const { json } = event;
               if (json && variables.flag in json) {
                 return json[variables.flag].invite === null;
@@ -895,16 +957,18 @@ export function useGroupRejectMutation() {
               return false;
             });
 
+          queryClient.invalidateQueries(['gangs']);
+          queryClient.invalidateQueries(['gangs', variables.flag]);
           resolve();
         },
       });
     });
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupSwapCordonMutation() {
-  const mutateFn = (variables: { flag: string; cordon: Cordon }) =>
+  const mutationFn = (variables: { flag: string; cordon: Cordon }) =>
     api.poke(
       groupAction(variables.flag, {
         cordon: {
@@ -913,22 +977,22 @@ export function useGroupSwapCordonMutation() {
       })
     );
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupSetSecretMutation() {
-  const mutateFn = (variables: { flag: string; isSecret: boolean }) =>
+  const mutationFn = (variables: { flag: string; isSecret: boolean }) =>
     api.poke(
       groupAction(variables.flag, {
         secret: variables.isSecret,
       })
     );
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupAddSectsMutation() {
-  const mutateFn = async (variables: {
+  const mutationFn = async (variables: {
     flag: string;
     ship: string;
     sects: string[];
@@ -969,11 +1033,11 @@ export function useGroupAddSectsMutation() {
     });
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupDelSectsMutation() {
-  const mutateFn = async (variables: {
+  const mutationFn = async (variables: {
     flag: string;
     ship: string;
     sects: string[];
@@ -1014,11 +1078,11 @@ export function useGroupDelSectsMutation() {
     });
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupAddMembersMutation() {
-  const mutateFn = async (variables: { flag: string; ships: string[] }) => {
+  const mutationFn = async (variables: { flag: string; ships: string[] }) => {
     const diff = {
       fleet: {
         ships: variables.ships,
@@ -1058,11 +1122,11 @@ export function useGroupAddMembersMutation() {
     });
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupDelMembersMutation() {
-  const mutateFn = async (variables: { flag: string; ships: string[] }) => {
+  const mutationFn = async (variables: { flag: string; ships: string[] }) => {
     const diff = {
       fleet: {
         ships: variables.ships,
@@ -1074,11 +1138,11 @@ export function useGroupDelMembersMutation() {
     await api.poke(groupAction(variables.flag, diff));
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupAddRoleMutation() {
-  const mutateFn = async (variables: {
+  const mutationFn = async (variables: {
     flag: string;
     sect: string;
     meta: GroupMeta;
@@ -1094,11 +1158,11 @@ export function useGroupAddRoleMutation() {
     await api.poke(groupAction(variables.flag, diff));
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupDelRoleMutation() {
-  const mutateFn = async (variables: { flag: string; sect: string }) => {
+  const mutationFn = async (variables: { flag: string; sect: string }) => {
     const diff = {
       cabal: {
         sect: variables.sect,
@@ -1108,7 +1172,7 @@ export function useGroupDelRoleMutation() {
     await api.poke(groupAction(variables.flag, diff));
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupIndex(ship: string) {
@@ -1133,7 +1197,7 @@ export function useGroupIndex(ship: string) {
 }
 
 export function useGroupBanShipsMutation() {
-  const mutateFn = async (variables: { flag: string; ships: string[] }) => {
+  const mutationFn = async (variables: { flag: string; ships: string[] }) => {
     await api.poke(
       groupAction(variables.flag, {
         cordon: {
@@ -1145,11 +1209,11 @@ export function useGroupBanShipsMutation() {
     );
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupUnbanShipsMutation() {
-  const mutateFn = async (variables: { flag: string; ships: string[] }) => {
+  const mutationFn = async (variables: { flag: string; ships: string[] }) => {
     await api.poke(
       groupAction(variables.flag, {
         cordon: {
@@ -1161,11 +1225,11 @@ export function useGroupUnbanShipsMutation() {
     );
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupBanRanksMutation() {
-  const mutateFn = async (variables: { flag: string; ranks: string[] }) => {
+  const mutationFn = async (variables: { flag: string; ranks: string[] }) => {
     await api.poke(
       groupAction(variables.flag, {
         cordon: {
@@ -1177,11 +1241,11 @@ export function useGroupBanRanksMutation() {
     );
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }
 
 export function useGroupUnbanRanksMutation() {
-  const mutateFn = async (variables: { flag: string; ranks: string[] }) => {
+  const mutationFn = async (variables: { flag: string; ranks: string[] }) => {
     await api.poke(
       groupAction(variables.flag, {
         cordon: {
@@ -1193,5 +1257,5 @@ export function useGroupUnbanRanksMutation() {
     );
   };
 
-  return useMutation(mutateFn);
+  return useGroupMutation(mutationFn);
 }

@@ -132,7 +132,7 @@ function ChannelActions({
   const onDeleteChannelConfirm = useCallback(async () => {
     setDeleteStatus('loading');
     try {
-      deleteChannelMutate({ flag, nest });
+      deleteChannelMutate({ flag: groupFlag, nest });
       navigate(
         isMobile
           ? `/groups/${ship}/${name}`
@@ -147,7 +147,7 @@ function ChannelActions({
     }
   }, [
     deleteChannelIsOpen,
-    flag,
+    groupFlag,
     nest,
     deleteChannelMutate,
     isMobile,

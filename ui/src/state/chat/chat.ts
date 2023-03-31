@@ -1029,7 +1029,7 @@ export function usePinnedGroups() {
     () =>
       pinned.filter(whomIsFlag).reduce(
         (memo, flag) =>
-          flag in groups
+          groups && flag in groups
             ? {
                 ...memo,
                 [flag]: groups[flag],

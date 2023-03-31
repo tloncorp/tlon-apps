@@ -77,7 +77,7 @@ export default function EditChannelForm({
         nextChannel.zone = presetSection;
       }
       try {
-        mutateEditChannel({ channel: nextChannel, flag: groupFlag, nest });
+        mutateEditChannel({ flag: groupFlag, channel: nextChannel, nest });
         setEditStatus('success');
       } catch (e) {
         setEditStatus('error');

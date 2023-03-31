@@ -2,6 +2,7 @@ import api from '@/api';
 import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
+import { QueryClient } from '@tanstack/react-query';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
@@ -34,9 +35,17 @@ async function chatScry<T>(path: string, def: T) {
   );
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      cacheTime: Infinity,
+    },
+  },
+});
+
 async function startGroups(talkStarted: boolean) {
   // make sure if this errors we don't kill the entire app
-  const { chat, heap, diary } = await asyncWithDefault(
+  const { chat, heap, diary, groups, gangs } = await asyncWithDefault(
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
@@ -48,6 +57,10 @@ async function startGroups(talkStarted: boolean) {
   if (!talkStarted) {
     useChatState.getState().start(chat);
   }
+
+  queryClient.setQueryData(['groups'], groups);
+  queryClient.setQueryData(['gangs'], gangs);
+
   useHeapState.getState().start(heap);
   useDiaryState.getState().start(diary);
 }

@@ -1,5 +1,7 @@
 import api, { useSubscriptionState } from '@/api';
+import useSchedulerStore from '@/state/scheduler';
 import {
+  QueryKey,
   useQuery,
   useQueryClient,
   UseQueryOptions,
@@ -11,22 +13,32 @@ export default function useReactQuerySubscription({
   path,
   initialScryPath,
   scryApp = app,
+  enabled = true,
+  initialData,
+  priority = 3,
   options,
 }: {
-  queryKey: string[];
+  queryKey: QueryKey;
   app: string;
   path: string;
   initialScryPath: string;
   scryApp?: string;
-  options?: Omit<UseQueryOptions, 'queryKey' | 'queryFn' | 'initialData'>;
+  enabled?: boolean;
+  initialData?: any;
+  priority?: number;
+  options?: UseQueryOptions;
 }): ReturnType<typeof useQuery> {
   const queryClient = useQueryClient();
 
   const fetchData = async () => {
-    const initialData = await api.scry({
-      app: scryApp,
-      path: initialScryPath,
-    });
+    const scryData = await useSchedulerStore.getState().wait(
+      async () =>
+        api.scry({
+          app: scryApp,
+          path: initialScryPath,
+        }),
+      priority
+    );
 
     useSubscriptionState.getState().subscribe({
       app,
@@ -36,8 +48,19 @@ export default function useReactQuerySubscription({
       },
     });
 
-    return initialData;
+    return scryData;
   };
 
-  return useQuery(queryKey, fetchData, options);
+  const defaultOptions = {
+    retryOnMount: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    enabled,
+    initialData,
+  };
+
+  return useQuery(queryKey, fetchData, {
+    ...defaultOptions,
+    ...options,
+  });
 }

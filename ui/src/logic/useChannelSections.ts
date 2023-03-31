@@ -3,7 +3,7 @@ import { GroupChannel } from '@/types/groups';
 import { groupBy } from 'lodash';
 
 export default function useChannelSections(groupFlag: string) {
-  const group = useGroup(groupFlag);
+  const group = useGroup(groupFlag, true);
 
   if (!group) {
     return {

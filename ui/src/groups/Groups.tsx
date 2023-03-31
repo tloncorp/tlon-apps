@@ -17,7 +17,7 @@ import { canReadChannel } from '@/logic/utils';
 function Groups() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
-  const group = useGroup(flag);
+  const group = useGroup(flag, true);
   const gang = useGang(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();

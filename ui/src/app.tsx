@@ -656,7 +656,9 @@ function RoutedApp() {
         </Helmet>
         <PersistQueryClientProvider
           client={queryClient}
-          persistOptions={{ persister: indexedDBPersistor(app) }}
+          persistOptions={{
+            persister: indexedDBPersistor(`${window.our}-${app}`),
+          }}
         >
           <TooltipProvider skipDelayDuration={400}>
             <App />

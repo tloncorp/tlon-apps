@@ -13,6 +13,11 @@ vi.mock('@/state/chat', () => ({
   usePinned: () => ({}),
 }));
 
+vi.mock('@/state/groups', () => ({
+  useGroupFlag: () => ({}),
+  useGroups: () => ({}),
+}));
+
 describe('ChatInput', () => {
   it('renders as expected', () => {
     const { asFragment } = render(
