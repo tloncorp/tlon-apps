@@ -83,6 +83,14 @@ import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import useIsIOSSafariPWA from './logic/useIsIOSSfari';
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      cacheTime: Infinity,
+    },
+  },
+});
+
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
 const AppModal = React.lazy(() => import('./components/Grid/appmodal'));
@@ -288,8 +296,9 @@ function ActivityRoute({ isInGroups = false }: { isInGroups: boolean }) {
 }
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
-  const groups = useGroups();
-  const isInGroups = _.isEmpty(groups) ? false : true;
+  const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
+  const isInGroups =
+    groups !== undefined ? (_.isEmpty(groups) ? false : true) : true;
 
   return (
     <>
@@ -578,14 +587,6 @@ function App() {
     </div>
   );
 }
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      cacheTime: Infinity,
-    },
-  },
-});
 
 function RoutedApp() {
   const mode = import.meta.env.MODE;
