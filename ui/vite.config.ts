@@ -6,7 +6,10 @@ import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import { fileURLToPath } from 'url';
+import { VitePWA } from 'vite-plugin-pwa';
 import basicSsl from '@vitejs/plugin-basic-ssl';
+import manifest from './src/assets/manifest';
+import chatmanifest from './src/assets/chatmanifest';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -48,7 +51,7 @@ export default ({ mode }: { mode: string }) => {
     switch (app) {
       case 'chat':
         return [
-          basicSsl(),
+          mode !== 'sw' ? basicSsl() : null,
           urbitPlugin({
             base: 'talk',
             target: SHIP_URL,
@@ -58,10 +61,23 @@ export default ({ mode }: { mode: string }) => {
           react({
             jsxImportSource: '@welldone-software/why-did-you-render',
           }),
+          VitePWA({
+            base: '/apps/talk/',
+            manifest: chatmanifest,
+            injectRegister: 'inline',
+            registerType: 'autoUpdate',
+            devOptions: {
+              enabled: mode === 'sw',
+            },
+            workbox: {
+              globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+              maximumFileSizeToCacheInBytes: 100000000,
+            },
+          }),
         ];
       default:
         return [
-          basicSsl(),
+          mode !== 'sw' ? basicSsl() : null,
           urbitPlugin({
             base: 'groups',
             target: SHIP_URL,
@@ -70,6 +86,19 @@ export default ({ mode }: { mode: string }) => {
           }),
           react({
             jsxImportSource: '@welldone-software/why-did-you-render',
+          }),
+          VitePWA({
+            base: '/apps/groups/',
+            manifest: manifest,
+            injectRegister: 'inline',
+            registerType: 'autoUpdate',
+            devOptions: {
+              enabled: mode === 'sw',
+            },
+            workbox: {
+              globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+              maximumFileSizeToCacheInBytes: 100000000,
+            },
           }),
         ];
     }
@@ -81,7 +110,7 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode, app),
     server: {
-      https: true,
+      https: mode !== 'sw',
       host: 'localhost',
       port: 3000,
     },
