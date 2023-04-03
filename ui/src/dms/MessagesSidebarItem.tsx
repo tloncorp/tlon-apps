@@ -114,17 +114,13 @@ export function MultiDMSidebarItem({
     <SidebarItem
       to={`/dm/${whom}`}
       icon={
-        pending ? (
-          <UnknownAvatarIcon className="h-12 w-12 rounded-lg text-blue sm:rounded-md md:h-6 md:w-6" />
-        ) : (
-          <MultiDmAvatar
-            {...club?.meta}
-            title={groupName}
-            className="h-12 w-12 rounded-lg sm:h-6 sm:w-6 sm:rounded"
-            loadImage={!isScrolling}
-            {...avatarSize()}
-          />
-        )
+        <MultiDmAvatar
+          {...club?.meta}
+          title={groupName}
+          className="h-12 w-12 rounded-lg sm:h-6 sm:w-6 sm:rounded"
+          loadImage={!isScrolling}
+          {...avatarSize()}
+        />
       }
       actions={<DmOptions whom={whom} pending={!!pending} isMulti />}
     >

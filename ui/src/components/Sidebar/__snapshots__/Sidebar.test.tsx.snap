@@ -375,9 +375,6 @@ exports[`Sidebar > renders as expected 1`] = `
                     </button>
                   </div>
                 </div>
-                <div
-                  class="relative"
-                />
               </div>
             </div>
           </div>

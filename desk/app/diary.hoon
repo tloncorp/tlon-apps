@@ -23,14 +23,14 @@
   --
 =|  current-state
 =*  state  -
-=< 
+=<
   %+  verb  |
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
       cor   ~(. +> [bowl ~])
-  ++  on-init  
+  ++  on-init
     ^-  (quip card _this)
     =^  cards  state
       abet:init:cor
@@ -156,7 +156,7 @@
 ::
 ++  poke
   |=  [=mark =vase]
-  |^  ^+  cor 
+  |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
       %graph-imports  (import !<(imports:d vase))
@@ -164,8 +164,8 @@
     =+  !<(flags=(set flag:d) vase)
     =.  imp  %-  ~(gas by *(map flag:d ?))
       ^-  (list [flag:d ?])
-      %+  turn 
-        ~(tap in flags) 
+      %+  turn
+        ~(tap in flags)
       |=(=flag:d [flag |])
     cor
   ::
@@ -173,7 +173,7 @@
     =+  !<(f=flag:d vase)
     ?<  =(our.bowl p.f)
     (join [*flag:g f])
-  ::  
+  ::
       %channel-join
     =+  !<(j=join:d vase)
     ?<  =(our.bowl p.chan.j)
@@ -271,7 +271,7 @@
   =.  cor    di-abet:(di-import:(di-abed:di-core flag) writers association)
   loop(imports t.imports)
   ::
-  ++  import-log  
+  ++  import-log
     |=  [=notes:d =perm:d]
     ^-  log:d
     =/  =time  (fall (bind (ram:orm-log-gra:d update-log) head) *time)
@@ -398,7 +398,7 @@
       cor  :: subscription ended politely
     ::  XX: only versioned subscriptions should rewatch on kick
     (give %kick ~[wire] ~)
-    :: (proxy-said flag time)  
+    :: (proxy-said flag time)
   ::
       %fact
     =.  cor  (give %fact ~[wire] cage.sign)
@@ -472,7 +472,7 @@
     `flag
   ?+    q.q.action  cor
       [%fleet * %del ~]
-    ~&  'revoke perms for'
+    ~&  "%diary: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=flag:d co=_cor]
     ^+  cor
@@ -483,14 +483,14 @@
     di-abet:(di-revoke:di ship)
   ::
       [%fleet * %del-sects *]
-    ~&  'recheck permissions'
+    ~&  "%diary recheck permissions for {<affected>}"
     %+  roll  affected
     |=  [=flag:d co=_cor]
     =/  di  (di-abed:di-core:co flag)
     di-abet:di-recheck:di
   ::
       [%channel * %del-sects *]
-    ~&  'recheck permissions'
+    ~&  "%diary recheck permissions for {<affected>}"
     %+  roll  affected
     |=  [=flag:d co=_cor]
     =/  di  (di-abed:di-core:co flag)
@@ -517,7 +517,7 @@
     =*  name   i.t.t.t.path
     (di-peek:(di-abed:di-core ship name) t.t.t.t.path)
     ::
-    
+
   ==
 ::
 ++  briefs
@@ -550,9 +550,9 @@
   +*  di-notes  ~(. not notes.diary)
   ++  di-core  .
   ::  TODO: archive??
-  ++  di-abet  
+  ++  di-abet
     %_  cor
-        shelf  
+        shelf
       ?:(gone (~(del by shelf) flag) (~(put by shelf) flag diary))
     ==
   ++  di-abed
@@ -564,7 +564,7 @@
     =*  group  group.perm.diary
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
-    =/  link  
+    =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
     (spin rope con link but)
   ::  TODO: add metadata
@@ -762,7 +762,7 @@
       di-core
     ::
         %fact
-      =*  cage  cage.sign 
+      =*  cage  cage.sign
       ?+  p.cage  (di-odd-update p.cage)
         %epic                             (di-take-epic !<(epic:e q.cage))
         ?(%diary-logs %diary-logs-0)      (di-apply-logs !<(log:d q.cage))
@@ -794,12 +794,12 @@
   ::
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
-    =/  =path 
+    =/  =path
       %+  welp  di-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
     =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
     ?~  write  |
-    =/  perms  (need write) 
+    =/  perms  (need write)
     ?:  |(bloc.perms =(~ writers.perm.diary))  &
     !=(~ (~(int in writers.perm.diary) sects.perms))
   ::
@@ -827,7 +827,7 @@
     =/  tim=(unit time)
       (bind (ram:log-on:d log.diary) head)
     =/  base=wire  (snoc di-area %updates)
-    =/  =path 
+    =/  =path
       %+  weld  base
       ?~  tim  ~
       /(scot %da u.tim)

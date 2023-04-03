@@ -28,17 +28,20 @@ export default function EditChannelModal({
       open={editIsOpen}
       onOpenChange={setEditIsOpen}
       containerClass="w-full sm:max-w-lg"
+      className="space-y-4 bg-transparent p-0"
       close="none"
     >
-      <EditChannelForm
-        nest={nest}
-        channel={channel}
-        retainRoute={true}
-        presetSection={presetSection}
-        redirect={false}
-        setEditIsOpen={setEditIsOpen}
-      />
-      <div className="secondary-dialog-container mt-[200px] w-[480px] rounded-xl bg-white sm:max-w-lg">
+      <div className="card">
+        <EditChannelForm
+          nest={nest}
+          channel={channel}
+          retainRoute={true}
+          presetSection={presetSection}
+          redirect={false}
+          setEditIsOpen={setEditIsOpen}
+        />
+      </div>
+      <div className="card">
         <div className="sm:w-96">
           <h2 className="mb-2 text-lg font-semibold">
             Delete {prettyChannelTypeName(app)}
