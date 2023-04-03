@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { useLocation } from 'react-router';
@@ -24,7 +24,6 @@ import {
 import { useModalNavigate } from '@/logic/routing';
 import Avatar from '@/components/Avatar';
 import { useContact } from '@/state/contact';
-import { Status } from '@/logic/status';
 import { Vessel } from '@/types/groups';
 import ConfirmationModal from '@/components/ConfirmationModal';
 
@@ -33,7 +32,9 @@ interface GroupMemberItemProps {
 }
 
 function GroupMemberItem({ member }: GroupMemberItemProps) {
-  const [sectStatus, setSectStatus] = useState<Status>('initial');
+  const [sectStatus, setSectStatus] = useState<
+    'loading' | 'success' | 'error'
+  >();
   const [showKickConfirm, setShowKickConfirm] = useState(false);
   const [loadingKick, setLoadingKick] = useState(false);
   const [loadingBan, setLoadingBan] = useState(false);
@@ -48,8 +49,20 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const modalNavigate = useModalNavigate();
   const { mutate: delMembersMutation } = useGroupDelMembersMutation();
   const { mutate: banShipsMutation } = useGroupBanShipsMutation();
-  const { mutate: delSectsMutation } = useGroupDelSectsMutation();
-  const { mutate: addSectsMutation } = useGroupAddSectsMutation();
+  const { mutate: delSectsMutation, status: delSectsStatus } =
+    useGroupDelSectsMutation();
+  const { mutate: addSectsMutation, status: addSectsStatus } =
+    useGroupAddSectsMutation();
+
+  useEffect(() => {
+    if (delSectsStatus === 'success' || addSectsStatus === 'success') {
+      setSectStatus('success');
+    } else if (delSectsStatus === 'error' || addSectsStatus === 'error') {
+      setSectStatus('error');
+    } else if (delSectsStatus === 'loading' || addSectsStatus === 'loading') {
+      setSectStatus('loading');
+    }
+  }, [delSectsStatus, addSectsStatus]);
 
   const onViewProfile = (ship: string) => {
     modalNavigate(`/profile/${ship}`, {
@@ -78,8 +91,6 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const toggleSect = useCallback(
     (ship: string, sect: string, v: Vessel) => async (event: Event) => {
       event.preventDefault();
-
-      setSectStatus('loading');
 
       const inSect = v.sects.includes(sect);
       const isOwner = flag.includes(ship);

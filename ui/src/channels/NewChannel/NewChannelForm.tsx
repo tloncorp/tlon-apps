@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
@@ -11,16 +11,15 @@ import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
-import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 export default function NewChannelForm() {
   const { section } = useParams<{ section: string }>();
-  const [addChannelStatus, setAddChannelStatus] = useState<Status>('initial');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
-  const { mutate: mutateAddChannel } = useAddChannelMutation();
+  const { mutate: mutateAddChannel, status: addChannelStatus } =
+    useAddChannelMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
     zone: 'default',
@@ -43,7 +42,6 @@ export default function NewChannelForm() {
 
   const onSubmit = useCallback(
     async (values: NewChannelFormSchema) => {
-      setAddChannelStatus('loading');
       const { privacy, type, ...nextChannel } = values;
       const titleIsNumber = Number.isInteger(Number(values.meta.title));
       /*
@@ -110,7 +108,6 @@ export default function NewChannelForm() {
           writers: privacy !== 'public' ? ['admin'] : [],
         });
       } catch (e) {
-        setAddChannelStatus('error');
         console.log('NewChannelForm::onSubmit::createChannel', e);
       }
 
@@ -122,12 +119,10 @@ export default function NewChannelForm() {
             zone: section,
           });
         } catch (e) {
-          setAddChannelStatus('error');
           console.log('NewChannelForm::onSubmit::addChannelToZone', e);
         }
       }
 
-      setAddChannelStatus('success');
       navigate(
         isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/channels`
       );

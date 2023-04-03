@@ -1142,6 +1142,7 @@ export function useGroupDelMembersMutation() {
 }
 
 export function useGroupAddRoleMutation() {
+  // Not used yet.
   const mutationFn = async (variables: {
     flag: string;
     sect: string;
@@ -1162,6 +1163,7 @@ export function useGroupAddRoleMutation() {
 }
 
 export function useGroupDelRoleMutation() {
+  // Not used yet.
   const mutationFn = async (variables: { flag: string; sect: string }) => {
     const diff = {
       cabal: {
@@ -1213,6 +1215,7 @@ export function useGroupBanShipsMutation() {
 }
 
 export function useGroupUnbanShipsMutation() {
+  // Not used yet.
   const mutationFn = async (variables: { flag: string; ships: string[] }) => {
     await api.poke(
       groupAction(variables.flag, {
@@ -1229,6 +1232,7 @@ export function useGroupUnbanShipsMutation() {
 }
 
 export function useGroupBanRanksMutation() {
+  // Not used yet.
   const mutationFn = async (variables: { flag: string; ranks: string[] }) => {
     await api.poke(
       groupAction(variables.flag, {
@@ -1245,6 +1249,7 @@ export function useGroupBanRanksMutation() {
 }
 
 export function useGroupUnbanRanksMutation() {
+  // Not used yet.
   const mutationFn = async (variables: { flag: string; ranks: string[] }) => {
     await api.poke(
       groupAction(variables.flag, {

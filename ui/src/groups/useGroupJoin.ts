@@ -40,8 +40,6 @@ export default function useGroupJoin(
     | { nest: string; id: string; type: string }
     | undefined = undefined
 ) {
-  const [status, setStatus] = useState<Status>('initial');
-  const [rejectStatus, setRejectStatus] = useState<Status>('initial');
   const location = useLocation();
   const navigate = useNavigate();
   const navigateByApp = useNavigateByApp();
@@ -51,10 +49,13 @@ export default function useGroupJoin(
   const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
-  const { mutate: joinMutation } = useGroupJoinMutation();
-  const { mutate: knockMutation } = useGroupKnockMutation();
-  const { mutate: rescindMutation } = useGroupRescindMutation();
-  const { mutate: rejectMutation } = useGroupRejectMutation();
+  const { mutate: joinMutation, status } = useGroupJoinMutation();
+  const { mutate: knockMutation, status: knockStatus } =
+    useGroupKnockMutation();
+  const { mutate: rescindMutation, status: rescindStatus } =
+    useGroupRescindMutation();
+  const { mutate: rejectMutation, status: rejectStatus } =
+    useGroupRejectMutation();
 
   const open = useCallback(() => {
     if (group) {
@@ -67,11 +68,8 @@ export default function useGroupJoin(
   }, [flag, group, location, navigate, navigateByApp]);
 
   const join = useCallback(async () => {
-    setStatus('loading');
-
     if (privacy === 'private' && !invited) {
       knockMutation({ flag });
-      setStatus('success');
     } else {
       try {
         await useHarkState.getState().sawRope({
@@ -86,7 +84,6 @@ export default function useGroupJoin(
 
       try {
         joinMutation({ flag });
-        setStatus('success');
         if (redirectItem) {
           if (redirectItem.type === 'chat') {
             return navigateByApp(
@@ -99,7 +96,6 @@ export default function useGroupJoin(
         }
         return navigateByApp(`/groups/${flag}`);
       } catch (e) {
-        setStatus('error');
         if (requested) {
           rescindMutation({ flag });
         } else {
@@ -123,7 +119,6 @@ export default function useGroupJoin(
   ]);
 
   const reject = useCallback(async () => {
-    setRejectStatus('loading');
     /**
      * No need to confirm if the group is public, since it's easy to re-initiate
      * a join request
@@ -131,9 +126,8 @@ export default function useGroupJoin(
     if (privacy === 'public') {
       try {
         rejectMutation({ flag });
-        setRejectStatus('success');
       } catch (e) {
-        setRejectStatus('error');
+        console.log('Failed to reject invite', e);
       }
 
       if (inModal) {
@@ -168,6 +162,8 @@ export default function useGroupJoin(
     join,
     status,
     rejectStatus,
+    knockStatus,
+    rescindStatus,
     reject,
     button: {
       disabled: requested && !invited,

@@ -8,8 +8,6 @@ import {
 import { strToSym } from '@/logic/utils';
 import { useForm } from 'react-hook-form';
 import { GroupMeta } from '@/types/groups';
-import { ChannelListItem } from '@/groups/ChannelsList/types';
-import { Status } from '@/logic/status';
 
 interface HandleSectionNameEditInputProps {
   handleEditingChange: () => void;
@@ -19,21 +17,15 @@ interface HandleSectionNameEditInputProps {
   ) => void;
   sectionTitle: string;
   isNew?: boolean;
-  channels: ChannelListItem[];
   sectionKey: string;
-  saveStatus: Status;
-  setSaveStatus: (status: Status) => void;
 }
 
 export default function SectionNameEditInput({
   handleEditingChange,
   onSectionEditNameSubmit,
-  channels,
   isNew,
   sectionTitle,
   sectionKey,
-  saveStatus,
-  setSaveStatus,
 }: HandleSectionNameEditInputProps) {
   const group = useRouteGroup();
   const { mutate: createZoneMutation } = useGroupCreateZoneMutation();
@@ -59,7 +51,6 @@ export default function SectionNameEditInput({
   });
 
   const onSubmit = async (values: GroupMeta) => {
-    setSaveStatus('loading');
     const zoneFlag = strToSym(sectionKey);
     const titleExists = values.title.trim() !== '';
     handleEditingChange();
@@ -86,9 +77,7 @@ export default function SectionNameEditInput({
         zoneFlag,
         titleExists ? values.title : untitledSectionValues.title
       );
-      setSaveStatus('success');
     } catch (e) {
-      setSaveStatus('error');
       console.log(e);
     }
   };

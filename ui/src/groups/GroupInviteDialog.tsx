@@ -11,7 +11,6 @@ import {
   useRouteGroup,
 } from '@/state/groups/groups';
 import { getPrivacyFromGroup, preSig } from '@/logic/utils';
-import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import LureInviteBlock from './LureInviteBlock';
@@ -26,13 +25,18 @@ export default function GroupInviteDialog() {
     ships && ships.length > 0
       ? ships.every((ship) => ob.isValidPatp(preSig(ship.value)))
       : false;
-  const { isPending, setPending, setReady, setFailed, isFailed } =
-    useRequestState();
-  const { mutate: inviteMutation } = useGroupInviteMutation();
-  const { mutate: addMembersMutation } = useGroupAddMembersMutation();
+  const {
+    mutate: inviteMutation,
+    status: inviteStatus,
+    reset: resetInvite,
+  } = useGroupInviteMutation();
+  const {
+    mutate: addMembersMutation,
+    status: addMembersStatus,
+    reset: resetAddMembers,
+  } = useGroupAddMembersMutation();
 
   const onInvite = useCallback(async () => {
-    setPending();
     const shipList = ships.map((s) => preSig(s.value));
 
     try {
@@ -41,25 +45,23 @@ export default function GroupInviteDialog() {
       } else {
         addMembersMutation({ flag, ships: shipList });
       }
-      setReady();
       dismiss();
     } catch (e) {
       console.error('Error inviting/adding members: poke failed');
-      setFailed();
       setTimeout(() => {
-        setReady();
+        resetInvite();
+        resetAddMembers();
       }, 3000);
     }
   }, [
     flag,
     privacy,
     ships,
-    setPending,
-    setReady,
-    setFailed,
     dismiss,
     inviteMutation,
     addMembersMutation,
+    resetInvite,
+    resetAddMembers,
   ]);
 
   return (
@@ -91,14 +93,26 @@ export default function GroupInviteDialog() {
             <button
               onClick={onInvite}
               className={cn('button text-white dark:text-black', {
-                'bg-red': isFailed,
-                'bg-blue': !isFailed,
+                'bg-red':
+                  inviteStatus === 'error' || addMembersStatus === 'error',
+                'bg-blue':
+                  inviteStatus !== 'error' && addMembersStatus !== 'error',
               })}
-              disabled={!validShips || isPending || isFailed}
+              disabled={
+                !validShips ||
+                inviteStatus === 'loading' ||
+                inviteStatus === 'error' ||
+                addMembersStatus === 'loading' ||
+                addMembersStatus === 'error'
+              }
             >
               Send Invites
-              {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
-              {isFailed ? <ExclamationPoint className="ml-2 h-4 w-4" /> : null}
+              {inviteStatus === 'loading' || addMembersStatus === 'loading' ? (
+                <LoadingSpinner className="ml-2 h-4 w-4" />
+              ) : null}
+              {inviteStatus === 'error' || addMembersStatus === 'error' ? (
+                <ExclamationPoint className="ml-2 h-4 w-4" />
+              ) : null}
             </button>
           </div>
         </div>

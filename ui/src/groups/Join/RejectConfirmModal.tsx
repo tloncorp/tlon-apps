@@ -5,7 +5,6 @@ import { useDismissNavigate } from '@/logic/routing';
 import { useGang, useGroupRejectMutation, useRouteGroup } from '@/state/groups';
 import { toTitleCase } from '@/logic/utils';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
-import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 const PRIVATE_COPY =
@@ -24,40 +23,28 @@ export default function RejectConfirmModal() {
   const dismiss = useDismissNavigate();
   const { privacy } = useGroupPrivacy(flag);
   const checkboxRef = useRef<HTMLInputElement | null>(null);
-  const { isReady, setReady, setPending, isPending, setFailed } =
-    useRequestState();
   const [skipConfirmation, setSkipConfirmation] = useLocalStorage(
     'groups:skipGroupInviteRejectConfirm',
     false
   );
-  const { mutate: rejectMutation } = useGroupRejectMutation();
+  const { mutate: rejectMutation, status } = useGroupRejectMutation();
 
   const cancel = useCallback(async () => {
     dismiss();
   }, [dismiss]);
 
   const reject = useCallback(async () => {
-    setPending();
     if (checkboxRef && checkboxRef.current?.checked) {
       setSkipConfirmation(true);
     }
 
     try {
       rejectMutation({ flag });
-      setReady();
       dismiss();
     } catch (e) {
-      setFailed();
+      console.log('error rejecting invite', e);
     }
-  }, [
-    dismiss,
-    flag,
-    setSkipConfirmation,
-    setPending,
-    setReady,
-    setFailed,
-    rejectMutation,
-  ]);
+  }, [dismiss, flag, setSkipConfirmation, rejectMutation]);
 
   useEffect(() => {
     if (skipConfirmation) {
@@ -103,11 +90,11 @@ export default function RejectConfirmModal() {
             Cancel
           </button>
           <button
-            disabled={isPending}
+            disabled={status === 'loading'}
             className="button ml-2 bg-red-soft text-red"
             onClick={reject}
           >
-            {isReady ? (
+            {status === 'idle' ? (
               'Reject Invite'
             ) : (
               <>

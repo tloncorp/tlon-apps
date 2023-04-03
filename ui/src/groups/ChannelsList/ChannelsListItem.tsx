@@ -21,7 +21,6 @@ import { useDiaryState } from '@/state/diary';
 import ChannelIcon from '@/channels/ChannelIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import { PRIVACY_TYPE } from '@/groups/ChannelsList/ChannelPermsSelector';
-import { Status } from '@/logic/status';
 import useRequestState from '@/logic/useRequestState';
 import useAllBriefs from '@/logic/useAllBriefs';
 
@@ -73,20 +72,17 @@ export default function ChannelsListItem({
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const privacy = getPrivacyFromChannel(channel, getChannel(app, channelFlag));
   const permissionText = PRIVACY_TYPE[privacy].title;
-  const { mutate: deleteChannelMutation } = useDeleteChannelMutation();
+  const { mutate: deleteChannelMutation, status: deleteStatus } =
+    useDeleteChannelMutation();
 
   const onDeleteChannelConfirm = useCallback(async () => {
-    setDeleteStatus('loading');
     try {
       deleteChannelMutation({ flag: groupFlag, nest });
       onChannelDelete(nest, sectionKey);
-      setDeleteStatus('success');
       setDeleteChannelIsOpen(!deleteChannelIsOpen);
     } catch (e) {
-      setDeleteStatus('error');
       console.log(e);
     }
   }, [

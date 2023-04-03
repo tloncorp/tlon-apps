@@ -11,7 +11,6 @@ import Dialog from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
-import { Status } from '@/logic/status';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
@@ -26,9 +25,8 @@ export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
-  const [status, setStatus] = useState<Status>('initial');
   // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
-  const { mutate: createGroupMutation } = useCreateGroupMutation();
+  const { mutate: createGroupMutation, status } = useCreateGroupMutation();
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -81,8 +79,6 @@ export default function NewGroup() {
             },
           };
 
-    setStatus('loading');
-
     try {
       createGroupMutation({
         ...values,
@@ -92,11 +88,10 @@ export default function NewGroup() {
         secret: privacy === 'secret',
       });
 
-      setStatus('success');
       const flag = `${window.our}/${name}`;
       navigate(`/groups/${flag}`);
     } catch (error) {
-      setStatus('error');
+      console.log("Couldn't create group", error);
     }
   }, [shipsToInvite, navigate, form, createGroupMutation]);
 

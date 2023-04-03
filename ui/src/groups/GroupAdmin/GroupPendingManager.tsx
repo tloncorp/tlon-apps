@@ -22,7 +22,6 @@ import {
   useRouteGroup,
 } from '@/state/groups/groups';
 import bigInt from 'big-integer';
-import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import { getPrivacyFromGroup } from '@/logic/utils';
@@ -44,17 +43,16 @@ export default function GroupPendingManager() {
   const modalNavigate = useModalNavigate();
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
-  const { isPending, setPending, setReady, isFailed, setFailed } =
-    useRequestState();
   const {
-    isPending: isRevokePending,
-    setPending: setRevokePending,
-    setReady: setRevokeReady,
-    isFailed: isRevokeFailed,
-    setFailed: setRevokeFailed,
-  } = useRequestState();
-  const { mutate: revokeMutation } = useGroupRevokeMutation();
-  const { mutate: inviteMutation } = useGroupInviteMutation();
+    mutate: revokeMutation,
+    status: revokeStatus,
+    reset: resetRevoke,
+  } = useGroupRevokeMutation();
+  const {
+    mutate: inviteMutation,
+    status: inviteStatus,
+    reset: resetInvite,
+  } = useGroupInviteMutation();
 
   const pending = useMemo(() => {
     let members: string[] = [];
@@ -109,36 +107,30 @@ export default function GroupPendingManager() {
 
   const reject = useCallback(
     (ship: string, kind: 'ask' | 'pending') => async () => {
-      setRevokePending();
       try {
         revokeMutation({ flag, ships: [ship], kind });
-        setRevokeReady();
       } catch (e) {
         console.error('Error revoking invite, poke failed');
-        setRevokeFailed();
         setTimeout(() => {
-          setRevokeReady();
+          resetRevoke();
         }, 3000);
       }
     },
-    [flag, setRevokePending, setRevokeReady, setRevokeFailed, revokeMutation]
+    [flag, revokeMutation, resetRevoke]
   );
 
   const approve = useCallback(
     (ship: string) => async () => {
-      setPending();
       try {
         inviteMutation({ flag, ships: [ship] });
-        setReady();
       } catch (e) {
         console.error('Error approving invite, poke failed');
-        setFailed();
         setTimeout(() => {
-          setReady();
+          resetInvite();
         }, 3000);
       }
     },
-    [flag, setPending, setReady, setFailed, inviteMutation]
+    [flag, inviteMutation, resetInvite]
   );
 
   const onViewProfile = (ship: string) => {
@@ -211,37 +203,42 @@ export default function GroupPendingManager() {
                   {inAsk || inPending ? (
                     <button
                       className={cn('secondary-button min-w-20', {
-                        'bg-red': isRevokeFailed,
-                        'text-white': isRevokeFailed,
+                        'bg-red text-white': revokeStatus === 'error',
                       })}
                       onClick={reject(m, inAsk ? 'ask' : 'pending')}
-                      disabled={isRevokePending || isRevokeFailed}
+                      disabled={
+                        revokeStatus === 'loading' || revokeStatus === 'error'
+                      }
                     >
                       {inAsk ? 'Reject' : 'Cancel'}
-                      {isRevokePending ? (
+                      {revokeStatus === 'loading' ? (
                         <LoadingSpinner className="ml-2 h-4 w-4" />
                       ) : null}
-                      {isRevokeFailed ? (
+                      {revokeStatus === 'error' ? (
                         <ExclamationPoint className="ml-2 h-4 w-4" />
                       ) : null}
                     </button>
                   ) : null}
                   <button
-                    disabled={!inAsk || isPending || isFailed}
+                    disabled={
+                      !inAsk ||
+                      inviteStatus === 'loading' ||
+                      inviteStatus === 'error'
+                    }
                     className={cn(
                       'small-button text-white disabled:bg-gray-100 disabled:text-gray-600 dark:text-black dark:disabled:text-gray-600',
                       {
-                        'bg-red': isFailed,
-                        'bg-blue': !isFailed,
+                        'bg-red': inviteStatus === 'error',
+                        'bg-blue': inviteStatus !== 'error',
                       }
                     )}
                     onClick={approve(m)}
                   >
                     {inAsk ? 'Approve' : 'Invited'}
-                    {isPending ? (
+                    {inviteStatus === 'loading' ? (
                       <LoadingSpinner className="ml-2 h-4 w-4" />
                     ) : null}
-                    {isFailed ? (
+                    {inviteStatus === 'error' ? (
                       <ExclamationPoint className="ml-2 h-4 w-4" />
                     ) : null}
                   </button>

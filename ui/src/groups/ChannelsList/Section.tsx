@@ -12,7 +12,6 @@ import { SectionListItem } from '@/groups/ChannelsList/types';
 import Channels from '@/groups/ChannelsList/Channels';
 import EditSectionDropdown from '@/groups/ChannelsList/EditSectionDropdown';
 import SectionNameEditInput from '@/groups/ChannelsList/SectionNameEditInput';
-import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PinIcon16 from '@/components/icons/PinIcon16';
 
@@ -39,9 +38,9 @@ export default function Section({
   const group = useRouteGroup();
   const isAdmin = useAmAdmin(group);
   const [isEditing, setIsEditing] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<Status>('initial');
   const isSectionless = sectionKey === 'default';
-  const { mutate: addChannelMutation } = useAddChannelMutation();
+  const { mutate: addChannelMutation, status: saveStatus } =
+    useAddChannelMutation();
   const { mutate: deleteZoneMutation } = useGroupDeleteZoneMutation();
 
   useEffect(() => {
@@ -118,10 +117,7 @@ export default function Section({
                         sectionTitle={sectionData.title}
                         isNew={sectionData.isNew}
                         onSectionEditNameSubmit={onSectionEditNameSubmit}
-                        channels={sectionData.channels}
                         sectionKey={sectionKey}
-                        saveStatus={saveStatus}
-                        setSaveStatus={setSaveStatus}
                       />
                     ) : (
                       <h2 className="alt-highlight text-lg font-semibold">
