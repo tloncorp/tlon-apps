@@ -1153,6 +1153,7 @@
         !>  ^-  action:club:chat
         =/  =memo:chat
           [replying our.bowl now.bowl %story block msg]
+        ::TODO  change 1 to *echo:club:chat once #2009 is fixed
         [p.audience 1 %writ [our now]:bowl %add memo]   
       ==
     ::  +say: send messages
