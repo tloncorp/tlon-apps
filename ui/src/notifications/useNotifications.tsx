@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import useHarkState, { emptyBlanket, emptyCarpet } from '@/state/hark';
+import { useMemo } from 'react';
+import { useBlanket, useCarpet } from '@/state/hark';
 import { Flag, Thread, Yarn, Yarns } from '@/types/hark';
 import _ from 'lodash';
 import { makePrettyDay } from '@/logic/utils';
-import useRequestState from '@/logic/useRequestState';
 
 export interface Bin {
   time: number;
@@ -69,24 +68,17 @@ export const isReply = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' replied to your message “');
 
 export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
-  const { carpet, blanket } = useHarkState(
-    useCallback(
-      (state) => {
-        if (flag) {
-          return (
-            state.textiles[flag] || {
-              carpet: emptyCarpet({ group: flag }),
-              blanket: emptyBlanket({ group: flag }),
-            }
-          );
-        }
-        return { carpet: state.carpet, blanket: state.blanket };
-      },
-      [flag]
-    )
-  );
+  const { data: carpet, status: carpetStatus } = useCarpet(flag);
+  const { data: blanket, status: blanketStatus } = useBlanket(flag);
 
   return useMemo(() => {
+    if (carpetStatus !== 'success' || blanketStatus !== 'success') {
+      return {
+        notifications: [],
+        mentions: [],
+        count: 0,
+      };
+    }
     const bins: Bin[] = carpet.cable.map((c) =>
       getBin(c.thread, carpet.yarns, true)
     );
@@ -102,6 +94,7 @@ export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
       notifications: groupBinsByDate(finalBins.concat(oldBins)),
       mentions: mentionBins,
       count: finalBins.length,
+      loaded: carpetStatus === 'success' && blanketStatus === 'success',
     };
-  }, [carpet, blanket, mentionsOnly]);
+  }, [carpet, blanket, mentionsOnly, carpetStatus, blanketStatus]);
 };

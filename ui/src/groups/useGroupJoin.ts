@@ -1,8 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
-import useHarkState from '@/state/hark';
 import {
   useGroup,
   useGroupJoinMutation,
@@ -11,8 +10,8 @@ import {
   useGroupRescindMutation,
 } from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
-import { Status } from '@/logic/status';
 import useNavigateByApp from '@/logic/useNavigateByApp';
+import { useSawRopeMutation } from '@/state/hark';
 
 function getButtonText(
   privacy: PrivacyType,
@@ -56,6 +55,7 @@ export default function useGroupJoin(
     useGroupRescindMutation();
   const { mutate: rejectMutation, status: rejectStatus } =
     useGroupRejectMutation();
+  const { mutate: sawRopeMutation } = useSawRopeMutation();
 
   const open = useCallback(() => {
     if (group) {
@@ -72,11 +72,13 @@ export default function useGroupJoin(
       knockMutation({ flag });
     } else {
       try {
-        await useHarkState.getState().sawRope({
-          channel: null,
-          desk: window.desk,
-          group: flag,
-          thread: `/${flag}/invite`,
+        sawRopeMutation({
+          rope: {
+            channel: null,
+            desk: window.desk,
+            group: flag,
+            thread: `/${flag}/invite`,
+          },
         });
       } catch (error) {
         // no notification
@@ -116,6 +118,7 @@ export default function useGroupJoin(
     knockMutation,
     rescindMutation,
     rejectMutation,
+    sawRopeMutation,
   ]);
 
   const reject = useCallback(async () => {

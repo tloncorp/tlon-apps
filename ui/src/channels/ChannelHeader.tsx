@@ -31,8 +31,8 @@ import SortIcon from '@/components/icons/SortIcon';
 import { Status } from '@/logic/status';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useNotifications } from '@/notifications/useNotifications';
-import useHarkState from '@/state/hark';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import { useSawRopeMutation } from '@/state/hark';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
@@ -325,6 +325,7 @@ export default function ChannelHeader({
   const { isGroupUnread } = useIsGroupUnread();
   const hasActivity = isGroupUnread(flag);
   const { notifications } = useNotifications(flag);
+  const { mutate: sawRopeMutation } = useSawRopeMutation();
 
   useEffect(() => {
     if (hasActivity) {
@@ -336,11 +337,11 @@ export default function ChannelHeader({
         unreadBins
           .filter((b) => b.topYarn.wer.includes(nest))
           .forEach((n) => {
-            useHarkState.getState().sawRope(n.topYarn.rope);
+            sawRopeMutation({ rope: n.topYarn.rope });
           });
       }
     }
-  }, [hasActivity, notifications, nest]);
+  }, [hasActivity, notifications, nest, sawRopeMutation]);
 
   function backTo() {
     if (isMobile && isTalk) {

@@ -1,24 +1,14 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useGroupFlag, useGroup } from '@/state/groups';
 import GroupAvatar from '@/groups/GroupAvatar';
 import CaretLeftIcon from '@/components/icons/CaretLeft16Icon';
 import Notifications from '@/notifications/Notifications';
 import GroupNotification from '@/notifications/GroupNotification';
-import useHarkState from '@/state/hark';
 
 export default function MobileGroupRoot() {
   const flag = useGroupFlag();
   const group = useGroup(flag);
-
-  useEffect(() => {
-    if (flag !== '') {
-      useHarkState.getState().retrieveGroup(flag);
-    }
-    return () => {
-      useHarkState.getState().releaseGroup(flag);
-    };
-  }, [flag]);
 
   return (
     <>

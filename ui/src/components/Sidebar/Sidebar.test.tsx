@@ -31,6 +31,11 @@ vi.mock('@/state/groups', () => ({
   useGangList: () => [],
 }));
 
+vi.mock('@/state/hark', () => ({
+  useCarpet: () => ({}),
+  useBlanket: () => ({}),
+}));
+
 vi.mock('@/logic/useMigrationInfo', () => ({
   useHasMigratedChannels: () => true,
 }));

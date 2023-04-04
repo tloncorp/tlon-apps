@@ -7,7 +7,6 @@ import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
 import useDocketState from './docket';
-import useHarkState from './hark';
 import { useHeapState } from './heap/heap';
 import useKilnState from './kiln';
 import { useLureState } from './lure/lure';
@@ -144,7 +143,6 @@ export default async function bootstrap(reset = false) {
     useSettingsState.getState();
 
   wait(() => {
-    useHarkState.getState().start();
     useContactState.getState().initialize(api);
     useStorage.getState().initialize(api);
 

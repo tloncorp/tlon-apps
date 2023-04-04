@@ -8,7 +8,7 @@ import React, {
 import { Helmet } from 'react-helmet';
 import { useRouteGroup, useGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
-import useHarkState from '@/state/hark';
+import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
 import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
@@ -66,7 +66,6 @@ export default function Notifications({
   title,
 }: NotificationsProps) {
   const flag = useRouteGroup();
-  const loaded = useHarkState((s) => s.loaded);
   const group = useGroup(flag);
   const isMobile = useIsMobile();
   const {
@@ -75,30 +74,37 @@ export default function Notifications({
     setReady: setMarkReadReady,
   } = useRequestState();
   const [showMentionsOnly, setShowMentionsOnly] = useState(false);
-  const { notifications, mentions, count } = useNotifications(
+  const { loaded, notifications, mentions, count } = useNotifications(
     flag,
     showMentionsOnly
   );
+  const { mutate: sawRopeMutation } = useSawRopeMutation();
+  const { mutate: sawSeamMutation } = useSawSeamMutation();
 
   const hasUnreads = count > 0;
 
   const markAllRead = useCallback(async () => {
     setMarkReadPending();
     if (showMentionsOnly) {
-      await Promise.all(
-        mentions.map(async (m, index) =>
-          useHarkState
-            .getState()
-            .sawRope(m.topYarn.rope, index === mentions.length - 1)
-        )
+      mentions.map(async (m, index) =>
+        sawRopeMutation({
+          rope: m.topYarn.rope,
+          update: index === mentions.length - 1,
+        })
       );
     } else {
-      await useHarkState
-        .getState()
-        .sawSeam(flag ? { group: flag } : { desk: 'groups' });
+      sawSeamMutation({ seam: flag ? { group: flag } : { desk: 'groups' } });
     }
     setMarkReadReady();
-  }, [setMarkReadPending, setMarkReadReady, mentions, showMentionsOnly, flag]);
+  }, [
+    setMarkReadPending,
+    setMarkReadReady,
+    mentions,
+    showMentionsOnly,
+    flag,
+    sawRopeMutation,
+    sawSeamMutation,
+  ]);
 
   const MarkAsRead = (
     <button
