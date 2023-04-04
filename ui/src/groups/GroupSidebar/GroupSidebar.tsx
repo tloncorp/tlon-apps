@@ -1,12 +1,11 @@
 import cn from 'classnames';
 import _ from 'lodash';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useIsDark } from '@/logic/useMedia';
 import { useAmAdmin, useGroup, useGroupFlag } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import BellIcon from '@/components/icons/BellIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import useHarkState from '@/state/hark';
 import { useCalm } from '@/state/settings';
 import { isColor } from '@/logic/utils';
 import { foregroundFromBackground } from '@/components/Avatar';
@@ -100,15 +99,6 @@ export default function GroupSidebar() {
   const isDark = useIsDark();
   const location = useLocation();
   const isAdmin = useAmAdmin(flag);
-
-  useEffect(() => {
-    if (flag !== '') {
-      useHarkState.getState().retrieveGroup(flag);
-    }
-    return () => {
-      useHarkState.getState().releaseGroup(flag);
-    };
-  }, [flag]);
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">

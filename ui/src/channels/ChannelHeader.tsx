@@ -312,25 +312,26 @@ export default function ChannelHeader({
   const channel = useChannel(flag, nest);
   const BackButton = isMobile ? Link : 'div';
   const isAdmin = useAmAdmin(flag);
-  const { isGroupUnread } = useIsGroupUnread();
-  const hasActivity = isGroupUnread(flag);
-  const { notifications } = useNotifications(flag);
+  const { notifications, count } = useNotifications(flag);
 
   useEffect(() => {
-    if (hasActivity) {
+    if (count > 0) {
       const unreadBins = notifications
-        .filter((n) => n.bins.some((b) => b.unread === true))[0]
-        ?.bins.filter((b) => b.unread === true);
+        .filter((n) => n.skeins.some((b) => b.unread === true))[0]
+        ?.skeins.filter((b) => b.unread === true);
 
       if (unreadBins) {
-        unreadBins
-          .filter((b) => b.topYarn.wer.includes(nest))
-          .forEach((n) => {
-            useHarkState.getState().sawRope(n.topYarn.rope);
-          });
+        const unreadsHere = unreadBins.filter((b) => b.top.wer.includes(nest));
+
+        unreadsHere.forEach((n, index) => {
+          // update on the last call
+          useHarkState
+            .getState()
+            .sawRope(n.top.rope, index === unreadsHere.length - 1);
+        });
       }
     }
-  }, [hasActivity, notifications, nest]);
+  }, [count, notifications, nest]);
 
   function backTo() {
     if (isMobile && isTalk) {

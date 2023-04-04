@@ -9,11 +9,11 @@ import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import useHarkState from '@/state/hark';
-import { YarnContent } from '@/types/hark';
-import { Bin, isComment, isMention, isReply } from './useNotifications';
+import { Skein, YarnContent } from '@/types/hark';
+import { isComment, isMention, isReply } from './useNotifications';
 
 interface NotificationProps {
-  bin: Bin;
+  bin: Skein;
   topLine?: ReactNode;
   avatar?: ReactNode;
 }
@@ -115,11 +115,11 @@ export default function Notification({
   avatar,
   topLine,
 }: NotificationProps) {
-  const rope = bin.topYarn?.rope;
+  const rope = bin.top?.rope;
   const moreCount = bin.count - 1;
-  const mentionBool = isMention(bin.topYarn);
-  const commentBool = isComment(bin.topYarn);
-  const replyBool = isReply(bin.topYarn);
+  const mentionBool = isMention(bin.top);
+  const commentBool = isComment(bin.top);
+  const replyBool = isReply(bin.top);
 
   const onClick = useCallback(() => {
     useHarkState.getState().sawRope(rope);
@@ -133,7 +133,7 @@ export default function Notification({
       )}
     >
       <Link
-        to={bin.topYarn?.wer || ''}
+        to={bin.top?.wer || ''}
         className="flex w-full min-w-0 flex-1 space-x-3"
         onClick={onClick}
       >
@@ -141,10 +141,10 @@ export default function Notification({
         <div className="min-w-0 grow-0 break-words p-1">
           {topLine}
           <div className="my-2 leading-5">
-            {bin.topYarn && (
+            {bin.top && (
               <NotificationContent
                 time={bin.time}
-                content={bin.topYarn.con}
+                content={bin.top.con}
                 conIsMention={mentionBool}
                 conIsComment={commentBool}
                 conIsReply={replyBool}
