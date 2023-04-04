@@ -8,12 +8,12 @@ export default {
   id: '/apps/talk/',
   icons: [
     {
-      src: './src/assets/talk-icon-512x512.png',
+      src: './talk-icon-512x512.png',
       sizes: '512x512',
       type: 'image/png',
     },
     {
-      src: './src/assets/talk-icon-192x192.png',
+      src: './talk-icon-192x192.png',
       sizes: '192x192',
       type: 'image/png',
     },
