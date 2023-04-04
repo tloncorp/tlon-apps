@@ -1,26 +1,17 @@
 import _ from 'lodash';
-import { Blanket, Carpet, Flag, HarkAction, Rope, Seam } from '@/types/hark';
+import {
+  Blanket,
+  Carpet,
+  Flag,
+  HarkAction,
+  Rope,
+  Seam,
+  Skein,
+} from '@/types/hark';
 import api, { useSubscriptionState } from '@/api';
 import { decToUd } from '@urbit/api';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-
-export function emptyCarpet(seam: Seam) {
-  return {
-    seam,
-    yarns: {},
-    cable: [],
-    stitch: 0,
-  };
-}
-
-export function emptyBlanket(seam: Seam) {
-  return {
-    seam,
-    yarns: {},
-    quilt: {},
-  };
-}
 
 function harkAction(action: HarkAction) {
   return {
@@ -65,6 +56,22 @@ export function useBlanket(flag?: Flag) {
 
   return {
     data: data as Blanket,
+    ...rest,
+  };
+}
+
+export function useSkeins(flag?: Flag) {
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['skeins', flag],
+    app: 'hark',
+    path: '/ui',
+    initialScryPath: flag
+      ? `/group/${flag}/skeins`
+      : `/desk/${window.desk}/skeins`,
+  });
+
+  return {
+    data: data as Skein[],
     ...rest,
   };
 }

@@ -29,7 +29,6 @@ import GridIcon from '@/components/icons/GridIcon';
 import ListIcon from '@/components/icons/ListIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import { Status } from '@/logic/status';
-import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useNotifications } from '@/notifications/useNotifications';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { useSawRopeMutation } from '@/state/hark';
@@ -322,26 +321,27 @@ export default function ChannelHeader({
   const channel = useChannel(flag, nest);
   const BackButton = isMobile ? Link : 'div';
   const isAdmin = useAmAdmin(flag);
-  const { isGroupUnread } = useIsGroupUnread();
-  const hasActivity = isGroupUnread(flag);
-  const { notifications } = useNotifications(flag);
+  const { notifications, count } = useNotifications(flag);
   const { mutate: sawRopeMutation } = useSawRopeMutation();
-
   useEffect(() => {
-    if (hasActivity) {
+    if (count > 0) {
       const unreadBins = notifications
-        .filter((n) => n.bins.some((b) => b.unread === true))[0]
-        ?.bins.filter((b) => b.unread === true);
+        .filter((n) => n.skeins.some((b) => b.unread === true))[0]
+        ?.skeins.filter((b) => b.unread === true);
 
       if (unreadBins) {
-        unreadBins
-          .filter((b) => b.topYarn.wer.includes(nest))
-          .forEach((n) => {
-            sawRopeMutation({ rope: n.topYarn.rope });
+        const unreadsHere = unreadBins.filter((b) => b.top.wer.includes(nest));
+
+        unreadsHere.forEach((n, index) => {
+          // update on the last call
+          sawRopeMutation({
+            rope: n.top.rope,
+            update: index === unreadsHere.length - 1,
           });
+        });
       }
     }
-  }, [hasActivity, notifications, nest, sawRopeMutation]);
+  }, [count, notifications, nest, sawRopeMutation]);
 
   function backTo() {
     if (isMobile && isTalk) {

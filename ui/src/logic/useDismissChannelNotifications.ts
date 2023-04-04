@@ -34,13 +34,13 @@ export default function useDismissChannelNotifications({
       markRead(chFlag);
       // iterate bins, saw each rope
       notifications.forEach((n) => {
-        n.bins.forEach((b) => {
+        n.skeins.forEach((b) => {
           if (
             b.unread &&
-            b.topYarn?.rope.channel &&
-            b.topYarn.rope.channel.includes(chFlag)
+            b.top?.rope.channel &&
+            b.top.rope.channel.includes(chFlag)
           ) {
-            sawRopeMutation({ rope: b.topYarn.rope });
+            sawRopeMutation({ rope: b.top.rope });
           }
         });
       });

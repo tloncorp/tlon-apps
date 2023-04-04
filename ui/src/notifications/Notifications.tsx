@@ -14,10 +14,11 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import { Bin, useNotifications } from './useNotifications';
+import { Skein } from '@/types/hark';
+import { useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
-  child: ComponentType<{ bin: Bin }>;
+  child: ComponentType<{ bin: Skein }>;
   title?: ViewProps['title'];
 }
 
@@ -88,7 +89,7 @@ export default function Notifications({
     if (showMentionsOnly) {
       mentions.map(async (m, index) =>
         sawRopeMutation({
-          rope: m.topYarn.rope,
+          rope: m.top.rope,
           update: index === mentions.length - 1,
         })
       );
@@ -204,7 +205,7 @@ export default function Notifications({
                     {grouping.date}
                   </h2>
                   <ul className="space-y-2">
-                    {grouping.bins.map((b) => (
+                    {grouping.skeins.map((b) => (
                       <li key={b.time}>
                         <Notification bin={b} />
                       </li>

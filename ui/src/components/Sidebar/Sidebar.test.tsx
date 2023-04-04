@@ -32,8 +32,7 @@ vi.mock('@/state/groups', () => ({
 }));
 
 vi.mock('@/state/hark', () => ({
-  useCarpet: () => ({}),
-  useBlanket: () => ({}),
+  useSkeins: () => ({}),
 }));
 
 vi.mock('@/logic/useMigrationInfo', () => ({
