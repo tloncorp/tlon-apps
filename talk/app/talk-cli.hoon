@@ -1955,9 +1955,6 @@
   ::
   ++  render-activate
     ^-  sole-effect:shoe
-    ?:  ?=(%notice -.content)
-      =+  render-notice
-      +.-
     ~[%mor [%tan meta] body]
   ::  +meta: render message metadata (serial, timestamp, author, target)
   ::
@@ -1969,7 +1966,8 @@
   ::  +body: long-form render of message contents
   ::
   ++  body
-    ?>  ?=(%story -.content)
+    ?.  ?=(%story -.content)
+      +:render-notice
     |-  ^-  sole-effect:shoe
     :-  %mor
     ;:  weld
