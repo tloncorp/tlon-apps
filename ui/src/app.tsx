@@ -75,7 +75,6 @@ import VitaMessage from './components/VitaMessage';
 import { useGroups } from './state/groups';
 import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
-import useIsIOSSafariPWA from './logic/useIsIOSSfari';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -578,7 +577,6 @@ function RoutedApp() {
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const isStandAlone = useIsStandaloneMode();
-  const isIOSSafariPWA = useIsIOSSafariPWA();
   const body = document.querySelector('body');
 
   const basename = (appName: string) => {
@@ -611,13 +609,10 @@ function RoutedApp() {
 
   useEffect(() => {
     if (isStandAlone) {
-      if (!isIOSSafariPWA) {
-        body?.style.setProperty('padding-bottom', '0px');
-      } else {
-        body?.style.setProperty('padding-bottom', '16px');
-      }
+      // this is necessary for the desktop PWA to not have extra padding at the bottom.
+      body?.style.setProperty('padding-bottom', '0px');
     }
-  }, [isStandAlone, isIOSSafariPWA, body]);
+  }, [isStandAlone, body]);
 
   return (
     <ErrorBoundary
