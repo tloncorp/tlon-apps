@@ -8,12 +8,12 @@ export default {
   id: '/apps/groups/',
   icons: [
     {
-      src: './src/assets/groups-icon-512x512.png',
+      src: './groups-icon-512x512.png',
       sizes: '512x512',
       type: 'image/png',
     },
     {
-      src: './src/assets/groups-icon-192x192.png',
+      src: './groups-icon-192x192.png',
       sizes: '192x192',
       type: 'image/png',
     },
