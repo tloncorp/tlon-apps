@@ -62,7 +62,7 @@ export function useBlanket(flag?: Flag) {
 
 export function useSkeins(flag?: Flag) {
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['skeins', flag],
+    queryKey: ['skeins', flag ? flag : undefined],
     app: 'hark',
     path: '/ui',
     initialScryPath: flag
