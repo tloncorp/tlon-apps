@@ -410,8 +410,11 @@
 ++  club-members
   |=  =club-id
   ^-  (list ship)
-  =/  team  team:(~(got by get-clubs) club-id)
-  =/  hive  hive:(~(got by get-clubs) club-id)
+  =/  crew=(unit crew)
+    (~(get by get-clubs) club-id)
+  ?~  crew  *(list ship)
+  =+  team=team.u.crew
+  =+  hive=hive.u.crew
   ?:  &(=(~ team) =(~ hive))
     *(list ship)
   ?:  =(~ team)  (sort ~(tap in hive) lth)
@@ -1632,10 +1635,11 @@
     ::
         %club
       =/  =club-id  p.target
-      =+  met:(~(got by get-clubs) club-id)   
-      ?:  =(*cord title.-)
+      =/  crew=(unit crew)
+        (~(get by get-clubs) club-id)   
+      ?~  crew
         (render-club-members club-id)
-      (render-club-title club-id title.-)
+      (render-club-title club-id title.met.u.crew)
     ==
     ::  +render-club-title: produce club name
     ::
