@@ -730,7 +730,7 @@
         ;~(plug (tag %help) (easy ~))
       ::
         (stag %thread ;~(plug ;~(pfix ket nump) ;~(pfix ace content)))
-        (stag %reference ;~(plug nump ;~(pfix ace content)))
+        (stag %reference ;~(plug ;~(pfix hax nump) ;~(pfix ace content)))
         (stag %select nump)
       ==
     ::
