@@ -9,7 +9,6 @@ import { Helmet } from 'react-helmet';
 import { useRouteGroup, useGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
 import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
-import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
@@ -69,23 +68,20 @@ export default function Notifications({
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const isMobile = useIsMobile();
-  const {
-    isPending: isMarkReadPending,
-    setPending: setMarkReadPending,
-    setReady: setMarkReadReady,
-  } = useRequestState();
   const [showMentionsOnly, setShowMentionsOnly] = useState(false);
   const { loaded, notifications, mentions, count } = useNotifications(
     flag,
     showMentionsOnly
   );
-  const { mutate: sawRopeMutation } = useSawRopeMutation();
-  const { mutate: sawSeamMutation } = useSawSeamMutation();
-
+  const { mutate: sawRopeMutation, status: sawRopeStatus } =
+    useSawRopeMutation();
+  const { mutate: sawSeamMutation, status: sawSeamStatus } =
+    useSawSeamMutation();
+  const isMarkReadPending =
+    sawRopeStatus === 'loading' || sawSeamStatus === 'loading';
   const hasUnreads = count > 0;
 
   const markAllRead = useCallback(async () => {
-    setMarkReadPending();
     if (showMentionsOnly) {
       mentions.map(async (m, index) =>
         sawRopeMutation({
@@ -96,16 +92,7 @@ export default function Notifications({
     } else {
       sawSeamMutation({ seam: flag ? { group: flag } : { desk: 'groups' } });
     }
-    setMarkReadReady();
-  }, [
-    setMarkReadPending,
-    setMarkReadReady,
-    mentions,
-    showMentionsOnly,
-    flag,
-    sawRopeMutation,
-    sawSeamMutation,
-  ]);
+  }, [mentions, showMentionsOnly, flag, sawRopeMutation, sawSeamMutation]);
 
   const MarkAsRead = (
     <button

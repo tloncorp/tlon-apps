@@ -68,6 +68,9 @@ export function useSkeins(flag?: Flag) {
     initialScryPath: flag
       ? `/group/${flag}/skeins`
       : `/desk/${window.desk}/skeins`,
+    options: {
+      refetchOnMount: true,
+    },
   });
 
   return {
@@ -106,12 +109,10 @@ export function useSawRopeMutation() {
 
   return useMutation(mutationFn, {
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['carpet', variables.rope.group]);
-      await queryClient.cancelQueries(['blanket', variables.rope.group]);
+      await queryClient.cancelQueries(['skeins', variables.rope.group]);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.invalidateQueries(['carpet', variables.rope.group]);
-      await queryClient.invalidateQueries(['blanket', variables.rope.group]);
+      await queryClient.invalidateQueries(['skeins', variables.rope.group]);
     },
   });
 }
@@ -119,34 +120,18 @@ export function useSawRopeMutation() {
 export function useSawSeamMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { seam: Seam }) =>
-    new Promise<void>((resolve, reject) => {
-      api.poke({
-        ...harkAction({
-          'saw-seam': variables.seam,
-        }),
-        onError: reject,
-        onSuccess: async () => {
-          await useSubscriptionState
-            .getState()
-            .track(
-              'hark/ui',
-              (event: HarkAction) =>
-                'saw-seam' in event &&
-                _.isEqual(event['saw-seam'], variables.seam)
-            );
-          resolve();
-        },
-      });
+    api.poke({
+      ...harkAction({
+        'saw-seam': variables.seam,
+      }),
     });
 
   return useMutation(mutationFn, {
     onMutate: async () => {
-      await queryClient.cancelQueries(['carpet']);
-      await queryClient.cancelQueries(['blanket']);
+      await queryClient.cancelQueries(['skeins', null]);
     },
     onSettled: async () => {
-      await queryClient.invalidateQueries(['carpet']);
-      await queryClient.invalidateQueries(['blanket']);
+      await queryClient.invalidateQueries(['skeins', null]);
     },
   });
 }
