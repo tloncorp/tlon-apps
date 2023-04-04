@@ -1895,9 +1895,9 @@
             (slav %ud -.path)
           =/  =whom:chat  [%flag q.nest]
           ?.  (message-exists whom id)
-            ["[ #chat: telegram was deleted ]"]~
+            ["[ #chat: message was deleted ]"]~
           ?.  ?=(%story -.content)
-            ["[ #chat: telegram was a notice ]"]~
+            ["[ #chat: message was a notice ]"]~
           =+  %^  scry-for-marked  ,[* =writ:chat]
                 %chat
               (forge whom id)
@@ -1983,7 +1983,7 @@
       ?~  replying  ~
       =-  (snoc - [%txt "---"])
       ?.  (message-exists source u.replying)
-        [txt+"^   …telegram was deleted"]~
+        [txt+"^   …message was deleted"]~
       =+  %^  scry-for-marked  ,[* =writ:chat]
             %chat
           (forge source u.replying)
