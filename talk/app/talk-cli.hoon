@@ -1193,25 +1193,26 @@
               msg=(list inline:chat)
           ==
       ^-  (quip card _state)
-      =/  package=[(unit [whom:chat writ:chat]) (unit tape)]
+      =/  pack=(each [=whom:chat =writ:chat] tape)
         (pointer-to-message num)
-      ?~  -.package
-        (just-print (need +.package))
-      =/  =whom:chat  -:(need -.package)
-      ?.  ?=(%flag -.whom)
-        (just-print "message referencing is only available in chats from a group")
-      =/  =seal:chat   +<:(need -.package)
-      =/  =memo:chat   +>:(need -.package)
-      =/  host=ship    +<.whom
-      =/  name=@tas    +>.whom
-      =/  =time        +.id.seal
-      =/  author=ship  author.memo
-      =/  wer=path  /msg/(scot %p author)/(scot %ud time)
-      =/  =block:chat
-        [%cite `cite:cite`[%chan `nest:groups`[%chat [host name]] wer]]
-      =.  audience  whom
-      :_  put-ses
-      [(send ?~(msg ~ msg) ~ [block]~)]~
+      ?-   -.pack
+          %|  [[(note:sh-out p.pack)]~ state]
+          %&
+        ?.  ?=(%flag -.whom.p.pack)
+          :_  state
+          [(note:sh-out "message referencing is only available in chats from a group")]~
+        =/  =seal:chat   -.writ.p.pack
+        =/  =memo:chat   +.writ.p.pack
+        =/  host=ship    +<.whom.p.pack
+        =/  name=@tas    +>.whom.p.pack
+        =/  =time        +.id.seal
+        =/  wer=path  /msg/(scot %p author.memo)/(scot %ud time)
+        =/  =block:chat
+          [%cite `cite:cite`[%chan `nest:groups`[%chat [host name]] wer]]
+        =.  audience  whom.p.pack
+        :_  put-ses
+        [(send ?~(msg ~ msg) ~ [block]~)]~
+      ==
     ::  +thread: thread reply with pointer reference
     ::
     ++  thread
@@ -1219,19 +1220,19 @@
               msg=(list inline:chat)
           ==
       ^-  (quip card _state)
-      =/  package=[(unit [whom:chat writ:chat]) (unit tape)]
+      =/  pack=(each [=whom:chat =writ:chat] tape)
         (pointer-to-message num)
-      ?~  -.package
-        (just-print (need +.package))
-      =/  =whom:chat  -:(need -.package)
-      =/  =writ:chat  +:(need -.package)
-      =/  replying=(unit id:chat)
-        ?~  +<.writ
-          `-<.writ
-        +<.writ
-      =.  audience  whom
-      :_  put-ses
-      [(send msg replying ~)]~
+      ?-   -.pack
+          %|  [[(note:sh-out p.pack)]~ state]
+          %&
+        =/  replying=(unit id:chat)
+          ?~  replying.writ.p.pack
+            `-<.writ.p.pack
+          replying.writ.p.pack
+        =.  audience  whom.p.pack
+        :_  put-ses
+        [(send msg replying ~)]~
+      ==
     ::  +eval: run hoon, send code and result as message
     ::
     ::    this double-virtualizes and clams to disable .^ for security reasons
@@ -1320,61 +1321,63 @@
       ::
       |=  num=$@(rel=@ud [zeros=@u abs=@ud])
       ^-  (quip card _state)
-      =/  package=[(unit [whom:chat writ:chat]) (unit tape)]
+      =/  pack=(each [=whom:chat =writ:chat] tape)
         (pointer-to-message num)
-      ?~  -.package
-        (just-print (need +.package))
-      =/  =whom:chat  -:(need -.package)
-      =/  =writ:chat  +:(need -.package)
-      =/  number=tape 
-        (need +.package)
-      =.  audience  whom
-      :_  put-ses
-      ^-  (list card)
-      :~  (print:sh-out ['?' ' ' number])
-          (effect:sh-out ~(render-activate mr whom +.writ))
-          prompt:sh-out
+      ?-   -.pack
+          %|  [[(note:sh-out p.pack)]~ state]
+          %&
+        =/  tum=tape
+          ?@  num
+            (scow %s (new:si | +(num)))
+          (scow %s (index (dec count) num))
+        =.  audience  whom.p.pack
+        :_  put-ses
+        ^-  (list card)
+        :~  (print:sh-out ['?' ' ' tum])
+            (effect:sh-out ~(render-activate mr whom.p.pack +.writ.p.pack))
+            prompt:sh-out
+        ==
       ==
     ::  +pointer-to-message: get message from number reference
     ::  or reason why it's not there
     ::
     ++  pointer-to-message
       |=  num=$@(rel=@ud [zeros=@u abs=@ud])
-      ^-  [(unit [whom:chat writ:chat]) (unit tape)]
+      ^-  (each [whom:chat writ:chat] tape)
       |^  ?@  num
             =+  tum=(scow %s (new:si | +(num)))
             ?:  (gte rel.num count)
-              [~ `"{tum}: no such telegram"]
+              [%| "{tum}: no such message"]
             (produce tum rel.num)
           ?.  (gte abs.num count)
             ?:  =(count 0)
-              [~ `"0: no messages"]
+              [%| "0: no messages"]
             =+  msg=(index (dec count) num)
             (produce (scow %ud msg) (sub count +(msg)))
-          [~ `"…{(reap zeros.num '0')}{(scow %ud abs.num)}: no such telegram"]
-      ::  +index: get message index from absolute reference
-      ::
-      ++  index
-        |=  [max=@ud nul=@u fin=@ud]
-        ^-  @ud
-        =+  dog=|-(?:(=(0 fin) 1 (mul 10 $(fin (div fin 10)))))
-        =.  dog  (mul dog (pow 10 nul))
-        =-  ?:((lte - max) - (sub - dog))
-        (add fin (sub max (mod max dog)))
+          [%| "…{(reap zeros.num '0')}{(scow %ud abs.num)}: no such message"]
       ::  +produce: produce message if it exists
       ::
       ++  produce
         |=  [number=tape index=@ud]
-        ^-  [(unit [whom:chat writ:chat]) (unit tape)]
+        ^-  (each [whom:chat writ:chat] tape)
         =/  [=whom:chat =id:chat]  
           (snag index history)
         ?.  (message-exists whom id)
-          [~ `"…{number}: telegram was deleted"]
+          [%| "…{number}: message was deleted"]
         =+  %^  scry-for-marked  ,[* =writ:chat]
               %chat
             (forge whom id)
-        [`[whom writ] `number]
+        [%& [whom writ]]
       --
+    ::  +index: get message index from absolute reference
+    ::
+    ++  index
+      |=  [max=@ud nul=@u fin=@ud]
+      ^-  @ud
+      =+  dog=|-(?:(=(0 fin) 1 (mul 10 $(fin (div fin 10)))))
+      =.  dog  (mul dog (pow 10 nul))
+      =-  ?:((lte - max) - (sub - dog))
+      (add fin (sub max (mod max dog)))
     ::  +chats: display list of joined chats
     ::
     ++  chats
