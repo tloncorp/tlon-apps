@@ -310,8 +310,10 @@ export default function FindGroups({ title }: ViewProps) {
                     size="h-12 w-12 shrink-0"
                   />
                   <div className="mx-2 grow">
-                    <h2 className="text-base font-semibold">Tlon Public</h2>
-                    <p className="text-xs">A place to ask for help</p>
+                    <h2 className="text-base font-semibold">Tlon Local</h2>
+                    <p className="text-xs">
+                      Updates, announcements, and broadcasts from Tlon.
+                    </p>
                   </div>
                   <GroupReference flag="~nibset-napwyn/tlon" onlyButton />
                 </div>
