@@ -295,7 +295,7 @@ function ActivityRoute({ isInGroups = false }: { isInGroups: boolean }) {
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
   const isInGroups =
-    groups !== undefined ? (_.isEmpty(groups) ? false : true) : true;
+    groups !== undefined ? !_.isEmpty(groups) : true;
 
   return (
     <>
