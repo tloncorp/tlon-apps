@@ -76,7 +76,6 @@ import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import { LeapProvider } from './components/Leap/useLeap';
 import VitaMessage from './components/VitaMessage';
-import { useGroups } from './state/groups';
 import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import useIsIOSSafariPWA from './logic/useIsIOSSfari';
