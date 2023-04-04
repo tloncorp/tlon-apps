@@ -947,11 +947,6 @@
           %poke
           cage
       ==
-    ::  +just-print: full [cards state] output with a single print card
-    ::
-    ++  just-print
-      |=  txt=tape
-      [[(note:sh-out txt) ~] state]
     ::  +-feedback: custom arm printouts based on target type
     ::
     ++  feedback
