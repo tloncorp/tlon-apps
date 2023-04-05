@@ -40,7 +40,7 @@ export default function useReactQuerySubscription({
       priority
     );
 
-    await useSchedulerStore.getState().wait(
+    useSchedulerStore.getState().wait(
       () =>
         useSubscriptionState.getState().subscribe({
           app,
