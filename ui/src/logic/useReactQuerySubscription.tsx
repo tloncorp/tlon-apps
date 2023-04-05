@@ -15,7 +15,7 @@ export default function useReactQuerySubscription({
   scryApp = app,
   enabled = true,
   initialData,
-  priority = 4,
+  priority = 3,
   options,
 }: {
   queryKey: QueryKey;
@@ -40,13 +40,17 @@ export default function useReactQuerySubscription({
       priority
     );
 
-    useSubscriptionState.getState().subscribe({
-      app,
-      path,
-      event: () => {
-        queryClient.invalidateQueries(queryKey);
-      },
-    });
+    await useSchedulerStore.getState().wait(
+      () =>
+        useSubscriptionState.getState().subscribe({
+          app,
+          path,
+          event: () => {
+            queryClient.invalidateQueries(queryKey);
+          },
+        }),
+      4
+    );
 
     return scryData;
   };
