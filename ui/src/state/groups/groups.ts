@@ -65,6 +65,10 @@ export function useGroup(flag: string, withMembers = false) {
     initialScryPath: `/groups/${flag}`,
     enabled: !!flag && flag !== '' && withMembers,
     initialData: group,
+    options: {
+      refetchOnWindowFocus: withMembers,
+      refetchOnMount: withMembers,
+    },
   });
 
   if (rest.isLoading || rest.isError) {
