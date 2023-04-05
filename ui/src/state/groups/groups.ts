@@ -205,7 +205,7 @@ export function useChannelList(flag: string): string[] {
 }
 
 export function useAmAdmin(flag: string) {
-  const group = useGroup(flag, true);
+  const group = useGroup(flag, false);
   const vessel = group?.fleet?.[window.our];
   return vessel && vessel.sects.includes(GROUP_ADMIN);
 }
