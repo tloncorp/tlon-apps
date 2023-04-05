@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import Picker from '@emoji-mart/react';
 import * as Popover from '@radix-ui/react-popover';
-import * as Dialog from '@radix-ui/react-dialog';
 import useEmoji from '@/state/emoji';
 import { useIsMobile } from '@/logic/useMedia';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
@@ -45,7 +44,6 @@ export default function EmojiPicker({
             {data ? (
               <Picker
                 data={data}
-                autoFocus={isMobile}
                 perLine={isMobile ? mobilePerLineCount : 9}
                 previewPosition="none"
                 {...props}
