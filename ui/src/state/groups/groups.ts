@@ -1156,8 +1156,6 @@ export function useGroupIndex(ship: string) {
     },
   });
 
-  console.log({ ship, data, rest });
-
   return {
     groupIndex: data as GroupIndex,
     ...rest,

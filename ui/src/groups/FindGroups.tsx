@@ -29,8 +29,6 @@ export default function FindGroups({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const { groupIndex, fetchStatus, refetch } = useGroupIndex(ship || '');
 
-  console.log({ ship, name, groupIndex, fetchStatus, refetch });
-
   /**
    *  Search results for render:
    *
