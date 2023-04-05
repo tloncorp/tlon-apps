@@ -2,56 +2,29 @@ import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce from 'immer';
 import create from 'zustand';
-import { Blanket, Carpet, Flag, HarkAction, Rope, Seam } from '@/types/hark';
+import { Flag, HarkAction, Rope, Seam, Skein } from '@/types/hark';
 import api from '@/api';
-import { decToUd } from '@urbit/api';
-import { asyncForEach } from '@/lib';
+import { asyncWithDefault } from '@/logic/utils';
 import useSubscriptionState from './subscription';
 
 export interface HarkState {
   set: (fn: (sta: HarkState) => void) => void;
   batchSet: (fn: (sta: HarkState) => void) => void;
   loaded: boolean;
-  /** carpet: represents unread notifications at the app level */
-  carpet: Carpet;
-  /** blanket: represents read notifications at the app level */
-  blanket: Blanket;
+  /** skeins: notifications at the app level */
+  skeins: Skein[];
   /** textiles: represents notifications at the group level */
   textiles: {
-    [flag: Flag]: {
-      carpet: Carpet;
-      blanket: Blanket;
-    };
+    [flag: Flag]: Skein[];
   };
-  groupSubs: Flag[];
   /** start: fetches app-wide notifications and subscribes to updates */
   start: () => Promise<void>;
   /** retrieve: refreshes app-wide notifications to latest  */
   retrieve: () => Promise<void>;
-  /** retrieveGroup: fetches group's notifications and adds to "subs" */
+  /** retrieveGroup: fetches group's notifications */
   retrieveGroup: (flag: Flag) => Promise<void>;
-  /** releaseGroup: removes updates from happening */
-  releaseGroup: (flag: Flag) => Promise<void>;
-  update: (group: string | null) => Promise<void>;
   sawRope: (rope: Rope, update?: boolean) => Promise<void>;
   sawSeam: (seam: Seam) => Promise<void>;
-}
-
-export function emptyCarpet(seam: Seam) {
-  return {
-    seam,
-    yarns: {},
-    cable: [],
-    stitch: 0,
-  };
-}
-
-export function emptyBlanket(seam: Seam) {
-  return {
-    seam,
-    yarns: {},
-    quilt: {},
-  };
 }
 
 function harkAction(action: HarkAction) {
@@ -72,84 +45,49 @@ const useHarkState = create<HarkState>((set, get) => ({
     });
   },
   loaded: false,
-  carpet: emptyCarpet({ desk: window.desk }),
-  blanket: emptyBlanket({ desk: window.desk }),
+  skeins: [],
   textiles: {},
-  groupSubs: [],
   start: async () => {
-    await get().retrieve();
+    const { retrieve } = get();
+    retrieve();
 
     await api.subscribe({
       app: 'hark',
       path: '/ui',
       event: (event: HarkAction) => {
         if ('add-yarn' in event) {
-          get().update(null);
+          retrieve();
         }
       },
     });
     set({ loaded: true });
   },
-  update: async (group) => {
-    const { groupSubs, retrieve, retrieveGroup } = get();
-    await retrieve();
-
-    await asyncForEach(
-      groupSubs.filter((g) => !group || group === g),
-      retrieveGroup
-    );
-  },
   retrieve: async () => {
-    const carpet = await api
-      .scry<Carpet>({
-        app: 'hark',
-        path: `/desk/${window.desk}/latest`,
-      })
-      .catch(() => emptyCarpet({ desk: window.desk }));
-
-    const quilt = carpet.stitch === 0 ? '0' : decToUd(carpet.stitch.toString());
-    const blanket = await api
-      .scry<Blanket>({
-        app: 'hark',
-        path: `/desk/${window.desk}/quilt/${quilt}`,
-      })
-      .catch(() => emptyBlanket({ desk: window.desk }));
+    const skeins = await asyncWithDefault(
+      () =>
+        api.scry<Skein[]>({
+          app: 'hark',
+          path: `/desk/${window.desk}/skeins`,
+        }),
+      []
+    );
 
     get().batchSet((draft) => {
-      draft.carpet = carpet;
-      draft.blanket = blanket;
+      draft.skeins = skeins;
     });
   },
   retrieveGroup: async (flag) => {
-    const carpet = await api.scry<Carpet>({
-      app: 'hark',
-      path: `/group/${flag}/latest`,
-    });
-
-    const quilt = carpet.stitch === 0 ? '0' : decToUd(carpet.stitch.toString());
-    const blanket = await api.scry<Blanket>({
-      app: 'hark',
-      path: `/group/${flag}/quilt/${quilt}`,
-    });
+    const skeins = await asyncWithDefault(
+      () =>
+        api.scry<Skein[]>({
+          app: 'hark',
+          path: `/group/${flag}/skeins`,
+        }),
+      []
+    );
 
     get().batchSet((draft) => {
-      draft.textiles[flag] = {
-        carpet,
-        blanket,
-      };
-
-      if (!get().groupSubs.includes(flag)) {
-        draft.groupSubs.push(flag);
-      }
-    });
-  },
-  releaseGroup: async (flag) => {
-    get().batchSet((draft) => {
-      const index = draft.groupSubs.indexOf(flag);
-
-      if (index !== -1) {
-        draft.groupSubs.splice(index, 1);
-      }
+      draft.textiles[flag] = skeins;
     });
   },
   sawRope: async (rope, update = true) =>
@@ -173,7 +111,7 @@ const useHarkState = create<HarkState>((set, get) => ({
               );
             });
 
-          await get().update(rope.group);
+          await get().retrieve();
           resolve();
         },
       });
@@ -192,7 +130,7 @@ const useHarkState = create<HarkState>((set, get) => ({
               return 'saw-seam' in event && _.isEqual(event['saw-seam'], seam);
             });
 
-          await get().update(('group' in seam && seam.group) || null);
+          await get().retrieve();
           resolve();
         },
       });
