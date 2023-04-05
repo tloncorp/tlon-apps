@@ -1,8 +1,8 @@
 import api from '@/api';
 import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
+import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
-import { QueryClient } from '@tanstack/react-query';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
@@ -33,14 +33,6 @@ async function chatScry<T>(path: string, def: T) {
     def
   );
 }
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      cacheTime: Infinity,
-    },
-  },
-});
 
 async function startGroups(talkStarted: boolean) {
   // make sure if this errors we don't kill the entire app

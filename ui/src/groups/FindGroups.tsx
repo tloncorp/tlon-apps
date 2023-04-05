@@ -105,7 +105,7 @@ export default function FindGroups({ title }: ViewProps) {
        * for peers where a route has to be established this can take
        * upwards of thirty seconds.
        */
-      const results: GroupIndex | null = data;
+      const results = data;
       setGroupIndex(results);
       setReady();
     } catch (error) {

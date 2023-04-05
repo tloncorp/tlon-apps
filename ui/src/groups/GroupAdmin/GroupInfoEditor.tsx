@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import React, { ChangeEvent, useCallback, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
@@ -42,13 +42,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   const [deleteField, setDeleteField] = useState('');
   const { privacy } = useGroupPrivacy(groupFlag);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const { enabled, describe } = useLure(groupFlag);
-  const { mutate: deleteMutation, status: deleteStatus } =
-    useDeleteGroupMutation();
-  const { mutate: editMutation, status: editStatus } = useEditGroupMutation();
-  const { mutate: swapCordonMutation } = useGroupSwapCordonMutation();
-  const { mutate: setSecretMutation } = useGroupSetSecretMutation();
-
   const form = useForm<GroupFormSchema>({
     defaultValues: {
       ...emptyMeta,
@@ -56,6 +49,18 @@ export default function GroupInfoEditor({ title }: ViewProps) {
       privacy,
     },
   });
+  const { enabled, describe } = useLure(groupFlag);
+  const { mutate: deleteMutation, status: deleteStatus } =
+    useDeleteGroupMutation();
+  const { mutate: editMutation, status: editStatus } = useEditGroupMutation({
+    onSuccess: () => {
+      form.reset({
+        ...form.getValues(),
+      });
+    },
+  });
+  const { mutate: swapCordonMutation } = useGroupSwapCordonMutation();
+  const { mutate: setSecretMutation } = useGroupSetSecretMutation();
 
   const onDeleteChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -109,7 +114,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
             isSecret: values.privacy === 'secret',
           });
         }
-        if (editStatus === 'success' || privacyChanged) {
+        if (privacyChanged) {
           form.reset({
             ...values,
           });
@@ -127,7 +132,6 @@ export default function GroupInfoEditor({ title }: ViewProps) {
       swapCordonMutation,
       setSecretMutation,
       form,
-      editStatus,
     ]
   );
 

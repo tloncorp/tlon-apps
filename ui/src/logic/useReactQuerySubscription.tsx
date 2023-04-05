@@ -15,7 +15,7 @@ export default function useReactQuerySubscription({
   scryApp = app,
   enabled = true,
   initialData,
-  priority = 3,
+  priority = 4,
   options,
 }: {
   queryKey: QueryKey;

@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { useLocation } from 'react-router';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import CheckIcon from '@/components/icons/CheckIcon';
-import ElipsisCircleIcon from '@/components/icons/EllipsisCircleIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -13,11 +12,10 @@ import { toTitleCase, getSectTitle, getChannelHosts } from '@/logic/utils';
 import {
   useAmAdmin,
   useGroup,
-  useGroupAddSectsMutation,
   useGroupBanShipsMutation,
   useGroupDelMembersMutation,
-  useGroupDelSectsMutation,
   useGroupFlag,
+  useGroupSectMutation,
   useSects,
   useVessel,
 } from '@/state/groups';
@@ -26,19 +24,18 @@ import Avatar from '@/components/Avatar';
 import { useContact } from '@/state/contact';
 import { Vessel } from '@/types/groups';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
 
 interface GroupMemberItemProps {
   member: string;
 }
 
 function GroupMemberItem({ member }: GroupMemberItemProps) {
-  const [sectStatus, setSectStatus] = useState<
-    'loading' | 'success' | 'error'
-  >();
   const [showKickConfirm, setShowKickConfirm] = useState(false);
   const [loadingKick, setLoadingKick] = useState(false);
   const [loadingBan, setLoadingBan] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const sects = useSects(flag);
@@ -49,20 +46,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const modalNavigate = useModalNavigate();
   const { mutate: delMembersMutation } = useGroupDelMembersMutation();
   const { mutate: banShipsMutation } = useGroupBanShipsMutation();
-  const { mutate: delSectsMutation, status: delSectsStatus } =
-    useGroupDelSectsMutation();
-  const { mutate: addSectsMutation, status: addSectsStatus } =
-    useGroupAddSectsMutation();
-
-  useEffect(() => {
-    if (delSectsStatus === 'success' || addSectsStatus === 'success') {
-      setSectStatus('success');
-    } else if (delSectsStatus === 'error' || addSectsStatus === 'error') {
-      setSectStatus('error');
-    } else if (delSectsStatus === 'loading' || addSectsStatus === 'loading') {
-      setSectStatus('loading');
-    }
-  }, [delSectsStatus, addSectsStatus]);
+  const { mutate: sectMutation, status: sectStatus } = useGroupSectMutation();
 
   const onViewProfile = (ship: string) => {
     modalNavigate(`/profile/${ship}`, {
@@ -93,31 +77,26 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
       event.preventDefault();
 
       const inSect = v.sects.includes(sect);
-      const isOwner = flag.includes(ship);
 
-      if (inSect && sect === 'admin' && isOwner) {
-        setSectStatus('error');
+      if (inSect && sect === 'admin' && flag.includes(ship)) {
+        setIsOwner(true);
         return;
       }
       if (inSect) {
         try {
-          delSectsMutation({ flag, ship, sects: [sect] });
-          setSectStatus('success');
+          sectMutation({ flag, ship, sects: [sect], operation: 'del' });
         } catch (e) {
-          setSectStatus('error');
           console.error(e);
         }
       } else {
         try {
-          addSectsMutation({ flag, ship, sects: [sect] });
-          setSectStatus('success');
+          sectMutation({ flag, ship, sects: [sect], operation: 'add' });
         } catch (e) {
-          setSectStatus('error');
           console.log(e);
         }
       }
     },
-    [flag, delSectsMutation, addSectsMutation]
+    [flag, sectMutation]
   );
 
   if (!group) {
@@ -168,6 +147,10 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
                 {sectStatus === 'loading' ? (
                   <div className="mr-2 flex h-6 w-6 items-center justify-center">
                     <LoadingSpinner className="h-4 w-4" />
+                  </div>
+                ) : sectStatus === 'error' || isOwner ? (
+                  <div className="mr-2 h-6 w-6">
+                    <ExclamationPoint className="h-4 w-4 text-red" />
                   </div>
                 ) : vessel.sects.includes(s) ? (
                   <CheckIcon className="mr-2 h-6 w-6 text-green" />

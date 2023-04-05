@@ -1,6 +1,5 @@
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
-import { QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Helmet } from 'react-helmet';
@@ -79,14 +78,7 @@ import VitaMessage from './components/VitaMessage';
 import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import useIsIOSSafariPWA from './logic/useIsIOSSfari';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      cacheTime: Infinity,
-    },
-  },
-});
+import queryClient from './queryClient';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -650,7 +642,7 @@ function RoutedApp() {
         <PersistQueryClientProvider
           client={queryClient}
           persistOptions={{
-            persister: indexedDBPersistor(`${window.our}-${app}`),
+            persister: indexedDBPersistor(`${window.our}-landscape`),
           }}
         >
           <TooltipProvider skipDelayDuration={400}>
