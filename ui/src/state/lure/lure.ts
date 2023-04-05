@@ -114,11 +114,11 @@ export const useLureState = create<LureState>(
       fetchLure: async (flag) => {
         const { name } = getFlagParts(flag);
         const enabled = await asyncWithDefault(
-          () => api.subscribeOnce('grouper', `/group-enabled/${flag}`, 20000),
+          () => api.subscribeOnce('grouper', `/group-enabled/${flag}`, 12500),
           undefined
         );
         const url = await asyncWithDefault(
-          () => api.subscribeOnce('reel', `/token-link/${flag}`, 20000),
+          () => api.subscribeOnce('reel', `/token-link/${flag}`, 12500),
           ''
         );
         const metadata = await asyncWithDefault(
