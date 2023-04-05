@@ -1156,15 +1156,12 @@ export function useGroupIndex(ship: string) {
     },
   });
 
-  if (rest.isLoading) {
-    return null;
-  }
+  console.log({ ship, data, rest });
 
-  if (rest.isError) {
-    console.log("Couldn't load group index", rest.error);
-  }
-
-  return data as GroupIndex;
+  return {
+    groupIndex: data as GroupIndex,
+    ...rest,
+  };
 }
 
 export function useGroupBanShipsMutation() {

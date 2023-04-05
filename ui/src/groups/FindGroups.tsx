@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import cn from 'classnames';
 import ob from 'urbit-ob';
@@ -9,8 +9,7 @@ import {
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
-import { Gangs, GroupIndex, ViewProps } from '@/types/groups';
-import useRequestState from '@/logic/useRequestState';
+import { Gangs, ViewProps } from '@/types/groups';
 import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
 import { useNavigate, useParams, useLocation } from 'react-router';
 import { useModalNavigate } from '@/logic/routing';
@@ -25,11 +24,12 @@ export default function FindGroups({ title }: ViewProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const modalNavigate = useModalNavigate();
-  const [groupIndex, setGroupIndex] = useState<GroupIndex | null>(null);
   const existingGangs = useGangs();
   const pendingGangs = usePendingGangsWithoutClaim();
   const isMobile = useIsMobile();
-  const data = useGroupIndex(ship || '');
+  const { groupIndex, fetchStatus, refetch } = useGroupIndex(ship || '');
+
+  console.log({ ship, name, groupIndex, fetchStatus, refetch });
 
   /**
    *  Search results for render:
@@ -89,42 +89,6 @@ export default function FindGroups({ title }: ViewProps) {
   const presentedShip = selectedShip
     ? selectedShip.label || selectedShip.value
     : '';
-  const { isPending, setPending, setReady } = useRequestState();
-
-  const searchGroups = useCallback(async () => {
-    if (!ship) {
-      return;
-    }
-
-    setGroupIndex(null);
-    setPending();
-    try {
-      /**
-       * results will always either be a GroupIndex, or the
-       * request will throw an error, which will be caught below.
-       * for peers where a route has to be established this can take
-       * upwards of thirty seconds.
-       */
-      const results = data;
-      setGroupIndex(results);
-      setReady();
-    } catch (error) {
-      console.log(
-        '[FindGroups:SearchGroups] Request failed due to timeout or network issue'
-      );
-      setGroupIndex({});
-      setReady(); // TODO: show error state? e.g. request timed out... or "Is the host online?"
-    }
-  }, [setPending, setReady, ship, data]);
-
-  // if ship in query params, do query
-  useEffect(() => {
-    if (!ship) {
-      return;
-    }
-
-    searchGroups();
-  }, [ship, searchGroups]);
 
   // once a ship is selected, redirect to find/[selected query]
   useEffect(() => {
@@ -150,7 +114,7 @@ export default function FindGroups({ title }: ViewProps) {
   };
 
   const resultsTitle = () => {
-    if (isPending) {
+    if (fetchStatus === 'fetching') {
       return (
         <>
           <span>Searching for groups hosted by&nbsp;</span>
@@ -180,19 +144,20 @@ export default function FindGroups({ title }: ViewProps) {
           </>
         );
       }
-
-      return (
-        <span>
-          Your search timed out, which may happen when a ship hosts no groups,
-          is under heavy load, or is offline.{' '}
-          <span onClick={searchGroups} className="cursor-pointer text-gray-800">
-            Try again?
-          </span>
-        </span>
-      );
     }
 
-    return null;
+    return (
+      <span>
+        Your search timed out, which may happen when a ship hosts no groups, is
+        under heavy load, or is offline.{' '}
+        <span
+          onClick={() => refetch()}
+          className="cursor-pointer text-gray-800"
+        >
+          Try again?
+        </span>
+      </span>
+    );
   };
 
   // Allow selecting a ship name or invite URL (i.e., flag) in ShipSelector
@@ -225,7 +190,7 @@ export default function FindGroups({ title }: ViewProps) {
                   setShips={setShipSelectorShips}
                   isMulti={false}
                   isClearable={true}
-                  isLoading={isPending}
+                  isLoading={fetchStatus === 'fetching'}
                   hasPrompt={false}
                   placeholder={'e.g. ~nibset-napwyn/tlon'}
                   isValidNewOption={isValidNewOption}
@@ -236,7 +201,7 @@ export default function FindGroups({ title }: ViewProps) {
             {selectedShip || (ship && name) ? (
               <section className="space-y-3">
                 <p className="font-semibold text-gray-400">{resultsTitle()}</p>
-                {isPending ? (
+                {fetchStatus === 'fetching' ? (
                   <GroupJoinListPlaceholder />
                 ) : indexedGangs && hasKeys(indexedGangs) ? (
                   <GroupJoinList gangs={indexedGangs} />
