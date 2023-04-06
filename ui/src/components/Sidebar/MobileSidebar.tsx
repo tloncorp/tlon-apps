@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
-import cn from 'classnames';
 import { Outlet, useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
-import useIsIOSSafariPWA from '@/logic/useIsIOSSfari';
-import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import NavTab from '../NavTab';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
 import ElipsisIcon from '../icons/EllipsisIcon';
@@ -17,17 +14,11 @@ import SidebarItem from './SidebarItem';
 export default function MobileSidebar() {
   const [showSheet, setShowSheet] = useState(false);
   const location = useLocation();
-  const isIOSSafari = useIsIOSSafariPWA();
-  const isStandAlone = useIsStandaloneMode();
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col  border-gray-50 bg-white">
       <Outlet />
-      <footer
-        className={cn('flex-none border-t-2 border-gray-50', {
-          'pb-4': isIOSSafari && isStandAlone,
-        })}
-      >
+      <footer className="flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex">
             <NavTab to="/" linkClass="basis-1/5">
