@@ -6,15 +6,15 @@ export default function useReactQuerySubscribeOnce<T>({
   app,
   path,
   options,
-  enabled = true,
   initialData,
+  timeout = 5000,
 }: {
   queryKey: QueryKey;
   app: string;
   path: string;
   options?: UseQueryOptions;
-  enabled?: boolean;
   initialData?: any;
+  timeout?: number;
 }): ReturnType<typeof useQuery> {
   const fetchData = async () => {
     let timeoutId: NodeJS.Timeout | undefined;
@@ -23,7 +23,7 @@ export default function useReactQuerySubscribeOnce<T>({
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         reject(new Error('subscribeOnce timed out'));
-      }, 5000);
+      }, timeout);
     });
 
     const subscriptionPromise = new Promise<T>((resolve) => {
@@ -58,7 +58,7 @@ export default function useReactQuerySubscribeOnce<T>({
     retryOnMount: false,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
-    enabled,
+    enabled: true,
     initialData,
   };
   return useQuery(queryKey, fetchData, {
