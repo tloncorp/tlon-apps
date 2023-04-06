@@ -7,7 +7,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import BellIcon from '@/components/icons/BellIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { useCalm } from '@/state/settings';
-import { isColor } from '@/logic/utils';
+import { isColor, getPrivacyFromGroup } from '@/logic/utils';
 import { foregroundFromBackground } from '@/components/Avatar';
 import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
@@ -96,9 +96,11 @@ function GroupHeader() {
 
 export default function GroupSidebar() {
   const flag = useGroupFlag();
+  const group = useGroup(flag);
   const isDark = useIsDark();
   const location = useLocation();
   const isAdmin = useAmAdmin(flag);
+  const privacy = group ? getPrivacyFromGroup(group) : 'public';
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
@@ -141,13 +143,15 @@ export default function GroupSidebar() {
               )}
             </div>
           </SidebarItem>
-          <SidebarItem
-            to={`/groups/${flag}/invite`}
-            state={{ backgroundLocation: location }}
-            icon={<InviteIcon className="h-6 w-6 rounded text-blue" />}
-          >
-            <span className="text-blue">Invite People</span>
-          </SidebarItem>
+          {(privacy === 'public' || isAdmin) && (
+            <SidebarItem
+              to={`/groups/${flag}/invite`}
+              state={{ backgroundLocation: location }}
+              icon={<InviteIcon className="h-6 w-6 rounded text-blue" />}
+            >
+              <span className="text-blue">Invite People</span>
+            </SidebarItem>
+          )}
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
