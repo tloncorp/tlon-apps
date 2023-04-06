@@ -1,7 +1,7 @@
+import { useMemo } from 'react';
+import { useSkeins } from '@/state/hark';
 import _ from 'lodash';
-import { useCallback, useEffect, useMemo } from 'react';
-import useHarkState from '@/state/hark';
-import { Flag, Skein, Thread, Yarn, Yarns } from '@/types/hark';
+import { Flag, Skein, Yarn } from '@/types/hark';
 import { makePrettyDay } from '@/logic/utils';
 
 export interface DayGrouping {
@@ -31,39 +31,18 @@ export const isComment = (yarn: Yarn) =>
 export const isReply = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' replied to your message “');
 
-export const useNotifications = (
-  flag?: Flag,
-  mentionsOnly = false,
-  refresh = false
-) => {
-  const { skeins, retrieve, retrieveGroup } = useHarkState(
-    useCallback(
-      (state) => {
-        const sks = !flag ? state.skeins : state.textiles[flag] || [];
-
-        return {
-          skeins: sks,
-          retrieve: state.retrieve,
-          retrieveGroup: state.retrieveGroup,
-        };
-      },
-      [flag]
-    )
-  );
-
-  useEffect(() => {
-    if (!refresh) {
-      return;
-    }
-
-    if (flag) {
-      retrieveGroup(flag);
-    } else {
-      retrieve();
-    }
-  }, [flag, refresh, retrieve, retrieveGroup]);
+export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
+  const { data: skeins, status: skeinsStatus } = useSkeins(flag);
 
   return useMemo(() => {
+    if (skeinsStatus !== 'success') {
+      return {
+        notifications: [],
+        mentions: [],
+        count: 0,
+      };
+    }
+
     const unreads = skeins.filter((s) => s.unread);
     const filteredSkeins = skeins.filter((s) =>
       mentionsOnly ? isMention(s.top) : s
@@ -73,6 +52,7 @@ export const useNotifications = (
       notifications: groupSkeinsByDate(filteredSkeins),
       mentions: unreads.filter((s) => isMention(s.top)),
       count: unreads.length,
+      loaded: skeinsStatus === 'success',
     };
-  }, [skeins, mentionsOnly]);
+  }, [skeins, mentionsOnly, skeinsStatus]);
 };

@@ -8,7 +8,7 @@ import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
-import useHarkState from '@/state/hark';
+import { useSawRopeMutation } from '@/state/hark';
 import { Skein, YarnContent } from '@/types/hark';
 import { isComment, isMention, isReply } from './useNotifications';
 
@@ -117,13 +117,14 @@ export default function Notification({
 }: NotificationProps) {
   const rope = bin.top?.rope;
   const moreCount = bin.count - 1;
+  const { mutate: sawRopeMutation } = useSawRopeMutation();
   const mentionBool = isMention(bin.top);
   const commentBool = isComment(bin.top);
   const replyBool = isReply(bin.top);
 
   const onClick = useCallback(() => {
-    useHarkState.getState().sawRope(rope);
-  }, [rope]);
+    sawRopeMutation({ rope });
+  }, [rope, sawRopeMutation]);
 
   return (
     <div

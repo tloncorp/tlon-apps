@@ -20,12 +20,11 @@ import {
   DiaryUpdate,
   DiaryJoin,
 } from '@/types/diary';
-import api from '@/api';
+import api, { useSubscriptionState } from '@/api';
 import { nestToFlag } from '@/logic/utils';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { DiaryState } from './type';
 import makeNotesStore from './notes';
-import useSubscriptionState from '../subscription';
 import { createState } from '../base';
 import useSchedulerStore from '../scheduler';
 

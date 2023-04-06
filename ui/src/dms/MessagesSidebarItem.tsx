@@ -4,7 +4,7 @@ import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
 import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 import { useMultiDm } from '../state/chat';
-import { useChannel, useGroup, useGroupState } from '../state/groups/groups';
+import { useChannel, useGroup, useGroups } from '../state/groups/groups';
 import useMedia, { useIsMobile } from '../logic/useMedia';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
@@ -18,7 +18,7 @@ interface MessagesSidebarItemProps {
 }
 
 function ChannelSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
-  const groups = useGroupState((s) => s.groups);
+  const groups = useGroups();
   const nest = `chat/${whom}`;
   const groupFlag = Object.entries(groups).find(
     ([k, v]) => nest in v.channels

@@ -11,7 +11,7 @@ interface Waiter {
 interface SchedulerStore {
   phase: number;
   waiting: Record<number, Waiter[]>;
-  wait: (callback: () => void, phase: number) => Promise<string>;
+  wait: <T>(callback: () => T, phase: number) => Promise<T>;
   start: (phase: number) => void;
   next: () => void;
 }
@@ -42,15 +42,13 @@ const useSchedulerStore = create<SchedulerStore>((set, get) => ({
 
     setTimeout(() => get().next(), 16);
   },
-  wait: (cb, phase) => {
-    return new Promise((resolve) => {
+  wait: (cb, phase) =>
+    new Promise((resolve) => {
       const id = Date.now().toString();
       const { phase: p } = get();
 
       if (phase <= p) {
-        cb();
-
-        resolve(id);
+        resolve(cb());
         return;
       }
 
@@ -64,14 +62,12 @@ const useSchedulerStore = create<SchedulerStore>((set, get) => ({
             id,
             phase,
             callback: () => {
-              cb();
-              resolve(id);
+              resolve(cb());
             },
           });
         })
       );
-    });
-  },
+    }),
 }));
 
 export default useSchedulerStore;

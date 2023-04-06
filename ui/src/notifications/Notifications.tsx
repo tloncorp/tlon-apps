@@ -8,8 +8,7 @@ import React, {
 import { Helmet } from 'react-helmet';
 import { useRouteGroup, useGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
-import useHarkState from '@/state/hark';
-import useRequestState from '@/logic/useRequestState';
+import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
@@ -67,40 +66,33 @@ export default function Notifications({
   title,
 }: NotificationsProps) {
   const flag = useRouteGroup();
-  const loaded = useHarkState((s) => s.loaded);
   const group = useGroup(flag);
   const isMobile = useIsMobile();
-  const {
-    isPending: isMarkReadPending,
-    setPending: setMarkReadPending,
-    setReady: setMarkReadReady,
-  } = useRequestState();
   const [showMentionsOnly, setShowMentionsOnly] = useState(false);
-  const { notifications, mentions, count } = useNotifications(
+  const { loaded, notifications, mentions, count } = useNotifications(
     flag,
-    showMentionsOnly,
-    true
+    showMentionsOnly
   );
-
+  const { mutate: sawRopeMutation, status: sawRopeStatus } =
+    useSawRopeMutation();
+  const { mutate: sawSeamMutation, status: sawSeamStatus } =
+    useSawSeamMutation();
+  const isMarkReadPending =
+    sawRopeStatus === 'loading' || sawSeamStatus === 'loading';
   const hasUnreads = count > 0;
 
   const markAllRead = useCallback(async () => {
-    setMarkReadPending();
     if (showMentionsOnly) {
-      await Promise.all(
-        mentions.map(async (m, index) =>
-          useHarkState
-            .getState()
-            .sawRope(m.top.rope, index === mentions.length - 1)
-        )
+      mentions.map(async (m, index) =>
+        sawRopeMutation({
+          rope: m.top.rope,
+          update: index === mentions.length - 1,
+        })
       );
     } else {
-      await useHarkState
-        .getState()
-        .sawSeam(flag ? { group: flag } : { desk: 'groups' });
+      sawSeamMutation({ seam: flag ? { group: flag } : { desk: 'groups' } });
     }
-    setMarkReadReady();
-  }, [setMarkReadPending, setMarkReadReady, mentions, showMentionsOnly, flag]);
+  }, [mentions, showMentionsOnly, flag, sawRopeMutation, sawSeamMutation]);
 
   const MarkAsRead = (
     <button

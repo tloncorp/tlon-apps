@@ -25,9 +25,11 @@ export default function ChannelsList() {
           key: idx,
           channel: group.channels[idx],
         }));
-        sectionedChannels[key].channels = orderedChannels.filter(
-          (channelItem) => key === channelItem.channel?.zone
-        );
+        if (sectionedChannels[key]) {
+          sectionedChannels[key].channels = orderedChannels.filter(
+            (channelItem) => key === channelItem.channel?.zone
+          );
+        }
       });
     }
 

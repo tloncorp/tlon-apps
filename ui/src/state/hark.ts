@@ -1,31 +1,17 @@
 import _ from 'lodash';
-import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
-import produce from 'immer';
-import create from 'zustand';
-import { Flag, HarkAction, Rope, Seam, Skein } from '@/types/hark';
-import api from '@/api';
-import { asyncWithDefault } from '@/logic/utils';
-import useSubscriptionState from './subscription';
-
-export interface HarkState {
-  set: (fn: (sta: HarkState) => void) => void;
-  batchSet: (fn: (sta: HarkState) => void) => void;
-  loaded: boolean;
-  /** skeins: notifications at the app level */
-  skeins: Skein[];
-  /** textiles: represents notifications at the group level */
-  textiles: {
-    [flag: Flag]: Skein[];
-  };
-  /** start: fetches app-wide notifications and subscribes to updates */
-  start: () => Promise<void>;
-  /** retrieve: refreshes app-wide notifications to latest  */
-  retrieve: () => Promise<void>;
-  /** retrieveGroup: fetches group's notifications */
-  retrieveGroup: (flag: Flag) => Promise<void>;
-  sawRope: (rope: Rope, update?: boolean) => Promise<void>;
-  sawSeam: (seam: Seam) => Promise<void>;
-}
+import {
+  Blanket,
+  Carpet,
+  Flag,
+  HarkAction,
+  Rope,
+  Seam,
+  Skein,
+} from '@/types/hark';
+import api, { useSubscriptionState } from '@/api';
+import { decToUd } from '@urbit/api';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 function harkAction(action: HarkAction) {
   return {
@@ -35,106 +21,117 @@ function harkAction(action: HarkAction) {
   };
 }
 
-const useHarkState = create<HarkState>((set, get) => ({
-  set: (fn) => {
-    set(produce(get(), fn));
-  },
-  batchSet: (fn) => {
-    batchUpdates(() => {
-      get().set(fn);
-    });
-  },
-  loaded: false,
-  skeins: [],
-  textiles: {},
-  start: async () => {
-    const { retrieve } = get();
-    retrieve();
+export function useCarpet(flag?: Flag) {
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['carpet', flag],
+    app: 'hark',
+    path: '/ui',
+    initialScryPath: flag
+      ? `/group/${flag}/latest`
+      : `/desk/${window.desk}/latest`,
+  });
 
-    await api.subscribe({
-      app: 'hark',
-      path: '/ui',
-      event: (event: HarkAction) => {
-        if ('add-yarn' in event) {
-          retrieve();
-        }
-      },
-    });
-    set({ loaded: true });
-  },
-  retrieve: async () => {
-    const skeins = await asyncWithDefault(
-      () =>
-        api.scry<Skein[]>({
-          app: 'hark',
-          path: `/desk/${window.desk}/skeins`,
-        }),
-      []
-    );
+  return {
+    data: data as Carpet,
+    ...rest,
+  };
+}
 
-    get().batchSet((draft) => {
-      draft.skeins = skeins;
-    });
-  },
-  retrieveGroup: async (flag) => {
-    const skeins = await asyncWithDefault(
-      () =>
-        api.scry<Skein[]>({
-          app: 'hark',
-          path: `/group/${flag}/skeins`,
-        }),
-      []
-    );
+export function useBlanket(flag?: Flag) {
+  const { data: carpet, isSuccess } = useCarpet(flag);
+  const quilt = isSuccess
+    ? carpet?.stitch === 0
+      ? '0'
+      : decToUd(carpet?.stitch?.toString() ?? '0')
+    : '0';
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['blanket', flag],
+    app: 'hark',
+    path: '/ui',
+    initialScryPath: flag
+      ? `/group/${flag}/quilt/${quilt}`
+      : `/desk/${window.desk}/quilt/${quilt}`,
+    enabled: isSuccess,
+  });
 
-    get().batchSet((draft) => {
-      draft.textiles[flag] = skeins;
-    });
-  },
-  sawRope: async (rope, update = true) =>
+  return {
+    data: data as Blanket,
+    ...rest,
+  };
+}
+
+export function useSkeins(flag?: Flag) {
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['skeins', flag ? flag : undefined],
+    app: 'hark',
+    path: '/ui',
+    initialScryPath: flag
+      ? `/group/${flag}/skeins`
+      : `/desk/${window.desk}/skeins`,
+    options: {
+      refetchOnMount: true,
+    },
+  });
+
+  return {
+    data: data as Skein[],
+    ...rest,
+  };
+}
+
+export function useSawRopeMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: { rope: Rope; update?: boolean }) =>
     new Promise<void>((resolve, reject) => {
       api.poke({
         ...harkAction({
-          'saw-rope': rope,
+          'saw-rope': variables.rope,
         }),
         onError: reject,
         onSuccess: async () => {
-          if (!update) {
+          if (!variables.update) {
             resolve();
             return;
           }
 
           await useSubscriptionState
             .getState()
-            .track('hark/ui', (event: HarkAction) => {
-              return (
-                'saw-rope' in event && event['saw-rope'].thread === rope.thread
-              );
-            });
-
-          await get().retrieve();
+            .track(
+              'hark/ui',
+              (event: HarkAction) =>
+                'saw-rope' in event &&
+                event['saw-rope'].thread === variables.rope.thread
+            );
           resolve();
         },
       });
-    }),
-  sawSeam: async (seam) =>
-    new Promise<void>((resolve, reject) => {
-      api.poke({
-        ...harkAction({
-          'saw-seam': seam,
-        }),
-        onError: reject,
-        onSuccess: async () => {
-          await useSubscriptionState
-            .getState()
-            .track('hark/ui', (event: HarkAction) => {
-              return 'saw-seam' in event && _.isEqual(event['saw-seam'], seam);
-            });
+    });
 
-          await get().retrieve();
-          resolve();
-        },
-      });
-    }),
-}));
+  return useMutation(mutationFn, {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['skeins', variables.rope.group]);
+    },
+    onSettled: async (_data, _error, variables) => {
+      await queryClient.invalidateQueries(['skeins', variables.rope.group]);
+    },
+  });
+}
 
-export default useHarkState;
+export function useSawSeamMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: { seam: Seam }) =>
+    api.poke({
+      ...harkAction({
+        'saw-seam': variables.seam,
+      }),
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: async () => {
+      await queryClient.cancelQueries(['skeins', null]);
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries(['skeins', null]);
+    },
+  });
+}

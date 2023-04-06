@@ -15,7 +15,7 @@ import {
   useChannel,
   useAmAdmin,
   useRouteGroup,
-  useGroupState,
+  useDeleteChannelMutation,
 } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import { useDiaryState } from '@/state/diary';
@@ -29,10 +29,9 @@ import GridIcon from '@/components/icons/GridIcon';
 import ListIcon from '@/components/icons/ListIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import { Status } from '@/logic/status';
-import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useNotifications } from '@/notifications/useNotifications';
-import useHarkState from '@/state/hark';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import { useSawRopeMutation } from '@/state/hark';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
@@ -84,6 +83,7 @@ function ChannelActions({
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const isChannelHost = useIsChannelHost(flag);
+  const { mutate: deleteChannelMutate } = useDeleteChannelMutation();
 
   function prettyAppName() {
     switch (_app) {
@@ -131,7 +131,7 @@ function ChannelActions({
   const onDeleteChannelConfirm = useCallback(async () => {
     setDeleteStatus('loading');
     try {
-      await useGroupState.getState().deleteChannel(groupFlag, nest);
+      deleteChannelMutate({ flag: groupFlag, nest });
       navigate(
         isMobile
           ? `/groups/${ship}/${name}`
@@ -144,7 +144,16 @@ function ChannelActions({
       // eslint-disable-next-line no-console
       console.error(error);
     }
-  }, [deleteChannelIsOpen, groupFlag, isMobile, name, navigate, nest, ship]);
+  }, [
+    deleteChannelIsOpen,
+    groupFlag,
+    nest,
+    deleteChannelMutate,
+    isMobile,
+    name,
+    navigate,
+    ship,
+  ]);
 
   return (
     <>
@@ -313,7 +322,7 @@ export default function ChannelHeader({
   const BackButton = isMobile ? Link : 'div';
   const isAdmin = useAmAdmin(flag);
   const { notifications, count } = useNotifications(flag);
-
+  const { mutate: sawRopeMutation } = useSawRopeMutation();
   useEffect(() => {
     if (count > 0) {
       const unreadBins = notifications
@@ -325,13 +334,14 @@ export default function ChannelHeader({
 
         unreadsHere.forEach((n, index) => {
           // update on the last call
-          useHarkState
-            .getState()
-            .sawRope(n.top.rope, index === unreadsHere.length - 1);
+          sawRopeMutation({
+            rope: n.top.rope,
+            update: index === unreadsHere.length - 1,
+          });
         });
       }
     }
-  }, [count, notifications, nest]);
+  }, [count, notifications, nest, sawRopeMutation]);
 
   function backTo() {
     if (isMobile && isTalk) {

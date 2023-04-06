@@ -58,8 +58,8 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
   const group = useGroup(rope?.group || '');
   const groupFlag = useGroupFlag();
   const gang = useGang(rope?.group || '');
-  const groupTitle = group?.meta.title || gang?.preview?.meta.title;
-  const channelTitle = group?.channels[rope?.channel || '']?.meta.title;
+  const groupTitle = group?.meta?.title || gang?.preview?.meta.title;
+  const channelTitle = group?.channels[rope?.channel || '']?.meta?.title;
   const ship = bin.top?.con.find(isYarnShip);
   const combinedTitle = `${groupTitle || ''}${
     channelTitle ? `: ${channelTitle}` : ''
