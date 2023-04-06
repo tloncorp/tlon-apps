@@ -65,7 +65,7 @@ export default ({ mode }: { mode: string }) => {
             base: '/apps/talk/',
             manifest: chatmanifest,
             injectRegister: 'inline',
-            registerType: 'autoUpdate',
+            registerType: 'prompt',
             devOptions: {
               enabled: mode === 'sw',
             },
@@ -91,7 +91,7 @@ export default ({ mode }: { mode: string }) => {
             base: '/apps/groups/',
             manifest: manifest,
             injectRegister: 'inline',
-            registerType: 'autoUpdate',
+            registerType: 'prompt',
             devOptions: {
               enabled: mode === 'sw',
             },
