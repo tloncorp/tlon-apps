@@ -21,6 +21,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Install dependencies
+        working-directory: ./native-android
         run: npm ci
       - name: Build on EAS
+        working-directory: ./native-android
         run: eas build --platform android --non-interactive
