@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": false,
@@ -21,8 +25,17 @@
       "vite-plugin-pwa/client"
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["./src"]
+  "include": [],
+  "files": [
+    "src/window.ts",
+    "src/env.d.ts",
+    "src/global.d.ts",
+    "/Users/patrick/workspace/homestead/ui/src/components/UpdateNotice.tsx",
+    "/Users/patrick/workspace/homestead/ui/vite.config.ts"
+  ]
 }
