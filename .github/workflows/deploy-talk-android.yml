@@ -25,4 +25,4 @@ jobs:
         run: npm ci
       - name: Build on EAS
         working-directory: ./native-android
-        run: eas build --platform android --non-interactive
+        run: eas build --profile preview --platform android --non-interactive
