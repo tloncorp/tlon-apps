@@ -1,0 +1,26 @@
+name: Deploy Talk (Android)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - po/add-native-android
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: "Create native Android build and deploy for internal distribution"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Build on EAS
+        run: eas build --platform android --non-interactive

@@ -28,7 +28,8 @@
     "react-native-webview": "11.26.0",
     "tailwind-rn": "^4.2.0",
     "zustand": "^4.3.6",
-    "expo-device": "~5.2.1"
+    "expo-device": "~5.2.1",
+    "expo-updates": "~0.16.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
