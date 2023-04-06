@@ -14,7 +14,7 @@ jobs:
           token: ${{ secrets.REPO_TOKEN }}
       - uses: actions/setup-node@v3
         with:
-          node-version: '16.19.1'
+          node-version-file: ./ui/.nvmrc
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'
         with:
@@ -24,7 +24,6 @@ jobs:
       - name: Build Frontend
         working-directory: ./ui
         run: |
-          sudo npm i -g npm@8.19.3
           npm ci
           npm run build:chat
       - id: glob
