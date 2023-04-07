@@ -3,6 +3,10 @@ import { useWritByFlagAndWritId } from '@/state/chat';
 import { Skein } from '@/types/hark';
 
 export default function usePathFromHark(bin: Skein, isMention: boolean) {
+  if (!isMention) {
+    return bin.top?.wer || '';
+  }
+
   const writId = bin.top?.wer.split('/')[10];
   const ship =
     typeof bin.top.con[0] !== 'string' && 'ship' in bin.top.con[0]
@@ -12,13 +16,10 @@ export default function usePathFromHark(bin: Skein, isMention: boolean) {
     bin.top?.wer.split('/')[7]
   }`;
   const idWrit = `${ship}/${writId}`;
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const replyToWrit = useWritByFlagAndWritId(channelFlag, idWrit || '', false)
     ?.memo.replying;
   const wer = bin.top?.wer;
-
-  if (!isMention) {
-    return wer;
-  }
 
   if (replyToWrit) {
     // if the mention is within a thread, we need to go to the thread and scroll to the message.
