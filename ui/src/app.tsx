@@ -67,7 +67,6 @@ import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
-import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import chatmanifestURL from './assets/chatmanifest.json?url';
@@ -78,6 +77,7 @@ import { useGroups } from './state/groups';
 import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import useIsIOSSafariPWA from './logic/useIsIOSSfari';
+import Eyrie from './components/Eyrie';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -645,6 +645,7 @@ function RoutedApp() {
         <TooltipProvider skipDelayDuration={400}>
           <App />
           <Scheduler />
+          {import.meta.env.DEV && <Eyrie />}
         </TooltipProvider>
       </Router>
     </ErrorBoundary>

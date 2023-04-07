@@ -8,6 +8,7 @@ import Urbit, {
 } from '@urbit/http-api';
 import { useLocalState } from '@/state/local';
 import useSubscriptionState from '@/state/subscription';
+import { UrbitHttpApiEvent, UrbitHttpApiEventType } from '@urbit/http-api';
 
 export const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -41,7 +42,7 @@ async function setupAPI() {
     client = api;
   }
 
-  client.onReconnect = () => {
+  (client as Urbit).onReconnect = () => {
     console.log('reconnecting!');
   };
 
@@ -172,6 +173,12 @@ const api = {
   reset() {
     client.reset();
   },
-} as Urbit | UrbitMock;
+  on<T extends UrbitHttpApiEventType>(
+    event: T,
+    callback: (data: UrbitHttpApiEvent[T]) => void
+  ) {
+    (client as Urbit).on(event, callback);
+  },
+} as unknown as Urbit;
 
 export default api;
