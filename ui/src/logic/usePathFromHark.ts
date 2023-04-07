@@ -16,30 +16,31 @@ export default function usePathFromHark(bin: Skein, isMention: boolean) {
     ?.memo.replying;
   const wer = bin.top?.wer;
 
-  if (isMention) {
-    if (replyToWrit) {
-      // if the mention is within a thread, we need to go to the thread and scroll to the message.
-      const split = wer.split('/');
-      const msg = split[split.length - 1];
-      const newPath = split
-        .slice(0, 9)
-        .join('/')
-        .concat(`/${replyToWrit}`)
-        .concat(`?msg=${udToDec(msg)}`);
-      return newPath;
-    }
+  if (!isMention) {
+    return wer;
+  }
 
-    // if the mention is in a normal message, we need to go to the chat channel and scroll to the message.
-    // the backend sends the mention path as /message/@p/message/@ud
-    // we need to convert it to ?msg=@t
+  if (replyToWrit) {
+    // if the mention is within a thread, we need to go to the thread and scroll to the message.
     const split = wer.split('/');
     const msg = split[split.length - 1];
-    const newPath = wer
-      .split('/')
-      .slice(0, 8)
+    const newPath = split
+      .slice(0, 9)
       .join('/')
+      .concat(`/${replyToWrit}`)
       .concat(`?msg=${udToDec(msg)}`);
     return newPath;
   }
-  return wer;
+
+  // if the mention is in a normal message, we need to go to the chat channel and scroll to the message.
+  // the backend sends the mention path as /message/@p/message/@ud
+  // we need to convert it to ?msg=@t
+  const split = wer.split('/');
+  const msg = split[split.length - 1];
+  const newPath = wer
+    .split('/')
+    .slice(0, 8)
+    .join('/')
+    .concat(`?msg=${udToDec(msg)}`);
+  return newPath;
 }
