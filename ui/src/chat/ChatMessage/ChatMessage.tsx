@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import cn from 'classnames';
 import _, { debounce } from 'lodash';
 import f from 'lodash/fp';
@@ -26,7 +26,10 @@ import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useChatInfo, useChatStore } from '../useChatStore';
+import { useChatInfo, useChatStore } from '@/chat/useChatStore';
+import { useIsMobile } from '@/logic/useMedia';
+import useLongPress from '@/logic/useLongPress';
+import ChatMessageOptionsSheet from './ChatMessageOptionsSheet';
 
 export interface ChatMessageProps {
   whom: string;
@@ -78,6 +81,10 @@ const ChatMessage = React.memo<
       ref
     ) => {
       const { seal, memo } = writ;
+      const isMobile = useIsMobile();
+      const { action, handlers } = useLongPress();
+      const [sheetOpen, setSheetOpen] = useState(false);
+      const longPressHandlers = isMobile ? handlers : {};
       const container = useRef<HTMLDivElement>(null);
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
@@ -168,19 +175,30 @@ const ChatMessage = React.memo<
         }, 100)
       );
       const onOver = useCallback(() => {
-        hover.current = true;
-        setHover.current();
-      }, []);
+        if (!isMobile) {
+          hover.current = true;
+          setHover.current();
+        }
+      }, [isMobile]);
       const onOut = useRef(
         debounce(
           () => {
-            hover.current = false;
-            setHovering(false);
+            if (!isMobile) {
+              hover.current = false;
+              setHovering(false);
+            }
           },
           50,
           { leading: true }
         )
       );
+
+      useEffect(() => {
+        if (action === 'longpress' && !sheetOpen) {
+          console.log('long press');
+          setSheetOpen(true);
+        }
+      }, [action, sheetOpen]);
 
       return (
         <div
@@ -190,9 +208,20 @@ const ChatMessage = React.memo<
             'pb-2': isLast,
           })}
           onMouseEnter={onOver}
-          onClick={onOver}
+          onClick={isMobile ? undefined : onOver}
           onMouseLeave={onOut.current}
+          {...longPressHandlers}
         >
+          {sheetOpen ? (
+            <ChatMessageOptionsSheet
+              sheetOpen={sheetOpen}
+              setSheetOpen={setSheetOpen}
+              whom={whom}
+              writ={writ}
+              hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
+              hideThreadReply={hideReplies}
+            />
+          ) : null}
           {unread && briefMatches(unread.brief, writ.seal.id) ? (
             <DateDivider
               date={unix}
