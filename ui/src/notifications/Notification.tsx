@@ -4,6 +4,7 @@ import React, { ReactNode, useCallback } from 'react';
 import ob from 'urbit-ob';
 import { Link } from 'react-router-dom';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
+import { udToDec } from '@urbit/api';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ShipName from '@/components/ShipName';
@@ -121,6 +122,21 @@ export default function Notification({
   const mentionBool = isMention(bin.top);
   const commentBool = isComment(bin.top);
   const replyBool = isReply(bin.top);
+  const formattedLink = (wer: string) => {
+    if (mentionBool) {
+      // the backend sends the mention path as /message/@p/message/@ud
+      // we need to convert it to ?msg=@t
+      const split = wer.split('/');
+      const msg = split[split.length - 1];
+      const newPath = wer
+        .split('/')
+        .slice(0, 8)
+        .join('/')
+        .concat(`?msg=${udToDec(msg)}`);
+      return newPath;
+    }
+    return wer;
+  };
 
   const onClick = useCallback(() => {
     sawRopeMutation({ rope });
@@ -134,7 +150,7 @@ export default function Notification({
       )}
     >
       <Link
-        to={bin.top?.wer || ''}
+        to={formattedLink(bin.top?.wer || '')}
         className="flex w-full min-w-0 flex-1 space-x-3"
         onClick={onClick}
       >
