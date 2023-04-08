@@ -10,6 +10,7 @@ import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import { useSawRopeMutation } from '@/state/hark';
 import { Skein, YarnContent } from '@/types/hark';
+import usePathFromHark from '@/logic/usePathFromHark';
 import { isComment, isMention, isReply } from './useNotifications';
 
 interface NotificationProps {
@@ -121,7 +122,7 @@ export default function Notification({
   const mentionBool = isMention(bin.top);
   const commentBool = isComment(bin.top);
   const replyBool = isReply(bin.top);
-
+  const path = usePathFromHark(bin, mentionBool);
   const onClick = useCallback(() => {
     sawRopeMutation({ rope });
   }, [rope, sawRopeMutation]);
@@ -134,7 +135,7 @@ export default function Notification({
       )}
     >
       <Link
-        to={bin.top?.wer || ''}
+        to={path}
         className="flex w-full min-w-0 flex-1 space-x-3"
         onClick={onClick}
       >
