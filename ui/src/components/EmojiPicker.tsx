@@ -36,18 +36,16 @@ export default function EmojiPicker({
       ) : (
         children
       )}
-      {(isMobile || !withTrigger) && (
-        <Popover.Anchor className={isMobile ? 'fixed inset-x-0 top-12' : ''} />
-      )}
+      {(isMobile || !withTrigger) && <Popover.Anchor />}
       <Popover.Portal>
         <Popover.Content side="bottom" sideOffset={30} collisionPadding={15}>
           <div className="z-50 mx-10 flex h-96 w-72 items-center justify-center">
             {data ? (
               <Picker
                 data={data}
-                autoFocus={isMobile}
                 perLine={isMobile ? mobilePerLineCount : 9}
                 previewPosition="none"
+                searchPosition={isMobile ? 'none' : 'top'}
                 {...props}
               />
             ) : (
