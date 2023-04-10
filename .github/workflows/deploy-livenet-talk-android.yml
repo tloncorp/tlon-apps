@@ -1,13 +1,14 @@
-name: Deploy Talk Android
+name: Deploy Talk Android Update
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - '*-android'
+    branches:
+      - master
+    paths:
+      - native-android/**
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Create native Android build and deploy for internal distribution
+    name: Push update to native Android existing build
     steps:
       - uses: actions/checkout@v3
         with:
@@ -25,4 +26,4 @@ jobs:
         run: npm ci
       - name: Build on EAS
         working-directory: ./native-android
-        run: eas build --profile preview --platform android --non-interactive
+        run: eas update --auto --platform android --channel preview --non-interactive
