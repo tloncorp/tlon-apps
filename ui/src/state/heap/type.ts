@@ -26,7 +26,7 @@ export interface HeapState {
   briefs: HeapBriefs;
   pendingImports: Record<string, boolean>;
   create: (req: HeapCreate) => Promise<void>;
-  start: (heap: HeapInit) => Promise<void>;
+  start: (heap: HeapInit, withSubs: boolean) => Promise<void>;
   initialize: (flag: HeapFlag) => Promise<void>;
   initImports: (init: Record<string, boolean>) => void;
   joinHeap: (groupFlag: string, flag: HeapFlag) => Promise<void>;

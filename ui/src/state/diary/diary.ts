@@ -197,12 +197,16 @@ export const useDiaryState = createState<DiaryState>(
 
       await api.poke(diaryAction(flag, diff));
     },
-    start: async ({ briefs, shelf }) => {
+    start: async ({ briefs, shelf }, withSubs) => {
       const { wait } = useSchedulerStore.getState();
       get().batchSet((draft) => {
         draft.briefs = briefs;
         draft.shelf = shelf;
       });
+
+      if (!withSubs) {
+        return;
+      }
 
       wait(() => {
         api.subscribe({

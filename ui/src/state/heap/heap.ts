@@ -94,7 +94,7 @@ export const useHeapState = createState<HeapState>(
         },
       });
     },
-    start: async ({ briefs, stash }) => {
+    start: async ({ briefs, stash }, withSubs) => {
       const { wait } = useSchedulerStore.getState();
       get().batchSet((draft) => {
         draft.briefs = briefs;
@@ -119,6 +119,10 @@ export const useHeapState = createState<HeapState>(
             });
           },
         });
+
+        if (!withSubs) {
+          return;
+        }
 
         api.subscribe({
           app: 'heap',

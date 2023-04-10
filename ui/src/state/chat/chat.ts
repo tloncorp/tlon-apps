@@ -188,7 +188,7 @@ export const useChatState = createState<ChatState>(
         },
       });
     },
-    start: async ({ briefs, chats, pins }) => {
+    start: async ({ briefs, chats, pins }, withSubs) => {
       const { wait } = useSchedulerStore.getState();
       get().batchSet((draft) => {
         draft.chats = chats;
@@ -202,6 +202,10 @@ export const useChatState = createState<ChatState>(
           useChatStore.getState().unread(whom, brief);
         }
       });
+
+      if (!withSubs) {
+        return;
+      }
 
       wait(() => {
         api.subscribe({
@@ -270,10 +274,10 @@ export const useChatState = createState<ChatState>(
         });
       }, 3);
     },
-    startTalk: async (init, startBase = true) => {
+    startTalk: async (init, startBase = true, withSubs = true) => {
       const { wait } = useSchedulerStore.getState();
       if (startBase) {
-        get().start(init);
+        get().start(init, withSubs);
       }
 
       get().batchSet((draft) => {
@@ -282,6 +286,10 @@ export const useChatState = createState<ChatState>(
         draft.pendingDms = init.invited;
         draft.pins = init.pins;
       });
+
+      if (!withSubs) {
+        return;
+      }
 
       wait(() => {
         api.subscribe({

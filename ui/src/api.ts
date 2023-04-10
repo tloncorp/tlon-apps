@@ -103,7 +103,7 @@ async function setupAPI() {
   }
 
   (client as Urbit).onReconnect = () => {
-    console.log('reconnecting!');
+    // bootstrap();
   };
 
   client.onRetry = () => {
