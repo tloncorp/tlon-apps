@@ -60,7 +60,7 @@ export default function Leap({
         } else {
           setSelectedIndex((_idx) => resultCount - 1);
         }
-      } else if (event.key === 'Enter') {
+      } else if (event.key === keyMap.leap.selectResult) {
         const result = results
           .filter((r) => 'resultIndex' in r)
           // @ts-expect-error items without resultIndex are filtered out

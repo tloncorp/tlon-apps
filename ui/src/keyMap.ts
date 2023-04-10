@@ -5,12 +5,16 @@ export default {
     close: 'Escape',
     nextResult: 'ArrowDown',
     prevResult: 'ArrowUp',
+    selectResult: 'Enter',
   },
   thread: {
     close: 'Escape',
   },
   mentionPopup: {
     close: 'Escape',
+    nextItem: 'ArrowDown',
+    prevItem: 'ArrowUp',
+    selectItem: 'Enter',
   },
   grid: {
     close: 'Escape',

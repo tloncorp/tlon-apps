@@ -86,17 +86,17 @@ const MentionList = React.forwardRef<
   useImperativeHandle(ref, () => ({
     onKeyDown: (event) => {
       if (leapIsOpen) return false;
-      if (event.key === 'ArrowUp') {
+      if (event.key === keyMap.mentionPopup.prevItem) {
         upHandler();
         return true;
       }
 
-      if (event.key === 'ArrowDown') {
+      if (event.key === keyMap.mentionPopup.nextItem) {
         downHandler();
         return true;
       }
 
-      if (event.key === 'Enter') {
+      if (event.key === keyMap.mentionPopup.selectItem) {
         event.stopPropagation();
         enterHandler();
         return true;
