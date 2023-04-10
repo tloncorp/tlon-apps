@@ -15,6 +15,7 @@ interface LocalState {
   subscription: SubscriptionStatus;
   errorCount: number;
   airLockErrorCount: number;
+  onReconnect: (() => void) | null;
   set: (f: (s: LocalState) => void) => void;
 }
 
@@ -27,6 +28,7 @@ export const useLocalState = create<LocalState>(
       subscription: 'connected',
       errorCount: 0,
       airLockErrorCount: 0,
+      onReconnect: null,
     }),
     {
       name: createStorageKey('local'),

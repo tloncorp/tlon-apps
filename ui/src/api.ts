@@ -103,7 +103,13 @@ async function setupAPI() {
   }
 
   (client as Urbit).onReconnect = () => {
-    // bootstrap();
+    const { onReconnect } = useLocalState.getState();
+    if (onReconnect) {
+      onReconnect();
+    }
+    useLocalState.setState((state) => ({
+      subscription: 'connected',
+    }));
   };
 
   client.onRetry = () => {

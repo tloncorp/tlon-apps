@@ -9,6 +9,7 @@ import { useDiaryState } from './diary';
 import useDocketState from './docket';
 import { useHeapState } from './heap/heap';
 import useKilnState from './kiln';
+import { useLocalState } from './local';
 import { useLureState } from './lure/lure';
 import usePalsState from './pals';
 import useSchedulerStore from './scheduler';
@@ -167,3 +168,5 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
     });
   }, 5);
 }
+
+useLocalState.setState({ onReconnect: () => bootstrap('reset') });
