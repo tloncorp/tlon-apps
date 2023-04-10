@@ -1,14 +1,11 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useMatch, useNavigate } from 'react-router';
 import {
   useGang,
   useGroup,
-  useGroupsInitialized,
-  useGroupState,
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import api from '@/api';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
@@ -20,8 +17,7 @@ import { canReadChannel } from '@/logic/utils';
 function Groups() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
-  const initialized = useGroupsInitialized();
-  const group = useGroup(flag);
+  const group = useGroup(flag, true);
   const gang = useGang(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -45,9 +41,9 @@ function Groups() {
     // navigate to that channel.
     // 5) If we're on mobile, just navigate to the channel list for the group.
 
-    if (initialized && !group && !gang) {
+    if (!group && !gang) {
       navigate('/');
-    } else if (initialized && group && root) {
+    } else if (group && root) {
       const found = Object.entries(group.channels).find(
         ([nest, _c]) => recentChannel === nest
       );
@@ -75,31 +71,7 @@ function Groups() {
         navigate('./channels');
       }
     }
-  }, [
-    root,
-    gang,
-    group,
-    vessel,
-    isMobile,
-    initialized,
-    recentChannel,
-    navigate,
-  ]);
-
-  useEffect(() => {
-    let id = null as number | null;
-    useGroupState
-      .getState()
-      .initialize(flag, true)
-      .then((i) => {
-        id = i;
-      });
-    return () => {
-      if (id) {
-        api.unsubscribe(id);
-      }
-    };
-  }, [flag]);
+  }, [root, gang, group, vessel, isMobile, recentChannel, navigate]);
 
   if (!group) {
     return null;

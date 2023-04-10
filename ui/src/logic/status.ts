@@ -1,1 +1,1 @@
-export type Status = 'initial' | 'loading' | 'success' | 'error';
+export type Status = 'initial' | 'idle' | 'loading' | 'success' | 'error';

@@ -1,6 +1,5 @@
-import api from '@/api';
+import api, { useSubscriptionState } from '@/api';
 import { useLocalState } from '@/state/local';
-import useSubscriptionState from '@/state/subscription';
 import { putEntry, SettingsUpdate } from '@urbit/api';
 import { useEffect } from 'react';
 import asyncCallWithTimeout from './asyncWithTimeout';

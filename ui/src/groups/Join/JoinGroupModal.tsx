@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import Dialog from '@/components/Dialog';
-import { useGang, useGroupState, useRouteGroup } from '@/state/groups';
+import { useGang, useGangPreview, useRouteGroup } from '@/state/groups';
 import GroupSummary from '@/groups/GroupSummary';
 import useGroupJoin from '@/groups/useGroupJoin';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -20,14 +20,9 @@ export default function JoinGroupModal() {
     true,
     nest && id && type ? { nest, id, type } : undefined
   );
-  const cordon = gang.preview?.cordon || group?.cordon;
+  const preview = useGangPreview(flag);
+  const cordon = preview?.cordon || group?.cordon;
   const banned = cordon ? matchesBans(cordon, window.our) : null;
-
-  useEffect(() => {
-    if (!gang.preview && !group) {
-      useGroupState.getState().search(flag);
-    }
-  }, [flag, gang.preview, group]);
 
   useEffect(() => {
     if (group) {

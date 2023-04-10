@@ -1,10 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { isTalk } from '@/logic/utils';
 import useKilnState, { usePike } from '@/state/kiln';
 
 export default function UpdateNotice() {
   const appName = isTalk ? 'Talk' : 'Groups';
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW();
   const pike = usePike(appName.toLocaleLowerCase());
   const [baseHash, setBaseHash] = useState('');
   const [needsUpdate, setNeedsUpdate] = useState(false);
@@ -31,11 +36,18 @@ export default function UpdateNotice() {
     if (pike && pike.hash !== baseHash && baseHash !== '' && !needsUpdate) {
       setNeedsUpdate(true);
     }
-  }, [pike, baseHash, needsUpdate]);
+    if (needRefresh && !needsUpdate) {
+      setNeedsUpdate(true);
+    }
+  }, [pike, baseHash, needsUpdate, needRefresh]);
 
   const onClick = useCallback(() => {
-    window.location.reload();
-  }, []);
+    if (needRefresh) {
+      updateServiceWorker(true);
+    } else {
+      window.location.reload();
+    }
+  }, [needRefresh, updateServiceWorker]);
 
   if (!needsUpdate) {
     return null;

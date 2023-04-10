@@ -1,5 +1,7 @@
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import {
@@ -43,6 +45,7 @@ import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import indexedDBPersistor from './indexedDBPersistor';
 import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
@@ -69,15 +72,12 @@ import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
-import chatmanifestURL from './assets/chatmanifest.json?url';
-import manifestURL from './assets/manifest.json?url';
 import { LeapProvider } from './components/Leap/useLeap';
 import VitaMessage from './components/VitaMessage';
-import { useGroups } from './state/groups';
 import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
-import useIsIOSSafariPWA from './logic/useIsIOSSfari';
 import Eyrie from './components/Eyrie';
+import queryClient from './queryClient';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -284,8 +284,8 @@ function ActivityRoute({ isInGroups = false }: { isInGroups: boolean }) {
 }
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
-  const groups = useGroups();
-  const isInGroups = _.isEmpty(groups) ? false : true;
+  const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
+  const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
 
   return (
     <>
@@ -580,7 +580,6 @@ function RoutedApp() {
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const isStandAlone = useIsStandaloneMode();
-  const isIOSSafariPWA = useIsIOSSafariPWA();
   const body = document.querySelector('body');
 
   const basename = (appName: string) => {
@@ -613,13 +612,10 @@ function RoutedApp() {
 
   useEffect(() => {
     if (isStandAlone) {
-      if (!isIOSSafariPWA) {
-        body?.style.setProperty('padding-bottom', '0px');
-      } else {
-        body?.style.setProperty('padding-bottom', '16px');
-      }
+      // this is necessary for the desktop PWA to not have extra padding at the bottom.
+      body?.style.setProperty('padding-bottom', '0px');
     }
-  }, [isStandAlone, isIOSSafariPWA, body]);
+  }, [isStandAlone, body]);
 
   return (
     <ErrorBoundary
@@ -636,17 +632,20 @@ function RoutedApp() {
             type="image/svg+xml"
           />
           <meta name="theme-color" content={userThemeColor} />
-          {app === 'groups' ? (
-            <link rel="manifest" href={manifestURL} />
-          ) : (
-            <link rel="manifest" href={chatmanifestURL} />
-          )}
         </Helmet>
-        <TooltipProvider skipDelayDuration={400}>
-          <App />
-          <Scheduler />
-          {import.meta.env.DEV && <Eyrie />}
-        </TooltipProvider>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{
+            persister: indexedDBPersistor(`${window.our}-landscape`),
+          }}
+        >
+          <TooltipProvider skipDelayDuration={400}>
+            <App />
+            <Scheduler />
+            {import.meta.env.DEV && <Eyrie />}
+          </TooltipProvider>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </PersistQueryClientProvider>
       </Router>
     </ErrorBoundary>
   );

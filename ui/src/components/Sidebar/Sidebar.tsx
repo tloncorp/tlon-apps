@@ -221,14 +221,13 @@ export default function Sidebar() {
                   />
                 </div>
               </div>
-              <div className="relative">
-                {!sortedGroups.length && (
-                  <div className="mt-4 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
-                    Check out <strong>Find Groups</strong> above to find new
-                    groups in your network or view group invites.
-                  </div>
-                )}
-              </div>
+
+              {!sortedGroups.length && (
+                <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
+                  Check out <strong>Find Groups</strong> above to find new
+                  groups in your network or view group invites.
+                </div>
+              )}
             </div>
             {gangs.map((flag) => (
               <GangItem key={flag} flag={flag} />

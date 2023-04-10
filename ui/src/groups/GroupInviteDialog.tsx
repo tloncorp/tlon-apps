@@ -4,9 +4,13 @@ import cn from 'classnames';
 import Dialog, { DialogClose } from '@/components/Dialog';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { useDismissNavigate } from '@/logic/routing';
-import { useGroup, useGroupState, useRouteGroup } from '@/state/groups/groups';
+import {
+  useGroup,
+  useGroupAddMembersMutation,
+  useGroupInviteMutation,
+  useRouteGroup,
+} from '@/state/groups/groups';
 import { getPrivacyFromGroup, preSig } from '@/logic/utils';
-import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import LureInviteBlock from './LureInviteBlock';
@@ -21,29 +25,44 @@ export default function GroupInviteDialog() {
     ships && ships.length > 0
       ? ships.every((ship) => ob.isValidPatp(preSig(ship.value)))
       : false;
-  const { isPending, setPending, setReady, setFailed, isFailed } =
-    useRequestState();
+  const {
+    mutate: inviteMutation,
+    status: inviteStatus,
+    reset: resetInvite,
+  } = useGroupInviteMutation();
+  const {
+    mutate: addMembersMutation,
+    status: addMembersStatus,
+    reset: resetAddMembers,
+  } = useGroupAddMembersMutation();
 
   const onInvite = useCallback(async () => {
-    setPending();
     const shipList = ships.map((s) => preSig(s.value));
 
     try {
       if (privacy !== 'public') {
-        await useGroupState.getState().invite(flag, shipList);
+        inviteMutation({ flag, ships: shipList });
       } else {
-        await useGroupState.getState().addMembers(flag, shipList);
+        addMembersMutation({ flag, ships: shipList });
       }
-      setReady();
       dismiss();
     } catch (e) {
       console.error('Error inviting/adding members: poke failed');
-      setFailed();
       setTimeout(() => {
-        setReady();
+        resetInvite();
+        resetAddMembers();
       }, 3000);
     }
-  }, [flag, privacy, ships, setPending, setReady, setFailed, dismiss]);
+  }, [
+    flag,
+    privacy,
+    ships,
+    dismiss,
+    inviteMutation,
+    addMembersMutation,
+    resetInvite,
+    resetAddMembers,
+  ]);
 
   return (
     <Dialog
@@ -54,7 +73,7 @@ export default function GroupInviteDialog() {
       close="none"
     >
       <div className="flex flex-col space-y-6">
-        <LureInviteBlock flag={flag} group={group} />
+        {group && <LureInviteBlock flag={flag} group={group} />}
         <div className="card">
           <h2 className="mb-1 text-lg font-bold">Invite by Urbit ID</h2>
           <p className="mb-4 text-gray-600">
@@ -74,14 +93,26 @@ export default function GroupInviteDialog() {
             <button
               onClick={onInvite}
               className={cn('button text-white dark:text-black', {
-                'bg-red': isFailed,
-                'bg-blue': !isFailed,
+                'bg-red':
+                  inviteStatus === 'error' || addMembersStatus === 'error',
+                'bg-blue':
+                  inviteStatus !== 'error' && addMembersStatus !== 'error',
               })}
-              disabled={!validShips || isPending || isFailed}
+              disabled={
+                !validShips ||
+                inviteStatus === 'loading' ||
+                inviteStatus === 'error' ||
+                addMembersStatus === 'loading' ||
+                addMembersStatus === 'error'
+              }
             >
               Send Invites
-              {isPending ? <LoadingSpinner className="ml-2 h-4 w-4" /> : null}
-              {isFailed ? <ExclamationPoint className="ml-2 h-4 w-4" /> : null}
+              {inviteStatus === 'loading' || addMembersStatus === 'loading' ? (
+                <LoadingSpinner className="ml-2 h-4 w-4" />
+              ) : null}
+              {inviteStatus === 'error' || addMembersStatus === 'error' ? (
+                <ExclamationPoint className="ml-2 h-4 w-4" />
+              ) : null}
             </button>
           </div>
         </div>

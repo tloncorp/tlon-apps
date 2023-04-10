@@ -1,8 +1,7 @@
-import { useChannelFlag } from '@/hooks';
 import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useRouteGroup } from '@/state/groups';
-import useHarkState from '@/state/hark';
+import { useSawRopeMutation } from '@/state/hark';
 import { useEffect } from 'react';
 import { nestToFlag } from './utils';
 
@@ -19,6 +18,7 @@ export default function useDismissChannelNotifications({
   const [, chFlag] = nestToFlag(nest);
   const unread = useIsChannelUnread(nest);
   const { notifications } = useNotifications(flag);
+  const { mutate: sawRopeMutation } = useSawRopeMutation();
 
   /**
    * TODO: Confirm expected behavior for navigating to a Channel with Unreads.
@@ -34,16 +34,16 @@ export default function useDismissChannelNotifications({
       markRead(chFlag);
       // iterate bins, saw each rope
       notifications.forEach((n) => {
-        n.bins.forEach((b) => {
+        n.skeins.forEach((b) => {
           if (
             b.unread &&
-            b.topYarn?.rope.channel &&
-            b.topYarn.rope.channel.includes(chFlag)
+            b.top?.rope.channel &&
+            b.top.rope.channel.includes(chFlag)
           ) {
-            useHarkState.getState().sawRope(b.topYarn.rope);
+            sawRopeMutation({ rope: b.top.rope });
           }
         });
       });
     }
-  }, [nest, chFlag, markRead, unread, notifications]);
+  }, [nest, chFlag, markRead, unread, notifications, sawRopeMutation]);
 }

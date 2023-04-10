@@ -27,7 +27,8 @@ export default function SpotifyEmbed({
     writId,
     'spotify'
   );
-  const trackId = url.split('/')?.pop()?.split('?')[0];
+  const playlistOrTrack = url.split('/')[3];
+  const id = url.split('/')?.pop()?.split('?')[0];
   return (
     <div className="embed-inline-block">
       <div
@@ -58,11 +59,11 @@ export default function SpotifyEmbed({
       <LightBox
         showLightBox={showIframeModal}
         setShowLightBox={() => setShowIframeModal(false)}
-        source={`https://open.spotify.com/embed/track/${trackId}`}
+        source={`https://open.spotify.com/embed/${playlistOrTrack}/${id}`}
       >
         <iframe
           className="h-[352px] w-full rounded-lg"
-          src={`https://open.spotify.com/embed/track/${trackId}`}
+          src={`https://open.spotify.com/embed/${playlistOrTrack}/${id}`}
           frameBorder="0"
           allowFullScreen
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"

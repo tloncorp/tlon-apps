@@ -15,7 +15,7 @@ import {
   SidebarFilter,
   useSettingsState,
 } from '@/state/settings';
-import { useGroupState } from '@/state/groups';
+import { useGroups } from '@/state/groups';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import GridIcon from '@/components/icons/GridIcon';
@@ -33,9 +33,9 @@ export default function MobileMessagesSidebar() {
   const { setIsOpen } = useLeap();
   const { messagesFilter } = useSettingsState(selMessagesFilter);
   const pinned = usePinned();
+  const groups = useGroups();
   const filteredPins = pinned.filter((p) => {
     const nest = `chat/${p}`;
-    const { groups } = useGroupState.getState();
     const groupFlag = Object.entries(groups).find(
       ([, v]) => nest in v.channels
     )?.[0];

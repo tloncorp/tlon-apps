@@ -4,7 +4,7 @@ import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
 import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 import { useMultiDm } from '../state/chat';
-import { useChannel, useGroup, useGroupState } from '../state/groups/groups';
+import { useChannel, useGroup, useGroups } from '../state/groups/groups';
 import useMedia, { useIsMobile } from '../logic/useMedia';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
@@ -18,7 +18,7 @@ interface MessagesSidebarItemProps {
 }
 
 function ChannelSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
-  const groups = useGroupState((s) => s.groups);
+  const groups = useGroups();
   const nest = `chat/${whom}`;
   const groupFlag = Object.entries(groups).find(
     ([k, v]) => nest in v.channels
@@ -114,17 +114,13 @@ export function MultiDMSidebarItem({
     <SidebarItem
       to={`/dm/${whom}`}
       icon={
-        pending ? (
-          <UnknownAvatarIcon className="h-12 w-12 rounded-lg text-blue sm:rounded-md md:h-6 md:w-6" />
-        ) : (
-          <MultiDmAvatar
-            {...club?.meta}
-            title={groupName}
-            className="h-12 w-12 rounded-lg sm:h-6 sm:w-6 sm:rounded"
-            loadImage={!isScrolling}
-            {...avatarSize()}
-          />
-        )
+        <MultiDmAvatar
+          {...club?.meta}
+          title={groupName}
+          className="h-12 w-12 rounded-lg sm:h-6 sm:w-6 sm:rounded"
+          loadImage={!isScrolling}
+          {...avatarSize()}
+        />
       }
       actions={<DmOptions whom={whom} pending={!!pending} isMulti />}
     >

@@ -145,7 +145,7 @@ export default function NewGroupInvite({
   const [selectedRole, setSelectedRole] = useState<Role>('Member');
   const submitText =
     shipsToInvite.length > 0 ? 'Invite People & Create Group' : 'Create Group';
-  const ready = status === 'initial';
+  const ready = status === 'idle';
 
   const handleEnter = useCallback(
     (ships: ShipOption[]) => {
