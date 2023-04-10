@@ -16,6 +16,7 @@ import useContactState, { useContacts } from '@/state/contact';
 import { useGroup, useGroupFlag } from '@/state/groups';
 import { useMultiDms } from '@/state/chat';
 import { preSig } from '@/logic/utils';
+import keyMap from '@/keyMap';
 import Avatar from '../Avatar';
 import ShipName from '../ShipName';
 import useLeap from '../Leap/useLeap';
@@ -254,7 +255,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
         });
       },
       onKeyDown: (props) => {
-        if (props.event.key === 'Escape') {
+        if (props.event.key === keyMap.mentionPopup.close) {
           popup[0]?.hide();
           return true;
         }

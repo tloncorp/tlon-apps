@@ -14,6 +14,7 @@ import React, {
   useState,
 } from 'react';
 import useLeap from '@/components/Leap/useLeap';
+import keyMap from '@/keyMap';
 import ChatInputMenuToolbar, {
   MenuState,
   LinkEditorForm,
@@ -109,7 +110,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
   const onNavigation = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       event.stopPropagation();
-      if (event.key === 'Escape' && !leapIsOpen) {
+      if (event.key === keyMap.chatInputMenu.close && !leapIsOpen) {
         if (status === 'open') {
           setStatus('closed');
           setSelected(-1);
@@ -125,11 +126,17 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
       }
 
       const total = options.length;
-      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      if (
+        event.key === keyMap.chatInputMenu.nextItem ||
+        event.key === keyMap.chatInputMenu.nextItemAlt
+      ) {
         setSelected((total + selected + 1) % total);
       }
 
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      if (
+        event.key === keyMap.chatInputMenu.prevItem ||
+        event.key === keyMap.chatInputMenu.prevItemAlt
+      ) {
         setSelected((total + selected - 1) % total);
       }
     },

@@ -1,3 +1,4 @@
+import keyMap from '@/keyMap';
 import React, { useRef } from 'react';
 import { useEventListener } from 'usehooks-ts';
 import Dialog from '../Dialog';
@@ -30,7 +31,7 @@ export default function Leap({
       setInputValue('');
       setIsOpen((state) => !state);
     }
-    if (event.key === 'Escape') {
+    if (event.key === keyMap.leap.close) {
       event.preventDefault();
       setIsOpen(false);
     }
@@ -45,14 +46,14 @@ export default function Leap({
         return;
       }
 
-      if (event.key === 'ArrowDown') {
+      if (event.key === keyMap.leap.nextResult) {
         event.preventDefault();
         if (selectedIndex < resultCount - 1) {
           setSelectedIndex((idx) => idx + 1);
         } else {
           setSelectedIndex((_idx) => 0);
         }
-      } else if (event.key === 'ArrowUp') {
+      } else if (event.key === keyMap.leap.prevResult) {
         event.preventDefault();
         if (selectedIndex > 0) {
           setSelectedIndex((idx) => idx - 1);

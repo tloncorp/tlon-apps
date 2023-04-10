@@ -7,6 +7,7 @@ import produce from 'immer';
 import { useEventListener } from 'usehooks-ts';
 import { useLocation, useNavigate } from 'react-router';
 import useLeap from '@/components/Leap/useLeap';
+import keyMap from '@/keyMap';
 import Dialog, { DialogContent } from '../Dialog';
 // eslint-disable-next-line import/no-cycle
 import Tile from './Tile';
@@ -98,11 +99,15 @@ export default function Grid() {
   const numCols = Math.floor(gridWidth / 200);
 
   useEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
+    if (e.key === keyMap.grid.close) {
       setLeapIsOpen(true);
       navigate(location.state.backgroundLocation);
     }
-    if (e.key === 'ArrowRight' || e.key === 'l' || e.key === 'Tab') {
+    if (
+      e.key === keyMap.grid.nextItem ||
+      e.key === keyMap.grid.nextItemAlt ||
+      e.key === keyMap.grid.nextItemAlt2
+    ) {
       e.preventDefault();
       if (selectedIndex > totalTiles - 1) {
         setSelectedIndex(0);
@@ -110,7 +115,7 @@ export default function Grid() {
         setSelectedIndex((index) => index + 1);
       }
     }
-    if (e.key === 'ArrowLeft' || e.key === 'h') {
+    if (e.key === keyMap.grid.prevItem || e.key === keyMap.grid.prevItemAlt) {
       e.preventDefault();
       if (selectedIndex < 1) {
         setSelectedIndex(0);
@@ -118,7 +123,7 @@ export default function Grid() {
         setSelectedIndex((index) => index - 1);
       }
     }
-    if (e.key === 'ArrowUp' || e.key === 'k') {
+    if (e.key === keyMap.grid.prevRow || e.key === keyMap.grid.prevRowAlt) {
       e.preventDefault();
       if (selectedIndex < 1) {
         setSelectedIndex(0);
@@ -126,7 +131,7 @@ export default function Grid() {
         setSelectedIndex((index) => index - numCols);
       }
     }
-    if (e.key === 'ArrowDown' || e.key === 'j') {
+    if (e.key === keyMap.grid.nextRow || e.key === keyMap.grid.nextRowAlt) {
       e.preventDefault();
       if (selectedIndex > totalTiles - 1 - numCols) {
         setSelectedIndex(0);
@@ -134,7 +139,7 @@ export default function Grid() {
         setSelectedIndex((index) => index + numCols);
       }
     }
-    if (e.key === 'Enter') {
+    if (e.key === keyMap.grid.open) {
       e.preventDefault();
       navigate(`/app/${tilesToDisplay[selectedIndex]}`, {
         state: { backgroundLocation: location.state.backgroundLocation },
