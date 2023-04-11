@@ -903,6 +903,9 @@
             %thread     (thread +.job)
             :: %eval      (eval +.job)
         ::
+            %join       (rsvp-or-error & +.job)
+            %deny       (rsvp-or-error | +.job)
+        ::
             %view       (view +.job)
             %flee       (flee +.job)
         ::
@@ -923,20 +926,6 @@
             %targets    targets
             %help       help
         ::
-            %join
-          =^  rsvp-cards  state
-            (rsvp & +.job)
-          =^  print-cards  state
-            (feedback +.job %rsvp)
-          [(weld rsvp-cards print-cards) state]
-        ::
-            %deny
-          =^  rsvp-cards  state
-            (rsvp | +.job)
-          =^  print-cards  state
-            (feedback +.job %rsvp)
-          [(weld rsvp-cards print-cards) state]
-        ::
         ==
     ::  +act: build action card
     ::
@@ -950,62 +939,6 @@
           %poke
           cage
       ==
-    ::  +-feedback: custom arm printouts based on target type
-    ::
-    ++  feedback
-      |=  [=target arm=?(%rsvp)]
-      ^-  (quip card _state)
-      ?-   -.target
-          %flag
-        ?-   arm
-            %rsvp
-          :_  put-ses
-          [(note:sh-out "chat invite handling not supported")]~
-        ==
-      ::
-          %ship
-        ?-   arm
-            %rsvp
-          =/  =ship  +.target
-          ?:  (~(has in get-pending-dms) ship)
-            [~ state]
-          :_  put-ses
-          [(note:sh-out "no pending dm invite from {(scow %p ship)}")]~
-        ==
-      ::
-          %club
-        ?-   arm
-            %rsvp
-          =/  =club-id  +.target
-          =/  crew=(unit crew)  
-            (~(get by get-clubs) club-id)
-          ?~  crew
-            :_  put-ses
-            [(note:sh-out "no group chat invite for {(scow %uv club-id)}")]~ 
-          ?:  (~(has in hive.u.crew) our-self)
-            [~ state]
-          :_  put-ses
-          :~  %-  note:sh-out
-              "no pending group chat invite for {(scow %uv club-id)}"
-          ==
-        ==
-      ==
-    ::  +make-bind: bind an unbound target
-    ::
-    ++  make-bind
-      |=  =target
-      ^-  (quip card _state)
-      ?:  (~(has by bound) target)
-        [~ state]
-      (bind-default-glyph target)
-    ::  +subscribe: send watch card for target not in view
-    ::
-    ++  subscribe
-      |=  =target
-      ^-  (quip card _state)
-      ?:  (~(has in viewing) target)
-        [~ state]
-      [[(connect target)]~ state]
     ::  +compose-channel: set audience and 
     ::  render message history
     ::
@@ -1025,10 +958,18 @@
     ++  switch-channel
       |=  =target
       ^-  (quip card _state)
-      =^  rsvp-cards  state  (rsvp & target)
-      =^  bind-cards  state  (make-bind target)
-      =^  watch-cards  state  (subscribe target)
+      =^  rsvp-cards     state  (rsvp & target)
       =^  compose-cards  state  (compose-channel target)
+      ::  send watch card for target not in view
+      ::
+      =^  watch-cards    state
+        ?:  (~(has in viewing) target)  [~ state]
+        [[(connect target)]~ state]
+      ::  bind an unbound target
+      ::
+      =^  bind-cards     state
+        ?:  (~(has by bound) target)  [~ state]
+        (bind-default-glyph target)
       :_  state 
       ^-  (list card)
       ;:  weld 
@@ -1068,34 +1009,47 @@
       ?.  (~(has in viewing) target)  
         [~ put-ses]
       =.  viewing  (~(del in viewing) target)
-      ?-   -.target
-          %flag
-        =/  =ship  p.p.target
-        =/  name=term  q.p.target
-        :_  put-ses
-        :_  ~
-        :*  %pass  /chat/(scot %p ship)/(scot %tas name)/ui
-            %agent  [our-self %chat]  %leave  ~
+      =/  =path
+        (weld (target-path target) /ui)
+      :_  put-ses
+      :_  ~
+      [%pass path %agent [our-self %chat] %leave ~]
+    ::  +rsvp-or-error: send rsvp response or 
+    ::  produce a printout if error occurs
+    ::
+    ++  rsvp-or-error
+      |=  [ok=? =target]
+      |^  ^-  (quip card _state)
+          =/  feedback=(unit tape)
+            (error target)
+          ?~  feedback
+            (rsvp ok target)
+          :_  put-ses
+          [(note:sh-out u.feedback)]~
+      ++  error
+        |=  =whom:chat
+        ^-  (unit tape)
+        ?-   -.whom
+            %flag  `"chat invite handling not supported"
+            %ship
+          =/  =ship  p.whom
+          ?:  (~(has in get-pending-dms) ship)  ~
+          `"no pending dm invite from {(scow %p ship)}"
+        ::
+            %club
+          =/  =club-id  p.whom
+          =/  crew=(unit crew)  
+            (~(get by get-clubs) club-id)
+          ?~  crew
+            `"no group chat invite for {(scow %uv club-id)}"
+          ?:  (~(has in hive.u.crew) our-self)  ~
+          `"no pending group chat invite for {(scow %uv club-id)}"
         ==
-      ::
-          %club
-        =/  =club-id  p.target
-        :_  put-ses
-        :_  ~
-        :*  %pass  /club/(scot %uv club-id)/ui 
-            %agent  [our-self %chat]  %leave  ~
-        ==
-      ::
-          %ship
-        =/  =ship  p.target
-        :_  put-ses
-        :_  ~
-        [%pass /dm/(scot %p ship)/ui %agent [our-self %chat] %leave ~] 
-      ==
-    ::  +rsvp: send rsvp response without changing audience
+      --
+    ::  +rsvp: send rsvp response
     ::
     ++  rsvp
-      |=   [ok=? =target]
+      |=  [ok=? =target]
       ^-  (quip card _state)
       ?-   -.target
           %flag  [~ state]
