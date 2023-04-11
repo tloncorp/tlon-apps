@@ -1333,7 +1333,7 @@
         =/  tum=tape
           ?@  num
             (scow %s (new:si | +(num)))
-          (scow %s (index (dec count) num))
+          (scow %ud (index (dec count) num))
         =.  audience  whom.p.pack
         :_  put-ses
         ^-  (list card)
