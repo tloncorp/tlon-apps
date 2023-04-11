@@ -690,9 +690,10 @@
     ==
   ::
       [%x %chat @ @ *]
-    =/  =ship  (slav %p i.t.t.path)
-    =*  name   i.t.t.t.path
-    (ca-peek:(ca-abed:ca-core ship name) t.t.t.t.path)
+    =/  =ship     (slav %p i.t.t.path)
+    =*  name      i.t.t.t.path
+    =/  path-with-care  (weld t.t.t.t.path /x)
+    (ca-peek:(ca-abed:ca-core ship name) path-with-care)
   ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
@@ -704,11 +705,13 @@
     ``ships+!>(~(key by archived-dms))
   ::
       [%x %dm @ *]
-    =/  =ship  (slav %p i.t.t.path)
-    (di-peek:(di-abed:di-core ship) t.t.t.path)
+    =/  =ship     (slav %p i.t.t.path)
+    =/  path-with-care  (weld t.t.t.path /x)
+    (di-peek:(di-abed:di-core ship) path-with-care)
   ::
       [%x %club @ *]
-    (cu-peek:(cu-abed (slav %uv i.t.t.path)) t.t.t.path)
+    =/  path-with-care  (weld t.t.t.path /x)
+    (cu-peek:(cu-abed (slav %uv i.t.t.path)) path-with-care)
   ::
       [%x %draft @ $@(~ [@ ~])]
     =/  =whom:c
@@ -727,13 +730,15 @@
     =/  =ship  (slav %p i.t.t.path)
     ?.  (~(has by dms) ship)
       ``flag+!>(|)
-    (di-peek:(di-abed:di-core ship) t.t.t.path)
+    =/  path-with-care  (weld t.t.t.path /u)
+    (di-peek:(di-abed:di-core ship) path-with-care)
   ::
       [%u %club @ *]
     =/  =id:club:c  (slav %uv i.t.t.path)
     ?.  (~(has by clubs) id)
       ``flag+!>(|)
-    (cu-peek:(cu-abed:cu-core id) t.t.t.path)
+    =/  path-with-care  (weld t.t.t.path /u)
+    (cu-peek:(cu-abed:cu-core id) path-with-care)
   ::
       [%u %chat @ @ *]
     =/  =flag:c
@@ -741,7 +746,8 @@
         (slav %tas i.t.t.t.path)
     ?.  (~(has by chats) flag)
       ``flag+!>(|)
-    (ca-peek:(ca-abed:ca-core flag) t.t.t.t.path)
+    =/  path-with-care  (weld t.t.t.t.path /u)
+    (ca-peek:(ca-abed:ca-core flag) path-with-care)
   ::
   ==
 ::
