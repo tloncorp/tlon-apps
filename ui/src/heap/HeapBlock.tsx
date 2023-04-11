@@ -256,7 +256,11 @@ function HeapBlockWrapper({
     }
   }, [action, navigateToDetail, time, setLongPress]);
 
-  return <div {...handlers}>{children}</div>;
+  return (
+    <div className="h-full w-full" {...handlers}>
+      {children}
+    </div>
+  );
 }
 
 interface HeapBlockProps extends CurioDisplayProps {
@@ -388,6 +392,11 @@ export default function HeapBlock({
             backgroundImage: `url(${url})`,
           }}
         >
+          {console.log({
+            cnm: cnm(
+              'h-full w-full bg-gray-50 bg-contain bg-center bg-no-repeat'
+            ),
+          })}
           <TopBar canEdit={canEdit} {...topBar} />
           <BottomBar
             {...botBar}
