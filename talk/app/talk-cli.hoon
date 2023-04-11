@@ -357,6 +357,76 @@
         %watch  /chat/(scot %p ship)/(scot %tas name)/ui/writs
     ==
   ==
+::  +poke-noun: debug helpers
+::
+++  poke-noun
+  |=  a=*
+  |^  ^-  (quip card _state)
+  ?.  ?=(poke-options a)
+    [~ state]
+  ?-    -.a
+  ::  check if target is in %chat agent
+  ::
+      %target-exists
+    =;  output=tape
+      ~&  output
+      [~ state]
+    ?:  (target-exists p.a)
+      "target found in %chat agent"
+    "target not found in %chat agent"
+  ::  are our session's histories equal to our counts?
+  ::
+      %history-equal-to-count
+    =/  sez=(list [=sole-id =session])
+      ~(tap by sessions)
+    =|  disparity-total=@ud
+    |-
+    ?~  sez
+      ?.  =(0 disparity-total)  [~ state]
+      ~&  "all session histories are equal to their counts"
+      [~ state]
+    ?:  .=  count.session.i.sez
+        (lent history.session.i.sez)
+      $(sez t.sez)
+    ~&  "session {(scow %ta ses.sole-id.i.sez)}'s history is not equal to its count"
+    $(sez t.sez, disparity-total +(disparity-total))
+  ::  do all targets across sessions in view have a subscription?
+  ::
+      %subscription-status
+    =/  sez=(list [=sole-id =session])
+      ~(tap by sessions)
+    =|  missing-subscriptions=@ud
+    |-
+    ?~  sez  
+      ?.  =(0 missing-subscriptions)  [~ state] 
+      ~&  "all targets in view are subscribed to %chat agent"
+      [~ state]
+    =*  check-targets
+      %+  turn  ~(tap in viewing.session.i.sez)
+      ::  output warning if target is not subscribed
+      ::
+      |=  =target
+      ^-  _target
+      ?:  (subscription-check target)
+        target
+      =;  output=tape
+        ~&  output
+        =.  missing-subscriptions
+          +(missing-subscriptions)
+        target
+      %+  weld
+        "session {(scow %ta ses.sole-id.i.sez)} is not subscribed to "
+      ~(full tr target)
+    $(sez t.sez)
+  ==
+  ::  +poke-options: +poke-noun will accept the following actions
+  ::
+  +$  poke-options
+    $%  [%target-exists p=target]
+        [%subscription-status ~]
+        [%history-equal-to-count ~]
+    ==
+  --
 ::
 ::TODO  better moon support. (name:title our.bowl)
 ++  our-self  our.bowl
