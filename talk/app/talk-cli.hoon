@@ -476,22 +476,6 @@
   ?.  &(=(~ team) =(~ hive))
     $(ids t.ids)
   $(clubs (~(del by clubs) i.ids), ids t.ids)
-::  +club-members: produce list of club members
-::
-++  club-members
-  |=  =club-id
-  ^-  (list ship)
-  =/  crew=(unit crew)
-    (~(get by get-clubs) club-id)
-  ?~  crew  *(list ship)
-  =+  team=team.u.crew
-  =+  hive=hive.u.crew
-  ?:  &(=(~ team) =(~ hive))
-    *(list ship)
-  ?:  =(~ team)  (sort ~(tap in hive) lth)
-  ?:  =(~ hive)  (sort ~(tap in team) lth)
-  =/  members  (~(uni in team) hive)
-  (sort ~(tap in members) lth)
 ::  +target-exists: check whether a channel exists
 ::
 ++  target-exists
