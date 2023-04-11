@@ -671,13 +671,16 @@ export const useChatState = createState<ChatState>(
           onSuccess: async () => {
             await useSubscriptionState
               .getState()
-              .track(`chat/club/${id}/ui`, (event: ClubDelta) => {
-                if ('meta' in event && meta.title === event.meta.title) {
-                  return true;
-                }
+              .track(
+                `chat/clubs/ui`,
+                ({ diff: { delta } }: { diff: { delta: ClubDelta } }) => {
+                  if ('meta' in delta && meta.title === delta.meta.title) {
+                    return true;
+                  }
 
-                return false;
-              });
+                  return false;
+                }
+              );
 
             resolve();
           },
