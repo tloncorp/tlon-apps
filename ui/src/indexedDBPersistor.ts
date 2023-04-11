@@ -24,6 +24,7 @@ export default function createIDBPersister(
       const client: PersistedClient = {
         clientState: { queries: [], mutations: [] },
         timestamp: Date.now(),
+        // this is used to invalidate the cache when the app version changes
         buster: appVersion,
       };
       const keys = await idbKeys();
@@ -40,7 +41,13 @@ export default function createIDBPersister(
       return client;
     },
     removeClient: async () => {
-      await del(idbValidKey);
+      const keys = await idbKeys();
+
+      const promises = keys
+        .filter((key) => key.toString().startsWith(idbValidKey.toString()))
+        .map((key) => del(key));
+
+      await Promise.all(promises);
     },
   } as Persister;
 }
