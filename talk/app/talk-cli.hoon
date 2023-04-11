@@ -1207,9 +1207,9 @@
           [(note:sh-out "message referencing is only available in chats from a group")]~
         =/  =seal:chat   -.writ.p.pack
         =/  =memo:chat   +.writ.p.pack
-        =/  host=ship    +<.whom.p.pack
-        =/  name=@tas    +>.whom.p.pack
-        =/  =time        +.id.seal
+        =/  host=ship    p.p.whom.p.pack
+        =/  name=@tas    q.p.whom.p.pack
+        =/  =time        q.id.seal
         =/  wer=path  /msg/(scot %p author.memo)/(scot %ud time)
         =/  =block:chat
           [%cite `cite:cite`[%chan `nest:groups`[%chat [host name]] wer]]
@@ -1231,7 +1231,7 @@
           %&
         =/  replying=(unit id:chat)
           ?~  replying.writ.p.pack
-            `-<.writ.p.pack
+            `id.writ.p.pack
           replying.writ.p.pack
         =.  audience  whom.p.pack
         :_  put-ses
