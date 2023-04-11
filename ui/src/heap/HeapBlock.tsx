@@ -392,11 +392,6 @@ export default function HeapBlock({
             backgroundImage: `url(${url})`,
           }}
         >
-          {console.log({
-            cnm: cnm(
-              'h-full w-full bg-gray-50 bg-contain bg-center bg-no-repeat'
-            ),
-          })}
           <TopBar canEdit={canEdit} {...topBar} />
           <BottomBar
             {...botBar}
