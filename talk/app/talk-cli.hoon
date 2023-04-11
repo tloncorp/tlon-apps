@@ -498,16 +498,12 @@
   |=  =target
   ^-  ?
   ?-   -.target
-      %flag  
-    (~(has in get-chats) p.target)
-  ::
-      %club  
-    (~(has by get-clubs) p.target)
-  ::  
+      %flag  (~(has in get-chats) p.target)
+      %club  (~(has by get-clubs) p.target)
       %ship
-    %-  %~  has  in 
-        (~(uni in get-accepted-dms) get-pending-dms)
-    p.target
+    %.  p.target
+    %~  has  in 
+    (~(uni in get-accepted-dms) get-pending-dms)
   ==
 ::  +message-exists: check whether a message exists
 ::
@@ -531,14 +527,13 @@
   |-  
   ?~  messages  [cards state] 
   =/  =writ:chat  +.i.messages
-  =/  =id:chat    -<.writ
+  =/  =id:chat    id.writ
   =/  =memo:chat  +.writ
   =^  caz  session
-    %:  ~(read-post se sole-id session) 
-      target
+    %^    ~(read-post se sole-id session) 
+        target
       id
-      memo
-    ==
+    memo
   =.  sessions  (~(put by sessions) sole-id session)  
   $(messages t.messages, cards (weld cards caz))
 ::  +get-messages: scry for latest 20 messages
@@ -1096,38 +1091,33 @@
               replying=(unit id:chat)
               block=(list block:chat)
           ==
+      =/  =memo:chat 
+        [replying our.bowl now.bowl %story block msg]
       %^  act  %out-message
         %chat
       ?-   -.audience
           %ship 
         :-  %dm-action
         !>  ^-  action:dm:chat
-        =/  =memo:chat 
-          [replying our.bowl now.bowl %story block msg]
         [p.audience [our now]:bowl %add memo]
-      ::
-          %flag
-        :-  %chat-action-0
-        !>  ^-  action:chat
-        =/  =memo:chat  
-          [replying our.bowl now.bowl %story block msg]
-        [p.audience now.bowl %writs [our now]:bowl %add memo]
       ::
           %club   
         :-  %club-action
         !>  ^-  action:club:chat
-        =/  =memo:chat
-          [replying our.bowl now.bowl %story block msg]
         ::TODO  change 1 to *echo:club:chat once #2009 is fixed
         [p.audience 1 %writ [our now]:bowl %add memo]   
+      ::
+          %flag
+        :-  %chat-action-0
+        !>  ^-  action:chat
+        [p.audience now.bowl %writs [our now]:bowl %add memo]
       ==
     ::  +say: send messages
     ::
     ++  say
       |=  [who=(unit ship) msg=(list inline:chat)]
       ^-  (quip card _state)
-      ?~  who 
-        [[(send msg ~ ~)]~ put-ses]
+      ?~  who  [[(send msg ~ ~)]~ put-ses]
       =/  =whom:chat  [%ship (need who)]
       =.  audience  whom
       =^  cards  state
@@ -1142,6 +1132,9 @@
         ::
         :_  state
         %+  welp  [(send msg ~ ~)]~
+        ::  delay the channel change so our message
+        ::  arrives to %chat before we scry
+        ::
         :_  ~ 
         :*  %pass
             ;:  weld 
@@ -1396,7 +1389,7 @@
               ";deny [~ship / 0vgroup.chat.id] to decline a dm or group chat invite."
               ";~ship [message] to send a dm and print its messages."
               ";[scrollback.pointer] to select a message."
-              ";[scrollback.pointer] [message] to reference a message with a response (only chats from groups supported)."
+              ";#[scrollback.pointer] [message] to reference a message with a response (only chats from groups supported)."
               ";^[scrollback.pointer] [message] to send a thread response."
               "For more details:"
               "https://urbit.org/getting-started/getting-around"
@@ -1870,51 +1863,51 @@
     ::  +render-message-block: make a message block
     ::
     ++  render-message-block
-      |=  msg=(list tape)
+      |=  original-message=(list tape)
       ^-  (list tape)
-      =+  in=(scag 2 msg)
-      =|  out=(list tape)
+      =+  msg=(scag 2 original-message)
+      =|  block=(list tape)
       =/  aces=[line-one=@ud line-two=(unit @ud)]
-        (block-width in)
+        (block-width msg)
       |-
-      ?~  in  out
+      ?~  msg  block
       =/  line=(list tape)
-        (scag 1 `(list tape)`in)
+        (scag 1 `(list tape)`msg)
       %=    $
-          out
+          block
         %^    into
-            out
-          ?~(out 0 1)
+            block
+          ?~(block 0 1)
         %-  zing
         %^    into
             (weld ["[ "]~ line)
-          ?~(out 2 5)
+          ?~(block 2 5)
         %+  runt
           :_  ' '
-          ?~(out line-one.aces (need line-two.aces))
-        ?~  out  " ]"
-        ?.((gth (lent msg) 2) " ]" "…]")
+          ?~(block line-one.aces (need line-two.aces))
+        ?~  block  " ]"
+        ?.((gth (lent original-message) 2) " ]" "…]")
       ::
-          in
-        t.in
+          msg
+        t.msg
       ==
     ::  +block-width: determine number of aces needed for line
     ::  blocks
     ::
     ++  block-width
-      |=  in=(list tape)
+      |=  message=(list tape)
       ^-  [@ud (unit @ud)]
-      =/  one=@ud
-        (sub content-width (add 7 (lent -.in)))
-      =/  two=(unit @ud)
-        ?~  +.in  ~
-        `(sub content-width (add 7 (lent +<.in)))
-      ?~  two  [0 ~]
-      ?:  |(=(0 one) =(0 u.two))
-        [one two]
-      ?:  (gth one u.two)
-        [(sub (lent +<.in) (lent -.in)) `0]
-      [0 `(sub (lent -.in) (lent +<.in))]
+      =/  line-one=@ud
+        (sub content-width (add 7 (lent -.message)))
+      =/  line-two=(unit @ud)
+        ?~  +.message  ~
+        `(sub content-width (add 7 (lent +<.message)))
+      ?~  line-two  [0 ~]
+      ?:  |(=(0 line-one) =(0 u.line-two))
+        [line-one line-two]
+      ?:  (gth line-one u.line-two)
+        [(sub (lent +<.message) (lent -.message)) `0]
+      [0 `(sub (lent -.message) (lent +<.message))]
     --
   ::  +activate: produce sole-effect for printing message details
   ::
