@@ -1475,7 +1475,7 @@
       :_  ~
       =+  num=(scow %ud count)
       %-  print
-      (runt [(sub 15 (lent num)) '-'] "[{num}]")
+      (runt [(sub 13 (lent num)) '-'] "[{num}]")
     ^-  (list card)
     :-  (effex ~(render-inline mr target memo))
     =;  mentioned=?
@@ -1649,7 +1649,7 @@
   ++  content-width
     ::  termwidth, minus author, timestamp, and padding
     %+  sub  width
-    %+  add  16
+    %+  add  15
     ?:(showtime 12 0)
   ::
   ++  render-notice
@@ -1657,45 +1657,31 @@
     =/  glyph=(unit glyph)
       (~(get by bound) source)
     =/  prepend=tape
-      (runt [16 '-'] ?~(glyph '|' u.glyph) ' ' " ") 
+      (runt [14 '-'] ?~(glyph '|' u.glyph) ' ' " ") 
     :+  %sole  %klr
     %+  weld  prepend
     ^-  styx
     [[`%un ~ ~] ~[pfix.p.content (scot %p author) sfix.p.content]]~
   ::
   ++  render-inline
-    ^-  shoe-effect:shoe
+    |^  ^-  shoe-effect:shoe
     ?.  ?=(%story -.content)
       render-notice
-    =/  box=(list @ud)
+    :+  %row
+      :-  16
+      %-  thread-indent
       ?.  showtime
         ~[(sub width 17)]
       ~[(sub width 27) 12]
-    :+  %row
-      :-  18
-      ?~  replying  box
-      %:  into
-        %+  turn  box
-        |=  a=@
-        ?.  (gth a 12)  
-          a
-        (sub a 3)
-        0
-        1
-      ==
     =;  cols=(list dime)
-      ?~  replying
-        cols
+      ?~  replying  cols
       (into cols 1 `dime`[%t ''])
     :+  :-  %t
         %-  crip
         ;:  weld
-          "  "
           (nome author)
           ~(glyph tr source)
-          ?~  replying
-            *tape
-          "^"
+          ?~(replying *tape "^")
         ==
       t+(crip line)
     ?.  showtime  ~
@@ -1710,6 +1696,21 @@
     =+  begin=?~(replying " ~" "  ~")
     %-  crip
     :(weld begin (t h) "." (t m) "." (t s))
+    ::  +thread-indent: indent column if $replying:memo is not ~
+    ::  meaning we have a thread message
+    ::
+    ++  thread-indent
+      |=  widths=(list @ud)
+      ^-  (list @ud)
+      ?~  replying  widths
+      =*  adjust-widths
+        %+  turn  widths
+        |=  a=@
+        ?.  (gth a 12)
+          a
+        (sub a 3)
+      (into adjust-widths 0 1)
+    --
   ::
   ++  line
     ^-  tape
