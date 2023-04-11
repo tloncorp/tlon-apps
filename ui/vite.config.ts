@@ -110,8 +110,8 @@ export default ({ mode }: { mode: string }) => {
   const rollupOptions = {
     external:
       mode === 'mock' || mode === 'staging'
-        ? ['virtual:pwa-register/react', '@urbit/http-api']
-        : ['@tloncorp/eyrie', '@tloncorp/mock-http-api', './mocks/handlers'],
+        ? ['virtual:pwa-register/react']
+        : [],
     output: {
       manualChunks: {
         lodash: ['lodash'],

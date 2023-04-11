@@ -1,4 +1,4 @@
-import UrbitMock from '@tloncorp/mock-http-api';
+import type UrbitMock from '@tloncorp/mock-http-api';
 import Urbit, {
   PokeInterface,
   Scry,
@@ -9,7 +9,6 @@ import Urbit, {
 } from '@urbit/http-api';
 import _ from 'lodash';
 import { useLocalState } from '@/state/local';
-import mockHandlers from './mocks/handlers';
 import useSchedulerStore from './state/scheduler';
 
 export const IS_MOCK =
@@ -31,24 +30,12 @@ interface SubscriptionId {
   path: string;
 }
 
-async function withErrorHandling<T>(cb: () => Promise<T>) {
-  try {
-    const result = await cb();
-    useLocalState.setState({ subscription: 'connected', errorCount: 0 });
-
-    return result;
-  } catch (e) {
-    useLocalState.setState((state) => ({ errorCount: state.errorCount + 1 }));
-    throw e;
-  }
-}
-
 function subPath(id: SubscriptionId) {
   return `${id.app}${id.path}`;
 }
 
 class API {
-  private client: Urbit | UrbitMock;
+  private client: Urbit | UrbitMock | undefined;
 
   subscriptions: Set<string>;
 
@@ -60,16 +47,26 @@ class API {
     this.subscriptions = new Set();
     this.subscriptionMap = new Map();
     this.watchers = {};
+  }
+
+  private async setup() {
+    if (this.client) {
+      return this.client;
+    }
 
     if (IS_MOCK) {
       window.ship = 'finned-palmer';
       window.our = `~${window.ship}`;
       window.desk = 'groups';
 
-      this.client = new UrbitMock(mockHandlers, URL || '', '');
+      const MockUrbit = (await import('@tloncorp/mock-http-api')).default;
+      const mockHandlers = (await import('./mocks/handlers')).default;
+
+      this.client = new MockUrbit(mockHandlers, URL || '', '');
       this.client.ship = window.ship;
       this.client.verbose = true;
-      return;
+
+      return this.client;
     }
 
     this.client = new Urbit('', '', window.desk);
@@ -101,14 +98,39 @@ class API {
         }));
       })();
     };
+
+    return this.client;
+  }
+
+  private async withClient<T>(cb: (client: Urbit | UrbitMock) => T) {
+    if (!this.client) {
+      const client = await this.setup();
+      return cb(client);
+    }
+
+    return cb(this.client);
+  }
+
+  private async withErrorHandling<T>(
+    cb: (client: Urbit | UrbitMock) => Promise<T>
+  ) {
+    try {
+      const result = await this.withClient(cb);
+      useLocalState.setState({ subscription: 'connected', errorCount: 0 });
+
+      return result;
+    } catch (e) {
+      useLocalState.setState((state) => ({ errorCount: state.errorCount + 1 }));
+      throw e;
+    }
   }
 
   async scry<T>(params: Scry) {
-    return this.client.scry<T>(params);
+    return this.withClient((client) => client.scry<T>(params));
   }
 
   async poke<T>(params: PokeInterface<T>) {
-    return withErrorHandling(() => this.client.poke<T>(params));
+    return this.withErrorHandling((client) => client.poke<T>(params));
   }
 
   private async track<R>(
@@ -134,22 +156,25 @@ class API {
     subscription: SubscriptionId,
     validator?: (event: R) => boolean
   ) {
-    return new Promise<void>((resolve, reject) => {
-      this.client.poke<T>({
-        ...params,
-        onError: (e) => {
-          params.onError?.(e);
-          reject();
-        },
-        onSuccess: async () => {
-          params.onSuccess?.();
-          const defaultValidator = (event: any) =>
-            _.isEqual(params.json, event);
-          await this.track(subscription, validator || defaultValidator);
-          resolve();
-        },
-      });
-    });
+    return this.withErrorHandling(
+      (client) =>
+        new Promise<void>((resolve, reject) => {
+          client.poke<T>({
+            ...params,
+            onError: (e) => {
+              params.onError?.(e);
+              reject();
+            },
+            onSuccess: async () => {
+              params.onSuccess?.();
+              const defaultValidator = (event: any) =>
+                _.isEqual(params.json, event);
+              await this.track(subscription, validator || defaultValidator);
+              resolve();
+            },
+          });
+        })
+    );
   }
 
   async subscribe(params: SubscriptionRequestInterface, priority = 5) {
@@ -186,12 +211,12 @@ class API {
 
     const id = await useSchedulerStore.getState().wait(
       () =>
-        withErrorHandling(() =>
-          this.client.subscribe({
+        this.withErrorHandling((client) =>
+          client.subscribe({
             ...params,
             event: eventListener(params.event),
             quit: () => {
-              this.client.subscribe({
+              this.client!.subscribe({
                 ...params,
                 event: eventListener(params.event),
               });
@@ -206,13 +231,13 @@ class API {
   }
 
   async subscribeOnce<T>(app: string, path: string, timeout?: number) {
-    return withErrorHandling(() =>
-      this.client.subscribeOnce<T>(app, path, timeout)
+    return this.withErrorHandling(() =>
+      this.client!.subscribeOnce<T>(app, path, timeout)
     );
   }
 
   async thread<Return, T>(params: Thread<T>) {
-    return withErrorHandling(() => this.client.thread<Return, T>(params));
+    return this.withErrorHandling(() => this.client!.thread<Return, T>(params));
   }
 
   async unsubscribe(id: number) {
@@ -222,11 +247,11 @@ class API {
       this.subscriptionMap.delete(id);
     }
 
-    return withErrorHandling(() => this.client.unsubscribe(id));
+    return this.withErrorHandling(() => this.client!.unsubscribe(id));
   }
 
   reset() {
-    this.client.reset();
+    this.withClient((client) => client.reset());
   }
 
   on<T extends UrbitHttpApiEventType>(

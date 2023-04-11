@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import '@tloncorp/eyrie';
-import { Eyrie as Eyr } from '@tloncorp/eyrie';
+import type { Eyrie as Eyr } from '@tloncorp/eyrie';
 import api from '@/api';
 
 declare global {
@@ -10,6 +9,10 @@ declare global {
       'tlon-eyrie': any;
     }
   }
+}
+
+if (import.meta.env.DEV) {
+  await import('@tloncorp/eyrie');
 }
 
 export default function Eyrie() {
