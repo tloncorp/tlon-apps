@@ -1273,7 +1273,7 @@
       |=  [=whom:chat l=(list tape)]
       %+  weld  l
       ^-  (list tape)
-      [~(meta tr whom)]~
+      [glyph ' ' ~(meta tr whom)]~
     ::  +show-settings: print enabled flags, timezone and width settings
     ::
     ++  show-settings
@@ -1560,7 +1560,16 @@
     %-  print-more
     %+  turn  (sort targets order)
     |=  =target
-    ~(meta tr target)
+    =/  glyph=(unit tape)
+      ?.  (~(has by bound) target)  ~
+      (some ~(glyph tr target))
+    =;  append=tape
+      :(weld ?~(glyph " " u.glyph) " " append)
+    ?-  -.target
+      %club  ~(meta tr target)
+      %ship  "{(nome:mr p.target)}"
+      %flag  "{(nome:mr p.p.target)}/{(trip q.p.target)}"
+    ==
     ::  +order: ships go before chats who go before clubs
     ::
     ++  order
@@ -1618,60 +1627,57 @@
   ++  meta
     |^  ^-  tape
     ?-   -.target
-        %flag
-      %+  weld
-        ?:(=(glyph "*") "  " (snoc glyph ' '))
-      "{(nome:mr p.p.target)}/{(trip q.p.target)}"
-    ::
-        %ship  
-      %+  weld
-        ?:  =(glyph "*") 
-          "  " 
-        (snoc glyph ' ')
-      (nome:mr p.target)
-    ::
+        %flag  ~(phat tr target)
+        %ship  ~(full tr target)
         %club
       =/  =club-id  p.target
       =/  crew=(unit crew)
-        (~(get by get-clubs) club-id)   
+        (~(get by get-clubs) club-id)
       ?~  crew
-        (render-club-members club-id)
-      (render-club-title club-id title.met.u.crew)
+        "{(scow %uv club-id)}  club doesn't exist"
+      =+  team=team.u.crew
+      =+  hive=hive.u.crew
+      ?:  &(=(~ team) =(~ hive))
+        "{(scow %uv club-id)}  club doesn't have any members"
+      %+  weld  
+        "{(scow %uv club-id)}"
+      ?.  =(*cord title.met.u.crew)
+        "  {(trip title.met.u.crew)}"
+      (render-club-members club-id (club-members team hive))
     ==
-    ::  +render-club-title: produce club name
+    ::  +club-members: produce list of club members
     ::
-    ++  render-club-title
-      |=  [=club-id title=cord]
-      ^-  tape
-      %+  weld
-        "{?:(=(glyph "*") " " glyph)} {(scow %uv club-id)}"
-      "  {(trip title)}"
-    ::  +render-club-members: produce club members
+    ++  club-members
+      |=  [team=(set ship) hive=(set ship)]
+      ^-  (list ship)
+      ?:  =(~ team)  (sort ~(tap in hive) lth)
+      ?:  =(~ hive)  (sort ~(tap in team) lth)
+      =/  members  (~(uni in team) hive)
+      (sort ~(tap in members) lth)
+    ::  +render-club-members: produce club members as tape
     ::
     ::    print up to four members and produce
     ::    a count for the rest.
     ::
     ++  render-club-members
-      |=  =club-id
+      |=  [=club-id members=(list ship)]
       ^-  tape
       =/  members=(list tape)
-        %+  turn  (club-members club-id)
+        %+  turn  members
         |=  =ship
         "  {(cite:title ship)}"
-      =/  out=tape
-        "{?:(=(glyph "*") " " glyph)} {(scow %uv club-id)}"
+      =|  out=tape
       =+  tally=0
       |- 
       ?~  members  
-        %+  weld  
-          out
+        %+  weld  out
         ?:  (lte tally 4)  ~ 
         " +{(scow %ud (sub tally 4))}"
       ?:  (gte tally 4)  
         $(tally +(tally), members t.members)
       %=  $
-        tally  +(tally)
-        out  (weld out i.members)
+        tally    +(tally)
+        out      (weld out i.members)
         members  t.members
       ==
     --
