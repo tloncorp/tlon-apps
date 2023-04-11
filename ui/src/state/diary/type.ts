@@ -26,7 +26,7 @@ export interface DiaryState {
   briefs: DiaryBriefs;
   pendingImports: Record<string, boolean>;
   create: (req: DiaryCreate) => Promise<void>;
-  start: (init: DiaryInit, withSubs: boolean) => Promise<void>;
+  start: (init: DiaryInit) => Promise<void>;
   fetchNote: (flag: DiaryFlag, noteId: string) => Promise<void>;
   initialize: (flag: DiaryFlag) => Promise<void>;
   initImports: (init: Record<string, boolean>) => void;

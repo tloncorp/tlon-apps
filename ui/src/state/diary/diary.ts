@@ -197,62 +197,55 @@ export const useDiaryState = createState<DiaryState>(
 
       await api.poke(diaryAction(flag, diff));
     },
-    start: async ({ briefs, shelf }, withSubs) => {
-      const { wait } = useSchedulerStore.getState();
+    start: async ({ briefs, shelf }) => {
       get().batchSet((draft) => {
         draft.briefs = briefs;
         draft.shelf = shelf;
       });
 
-      if (!withSubs) {
-        return;
-      }
+      api.subscribe({
+        app: 'diary',
+        path: '/briefs',
+        event: (event: unknown, mark: string) => {
+          if (mark === 'diary-leave') {
+            get().batchSet((draft) => {
+              delete draft.briefs[event as string];
+            });
+            return;
+          }
 
-      wait(() => {
-        api.subscribe({
-          app: 'diary',
-          path: '/briefs',
-          event: (event: unknown, mark: string) => {
-            if (mark === 'diary-leave') {
-              get().batchSet((draft) => {
-                delete draft.briefs[event as string];
-              });
-              return;
+          const { flag, brief } = event as DiaryBriefUpdate;
+          get().batchSet((draft) => {
+            draft.briefs[flag] = brief;
+          });
+        },
+      });
+
+      api.subscribe({
+        app: 'diary',
+        path: '/ui',
+        event: (event: DiaryAction) => {
+          get().batchSet((draft) => {
+            const {
+              flag,
+              update: { diff },
+            } = event;
+            const diary = draft.shelf[flag];
+
+            if ('view' in diff) {
+              diary.view = diff.view;
+            } else if ('del-sects' in diff) {
+              diary.perms.writers = diary.perms.writers.filter(
+                (w) => !diff['del-sects'].includes(w)
+              );
+            } else if ('add-sects' in diff) {
+              diary.perms.writers = diary.perms.writers.concat(
+                diff['add-sects']
+              );
             }
-
-            const { flag, brief } = event as DiaryBriefUpdate;
-            get().batchSet((draft) => {
-              draft.briefs[flag] = brief;
-            });
-          },
-        });
-
-        api.subscribe({
-          app: 'diary',
-          path: '/ui',
-          event: (event: DiaryAction) => {
-            get().batchSet((draft) => {
-              const {
-                flag,
-                update: { diff },
-              } = event;
-              const diary = draft.shelf[flag];
-
-              if ('view' in diff) {
-                diary.view = diff.view;
-              } else if ('del-sects' in diff) {
-                diary.perms.writers = diary.perms.writers.filter(
-                  (w) => !diff['del-sects'].includes(w)
-                );
-              } else if ('add-sects' in diff) {
-                diary.perms.writers = diary.perms.writers.concat(
-                  diff['add-sects']
-                );
-              }
-            });
-          },
-        });
-      }, 4);
+          });
+        },
+      });
     },
     fetchNote: async (flag, noteId) => {
       const note = await api.scry<DiaryNote>({

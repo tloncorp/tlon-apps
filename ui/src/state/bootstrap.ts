@@ -36,7 +36,7 @@ async function chatScry<T>(path: string, def: T) {
   );
 }
 
-async function startGroups(talkStarted: boolean, withSubs: boolean) {
+async function startGroups(talkStarted: boolean) {
   // make sure if this errors we don't kill the entire app
   const { chat, heap, diary, groups, gangs } = await asyncWithDefault(
     () =>
@@ -48,17 +48,17 @@ async function startGroups(talkStarted: boolean, withSubs: boolean) {
   );
 
   if (!talkStarted) {
-    useChatState.getState().start(chat, withSubs);
+    useChatState.getState().start(chat);
   }
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
 
-  useHeapState.getState().start(heap, withSubs);
-  useDiaryState.getState().start(diary, withSubs);
+  useHeapState.getState().start(heap);
+  useDiaryState.getState().start(diary);
 }
 
-async function startTalk(groupsStarted: boolean, withSubs: boolean) {
+async function startTalk(groupsStarted: boolean) {
   // since talk is a separate desk we need to offer a fallback
   const { groups, gangs, ...chat } = await asyncWithFallback(
     () =>
@@ -115,7 +115,7 @@ async function startTalk(groupsStarted: boolean, withSubs: boolean) {
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  useChatState.getState().startTalk(chat, !groupsStarted, withSubs);
+  useChatState.getState().startTalk(chat, !groupsStarted);
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
@@ -126,24 +126,20 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
     api.reset();
   }
 
-  const startSubs = reset !== 'reset';
-
   if (isTalk) {
-    startTalk(false, startSubs);
-    wait(() => startGroups(true, startSubs), 5);
+    startTalk(false);
+    wait(() => startGroups(true), 5);
   } else {
-    startGroups(false, startSubs);
-    wait(async () => startTalk(true, startSubs), 5);
+    startGroups(false);
+    wait(async () => startTalk(true), 5);
   }
 
   const { initialize: settingsInitialize, fetchAll } =
     useSettingsState.getState();
 
   wait(() => {
-    if (startSubs) {
-      useContactState.getState().initialize(api as unknown as Urbit);
-      useStorage.getState().initialize(api as unknown as Urbit);
-    }
+    useContactState.getState().initialize(api as unknown as Urbit);
+    useStorage.getState().initialize(api as unknown as Urbit);
 
     fetchAll();
   }, 4);
@@ -152,14 +148,12 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
     useKilnState.getState().initializeKiln();
     const { start, fetchCharges } = useDocketState.getState();
     fetchCharges();
-    if (startSubs) {
-      start();
-      settingsInitialize(api as unknown as Urbit);
-    }
+    start();
+    settingsInitialize(api as unknown as Urbit);
     useLureState.getState().start();
 
     if (!import.meta.env.DEV) {
-      usePalsState.getState().initializePals(startSubs);
+      usePalsState.getState().initializePals();
     }
     api.poke({
       app: isTalk ? 'talk-ui' : 'groups-ui',

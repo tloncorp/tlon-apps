@@ -25,7 +25,7 @@ interface PalsState {
   fetchPals: () => Promise<void>;
   addPal: (ship: string, tags?: string[]) => Promise<void>;
   removePal: (ship: string) => Promise<void>;
-  initializePals: (withSubs: boolean) => Promise<void>;
+  initializePals: () => Promise<void>;
   set: SetState<PalsState>;
 }
 
@@ -90,12 +90,8 @@ const usePalsState = create<PalsState>((set, get) => ({
       },
     });
   },
-  initializePals: async (withSubs) => {
+  initializePals: async () => {
     await get().fetchPals();
-
-    if (!withSubs) {
-      return;
-    }
 
     api.subscribe({
       app: 'pals',

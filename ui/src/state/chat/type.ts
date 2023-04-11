@@ -56,12 +56,8 @@ export interface ChatState {
   togglePin: (whom: string, pin: boolean) => Promise<void>;
   fetchPins: () => Promise<void>;
   markRead: (whom: string) => Promise<void>;
-  start: (init: ChatInit, withSubs?: boolean) => Promise<void>;
-  startTalk: (
-    init: TalkChatInit,
-    startBase?: boolean,
-    withSubs?: boolean
-  ) => Promise<void>;
+  start: (init: ChatInit) => Promise<void>;
+  startTalk: (init: TalkChatInit, startBase?: boolean) => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
   fetchNewer: (ship: string, count: string) => Promise<boolean>;

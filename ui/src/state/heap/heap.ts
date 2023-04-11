@@ -92,62 +92,53 @@ export const useHeapState = createState<HeapState>(
         },
       });
     },
-    start: async ({ briefs, stash }, withSubs) => {
-      const { wait } = useSchedulerStore.getState();
+    start: async ({ briefs, stash }) => {
       get().batchSet((draft) => {
         draft.briefs = briefs;
         draft.stash = stash;
       });
 
-      wait(() => {
-        api.subscribe({
-          app: 'heap',
-          path: '/briefs',
-          event: (event: unknown, mark: string) => {
-            if (mark === 'heap-leave') {
-              get().batchSet((draft) => {
-                delete draft.briefs[event as string];
-              });
-              return;
+      api.subscribe({
+        app: 'heap',
+        path: '/briefs',
+        event: (event: unknown, mark: string) => {
+          if (mark === 'heap-leave') {
+            get().batchSet((draft) => {
+              delete draft.briefs[event as string];
+            });
+            return;
+          }
+
+          const { flag, brief } = event as HeapBriefUpdate;
+          get().batchSet((draft) => {
+            draft.briefs[flag] = brief;
+          });
+        },
+      });
+
+      api.subscribe({
+        app: 'heap',
+        path: '/ui',
+        event: (event: HeapAction) => {
+          get().batchSet((draft) => {
+            const {
+              flag,
+              update: { diff },
+            } = event;
+            const heap = draft.stash[flag];
+
+            if ('view' in diff) {
+              heap.view = diff.view;
+            } else if ('del-sects' in diff) {
+              heap.perms.writers = heap.perms.writers.filter(
+                (w) => !diff['del-sects'].includes(w)
+              );
+            } else if ('add-sects' in diff) {
+              heap.perms.writers = heap.perms.writers.concat(diff['add-sects']);
             }
-
-            const { flag, brief } = event as HeapBriefUpdate;
-            get().batchSet((draft) => {
-              draft.briefs[flag] = brief;
-            });
-          },
-        });
-
-        if (!withSubs) {
-          return;
-        }
-
-        api.subscribe({
-          app: 'heap',
-          path: '/ui',
-          event: (event: HeapAction) => {
-            get().batchSet((draft) => {
-              const {
-                flag,
-                update: { diff },
-              } = event;
-              const heap = draft.stash[flag];
-
-              if ('view' in diff) {
-                heap.view = diff.view;
-              } else if ('del-sects' in diff) {
-                heap.perms.writers = heap.perms.writers.filter(
-                  (w) => !diff['del-sects'].includes(w)
-                );
-              } else if ('add-sects' in diff) {
-                heap.perms.writers = heap.perms.writers.concat(
-                  diff['add-sects']
-                );
-              }
-            });
-          },
-        });
-      }, 4);
+          });
+        },
+      });
     },
     joinHeap: async (group, chan) => {
       await api.trackedPoke<HeapJoin, HeapAction>(

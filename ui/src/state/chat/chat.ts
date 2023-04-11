@@ -186,8 +186,7 @@ export const useChatState = createState<ChatState>(
         },
       });
     },
-    start: async ({ briefs, chats, pins }, withSubs) => {
-      const { wait } = useSchedulerStore.getState();
+    start: async ({ briefs, chats, pins }) => {
       get().batchSet((draft) => {
         draft.chats = chats;
         draft.briefs = briefs;
@@ -201,12 +200,8 @@ export const useChatState = createState<ChatState>(
         }
       });
 
-      if (!withSubs) {
-        return;
-      }
-
-      wait(() => {
-        api.subscribe({
+      api.subscribe(
+        {
           app: 'chat',
           path: '/briefs',
           event: (event: unknown, mark: string) => {
@@ -243,9 +238,12 @@ export const useChatState = createState<ChatState>(
               read(whom);
             }
           },
-        });
+        },
+        3
+      );
 
-        api.subscribe({
+      api.subscribe(
+        {
           app: 'chat',
           path: '/ui',
           event: (event: ChatAction) => {
@@ -269,13 +267,13 @@ export const useChatState = createState<ChatState>(
               }
             });
           },
-        });
-      }, 3);
+        },
+        3
+      );
     },
-    startTalk: async (init, startBase = true, withSubs = true) => {
-      const { wait } = useSchedulerStore.getState();
+    startTalk: async (init, startBase = true) => {
       if (startBase) {
-        get().start(init, withSubs);
+        get().start(init);
       }
 
       get().batchSet((draft) => {
@@ -285,12 +283,8 @@ export const useChatState = createState<ChatState>(
         draft.pins = init.pins;
       });
 
-      if (!withSubs) {
-        return;
-      }
-
-      wait(() => {
-        api.subscribe({
+      api.subscribe(
+        {
           app: 'chat',
           path: '/dm/invited',
           event: (event: unknown) => {
@@ -298,15 +292,19 @@ export const useChatState = createState<ChatState>(
               draft.pendingDms = event as string[];
             });
           },
-        });
-        api.subscribe({
+        },
+        3
+      );
+      api.subscribe(
+        {
           app: 'chat',
           path: '/clubs/ui',
           event: (event: ClubAction) => {
             get().batchSet(clubReducer(event));
           },
-        });
-      }, 3);
+        },
+        3
+      );
     },
     fetchNewer: async (whom: string, count: string) => {
       const isDM = whomIsDm(whom);
