@@ -255,10 +255,6 @@ export const useHeapState = createState<HeapState>(
       );
     },
     initialize: async (flag) => {
-      if (get().heapSubs.includes(flag)) {
-        return;
-      }
-
       useSchedulerStore.getState().wait(async () => {
         const perms = await api.scry<HeapPerm>({
           app: 'heap',
@@ -267,7 +263,6 @@ export const useHeapState = createState<HeapState>(
         get().batchSet((draft) => {
           const heap = { perms, view: 'grid' as HeapDisplayMode };
           draft.stash[flag] = heap;
-          draft.heapSubs.push(flag);
         });
       }, 1);
 

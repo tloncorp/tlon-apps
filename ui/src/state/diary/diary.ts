@@ -383,10 +383,6 @@ export const useDiaryState = createState<DiaryState>(
       ).getNewer(count.toString());
     },
     initialize: async (flag) => {
-      if (get().diarySubs.includes(flag)) {
-        return;
-      }
-
       const perms = await api.scry<DiaryPerm>({
         app: 'diary',
         path: `/diary/${flag}/perm`,
@@ -394,7 +390,6 @@ export const useDiaryState = createState<DiaryState>(
       get().batchSet((draft) => {
         const diary = { perms, view: 'list' as DiaryDisplayMode };
         draft.shelf[flag] = diary;
-        draft.diarySubs.push(flag);
       });
 
       await makeNotesStore(

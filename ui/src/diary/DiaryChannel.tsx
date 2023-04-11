@@ -36,6 +36,7 @@ import {
 } from '@/logic/utils';
 import useAllBriefs from '@/logic/useAllBriefs';
 import AddIcon16 from '@/components/icons/Add16Icon';
+import { useLastReconnect } from '@/state/local';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
@@ -58,6 +59,7 @@ function DiaryChannel() {
   const joined = Object.keys(briefs).some((k) => k.includes('diary/'))
     ? isChannelJoined(nest, briefs)
     : true;
+  const lastReconnect = useLastReconnect();
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -135,6 +137,7 @@ function DiaryChannel() {
     briefs,
     channel,
     canRead,
+    lastReconnect,
   ]);
 
   useEffect(() => {

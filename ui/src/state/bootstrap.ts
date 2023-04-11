@@ -169,4 +169,11 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
   }, 5);
 }
 
-useLocalState.setState({ onReconnect: () => bootstrap('reset') });
+useLocalState.setState({
+  onReconnect: () => {
+    bootstrap('reset');
+
+    useLocalState.setState({ lastReconnect: Date.now() });
+    queryClient.invalidateQueries();
+  },
+});

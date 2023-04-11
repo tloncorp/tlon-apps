@@ -49,7 +49,7 @@ export default function useReactQuerySubscription({
         queryClient.invalidateQueries(queryKey);
       },
     });
-  }, [app, path, queryClient, JSON.stringify(queryKey)]);
+  }, [app, path, queryClient, queryKey]);
 
   return useQuery(queryKey, fetchData, {
     retryOnMount: false,
