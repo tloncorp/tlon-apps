@@ -443,26 +443,11 @@
 ++  message-exists
   |=  [=whom:chat =id:chat]
   ^-  ?
-  =/  =time  +.id
-  =/  author=ship  -.id
-  =;  chap=path
-    %+  scry-for-existence  %chat
-    %+  weld  chap
-    /writs/exists/(scot %p author)/(scot %ud time)
-  ?-   -.whom
-      %ship
-    =/  =ship  +.whom
-    /dm/(scot %p ship)
-  ::
-      %club
-    =/  =club-id  +.whom
-    /club/(scot %uv club-id)
-  ::
-      %flag
-    =/  =ship  +<.whom
-    =/  name=term  +>.whom
-    /chat/(scot %p ship)/(scot %tas name)
-  ==
+  =/  =time  q.id
+  =/  author=ship  p.id
+  %+  scry-for-existence  %chat
+  %+  weld  (target-path whom)
+  /writs/writ/id/(scot %p author)/(scot %ud time)
 ::  +build-history: add messages to history
 ::  and output to a given session
 ::
@@ -490,54 +475,9 @@
 ++  get-messages
   |=  =target
   ^-  ((mop time writ:chat) lte) 
-  =;  chap=path
-    %^  scry-for  ((mop time writ:chat) lte)
-      %chat
-    %+  weld  chap
-      /writs/newest/20
-  ?-   -.target
-      %ship
-    =/  =ship  p.target
-    /dm/(scot %p ship)
-  ::
-      %club
-    =/  =club-id  p.target
-    /club/(scot %uv club-id)
-  ::
-      %flag
-    =/  =ship  -.p.target
-    =/  name=term  +.p.target
-    /chat/(scot %p ship)/(scot %tas name)
-  ==
-::  +poke-noun: debug helpers
-::
-++  poke-noun
-  |=  a=*
-  ^-  (quip card _state)
-  ?.  ?=(%connect a)
-    [~ state]
-  ::  reestablish subscriptions for all targets in view
-  ::
-  =/  sez=(list [=sole-id =session])
-    ~(tap by sessions)
-  =|  cards=(list card)
-  |-
-  ?~  sez  [cards state]
-  =^  caz  session.i.sez
-    =/  targets=(list target)
-      ~(tap in viewing.session.i.sez)
-    =|  connect-cards=(list card)
-    |-
-    ?~  targets  
-      [connect-cards session.i.sez]
-    %=    $
-        connect-cards  
-      %+  snoc  connect-cards 
-      (connect i.targets)
-    ::
-      targets  t.targets
-    ==
-  $(sez t.sez, cards (weld cards caz))
+  %^  scry-for  ((mop time writ:chat) lte)
+    %chat
+  (weld (target-path target) /writs/newest/20)
 ::  +on-update: get new messages
 ::
 ++  on-update 
@@ -1324,7 +1264,7 @@
           [%| "…{number}: message was deleted"]
         =+  %^  scry-for-marked  ,[* =writ:chat]
               %chat
-            (forge whom id)
+            (writ-scry-path whom id)
         [%& [whom writ]]
       --
     ::  +index: get message index from absolute reference
@@ -1846,7 +1786,7 @@
             ["[ #chat: message was a notice ]"]~
           =+  %^  scry-for-marked  ,[* =writ:chat]
                 %chat
-              (forge whom id)
+              (writ-scry-path whom id)
           %-  render-message-block
           %+  simple-wrap  
             %+  weld
@@ -1932,7 +1872,7 @@
         [txt+"^   …message was deleted"]~
       =+  %^  scry-for-marked  ,[* =writ:chat]
             %chat
-          (forge source u.replying)
+          (writ-scry-path source u.replying)
       [[%txt (weld "^   " ~(line mr source +.writ))]]~
       ::  if block is referenced, print it, too
       ::
@@ -1966,19 +1906,32 @@
     [(sub wid u.ace) &]
   :-  (tufa (scag end `(list @)`txt))
   $(txt (slag ?:(nex +(end) end) `tape`txt))
-::  +forge: make scry path for writ retrieval
+::  +target-path: make first part of a target's path
 ::
-++  forge
+++  target-path
+  |=  =target
+  ^-  path
+  ?-   -.target
+      %ship
+    =/  =ship  p.target
+    /dm/(scot %p ship)
+  ::
+      %club
+    =/  =club-id  p.target
+    /club/(scot %uv club-id)
+  ::
+      %flag
+    =/  =ship  p.p.target
+    =/  name=term  q.p.target
+    /chat/(scot %p ship)/(scot %tas name)
+  ==
+::  +writ-scry-path: make scry path for writ retrieval
+::
+++  writ-scry-path
   |=  [=whom:chat =id:chat]
   ^-  path
-  =;  chap=path
-    %+  weld  chap
-    /writs/writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ
-  ?-  -.whom
-    %flag  /chat/(scot %p p.p.whom)/[q.p.whom]
-    %ship  /dm/(scot %p p.whom)
-    %club  /club/(scot %uv p.whom)
-  ==
+  %+  weld  (target-path whom)
+  /writs/writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ
 ::
 ++  scry-for-existence
   |*  [app=term =path]
