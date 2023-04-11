@@ -1,6 +1,6 @@
 import _ from 'lodash';
-import produce, { enableMapSet } from 'immer';
-import { GcpToken, BaseStorageState } from './type';
+import { enableMapSet } from 'immer';
+import { BaseStorageState } from './type';
 import reduce from './reducer';
 import {
   createState,
@@ -8,7 +8,6 @@ import {
   reduceStateN,
   BaseState,
 } from '../base';
-import api from '../../api';
 
 enableMapSet();
 
@@ -18,31 +17,9 @@ export type StorageState = BaseStorageState & BaseState<BaseStorageState>;
 
 export const useStorage = createState<BaseStorageState>(
   'Storage',
-  (set, get) => ({
+  () => ({
     loaded: false,
     hasCredentials: false,
-    gcp: {
-      isConfigured: () =>
-        api.thread({
-          inputMark: 'noun',
-          outputMark: 'json',
-          threadName: 'gcp-is-configured',
-          body: {},
-        }),
-      getToken: async () => {
-        const token = await api.thread<GcpToken>({
-          inputMark: 'noun',
-          outputMark: 'gcp-token',
-          threadName: 'gcp-get-token',
-          body: {},
-        });
-        get().set(
-          produce((draft) => {
-            draft.gcp.token = token;
-          })
-        );
-      },
-    },
     s3: {
       configuration: {
         buckets: new Set(),

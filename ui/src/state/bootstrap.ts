@@ -3,6 +3,7 @@ import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
+import Urbit from '@urbit/http-api';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
@@ -123,9 +124,6 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
   const { wait } = useSchedulerStore.getState();
   if (reset === 'full-reset') {
     api.reset();
-    useChatState.getState().clearSubs();
-    useHeapState.getState().clearSubs();
-    useDiaryState.getState().clearSubs();
   }
 
   const startSubs = reset !== 'reset';
@@ -143,8 +141,8 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
 
   wait(() => {
     if (startSubs) {
-      useContactState.getState().initialize(api);
-      useStorage.getState().initialize(api);
+      useContactState.getState().initialize(api as unknown as Urbit);
+      useStorage.getState().initialize(api as unknown as Urbit);
     }
 
     fetchAll();
@@ -156,11 +154,13 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
     fetchCharges();
     if (startSubs) {
       start();
-      settingsInitialize(api);
+      settingsInitialize(api as unknown as Urbit);
     }
     useLureState.getState().start();
 
-    usePalsState.getState().initializePals(startSubs);
+    if (!import.meta.env.DEV) {
+      usePalsState.getState().initializePals(startSubs);
+    }
     api.poke({
       app: isTalk ? 'talk-ui' : 'groups-ui',
       mark: 'ui-vita',

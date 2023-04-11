@@ -7,18 +7,17 @@ import {
   CurioDelta,
   Heap,
   HeapAction,
-  HeapBriefs,
   HeapBriefUpdate,
   HeapCurio,
   HeapDiff,
   HeapFlag,
   HeapPerm,
-  Stash,
   HeapSaid,
   HeapDisplayMode,
   HeapJoin,
+  HeapCreate,
 } from '@/types/heap';
-import api, { useSubscriptionState } from '@/api';
+import api from '@/api';
 import { nestToFlag, canWriteChannel } from '@/logic/utils';
 import useNest from '@/logic/useNest';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
@@ -80,7 +79,6 @@ export const useHeapState = createState<HeapState>(
     },
     stash: {},
     curios: {},
-    heapSubs: [],
     loadedRefs: {},
     briefs: {},
     pendingImports: {},
@@ -152,32 +150,18 @@ export const useHeapState = createState<HeapState>(
       }, 4);
     },
     joinHeap: async (group, chan) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke<HeapJoin>({
+      await api.trackedPoke<HeapJoin, HeapAction>(
+        {
           app: 'heap',
           mark: 'channel-join',
           json: {
             group,
             chan,
           },
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState
-              .getState()
-              .track(`heap/ui`, (event: HeapAction) => {
-                const {
-                  update: { diff },
-                  flag: f,
-                } = event;
-                if (f === chan && 'create' in diff) {
-                  return true;
-                }
-                return false;
-              });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'heap', path: 'ui' },
+        (event) => event.flag === chan && 'create' in event.update.diff
+      );
     },
     leaveHeap: async (flag) => {
       await api.poke({
@@ -205,27 +189,20 @@ export const useHeapState = createState<HeapState>(
       await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
     },
     create: async (req) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke({
+      await api.trackedPoke<HeapCreate, HeapAction>(
+        {
           app: 'heap',
           mark: 'heap-create',
           json: req,
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState.getState().track('heap/ui', (event) => {
-              const { update, flag } = event;
-              if (
-                'create' in update.diff &&
-                flag === `${window.our}/${req.name}`
-              ) {
-                return true;
-              }
-              return false;
-            });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'heap', path: '/ui' },
+        (event) => {
+          const { update, flag } = event;
+          return (
+            'create' in update.diff && flag === `${window.our}/${req.name}`
+          );
+        }
+      );
     },
     addSects: async (flag, sects) => {
       await api.poke(heapAction(flag, { 'add-sects': sects }));
@@ -304,11 +281,6 @@ export const useHeapState = createState<HeapState>(
     initImports: (init) => {
       get().batchSet((draft) => {
         draft.pendingImports = init;
-      });
-    },
-    clearSubs: () => {
-      get().batchSet((draft) => {
-        draft.heapSubs = [];
       });
     },
   }),

@@ -542,8 +542,6 @@ function App() {
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
-  // useConnectionChecker();
-
   return (
     <div className="flex h-full w-full flex-col">
       {settingsLoaded && !disableWayfinding && <LandscapeWayfinding />}

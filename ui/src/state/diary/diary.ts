@@ -19,8 +19,9 @@ import {
   DiarySaid,
   DiaryUpdate,
   DiaryJoin,
+  DiaryCreate,
 } from '@/types/diary';
-import api, { useSubscriptionState } from '@/api';
+import api from '@/api';
 import { nestToFlag } from '@/logic/utils';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { DiaryState } from './type';
@@ -77,7 +78,6 @@ export const useDiaryState = createState<DiaryState>(
     shelf: {},
     notes: {},
     banter: {},
-    diarySubs: [],
     loadedNotes: {},
     briefs: {},
     pendingImports: {},
@@ -271,32 +271,18 @@ export const useDiaryState = createState<DiaryState>(
       });
     },
     joinDiary: async (group, chan) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke<DiaryJoin>({
+      await api.trackedPoke<DiaryJoin, DiaryAction>(
+        {
           app: 'diary',
           mark: 'channel-join',
           json: {
             group,
             chan,
           },
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState
-              .getState()
-              .track(`diary/ui`, (event: DiaryAction) => {
-                const {
-                  update: { diff },
-                  flag: f,
-                } = event;
-                if (f === chan && 'create' in diff) {
-                  return true;
-                }
-                return false;
-              });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'diary', path: '/ui' },
+        (event) => event.flag === chan && 'create' in event.update.diff
+      );
     },
     leaveDiary: async (flag) => {
       await api.poke({
@@ -310,32 +296,29 @@ export const useDiaryState = createState<DiaryState>(
     },
     addNote: async (flag, essay) =>
       new Promise<string>((resolve, reject) => {
-        api.poke({
-          ...diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
-            add: essay,
-          }),
-          onError: () => reject(),
-          onSuccess: async () => {
-            let timePosted = '';
-
-            await useSubscriptionState
-              .getState()
-              .track(`diary/diary/${flag}/ui`, (event: DiaryUpdate) => {
-                const { time, diff } = event;
-                if ('notes' in diff) {
-                  const { delta } = diff.notes;
-                  if ('add' in delta && delta.add.sent === essay.sent) {
-                    timePosted = time;
-                    return true;
-                  }
+        let timePosted = '';
+        api
+          .trackedPoke<DiaryAction, DiaryUpdate>(
+            diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
+              add: essay,
+            }),
+            { app: 'diary', path: `/diary/${flag}/ui` },
+            (event) => {
+              const { time, diff } = event;
+              if ('notes' in diff) {
+                const { delta } = diff.notes;
+                if ('add' in delta && delta.add.sent === essay.sent) {
+                  timePosted = time;
+                  return true;
                 }
+              }
 
-                return false;
-              });
-
+              return false;
+            }
+          )
+          .then(() => {
             resolve(timePosted);
-          },
-        });
+          });
       }),
     editNote: async (flag, time, essay) => {
       await api.poke(
@@ -348,27 +331,20 @@ export const useDiaryState = createState<DiaryState>(
       await api.poke(diaryNoteDiff(flag, time, { del: null }));
     },
     create: async (req) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke({
+      await api.trackedPoke<DiaryCreate, DiaryAction>(
+        {
           app: 'diary',
           mark: 'diary-create',
           json: req,
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState.getState().track('diary/ui', (event) => {
-              const { update, flag } = event;
-              if (
-                'create' in update.diff &&
-                flag === `${window.our}/${req.name}`
-              ) {
-                return true;
-              }
-              return false;
-            });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'diary', path: '/ui' },
+        (event) => {
+          const { update, flag } = event;
+          return (
+            'create' in update.diff && flag === `${window.our}/${req.name}`
+          );
+        }
+      );
     },
     addSects: async (flag, sects) => {
       await api.poke(diaryAction(flag, { 'add-sects': sects }));
@@ -431,11 +407,6 @@ export const useDiaryState = createState<DiaryState>(
     initImports: (init) => {
       get().batchSet((draft) => {
         draft.pendingImports = init;
-      });
-    },
-    clearSubs: () => {
-      get().batchSet((draft) => {
-        draft.diarySubs = [];
       });
     },
   }),

@@ -10,7 +10,7 @@ export default function DisconnectNotice() {
   const onClick = useCallback(() => {
     if (errorCount < 3) {
       useLocalState.setState({ subscription: 'reconnecting' });
-      bootstrap(true);
+      bootstrap('reset');
     } else {
       window.location.reload();
     }
