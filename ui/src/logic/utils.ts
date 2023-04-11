@@ -630,3 +630,11 @@ export function getAppName(
 
   return app.title || app.desk;
 }
+
+export function isOnlyEmojis(str: string): boolean {
+  const emojiRegex =
+    /^\p{Emoji}(?:\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Extended_Pictographic})$/u;
+  const stringWithoutEmojis = str.replace(emojiRegex, '');
+
+  return stringWithoutEmojis.length === 0;
+}

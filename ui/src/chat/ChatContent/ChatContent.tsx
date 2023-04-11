@@ -21,6 +21,7 @@ import { useLocation } from 'react-router';
 import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
+import { isOnlyEmojis } from '@/logic/utils';
 
 interface ChatContentProps {
   story: ChatStory;
@@ -64,6 +65,9 @@ export function InlineContent({
   writId = 'not-writ',
 }: InlineContentProps) {
   if (typeof story === 'string') {
+    if (isOnlyEmojis(story)) {
+      return <span className="text-[32px]">{story}</span>;
+    }
     return <span>{story}</span>;
   }
 
