@@ -1412,22 +1412,11 @@
     ::
     ++  targets
       ^-  (quip card _state)
-      =/  chats=(list target)
-        %~  tap  in 
-        ^-  (set target)
-        (~(run in get-chats) (lead %flag))
-      =/  dms=(list target)
-        %~  tap  in
-        ^-  (set target)
-        (~(run in ~(key by get-clubs)) (lead %club))
-      =/  clubs=(list target)
-        %~  tap  in 
-        ^-  (set target)
-        %-  %~  run  in 
-            (~(uni in get-accepted-dms) get-pending-dms)
-        (lead %ship)
+      =^  dm-cards    state  dms
+      =^  chat-cards  state  chats
+      =^  club-cards  state  clubs
       :_  state
-      [(show-targets:sh-out (zing (limo [chats dms clubs ~])))]~
+      :(weld dm-cards chat-cards club-cards)
     ::  +help: print (link to) usage instructions
     ::
     ++  help
