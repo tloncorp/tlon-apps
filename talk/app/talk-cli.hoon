@@ -1486,11 +1486,7 @@
     |=  txs=(list tape)
     ^-  card
     %+  effect  %mor
-    %^    into
-        %+  weld  [[txt+line-break]]~ 
-        (turn txs |=(t=tape [%txt t]))
-      (add (lent txs) 2)
-    [txt+line-break]
+    (turn txs |=(t=tape [%txt t]))
   ::  +note: prints left-padded ---| txt
   ::
   ++  note
@@ -1499,9 +1495,9 @@
     =+  lis=(simple-wrap txt (sub width 16))
     %-  print-more
     =+  ?:((gth (lent lis) 0) (snag 0 lis) "")
-    :-  (weld line-break -)
+    :-  (runt [14 '-'] '|' ' ' -)
     %+  turn  (slag 1 lis)
-    |=(a=tape (runt [16 ' '] '|' ' ' a))
+    |=(a=tape (runt [14 ' '] '|' ' ' a))
   ::  +prompt: update prompt to display current audience
   ::
   ++  prompt
@@ -2006,11 +2002,6 @@
     =+  raw=(cite:title ship)
     (runt [(sub 14 (lent raw)) ' '] raw)
   --
-::  +line-break: produce a line break
-::
-++  line-break
-  ^-  tape
-  (runt [16 '-'] '|' " ")
 ::  +simple-wrap: wrap text
 ::
 ++  simple-wrap
