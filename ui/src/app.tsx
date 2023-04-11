@@ -242,6 +242,18 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             path="/gangs/:ship/:name/reject"
             element={<RejectConfirmModal />}
           />
+          {isMobile ? (
+            <>
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/dm/:ship/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+            </>
+          ) : null}
         </Routes>
       ) : null}
     </>

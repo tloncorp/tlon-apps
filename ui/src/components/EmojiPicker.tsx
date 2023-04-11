@@ -2,8 +2,9 @@ import React, { useCallback, useEffect } from 'react';
 import Picker from '@emoji-mart/react';
 import * as Popover from '@radix-ui/react-popover';
 import useEmoji from '@/state/emoji';
+import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { useChatState } from '@/state/chat';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
@@ -22,18 +23,18 @@ export default function EmojiPicker({
   ...props
 }: EmojiPickerProps) {
   const { data, load } = useEmoji();
-  const { chName, chShip, writShip, writTime } = useParams<{
+  const { ship, chName, chShip, writShip, writTime } = useParams<{
+    ship: string;
     chName: string;
     chShip: string;
     writShip: string;
     writTime: string;
   }>();
-  const navigate = useNavigate();
-  const whom = `${chShip}/${chName}`;
+  const whom = chShip ? `${chShip}/${chName}` : ship;
   const writId = `${writShip}/${writTime}`;
-  const { state: backgroundLocation } = useLocation();
   const isMobile = useIsMobile();
   const width = window.innerWidth;
+  const dismss = useDismissNavigate();
   const mobilePerLineCount = Math.floor((width - 10) / 36);
 
   useEffect(() => {
@@ -42,16 +43,16 @@ export default function EmojiPicker({
 
   const mobileOnOpenChange = (o: boolean) => {
     if (o) {
-      navigate(backgroundLocation);
+      dismss();
     }
   };
 
   const onEmojiSelect = useCallback(
     (emoji: { shortcodes: string }) => {
-      useChatState.getState().addFeel(whom, writId, emoji.shortcodes);
-      navigate(backgroundLocation);
+      useChatState.getState().addFeel(whom!, writId, emoji.shortcodes);
+      dismss();
     },
-    [whom, writId, backgroundLocation, navigate]
+    [whom, writId, dismss]
   );
 
   return (
@@ -74,9 +75,7 @@ export default function EmojiPicker({
           side="bottom"
           sideOffset={30}
           collisionPadding={15}
-          onInteractOutside={
-            isMobile ? () => navigate(backgroundLocation) : undefined
-          }
+          onInteractOutside={isMobile ? () => dismss() : undefined}
         >
           <div className="z-50 mx-10 flex h-96 w-72 items-center justify-center">
             {data ? (
