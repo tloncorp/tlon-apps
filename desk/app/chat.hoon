@@ -851,7 +851,7 @@
 ++  cu-abed  cu-abed:cu-core
 ::
 ++  cu-core
-  |_  [=id:club:c =club:c gone=_|]
+  |_  [=id:club:c =club:c gone=_| counter=@ud]
   +*  cu-pact  ~(. pac pact.club)
   ++  cu-core  .
   ++  cu-abet
@@ -870,7 +870,9 @@
   ::
   ++  cu-area  `wire`/club/(scot %uv id)
   ::
-  ++  cu-uid  `@uv`(shax (jam ['clubs' eny.bowl]))
+  ++  cu-uid
+    =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
+    [uid cu-core(counter +(counter))]
   ::
   ++  cu-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
@@ -945,7 +947,9 @@
   ++  cu-diff
     |=  [=uid:club:c =delta:club:c]
     ::  generate a uid if we're hearing from a pre-upgrade ship or if we're sending
-    =?  uid  |(from-self (lte uid club-eq))  cu-uid
+    =^  uid  cu-core
+      ?:  |(from-self (lte uid club-eq))  cu-uid
+      [uid cu-core]
     =/  diff  [uid delta]
     ?:  (~(has in heard.club) uid)  cu-core
     =.  heard.club  (~(put in heard.club) uid)
@@ -1021,7 +1025,9 @@
         ?:  (~(has in hive.crew.club) for.delta)
           cu-core
         =.  hive.crew.club   (~(put in hive.crew.club) for.delta)
-        =.  cor  (emit (act:cu-pass for.delta cu-uid %init [team hive met]:crew.club))
+        =^  new-uid  cu-core
+          cu-uid
+        =.  cor  (emit (act:cu-pass for.delta new-uid %init [team hive met]:crew.club))
         (cu-post-notice for.delta '' ' was invited to the chat')
       ?.  (~(has in hive.crew.club) for.delta)
         cu-core
