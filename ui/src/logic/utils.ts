@@ -166,7 +166,7 @@ export function pluralize(word: string, count: number): string {
 }
 
 export function createStorageKey(name: string): string {
-  return `~${window.ship}/${window.desk}/${name}`;
+  return `~${window.ship}/landscape/${name}`;
 }
 
 // for purging storage with version updates
