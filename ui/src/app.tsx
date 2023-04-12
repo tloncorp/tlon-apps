@@ -78,6 +78,7 @@ import VitaMessage from './components/VitaMessage';
 import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import queryClient from './queryClient';
+import EmojiPicker from './components/EmojiPicker';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -241,6 +242,18 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             path="/gangs/:ship/:name/reject"
             element={<RejectConfirmModal />}
           />
+          {isMobile ? (
+            <>
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/dm/:ship/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+            </>
+          ) : null}
         </Routes>
       ) : null}
     </>
@@ -467,6 +480,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             element={<NewChannelModal />}
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
+          {isMobile ? (
+            <Route
+              path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+              element={<EmojiPicker />}
+            />
+          ) : null}
         </Routes>
       ) : null}
     </>
