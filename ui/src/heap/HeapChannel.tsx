@@ -39,6 +39,7 @@ import useRecentChannel from '@/logic/useRecentChannel';
 import useAllBriefs from '@/logic/useAllBriefs';
 import makeCuriosStore from '@/state/heap/curios';
 import { useIsMobile } from '@/logic/useMedia';
+import { useLastReconnect } from '@/state/local';
 import NewCurioForm from './NewCurioForm';
 
 function HeapChannel({ title }: ViewProps) {
@@ -68,6 +69,7 @@ function HeapChannel({ title }: ViewProps) {
   const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
     ? isChannelJoined(nest, briefs)
     : true;
+  const lastReconnect = useLastReconnect();
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -128,6 +130,7 @@ function HeapChannel({ title }: ViewProps) {
     initializeChannel,
     channel,
     canRead,
+    lastReconnect,
   ]);
 
   useEffect(() => {

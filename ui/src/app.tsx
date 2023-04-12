@@ -70,13 +70,13 @@ import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
-import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import { LeapProvider } from './components/Leap/useLeap';
 import VitaMessage from './components/VitaMessage';
 import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
+import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
 
@@ -561,8 +561,6 @@ function App() {
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
-  useConnectionChecker();
-
   return (
     <div className="flex h-full w-full flex-col">
       {settingsLoaded && !disableWayfinding && <LandscapeWayfinding />}
@@ -661,6 +659,7 @@ function RoutedApp() {
           <TooltipProvider skipDelayDuration={400}>
             <App />
             <Scheduler />
+            {import.meta.env.DEV && <Eyrie />}
           </TooltipProvider>
           <ReactQueryDevtools initialIsOpen={false} />
         </PersistQueryClientProvider>

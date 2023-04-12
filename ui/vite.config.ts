@@ -107,6 +107,45 @@ export default ({ mode }: { mode: string }) => {
   console.log(process.env.APP);
   console.log(mode, app, base(mode, app));
 
+  const rollupOptions = {
+    external:
+      mode === 'mock' || mode === 'staging'
+        ? ['virtual:pwa-register/react']
+        : [],
+    output: {
+      manualChunks: {
+        lodash: ['lodash'],
+        'lodash/fp': ['lodash/fp'],
+        '@urbit/api': ['@urbit/api'],
+        '@urbit/http-api': ['@urbit/http-api'],
+        '@tlon/sigil-js': ['@tlon/sigil-js'],
+        'any-ascii': ['any-ascii'],
+        'react-beautiful-dnd': ['react-beautiful-dnd'],
+        'emoji-mart': ['emoji-mart'],
+        'prosemirror-view': ['prosemirror-view'],
+        '@tiptap/core': ['@tiptap/core'],
+        '@tiptap/extension-placeholder': ['@tiptap/extension-placeholder'],
+        '@tiptap/extension-link': ['@tiptap/extension-link'],
+        'react-virtuoso': ['react-virtuoso'],
+        'react-select': ['react-select'],
+        'react-hook-form': ['react-hook-form'],
+        'framer-motion': ['framer-motion'],
+        'date-fns': ['date-fns'],
+        'tippy.js': ['tippy.js'],
+        '@aws-sdk/client-s3': ['@aws-sdk/client-s3'],
+        '@aws-sdk/s3-request-presigner': ['@aws-sdk/s3-request-presigner'],
+        refractor: ['refractor'],
+        'urbit-ob': ['urbit-ob'],
+        'hast-to-hyperscript': ['hast-to-hyperscript'],
+        '@radix-ui/react-dialog': ['@radix-ui/react-dialog'],
+        '@radix-ui/react-dropdown-menu': ['@radix-ui/react-dropdown-menu'],
+        '@radix-ui/react-popover': ['@radix-ui/react-popover'],
+        '@radix-ui/react-toast': ['@radix-ui/react-toast'],
+        '@radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
+      },
+    },
+  };
+
   return defineConfig({
     base: base(mode, app),
     server: {
@@ -118,49 +157,11 @@ export default ({ mode }: { mode: string }) => {
       mode !== 'profile'
         ? {
             sourcemap: false,
-            rollupOptions: {
-              output: {
-                manualChunks: {
-                  lodash: ['lodash'],
-                  'lodash/fp': ['lodash/fp'],
-                  '@urbit/api': ['@urbit/api'],
-                  '@urbit/http-api': ['@urbit/http-api'],
-                  '@tlon/sigil-js': ['@tlon/sigil-js'],
-                  'any-ascii': ['any-ascii'],
-                  'react-beautiful-dnd': ['react-beautiful-dnd'],
-                  'emoji-mart': ['emoji-mart'],
-                  'prosemirror-view': ['prosemirror-view'],
-                  '@tiptap/core': ['@tiptap/core'],
-                  '@tiptap/extension-placeholder': [
-                    '@tiptap/extension-placeholder',
-                  ],
-                  '@tiptap/extension-link': ['@tiptap/extension-link'],
-                  'react-virtuoso': ['react-virtuoso'],
-                  'react-select': ['react-select'],
-                  'react-hook-form': ['react-hook-form'],
-                  'framer-motion': ['framer-motion'],
-                  'date-fns': ['date-fns'],
-                  'tippy.js': ['tippy.js'],
-                  '@aws-sdk/client-s3': ['@aws-sdk/client-s3'],
-                  '@aws-sdk/s3-request-presigner': [
-                    '@aws-sdk/s3-request-presigner',
-                  ],
-                  refractor: ['refractor'],
-                  'urbit-ob': ['urbit-ob'],
-                  'hast-to-hyperscript': ['hast-to-hyperscript'],
-                  '@radix-ui/react-dialog': ['@radix-ui/react-dialog'],
-                  '@radix-ui/react-dropdown-menu': [
-                    '@radix-ui/react-dropdown-menu',
-                  ],
-                  '@radix-ui/react-popover': ['@radix-ui/react-popover'],
-                  '@radix-ui/react-toast': ['@radix-ui/react-toast'],
-                  '@radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
-                },
-              },
-            },
+            rollupOptions,
           }
         : ({
             rollupOptions: {
+              ...rollupOptions,
               plugins: [
                 analyze({
                   limit: 20,

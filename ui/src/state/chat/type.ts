@@ -28,11 +28,8 @@ export interface ChatState {
     [whom: string]: ChatStory;
   };
   pendingImports: Record<string, boolean>;
-  chatSubs: string[];
-  dmSubs: string[];
   sentMessages: string[];
   postedMessages: string[];
-  multiDmSubs: string[];
   pins: ChatWhom[];
   dmArchive: string[];
   fetchDms: () => Promise<void>;
@@ -102,7 +99,6 @@ export interface ChatState {
   initializeMultiDm: (id: string) => Promise<void>; // id is `@uw`, the Club ID
   initImports: (init: Record<string, boolean>) => void;
   [key: string]: unknown;
-  clearSubs: () => void;
 }
 
 export type BasedChatState = ChatState & BaseState<ChatState>;

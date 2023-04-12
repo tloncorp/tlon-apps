@@ -19,8 +19,9 @@ import {
   DiarySaid,
   DiaryUpdate,
   DiaryJoin,
+  DiaryCreate,
 } from '@/types/diary';
-import api, { useSubscriptionState } from '@/api';
+import api from '@/api';
 import { nestToFlag } from '@/logic/utils';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { DiaryState } from './type';
@@ -77,7 +78,6 @@ export const useDiaryState = createState<DiaryState>(
     shelf: {},
     notes: {},
     banter: {},
-    diarySubs: [],
     loadedNotes: {},
     briefs: {},
     pendingImports: {},
@@ -198,57 +198,54 @@ export const useDiaryState = createState<DiaryState>(
       await api.poke(diaryAction(flag, diff));
     },
     start: async ({ briefs, shelf }) => {
-      const { wait } = useSchedulerStore.getState();
       get().batchSet((draft) => {
         draft.briefs = briefs;
         draft.shelf = shelf;
       });
 
-      wait(() => {
-        api.subscribe({
-          app: 'diary',
-          path: '/briefs',
-          event: (event: unknown, mark: string) => {
-            if (mark === 'diary-leave') {
-              get().batchSet((draft) => {
-                delete draft.briefs[event as string];
-              });
-              return;
+      api.subscribe({
+        app: 'diary',
+        path: '/briefs',
+        event: (event: unknown, mark: string) => {
+          if (mark === 'diary-leave') {
+            get().batchSet((draft) => {
+              delete draft.briefs[event as string];
+            });
+            return;
+          }
+
+          const { flag, brief } = event as DiaryBriefUpdate;
+          get().batchSet((draft) => {
+            draft.briefs[flag] = brief;
+          });
+        },
+      });
+
+      api.subscribe({
+        app: 'diary',
+        path: '/ui',
+        event: (event: DiaryAction) => {
+          get().batchSet((draft) => {
+            const {
+              flag,
+              update: { diff },
+            } = event;
+            const diary = draft.shelf[flag];
+
+            if ('view' in diff) {
+              diary.view = diff.view;
+            } else if ('del-sects' in diff) {
+              diary.perms.writers = diary.perms.writers.filter(
+                (w) => !diff['del-sects'].includes(w)
+              );
+            } else if ('add-sects' in diff) {
+              diary.perms.writers = diary.perms.writers.concat(
+                diff['add-sects']
+              );
             }
-
-            const { flag, brief } = event as DiaryBriefUpdate;
-            get().batchSet((draft) => {
-              draft.briefs[flag] = brief;
-            });
-          },
-        });
-
-        api.subscribe({
-          app: 'diary',
-          path: '/ui',
-          event: (event: DiaryAction) => {
-            get().batchSet((draft) => {
-              const {
-                flag,
-                update: { diff },
-              } = event;
-              const diary = draft.shelf[flag];
-
-              if ('view' in diff) {
-                diary.view = diff.view;
-              } else if ('del-sects' in diff) {
-                diary.perms.writers = diary.perms.writers.filter(
-                  (w) => !diff['del-sects'].includes(w)
-                );
-              } else if ('add-sects' in diff) {
-                diary.perms.writers = diary.perms.writers.concat(
-                  diff['add-sects']
-                );
-              }
-            });
-          },
-        });
-      }, 4);
+          });
+        },
+      });
     },
     fetchNote: async (flag, noteId) => {
       const note = await api.scry<DiaryNote>({
@@ -267,32 +264,18 @@ export const useDiaryState = createState<DiaryState>(
       });
     },
     joinDiary: async (group, chan) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke<DiaryJoin>({
+      await api.trackedPoke<DiaryJoin, DiaryAction>(
+        {
           app: 'diary',
           mark: 'channel-join',
           json: {
             group,
             chan,
           },
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState
-              .getState()
-              .track(`diary/ui`, (event: DiaryAction) => {
-                const {
-                  update: { diff },
-                  flag: f,
-                } = event;
-                if (f === chan && 'create' in diff) {
-                  return true;
-                }
-                return false;
-              });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'diary', path: '/ui' },
+        (event) => event.flag === chan && 'create' in event.update.diff
+      );
     },
     leaveDiary: async (flag) => {
       await api.poke({
@@ -306,32 +289,29 @@ export const useDiaryState = createState<DiaryState>(
     },
     addNote: async (flag, essay) =>
       new Promise<string>((resolve, reject) => {
-        api.poke({
-          ...diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
-            add: essay,
-          }),
-          onError: () => reject(),
-          onSuccess: async () => {
-            let timePosted = '';
-
-            await useSubscriptionState
-              .getState()
-              .track(`diary/diary/${flag}/ui`, (event: DiaryUpdate) => {
-                const { time, diff } = event;
-                if ('notes' in diff) {
-                  const { delta } = diff.notes;
-                  if ('add' in delta && delta.add.sent === essay.sent) {
-                    timePosted = time;
-                    return true;
-                  }
+        let timePosted = '';
+        api
+          .trackedPoke<DiaryAction, DiaryUpdate>(
+            diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
+              add: essay,
+            }),
+            { app: 'diary', path: `/diary/${flag}/ui` },
+            (event) => {
+              const { time, diff } = event;
+              if ('notes' in diff) {
+                const { delta } = diff.notes;
+                if ('add' in delta && delta.add.sent === essay.sent) {
+                  timePosted = time;
+                  return true;
                 }
+              }
 
-                return false;
-              });
-
+              return false;
+            }
+          )
+          .then(() => {
             resolve(timePosted);
-          },
-        });
+          });
       }),
     editNote: async (flag, time, essay) => {
       await api.poke(
@@ -344,27 +324,20 @@ export const useDiaryState = createState<DiaryState>(
       await api.poke(diaryNoteDiff(flag, time, { del: null }));
     },
     create: async (req) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke({
+      await api.trackedPoke<DiaryCreate, DiaryAction>(
+        {
           app: 'diary',
           mark: 'diary-create',
           json: req,
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState.getState().track('diary/ui', (event) => {
-              const { update, flag } = event;
-              if (
-                'create' in update.diff &&
-                flag === `${window.our}/${req.name}`
-              ) {
-                return true;
-              }
-              return false;
-            });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'diary', path: '/ui' },
+        (event) => {
+          const { update, flag } = event;
+          return (
+            'create' in update.diff && flag === `${window.our}/${req.name}`
+          );
+        }
+      );
     },
     addSects: async (flag, sects) => {
       await api.poke(diaryAction(flag, { 'add-sects': sects }));
@@ -403,10 +376,6 @@ export const useDiaryState = createState<DiaryState>(
       ).getNewer(count.toString());
     },
     initialize: async (flag) => {
-      if (get().diarySubs.includes(flag)) {
-        return;
-      }
-
       const perms = await api.scry<DiaryPerm>({
         app: 'diary',
         path: `/diary/${flag}/perm`,
@@ -414,7 +383,6 @@ export const useDiaryState = createState<DiaryState>(
       get().batchSet((draft) => {
         const diary = { perms, view: 'list' as DiaryDisplayMode };
         draft.shelf[flag] = diary;
-        draft.diarySubs.push(flag);
       });
 
       await makeNotesStore(
@@ -427,11 +395,6 @@ export const useDiaryState = createState<DiaryState>(
     initImports: (init) => {
       get().batchSet((draft) => {
         draft.pendingImports = init;
-      });
-    },
-    clearSubs: () => {
-      get().batchSet((draft) => {
-        draft.diarySubs = [];
       });
     },
   }),

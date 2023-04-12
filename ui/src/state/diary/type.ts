@@ -17,7 +17,6 @@ export interface DiaryState {
   shelf: {
     [flag: string]: Diary;
   };
-  diarySubs: string[];
   loadedNotes: {
     [path: string]: DiaryOutline;
   };
@@ -57,6 +56,5 @@ export interface DiaryState {
     feel: string
   ) => Promise<void>;
   delQuipFeel: (flag: DiaryFlag, noteId: string, time: string) => Promise<void>;
-  clearSubs: () => void;
   [key: string]: unknown;
 }

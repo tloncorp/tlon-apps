@@ -286,6 +286,18 @@ export interface GroupAction {
   update: GroupUpdate;
 }
 
+export interface GroupCreate extends GroupMeta {
+  name: string;
+  cordon: Cordon;
+  members: Record<string, string[]>;
+  secret: boolean;
+}
+
+export interface GroupJoin {
+  flag: string;
+  'join-all': boolean;
+}
+
 export interface Groups {
   [flag: string]: Group;
 }

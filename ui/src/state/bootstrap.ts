@@ -3,12 +3,14 @@ import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
+import Urbit from '@urbit/http-api';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
 import useDocketState from './docket';
 import { useHeapState } from './heap/heap';
 import useKilnState from './kiln';
+import { useLocalState } from './local';
 import { useLureState } from './lure/lure';
 import usePalsState from './pals';
 import useSchedulerStore from './scheduler';
@@ -58,7 +60,7 @@ async function startGroups(talkStarted: boolean) {
 
 async function startTalk(groupsStarted: boolean) {
   // since talk is a separate desk we need to offer a fallback
-  const { ...chat } = await asyncWithFallback(
+  const { groups, gangs, ...chat } = await asyncWithFallback(
     () =>
       api.scry<TalkInit>({
         app: 'talk-ui',
@@ -111,16 +113,17 @@ async function startTalk(groupsStarted: boolean) {
     }
   );
 
+  queryClient.setQueryData(['groups'], groups);
+  queryClient.setQueryData(['gangs'], gangs);
   useChatState.getState().startTalk(chat, !groupsStarted);
 }
 
-export default async function bootstrap(reset = false) {
+type Bootstrap = 'initial' | 'reset' | 'full-reset';
+
+export default async function bootstrap(reset = 'initial' as Bootstrap) {
   const { wait } = useSchedulerStore.getState();
-  if (reset) {
+  if (reset === 'full-reset') {
     api.reset();
-    useChatState.getState().clearSubs();
-    useHeapState.getState().clearSubs();
-    useDiaryState.getState().clearSubs();
   }
 
   if (isTalk) {
@@ -136,20 +139,22 @@ export default async function bootstrap(reset = false) {
 
   wait(() => {
     useContactState.getState().start();
-    useStorage.getState().initialize(api);
+    useStorage.getState().initialize(api as unknown as Urbit);
 
     fetchAll();
   }, 4);
 
   wait(() => {
-    settingsInitialize(api);
     useKilnState.getState().initializeKiln();
     const { start, fetchCharges } = useDocketState.getState();
     fetchCharges();
     start();
+    settingsInitialize(api as unknown as Urbit);
     useLureState.getState().start();
 
-    usePalsState.getState().initializePals();
+    if (!import.meta.env.DEV) {
+      usePalsState.getState().initializePals();
+    }
     api.poke({
       app: isTalk ? 'talk-ui' : 'groups-ui',
       mark: 'ui-vita',
@@ -157,3 +162,12 @@ export default async function bootstrap(reset = false) {
     });
   }, 5);
 }
+
+useLocalState.setState({
+  onReconnect: () => {
+    bootstrap('reset');
+
+    useLocalState.setState({ lastReconnect: Date.now() });
+    queryClient.invalidateQueries();
+  },
+});

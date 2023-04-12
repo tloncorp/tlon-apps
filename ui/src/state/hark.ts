@@ -8,7 +8,7 @@ import {
   Seam,
   Skein,
 } from '@/types/hark';
-import api, { useSubscriptionState } from '@/api';
+import api from '@/api';
 import { decToUd } from '@urbit/api';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -82,30 +82,12 @@ export function useSkeins(flag?: Flag) {
 export function useSawRopeMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { rope: Rope; update?: boolean }) =>
-    new Promise<void>((resolve, reject) => {
-      api.poke({
-        ...harkAction({
-          'saw-rope': variables.rope,
-        }),
-        onError: reject,
-        onSuccess: async () => {
-          if (!variables.update) {
-            resolve();
-            return;
-          }
-
-          await useSubscriptionState
-            .getState()
-            .track(
-              'hark/ui',
-              (event: HarkAction) =>
-                'saw-rope' in event &&
-                event['saw-rope'].thread === variables.rope.thread
-            );
-          resolve();
-        },
-      });
-    });
+    api.trackedPoke(
+      harkAction({
+        'saw-rope': variables.rope,
+      }),
+      { app: 'hark', path: '/ui' }
+    );
 
   return useMutation(mutationFn, {
     onMutate: async (variables) => {

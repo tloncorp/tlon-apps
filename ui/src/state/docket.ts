@@ -102,7 +102,11 @@ const useDocketState = create<DocketState>((set, get) => ({
       return treaties[key];
     }
 
-    const result = await api.subscribeOnce('treaty', `/treaty/${key}`, 20000);
+    const result = await api.subscribeOnce<Treaty>(
+      'treaty',
+      `/treaty/${key}`,
+      20000
+    );
     const treaty = { ...normalizeDocket(result, desk), ship };
     set((state) => ({
       treaties: { ...state.treaties, [key]: treaty },

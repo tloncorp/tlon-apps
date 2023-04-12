@@ -1,4 +1,4 @@
-import api, { useSubscriptionState } from '@/api';
+import api from '@/api';
 import useSchedulerStore from '@/state/scheduler';
 import {
   QueryKey,
@@ -6,6 +6,7 @@ import {
   useQueryClient,
   UseQueryOptions,
 } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 export default function useReactQuerySubscription({
   queryKey,
@@ -30,8 +31,8 @@ export default function useReactQuerySubscription({
 }): ReturnType<typeof useQuery> {
   const queryClient = useQueryClient();
 
-  const fetchData = async () => {
-    const scryData = await useSchedulerStore.getState().wait(
+  const fetchData = async () =>
+    useSchedulerStore.getState().wait(
       async () =>
         api.scry({
           app: scryApp,
@@ -40,31 +41,22 @@ export default function useReactQuerySubscription({
       priority
     );
 
-    useSchedulerStore.getState().wait(
-      () =>
-        useSubscriptionState.getState().subscribe({
-          app,
-          path,
-          event: () => {
-            queryClient.invalidateQueries(queryKey);
-          },
-        }),
-      4
-    );
+  useEffect(() => {
+    api.subscribe({
+      app,
+      path,
+      event: () => {
+        queryClient.invalidateQueries(queryKey);
+      },
+    });
+  }, [app, path, queryClient, queryKey]);
 
-    return scryData;
-  };
-
-  const defaultOptions = {
+  return useQuery(queryKey, fetchData, {
     retryOnMount: false,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     enabled,
     initialData,
-  };
-
-  return useQuery(queryKey, fetchData, {
-    ...defaultOptions,
     ...options,
   });
 }
