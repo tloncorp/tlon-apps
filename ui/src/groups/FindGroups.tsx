@@ -252,7 +252,7 @@ export default function FindGroups({ title }: ViewProps) {
                 </div>
                 <div className="flex items-center justify-between">
                   <GroupAvatar
-                    image="https://sfo3.digitaloceanspaces.com/zurbit-images/dovsem-bornyl/2022.6.16..19.11.20-flooring.jpeg"
+                    image="https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2023.4.06..02.45.53-tlon-local-pin.svg"
                     size="h-12 w-12 shrink-0"
                   />
                   <div className="mx-2 grow">
