@@ -1,17 +1,12 @@
-/+  *contact-store
-::
-|_  upd=update
+/-  c=contacts
+|_  =update:c
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  upd
-  ++  contact-update  upd
-  ++  json  (update:enjs upd)
+  ++  noun  update
   --
-::
 ++  grab
   |%
-  ++  noun  update
-  ++  json  update:dejs
+  ++  noun  update:c
   --
 --

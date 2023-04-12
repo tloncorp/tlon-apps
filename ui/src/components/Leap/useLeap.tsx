@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { uniqBy } from 'lodash';
 import { useLocation, useNavigate } from 'react-router';
-import { cite, Contact, deSig, preSig } from '@urbit/api';
+import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useGroupFlag, useGroups } from '@/state/groups';
@@ -11,7 +11,7 @@ import {
   LEAP_RESULT_SCORE_THRESHOLD,
   LEAP_RESULT_TRUNCATE_SIZE,
 } from '@/constants';
-import { useContacts } from '@/state/contact';
+import { emptyContact, useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
 import {
@@ -25,6 +25,7 @@ import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import { Club } from '@/types/chat';
 import { useMutuals } from '@/state/pals';
+import { Contact } from '@/types/contact';
 import { ChargeWithDesk, useCharges } from '@/state/docket';
 import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
@@ -190,11 +191,15 @@ export default function useLeap() {
     };
 
     const allShips = uniqBy(
-      Object.entries(contacts).concat(
-        // accounting for ships not in contact store, but in DMs
-        // this fix is temporary until we fix the contact store
-        dms.map((ship) => [ship, { nickname: '' } as Contact])
-      ),
+      Object.entries(contacts)
+        .map(
+          ([s, contact]) => [s, contact || emptyContact] as [string, Contact]
+        )
+        .concat(
+          // accounting for ships not in contact store, but in DMs
+          // this fix is temporary until we fix the contact store
+          dms.map((ship) => [ship, { nickname: '' } as Contact])
+        ),
       ([ship]) => ship
     );
     const normalizedQuery = inputValue.toLocaleLowerCase();

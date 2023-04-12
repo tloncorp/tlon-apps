@@ -135,7 +135,7 @@ export default async function bootstrap(reset = false) {
     useSettingsState.getState();
 
   wait(() => {
-    useContactState.getState().initialize(api);
+    useContactState.getState().start();
     useStorage.getState().initialize(api);
 
     fetchAll();

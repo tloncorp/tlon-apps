@@ -288,7 +288,7 @@ export default function ShipSelector({
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
     value: contact,
-    label: contacts[contact].nickname,
+    label: contacts[contact]?.nickname || '',
   }));
   const validShips = ships
     ? ships.every((ship) => isValidNewOption(preSig(ship.value)))
@@ -327,7 +327,7 @@ export default function ShipSelector({
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(
-      ([patp, contact]) => `${contact.nickname}${patp}`
+      ([patp, contact]) => `${contact?.nickname || ''}${patp}`
     );
 
     const fuzzyNames = fuzzy
@@ -347,7 +347,7 @@ export default function ShipSelector({
 
     return fuzzyNames.map((contact) => ({
       value: contact,
-      label: contacts[contact].nickname,
+      label: contacts[contact]?.nickname || '',
     }));
   }, [contactNames, contactOptions, contacts, inputValue]);
 

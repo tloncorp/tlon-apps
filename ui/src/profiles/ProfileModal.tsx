@@ -1,8 +1,8 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useCopy } from '@/logic/utils';
-import { useContact } from '@/state/contact';
+import useContactState, { useContact } from '@/state/contact';
 import Avatar from '@/components/Avatar';
 import Dialog from '@/components/Dialog';
 import ShipName from '@/components/ShipName';
@@ -18,6 +18,12 @@ export default function ProfileModal() {
   const cover = contact?.cover || '';
   const dismiss = useDismissNavigate();
   const navigateByApp = useNavigateByApp();
+
+  useEffect(() => {
+    if (ship) {
+      useContactState.getState().heed([ship]);
+    }
+  }, [ship]);
 
   const onCopy = useCallback(() => {
     doCopy();
