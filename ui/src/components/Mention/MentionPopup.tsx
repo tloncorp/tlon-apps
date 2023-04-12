@@ -186,7 +186,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(([patp, contact]) =>
-      `${normalizeText(contact.nickname)}${patp}`.toLocaleLowerCase()
+      `${normalizeText(contact?.nickname || '')}${patp}`.toLocaleLowerCase()
     );
 
     if (valid && !contactNames.includes(sigged)) {

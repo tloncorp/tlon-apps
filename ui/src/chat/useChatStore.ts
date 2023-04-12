@@ -12,6 +12,7 @@ export interface ChatInfo {
     brief: ChatBrief; // lags behind actual brief, only gets update if unread
   };
   dialogs: Record<string, Record<string, boolean>>;
+  hovering: string;
   failedToLoadContent: Record<string, Record<number, boolean>>;
 }
 
@@ -34,6 +35,7 @@ export interface ChatStore {
     blockIndex: number,
     failureState: boolean
   ) => void;
+  setHovering: (whom: string, writId: string, hovering: boolean) => void;
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
@@ -47,6 +49,7 @@ const emptyInfo: ChatInfo = {
   blocks: [],
   unread: undefined,
   dialogs: {},
+  hovering: '',
   failedToLoadContent: {},
 };
 
@@ -89,6 +92,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
         draft.chats[whom].failedToLoadContent[writId][blockIndex] =
           failureState;
+      })
+    );
+  },
+  setHovering: (whom, writId, hovering) => {
+    set(
+      produce((draft) => {
+        if (!draft.chats[whom]) {
+          draft.chats[whom] = emptyInfo;
+        }
+
+        draft.chats[whom].hovering = hovering ? writId : '';
       })
     );
   },
@@ -221,6 +235,23 @@ export function useChatDialog(
     open: dialogs[dialog] || false,
     setOpen: (open: boolean) => {
       setDialogs(whom, writId, { ...dialogs, [dialog]: open });
+    },
+  };
+}
+
+export function useChatHovering(
+  whom: string,
+  writId: string
+): { hovering: boolean; setHovering: (hovering: boolean) => void } {
+  const { setHovering } = useChatStore.getState();
+  const hovering = useChatStore(
+    useCallback((s) => s.chats[whom]?.hovering === writId, [whom, writId])
+  );
+
+  return {
+    hovering,
+    setHovering: (hover: boolean) => {
+      setHovering(whom, writId, hover);
     },
   };
 }

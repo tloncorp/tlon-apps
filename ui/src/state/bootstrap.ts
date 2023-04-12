@@ -138,7 +138,7 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
     useSettingsState.getState();
 
   wait(() => {
-    useContactState.getState().initialize(api as unknown as Urbit);
+    useContactState.getState().start();
     useStorage.getState().initialize(api as unknown as Urbit);
 
     fetchAll();

@@ -1,10 +1,11 @@
-import React, { useCallback, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { useCopy, canWriteChannel } from '@/logic/utils';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import { useChatPerms, useChatState } from '@/state/chat';
 import { ChatWrit } from '@/types/chat';
 import IconButton from '@/components/IconButton';
+import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import FaceIcon from '@/components/icons/FaceIcon';
@@ -18,6 +19,7 @@ import EmojiPicker from '@/components/EmojiPicker';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
 import { useSearchParams } from 'react-router-dom';
+import { useIsMobile } from '@/logic/useMedia';
 
 export default function ChatMessageOptions(props: {
   whom: string;
@@ -48,11 +50,15 @@ export default function ChatMessageOptions(props: {
   } = useRequestState();
   const { chShip, chName } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { load: loadEmoji } = useEmoji();
+  const isMobile = useIsMobile();
   const chFlag = `${chShip}/${chName}`;
   const perms = useChatPerms(chFlag);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const onDelete = async () => {
     setDeletePending();
@@ -82,10 +88,15 @@ export default function ChatMessageOptions(props: {
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
-  const navigate = useNavigate();
+  useEffect(() => {
+    if (isMobile) {
+      loadEmoji();
+    }
+  }, [isMobile, loadEmoji]);
+
   return (
     <div className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle">
-      {canWrite ? (
+      {canWrite && !isMobile ? (
         <EmojiPicker
           open={pickerOpen}
           setOpen={setPickerOpen}
@@ -99,6 +110,18 @@ export default function ChatMessageOptions(props: {
             action={openPicker}
           />
         </EmojiPicker>
+      ) : null}
+      {canWrite && isMobile ? (
+        <IconButton
+          icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
+          label="React"
+          showTooltip
+          action={() =>
+            navigate(`picker/${writ.seal.id}`, {
+              state: { backgroundLocation: location },
+            })
+          }
+        />
       ) : null}
       {!hideReply ? (
         <IconButton

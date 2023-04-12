@@ -1,4 +1,5 @@
-import { Contact, Patp } from '@urbit/api';
+import { Contact } from '@/types/contact';
+import { Patp } from '@urbit/api';
 import React from 'react';
 import Avatar from '../components/Avatar';
 import ShipName from '../components/ShipName';

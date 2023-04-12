@@ -101,7 +101,7 @@ function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
     json: {
       id,
       diff: {
-        echo: 0,
+        uid: '0v3',
         delta,
       },
     },
@@ -620,13 +620,15 @@ export const useChatState = createState<ChatState>(
       });
     },
     editMultiDm: async (id, meta) =>
-      api.trackedPoke<ClubAction, ClubDelta>(
+      api.trackedPoke<ClubAction>(
         multiDmAction(id, { meta }),
         {
           app: 'chat',
-          path: `/club/${id}/ui`,
+          path: `/clubs/ui`,
         },
-        (event) => 'meta' in event && meta.title === event.meta.title
+        (event) =>
+          'meta' in event.diff.delta &&
+          meta.title === event.diff.delta.meta.title
       ),
     inviteToMultiDm: async (id, hive) => {
       await api.poke(multiDmAction(id, { hive: { ...hive, add: true } }));
