@@ -18,6 +18,7 @@ import { whomIsFlag } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
+import keyMap from '@/keyMap';
 import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -70,7 +71,7 @@ export default function ChatThread() {
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !leapIsOpen) {
+      if (e.key === keyMap.thread.close && !leapIsOpen) {
         navigate(returnURL());
       }
     },

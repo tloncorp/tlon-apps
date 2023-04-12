@@ -12,6 +12,7 @@ import { useEventListener } from 'usehooks-ts';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import useLeap from '@/components/Leap/useLeap';
 import useAllBriefs from '@/logic/useAllBriefs';
+import keyMap from '@/keyMap';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -89,17 +90,17 @@ export default function HeapDetail() {
   useEventListener('keydown', (e) => {
     if (leapIsOpen) return;
     switch (e.key) {
-      case 'Escape': {
+      case keyMap.curio.close: {
         navigate('..');
         break;
       }
-      case 'ArrowRight': {
+      case keyMap.curio.next: {
         if (hasPrev) {
           navigate(curioHref(prevCurio?.[0]));
         }
         break;
       }
-      case 'ArrowLeft': {
+      case keyMap.curio.prev: {
         if (hasNext) {
           navigate(curioHref(nextCurio?.[0]));
         }
