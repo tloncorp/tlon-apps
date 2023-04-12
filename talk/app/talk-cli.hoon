@@ -497,7 +497,7 @@
   =/  =time  q.id
   =/  author=ship  p.id
   %+  scry-for-existence  %chat
-  %+  weld  (target-path whom)
+  %+  weld  (target-to-path whom)
   /writs/writ/id/(scot %p author)/(scot %ud time)
 ::  +build-history: add messages to history
 ::  and output to a given session
@@ -527,7 +527,7 @@
   ^-  ((mop time writ:chat) lte) 
   %^  scry-for  ((mop time writ:chat) lte)
     %chat
-  (weld (target-path target) /writs/newest/20)
+  (weld (target-to-path target) /writs/newest/20)
 ::  +on-update: get new messages
 ::
 ++  on-update 
@@ -1000,7 +1000,7 @@
         [~ put-ses]
       =.  viewing  (~(del in viewing) target)
       =/  =path
-        (weld (target-path target) /ui)
+        (weld (target-to-path target) /ui)
       :_  put-ses
       :_  ~
       [%pass path %agent [our-self %chat] %leave ~]
@@ -1949,31 +1949,22 @@
     [(sub wid u.ace) &]
   :-  (tufa (scag end `(list @)`txt))
   $(txt (slag ?:(nex +(end) end) `tape`txt))
-::  +target-path: make first part of a target's path
+::  +target-to-path: make first part of a target's path
 ::
-++  target-path
+++  target-to-path
   |=  =target
   ^-  path
-  ?-   -.target
-      %ship
-    =/  =ship  p.target
-    /dm/(scot %p ship)
-  ::
-      %club
-    =/  =club-id  p.target
-    /club/(scot %uv club-id)
-  ::
-      %flag
-    =/  =ship  p.p.target
-    =/  name=term  q.p.target
-    /chat/(scot %p ship)/(scot %tas name)
+  ?-  -.target
+    %ship  /dm/(scot %p p.target)
+    %club  /club/(scot %uv p.target)
+    %flag  /chat/(scot %p p.p.target)/(scot %tas q.p.target)
   ==
 ::  +writ-scry-path: make scry path for writ retrieval
 ::
 ++  writ-scry-path
   |=  [=whom:chat =id:chat]
   ^-  path
-  %+  weld  (target-path whom)
+  %+  weld  (target-to-path whom)
   /writs/writ/id/[(scot %p p.id)]/[(scot %ud q.id)]/writ
 ::
 ++  scry-for-existence
