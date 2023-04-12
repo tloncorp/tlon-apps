@@ -256,7 +256,11 @@ function HeapBlockWrapper({
     }
   }, [action, navigateToDetail, time, setLongPress]);
 
-  return <div {...handlers}>{children}</div>;
+  return (
+    <div className="h-full w-full" {...handlers}>
+      {children}
+    </div>
+  );
 }
 
 interface HeapBlockProps extends CurioDisplayProps {
