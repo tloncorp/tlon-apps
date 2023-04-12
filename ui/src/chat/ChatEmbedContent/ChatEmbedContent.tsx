@@ -18,7 +18,7 @@ const trustedProviders = [
   },
   {
     name: 'Spotify',
-    regex: /open\.spotify\.com\/track\//,
+    regex: /open\.spotify\.com\//,
   },
 ];
 

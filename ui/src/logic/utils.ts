@@ -166,7 +166,7 @@ export function pluralize(word: string, count: number): string {
 }
 
 export function createStorageKey(name: string): string {
-  return `~${window.ship}/${window.desk}/${name}`;
+  return `~${window.ship}/landscape/${name}`;
 }
 
 // for purging storage with version updates
@@ -388,6 +388,11 @@ export function isChannelJoined(
   const [, chFlag] = nestToFlag(nest);
   const isChannelHost = window.our === chFlag?.split('/')[0];
   return isChannelHost || (nest && nest in briefs);
+}
+
+export function isGroupHost(flag: string) {
+  const { ship } = getFlagParts(flag);
+  return ship === window.our;
 }
 
 export function getChannelHosts(group: Group): string[] {
@@ -624,4 +629,12 @@ export function getAppName(
   }
 
   return app.title || app.desk;
+}
+
+export function isOnlyEmojis(str: string): boolean {
+  const emojiRegex =
+    /^\p{Emoji}(?:\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Extended_Pictographic})$/u;
+  const stringWithoutEmojis = str.replace(emojiRegex, '');
+
+  return stringWithoutEmojis.length === 0;
 }

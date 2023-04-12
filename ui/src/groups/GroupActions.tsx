@@ -7,7 +7,6 @@ import LinkIcon16 from '@/components/icons/LinkIcon16';
 import PinIcon16 from '@/components/icons/PinIcon16';
 import Person16Icon from '@/components/icons/Person16Icon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import BulletIcon from '@/components/icons/BulletIcon';
 import { useChatState, usePinnedGroups } from '@/state/chat';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
@@ -23,7 +22,6 @@ export function useGroupActions(flag: string) {
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
   const pinned = usePinnedGroups();
   const isPinned = Object.keys(pinned).includes(flag);
-  const isAdmin = useAmAdmin(flag);
 
   const onCopy = useCallback(() => {
     doCopy();

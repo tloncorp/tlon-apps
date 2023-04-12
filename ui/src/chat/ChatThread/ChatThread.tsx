@@ -6,6 +6,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
+import bigInt from 'big-integer';
 import { useChannelFlag } from '@/hooks';
 import { useChatState, useReplies, useWrit, useChatPerms } from '@/state/chat';
 import { useChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
@@ -36,6 +37,7 @@ export default function ChatThread() {
   const groupFlag = useRouteGroup();
   const { sendMessage } = useChatState.getState();
   const location = useLocation();
+  const scrollTo = new URLSearchParams(location.search).get('msg');
   const channel = useChannel(groupFlag, `chat/${flag}`)!;
   const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
@@ -49,7 +51,7 @@ export default function ChatThread() {
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
   const threadTitle = whomIsFlag(whom)
-    ? channel.meta.title || ''
+    ? channel?.meta?.title || ''
     : isClub
     ? club?.meta.title || ship
     : ship;
@@ -140,6 +142,7 @@ export default function ChatThread() {
             whom={whom}
             scrollerRef={scrollerRef}
             replying
+            scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
           />
         )}
       </div>

@@ -181,28 +181,29 @@ export default function Grid() {
   };
 
   return (
-    <Dialog defaultOpen modal onOpenChange={onOpenChange}>
-      <DialogContent
-        className="flex justify-center overflow-y-auto bg-transparent"
-        containerClass="w-full"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        lightbox
+    <Dialog
+      defaultOpen
+      modal
+      onOpenChange={onOpenChange}
+      className="flex justify-center overflow-y-auto bg-transparent"
+      containerClass="w-full"
+      onOpenAutoFocus={(e) => e.preventDefault()}
+      close="lightbox"
+    >
+      <div
+        ref={gridRef}
+        className="grid h-fit w-full max-w-6xl grid-cols-2 justify-center gap-4 px-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,200px))] md:px-8"
       >
-        <div
-          ref={gridRef}
-          className="grid h-fit w-full max-w-6xl grid-cols-2 justify-center gap-4 px-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,200px))] md:px-8"
-        >
-          {tilesToDisplay.map((desk, index) => (
-            <Tile
-              key={desk}
-              index={index}
-              selectedIndex={selectedIndex}
-              charge={charges[desk]}
-              desk={desk}
-            />
-          ))}
-        </div>
-      </DialogContent>
+        {tilesToDisplay.map((desk, index) => (
+          <Tile
+            key={desk}
+            index={index}
+            selectedIndex={selectedIndex}
+            charge={charges[desk]}
+            desk={desk}
+          />
+        ))}
+      </div>
     </Dialog>
   );
 }

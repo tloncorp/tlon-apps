@@ -24,7 +24,7 @@ import {
   Pins,
   WritDelta,
 } from '@/types/chat';
-import api from '@/api';
+import api, { useSubscriptionState } from '@/api';
 import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
 import { useChannelFlag } from '@/hooks';
 import { useChatStore } from '@/chat/useChatStore';
@@ -34,7 +34,6 @@ import makeWritsStore, { writsReducer } from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
-import useSubscriptionState from '../subscription';
 import useSchedulerStore from '../scheduler';
 
 setAutoFreeze(false);
@@ -672,13 +671,16 @@ export const useChatState = createState<ChatState>(
           onSuccess: async () => {
             await useSubscriptionState
               .getState()
-              .track(`chat/club/${id}/ui`, (event: ClubDelta) => {
-                if ('meta' in event && meta.title === event.meta.title) {
-                  return true;
-                }
+              .track(
+                `chat/clubs/ui`,
+                ({ diff: { delta } }: { diff: { delta: ClubDelta } }) => {
+                  if ('meta' in delta && meta.title === delta.meta.title) {
+                    return true;
+                  }
 
-                return false;
-              });
+                  return false;
+                }
+              );
 
             resolve();
           },
@@ -1030,7 +1032,7 @@ export function usePinnedGroups() {
     () =>
       pinned.filter(whomIsFlag).reduce(
         (memo, flag) =>
-          flag in groups
+          groups && flag in groups
             ? {
                 ...memo,
                 [flag]: groups[flag],

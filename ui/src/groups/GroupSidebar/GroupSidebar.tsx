@@ -1,16 +1,13 @@
 import cn from 'classnames';
 import _ from 'lodash';
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { FastAverageColor } from 'fast-average-color';
-import { mix, transparentize } from 'color2k';
+import React from 'react';
 import { useIsDark } from '@/logic/useMedia';
 import { useAmAdmin, useGroup, useGroupFlag } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import BellIcon from '@/components/icons/BellIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import useHarkState from '@/state/hark';
 import { useCalm } from '@/state/settings';
-import { isColor } from '@/logic/utils';
+import { isColor, getPrivacyFromGroup } from '@/logic/utils';
 import { foregroundFromBackground } from '@/components/Avatar';
 import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
@@ -18,9 +15,8 @@ import GroupActions from '@/groups/GroupActions';
 import HashIcon from '@/components/icons/HashIcon';
 import AddIcon from '@/components/icons/AddIcon';
 import { Link, useLocation } from 'react-router-dom';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
-import { useSubscriptionStatus } from '@/state/local';
+import InviteIcon from '@/components/icons/InviteIcon';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -100,18 +96,11 @@ function GroupHeader() {
 
 export default function GroupSidebar() {
   const flag = useGroupFlag();
+  const group = useGroup(flag);
   const isDark = useIsDark();
   const location = useLocation();
   const isAdmin = useAmAdmin(flag);
-
-  useEffect(() => {
-    if (flag !== '') {
-      useHarkState.getState().retrieveGroup(flag);
-    }
-    return () => {
-      useHarkState.getState().releaseGroup(flag);
-    };
-  }, [flag]);
+  const privacy = group ? getPrivacyFromGroup(group) : 'public';
 
   return (
     <nav className="flex h-full w-64 flex-none flex-col bg-white">
@@ -154,6 +143,15 @@ export default function GroupSidebar() {
               )}
             </div>
           </SidebarItem>
+          {(privacy === 'public' || isAdmin) && (
+            <SidebarItem
+              to={`/groups/${flag}/invite`}
+              state={{ backgroundLocation: location }}
+              icon={<InviteIcon className="h-6 w-6 rounded text-blue" />}
+            >
+              <span className="text-blue">Invite People</span>
+            </SidebarItem>
+          )}
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">

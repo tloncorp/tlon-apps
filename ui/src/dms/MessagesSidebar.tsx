@@ -20,7 +20,7 @@ import { debounce } from 'lodash';
 import { Link, useLocation } from 'react-router-dom';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useGroupState } from '@/state/groups';
+import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
 import MessagesList from './MessagesList';
@@ -119,9 +119,9 @@ export default function MessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
   const { messagesFilter } = useSettingsState(selMessagesFilter);
   const pinned = usePinned();
+  const groups = useGroups();
   const filteredPins = pinned.filter((p) => {
     const nest = `chat/${p}`;
-    const { groups } = useGroupState.getState();
     const groupFlag = Object.entries(groups).find(
       ([, v]) => nest in v.channels
     )?.[0];

@@ -7,7 +7,7 @@ import { useMultiDm } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import Dialog, { DialogContent } from '../components/Dialog';
+import Dialog from '../components/Dialog';
 import MultiDMInfoForm from './MultiDMInfoForm';
 import MultiDmAvatar from './MultiDmAvatar';
 
@@ -27,21 +27,23 @@ export default function MultiDMEditModal() {
   );
 
   return (
-    <Dialog defaultOpen onOpenChange={(open) => !open && dismiss()}>
+    <Dialog
+      defaultOpen
+      onOpenChange={(open) => !open && dismiss()}
+      containerClass="w-max-lg"
+    >
       {editing ? (
-        <DialogContent showClose containerClass="w-max-lg">
-          <div className="w-80">
-            <header className="flex items-center ">
-              <h2 className="text-xl font-bold">Edit Chat Info</h2>
-            </header>
-            <MultiDMInfoForm
-              setEditing={setEditingCb}
-              setOpen={() => dismiss()}
-            />
-          </div>
-        </DialogContent>
+        <div className="w-80">
+          <header className="flex items-center ">
+            <h2 className="text-xl font-bold">Edit Chat Info</h2>
+          </header>
+          <MultiDMInfoForm
+            setEditing={setEditingCb}
+            setOpen={() => dismiss()}
+          />
+        </div>
       ) : (
-        <DialogContent showClose containerClass="max-w-lg">
+        <>
           <div className="w-80">
             <header className="flex items-center ">
               <h2 className="text-xl font-bold">Chat Info</h2>
@@ -126,7 +128,7 @@ export default function MultiDMEditModal() {
               </div>
             </div>
           )}
-        </DialogContent>
+        </>
       )}
     </Dialog>
   );

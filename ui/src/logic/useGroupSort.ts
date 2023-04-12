@@ -25,7 +25,7 @@ export default function useGroupSort() {
   });
   const { sortChannels } = useChannelSort();
 
-  function sortGroups(groups: Groups) {
+  function sortGroups(groups?: Groups) {
     const accessors: Record<string, (k: string, v: Group) => string> = {
       [ALPHABETICAL]: (_flag: string, group: Group) => get(group, 'meta.title'),
       [RECENT]: (flag: string, group: Group) => {
@@ -40,7 +40,7 @@ export default function useGroupSort() {
     };
 
     return sortRecordsBy(
-      groups,
+      groups || {},
       accessors[sortFn] || accessors[ALPHABETICAL],
       sortFn === RECENT
     );
