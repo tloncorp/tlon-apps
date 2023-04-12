@@ -61,7 +61,6 @@
     ++  on-save  !>([state okay])
     ::
     ++  on-load
-      :: =-  _`this
       |=  old=vase
       ^-  (quip card _this)
       =^  cards  state  abet:(load:cor old)
@@ -421,7 +420,8 @@
   ::
   +|  %implementation
   ::
-  ++  init  migrate
+  ++  init
+    (emit %pass /migrate %agent [our dap]:bowl %poke noun+!>(%migrate))
   ::
   ++  load
     |=  old-vase=vase
@@ -466,6 +466,11 @@
     ::    by either directly handling or upconverting old actions
     ::
     ?+    mark  ~|(bad-mark+mark !!)
+        %noun
+      ?+  q.vase  !!
+        %migrate  migrate
+      ==
+      ::
         ?(act:base:mar %contact-action-0)
       ?>  =(our src):bowl
       =/  act  !<(action vase)
@@ -517,6 +522,12 @@
     ?+  wire  ~|(evil-agent+wire !!)
       [%contact ~]  si-abet:(si-take:(sub src.bowl) sign)
       [%epic ~]     si-abet:(pe-take:si-epic:(sub src.bowl) sign)
+      ::
+        [%migrate ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  cor
+      %-  (slog leaf/"{<wire>} failed" u.p.sign)
+      cor
     ==
   --
 --
