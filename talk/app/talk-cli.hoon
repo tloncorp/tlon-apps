@@ -1494,13 +1494,7 @@
     =/  glyph=(unit tape)
       ?.  (~(has by bound) target)  ~
       (some ~(glyph tr target))
-    =;  append=tape
-      :(weld ?~(glyph " " u.glyph) " " append)
-    ?-  -.target
-      %club  ~(meta tr target)
-      %ship  "{(nome:mr p.target)}"
-      %flag  "{(nome:mr p.p.target)}/{(trip q.p.target)}"
-    ==
+    :(weld (fall glyph " ") " " ~(meta tr target))
     ::  +order: ships go before chats who go before clubs
     ::
     ++  order
