@@ -18,14 +18,13 @@ import {
   HeapDisplayMode,
   HeapJoin,
 } from '@/types/heap';
-import api from '@/api';
+import api, { useSubscriptionState } from '@/api';
 import { nestToFlag, canWriteChannel } from '@/logic/utils';
 import useNest from '@/logic/useNest';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
 import { useGroup, useVessel } from '../groups';
-import useSubscriptionState from '../subscription';
 import { createState } from '../base';
 import useSchedulerStore from '../scheduler';
 

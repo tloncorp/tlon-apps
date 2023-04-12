@@ -18,11 +18,19 @@ const trustedProviders = [
   },
   {
     name: 'Spotify',
-    regex: /open\.spotify\.com\/track\//,
+    regex: /open\.spotify\.com\//,
   },
 ];
 
-function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
+function ChatEmbedContent({
+  url,
+  content,
+  writId,
+}: {
+  url: string;
+  content: string;
+  writId: string;
+}) {
   const [embed, setEmbed] = useState<any>();
   const calm = useCalm();
   const isAudio = AUDIO_REGEX.test(url);
@@ -48,6 +56,14 @@ function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
       setEmbed(null);
     };
   }, [url, calm, isTrusted, isAudio]);
+
+  if (url !== content) {
+    return (
+      <a target="_blank" rel="noreferrer" href={url}>
+        {content}
+      </a>
+    );
+  }
 
   if (isAudio) {
     return <AudioPlayer url={url} embed writId={writId} />;
@@ -109,14 +125,14 @@ function ChatEmbedContent({ url, writId }: { url: string; writId: string }) {
 
     return (
       <a target="_blank" rel="noreferrer" href={url}>
-        {url}
+        {content}
       </a>
     );
   }
 
   return (
     <a target="_blank" rel="noreferrer" href={url}>
-      {url}
+      {content}
     </a>
   );
 }

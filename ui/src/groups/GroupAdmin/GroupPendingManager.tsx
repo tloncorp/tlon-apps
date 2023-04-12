@@ -17,13 +17,17 @@ import { useContacts } from '@/state/contact';
 import {
   useAmAdmin,
   useGroup,
-  useGroupState,
+  useGroupInviteMutation,
+  useGroupRevokeMutation,
   useRouteGroup,
 } from '@/state/groups/groups';
 import bigInt from 'big-integer';
-import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import { getPrivacyFromGroup } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
+import InviteIcon16 from '@/components/icons/InviteIcon16';
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 
 // *@da == ~2000.1.1
 const DA_BEGIN = daToUnix(bigInt('170141184492615420181573981275213004800'));
@@ -32,20 +36,24 @@ export default function GroupPendingManager() {
   const location = useLocation();
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const isMobile = useIsMobile();
   const isAdmin = useAmAdmin(flag);
   const contacts = useContacts();
+  const privacy = group ? getPrivacyFromGroup(group) : 'public';
   const modalNavigate = useModalNavigate();
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
-  const { isPending, setPending, setReady, isFailed, setFailed } =
-    useRequestState();
   const {
-    isPending: isRevokePending,
-    setPending: setRevokePending,
-    setReady: setRevokeReady,
-    isFailed: isRevokeFailed,
-    setFailed: setRevokeFailed,
-  } = useRequestState();
+    mutate: revokeMutation,
+    status: revokeStatus,
+    reset: resetRevoke,
+  } = useGroupRevokeMutation();
+  const {
+    mutate: inviteMutation,
+    status: inviteStatus,
+    reset: resetInvite,
+  } = useGroupInviteMutation();
+
   const pending = useMemo(() => {
     let members: string[] = [];
 
@@ -99,36 +107,30 @@ export default function GroupPendingManager() {
 
   const reject = useCallback(
     (ship: string, kind: 'ask' | 'pending') => async () => {
-      setRevokePending();
       try {
-        await useGroupState.getState().revoke(flag, [ship], kind);
-        setRevokeReady();
+        revokeMutation({ flag, ships: [ship], kind });
       } catch (e) {
         console.error('Error revoking invite, poke failed');
-        setRevokeFailed();
         setTimeout(() => {
-          setRevokeReady();
+          resetRevoke();
         }, 3000);
       }
     },
-    [flag, setRevokePending, setRevokeReady, setRevokeFailed]
+    [flag, revokeMutation, resetRevoke]
   );
 
   const approve = useCallback(
     (ship: string) => async () => {
-      setPending();
       try {
-        await useGroupState.getState().invite(flag, [ship]);
-        setReady();
+        inviteMutation({ flag, ships: [ship] });
       } catch (e) {
         console.error('Error approving invite, poke failed');
-        setFailed();
         setTimeout(() => {
-          setReady();
+          resetInvite();
         }, 3000);
       }
     },
-    [flag, setPending, setReady, setFailed]
+    [flag, inviteMutation, resetInvite]
   );
 
   const onViewProfile = (ship: string) => {
@@ -143,21 +145,34 @@ export default function GroupPendingManager() {
 
   return (
     <div className="mt-4">
-      <div className="mb-4 flex items-center">
-        <input
-          value={rawInput}
-          onChange={onChange}
-          className="input flex-1 font-semibold"
-          placeholder="Search Members"
-          aria-label="Search Members"
-        />
-        <Link
-          to={`/groups/${flag}/invite`}
-          state={{ backgroundLocation: location }}
-          className="button ml-2 bg-blue dark:text-black"
-        >
-          Invite
-        </Link>
+      <div
+        className={cn(
+          (privacy === 'public' || isAdmin) && 'mt-2',
+          'mb-4 flex w-full items-center justify-between'
+        )}
+      >
+        {(privacy === 'public' || isAdmin) && (
+          <Link
+            to={`/groups/${flag}/invite`}
+            state={{ backgroundLocation: location }}
+            className="button bg-blue px-2 dark:text-black sm:px-4"
+          >
+            {isMobile ? <InviteIcon16 className="h-5 w-5" /> : 'Invite'}
+          </Link>
+        )}
+
+        <label className="relative ml-auto flex items-center">
+          <span className="sr-only">Search Prefences</span>
+          <span className="absolute inset-y-[5px] left-0 flex h-8 w-8 items-center pl-2 text-gray-400">
+            <MagnifyingGlass16Icon className="h-4 w-4" />
+          </span>
+          <input
+            className="input h-10 w-[240px] bg-gray-50 pl-7 text-sm mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
+            placeholder={`Filter Members (${pending.length} pending)`}
+            value={rawInput}
+            onChange={onChange}
+          />
+        </label>
       </div>
       <ul className="space-y-6 py-2">
         {results.map((m) => {
@@ -188,37 +203,42 @@ export default function GroupPendingManager() {
                   {inAsk || inPending ? (
                     <button
                       className={cn('secondary-button min-w-20', {
-                        'bg-red': isRevokeFailed,
-                        'text-white': isRevokeFailed,
+                        'bg-red text-white': revokeStatus === 'error',
                       })}
                       onClick={reject(m, inAsk ? 'ask' : 'pending')}
-                      disabled={isRevokePending || isRevokeFailed}
+                      disabled={
+                        revokeStatus === 'loading' || revokeStatus === 'error'
+                      }
                     >
                       {inAsk ? 'Reject' : 'Cancel'}
-                      {isRevokePending ? (
+                      {revokeStatus === 'loading' ? (
                         <LoadingSpinner className="ml-2 h-4 w-4" />
                       ) : null}
-                      {isRevokeFailed ? (
+                      {revokeStatus === 'error' ? (
                         <ExclamationPoint className="ml-2 h-4 w-4" />
                       ) : null}
                     </button>
                   ) : null}
                   <button
-                    disabled={!inAsk || isPending || isFailed}
+                    disabled={
+                      !inAsk ||
+                      inviteStatus === 'loading' ||
+                      inviteStatus === 'error'
+                    }
                     className={cn(
-                      'button min-w-24 text-white disabled:bg-gray-100 disabled:text-gray-600 dark:text-black dark:disabled:text-gray-600',
+                      'small-button text-white disabled:bg-gray-100 disabled:text-gray-600 dark:text-black dark:disabled:text-gray-600',
                       {
-                        'bg-red': isFailed,
-                        'bg-blue': !isFailed,
+                        'bg-red': inviteStatus === 'error',
+                        'bg-blue': inviteStatus !== 'error',
                       }
                     )}
                     onClick={approve(m)}
                   >
                     {inAsk ? 'Approve' : 'Invited'}
-                    {isPending ? (
+                    {inviteStatus === 'loading' ? (
                       <LoadingSpinner className="ml-2 h-4 w-4" />
                     ) : null}
-                    {isFailed ? (
+                    {inviteStatus === 'error' ? (
                       <ExclamationPoint className="ml-2 h-4 w-4" />
                     ) : null}
                   </button>

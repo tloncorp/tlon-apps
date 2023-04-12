@@ -1,12 +1,16 @@
 import React, { useRef } from 'react';
 import { useEventListener } from 'usehooks-ts';
-import Dialog, { DialogContent } from '../Dialog';
+import Dialog from '../Dialog';
 import MagnifyingGlassIcon from '../icons/MagnifyingGlassIcon';
 import LeapRow from './LeapRow';
 import LeapSectionRow from './LeapSectionRow';
 import useLeap from './useLeap';
 
-export default function Leap() {
+export default function Leap({
+  openDefault = false,
+}: {
+  openDefault?: boolean;
+}) {
   const {
     isOpen,
     setIsOpen,
@@ -74,43 +78,75 @@ export default function Leap() {
     setInputValue(event.target.value);
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent
-        className="fixed top-1/4 w-full bg-transparent p-0"
-        containerClass="w-full sm:max-w-lg top-[10%]"
-        showClose={false}
-      >
-        <div className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white text-base">
-          <MagnifyingGlassIcon className="absolute left-3 h-6 w-6 text-gray-600" />
-          <input
-            ref={inputRef}
-            type="text"
-            className="w-full border-collapse rounded-lg border-0 bg-transparent px-4 py-3 pl-11 text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-400"
-            placeholder="Search"
-            onChange={onChange}
-          />
-        </div>
-        <div className="mt-2 overflow-hidden rounded-lg bg-white">
-          {results.length > 0 ? (
-            results.map((result, idx) =>
-              'section' in result ? (
-                <LeapSectionRow key={idx} section={result} />
-              ) : (
-                <LeapRow
-                  key={idx}
-                  option={result}
-                  selected={selectedIndex === result.resultIndex}
-                />
-              )
+  return openDefault ? (
+    <div className="h-full bg-gray-50 p-4">
+      <div className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white text-base">
+        <MagnifyingGlassIcon className="absolute left-7 h-6 w-6 text-gray-600" />
+        <input
+          ref={inputRef}
+          type="text"
+          className="w-full border-collapse rounded-lg border-0 bg-transparent px-4 py-3 pl-11 text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-400"
+          placeholder="Search"
+          onChange={onChange}
+        />
+      </div>
+      <div className="mt-2 overflow-hidden rounded-lg bg-white">
+        {results.length > 0 ? (
+          results.map((result, idx) =>
+            'section' in result ? (
+              <LeapSectionRow key={idx} section={result} />
+            ) : (
+              <LeapRow
+                key={idx}
+                option={result}
+                selected={selectedIndex === result.resultIndex}
+              />
             )
-          ) : (
-            <div className="flex h-24 w-full items-center justify-center border-dashed border-gray-200">
-              <p className="text-md font-semibold text-gray-400">No results</p>
-            </div>
-          )}
-        </div>
-      </DialogContent>
+          )
+        ) : (
+          <div className="flex h-24 w-full items-center justify-center border-dashed border-gray-200">
+            <p className="text-md font-semibold text-gray-400">No results</p>
+          </div>
+        )}
+      </div>
+    </div>
+  ) : (
+    <Dialog
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className="max-h-full w-full overflow-y-auto bg-transparent p-2"
+      containerClass="w-full h-full sm:max-w-lg overflow-visible sm:pt-[10%] p-2"
+      close="none"
+    >
+      <div className="relative flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white text-base">
+        <MagnifyingGlassIcon className="absolute left-3 h-6 w-6 text-gray-600" />
+        <input
+          ref={inputRef}
+          type="text"
+          className="w-full border-collapse rounded-lg border-0 bg-transparent px-4 py-3 pl-11 text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-400"
+          placeholder="Search"
+          onChange={onChange}
+        />
+      </div>
+      <div className="mt-2 overflow-hidden rounded-lg bg-white">
+        {results.length > 0 ? (
+          results.map((result, idx) =>
+            'section' in result ? (
+              <LeapSectionRow key={idx} section={result} />
+            ) : (
+              <LeapRow
+                key={idx}
+                option={result}
+                selected={selectedIndex === result.resultIndex}
+              />
+            )
+          )
+        ) : (
+          <div className="flex h-24 w-full items-center justify-center border-dashed border-gray-200">
+            <p className="text-md font-semibold text-gray-400">No results</p>
+          </div>
+        )}
+      </div>
     </Dialog>
   );
 }

@@ -3,12 +3,11 @@ import cn from 'classnames';
 import { debounce } from 'lodash';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
-import Divider from '@/components/Divider';
-import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
-import NewMessageIcon from '@/components/icons/NewMessageIcon';
+import Filter16Icon from '@/components/icons/Filter16Icon';
+import AddIcon16 from '@/components/icons/AddIcon';
 import { usePinned } from '@/state/chat';
 import {
   filters,
@@ -16,8 +15,11 @@ import {
   SidebarFilter,
   useSettingsState,
 } from '@/state/settings';
-import { useGroupState } from '@/state/groups';
+import { useGroups } from '@/state/groups';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import GridIcon from '@/components/icons/GridIcon';
+import useLeap from '@/components/Leap/useLeap';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -28,13 +30,14 @@ const selMessagesFilter = (s: SettingsState) => ({
 
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
+  const { setIsOpen } = useLeap();
   const { messagesFilter } = useSettingsState(selMessagesFilter);
   const pinned = usePinned();
+  const groups = useGroups();
   const filteredPins = pinned.filter((p) => {
     const nest = `chat/${p}`;
-    const { groups } = useGroupState.getState();
     const groupFlag = Object.entries(groups).find(
-      ([k, v]) => nest in v.channels
+      ([, v]) => nest in v.channels
     )?.[0];
     const channel = groups[groupFlag || '']?.channels[nest];
     return !!channel || whomIsDm(p) || whomIsMultiDm(p);
@@ -49,77 +52,92 @@ export default function MobileMessagesSidebar() {
   );
 
   return (
-    <nav
-      className={cn(
-        'flex h-full w-full flex-col border-r-2 border-gray-50 bg-white'
-      )}
-    >
-      <MessagesScrollingContext.Provider value={isScrolling}>
-        <MessagesList filter={messagesFilter} isScrolling={scroll.current}>
-          {filteredPins && filteredPins.length > 0 ? (
-            <div className="-mb-2 md:mb-0">
-              <div className="-mb-2 flex items-center p-2 md:m-0">
-                <Divider>Pinned</Divider>
-                <div className="grow border-b-2 border-gray-100" />
-              </div>
-              <div className="flex flex-col space-y-2 px-2 pb-2">
+    <div className="flex h-full w-full flex-col">
+      <header
+        className="flex items-center justify-between border-b-2
+       border-gray-50 bg-white px-6 py-4"
+      >
+        <h1 className="text-lg font-bold text-gray-800 sm:text-base">
+          Messages
+        </h1>
+        <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+          <ReconnectingSpinner />
+          <button title="Open Leap" onClick={() => setIsOpen(true)}>
+            <GridIcon className="h-6 w-6 text-gray-400" />
+          </button>
+          <Link
+            to="/dm/new"
+            className="default-focus flex items-center rounded-md bg-blue p-1 text-base"
+            aria-label="New Direct Message"
+          >
+            <AddIcon16 className="h-4 w-4 text-white" />
+          </Link>
+        </div>
+      </header>
+      <nav className={cn('flex h-full w-full flex-col bg-white')}>
+        <MessagesScrollingContext.Provider value={isScrolling}>
+          <MessagesList filter={messagesFilter} isScrolling={scroll.current}>
+            {filteredPins && filteredPins.length > 0 ? (
+              <div className="px-4">
+                <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
+                  Pinned Messages
+                </h2>
                 {pinned.map((ship: string) => (
                   <MessagesSidebarItem key={ship} whom={ship} />
                 ))}
               </div>
+            ) : null}
+            <div className="flex flex-row items-center justify-between px-4">
+              <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
+                {messagesFilter}
+              </h2>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger
+                  className={'default-focus -mr-0.5 p-1'}
+                  aria-label="Groups Filter Options"
+                >
+                  <Filter16Icon className="h-4 w-4 text-gray-400" />
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content className="dropdown text-gray-600">
+                  <DropdownMenu.Item
+                    className={cn(
+                      'dropdown-item flex items-center space-x-2 rounded-none',
+                      messagesFilter === filters.all &&
+                        'bg-gray-50 text-gray-800'
+                    )}
+                    onClick={() => setFilterMode(filters.all)}
+                  >
+                    <ChatSmallIcon className="mr-2 h-4 w-4" />
+                    All Messages
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    className={cn(
+                      'dropdown-item flex items-center space-x-2 rounded-none',
+                      messagesFilter === filters.dms &&
+                        'bg-gray-50 text-gray-800'
+                    )}
+                    onClick={() => setFilterMode(filters.dms)}
+                  >
+                    <PersonSmallIcon className="mr-2 h-4 w-4" />
+                    Direct Messages
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    className={cn(
+                      'dropdown-item flex items-center space-x-2 rounded-none',
+                      messagesFilter === filters.groups &&
+                        'bg-gray-50 text-gray-800'
+                    )}
+                    onClick={() => setFilterMode(filters.groups)}
+                  >
+                    <CmdSmallIcon className="mr-2 h-4 w-4" />
+                    Group Talk Channels
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
             </div>
-          ) : null}
-          <header className="flex flex-none items-center justify-between px-2 py-1">
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger
-                className={
-                  'default-focus flex items-center rounded-lg p-2 text-base font-semibold hover:bg-gray-50'
-                }
-                aria-label="Groups Filter Options"
-              >
-                <h1 className="mr-4 text-xl font-medium">{messagesFilter}</h1>
-                <CaretDown16Icon className="h-4 w-4 text-gray-400" />
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content className="dropdown text-gray-600">
-                <DropdownMenu.Item
-                  className={cn(
-                    'dropdown-item flex items-center space-x-2 rounded-none',
-                    messagesFilter === filters.all && 'bg-gray-50 text-gray-800'
-                  )}
-                  onClick={() => setFilterMode(filters.all)}
-                >
-                  <ChatSmallIcon className="mr-2 h-4 w-4" />
-                  All Messages
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  className={cn(
-                    'dropdown-item flex items-center space-x-2 rounded-none',
-                    messagesFilter === filters.dms && 'bg-gray-50 text-gray-800'
-                  )}
-                  onClick={() => setFilterMode(filters.dms)}
-                >
-                  <PersonSmallIcon className="mr-2 h-4 w-4" />
-                  Direct Messages
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  className={cn(
-                    'dropdown-item flex items-center space-x-2 rounded-none',
-                    messagesFilter === filters.groups &&
-                      'bg-gray-50 text-gray-800'
-                  )}
-                  onClick={() => setFilterMode(filters.groups)}
-                >
-                  <CmdSmallIcon className="mr-2 h-4 w-4" />
-                  Group Talk Channels
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-            <Link to="/dm/new" aria-label="New Direct Message" className="mr-2">
-              <NewMessageIcon className="h-6 w-6 text-blue" />
-            </Link>
-          </header>
-        </MessagesList>
-      </MessagesScrollingContext.Provider>
-    </nav>
+          </MessagesList>
+        </MessagesScrollingContext.Provider>
+      </nav>
+    </div>
   );
 }

@@ -110,7 +110,6 @@ module.exports = {
     fontFamily: {
       sans: [
         'Inter',
-        'Inter UI',
         '-apple-system',
         'BlinkMacSystemFont',
         'San Francisco',
@@ -147,6 +146,22 @@ module.exports = {
       },
       zIndex: {
         45: '45',
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            code: {
+              display: 'inline-block',
+              padding: '0 0.25rem',
+            },
+            'code::before': {
+              content: '""',
+            },
+            'code::after': {
+              content: '""',
+            },
+          },
+        },
       },
     },
   },

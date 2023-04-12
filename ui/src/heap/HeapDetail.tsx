@@ -1,16 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
-import useNest from '@/logic/useNest';
 import Layout from '@/components/Layout/Layout';
-import {
-  useChannel,
-  useGroup,
-  useGroupState,
-  useRouteGroup,
-  useVessel,
-} from '@/state/groups';
-import { canReadChannel, isChannelJoined, nestToFlag } from '@/logic/utils';
+import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import { canReadChannel, isChannelJoined } from '@/logic/utils';
 import { Link } from 'react-router-dom';
 import bigInt from 'big-integer';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
@@ -124,7 +117,7 @@ export default function HeapDetail() {
     </div>
   ) : (
     <Layout
-      className="flex-1 bg-gray-50"
+      className="flex-1 bg-white"
       header={
         <HeapDetailHeader
           flag={groupFlag}
@@ -133,8 +126,8 @@ export default function HeapDetail() {
         />
       }
     >
-      <div className="flex h-full w-full flex-col overflow-y-auto lg:flex-row">
-        <div className="group relative flex flex-1">
+      <div className="flex h-full flex-col overflow-y-auto lg:flex-row">
+        <div className="flex flex-1">
           {hasNext ? (
             <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
               <Link
@@ -165,7 +158,7 @@ export default function HeapDetail() {
             </div>
           ) : null}
         </div>
-        <div className="flex w-full flex-col border-gray-50 bg-white sm:mt-5 lg:mt-0 lg:h-full lg:w-72 lg:border-l-2 xl:w-96">
+        <div className="flex w-full flex-col lg:h-full lg:w-72 lg:border-l-2 lg:border-gray-50 xl:w-96">
           {curio && time ? (
             <>
               <HeapDetailSidebarInfo curio={curio} />

@@ -21,6 +21,7 @@ import { useLocation } from 'react-router';
 import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
+import { isOnlyEmojis } from '@/logic/utils';
 
 interface ChatContentProps {
   story: ChatStory;
@@ -64,6 +65,9 @@ export function InlineContent({
   writId = 'not-writ',
 }: InlineContentProps) {
   if (typeof story === 'string') {
+    if (isOnlyEmojis(story)) {
+      return <span className="text-[32px]">{story}</span>;
+    }
     return <span>{story}</span>;
   }
 
@@ -98,11 +102,11 @@ export function InlineContent({
   }
 
   if (isLink(story)) {
-    const containsProtocol = story.link.href.match(/https?:\/\//);
     return (
       <ChatEmbedContent
         writId={writId}
-        url={containsProtocol ? story.link.href : `http://${story.link.href}`}
+        url={story.link.href}
+        content={story.link.content}
       />
     );
   }
@@ -185,12 +189,22 @@ function ChatContent({
   const blockLength = story.block.length;
   const firstBlockCode = story.inline.findIndex(isBlockCode);
   const lastBlockCode = findLastIndex(story.inline, isBlockCode);
+  const blockContent = story.block.sort((a, b) => {
+    // Sort images to the end
+    if (isChatImage(a) && !isChatImage(b)) {
+      return 1;
+    }
+    if (!isChatImage(a) && isChatImage(b)) {
+      return -1;
+    }
+    return 0;
+  });
 
   return (
     <div className={cn('leading-6', className)}>
       {blockLength > 0 ? (
         <>
-          {story.block
+          {blockContent
             .filter((a) => !!a)
             .map((storyItem, index) => (
               <div

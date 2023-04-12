@@ -1,8 +1,10 @@
 /-  c=chat, h=hark
 /+  default-agent, verb, dbug
 /+  hark-json  :: performance
+/+  mp=mop-extensions
 |%
 +$  card  card:agent:gall
+++  mope  ((mp @ud thread:h) lte)
 ++  yarns-per-update  3
 ++  rug-trim-size  10
 ++  blanket-size  10   :: page size for blankets
@@ -138,12 +140,60 @@
   |=  [=(pole knot) =seam:h =rug:h] 
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
+      [%skeins ~]  ``hark-skeins+!>((rug-to-skeins seam rug))
       [%latest ~]  ``hark-carpet+!>((rug-to-carpet seam rug))
   ::
       [%quilt idx=@ ~]
     =/  idx  (slav %ud idx.pole)
     ``hark-blanket+!>((rug-to-blanket seam idx rug))
   ==
+++  rug-to-skeins
+  |=  [=seam:h =rug:h]
+  ^-  (list skein:h)
+  %+  welp
+    %+  turn
+      ~(tap by new.rug)
+    |=  [* =thread:h]
+    (thread-to-skein thread &)
+  %+  turn
+    (top:mope qul.rug blanket-size)
+  |=  [* =thread:h]
+  (thread-to-skein thread |)
+::
+++  thread-to-skein
+  |=  [=thread:h unread=?]
+  =/  yrns=(list yarn:h)
+    %+  sort
+      (turn (thread-to-yarns thread) tail)
+    |=  [a=yarn:h b=yarn:h]
+    (gth tim.a tim.b)
+  =/  top=yarn:h  (head yrns)
+  ^-  skein:h
+  :*  tim.top
+      (lent yrns)
+      (ship-count yrns)
+      top
+      unread
+  ==
+::
+++  ship-count
+  |=  yrns=(list yarn:h)
+  ^-  @ud
+  %~  wyt  in
+  %+  roll
+    yrns
+  |=  [=yarn:h ships=(set ship)]
+  %-  ~(gas in ships)
+  ^-  (list ship)
+  %+  murn
+    con.yarn
+  |=  =content:h
+  ^-  (unit ship)
+  ?@  content  ~
+  ?+  -.content  ~
+    %ship  (some p.content)
+  ==
+::
 ++  rug-to-carpet
   |=  [=seam:h =rug:h]
   ^-  carpet:h
@@ -167,8 +217,7 @@
 ::
 ++  index-quilt
   |=  [=quilt:h idx=@ud]
-  =/  trimmed  (lot:on:quilt:h quilt ~ `idx)
-  (gas:on:quilt:h *quilt:h (scag blanket-size (bap:on:quilt:h trimmed)))
+  (gas:on:quilt:h *quilt:h (bat:mope quilt `idx blanket-size))
 ::
 ++  rug-to-blanket
   |=  [=seam:h idx=@ud =rug:h]

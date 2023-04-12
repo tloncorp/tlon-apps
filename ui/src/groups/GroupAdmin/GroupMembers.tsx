@@ -29,7 +29,7 @@ export default function GroupMembers({ title }: ViewProps) {
         </title>
       </Helmet>
       <nav>
-        <ul className="flex items-center space-x-3 text-lg font-bold text-gray-400">
+        <ul className="mb-2 flex items-center space-x-3 text-base font-semibold text-gray-400">
           <li>
             <NavLink
               end

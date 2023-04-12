@@ -16,6 +16,9 @@ vi.mock('@/state/chat', () => ({
   useGetLatestChat: () => () => 0,
   useGetLatestCurio: () => () => 0,
   useGetLatestNote: () => () => 0,
+  useMultiDms: () => [],
+  usePinnedClubs: () => [],
+  useDms: () => [],
 }));
 
 vi.mock('@/state/groups', () => ({
@@ -23,8 +26,13 @@ vi.mock('@/state/groups', () => ({
   useRouteGroup: () => fakeFlag,
   useGroupsInitialized: () => true,
   useGroups: () => [fakeFlag, fakeGroup],
+  useGroupFlag: () => fakeFlag,
   usePendingInvites: () => [],
   useGangList: () => [],
+}));
+
+vi.mock('@/state/hark', () => ({
+  useSkeins: () => ({}),
 }));
 
 vi.mock('@/logic/useMigrationInfo', () => ({

@@ -1,13 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import SixDotIcon from '@/components/icons/SixDotIcon';
-import { useAmAdmin, useGroupState, useRouteGroup } from '@/state/groups';
+import {
+  useAddChannelMutation,
+  useAmAdmin,
+  useGroupDeleteZoneMutation,
+  useRouteGroup,
+} from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { SectionListItem } from '@/groups/ChannelsList/types';
 import Channels from '@/groups/ChannelsList/Channels';
 import EditSectionDropdown from '@/groups/ChannelsList/EditSectionDropdown';
 import SectionNameEditInput from '@/groups/ChannelsList/SectionNameEditInput';
-import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PinIcon16 from '@/components/icons/PinIcon16';
 
@@ -34,8 +38,10 @@ export default function Section({
   const group = useRouteGroup();
   const isAdmin = useAmAdmin(group);
   const [isEditing, setIsEditing] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<Status>('initial');
   const isSectionless = sectionKey === 'default';
+  const { mutate: addChannelMutation, status: saveStatus } =
+    useAddChannelMutation();
+  const { mutate: deleteZoneMutation } = useGroupDeleteZoneMutation();
 
   useEffect(() => {
     if (sectionData.isNew === true) {
@@ -47,9 +53,16 @@ export default function Section({
     setIsEditing(!isEditing);
   }, [isEditing]);
 
-  const removeChannelsFromZone = async (groupFlag: string, nest: string) => {
-    await useGroupState.getState().addChannelToZone('default', groupFlag, nest);
-  };
+  const removeChannelsFromZone = useCallback(
+    (groupFlag: string, nest: string) => {
+      addChannelMutation({
+        flag: groupFlag,
+        nest,
+        zone: 'default',
+      });
+    },
+    [addChannelMutation]
+  );
 
   const handleDeleteClick = useCallback(async () => {
     const sectionFlag = strToSym(sectionKey);
@@ -57,8 +70,18 @@ export default function Section({
     sectionData.channels.forEach((channel) => {
       removeChannelsFromZone(group, channel.key);
     });
-    await useGroupState.getState().deleteZone(group, sectionFlag);
-  }, [sectionData, group, onSectionDelete, sectionKey]);
+    deleteZoneMutation({
+      flag: group,
+      zone: sectionFlag,
+    });
+  }, [
+    sectionData,
+    group,
+    onSectionDelete,
+    sectionKey,
+    deleteZoneMutation,
+    removeChannelsFromZone,
+  ]);
 
   if (isSectionless && !isAdmin && sectionData.channels.length === 0) {
     return null;
@@ -94,10 +117,7 @@ export default function Section({
                         sectionTitle={sectionData.title}
                         isNew={sectionData.isNew}
                         onSectionEditNameSubmit={onSectionEditNameSubmit}
-                        channels={sectionData.channels}
                         sectionKey={sectionKey}
-                        saveStatus={saveStatus}
-                        setSaveStatus={setSaveStatus}
                       />
                     ) : (
                       <h2 className="alt-highlight text-lg font-semibold">

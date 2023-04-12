@@ -1,14 +1,17 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
-import useHarkState from '@/state/hark';
-import { useGroup, useGroupState } from '@/state/groups';
+import {
+  useGroup,
+  useGroupJoinMutation,
+  useGroupKnockMutation,
+  useGroupRejectMutation,
+  useGroupRescindMutation,
+} from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
-import { Status } from '@/logic/status';
-import { isTalk } from '@/logic/utils';
 import useNavigateByApp from '@/logic/useNavigateByApp';
-import { useIsMobile } from '@/logic/useMedia';
+import { useSawRopeMutation } from '@/state/hark';
 
 function getButtonText(
   privacy: PrivacyType,
@@ -36,10 +39,7 @@ export default function useGroupJoin(
     | { nest: string; id: string; type: string }
     | undefined = undefined
 ) {
-  const [status, setStatus] = useState<Status>('initial');
-  const [rejectStatus, setRejectStatus] = useState<Status>('initial');
   const location = useLocation();
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const navigateByApp = useNavigateByApp();
   const modalNavigate = useModalNavigate();
@@ -48,6 +48,14 @@ export default function useGroupJoin(
   const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
+  const { mutate: joinMutation, status } = useGroupJoinMutation();
+  const { mutate: knockMutation, status: knockStatus } =
+    useGroupKnockMutation();
+  const { mutate: rescindMutation, status: rescindStatus } =
+    useGroupRescindMutation();
+  const { mutate: rejectMutation, status: rejectStatus } =
+    useGroupRejectMutation();
+  const { mutate: sawRopeMutation } = useSawRopeMutation();
 
   const open = useCallback(() => {
     if (group) {
@@ -60,26 +68,24 @@ export default function useGroupJoin(
   }, [flag, group, location, navigate, navigateByApp]);
 
   const join = useCallback(async () => {
-    setStatus('loading');
-
     if (privacy === 'private' && !invited) {
-      await useGroupState.getState().knock(flag);
-      setStatus('success');
+      knockMutation({ flag });
     } else {
       try {
-        await useHarkState.getState().sawRope({
-          channel: null,
-          desk: window.desk,
-          group: flag,
-          thread: `/${flag}/invite`,
+        sawRopeMutation({
+          rope: {
+            channel: null,
+            desk: window.desk,
+            group: flag,
+            thread: `/${flag}/invite`,
+          },
         });
       } catch (error) {
         // no notification
       }
 
       try {
-        await useGroupState.getState().join(flag, true);
-        setStatus('success');
+        joinMutation({ flag });
         if (redirectItem) {
           if (redirectItem.type === 'chat') {
             return navigateByApp(
@@ -90,16 +96,12 @@ export default function useGroupJoin(
             `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}`
           );
         }
-        if (isMobile) {
-          return navigateByApp(`/groups/${flag}/channellist`);
-        }
         return navigateByApp(`/groups/${flag}`);
       } catch (e) {
-        setStatus('error');
         if (requested) {
-          await useGroupState.getState().rescind(flag);
+          rescindMutation({ flag });
         } else {
-          await useGroupState.getState().reject(flag);
+          rejectMutation({ flag });
         }
         return navigateByApp(`/find/${flag}`);
       }
@@ -112,21 +114,23 @@ export default function useGroupJoin(
     requested,
     redirectItem,
     navigateByApp,
-    isMobile,
+    joinMutation,
+    knockMutation,
+    rescindMutation,
+    rejectMutation,
+    sawRopeMutation,
   ]);
 
   const reject = useCallback(async () => {
-    setRejectStatus('loading');
     /**
      * No need to confirm if the group is public, since it's easy to re-initiate
      * a join request
      */
     if (privacy === 'public') {
       try {
-        await useGroupState.getState().reject(flag);
-        setRejectStatus('success');
+        rejectMutation({ flag });
       } catch (e) {
-        setRejectStatus('error');
+        console.log('Failed to reject invite', e);
       }
 
       if (inModal) {
@@ -141,7 +145,16 @@ export default function useGroupJoin(
     } else {
       navigateByApp(`/gangs/${flag}/reject`);
     }
-  }, [flag, inModal, location, dismiss, modalNavigate, privacy, navigateByApp]);
+  }, [
+    flag,
+    inModal,
+    location,
+    dismiss,
+    modalNavigate,
+    privacy,
+    navigateByApp,
+    rejectMutation,
+  ]);
 
   return {
     group,
@@ -152,6 +165,8 @@ export default function useGroupJoin(
     join,
     status,
     rejectStatus,
+    knockStatus,
+    rescindStatus,
     reject,
     button: {
       disabled: requested && !invited,

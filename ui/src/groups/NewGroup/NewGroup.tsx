@@ -2,16 +2,15 @@ import React, { ReactElement, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useStep } from 'usehooks-ts';
-import { useGroupState } from '@/state/groups';
+import { useCreateGroupMutation } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
 import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
-import Dialog, { DialogContent } from '@/components/Dialog';
+import Dialog from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
-import { Status } from '@/logic/status';
 
 type Role = 'Member' | 'Moderator' | 'Admin';
 
@@ -26,8 +25,8 @@ export default function NewGroup() {
   const navigate = useNavigate();
   const dismiss = useDismissNavigate();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
-  const [status, setStatus] = useState<Status>('initial');
   // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
+  const { mutate: createGroupMutation, status } = useCreateGroupMutation();
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -80,10 +79,8 @@ export default function NewGroup() {
             },
           };
 
-    setStatus('loading');
-
     try {
-      await useGroupState.getState().create({
+      createGroupMutation({
         ...values,
         name,
         members,
@@ -91,13 +88,12 @@ export default function NewGroup() {
         secret: privacy === 'secret',
       });
 
-      setStatus('success');
       const flag = `${window.our}/${name}`;
       navigate(`/groups/${flag}`);
     } catch (error) {
-      setStatus('error');
+      console.log("Couldn't create group", error);
     }
-  }, [shipsToInvite, navigate, form]);
+  }, [shipsToInvite, navigate, form, createGroupMutation]);
 
   // const nextWithTemplate = (template?: string) => {
   //   setTemplateType(template ? (template as TemplateTypes) : 'none');
@@ -148,23 +144,24 @@ export default function NewGroup() {
   }
 
   return (
-    <Dialog defaultOpen modal={true} onOpenChange={onOpenChange}>
-      <DialogContent
-        onInteractOutside={(e) => e.preventDefault()}
-        className="w-[500px] sm:inset-y-24"
-        containerClass="w-full h-full sm:max-w-lg"
-      >
-        <FormProvider {...form}>
-          <div className="flex flex-col">{currentStepComponent}</div>
-        </FormProvider>
-        <div className="flex flex-col items-center pt-4">
-          <NavigationDots
-            maxStep={maxStep}
-            currentStep={currentStep}
-            setStep={(step) => setStep(step + 1)}
-          />
-        </div>
-      </DialogContent>
+    <Dialog
+      defaultOpen
+      modal
+      onOpenChange={onOpenChange}
+      onInteractOutside={(e) => e.preventDefault()}
+      className="w-[500px] sm:inset-y-24"
+      containerClass="w-full h-full sm:max-w-lg"
+    >
+      <FormProvider {...form}>
+        <div className="flex flex-col">{currentStepComponent}</div>
+      </FormProvider>
+      <div className="flex flex-col items-center pt-4">
+        <NavigationDots
+          maxStep={maxStep}
+          currentStep={currentStep}
+          setStep={(step) => setStep(step + 1)}
+        />
+      </div>
     </Dialog>
   );
 }
