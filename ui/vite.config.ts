@@ -24,6 +24,11 @@ export default ({ mode }: { mode: string }) => {
     process.env.VITE_SHIP_URL ||
     'http://localhost:8080';
   console.log(SHIP_URL);
+  const SHIP_URL2 =
+    process.env.SHIP_URL2 ||
+    process.env.VITE_SHIP_URL2 ||
+    'http://localhost:8080';
+  console.log(SHIP_URL2);
 
   const base = (mode: string, app: string) => {
     if (mode === 'mock' || mode === 'staging') {
@@ -54,7 +59,7 @@ export default ({ mode }: { mode: string }) => {
           mode !== 'sw' ? basicSsl() : null,
           urbitPlugin({
             base: 'talk',
-            target: SHIP_URL,
+            target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
             changeOrigin: true,
             secure: false,
           }),
@@ -80,7 +85,7 @@ export default ({ mode }: { mode: string }) => {
           mode !== 'sw' ? basicSsl() : null,
           urbitPlugin({
             base: 'groups',
-            target: SHIP_URL,
+            target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
             changeOrigin: true,
             secure: false,
           }),
