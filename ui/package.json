@@ -20,6 +20,7 @@
     "dev-sw": "vite --mode sw",
     "chat-sw": "cross-env APP=chat vite --mode sw",
     "chat": "cross-env APP=chat vite --host",
+    "multichat": "cross-env APP=chat concurrently \"vite\" \"vite --mode dev2\"",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
