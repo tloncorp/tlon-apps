@@ -179,7 +179,6 @@ class API {
 
   async subscribe(params: SubscriptionRequestInterface, priority = 5) {
     const subId = subPath(params);
-    console.log(subId, this.subscriptions.has(subId));
     if (this.subscriptions.has(subId)) {
       const [id] = [...this.subscriptionMap.entries()].find(
         ([k, v]) => v === subId
