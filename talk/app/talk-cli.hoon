@@ -840,8 +840,8 @@
             %thread     (thread +.job)
             :: %eval      (eval +.job)
         ::
-            %join       (rsvp-or-error & +.job)
-            %deny       (rsvp-or-error | +.job)
+            %join       (rsvp-or-print & +.job)
+            %deny       (rsvp-or-print | +.job)
         ::
             %view       (view +.job)
             %flee       (flee +.job)
@@ -951,18 +951,17 @@
       :_  put-ses
       :_  ~
       [%pass path %agent [our-self %chat] %leave ~]
-    ::  +rsvp-or-error: send rsvp response or 
-    ::  produce a printout if error occurs
+    ::  +rsvp-or-print: send rsvp response or produce a printout if error occurs
     ::
-    ++  rsvp-or-error
+    ++  rsvp-or-print
       |=  [ok=? =target]
       |^  ^-  (quip card _state)
-          =/  feedback=(unit tape)
+          =/  printout=(unit tape)
             (error target)
-          ?~  feedback
+          ?~  printout
             (rsvp ok target)
           :_  put-ses
-          [(note:sh-out u.feedback)]~
+          [(note:sh-out u.printout)]~
       ++  error
         |=  =whom:chat
         ^-  (unit tape)
