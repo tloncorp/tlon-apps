@@ -638,3 +638,10 @@ export function isOnlyEmojis(str: string): boolean {
 
   return stringWithoutEmojis.length === 0;
 }
+
+export function isSingleEmoji(input: string): boolean {
+  const emojiRegex =
+    /^\p{Emoji}(?:\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Extended_Pictographic})$/u;
+
+  return emojiRegex.test(input);
+}
