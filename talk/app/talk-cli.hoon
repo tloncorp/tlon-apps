@@ -398,8 +398,7 @@
 ++  get-chats  ~+
   ^-  (set flag:chat)
   (scry-for (set flag:chat) %chat /chat)
-::  +get-accepted-dms: get known dms that are mutual and ones we've
-::  initiated
+::  +get-accepted-dms: get known dms that are mutual and ones we've initiated
 ::
 ++  get-accepted-dms  ~+
   ^-  (set ship)
@@ -449,8 +448,7 @@
   %+  scry-for-existence  %chat
   %+  weld  (target-to-path whom)
   /writs/writ/id/(scot %p author)/(scot %ud time)
-::  +build-history: add messages to history
-::  and output to a given session
+::  +build-history: add messages to history and output to a given session
 ::
 ++  build-history
   |=  [=sole-id =session =target]
@@ -704,8 +702,7 @@
     ::  +tarl: local flag:chat, as /path
     ::
     ++  tarl  (stag our-self name)
-    ::  +targ: any target, as tarl, tarp, 
-    ::  ship, club id, ~ship/path or glyph
+    ::  +targ: any target, as tarl, tarp, ship, club id, ~ship/path or glyph
     ::
     ++  targ
       ;~  pose
@@ -876,8 +873,7 @@
           %poke
           cage
       ==
-    ::  +compose-channel: set audience and 
-    ::  render message history
+    ::  +compose-channel: set audience and render message history
     ::
     ++  compose-channel
       |=  =target
@@ -889,8 +885,8 @@
       :_  state
       %+  weld  [prompt:sh-out]~
       `(list card)`history-cards
-    ::  +change-channel: send rsvp response, bind glyph,
-    ::  subscribe, set audience, and render message history
+    ::  +change-channel: send rsvp response, bind glyph, subscribe, 
+    ::  set audience, and render message history
     ::
     ++  switch-channel
       |=  =target
@@ -1052,18 +1048,16 @@
       =.  audience  whom
       =^  cards  state
         ?:  (target-exists whom)
-          ::  for existing dm, switch channel 
-          ::  then pass message
+          ::  for existing dm, switch channel then pass message
           ::
           =+  (switch-channel whom)
           [(weld -.- [(send msg ~ ~)]~) +.-]
-        ::  for new dm, pass message 
-        ::  then switch channel
+        ::  for new dm, pass message then switch channel
         ::
         :_  state
         %+  welp  [(send msg ~ ~)]~
-        ::  delay the channel change so our message
-        ::  arrives to %chat before we scry
+        ::  delay the channel change so our message arrives to 
+        ::  %chat before we scry
         ::
         :_  ~ 
         :*  %pass
@@ -1814,8 +1808,7 @@
           msg
         t.msg
       ==
-    ::  +block-width: determine number of aces needed for line
-    ::  blocks
+    ::  +block-width: determine number of aces needed for line blocks
     ::
     ++  block-width
       |=  message=(list tape)
