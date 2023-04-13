@@ -3,101 +3,21 @@
 const colors = require('tailwindcss/colors');
 const defaultTheme = require('tailwindcss/defaultTheme');
 
-const lightColors = {
-  white: '#FFFFFF',
-  black: '#000000',
-  gray: {
-    50: '#F5F5F5',
-    100: '#E5E5E5',
-    200: '#CCCCCC',
-    300: '#B3B3B3',
-    400: '#999999',
-    500: '#808080',
-    600: '#666666',
-    700: '#4C4C4C',
-    800: '#333333',
-    900: '#1A1A1A',
-  },
-  red: {
-    DEFAULT: '#FF6240',
-    soft: '#FFEFEC',
-  },
-  orange: {
-    DEFAULT: '#FF9040',
-    soft: '#FFF4EC',
-  },
-  yellow: {
-    DEFAULT: '#FADE7A',
-    soft: '#FAF5D9',
-  },
-  green: {
-    DEFAULT: '#2AD546',
-    soft: '#EAFBEC',
-  },
-  blue: {
-    DEFAULT: '#008EFF',
-    soft: '#E5F4FF',
-    softer: 'rgba(0, 142, 255, 0.1)',
-  },
-  indigo: {
-    DEFAULT: '#615FD3',
-    soft: '#EFEFFB',
-  },
-};
+function createColorVariants(colorName) {
+  return {
+    DEFAULT: `var(--color-${colorName})`,
+    soft: `var(--color-${colorName}-soft)`,
+    softer: `var(--color-${colorName}-softer)`,
+  };
+}
 
-const darkColors = {
-  white: '#000000',
-  black: '#FFFFFF',
-  gray: {
-    50: '#1A1A1A',
-    100: '#333333',
-    200: '#4C4C4C',
-    300: '#666666',
-    400: '#808080',
-    500: '#999999',
-    600: '#B3B3B3',
-    700: '#CCCCCC',
-    800: '#E5E5E5',
-    900: '#F5F5F5',
-  },
-  red: {
-    DEFAULT: '#FF6240',
-    soft: colors.red['900'],
-  },
-  orange: {
-    DEFAULT: '#FF9040',
-    soft: colors.orange['900'],
-  },
-  yellow: {
-    DEFAULT: '#FADE7A',
-    soft: colors.yellow['900'],
-  },
-  green: {
-    DEFAULT: '#2AD546',
-    soft: colors.green['900'],
-  },
-  blue: {
-    DEFAULT: '#008EFF',
-    soft: colors.blue['900'],
-    softer: 'rgba(0, 142, 255, 0.2)',
-  },
-  indigo: {
-    DEFAULT: '#615FD3',
-    soft: colors.indigo['900'],
-  },
-};
-
-const base = {
-  theme: {
-    colors: lightColors,
-  },
-};
-
-const dark = {
-  theme: {
-    colors: darkColors,
-  },
-};
+function createGrayVariants(colorName) {
+  const gray = {};
+  for (let i = 50; i <= 900; i += 50) {
+    gray[i] = `var(--color-${colorName}-${i})`;
+  }
+  return gray;
+}
 
 module.exports = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -132,6 +52,15 @@ module.exports = {
       colors: {
         transparent: 'transparent',
         current: 'currentColor',
+        white: createColorVariants('white'),
+        black: createColorVariants('black'),
+        gray: createGrayVariants('gray'),
+        red: createColorVariants('red'),
+        orange: createColorVariants('orange'),
+        yellow: createColorVariants('yellow'),
+        green: createColorVariants('green'),
+        blue: createColorVariants('blue'),
+        indigo: createColorVariants('indigo'),
       },
       minWidth: (theme) => theme('spacing'),
       lineHeight: {
@@ -181,12 +110,6 @@ module.exports = {
       groups: ['one', 'two'],
     }),
     require('@tailwindcss/aspect-ratio'),
-    require('tailwindcss-theme-swapper')({
-      themes: [
-        { name: 'base', selectors: [':root'], theme: base.theme },
-        { name: 'dark', selectors: ['.dark'], theme: dark.theme },
-      ],
-    }),
     require('@tailwindcss/line-clamp'),
     require('@tailwindcss/typography'),
     require('@tailwindcss/container-queries'),

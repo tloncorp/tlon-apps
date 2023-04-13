@@ -86,7 +86,7 @@ function GroupHeader() {
       </GroupActions>
       <Link
         to=".."
-        className="h-6-w-6 absolute top-2.5 left-2 z-40 flex items-center justify-center rounded bg-white bg-transparent p-1 text-gray-400"
+        className="h-6-w-6 absolute top-2.5 left-2 z-40 flex items-center justify-center rounded bg-white p-1 text-gray-400"
       >
         <CaretLeft16Icon className="h-4 w-4" />
       </Link>

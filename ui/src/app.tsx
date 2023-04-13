@@ -65,7 +65,7 @@ import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
 import Leap from './components/Leap/Leap';
-import { isTalk, preSig } from './logic/utils';
+import { isTalk, preSig, updateThemeStyle } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import UpdateNotice from './components/UpdateNotice';
@@ -79,6 +79,7 @@ import Dialog, { DialogContent } from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
+import defaultTheme from './defaultTheme';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -619,13 +620,13 @@ function RoutedApp() {
 
   useEffect(() => {
     if ((isDarkMode && theme === 'auto') || theme === 'dark') {
-      document.body.classList.add('dark');
       useLocalState.setState({ currentTheme: 'dark' });
       setUserThemeColor('#000000');
+      updateThemeStyle(defaultTheme, true);
     } else {
-      document.body.classList.remove('dark');
       useLocalState.setState({ currentTheme: 'light' });
       setUserThemeColor('#ffffff');
+      updateThemeStyle(defaultTheme, false);
     }
   }, [isDarkMode, theme]);
 

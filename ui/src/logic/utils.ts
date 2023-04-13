@@ -638,3 +638,42 @@ export function isOnlyEmojis(str: string): boolean {
 
   return stringWithoutEmojis.length === 0;
 }
+
+export function generateCustomProperties(themeColors: ThemeColors) {
+  return Object.entries(themeColors)
+    .map(([color, value]) => {
+      if (typeof value === 'object') {
+        return Object.entries(value)
+          .map(([variant, variantValue]) => {
+            if (variant === 'DEFAULT') {
+              return `--color-${color}: ${variantValue};`;
+            }
+            return `--color-${color}-${variant}: ${variantValue};`;
+          })
+          .join(' ');
+      }
+      return `--color-${color}: ${value};`;
+    })
+    .join(' ');
+}
+
+export function updateThemeStyle(theme: Theme, isDark: boolean) {
+  const styleId = 'dynamic-theme-styles';
+  const styleContent = `
+    :root {
+      ${generateCustomProperties(isDark ? theme.dark : theme.light)}
+    }
+    .dark {
+      ${generateCustomProperties(theme.dark)}
+    }
+  `;
+  let styleElement = document.getElementById(styleId) as HTMLStyleElement;
+
+  if (!styleElement) {
+    styleElement = document.createElement('style');
+    styleElement.setAttribute('id', styleId);
+    document.head.appendChild(styleElement);
+  }
+
+  styleElement.textContent = styleContent;
+}
