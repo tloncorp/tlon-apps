@@ -66,10 +66,14 @@ export default ({ mode }: { mode: string }) => {
             manifest: chatmanifest,
             injectRegister: 'inline',
             registerType: 'prompt',
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'sw.ts',
             devOptions: {
               enabled: mode === 'sw',
+              type: 'module',
             },
-            workbox: {
+            injectManifest: {
               globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
               maximumFileSizeToCacheInBytes: 100000000,
             },
@@ -92,10 +96,14 @@ export default ({ mode }: { mode: string }) => {
             manifest: manifest,
             injectRegister: 'inline',
             registerType: 'prompt',
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'sw.ts',
             devOptions: {
               enabled: mode === 'sw',
+              type: 'module',
             },
-            workbox: {
+            injectManifest: {
               globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
               maximumFileSizeToCacheInBytes: 100000000,
             },
