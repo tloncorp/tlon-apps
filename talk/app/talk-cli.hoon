@@ -98,7 +98,7 @@
         =^  cards  state
           ?-  -.old
             %1  [~ old]
-            %0  [~ (zero-to-one old)]
+            %0  [~ (state-0-to-1 old)]
           ==
         [cards this]
     ::
@@ -123,9 +123,9 @@
           count=@ud                                     ::  (lent history)
           audience=flag:chat                            ::  active target
       ==
-    ::  +zero-to-one: state-0 to state-1
+    ::  +state-0-to-1: state adapter
     ::
-    ++  zero-to-one
+    ++  state-0-to-1
       |=  =state-0
       |^  ^-  state-1
       :*  %1
