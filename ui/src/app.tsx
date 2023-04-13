@@ -79,6 +79,7 @@ import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
+import SettingsDialog from './components/SettingsDialog';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -211,6 +212,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route path="/settings" element={<SettingsDialog />} />
           <Route
             path="/grid"
             element={
@@ -430,6 +432,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route path="/settings" element={<SettingsDialog />} />
           <Route
             path="/grid"
             element={

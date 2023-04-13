@@ -27,6 +27,7 @@ import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
 import ReconnectingSpinner from '../ReconnectingSpinner';
 import SystemChrome from './SystemChrome';
+import PencilSettingsIcon from '../icons/PencilSettingsIcon';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -84,6 +85,18 @@ export function GroupsAppMenu() {
               </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
                 About Groups
+              </DropdownMenu.Item>
+            </Link>
+            <Link
+              to="/settings"
+              className="dropdown-item flex flex-row items-center p-2 no-underline"
+              state={{ backgroundLocation: location }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <PencilSettingsIcon className="h-5 w-5" />
+              </div>
+              <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
+                Settings
               </DropdownMenu.Item>
             </Link>
           </DropdownMenu.Content>

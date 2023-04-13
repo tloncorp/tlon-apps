@@ -23,6 +23,7 @@ import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
+import PencilSettingsIcon from '@/components/icons/PencilSettingsIcon';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -87,6 +88,18 @@ export function TalkAppMenu() {
               </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
                 About Talk
+              </DropdownMenu.Item>
+            </Link>
+            <Link
+              to="/settings"
+              className="dropdown-item flex flex-row items-center p-2 no-underline"
+              state={{ backgroundLocation: location }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <PencilSettingsIcon className="h-5 w-5" />
+              </div>
+              <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
+                Settings
               </DropdownMenu.Item>
             </Link>
           </DropdownMenu.Content>
