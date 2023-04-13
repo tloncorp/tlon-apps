@@ -464,10 +464,7 @@
   =/  =id:chat    id.writ
   =/  =memo:chat  +.writ
   =^  caz  session
-    %^    ~(read-post se sole-id session) 
-        target
-      id
-    memo
+    (~(read-post se sole-id session) target id memo)
   =.  sessions  (~(put by sessions) sole-id session)  
   $(messages t.messages, cards (weld cards caz))
 ::  +get-messages: scry for latest 20 messages
