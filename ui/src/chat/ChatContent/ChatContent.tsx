@@ -21,7 +21,7 @@ import { useLocation } from 'react-router';
 import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
-import { isOnlyEmojis, isSingleEmoji } from '@/logic/utils';
+import { isSingleEmoji } from '@/logic/utils';
 
 interface ChatContentProps {
   story: ChatStory;
