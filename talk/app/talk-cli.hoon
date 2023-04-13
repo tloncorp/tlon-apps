@@ -303,29 +303,14 @@
   --
 ::
 |_  =bowl:gall
-::  +subscription-check: confirm whether a target is subscribed to or
-::  not
+::  +subscription-check: confirm whether a target is subscribed to or not
 ::
 ++  subscription-check
   |=  =target
   ^-  ?
-  =;  =wire
-    =+  key=[wire our-self %chat]
-    (~(has in ~(key by wex.bowl)) key)
-  ?-   -.target
-      %ship
-    =/  =ship  p.target
-    /chat/(scot %p ship)/ui
-  ::
-      %club
-    =/  =club-id  p.target
-    /chat/(scot %uv club-id)/ui
-  ::
-      %flag
-    =/  =ship  p.p.target
-    =/  =term  q.p.target
-    /chat/(scot %p ship)/(scot %tas term)/ui
-  ==
+  =/  =wire
+    (weld (target-to-path target) /ui)
+  (~(has by wex.bowl) [wire our-self %chat])
 ::  +connect: subscribe to chats, dms, and clubs
 ::
 ++  connect
