@@ -1624,13 +1624,12 @@
       |=  widths=(list @ud)
       ^-  (list @ud)
       ?~  replying  widths
-      =*  adjust-widths
-        %+  turn  widths
-        |=  a=@
-        ?.  (gth a 12)
-          a
-        (sub a 3)
-      (into adjust-widths 0 1)
+      :-  1
+      %+  turn  widths
+      |=  a=@
+      ?.  (gth a 12)
+        a
+      (sub a 3)
     --
   ::
   ++  line
