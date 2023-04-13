@@ -216,16 +216,16 @@
         ?+    wire  ~
             [%dm ship=@ %ui ~]  
           =/  =ship  (slav %p +<.wire)
-          [(connect:tc [%ship ship])]~
+          (connect:tc [%ship ship])
         ::
             [%club id=@ %ui ~]  
           =/  =club-id  (slav %uv +<.wire)
-          [(connect:tc [%club club-id])]~
+          (connect:tc [%club club-id])
         ::
             [%chat ship=@ name=@ %ui ~]  
           =/  =ship  (slav %p +<.wire)
           =/  name=term  (slav %tas +>-.wire)
-          [(connect:tc [%flag [ship name]])]~
+          (connect:tc [%flag [ship name]])
         ==
       ::
           %fact  
@@ -315,34 +315,12 @@
 ::
 ++  connect
   |=  =target
-  ^-  card
-  =;  pass=card
-    ?:  (subscription-check target)
-      *card
-    pass
-  ?-   -.target
-      %ship
-    =/  =ship  p.target
-    :*  %pass   /dm/(scot %p ship)/ui 
-        %agent  [our-self %chat] 
-        %watch  /dm/(scot %p ship)/ui
-    ==
-  ::
-       %club
-    =/  =club-id  p.target
-    :*  %pass   /club/(scot %uv club-id)/ui 
-        %agent  [our-self %chat] 
-        %watch  /club/(scot %uv club-id)/ui/writs
-    ==
-  ::
-      %flag
-    =/  =ship  p.p.target
-    =/  =term  q.p.target
-    :*  %pass   /chat/(scot %p ship)/(scot %tas term)/ui
-        %agent  [our-self %chat] 
-        %watch  /chat/(scot %p ship)/(scot %tas term)/ui/writs
-    ==
-  ==
+  ^-  (list card)
+  =/  =path
+    (weld (target-to-path target) /ui)
+  ?:  (subscription-check target)  ~
+  :_  ~
+  [%pass path %agent [our-self %chat] %watch (weld path /writs)]
 ::  +poke-noun: debug helpers
 ::
 ++  poke-noun
@@ -926,7 +904,7 @@
       ::
       =^  watch-cards    state
         ?:  (~(has in viewing) target)  [~ state]
-        [[(connect target)]~ state]
+        [(connect target) state]
       ::  bind an unbound target
       ::
       =^  bind-cards     state
