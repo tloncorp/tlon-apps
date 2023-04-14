@@ -1784,7 +1784,7 @@
       ^-  (list tape)
       =+  msg=(scag 2 original-message)
       =|  block=(list tape)
-      =/  aces=[line-one=@ud line-two=(unit @ud)]
+      =/  aces=[line-one=@ud line-two=@ud]
         (block-width msg)
       |-
       ?~  msg  block
@@ -1801,7 +1801,7 @@
           ?~(block 2 5)
         %+  runt
           :_  ' '
-          ?~(block line-one.aces (need line-two.aces))
+          ?~(block line-one.aces line-two.aces)
         ?~  block  " ]"
         ?.((gth (lent original-message) 2) " ]" "…]")
       ::
@@ -1812,18 +1812,18 @@
     ::
     ++  block-width
       |=  message=(list tape)
-      ^-  [@ud (unit @ud)]
+      ^-  [@ud @ud]
+      ?~  message  [0 0]
       =/  line-one=@ud
-        (sub content-width (add 7 (lent -.message)))
-      =/  line-two=(unit @ud)
-        ?~  +.message  ~
-        `(sub content-width (add 7 (lent +<.message)))
-      ?~  line-two  [0 ~]
-      ?:  |(=(0 line-one) =(0 u.line-two))
+        (sub content-width (add 7 (lent i.message)))
+      ?~  t.message  [0 0]
+      =/  line-two=@ud
+        (sub content-width (add 7 (lent i.t.message)))
+      ?:  |(=(0 line-one) =(0 line-two))
         [line-one line-two]
-      ?:  (gth line-one u.line-two)
-        [(sub (lent +<.message) (lent -.message)) `0]
-      [0 `(sub (lent -.message) (lent +<.message))]
+      ?:  (gth line-one line-two)
+        [(sub (lent i.t.message) (lent i.message)) 0]
+      [0 (sub (lent i.message) (lent i.t.message))]
     --
   ::  +activate: produce sole-effect for printing message details
   ::
