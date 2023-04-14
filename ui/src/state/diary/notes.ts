@@ -11,6 +11,7 @@ import {
   DiaryLetter,
   DiaryQuip,
 } from '@/types/diary';
+import { restoreMap } from '@/logic/utils';
 import api from '../../api';
 import { DiaryState } from './type';
 
@@ -79,12 +80,17 @@ export default function makeNotesStore(
       );
       const sta = get();
       sta.batchSet((draft) => {
-        let noteMap = new BigIntOrderedMap<DiaryLetter>();
+        let noteMap = restoreMap<DiaryLetter>(draft.notes[flag]);
 
-        Object.keys(notes).forEach((key) => {
-          const note = notes[key];
-          note.type = 'outline';
-          const tim = bigInt(udToDec(key));
+        const diff = Object.entries(notes)
+          .map(([k, note]) => ({ tim: bigInt(udToDec(k)), note }))
+          .filter(({ tim }) => !noteMap.has(tim));
+
+        if (diff.length === 0) {
+          return;
+        }
+
+        diff.forEach(({ tim, note }) => {
           noteMap = noteMap.set(tim, note);
         });
 
