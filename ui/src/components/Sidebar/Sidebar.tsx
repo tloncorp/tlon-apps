@@ -93,7 +93,7 @@ export function GroupsAppMenu() {
               state={{ backgroundLocation: location }}
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-md">
-                <PencilSettingsIcon className="h-5 w-5" />
+                <PencilSettingsIcon className="h-6 w-6" />
               </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
                 Settings
