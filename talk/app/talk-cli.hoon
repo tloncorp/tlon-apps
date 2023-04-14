@@ -64,8 +64,6 @@
       [%select $@(rel=@ud [zeros=@u abs=@ud])]      ::  rel/abs msg selection
       [%chats ~]                                    ::  list available chats
       [%dms ~]                                      ::  list available dms
-      [%clubs ~]                                    ::  list available clubs
-      [%targets ~]                                  ::  list available targets
       [%help ~]                                     ::  print usage info
   ==                                                ::
 ::
@@ -669,8 +667,6 @@
       ::
         ;~(plug (tag %chats) (easy ~))
         ;~(plug (tag %dms) (easy ~))
-        ;~(plug (tag %clubs) (easy ~))
-        ;~(plug (tag %targets) (easy ~))
         ;~(plug (tag %help) (easy ~))
       ::
         (stag %thread ;~(plug ;~(pfix ket nump) ;~(pfix ace content)))
@@ -830,8 +826,6 @@
     ::
       [';chats' leaf+";chats"]
       [';dms' leaf+";dms"]
-      [';clubs' leaf+";clubs"]
-      [';targets' leaf+";targets"]
       [';help' leaf+";help"]
     ==
   ::  +work: run user command
@@ -865,8 +859,6 @@
             %select     (select +.job)
             %chats      chats
             %dms        dms
-            %clubs      clubs
-            %targets    targets
             %help       help
         ::
         ==
@@ -1285,29 +1277,14 @@
     ::
     ++  dms
       ^-  (quip card _state)
-      =/  targets=(set target)
+      =/  clubs=(set target)
+        (~(run in ~(key by get-clubs)) (lead %club))
+      =/  dms=(set target)
         %-  %~  run  in 
             (~(uni in get-accepted-dms) get-pending-dms)
         (lead %ship)
       :_  state
-      [(show-targets:sh-out ~(tap in targets))]~
-    ::  +clubs: display list of known clubs
-    ::
-    ++  clubs
-      ^-  (quip card _state)
-      =/  targets=(set target)
-        (~(run in ~(key by get-clubs)) (lead %club))
-      :_  state
-      [(show-targets:sh-out ~(tap in targets))]~
-    ::  +targets: display list of known targets
-    ::
-    ++  targets
-      ^-  (quip card _state)
-      =^  dm-cards    state  dms
-      =^  chat-cards  state  chats
-      =^  club-cards  state  clubs
-      :_  state
-      :(weld dm-cards chat-cards club-cards)
+      [(show-targets:sh-out ~(tap in (~(uni in clubs) dms)))]~
     ::  +help: print (link to) usage instructions
     ::
     ++  help
@@ -1315,7 +1292,7 @@
       :_  state
       =-  (turn - print-more:sh-out)
       :~  %-  limo
-          :*  ";[targets / chats / clubs / dms] to print available chat channels."
+          :*  ";[chats / dms] to print available chat channels."
               ";view [~ship / 0vgroup.chat.id / ~host/chat] to print messages for a chat you've already joined."
               ";flee [~ship / 0vgroup.chat.id / ~host/chat] to stop printing messages for a chat."
               ";join [~ship / 0vgroup.chat.id] to accept a dm or group chat invite without changing the chat you're viewing."
