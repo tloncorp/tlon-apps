@@ -75,7 +75,7 @@ export function useGroups() {
   return data as Groups;
 }
 
-export function useGroup(flag: string, withMembers = false) {
+export function useGroup(flag: string, withMembers = false, subscribe = false) {
   const initialData = useGroups();
   const group = initialData?.[flag];
   const { data, ...rest } = useReactQuerySubscription({
@@ -83,7 +83,7 @@ export function useGroup(flag: string, withMembers = false) {
     app: 'groups',
     path: `/groups/${flag}/ui`,
     initialScryPath: `/groups/${flag}`,
-    enabled: !!flag && flag !== '' && withMembers,
+    enabled: !!flag && flag !== '' && withMembers && subscribe,
     initialData: group,
     options: {
       refetchOnWindowFocus: withMembers,
