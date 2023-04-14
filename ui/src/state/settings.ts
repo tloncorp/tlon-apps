@@ -1,9 +1,11 @@
 import {
   SettingsUpdate,
   Value,
-  putEntry as doPutEntry,
   getDeskSettings,
   DeskData,
+  PutBucket,
+  DelEntry,
+  DelBucket,
 } from '@urbit/api';
 import _ from 'lodash';
 import { lsDesk } from '@/constants';
@@ -12,7 +14,6 @@ import {
   BaseState,
   createState,
   createSubscription,
-  pokeOptimisticallyN,
   reduceStateN,
 } from './base';
 import api from '../api';
@@ -33,6 +34,20 @@ export interface DiarySetting extends ChannelSetting {
 
 interface GroupSideBarSort {
   [flag: string]: typeof ALPHABETICAL | typeof RECENT | typeof DEFAULT;
+}
+
+interface PutEntry {
+  // this is defined here because the PutEntry type in @urbit/api is missing the desk field
+  'put-entry': {
+    'bucket-key': string;
+    'entry-key': string;
+    value: Value;
+    desk: string;
+  };
+}
+
+interface SettingsEvent {
+  'settings-event': PutEntry | PutBucket | DelEntry | DelBucket;
 }
 
 const ALPHABETICAL = 'A → Z';
@@ -161,8 +176,39 @@ export const useSettingsState = createState<BaseSettingsState>(
     },
     loaded: false,
     putEntry: async (bucket, key, val) => {
-      const poke = doPutEntry(window.desk, bucket, key, val);
-      await pokeOptimisticallyN(useSettingsState, poke, reduceUpdate);
+      await api.trackedPoke<PutEntry, SettingsEvent>(
+        {
+          app: 'settings-store',
+          mark: 'settings-event',
+          json: {
+            'put-entry': {
+              desk: window.desk,
+              'bucket-key': bucket,
+              'entry-key': key,
+              value: val,
+            },
+          },
+        },
+        {
+          app: 'settings-store',
+          path: `/desk/${window.desk}`,
+        },
+        (event) => {
+          const { 'settings-event': data } = event;
+          if (
+            data &&
+            'put-entry' in data &&
+            data['put-entry']['bucket-key'] === bucket &&
+            data['put-entry']['entry-key'] === key &&
+            data['put-entry'].value === val
+          ) {
+            reduceStateN(get(), data, reduceUpdate);
+
+            return true;
+          }
+          return false;
+        }
+      );
     },
     fetchAll: async () => {
       const grResult = (await api.scry<DeskData>(getDeskSettings(window.desk)))
@@ -212,9 +258,7 @@ export async function setCalmSetting(
   key: keyof SettingsState['calmEngine'],
   val: boolean
 ) {
-  // use garden desk for calm settings so that they're universal.
-  const poke = doPutEntry('garden', 'calmEngine', key, val);
-  await pokeOptimisticallyN(useSettingsState, poke, reduceUpdate);
+  await useSettingsState.getState().putEntry('calmEngine', key, val);
 }
 
 export function parseSettings<T>(settings: Stringified<T[]>): T[] {
