@@ -208,8 +208,17 @@
     ^-  (quip card _this)
     =^  cards  state
       ?-    -.sign
-        %poke-ack   [- state]:(on-agent:def wire sign)
-        %watch-ack  [- state]:(on-agent:def wire sign)
+          %poke-ack
+        ?~  p.sign  [~ state]
+        %-  (slog u.p.sign)
+        [~ state]
+      ::
+          %watch-ack
+        ?~  p.sign  [~ state]
+        =/  =tank
+          leaf/"subscribe failed from {<dap.bowl>} on wire {<wire>}"
+        %.  [~ state]
+        (slog tank u.p.sign)
       ::
           %kick
         :_  state
