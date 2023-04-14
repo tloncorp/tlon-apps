@@ -1,10 +1,10 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useCopy } from '@/logic/utils';
-import { useContact } from '@/state/contact';
+import useContactState, { useContact } from '@/state/contact';
 import Avatar from '@/components/Avatar';
-import Dialog, { DialogContent } from '@/components/Dialog';
+import Dialog from '@/components/Dialog';
 import ShipName from '@/components/ShipName';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import ProfileCoverImage from './ProfileCoverImage';
@@ -18,6 +18,12 @@ export default function ProfileModal() {
   const cover = contact?.cover || '';
   const dismiss = useDismissNavigate();
   const navigateByApp = useNavigateByApp();
+
+  useEffect(() => {
+    if (ship) {
+      useContactState.getState().heed([ship]);
+    }
+  }, [ship]);
 
   const onCopy = useCallback(() => {
     doCopy();
@@ -43,50 +49,16 @@ export default function ProfileModal() {
 
   if (!contact) {
     return (
-      <Dialog defaultOpen onOpenChange={onOpenChange}>
-        <DialogContent
-          className="overflow-y-auto p-0"
-          containerClass="w-full sm:max-w-lg"
-        >
-          <ProfileCoverImage className="flex items-end" cover={cover}>
-            <Avatar
-              ship={ship}
-              icon={false}
-              size="huge"
-              className="translate-y-9"
-            />
-          </ProfileCoverImage>
-          <div className="p-5 pt-14">
-            <div className="text-lg font-bold">
-              <ShipName name={ship} showAlias />
-            </div>
-          </div>
-          <footer className="flex items-center py-4 px-6">
-            <button
-              className="secondary-button ml-auto"
-              onClick={handleCopyClick}
-            >
-              {didCopy ? 'Copied!' : 'Copy Name'}
-            </button>
-            <button className="button ml-2" onClick={handleMessageClick}>
-              Message
-            </button>
-          </footer>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  return (
-    <Dialog defaultOpen onOpenChange={onOpenChange}>
-      <DialogContent
+      <Dialog
+        defaultOpen
+        onOpenChange={onOpenChange}
         className="overflow-y-auto p-0"
         containerClass="w-full sm:max-w-lg"
       >
         <ProfileCoverImage className="flex items-end" cover={cover}>
           <Avatar
-            icon={false}
             ship={ship}
+            icon={false}
             size="huge"
             className="translate-y-9"
           />
@@ -94,17 +66,7 @@ export default function ProfileModal() {
         <div className="p-5 pt-14">
           <div className="text-lg font-bold">
             <ShipName name={ship} showAlias />
-            {contact.nickname ? (
-              <ShipName name={ship} className="ml-2 text-gray-600" />
-            ) : null}
           </div>
-          <ProfileBio bio={contact.bio} />
-          {contact.groups.length > 0 && (
-            <div className="mt-5">
-              <h2 className="mb-3 font-semibold">Favorite Groups</h2>
-              <FavoriteGroupGrid groupFlags={contact.groups} />
-            </div>
-          )}
         </div>
         <footer className="flex items-center py-4 px-6">
           <button
@@ -117,7 +79,48 @@ export default function ProfileModal() {
             Message
           </button>
         </footer>
-      </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog
+      defaultOpen
+      onOpenChange={onOpenChange}
+      className="overflow-y-auto p-0"
+      containerClass="w-full sm:max-w-lg"
+    >
+      <ProfileCoverImage className="flex items-end" cover={cover}>
+        <Avatar
+          icon={false}
+          ship={ship}
+          size="huge"
+          className="translate-y-9"
+        />
+      </ProfileCoverImage>
+      <div className="p-5 pt-14">
+        <div className="text-lg font-bold">
+          <ShipName name={ship} showAlias />
+          {contact.nickname ? (
+            <ShipName name={ship} className="ml-2 text-gray-600" />
+          ) : null}
+        </div>
+        <ProfileBio bio={contact.bio} />
+        {contact.groups.length > 0 && (
+          <div className="mt-5">
+            <h2 className="mb-3 font-semibold">Favorite Groups</h2>
+            <FavoriteGroupGrid groupFlags={contact.groups} />
+          </div>
+        )}
+      </div>
+      <footer className="flex items-center py-4 px-6">
+        <button className="secondary-button ml-auto" onClick={handleCopyClick}>
+          {didCopy ? 'Copied!' : 'Copy Name'}
+        </button>
+        <button className="button ml-2" onClick={handleMessageClick}>
+          Message
+        </button>
+      </footer>
     </Dialog>
   );
 }

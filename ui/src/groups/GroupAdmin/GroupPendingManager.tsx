@@ -17,11 +17,11 @@ import { useContacts } from '@/state/contact';
 import {
   useAmAdmin,
   useGroup,
-  useGroupState,
+  useGroupInviteMutation,
+  useGroupRevokeMutation,
   useRouteGroup,
 } from '@/state/groups/groups';
 import bigInt from 'big-integer';
-import useRequestState from '@/logic/useRequestState';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import { getPrivacyFromGroup } from '@/logic/utils';
@@ -43,15 +43,16 @@ export default function GroupPendingManager() {
   const modalNavigate = useModalNavigate();
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
-  const { isPending, setPending, setReady, isFailed, setFailed } =
-    useRequestState();
   const {
-    isPending: isRevokePending,
-    setPending: setRevokePending,
-    setReady: setRevokeReady,
-    isFailed: isRevokeFailed,
-    setFailed: setRevokeFailed,
-  } = useRequestState();
+    mutate: revokeMutation,
+    status: revokeStatus,
+    reset: resetRevoke,
+  } = useGroupRevokeMutation();
+  const {
+    mutate: inviteMutation,
+    status: inviteStatus,
+    reset: resetInvite,
+  } = useGroupInviteMutation();
 
   const pending = useMemo(() => {
     let members: string[] = [];
@@ -106,36 +107,30 @@ export default function GroupPendingManager() {
 
   const reject = useCallback(
     (ship: string, kind: 'ask' | 'pending') => async () => {
-      setRevokePending();
       try {
-        await useGroupState.getState().revoke(flag, [ship], kind);
-        setRevokeReady();
+        revokeMutation({ flag, ships: [ship], kind });
       } catch (e) {
         console.error('Error revoking invite, poke failed');
-        setRevokeFailed();
         setTimeout(() => {
-          setRevokeReady();
+          resetRevoke();
         }, 3000);
       }
     },
-    [flag, setRevokePending, setRevokeReady, setRevokeFailed]
+    [flag, revokeMutation, resetRevoke]
   );
 
   const approve = useCallback(
     (ship: string) => async () => {
-      setPending();
       try {
-        await useGroupState.getState().invite(flag, [ship]);
-        setReady();
+        inviteMutation({ flag, ships: [ship] });
       } catch (e) {
         console.error('Error approving invite, poke failed');
-        setFailed();
         setTimeout(() => {
-          setReady();
+          resetInvite();
         }, 3000);
       }
     },
-    [flag, setPending, setReady, setFailed]
+    [flag, inviteMutation, resetInvite]
   );
 
   const onViewProfile = (ship: string) => {
@@ -185,6 +180,7 @@ export default function GroupPendingManager() {
             'shut' in group.cordon && group.cordon.shut.ask.includes(m);
           const inPending =
             'shut' in group.cordon && group.cordon.shut.pending.includes(m);
+          const contact = contacts[m];
 
           return (
             <li key={m} className="flex items-center font-semibold">
@@ -192,14 +188,8 @@ export default function GroupPendingManager() {
                 <Avatar ship={m} size="small" className="mr-2" />
               </div>
               <div className="flex flex-1 flex-col">
-                <h2>
-                  {contacts[m]?.nickname ? (
-                    contacts[m].nickname
-                  ) : (
-                    <ShipName name={m} />
-                  )}
-                </h2>
-                {contacts[m]?.nickname ? (
+                <h2>{contact ? contact.nickname : <ShipName name={m} />}</h2>
+                {contact?.nickname ? (
                   <p className="text-sm text-gray-400">{m}</p>
                 ) : null}
               </div>
@@ -208,37 +198,42 @@ export default function GroupPendingManager() {
                   {inAsk || inPending ? (
                     <button
                       className={cn('secondary-button min-w-20', {
-                        'bg-red': isRevokeFailed,
-                        'text-white': isRevokeFailed,
+                        'bg-red text-white': revokeStatus === 'error',
                       })}
                       onClick={reject(m, inAsk ? 'ask' : 'pending')}
-                      disabled={isRevokePending || isRevokeFailed}
+                      disabled={
+                        revokeStatus === 'loading' || revokeStatus === 'error'
+                      }
                     >
                       {inAsk ? 'Reject' : 'Cancel'}
-                      {isRevokePending ? (
+                      {revokeStatus === 'loading' ? (
                         <LoadingSpinner className="ml-2 h-4 w-4" />
                       ) : null}
-                      {isRevokeFailed ? (
+                      {revokeStatus === 'error' ? (
                         <ExclamationPoint className="ml-2 h-4 w-4" />
                       ) : null}
                     </button>
                   ) : null}
                   <button
-                    disabled={!inAsk || isPending || isFailed}
+                    disabled={
+                      !inAsk ||
+                      inviteStatus === 'loading' ||
+                      inviteStatus === 'error'
+                    }
                     className={cn(
                       'small-button text-white disabled:bg-gray-100 disabled:text-gray-600 dark:text-black dark:disabled:text-gray-600',
                       {
-                        'bg-red': isFailed,
-                        'bg-blue': !isFailed,
+                        'bg-red': inviteStatus === 'error',
+                        'bg-blue': inviteStatus !== 'error',
                       }
                     )}
                     onClick={approve(m)}
                   >
                     {inAsk ? 'Approve' : 'Invited'}
-                    {isPending ? (
+                    {inviteStatus === 'loading' ? (
                       <LoadingSpinner className="ml-2 h-4 w-4" />
                     ) : null}
-                    {isFailed ? (
+                    {inviteStatus === 'error' ? (
                       <ExclamationPoint className="ml-2 h-4 w-4" />
                     ) : null}
                   </button>

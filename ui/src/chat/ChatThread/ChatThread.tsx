@@ -6,6 +6,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
+import bigInt from 'big-integer';
 import { useChannelFlag } from '@/hooks';
 import { useChatState, useReplies, useWrit, useChatPerms } from '@/state/chat';
 import { useChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
@@ -17,6 +18,7 @@ import { whomIsFlag } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
+import keyMap from '@/keyMap';
 import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -36,6 +38,7 @@ export default function ChatThread() {
   const groupFlag = useRouteGroup();
   const { sendMessage } = useChatState.getState();
   const location = useLocation();
+  const scrollTo = new URLSearchParams(location.search).get('msg');
   const channel = useChannel(groupFlag, `chat/${flag}`)!;
   const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
@@ -49,7 +52,7 @@ export default function ChatThread() {
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
   const threadTitle = whomIsFlag(whom)
-    ? channel.meta.title || ''
+    ? channel?.meta?.title || ''
     : isClub
     ? club?.meta.title || ship
     : ship;
@@ -68,7 +71,7 @@ export default function ChatThread() {
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !leapIsOpen) {
+      if (e.key === keyMap.thread.close && !leapIsOpen) {
         navigate(returnURL());
       }
     },
@@ -140,6 +143,7 @@ export default function ChatThread() {
             whom={whom}
             scrollerRef={scrollerRef}
             replying
+            scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
           />
         )}
       </div>

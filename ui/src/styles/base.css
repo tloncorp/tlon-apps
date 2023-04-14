@@ -11,13 +11,14 @@
 
 *::-webkit-scrollbar-track {
   background: transparent;
-  border: solid 2px rgb(var(--colors-white));
+  border: solid 2px transparent;
 }
 
 *::-webkit-scrollbar-thumb {
   background: rgb(var(--colors-gray-200));
-  border: solid 2px rgb(var(--colors-white));
+  border: solid 2px transparent;
   border-radius: 20px;
+  background-clip: content-box;
 }
 
 html,

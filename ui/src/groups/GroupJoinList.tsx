@@ -15,7 +15,8 @@ interface GroupJoinItemProps {
 function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
   const { open, reject, button, status, group, rejectStatus } = useGroupJoin(
     flag,
-    gang
+    gang,
+    true
   );
   const isMobile = useIsMobile();
   const cordon = gang.preview?.cordon || group?.cordon;

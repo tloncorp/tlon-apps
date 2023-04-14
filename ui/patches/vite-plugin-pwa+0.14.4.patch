@@ -1,0 +1,34 @@
+diff --git a/node_modules/vite-plugin-pwa/dist/index.js b/node_modules/vite-plugin-pwa/dist/index.js
+index 6450db5..bc0ab69 100644
+--- a/node_modules/vite-plugin-pwa/dist/index.js
++++ b/node_modules/vite-plugin-pwa/dist/index.js
+@@ -121,9 +121,9 @@ function generateRegisterSW(options2, dev) {
+     return `<script id="vite-plugin-pwa:register-sw" src="${dev ? options2.base : options2.buildBase}${FILE_SW_REGISTER}"><\/script>`;
+   return void 0;
+ }
+-function generateRegisterDevSW() {
++function generateRegisterDevSW(base) {
+   return `<script id="vite-plugin-pwa:register-dev-sw" type="module">
+-import registerDevSW from '${DEV_SW_VIRTUAL}';
++import registerDevSW from '${base.slice(0,-1)}${DEV_SW_VIRTUAL}';
+ registerDevSW();
+ <\/script>`;
+ }
+@@ -562,7 +562,7 @@ function createAPI(ctx) {
+       let shouldRegisterSW = options2.injectRegister === "inline" || options2.injectRegister === "script";
+       if (ctx.devEnvironment && ctx.options.devOptions.enabled === true) {
+         type = ctx.options.devOptions.type ?? "classic";
+-        script = generateRegisterDevSW();
++        script = generateRegisterDevSW(ctx.options.base);
+         shouldRegisterSW = true;
+       } else if (shouldRegisterSW) {
+         script = generateRegisterSW(options2, false);
+@@ -670,7 +670,7 @@ function DevPlugin(ctx) {
+         html = injectServiceWorker(html, options2, true);
+         return html.replace(
+           "</body>",
+-          `${generateRegisterDevSW()}
++          `${generateRegisterDevSW(options2.base)}
+ </body>`
+         );
+       }

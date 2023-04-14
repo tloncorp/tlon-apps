@@ -3,6 +3,7 @@ import {
   Fleet,
   FleetDiff,
   Group,
+  GroupDiff,
   GroupUpdate,
 } from '../../types/groups';
 import { GroupState } from './type';

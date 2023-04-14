@@ -110,7 +110,7 @@ export default function AppInfo({ docket, pike, className }: AppInfoProps) {
                 </PillButton>
               </DialogTrigger>
               <DialogContent
-                showClose={false}
+                close="none"
                 className="space-y-6"
                 containerClass="w-full max-w-md"
               >

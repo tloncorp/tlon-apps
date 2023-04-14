@@ -1,16 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
-import useNest from '@/logic/useNest';
 import Layout from '@/components/Layout/Layout';
-import {
-  useChannel,
-  useGroup,
-  useGroupState,
-  useRouteGroup,
-  useVessel,
-} from '@/state/groups';
-import { canReadChannel, isChannelJoined, nestToFlag } from '@/logic/utils';
+import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import { canReadChannel, isChannelJoined } from '@/logic/utils';
 import { Link } from 'react-router-dom';
 import bigInt from 'big-integer';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
@@ -19,6 +12,7 @@ import { useEventListener } from 'usehooks-ts';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import useLeap from '@/components/Leap/useLeap';
 import useAllBriefs from '@/logic/useAllBriefs';
+import keyMap from '@/keyMap';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -96,17 +90,17 @@ export default function HeapDetail() {
   useEventListener('keydown', (e) => {
     if (leapIsOpen) return;
     switch (e.key) {
-      case 'Escape': {
+      case keyMap.curio.close: {
         navigate('..');
         break;
       }
-      case 'ArrowRight': {
+      case keyMap.curio.next: {
         if (hasPrev) {
           navigate(curioHref(prevCurio?.[0]));
         }
         break;
       }
-      case 'ArrowLeft': {
+      case keyMap.curio.prev: {
         if (hasNext) {
           navigate(curioHref(nextCurio?.[0]));
         }

@@ -15,6 +15,8 @@ interface LocalState {
   subscription: SubscriptionStatus;
   errorCount: number;
   airLockErrorCount: number;
+  lastReconnect: number;
+  onReconnect: (() => void) | null;
   set: (f: (s: LocalState) => void) => void;
 }
 
@@ -27,6 +29,8 @@ export const useLocalState = create<LocalState>(
       subscription: 'connected',
       errorCount: 0,
       airLockErrorCount: 0,
+      lastReconnect: 0,
+      onReconnect: null,
     }),
     {
       name: createStorageKey('local'),
@@ -60,4 +64,9 @@ const selSubscriptionStatus = (s: LocalState) => ({
 });
 export function useSubscriptionStatus() {
   return useLocalState(selSubscriptionStatus);
+}
+
+const selLast = (s: LocalState) => s.lastReconnect;
+export function useLastReconnect() {
+  return useLocalState(selLast);
 }

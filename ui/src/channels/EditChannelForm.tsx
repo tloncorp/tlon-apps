@@ -1,10 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { GroupChannel, ChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
-import { useGroupState, useRouteGroup } from '@/state/groups';
+import { useEditChannelMutation, useRouteGroup } from '@/state/groups';
 import {
   channelHref,
   getPrivacyFromChannel,
@@ -17,7 +17,6 @@ import ChannelJoinSelector from '@/groups/ChannelsList/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import useChannel from '@/logic/useChannel';
-import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface EditChannelFormProps {
@@ -37,12 +36,13 @@ export default function EditChannelForm({
   redirect = true,
   setEditIsOpen,
 }: EditChannelFormProps) {
-  const [editStatus, setEditStatus] = useState<Status>('initial');
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const [app, channelFlag] = nestToFlag(nest);
   const chan = useChannel(nest);
+  const { mutate: mutateEditChannel, status: editStatus } =
+    useEditChannelMutation();
   const defaultValues: ChannelFormSchema = {
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
@@ -63,7 +63,6 @@ export default function EditChannelForm({
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
-      setEditStatus('loading');
       const { privacy, ...nextChannel } = values;
 
       if (privacy === 'secret') {
@@ -76,12 +75,8 @@ export default function EditChannelForm({
         nextChannel.zone = presetSection;
       }
       try {
-        await useGroupState
-          .getState()
-          .editChannel(groupFlag, nest, nextChannel);
-        setEditStatus('success');
+        mutateEditChannel({ flag: groupFlag, channel: nextChannel, nest });
       } catch (e) {
-        setEditStatus('error');
         console.log(e);
       }
 
@@ -109,14 +104,15 @@ export default function EditChannelForm({
     [
       app,
       channelFlag,
-      groupFlag,
       nest,
+      groupFlag,
       dismiss,
       navigate,
       redirect,
       retainRoute,
       setEditIsOpen,
       presetSection,
+      mutateEditChannel,
     ]
   );
 

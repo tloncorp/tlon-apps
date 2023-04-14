@@ -1,8 +1,10 @@
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
+import { useIsMobile } from '@/logic/useMedia';
 import { useChatState } from '@/state/chat';
 import _ from 'lodash';
 import React, { useCallback, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { ChatSeal } from '../../types/chat';
 import ChatReaction from './ChatReaction';
 
@@ -14,6 +16,9 @@ interface ChatReactionsProps {
 export default function ChatReactions({ whom, seal }: ChatReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const feels = _.invertBy(seal.feels);
+  const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
@@ -36,19 +41,33 @@ export default function ChatReactions({ whom, seal }: ChatReactionsProps) {
           whom={whom}
         />
       ))}
-      <EmojiPicker
-        open={pickerOpen}
-        setOpen={setPickerOpen}
-        onEmojiSelect={onEmoji}
-      >
+      {!isMobile ? (
+        <EmojiPicker
+          open={pickerOpen}
+          setOpen={setPickerOpen}
+          onEmojiSelect={onEmoji}
+        >
+          <button
+            className="appearance-none border-none bg-transparent"
+            onClick={openPicker}
+            aria-label="Add Reaction"
+          >
+            <AddReactIcon className="h-6 w-6 text-gray-400" />
+          </button>
+        </EmojiPicker>
+      ) : (
         <button
           className="appearance-none border-none bg-transparent"
-          onClick={openPicker}
+          onClick={() =>
+            navigate(`picker/${seal.id}`, {
+              state: { backgroundLocation: location },
+            })
+          }
           aria-label="Add Reaction"
         >
           <AddReactIcon className="h-6 w-6 text-gray-400" />
         </button>
-      </EmojiPicker>
+      )}
     </div>
   );
 }

@@ -3,24 +3,17 @@ import { useFormContext } from 'react-hook-form';
 import { ContactEditField } from '@urbit/api';
 import { debounce } from 'lodash';
 import ColorPicker from '@/components/ColorPicker';
-import CheckIcon from '@/components/icons/CheckIcon';
 import { normalizeUrbitColor } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import ImageURLUploadField from '@/components/ImageURLUploadField';
 
-interface ProfileFormSchema extends ContactEditField {
-  isContactPrivate: boolean;
-}
-
 export default function ProfileFields() {
   const { register, watch, setValue, formState } =
-    useFormContext<ProfileFormSchema>();
+    useFormContext<ContactEditField>();
   const { errors } = formState;
   const watchAvatar = watch('avatar');
   const watchCover = watch('cover');
   const watchSigilColor = watch('color');
-  // we're flipping this logic because G1 expects the value to be "true" if it's private
-  const isPrivateSelected = watch('isContactPrivate') === true;
   const calm = useCalm();
 
   const setColor = (newColor: string) => {
@@ -124,38 +117,6 @@ export default function ProfileFields() {
           spellCheck={`${!calm.disableSpellcheck}`}
         />
       </div>
-      <label
-        className={
-          'flex cursor-pointer items-start justify-between space-x-2 py-2'
-        }
-      >
-        <div className="flex items-center">
-          {isPrivateSelected ? (
-            <div className="flex h-4 w-4 items-center rounded-sm border-2 border-gray-400">
-              <CheckIcon className="h-3 w-3 fill-gray-400" />
-            </div>
-          ) : (
-            <div className="h-4 w-4 rounded-sm border-2 border-gray-200" />
-          )}
-        </div>
-
-        <div className="flex w-full flex-col">
-          <div className="flex flex-row space-x-2">
-            <div className="flex w-full flex-col justify-start text-left">
-              <span className="font-semibold">Make Profile Private</span>
-              <span className="text-sm text-gray-600">
-                Only ship name and sigil will be publicly visible
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <input
-          {...register('isContactPrivate')}
-          className="sr-only"
-          type="checkbox"
-        />
-      </label>
     </>
   );
 }

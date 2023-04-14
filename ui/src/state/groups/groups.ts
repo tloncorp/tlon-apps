@@ -1,9 +1,12 @@
-import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
-import create from 'zustand';
-import { persist } from 'zustand/middleware';
-import produce from 'immer';
+import _ from 'lodash';
 import { useParams } from 'react-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
+import {
+  MutationFunction,
+  useMutation,
+  UseMutationOptions,
+  useQueryClient,
+} from '@tanstack/react-query';
 import {
   Gangs,
   GroupChannel,
@@ -15,25 +18,19 @@ import {
   GroupIndex,
   ChannelPreview,
   Cordon,
+  GroupMeta,
+  GroupCreate,
+  GroupJoin,
 } from '@/types/groups';
 import api from '@/api';
-import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import {
-  clearStorageMigration,
-  createStorageKey,
-  storageVersion,
-} from '@/logic/utils';
 import { BaitCite } from '@/types/chat';
-import _ from 'lodash';
-import { getPreviewTracker } from '@/logic/subscriptionTracking';
-import groupsReducer from './groupsReducer';
-import { GroupState } from './type';
-import useSubscriptionState from '../subscription';
-import useSchedulerStore from '../scheduler';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
+import { Poke } from '@urbit/http-api';
 
 export const GROUP_ADMIN = 'admin';
 
-function groupAction(flag: string, diff: GroupDiff) {
+function groupAction(flag: string, diff: GroupDiff): Poke<GroupAction> {
   return {
     app: 'groups',
     mark: 'group-action-0',
@@ -47,898 +44,60 @@ function groupAction(flag: string, diff: GroupDiff) {
   };
 }
 
-function subscribeOnce<T>(app: string, path: string) {
-  return new Promise<T>((resolve) => {
-    api.subscribe({
-      app,
-      path,
-      event: resolve,
-    });
+function defaultValidator(data: GroupAction) {
+  return (event: GroupAction): boolean => {
+    return (
+      data.flag === event.flag && _.isEqual(data.update.diff, event.update.diff)
+    );
+  };
+}
+
+function groupTrackedPoke(action: Poke<GroupAction>) {
+  return api.trackedPoke<GroupAction>(
+    action,
+    { app: 'groups', path: '/groups/ui' },
+    defaultValidator(action.json)
+  );
+}
+
+export function useGroups() {
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['groups'],
+    app: 'groups',
+    path: `/groups/ui`,
+    initialScryPath: `/groups/light`,
   });
+
+  if (rest.isLoading || rest.isError) {
+    return {} as Groups;
+  }
+
+  return data as Groups;
 }
 
-export const useGroupState = create<GroupState>(
-  persist<GroupState>(
-    (set, get) => ({
-      initialized: false,
-      channelPreviews: {},
-      groups: {},
-      gangs: {},
-      shoal: {},
-      fetchShoal: async (bait: BaitCite['bait']) => {
-        let result: string | null = null;
-        try {
-          result = await subscribeOnce(
-            'groups',
-            `/bait/${bait.graph}/${bait.group}`
-          );
-        } catch (e) {
-          console.log(e);
-        }
-        get().batchSet((draft) => {
-          draft.shoal[bait.graph] = result;
-        });
-        return result;
-      },
-      banShips: async (flag, ships) => {
-        await api.poke(
-          groupAction(flag, {
-            cordon: {
-              open: {
-                'add-ships': ships,
-              },
-            },
-          })
-        );
-      },
-      unbanShips: async (flag, ships) => {
-        await api.poke(
-          groupAction(flag, {
-            cordon: {
-              open: {
-                'del-ships': ships,
-              },
-            },
-          })
-        );
-      },
-      banRanks: async (flag, ranks) => {
-        await api.poke(
-          groupAction(flag, {
-            cordon: {
-              open: {
-                'add-ranks': ranks,
-              },
-            },
-          })
-        );
-      },
-      unbanRanks: async (flag, ranks) => {
-        await api.poke(
-          groupAction(flag, {
-            cordon: {
-              open: {
-                'del-ranks': ranks,
-              },
-            },
-          })
-        );
-      },
-      index: async (ship) => {
-        try {
-          const res = await subscribeOnce<GroupIndex>(
-            'groups',
-            `/gangs/index/${ship}`
-          );
-          if (res) {
-            return res;
-          }
-          return {};
-        } catch (e) {
-          // TODO: fix error handling
-          console.error(e);
-          return {};
-        }
-      },
-      search: async (flag) => {
-        try {
-          const res = await subscribeOnce<GroupPreview>(
-            'groups',
-            `/gangs/${flag}/preview`
-          );
-          if (res) {
-            get().batchSet((draft) => {
-              const gang = draft.gangs[flag] || {
-                preview: null,
-                invite: null,
-                claim: null,
-              };
-              gang.preview = res;
-              draft.gangs[flag] = gang;
-            });
-          }
-        } catch (e) {
-          // TODO: fix error handling
-          console.error(e);
-        }
-      },
-      channelPreview: async (nest) => {
-        try {
-          const res = await subscribeOnce<ChannelPreview>(
-            'groups',
-            `/chan/${nest}`
-          );
-          if (res) {
-            get().batchSet((draft) => {
-              draft.channelPreviews[nest] = res;
-            });
-          }
-        } catch (e) {
-          // TODO: fix error handling
-          console.error(e);
-        }
-      },
-      edit: async (flag, metadata) =>
-        new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, { meta: metadata }),
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { diff } = event.update;
-                    return (
-                      'meta' in diff &&
-                      diff.meta.title === metadata.title &&
-                      event.flag === flag
-                    );
-                  }
+export function useGroup(flag: string, withMembers = false) {
+  const initialData = useGroups();
+  const group = initialData?.[flag];
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['group', flag],
+    app: 'groups',
+    path: `/groups/${flag}/ui`,
+    initialScryPath: `/groups/${flag}`,
+    enabled: !!flag && flag !== '' && withMembers,
+    initialData: group,
+    options: {
+      refetchOnWindowFocus: withMembers,
+      refetchOnMount: withMembers,
+    },
+  });
 
-                  return false;
-                });
+  if (rest.isLoading || rest.isError) {
+    return undefined;
+  }
 
-              resolve();
-            },
-          });
-        }),
-      create: async (req) =>
-        new Promise((resolve, reject) => {
-          api.poke({
-            app: 'groups',
-            mark: 'group-create',
-            json: req,
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { update } = event as GroupAction;
-                    return (
-                      'create' in update.diff &&
-                      req.title === update.diff.create.meta.title
-                    );
-                  }
-
-                  return false;
-                });
-
-              resolve();
-            },
-          });
-        }),
-      delete: async (flag) =>
-        new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, { del: null }),
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { diff } = event.update;
-                    return 'del' in diff && event.flag === flag;
-                  }
-
-                  return false;
-                });
-
-              resolve();
-            },
-          });
-        }),
-      join: async (flag, joinAll) => {
-        get().batchSet((draft) => {
-          draft.gangs[flag].invite = null;
-          draft.gangs[flag].claim = {
-            progress: 'adding',
-            'join-all': joinAll,
-          };
-        });
-
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            app: 'groups',
-            mark: 'group-join',
-            json: {
-              flag,
-              'join-all': joinAll,
-            },
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if (typeof event === 'object' && 'flag' in event) {
-                    return flag === event.flag;
-                  }
-
-                  return false;
-                });
-
-              resolve();
-            },
-          });
-        });
-      },
-      knock: async (flag) => {
-        api.poke({
-          app: 'groups',
-          mark: 'group-knock',
-          json: flag,
-        });
-      },
-      rescind: async (flag) => {
-        api.poke({
-          app: 'groups',
-          mark: 'group-rescind',
-          json: flag,
-        });
-      },
-      invite: async (flag, ships) => {
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, {
-              cordon: {
-                shut: {
-                  'add-ships': {
-                    kind: 'pending',
-                    ships,
-                  },
-                },
-              },
-            }),
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  const { update, diff } = event;
-                  if (update && update.diff) {
-                    if ('cordon' in update.diff) {
-                      const { shut } = update.diff.cordon;
-                      if ('add-ships' in shut) {
-                        const { kind, ships: addedShips } = shut['add-ships'];
-                        return (
-                          kind === 'pending' &&
-                          addedShips.every((ship: string) =>
-                            ships.includes(ship)
-                          )
-                        );
-                      }
-                      return false;
-                    }
-                    return false;
-                  }
-                  if (diff && 'cordon' in diff) {
-                    const { shut } = diff.cordon;
-                    if ('add-ships' in shut) {
-                      const { kind, ships: addedShips } = shut['add-ships'];
-                      return (
-                        kind === 'pending' &&
-                        addedShips.every((ship: string) => ships.includes(ship))
-                      );
-                    }
-                    return false;
-                  }
-                  return false;
-                });
-              resolve();
-            },
-          });
-        });
-
-        const groups = await api.scry<Groups>({
-          app: 'groups',
-          path: '/groups',
-        });
-        set(() => ({ groups }));
-      },
-      revoke: async (flag, ships, kind) => {
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, {
-              cordon: {
-                shut: {
-                  'del-ships': {
-                    kind,
-                    ships,
-                  },
-                },
-              },
-            }),
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  const { update, diff } = event;
-                  if (update && update.diff) {
-                    if ('cordon' in update.diff) {
-                      const { shut } = update.diff.cordon;
-                      if ('del-ships' in shut) {
-                        const { kind: returnedKind, ships: addedShips } =
-                          shut['del-ships'];
-                        return (
-                          returnedKind === 'pending' &&
-                          addedShips.every((ship: string) =>
-                            ships.includes(ship)
-                          )
-                        );
-                      }
-                      return false;
-                    }
-                    return false;
-                  }
-                  if (diff && 'cordon' in diff) {
-                    const { shut } = diff.cordon;
-                    if ('del-ships' in shut) {
-                      const { kind: returnedKind, ships: addedShips } =
-                        shut['del-ships'];
-                      return (
-                        returnedKind === 'pending' &&
-                        addedShips.every((ship: string) => ships.includes(ship))
-                      );
-                    }
-                    return false;
-                  }
-                  return false;
-                });
-
-              resolve();
-            },
-          });
-        });
-      },
-      reject: async (flag) => {
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            app: 'groups',
-            mark: 'invite-decline',
-            json: flag,
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  const { json } = event;
-                  if (json && flag in json) {
-                    return json[flag].invite === null;
-                  }
-
-                  return false;
-                });
-
-              resolve();
-            },
-          });
-        });
-
-        get().batchSet((draft) => {
-          draft.gangs[flag].invite = null;
-        });
-      },
-      cancel: async (flag) => {
-        await api.poke({
-          app: 'groups',
-          mark: 'group-cancel',
-          json: flag,
-        });
-
-        get().batchSet((draft) => {
-          draft.gangs[flag].claim = null;
-        });
-      },
-      leave: async (flag: string) => {
-        await api.poke({
-          app: 'groups',
-          mark: 'group-leave',
-          json: flag,
-        });
-      },
-      swapCordon: async (flag: string, cordon: Cordon) => {
-        await api.poke(
-          groupAction(flag, {
-            cordon: {
-              swap: cordon,
-            },
-          })
-        );
-      },
-      setSecret: async (flag: string, isSecret: boolean) => {
-        await api.poke(groupAction(flag, { secret: isSecret }));
-      },
-      addSects: async (flag, ship, sects) => {
-        const dif = {
-          fleet: {
-            ships: [ship],
-            diff: {
-              'add-sects': sects,
-            },
-          },
-        };
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, dif),
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { diff } = event.update;
-                    return (
-                      'fleet' in diff &&
-                      'diff' in diff.fleet &&
-                      'add-sects' in diff.fleet.diff &&
-                      diff.fleet.ships.includes(ship) &&
-                      event.flag === flag
-                    );
-                  }
-
-                  return false;
-                });
-
-              resolve();
-            },
-          });
-        });
-      },
-      delSects: async (flag, ship, sects) => {
-        const dif = {
-          fleet: {
-            ships: [ship],
-            diff: {
-              'del-sects': sects,
-            },
-          },
-        };
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, dif),
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { diff } = event.update;
-                    return (
-                      'fleet' in diff &&
-                      'diff' in diff.fleet &&
-                      'del-sects' in diff.fleet.diff &&
-                      diff.fleet.ships.includes(ship) &&
-                      event.flag === flag
-                    );
-                  }
-
-                  return false;
-                });
-
-              resolve();
-            },
-          });
-        });
-      },
-      addMembers: async (flag, ships) => {
-        const diff = {
-          fleet: {
-            ships,
-            diff: {
-              add: null,
-            },
-          },
-        };
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, diff),
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { diff: eventDiff } = event.update;
-                    if ('fleet' in eventDiff) {
-                      const {
-                        ships: fleetShips,
-                        diff: { add },
-                      } = eventDiff.fleet;
-                      return (
-                        fleetShips.every((s: string) =>
-                          fleetShips.includes(s)
-                        ) && add === null
-                      );
-                    }
-                    return false;
-                  }
-
-                  return false;
-                });
-              resolve();
-            },
-          });
-        });
-      },
-      delMembers: async (flag, ships) => {
-        const diff = {
-          fleet: {
-            ships,
-            diff: {
-              del: null,
-            },
-          },
-        };
-        await api.poke(groupAction(flag, diff));
-      },
-      addRole: async (flag, sect, meta) => {
-        const diff = {
-          cabal: {
-            sect,
-            diff: {
-              add: { ...meta, image: '', cover: '' },
-            },
-          },
-        };
-        await api.poke(groupAction(flag, diff));
-      },
-      delRole: async (flag, sect) => {
-        const diff = {
-          cabal: {
-            sect,
-            diff: { del: null },
-          },
-        };
-        await api.poke(groupAction(flag, diff));
-      },
-      editChannel: async (flag, nest, channel) => {
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, {
-              channel: {
-                nest,
-                diff: {
-                  edit: channel,
-                },
-              },
-            }),
-            onError: () => reject(),
-            onSuccess: async () => {
-              useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { update } = event as GroupAction;
-                    return (
-                      'channel' in update.diff &&
-                      nest === update.diff.channel.nest &&
-                      'add' in update.diff.channel.diff
-                    );
-                  }
-
-                  return false;
-                });
-              resolve();
-            },
-          });
-        });
-      },
-      deleteChannel: async (flag, nest) => {
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, {
-              channel: {
-                nest,
-                diff: {
-                  del: null,
-                },
-              },
-            }),
-            onError: () => reject(),
-            onSuccess: async () => {
-              useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { update } = event as GroupAction;
-                    return (
-                      'channel' in update.diff &&
-                      nest === update.diff.channel.nest &&
-                      'del' in update.diff.channel.diff
-                    );
-                  }
-
-                  return false;
-                });
-              resolve();
-            },
-          });
-        });
-      },
-      createZone: async (flag, zone, meta) => {
-        const dif = {
-          zone: {
-            zone,
-            delta: {
-              add: meta,
-            },
-          },
-        };
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, dif),
-            onError: () => reject(),
-            onSuccess: async () => {
-              useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { update } = event as GroupAction;
-                    return (
-                      'zone' in update.diff &&
-                      zone === update.diff.zone.zone &&
-                      'add' in update.diff.zone.delta
-                    );
-                  }
-
-                  return false;
-                });
-              resolve();
-            },
-          });
-        });
-      },
-      editZone: async (flag, zone, meta) => {
-        const diff = {
-          zone: {
-            zone,
-            delta: {
-              edit: meta,
-            },
-          },
-        };
-        await api.poke(groupAction(flag, diff));
-      },
-      moveZone: async (flag, zone, index) => {
-        const diff = {
-          zone: {
-            zone,
-            delta: {
-              mov: index,
-            },
-          },
-        };
-        await api.poke(groupAction(flag, diff));
-      },
-      deleteZone: async (flag, zone) => {
-        const diff = {
-          zone: {
-            zone,
-            delta: {
-              del: null,
-            },
-          },
-        };
-        await api.poke(groupAction(flag, diff));
-      },
-      addChannelToZone: async (zone, flag, nest) => {
-        const dif = {
-          channel: {
-            nest,
-            diff: {
-              zone,
-            },
-          },
-        };
-        await new Promise<void>((resolve, reject) => {
-          api.poke({
-            ...groupAction(flag, dif),
-            onError: () => reject(),
-            onSuccess: async () => {
-              await useSubscriptionState
-                .getState()
-                .track('groups/groups/ui', (event) => {
-                  if ('update' in event) {
-                    const { diff } = event.update;
-                    if ('channel' in diff) {
-                      const { nest: channelNest, diff: channelDiff } =
-                        diff.channel;
-                      if (channelNest === nest && 'zone' in channelDiff) {
-                        return true;
-                      }
-                    }
-                  }
-
-                  return false;
-                });
-
-              resolve();
-            },
-          });
-        });
-      },
-      moveChannel: async (flag, zone, nest, idx) => {
-        const diff = {
-          zone: {
-            zone,
-            delta: {
-              'mov-nest': {
-                nest,
-                idx,
-              },
-            },
-          },
-        };
-        await api.poke(groupAction(flag, diff));
-      },
-      setChannelPerm: async (flag, nest, sects) => {
-        const currentReaders = get().groups[flag].channels[nest]?.readers || [];
-        const addDiff = {
-          channel: {
-            nest,
-            diff: {
-              'add-sects': sects.filter((s) => !currentReaders.includes(s)),
-            },
-          },
-        };
-        const removeDiff = {
-          channel: {
-            nest,
-            diff: {
-              'del-sects': currentReaders.filter((s) => sects.includes(s)),
-            },
-          },
-        };
-        await api.poke(groupAction(flag, addDiff));
-        await api.poke(groupAction(flag, removeDiff));
-      },
-      setChannelJoin: async (flag, nest, join) => {
-        const diff = {
-          channel: {
-            nest,
-            diff: {
-              join,
-            },
-          },
-        };
-        await api.poke(groupAction(flag, diff));
-      },
-      updateGroups: async () => {
-        const groups = await api.scry<Groups>({
-          app: 'groups',
-          path: '/groups',
-        });
-        set(() => ({ groups }));
-      },
-      start: async ({ groups, gangs }) => {
-        const { wait } = useSchedulerStore.getState();
-        set(
-          produce((draft: GroupState) => {
-            draft.groups = _.merge(groups, draft.groups);
-            draft.gangs = gangs;
-          })
-        );
-
-        wait(() => {
-          api.subscribe({
-            app: 'groups',
-            path: '/gangs/updates',
-            event: (data) => {
-              get().batchSet((draft) => {
-                draft.gangs = data;
-              });
-            },
-          });
-          api.subscribe({
-            app: 'groups',
-            path: '/groups/ui',
-            event: (data, mark) => {
-              if (mark === 'gang-gone') {
-                get().batchSet((draft) => {
-                  delete draft.gangs[data];
-                });
-              }
-
-              const { flag, update } = data as GroupAction;
-              if (update) {
-                // check if update exists, sometimes we just get back the flag.
-                // TODO: figure out why this happens
-                if ('create' in update.diff) {
-                  const group = update.diff.create;
-                  get().batchSet((draft) => {
-                    draft.groups[flag] = group;
-                  });
-                }
-
-                if ('del' in update.diff) {
-                  get().batchSet((draft) => {
-                    delete draft.groups[flag];
-                  });
-                }
-              }
-            },
-          });
-        }, 3);
-
-        get().batchSet((draft) => {
-          draft.initialized = true;
-        });
-      },
-      initialize: async (flag: string, getMembers = false) => {
-        if (getMembers) {
-          const group = await api.scry<Group>({
-            app: 'groups',
-            path: `/groups/${flag}`,
-          });
-
-          get().batchSet((draft) => {
-            draft.groups[flag] = group;
-          });
-        }
-
-        return api.subscribe({
-          app: 'groups',
-          path: `/groups/${flag}/ui`,
-          event: (data) => get().batchSet(groupsReducer(flag, data)),
-        });
-      },
-      set: (fn) => {
-        set(produce(get(), fn));
-      },
-      batchSet: (fn) => {
-        batchUpdates(() => {
-          get().set(fn);
-        });
-      },
-    }),
-    {
-      name: createStorageKey('groups'),
-      version: storageVersion,
-      migrate: clearStorageMigration,
-      merge: (persisted, current) => _.merge(current, persisted),
-      partialize: (state) => {
-        const groups = _.mapValues(state.groups, ({ fleet, ...group }) => ({
-          ...group,
-          fleet: {},
-        }));
-        return {
-          groups,
-        };
-      },
-    }
-  )
-);
-
-const selGroups = (s: GroupState) => s.groups;
-export function useGroups(): Groups {
-  return useGroupState(selGroups);
-}
-
-export function useGroup(flag: string): Group | undefined {
-  return useGroupState(useCallback((s) => s.groups[flag], [flag]));
+  return {
+    ...(data as Group),
+  };
 }
 
 export function useRouteGroup() {
@@ -952,6 +111,28 @@ export function useRouteGroup() {
   }, [ship, name]);
 }
 
+export function useGroupName() {
+  const { name } = useParams();
+  return useMemo(() => {
+    if (!name) {
+      return '';
+    }
+
+    return name;
+  }, [name]);
+}
+
+export function useGroupShip() {
+  const { ship } = useParams();
+  return useMemo(() => {
+    if (!ship) {
+      return '';
+    }
+
+    return ship;
+  }, [ship]);
+}
+
 /**
  * Alias for useRouteGroup
  * @returns group flag - a string
@@ -960,21 +141,20 @@ export function useGroupFlag() {
   return useRouteGroup();
 }
 
-const selList = (s: GroupState) => Object.keys(s.groups);
 export function useGroupList(): string[] {
-  return useGroupState(selList);
+  const data = useGroups();
+
+  return Object.keys(data || {});
 }
 
 export function useVessel(flag: string, ship: string) {
-  return useGroupState(
-    useCallback(
-      (s) =>
-        s.groups[flag]?.fleet[ship] || {
-          sects: [],
-          joined: 0,
-        },
-      [ship, flag]
-    )
+  const data = useGroup(flag);
+
+  return (
+    data?.fleet[ship] || {
+      sects: [],
+      joined: 0,
+    }
   );
 }
 
@@ -984,38 +164,73 @@ const defGang = {
   preview: null,
 };
 
-export function useGang(flag: string) {
-  return useGroupState(useCallback((s) => s.gangs[flag] || defGang, [flag]));
-}
-
-const selGangs = (s: GroupState) => s.gangs;
 export function useGangs() {
-  return useGroupState(selGangs);
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['gangs'],
+    app: 'groups',
+    path: `/gangs/updates`,
+    initialScryPath: `/gangs`,
+    options: {
+      refetchOnWindowFocus: true,
+      refetchOnMount: false,
+    },
+  });
+
+  if (rest.isLoading || rest.isError) {
+    return {} as Gangs;
+  }
+
+  return {
+    ...(data as Gangs),
+  };
 }
 
-const selGangList = (s: GroupState) => Object.keys(s.gangs);
+export function useGang(flag: string) {
+  const data = useGangs();
+
+  return data?.[flag] || defGang;
+}
+
+export const useGangPreview = (flag: string, isScrolling?: boolean) => {
+  const { data, ...rest } = useReactQuerySubscribeOnce<GroupPreview>({
+    queryKey: ['gang-preview', flag],
+    app: 'groups',
+    path: `/gangs/${flag}/preview`,
+    options: {
+      enabled: !isScrolling,
+    },
+  });
+
+  if (rest.isLoading || rest.isError) {
+    return null;
+  }
+
+  return data as GroupPreview;
+};
+
 export function useGangList() {
-  return useGroupState(selGangList);
+  const data = useGangs();
+  return Object.keys(data || {});
 }
 
 export function useChannel(
   flag: string,
   channel: string
 ): GroupChannel | undefined {
-  return useGroupState(
-    useCallback((s) => s.groups[flag]?.channels[channel], [flag, channel])
-  );
+  const data = useGroup(flag);
+
+  return data?.channels?.[channel];
 }
 
 export function useChannelList(flag: string): string[] {
-  return useGroupState(
-    useCallback((s) => Object.keys(s.groups[flag]?.channels || {}), [flag])
-  );
+  const data = useGroup(flag);
+
+  return Object.keys(data?.channels || {});
 }
 
 export function useAmAdmin(flag: string) {
-  const group = useGroup(flag);
-  const vessel = group?.fleet[window.our];
+  const group = useGroup(flag, false);
+  const vessel = group?.fleet?.[window.our];
   return vessel && vessel.sects.includes(GROUP_ADMIN);
 }
 
@@ -1065,55 +280,697 @@ export function usePendingGangsWithoutClaim() {
   return pendingGangs;
 }
 
-const selInit = (s: GroupState) => s.initialized;
-export function useGroupsInitialized() {
-  return useGroupState(selInit);
-}
-
 export function useSects(flag: string) {
   const group = useGroup(flag);
   return group ? Object.keys(group.cabals) : [];
 }
 
-const { shouldLoad, newAttempt, finished } = getPreviewTracker();
-
 export function useChannelPreview(nest: string, disableLoading = false) {
-  const preview = useGroupState(
-    useCallback((s) => s.channelPreviews[nest], [nest])
-  );
+  const { data, ...rest } = useReactQuerySubscribeOnce({
+    queryKey: ['channel-preview', nest],
+    app: 'groups',
+    path: `/chan/${nest}`,
+    options: {
+      enabled: !disableLoading,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    },
+  });
 
-  const getChannelPreview = useCallback(async () => {
-    asyncCallWithTimeout(
-      useGroupState.getState().channelPreview(nest),
-      10 * 1000
-    ).finally(() => finished(nest));
-  }, [nest]);
+  if (rest.isLoading || rest.isError) {
+    return null;
+  }
 
-  useEffect(() => {
-    if (disableLoading || (preview && !shouldLoad(nest))) return;
-
-    newAttempt(nest);
-    getChannelPreview();
-  }, [getChannelPreview, preview, nest, disableLoading]);
-
-  return preview;
+  return data as ChannelPreview;
 }
 
 export function useShoal(bait: BaitCite['bait']) {
-  const res = useGroupState(
-    useCallback(
-      (s) => s.shoal[bait.graph] as string | null | undefined,
-      [bait.graph]
-    )
-  );
+  const { data, ...rest } = useReactQuerySubscribeOnce({
+    queryKey: ['shoal', bait.graph],
+    app: 'groups',
+    path: `/bait/${bait.graph}/${bait.group}`,
+  });
 
-  useEffect(() => {
-    if (_.isUndefined(res)) {
-      useGroupState.getState().fetchShoal(bait);
-    }
-  }, [bait, res]);
+  if (rest.isLoading || rest.isError) {
+    return null;
+  }
 
-  return res;
+  return data;
 }
 
-(window as any).groups = useGroupState.getState;
+export function useGroupMutation<TResponse>(
+  mutationFn: MutationFunction<TResponse, any>,
+  options?: UseMutationOptions<TResponse, unknown, any, unknown>
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['group', variables.flag]);
+
+      const data = await queryClient.getQueryData(['group', variables.flag]);
+      const previousGroup = data as Group;
+
+      const { zone, nest, idx, meta, index, metadata } = variables;
+
+      if (metadata) {
+        // edit group metadata
+        queryClient.setQueryData(['group', variables.flag], {
+          ...previousGroup,
+          meta: {
+            ...previousGroup.meta,
+            ...metadata,
+          },
+        });
+      }
+
+      if (zone) {
+        const previousZone = (previousGroup as Group)?.zones[zone];
+
+        if (previousZone) {
+          if (index !== undefined) {
+            // move a zone
+            const newZoneOrd = previousGroup['zone-ord'].filter(
+              (z) => z !== zone
+            );
+            newZoneOrd.splice(index, 0, zone);
+            queryClient.setQueryData(['group', variables.flag], {
+              ...previousGroup,
+              'zone-ord': newZoneOrd,
+            });
+          }
+
+          if (meta) {
+            // edit zone metadata
+            queryClient.setQueryData(['group', variables.flag], {
+              ...previousGroup,
+              zones: {
+                ...previousGroup.zones,
+                [zone]: {
+                  ...previousZone,
+                  meta: {
+                    ...previousZone.meta,
+                    ...meta,
+                  },
+                },
+              },
+            });
+          }
+
+          if (idx !== undefined && nest) {
+            // move a channel within a zone
+            const newIdxArray = previousZone.idx.filter((n) => n !== nest);
+            newIdxArray.splice(idx, 0, nest);
+
+            queryClient.setQueryData(['group', variables.flag], {
+              ...previousGroup,
+              zones: {
+                ...previousGroup.zones,
+                [zone]: {
+                  ...previousZone,
+                  idx: newIdxArray,
+                },
+              },
+            });
+          }
+        }
+        if (zone && !previousZone && meta) {
+          // add a new zone
+          const newZoneOrd = previousGroup['zone-ord'];
+          newZoneOrd.splice(1, 0, zone);
+          queryClient.setQueryData(['group', variables.flag], {
+            ...previousGroup,
+            zones: {
+              ...previousGroup.zones,
+              [zone]: {
+                idx: [],
+                meta,
+              },
+            },
+            'zone-ord': newZoneOrd,
+          });
+        }
+      }
+
+      return data;
+    },
+    onError: (err, variables, previousGroup) => {
+      queryClient.setQueryData(['group', variables.flag], previousGroup);
+    },
+    onSettled: (_data, _error, variables) =>
+      queryClient.invalidateQueries(['group', variables.flag]),
+    ...options,
+  });
+}
+
+export function useEditChannelMutation() {
+  const mutationFn = (variables: {
+    flag: string;
+    nest: string;
+    channel: GroupChannel;
+  }) =>
+    groupTrackedPoke(
+      groupAction(variables.flag, {
+        channel: {
+          nest: variables.nest,
+          diff: {
+            edit: variables.channel,
+          },
+        },
+      })
+    );
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useDeleteChannelMutation() {
+  const mutationFn = (variables: { flag: string; nest: string }) =>
+    groupTrackedPoke(
+      groupAction(variables.flag, {
+        channel: {
+          nest: variables.nest,
+          diff: {
+            del: null,
+          },
+        },
+      })
+    );
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useAddChannelMutation() {
+  const mutationFn = (variables: {
+    flag: string;
+    zone: string;
+    nest: string;
+  }) =>
+    groupTrackedPoke(
+      groupAction(variables.flag, {
+        channel: {
+          nest: variables.nest,
+          diff: {
+            zone: variables.zone,
+          },
+        },
+      })
+    );
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupCreateZoneMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    zone: string;
+    meta: GroupMeta;
+  }) =>
+    groupTrackedPoke(
+      groupAction(variables.flag, {
+        zone: {
+          zone: variables.zone,
+          delta: {
+            add: variables.meta,
+          },
+        },
+      })
+    );
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupEditZoneMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    zone: string;
+    meta: GroupMeta;
+  }) => {
+    const diff = {
+      zone: {
+        zone: variables.zone,
+        delta: {
+          edit: variables.meta,
+        },
+      },
+    };
+
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupMoveZoneMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    zone: string;
+    index: number;
+  }) => {
+    const diff = {
+      zone: {
+        zone: variables.zone,
+        delta: {
+          mov: variables.index,
+        },
+      },
+    };
+
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupDeleteZoneMutation() {
+  const mutationFn = async (variables: { flag: string; zone: string }) => {
+    const diff = {
+      zone: {
+        zone: variables.zone,
+        delta: {
+          del: null,
+        },
+      },
+    };
+
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupMoveChannelMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    nest: string;
+    idx: number;
+    zone: string;
+  }) => {
+    const diff = {
+      zone: {
+        zone: variables.zone,
+        delta: {
+          'mov-nest': {
+            nest: variables.nest,
+            idx: variables.idx,
+          },
+        },
+      },
+    };
+
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useEditGroupMutation(options: UseMutationOptions = {}) {
+  const mutationFn = (variables: { flag: string; metadata: GroupMeta }) =>
+    api.trackedPoke(groupAction(variables.flag, { meta: variables.metadata }), {
+      app: 'groups',
+      path: '/groups/ui',
+    });
+
+  return useGroupMutation(mutationFn, options);
+}
+
+export function useCreateGroupMutation() {
+  const mutationFn = (variables: GroupCreate) =>
+    api.trackedPoke<GroupCreate, GroupAction>(
+      {
+        app: 'groups',
+        mark: 'group-create',
+        json: variables,
+      },
+      { app: 'groups', path: '/groups/ui' },
+      (event) => {
+        if (!('update' in event)) {
+          return false;
+        }
+
+        const { update } = event;
+        return (
+          'create' in update.diff &&
+          variables.title === update.diff.create.meta.title
+        );
+      }
+    );
+
+  return useMutation(mutationFn);
+}
+
+export function useDeleteGroupMutation() {
+  const mutationFn = (variables: { flag: string }) =>
+    groupTrackedPoke(groupAction(variables.flag, { del: null }));
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupJoinMutation() {
+  const queryClient = useQueryClient();
+
+  const mutationFn = (variables: { flag: string }) =>
+    api.trackedPoke<GroupJoin, GroupAction>(
+      {
+        app: 'groups',
+        mark: 'group-join',
+        json: {
+          flag: variables.flag,
+          'join-all': true,
+        },
+      },
+      { app: 'groups', path: '/groups/ui' },
+      (event) => {
+        if (typeof event === 'object' && 'flag' in event) {
+          return variables.flag === event.flag;
+        }
+
+        return false;
+      }
+    );
+
+  return useGroupMutation(mutationFn, {
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries(['gangs']);
+      queryClient.invalidateQueries(['gangs', variables.flag]);
+      queryClient.invalidateQueries(['groups']);
+    },
+  });
+}
+
+export function useGroupLeaveMutation() {
+  const queryClient = useQueryClient();
+  return useGroupMutation(
+    async (variables: { flag: string }) => {
+      await api.poke({
+        app: 'groups',
+        mark: 'group-leave',
+        json: variables.flag,
+      });
+    },
+    {
+      onSuccess: (_data, variables) => {
+        queryClient.removeQueries(['groups', variables.flag]);
+        queryClient.invalidateQueries(['groups']);
+      },
+    }
+  );
+}
+
+export function useGroupRescindMutation() {
+  return useGroupMutation(async (variables: { flag: string }) => {
+    await api.poke({
+      app: 'groups',
+      mark: 'group-rescind',
+      json: variables.flag,
+    });
+  });
+}
+
+export function useGroupCancelMutation() {
+  return useGroupMutation(async (variables: { flag: string }) => {
+    await api.poke({
+      app: 'groups',
+      mark: 'group-cancel',
+      json: variables.flag,
+    });
+  });
+}
+
+export function useGroupKnockMutation() {
+  return useGroupMutation(async (variables: { flag: string }) => {
+    await api.poke({
+      app: 'groups',
+      mark: 'group-knock',
+      json: variables.flag,
+    });
+  });
+}
+
+export function useGroupInviteMutation() {
+  const mutationFn = (variables: { flag: string; ships: string[] }) =>
+    groupTrackedPoke(
+      groupAction(variables.flag, {
+        cordon: {
+          shut: {
+            'add-ships': {
+              kind: 'pending',
+              ships: variables.ships,
+            },
+          },
+        },
+      })
+    );
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupRevokeMutation() {
+  const mutationFn = (variables: {
+    flag: string;
+    ships: string[];
+    kind: 'ask' | 'pending';
+  }) =>
+    groupTrackedPoke(
+      groupAction(variables.flag, {
+        cordon: {
+          shut: {
+            'del-ships': {
+              kind: variables.kind,
+              ships: variables.ships,
+            },
+          },
+        },
+      })
+    );
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupRejectMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = (variables: { flag: string }) =>
+    api.trackedPoke<string, Gangs>(
+      {
+        app: 'groups',
+        mark: 'invite-decline',
+        json: variables.flag,
+      },
+      { app: 'gangs', path: '/updates' },
+      (event) => {
+        if (typeof event === 'object' && variables.flag in event) {
+          return event[variables.flag].invite === null;
+        }
+
+        return false;
+      }
+    );
+
+  return useGroupMutation(mutationFn, {
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries(['gangs']);
+      queryClient.invalidateQueries(['gangs', variables.flag]);
+    },
+  });
+}
+
+export function useGroupSwapCordonMutation() {
+  const mutationFn = (variables: { flag: string; cordon: Cordon }) =>
+    api.poke(
+      groupAction(variables.flag, {
+        cordon: {
+          swap: variables.cordon,
+        },
+      })
+    );
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupSetSecretMutation() {
+  const mutationFn = (variables: { flag: string; isSecret: boolean }) =>
+    api.poke(
+      groupAction(variables.flag, {
+        secret: variables.isSecret,
+      })
+    );
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupSectMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    ship: string;
+    sects: string[];
+    operation: 'add' | 'del';
+  }) => {
+    const diff =
+      variables.operation === 'add'
+        ? {
+            'add-sects': variables.sects,
+          }
+        : { 'del-sects': variables.sects };
+    return groupTrackedPoke(
+      groupAction(variables.flag, {
+        fleet: {
+          ships: [variables.ship],
+          diff,
+        },
+      })
+    );
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupAddMembersMutation() {
+  const mutationFn = async (variables: { flag: string; ships: string[] }) =>
+    groupTrackedPoke(
+      groupAction(variables.flag, {
+        fleet: {
+          ships: variables.ships,
+          diff: {
+            add: null,
+          },
+        },
+      })
+    );
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupDelMembersMutation() {
+  const mutationFn = async (variables: { flag: string; ships: string[] }) => {
+    const diff = {
+      fleet: {
+        ships: variables.ships,
+        diff: {
+          del: null,
+        },
+      },
+    };
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupAddRoleMutation() {
+  // Not used yet.
+  const mutationFn = async (variables: {
+    flag: string;
+    sect: string;
+    meta: GroupMeta;
+  }) => {
+    const diff = {
+      cabal: {
+        sect: variables.sect,
+        diff: {
+          add: { ...variables.meta, image: '', cover: '' },
+        },
+      },
+    };
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupDelRoleMutation() {
+  // Not used yet.
+  const mutationFn = async (variables: { flag: string; sect: string }) => {
+    const diff = {
+      cabal: {
+        sect: variables.sect,
+        diff: { del: null },
+      },
+    };
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupIndex(ship: string) {
+  const { data, ...rest } = useReactQuerySubscribeOnce({
+    queryKey: ['group-index', ship],
+    app: 'groups',
+    path: `/gangs/index/${ship}`,
+    options: {
+      enabled: ship !== '',
+    },
+  });
+
+  return {
+    groupIndex: data as GroupIndex,
+    ...rest,
+  };
+}
+
+export function useGroupBanShipsMutation() {
+  const mutationFn = async (variables: { flag: string; ships: string[] }) => {
+    await api.poke(
+      groupAction(variables.flag, {
+        cordon: {
+          open: {
+            'add-ships': variables.ships,
+          },
+        },
+      })
+    );
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupUnbanShipsMutation() {
+  // Not used yet.
+  const mutationFn = async (variables: { flag: string; ships: string[] }) => {
+    await api.poke(
+      groupAction(variables.flag, {
+        cordon: {
+          open: {
+            'del-ships': variables.ships,
+          },
+        },
+      })
+    );
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupBanRanksMutation() {
+  // Not used yet.
+  const mutationFn = async (variables: { flag: string; ranks: string[] }) => {
+    await api.poke(
+      groupAction(variables.flag, {
+        cordon: {
+          open: {
+            'add-ranks': variables.ranks,
+          },
+        },
+      })
+    );
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useGroupUnbanRanksMutation() {
+  // Not used yet.
+  const mutationFn = async (variables: { flag: string; ranks: string[] }) => {
+    await api.poke(
+      groupAction(variables.flag, {
+        cordon: {
+          open: {
+            'del-ranks': variables.ranks,
+          },
+        },
+      })
+    );
+  };
+
+  return useGroupMutation(mutationFn);
+}

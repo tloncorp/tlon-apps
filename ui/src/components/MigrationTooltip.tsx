@@ -1,5 +1,5 @@
 import * as Popover from '@radix-ui/react-popover';
-import { useGroupState } from '@/state/groups';
+import { useGroupLeaveMutation } from '@/state/groups';
 import React, { PropsWithChildren } from 'react';
 import ShipName from './ShipName';
 
@@ -17,9 +17,10 @@ export default function MigrationTooltip({
   kind = 'channel',
   children,
 }: MigrationTooltipProps) {
+  const { mutate: mutateLeaveGroup } = useGroupLeaveMutation();
   const handleLeaveGroup = () => {
     if (flag) {
-      useGroupState.getState().leave(flag);
+      mutateLeaveGroup({ flag });
     }
   };
 
