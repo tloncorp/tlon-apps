@@ -114,7 +114,7 @@ function ChannelActions({
 
   const leaveChannel = useCallback(async () => {
     try {
-      await leave(flag);
+      leave(flag);
       navigate(
         isMobile
           ? `/groups/${ship}/${name}`
