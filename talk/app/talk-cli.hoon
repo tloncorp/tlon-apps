@@ -703,9 +703,26 @@
     ++  tag      |*(a=@tas (cold a (jest a)))  ::TODO  into stdlib
     ++  ship     ;~(pfix sig fed:ag)
     ++  name     ;~(pfix fas urs:ab)
-    ++  club-id  (cook |=(a=@ `@uv`a) ;~(pfix (jest '0v') viz:ag))
+    ::  +find-club-id: accepts a truncated id and attempts to find the
+    ::  full version
+    ::
+    ++  find-club-id
+      =-  (sear - (plus next))
+      |=  input=tape
+      ^-  (unit @uv)
+      =/  ids=(list club-id)
+        ~(tap in ~(key by get-clubs))
+      |-
+      ?~  ids  ~
+      =/  have=tape
+        %+  swag  [28 5]
+        (scow %uv `club-id`i.ids)
+      ?:  =(input have)
+        `i.ids
+      $(ids t.ids)
     ::  +tarl: local flag:chat, as /path
     ::
+
     ++  tarl  (stag our-self name)
     ::  +targ: any target, as tarl, tarp, ship, club id, ~ship/path or glyph
     ::
@@ -717,7 +734,7 @@
         ;~  pose
           (stag %flag tarl)
           (stag %flag ;~(plug ship name))
-          (stag %club club-id)
+          (stag %club ;~(pfix dot find-club-id))
           (stag %ship ship)
         ==
         (sear (cury decode-glyph session) glyph)
@@ -810,15 +827,15 @@
   ++  tab-list
     ^-  (list [@t tank])
     :~
-      [';view' leaf+";view (glyph / ~ship / 0v.group.chat.id / ~host/chat)"]
-      [';flee' leaf+";flee [glyph / ~ship / 0v.group.chat.id / ~host/chat]"]
+      [';view' leaf+";view (glyph / ~ship / .group.chat.id / ~host/chat)"]
+      [';flee' leaf+";flee [glyph / ~ship / .group.chat.id / ~host/chat]"]
     ::
-      [';join' leaf+";join [glyph / ~ship / 0v.group.chat.id]"]
-      [';deny' leaf+";deny [glyph / ~ship / 0v.group.chat.id]"]
+      [';join' leaf+";join [glyph / ~ship / .group.chat.id]"]
+      [';deny' leaf+";deny [glyph / ~ship / .group.chat.id]"]
     ::
-      [';bind' leaf+";bind [glyph] [~ship / 0v.group.chat.id / ~host/chat]"]
-      [';unbind' leaf+";unbind [glyph] (~ship / 0v.group.chat.id / ~host/chat)"]
-      [';what' leaf+";what (glyph / ~ship / 0v.group.chat.id / ~host/chat)"]
+      [';bind' leaf+";bind [glyph] [~ship / .group.chat.id / ~host/chat]"]
+      [';unbind' leaf+";unbind [glyph] (~ship / .group.chat.id / ~host/chat)"]
+      [';what' leaf+";what (glyph / ~ship / .group.chat.id / ~host/chat)"]
     ::
       [';settings' leaf+";settings"]
       [';set' leaf+";set key (value)"]
@@ -1293,10 +1310,10 @@
       =-  (turn - print-more:sh-out)
       :~  %-  limo
           :*  ";[chats / dms] to print available chat channels."
-              ";view [~ship / 0vgroup.chat.id / ~host/chat] to print messages for a chat you've already joined."
-              ";flee [~ship / 0vgroup.chat.id / ~host/chat] to stop printing messages for a chat."
-              ";join [~ship / 0vgroup.chat.id] to accept a dm or group chat invite without changing the chat you're viewing."
-              ";deny [~ship / 0vgroup.chat.id] to decline a dm or group chat invite."
+              ";view [~ship / .group.chat.id / ~host/chat] to print messages for a chat you've already joined."
+              ";flee [~ship / .group.chat.id / ~host/chat] to stop printing messages for a chat."
+              ";join [~ship / .group.chat.id] to accept a dm or group chat invite without changing the chat you're viewing."
+              ";deny [~ship / .group.chat.id] to decline a dm or group chat invite."
               ";~ship [message] to send a dm and print its messages."
               ";[scrollback.pointer] to select a message."
               ";#[scrollback.pointer] [message] to reference a message with a response (only chats from groups supported)."
@@ -1485,17 +1502,25 @@
       =/  crew=(unit crew)
         (~(get by get-clubs) club-id)
       ?~  crew
-        "{(scow %uv club-id)}  club doesn't exist"
+        (weld (truncate-club-id club-id) "  club does not exist")
       =+  team=team.u.crew
       =+  hive=hive.u.crew
       ?:  &(=(~ team) =(~ hive))
-        "{(scow %uv club-id)}  club doesn't have any members"
-      %+  weld  
-        "{(scow %uv club-id)}"
+        %+  weld  (truncate-club-id club-id)
+        "  club does not have any members"
+      %+  weld
+        (truncate-club-id club-id)
       ?.  =(*cord title.met.u.crew)
         "  {(trip title.met.u.crew)}"
       (render-club-members club-id (club-members team hive))
     ==
+    ::  +truncate-club-id: render the last 6 characters of the club id
+    ::
+    ++  truncate-club-id
+      |=  =club-id
+      ^-  tape
+      %+  swag  [27 6]
+      (scow %uv club-id)
     ::  +club-members: produce list of club members
     ::
     ++  club-members
@@ -1821,7 +1846,7 @@
   ++  meta
     ^-  tang
     =+  hed=leaf+"sent at {(scow %da sent)}"
-    =/  src=tape  ~(phat tr source)
+    =/  src=tape  ~(meta tr source)
     [%rose [" " ~ ~] [hed >author< [%rose [", " "to " ~] [leaf+src]~] ~]]~
   ::  +body: long-form render of message contents
   ::
