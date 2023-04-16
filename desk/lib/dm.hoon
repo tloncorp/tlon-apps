@@ -89,32 +89,30 @@
   ==
 ::
 ++  peek
-  |=  =(pole knot)
+  |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
   =*  on   on:writs:c
   ?+    pole  [~ ~]
   ::
-      [%newest count=@ care=@ ~]
+      [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
     ``chat-writs+!>((gas:on *writs:c (top:mope wit.pac count)))
   ::
-      [%older start=@ count=@ care=@ ~]
+      [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
     ``chat-writs+!>((gas:on *writs:c (bat:mope wit.pac `start count)))
   ::
-      [%newer start=@ count=@ care=@ ~]
+      [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
     ``chat-writs+!>((gas:on *writs:c (tab:on wit.pac `start count)))
   ::
-      [%writ %id ship=@ time=@ care=@ ~]
+      [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
     =/  time  (slav %ud time.pole)
-    =/  care  (slav %tas care.pole)
     ?:  ?=(%x care)
       ``writ+!>((got ship `@da`time))
-    ?>  ?=(%u care)
     ``flag+!>(?~((get ship `@da`time) | &))
   ==
 --
