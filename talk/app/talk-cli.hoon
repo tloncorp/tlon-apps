@@ -1066,13 +1066,6 @@
       =/  =whom:chat  [%ship (need who)]
       =.  audience  whom
       =^  cards  state
-        ?:  (target-exists whom)
-          ::  for existing dm, switch channel then pass message
-          ::
-          =+  (switch-channel whom)
-          [(weld -.- [(send msg ~ ~)]~) +.-]
-        ::  for new dm, pass message then switch channel
-        ::
         :_  state
         %+  welp  [(send msg ~ ~)]~
         ::  delay the channel change so our message arrives to 
