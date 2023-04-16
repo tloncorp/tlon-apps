@@ -24,9 +24,6 @@ export function useCurrentTheme() {
   return useLocalState(selCurrentTheme);
 }
 
-export const setLocalState = (f: (s: LocalState) => void) =>
-  useLocalState.getState().set(f);
-
 const selSubscriptionStatus = (s: LocalState) => ({
   subscription: s.subscription,
   errorCount: s.errorCount,

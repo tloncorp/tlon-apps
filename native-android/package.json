@@ -2,7 +2,6 @@
   "name": "native-android",
   "version": "1.0.0",
   "scripts": {
-    "dev": "cd ../ui && npm run dev:native & cd ../native-android && npm run dev:tailwind & npm run start",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -17,18 +16,18 @@
     "@urbit/http-api": "^2.3.0",
     "date-fns": "^2.29.3",
     "expo": "~48.0.6",
+    "expo-device": "~5.2.1",
     "expo-network": "~5.2.1",
     "expo-notifications": "~0.18.1",
     "expo-status-bar": "~1.4.4",
+    "expo-updates": "~0.16.4",
     "lodash": "^4.17.21",
     "react": "18.2.0",
-    "react-native": "0.71.3",
+    "react-native": "0.71.6",
     "react-native-storage": "^1.0.1",
     "react-native-webview": "11.26.0",
     "tailwind-rn": "^4.2.0",
-    "zustand": "^4.3.6",
-    "expo-device": "~5.2.1",
-    "expo-updates": "~0.16.4"
+    "zustand": "^4.3.6"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

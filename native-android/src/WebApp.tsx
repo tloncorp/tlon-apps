@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { WebView } from 'react-native-webview';
 import {
   SafeAreaView,
@@ -13,31 +13,19 @@ import useStore from './state/store';
 import * as Notifications from 'expo-notifications';
 import { WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
 import useHarkState from './state/hark';
-// import { useNotifications } from './notifications/useNotifications';
-// import { YarnContentShip } from './types/hark';
 import {
   handleNotification,
   handleNotificationResponse,
-  pokeNotify,
-  registerForPushNotificationsAsync,
-  requestNotificationPermissions,
-  setMessageCategory
+  initializePushNotifications,
 } from './lib/notifications';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false
-  })
-});
 
 export default function WebApp() {
   const { shipUrl } = useStore();
   const tailwind = useTailwind();
-  const [fcmDeviceToken, setFcmDeviceToken] = useState('');
   const webviewRef = useRef<WebView>(null);
   const appState = useRef(AppState.currentState);
+  const notificationSubscription = useRef<Notifications.Subscription | null>(null);
+  const notificationResponseSubscription = useRef<Notifications.Subscription | null>(null);
   // const loaded = useHarkState(s => s.loaded);
   // const { count, unreadNotifications } = useNotifications('');
   // const hasUnreads = count > 0;
@@ -74,85 +62,56 @@ export default function WebApp() {
     }
   };
 
+  const handleAppStateChange = (nextAppState: AppStateStatus) => {
+    if (
+      appState.current.match(/inactive|background/) &&
+      nextAppState === 'active'
+    ) {
+      webviewRef?.current?.injectJavaScript('window.bootstrapApi(true)');
+    }
+
+    appState.current = nextAppState;
+  };
+
   useEffect(() => {
-    requestNotificationPermissions();
     if (Platform.OS === 'android') {
       BackHandler.addEventListener('hardwareBackPress', handleBackPressed);
     }
 
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === 'active'
-      ) {
-        webviewRef?.current?.injectJavaScript('window.bootstrapApi(true)');
-      }
-
-      appState.current = nextAppState;
-    };
-
     const listener = AppState.addEventListener('change', handleAppStateChange);
 
-    registerForPushNotificationsAsync().then((response) => {
-      if (!response) {
-        return;
+    (async () => {
+      const [notificationsEnabled] = await Promise.all([
+        initializePushNotifications(),
+        useHarkState.getState().start(),
+      ]);
+
+      if (notificationsEnabled) {
+        notificationSubscription.current = Notifications.addNotificationReceivedListener(handleNotification);
+        console.debug("Started notification listener");
+
+        notificationResponseSubscription.current = Notifications.addNotificationResponseReceivedListener((response) => {
+            handleNotificationResponse(response, webviewRef);
+          });
+        console.debug("Started notification response listener");
       }
-      const { token, expoToken } = response;
-      console.log({token, expoToken})
-      setFcmDeviceToken(token);
-    });
-
-    const notificationSubscription =
-      Notifications.addNotificationReceivedListener(handleNotification);
-
-    const initialize = async () => {
-      await useHarkState.getState().start();
-    };
-
-    setMessageCategory();
-
-    const notificationResponseReceivedSubscription =
-      Notifications.addNotificationResponseReceivedListener(response => {
-        handleNotificationResponse(response, webviewRef);
-      });
-
-    initialize();
+    })();
 
     return () => {
-      if (notificationSubscription) notificationSubscription.remove();
-      if (notificationResponseReceivedSubscription)
-        notificationResponseReceivedSubscription.remove();
       BackHandler.removeEventListener('hardwareBackPress', handleBackPressed);
       listener.remove();
+
+      if (notificationSubscription.current) {
+        Notifications.removeNotificationSubscription(notificationSubscription.current);
+        console.debug("Removed notification listener");
+      }
+
+      if (notificationResponseSubscription.current) {
+        Notifications.removePushTokenSubscription(notificationResponseSubscription.current);
+        console.debug("Removed notification response listener");
+      }
     };
   }, []);
-
-  useEffect(() => {
-    if (fcmDeviceToken) {
-      pokeNotify(fcmDeviceToken);
-    }
-  }, [fcmDeviceToken]);
-
-  // useEffect(() => {
-  // if (loaded && hasUnreads) {
-  // unreadNotifications.forEach(n => {
-  // const content = n.bins[0].topYarn.con;
-  // const ship = (content[0] as YarnContentShip).ship;
-  // const title = `New message from ${ship}`;
-  // const body = content[2] as string;
-  // const rope = n.bins[0].topYarn.rope;
-  // Notifications.scheduleNotificationAsync({
-  // content: {
-  // title,
-  // body,
-  // categoryIdentifier: 'message'
-  // },
-  // trigger: null,
-  // identifier: JSON.stringify({ ship, rope })
-  // });
-  // });
-  // }
-  // }, [loaded, hasUnreads, unreadNotifications]);
 
   return (
     <SafeAreaView style={tailwind('flex-1')}>

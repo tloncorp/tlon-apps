@@ -22,4 +22,3 @@ export function makePrettyDay(date: Date) {
       return `${format(date, 'LLLL')} ${format(date, 'do')}`;
   }
 }
-
