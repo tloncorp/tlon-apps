@@ -732,8 +732,7 @@
       [%x %chat @ @ *]
     =/  =ship     (slav %p i.t.t.path)
     =*  name      i.t.t.t.path
-    =/  path-with-care  (weld t.t.t.t.path /x)
-    (ca-peek:(ca-abed:ca-core ship name) path-with-care)
+    (ca-peek:(ca-abed:ca-core ship name) [%x t.t.t.t.path])
   ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
@@ -746,12 +745,10 @@
   ::
       [%x %dm @ *]
     =/  =ship     (slav %p i.t.t.path)
-    =/  path-with-care  (weld t.t.t.path /x)
-    (di-peek:(di-abed:di-core ship) path-with-care)
+    (di-peek:(di-abed:di-core ship) [%x t.t.t.path])
   ::
       [%x %club @ *]
-    =/  path-with-care  (weld t.t.t.path /x)
-    (cu-peek:(cu-abed (slav %uv i.t.t.path)) path-with-care)
+    (cu-peek:(cu-abed (slav %uv i.t.t.path)) [%x t.t.t.path])
   ::
       [%x %draft @ $@(~ [@ ~])]
     =/  =whom:c
@@ -770,15 +767,13 @@
     =/  =ship  (slav %p i.t.t.path)
     ?.  (~(has by dms) ship)
       ``flag+!>(|)
-    =/  path-with-care  (weld t.t.t.path /u)
-    (di-peek:(di-abed:di-core ship) path-with-care)
+    (di-peek:(di-abed:di-core ship) [%u t.t.t.path])
   ::
       [%u %club @ *]
     =/  =id:club:c  (slav %uv i.t.t.path)
     ?.  (~(has by clubs) id)
       ``flag+!>(|)
-    =/  path-with-care  (weld t.t.t.path /u)
-    (cu-peek:(cu-abed:cu-core id) path-with-care)
+    (cu-peek:(cu-abed:cu-core id) [%u t.t.t.path])
   ::
       [%u %chat @ @ *]
     =/  =flag:c
@@ -786,8 +781,7 @@
         (slav %tas i.t.t.t.path)
     ?.  (~(has by chats) flag)
       ``flag+!>(|)
-    =/  path-with-care  (weld t.t.t.t.path /u)
-    (ca-peek:(ca-abed:ca-core flag) path-with-care)
+    (ca-peek:(ca-abed:ca-core flag) [%u t.t.t.t.path])
   ::
   ==
 ::
@@ -1080,10 +1074,10 @@
     cu-core
   ::
   ++  cu-peek
-    |=  =path
+    |=  [care=@tas =path]
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
-      [%writs *]  (peek:cu-pact t.path)
+      [%writs *]  (peek:cu-pact [care t.path])
       [%crew ~]   ``club-crew+!>(crew.club)
     ==
   ::
@@ -1261,10 +1255,10 @@
   ++  ca-brief  (brief:ca-pact our.bowl last-read.remark.chat)
   ::
   ++  ca-peek
-    |=  =(pole knot)
+    |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
-      [%writs rest=*]  (peek:ca-pact rest.pole)
+      [%writs rest=*]  (peek:ca-pact [care rest.pole])
       [%perm ~]        ``chat-perm+!>(perm.chat)
     ==
   ::
@@ -1740,10 +1734,10 @@
     ==
   ::
   ++  di-peek
-    |=  =path
+    |=  [care=@tas =path]
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
-      [%writs *]  (peek:di-pact t.path)
+      [%writs *]  (peek:di-pact [care t.path])
     ==
   ::
   ++  di-brief  (brief:di-pact our.bowl last-read.remark.dm)
