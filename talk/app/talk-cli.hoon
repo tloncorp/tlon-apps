@@ -910,7 +910,6 @@
       |=  =target
       ^-  (quip card _state)
       =^  rsvp-cards     state  (rsvp & target)
-      =^  compose-cards  state  (compose-channel target)
       ::  send watch card for target not in view
       ::
       =^  watch-cards    state
@@ -921,6 +920,8 @@
       =^  bind-cards     state
         ?:  (~(has by bound) target)  [~ state]
         (bind-default-glyph target)
+      ::
+      =^  compose-cards  state  (compose-channel target)
       :_  state 
       ^-  (list card)
       ;:  weld 
