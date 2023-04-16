@@ -25,8 +25,8 @@ import {
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import { whomIsDm } from '@/logic/utils';
-import { useChatInfo, useChatStore } from '../useChatStore';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { useChatHovering, useChatInfo, useChatStore } from '../useChatStore';
 
 export interface ChatMessageProps {
   whom: string;
@@ -82,7 +82,7 @@ const ChatMessage = React.memo<
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
-      const [hovering, setHovering] = useState(false);
+      const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -168,8 +168,10 @@ const ChatMessage = React.memo<
         }, 100)
       );
       const onOver = useCallback(() => {
-        hover.current = true;
-        setHover.current();
+        if (hover.current === false) {
+          hover.current = true;
+          setHover.current();
+        }
       }, []);
       const onOut = useRef(
         debounce(
@@ -186,7 +188,7 @@ const ChatMessage = React.memo<
         <div
           ref={mergeRefs(ref, container)}
           className={cn('flex flex-col break-words', {
-            'pt-2': newAuthor,
+            'pt-3': newAuthor,
             'pb-2': isLast,
           })}
           onMouseEnter={onOver}
@@ -203,12 +205,12 @@ const ChatMessage = React.memo<
           {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex w-full">
-            {hideOptions || isScrolling || !hovering ? null : (
+            {hideOptions || (isScrolling && !hovering) || !hovering ? null : (
               <ChatMessageOptions
                 hideThreadReply={hideReplies}
                 whom={whom}
                 writ={writ}
-                hideReply={whomIsDm(whom) || hideReplies}
+                hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
               />
             )}
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">

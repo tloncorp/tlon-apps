@@ -23,6 +23,7 @@ import {
 } from '@/logic/utils';
 import useAllBriefs from '@/logic/useAllBriefs';
 import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder';
+import { useLastReconnect } from '@/state/local';
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
@@ -56,6 +57,7 @@ function ChatChannel({ title }: ViewProps) {
     ? isChannelJoined(nest, briefs)
     : true;
   const needsLoader = messages.size === 0;
+  const lastReconnect = useLastReconnect();
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -96,6 +98,7 @@ function ChatChannel({ title }: ViewProps) {
     canRead,
     channel,
     joining,
+    lastReconnect,
   ]);
 
   useEffect(() => {

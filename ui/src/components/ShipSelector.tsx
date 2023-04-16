@@ -18,7 +18,7 @@ import {
   ClearIndicatorProps,
   InputActionMeta,
 } from 'react-select';
-import { includes } from 'lodash';
+import _, { includes } from 'lodash';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
 import { deSig } from '@urbit/api';
@@ -31,7 +31,6 @@ import { MAX_DISPLAYED_OPTIONS } from '@/constants';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
-import _ from 'lodash';
 import ShipName from './ShipName';
 import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
 
@@ -289,7 +288,7 @@ export default function ShipSelector({
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
     value: contact,
-    label: contacts[contact].nickname,
+    label: contacts[contact]?.nickname || '',
   }));
   const validShips = ships
     ? ships.every((ship) => isValidNewOption(preSig(ship.value)))
@@ -328,7 +327,7 @@ export default function ShipSelector({
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(
-      ([patp, contact]) => `${contact.nickname}${patp}`
+      ([patp, contact]) => `${contact?.nickname || ''}${patp}`
     );
 
     const fuzzyNames = fuzzy
@@ -348,7 +347,7 @@ export default function ShipSelector({
 
     return fuzzyNames.map((contact) => ({
       value: contact,
-      label: contacts[contact].nickname,
+      label: contacts[contact]?.nickname || '',
     }));
   }, [contactNames, contactOptions, contacts, inputValue]);
 
@@ -457,6 +456,7 @@ export default function ShipSelector({
         handleEnter={handleEnter}
         ref={selectRef}
         formatCreateLabel={AddNewOption}
+        menuPortalTarget={document.body}
         autoFocus={autoFocus}
         className={containerClassName}
         styles={{
@@ -467,6 +467,10 @@ export default function ShipSelector({
             borderColor: '',
             zIndex: 50,
             backgroundColor: 'inherit',
+          }),
+          menuPortal: (base) => ({
+            ...base,
+            zIndex: 50,
           }),
           input: (base) => ({
             ...base,
@@ -548,11 +552,16 @@ export default function ShipSelector({
       formatCreateLabel={AddNewOption}
       autoFocus
       isMulti
+      menuPortalTarget={document.body}
       className={containerClassName}
       styles={{
         control: (base) => ({}),
         menuList: ({ padding, paddingTop, paddingBottom, ...base }) => ({
           ...base,
+        }),
+        menuPortal: (base) => ({
+          ...base,
+          zIndex: 50,
         }),
         menu: ({
           paddingTop,

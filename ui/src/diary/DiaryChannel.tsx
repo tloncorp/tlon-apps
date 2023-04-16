@@ -35,6 +35,8 @@ import {
   isChannelJoined,
 } from '@/logic/utils';
 import useAllBriefs from '@/logic/useAllBriefs';
+import AddIcon16 from '@/components/icons/Add16Icon';
+import { useLastReconnect } from '@/state/local';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
@@ -57,6 +59,7 @@ function DiaryChannel() {
   const joined = Object.keys(briefs).some((k) => k.includes('diary/'))
     ? isChannelJoined(nest, briefs)
     : true;
+  const lastReconnect = useLastReconnect();
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -134,6 +137,7 @@ function DiaryChannel() {
     briefs,
     channel,
     canRead,
+    lastReconnect,
   ]);
 
   useEffect(() => {
@@ -182,7 +186,7 @@ function DiaryChannel() {
     i: number,
     [time, letter]: [bigInt.BigInteger, DiaryLetter]
   ) => (
-    <div className="my-4 mx-auto max-w-[600px]">
+    <div className="my-6 mx-auto max-w-[600px] px-6">
       <DiaryListItem letter={letter} time={time} />
     </div>
   );
@@ -206,9 +210,12 @@ function DiaryChannel() {
           {canWrite ? (
             <Link
               to="edit"
-              className="button shrink-0 bg-blue text-white dark:text-black"
+              className={
+                'small-button shrink-0 bg-blue px-1 text-white sm:px-2'
+              }
             >
-              Add Note
+              <AddIcon16 className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Add Note</span>
             </Link>
           ) : null}
         </ChannelHeader>
@@ -241,13 +248,13 @@ function DiaryChannel() {
           <div className="h-full">
             <div className="mx-auto flex h-full w-full flex-col">
               <Virtuoso
-                style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
+                style={{ height: '100%', width: '100%' }}
                 data={sortedNotes}
                 itemContent={itemContent}
                 overscan={200}
                 atBottomStateChange={loadOlderNotes}
                 components={{
-                  Header: () => <div className="h-8 w-full" />,
+                  Header: () => <div />,
                   Footer: () => <div className="h-4 w-full" />,
                 }}
               />

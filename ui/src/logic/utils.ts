@@ -166,7 +166,7 @@ export function pluralize(word: string, count: number): string {
 }
 
 export function createStorageKey(name: string): string {
-  return `~${window.ship}/${window.desk}/${name}`;
+  return `~${window.ship}/landscape/${name}`;
 }
 
 // for purging storage with version updates
@@ -390,6 +390,11 @@ export function isChannelJoined(
   return isChannelHost || (nest && nest in briefs);
 }
 
+export function isGroupHost(flag: string) {
+  const { ship } = getFlagParts(flag);
+  return ship === window.our;
+}
+
 export function getChannelHosts(group: Group): string[] {
   return Object.keys(group.channels).map((c) => {
     const [, chFlag] = nestToFlag(c);
@@ -577,9 +582,20 @@ export async function asyncWithDefault<T>(
   def: T
 ): Promise<T> {
   try {
-    return cb();
+    return await cb();
   } catch (error) {
     return def;
+  }
+}
+
+export async function asyncWithFallback<T>(
+  cb: () => Promise<T>,
+  def: (error: any) => Promise<T>
+): Promise<T> {
+  try {
+    return await cb();
+  } catch (error) {
+    return def(error);
   }
 }
 
@@ -613,4 +629,19 @@ export function getAppName(
   }
 
   return app.title || app.desk;
+}
+
+export function isOnlyEmojis(str: string): boolean {
+  const emojiRegex =
+    /^\p{Emoji}(?:\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Extended_Pictographic})$/u;
+  const stringWithoutEmojis = str.replace(emojiRegex, '');
+
+  return stringWithoutEmojis.length === 0;
+}
+
+export function isSingleEmoji(input: string): boolean {
+  const emojiRegex =
+    /^\p{Emoji}(?:\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Extended_Pictographic})$/u;
+
+  return emojiRegex.test(input);
 }

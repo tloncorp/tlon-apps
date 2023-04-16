@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { uniqBy } from 'lodash';
 import { useLocation, useNavigate } from 'react-router';
-import { cite, Contact, deSig, preSig } from '@urbit/api';
+import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useGroupFlag, useGroups } from '@/state/groups';
@@ -11,7 +11,7 @@ import {
   LEAP_RESULT_SCORE_THRESHOLD,
   LEAP_RESULT_TRUNCATE_SIZE,
 } from '@/constants';
-import { useContacts } from '@/state/contact';
+import { emptyContact, useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
 import {
@@ -25,6 +25,7 @@ import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import { Club } from '@/types/chat';
 import { useMutuals } from '@/state/pals';
+import { Contact } from '@/types/contact';
 import { ChargeWithDesk, useCharges } from '@/state/docket';
 import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
@@ -119,23 +120,14 @@ export default function useLeap() {
       ? menuOptions.map((o, idx) => ({
           ...o,
           onSelect: () => {
-            if (app === 'Groups' && o.title === 'Messages') {
-              window.open(`${window.location.origin}/apps/talk`, '_blank');
-            } else if (app === 'Groups' && o.title === 'Create New Group') {
-              modalNavigate(`/groups/new`, {
-                state: { backgroundLocation: location },
-              });
-            } else if (app === 'Groups' && o.title === 'Find Groups') {
-              navigate('/find');
-            } else if (app === 'Groups' && o.title === 'Profile') {
-              navigate('/profile/edit');
-            } else if (app === 'Talk' && o.title === 'Groups') {
-              window.open(
-                `${window.location.origin}/apps/groups/find`,
-                '_blank'
-              );
-            } else {
+            if (app === 'Talk' && o.title === 'Groups') {
+              window.open(`${window.location.origin}/apps/groups/`, '_blank');
+            } else if (app === 'Groups' && o.title === 'Talk') {
+              window.open(`${window.location.origin}/apps/talk/`, '_blank');
+            } else if (o.modal === true) {
               navigate(o.to, { state: { backgroundLocation: location } });
+            } else {
+              navigate(o.to);
             }
             setIsOpen(false);
             setSelectedIndex(0);
@@ -199,11 +191,15 @@ export default function useLeap() {
     };
 
     const allShips = uniqBy(
-      Object.entries(contacts).concat(
-        // accounting for ships not in contact store, but in DMs
-        // this fix is temporary until we fix the contact store
-        dms.map((ship) => [ship, { nickname: '' } as Contact])
-      ),
+      Object.entries(contacts)
+        .map(
+          ([s, contact]) => [s, contact || emptyContact] as [string, Contact]
+        )
+        .concat(
+          // accounting for ships not in contact store, but in DMs
+          // this fix is temporary until we fix the contact store
+          dms.map((ship) => [preSig(ship), { nickname: '' } as Contact])
+        ),
       ([ship]) => ship
     );
     const normalizedQuery = inputValue.toLocaleLowerCase();

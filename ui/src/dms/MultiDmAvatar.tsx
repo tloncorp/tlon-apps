@@ -5,7 +5,7 @@ import { isColor } from '@/logic/utils';
 import { useAvatar } from '@/state/avatar';
 import PeopleIcon from '../components/icons/PeopleIcon';
 
-type MultiDmAvatarSize = 'xs' | 'small' | 'default' | 'huge';
+export type MultiDmAvatarSize = 'xs' | 'small' | 'default' | 'huge';
 
 interface MultiDmAvatarProps {
   image?: string;

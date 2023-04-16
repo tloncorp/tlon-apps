@@ -114,6 +114,7 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
+    ~  cor
     [%set-vita ~]  cor
     [%vita-toggle ~]  cor
   ==

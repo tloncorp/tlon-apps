@@ -15,7 +15,8 @@ interface GroupJoinItemProps {
 function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
   const { open, reject, button, status, group, rejectStatus } = useGroupJoin(
     flag,
-    gang
+    gang,
+    true
   );
   const isMobile = useIsMobile();
   const cordon = gang.preview?.cordon || group?.cordon;
@@ -43,17 +44,17 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
           <>
             {gang.invite && status !== 'loading' ? (
               <button
-                className="button bg-red-soft text-red mix-blend-multiply dark:bg-red-900 dark:mix-blend-screen"
+                className={cn(
+                  'bg-red-soft text-red mix-blend-multiply dark:bg-red-900 dark:mix-blend-screen',
+                  isMobile ? 'small-button' : 'button'
+                )}
                 onClick={reject}
                 disabled={
                   rejectStatus === 'loading' || rejectStatus === 'error'
                 }
               >
                 {rejectStatus === 'loading' ? (
-                  <>
-                    <span className="text-gray-400"> Rejecting... </span>
-                    <LoadingSpinner className="h-4 w-4" />
-                  </>
+                  <LoadingSpinner className="h-4 w-4" />
                 ) : rejectStatus === 'error' ? (
                   'Errored'
                 ) : (
@@ -63,12 +64,14 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
             ) : null}
             {status === 'loading' ? (
               <div className="flex items-center justify-center space-x-2">
-                <span className="text-gray-400"> Joining... </span>
                 <LoadingSpinner className="h-4 w-4" />
               </div>
             ) : (
               <button
-                className="button ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100"
+                className={cn(
+                  'ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100',
+                  isMobile ? 'small-button' : 'button'
+                )}
                 onClick={button.action}
                 disabled={button.disabled || status === 'error'}
               >

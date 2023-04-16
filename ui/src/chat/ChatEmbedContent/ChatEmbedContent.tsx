@@ -18,7 +18,7 @@ const trustedProviders = [
   },
   {
     name: 'Spotify',
-    regex: /open\.spotify\.com\/track\//,
+    regex: /open\.spotify\.com\//,
   },
 ];
 
@@ -56,6 +56,14 @@ function ChatEmbedContent({
       setEmbed(null);
     };
   }, [url, calm, isTrusted, isAudio]);
+
+  if (url !== content) {
+    return (
+      <a target="_blank" rel="noreferrer" href={url}>
+        {content}
+      </a>
+    );
+  }
 
   if (isAudio) {
     return <AudioPlayer url={url} embed writId={writId} />;

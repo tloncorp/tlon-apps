@@ -1,27 +1,24 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useMatch, useNavigate } from 'react-router';
+import _ from 'lodash';
 import {
   useGang,
   useGroup,
-  useGroupsInitialized,
-  useGroupState,
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import api from '@/api';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
-import _ from 'lodash';
 import { canReadChannel } from '@/logic/utils';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 function Groups() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
-  const initialized = useGroupsInitialized();
-  const group = useGroup(flag);
+  const group = useGroup(flag, true);
   const gang = useGang(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -32,9 +29,22 @@ function Groups() {
   const { recentChannel } = useRecentChannel(flag);
 
   useEffect(() => {
-    if (initialized && !group && !gang) {
+    // 1) If we've initialized and the group doesn't exist and you don't have
+    // an invite to it, navigate back to home.
+    // 2) If we've initialized and we have a group and we're at the root of
+    // that group (/~ship/group-name), then check if we have stored a "recent
+    // channel" for that group that matches one of the group's current channels.
+    // 3) If we found a channel that matches what we have for "recent channel"
+    // and you can read that channel (and you're not on mobile), navigate
+    // directly to that channel.
+    // 4) If we don't have a recent channel, grab a channel from our briefs for
+    // that group, check if we can read it, and if we're not on mobile, then
+    // navigate to that channel.
+    // 5) If we're on mobile, just navigate to the channel list for the group.
+
+    if (!group && !gang) {
       navigate('/');
-    } else if (initialized && group && root) {
+    } else if (group && root) {
       const found = Object.entries(group.channels).find(
         ([nest, _c]) => recentChannel === nest
       );
@@ -62,34 +72,17 @@ function Groups() {
         navigate('./channels');
       }
     }
-  }, [
-    root,
-    gang,
-    group,
-    vessel,
-    isMobile,
-    initialized,
-    recentChannel,
-    navigate,
-  ]);
+  }, [root, gang, group, vessel, isMobile, recentChannel, navigate]);
 
-  useEffect(() => {
-    let id = null as number | null;
-    useGroupState
-      .getState()
-      .initialize(flag, true)
-      .then((i) => {
-        id = i;
-      });
-    return () => {
-      if (id) {
-        api.unsubscribe(id);
-      }
-    };
-  }, [flag]);
-
-  if (!group) {
-    return null;
+  if (!group || group.meta.title === '') {
+    return (
+      <div className="flex min-w-0 grow items-center justify-center bg-gray-50">
+        <div className="flex items-center justify-center">
+          <LoadingSpinner className="h-4 w-4 text-gray-400" />
+          <span className="ml-2 text-gray-600">Wait a sec</span>
+        </div>
+      </div>
+    );
   }
 
   return (

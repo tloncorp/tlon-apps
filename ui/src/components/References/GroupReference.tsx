@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import cn from 'classnames';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useGang, useGroupState } from '@/state/groups';
+import { useGang, useGangPreview } from '@/state/groups';
 import GroupAvatar from '@/groups/GroupAvatar';
 import {
   getFlagParts,
@@ -29,21 +29,16 @@ function GroupReference({
   description,
 }: GroupReferenceProps) {
   const gang = useGang(flag);
+  const preview = useGangPreview(flag, isScrolling);
   const { group, privacy, open, reject, button, status } = useGroupJoin(
     flag,
     gang
   );
   const { ship } = getFlagParts(flag);
-  const cordon = gang.preview?.cordon || group?.cordon;
+  const cordon = preview?.cordon || group?.cordon;
   const banned = cordon ? matchesBans(cordon, window.our) : null;
 
-  const meta = group?.meta || gang?.preview?.meta;
-
-  useEffect(() => {
-    if (!gang?.preview && !group && !isScrolling) {
-      useGroupState.getState().search(flag);
-    }
-  }, [gang, group, flag, isScrolling]);
+  const meta = group?.meta || preview?.meta;
 
   const referenceUnavailable =
     privacy === 'secret' &&

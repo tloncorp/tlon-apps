@@ -5,7 +5,11 @@ import { GroupChannel } from '@/types/groups';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
-import { useAmAdmin, useGroupState, useRouteGroup } from '@/state/groups';
+import {
+  useAmAdmin,
+  useDeleteChannelMutation,
+  useRouteGroup,
+} from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import {
   getPrivacyFromChannel,
@@ -17,7 +21,6 @@ import { useDiaryState } from '@/state/diary';
 import ChannelIcon from '@/channels/ChannelIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import { PRIVACY_TYPE } from '@/groups/ChannelsList/ChannelPermsSelector';
-import { Status } from '@/logic/status';
 import useRequestState from '@/logic/useRequestState';
 import useAllBriefs from '@/logic/useAllBriefs';
 
@@ -69,22 +72,27 @@ export default function ChannelsListItem({
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const privacy = getPrivacyFromChannel(channel, getChannel(app, channelFlag));
   const permissionText = PRIVACY_TYPE[privacy].title;
+  const { mutate: deleteChannelMutation, status: deleteStatus } =
+    useDeleteChannelMutation();
 
   const onDeleteChannelConfirm = useCallback(async () => {
-    setDeleteStatus('loading');
     try {
-      await useGroupState.getState().deleteChannel(groupFlag, nest);
+      deleteChannelMutation({ flag: groupFlag, nest });
       onChannelDelete(nest, sectionKey);
-      setDeleteStatus('success');
       setDeleteChannelIsOpen(!deleteChannelIsOpen);
     } catch (e) {
-      setDeleteStatus('error');
       console.log(e);
     }
-  }, [nest, deleteChannelIsOpen, onChannelDelete, sectionKey, groupFlag]);
+  }, [
+    nest,
+    deleteChannelIsOpen,
+    onChannelDelete,
+    sectionKey,
+    groupFlag,
+    deleteChannelMutation,
+  ]);
 
   const join = useCallback(
     async (chFlag: string) => {
@@ -194,7 +202,7 @@ export default function ChannelsListItem({
                 disabled={isPending}
                 onClick={joinChannel}
                 className={cn(
-                  'small-secondary-button text-sm mix-blend-multiply dark:mix-blend-screen md:text-base',
+                  'small-secondary-button text-sm mix-blend-multiply dark:mix-blend-screen',
                   {
                     'bg-blue-soft text-blue': isReady || isPending,
                     'bg-yellow-soft text-gray-800': isFailed,

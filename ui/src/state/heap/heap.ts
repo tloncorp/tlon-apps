@@ -7,16 +7,15 @@ import {
   CurioDelta,
   Heap,
   HeapAction,
-  HeapBriefs,
   HeapBriefUpdate,
   HeapCurio,
   HeapDiff,
   HeapFlag,
   HeapPerm,
-  Stash,
   HeapSaid,
   HeapDisplayMode,
   HeapJoin,
+  HeapCreate,
 } from '@/types/heap';
 import api from '@/api';
 import { nestToFlag, canWriteChannel } from '@/logic/utils';
@@ -25,7 +24,6 @@ import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
 import { useGroup, useVessel } from '../groups';
-import useSubscriptionState from '../subscription';
 import { createState } from '../base';
 import useSchedulerStore from '../scheduler';
 
@@ -81,7 +79,6 @@ export const useHeapState = createState<HeapState>(
     },
     stash: {},
     curios: {},
-    heapSubs: [],
     loadedRefs: {},
     briefs: {},
     pendingImports: {},
@@ -96,85 +93,66 @@ export const useHeapState = createState<HeapState>(
       });
     },
     start: async ({ briefs, stash }) => {
-      const { wait } = useSchedulerStore.getState();
       get().batchSet((draft) => {
         draft.briefs = briefs;
         draft.stash = stash;
       });
 
-      wait(() => {
-        api.subscribe({
-          app: 'heap',
-          path: '/briefs',
-          event: (event: unknown, mark: string) => {
-            if (mark === 'heap-leave') {
-              get().batchSet((draft) => {
-                delete draft.briefs[event as string];
-              });
-              return;
+      api.subscribe({
+        app: 'heap',
+        path: '/briefs',
+        event: (event: unknown, mark: string) => {
+          if (mark === 'heap-leave') {
+            get().batchSet((draft) => {
+              delete draft.briefs[event as string];
+            });
+            return;
+          }
+
+          const { flag, brief } = event as HeapBriefUpdate;
+          get().batchSet((draft) => {
+            draft.briefs[flag] = brief;
+          });
+        },
+      });
+
+      api.subscribe({
+        app: 'heap',
+        path: '/ui',
+        event: (event: HeapAction) => {
+          get().batchSet((draft) => {
+            const {
+              flag,
+              update: { diff },
+            } = event;
+            const heap = draft.stash[flag];
+
+            if ('view' in diff) {
+              heap.view = diff.view;
+            } else if ('del-sects' in diff) {
+              heap.perms.writers = heap.perms.writers.filter(
+                (w) => !diff['del-sects'].includes(w)
+              );
+            } else if ('add-sects' in diff) {
+              heap.perms.writers = heap.perms.writers.concat(diff['add-sects']);
             }
-
-            const { flag, brief } = event as HeapBriefUpdate;
-            get().batchSet((draft) => {
-              draft.briefs[flag] = brief;
-            });
-          },
-        });
-
-        api.subscribe({
-          app: 'heap',
-          path: '/ui',
-          event: (event: HeapAction) => {
-            get().batchSet((draft) => {
-              const {
-                flag,
-                update: { diff },
-              } = event;
-              const heap = draft.stash[flag];
-
-              if ('view' in diff) {
-                heap.view = diff.view;
-              } else if ('del-sects' in diff) {
-                heap.perms.writers = heap.perms.writers.filter(
-                  (w) => !diff['del-sects'].includes(w)
-                );
-              } else if ('add-sects' in diff) {
-                heap.perms.writers = heap.perms.writers.concat(
-                  diff['add-sects']
-                );
-              }
-            });
-          },
-        });
-      }, 4);
+          });
+        },
+      });
     },
     joinHeap: async (group, chan) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke<HeapJoin>({
+      await api.trackedPoke<HeapJoin, HeapAction>(
+        {
           app: 'heap',
           mark: 'channel-join',
           json: {
             group,
             chan,
           },
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState
-              .getState()
-              .track(`heap/ui`, (event: HeapAction) => {
-                const {
-                  update: { diff },
-                  flag: f,
-                } = event;
-                if (f === chan && 'create' in diff) {
-                  return true;
-                }
-                return false;
-              });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'heap', path: 'ui' },
+        (event) => event.flag === chan && 'create' in event.update.diff
+      );
     },
     leaveHeap: async (flag) => {
       await api.poke({
@@ -202,27 +180,20 @@ export const useHeapState = createState<HeapState>(
       await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
     },
     create: async (req) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke({
+      await api.trackedPoke<HeapCreate, HeapAction>(
+        {
           app: 'heap',
           mark: 'heap-create',
           json: req,
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState.getState().track('heap/ui', (event) => {
-              const { update, flag } = event;
-              if (
-                'create' in update.diff &&
-                flag === `${window.our}/${req.name}`
-              ) {
-                return true;
-              }
-              return false;
-            });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'heap', path: '/ui' },
+        (event) => {
+          const { update, flag } = event;
+          return (
+            'create' in update.diff && flag === `${window.our}/${req.name}`
+          );
+        }
+      );
     },
     addSects: async (flag, sects) => {
       await api.poke(heapAction(flag, { 'add-sects': sects }));
@@ -275,10 +246,6 @@ export const useHeapState = createState<HeapState>(
       );
     },
     initialize: async (flag) => {
-      if (get().heapSubs.includes(flag)) {
-        return;
-      }
-
       useSchedulerStore.getState().wait(async () => {
         const perms = await api.scry<HeapPerm>({
           app: 'heap',
@@ -287,7 +254,6 @@ export const useHeapState = createState<HeapState>(
         get().batchSet((draft) => {
           const heap = { perms, view: 'grid' as HeapDisplayMode };
           draft.stash[flag] = heap;
-          draft.heapSubs.push(flag);
         });
       }, 1);
 
@@ -301,11 +267,6 @@ export const useHeapState = createState<HeapState>(
     initImports: (init) => {
       get().batchSet((draft) => {
         draft.pendingImports = init;
-      });
-    },
-    clearSubs: () => {
-      get().batchSet((draft) => {
-        draft.heapSubs = [];
       });
     },
   }),

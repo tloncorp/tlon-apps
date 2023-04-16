@@ -125,9 +125,7 @@ export function createSubscription(
     path,
     event: e,
     err: () => null,
-    quit: () => {
-      throw new FatalError('subscription clogged');
-    },
+    quit: () => null,
   };
   // TODO: err, quit handling (resubscribe?)
   return request;

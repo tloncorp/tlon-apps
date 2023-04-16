@@ -25,7 +25,7 @@ export function DesktopNav() {
         {match || backgroundLocationMatch ? (
           <motion.div
             key="group"
-            className="absolute h-full"
+            className="absolute h-full w-full"
             initial={{ x: 256 }}
             animate={{ x: 0 }}
             exit={{ x: 256 }}
@@ -36,7 +36,7 @@ export function DesktopNav() {
         ) : (
           <motion.div
             key="main"
-            className="absolute h-full"
+            className="absolute h-full w-full"
             initial={{ x: -256 }}
             animate={{ x: 0 }}
             exit={{ x: -256 }}

@@ -1,21 +1,20 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import cn from 'classnames';
 import ob from 'urbit-ob';
 import {
   useGangs,
-  useGroupState,
+  useGroupIndex,
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
-import { Gangs, GroupIndex, ViewProps } from '@/types/groups';
-import useRequestState from '@/logic/useRequestState';
+import { Gangs, ViewProps } from '@/types/groups';
 import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
 import { useNavigate, useParams, useLocation } from 'react-router';
-import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { useModalNavigate } from '@/logic/routing';
 import GroupReference from '@/components/References/GroupReference';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 import GroupAvatar from './GroupAvatar';
@@ -25,10 +24,10 @@ export default function FindGroups({ title }: ViewProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const modalNavigate = useModalNavigate();
-  const [groupIndex, setGroupIndex] = useState<GroupIndex | null>(null);
   const existingGangs = useGangs();
   const pendingGangs = usePendingGangsWithoutClaim();
   const isMobile = useIsMobile();
+  const { groupIndex, fetchStatus, refetch } = useGroupIndex(ship || '');
 
   /**
    *  Search results for render:
@@ -81,20 +80,6 @@ export default function FindGroups({ title }: ViewProps) {
         }, {} as Gangs)
     : null;
 
-  useEffect(() => {
-    if (indexedGangs && hasKeys(indexedGangs)) {
-      const indexedFlags = Object.keys(indexedGangs);
-      if (indexedFlags.every((f) => f in existingGangs)) {
-        // The gangs state has already been merged with the indexed gangs,
-        // so no need to update again
-        return;
-      }
-      useGroupState.setState((draft) => ({
-        gangs: { ...draft.gangs, ...indexedGangs },
-      }));
-    }
-  }, [existingGangs, indexedGangs]);
-
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
 
   const selectedShip =
@@ -102,45 +87,6 @@ export default function FindGroups({ title }: ViewProps) {
   const presentedShip = selectedShip
     ? selectedShip.label || selectedShip.value
     : '';
-  const { isPending, setPending, setReady } = useRequestState();
-
-  const searchGroups = useCallback(async () => {
-    if (!ship) {
-      return;
-    }
-
-    setGroupIndex(null);
-    setPending();
-    try {
-      /**
-       * results will always either be a GroupIndex, or the
-       * request will throw an error, which will be caught below.
-       * for peers where a route has to be established this can take
-       * upwards of thirty seconds.
-       */
-      const results: GroupIndex = await asyncCallWithTimeout(
-        useGroupState.getState().index(preSig(ship)),
-        30 * 1000
-      );
-      setGroupIndex(results);
-      setReady();
-    } catch (error) {
-      console.log(
-        '[FindGroups:SearchGroups] Request failed due to timeout or network issue'
-      );
-      setGroupIndex({});
-      setReady(); // TODO: show error state? e.g. request timed out... or "Is the host online?"
-    }
-  }, [setPending, setReady, ship]);
-
-  // if ship in query params, do query
-  useEffect(() => {
-    if (!ship) {
-      return;
-    }
-
-    searchGroups();
-  }, [ship, searchGroups]);
 
   // once a ship is selected, redirect to find/[selected query]
   useEffect(() => {
@@ -166,7 +112,7 @@ export default function FindGroups({ title }: ViewProps) {
   };
 
   const resultsTitle = () => {
-    if (isPending) {
+    if (fetchStatus === 'fetching') {
       return (
         <>
           <span>Searching for groups hosted by&nbsp;</span>
@@ -196,19 +142,20 @@ export default function FindGroups({ title }: ViewProps) {
           </>
         );
       }
-
-      return (
-        <span>
-          Your search timed out, which may happen when a ship hosts no groups,
-          is under heavy load, or is offline.{' '}
-          <span onClick={searchGroups} className="cursor-pointer text-gray-800">
-            Try again?
-          </span>
-        </span>
-      );
     }
 
-    return null;
+    return (
+      <span>
+        Your search timed out, which may happen when a ship hosts no groups, is
+        under heavy load, or is offline.{' '}
+        <span
+          onClick={() => refetch()}
+          className="cursor-pointer text-gray-800"
+        >
+          Try again?
+        </span>
+      </span>
+    );
   };
 
   // Allow selecting a ship name or invite URL (i.e., flag) in ShipSelector
@@ -218,23 +165,21 @@ export default function FindGroups({ title }: ViewProps) {
   return (
     <>
       {isMobile && (
-        <header className="flex h-14 items-center justify-between px-5 py-4">
-          <h1 className="text-base font-bold">Find Groups</h1>
+        <header className="flex items-center justify-between bg-white px-6 py-4 sm:hidden">
+          <h1 className="text-lg font-bold text-gray-800">Find Groups</h1>
+          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+            {isMobile && <ReconnectingSpinner />}
+          </div>
         </header>
       )}
-      <div
-        className={cn('flex grow overflow-y-auto', !isMobile && 'bg-gray-50')}
-      >
+      <div className={cn('flex grow overflow-y-auto bg-gray-50')}>
         <Helmet>
           <title>{title ? title : document.title}</title>
         </Helmet>
-        <div className="w-full p-4">
-          <section
-            className={cn('mb-8 space-y-8', !isMobile && 'card mb-4 sm:p-8')}
-          >
-            {!isMobile && <h1 className="text-lg font-bold">Find Groups</h1>}
+        <div className="w-full p-6">
+          <section className={cn('card mb-6 space-y-8')}>
             <div>
-              <label htmlFor="flag" className="mb-1.5 block font-semibold">
+              <label htmlFor="flag" className="mb-2 block font-semibold">
                 Join Groups via Nickname or Urbit ID
               </label>
               <div className="flex flex-col space-y-2">
@@ -243,9 +188,9 @@ export default function FindGroups({ title }: ViewProps) {
                   setShips={setShipSelectorShips}
                   isMulti={false}
                   isClearable={true}
-                  isLoading={isPending}
+                  isLoading={fetchStatus === 'fetching'}
                   hasPrompt={false}
-                  placeholder={''}
+                  placeholder={'e.g. ~nibset-napwyn/tlon'}
                   isValidNewOption={isValidNewOption}
                   autoFocus={isMobile ? false : true}
                 />
@@ -254,7 +199,7 @@ export default function FindGroups({ title }: ViewProps) {
             {selectedShip || (ship && name) ? (
               <section className="space-y-3">
                 <p className="font-semibold text-gray-400">{resultsTitle()}</p>
-                {isPending ? (
+                {fetchStatus === 'fetching' ? (
                   <GroupJoinListPlaceholder />
                 ) : indexedGangs && hasKeys(indexedGangs) ? (
                   <GroupJoinList gangs={indexedGangs} />
@@ -263,12 +208,7 @@ export default function FindGroups({ title }: ViewProps) {
             ) : null}
           </section>
           {hasKeys(pendingGangs) ? (
-            <section
-              className={cn(
-                'mb-4 space-y-4',
-                !isMobile && 'card space-y-8 sm:p-8'
-              )}
-            >
+            <section className={cn('card mb-6 space-y-4')}>
               <h1
                 className={cn('font-bold', isMobile ? 'text-base' : 'text-lg')}
               >
@@ -279,9 +219,7 @@ export default function FindGroups({ title }: ViewProps) {
           ) : null}
 
           {!hasKeys(pendingGangs) && !selectedShip && (
-            <section
-              className={cn('mb-8 space-y-8', !isMobile && 'card mb-4 sm:p-8')}
-            >
+            <section className={cn('card mb-6 space-y-8')}>
               <h1 className="text-lg font-bold">Suggested Groups</h1>
               <p className="leading-6">
                 Here are some groups we recommend joining to learn more about
@@ -314,12 +252,14 @@ export default function FindGroups({ title }: ViewProps) {
                 </div>
                 <div className="flex items-center justify-between">
                   <GroupAvatar
-                    image="https://sfo3.digitaloceanspaces.com/zurbit-images/dovsem-bornyl/2022.6.16..19.11.20-flooring.jpeg"
+                    image="https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2023.4.06..02.45.53-tlon-local-pin.svg"
                     size="h-12 w-12 shrink-0"
                   />
                   <div className="mx-2 grow">
-                    <h2 className="text-base font-semibold">Tlon Public</h2>
-                    <p className="text-xs">A place to ask for help</p>
+                    <h2 className="text-base font-semibold">Tlon Local</h2>
+                    <p className="text-xs">
+                      Updates, announcements, and broadcasts from Tlon.
+                    </p>
                   </div>
                   <GroupReference flag="~nibset-napwyn/tlon" onlyButton />
                 </div>
