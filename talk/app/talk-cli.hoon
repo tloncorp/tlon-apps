@@ -1027,7 +1027,7 @@
           %chat
         :-  %club-action
         !>  ^-  action:club:chat
-        [club-id *echo:club:chat %team our-self ok]   
+        [club-id *uid:club:chat %team our-self ok]   
       ==
     :: +send: make a poke card based on audience
     ::
@@ -1049,8 +1049,7 @@
           %club   
         :-  %club-action
         !>  ^-  action:club:chat
-        ::TODO  change 1 to *echo:club:chat once #2009 is fixed
-        [p.audience 1 %writ [our now]:bowl %add memo]   
+        [p.audience *uid:club:chat %writ [our now]:bowl %add memo]   
       ::
           %flag
         :-  %chat-action-0
