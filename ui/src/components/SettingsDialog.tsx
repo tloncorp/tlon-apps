@@ -31,80 +31,82 @@ export default function SettingsDialog() {
 
   return (
     <Dialog defaultOpen modal onOpenChange={onOpenChange} className="w-[500px]">
-      <div className="flex flex-col space-y-2">
-        <span className="text-lg font-bold">
-          {isTalk ? 'Talk' : 'Groups'} Settings
-        </span>
-        <div className="flex flex-col space-y-4">
-          <div className="inner-section relative space-y-8">
-            <h2 className="h4">CalmEngine</h2>
-            <span className="font-semibold text-gray-400">
-              Modulate attention-hacking interfaces across your urbit
+      <div className="flex flex-col space-y-8">
+        <span className="text-lg font-bold">App Settings</span>
+        <div className="inner-section relative space-y-4">
+          <div className="mb-6 flex flex-col">
+            <h2 className="mb-2 text-lg font-bold">CalmEngine</h2>
+            <span className="text-gray-600">
+              Tune the behavior of attention-grabbing interfaces in{' '}
+              {isTalk ? 'Talk' : 'Groups'}
             </span>
-            <Setting
-              on={disableAvatars}
-              toggle={() => toggleAvatars(!disableAvatars)}
-              status={avatarStatus}
-              name="Disable avatars"
-            >
-              <p className="leading-5 text-gray-600">
-                Turn user-set visual avatars off and only display urbit sigils
-                across all of your apps.
-              </p>
-            </Setting>
-            <Setting
-              on={disableNicknames}
-              toggle={() => toggleNicknames(!disableNicknames)}
-              status={nicknameStatus}
-              name="Disable nicknames"
-            >
-              <p className="leading-5 text-gray-600">
-                Turn user-set nicknames off and only display urbit-style names
-                across all of your apps.
-              </p>
-            </Setting>
-            <Setting
-              on={disableWayfinding}
-              toggle={() => toggleWayfinding(!disableWayfinding)}
-              status={wayfindingStatus}
-              name="Disable wayfinding"
-            >
-              <p className="leading-5 text-gray-600">
-                Turn off the "wayfinding" menu in the bottom left of Landscape.
-              </p>
-            </Setting>
           </div>
-          <div className="inner-section relative space-y-8">
-            <h2 className="h4">Privacy</h2>
-            <span className="font-semibold text-gray-400">
+          <Setting
+            on={disableAvatars}
+            toggle={() => toggleAvatars(!disableAvatars)}
+            status={avatarStatus}
+            name="Disable avatars"
+          >
+            <p className="leading-5 text-gray-600">
+              Turn user-set visual avatars off and only display urbit sigils in{' '}
+              {isTalk ? 'Talk' : 'Groups'}
+            </p>
+          </Setting>
+          <Setting
+            on={disableNicknames}
+            toggle={() => toggleNicknames(!disableNicknames)}
+            status={nicknameStatus}
+            name="Disable nicknames"
+          >
+            <p className="leading-5 text-gray-600">
+              Turn user-set nicknames off and only display urbit-style names
+              across {isTalk ? 'Talk' : 'Groups'}
+            </p>
+          </Setting>
+          <Setting
+            on={disableWayfinding}
+            toggle={() => toggleWayfinding(!disableWayfinding)}
+            status={wayfindingStatus}
+            name="Disable wayfinding"
+          >
+            <p className="leading-5 text-gray-600">
+              Turn off the "wayfinding" helper menu menu in the bottom left of
+              the {isTalk ? 'Talk' : 'Groups'} sidebar
+            </p>
+          </Setting>
+        </div>
+        <div className="inner-section relative space-y-4">
+          <div className="mb-6 flex flex-col">
+            <h2 className="mb-2 text-lg font-bold">Privacy</h2>
+            <span className="text-gray-600">
               Limit your urbit’s ability to be read or tracked by clearnet
-              services
+              services in {isTalk ? 'Talk' : 'Groups'}
             </span>
-            <Setting
-              on={disableSpellcheck}
-              toggle={() => toggleSpellcheck(!disableSpellcheck)}
-              status={spellcheckStatus}
-              name="Disable spell-check"
-            >
-              <p className="leading-5 text-gray-600">
-                Turn spell-check off across all text inputs in your urbit’s
-                software/applications. Spell-check reads your keyboard input,
-                which may be undesirable.
-              </p>
-            </Setting>
-            <Setting
-              on={disableRemoteContent}
-              toggle={() => toggleRemoteContent(!disableRemoteContent)}
-              status={remoteContentStatus}
-              name="Disable remote content"
-            >
-              <p className="leading-5 text-gray-600">
-                Turn off automatically-displaying media embeds across all of
-                your urbit’s software/applications. This may result in some
-                software appearing to have content missing.
-              </p>
-            </Setting>
           </div>
+          <Setting
+            on={disableSpellcheck}
+            toggle={() => toggleSpellcheck(!disableSpellcheck)}
+            status={spellcheckStatus}
+            name="Disable spell-check"
+          >
+            <p className="leading-5 text-gray-600">
+              Turn spell-check off across all text inputs in{' '}
+              {isTalk ? 'Talk' : 'Groups'}. Spell-check reads your keyboard
+              input, which may be undesirable.
+            </p>
+          </Setting>
+          <Setting
+            on={disableRemoteContent}
+            toggle={() => toggleRemoteContent(!disableRemoteContent)}
+            status={remoteContentStatus}
+            name="Disable remote content"
+          >
+            <p className="leading-5 text-gray-600">
+              Turn off automatically-displaying media embeds across{' '}
+              {isTalk ? 'Talk' : 'Groups'}. This may result in some software
+              appearing to have content missing.
+            </p>
+          </Setting>
         </div>
       </div>
     </Dialog>

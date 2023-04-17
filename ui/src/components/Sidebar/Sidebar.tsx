@@ -96,7 +96,7 @@ export function GroupsAppMenu() {
                 <PencilSettingsIcon className="h-6 w-6" />
               </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
-                Settings
+                App Settings
               </DropdownMenu.Item>
             </Link>
           </DropdownMenu.Content>
