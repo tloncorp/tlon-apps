@@ -12,7 +12,7 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import {
-  useNotesForDiary,
+  useNotes,
   useDiaryState,
   useDiaryDisplayMode,
   useDiaryPerms,
@@ -49,7 +49,7 @@ function DiaryChannel() {
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
-  const letters = useNotesForDiary(chFlag);
+  const letters = useNotes(chFlag);
   const location = useLocation();
   const navigate = useNavigate();
   const { setRecentChannel } = useRecentChannel(flag);
@@ -64,6 +64,7 @@ function DiaryChannel() {
     bucket: 'diary',
     key: 'settings',
   });
+  const needsLoader = letters.size === 0;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -138,7 +139,6 @@ function DiaryChannel() {
     joined,
     initializeChannel,
     joining,
-    briefs,
     channel,
     canRead,
     lastReconnect,
@@ -244,7 +244,7 @@ function DiaryChannel() {
         </div>
       </Toast.Provider>
       <div className="h-full">
-        {!initialized ? (
+        {!initialized && needsLoader ? (
           <DiaryChannelListPlaceholder count={4} />
         ) : displayMode === 'grid' ? (
           <DiaryGridView notes={sortedNotes} loadOlderNotes={loadOlderNotes} />

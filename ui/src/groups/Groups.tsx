@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet, useMatch, useNavigate } from 'react-router';
+import _ from 'lodash';
 import {
   useGang,
   useGroup,
@@ -11,13 +12,13 @@ import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
-import _ from 'lodash';
 import { canReadChannel } from '@/logic/utils';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 function Groups() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
-  const group = useGroup(flag, true);
+  const group = useGroup(flag, true, true);
   const gang = useGang(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -73,8 +74,15 @@ function Groups() {
     }
   }, [root, gang, group, vessel, isMobile, recentChannel, navigate]);
 
-  if (!group) {
-    return null;
+  if (!group || group.meta.title === '') {
+    return (
+      <div className="flex min-w-0 grow items-center justify-center bg-gray-50">
+        <div className="flex items-center justify-center">
+          <LoadingSpinner className="h-4 w-4 text-gray-400" />
+          <span className="ml-2 text-gray-600">Wait a sec</span>
+        </div>
+      </div>
+    );
   }
 
   return (

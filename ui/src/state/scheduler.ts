@@ -14,6 +14,7 @@ interface SchedulerStore {
   wait: <T>(callback: () => T, phase: number) => Promise<T>;
   start: (phase: number) => void;
   next: () => void;
+  reset: () => void;
 }
 
 const MAX_PHASE = 5;
@@ -21,6 +22,9 @@ const MAX_PHASE = 5;
 const useSchedulerStore = create<SchedulerStore>((set, get) => ({
   phase: 0,
   waiting: {},
+  reset: () => {
+    set({ phase: 0 });
+  },
   next: () => {
     const { waiting, phase } = get();
 
@@ -39,6 +43,12 @@ const useSchedulerStore = create<SchedulerStore>((set, get) => ({
     waiters?.forEach((w) => {
       w.callback();
     });
+
+    set(
+      produce((draft: SchedulerStore) => {
+        delete draft.waiting[phase];
+      })
+    );
 
     setTimeout(() => get().next(), 16);
   },

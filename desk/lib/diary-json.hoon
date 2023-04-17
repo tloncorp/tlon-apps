@@ -22,6 +22,7 @@
         sent+(time sent.o)
         'quipCount'^(numb quips.o)
         quippers/a/(turn ~(tap in quippers.o) ship)
+        type/s/%outline
     ==
   ::
   ++  outlines
@@ -285,6 +286,7 @@
     %-  pairs
     :~  seal+(seal -.note)
         essay+(essay +.note)
+        type/s/%note
     ==
   ::
   ++  cork

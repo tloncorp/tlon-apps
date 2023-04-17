@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import bigInt, { BigInteger } from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
@@ -16,9 +17,11 @@ import {
   HeapDisplayMode,
   HeapJoin,
   HeapCreate,
+  HeapCurios,
+  HeapCurioMap,
 } from '@/types/heap';
 import api from '@/api';
-import { nestToFlag, canWriteChannel } from '@/logic/utils';
+import { nestToFlag, canWriteChannel, restoreMap } from '@/logic/utils';
 import useNest from '@/logic/useNest';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { HeapState } from './type';
@@ -270,11 +273,32 @@ export const useHeapState = createState<HeapState>(
       });
     },
   }),
-  ['briefs', 'stash', 'curios'],
+  {
+    partialize: (state) => {
+      const saved = _.pick(state, ['briefs', 'stash', 'curios']);
+
+      return saved;
+    },
+    merge: (state, current) => {
+      const curios: {
+        [flag: HeapFlag]: HeapCurioMap;
+      } = {};
+
+      Object.entries(state.curios).forEach(([k, c]) => {
+        curios[k] = restoreMap<HeapCurio>(c);
+      });
+
+      return {
+        ...current,
+        ...state,
+        curios,
+      };
+    },
+  },
   []
 );
 
-export function useCuriosForHeap(flag: HeapFlag) {
+export function useCurios(flag: HeapFlag) {
   const def = useMemo(() => new BigIntOrderedMap<HeapCurio>(), []);
   return useHeapState(useCallback((s) => s.curios[flag] || def, [flag, def]));
 }
@@ -303,10 +327,6 @@ export function useHeapIsJoined(flag: HeapFlag) {
   return useHeapState(
     useCallback((s) => Object.keys(s.briefs).includes(flag), [flag])
   );
-}
-
-export function useCurios(flag: HeapFlag) {
-  return useHeapState(useCallback((s) => s.curios[flag], [flag]));
 }
 
 export function useAllCurios() {
@@ -340,20 +360,16 @@ export function useComments(flag: HeapFlag, time: string) {
 }
 
 export function useCurio(flag: HeapFlag, time: string) {
-  return useHeapState(
-    useCallback(
-      (s) => {
-        const curios = s.curios[flag];
-        if (!curios || !curios.get) {
-          return undefined;
-        }
+  const curios = useCurios(flag);
+  return useMemo(() => {
+    const t = bigInt(time);
 
-        const t = bigInt(time);
-        return [t, curios.get(t)] as const;
-      },
-      [flag, time]
-    )
-  );
+    if (curios.size === 0 || !curios.has(t)) {
+      return undefined;
+    }
+
+    return [t, curios.get(t)] as const;
+  }, [time, curios]);
 }
 
 export function useHeap(flag: HeapFlag): Heap | undefined {
@@ -368,7 +384,7 @@ export function useOrderedCurios(
   flag: HeapFlag,
   currentId: bigInt.BigInteger | string
 ) {
-  const curios = useCuriosForHeap(flag);
+  const curios = useCurios(flag);
   const sortedCurios = Array.from(curios).filter(
     ([, c]) => c.heart.replying === null
   );

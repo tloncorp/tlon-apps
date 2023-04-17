@@ -1,7 +1,13 @@
 import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
 import { BigInteger } from 'big-integer';
-import { Docket, DocketHref, Treaty, unixToDa } from '@urbit/api';
+import {
+  BigIntOrderedMap,
+  Docket,
+  DocketHref,
+  Treaty,
+  unixToDa,
+} from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
@@ -22,6 +28,7 @@ import {
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief, DiaryQuip, DiaryQuipMap } from '@/types/diary';
+import bigInt from 'big-integer';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -637,4 +644,37 @@ export function isOnlyEmojis(str: string): boolean {
   const stringWithoutEmojis = str.replace(emojiRegex, '');
 
   return stringWithoutEmojis.length === 0;
+}
+
+export function isSingleEmoji(input: string): boolean {
+  const emojiRegex =
+    /^\p{Emoji}(?:\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Extended_Pictographic})$/u;
+
+  return emojiRegex.test(input);
+}
+
+export function initializeMap<T>(items: Record<string, T>) {
+  let map = new BigIntOrderedMap<T>();
+  Object.entries(items).forEach(([k, v]) => {
+    map = map.set(bigInt(k), v as T);
+  });
+
+  return map;
+}
+
+export function restoreMap<T>(obj: any): BigIntOrderedMap<T> {
+  const empty = new BigIntOrderedMap<T>();
+  if (!obj) {
+    return empty;
+  }
+
+  if ('has' in obj) {
+    return obj;
+  }
+
+  if ('root' in obj) {
+    return initializeMap(obj.root);
+  }
+
+  return empty;
 }

@@ -15,9 +15,12 @@
     "build:chat": "tsc && cross-env APP=chat vite build",
     "coverage": "vitest run --coverage",
     "dev": "vite",
+    "dev2": "vite --mode dev2",
+    "multi": "concurrently \"vite\" \"vite --mode dev2\"",
     "dev-sw": "vite --mode sw",
     "chat-sw": "cross-env APP=chat vite --mode sw",
     "chat": "cross-env APP=chat vite --host",
+    "multichat": "cross-env APP=chat concurrently \"vite\" \"vite --mode dev2\"",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
@@ -140,6 +143,7 @@
     "use-pwa-install": "^1.0.1",
     "usehooks-ts": "^2.6.0",
     "validator": "^13.7.0",
+    "workbox-precaching": "^6.5.4",
     "zustand": "^3.7.2"
   },
   "devDependencies": {
@@ -176,6 +180,7 @@
     "autoprefixer": "^10.4.4",
     "babel-eslint": "^10.1.0",
     "babel-loader": "^8.2.4",
+    "concurrently": "^8.0.1",
     "cross-env": "^7.0.3",
     "esbuild": "^0.14.38",
     "eslint": "^8.13.0",

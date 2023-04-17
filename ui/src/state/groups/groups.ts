@@ -7,6 +7,7 @@ import {
   UseMutationOptions,
   useQueryClient,
 } from '@tanstack/react-query';
+import { Poke } from '@urbit/http-api';
 import {
   Gangs,
   GroupChannel,
@@ -26,7 +27,6 @@ import api from '@/api';
 import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
-import { Poke } from '@urbit/http-api';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -75,15 +75,15 @@ export function useGroups() {
   return data as Groups;
 }
 
-export function useGroup(flag: string, withMembers = false) {
+export function useGroup(flag: string, withMembers = false, subscribe = false) {
   const initialData = useGroups();
   const group = initialData?.[flag];
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['group', flag],
+    queryKey: ['groups', flag],
     app: 'groups',
     path: `/groups/${flag}/ui`,
     initialScryPath: `/groups/${flag}`,
-    enabled: !!flag && flag !== '' && withMembers,
+    enabled: !!flag && flag !== '' && withMembers && subscribe,
     initialData: group,
     options: {
       refetchOnWindowFocus: withMembers,
@@ -98,6 +98,10 @@ export function useGroup(flag: string, withMembers = false) {
   return {
     ...(data as Group),
   };
+}
+
+export function useGroupIsLoading(flag: string) {
+  return useQueryClient().getQueryState(['groups', flag]);
 }
 
 export function useRouteGroup() {
@@ -669,9 +673,14 @@ export function useGroupLeaveMutation() {
       });
     },
     {
-      onSuccess: (_data, variables) => {
-        queryClient.removeQueries(['groups', variables.flag]);
+      onSettled: (_data, _error, variables) => {
+        queryClient.removeQueries({
+          queryKey: ['group', variables.flag],
+          exact: true,
+        });
         queryClient.invalidateQueries(['groups']);
+        queryClient.invalidateQueries(['gangs']);
+        queryClient.invalidateQueries(['gangs', variables.flag]);
       },
     }
   );

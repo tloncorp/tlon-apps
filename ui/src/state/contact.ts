@@ -86,7 +86,9 @@ const useContactState = createState<BaseContactState>(
       });
     },
   }),
-  ['contacts'],
+  {
+    partialize: ({ contacts }) => ({ contacts }),
+  },
   []
 );
 

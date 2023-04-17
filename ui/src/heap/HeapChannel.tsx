@@ -12,11 +12,7 @@ import {
   useGroup,
   useVessel,
 } from '@/state/groups/groups';
-import {
-  useCuriosForHeap,
-  useHeapState,
-  useHeapPerms,
-} from '@/state/heap/heap';
+import { useCurios, useHeapState, useHeapPerms } from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
   HeapSetting,
@@ -59,7 +55,7 @@ function HeapChannel({ title }: ViewProps) {
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
-  const curios = useCuriosForHeap(chFlag);
+  const curios = useCurios(chFlag);
   const perms = useHeapPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const canRead = channel
