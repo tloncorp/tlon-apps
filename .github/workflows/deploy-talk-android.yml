@@ -2,6 +2,8 @@ name: Deploy Talk Android
 on:
   workflow_dispatch:
   push:
+    branches:
+      - po/add-native-android
     tags:
       - '*-android'
 jobs:
