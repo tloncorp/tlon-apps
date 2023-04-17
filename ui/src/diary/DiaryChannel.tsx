@@ -117,7 +117,6 @@ function DiaryChannel() {
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
 
-  console.log(letters.size, joined, joining, channel, canRead);
 
   useEffect(() => {
     if (!joined) {
