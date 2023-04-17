@@ -11,9 +11,9 @@ import AddIcon16 from '@/components/icons/AddIcon';
 import { usePinned } from '@/state/chat';
 import {
   filters,
-  SettingsState,
   SidebarFilter,
-  useSettingsState,
+  useMessagesFilter,
+  usePutEntryMutation,
 } from '@/state/settings';
 import { useGroups } from '@/state/groups';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
@@ -24,14 +24,14 @@ import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
 
-const selMessagesFilter = (s: SettingsState) => ({
-  messagesFilter: s.talk.messagesFilter,
-});
-
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
   const { setIsOpen } = useLeap();
-  const { messagesFilter } = useSettingsState(selMessagesFilter);
+  const messagesFilter = useMessagesFilter();
+  const { mutate } = usePutEntryMutation({
+    bucket: 'talk',
+    key: 'messagesFilter',
+  });
   const pinned = usePinned();
   const groups = useGroups();
   const filteredPins = pinned.filter((p) => {
@@ -44,7 +44,7 @@ export default function MobileMessagesSidebar() {
   });
 
   const setFilterMode = (mode: SidebarFilter) => {
-    useSettingsState.getState().putEntry('talk', 'messagesFilter', mode);
+    mutate({ val: mode });
   };
 
   const scroll = useRef(

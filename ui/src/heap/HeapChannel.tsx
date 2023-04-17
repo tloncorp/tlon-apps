@@ -3,6 +3,7 @@ import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
 import bigInt from 'big-integer';
+import { VirtuosoGrid } from 'react-virtuoso';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import {
@@ -16,7 +17,6 @@ import {
   useHeapState,
   useHeapPerms,
 } from '@/state/heap/heap';
-import { VirtuosoGrid } from 'react-virtuoso';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
   HeapSetting,
@@ -24,7 +24,7 @@ import {
   useHeapSettings,
   useHeapSortMode,
   useHeapDisplayMode,
-  useSettingsState,
+  usePutEntryMutation,
 } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
@@ -70,6 +70,10 @@ function HeapChannel({ title }: ViewProps) {
     ? isChannelJoined(nest, briefs)
     : true;
   const lastReconnect = useLastReconnect();
+  const { mutate } = usePutEntryMutation({
+    bucket: 'heaps',
+    key: 'heapSettings',
+  });
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -87,9 +91,10 @@ function HeapChannel({ title }: ViewProps) {
       { displayMode: setting },
       chFlag
     );
-    useSettingsState
-      .getState()
-      .putEntry('heaps', 'heapSettings', JSON.stringify(newSettings));
+
+    mutate({
+      val: JSON.stringify(newSettings),
+    });
   };
 
   const setSortMode = (setting: HeapSortMode) => {
@@ -98,9 +103,10 @@ function HeapChannel({ title }: ViewProps) {
       { sortMode: setting },
       chFlag
     );
-    useSettingsState
-      .getState()
-      .putEntry('heaps', 'heapSettings', JSON.stringify(newSettings));
+
+    mutate({
+      val: JSON.stringify(newSettings),
+    });
   };
 
   const navigateToDetail = useCallback(

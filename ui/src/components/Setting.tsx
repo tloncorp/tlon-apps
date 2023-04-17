@@ -1,6 +1,5 @@
 import React, { HTMLAttributes } from 'react';
 import slugify from 'slugify';
-import useAsyncCall from '@/logic/useAsyncCall';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 import Toggle from './Toggle';
 
@@ -8,18 +7,19 @@ type SettingProps = {
   name: string;
   on: boolean;
   disabled?: boolean;
-  toggle: (open: boolean) => Promise<void>;
+  toggle: (open: boolean) => void;
+  status: 'loading' | 'error' | 'success' | 'idle';
 } & HTMLAttributes<HTMLDivElement>;
 
 export default function Setting({
   name,
   on,
   disabled = false,
-  toggle,
   className,
   children,
+  toggle,
+  status,
 }: SettingProps) {
-  const { status, call } = useAsyncCall(toggle);
   const id = slugify(name);
 
   return (
@@ -28,7 +28,7 @@ export default function Setting({
         <Toggle
           aria-labelledby={id}
           pressed={on}
-          onPressedChange={call}
+          onPressedChange={toggle}
           className="flex-none self-start text-blue-400"
           disabled={disabled}
           loading={status === 'loading'}

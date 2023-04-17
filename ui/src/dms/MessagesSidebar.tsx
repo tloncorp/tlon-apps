@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import cn from 'classnames';
+import { debounce } from 'lodash';
+import { Link, useLocation } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
 import Filter16Icon from '@/components/icons/Filter16Icon';
@@ -12,12 +14,10 @@ import MenuIcon from '@/components/icons/MenuIcon';
 import ArrowNWIcon from '@/components/icons/ArrowNWIcon';
 import {
   filters,
-  useSettingsState,
   SidebarFilter,
-  SettingsState,
+  useMessagesFilter,
+  usePutEntryMutation,
 } from '@/state/settings';
-import { debounce } from 'lodash';
-import { Link, useLocation } from 'react-router-dom';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
@@ -27,10 +27,6 @@ import PencilSettingsIcon from '@/components/icons/PencilSettingsIcon';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
-
-const selMessagesFilter = (s: SettingsState) => ({
-  messagesFilter: s.talk.messagesFilter,
-});
 
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -130,7 +126,11 @@ export function TalkAppMenu() {
 export default function MessagesSidebar() {
   const [atTop, setAtTop] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
-  const { messagesFilter } = useSettingsState(selMessagesFilter);
+  const messagesFilter = useMessagesFilter();
+  const { mutate } = usePutEntryMutation({
+    bucket: 'talk',
+    key: 'messagesFilter',
+  });
   const pinned = usePinned();
   const groups = useGroups();
   const filteredPins = pinned.filter((p) => {
@@ -143,7 +143,7 @@ export default function MessagesSidebar() {
   });
 
   const setFilterMode = (mode: SidebarFilter) => {
-    useSettingsState.getState().putEntry('talk', 'messagesFilter', mode);
+    mutate({ val: mode });
   };
 
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);

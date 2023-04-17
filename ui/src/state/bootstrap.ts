@@ -1,9 +1,9 @@
+import Urbit from '@urbit/http-api';
 import api from '@/api';
 import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
-import Urbit from '@urbit/http-api';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import { useDiaryState } from './diary';
@@ -14,7 +14,6 @@ import { useLocalState } from './local';
 import { useLureState } from './lure/lure';
 import usePalsState from './pals';
 import useSchedulerStore from './scheduler';
-import { useSettingsState } from './settings';
 import { useStorage } from './storage';
 
 const emptyGroupsInit: GroupsInit = {
@@ -134,14 +133,9 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
     wait(async () => startTalk(true), 5);
   }
 
-  const { initialize: settingsInitialize, fetchAll } =
-    useSettingsState.getState();
-
   wait(() => {
     useContactState.getState().start();
     useStorage.getState().initialize(api as unknown as Urbit);
-
-    fetchAll();
   }, 4);
 
   wait(() => {
@@ -149,7 +143,6 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
     const { start, fetchCharges } = useDocketState.getState();
     fetchCharges();
     start();
-    settingsInitialize(api as unknown as Urbit);
     useLureState.getState().start();
 
     if (!import.meta.env.DEV) {

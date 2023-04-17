@@ -1,7 +1,6 @@
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import {
@@ -14,6 +13,7 @@ import {
   NavigateFunction,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
+import { TooltipProvider } from '@radix-ui/react-tooltip';
 import Groups from '@/groups/Groups';
 import { IS_MOCK } from '@/api';
 import Dms from '@/dms/Dms';
@@ -21,7 +21,7 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, useSettingsLoaded, useTheme } from '@/state/settings';
+import { useCalm, useTheme } from '@/state/settings';
 import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -44,8 +44,6 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
-import { TooltipProvider } from '@radix-ui/react-tooltip';
-import indexedDBPersistor from './indexedDBPersistor';
 import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
@@ -546,7 +544,6 @@ function App() {
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
-  const settingsLoaded = useSettingsLoaded();
   const { disableWayfinding } = useCalm();
 
   useEffect(() => {
@@ -566,7 +563,7 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      {settingsLoaded && !disableWayfinding && <LandscapeWayfinding />}
+      {!disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
       <UpdateNotice />
       <LeapProvider>
@@ -653,19 +650,12 @@ function RoutedApp() {
           />
           <meta name="theme-color" content={userThemeColor} />
         </Helmet>
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={{
-            persister: indexedDBPersistor(`${window.our}-landscape`),
-          }}
-        >
-          <TooltipProvider skipDelayDuration={400}>
-            <App />
-            <Scheduler />
-            {import.meta.env.DEV && <Eyrie />}
-          </TooltipProvider>
-          <ReactQueryDevtools initialIsOpen={false} />
-        </PersistQueryClientProvider>
+        <TooltipProvider skipDelayDuration={400}>
+          <App />
+          <Scheduler />
+          {import.meta.env.DEV && <Eyrie />}
+        </TooltipProvider>
+        <ReactQueryDevtools initialIsOpen={false} />
       </Router>
     </ErrorBoundary>
   );

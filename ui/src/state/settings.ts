@@ -1,21 +1,9 @@
-import {
-  SettingsUpdate,
-  Value,
-  getDeskSettings,
-  DeskData,
-  PutBucket,
-  DelEntry,
-  DelBucket,
-} from '@urbit/api';
+import { Value, PutBucket, DelEntry, DelBucket } from '@urbit/api';
 import _ from 'lodash';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lsDesk } from '@/constants';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
-import {
-  BaseState,
-  createState,
-  createSubscription,
-  reduceStateN,
-} from './base';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import api from '../api';
 
 interface ChannelSetting {
@@ -65,7 +53,7 @@ export const filters: Record<string, SidebarFilter> = {
   groups: 'Group Channels',
 };
 
-interface BaseSettingsState {
+export interface SettingsState {
   display: {
     theme: 'light' | 'dark' | 'auto';
   };
@@ -102,163 +90,157 @@ interface BaseSettingsState {
   [ref: string]: unknown;
 }
 
-export type SettingsState = BaseSettingsState & BaseState<BaseSettingsState>;
+export const useSettings = () => {
+  const { data, isLoading } = useReactQuerySubscription({
+    initialScryPath: `/desk/${window.desk}`,
+    scryApp: 'settings-store',
+    app: 'settings-store',
+    path: `/desk/${window.desk}`,
+    queryKey: ['settings', window.desk],
+  });
 
-function putBucket(json: SettingsUpdate, draft: SettingsState): SettingsState {
-  const data = _.get(json, 'put-bucket', false);
-  if (data) {
-    draft[data['bucket-key']] = data.bucket;
+  if (!data) {
+    return { data: {} as SettingsState, isLoading };
   }
-  return draft;
+
+  const { desk } = data as { desk: SettingsState };
+
+  return { data: desk, isLoading };
+};
+
+export const useLandscapeSettings = () => {
+  const { data, isLoading } = useReactQuerySubscription({
+    initialScryPath: `/desk/${lsDesk}`,
+    scryApp: 'settings-store',
+    app: 'settings-store',
+    path: `/desk/${lsDesk}`,
+    queryKey: ['settings', lsDesk],
+  });
+
+  const { desk } = data as { desk: SettingsState };
+
+  return { data: desk, isLoading };
+};
+export const useMergedSettings = () => {
+  const { data: settings, isLoading: isSettingsLoading } = useSettings();
+  const { data: lsSettings, isLoading: isLandscapeSettingsLoading } =
+    useLandscapeSettings();
+
+  return {
+    data: {
+      ..._.mergeWith(
+        settings as Record<string, unknown>,
+        lsSettings as Record<string, unknown>,
+        (obj, src) => (_.isArray(src) ? src : undefined)
+      ),
+    } as { desk: SettingsState },
+    isLoading: isSettingsLoading || isLandscapeSettingsLoading,
+  };
+};
+
+export function useTheme() {
+  const { data, isLoading } = useSettings();
+
+  if (isLoading || data === undefined || data.display === undefined) {
+    return 'auto';
+  }
+
+  const { display } = data;
+
+  return display.theme;
 }
 
-function delBucket(json: SettingsUpdate, draft: SettingsState): SettingsState {
-  const data = _.get(json, 'del-bucket', false);
-  if (data) {
-    delete draft[data['bucket-key']];
-  }
-  return draft;
-}
+export function useCalm() {
+  const { data, isLoading } = useSettings();
 
-function putEntry(json: SettingsUpdate, draft: any): SettingsState {
-  const data: Record<string, string> = _.get(json, 'put-entry', false);
-  if (data) {
-    if (!draft[data['bucket-key']]) {
-      draft[data['bucket-key']] = {};
-    }
-    draft[data['bucket-key']][data['entry-key']] = data.value;
-  }
-  return draft;
-}
-
-function delEntry(json: SettingsUpdate, draft: any): SettingsState {
-  const data = _.get(json, 'del-entry', false);
-  if (data) {
-    delete draft[data['bucket-key']][data['entry-key']];
-  }
-  return draft;
-}
-
-export const reduceUpdate = [putBucket, delBucket, putEntry, delEntry];
-
-export const useSettingsState = createState<BaseSettingsState>(
-  'Settings',
-  (set, get) => ({
-    display: {
-      theme: 'auto',
-    },
-    tiles: {
-      order: [],
-    },
-    calmEngine: {
+  if (isLoading) {
+    return {
       disableAppTileUnreads: false,
       disableAvatars: false,
       disableRemoteContent: false,
       disableSpellcheck: false,
       disableNicknames: false,
       disableWayfinding: false,
-    },
-    heaps: {
-      heapSettings: '' as Stringified<HeapSetting[]>,
-    },
-    diary: {
-      settings: '' as Stringified<DiarySetting[]>,
-    },
-    groups: {
-      orderedGroupPins: [],
-      sideBarSort: DEFAULT,
-      groupSideBarSort: '{"~": "A → Z"}' as Stringified<GroupSideBarSort>,
-      showVitaMessage: false,
-    },
-    talk: {
-      messagesFilter: filters.dms,
-      showVitaMessage: false,
-    },
-    loaded: false,
-    putEntry: async (bucket, key, val) => {
-      await api.trackedPoke<PutEntry, SettingsEvent>(
-        {
-          app: 'settings-store',
-          mark: 'settings-event',
-          json: {
-            'put-entry': {
-              desk: window.desk,
-              'bucket-key': bucket,
-              'entry-key': key,
-              value: val,
-            },
+    } as SettingsState['calmEngine'];
+  }
+
+  const { calmEngine } = data;
+
+  return calmEngine as SettingsState['calmEngine'];
+}
+
+export function useCalmSetting(key: keyof SettingsState['calmEngine']) {
+  const data = useCalm();
+
+  return data[key];
+}
+
+export function usePutEntryMutation({
+  bucket,
+  key,
+}: {
+  bucket: string;
+  key: string;
+}) {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: { val: Value }) => {
+    const { val } = variables;
+    await api.trackedPoke<PutEntry, SettingsEvent>(
+      {
+        app: 'settings-store',
+        mark: 'settings-event',
+        json: {
+          'put-entry': {
+            desk: window.desk,
+            'bucket-key': bucket,
+            'entry-key': key,
+            value: val,
           },
         },
-        {
-          app: 'settings-store',
-          path: `/desk/${window.desk}`,
-        },
-        (event) => {
-          const { 'settings-event': data } = event;
-          if (
-            data &&
-            'put-entry' in data &&
-            data['put-entry']['bucket-key'] === bucket &&
-            data['put-entry']['entry-key'] === key &&
-            data['put-entry'].value === val
-          ) {
-            reduceStateN(get(), data, reduceUpdate);
+      },
+      {
+        app: 'settings-store',
+        path: `/desk/${window.desk}`,
+      },
+      (event) => {
+        // default validator was not working
+        const { 'settings-event': data } = event;
 
-            return true;
+        if (data && 'put-entry' in data) {
+          const { 'put-entry': entry } = data;
+          if (entry) {
+            const { 'bucket-key': bk, 'entry-key': ek, value: v } = entry;
+
+            if (bk === bucket && ek === key) {
+              return v === val;
+            }
+
+            return false;
           }
           return false;
         }
-      );
-    },
-    fetchAll: async () => {
-      const grResult = (await api.scry<DeskData>(getDeskSettings(window.desk)))
-        .desk;
-      const lsResult = (await api.scry<DeskData>(getDeskSettings(lsDesk))).desk;
-      const newState = {
-        ..._.mergeWith(get(), grResult, lsResult, (obj, src) =>
-          _.isArray(src) ? src : undefined
-        ),
-        loaded: true,
-      };
-      set(newState);
-    },
-  }),
-  ['display', 'heaps', 'diary', 'groups', 'talk'],
-  [
-    (set, get) =>
-      createSubscription('settings-store', `/desk/${window.desk}`, (e) => {
-        const data = _.get(e, 'settings-event', false);
-        if (data) {
-          reduceStateN(get(), data, reduceUpdate);
-          set({ loaded: true });
-        }
-      }),
-    (set, get) =>
-      createSubscription('settings-store', `/desk/${lsDesk}`, (e) => {
-        const data = _.get(e, 'settings-event', false);
-        if (data) {
-          reduceStateN(get(), data, reduceUpdate);
-          set({ loaded: true });
-        }
-      }),
-  ]
-);
+        return false;
+      }
+    );
+  };
 
-const selTheme = (s: SettingsState) => s.display.theme;
-export function useTheme() {
-  return useSettingsState(selTheme);
+  return useMutation(['put-entry', bucket, key], mutationFn, {
+    onMutate: () => {
+      queryClient.invalidateQueries(['settings', window.desk]);
+    },
+  });
 }
 
-const selCalm = (s: SettingsState) => s.calmEngine;
-export function useCalm() {
-  return useSettingsState(selCalm);
-}
+export function useCalmSettingMutation(key: keyof SettingsState['calmEngine']) {
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'calmEngine',
+    key,
+  });
 
-export async function setCalmSetting(
-  key: keyof SettingsState['calmEngine'],
-  val: boolean
-) {
-  await useSettingsState.getState().putEntry('calmEngine', key, val);
+  return {
+    mutate: (val: boolean) => mutate({ val }),
+    status,
+  };
 }
 
 export function parseSettings<T>(settings: Stringified<T[]>): T[] {
@@ -292,11 +274,16 @@ export function setChannelSetting<T extends ChannelSetting>(
   return [...oldSettings, setting];
 }
 
-const selHeapSettings = (s: SettingsState) => s.heaps.heapSettings;
-
 export function useHeapSettings(): HeapSetting[] {
-  const settings = useSettingsState(selHeapSettings);
-  return parseSettings(settings ?? '');
+  const { data, isLoading } = useSettings();
+
+  if (isLoading || data === undefined || data.heaps === undefined) {
+    return [];
+  }
+
+  const { heaps } = data;
+
+  return parseSettings(heaps.heapSettings) as HeapSetting[];
 }
 
 export function useHeapSortMode(flag: string): HeapSortMode {
@@ -311,11 +298,16 @@ export function useHeapDisplayMode(flag: string): HeapDisplayMode {
   return heapSetting?.displayMode ?? 'grid';
 }
 
-const selDiarySettings = (s: SettingsState) => s.diary.settings;
-
 export function useDiarySettings(): DiarySetting[] {
-  const settings = useSettingsState(selDiarySettings);
-  return parseSettings(settings ?? '');
+  const { data, isLoading } = useSettings();
+
+  if (isLoading || data === undefined || data.diary === undefined) {
+    return [];
+  }
+
+  const { diary } = data;
+
+  return parseSettings(diary.settings) as DiarySetting[];
 }
 
 export function useDiarySortMode(
@@ -332,27 +324,58 @@ export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
   return setting?.commentSortMode ?? 'asc';
 }
 
-const selGroupSideBarSort = (s: SettingsState) => s.groups.groupSideBarSort;
-
 export function useGroupSideBarSort() {
-  const settings = useSettingsState(selGroupSideBarSort);
-  return JSON.parse(settings ?? '{"~": "A → Z"}');
+  const { data, isLoading } = useSettings();
+
+  if (isLoading || data === undefined || data.groups === undefined) {
+    return { '~': 'A → Z' };
+  }
+
+  const { groups } = data;
+
+  return JSON.parse(groups.groupSideBarSort ?? '{"~": "A → Z"}');
 }
 
 export function useSideBarSortMode() {
-  const settings = useSettingsState((s) => s.groups.sideBarSort);
-  return settings ?? DEFAULT;
+  const { data, isLoading } = useSettings();
+
+  if (isLoading || data === undefined || data.groups === undefined) {
+    return DEFAULT;
+  }
+
+  const { groups } = data;
+
+  return groups.sideBarSort ?? DEFAULT;
 }
 
 export function useShowVitaMessage() {
-  const setting = useSettingsState(
-    (s) => s[window.desk as 'groups' | 'talk']?.showVitaMessage
-  );
+  const { data, isLoading } = useSettings();
+
+  if (isLoading || data === undefined) {
+    return false;
+  }
+
+  const setting = data[window.desk as 'groups' | 'talk']?.showVitaMessage;
   return setting;
 }
 
-const selLoaded = (s: SettingsState) => s.loaded;
-export function useSettingsLoaded() {
-  const loaded = useSettingsState(selLoaded);
-  return loaded;
+export function useMessagesFilter() {
+  const { data, isLoading } = useSettings();
+
+  if (isLoading || data === undefined || data.groups === undefined) {
+    return filters.dms;
+  }
+
+  const { talk } = data;
+
+  return talk.messagesFilter ?? filters.dms;
+}
+
+export function useTiles() {
+  const { data, isLoading } = useSettings();
+
+  return {
+    order: data.tiles.order ?? [],
+    loaded: !isLoading,
+  };
 }

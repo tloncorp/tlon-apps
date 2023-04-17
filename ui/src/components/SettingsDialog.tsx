@@ -1,15 +1,8 @@
 import { useDismissNavigate } from '@/logic/routing';
-import { SettingsState, useCalm, useSettingsState } from '@/state/settings';
+import { useCalm, useCalmSettingMutation } from '@/state/settings';
 import { isTalk } from '@/logic/utils';
 import Dialog from './Dialog';
 import Setting from './Setting';
-
-async function toggle(property: keyof SettingsState['calmEngine']) {
-  const selProp = (s: SettingsState) => s.calmEngine[property];
-  const state = useSettingsState.getState();
-  const curr = selProp(state);
-  await state.putEntry('calmEngine', property, !curr);
-}
 
 export default function SettingsDialog() {
   const {
@@ -20,6 +13,16 @@ export default function SettingsDialog() {
     disableWayfinding,
   } = useCalm();
   const dismiss = useDismissNavigate();
+  const { mutate: toggleAvatars, status: avatarStatus } =
+    useCalmSettingMutation('disableAvatars');
+  const { mutate: toggleNicknames, status: nicknameStatus } =
+    useCalmSettingMutation('disableNicknames');
+  const { mutate: toggleSpellcheck, status: spellcheckStatus } =
+    useCalmSettingMutation('disableSpellcheck');
+  const { mutate: toggleRemoteContent, status: remoteContentStatus } =
+    useCalmSettingMutation('disableRemoteContent');
+  const { mutate: toggleWayfinding, status: wayfindingStatus } =
+    useCalmSettingMutation('disableWayfinding');
   const onOpenChange = (open: boolean) => {
     if (!open) {
       dismiss();
@@ -40,7 +43,8 @@ export default function SettingsDialog() {
             </span>
             <Setting
               on={disableAvatars}
-              toggle={() => toggle('disableAvatars')}
+              toggle={() => toggleAvatars(!disableAvatars)}
+              status={avatarStatus}
               name="Disable avatars"
             >
               <p className="leading-5 text-gray-600">
@@ -50,7 +54,8 @@ export default function SettingsDialog() {
             </Setting>
             <Setting
               on={disableNicknames}
-              toggle={() => toggle('disableNicknames')}
+              toggle={() => toggleNicknames(!disableNicknames)}
+              status={nicknameStatus}
               name="Disable nicknames"
             >
               <p className="leading-5 text-gray-600">
@@ -60,7 +65,8 @@ export default function SettingsDialog() {
             </Setting>
             <Setting
               on={disableWayfinding}
-              toggle={() => toggle('disableWayfinding')}
+              toggle={() => toggleWayfinding(!disableWayfinding)}
+              status={wayfindingStatus}
               name="Disable wayfinding"
             >
               <p className="leading-5 text-gray-600">
@@ -76,7 +82,8 @@ export default function SettingsDialog() {
             </span>
             <Setting
               on={disableSpellcheck}
-              toggle={() => toggle('disableSpellcheck')}
+              toggle={() => toggleSpellcheck(!disableSpellcheck)}
+              status={spellcheckStatus}
               name="Disable spell-check"
             >
               <p className="leading-5 text-gray-600">
@@ -87,7 +94,8 @@ export default function SettingsDialog() {
             </Setting>
             <Setting
               on={disableRemoteContent}
-              toggle={() => toggle('disableRemoteContent')}
+              toggle={() => toggleRemoteContent(!disableRemoteContent)}
+              status={remoteContentStatus}
               name="Disable remote content"
             >
               <p className="leading-5 text-gray-600">
