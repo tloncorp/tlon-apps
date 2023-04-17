@@ -30,7 +30,12 @@ export default function SettingsDialog() {
   };
 
   return (
-    <Dialog defaultOpen modal onOpenChange={onOpenChange} className="w-[500px]">
+    <Dialog
+      defaultOpen
+      modal
+      onOpenChange={onOpenChange}
+      className="w-[340px] md:w-[500px]"
+    >
       <div className="flex flex-col space-y-8">
         <span className="text-lg font-bold">App Settings</span>
         <div className="inner-section relative space-y-4">
