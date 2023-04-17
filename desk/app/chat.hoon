@@ -1479,27 +1479,24 @@
       ca-core
     ::
         %writs
+      =*  delta  q.p.d
       =.  pact.chat  (reduce:ca-pact time p.d)
-      ?-  -.q.p.d
+      ?-  -.delta
           ?(%del %add-feel %del-feel)  ca-core
           %add
-        =/  memo=memo:c  p.q.p.d
+        =/  memo=memo:c  p.delta
         =?  remark.chat  =(author.memo our.bowl)  
           remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief flag/flag ca-brief)
         ?-  -.content.memo
             %notice  ca-core
             %story
-          ?.  |((mentioned q.p.content.memo our.bowl) !=(~ replying.memo))  ca-core
+          ?.  ?&  !=(author.memo our.bowl)
+                  |(!=(~ replying.memo) (mentioned q.p.content.memo our.bowl))
+              ==
+            ca-core
           ?:  (mentioned q.p.content.memo our.bowl)
-            =/  yarn
-              %^  ca-spin
-                /message/(scot %p p.p.p.d)/(scot %ud q.p.p.d)
-                :~  [%ship author.memo]
-                    ' mentioned you :'
-                    (flatten q.p.content.memo)
-                ==
-              ~
+            =/  yarn  (ca-mention-hark memo p.content.memo p.p.d)
             =.  cor  (emit (pass-hark & & yarn))
             ca-core
           =/  replying  (need replying.memo)
@@ -1513,7 +1510,7 @@
             =/  writ  (~(get pac pact.chat) id)
             ?~  writ  %.n
             =(author.writ.u.writ our.bowl)
-          ?:  |(=(author.memo our.bowl) !in-replies)  ca-core
+          ?:  &(!=(author.opwrit our.bowl) !in-replies)  ca-core
           ?-  -.content.opwrit
               %notice  ca-core
               %story
@@ -1535,6 +1532,19 @@
         ==
       ==
     ==
+  ::
+  ++  ca-mention-hark
+    |=  [=memo:c =story:c op=id:c]
+    %^  ca-spin
+      ?~  replying.memo
+        /op/(scot %p p.op)/(scot %ud q.op)
+      =/  id  u.replying.memo
+      /message/(scot %p p.id)/(scot %ud q.id)/op/(scot %p p.op)/(scot %ud q.op)
+      :~  [%ship author.memo]
+          ' mentioned you :'
+          (flatten q.story)
+      ==
+    ~  
   --
 ::
 ++  pending-dms
