@@ -327,7 +327,7 @@
     (weld (target-to-path target) /ui)
   ?:  (subscription-check target)  ~
   :_  ~
-  [%pass path %agent [our-self %chat] %watch (weld path /writs)]
+  [%pass path %agent [our-self %chat] %watch path]
 ::  +poke-noun: debug helpers
 ::
 ++  poke-noun
