@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inline } from '@/types/content';
+import { Inline, isBlockCode } from '@/types/content';
 import {
   isBlockquote,
   isBold,
@@ -92,6 +92,14 @@ export function InlineContent({ inline }: InlineContentProps) {
           inline['inline-code']
         )}
       </code>
+    );
+  }
+
+  if (isBlockCode(inline)) {
+    return (
+      <pre>
+        <code>{inline.code}</code>
+      </pre>
     );
   }
 
