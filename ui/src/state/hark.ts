@@ -62,7 +62,7 @@ export function useBlanket(flag?: Flag) {
 
 export function useSkeins(flag?: Flag) {
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['skeins', flag ? flag : undefined],
+    queryKey: ['skeins', flag ? flag : window.desk],
     app: 'hark',
     path: '/ui',
     initialScryPath: flag
@@ -109,11 +109,19 @@ export function useSawSeamMutation() {
     });
 
   return useMutation(mutationFn, {
-    onMutate: async () => {
-      await queryClient.cancelQueries(['skeins', null]);
+    onMutate: async (variables) => {
+      if ('group' in variables.seam) {
+        await queryClient.cancelQueries(['skeins', variables.seam.group]);
+      } else {
+        await queryClient.cancelQueries(['skeins', window.desk]);
+      }
     },
-    onSettled: async () => {
-      await queryClient.invalidateQueries(['skeins', null]);
+    onSettled: async (_data, _error, variables) => {
+      if ('group' in variables.seam) {
+        await queryClient.invalidateQueries(['skeins', variables.seam.group]);
+      } else {
+        await queryClient.invalidateQueries(['skeins', window.desk]);
+      }
     },
   });
 }
