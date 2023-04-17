@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import {
   SettingsUpdate,
   Value,
@@ -5,7 +6,6 @@ import {
   getDeskSettings,
   DeskData,
 } from '@urbit/api';
-import _ from 'lodash';
 import { lsDesk } from '@/constants';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import {
@@ -177,7 +177,19 @@ export const useSettingsState = createState<BaseSettingsState>(
       set(newState);
     },
   }),
-  ['display', 'heaps', 'diary', 'groups', 'talk'],
+  {
+    partialize: (state) => {
+      const saved = _.pick(state, [
+        'display',
+        'heaps',
+        'diary',
+        'groups',
+        'talk',
+      ]);
+
+      return saved;
+    },
+  },
   [
     (set, get) =>
       createSubscription('settings-store', `/desk/${window.desk}`, (e) => {

@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
@@ -713,7 +714,20 @@ export const useChatState = createState<ChatState>(
       ).initialize();
     },
   }),
-  ['chats', 'dms', 'pendingDms', 'briefs', 'multiDms', 'pins'],
+  {
+    partialize: (state) => {
+      const saved = _.pick(state, [
+        'chats',
+        'dms',
+        'pendingDms',
+        'briefs',
+        'multiDms',
+        'pins',
+      ]);
+
+      return saved;
+    },
+  },
   []
 );
 
