@@ -225,11 +225,11 @@
           =/  =ship  (slav %p +<.wire)
           (connect:tc [%ship ship])
         ::
-            [%club id=@ %ui ~]  
+            [%club id=@ %ui %writs ~]
           =/  =club-id  (slav %uv +<.wire)
           (connect:tc [%club club-id])
         ::
-            [%chat ship=@ name=@ %ui ~]  
+            [%chat ship=@ name=@ %ui %writs ~]
           =/  =ship  (slav %p +<.wire)
           =/  name=term  (slav %tas +>-.wire)
           (connect:tc [%flag [ship name]])
@@ -245,13 +245,13 @@
               (slav %p +<.wire)
             !<(diff:dm:chat q.cage.sign)
           ::  
-              [%club id=@ %ui ~]
+              [%club id=@ %ui %writs ~]
             %+  on-update:tc  
               :-  %club 
               (slav %uv +<.wire)
             !<(diff:writs:chat q.cage.sign)
           ::
-              [%chat ship=@ name=@ %ui ~]
+              [%chat ship=@ name=@ %ui %writs ~]
             %+  on-update:tc
               :+  %flag  
                 (slav %p +<.wire)
@@ -316,7 +316,9 @@
   |=  =target
   ^-  ?
   =/  =wire
-    (weld (target-to-path target) /ui)
+    =;  end=wire
+      (weld (target-to-path target) end)
+    ?:(?=(%ship -.target) /ui /ui/writs)
   (~(has by wex.bowl) [wire our-self %chat])
 ::  +connect: subscribe to chats, dms, and clubs
 ::
@@ -324,7 +326,9 @@
   |=  =target
   ^-  (list card)
   =/  =path
-    (weld (target-to-path target) /ui)
+    =;  end=path
+      (weld (target-to-path target) end)
+    ?:(?=(%ship -.target) /ui /ui/writs)
   ?:  (subscription-check target)  ~
   :_  ~
   [%pass path %agent [our-self %chat] %watch path]
