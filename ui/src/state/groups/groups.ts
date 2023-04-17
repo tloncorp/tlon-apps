@@ -675,12 +675,13 @@ export function useGroupLeaveMutation() {
     {
       onSettled: (_data, _error, variables) => {
         queryClient.removeQueries({
-          queryKey: ['group', variables.flag],
+          queryKey: ['groups', variables.flag],
           exact: true,
         });
         queryClient.invalidateQueries(['groups']);
         queryClient.invalidateQueries(['gangs']);
         queryClient.invalidateQueries(['gangs', variables.flag]);
+        queryClient.invalidateQueries(['gang-preview', variables.flag]);
       },
     }
   );
