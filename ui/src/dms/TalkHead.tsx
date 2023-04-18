@@ -1,14 +1,10 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
 import { useChannelUnreadCounts } from '@/logic/useIsChannelUnread';
-import { useSettingsState, SettingsState } from '@/state/settings';
-
-const selMessagesFilter = (s: SettingsState) => ({
-  messagesFilter: s.talk.messagesFilter,
-});
+import { useMessagesFilter } from '@/state/settings';
 
 export default function TalkHead() {
-  const { messagesFilter } = useSettingsState(selMessagesFilter);
+  const messagesFilter = useMessagesFilter();
   const unreads = useChannelUnreadCounts({ scope: messagesFilter });
 
   return (
