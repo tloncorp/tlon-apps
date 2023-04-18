@@ -1484,16 +1484,17 @@
       =/  crew=(unit crew)
         (~(get by get-clubs) club-id)
       ?~  crew
-        (weld (truncate-club-id club-id) "  club does not exist")
+        (weld (truncate-club-id club-id) "  (club does not exist)")
       =+  team=team.u.crew
       =+  hive=hive.u.crew
       ?:  &(=(~ team) =(~ hive))
         %+  weld  (truncate-club-id club-id)
-        "  club does not have any members"
+        "  (club does not have any members)"
       %+  weld
         (truncate-club-id club-id)
       ?.  =(*cord title.met.u.crew)
-        "  {(trip title.met.u.crew)}"
+        "  ({(trip title.met.u.crew)})"
+      %+  weld  "  "
       (render-club-members club-id (club-members team hive))
     ==
     ::  +truncate-club-id: render the last 6 characters of the club id
@@ -1523,14 +1524,15 @@
       =/  members=(list tape)
         %+  turn  members
         |=  =ship
-        "  {(cite:title ship)}"
+        " {(cite:title ship)}"
       =|  out=tape
       =+  tally=0
       |- 
-      ?~  members  
-        %+  weld  out
-        ?:  (lte tally 4)  ~ 
-        " +{(scow %ud (sub tally 4))}"
+      ?~  members
+        %+  weld 
+          (snap out 0 '(')
+        ?:  (lte tally 4)  ")"
+        " +{(scow %ud (sub tally 4))})"
       ?:  (gte tally 4)  
         $(tally +(tally), members t.members)
       %=  $
