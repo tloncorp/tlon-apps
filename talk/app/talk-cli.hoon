@@ -895,52 +895,11 @@
           %poke
           cage
       ==
-    ::  +compose-channel: set audience and render message history
-    ::
-    ++  compose-channel
-      |=  =target
-      ^-  (quip card _state)
-      =.  audience  target
-      =.  viewing  (~(put in viewing) target)
-      =^  history-cards  state
-        (build-history sole-id session target)
-      :_  state
-      %+  weld  [prompt:sh-out]~
-      `(list card)`history-cards
-    ::  +change-channel: send rsvp response, bind glyph, subscribe, 
-    ::  set audience, and render message history
-    ::
-    ++  switch-channel
-      |=  =target
-      ^-  (quip card _state)
-      =^  rsvp-cards     state  (rsvp & target)
-      ::  send watch card for target not in view
-      ::
-      =^  watch-cards    state
-        ?:  (~(has in viewing) target)  [~ state]
-        [(connect target) state]
-      ::  bind an unbound target
-      ::
-      =^  bind-cards     state
-        ?:  (~(has by bound) target)  [~ state]
-        (bind-default-glyph target)
-      ::
-      =^  compose-cards  state  (compose-channel target)
-      :_  state 
-      ^-  (list card)
-      ;:  weld 
-        rsvp-cards
-        bind-cards
-        watch-cards
-        compose-cards
-      ==
     ::  +set-target: set audience, update prompt
     ::
     ++  set-target
       |=  =target
       ^-  (quip card _state)
-      ?:  (~(has in viewing) target)
-        (compose-channel target)
       =.  audience  target
       [[prompt:sh-out ~] put-ses]
     ::  +view: start printing messages from a chat
@@ -956,7 +915,33 @@
       ::
       ?.  (target-exists target)
         [[(note:sh-out "no such chat")]~ put-ses]
-      (switch-channel target)
+      =^  rsvp-cards  state  (rsvp & target)
+      ::  send watch card for target not in view
+      ::
+      =^  watch-cards  state
+        ?:  (~(has in viewing) target)  [~ state]
+        [(connect target) state]
+      ::  bind an unbound target
+      ::
+      =^  bind-cards  state
+        ?:  (~(has by bound) target)  [~ state]
+        (bind-default-glyph target)
+      ::  load history if target is not already in view
+      ::
+      =^  load-history  state
+        ?:  (~(has in viewing) target)  [~ state]
+        (build-history sole-id session target)
+      =.  audience  target
+      =.  viewing  (~(put in viewing) target)
+      :_  put-ses
+      ^-  (list card)
+      ;:  weld
+        rsvp-cards
+        bind-cards
+        watch-cards
+        load-history
+        [prompt:sh-out]~
+      ==
     ::  +flee: stop printing messages from a chat
     ::
     ++  flee
