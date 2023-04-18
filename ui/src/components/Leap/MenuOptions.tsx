@@ -1,4 +1,5 @@
 import React from 'react';
+import { isTalk } from '@/logic/utils';
 import TalkIcon from '../icons/TalkIcon';
 import ArrowEIcon16 from '../icons/ArrowEIcon16';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
@@ -64,6 +65,13 @@ export const groupsMenuOptions: IMenuOption[] = [
     to: '/profile/edit',
     icon: CommandBadge,
     modal: false,
+  },
+  {
+    title: `${isTalk ? 'Talk' : 'Groups'} Settings`,
+    subtitle: '',
+    to: '/settings',
+    icon: CommandBadge,
+    modal: true,
   },
   {
     title: 'Talk',

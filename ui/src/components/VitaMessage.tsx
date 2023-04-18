@@ -1,6 +1,6 @@
 import api from '@/api';
 import { disableDefault, isTalk, toTitleCase } from '@/logic/utils';
-import { useSettingsState, useShowVitaMessage } from '@/state/settings';
+import { usePutEntryMutation, useShowVitaMessage } from '@/state/settings';
 import * as Popover from '@radix-ui/react-popover';
 import { useCallback } from 'react';
 
@@ -14,17 +14,19 @@ export function enableVita() {
 
 export default function VitaMessage() {
   const show = useShowVitaMessage();
+  const { mutate } = usePutEntryMutation({
+    bucket: window.desk,
+    key: 'showVitaMessage',
+  });
   const close = useCallback(
     (enable: boolean) => () => {
-      useSettingsState
-        .getState()
-        .putEntry(window.desk, 'showVitaMessage', false);
+      mutate({ val: false });
 
       if (enable) {
         enableVita();
       }
     },
-    []
+    [mutate]
   );
 
   if (!show) {

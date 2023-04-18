@@ -1,14 +1,14 @@
 import { uniq, take, remove } from 'lodash';
-import { ChargeWithDesk, useCharges } from '@/state/docket';
-import { SettingsState, useSettingsState } from '@/state/settings';
 import React, { useEffect, useState } from 'react';
 import create from 'zustand';
 import produce from 'immer';
 import { useEventListener } from 'usehooks-ts';
 import { useLocation, useNavigate } from 'react-router';
+import { ChargeWithDesk, useCharges } from '@/state/docket';
+import { SettingsState, usePutEntryMutation, useTiles } from '@/state/settings';
 import useLeap from '@/components/Leap/useLeap';
 import keyMap from '@/keyMap';
-import Dialog, { DialogContent } from '../Dialog';
+import Dialog from '../Dialog';
 // eslint-disable-next-line import/no-cycle
 import Tile from './Tile';
 
@@ -88,7 +88,8 @@ export default function Grid() {
   const charges = useCharges();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { setIsOpen: setLeapIsOpen } = useLeap();
-  const { order, loaded } = useSettingsState(selTiles);
+  const { order, loaded } = useTiles();
+  const { mutate } = usePutEntryMutation({ bucket: 'tiles', key: 'order' });
   const chargesLoaded = Object.keys(charges).length > 0;
   const tilesToDisplay = order.filter(
     (t) => t !== 'landscape' && t !== window.desk
@@ -159,21 +160,19 @@ export default function Grid() {
     // Correct order state, fill if none, remove duplicates, and remove
     // old uninstalled app keys
     if (!hasKeys && hasChargeKeys) {
-      useSettingsState.getState().putEntry('tiles', 'order', chargeKeys);
+      mutate({
+        val: chargeKeys,
+      });
     } else if (order.length < chargeKeys.length) {
-      useSettingsState
-        .getState()
-        .putEntry('tiles', 'order', uniq(order.concat(chargeKeys)));
+      mutate({
+        val: uniq(order.concat(chargeKeys)),
+      });
     } else if (order.length > chargeKeys.length && hasChargeKeys) {
-      useSettingsState
-        .getState()
-        .putEntry(
-          'tiles',
-          'order',
-          uniq(order.filter((key) => key in charges).concat(chargeKeys))
-        );
+      mutate({
+        val: uniq(order.filter((key) => key in charges).concat(chargeKeys)),
+      });
     }
-  }, [charges, order, loaded]);
+  }, [charges, order, loaded, mutate]);
 
   if (!chargesLoaded) {
     return <span>Loading...</span>;
