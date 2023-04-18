@@ -673,8 +673,8 @@
         ;~(plug (tag %dms) (easy ~))
         ;~(plug (tag %help) (easy ~))
       ::
-        (stag %thread ;~(plug ;~(pfix ket nump) ;~(pfix ace content)))
-        (stag %reference ;~(plug ;~(pfix hax nump) ;~(pfix ace content)))
+        (stag %thread ;~(plug ;~(sfix nump ket) ;~(pfix ace content)))
+        (stag %reference ;~(plug ;~(sfix nump hax) ;~(pfix ace content)))
         (stag %select nump)
       ==
     ::
