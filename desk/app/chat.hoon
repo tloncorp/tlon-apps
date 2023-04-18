@@ -407,6 +407,12 @@
       [%epic ~]
     (take-epic sign)
   ::
+      [%contacts ship=@ ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf/"Failed to heed contact {<ship>}" u.p.sign)
+    cor
+  ::
       [%hook host=@ name=@ rest=*]
     =,(pole (take-hook [(slav %p host) name] rest sign))
   ::
