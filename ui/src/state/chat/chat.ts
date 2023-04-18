@@ -98,7 +98,7 @@ function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
 function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   return {
     app: 'chat',
-    mark: 'club-action',
+    mark: 'club-action-0',
     json: {
       id,
       diff: {
