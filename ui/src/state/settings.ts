@@ -362,7 +362,7 @@ export function useShowVitaMessage() {
 export function useMessagesFilter() {
   const { data, isLoading } = useSettings();
 
-  if (isLoading || data === undefined || data.groups === undefined) {
+  if (isLoading || data === undefined || data.talk === undefined) {
     return filters.dms;
   }
 
