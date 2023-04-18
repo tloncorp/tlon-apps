@@ -82,7 +82,7 @@ export const pokeNotify = async (token: string) => {
         who: 'tilpyl-nodnys-sapdex-diflyx',
         service: 'android',
         address: token,
-        binding: Platform.OS === 'android' ? 'gcm' : 'apn',
+        binding: Platform.OS === 'android' ? 'fcm' : 'apn',
       }
     }
   });
