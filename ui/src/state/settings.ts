@@ -153,7 +153,7 @@ export function useTheme() {
 export function useCalm() {
   const { data, isLoading } = useSettings();
 
-  if (isLoading) {
+  if (isLoading || !data || !data.calmEngine) {
     return {
       disableAppTileUnreads: false,
       disableAvatars: false,
@@ -375,7 +375,7 @@ export function useTiles() {
   const { data, isLoading } = useSettings();
 
   return {
-    order: data.tiles.order ?? [],
+    order: data?.tiles?.order ?? [],
     loaded: !isLoading,
   };
 }
