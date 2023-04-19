@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { useParams } from 'react-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   MutationFunction,
   useMutation,
@@ -27,6 +27,7 @@ import api from '@/api';
 import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
+import useReactQueryScry from '@/logic/useReactQueryScry';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -65,7 +66,7 @@ export function useGroups() {
     queryKey: ['groups'],
     app: 'groups',
     path: `/groups/ui`,
-    initialScryPath: `/groups/light`,
+    scry: `/groups/light`,
   });
 
   if (rest.isLoading || rest.isError) {
@@ -76,20 +77,34 @@ export function useGroups() {
 }
 
 export function useGroup(flag: string, withMembers = false, subscribe = false) {
+  const queryClient = useQueryClient();
   const initialData = useGroups();
   const group = initialData?.[flag];
-  const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['groups', flag],
+  const queryKey = useMemo(() => ['groups', flag], [flag]);
+
+  const { data, ...rest } = useReactQueryScry({
+    queryKey,
     app: 'groups',
-    path: `/groups/${flag}/ui`,
-    initialScryPath: `/groups/${flag}`,
-    enabled: !!flag && flag !== '' && withMembers && subscribe,
-    initialData: group,
+    path: `/groups/${flag}`,
     options: {
+      enabled: !!flag && flag !== '' && withMembers && subscribe,
+      initialData: group,
       refetchOnWindowFocus: withMembers,
       refetchOnMount: withMembers,
     },
   });
+
+  useEffect(() => {
+    if (subscribe && flag) {
+      api.subscribe({
+        app: 'groups',
+        path: `/groups/${flag}/ui`,
+        event: () => {
+          queryClient.invalidateQueries(queryKey);
+        },
+      });
+    }
+  }, [flag, subscribe, queryKey, queryClient]);
 
   if (rest.isLoading || rest.isError) {
     return undefined;
@@ -173,7 +188,7 @@ export function useGangs() {
     queryKey: ['gangs'],
     app: 'groups',
     path: `/gangs/updates`,
-    initialScryPath: `/gangs`,
+    scry: `/gangs`,
     options: {
       refetchOnWindowFocus: true,
       refetchOnMount: false,

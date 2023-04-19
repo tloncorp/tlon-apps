@@ -93,7 +93,7 @@ export interface SettingsState {
 
 export const useSettings = () => {
   const { data, isLoading } = useReactQuerySubscription({
-    initialScryPath: `/desk/${window.desk}`,
+    scry: `/desk/${window.desk}`,
     scryApp: 'settings-store',
     app: 'settings-store',
     path: `/desk/${window.desk}`,
@@ -113,7 +113,7 @@ export const useSettings = () => {
 
 export const useLandscapeSettings = () => {
   const { data, isLoading } = useReactQuerySubscription({
-    initialScryPath: `/desk/${lsDesk}`,
+    scry: `/desk/${lsDesk}`,
     scryApp: 'settings-store',
     app: 'settings-store',
     path: `/desk/${lsDesk}`,

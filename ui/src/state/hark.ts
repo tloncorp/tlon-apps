@@ -26,9 +26,7 @@ export function useCarpet(flag?: Flag) {
     queryKey: ['carpet', flag],
     app: 'hark',
     path: '/ui',
-    initialScryPath: flag
-      ? `/group/${flag}/latest`
-      : `/desk/${window.desk}/latest`,
+    scry: flag ? `/group/${flag}/latest` : `/desk/${window.desk}/latest`,
   });
 
   return {
@@ -48,7 +46,7 @@ export function useBlanket(flag?: Flag) {
     queryKey: ['blanket', flag],
     app: 'hark',
     path: '/ui',
-    initialScryPath: flag
+    scry: flag
       ? `/group/${flag}/quilt/${quilt}`
       : `/desk/${window.desk}/quilt/${quilt}`,
     enabled: isSuccess,
@@ -65,9 +63,7 @@ export function useSkeins(flag?: Flag) {
     queryKey: ['skeins', flag ? flag : window.desk],
     app: 'hark',
     path: '/ui',
-    initialScryPath: flag
-      ? `/group/${flag}/skeins`
-      : `/desk/${window.desk}/skeins`,
+    scry: flag ? `/group/${flag}/skeins` : `/desk/${window.desk}/skeins`,
     options: {
       refetchOnMount: true,
     },

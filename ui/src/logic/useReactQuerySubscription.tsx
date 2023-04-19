@@ -12,7 +12,7 @@ export default function useReactQuerySubscription({
   queryKey,
   app,
   path,
-  initialScryPath,
+  scry,
   scryApp = app,
   enabled = true,
   initialData,
@@ -22,7 +22,7 @@ export default function useReactQuerySubscription({
   queryKey: QueryKey;
   app: string;
   path: string;
-  initialScryPath: string;
+  scry: string;
   scryApp?: string;
   enabled?: boolean;
   initialData?: any;
@@ -36,7 +36,7 @@ export default function useReactQuerySubscription({
       async () =>
         api.scry({
           app: scryApp,
-          path: initialScryPath,
+          path: scry,
         }),
       priority
     );
