@@ -198,7 +198,7 @@ export default function useLeap() {
         .concat(
           // accounting for ships not in contact store, but in DMs
           // this fix is temporary until we fix the contact store
-          dms.map((ship) => [ship, { nickname: '' } as Contact])
+          dms.map((ship) => [preSig(ship), { nickname: '' } as Contact])
         ),
       ([ship]) => ship
     );

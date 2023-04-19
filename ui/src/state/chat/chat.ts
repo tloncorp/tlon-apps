@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
@@ -22,6 +23,7 @@ import {
   ClubDelta,
   Clubs,
   DmAction,
+  Pact,
   Pins,
   WritDelta,
 } from '@/types/chat';
@@ -97,7 +99,7 @@ function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
 function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   return {
     app: 'chat',
-    mark: 'club-action',
+    mark: 'club-action-0',
     json: {
       id,
       diff: {
@@ -713,7 +715,20 @@ export const useChatState = createState<ChatState>(
       ).initialize();
     },
   }),
-  ['chats', 'dms', 'pendingDms', 'briefs', 'multiDms', 'pins'],
+  {
+    partialize: (state) => {
+      const saved = _.pick(state, [
+        'chats',
+        'dms',
+        'pendingDms',
+        'briefs',
+        'multiDms',
+        'pins',
+      ]);
+
+      return saved;
+    },
+  },
   []
 );
 
@@ -790,8 +805,9 @@ export function useDmMessages(ship: string) {
   return useMessagesForChat(ship);
 }
 
-export function usePact(whom: string) {
-  return useChatState(useCallback((s) => s.pacts[whom], [whom]));
+const emptyPact = { index: {}, writs: new BigIntOrderedMap<ChatWrit>() };
+export function usePact(whom: string): Pact {
+  return useChatState(useCallback((s) => s.pacts[whom] || emptyPact, [whom]));
 }
 
 const selPacts = (s: ChatState) => s.pacts;

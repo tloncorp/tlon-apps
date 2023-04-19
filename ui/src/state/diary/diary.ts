@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import bigInt from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
@@ -20,9 +21,10 @@ import {
   DiaryUpdate,
   DiaryJoin,
   DiaryCreate,
+  DiaryNoteMap,
 } from '@/types/diary';
 import api from '@/api';
-import { nestToFlag } from '@/logic/utils';
+import { nestToFlag, restoreMap } from '@/logic/utils';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { DiaryState } from './type';
 import makeNotesStore from './notes';
@@ -376,14 +378,16 @@ export const useDiaryState = createState<DiaryState>(
       ).getNewer(count.toString());
     },
     initialize: async (flag) => {
-      const perms = await api.scry<DiaryPerm>({
-        app: 'diary',
-        path: `/diary/${flag}/perm`,
-      });
-      get().batchSet((draft) => {
-        const diary = { perms, view: 'list' as DiaryDisplayMode };
-        draft.shelf[flag] = diary;
-      });
+      useSchedulerStore.getState().wait(async () => {
+        const perms = await api.scry<DiaryPerm>({
+          app: 'diary',
+          path: `/diary/${flag}/perm`,
+        });
+        get().batchSet((draft) => {
+          const diary = { perms, view: 'list' as DiaryDisplayMode };
+          draft.shelf[flag] = diary;
+        });
+      }, 2);
 
       await makeNotesStore(
         flag,
@@ -398,13 +402,42 @@ export const useDiaryState = createState<DiaryState>(
       });
     },
   }),
-  ['briefs', 'shelf', 'notes'],
+  {
+    partialize: (state) => {
+      const saved = _.pick(state, ['briefs', 'shelf', 'notes']);
+
+      return saved;
+    },
+    merge: (state, current) => {
+      const notes: {
+        [flag: DiaryFlag]: DiaryNoteMap;
+      } = {};
+
+      Object.entries(state.notes).forEach(([k, n]) => {
+        let noteMap = restoreMap<DiaryLetter>(n);
+
+        noteMap.keys().forEach((key) => {
+          const note = noteMap.get(key);
+          if ('seal' in note) {
+            note.seal.quips = restoreMap<DiaryQuip>(note.seal.quips);
+            noteMap = noteMap.set(key, note);
+          }
+        });
+
+        notes[k] = noteMap;
+      });
+
+      return {
+        ...current,
+        ...state,
+        notes,
+      };
+    },
+  },
   []
 );
 
-export function useNotesForDiary(
-  flag: DiaryFlag
-): BigIntOrderedMap<DiaryLetter> {
+export function useNotes(flag: DiaryFlag): BigIntOrderedMap<DiaryLetter> {
   const def = useMemo(() => new BigIntOrderedMap<DiaryLetter>(), []);
   return useDiaryState(useCallback((s) => s.notes[flag] || def, [flag, def]));
 }
@@ -425,10 +458,6 @@ export function useDiaryIsJoined(flag: DiaryFlag) {
   );
 }
 
-export function useNotes(flag: DiaryFlag) {
-  return useDiaryState(useCallback((s) => s.notes[flag], [flag]));
-}
-
 export function useAllNotes() {
   return useDiaryState(useCallback((s: DiaryState) => s.notes, []));
 }
@@ -436,28 +465,6 @@ export function useAllNotes() {
 export function useCurrentNotesSize(flag: DiaryFlag) {
   return useDiaryState(useCallback((s) => s.notes[flag]?.size ?? 0, [flag]));
 }
-
-// export function useComments(flag: DiaryFlag, time: string) {
-//   const notes = useNotes(flag);
-//   return useMemo(() => {
-//     if (!notes) {
-//       return new BigIntOrderedMap<DiaryNote>();
-//     }
-
-//     const curio = notes.get(bigInt(time));
-//     const replies = (curio?.seal?.replied || ([] as number[]))
-//       .map((r: number) => {
-//         const t = bigInt(r);
-//         const c = notes.get(t);
-//         return c ? ([t, c] as const) : undefined;
-//       })
-//       .filter((r: unknown): r is [BigInteger, DiaryNote] => !!r) as [
-//       BigInteger,
-//       DiaryNote
-//     ][];
-//     return new BigIntOrderedMap<DiaryNote>().gas(replies);
-//   }, [notes, time]);
-// }
 
 const emptyNote: DiaryNote = {
   type: 'note',
@@ -471,36 +478,29 @@ const emptyNote: DiaryNote = {
   },
 };
 
+const fallback = [bigInt(0), emptyNote] as const;
+
 export function useNote(
   flag: DiaryFlag,
   time: string
 ): readonly [bigInt.BigInteger, DiaryNote] {
-  return useDiaryState(
-    useCallback(
-      (s) => {
-        const notes = s.notes[flag];
-        const fallback = [bigInt(0), emptyNote] as const;
-        if (!notes || !notes.get) {
-          return fallback;
-        }
+  const notes = useNotes(flag);
+  return useMemo(() => {
+    const t = bigInt(time);
+    if (notes.size === 0 || !notes.has(t)) {
+      return fallback;
+    }
 
-        const t = bigInt(time);
-        const note = notes.get(t);
-        if (!note) {
-          return fallback;
-        }
-        if (note.type === 'outline') {
-          return fallback;
-        }
-        return [t, note] as const;
-      },
-      [flag, time]
-    )
-  );
+    const note = notes.get(t);
+    if (note.type === 'outline') {
+      return fallback;
+    }
+    return [t, note] as const;
+  }, [time, notes]);
 }
 
 export function useQuip(flag: DiaryFlag, noteId: string, quipId: string) {
-  const [_, note] = useNote(flag, noteId);
+  const [, note] = useNote(flag, noteId);
   return useMemo(() => {
     const quip = note.seal.quips.get(bigInt(quipId));
     return quip;

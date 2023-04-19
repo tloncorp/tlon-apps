@@ -29,7 +29,7 @@ export const useStorage = createState<BaseStorageState>(
       credentials: null,
     },
   }),
-  [],
+  {},
   [
     (set, get) =>
       createSubscription('s3-store', '/all', (e) => {

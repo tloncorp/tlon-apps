@@ -428,7 +428,21 @@
         diff/club-diff
     ==
   ::
+  ++  club-action-0
+    ^-  $-(json action:club:c)
+    %-  ot
+    :~  id/(se %uv)
+        diff/club-diff-0
+    ==
+  ::
   ++  club-diff
+    ^-  $-(json diff:club:c)
+    %-  ot
+    :~  echo/ni
+        delta/club-delta
+    ==
+  ::
+  ++  club-diff-0
     ^-  $-(json diff:club:c)
     %-  ot
     :~  uid/(se %uv)
