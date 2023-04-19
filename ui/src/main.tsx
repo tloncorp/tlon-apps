@@ -25,6 +25,7 @@ import './styles/index.css';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import queryClient from './queryClient';
 import indexedDBPersistor from './indexedDBPersistor';
+import UpdateNotice from './components/UpdateNotice';
 
 const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -45,6 +46,7 @@ render(
         persister: indexedDBPersistor(`${window.our}-landscape`),
       }}
     >
+      <UpdateNotice />
       <App />
     </PersistQueryClientProvider>
   </React.StrictMode>,
