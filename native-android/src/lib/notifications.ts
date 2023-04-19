@@ -4,6 +4,20 @@ import { Platform } from 'react-native';
 import WebView from 'react-native-webview';
 import useHarkState from '../state/hark';
 import useStore from '../state/store';
+import storage from './storage';
+
+const getHasRequestedNotifications = async () => {
+  try {
+    const value = await storage.load<boolean>({ key: "hasRequestedNotifications" });
+    return value;
+  } catch {
+    return false;
+  }
+}
+
+const setHasRequestedNotifications = (value: boolean) => {
+  storage.save({ key: "hasRequestedNotifications", data: value });
+}
 
 export const initializePushNotifications = async () => {
   if (!Device.isDevice) {
@@ -44,29 +58,37 @@ export const initializePushNotifications = async () => {
     });
   }
 
+  const hasRequestedNotifications = await getHasRequestedNotifications();
+  console.debug('Already asked for notifications permission?', hasRequestedNotifications ? 'Yes' : 'No');
+
   try {
     const { status } = await Notifications.getPermissionsAsync();
-    console.debug("Current push notifications setting:", status);
-    if (false) { // check if not first run
-      return status === 'granted';
+    console.debug('Current push notifications setting:', status);
+
+    const isGranted = status === 'granted';
+    if (hasRequestedNotifications || isGranted) {
+      setHasRequestedNotifications(true);
+      return isGranted;
     }
   } catch (err) {
-    console.error("Error reading current push notification setting:", err);
+    console.error('Error reading current push notification setting:', err);
   }
 
   try {
     const { status: nextStatus } = await Notifications.requestPermissionsAsync();
-    console.debug("New push notifications setting:", nextStatus);
+    console.debug('New push notifications setting:', nextStatus);
+
+    setHasRequestedNotifications(true);
     if (nextStatus !== 'granted') {
       return false;
     }
   } catch (err) {
-    console.error("Error requesting new push notification setting:", err);
+    console.error('Error requesting new push notification setting:', err);
     return false;
   }
 
   const { data: token } = await Notifications.getDevicePushTokenAsync();
-  console.debug("Obtained new push notification token:", token);
+  console.debug('Obtained new push notification token:', token);
   await pokeNotify(token);
 
   return true;
@@ -92,13 +114,12 @@ export const handleNotification = async (
   notification: Notifications.Notification
 ) => {
   const { identifier, content } = notification.request;
-  console.log("Handling notification", identifier, content.data);
+  console.log('Handling notification', identifier, content.data);
   await Notifications.scheduleNotificationAsync({
     identifier,
     content: {
-      categoryIdentifier: "message",
-      title: "You received a new message",
-      // data: { data: 'goes here' },
+      categoryIdentifier: 'message',
+      title: 'You received a new message',
     },
     trigger: null,
   });
@@ -121,7 +142,7 @@ export const handleNotificationResponse = (
       useHarkState.getState().sawRope(rope);
       break;
     default:
-      console.warn("Receiving unknown notification response action:", response);
+      console.warn('Receiving unknown notification response action:', response);
       break;
   }
 };

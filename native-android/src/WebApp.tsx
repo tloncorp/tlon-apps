@@ -12,7 +12,6 @@ import { useTailwind } from 'tailwind-rn';
 import useStore from './state/store';
 import * as Notifications from 'expo-notifications';
 import { WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
-import useHarkState from './state/hark';
 import {
   handleNotification,
   handleNotificationResponse,
@@ -26,10 +25,7 @@ export default function WebApp() {
   const appState = useRef(AppState.currentState);
   const notificationSubscription = useRef<Notifications.Subscription | null>(null);
   const notificationResponseSubscription = useRef<Notifications.Subscription | null>(null);
-  // const loaded = useHarkState(s => s.loaded);
-  // const { count, unreadNotifications } = useNotifications('');
-  // const hasUnreads = count > 0;
-
+  
   const handleBackPressed = useCallback(() => {
     if (webviewRef?.current) {
       webviewRef.current?.goBack();
@@ -81,12 +77,9 @@ export default function WebApp() {
     const listener = AppState.addEventListener('change', handleAppStateChange);
 
     (async () => {
-      const [notificationsEnabled] = await Promise.all([
-        initializePushNotifications(),
-        useHarkState.getState().start(),
-      ]);
-
-      if (notificationsEnabled) {
+      // useHarkState.getState().start()
+      const enabled = await initializePushNotifications();
+      if (enabled) {
         notificationSubscription.current = Notifications.addNotificationReceivedListener(handleNotification);
         console.debug("Started notification listener");
 

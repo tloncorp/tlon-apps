@@ -4,7 +4,6 @@ import produce from 'immer';
 export type SubscriptionStatus = 'connected' | 'disconnected' | 'reconnecting';
 
 interface LocalState {
-  currentTheme: 'light' | 'dark';
   subscription: SubscriptionStatus;
   errorCount: number;
   airLockErrorCount: number;
@@ -13,16 +12,10 @@ interface LocalState {
 
 export const useLocalState = create<LocalState>((set, get) => ({
   set: f => set(produce(get(), f)),
-  currentTheme: 'light',
   subscription: 'connected',
   errorCount: 0,
   airLockErrorCount: 0
 }));
-
-const selCurrentTheme = (s: LocalState) => s.currentTheme;
-export function useCurrentTheme() {
-  return useLocalState(selCurrentTheme);
-}
 
 const selSubscriptionStatus = (s: LocalState) => ({
   subscription: s.subscription,
