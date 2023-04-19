@@ -163,6 +163,12 @@ useLocalState.setState({
     bootstrap('reset');
 
     useLocalState.setState({ lastReconnect: Date.now() });
-    wait(() => queryClient.invalidateQueries(), 5);
+    wait(
+      () =>
+        queryClient.invalidateQueries({
+          refetchType: 'none',
+        }),
+      5
+    );
   },
 });
