@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Value, PutBucket, DelEntry, DelBucket } from '@urbit/api';
 import _ from 'lodash';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -99,13 +100,15 @@ export const useSettings = () => {
     queryKey: ['settings', window.desk],
   });
 
-  if (!data) {
-    return { data: {} as SettingsState, isLoading };
-  }
+  return useMemo(() => {
+    if (!data) {
+      return { data: {} as SettingsState, isLoading };
+    }
 
-  const { desk } = data as { desk: SettingsState };
+    const { desk } = data as { desk: SettingsState };
 
-  return { data: desk, isLoading };
+    return { data: desk, isLoading };
+  }, [isLoading, data]);
 };
 
 export const useLandscapeSettings = () => {
@@ -141,32 +144,51 @@ export const useMergedSettings = () => {
 export function useTheme() {
   const { data, isLoading } = useSettings();
 
-  if (isLoading || data === undefined || data.display === undefined) {
-    return 'auto';
-  }
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.display === undefined) {
+      return 'auto';
+    }
 
-  const { display } = data;
+    const { display } = data;
 
-  return display.theme;
+    return display.theme;
+  }, [isLoading, data]);
 }
+
+const emptyCalm: SettingsState['calmEngine'] = {
+  disableAppTileUnreads: false,
+  disableAvatars: false,
+  disableRemoteContent: false,
+  disableSpellcheck: false,
+  disableNicknames: false,
+  disableWayfinding: false,
+};
+
+const loadingCalm: SettingsState['calmEngine'] = {
+  disableAppTileUnreads: true,
+  disableAvatars: true,
+  disableRemoteContent: true,
+  disableSpellcheck: true,
+  disableNicknames: true,
+  disableWayfinding: true,
+};
 
 export function useCalm() {
   const { data, isLoading } = useSettings();
 
-  if (isLoading || !data || !data.calmEngine) {
-    return {
-      disableAppTileUnreads: false,
-      disableAvatars: false,
-      disableRemoteContent: false,
-      disableSpellcheck: false,
-      disableNicknames: false,
-      disableWayfinding: false,
-    } as SettingsState['calmEngine'];
-  }
+  return useMemo(() => {
+    if (isLoading) {
+      return loadingCalm;
+    }
 
-  const { calmEngine } = data;
+    if (!data || !data.calmEngine) {
+      return emptyCalm;
+    }
 
-  return calmEngine as SettingsState['calmEngine'];
+    const { calmEngine } = data;
+
+    return calmEngine as SettingsState['calmEngine'];
+  }, [isLoading, data]);
 }
 
 export function useCalmSetting(key: keyof SettingsState['calmEngine']) {
@@ -277,13 +299,15 @@ export function setChannelSetting<T extends ChannelSetting>(
 export function useHeapSettings(): HeapSetting[] {
   const { data, isLoading } = useSettings();
 
-  if (isLoading || data === undefined || data.heaps === undefined) {
-    return [];
-  }
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.heaps === undefined) {
+      return [];
+    }
 
-  const { heaps } = data;
+    const { heaps } = data;
 
-  return parseSettings(heaps.heapSettings) as HeapSetting[];
+    return parseSettings(heaps.heapSettings) as HeapSetting[];
+  }, [isLoading, data]);
 }
 
 export function useHeapSortMode(flag: string): HeapSortMode {
@@ -301,13 +325,15 @@ export function useHeapDisplayMode(flag: string): HeapDisplayMode {
 export function useDiarySettings(): DiarySetting[] {
   const { data, isLoading } = useSettings();
 
-  if (isLoading || data === undefined || data.diary === undefined) {
-    return [];
-  }
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.diary === undefined) {
+      return [];
+    }
 
-  const { diary } = data;
+    const { diary } = data;
 
-  return parseSettings(diary.settings) as DiarySetting[];
+    return parseSettings(diary.settings) as DiarySetting[];
+  }, [isLoading, data]);
 }
 
 export function useDiarySortMode(
@@ -324,58 +350,70 @@ export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
   return setting?.commentSortMode ?? 'asc';
 }
 
+const emptyGroupSideBarSort = { '~': 'A → Z' };
 export function useGroupSideBarSort() {
   const { data, isLoading } = useSettings();
 
-  if (isLoading || data === undefined || data.groups === undefined) {
-    return { '~': 'A → Z' };
-  }
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      return emptyGroupSideBarSort;
+    }
 
-  const { groups } = data;
+    const { groups } = data;
 
-  return JSON.parse(groups.groupSideBarSort ?? '{"~": "A → Z"}');
+    return JSON.parse(groups.groupSideBarSort ?? '{"~": "A → Z"}');
+  }, [isLoading, data]);
 }
 
 export function useSideBarSortMode() {
   const { data, isLoading } = useSettings();
 
-  if (isLoading || data === undefined || data.groups === undefined) {
-    return DEFAULT;
-  }
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      return DEFAULT;
+    }
 
-  const { groups } = data;
+    const { groups } = data;
 
-  return groups.sideBarSort ?? DEFAULT;
+    return groups.sideBarSort ?? DEFAULT;
+  }, [isLoading, data]);
 }
 
 export function useShowVitaMessage() {
   const { data, isLoading } = useSettings();
 
-  if (isLoading || data === undefined) {
-    return false;
-  }
+  return useMemo(() => {
+    if (isLoading || data === undefined) {
+      return false;
+    }
 
-  const setting = data[window.desk as 'groups' | 'talk']?.showVitaMessage;
-  return setting;
+    const setting = data[window.desk as 'groups' | 'talk']?.showVitaMessage;
+    return setting;
+  }, [isLoading, data]);
 }
 
 export function useMessagesFilter() {
   const { data, isLoading } = useSettings();
 
-  if (isLoading || data === undefined || data.talk === undefined) {
-    return filters.dms;
-  }
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.talk === undefined) {
+      return filters.dms;
+    }
 
-  const { talk } = data;
+    const { talk } = data;
 
-  return talk.messagesFilter ?? filters.dms;
+    return talk.messagesFilter ?? filters.dms;
+  }, [isLoading, data]);
 }
 
 export function useTiles() {
   const { data, isLoading } = useSettings();
 
-  return {
-    order: data?.tiles?.order ?? [],
-    loaded: !isLoading,
-  };
+  return useMemo(
+    () => ({
+      order: data?.tiles?.order ?? [],
+      loaded: !isLoading,
+    }),
+    [data, isLoading]
+  );
 }
