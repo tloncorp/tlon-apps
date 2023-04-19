@@ -23,6 +23,7 @@ import {
   ClubDelta,
   Clubs,
   DmAction,
+  Pact,
   Pins,
   WritDelta,
 } from '@/types/chat';
@@ -804,8 +805,9 @@ export function useDmMessages(ship: string) {
   return useMessagesForChat(ship);
 }
 
-export function usePact(whom: string) {
-  return useChatState(useCallback((s) => s.pacts[whom], [whom]));
+const emptyPact = { index: {}, writs: new BigIntOrderedMap<ChatWrit>() };
+export function usePact(whom: string): Pact {
+  return useChatState(useCallback((s) => s.pacts[whom] || emptyPact, [whom]));
 }
 
 const selPacts = (s: ChatState) => s.pacts;
