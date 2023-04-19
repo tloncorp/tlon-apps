@@ -565,7 +565,6 @@ function App() {
     <div className="flex h-full w-full flex-col">
       {!disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
-      <UpdateNotice />
       <LeapProvider>
         {isTalk ? (
           <>
