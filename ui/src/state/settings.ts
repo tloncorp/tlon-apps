@@ -156,6 +156,15 @@ export function useTheme() {
 }
 
 const emptyCalm: SettingsState['calmEngine'] = {
+  disableAppTileUnreads: false,
+  disableAvatars: false,
+  disableRemoteContent: false,
+  disableSpellcheck: false,
+  disableNicknames: false,
+  disableWayfinding: false,
+};
+
+const loadingCalm: SettingsState['calmEngine'] = {
   disableAppTileUnreads: true,
   disableAvatars: true,
   disableRemoteContent: true,
@@ -168,7 +177,11 @@ export function useCalm() {
   const { data, isLoading } = useSettings();
 
   return useMemo(() => {
-    if (isLoading || !data || !data.calmEngine) {
+    if (isLoading) {
+      return loadingCalm;
+    }
+
+    if (!data || !data.calmEngine) {
       return emptyCalm;
     }
 
