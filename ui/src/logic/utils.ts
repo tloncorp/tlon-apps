@@ -29,6 +29,7 @@ import {
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief, DiaryQuip, DiaryQuipMap } from '@/types/diary';
 import bigInt from 'big-integer';
+import { useCopyToClipboard } from 'usehooks-ts';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -514,43 +515,16 @@ export function pathToCite(path: string): Cite | undefined {
   return undefined;
 }
 
-export function writeText(str: string | null): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const range = document.createRange();
-    range.selectNodeContents(document.body);
-    document?.getSelection()?.addRange(range);
-
-    let success = false;
-    function listener(e: any) {
-      e.clipboardData.setData('text/plain', str);
-      e.preventDefault();
-      success = true;
-    }
-    document.addEventListener('copy', listener);
-    document.execCommand('copy');
-    document.removeEventListener('copy', listener);
-
-    document?.getSelection()?.removeAllRanges();
-
-    if (success) {
-      resolve();
-    } else {
-      reject();
-    }
-  }).catch((error) => {
-    console.error(error);
-  });
-}
-
 export function useCopy(copied: string) {
   const [didCopy, setDidCopy] = useState(false);
+  const [, copy] = useCopyToClipboard();
   const doCopy = useCallback(() => {
-    writeText(copied);
+    copy(copied);
     setDidCopy(true);
     setTimeout(() => {
       setDidCopy(false);
     }, 2000);
-  }, [copied]);
+  }, [copied, copy]);
 
   return { doCopy, didCopy };
 }
