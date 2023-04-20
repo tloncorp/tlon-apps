@@ -49,7 +49,7 @@ export function useBlanket(flag?: Flag) {
     scry: flag
       ? `/group/${flag}/quilt/${quilt}`
       : `/desk/${window.desk}/quilt/${quilt}`,
-    enabled: isSuccess,
+    options: { enabled: isSuccess },
   });
 
   return {

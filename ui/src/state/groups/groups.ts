@@ -67,6 +67,9 @@ export function useGroups() {
     app: 'groups',
     path: `/groups/ui`,
     scry: `/groups/light`,
+    options: {
+      refetchOnReconnect: false, // handled in bootstrap reconnect flow
+    },
   });
 
   if (rest.isLoading || rest.isError) {
@@ -192,6 +195,7 @@ export function useGangs() {
     options: {
       refetchOnWindowFocus: true,
       refetchOnMount: false,
+      refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
   });
 
