@@ -158,13 +158,10 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
 
 useLocalState.setState({
   onReconnect: () => {
-    // let event stream finish resolving before starting requests
-    setTimeout(() => {
-      const { reset } = useSchedulerStore.getState();
-      reset();
-      bootstrap('reset');
+    const { reset } = useSchedulerStore.getState();
+    reset();
+    bootstrap('reset');
 
-      useLocalState.setState({ lastReconnect: Date.now() });
-    }, 0);
+    useLocalState.setState({ lastReconnect: Date.now() });
   },
 });
