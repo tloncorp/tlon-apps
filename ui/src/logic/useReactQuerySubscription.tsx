@@ -32,7 +32,7 @@ export default function useReactQuerySubscription({
       () => {
         queryClient.invalidateQueries(queryKey);
       },
-      150,
+      300,
       { leading: true, trailing: true }
     )
   );
