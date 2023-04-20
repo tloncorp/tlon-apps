@@ -1,5 +1,3 @@
-import api from '@/api';
-import useSchedulerStore from '@/state/scheduler';
 import {
   QueryKey,
   useQuery,
@@ -7,6 +5,8 @@ import {
   UseQueryOptions,
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import api from '@/api';
+import useSchedulerStore from '@/state/scheduler';
 
 export default function useReactQuerySubscription({
   queryKey,

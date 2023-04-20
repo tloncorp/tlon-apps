@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
+import { Link } from 'react-router-dom';
+import * as Toast from '@radix-ui/react-toast';
 import Layout from '@/components/Layout/Layout';
 import {
   useChannel,
@@ -20,14 +22,12 @@ import {
   setChannelSetting,
   useDiarySettings,
   useDiarySortMode,
-  useSettingsState,
+  usePutEntryMutation,
 } from '@/state/settings';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryDisplayMode, DiaryLetter } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
-import { Link } from 'react-router-dom';
-import * as Toast from '@radix-ui/react-toast';
 import useRecentChannel from '@/logic/useRecentChannel';
 import {
   canReadChannel,
@@ -60,6 +60,10 @@ function DiaryChannel() {
     ? isChannelJoined(nest, briefs)
     : true;
   const lastReconnect = useLastReconnect();
+  const { mutate } = usePutEntryMutation({
+    bucket: 'diary',
+    key: 'settings',
+  });
   const needsLoader = letters.size === 0;
 
   const joinChannel = useCallback(async () => {
@@ -105,9 +109,9 @@ function DiaryChannel() {
       { sortMode: setting },
       chFlag
     );
-    useSettingsState
-      .getState()
-      .putEntry('diary', 'settings', JSON.stringify(newSettings));
+    mutate({
+      val: JSON.stringify(newSettings),
+    });
   };
 
   const perms = useDiaryPerms(chFlag);
@@ -116,7 +120,6 @@ function DiaryChannel() {
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
-
 
   useEffect(() => {
     if (!joined) {

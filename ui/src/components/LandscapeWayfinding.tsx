@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import cn from 'classnames';
 import ob from 'urbit-ob';
+import { useLocation } from 'react-router-dom';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import useAppName from '@/logic/useAppName';
 import GroupReference from '@/components/References/GroupReference';
 import { useGang } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { setCalmSetting } from '@/state/settings';
+import { useCalmSettingMutation } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
-import { useLocation } from 'react-router-dom';
 import { isTalk } from '@/logic/utils';
 import Dialog from './Dialog';
 
@@ -89,9 +89,10 @@ export default function LandscapeWayfinding() {
   const gang = useGang('~nibset-napwyn/tlon');
   const { open } = useGroupJoin('~nibset-napwyn/tlon', gang);
   const location = useLocation();
+  const { mutate } = useCalmSettingMutation('disableWayfinding');
 
   const handleHide = () => {
-    setCalmSetting('disableWayfinding', true);
+    mutate(true);
   };
 
   // Don't show the wayfinding button in DMs or Channels pages on mobile

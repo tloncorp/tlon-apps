@@ -10,7 +10,7 @@ import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import { useSawRopeMutation } from '@/state/hark';
 import { Skein, YarnContent } from '@/types/hark';
-import usePathFromHark from '@/logic/usePathFromHark';
+import { useChatState } from '@/state/chat';
 import { isComment, isMention, isReply } from './useNotifications';
 
 interface NotificationProps {
@@ -111,18 +111,33 @@ function NotificationContent({
   );
 }
 
+function mentionPath(bin: Skein): string {
+  const { wer } = bin.top;
+  const parts = wer.split('/');
+  const index = parts.indexOf('op');
+  const ship = parts[index + 1];
+  const id = parts[index + 2];
+
+  if (index < 0 || !ship || !id) {
+    return wer;
+  }
+
+  const time = useChatState.getState().getTime(ship, `${ship}/${id}`);
+  return `${parts.slice(0, index).join('/')}?msg=${time}`;
+}
+
 export default function Notification({
   bin,
   avatar,
   topLine,
 }: NotificationProps) {
-  const rope = bin.top?.rope;
+  const { rope } = bin.top;
   const moreCount = bin.count - 1;
   const { mutate: sawRopeMutation } = useSawRopeMutation();
   const mentionBool = isMention(bin.top);
   const commentBool = isComment(bin.top);
   const replyBool = isReply(bin.top);
-  const path = usePathFromHark(bin, mentionBool);
+  const path = mentionBool ? mentionPath(bin) : bin.top.wer;
   const onClick = useCallback(() => {
     sawRopeMutation({ rope });
   }, [rope, sawRopeMutation]);

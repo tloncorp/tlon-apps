@@ -23,6 +23,7 @@ import {
   ClubDelta,
   Clubs,
   DmAction,
+  Pact,
   Pins,
   WritDelta,
 } from '@/types/chat';
@@ -98,7 +99,7 @@ function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
 function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   return {
     app: 'chat',
-    mark: 'club-action',
+    mark: 'club-action-0',
     json: {
       id,
       diff: {
@@ -805,8 +806,9 @@ export function useDmMessages(ship: string) {
   return useMessagesForChat(ship);
 }
 
-export function usePact(whom: string) {
-  return useChatState(useCallback((s) => s.pacts[whom], [whom]));
+const emptyPact = { index: {}, writs: new BigIntOrderedMap<ChatWrit>() };
+export function usePact(whom: string): Pact {
+  return useChatState(useCallback((s) => s.pacts[whom] || emptyPact, [whom]));
 }
 
 const selPacts = (s: ChatState) => s.pacts;

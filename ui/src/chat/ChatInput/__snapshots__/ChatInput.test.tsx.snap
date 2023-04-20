@@ -104,7 +104,7 @@ exports[`ChatInput > renders as expected 1`] = `
               aria-label="Message editor with formatting menu"
               class="ProseMirror input-inner"
               contenteditable="true"
-              spellcheck="true"
+              spellcheck="false"
               tabindex="0"
               translate="no"
             >
