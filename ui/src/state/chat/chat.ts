@@ -653,7 +653,6 @@ export const useChatState = createState<ChatState>(
       });
     },
     delSects: async (whom, sects) => {
-      console.log({ whom, sects });
       await api.poke(chatAction(whom, { 'del-sects': sects }));
       const perms = await api.scry<ChatPerm>({
         app: 'chat',

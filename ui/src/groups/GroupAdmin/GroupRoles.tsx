@@ -1,14 +1,18 @@
+import _ from 'lodash';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import { getPrivacyFromGroup } from '@/logic/utils';
+import { getPrivacyFromGroup, nestToFlag } from '@/logic/utils';
 import {
   useAmAdmin,
   useGroup,
   useGroupDelRoleMutation,
   useRouteGroup,
 } from '@/state/groups';
+import { useChatState } from '@/state/chat';
+import { useDiaryState } from '@/state/diary';
+import { useHeapState } from '@/state/heap/heap';
 
 export default function GroupRoles({ title }: { title: string }) {
   const flag = useRouteGroup();
@@ -20,9 +24,30 @@ export default function GroupRoles({ title }: { title: string }) {
   const { mutate: deleteRoleMutation } = useGroupDelRoleMutation();
   if (!group) return null;
   const roles = group?.cabals;
-  const currentlyUsedSects = Object.entries(group.fleet)
-    .map((v) => v[1].sects)
-    .flat();
+  const currentlyUsedRoles = _.uniq([
+    ...Object.entries(group.channels)
+      .map((c) => c[1].readers)
+      .flat(),
+    ...Object.entries(group.fleet)
+      .map((v) => v[1].sects)
+      .flat(),
+    ...Object.entries(group.channels)
+      .map((c) => {
+        const [app, channelFlag] = nestToFlag(c[0]);
+
+        const chState =
+          app === 'chat'
+            ? useChatState.getState().chats
+            : app === 'heap'
+            ? useHeapState.getState().stash
+            : useDiaryState.getState().shelf;
+
+        const channel = chState[channelFlag];
+
+        return channel?.perms.writers || [];
+      })
+      .flat(),
+  ]);
   const roleNames = Object.keys(roles || {});
   const privacy = getPrivacyFromGroup(group);
 
@@ -81,9 +106,9 @@ export default function GroupRoles({ title }: { title: string }) {
                         <button
                           onClick={() => handleShowDeleteModal(roleName)}
                           className="small-button w-14 bg-red px-2 dark:text-black sm:px-4"
-                          disabled={currentlyUsedSects.includes(roleName)}
+                          disabled={currentlyUsedRoles.includes(roleName)}
                           title={
-                            currentlyUsedSects.includes(roleName)
+                            currentlyUsedRoles.includes(roleName)
                               ? 'This role is currently in use and cannot be deleted'
                               : 'Delete role'
                           }
