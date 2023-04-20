@@ -5,9 +5,7 @@ import _ from 'lodash';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ChannelFormSchema, ChannelPrivacyType } from '@/types/groups';
 import { useGroup, useRouteGroup } from '@/state/groups';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CheckIcon from '@/components/icons/CheckIcon';
-import XIcon from '@/components/icons/XIcon';
 
 interface ChannelPrivacySetting {
   title: string;
@@ -186,6 +184,42 @@ export default function PrivacySelector() {
   );
   const custom = watch('privacy') === 'custom';
 
+  const setWriters = (roles: RoleOption[]) => {
+    setWriterRoles(roles);
+
+    setReaderRoles((prevReaderRoles) => {
+      // Keep roles that are in the previous readerRoles or the new writerRoles
+      const mergedRoles = _.uniq([
+        ...prevReaderRoles,
+        ...roles.filter(
+          (role) => !prevReaderRoles.some((r) => r.value === role.value)
+        ),
+      ]);
+
+      // Remove roles from the readerRoles that are no longer in writerRoles
+      const updatedReaderRoles = mergedRoles.filter(
+        (role) =>
+          roles.some((r) => r.value === role.value) ||
+          !roles.some((r) => r.value === role.value)
+      );
+
+      return updatedReaderRoles;
+    });
+  };
+
+  const setReaders = (roles: RoleOption[]) => {
+    setReaderRoles(roles);
+
+    setWriterRoles((prevWriterRoles) => {
+      // Keep roles that are in the new readerRoles or not in the previous writerRoles
+      const updatedWriterRoles = prevWriterRoles.filter((role) =>
+        roles.some((r) => r.value === role.value)
+      );
+
+      return updatedWriterRoles;
+    });
+  };
+
   useEffect(() => {
     if (custom) {
       setValue(
@@ -237,14 +271,14 @@ export default function PrivacySelector() {
             </div>
             <RoleSelectorDropdown
               roles={readerRoles}
-              setRoles={setReaderRoles}
+              setRoles={setReaders}
               type="reader"
               options={options}
             />
             <input value={readerRoles.map((r) => r.value)} type="hidden" />
             <RoleSelectorDropdown
               roles={writerRoles}
-              setRoles={setWriterRoles}
+              setRoles={setWriters}
               type="writer"
               options={options}
             />
