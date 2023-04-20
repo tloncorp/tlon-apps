@@ -55,6 +55,7 @@ import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
+import GroupRoles from './groups/GroupAdmin/GroupRoles';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 import DisconnectNotice from './components/DisconnectNotice';
@@ -79,6 +80,7 @@ import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
+import GroupRoleDialog from './groups/GroupAdmin/GroupRoleDialog';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -378,6 +380,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   <Route path="pending" element={<GroupPendingManager />} />
                   <Route path="banned" element={<div />} />
                 </Route>
+                <Route
+                  path="roles"
+                  element={<GroupRoles title={`• ${appHead('').title}`} />}
+                />
               </Route>
               <Route
                 path="channels"
@@ -457,6 +463,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
+            <Route path="role" element={<GroupRoleDialog />}>
+              <Route path=":cabal" element={<GroupRoleDialog />} />
+            </Route>
           </Route>
           <Route
             path="/groups/:ship/:name/leave"

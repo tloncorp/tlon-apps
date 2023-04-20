@@ -866,7 +866,6 @@ export function useGroupDelMembersMutation() {
 }
 
 export function useGroupAddRoleMutation() {
-  // Not used yet.
   const mutationFn = async (variables: {
     flag: string;
     sect: string;
@@ -887,7 +886,6 @@ export function useGroupAddRoleMutation() {
 }
 
 export function useGroupDelRoleMutation() {
-  // Not used yet.
   const mutationFn = async (variables: { flag: string; sect: string }) => {
     const diff = {
       cabal: {

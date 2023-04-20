@@ -25,6 +25,7 @@ export default function NewChannelForm() {
     zone: 'default',
     added: Date.now(),
     readers: [],
+    writers: [],
     join: false,
     meta: {
       title: '',
@@ -81,12 +82,6 @@ export default function NewChannelForm() {
       const newChannelFlag = `${window.our}/${channelName}`;
       const newChannelNest = `${type}/${newChannelFlag}`;
 
-      if (privacy === 'secret') {
-        nextChannel.readers.push('admin');
-      } else {
-        nextChannel.readers.splice(nextChannel.readers.indexOf('admin'), 1);
-      }
-
       if (section) {
         nextChannel.zone = section;
       }
@@ -105,7 +100,7 @@ export default function NewChannelForm() {
           title: values.meta.title,
           description: values.meta.description,
           readers: values.readers,
-          writers: privacy !== 'public' ? ['admin'] : [],
+          writers: privacy === 'read-only' ? ['admin'] : values.writers,
         });
       } catch (e) {
         console.log('NewChannelForm::onSubmit::createChannel', e);

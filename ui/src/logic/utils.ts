@@ -254,7 +254,7 @@ export function getPrivacyFromChannel(
   }
 
   if (groupChannel.readers.includes('admin')) {
-    return 'secret';
+    return 'custom';
   }
 
   if (channel.perms.writers.includes('admin')) {

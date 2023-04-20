@@ -343,7 +343,7 @@ export interface Gangs {
 
 export type PrivacyType = 'public' | 'private' | 'secret';
 
-export type ChannelPrivacyType = 'public' | 'read-only' | 'secret';
+export type ChannelPrivacyType = 'public' | 'read-only' | 'custom';
 
 export type ChannelType = 'chat' | 'heap' | 'diary';
 
@@ -353,6 +353,7 @@ export interface GroupFormSchema extends GroupMeta {
 
 export interface ChannelFormSchema extends GroupChannel {
   privacy: ChannelPrivacyType;
+  writers: string[];
 }
 
 export interface NewChannelFormSchema extends ChannelFormSchema {
