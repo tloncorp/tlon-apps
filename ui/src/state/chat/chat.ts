@@ -190,9 +190,9 @@ export const useChatState = createState<ChatState>(
     },
     start: async ({ briefs, chats, pins }) => {
       get().batchSet((draft) => {
-        draft.chats = chats;
-        draft.briefs = briefs;
-        draft.pins = pins;
+        draft.chats = _.assign(draft.chats, chats);
+        draft.briefs = _.assign(draft.briefs, briefs);
+        draft.pins = _.union(draft.pins, pins);
       });
 
       Object.entries(briefs).forEach(([whom, brief]) => {
@@ -279,10 +279,10 @@ export const useChatState = createState<ChatState>(
       }
 
       get().batchSet((draft) => {
-        draft.multiDms = init.clubs;
-        draft.dms = init.dms;
-        draft.pendingDms = init.invited;
-        draft.pins = init.pins;
+        draft.multiDms = _.merge(draft.multiDms, init.clubs);
+        draft.dms = _.union(draft.dms, init.dms);
+        draft.pendingDms = _.union(draft.pendingDms, init.invited);
+        draft.pins = _.union(draft.pins, init.pins);
       });
 
       api.subscribe(

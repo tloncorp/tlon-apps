@@ -18,7 +18,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 function Groups() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
-  const group = useGroup(flag, true, true);
+  const group = useGroup(flag, true);
   const gang = useGang(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
