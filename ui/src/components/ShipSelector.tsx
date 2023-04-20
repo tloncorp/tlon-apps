@@ -456,7 +456,6 @@ export default function ShipSelector({
         handleEnter={handleEnter}
         ref={selectRef}
         formatCreateLabel={AddNewOption}
-        menuPortalTarget={document.body}
         autoFocus={autoFocus}
         className={containerClassName}
         styles={{
@@ -467,10 +466,6 @@ export default function ShipSelector({
             borderColor: '',
             zIndex: 50,
             backgroundColor: 'inherit',
-          }),
-          menuPortal: (base) => ({
-            ...base,
-            zIndex: 50,
           }),
           input: (base) => ({
             ...base,
@@ -552,16 +547,11 @@ export default function ShipSelector({
       formatCreateLabel={AddNewOption}
       autoFocus
       isMulti
-      menuPortalTarget={document.body}
       className={containerClassName}
       styles={{
         control: (base) => ({}),
         menuList: ({ padding, paddingTop, paddingBottom, ...base }) => ({
           ...base,
-        }),
-        menuPortal: (base) => ({
-          ...base,
-          zIndex: 50,
         }),
         menu: ({
           paddingTop,
