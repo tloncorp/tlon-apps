@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { useParams } from 'react-router';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   MutationFunction,
   useMutation,
@@ -79,35 +79,42 @@ export function useGroups() {
   return data as Groups;
 }
 
-export function useGroup(flag: string, withMembers = false, subscribe = false) {
+export function useGroup(flag: string, updating = false) {
   const queryClient = useQueryClient();
   const initialData = useGroups();
   const group = initialData?.[flag];
   const queryKey = useMemo(() => ['groups', flag], [flag]);
+  const subscribe = useCallback(() => {
+    api.subscribe({
+      app: 'groups',
+      path: `/groups/${flag}/ui`,
+      event: _.debounce(
+        () => {
+          queryClient.invalidateQueries(queryKey);
+        },
+        300,
+        { leading: true, trailing: true }
+      ),
+    });
+  }, [flag, queryKey, queryClient]);
 
   const { data, ...rest } = useReactQueryScry({
     queryKey,
     app: 'groups',
     path: `/groups/${flag}`,
     options: {
-      enabled: !!flag && flag !== '' && withMembers && subscribe,
+      enabled: !!flag && flag !== '' && updating,
       initialData: group,
-      refetchOnWindowFocus: withMembers,
-      refetchOnMount: withMembers,
+      refetchOnWindowFocus: updating,
+      refetchOnMount: updating,
     },
   });
 
   useEffect(() => {
-    if (subscribe && flag) {
-      api.subscribe({
-        app: 'groups',
-        path: `/groups/${flag}/ui`,
-        event: () => {
-          queryClient.invalidateQueries(queryKey);
-        },
-      });
+    if (updating && flag) {
+      subscribe();
     }
-  }, [flag, subscribe, queryKey, queryClient]);
+  }, [flag, updating, subscribe]);
 
   if (rest.isLoading || rest.isError) {
     return undefined;
@@ -252,7 +259,7 @@ export function useChannelList(flag: string): string[] {
 }
 
 export function useAmAdmin(flag: string) {
-  const group = useGroup(flag, false);
+  const group = useGroup(flag);
   const vessel = group?.fleet?.[window.our];
   return vessel && vessel.sects.includes(GROUP_ADMIN);
 }
