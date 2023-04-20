@@ -18,8 +18,6 @@ export default function GroupRoleDialog() {
   const [description, setDescription] = useState('');
   const { mutate, status } = useGroupAddRoleMutation();
 
-  console.log({ cabal });
-
   useEffect(() => {
     if (cabal && group && title === '' && description === '') {
       setTitle(group.cabals[cabal].meta.title);
