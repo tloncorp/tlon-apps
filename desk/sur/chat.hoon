@@ -11,6 +11,8 @@
   ++  one  uno
   --
 ::
+::  $scan: search results
++$  scan  (list writ)
 ::  $writ: a chat message
 +$  writ   [seal memo]
 ::  $id: an identifier for chat messages

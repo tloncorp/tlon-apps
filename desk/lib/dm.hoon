@@ -113,4 +113,93 @@
     =/  time  (slav %ud time.pole)
     ``writ+!>((got ship `@da`time))
   ==
+::
+++  search
+  =<
+    |%
+    ++  mention
+      |=  [sip=@ud len=@ud nedl=^ship]
+      ^-  scan:c
+      (scour sip len (mntn nedl))
+    ++  text
+      |=  [sip=@ud len=@ud nedl=@t]
+      ^-  scan:c
+      (scour sip len (txt nedl))
+    --
+  |%
+  +$  query
+    $:  skip=@ud
+        more=@ud
+        =scan:c
+    ==
+  ++  scour
+    |=  [sip=@ud len=@ud matc=$-(writ:c ?)]
+    ?>  (gth len 0)
+    ^-  scan:c
+    %-  flop
+    =<  scan.-
+    %^    (dip:on:writs:c query)
+        wit.pac
+      [sip len ~]
+    |=  $:  =query
+            time
+            =writ:c
+        ==
+    ^-  [(unit writ:c) stop=? _query]
+    :-  ~
+    ?:  (matc writ)
+      ?:  =(0 skip.query)
+        :-  =(1 more.query)
+        query(more (dec more.query), scan [writ scan.query])
+      [| query(skip (dec skip.query))]
+    [| query]
+  ++  mntn
+    |=  nedl=ship
+    ^-  $-(writ:c ?)
+    |=  =writ:c
+    ^-  ?
+    ?.  ?=(%story -.content.writ)
+      |
+    =/  ls=(list inline:c)   q.p.content.writ
+    |-
+    ?~  ls    |
+    ?@  i.ls  $(ls t.ls)
+    ?+  -.i.ls  $(ls t.ls)
+      %ship                                  =(nedl p.i.ls)
+      ?(%bold %italics %strike %blockquote)  |($(ls p.i.ls) $(ls t.ls))
+    ==
+  ::
+  ++  txt
+    |=  nedl=@t
+    ^-  $-(writ:c ?)
+    |=  =writ:c
+    ^-  ?
+    ?.  ?=(%story -.content.writ)
+      |
+    |^
+      =/  ls=(list inline:c)  q.p.content.writ
+      |-
+      ?~  ls  |
+      ?@  i.ls
+        |((find nedl i.ls) $(ls t.ls))
+      ?.  ?=(?(%bold %italics %strike %blockquote) -.i.ls)
+        $(ls t.ls)
+      |($(ls p.i.ls) $(ls t.ls))
+    ++  find
+      |=  [nedl=@t hay=@t]
+      ^-  ?
+      =/  nlen  (met 3 nedl)
+      =/  hlen  (met 3 hay)
+      ?:  (lth hlen nlen)
+        |
+      =/  pos  0
+      =/  lim  (sub hlen nlen)
+      |-
+      ?:  (gth pos lim)
+        |
+      ?:  =(nedl (cut 3 [pos nlen] hay))
+        &
+      $(pos +(pos))
+    --
+  --
 --
