@@ -1,0 +1,26 @@
+name: Deploy Talk
+on:
+  workflow_run:
+    workflows: ["Deploy Livenet Groups", "Deploy Livenet Talk"]
+    types:
+      - completed
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    name: "Create and deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+      - name: Set Git config
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "Github Actions"
+      - name: Merge Dev to Master
+        run: |
+          git fetch --unshallow
+          git checkout develop
+          git pull
+          git checkout master
+          git merge --no-ff develop
+          git push
