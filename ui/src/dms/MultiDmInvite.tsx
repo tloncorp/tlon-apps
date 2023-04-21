@@ -47,7 +47,7 @@ export default function MultiDmInvite({ id }: MultiDmInviteProps) {
         </div>
       </div>
       {showDeclineModal ? (
-        <div className="absolute z-10 flex h-full w-full flex-col items-center justify-center bg-gray-400/[0.16]">
+        <div className="bg-gray-400/[0.16] absolute z-10 flex h-full w-full flex-col items-center justify-center">
           <div className="flex h-[216px] min-w-[300px] max-w-[500px] flex-col items-center justify-start rounded-xl bg-white p-6">
             <div className="flex w-full items-center justify-between">
               <span className="text-lg font-bold">Decline Message</span>

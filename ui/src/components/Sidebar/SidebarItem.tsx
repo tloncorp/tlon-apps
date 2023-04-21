@@ -121,7 +121,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
               : null),
             ...((transparent === true && hover) ||
             (transparent === true && active)
-              ? { backgroundColor: 'transparent' }
+              ? { backgroundColor: 'rgba(0,0,0,0.3)' }
               : null),
           } as React.CSSProperties
         }
