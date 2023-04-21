@@ -1,4 +1,4 @@
-name: Deploy Talk
+name: Sync Master
 on:
   workflow_run:
     workflows: ["Deploy Livenet Groups", "Deploy Livenet Talk"]
@@ -7,7 +7,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    name: "Create and deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    name: "Syncs the latest livenet deploy from develop to master"
     steps:
       - uses: actions/checkout@v3
         with:
