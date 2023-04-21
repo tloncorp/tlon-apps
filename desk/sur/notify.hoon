@@ -3,12 +3,12 @@
 +$  provider-action
   $%  [%add service=term notify=@t binding=@t auth-token=@t =whitelist]
       [%remove service=term]
-      [%client-join service=term address=@t binding=@t]
+      [%client-join service=term address=@t binding=(unit @t)]
       [%client-leave service=term]
   ==
 ::
 +$  client-action
-  $%  [%connect-provider who=@p service=term address=@t binding=@t]
+  $%  [%connect-provider who=@p service=term address=@t binding=(unit @t)]
       [%remove-provider who=@p service=term]
   ==
 ::

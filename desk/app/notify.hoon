@@ -417,8 +417,12 @@
   ==
 ::
 ++  register-binding
-  |=  [service=term entry=provider-entry url=@t who=@p address=@t binding=@t]
+  |=  [service=term entry=provider-entry url=@t who=@p address=@t binding=(unit @t)]
   ^-  card
+  =/  binding=@t
+    ?^  binding
+      u.binding
+    'apn'
   ~&  "registering binding for {<who>} with {<address>} on {<service>} with {<binding>} with {<url>} and {<notify-endpoint.entry>}"
   =/  params=(list [@t @t])
     :~  identity+(rsh [3 1] (scot %p who))
