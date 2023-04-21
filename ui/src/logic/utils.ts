@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
-import { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import {
   BigIntOrderedMap,
   Docket,
@@ -13,7 +13,9 @@ import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
 import f from 'lodash/fp';
+import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
+import { useCopyToClipboard } from 'usehooks-ts';
 import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
@@ -28,8 +30,6 @@ import {
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief, DiaryQuip, DiaryQuipMap } from '@/types/diary';
-import bigInt from 'big-integer';
-import { useCopyToClipboard } from 'usehooks-ts';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -612,19 +612,16 @@ export function getAppName(
   return app.title || app.desk;
 }
 
-export function isOnlyEmojis(str: string): boolean {
-  const emojiRegex =
-    /^\p{Emoji}(?:\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Extended_Pictographic})$/u;
-  const stringWithoutEmojis = str.replace(emojiRegex, '');
-
-  return stringWithoutEmojis.length === 0;
-}
-
 export function isSingleEmoji(input: string): boolean {
-  const emojiRegex =
-    /^\p{Emoji}(?:\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Extended_Pictographic})$/u;
+  const regex = emojiRegex();
+  const matches = input.match(regex);
 
-  return emojiRegex.test(input);
+  return (
+    (matches &&
+      matches.length === 1 &&
+      matches.length === _.split(input, '').length) ??
+    false
+  );
 }
 
 export function initializeMap<T>(items: Record<string, T>) {
