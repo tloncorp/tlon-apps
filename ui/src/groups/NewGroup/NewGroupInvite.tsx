@@ -23,14 +23,15 @@ interface NewGroupInviteProps {
   status: Status;
 }
 
-type Role = 'Member' | 'Moderator' | 'Admin';
+// defined again to avoid dependency cycle
+type Role = 'Member' | 'Admin';
 
 interface ShipWithRoles {
   patp: string;
   roles: Role[];
 }
 
-const roles: Role[] = ['Member', 'Admin', 'Moderator'];
+const roles: Role[] = ['Member', 'Admin'];
 
 interface MemberRoleDropDownMenuProps {
   selectedRole: Role;
