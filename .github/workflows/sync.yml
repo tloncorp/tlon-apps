@@ -22,5 +22,6 @@ jobs:
           git checkout develop
           git pull
           git checkout master
+          git pull
           git merge --no-ff develop
           git push
