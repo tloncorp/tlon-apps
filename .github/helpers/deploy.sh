@@ -7,7 +7,7 @@ repo=$1
 desk=$2
 ship=$3
 zone=$4
-ref=${5:-.}
+ref=${5:-"master"}
 [ "$desk" == "talk" ] && from="talk" || from="desk"
 folder=$ship/$desk
 
@@ -17,13 +17,12 @@ cmdfile=$(mktemp "${TMPDIR:-/tmp/}janeway.XXXXXXXXX")
 # mktemp only used for generating a random folder name below
 cmds='
 source_repo=$(mktemp --dry-run /tmp/repo.janeway.XXXXXXXXX)
-git clone --depth 1 git@github.com:'$repo'.git $source_repo
+git clone --depth 1 --branch '$ref' git@github.com:'$repo'.git $source_repo
 urbit_repo=$(mktemp --dry-run /tmp/repo.urbit.XXXXXXXXX)
 git clone --depth 1 git@github.com:urbit/urbit.git $urbit_repo
 landscape_repo=$(mktemp --dry-run /tmp/repo.landscape.XXXXXXXXX)
 git clone --depth 1 git@github.com:tloncorp/landscape.git $landscape_repo
 cd $source_repo
-git checkout '$ref'
 cd /home/urb || return
 curl -s --data '\''{"source":{"dojo":"+hood/mount %'$desk'"},"sink":{"app":"hood"}}'\'' http://localhost:12321
 rsync -avL --delete $source_repo/'$from'/ '$folder'

@@ -12,7 +12,6 @@ import {
 } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useGroupFlag, useVessel } from '@/state/groups';
-import CaretDown16Icon from '@/components/icons/CaretDownIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useChannelSort from '@/logic/useChannelSort';
@@ -31,6 +30,8 @@ import {
   useStartedMigration,
 } from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
+import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -120,8 +121,18 @@ export default function ChannelList({ className }: ChannelListProps) {
   const vessel = useVessel(flag, window.our);
   const isChannelUnread = useCheckChannelUnread();
 
-  if (!group) {
-    return null;
+  if (!group || group.meta.title === '') {
+    return (
+      <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
+        <h2 className="px-4 pb-0 text-sm font-bold text-gray-400">
+          <div className="flex justify-between">
+            Loading Channels
+            <LoadingSpinner className="h-4 w-4 text-gray-400" />
+          </div>
+        </h2>
+        <GroupListPlaceholder count={15} />;
+      </div>
+    );
   }
 
   const renderChannels = (channels: [string, GroupChannel][]) =>

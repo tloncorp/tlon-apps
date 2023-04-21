@@ -1,13 +1,14 @@
 import { uniq, take, remove } from 'lodash';
-import { ChargeWithDesk, useCharges } from '@/state/docket';
-import { SettingsState, useSettingsState } from '@/state/settings';
 import React, { useEffect, useState } from 'react';
 import create from 'zustand';
 import produce from 'immer';
 import { useEventListener } from 'usehooks-ts';
 import { useLocation, useNavigate } from 'react-router';
+import { ChargeWithDesk, useCharges } from '@/state/docket';
+import { SettingsState, usePutEntryMutation, useTiles } from '@/state/settings';
 import useLeap from '@/components/Leap/useLeap';
-import Dialog, { DialogContent } from '../Dialog';
+import keyMap from '@/keyMap';
+import Dialog from '../Dialog';
 // eslint-disable-next-line import/no-cycle
 import Tile from './Tile';
 
@@ -87,7 +88,8 @@ export default function Grid() {
   const charges = useCharges();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { setIsOpen: setLeapIsOpen } = useLeap();
-  const { order, loaded } = useSettingsState(selTiles);
+  const { order, loaded } = useTiles();
+  const { mutate } = usePutEntryMutation({ bucket: 'tiles', key: 'order' });
   const chargesLoaded = Object.keys(charges).length > 0;
   const tilesToDisplay = order.filter(
     (t) => t !== 'landscape' && t !== window.desk
@@ -98,11 +100,15 @@ export default function Grid() {
   const numCols = Math.floor(gridWidth / 200);
 
   useEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
+    if (e.key === keyMap.grid.close) {
       setLeapIsOpen(true);
       navigate(location.state.backgroundLocation);
     }
-    if (e.key === 'ArrowRight' || e.key === 'l' || e.key === 'Tab') {
+    if (
+      e.key === keyMap.grid.nextItem ||
+      e.key === keyMap.grid.nextItemAlt ||
+      e.key === keyMap.grid.nextItemAlt2
+    ) {
       e.preventDefault();
       if (selectedIndex > totalTiles - 1) {
         setSelectedIndex(0);
@@ -110,7 +116,7 @@ export default function Grid() {
         setSelectedIndex((index) => index + 1);
       }
     }
-    if (e.key === 'ArrowLeft' || e.key === 'h') {
+    if (e.key === keyMap.grid.prevItem || e.key === keyMap.grid.prevItemAlt) {
       e.preventDefault();
       if (selectedIndex < 1) {
         setSelectedIndex(0);
@@ -118,7 +124,7 @@ export default function Grid() {
         setSelectedIndex((index) => index - 1);
       }
     }
-    if (e.key === 'ArrowUp' || e.key === 'k') {
+    if (e.key === keyMap.grid.prevRow || e.key === keyMap.grid.prevRowAlt) {
       e.preventDefault();
       if (selectedIndex < 1) {
         setSelectedIndex(0);
@@ -126,7 +132,7 @@ export default function Grid() {
         setSelectedIndex((index) => index - numCols);
       }
     }
-    if (e.key === 'ArrowDown' || e.key === 'j') {
+    if (e.key === keyMap.grid.nextRow || e.key === keyMap.grid.nextRowAlt) {
       e.preventDefault();
       if (selectedIndex > totalTiles - 1 - numCols) {
         setSelectedIndex(0);
@@ -134,7 +140,7 @@ export default function Grid() {
         setSelectedIndex((index) => index + numCols);
       }
     }
-    if (e.key === 'Enter') {
+    if (e.key === keyMap.grid.open) {
       e.preventDefault();
       navigate(`/app/${tilesToDisplay[selectedIndex]}`, {
         state: { backgroundLocation: location.state.backgroundLocation },
@@ -154,21 +160,19 @@ export default function Grid() {
     // Correct order state, fill if none, remove duplicates, and remove
     // old uninstalled app keys
     if (!hasKeys && hasChargeKeys) {
-      useSettingsState.getState().putEntry('tiles', 'order', chargeKeys);
+      mutate({
+        val: chargeKeys,
+      });
     } else if (order.length < chargeKeys.length) {
-      useSettingsState
-        .getState()
-        .putEntry('tiles', 'order', uniq(order.concat(chargeKeys)));
+      mutate({
+        val: uniq(order.concat(chargeKeys)),
+      });
     } else if (order.length > chargeKeys.length && hasChargeKeys) {
-      useSettingsState
-        .getState()
-        .putEntry(
-          'tiles',
-          'order',
-          uniq(order.filter((key) => key in charges).concat(chargeKeys))
-        );
+      mutate({
+        val: uniq(order.filter((key) => key in charges).concat(chargeKeys)),
+      });
     }
-  }, [charges, order, loaded]);
+  }, [charges, order, loaded, mutate]);
 
   if (!chargesLoaded) {
     return <span>Loading...</span>;

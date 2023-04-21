@@ -10,12 +10,6 @@ export interface GcpToken {
 export interface BaseStorageState {
   loaded?: boolean;
   hasCredentials?: boolean;
-  gcp: {
-    configured?: boolean;
-    token?: GcpToken;
-    isConfigured: () => Promise<boolean>;
-    getToken: () => Promise<void>;
-  };
   s3: {
     configuration: {
       buckets: Set<string>;

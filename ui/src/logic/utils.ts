@@ -1,13 +1,21 @@
 import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
-import { BigInteger } from 'big-integer';
-import { Docket, DocketHref, Treaty, unixToDa } from '@urbit/api';
+import bigInt, { BigInteger } from 'big-integer';
+import {
+  BigIntOrderedMap,
+  Docket,
+  DocketHref,
+  Treaty,
+  unixToDa,
+} from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
 import f from 'lodash/fp';
+import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
+import { useCopyToClipboard } from 'usehooks-ts';
 import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
@@ -507,43 +515,16 @@ export function pathToCite(path: string): Cite | undefined {
   return undefined;
 }
 
-export function writeText(str: string | null): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const range = document.createRange();
-    range.selectNodeContents(document.body);
-    document?.getSelection()?.addRange(range);
-
-    let success = false;
-    function listener(e: any) {
-      e.clipboardData.setData('text/plain', str);
-      e.preventDefault();
-      success = true;
-    }
-    document.addEventListener('copy', listener);
-    document.execCommand('copy');
-    document.removeEventListener('copy', listener);
-
-    document?.getSelection()?.removeAllRanges();
-
-    if (success) {
-      resolve();
-    } else {
-      reject();
-    }
-  }).catch((error) => {
-    console.error(error);
-  });
-}
-
 export function useCopy(copied: string) {
   const [didCopy, setDidCopy] = useState(false);
+  const [, copy] = useCopyToClipboard();
   const doCopy = useCallback(() => {
-    writeText(copied);
+    copy(copied);
     setDidCopy(true);
     setTimeout(() => {
       setDidCopy(false);
     }, 2000);
-  }, [copied]);
+  }, [copied, copy]);
 
   return { doCopy, didCopy };
 }
@@ -631,12 +612,42 @@ export function getAppName(
   return app.title || app.desk;
 }
 
-export function isOnlyEmojis(str: string): boolean {
-  const emojiRegex =
-    /^\p{Emoji}(?:\p{Emoji_Modifier}?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Extended_Pictographic})$/u;
-  const stringWithoutEmojis = str.replace(emojiRegex, '');
+export function isSingleEmoji(input: string): boolean {
+  const regex = emojiRegex();
+  const matches = input.match(regex);
 
-  return stringWithoutEmojis.length === 0;
+  return (
+    (matches &&
+      matches.length === 1 &&
+      matches.length === _.split(input, '').length) ??
+    false
+  );
+}
+
+export function initializeMap<T>(items: Record<string, T>) {
+  let map = new BigIntOrderedMap<T>();
+  Object.entries(items).forEach(([k, v]) => {
+    map = map.set(bigInt(k), v as T);
+  });
+
+  return map;
+}
+
+export function restoreMap<T>(obj: any): BigIntOrderedMap<T> {
+  const empty = new BigIntOrderedMap<T>();
+  if (!obj) {
+    return empty;
+  }
+
+  if ('has' in obj) {
+    return obj;
+  }
+
+  if ('root' in obj) {
+    return initializeMap(obj.root);
+  }
+
+  return empty;
 }
 
 export function generateCustomProperties(themeColors: ThemeColors) {

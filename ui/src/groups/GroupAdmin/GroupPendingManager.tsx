@@ -180,6 +180,7 @@ export default function GroupPendingManager() {
             'shut' in group.cordon && group.cordon.shut.ask.includes(m);
           const inPending =
             'shut' in group.cordon && group.cordon.shut.pending.includes(m);
+          const contact = contacts[m];
 
           return (
             <li key={m} className="flex items-center font-semibold">
@@ -187,14 +188,8 @@ export default function GroupPendingManager() {
                 <Avatar ship={m} size="small" className="mr-2" />
               </div>
               <div className="flex flex-1 flex-col">
-                <h2>
-                  {contacts[m]?.nickname ? (
-                    contacts[m].nickname
-                  ) : (
-                    <ShipName name={m} />
-                  )}
-                </h2>
-                {contacts[m]?.nickname ? (
+                <h2>{contact ? contact.nickname : <ShipName name={m} />}</h2>
+                {contact?.nickname ? (
                   <p className="text-sm text-gray-400">{m}</p>
                 ) : null}
               </div>

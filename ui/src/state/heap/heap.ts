@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import bigInt, { BigInteger } from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
@@ -7,19 +8,20 @@ import {
   CurioDelta,
   Heap,
   HeapAction,
-  HeapBriefs,
   HeapBriefUpdate,
   HeapCurio,
   HeapDiff,
   HeapFlag,
   HeapPerm,
-  Stash,
   HeapSaid,
   HeapDisplayMode,
   HeapJoin,
+  HeapCreate,
+  HeapCurios,
+  HeapCurioMap,
 } from '@/types/heap';
-import api, { useSubscriptionState } from '@/api';
-import { nestToFlag, canWriteChannel } from '@/logic/utils';
+import api from '@/api';
+import { nestToFlag, canWriteChannel, restoreMap } from '@/logic/utils';
 import useNest from '@/logic/useNest';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { HeapState } from './type';
@@ -80,7 +82,6 @@ export const useHeapState = createState<HeapState>(
     },
     stash: {},
     curios: {},
-    heapSubs: [],
     loadedRefs: {},
     briefs: {},
     pendingImports: {},
@@ -95,85 +96,66 @@ export const useHeapState = createState<HeapState>(
       });
     },
     start: async ({ briefs, stash }) => {
-      const { wait } = useSchedulerStore.getState();
       get().batchSet((draft) => {
         draft.briefs = briefs;
         draft.stash = stash;
       });
 
-      wait(() => {
-        api.subscribe({
-          app: 'heap',
-          path: '/briefs',
-          event: (event: unknown, mark: string) => {
-            if (mark === 'heap-leave') {
-              get().batchSet((draft) => {
-                delete draft.briefs[event as string];
-              });
-              return;
+      api.subscribe({
+        app: 'heap',
+        path: '/briefs',
+        event: (event: unknown, mark: string) => {
+          if (mark === 'heap-leave') {
+            get().batchSet((draft) => {
+              delete draft.briefs[event as string];
+            });
+            return;
+          }
+
+          const { flag, brief } = event as HeapBriefUpdate;
+          get().batchSet((draft) => {
+            draft.briefs[flag] = brief;
+          });
+        },
+      });
+
+      api.subscribe({
+        app: 'heap',
+        path: '/ui',
+        event: (event: HeapAction) => {
+          get().batchSet((draft) => {
+            const {
+              flag,
+              update: { diff },
+            } = event;
+            const heap = draft.stash[flag];
+
+            if ('view' in diff) {
+              heap.view = diff.view;
+            } else if ('del-sects' in diff) {
+              heap.perms.writers = heap.perms.writers.filter(
+                (w) => !diff['del-sects'].includes(w)
+              );
+            } else if ('add-sects' in diff) {
+              heap.perms.writers = heap.perms.writers.concat(diff['add-sects']);
             }
-
-            const { flag, brief } = event as HeapBriefUpdate;
-            get().batchSet((draft) => {
-              draft.briefs[flag] = brief;
-            });
-          },
-        });
-
-        api.subscribe({
-          app: 'heap',
-          path: '/ui',
-          event: (event: HeapAction) => {
-            get().batchSet((draft) => {
-              const {
-                flag,
-                update: { diff },
-              } = event;
-              const heap = draft.stash[flag];
-
-              if ('view' in diff) {
-                heap.view = diff.view;
-              } else if ('del-sects' in diff) {
-                heap.perms.writers = heap.perms.writers.filter(
-                  (w) => !diff['del-sects'].includes(w)
-                );
-              } else if ('add-sects' in diff) {
-                heap.perms.writers = heap.perms.writers.concat(
-                  diff['add-sects']
-                );
-              }
-            });
-          },
-        });
-      }, 4);
+          });
+        },
+      });
     },
     joinHeap: async (group, chan) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke<HeapJoin>({
+      await api.trackedPoke<HeapJoin, HeapAction>(
+        {
           app: 'heap',
           mark: 'channel-join',
           json: {
             group,
             chan,
           },
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState
-              .getState()
-              .track(`heap/ui`, (event: HeapAction) => {
-                const {
-                  update: { diff },
-                  flag: f,
-                } = event;
-                if (f === chan && 'create' in diff) {
-                  return true;
-                }
-                return false;
-              });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'heap', path: 'ui' },
+        (event) => event.flag === chan && 'create' in event.update.diff
+      );
     },
     leaveHeap: async (flag) => {
       await api.poke({
@@ -201,27 +183,20 @@ export const useHeapState = createState<HeapState>(
       await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
     },
     create: async (req) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke({
+      await api.trackedPoke<HeapCreate, HeapAction>(
+        {
           app: 'heap',
           mark: 'heap-create',
           json: req,
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState.getState().track('heap/ui', (event) => {
-              const { update, flag } = event;
-              if (
-                'create' in update.diff &&
-                flag === `${window.our}/${req.name}`
-              ) {
-                return true;
-              }
-              return false;
-            });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'heap', path: '/ui' },
+        (event) => {
+          const { update, flag } = event;
+          return (
+            'create' in update.diff && flag === `${window.our}/${req.name}`
+          );
+        }
+      );
     },
     addSects: async (flag, sects) => {
       await api.poke(heapAction(flag, { 'add-sects': sects }));
@@ -274,10 +249,6 @@ export const useHeapState = createState<HeapState>(
       );
     },
     initialize: async (flag) => {
-      if (get().heapSubs.includes(flag)) {
-        return;
-      }
-
       useSchedulerStore.getState().wait(async () => {
         const perms = await api.scry<HeapPerm>({
           app: 'heap',
@@ -286,7 +257,6 @@ export const useHeapState = createState<HeapState>(
         get().batchSet((draft) => {
           const heap = { perms, view: 'grid' as HeapDisplayMode };
           draft.stash[flag] = heap;
-          draft.heapSubs.push(flag);
         });
       }, 1);
 
@@ -302,17 +272,33 @@ export const useHeapState = createState<HeapState>(
         draft.pendingImports = init;
       });
     },
-    clearSubs: () => {
-      get().batchSet((draft) => {
-        draft.heapSubs = [];
-      });
-    },
   }),
-  ['briefs', 'stash', 'curios'],
+  {
+    partialize: (state) => {
+      const saved = _.pick(state, ['briefs', 'stash', 'curios']);
+
+      return saved;
+    },
+    merge: (state, current) => {
+      const curios: {
+        [flag: HeapFlag]: HeapCurioMap;
+      } = {};
+
+      Object.entries(state.curios).forEach(([k, c]) => {
+        curios[k] = restoreMap<HeapCurio>(c);
+      });
+
+      return {
+        ...current,
+        ...state,
+        curios,
+      };
+    },
+  },
   []
 );
 
-export function useCuriosForHeap(flag: HeapFlag) {
+export function useCurios(flag: HeapFlag) {
   const def = useMemo(() => new BigIntOrderedMap<HeapCurio>(), []);
   return useHeapState(useCallback((s) => s.curios[flag] || def, [flag, def]));
 }
@@ -341,10 +327,6 @@ export function useHeapIsJoined(flag: HeapFlag) {
   return useHeapState(
     useCallback((s) => Object.keys(s.briefs).includes(flag), [flag])
   );
-}
-
-export function useCurios(flag: HeapFlag) {
-  return useHeapState(useCallback((s) => s.curios[flag], [flag]));
 }
 
 export function useAllCurios() {
@@ -378,20 +360,16 @@ export function useComments(flag: HeapFlag, time: string) {
 }
 
 export function useCurio(flag: HeapFlag, time: string) {
-  return useHeapState(
-    useCallback(
-      (s) => {
-        const curios = s.curios[flag];
-        if (!curios || !curios.get) {
-          return undefined;
-        }
+  const curios = useCurios(flag);
+  return useMemo(() => {
+    const t = bigInt(time);
 
-        const t = bigInt(time);
-        return [t, curios.get(t)] as const;
-      },
-      [flag, time]
-    )
-  );
+    if (curios.size === 0 || !curios.has(t)) {
+      return undefined;
+    }
+
+    return [t, curios.get(t)] as const;
+  }, [time, curios]);
 }
 
 export function useHeap(flag: HeapFlag): Heap | undefined {
@@ -406,7 +384,7 @@ export function useOrderedCurios(
   flag: HeapFlag,
   currentId: bigInt.BigInteger | string
 ) {
-  const curios = useCuriosForHeap(flag);
+  const curios = useCurios(flag);
   const sortedCurios = Array.from(curios).filter(
     ([, c]) => c.heart.replying === null
   );

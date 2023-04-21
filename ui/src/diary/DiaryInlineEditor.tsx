@@ -49,6 +49,7 @@ import Heading from '@tiptap/extension-heading';
 import Mention from '@tiptap/extension-mention';
 import MentionPopup from '@/components/Mention/MentionPopup';
 import useLeap from '@/components/Leap/useLeap';
+import keyMap from '@/keyMap';
 import PrismCodeBlock from './PrismCodeBlock';
 import DiaryCiteNode from './DiaryCiteNode';
 import DiaryLinkNode from './DiaryLinkNode';
@@ -93,17 +94,17 @@ const ActionMenuBar = forwardRef<
     onKeyDown: ({ event }: any) => {
       if (leapIsOpen) return false;
       const len = items.length;
-      if (event.key === 'ArrowUp') {
+      if (event.key === keyMap.tippy.prevItem) {
         setSelected((s) => (s + len - 1) % len);
         return true;
       }
 
-      if (event.key === 'ArrowDown') {
+      if (event.key === keyMap.tippy.nextItem) {
         setSelected((s) => (s + 1) % len);
         return true;
       }
 
-      if (event.key === 'Enter') {
+      if (event.key === keyMap.tippy.selectItem) {
         selectItem(selected);
         return true;
       }
@@ -274,7 +275,7 @@ const ActionMenu = Extension.create<ActionMenuOptions>({
               return true;
             },
             onKeyDown: (props) => {
-              if (props.event.key === 'Escape') {
+              if (props.event.key === keyMap.tippy.close) {
                 popup[0]?.hide();
                 return true;
               }

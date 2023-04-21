@@ -16,6 +16,7 @@ import useContactState, { useContacts } from '@/state/contact';
 import { useGroup, useGroupFlag } from '@/state/groups';
 import { useMultiDms } from '@/state/chat';
 import { preSig } from '@/logic/utils';
+import keyMap from '@/keyMap';
 import Avatar from '../Avatar';
 import ShipName from '../ShipName';
 import useLeap from '../Leap/useLeap';
@@ -85,17 +86,17 @@ const MentionList = React.forwardRef<
   useImperativeHandle(ref, () => ({
     onKeyDown: (event) => {
       if (leapIsOpen) return false;
-      if (event.key === 'ArrowUp') {
+      if (event.key === keyMap.mentionPopup.prevItem) {
         upHandler();
         return true;
       }
 
-      if (event.key === 'ArrowDown') {
+      if (event.key === keyMap.mentionPopup.nextItem) {
         downHandler();
         return true;
       }
 
-      if (event.key === 'Enter') {
+      if (event.key === keyMap.mentionPopup.selectItem) {
         event.stopPropagation();
         enterHandler();
         return true;
@@ -186,7 +187,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(([patp, contact]) =>
-      `${normalizeText(contact.nickname)}${patp}`.toLocaleLowerCase()
+      `${normalizeText(contact?.nickname || '')}${patp}`.toLocaleLowerCase()
     );
 
     if (valid && !contactNames.includes(sigged)) {
@@ -254,7 +255,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
         });
       },
       onKeyDown: (props) => {
-        if (props.event.key === 'Escape') {
+        if (props.event.key === keyMap.mentionPopup.close) {
           popup[0]?.hide();
           return true;
         }

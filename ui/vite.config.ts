@@ -24,6 +24,11 @@ export default ({ mode }: { mode: string }) => {
     process.env.VITE_SHIP_URL ||
     'http://localhost:8080';
   console.log(SHIP_URL);
+  const SHIP_URL2 =
+    process.env.SHIP_URL2 ||
+    process.env.VITE_SHIP_URL2 ||
+    'http://localhost:8080';
+  console.log(SHIP_URL2);
 
   const base = (mode: string, app: string) => {
     if (mode === 'mock' || mode === 'staging') {
@@ -54,7 +59,7 @@ export default ({ mode }: { mode: string }) => {
           mode !== 'sw' ? basicSsl() : null,
           urbitPlugin({
             base: 'talk',
-            target: SHIP_URL,
+            target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
             changeOrigin: true,
             secure: false,
           }),
@@ -66,10 +71,14 @@ export default ({ mode }: { mode: string }) => {
             manifest: chatmanifest,
             injectRegister: 'inline',
             registerType: 'prompt',
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'sw.ts',
             devOptions: {
               enabled: mode === 'sw',
+              type: 'module',
             },
-            workbox: {
+            injectManifest: {
               globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
               maximumFileSizeToCacheInBytes: 100000000,
             },
@@ -80,7 +89,7 @@ export default ({ mode }: { mode: string }) => {
           mode !== 'sw' ? basicSsl() : null,
           urbitPlugin({
             base: 'groups',
-            target: SHIP_URL,
+            target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
             changeOrigin: true,
             secure: false,
           }),
@@ -92,10 +101,14 @@ export default ({ mode }: { mode: string }) => {
             manifest: manifest,
             injectRegister: 'inline',
             registerType: 'prompt',
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'sw.ts',
             devOptions: {
               enabled: mode === 'sw',
+              type: 'module',
             },
-            workbox: {
+            injectManifest: {
               globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
               maximumFileSizeToCacheInBytes: 100000000,
             },
@@ -106,6 +119,45 @@ export default ({ mode }: { mode: string }) => {
 
   console.log(process.env.APP);
   console.log(mode, app, base(mode, app));
+
+  const rollupOptions = {
+    external:
+      mode === 'mock' || mode === 'staging'
+        ? ['virtual:pwa-register/react']
+        : [],
+    output: {
+      manualChunks: {
+        lodash: ['lodash'],
+        'lodash/fp': ['lodash/fp'],
+        '@urbit/api': ['@urbit/api'],
+        '@urbit/http-api': ['@urbit/http-api'],
+        '@tlon/sigil-js': ['@tlon/sigil-js'],
+        'any-ascii': ['any-ascii'],
+        'react-beautiful-dnd': ['react-beautiful-dnd'],
+        'emoji-mart': ['emoji-mart'],
+        'prosemirror-view': ['prosemirror-view'],
+        '@tiptap/core': ['@tiptap/core'],
+        '@tiptap/extension-placeholder': ['@tiptap/extension-placeholder'],
+        '@tiptap/extension-link': ['@tiptap/extension-link'],
+        'react-virtuoso': ['react-virtuoso'],
+        'react-select': ['react-select'],
+        'react-hook-form': ['react-hook-form'],
+        'framer-motion': ['framer-motion'],
+        'date-fns': ['date-fns'],
+        'tippy.js': ['tippy.js'],
+        '@aws-sdk/client-s3': ['@aws-sdk/client-s3'],
+        '@aws-sdk/s3-request-presigner': ['@aws-sdk/s3-request-presigner'],
+        refractor: ['refractor'],
+        'urbit-ob': ['urbit-ob'],
+        'hast-to-hyperscript': ['hast-to-hyperscript'],
+        '@radix-ui/react-dialog': ['@radix-ui/react-dialog'],
+        '@radix-ui/react-dropdown-menu': ['@radix-ui/react-dropdown-menu'],
+        '@radix-ui/react-popover': ['@radix-ui/react-popover'],
+        '@radix-ui/react-toast': ['@radix-ui/react-toast'],
+        '@radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
+      },
+    },
+  };
 
   return defineConfig({
     base: base(mode, app),
@@ -118,49 +170,11 @@ export default ({ mode }: { mode: string }) => {
       mode !== 'profile'
         ? {
             sourcemap: false,
-            rollupOptions: {
-              output: {
-                manualChunks: {
-                  lodash: ['lodash'],
-                  'lodash/fp': ['lodash/fp'],
-                  '@urbit/api': ['@urbit/api'],
-                  '@urbit/http-api': ['@urbit/http-api'],
-                  '@tlon/sigil-js': ['@tlon/sigil-js'],
-                  'any-ascii': ['any-ascii'],
-                  'react-beautiful-dnd': ['react-beautiful-dnd'],
-                  'emoji-mart': ['emoji-mart'],
-                  'prosemirror-view': ['prosemirror-view'],
-                  '@tiptap/core': ['@tiptap/core'],
-                  '@tiptap/extension-placeholder': [
-                    '@tiptap/extension-placeholder',
-                  ],
-                  '@tiptap/extension-link': ['@tiptap/extension-link'],
-                  'react-virtuoso': ['react-virtuoso'],
-                  'react-select': ['react-select'],
-                  'react-hook-form': ['react-hook-form'],
-                  'framer-motion': ['framer-motion'],
-                  'date-fns': ['date-fns'],
-                  'tippy.js': ['tippy.js'],
-                  '@aws-sdk/client-s3': ['@aws-sdk/client-s3'],
-                  '@aws-sdk/s3-request-presigner': [
-                    '@aws-sdk/s3-request-presigner',
-                  ],
-                  refractor: ['refractor'],
-                  'urbit-ob': ['urbit-ob'],
-                  'hast-to-hyperscript': ['hast-to-hyperscript'],
-                  '@radix-ui/react-dialog': ['@radix-ui/react-dialog'],
-                  '@radix-ui/react-dropdown-menu': [
-                    '@radix-ui/react-dropdown-menu',
-                  ],
-                  '@radix-ui/react-popover': ['@radix-ui/react-popover'],
-                  '@radix-ui/react-toast': ['@radix-ui/react-toast'],
-                  '@radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
-                },
-              },
-            },
+            rollupOptions,
           }
         : ({
             rollupOptions: {
+              ...rollupOptions,
               plugins: [
                 analyze({
                   limit: 20,

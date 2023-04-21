@@ -8,6 +8,7 @@ import {
   HeapFlag,
   HeapUpdate,
 } from '@/types/heap';
+import { restoreMap } from '@/logic/utils';
 import api from '../../api';
 import { HeapState } from './type';
 
@@ -76,11 +77,17 @@ export default function makeCuriosStore(
       );
       const sta = get();
       sta.batchSet((draft) => {
-        let curioMap = new BigIntOrderedMap<HeapCurio>();
+        let curioMap = restoreMap<HeapCurio>(draft.curios[flag]);
 
-        Object.keys(curios).forEach((key) => {
-          const curio = curios[key];
-          const tim = bigInt(udToDec(key));
+        const diff = Object.entries(curios)
+          .map(([k, curio]) => ({ tim: bigInt(udToDec(k)), curio }))
+          .filter(({ tim }) => !curioMap.has(tim));
+
+        if (diff.length === 0) {
+          return;
+        }
+
+        diff.forEach(({ tim, curio }) => {
           curioMap = curioMap.set(tim, curio);
         });
 

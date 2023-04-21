@@ -30,7 +30,7 @@
     |=  d=diff:club:c
     ^-  json
     %-  pairs
-    :~  echo/(numb p.d)
+    :~  uid/s/(scot %uv p.d)
         delta/(club-delta q.d)
     ==
   ++  club-delta
@@ -428,10 +428,24 @@
         diff/club-diff
     ==
   ::
+  ++  club-action-0
+    ^-  $-(json action:club:c)
+    %-  ot
+    :~  id/(se %uv)
+        diff/club-diff-0
+    ==
+  ::
   ++  club-diff
     ^-  $-(json diff:club:c)
     %-  ot
     :~  echo/ni
+        delta/club-delta
+    ==
+  ::
+  ++  club-diff-0
+    ^-  $-(json diff:club:c)
+    %-  ot
+    :~  uid/(se %uv)
         delta/club-delta
     ==
   ::

@@ -15,7 +15,7 @@ export default function ChannelsList() {
     if (group) {
       group['zone-ord'].forEach((zone) => {
         sectionedChannels[zone] = {
-          title: group.zones[zone].meta.title,
+          title: group.zones[zone]?.meta.title || '',
           channels: [],
         };
       });

@@ -116,7 +116,7 @@ export default function DiaryNote() {
   );
 
   const load = useCallback(async () => {
-    await useDiaryState.getState().initialize(chFlag);
+    useDiaryState.getState().initialize(chFlag);
     try {
       await useDiaryState.getState().fetchNote(chFlag, noteId);
     } catch (e) {

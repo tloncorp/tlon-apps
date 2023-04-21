@@ -1,55 +1,51 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { isTalk } from '@/logic/utils';
-import useKilnState, { usePike } from '@/state/kiln';
+
+const updateInterval =
+  import.meta.env.MODE === 'sw' ? 10 * 1000 : 5 * 60 * 1000;
 
 export default function UpdateNotice() {
   const appName = isTalk ? 'Talk' : 'Groups';
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
-  } = useRegisterSW();
-  const pike = usePike(appName.toLocaleLowerCase());
-  const [baseHash, setBaseHash] = useState('');
-  const [needsUpdate, setNeedsUpdate] = useState(false);
+  } = useRegisterSW({
+    onRegisteredSW(swUrl, r) {
+      if (!r) {
+        return;
+      }
 
-  const fetchPikes = useCallback(async () => {
-    try {
-      await useKilnState.getState().fetchPikes();
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
+      setInterval(async () => {
+        if (r.installing || !navigator) {
+          return;
+        }
 
-  useEffect(() => {
-    if (pike && baseHash === '') {
-      setBaseHash(pike.hash);
-    }
-  }, [pike, baseHash]);
+        if ('connection' in navigator && !navigator.onLine) {
+          return;
+        }
 
-  useEffect(() => {
-    setInterval(fetchPikes, 1000 * 60 * 5);
-  }, [fetchPikes]);
+        const resp = await fetch(swUrl, {
+          cache: 'no-store',
+          headers: {
+            cache: 'no-store',
+            'cache-control': 'no-cache',
+          },
+        });
 
-  useEffect(() => {
-    if (pike && pike.hash !== baseHash && baseHash !== '' && !needsUpdate) {
-      setNeedsUpdate(true);
-    }
-    if (needRefresh && !needsUpdate) {
-      setNeedsUpdate(true);
-    }
-  }, [pike, baseHash, needsUpdate, needRefresh]);
+        if (resp?.status === 200) {
+          await r.update();
+        }
+      }, updateInterval);
+    },
+  });
 
   const onClick = useCallback(() => {
-    if (needRefresh) {
-      updateServiceWorker(true);
-    } else {
-      window.location.reload();
-    }
-  }, [needRefresh, updateServiceWorker]);
+    updateServiceWorker(true);
+  }, [updateServiceWorker]);
 
-  if (!needsUpdate) {
+  if (!needRefresh) {
     return null;
   }
 
@@ -58,11 +54,12 @@ export default function UpdateNotice() {
       <div className="flex items-center">
         <AsteriskIcon className="mr-3 h-4 w-4" />
         <span className="mr-1">
-          {appName} has updated in the background. Please reload.
+          {appName} has updated in the background. Please click update to load
+          the latest version.
         </span>
       </div>
       <button className="py-1 px-2" onClick={onClick}>
-        Reload
+        Update
       </button>
     </div>
   );

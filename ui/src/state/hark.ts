@@ -8,7 +8,7 @@ import {
   Seam,
   Skein,
 } from '@/types/hark';
-import api, { useSubscriptionState } from '@/api';
+import api from '@/api';
 import { decToUd } from '@urbit/api';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -26,9 +26,7 @@ export function useCarpet(flag?: Flag) {
     queryKey: ['carpet', flag],
     app: 'hark',
     path: '/ui',
-    initialScryPath: flag
-      ? `/group/${flag}/latest`
-      : `/desk/${window.desk}/latest`,
+    scry: flag ? `/group/${flag}/latest` : `/desk/${window.desk}/latest`,
   });
 
   return {
@@ -48,10 +46,10 @@ export function useBlanket(flag?: Flag) {
     queryKey: ['blanket', flag],
     app: 'hark',
     path: '/ui',
-    initialScryPath: flag
+    scry: flag
       ? `/group/${flag}/quilt/${quilt}`
       : `/desk/${window.desk}/quilt/${quilt}`,
-    enabled: isSuccess,
+    options: { enabled: isSuccess },
   });
 
   return {
@@ -62,12 +60,10 @@ export function useBlanket(flag?: Flag) {
 
 export function useSkeins(flag?: Flag) {
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['skeins', flag ? flag : undefined],
+    queryKey: ['skeins', flag ? flag : window.desk],
     app: 'hark',
     path: '/ui',
-    initialScryPath: flag
-      ? `/group/${flag}/skeins`
-      : `/desk/${window.desk}/skeins`,
+    scry: flag ? `/group/${flag}/skeins` : `/desk/${window.desk}/skeins`,
     options: {
       refetchOnMount: true,
     },
@@ -82,30 +78,12 @@ export function useSkeins(flag?: Flag) {
 export function useSawRopeMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { rope: Rope; update?: boolean }) =>
-    new Promise<void>((resolve, reject) => {
-      api.poke({
-        ...harkAction({
-          'saw-rope': variables.rope,
-        }),
-        onError: reject,
-        onSuccess: async () => {
-          if (!variables.update) {
-            resolve();
-            return;
-          }
-
-          await useSubscriptionState
-            .getState()
-            .track(
-              'hark/ui',
-              (event: HarkAction) =>
-                'saw-rope' in event &&
-                event['saw-rope'].thread === variables.rope.thread
-            );
-          resolve();
-        },
-      });
-    });
+    api.trackedPoke(
+      harkAction({
+        'saw-rope': variables.rope,
+      }),
+      { app: 'hark', path: '/ui' }
+    );
 
   return useMutation(mutationFn, {
     onMutate: async (variables) => {
@@ -127,11 +105,19 @@ export function useSawSeamMutation() {
     });
 
   return useMutation(mutationFn, {
-    onMutate: async () => {
-      await queryClient.cancelQueries(['skeins', null]);
+    onMutate: async (variables) => {
+      if ('group' in variables.seam) {
+        await queryClient.cancelQueries(['skeins', variables.seam.group]);
+      } else {
+        await queryClient.cancelQueries(['skeins', window.desk]);
+      }
     },
-    onSettled: async () => {
-      await queryClient.invalidateQueries(['skeins', null]);
+    onSettled: async (_data, _error, variables) => {
+      if ('group' in variables.seam) {
+        await queryClient.invalidateQueries(['skeins', variables.seam.group]);
+      } else {
+        await queryClient.invalidateQueries(['skeins', window.desk]);
+      }
     },
   });
 }
