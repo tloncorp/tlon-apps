@@ -96,7 +96,7 @@
         =^  cards  state
           ?-  -.old
             %1  [~ old]
-            %0  [~ (state-0-to-1 old)]
+            %0  (state-0-to-1 old)
           ==
         [cards this]
     ::
@@ -125,11 +125,13 @@
     ::
     ++  state-0-to-1
       |=  =state-0
-      |^  ^-  state-1
+      |^  ^-  (quip card _state)
+      :-  %-  update-subscriptions
+          ~(val by sessions.state-0)
       :*  %1
           (session-0-to-1 sessions.state-0)
           (bound bound.state-0)
-          (binds binds.state-0 bound.state-0)
+          (binds binds.state-0)
           settings.state-0
           width.state-0
           timez.state-0
@@ -150,6 +152,13 @@
         |=  [=flag:chat =glyph]
         [[%flag flag] glyph]
       ::
+      ++  binds
+        |=  binds=(jug glyph flag:chat)
+        ^-  (jug glyph whom:chat)
+        %-  ~(run by binds)
+        |=  flags=(set flag:chat)
+        (~(run in flags) (lead %flag))
+      ::
       ++  session-0-to-1
         |=  sessions=(map sole-id session-0)
         ^-  (map sole-id session)
@@ -161,34 +170,23 @@
           viewing   (~(run in viewing.session-0) |=(=flag:chat [%flag flag]))
         ==
       ::
-      ++  binds
-        |=  $:  binds=(jug glyph flag:chat)
-                bound=(map flag:chat glyph)
-            ==
-        ^-  (jug glyph whom:chat)
-        =/  glyphs=(list glyph)
-          ~(val by bound)
-        =|  new-binds=(jug glyph whom:chat)
-        |-
-        ?~  glyphs  new-binds
-        %=    $
-            new-binds
-          =/  targets=(list whom:chat)
-            =+  flags=(~(get ju binds) i.glyphs)
-            %~  tap  in
-            ^-  (set whom:chat)
-            %-  ~(run in flags)
-            |=(=flag:chat [%flag flag])
-          |-  ^-  (jug glyph whom:chat)
-          ?~  targets  new-binds
-          %=  $
-            new-binds  (~(put ju new-binds) i.glyphs i.targets)
-            targets    t.targets
-          ==
-        ::
-            glyphs
-          t.glyphs
-        ==
+      ++  update-subscriptions
+        |=  sez=(list session-0)
+        ^-  (list card)
+        =/  flags=(set flag:chat)
+          =|  f=(set flag:chat)
+          |-
+          ?~  sez  f
+          $(f (~(uni in f) viewing.i.sez), sez t.sez)
+        %+  weld
+          ^-  (list card)
+          :_  ~
+          [%pass /chat/ui %agent [our-self %chat] %leave ~]
+        ^-  (list card)
+        %-  zing
+        %+  turn  ~(tap in flags)
+        |=  =flag:chat
+        (connect:tc `whom:chat`[%flag flag])
       --
     --
   ::
