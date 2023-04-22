@@ -21,7 +21,7 @@
 ::
 +$  sole-id  sole-id:shoe
 +$  session
-  $:  viewing=(set target)                          ::  connected targets
+  $:  viewing=(set whom:chat)                       ::  connected targets
       history=(list [whom:chat id:chat])            ::  scrollback pointers
       count=@ud                                     ::  (lent history)
       audience=target                               ::  active target
