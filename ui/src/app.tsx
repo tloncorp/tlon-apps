@@ -1,5 +1,5 @@
 import cookies from 'browser-cookies';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
@@ -78,6 +78,9 @@ import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
 import SettingsDialog from './components/SettingsDialog';
+import Recorder from './components/Recorder';
+import AudioPlayer from './chat/ChatEmbedContent/AudioPlayer';
+import useObjectUrl from './logic/useObjectUrl';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -545,6 +548,7 @@ function App() {
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
   const { disableWayfinding } = useCalm();
+  const { url, setObject } = useObjectUrl(new Blob());
 
   useEffect(() => {
     handleError(() => {
@@ -587,6 +591,11 @@ function App() {
         <Leap />
       </LeapProvider>
       <VitaMessage />
+      <Dialog defaultOpen>
+        <p className="pr-8">record some audio</p>
+        {url && <AudioPlayer url={url} />}
+        <Recorder onRecord={setObject} />
+      </Dialog>
     </div>
   );
 }

@@ -56,35 +56,63 @@ function AudioPlayer({
     [ref, playing, setPlaying]
   );
 
+  const updateProgress = useCallback(() => {
+    setProgress(ref.current?.currentTime || 0);
+  }, []);
+
   useEffect(() => {
     if (playing) {
-      // eslint-disable-next-line no-inner-declarations
-      function updateProgress() {
-        setProgress(ref.current?.currentTime || 0);
-      }
-
       const time = setInterval(updateProgress, 250);
 
       return () => time && clearInterval(time);
     }
     return undefined;
-  }, [ref, playing]);
+  }, [playing, updateProgress]);
+
+  const getDuration = useCallback(() => {
+    const audio = ref.current;
+    if (!audio) {
+      return;
+    }
+
+    audio.currentTime = 0;
+    audio.removeEventListener('timeupdate', getDuration);
+    setDuration(audio.duration);
+  }, []);
+
+  const updateDuration = useCallback(() => {
+    const audio = ref.current;
+    if (!audio) {
+      return;
+    }
+
+    if (audio.duration === Infinity) {
+      audio.currentTime = 1e101;
+      audio.addEventListener('timeupdate', getDuration);
+    } else {
+      setDuration(audio.duration || 0);
+    }
+  }, [getDuration]);
+
+  const onEnd = useCallback(() => {
+    setPlaying(false);
+    setProgress(0);
+  }, [setPlaying, setProgress]);
 
   useEffect(() => {
-    const audio = ref?.current;
-    const updateDuration = () => {
-      setDuration(audio?.duration || 0);
-    };
+    const audio = ref.current;
     audio?.addEventListener('loadedmetadata', updateDuration);
+    audio?.addEventListener('ended', onEnd);
 
     return () => {
       audio?.removeEventListener('loadedmetadata', updateDuration);
+      audio?.removeEventListener('ended', onEnd);
     };
-  }, [ref]);
+  }, [updateDuration, onEnd]);
 
   return (
     <>
-      <div className="flex h-20 w-60 flex-col justify-center rounded-lg border-2 border-gray-50 bg-white p-2">
+      <div className="flex h-20 min-w-[360px] flex-col justify-center rounded-lg border-2 border-gray-50 bg-white p-2">
         {!embed && <audio ref={ref} src={url} preload="metadata" />}
         <button
           className="small-button"
