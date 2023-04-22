@@ -203,59 +203,82 @@
     |=  [=wire =sign:agent:gall]
     ^-  (quip card _this)
     =^  cards  state
-      ?-    -.sign
-          %poke-ack
-        ?~  p.sign  [~ state]
-        %-  (slog u.p.sign)
-        [~ state]
-      ::
-          %watch-ack
-        ?~  p.sign  [~ state]
-        =/  =tank
-          leaf/"subscribe failed from {<dap.bowl>} on wire {<wire>}"
-        %.  [~ state]
-        (slog tank u.p.sign)
-      ::
-          %kick
-        :_  state
-        ?+    wire  ~
-            [%dm ship=@ %ui ~]  
-          =/  =ship  (slav %p +<.wire)
-          (connect:tc [%ship ship])
+      ?+    wire  ~|(bad-agent-wire/wire !!)
+          [%dm ship=@ ~]  
+        ?-   -.sign
+            %poke-ack
+          ?~  p.sign  [~ state]
+          =/  =tank  leaf/"poke failed from {<dap.bowl>} on wire {<wire>}"
+          ((slog tank u.p.sign) [~ state])
         ::
-            [%club id=@ %ui %writs ~]
-          =/  =club-id  (slav %uv +<.wire)
-          (connect:tc [%club club-id])
+            %watch-ack
+          ?~  p.sign  [~ state]
+          =/  =tank  leaf/"subscribe failed from {<dap.bowl>} on wire {<wire>}"
+          ((slog tank u.p.sign) [~ state])
         ::
-            [%chat ship=@ name=@ %ui %writs ~]
-          =/  =ship  (slav %p +<.wire)
-          =/  name=term  (slav %tas +>-.wire)
-          (connect:tc [%flag [ship name]])
+            %kick
+          =/  =ship  (slav %p i.t.wire)
+          [(connect:tc %ship ship) state]
+        ::
+            %fact
+          ?.  =(%writ-diff p.cage.sign)
+            ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
+          %+  on-update:tc  
+            :-  %ship 
+            (slav %p i.t.wire)
+          !<(diff:writs:chat q.cage.sign)
         ==
       ::
-          %fact  
-        ?+     p.cage.sign  ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
-            %writ-diff
-          ?+    wire  ~
-              [%dm ship=@ %ui ~] 
-            %+  on-update:tc  
-              :-  %ship 
-              (slav %p +<.wire)
-            !<(diff:dm:chat q.cage.sign)
-          ::  
-              [%club id=@ %ui %writs ~]
-            %+  on-update:tc  
-              :-  %club 
-              (slav %uv +<.wire)
-            !<(diff:writs:chat q.cage.sign)
-          ::
-              [%chat ship=@ name=@ %ui %writs ~]
-            %+  on-update:tc
-              :+  %flag  
-                (slav %p +<.wire)
-              (slav %tas +>-.wire)
-            !<(diff:writs:chat q.cage.sign)
-          ==
+          [%club id=@ ~]
+        ?-   -.sign
+            %poke-ack
+          ?~  p.sign  [~ state]
+          =/  =tank  leaf/"poke failed from {<dap.bowl>} on wire {<wire>}"
+          ((slog tank u.p.sign) [~ state])
+        ::
+            %watch-ack
+          ?~  p.sign  [~ state]
+          =/  =tank  leaf/"subscribe failed from {<dap.bowl>} on wire {<wire>}"
+          ((slog tank u.p.sign) [~ state])
+        ::
+            %kick
+          =/  =club-id  (slav %uv i.t.wire)
+          [(connect:tc %club club-id) state]
+        ::
+            %fact
+          ?.  =(%writ-diff p.cage.sign)
+            ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
+          %+  on-update:tc  
+            :-  %club
+            (slav %uv i.t.wire)
+          !<(diff:writs:chat q.cage.sign)
+        ==
+      ::
+          [%chat ship=@ name=@ ~]
+        ?-   -.sign
+            %poke-ack
+          ?~  p.sign  [~ state]
+          =/  =tank  leaf/"poke failed from {<dap.bowl>} on wire {<wire>}"
+          ((slog tank u.p.sign) [~ state])
+        ::
+            %watch-ack
+          ?~  p.sign  [~ state]
+          =/  =tank  leaf/"subscribe failed from {<dap.bowl>} on wire {<wire>}"
+          ((slog tank u.p.sign) [~ state])
+        ::
+            %kick
+          =/  =ship  (slav %p i.t.wire)
+          =/  name=term  (slav %tas i.t.t.wire)
+          [(connect:tc %flag ship name) state]
+        ::
+            %fact
+          ?.  =(%writ-diff p.cage.sign)
+            ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
+          %+  on-update:tc
+            :+  %flag  
+              (slav %p i.t.wire)
+            (slav %tas i.t.t.wire)
+          !<(diff:writs:chat q.cage.sign)
         ==
       ==
     [cards this]
