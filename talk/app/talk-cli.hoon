@@ -507,7 +507,7 @@
   |=  [=whom:chat =diff:writs:chat]
   ^-  (quip card _state)
   ?.  ?=(%add -.q.diff)  [~ state]
-  =*  id=id:dm:chat  p.diff
+  =*  id=id:chat  p.diff
   =*  memo=memo:chat  p.q.diff
   (update-session whom memo id)
 ::  +update-session: process message updates
