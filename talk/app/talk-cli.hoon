@@ -297,7 +297,7 @@
           =/  =command  [%view [%ship ship]]
           ?~  error.sign-arvo
             (work:(make:sh:tc sole-id) command)
-          (on-arvo:def wire sign-arvo)
+          ((slog u.error.sign-arvo) [~ state])
         ==
       ==
     [cards this]
