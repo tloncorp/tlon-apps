@@ -28,6 +28,7 @@
   ==
 ::
 +$  target  whom:chat                               ::  polymorphic id for channels
++$  selection  $@(rel=@ud [zeros=@u abs=@ud])       ::  pointer selection
 ::
 +$  glyph  char
 ++  glyphs  "!@#$%^&()-=_+[]\{}'\\:\",.<>?"
@@ -35,14 +36,8 @@
 +$  command
   $%  [%target target]                              ::  set messaging target
       [%say (unit ship) (list inline:chat)]         ::  send message
-      $:  %reference                                ::  reference a message
-          $@(rel=@ud [zeros=@u abs=@ud])            ::
-          (list inline:chat)                        ::
-      ==                                            ::
-      $:  %thread                                   ::  reply to a message thread
-          $@(rel=@ud [zeros=@u abs=@ud])            ::
-          (list inline:chat)                        ::
-      ==                                            ::
+      [%reference selection (list inline:chat)]     ::  reference a message
+      [%thread selection (list inline:chat)]        ::  reply to a message thread
       :: [%eval cord hoon]                          ::  send #-message
     ::                                              ::
       [%join target]                                ::  postive rsvp response
@@ -61,7 +56,7 @@
       [%width @ud]                                  ::  adjust display width
       [%timezone ? @ud]                             ::  adjust time printing
     ::                                              ::
-      [%select $@(rel=@ud [zeros=@u abs=@ud])]      ::  rel/abs msg selection
+      [%select selection]                           ::  rel/abs msg selection
       [%chats ~]                                    ::  list available chats
       [%dms ~]                                      ::  list available dms
       [%help ~]                                     ::  print usage info
@@ -1044,12 +1039,10 @@
     ::  +reference: use a pointer to reference a message
     ::
     ++  reference
-      |=  $:  num=$@(rel=@ud [zeros=@u abs=@ud])
-              msg=(list inline:chat)
-          ==
+      |=  [=selection msg=(list inline:chat)]
       ^-  (quip card _state)
       =/  pack=(each [=whom:chat =writ:chat] tape)
-        (pointer-to-message num)
+        (pointer-to-message selection)
       ?-   -.pack
           %|  [[(note:sh-out p.pack)]~ state]
           %&
@@ -1071,12 +1064,10 @@
     ::  +thread: thread reply with pointer reference
     ::
     ++  thread
-      |=  $:  num=$@(rel=@ud [zeros=@u abs=@ud])
-              msg=(list inline:chat)
-          ==
+      |=  [=selection msg=(list inline:chat)]
       ^-  (quip card _state)
       =/  pack=(each [=whom:chat =writ:chat] tape)
-        (pointer-to-message num)
+        (pointer-to-message selection)
       ?-   -.pack
           %|  [[(note:sh-out p.pack)]~ state]
           %&
@@ -1207,17 +1198,17 @@
       ::      abs is the last message whose numbers ends in n
       ::      (with leading zeros used for precision)
       ::
-      |=  num=$@(rel=@ud [zeros=@u abs=@ud])
+      |=  =selection
       ^-  (quip card _state)
       =/  pack=(each [=whom:chat =writ:chat] tape)
-        (pointer-to-message num)
+        (pointer-to-message selection)
       ?-   -.pack
           %|  [[(note:sh-out p.pack)]~ state]
           %&
         =/  tum=tape
-          ?@  num
-            (scow %s (new:si | +(num)))
-          (scow %ud (index (dec count) num))
+          ?@  selection
+            (scow %s (new:si | +(selection)))
+          (scow %ud (index (dec count) selection))
         =.  audience  whom.p.pack
         :_  put-ses
         ^-  (list card)
@@ -1230,19 +1221,21 @@
     ::  or reason why it's not there
     ::
     ++  pointer-to-message
-      |=  num=$@(rel=@ud [zeros=@u abs=@ud])
+      |=  =selection
       ^-  (each [whom:chat writ:chat] tape)
-      |^  ?@  num
-            =+  tum=(scow %s (new:si | +(num)))
-            ?:  (gte rel.num count)
+      |^  ?@  selection
+            =+  tum=(scow %s (new:si | +(selection)))
+            ?:  (gte rel.selection count)
               [%| "{tum}: no such message"]
-            (produce tum rel.num)
-          ?.  (gte abs.num count)
+            (produce tum rel.selection)
+          ?.  (gte abs.selection count)
             ?:  =(count 0)
               [%| "0: no messages"]
-            =+  msg=(index (dec count) num)
+            =+  msg=(index (dec count) selection)
             (produce (scow %ud msg) (sub count +(msg)))
-          [%| "…{(reap zeros.num '0')}{(scow %ud abs.num)}: no such message"]
+          :-  %|
+          %+  weld  "…{(reap zeros.selection '0')}{(scow %ud abs.selection)}: "
+          "no such message"
       ::  +produce: produce message if it exists
       ::
       ++  produce
