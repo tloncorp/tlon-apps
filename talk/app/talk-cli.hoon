@@ -331,28 +331,24 @@
   --
 ::
 |_  =bowl:gall
-::  +subscription-check: confirm whether a target is subscribed to or not
+::  +subscription-check: confirm target is subscribed to
 ::
 ++  subscription-check
   |=  =target
   ^-  ?
-  =/  =wire
-    =;  end=wire
-      (weld (target-to-path target) end)
-    ?:(?=(%ship -.target) /ui /ui/writs)
+  =/  =wire  (target-to-path target)
   (~(has by wex.bowl) [wire our-self %chat])
 ::  +connect: subscribe to chats, dms, and clubs
 ::
 ++  connect
   |=  =target
   ^-  (list card)
-  =/  =path
-    =;  end=path
-      (weld (target-to-path target) end)
-    ?:(?=(%ship -.target) /ui /ui/writs)
   ?:  (subscription-check target)  ~
-  :_  ~
-  [%pass path %agent [our-self %chat] %watch path]
+  =/  =wire  (target-to-path target)
+  =/  =path
+    %+  weld  (target-to-path target)
+    ?:(?=(%ship -.target) /ui /ui/writs)
+  [%pass wire %agent [our-self %chat] %watch path]~
 ::  +poke-noun: debug helpers
 ::
 ++  poke-noun
@@ -857,15 +853,9 @@
     ::  +act: build action card
     ::
     ++  act
-      |=  [what=term app=term =cage]
+      |=  [=path app=term =cage]
       ^-  card
-      :*  %pass
-          /cli-command/[what]
-          %agent
-          [our-self app]
-          %poke
-          cage
-      ==
+      [%pass path %agent [our-self app] %poke cage]
     ::  +set-target: set audience, update prompt
     ::
     ++  set-target
@@ -940,11 +930,9 @@
       ?.  (~(has in viewing) target)  
         [~ put-ses]
       =.  viewing  (~(del in viewing) target)
-      =/  =path
-        (weld (target-to-path target) /ui)
+      =/  =path  (target-to-path target)
       :_  put-ses
-      :_  ~
-      [%pass path %agent [our-self %chat] %leave ~]
+      [%pass path %agent [our-self %chat] %leave ~]~
     ::  +rsvp-or-print: send rsvp response or produce a printout if error occurs
     ::
     ++  rsvp-or-print
@@ -989,7 +977,7 @@
           [~ state]
         :_  state
         :_  ~
-        %^  act  %rsvp-response
+        %^  act  (target-to-path target)
           %chat
         [%dm-rsvp !>(`rsvp:dm:chat`[ship ok])]
       ::
@@ -1002,7 +990,7 @@
           [~ state]
         :_  state
         :_  ~
-        %^  act  %rsvp-response
+        %^  act  (target-to-path target)
           %chat
         :-  %club-action
         !>  ^-  action:club:chat
@@ -1017,7 +1005,7 @@
           ==
       =/  =memo:chat 
         [replying our.bowl now.bowl %story block msg]
-      %^  act  %out-message
+      %^  act  (target-to-path audience)
         %chat
       ?-   -.audience
           %ship 
