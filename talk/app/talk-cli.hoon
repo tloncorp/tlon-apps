@@ -370,10 +370,8 @@
       ~(tap by sessions)
     |-
     ?~  sez  [~ state]
-    ?:  .=  count.session.i.sez
-        (lent history.session.i.sez)
-      $(sez t.sez)
-    ~&  "session {(scow %ta ses.sole-id.i.sez)}'s history is not equal to its count"
+    ~?  !=(count.session.i.sez (lent history.session.i.sez))
+      "session {(scow %ta ses.sole-id.i.sez)}'s history not equal to count"
     $(sez t.sez)
   ::  do all targets across sessions in view have a subscription?
   ::
@@ -382,20 +380,13 @@
       ~(tap by sessions)
     |-
     ?~  sez  [~ state]
-    =*  check-targets
-      %+  turn  ~(tap in viewing.session.i.sez)
-      ::  output warning if target is not subscribed
-      ::
+    =/  missing=(list target)
+      %+  murn  ~(tap in viewing.session.i.sez)
       |=  =target
-      ^-  _target
-      ?:  (subscription-check target)
-        target
-      =;  output=tape
-        ~&  output
-        target
-      %+  weld
-        "session {(scow %ta ses.sole-id.i.sez)} is not subscribed to "
-      ~(full tr target)
+      ?:  (subscription-check target)  ~
+      ~&  %+  weld  "not subscribed to {~(full tr target)} in "
+          "(scow %ta ses.sole-id.i.sez)}"
+      ~
     $(sez t.sez)
   ==
   ::  +poke-options: +poke-noun will accept the following actions
