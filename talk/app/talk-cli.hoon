@@ -987,6 +987,8 @@
           ?~  replying.writ.p.pack
             `id.writ.p.pack
           replying.writ.p.pack
+        ::  switch audience to ensure we're replying in-context
+        ::
         =.  audience  whom.p.pack
         :_  put-ses
         [(send replying ~ msg)]~
