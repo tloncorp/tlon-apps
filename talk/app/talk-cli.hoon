@@ -661,9 +661,6 @@
     ::
     ++  targ
       ;~  pose
-        %+  cook
-          |=  =target
-          target
         ;~  pose
           (stag %flag tarl)
           (stag %flag ;~(plug ship name))
