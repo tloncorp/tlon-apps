@@ -1,8 +1,10 @@
 type React = import('react');
 
-type Stringified<T> = string & {
+type StringifiedWithKey<T> = string & {
   [P in keyof T]: { '_ value': T[P] };
 };
+
+type Stringified<T> = string;
 
 declare module '@emoji-mart/react';
 declare module 'emoji-mart';

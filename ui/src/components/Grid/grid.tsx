@@ -5,17 +5,17 @@ import produce from 'immer';
 import { useEventListener } from 'usehooks-ts';
 import { useLocation, useNavigate } from 'react-router';
 import { ChargeWithDesk, useCharges } from '@/state/docket';
-import { SettingsState, usePutEntryMutation, useTiles } from '@/state/settings';
+import { usePutEntryMutation, useTiles } from '@/state/settings';
 import useLeap from '@/components/Leap/useLeap';
 import keyMap from '@/keyMap';
 import Dialog from '../Dialog';
 // eslint-disable-next-line import/no-cycle
 import Tile from './Tile';
 
-export const selTiles = (s: SettingsState) => ({
-  order: s.tiles.order,
-  loaded: s.loaded,
-});
+// export const selTiles = (s: SettingsState) => ({
+// order: s.tiles.order,
+// loaded: s.loaded,
+// });
 
 export const dragTypes = {
   TILE: 'tile',

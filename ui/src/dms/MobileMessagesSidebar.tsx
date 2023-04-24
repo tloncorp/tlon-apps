@@ -9,12 +9,8 @@ import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
 import Filter16Icon from '@/components/icons/Filter16Icon';
 import AddIcon16 from '@/components/icons/AddIcon';
 import { usePinned } from '@/state/chat';
-import {
-  filters,
-  SidebarFilter,
-  useMessagesFilter,
-  usePutEntryMutation,
-} from '@/state/settings';
+import { useMessagesFilter, usePutEntryMutation } from '@/state/settings';
+import { SidebarFilter, filters } from '@/types/settings';
 import { useGroups } from '@/state/groups';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';

@@ -18,12 +18,12 @@ import {
   useDiaryPerms,
 } from '@/state/diary';
 import {
-  DiarySetting,
   setChannelSetting,
   useDiarySettings,
   useDiarySortMode,
   usePutEntryMutation,
 } from '@/state/settings';
+import { DiarySetting } from '@/types/settings';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryDisplayMode, DiaryLetter } from '@/types/diary';

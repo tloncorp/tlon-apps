@@ -1,12 +1,11 @@
 import { isValidPatp } from 'urbit-ob';
 import classNames from 'classnames';
-import React, { CSSProperties, useState } from 'react';
+import React, { CSSProperties } from 'react';
 import { sigil as sigilRaw, reactRenderer } from '@tlon/sigil-js';
 import { deSig, Contact, cite } from '@urbit/api';
 import _ from 'lodash';
 import { darken, lighten, parseToHsla } from 'color2k';
-import { useCalm } from '@/state/settings';
-import { useCurrentTheme } from '@/state/local';
+import { useCalm, useTheme } from '@/state/settings';
 import { normalizeUrbitColor, isValidUrl } from '@/logic/utils';
 import { useContact } from '@/state/contact';
 import { useAvatar } from '@/state/avatar';
@@ -141,7 +140,8 @@ export default function Avatar({
   loadImage = true,
   previewData,
 }: AvatarProps) {
-  const currentTheme = useCurrentTheme();
+  const theme = useTheme();
+  const currentTheme = theme === 'dark' ? 'dark' : 'light';
   const contact = useContact(ship);
   const calm = useCalm();
   const { previewColor, previewAvatar } = previewData ?? {};
@@ -227,7 +227,8 @@ export function useProfileColor(
     previewAvatar?: string;
   }
 ) {
-  const currentTheme = useCurrentTheme();
+  const theme = useTheme();
+  const currentTheme = theme === 'dark' ? 'dark' : 'light';
   const contact = useContact(ship);
   const { previewColor } = previewData ?? {};
   const { color } = contact || emptyContact;

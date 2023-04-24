@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { Link, LinkProps, useMatch } from 'react-router-dom';
-import { useCurrentTheme } from '@/state/local';
+import { useTheme } from '@/state/settings';
 import { isColor } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 
@@ -67,7 +67,8 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
     const active = !!matches;
     const isMobile = useIsMobile();
     const Wrapper = 'div';
-    const currentTheme = useCurrentTheme();
+    const theme = useTheme();
+    const currentTheme = theme === 'dark' ? 'dark' : 'light';
 
     const hasHoverColor = () => {
       switch (highlight) {

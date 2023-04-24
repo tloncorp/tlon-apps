@@ -16,12 +16,14 @@ interface ColorPickerProps {
   color: string;
   setColor: (newColor: string) => void;
   className?: string;
+  inputClassName?: string;
 }
 
 export default function ColorPicker({
   className,
   color,
   setColor,
+  inputClassName,
 }: ColorPickerProps) {
   return (
     <div className={classNames('flex items-center', className)}>
@@ -30,14 +32,16 @@ export default function ColorPicker({
           style={{ backgroundColor: color }}
           className="h-6 w-6 shrink-0 rounded"
         />
-        <Popover.Content>
-          <HexColorPicker color={color} onChange={setColor} />
-          <Popover.Arrow className="fill-gray-300" />
-        </Popover.Content>
+        <Popover.Portal>
+          <Popover.Content className="z-[55]">
+            <HexColorPicker color={color} onChange={setColor} />
+            <Popover.Arrow className="fill-gray-300" />
+          </Popover.Content>
+        </Popover.Portal>
       </Popover.Root>
       <HexColorInput
         prefixed
-        className="input-inner w-full"
+        className={inputClassName ? inputClassName : 'input-inner w-full'}
         type="text"
         color={color}
         onChange={setColor}

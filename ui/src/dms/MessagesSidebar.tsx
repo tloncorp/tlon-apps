@@ -12,12 +12,8 @@ import ShipName from '@/components/ShipName';
 import TalkIcon from '@/components/icons/TalkIcon';
 import MenuIcon from '@/components/icons/MenuIcon';
 import ArrowNWIcon from '@/components/icons/ArrowNWIcon';
-import {
-  filters,
-  SidebarFilter,
-  useMessagesFilter,
-  usePutEntryMutation,
-} from '@/state/settings';
+import { useMessagesFilter, usePutEntryMutation } from '@/state/settings';
+import { filters, SidebarFilter } from '@/types/settings';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroups } from '@/state/groups';

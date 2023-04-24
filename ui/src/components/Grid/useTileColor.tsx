@@ -1,5 +1,5 @@
 import { getDarkColor } from '@/logic/utils';
-import { useCurrentTheme } from '@/state/local';
+import { useTheme } from '@/state/settings';
 import {
   darken,
   hsla,
@@ -31,8 +31,9 @@ function disallowWhiteTiles(color: string): string {
 }
 
 export default function useTileColor(color: string) {
-  const theme = useCurrentTheme();
-  const darkTheme = theme === 'dark';
+  const theme = useTheme();
+  const currentTheme = theme === 'dark' ? 'dark' : 'light';
+  const darkTheme = currentTheme === 'dark';
   const allowedColor = disallowWhiteTiles(color);
   const tileColor = darkTheme ? getDarkColor(allowedColor) : allowedColor;
   const darkBg = !readableColorIsBlack(tileColor);
@@ -40,7 +41,7 @@ export default function useTileColor(color: string) {
   const suspendColor = darkTheme ? 'rgb(26,26,26)' : 'rgb(220,220,220)';
 
   return {
-    theme,
+    theme: currentTheme,
     tileColor,
     menuColor: getMenuColor(tileColor, darkBg),
     suspendColor,

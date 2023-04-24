@@ -21,8 +21,7 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, useTheme } from '@/state/settings';
-import { useLocalState } from '@/state/local';
+import { useCalm, useCustomTheme, useTheme } from '@/state/settings';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import GroupsNav from '@/nav/GroupsNav';
@@ -63,7 +62,12 @@ import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
 import Leap from './components/Leap/Leap';
-import { isTalk, preSig, updateThemeStyle } from './logic/utils';
+import {
+  isTalk,
+  mapCustomThemeColors,
+  preSig,
+  updateThemeStyle,
+} from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
 import UpdateNotice from './components/UpdateNotice';
@@ -613,19 +617,25 @@ function RoutedApp() {
   };
 
   const theme = useTheme();
+  const customTheme = useCustomTheme();
+  const mappedCustomTheme = mapCustomThemeColors(customTheme);
   const isDarkMode = useIsDark();
 
   useEffect(() => {
     if ((isDarkMode && theme === 'auto') || theme === 'dark') {
-      useLocalState.setState({ currentTheme: 'dark' });
       setUserThemeColor('#000000');
       updateThemeStyle(defaultTheme, true);
+    } else if (theme === 'light') {
+      setUserThemeColor('#ffffff');
+      updateThemeStyle(defaultTheme, false);
+    } else if (theme === 'custom') {
+      setUserThemeColor('#ffffff');
+      updateThemeStyle(mappedCustomTheme, false);
     } else {
-      useLocalState.setState({ currentTheme: 'light' });
       setUserThemeColor('#ffffff');
       updateThemeStyle(defaultTheme, false);
     }
-  }, [isDarkMode, theme]);
+  }, [isDarkMode, theme, mappedCustomTheme]);
 
   useEffect(() => {
     if (isStandAlone) {

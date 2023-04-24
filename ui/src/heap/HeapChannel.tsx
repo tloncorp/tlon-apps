@@ -15,13 +15,13 @@ import {
 import { useCurios, useHeapState, useHeapPerms } from '@/state/heap/heap';
 import ChannelHeader from '@/channels/ChannelHeader';
 import {
-  HeapSetting,
   setChannelSetting,
   useHeapSettings,
   useHeapSortMode,
   useHeapDisplayMode,
   usePutEntryMutation,
 } from '@/state/settings';
+import { HeapSetting } from '@/types/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';

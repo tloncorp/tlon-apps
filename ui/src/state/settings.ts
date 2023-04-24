@@ -1,94 +1,78 @@
 import { useMemo } from 'react';
-import { Value, PutBucket, DelEntry, DelBucket } from '@urbit/api';
+import { Value } from '@urbit/api';
 import _ from 'lodash';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lsDesk } from '@/constants';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import {
+  ChannelSetting,
+  CustomTheme,
+  DEFAULT,
+  DiarySetting,
+  filters,
+  HeapSetting,
+  PutEntry,
+  SettingsEvent,
+  SettingsState,
+  ThemeType,
+} from '@/types/settings';
 import api from '../api';
 
-interface ChannelSetting {
-  flag: string;
-}
+export function usePutEntryMutation({
+  bucket,
+  key,
+}: {
+  bucket: string;
+  key: string;
+}) {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: { val: Value }) => {
+    const { val } = variables;
+    await api.trackedPoke<PutEntry, SettingsEvent>(
+      {
+        app: 'settings-store',
+        mark: 'settings-event',
+        json: {
+          'put-entry': {
+            desk: window.desk,
+            'bucket-key': bucket,
+            'entry-key': key,
+            value: val,
+          },
+        },
+      },
+      {
+        app: 'settings-store',
+        path: `/desk/${window.desk}`,
+      },
+      (event) => {
+        // default validator was not working
+        const { 'settings-event': data } = event;
 
-export interface HeapSetting extends ChannelSetting {
-  sortMode: HeapSortMode;
-  displayMode: HeapDisplayMode;
-}
+        if (data && 'put-entry' in data) {
+          const { 'put-entry': entry } = data;
+          if (entry) {
+            const { 'bucket-key': bk, 'entry-key': ek, value: v } = entry;
 
-export interface DiarySetting extends ChannelSetting {
-  sortMode: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
-  commentSortMode: 'asc' | 'dsc';
-}
+            if (bk === bucket && ek === key) {
+              return v === val;
+            }
 
-interface GroupSideBarSort {
-  [flag: string]: typeof ALPHABETICAL | typeof RECENT | typeof DEFAULT;
-}
-
-interface PutEntry {
-  // this is defined here because the PutEntry type in @urbit/api is missing the desk field
-  'put-entry': {
-    'bucket-key': string;
-    'entry-key': string;
-    value: Value;
-    desk: string;
+            return false;
+          }
+          return false;
+        }
+        return false;
+      }
+    );
   };
-}
 
-interface SettingsEvent {
-  'settings-event': PutEntry | PutBucket | DelEntry | DelBucket;
-}
-
-const ALPHABETICAL = 'A → Z';
-const DEFAULT = 'Arranged';
-const RECENT = 'Recent';
-
-export type SidebarFilter =
-  | 'Direct Messages'
-  | 'All Messages'
-  | 'Group Channels';
-
-export const filters: Record<string, SidebarFilter> = {
-  dms: 'Direct Messages',
-  all: 'All Messages',
-  groups: 'Group Channels',
-};
-
-export interface SettingsState {
-  display: {
-    theme: 'light' | 'dark' | 'auto';
-  };
-  calmEngine: {
-    disableAppTileUnreads: boolean;
-    disableAvatars: boolean;
-    disableRemoteContent: boolean;
-    disableSpellcheck: boolean;
-    disableNicknames: boolean;
-    disableWayfinding: boolean;
-  };
-  tiles: {
-    order: string[];
-  };
-  heaps: {
-    heapSettings: Stringified<HeapSetting[]>;
-  };
-  diary: {
-    settings: Stringified<DiarySetting[]>;
-  };
-  talk: {
-    messagesFilter: SidebarFilter;
-    showVitaMessage: boolean;
-  };
-  groups: {
-    orderedGroupPins: string[];
-    sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
-    groupSideBarSort: Stringified<GroupSideBarSort>;
-    showVitaMessage: boolean;
-  };
-  loaded: boolean;
-  putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
-  fetchAll: () => Promise<void>;
-  [ref: string]: unknown;
+  return useMutation(['put-entry', bucket, key], mutationFn, {
+    onMutate: () => {
+      queryClient.invalidateQueries(['settings', window.desk]);
+    },
+  });
 }
 
 export const useSettings = () => {
@@ -155,6 +139,72 @@ export function useTheme() {
   }, [isLoading, data]);
 }
 
+export function useThemeMutation() {
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'display',
+    key: 'theme',
+  });
+
+  return {
+    mutate: (theme: ThemeType) => mutate({ val: theme }),
+    status,
+  };
+}
+
+const emptyCustomTheme: CustomTheme = {
+  background: '#FFFFFF',
+  secondaryBackground: '#F5F5F5',
+  accent: '#008EFF',
+  accent2: '#E5F4FF',
+  accent3: '#008EFF1A',
+  primaryText: '#333333',
+  secondaryText: '#999999',
+};
+
+export function useCustomTheme(): CustomTheme {
+  const { data, isLoading } = useSettings();
+
+  return useMemo(() => {
+    if (
+      isLoading ||
+      data === undefined ||
+      data.display?.customTheme === undefined
+    ) {
+      return emptyCustomTheme;
+    }
+
+    const { display } = data;
+
+    return JSON.parse(display.customTheme);
+  }, [isLoading, data]);
+}
+
+export function useCustomThemeMutation() {
+  const currentTheme = useCustomTheme();
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'display',
+    key: 'customTheme',
+  });
+
+  return {
+    mutate: (theme: CustomTheme) =>
+      mutate({ val: JSON.stringify({ ...currentTheme, ...theme }) }),
+    status,
+  };
+}
+
+export function useResetCustomThemeMutation() {
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'display',
+    key: 'customTheme',
+  });
+
+  return {
+    mutate: () => mutate({ val: JSON.stringify(emptyCustomTheme) }),
+    status,
+  };
+}
+
 const emptyCalm: SettingsState['calmEngine'] = {
   disableAppTileUnreads: false,
   disableAvatars: false,
@@ -197,62 +247,6 @@ export function useCalmSetting(key: keyof SettingsState['calmEngine']) {
   return data[key];
 }
 
-export function usePutEntryMutation({
-  bucket,
-  key,
-}: {
-  bucket: string;
-  key: string;
-}) {
-  const queryClient = useQueryClient();
-  const mutationFn = async (variables: { val: Value }) => {
-    const { val } = variables;
-    await api.trackedPoke<PutEntry, SettingsEvent>(
-      {
-        app: 'settings-store',
-        mark: 'settings-event',
-        json: {
-          'put-entry': {
-            desk: window.desk,
-            'bucket-key': bucket,
-            'entry-key': key,
-            value: val,
-          },
-        },
-      },
-      {
-        app: 'settings-store',
-        path: `/desk/${window.desk}`,
-      },
-      (event) => {
-        // default validator was not working
-        const { 'settings-event': data } = event;
-
-        if (data && 'put-entry' in data) {
-          const { 'put-entry': entry } = data;
-          if (entry) {
-            const { 'bucket-key': bk, 'entry-key': ek, value: v } = entry;
-
-            if (bk === bucket && ek === key) {
-              return v === val;
-            }
-
-            return false;
-          }
-          return false;
-        }
-        return false;
-      }
-    );
-  };
-
-  return useMutation(['put-entry', bucket, key], mutationFn, {
-    onMutate: () => {
-      queryClient.invalidateQueries(['settings', window.desk]);
-    },
-  });
-}
-
 export function useCalmSettingMutation(key: keyof SettingsState['calmEngine']) {
   const { mutate, status } = usePutEntryMutation({
     bucket: 'calmEngine',
@@ -265,7 +259,7 @@ export function useCalmSettingMutation(key: keyof SettingsState['calmEngine']) {
   };
 }
 
-export function parseSettings<T>(settings: Stringified<T[]>): T[] {
+export function parseSettings<T>(settings: StringifiedWithKey<T[]>): T[] {
   return settings !== '' ? JSON.parse(settings) : [];
 }
 

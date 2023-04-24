@@ -30,6 +30,8 @@ import {
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
 import { DiaryBrief, DiaryQuip, DiaryQuipMap } from '@/types/diary';
+import { CustomTheme } from '@/types/settings';
+import defaultTheme from '@/defaultTheme';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -668,6 +670,55 @@ export function generateCustomProperties(themeColors: ThemeColors) {
     .join(' ');
 }
 
+export function mapCustomThemeColors(theme: CustomTheme): Theme {
+  const {
+    background,
+    secondaryBackground,
+    accent,
+    accent2,
+    accent3,
+    primaryText,
+    secondaryText,
+  } = theme;
+
+  return {
+    light: {
+      white: background,
+      black: defaultTheme.light.black,
+      gray: {
+        ...defaultTheme.light.gray,
+        50: secondaryBackground,
+        400: secondaryText,
+        800: primaryText,
+      },
+      red: {
+        ...defaultTheme.light.red,
+      },
+      orange: {
+        ...defaultTheme.light.orange,
+      },
+      yellow: {
+        ...defaultTheme.light.yellow,
+      },
+      green: {
+        ...defaultTheme.light.green,
+      },
+      blue: {
+        ...defaultTheme.light.blue,
+        DEFAULT: accent,
+        soft: accent2,
+        softer: accent3,
+      },
+      indigo: {
+        ...defaultTheme.light.indigo,
+      },
+    },
+    dark: {
+      ...defaultTheme.dark,
+    },
+  };
+}
+
 export function updateThemeStyle(theme: Theme, isDark: boolean) {
   const styleId = 'dynamic-theme-styles';
   const styleContent = `
@@ -687,4 +738,10 @@ export function updateThemeStyle(theme: Theme, isDark: boolean) {
   }
 
   styleElement.textContent = styleContent;
+}
+
+export function camelCaseToTitleCase(text: string): string {
+  return text
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (str) => str.toUpperCase());
 }

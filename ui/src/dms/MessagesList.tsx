@@ -2,7 +2,7 @@ import React, { PropsWithChildren, useMemo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import useMessageSort from '@/logic/useMessageSort';
 import { useGroups } from '@/state/groups';
-import { filters, SidebarFilter } from '@/state/settings';
+import { filters, SidebarFilter } from '@/types/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import { canReadChannel, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { ChatBrief } from '@/types/chat';

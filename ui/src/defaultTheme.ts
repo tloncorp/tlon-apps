@@ -35,7 +35,7 @@ const light = {
   blue: {
     DEFAULT: '#008EFF',
     soft: '#E5F4FF',
-    softer: 'rgba(0, 142, 255, 0.1)',
+    softer: '#008EFF1A',
   },
   indigo: {
     DEFAULT: '#615FD3',
