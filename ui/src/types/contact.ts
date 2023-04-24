@@ -1,4 +1,4 @@
-import { Resource } from '@urbit/api';
+import { Flag } from './hark';
 
 export interface Contact {
   nickname: string;
@@ -11,11 +11,11 @@ export interface Contact {
 }
 
 export interface ContactAddGroup {
-  'add-group': Resource;
+  'add-group': Flag;
 }
 
 export interface ContactDelGroup {
-  'del-group': Resource;
+  'del-group': Flag;
 }
 
 export type ContactEditField =
