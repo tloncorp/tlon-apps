@@ -1,7 +1,7 @@
 name: Sync Master
 on:
   workflow_run:
-    workflows: ["Deploy Livenet Groups", "Deploy Livenet Talk"]
+    workflows: ["Deploy Groups (livenet)", "Deploy Talk (livenet)"]
     types:
       - completed
 jobs:
