@@ -636,26 +636,30 @@
     ++  tag      |*(a=@tas (cold a (jest a)))  ::TODO  into stdlib
     ++  ship     ;~(pfix sig fed:ag)
     ++  name     ;~(pfix fas urs:ab)
-    ::  +find-club-id: accepts a truncated id and attempts to find the
-    ::  full version
+    ::  +trun-club-id: accepts a truncated id and pulls the full version
     ::
-    ++  find-club-id
-      =-  (sear - (plus next))
-      |=  input=tape
+    ++  trun-club-id
+      =-  (sear - ;~(pfix dot viz:ag))
+      |=  input=@ud
       ^-  (unit @uv)
+      =|  found=(set club-id)
       =/  ids=(list club-id)
         ~(tap in ~(key by get-clubs))
       |-
-      ?~  ids  ~
-      =/  have=tape
-        %+  swag  [28 5]
+      ?~  ids
+        ?.  =(1 ~(wyt in found))  ~
+        (some -:~(tap in found))
+      =/  have=@uv
+        %+  slav  %uv
+        %-  crip
+        %+  weld  "0v"
+        %+  swag
+          [22 (lent (oust [0 2] (scow %uv input)))]
         (scow %uv `club-id`i.ids)
-      ?:  =(input have)
-        `i.ids
-      $(ids t.ids)
+      ?.  =(`@uv`input have)  $(ids t.ids)
+      $(found (~(put in found) i.ids), ids t.ids)
     ::  +tarl: local flag:chat, as /path
     ::
-
     ++  tarl  (stag our-self name)
     ::  +targ: any target, as tarl, tarp, ship, club id, ~ship/path or glyph
     ::
@@ -664,7 +668,7 @@
         ;~  pose
           (stag %flag tarl)
           (stag %flag ;~(plug ship name))
-          (stag %club ;~(pfix dot find-club-id))
+          (stag %club trun-club-id)
           (stag %ship ship)
         ==
         (sear (cury decode-glyph session) glyph)
@@ -1398,12 +1402,12 @@
       %+  weld  "  "
       (render-club-members club-id (club-members team hive))
     ==
-    ::  +truncate-club-id: render the last 6 characters of the club id
+    ::  +truncate-club-id: render the last 12 characters of the club id
     ::
     ++  truncate-club-id
       |=  =club-id
       ^-  tape
-      %+  swag  [27 6]
+      %+  swag  [21 12]
       (scow %uv club-id)
     ::  +club-members: produce list of club members
     ::
