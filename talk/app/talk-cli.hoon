@@ -569,6 +569,8 @@
       %+  knee  *command  |.  ~+
       =-  ;~(pose ;~(pfix mic -) message)  
       ;~  pose
+        (stag %thread ;~((glue ace) ;~(sfix nump ket) content))
+        (stag %reference ;~((glue ace) ;~(sfix nump hax) content))
       ::
         (stag %target targ)
       ::
@@ -602,9 +604,8 @@
         ;~(plug (tag %dms) (easy ~))
         ;~(plug (tag %help) (easy ~))
       ::
-        (stag %thread ;~(plug ;~(sfix nump ket) ;~(pfix ace content)))
-        (stag %reference ;~(plug ;~(sfix nump hax) ;~(pfix ace content)))
         (stag %select nump)
+      ::
       ==
     ::
     ::TODO
