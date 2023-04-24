@@ -318,7 +318,7 @@
       %club-create
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
-      %club-action
+      ?(%club-action %club-action-0)
     =+  !<(=action:club:c vase)
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)

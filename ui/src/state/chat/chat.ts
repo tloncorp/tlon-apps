@@ -23,6 +23,7 @@ import {
   ClubDelta,
   Clubs,
   DmAction,
+  Pact,
   Pins,
   WritDelta,
 } from '@/types/chat';
@@ -98,7 +99,7 @@ function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
 function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   return {
     app: 'chat',
-    mark: 'club-action',
+    mark: 'club-action-0',
     json: {
       id,
       diff: {
@@ -189,9 +190,9 @@ export const useChatState = createState<ChatState>(
     },
     start: async ({ briefs, chats, pins }) => {
       get().batchSet((draft) => {
-        draft.chats = chats;
-        draft.briefs = briefs;
-        draft.pins = pins;
+        draft.chats = _.assign(draft.chats, chats);
+        draft.briefs = _.assign(draft.briefs, briefs);
+        draft.pins = _.union(draft.pins, pins);
       });
 
       Object.entries(briefs).forEach(([whom, brief]) => {
@@ -278,10 +279,10 @@ export const useChatState = createState<ChatState>(
       }
 
       get().batchSet((draft) => {
-        draft.multiDms = init.clubs;
-        draft.dms = init.dms;
-        draft.pendingDms = init.invited;
-        draft.pins = init.pins;
+        draft.multiDms = _.merge(draft.multiDms, init.clubs);
+        draft.dms = _.union(draft.dms, init.dms);
+        draft.pendingDms = _.union(draft.pendingDms, init.invited);
+        draft.pins = _.union(draft.pins, init.pins);
       });
 
       api.subscribe(
@@ -804,8 +805,9 @@ export function useDmMessages(ship: string) {
   return useMessagesForChat(ship);
 }
 
-export function usePact(whom: string) {
-  return useChatState(useCallback((s) => s.pacts[whom], [whom]));
+const emptyPact = { index: {}, writs: new BigIntOrderedMap<ChatWrit>() };
+export function usePact(whom: string): Pact {
+  return useChatState(useCallback((s) => s.pacts[whom] || emptyPact, [whom]));
 }
 
 const selPacts = (s: ChatState) => s.pacts;

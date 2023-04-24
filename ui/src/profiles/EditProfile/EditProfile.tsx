@@ -39,12 +39,11 @@ const onFormSubmit = (values: ProfileFormSchema, contact: Contact) => {
   const toRemove: ContactDelGroup[] = _.difference(
     contact?.groups || [],
     values.groups.map((group) => group.value)
-  ).map((v) => ({ 'del-group': getFlagParts(v) }));
+  ).map((v) => ({ 'del-group': v }));
   const toAdd: ContactAddGroup[] = _.difference(
     values.groups.map((group) => group.value),
     contact?.groups || []
-  ).map((v) => ({ 'add-group': getFlagParts(v) }));
-
+  ).map((v) => ({ 'add-group': v }));
   useContactState.getState().edit(fields.concat(toRemove, toAdd));
 };
 

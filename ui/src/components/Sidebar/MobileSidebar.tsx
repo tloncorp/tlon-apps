@@ -10,6 +10,7 @@ import MagnifyingGlassIcon from '../icons/MagnifyingGlass16Icon';
 import GridIcon from '../icons/GridIcon';
 import AsteriskIcon from '../icons/Asterisk16Icon';
 import SidebarItem from './SidebarItem';
+import PencilSettingsIcon from '../icons/PencilSettingsIcon';
 
 export default function MobileSidebar() {
   const [showSheet, setShowSheet] = useState(false);
@@ -74,6 +75,22 @@ export default function MobileSidebar() {
                   state={{ backgroundLocation: location }}
                 >
                   About Groups
+                </Link>
+              </SidebarItem>
+              <SidebarItem
+                icon={
+                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                    <PencilSettingsIcon className="h-6 w-6" />
+                  </div>
+                }
+                onClick={() => setShowSheet(false)}
+              >
+                <Link
+                  to="/settings"
+                  className="dropdown-item flex flex-row items-center p-2 no-underline"
+                  state={{ backgroundLocation: location }}
+                >
+                  App Settings
                 </Link>
               </SidebarItem>
             </SheetContent>

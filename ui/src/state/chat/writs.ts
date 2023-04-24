@@ -41,7 +41,10 @@ export function writsReducer(whom: string) {
       return draft;
     }
 
-    const pact = draft.pacts[whom];
+    const pact = draft.pacts[whom] || {
+      index: {},
+      writs: new BigIntOrderedMap<ChatWrit>(),
+    };
 
     if ('add' in delta && !pact.index[id]) {
       const time = bigInt(unixToDa(Date.now()));

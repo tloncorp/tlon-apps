@@ -5,11 +5,11 @@ on:
       tag:
         type: string
         required: false
-        default: master
+        default: develop
         description: Enter the tag to deploy
   push:
     branches:
-      - 'master'
+      - 'develop'
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -46,7 +46,7 @@ jobs:
           git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]"  || echo "No changes to commit"
           sleep 10
           INPUT=${{ github.event.inputs.tag }}
-          BRANCH=${INPUT:-"master"}
+          BRANCH=${INPUT:-"develop"}
           git pull origin $BRANCH --rebase --autostash
           git push
       - id: deploy

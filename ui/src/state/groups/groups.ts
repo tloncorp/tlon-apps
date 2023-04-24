@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { useParams } from 'react-router';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   MutationFunction,
   useMutation,
@@ -27,6 +27,7 @@ import api from '@/api';
 import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
+import useReactQueryScry from '@/logic/useReactQueryScry';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -65,7 +66,10 @@ export function useGroups() {
     queryKey: ['groups'],
     app: 'groups',
     path: `/groups/ui`,
-    initialScryPath: `/groups/light`,
+    scry: `/groups/light`,
+    options: {
+      refetchOnReconnect: false, // handled in bootstrap reconnect flow
+    },
   });
 
   if (rest.isLoading || rest.isError) {
@@ -75,21 +79,42 @@ export function useGroups() {
   return data as Groups;
 }
 
-export function useGroup(flag: string, withMembers = false, subscribe = false) {
+export function useGroup(flag: string, updating = false) {
+  const queryClient = useQueryClient();
   const initialData = useGroups();
   const group = initialData?.[flag];
-  const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['groups', flag],
+  const queryKey = useMemo(() => ['groups', flag], [flag]);
+  const subscribe = useCallback(() => {
+    api.subscribe({
+      app: 'groups',
+      path: `/groups/${flag}/ui`,
+      event: _.debounce(
+        () => {
+          queryClient.invalidateQueries(queryKey);
+        },
+        300,
+        { leading: true, trailing: true }
+      ),
+    });
+  }, [flag, queryKey, queryClient]);
+
+  const { data, ...rest } = useReactQueryScry({
+    queryKey,
     app: 'groups',
-    path: `/groups/${flag}/ui`,
-    initialScryPath: `/groups/${flag}`,
-    enabled: !!flag && flag !== '' && withMembers && subscribe,
-    initialData: group,
+    path: `/groups/${flag}`,
     options: {
-      refetchOnWindowFocus: withMembers,
-      refetchOnMount: withMembers,
+      enabled: !!flag && flag !== '' && updating,
+      initialData: group,
+      refetchOnWindowFocus: updating,
+      refetchOnMount: updating,
     },
   });
+
+  useEffect(() => {
+    if (updating && flag) {
+      subscribe();
+    }
+  }, [flag, updating, subscribe]);
 
   if (rest.isLoading || rest.isError) {
     return undefined;
@@ -173,10 +198,11 @@ export function useGangs() {
     queryKey: ['gangs'],
     app: 'groups',
     path: `/gangs/updates`,
-    initialScryPath: `/gangs`,
+    scry: `/gangs`,
     options: {
       refetchOnWindowFocus: true,
       refetchOnMount: false,
+      refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
   });
 
@@ -233,7 +259,7 @@ export function useChannelList(flag: string): string[] {
 }
 
 export function useAmAdmin(flag: string) {
-  const group = useGroup(flag, false);
+  const group = useGroup(flag);
   const vessel = group?.fleet?.[window.our];
   return vessel && vessel.sects.includes(GROUP_ADMIN);
 }
@@ -675,12 +701,13 @@ export function useGroupLeaveMutation() {
     {
       onSettled: (_data, _error, variables) => {
         queryClient.removeQueries({
-          queryKey: ['group', variables.flag],
+          queryKey: ['groups', variables.flag],
           exact: true,
         });
         queryClient.invalidateQueries(['groups']);
         queryClient.invalidateQueries(['gangs']);
         queryClient.invalidateQueries(['gangs', variables.flag]);
+        queryClient.invalidateQueries(['gang-preview', variables.flag]);
       },
     }
   );

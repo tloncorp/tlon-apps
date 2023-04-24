@@ -42,9 +42,10 @@ export default function DmInviteDialog({
     <Dialog
       open={inviteIsOpen}
       onOpenChange={setInviteIsOpen}
-      containerClass="w-full sm:max-w-lg"
+      containerClass="w-full sm:max-w-xl"
+      className="mb-64 bg-transparent p-0"
     >
-      <div>
+      <div className="card">
         <div className="flex flex-col">
           <h2 className="mb-4 text-lg font-bold">Invite to Chat</h2>
           <div className="w-full py-3 px-4">

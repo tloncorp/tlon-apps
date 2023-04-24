@@ -7,7 +7,7 @@ repo=$1
 desk=$2
 ship=$3
 zone=$4
-ref=${5:-.}
+ref=${5:-"develop"}
 [ "$desk" == "talk" ] && from="talk" || from="desk"
 folder=$ship/$desk
 
