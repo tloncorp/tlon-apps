@@ -1325,7 +1325,7 @@
     =/  glyph=(unit tape)
       ?.  (~(has by bound) target)  ~
       (some ~(glyph tr target))
-    :(weld (fall glyph " ") " " ~(meta tr target))
+    (weld (fall glyph " ") [' ' ~(meta tr target)])
     ::  +order: ships go before chats who go before clubs
     ::
     ++  order
