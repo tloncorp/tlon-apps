@@ -35,7 +35,7 @@
 ::
 +$  command
   $%  [%target target]                              ::  set messaging target
-      [%say (unit ship) (list inline:chat)]         ::  send message
+      [%say (list inline:chat)]                     ::  send message
       [%reference selection (list inline:chat)]     ::  reference a message
       [%thread selection (list inline:chat)]        ::  reply to a message thread
       :: [%eval cord hoon]                          ::  send #-message
@@ -277,29 +277,11 @@
         ==
       ==
     [cards this]
-  ++  on-arvo
-    |=  [=wire =sign-arvo]
-    ^-  (quip card _this)
-    =^  cards  state
-      ?+    wire  (on-arvo:def wire sign-arvo)
-          [%timer %view-dm who=@ ses=@ ship=@ ~]
-        ?+    sign-arvo  (on-arvo:def wire sign-arvo)
-            [%behn %wake *]
-          =/  ship=@p  (slav %p +>+>-.wire)
-          =/  =sole-id  
-            :-  (slav %p +>-.wire) 
-            (slav %ta +>+<.wire)
-          =/  =command  [%view [%ship ship]]
-          ?~  error.sign-arvo
-            (work:(make:sh:tc sole-id) command)
-          ((slog u.error.sign-arvo) [~ state])
-        ==
-      ==
-    [cards this]
   ::
   ++  on-watch  on-watch:def
   ++  on-leave  on-leave:def
   ++  on-peek   on-peek:def
+  ++  on-arvo   on-arvo:def
   ++  on-fail   on-fail:def
   ::
   ++  command-parser
@@ -590,7 +572,7 @@
       %+  knee  *command  |.  ~+
       =-  ;~(pose ;~(pfix mic -) message)  
       ;~  pose
-        (stag %say dm)
+      ::
         (stag %target targ)
       :: 
         ;~((glue ace) (tag %join) targ)
@@ -728,19 +710,12 @@
         (stag 0 dem:ag)
         (cook lent (star mic))
       ==
-    ::  +dm: send a direct message to a ship
-    ::
-    ++  dm 
-      ;~  plug 
-        (cook |=(s=@p [~ s]) ship)
-        ;~(pfix ace content)
-      ==
     ::  +message: all messages
     ::
     ++  message
       ;~  pose
         :: ;~(plug (cold %eval hax) expr)
-        (stag %say ;~(plug (easy [~]) content))
+        (stag %say content)
       ==
     ::  +content: simple messages
     ::
@@ -1010,33 +985,12 @@
         !>  ^-  action:chat
         [p.audience now.bowl %writs [our now]:bowl %add memo]
       ==
-    ::  +say: send messages
+    ::  +say: user sends a message
     ::
     ++  say
-      |=  [who=(unit ship) msg=(list inline:chat)]
+      |=  msg=(list inline:chat)
       ^-  (quip card _state)
-      ?~  who  [[(send msg ~ ~)]~ put-ses]
-      =/  =whom:chat  [%ship (need who)]
-      =.  audience  whom
-      =^  cards  state
-        :_  state
-        %+  welp  [(send msg ~ ~)]~
-        ::  delay the channel change so our message arrives to 
-        ::  %chat before we scry
-        ::
-        :_  ~ 
-        :*  %pass
-            ;:  weld 
-              /timer/view-dm
-              /(scot %p who.sole-id)
-              /(scot %ta ses.sole-id)/(scot %p u.who)
-            ==
-            %arvo
-            %b
-            %wait
-            (add now.bowl ~s0)
-        ==
-      [cards state]
+      [[(send ~ ~ msg)]~ put-ses]
     ::  +reference: use a pointer to reference a message
     ::
     ++  reference
@@ -1060,7 +1014,7 @@
           [%cite `cite:cite`[%chan `nest:groups`[%chat [host name]] wer]]
         =.  audience  whom.p.pack
         :_  put-ses
-        [(send ?~(msg ~ msg) ~ [block]~)]~
+        [(send ~ [block]~ ?~(msg ~ msg))]~
       ==
     ::  +thread: thread reply with pointer reference
     ::
@@ -1078,7 +1032,7 @@
           replying.writ.p.pack
         =.  audience  whom.p.pack
         :_  put-ses
-        [(send msg replying ~)]~
+        [(send replying ~ msg)]~
       ==
     ::  +eval: run hoon, send code and result as message
     ::
