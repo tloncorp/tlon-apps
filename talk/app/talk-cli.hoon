@@ -633,7 +633,6 @@
     ::     ;~(pfix ace ;~(plug i.opt $(opt t.opt)))
     ::   --
     ::
-    ++  group    ;~((glue fas) ship sym)
     ++  tag      |*(a=@tas (cold a (jest a)))  ::TODO  into stdlib
     ++  ship     ;~(pfix sig fed:ag)
     ++  name     ;~(pfix fas urs:ab)
