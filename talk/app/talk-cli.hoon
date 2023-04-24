@@ -40,9 +40,6 @@
       [%thread selection (list inline:chat)]        ::  reply to a message thread
       :: [%eval cord hoon]                          ::  send #-message
     ::                                              ::
-      [%join target]                                ::  postive rsvp response
-      [%deny target]                                ::  negative rsvp response
-    ::                                              ::
       [%view $?(~ target)]                          ::  notice chat
       [%flee target]                                ::  ignore chat
     ::                                              ::
@@ -574,9 +571,6 @@
       ;~  pose
       ::
         (stag %target targ)
-      :: 
-        ;~((glue ace) (tag %join) targ)
-        ;~((glue ace) (tag %deny) targ)
       ::
         ;~((glue ace) (tag %view) targ)
         ;~((glue ace) (tag %flee) targ)
@@ -762,9 +756,6 @@
       [';view' leaf+";view (glyph / ~ship / .group.chat.id / ~host/chat)"]
       [';flee' leaf+";flee [glyph / ~ship / .group.chat.id / ~host/chat]"]
     ::
-      [';join' leaf+";join [glyph / ~ship / .group.chat.id]"]
-      [';deny' leaf+";deny [glyph / ~ship / .group.chat.id]"]
-    ::
       [';bind' leaf+";bind [glyph] [~ship / .group.chat.id / ~host/chat]"]
       [';unbind' leaf+";unbind [glyph] (~ship / .group.chat.id / ~host/chat)"]
       [';what' leaf+";what (glyph / ~ship / .group.chat.id / ~host/chat)"]
@@ -788,9 +779,6 @@
             %reference  (reference +.job)
             %thread     (thread +.job)
             :: %eval      (eval +.job)
-        ::
-            %join       (rsvp-or-print & +.job)
-            %deny       (rsvp-or-print | +.job)
         ::
             %view       (view +.job)
             %flee       (flee +.job)
@@ -894,37 +882,6 @@
       =/  =path  (target-to-path target)
       :_  put-ses
       [%pass path %agent [our-self %chat] %leave ~]~
-    ::  +rsvp-or-print: send rsvp response or produce a printout if error occurs
-    ::
-    ++  rsvp-or-print
-      |=  [ok=? =target]
-      |^  ^-  (quip card _state)
-          =/  printout=(unit tape)
-            (error target)
-          ?~  printout
-            (rsvp ok target)
-          :_  put-ses
-          [(note:sh-out u.printout)]~
-      ++  error
-        |=  =whom:chat
-        ^-  (unit tape)
-        ?-   -.whom
-            %flag  `"chat invite handling not supported"
-            %ship
-          =/  =ship  p.whom
-          ?:  (~(has in get-pending-dms) ship)  ~
-          `"no pending dm invite from {(scow %p ship)}"
-        ::
-            %club
-          =/  =club-id  p.whom
-          =/  crew=(unit crew)  
-            (~(get by get-clubs) club-id)
-          ?~  crew
-            `"no group chat invite for {(scow %uv club-id)}"
-          ?:  (~(has in hive.u.crew) our-self)  ~
-          `"no pending group chat invite for {(scow %uv club-id)}"
-        ==
-      --
     ::  +rsvp: send rsvp response
     ::
     ++  rsvp
@@ -1244,12 +1201,9 @@
           :*  ";[chats / dms] to print available chat channels."
               ";view [~ship / .group.chat.id / ~host/chat] to print messages for a chat you've already joined."
               ";flee [~ship / .group.chat.id / ~host/chat] to stop printing messages for a chat."
-              ";join [~ship / .group.chat.id] to accept a dm or group chat invite without changing the chat you're viewing."
-              ";deny [~ship / .group.chat.id] to decline a dm or group chat invite."
-              ";~ship [message] to send a dm and print its messages."
-              ";[scrollback.pointer] to select a message."
-              ";#[scrollback.pointer] [message] to reference a message with a response (only chats from groups supported)."
-              ";^[scrollback.pointer] [message] to send a thread response."
+              ";[selector] to select a message."
+              ";[selector]# [message] to reference a message with a response (only chats from groups supported)."
+              ";[selector]^ [message] to send a thread response."
               "For more details:"
               "https://urbit.org/getting-started/getting-around"
               ~
