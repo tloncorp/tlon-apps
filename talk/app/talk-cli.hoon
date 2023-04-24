@@ -162,7 +162,7 @@
         %=  session-0
           history   (history history.session-0)
           audience  `whom:chat`[%flag audience.session-0]
-          viewing   (~(run in viewing.session-0) |=(=flag:chat [%flag flag]))
+          viewing   (~(run in viewing.session-0) (lead %flag))
         ==
       ::
       ++  update-subscriptions
