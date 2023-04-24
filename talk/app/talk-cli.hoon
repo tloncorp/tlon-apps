@@ -1382,9 +1382,7 @@
   ::
   ++  meta
     |^  ^-  tape
-    ?-   -.target
-        %flag  ~(phat tr target)
-        %ship  ~(full tr target)
+    ?+   -.target  ~(phat tr target)
         %club
       =/  =club-id  p.target
       =/  crew=(unit crew)
@@ -1401,7 +1399,7 @@
       ?.  =(*cord title.met.u.crew)
         "  ({(trip title.met.u.crew)})"
       %+  weld  "  "
-      (render-club-members club-id (club-members team hive))
+      (render-club-members club-id ?~(team hive team))
     ==
     ::  +truncate-club-id: render the last 12 characters of the club id
     ::
@@ -1410,25 +1408,16 @@
       ^-  tape
       %+  swag  [21 12]
       (scow %uv club-id)
-    ::  +club-members: produce list of club members
-    ::
-    ++  club-members
-      |=  [team=(set ship) hive=(set ship)]
-      ^-  (list ship)
-      ?:  =(~ team)  (sort ~(tap in hive) lth)
-      ?:  =(~ hive)  (sort ~(tap in team) lth)
-      =/  members  (~(uni in team) hive)
-      (sort ~(tap in members) lth)
     ::  +render-club-members: produce club members as tape
     ::
     ::    print up to four members and produce
     ::    a count for the rest.
     ::
     ++  render-club-members
-      |=  [=club-id members=(list ship)]
+      |=  [=club-id members=(set ship)]
       ^-  tape
       =/  members=(list tape)
-        %+  turn  members
+        %+  turn  (sort ~(tap in members) gth)
         |=  =ship
         " {(cite:title ship)}"
       =|  out=tape
