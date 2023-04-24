@@ -3,7 +3,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import cn from 'classnames';
 import _, { debounce } from 'lodash';
 import f from 'lodash/fp';
-import { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { daToUnix, udToDec } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink } from 'react-router-dom';
@@ -154,8 +154,12 @@ const ChatMessage = React.memo<
         f.take(3)
       )(seal.replied);
       const repliesSortedByTime = seal.replied.sort((a, b) => {
-        const aTime = udToDec(a.split('/')[1]);
-        const bTime = udToDec(b.split('/')[1]);
+        const aTime = udToDec(
+          useChatState.getState().getTime(whom, a).toString()
+        );
+        const bTime = udToDec(
+          useChatState.getState().getTime(whom, b).toString()
+        );
 
         return parseInt(aTime, 10) - parseInt(bTime, 10);
       });
