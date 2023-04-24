@@ -4,7 +4,7 @@ import cn from 'classnames';
 import _, { debounce } from 'lodash';
 import f from 'lodash/fp';
 import { BigInteger } from 'big-integer';
-import { daToUnix } from '@urbit/api';
+import { daToUnix, udToDec } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
@@ -153,8 +153,14 @@ const ChatMessage = React.memo<
         f.uniq,
         f.take(3)
       )(seal.replied);
-      const lastReply = seal.replied.length ? _.last(seal.replied)! : '';
-      const lastReplyWrit = useWrit(whom, lastReply)!;
+      const repliesSortedByTime = seal.replied.sort((a, b) => {
+        const aTime = udToDec(a.split('/')[1]);
+        const bTime = udToDec(b.split('/')[1]);
+
+        return parseInt(aTime, 10) - parseInt(bTime, 10);
+      });
+      const lastReply = _.last(repliesSortedByTime);
+      const lastReplyWrit = useWrit(whom, lastReply ?? '')!;
       const lastReplyTime = lastReplyWrit
         ? new Date(daToUnix(lastReplyWrit[0]))
         : new Date();
