@@ -962,15 +962,14 @@
         ?.  ?=(%flag -.whom.p.pack)
           :_  state
           [(note:sh-out "message referencing is only available in chats from a group")]~
-        =/  =seal:chat   -.writ.p.pack
-        =/  =memo:chat   +.writ.p.pack
-        =/  host=ship    p.p.whom.p.pack
-        =/  name=@tas    q.p.whom.p.pack
-        =/  =time        q.id.seal
+        =*  seal  -.writ.p.pack
+        =*  memo  +.writ.p.pack
+        =*  host  p.p.whom.p.pack
+        =*  name  q.p.whom.p.pack
+        =*  time  q.id.seal
         =/  wer=path  /msg/(scot %p author.memo)/(scot %ud time)
         =/  =block:chat
           [%cite `cite:cite`[%chan `nest:groups`[%chat [host name]] wer]]
-        =.  audience  whom.p.pack
         :_  put-ses
         [(send ~ [block]~ ?~(msg ~ msg))]~
       ==
