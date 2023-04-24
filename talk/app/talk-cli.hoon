@@ -982,13 +982,14 @@
         !>  ^-  action:club:chat
         [club-id *uid:club:chat %team our-self ok]   
       ==
-    :: +send: make a poke card based on audience
+    ::  +send: make a poke card based on audience
     ::
     ++  send
-      |=  $:  msg=(list inline:chat)
-              replying=(unit id:chat)
+      |=  $:  replying=(unit id:chat)
               block=(list block:chat)
+              msg=(list inline:chat)
           ==
+      ^-  card
       =/  =memo:chat 
         [replying our.bowl now.bowl %story block msg]
       %^  act  (target-to-path audience)
