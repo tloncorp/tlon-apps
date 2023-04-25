@@ -1,3 +1,4 @@
+// Copyright 2022, Tlon Corporation
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
