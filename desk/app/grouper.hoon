@@ -2,8 +2,12 @@
 /+  default-agent, verb, dbug
 ::
 |%
+++  dev-mode  |
 ++  enabled-groups  (set cord)
 ++  outstanding-pokes  (set (pair ship cord))
+++  bite-subscribe
+  |=  =bowl:gall
+  [%pass /bite-wire %agent [our.bowl %reel] %watch /bites]
 +$  card  card:agent:gall
 +$  versioned-state
   $%  state-1
@@ -24,13 +28,16 @@
 ::
 ++  on-init
   :_  this
-  ~[[%pass /bite-wire %agent [our.bowl %reel] %watch /bites]]
+  ~[(bite-subscribe bowl)]
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
   ?+  mark  (on-poke:def mark vase)
     %leave  :_  this  ~[[%pass /bite-wire %agent [our.bowl %reel] %leave ~]]
-    %watch  :_  this  ~[[%pass /bite-wire %agent [our.bowl %reel] %watch /bites]]
+      %watch  
+    :_  this  
+    ?:  (~(has by wex.bowl) [/bite-wire our.bowl %reel])  ~
+    ~[(bite-subscribe bowl)]
     ::
       %grouper-enable
     =+  !<(name=cord vase)
@@ -73,14 +80,36 @@
   ?-  -.sign
       %poke-ack   `this
       %watch-ack  `this
-      %kick       `this
+      %kick       
+    :_  this
+    ~[(bite-subscribe bowl)]
+    ::
       %fact
     =+  !<(=bite:reel q.cage.sign)
+    ~?  dev-mode  [bite (~(has in enabled-groups) token.bite)]
     ?>  (~(has in enabled-groups) token.bite)
     ?>  ?=([%bite-1 *] bite)
+    ~?  dev-mode  'inviting'
     =/  =invite:groups  [[our.bowl token.bite] joiner.bite]
-    :_  this  
-    ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
+    :_  this
+    =/  our  (scot %p our.bowl)
+    =/  =path  /[our]/groups/(scot %da now.bowl)/groups/[our]/[token.bite]/noun
+    =+  .^(=group:groups %gx path)
+    ~?  dev-mode  cordon.group
+    ?+  -.cordon.group  ~
+        %open
+      ~?  dev-mode  ['inviting to public' joiner.bite]  
+      ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
+    ::
+        %shut
+      ~?  dev-mode  ['inviting to private/secret' joiner.bite]
+      =/  =action:groups  
+        :-  [our.bowl token.bite]
+        :-  now.bowl
+        :-  %cordon
+        [%shut [%add-ships %pending (~(gas in *(set ship)) ~[joiner.bite])]]
+      ~[[%pass /invite %agent [our.bowl %groups] %poke %group-action !>(action)]]
+    ==
   ==
 ::
 ++  on-fail
@@ -98,7 +127,9 @@
   =/  old  !<(versioned-state old-state)
   ?-  -.old
       %1
-    `this(state old)
+    :_  this(state old)
+    ?:  (~(has by wex.bowl) [/bite-wire our.bowl %reel])  ~
+    ~[(bite-subscribe bowl)]
       %0
     `this(state *state-1)
   ==
