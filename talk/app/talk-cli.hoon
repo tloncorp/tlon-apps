@@ -1658,50 +1658,31 @@
     ::  +render-message-block: make a message block
     ::
     ++  render-message-block
-      |=  original-message=(list tape)
-      ^-  (list tape)
-      =+  msg=(scag 2 original-message)
-      =|  block=(list tape)
-      =/  aces=[line-one=@ud line-two=@ud]
-        (block-width msg)
-      |-
-      ?~  msg  block
-      =/  line=(list tape)
-        (scag 1 `(list tape)`msg)
-      %=    $
-          block
-        %^    into
-            block
-          ?~(block 0 1)
-        %-  zing
-        %^    into
-            (weld ["[ "]~ line)
-          ?~(block 2 5)
-        %+  runt
-          :_  ' '
-          ?~(block line-one.aces line-two.aces)
-        ?~  block  " ]"
-        ?.((gth (lent original-message) 2) " ]" "…]")
+      |=  msg=(list tape)
+      |^  ^-  (list tape)
+      ?~  msg  ~
+      =/  [one=tape two=tape]
+        =+  (scag 2 `(list tape)`msg)
+        [i.msg ?~(t.msg ~ i.t.msg)]
+      =/  wyd=@ud
+        (max (lent one) (lent two))
+      :-  (make-a-line i.msg wyd |)
+      ?~  t.msg  ~
+      :-  (make-a-line i.t.msg wyd ?=(^ t.t.msg))
+      ~
       ::
-          msg
-        t.msg
-      ==
-    ::  +block-width: determine number of aces needed for line blocks
-    ::
-    ++  block-width
-      |=  message=(list tape)
-      ^-  [@ud @ud]
-      ?~  message  [0 0]
-      =/  line-one=@ud
-        (sub content-width (add 7 (lent i.message)))
-      ?~  t.message  [0 0]
-      =/  line-two=@ud
-        (sub content-width (add 7 (lent i.t.message)))
-      ?:  |(=(0 line-one) =(0 line-two))
-        [line-one line-two]
-      ?:  (gth line-one line-two)
-        [(sub (lent i.t.message) (lent i.message)) 0]
-      [0 (sub (lent i.message) (lent i.t.message))]
+      ++  make-a-line
+        |=  [line=tape wide=@ud more=?]
+        ^-  tape
+        =/  line
+          ?.  (lth (lent line) wide)
+            line
+          %+  weld  line
+          (runt [(sub wide (lent line)) ' '] "")
+        =/  close=tape
+          ?:(more "…]" " ]")
+        (weld "[ " (weld line close))
+      --
     --
   ::  +activate: produce sole-effect for printing message details
   ::
