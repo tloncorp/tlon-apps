@@ -31,6 +31,8 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 
 export const GROUP_ADMIN = 'admin';
 
+export const GROUPS_KEY = 'groups';
+
 function groupAction(flag: string, diff: GroupDiff): Poke<GroupAction> {
   return {
     app: 'groups',
@@ -63,7 +65,7 @@ function groupTrackedPoke(action: Poke<GroupAction>) {
 
 export function useGroups() {
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['groups'],
+    queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
     scry: `/groups/light`,
@@ -83,7 +85,7 @@ export function useGroup(flag: string, updating = false) {
   const queryClient = useQueryClient();
   const initialData = useGroups();
   const group = initialData?.[flag];
-  const queryKey = useMemo(() => ['groups', flag], [flag]);
+  const queryKey = useMemo(() => [GROUPS_KEY, flag], [flag]);
   const subscribe = useCallback(() => {
     api.subscribe({
       app: 'groups',
@@ -126,7 +128,7 @@ export function useGroup(flag: string, updating = false) {
 }
 
 export function useGroupIsLoading(flag: string) {
-  return useQueryClient().getQueryState(['groups', flag]);
+  return useQueryClient().getQueryState([GROUPS_KEY, flag]);
 }
 
 export function useRouteGroup() {
@@ -357,16 +359,16 @@ export function useGroupMutation<TResponse>(
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['group', variables.flag]);
+      await queryClient.cancelQueries([GROUPS_KEY, variables.flag]);
 
-      const data = await queryClient.getQueryData(['group', variables.flag]);
+      const data = await queryClient.getQueryData([GROUPS_KEY, variables.flag]);
       const previousGroup = data as Group;
 
       const { zone, nest, idx, meta, index, metadata } = variables;
 
       if (metadata) {
         // edit group metadata
-        queryClient.setQueryData(['group', variables.flag], {
+        queryClient.setQueryData([GROUPS_KEY, variables.flag], {
           ...previousGroup,
           meta: {
             ...previousGroup.meta,
@@ -385,7 +387,7 @@ export function useGroupMutation<TResponse>(
               (z) => z !== zone
             );
             newZoneOrd.splice(index, 0, zone);
-            queryClient.setQueryData(['group', variables.flag], {
+            queryClient.setQueryData([GROUPS_KEY, variables.flag], {
               ...previousGroup,
               'zone-ord': newZoneOrd,
             });
@@ -393,7 +395,7 @@ export function useGroupMutation<TResponse>(
 
           if (meta) {
             // edit zone metadata
-            queryClient.setQueryData(['group', variables.flag], {
+            queryClient.setQueryData([GROUPS_KEY, variables.flag], {
               ...previousGroup,
               zones: {
                 ...previousGroup.zones,
@@ -413,7 +415,7 @@ export function useGroupMutation<TResponse>(
             const newIdxArray = previousZone.idx.filter((n) => n !== nest);
             newIdxArray.splice(idx, 0, nest);
 
-            queryClient.setQueryData(['group', variables.flag], {
+            queryClient.setQueryData([GROUPS_KEY, variables.flag], {
               ...previousGroup,
               zones: {
                 ...previousGroup.zones,
@@ -429,7 +431,7 @@ export function useGroupMutation<TResponse>(
           // add a new zone
           const newZoneOrd = previousGroup['zone-ord'];
           newZoneOrd.splice(1, 0, zone);
-          queryClient.setQueryData(['group', variables.flag], {
+          queryClient.setQueryData([GROUPS_KEY, variables.flag], {
             ...previousGroup,
             zones: {
               ...previousGroup.zones,
@@ -446,10 +448,10 @@ export function useGroupMutation<TResponse>(
       return data;
     },
     onError: (err, variables, previousGroup) => {
-      queryClient.setQueryData(['group', variables.flag], previousGroup);
+      queryClient.setQueryData([GROUPS_KEY, variables.flag], previousGroup);
     },
     onSettled: (_data, _error, variables) =>
-      queryClient.invalidateQueries(['group', variables.flag]),
+      queryClient.invalidateQueries([GROUPS_KEY, variables.flag]),
     ...options,
   });
 }
@@ -616,10 +618,20 @@ export function useGroupMoveChannelMutation() {
 
 export function useEditGroupMutation(options: UseMutationOptions = {}) {
   const mutationFn = (variables: { flag: string; metadata: GroupMeta }) =>
-    api.trackedPoke(groupAction(variables.flag, { meta: variables.metadata }), {
-      app: 'groups',
-      path: '/groups/ui',
-    });
+    api.trackedPoke(
+      groupAction(variables.flag, { meta: variables.metadata }),
+      {
+        app: 'groups',
+        path: '/groups/ui',
+      },
+      (event) => {
+        return (
+          event.flag === variables.flag &&
+          'meta' in event.update.diff &&
+          _.isEqual(event.update.diff.meta, variables.metadata)
+        );
+      }
+    );
 
   return useGroupMutation(mutationFn, options);
 }
@@ -683,7 +695,7 @@ export function useGroupJoinMutation() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries(['gangs']);
       queryClient.invalidateQueries(['gangs', variables.flag]);
-      queryClient.invalidateQueries(['groups']);
+      queryClient.invalidateQueries([GROUPS_KEY]);
     },
   });
 }
@@ -701,10 +713,10 @@ export function useGroupLeaveMutation() {
     {
       onSettled: (_data, _error, variables) => {
         queryClient.removeQueries({
-          queryKey: ['groups', variables.flag],
+          queryKey: [GROUPS_KEY, variables.flag],
           exact: true,
         });
-        queryClient.invalidateQueries(['groups']);
+        queryClient.invalidateQueries([GROUPS_KEY]);
         queryClient.invalidateQueries(['gangs']);
         queryClient.invalidateQueries(['gangs', variables.flag]);
         queryClient.invalidateQueries(['gang-preview', variables.flag]);
