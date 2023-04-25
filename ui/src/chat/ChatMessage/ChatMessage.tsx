@@ -154,14 +154,10 @@ const ChatMessage = React.memo<
         f.take(3)
       )(seal.replied);
       const repliesSortedByTime = seal.replied.sort((a, b) => {
-        const aTime = udToDec(
-          useChatState.getState().getTime(whom, a).toString()
-        );
-        const bTime = udToDec(
-          useChatState.getState().getTime(whom, b).toString()
-        );
+        const aTime = useChatState.getState().getTime(whom, a);
+        const bTime = useChatState.getState().getTime(whom, b);
 
-        return parseInt(aTime, 10) - parseInt(bTime, 10);
+        return aTime.compare(bTime);
       });
       const lastReply = _.last(repliesSortedByTime);
       const lastReplyWrit = useWrit(whom, lastReply ?? '')!;
