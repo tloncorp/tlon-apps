@@ -1158,7 +1158,7 @@
         =/  [=whom:chat =id:chat]  
           (snag index history)
         ?.  (message-exists whom id)
-          [%| "…{number}: message was deleted"]
+          [%| "…{number}: missing message"]
         =+  %^  scry-for-marked  ,[* =writ:chat]
               %chat
             (writ-scry-path whom id)
@@ -1728,7 +1728,7 @@
       ?~  replying  ~
       =-  (snoc - [%txt "---"])
       ?.  (message-exists source u.replying)
-        [txt+"^   …message was deleted"]~
+        [txt+"^   …missing message"]~
       =+  %^  scry-for-marked  ,[* =writ:chat]
             %chat
           (writ-scry-path source u.replying)
