@@ -24,7 +24,7 @@ export default function ImageURLUploadField({
   const urlHasLength = formWatchURL?.length;
 
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const uploader = useUploader('image-url-input');
+  const uploader = useUploader(`image-url-input-${formValue}`);
   const mostRecentFile = uploader?.getMostRecent();
 
   useEffect(() => {
