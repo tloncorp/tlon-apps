@@ -1451,7 +1451,7 @@
     ::  termwidth, minus author, timestamp, and padding
     %+  sub  width
     %+  add  15
-    ?:(showtime 12 0)
+    ?:(showtime 11 0)
   ::
   ++  render-notice
     ?>  ?=(%notice -.content)
@@ -1469,14 +1469,11 @@
     ?.  ?=(%story -.content)
       render-notice
     :+  %row
-      :-  16
       %-  thread-indent
+      :-  15
       ?.  showtime
-        ~[(sub width 17)]
-      ~[(sub width 27) 12]
-    =;  cols=(list dime)
-      ?~  replying  cols
-      (into cols 1 `dime`[%t ''])
+        ~[(sub width 16)]
+      ~[(sub width 26) 9]
     :+  :-  %t
         %-  crip
         ;:  weld
@@ -1494,9 +1491,8 @@
     =+  dat=(yore sent)
     =*  t   (d-co:co 2)
     =,  t.dat
-    =+  begin=?~(replying " ~" "  ~")
     %-  crip
-    :(weld begin (t h) "." (t m) "." (t s))
+    :(weld "~" (t h) "." (t m) "." (t s))
     ::  +thread-indent: indent column if $replying:memo is not ~
     ::  meaning we have a thread message
     ::
@@ -1504,12 +1500,10 @@
       |=  widths=(list @ud)
       ^-  (list @ud)
       ?~  replying  widths
-      :-  1
       %+  turn  widths
       |=  a=@
-      ?.  (gth a 12)
-        a
-      (sub a 3)
+      ?:  =(a 15)  16
+      ?.((gth a 16) a (sub a 1))
     --
   ::
   ++  line
