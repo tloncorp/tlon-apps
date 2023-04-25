@@ -1512,7 +1512,8 @@
     %-  zing
     %+  join  "\0a"
     %+  weld
-      (blocks-as-tapes p.p.content)
+      `(list tape)`(zing (turn p.p.content block-as-tape))
+      ::(blocks-as-tapes p.p.content)
     (inlines-as-tapes & q.p.content)
   ::
   ++  inlines-as-tapes
@@ -1617,50 +1618,43 @@
       (snap content last new)
     --
   ::
-  ++  blocks-as-tapes
-    |=  blocks=(list block:chat)
+  ++  block-as-tape
+    |=  =block:chat
     |^  ^-  (list tape)
-        (zing (turn blocks process-block))
-    ::  +process-block: build a block
-    ::
-    ++  process-block
-      |=  =block:chat
-      ^-  (list tape)
-      ?-  -.block
+    ?-   -.block
         %image  ["[ #img: {(trip alt.block)} ]"]~
+    ::
+        %cite
+      ?-  -.cite.block
+          %group  =,  cite.block
+        ["[ #group: {(scow %p p.flag)}/{(trip q.flag)} ]"]~
       ::
-          %cite
-        ?-  -.cite.block
-            %group  =,  cite.block
-          ["[ #group: {(scow %p p.flag)}/{(trip q.flag)} ]"]~
-        ::
-            %desk   =,  cite.block
-          ["[ #desk: {(scow %p p.flag)}/{(trip q.flag)}{(spud wer)} ]"]~
-        ::
-            %bait
-          ["[ #bait: ]"]~  ::TODO  implement once %lure is released
-        ::
-            %chan   =,  cite.block
-          =/  =path   (flop wer)
-          =/  =id:chat
-            :-  (slav %p +<.path)
-            (slav %ud -.path)
-          =/  =whom:chat  [%flag q.nest]
-          ?.  (message-exists whom id)
-            ["[ #chat: message was deleted ]"]~
-          ?.  ?=(%story -.content)
-            ["[ #chat: message was a notice ]"]~
-          =+  %^  scry-for-marked  ,[* =writ:chat]
-                %chat
-              (writ-scry-path whom id)
-          %-  render-message-block
-          %+  simple-wrap  
-            %+  weld
-              "{(cite:title -.id)} said: "
-            ~(line mr whom +.writ)
-          (sub content-width 7)
-        ==
+          %desk   =,  cite.block
+        ["[ #desk: {(scow %p p.flag)}/{(trip q.flag)}{(spud wer)} ]"]~
+      ::
+          %bait
+        ["[ #bait: ]"]~  ::TODO  implement once %lure is released
+      ::
+          %chan   =,  cite.block
+        =/  =path   (flop wer)
+        =/  =id:chat
+          :-  (slav %p +<.path)
+          (slav %ud -.path)
+        =/  =whom:chat  [%flag q.nest]
+        ?.  (message-exists whom id)
+          ["[ #chat: missing message ]"]~
+        =+  %^  scry-for-marked  ,[* =writ:chat]
+              %chat
+            (writ-scry-path whom id)
+        %-  render-message-block
+        %+  simple-wrap  
+          %+  weld
+            "{(cite:title -.id)} said: "
+          ~(line mr whom +.writ)
+        (sub content-width 7)
       ==
+    ==
+    :: 
     ::  +render-message-block: make a message block
     ::
     ++  render-message-block
@@ -1743,7 +1737,10 @@
       ::
       ?:  =(~ p.p.content)  ~
       =-  (snoc - [%txt "---"])
-      (turn (blocks-as-tapes p.p.content) (lead %txt))
+      %+  turn
+        ^-  (list tape)
+        (zing (turn p.p.content block-as-tape))
+      (lead %txt)
       ::TODO  we could actually be doing styling here with %klr
       ::      instead of producing plain %txt output. maybe one day...
       (turn (inlines-as-tapes | q.p.content) (lead %txt))
