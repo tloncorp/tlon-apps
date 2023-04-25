@@ -54,9 +54,11 @@ export const filters: Record<string, SidebarFilter> = {
   groups: 'Group Channels',
 };
 
+export type Theme = 'light' | 'dark' | 'auto';
+
 export interface SettingsState {
   display: {
-    theme: 'light' | 'dark' | 'auto';
+    theme: Theme;
   };
   calmEngine: {
     disableAppTileUnreads: boolean;
@@ -91,6 +93,26 @@ export interface SettingsState {
   [ref: string]: unknown;
 }
 
+export const useLandscapeSettings = () => {
+  const { data, isLoading } = useReactQuerySubscription({
+    scry: `/desk/${lsDesk}`,
+    scryApp: 'settings-store',
+    app: 'settings-store',
+    path: `/desk/${lsDesk}`,
+    queryKey: ['settings', lsDesk],
+  });
+
+  return useMemo(() => {
+    if (!data) {
+      return { data: {} as SettingsState, isLoading };
+    }
+
+    const { desk } = data as { desk: SettingsState };
+
+    return { data: desk, isLoading };
+  }, [isLoading, data]);
+};
+
 export const useSettings = () => {
   const { data, isLoading } = useReactQuerySubscription({
     scry: `/desk/${window.desk}`,
@@ -111,38 +133,31 @@ export const useSettings = () => {
   }, [isLoading, data]);
 };
 
-export const useLandscapeSettings = () => {
-  const { data, isLoading } = useReactQuerySubscription({
-    scry: `/desk/${lsDesk}`,
-    scryApp: 'settings-store',
-    app: 'settings-store',
-    path: `/desk/${lsDesk}`,
-    queryKey: ['settings', lsDesk],
-  });
-
-  const { desk } = data as { desk: SettingsState };
-
-  return { data: desk, isLoading };
-};
 export const useMergedSettings = () => {
   const { data: settings, isLoading: isSettingsLoading } = useSettings();
   const { data: lsSettings, isLoading: isLandscapeSettingsLoading } =
     useLandscapeSettings();
 
-  return {
-    data: {
-      ..._.mergeWith(
-        settings as Record<string, unknown>,
-        lsSettings as Record<string, unknown>,
-        (obj, src) => (_.isArray(src) ? src : undefined)
-      ),
-    } as { desk: SettingsState },
-    isLoading: isSettingsLoading || isLandscapeSettingsLoading,
-  };
+  return useMemo(() => {
+    if (isSettingsLoading || isLandscapeSettingsLoading) {
+      return { data: {} as SettingsState, isLoading: true };
+    }
+
+    return {
+      data: {
+        ..._.mergeWith(
+          lsSettings as Record<string, unknown>,
+          settings as Record<string, unknown>,
+          (obj, src) => (_.isArray(src) ? src : undefined)
+        ),
+      } as SettingsState,
+      isLoading: isSettingsLoading || isLandscapeSettingsLoading,
+    };
+  }, [isSettingsLoading, isLandscapeSettingsLoading, settings, lsSettings]);
 };
 
 export function useTheme() {
-  const { data, isLoading } = useSettings();
+  const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
     if (isLoading || data === undefined || data.display === undefined) {
@@ -174,7 +189,7 @@ const loadingCalm: SettingsState['calmEngine'] = {
 };
 
 export function useCalm() {
-  const { data, isLoading } = useSettings();
+  const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
     if (isLoading) {
@@ -297,7 +312,7 @@ export function setChannelSetting<T extends ChannelSetting>(
 }
 
 export function useHeapSettings(): HeapSetting[] {
-  const { data, isLoading } = useSettings();
+  const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
     if (isLoading || data === undefined || data.heaps === undefined) {
@@ -323,7 +338,7 @@ export function useHeapDisplayMode(flag: string): HeapDisplayMode {
 }
 
 export function useDiarySettings(): DiarySetting[] {
-  const { data, isLoading } = useSettings();
+  const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
     if (isLoading || data === undefined || data.diary === undefined) {
@@ -352,7 +367,7 @@ export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
 
 const emptyGroupSideBarSort = { '~': 'A → Z' };
 export function useGroupSideBarSort() {
-  const { data, isLoading } = useSettings();
+  const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
     if (isLoading || data === undefined || data.groups === undefined) {
@@ -366,7 +381,7 @@ export function useGroupSideBarSort() {
 }
 
 export function useSideBarSortMode() {
-  const { data, isLoading } = useSettings();
+  const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
     if (isLoading || data === undefined || data.groups === undefined) {
@@ -380,7 +395,7 @@ export function useSideBarSortMode() {
 }
 
 export function useShowVitaMessage() {
-  const { data, isLoading } = useSettings();
+  const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
     if (isLoading || data === undefined) {
@@ -393,7 +408,7 @@ export function useShowVitaMessage() {
 }
 
 export function useMessagesFilter() {
-  const { data, isLoading } = useSettings();
+  const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
     if (isLoading || data === undefined || data.talk === undefined) {
@@ -407,7 +422,7 @@ export function useMessagesFilter() {
 }
 
 export function useTiles() {
-  const { data, isLoading } = useSettings();
+  const { data, isLoading } = useMergedSettings();
 
   return useMemo(
     () => ({
@@ -416,4 +431,16 @@ export function useTiles() {
     }),
     [data, isLoading]
   );
+}
+
+export function useThemeMutation() {
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'display',
+    key: 'theme',
+  });
+
+  return {
+    mutate: (theme: Theme) => mutate({ val: theme }),
+    status,
+  };
 }
