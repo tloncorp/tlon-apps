@@ -81,7 +81,10 @@ export default function GroupInfoEditor({ title }: ViewProps) {
   }, [groupFlag, navigate, deleteMutation]);
 
   const onSubmit = useCallback(
-    async (values: GroupMeta & { privacy: PrivacyType }) => {
+    async ({
+      privacy: newPrivacy,
+      ...values
+    }: GroupMeta & { privacy: PrivacyType }) => {
       try {
         editMutation({ flag: groupFlag, metadata: values });
 
@@ -89,12 +92,12 @@ export default function GroupInfoEditor({ title }: ViewProps) {
           describe(values);
         }
 
-        const privacyChanged = values.privacy !== privacy;
+        const privacyChanged = newPrivacy !== privacy;
         if (privacyChanged) {
           swapCordonMutation({
             flag: groupFlag,
             cordon:
-              values.privacy === 'public'
+              newPrivacy === 'public'
                 ? {
                     open: {
                       ships: [],
@@ -111,12 +114,13 @@ export default function GroupInfoEditor({ title }: ViewProps) {
 
           setSecretMutation({
             flag: groupFlag,
-            isSecret: values.privacy === 'secret',
+            isSecret: newPrivacy === 'secret',
           });
         }
         if (privacyChanged) {
           form.reset({
             ...values,
+            privacy: newPrivacy,
           });
         }
       } catch (e) {
