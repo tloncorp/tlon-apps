@@ -90,7 +90,6 @@ const ChatMessage = React.memo<
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
-      console.log({ hovering, whom, id: writ.seal.id });
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
