@@ -73,7 +73,7 @@ export default function GroupInviteDialog() {
       close="none"
     >
       <div className="flex flex-col space-y-6">
-        {/* {group && <LureInviteBlock flag={flag} group={group} />} */}
+        {group && <LureInviteBlock flag={flag} group={group} />}
         <div className="card">
           <h2 className="mb-1 text-lg font-bold">Invite by Urbit ID</h2>
           <p className="mb-4 text-gray-600">

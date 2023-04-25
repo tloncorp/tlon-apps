@@ -79,8 +79,23 @@
     ?>  (~(has in enabled-groups) token.bite)
     ?>  ?=([%bite-1 *] bite)
     =/  =invite:groups  [[our.bowl token.bite] joiner.bite]
-    :_  this  
-    ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
+    :_  this
+    =/  our  (scot %p our.bowl)
+    =/  =path  /[our]/groups/(scot %da now.bowl)/groups/[our]/[token.bite]
+    =+  .^(=group:groups %gx path)
+    ?+  -.cordon.group  ~
+        %open
+      ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
+    ::
+        %shut
+      ~&  ['inviting' joiner.bite]
+      =/  =action:groups  
+        :-  [our.bowl token.bite]
+        :-  now.bowl
+        :-  %cordon
+        [%shut [%add-ships %pending (~(gas in *(set ship)) ~[joiner.bite])]]
+      ~[[%pass /invite %agent [our.bowl %groups] %poke %group-action !>(action)]]
+    ==
   ==
 ::
 ++  on-fail
