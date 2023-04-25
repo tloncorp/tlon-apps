@@ -178,9 +178,9 @@ export default function GroupInfoEditor({ title }: ViewProps) {
           </footer>
         </form>
       </FormProvider>
-      {group && (
+      {/* {group && (
         <LureInviteBlock flag={groupFlag} group={group} className="mb-4" />
-      )}
+      )} */}
       <div className="card">
         <h2 className="mb-1 text-lg font-bold">Delete Group</h2>
         <p className="mb-4">
