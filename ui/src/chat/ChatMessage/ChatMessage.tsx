@@ -6,7 +6,7 @@ import f from 'lodash/fp';
 import bigInt, { BigInteger } from 'big-integer';
 import { daToUnix, udToDec } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import Author from '@/chat/ChatMessage/Author';
@@ -79,6 +79,13 @@ const ChatMessage = React.memo<
     ) => {
       const { seal, memo } = writ;
       const container = useRef<HTMLDivElement>(null);
+      const { idShip, idTime } = useParams<{
+        idShip: string;
+        idTime: string;
+      }>();
+      const isThread = idShip && idTime;
+      const threadOpId = isThread ? `${idShip}/${idTime}` : '';
+      const isThreadOp = threadOpId === seal.id && hideReplies;
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
@@ -174,11 +181,15 @@ const ChatMessage = React.memo<
         }, 100)
       );
       const onOver = useCallback(() => {
-        if (hover.current === false) {
+        // If we're already hovering, don't do anything
+        // If we're the thread op, don't do anything
+        // This is necessary to prevent the hover from appearing
+        // in the thread when the user hovers in the main scroll window.
+        if (hover.current === false && !isThreadOp) {
           hover.current = true;
           setHover.current();
         }
-      }, []);
+      }, [isThreadOp]);
       const onOut = useRef(
         debounce(
           () => {
@@ -211,7 +222,12 @@ const ChatMessage = React.memo<
           {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex w-full">
-            {hideOptions || (isScrolling && !hovering) || !hovering ? null : (
+            {hideOptions ||
+            (isScrolling && !hovering) ||
+            !hovering ||
+            // If we're the thread op, don't show options.
+            // Options are shown for the threadOp in the main scroll window.
+            isThreadOp ? null : (
               <ChatMessageOptions
                 hideThreadReply={hideReplies}
                 whom={whom}
