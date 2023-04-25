@@ -178,6 +178,14 @@
       ?>  (team:title our.bowl src.bowl)
       ?-  -.act
           %connect-provider
+        =*  binding  'apn'
+        =.  providers.client-state
+          (~(put ju providers.client-state) who.act service.act)
+        =/  pact=provider-action  [%client-join service.act address.act binding]
+        :_  state
+        [(poke:pass [who.act %notify] %notify-provider-action !>(pact))]~
+      ::
+          %connect-provider-with-binding
         =.  providers.client-state
           (~(put ju providers.client-state) who.act service.act)
         =/  pact=provider-action  [%client-join service.act address.act binding.act]
@@ -417,12 +425,8 @@
   ==
 ::
 ++  register-binding
-  |=  [service=term entry=provider-entry url=@t who=@p address=@t binding=(unit @t)]
+  |=  [service=term entry=provider-entry url=@t who=@p address=@t binding=@t]
   ^-  card
-  =/  binding=@t
-    ?^  binding
-      u.binding
-    'apn'
   ~&  "registering binding for {<who>} with {<address>} on {<service>} with {<binding>} with {<url>} and {<notify-endpoint.entry>}"
   =/  params=(list [@t @t])
     :~  identity+(rsh [3 1] (scot %p who))
