@@ -788,7 +788,7 @@
     ::
     ++  view
       |=  target=$?(~ target)
-      ^-  (quip card _state)
+      |^  ^-  (quip card _state)
       ::  without argument, print all we're viewing
       ::
       ?~  target
@@ -796,13 +796,14 @@
       ::  only view existing chats
       ::
       ?.  (target-exists target)
-        [[(note:sh-out "no such chat")]~ put-ses]
-      =^  rsvp-cards  state  (rsvp & target)
+        [[(note:sh-out "no such chat")]~ state]
+      =/  rsvp-cards  (rsvp & target)
+      =^  target-cards  state  (set-target target)
       ::  send watch card for target not in view
       ::
-      =^  watch-cards  state
-        ?:  (~(has in viewing) target)  [~ state]
-        [(connect target) state]
+      =/  watch-cards
+        ?:  (~(has in viewing) target)  ~
+        (connect target)
       ::  bind an unbound target
       ::
       =^  bind-cards  state
@@ -812,17 +813,16 @@
       ::
       =^  load-history  state
         ?:  (~(has in viewing) target)  [~ state]
-        (build-history sole-id session target)
-      =.  audience  target
-      =.  viewing  (~(put in viewing) target)
-      :_  put-ses
+        =.  viewing  (~(put in viewing) target)
+        (build-history target)
+      :_  state
       ^-  (list card)
       ;:  weld
         rsvp-cards
         bind-cards
         watch-cards
+        target-cards
         load-history
-        [prompt:sh-out]~
       ==
       ::  +bind-default-glyph: bind to default, or random available
       ::
@@ -876,14 +876,12 @@
     ::
     ++  rsvp
       |=  [ok=? =target]
-      ^-  (quip card _state)
+      ^-  (list card)
       ?-   -.target
-          %flag  [~ state]
+          %flag  ~
           %ship
         =/  =ship  +.target
-        ?.  (~(has in get-pending-dms) ship)
-          [~ state]
-        :_  state
+        ?.  (~(has in get-pending-dms) ship)  ~
         :_  ~
         %^  act  (target-to-path target)
           %chat
@@ -893,10 +891,8 @@
         =/  =club-id  +.target
         =/  crew=(unit crew)  
           (~(get by get-clubs) club-id)
-        ?~  crew  [~ state]
-        ?.  (~(has in hive.u.crew) our-self)
-          [~ state]
-        :_  state
+        ?~  crew  ~
+        ?.  (~(has in hive.u.crew) our-self)  ~
         :_  ~
         %^  act  (target-to-path target)
           %chat
