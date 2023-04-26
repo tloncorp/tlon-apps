@@ -12,7 +12,7 @@ import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
 
-type Role = 'Member' | 'Moderator' | 'Admin';
+export type Role = 'Member' | 'Admin';
 
 interface ShipWithRoles {
   patp: string;
