@@ -11,9 +11,9 @@ on:
     branches:
       - 'develop'
 jobs:
-  deploy:
+  build-frontend:
     runs-on: ubuntu-latest
-    name: "Create and deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    name: 'Build Frontend'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -22,18 +22,24 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version-file: ./ui/.nvmrc
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v1'
-        with:
-          credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
-      - name: Build Frontend
-        working-directory: ./ui
+      - working-directory: ./ui
         run: |
           npm ci
           npm run build
-      - id: glob
+      - uses: actions/upload-artifact@v3
+        with:
+          name: 'repo'
+          path: .
+  glob:
+    runs-on: ubuntu-latest
+    name: 'Make a glob'
+    needs: build-frontend
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: 'repo'
+          path: .
+      - name: 'glob'
         uses: ./.github/actions/glob
         with:
           folder: 'ui/dist/*'
@@ -48,6 +54,17 @@ jobs:
           BRANCH=${INPUT:-"develop"}
           git pull origin $BRANCH --rebase --autostash
           git push
+  deploy:
+    runs-on: ubuntu-latest
+    needs: glob
+    name: "Deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    steps:
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
       - id: deploy
         name: Deploy
         run:
