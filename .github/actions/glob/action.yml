@@ -16,6 +16,5 @@ runs:
   steps:
     - id: glob
       shell: bash
-      run: |
-        git update-index --chmod=+x ./.github/helpers/glob.sh
+      run:
         ./.github/helpers/glob.sh "${{ inputs.folder }}" ${{ inputs.docket }}
