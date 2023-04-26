@@ -32,6 +32,7 @@ import { Status } from '@/logic/status';
 import { useNotifications } from '@/notifications/useNotifications';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { useSawRopeMutation } from '@/state/hark';
+import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
@@ -426,7 +427,10 @@ export default function ChannelHeader({
             <ChannelActions {...{ nest, channel, isAdmin }} />
           </>
         ) : (
-          <ChannelActions {...{ nest, channel, isAdmin }} />
+          <>
+            <ChatSearch />
+            <ChannelActions {...{ nest, channel, isAdmin }} />
+          </>
         )}
       </div>
     </div>

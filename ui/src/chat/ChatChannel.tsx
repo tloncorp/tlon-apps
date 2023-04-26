@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router';
+import { Outlet, Route, Routes, useNavigate, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import cn from 'classnames';
 import ChatInput from '@/chat/ChatInput/ChatInput';
@@ -24,6 +24,7 @@ import {
 import useAllBriefs from '@/logic/useAllBriefs';
 import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder';
 import { useLastReconnect } from '@/state/local';
+import ChatSearchResults from './ChatSearch/ChatSearchResults';
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
@@ -142,13 +143,24 @@ function ChatChannel({ title }: ViewProps) {
               : title}
           </title>
         </Helmet>
-        {loading ? (
-          <div className="h-full">
-            <ChatScrollerPlaceholder count={30} />
-          </div>
-        ) : (
-          <ChatWindow whom={chFlag} messages={messages} />
-        )}
+        <Routes>
+          <Route
+            path="search/:query"
+            element={<ChatSearchResults whom={chFlag} messages={messages} />}
+          />
+          <Route
+            path="*"
+            element={
+              loading ? (
+                <div className="h-full">
+                  <ChatScrollerPlaceholder count={30} />
+                </div>
+              ) : (
+                <ChatWindow whom={chFlag} messages={messages} />
+              )
+            }
+          />
+        </Routes>
       </Layout>
       <Outlet />
     </>

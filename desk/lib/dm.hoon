@@ -142,7 +142,7 @@
         wit.pac
       [sip len ~]
     |=  $:  =query
-            time
+            =time
             =writ:c
         ==
     ^-  [(unit writ:c) stop=? _query]
@@ -150,7 +150,7 @@
     ?:  (matc writ)
       ?:  =(0 skip.query)
         :-  =(1 more.query)
-        query(more (dec more.query), scan [writ scan.query])
+        query(more (dec more.query), scan [[time writ] scan.query])
       [| query(skip (dec skip.query))]
     [| query]
   ++  mntn

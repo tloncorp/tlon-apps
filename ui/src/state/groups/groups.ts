@@ -98,7 +98,7 @@ export function useGroup(flag: string, updating = false) {
     });
   }, [flag, queryKey, queryClient]);
 
-  const { data, ...rest } = useReactQueryScry({
+  const { data, ...rest } = useReactQueryScry<Group>({
     queryKey,
     app: 'groups',
     path: `/groups/${flag}`,
@@ -120,9 +120,7 @@ export function useGroup(flag: string, updating = false) {
     return undefined;
   }
 
-  return {
-    ...(data as Group),
-  };
+  return data;
 }
 
 export function useGroupIsLoading(flag: string) {
@@ -180,7 +178,7 @@ export function useVessel(flag: string, ship: string) {
   const data = useGroup(flag);
 
   return (
-    data?.fleet[ship] || {
+    data?.fleet?.[ship] || {
       sects: [],
       joined: 0,
     }

@@ -17,6 +17,7 @@ import {
   ChatMemo,
   ChatPerm,
   Chats,
+  ChatScan,
   ChatWrit,
   Club,
   ClubAction,
@@ -38,6 +39,7 @@ import { ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
+import useReactQueryScry from '@/logic/useReactQueryScry';
 
 setAutoFreeze(false);
 
@@ -1109,6 +1111,35 @@ export function useGetFirstUnreadID(whom: string) {
   const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
   const firstUnread = keys.find((key) => key.gt(lastReadBN));
   return firstUnread ?? null;
+}
+
+export function useChatSearch(whom: string, query: string) {
+  const { data, ...rest } = useReactQueryScry<ChatScan>({
+    queryKey: ['chat', 'search', whom, query],
+    app: 'chat',
+    path: `/chat/${whom}/search/text/0/1.000/${query}`,
+    options: {
+      enabled: !!query,
+    },
+  });
+
+  const scan = useMemo(() => {
+    let scanMap = new BigIntOrderedMap<ChatWrit>();
+    if (!data) {
+      return scanMap;
+    }
+
+    data.forEach(({ time, writ }) => {
+      scanMap = scanMap.set(bigInt(udToDec(time)), writ);
+    });
+
+    return scanMap;
+  }, [data]);
+
+  return {
+    scan,
+    ...rest,
+  };
 }
 
 (window as any).chat = useChatState.getState;

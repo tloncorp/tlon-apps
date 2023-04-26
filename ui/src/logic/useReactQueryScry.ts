@@ -2,7 +2,7 @@ import { QueryKey, useQuery, UseQueryOptions } from '@tanstack/react-query';
 import api from '@/api';
 import useSchedulerStore from '@/state/scheduler';
 
-export default function useReactQueryScry({
+export default function useReactQueryScry<T>({
   queryKey,
   app,
   path,
@@ -13,19 +13,19 @@ export default function useReactQueryScry({
   app: string;
   path: string;
   priority?: number;
-  options?: UseQueryOptions;
-}): ReturnType<typeof useQuery> {
+  options?: UseQueryOptions<T>;
+}) {
   const fetchData = async () =>
     useSchedulerStore.getState().wait(
       async () =>
-        api.scry({
+        api.scry<T>({
           app,
           path,
         }),
       priority
     );
 
-  return useQuery(queryKey, fetchData, {
+  return useQuery<T>(queryKey, fetchData, {
     retryOnMount: false,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
