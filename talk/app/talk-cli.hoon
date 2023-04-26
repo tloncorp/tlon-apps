@@ -471,37 +471,9 @@
   =^  caz  session.i.sez
     ?.  (~(has in viewing.session.i.sez) whom)
       [~ session.i.sez]
-    (~(read-post se i.sez) whom id memo)
+    (~(read-post sh i.sez) whom id memo)
   =.  sessions  (~(put by sessions) i.sez)
   $(sez t.sez, cards (weld cards caz))
-::  +se: session event handling
-::
-++  se
-  |_  [=sole-id =session]
-  +*  sh-out  ~(. ^sh-out sole-id session)
-  ::
-  ::  +read-post: add message to state and show it to user
-  ::
-  ++  read-post
-    |=  $:  =target
-            =id:chat
-            =memo:chat
-        ==
-    ^-  (quip card _session)
-    :-  (show-post:sh-out target memo) 
-    %_  session
-      history  [[target id] history.session]
-      count    +(count.session)
-    ==
-  ::
-  ++  notice-remove
-    |=  =target
-    ^-  (quip card _session)
-    ?.  (~(has in viewing.session) target)
-      [~ session]
-    :-  [(show-delete:sh-out target) ~]
-    session(viewing (~(del in viewing.session) target))
-  --
 ::  +decode-glyph: find the target that matches a glyph, if any
 ::
 ++  decode-glyph
@@ -538,6 +510,25 @@
       sole-id  sole-id
       +<+      (get-session sole-id)
     ==
+  ::  +read-post: add message to state and show it to user
+  ::
+  ++  read-post
+    |=  [=target =id:chat =memo:chat]
+    ^-  (quip card _session)
+    :-  (show-post:sh-out target memo) 
+    %_  session
+      history  [[target id] history]
+      count    +(count)
+    ==
+  ::  +notice-remove: delete a target from view
+  ::
+  ++  notice-remove
+    |=  =target
+    ^-  (quip card _session)
+    ?.  (~(has in viewing.session) target)
+      [~ session]
+    :-  [(show-delete:sh-out target) ~]
+    session(viewing (~(del in viewing.session) target))
   ::  +read: command parser
   ::
   ::    parses the command line buffer.
