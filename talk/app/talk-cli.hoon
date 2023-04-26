@@ -876,7 +876,7 @@
       |=  =target
       ^-  (quip card _state)
       ?.  (~(has in viewing) target)  
-        [~ put-ses]
+        [~ state]
       =.  viewing  (~(del in viewing) target)
       =/  =path  (target-to-path target)
       :_  put-ses
