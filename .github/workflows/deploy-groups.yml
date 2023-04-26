@@ -30,31 +30,19 @@ jobs:
         with:
           name: 'ui-dist'
           path:  ui/dist
-      - uses: actions/upload-artifact@v3
-        with:
-          name: 'target-docket'
-          path: desk
-      - uses: actions/upload-artifact@v3
-        with:
-          name: 'actions-workflows'
-          path: '.github'
   glob:
     runs-on: ubuntu-latest
     name: 'Make a glob'
     needs: build-frontend
     steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+          ref: ${{ github.event.inputs.tag }}
       - uses: actions/download-artifact@v3
         with:
           name: 'ui-dist'
           path: ui/dist
-      - uses: actions/download-artifact@v3
-        with:
-          name: 'target-docket'
-          path: desk
-      - uses: actions/download-artifact@v3
-        with:
-          name: 'actions-workflows'
-          path: '.github'
       - name: 'glob'
         uses: ./.github/actions/glob
         with:
@@ -75,6 +63,10 @@ jobs:
     needs: glob
     name: "Deploy a glob to ~wannec-dozzod-marzod (devstream)"
     steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+          ref: ${{ github.event.inputs.tag }}
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'
         with:
