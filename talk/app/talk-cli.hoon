@@ -436,28 +436,8 @@
 ++  message-exists
   |=  [=whom:chat =id:chat]
   ^-  ?
-  =/  =time  q.id
-  =/  author=ship  p.id
   %+  scry-for-existence  %chat
-  %+  weld  (target-to-path whom)
-  /writs/writ/id/(scot %p author)/(scot %ud time)
-::  +build-history: add messages to history and output to a given session
-::
-++  build-history
-  |=  [=sole-id =session =target]
-  ^-  (quip card _state)
-  =/  messages  
-    (flop (bap:on:writs:chat (get-messages target)))
-  =|  cards=(list card)
-  |-  
-  ?~  messages  [cards state] 
-  =/  =writ:chat  +.i.messages
-  =/  =id:chat    id.writ
-  =/  =memo:chat  +.writ
-  =^  caz  session
-    (~(read-post se sole-id session) target id memo)
-  =.  sessions  (~(put by sessions) sole-id session)  
-  $(messages t.messages, cards (weld cards caz))
+  (snip (writ-scry-path whom id))
 ::  +get-messages: scry for latest 20 messages
 ::
 ++  get-messages
@@ -871,6 +851,24 @@
           =;  i=@ud  (snag i list)
           (mod (mug whom) (lent list))
         --
+      ::  +build-history: add messages to history and output to session
+      ::
+      ++  build-history
+        |=  =whom:chat
+        ^-  (quip card _state)
+        =/  messages
+          (flop (bap:on:writs:chat (get-messages whom)))
+        =|  cards=(list card)
+        |-
+        ?~  messages  [cards put-ses]
+        =/  =writ:chat  +.i.messages
+        =/  =memo:chat  +.writ
+        %=  $
+          history   [[whom id.writ] history]
+          count     +(count)
+          cards     (weld cards (show-post:sh-out whom memo))
+          messages  t.messages
+        ==
       --
     ::  +flee: stop printing messages from a chat
     ::
