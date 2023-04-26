@@ -30,12 +30,10 @@ jobs:
         with:
           name: 'ui-dist'
           path:  ui/dist
-        working-directory: ./
       - uses: actions/upload-artifact@v3
         with:
           name: 'target-docket'
           path: desk
-        working-directory: ./
   glob:
     runs-on: ubuntu-latest
     name: 'Make a glob'
