@@ -35,7 +35,7 @@ jobs:
           name: 'target-docket'
           path: desk
       - uses: actions/upload-artifact@v3
-          name: 'gh'
+          name: 'actions-workflows'
           path: '.github'
   glob:
     runs-on: ubuntu-latest
@@ -52,8 +52,8 @@ jobs:
           path: desk
       - uses: actions/download-artifact@v3
         with:
-          name: 'gh'
-          path: .github
+          name: 'actions-workflows'
+          path: '.github'
       - name: 'glob'
         uses: ./.github/actions/glob
         with:
