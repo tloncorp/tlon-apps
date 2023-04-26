@@ -34,6 +34,9 @@ jobs:
         with:
           name: 'target-docket'
           path: talk
+      - uses: actions/upload-artifact@v3
+          name: 'gh'
+          path: .github
   glob:
     runs-on: ubuntu-latest
     name: 'Make a glob'
@@ -47,6 +50,10 @@ jobs:
         with:
           name: 'target-docket'
           path: talk
+      - uses: actions/download-artifact@v3
+        with:
+          name: 'gh'
+          path: .github
       - name: 'glob'
         uses: ./.github/actions/glob
         with:
