@@ -11,9 +11,9 @@ on:
     branches:
       - 'develop'
 jobs:
-  deploy:
+  build-frontend:
     runs-on: ubuntu-latest
-    name: "Create and deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    name: 'Build Frontend'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -22,18 +22,24 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version-file: ./ui/.nvmrc
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v1'
-        with:
-          credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
-      - name: Build Frontend
-        working-directory: ./ui
+      - working-directory: ./ui
         run: |
           npm ci
           npm run build:chat
-      - id: glob
+      - uses: actions/upload-artifact@v3
+        with:
+          name: 'repo'
+          path: .
+  glob:
+    runs-on: ubuntu-latest
+    name: 'Make a glob'
+    needs: build-frontend
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: 'repo'
+          path: .
+      - name: 'glob'
         uses: ./.github/actions/glob
         with:
           folder: 'ui/dist/*'
@@ -43,12 +49,23 @@ jobs:
           git config --global user.name github-actions
           git config --global user.email github-actions@github.com
           git add talk/desk.docket-0
-          git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]"  || echo "No changes to commit"
+          git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
           sleep 10
           INPUT=${{ github.event.inputs.tag }}
           BRANCH=${INPUT:-"develop"}
           git pull origin $BRANCH --rebase --autostash
           git push
+  deploy:
+    runs-on: ubuntu-latest
+    name: "Deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    needs: glob
+    steps:
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
       - id: deploy
         name: Deploy
         run:
