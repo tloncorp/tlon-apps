@@ -57,7 +57,7 @@ jobs:
           git push
   deploy:
     runs-on: ubuntu-latest
-    name: "Create and deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    name: "Deploy a glob to ~wannec-dozzod-marzod (devstream)"
     needs: glob
     steps:
       - id: 'auth'
