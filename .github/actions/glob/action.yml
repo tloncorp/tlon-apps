@@ -13,8 +13,9 @@ outputs:
     value: ${{ steps.glob.outputs.hash }}
 runs:
   using: "composite"
-  steps: 
+  steps:
     - id: glob
       shell: bash
-      run:
+      run: |
+        git update-index --chmod=+x ./.github/helpers/glob.sh
         ./.github/helpers/glob.sh "${{ inputs.folder }}" ${{ inputs.docket }}
