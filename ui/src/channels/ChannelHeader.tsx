@@ -17,63 +17,38 @@ import {
   useRouteGroup,
   useDeleteChannelMutation,
 } from '@/state/groups';
-import { useChatState } from '@/state/chat';
-import { useDiaryState } from '@/state/diary';
-import { useHeapState } from '@/state/heap/heap';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ChannelIcon from '@/channels/ChannelIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import GridIcon from '@/components/icons/GridIcon';
-import ListIcon from '@/components/icons/ListIcon';
-import SortIcon from '@/components/icons/SortIcon';
 import { Status } from '@/logic/status';
 import { useNotifications } from '@/notifications/useNotifications';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { useSawRopeMutation } from '@/state/hark';
-import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
   nest: string;
-  displayMode?: 'grid' | 'list';
-  setDisplayMode?: (displayType: 'grid' | 'list') => void;
-  sortMode?:
-    | 'time-dsc'
-    | 'quip-dsc'
-    | 'time-asc'
-    | 'quip-asc'
-    | 'alpha'
-    | 'time';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setSortMode?: (sortType: any) => void;
-  isDiary?: boolean;
-  showControls?: boolean;
+  prettyAppName: string;
+  leave: (flag: string) => Promise<void>;
 }>;
 
-interface ChannelHeaderSortControlsProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setSortMode?: (sortType: any) => void;
-  sortMode:
-    | 'time-dsc'
-    | 'quip-dsc'
-    | 'time-asc'
-    | 'quip-asc'
-    | 'alpha'
-    | 'time'
-    | undefined;
+interface ChannelActionsProps {
+  nest: string;
+  prettyAppName: string;
+  channel: GroupChannel | undefined;
+  isAdmin: boolean | undefined;
+  leave: (flag: string) => Promise<void>;
 }
 
 function ChannelActions({
   nest,
+  prettyAppName,
   channel,
   isAdmin,
-}: {
-  nest: string;
-  channel: GroupChannel | undefined;
-  isAdmin: boolean | undefined;
-}) {
+  leave,
+}: ChannelActionsProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [_app, flag] = nestToFlag(nest);
@@ -85,33 +60,6 @@ function ChannelActions({
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const isChannelHost = useIsChannelHost(flag);
   const { mutate: deleteChannelMutate } = useDeleteChannelMutation();
-
-  function prettyAppName() {
-    switch (_app) {
-      case 'diary':
-        return 'Notebook';
-      case 'chat':
-        return 'Chat';
-      case 'heap':
-        return 'Gallery';
-      default:
-        return 'Channel';
-    }
-  }
-
-  const leave = useCallback(
-    async (chFlag: string) => {
-      const leaver =
-        _app === 'chat'
-          ? useChatState.getState().leaveChat
-          : _app === 'heap'
-          ? useHeapState.getState().leaveHeap
-          : useDiaryState.getState().leaveDiary;
-
-      await leaver(chFlag);
-    },
-    [_app]
-  );
 
   const leaveChannel = useCallback(async () => {
     try {
@@ -174,13 +122,13 @@ function ChannelActions({
                 className="dropdown-item"
                 onClick={() => setEditIsOpen(!editIsOpen)}
               >
-                Edit {prettyAppName()}
+                Edit {prettyAppName}
               </Dropdown.Item>
               <Dropdown.Item
                 className="dropdown-item text-red"
                 onClick={() => setDeleteChannelIsOpen(!deleteChannelIsOpen)}
               >
-                Delete {prettyAppName()}
+                Delete {prettyAppName}
               </Dropdown.Item>
             </>
           )}
@@ -189,7 +137,7 @@ function ChannelActions({
               className="dropdown-item text-red"
               onClick={leaveChannel}
             >
-              Leave {prettyAppName()}
+              Leave {prettyAppName}
             </Dropdown.Item>
           )}
         </Dropdown.Content>
@@ -217,106 +165,12 @@ function ChannelActions({
   );
 }
 
-function HeapSortControls({
-  setSortMode,
-  sortMode,
-}: ChannelHeaderSortControlsProps) {
-  return (
-    <Dropdown.Root>
-      <Dropdown.Trigger asChild>
-        <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-400 hover:bg-gray-50 ">
-          <SortIcon className="h-6 w-6" />
-        </button>
-      </Dropdown.Trigger>
-      <Dropdown.Content className="dropdown">
-        <Dropdown.Item
-          className={cn(
-            'dropdown-item',
-            sortMode === 'time' && 'bg-gray-100 hover:bg-gray-100'
-          )}
-          onClick={() => (setSortMode ? setSortMode('time') : null)}
-        >
-          <span className="font-semibold">Time</span>
-        </Dropdown.Item>
-        <Dropdown.Item
-          className={cn(
-            'dropdown-item',
-            sortMode === 'alpha' && 'bg-gray-100 hover:bg-gray-100'
-          )}
-          onClick={() => (setSortMode ? setSortMode('alpha') : null)}
-        >
-          <span className="font-semibold">Alphabetical</span>
-        </Dropdown.Item>
-      </Dropdown.Content>
-    </Dropdown.Root>
-  );
-}
-
-function DiarySortControls({
-  setSortMode,
-  sortMode,
-}: ChannelHeaderSortControlsProps) {
-  return (
-    <Dropdown.Root>
-      <Dropdown.Trigger asChild>
-        <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-400 hover:bg-gray-50 ">
-          <SortIcon className="h-6 w-6" />
-        </button>
-      </Dropdown.Trigger>
-      <Dropdown.Content className="dropdown">
-        <Dropdown.Item
-          className={cn(
-            'dropdown-item',
-            sortMode === 'time-dsc' && 'bg-gray-100 hover:bg-gray-100'
-          )}
-          onClick={() => (setSortMode ? setSortMode('time-dsc') : null)}
-        >
-          <span className="font-semibold">New Posts First</span>
-        </Dropdown.Item>
-        <Dropdown.Item
-          className={cn(
-            'dropdown-item',
-            sortMode === 'time-asc' && 'bg-gray-100 hover:bg-gray-100'
-          )}
-          onClick={() => (setSortMode ? setSortMode('time-asc') : null)}
-        >
-          <span className="font-semibold">Old Posts First</span>
-        </Dropdown.Item>
-        <Dropdown.Item
-          className={cn(
-            'dropdown-item',
-            sortMode === 'quip-asc' && 'bg-gray-100 hover:bg-gray-100'
-          )}
-        >
-          <span className="font-semibold text-gray-400">
-            New Comments First
-          </span>
-        </Dropdown.Item>
-        <Dropdown.Item
-          className={cn(
-            'dropdown-item',
-            sortMode === 'quip-dsc' && 'bg-gray-100 hover:bg-gray-100'
-          )}
-        >
-          <span className="font-semibold text-gray-400">
-            Old Comments First
-          </span>
-        </Dropdown.Item>
-      </Dropdown.Content>
-    </Dropdown.Root>
-  );
-}
-
 export default function ChannelHeader({
   flag,
   nest,
+  prettyAppName,
+  leave,
   children,
-  displayMode,
-  setDisplayMode,
-  sortMode,
-  setSortMode,
-  isDiary = false,
-  showControls = false,
 }: ChannelHeaderProps) {
   const isMobile = useIsMobile();
   const channel = useChannel(flag, nest);
@@ -375,63 +229,8 @@ export default function ChannelHeader({
       </BackButton>
       <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
         {isMobile && <ReconnectingSpinner />}
-        {showControls && displayMode && setDisplayMode && setSortMode ? (
-          <>
-            {children}
-            <Dropdown.Root>
-              <Dropdown.Trigger asChild>
-                <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-50 ">
-                  {displayMode === 'grid' ? (
-                    <GridIcon className="h-6 w-6 text-gray-400" />
-                  ) : (
-                    <ListIcon className="h-6 w-6 text-gray-400" />
-                  )}
-                </button>
-              </Dropdown.Trigger>
-              <Dropdown.Content className="dropdown">
-                <Dropdown.Item
-                  className={cn(
-                    'dropdown-item-icon',
-                    displayMode === 'list' && 'hover-bg-gray-100 bg-gray-100'
-                  )}
-                  onClick={() => setDisplayMode('list')}
-                >
-                  <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
-                    <ListIcon className="-m-1 h-8 w-8" />
-                  </div>
-                  <span className="font-semibold">List</span>
-                </Dropdown.Item>
-                <Dropdown.Item
-                  className={cn(
-                    'dropdown-item-icon',
-                    displayMode === 'grid' && 'bg-gray-100 hover:bg-gray-100'
-                  )}
-                  onClick={() => setDisplayMode('grid')}
-                >
-                  <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
-                    <GridIcon className="-m-1 h-8 w-8" />
-                  </div>
-                  <span className="font-semibold">Grid</span>
-                </Dropdown.Item>
-              </Dropdown.Content>
-            </Dropdown.Root>
-
-            {isDiary ? (
-              <DiarySortControls
-                setSortMode={setSortMode}
-                sortMode={sortMode}
-              />
-            ) : (
-              <HeapSortControls setSortMode={setSortMode} sortMode={sortMode} />
-            )}
-            <ChannelActions {...{ nest, channel, isAdmin }} />
-          </>
-        ) : (
-          <>
-            <ChatSearch />
-            <ChannelActions {...{ nest, channel, isAdmin }} />
-          </>
-        )}
+        {children}
+        <ChannelActions {...{ nest, prettyAppName, channel, isAdmin, leave }} />
       </div>
     </div>
   );

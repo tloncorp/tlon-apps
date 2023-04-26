@@ -24,7 +24,10 @@ import {
 import useAllBriefs from '@/logic/useAllBriefs';
 import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder';
 import { useLastReconnect } from '@/state/local';
+import { Link } from 'react-router-dom';
+import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import ChatSearchResults from './ChatSearch/ChatSearchResults';
+import ChatSearch from './ChatSearch/ChatSearch';
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
@@ -117,7 +120,30 @@ function ChatChannel({ title }: ViewProps) {
     <>
       <Layout
         className="flex-1 bg-white"
-        header={<ChannelHeader flag={groupFlag} nest={nest} />}
+        header={
+          <ChannelHeader
+            flag={groupFlag}
+            nest={nest}
+            prettyAppName="Chat"
+            leave={useChatState.getState().leaveChat}
+          >
+            <Routes>
+              <Route path="search*" element={<ChatSearch />} />
+              <Route
+                path="*"
+                element={
+                  <Link
+                    to="search"
+                    className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
+                    aria-label="Search Chat"
+                  >
+                    <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
+                  </Link>
+                }
+              />
+            </Routes>
+          </ChannelHeader>
+        }
         footer={
           <div
             className={cn(
