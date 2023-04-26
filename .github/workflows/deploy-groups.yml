@@ -35,6 +35,7 @@ jobs:
           name: 'target-docket'
           path: desk
       - uses: actions/upload-artifact@v3
+        with:
           name: 'actions-workflows'
           path: '.github'
   glob:
