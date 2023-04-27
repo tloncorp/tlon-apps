@@ -43,6 +43,11 @@ export default function useMessageSelector() {
     const { briefs } = useChatState.getState();
     const clubId = Object.entries(multiDms).reduce<string>((key, [k, v]) => {
       const theShips = [...v.hive, ...v.team].filter((s) => s !== window.our);
+      if (theShips.length < 2) {
+        // not a valid multi-DM
+        return key;
+      }
+
       const sameDM =
         difference(shipValues, theShips).length === 0 &&
         shipValues.length === theShips.length;
@@ -61,10 +66,10 @@ export default function useMessageSelector() {
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {
-      if (existingMultiDm) {
-        navigate(`/dm/${existingMultiDm}`);
-      } else if (existingDm) {
+      if (existingDm) {
         navigate(`/dm/${existingDm}`);
+      } else if (existingMultiDm) {
+        navigate(`/dm/${existingMultiDm}`);
       } else if (isMultiDm) {
         await createClub(
           newClubId,
@@ -127,7 +132,7 @@ export default function useMessageSelector() {
       navigate(`/dm/new/${existingDm}`);
     } else if (existingMultiDm) {
       navigate(`/dm/new/${existingMultiDm}`);
-    } else if (shipValues.length > 0) {
+    } else {
       navigate(`/dm/new`);
     }
   }, [existingDm, existingMultiDm, navigate, shipValues, location.pathname]);
