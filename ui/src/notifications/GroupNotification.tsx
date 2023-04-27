@@ -11,6 +11,7 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import Person16Icon from '@/components/icons/Person16Icon';
 import X16Icon from '@/components/icons/X16Icon';
 import { useIsMobile } from '@/logic/useMedia';
+import DocketImage from '@/components/Grid/DocketImage';
 import Notification from './Notification';
 
 interface GroupNotificationProps {
@@ -82,7 +83,11 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
       topLine={
         <div className="flex flex-row items-center space-x-1 text-sm font-semibold text-gray-400">
           {!groupFlag ? (
-            <DefaultGroupIcon className="mr-1 h-4 w-4" />
+            <DocketImage
+              color="#EFF0F4"
+              image="https://bootstrap.urbit.org/icon-groups.svg?v=1"
+              size="xs"
+            />
           ) : (
             <GroupSubIcon rope={rope} />
           )}
