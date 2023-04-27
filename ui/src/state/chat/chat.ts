@@ -1016,9 +1016,12 @@ export function useWritByFlagAndWritId(
   const refs = useChatState(selLoadedRefs);
   const path = `/said/${chFlag}/msg/${idWrit}`;
   const cached = refs[path];
+  const pact = usePact(chFlag);
+  const writIndex = pact && pact.index[idWrit];
+  const writInPact = writIndex && pact && pact.writs.get(writIndex);
 
   useEffect(() => {
-    if (!isScrolling && shouldLoad(path)) {
+    if (!isScrolling && !writInPact && shouldLoad(path)) {
       newAttempt(path);
       subscribeOnce<UnsubbedWrit>('chat', path)
         .then(({ writ }) => {
@@ -1028,7 +1031,11 @@ export function useWritByFlagAndWritId(
         })
         .finally(() => finished(path));
     }
-  }, [path, isScrolling]);
+  }, [path, isScrolling, writInPact]);
+
+  if (writInPact) {
+    return writInPact;
+  }
 
   return cached;
 }
