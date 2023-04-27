@@ -57,6 +57,7 @@ function TopBar({
     menuOpen,
     setMenuOpen,
     onDelete,
+    deleteStatus,
     onEdit,
     onCopy,
     navigateToCurio,
@@ -163,6 +164,7 @@ function TopBar({
         open={deleteOpen}
         setOpen={setDeleteOpen}
         onConfirm={onDelete}
+        loading={deleteStatus === 'loading'}
         confirmText="Delete"
         title="Delete Gallery Item"
         message="Are you sure you want to delete this gallery item?"
