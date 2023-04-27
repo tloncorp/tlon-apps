@@ -29,8 +29,13 @@ export default function MultiDm() {
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
 
-  const { isSelectingMessage, sendDm: sendDmFromMessageSelector } =
-    useMessageSelector();
+  const {
+    isSelectingMessage,
+    sendDm: sendDmFromMessageSelector,
+    existingMultiDm,
+  } = useMessageSelector();
+
+  const isSelecting = isSelectingMessage && existingMultiDm === clubId;
 
   useEffect(() => {
     if (clubId && club) {
@@ -56,7 +61,7 @@ export default function MultiDm() {
       <Layout
         className="h-full grow"
         header={
-          isSelectingMessage ? (
+          isSelecting ? (
             <MessageSelector />
           ) : (
             <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4">
@@ -105,10 +110,10 @@ export default function MultiDm() {
                 key={clubId}
                 whom={clubId}
                 sendMessage={
-                  isSelectingMessage ? sendDmFromMessageSelector : sendMessage
+                  isSelecting ? sendDmFromMessageSelector : sendMessage
                 }
                 showReply
-                autoFocus={!isSelectingMessage}
+                autoFocus={!isSelecting}
               />
             </div>
           ) : null
