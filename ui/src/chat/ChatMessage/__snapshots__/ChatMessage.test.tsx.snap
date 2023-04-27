@@ -118,7 +118,7 @@ exports[`ChatMessage > renders as expected 1`] = `
         class="text-md shrink cursor-pointer font-semibold"
       >
         <span
-          class="text-md break-all font-semibold line-clamp-1"
+          class="text-md break-all font-semibold leading-6 line-clamp-1"
         >
           <span
             aria-hidden="true"

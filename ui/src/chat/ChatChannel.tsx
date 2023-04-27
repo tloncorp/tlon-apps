@@ -39,7 +39,7 @@ function ChatChannel({ title }: ViewProps) {
   const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
   const { setRecentChannel } = useRecentChannel(groupFlag);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
   const messages = useMessagesForChat(chFlag);
   const perms = useChatPerms(chFlag);
