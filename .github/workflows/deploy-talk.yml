@@ -43,6 +43,12 @@ jobs:
         with:
           name: 'ui-dist'
           path: ui/dist
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
       - name: 'glob'
         uses: ./.github/actions/glob
         with:
