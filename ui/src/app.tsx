@@ -1,4 +1,3 @@
-// Copyright 2022, Tlon Corporation
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -319,6 +318,27 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               path="/notifications"
               element={<ActivityRoute isInGroups={isInGroups} />}
             />
+            <Route path="/dm/" element={<Dms />}>
+              <Route index element={<DMHome />} />
+              <Route path="new">
+                <Route index element={<NewDM />} />
+                <Route path=":ship" element={<Message />} />
+              </Route>
+              <Route path=":ship" element={<Message />}>
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<ChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall && (
+                <Route
+                  path=":ship/message/:idShip/:idTime"
+                  element={<ChatThread />}
+                />
+              )}
+            </Route>
             {/* Find by Invite URL */}
             <Route
               path="/find/:ship/:name"

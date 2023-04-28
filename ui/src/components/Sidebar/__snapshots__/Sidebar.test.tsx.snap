@@ -385,6 +385,66 @@ exports[`Sidebar > renders as expected 1`] = `
         </div>
       </div>
     </div>
+    <div
+      class="flex flex-1 flex-col overflow-y-auto border-t-2 border-gray-50"
+      style="opacity: 0; height: auto;"
+    >
+      <div
+        class="flex flex-col space-y-2 p-2"
+      >
+        <h2
+          class="my-2 px-2 font-bold text-gray-400"
+        >
+          Direct Messages
+        </h2>
+        <div
+          class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 hover:bg-gray-50"
+        >
+          <a
+            class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
+            href="/dm/new"
+          >
+            <svg
+              class="m-1 h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="stroke-current"
+                d="M4 12h16m-8-8v16"
+                stroke-linecap="round"
+                stroke-width="2"
+              />
+            </svg>
+            <div
+              class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
+              title="New Message"
+            >
+              New Message
+            </div>
+          </a>
+        </div>
+      </div>
+      <div
+        class="w-full overflow-x-hidden"
+        data-test-id="virtuoso-scroller"
+        data-virtuoso-scroller="true"
+        style="height: 100%; outline: none; overflow-y: auto; position: relative;"
+        tabindex="0"
+      >
+        <div
+          data-viewport-type="element"
+          style="width: 100%; height: 100%; position: absolute; top: 0px;"
+        >
+          <div />
+          <div
+            data-test-id="virtuoso-item-list"
+            style="box-sizing: border-box; padding-top: 0px; padding-bottom: 0px; margin-top: 0px;"
+          />
+        </div>
+      </div>
+    </div>
   </nav>
 </DocumentFragment>
 `;

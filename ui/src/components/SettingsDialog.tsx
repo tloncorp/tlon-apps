@@ -3,6 +3,8 @@ import {
   Theme,
   useCalm,
   useCalmSettingMutation,
+  useShowDms,
+  useShowDmsMutation,
   useTheme,
   useThemeMutation,
 } from '@/state/settings';
@@ -20,6 +22,7 @@ export default function SettingsDialog() {
     disableWayfinding,
   } = useCalm();
   const theme = useTheme();
+  const showDms = useShowDms();
   const { mutate, status } = useThemeMutation();
   const dismiss = useDismissNavigate();
   const { mutate: toggleAvatars, status: avatarStatus } =
@@ -32,6 +35,8 @@ export default function SettingsDialog() {
     useCalmSettingMutation('disableRemoteContent');
   const { mutate: toggleWayfinding, status: wayfindingStatus } =
     useCalmSettingMutation('disableWayfinding');
+  const { mutate: toggleShowDms, status: showDmsStatus } = useShowDmsMutation();
+
   const onOpenChange = (open: boolean) => {
     if (!open) {
       dismiss();
@@ -124,8 +129,22 @@ export default function SettingsDialog() {
         </div>
         <div className="inner-section relative space-y-2">
           <div className="flex flex-col">
-            <h2 className="mb-2 text-lg font-bold">Theme</h2>
+            <h2 className="mb-2 text-lg font-bold">Display</h2>
           </div>
+          {!isTalk && (
+            <Setting
+              on={showDms}
+              toggle={() => {
+                toggleShowDms(!showDms);
+              }}
+              status={showDmsStatus}
+              name="Show DMs"
+            >
+              <p className="leading-5 text-gray-600">
+                Show DMs in the sidebar of {isTalk ? 'Talk' : 'Groups'}
+              </p>
+            </Setting>
+          )}
           <SettingDropdown
             name="Set your theme"
             selected={{
@@ -143,7 +162,7 @@ export default function SettingsDialog() {
             status={status}
           >
             <p className="leading-5 text-gray-600">
-              Change the color scheme of the {isTalk ? 'Talk' : 'Groups'}{' '}
+              Change the color scheme of the Groups
             </p>
           </SettingDropdown>
         </div>

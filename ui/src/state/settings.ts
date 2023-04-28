@@ -86,6 +86,7 @@ export interface SettingsState {
     sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
     groupSideBarSort: Stringified<GroupSideBarSort>;
     showVitaMessage: boolean;
+    showDms: boolean;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -441,6 +442,32 @@ export function useThemeMutation() {
 
   return {
     mutate: (theme: Theme) => mutate({ val: theme }),
+    status,
+  };
+}
+
+export function useShowDms() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      return true;
+    }
+
+    const { groups } = data;
+
+    return groups.showDms ?? true;
+  }, [isLoading, data]);
+}
+
+export function useShowDmsMutation() {
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'showDms',
+  });
+
+  return {
+    mutate: (val: boolean) => mutate({ val }),
     status,
   };
 }

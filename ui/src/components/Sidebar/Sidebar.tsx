@@ -3,6 +3,7 @@ import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router';
+import { AnimatePresence, motion } from 'framer-motion';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
@@ -13,11 +14,15 @@ import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
-import { usePinnedGroups } from '@/state/chat';
+import { usePinnedDms, usePinnedGroups, usePinnedClubs } from '@/state/chat';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
+import { MessagesScrollingContext } from '@/dms/MessagesScrollingContext';
+import MessagesList from '@/dms/MessagesList';
+import MessagesSidebarItem from '@/dms/MessagesSidebarItem';
+import { useShowDms } from '@/state/settings';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import AsteriskIcon from '../icons/Asterisk16Icon';
@@ -28,6 +33,7 @@ import { GroupsScrollingContext } from './GroupsScrollingContext';
 import ReconnectingSpinner from '../ReconnectingSpinner';
 import SystemChrome from './SystemChrome';
 import PencilSettingsIcon from '../icons/PencilSettingsIcon';
+import AddIcon from '../icons/AddIcon';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -132,9 +138,14 @@ export function GroupsAppMenu() {
 export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
+  const pinned = usePinnedDms();
+  const pinnedClubs = usePinnedClubs();
+  const showDms = useShowDms();
   const pendingInvites = usePendingInvites();
   const [isScrolling, setIsScrolling] = useState(false);
+  const [isScrollingMessages, setIsScrollingMessages] = useState(false);
   const [atTop, setAtTop] = useState(true);
+  const [atMessagesTop, setAtMessagesTop] = useState(true);
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const pendingInvitesCount = pendingInvites.length;
   const { count } = useNotifications();
@@ -153,9 +164,18 @@ export default function Sidebar() {
   );
 
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
+  const atMessagesTopChange = useCallback(
+    (top: boolean) => setAtMessagesTop(top),
+    []
+  );
   const scroll = useRef(
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
+  const scrollMessages = useRef(
+    debounce((scrolling: boolean) => setIsScrollingMessages(scrolling), 200)
+  );
+
+  const pinnedMessages = pinned.concat(pinnedClubs);
 
   if (isMobile) {
     return <MobileSidebar />;
@@ -248,6 +268,53 @@ export default function Sidebar() {
           </GroupList>
         </GroupsScrollingContext.Provider>
       </div>
+      <AnimatePresence>
+        {showDms && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-1 flex-col overflow-y-auto border-t-2 border-gray-50"
+          >
+            <div
+              className={cn('flex flex-col space-y-2 p-2', {
+                'bottom-shadow': !atMessagesTop,
+              })}
+            >
+              <h2 className="my-2 px-2 font-bold text-gray-400">
+                Direct Messages
+              </h2>
+              <SidebarItem
+                to="/dm/new"
+                inexact
+                icon={<AddIcon className="m-1 h-4 w-4" />}
+              >
+                New Message
+              </SidebarItem>
+            </div>
+            <MessagesScrollingContext.Provider value={isScrollingMessages}>
+              <MessagesList
+                filter="Direct Messages"
+                atTopChange={atMessagesTopChange}
+                isScrolling={scrollMessages.current}
+              >
+                {pinnedMessages && pinnedMessages.length > 0 ? (
+                  <div className="mb-4 flex flex-col border-y-2 border-gray-50 border-gray-50 px-2 pt-2 pb-1 ">
+                    <h2 className="my-2 px-2 text-sm font-bold text-gray-400">
+                      Pinned Messages
+                    </h2>
+
+                    {pinnedMessages.map((ship: string) => (
+                      <MessagesSidebarItem key={ship} whom={ship} />
+                    ))}
+                  </div>
+                ) : null}
+              </MessagesList>
+            </MessagesScrollingContext.Provider>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }
