@@ -33,13 +33,13 @@ import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
 import { useChannelFlag } from '@/hooks';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
+import useReactQueryScry from '@/logic/useReactQueryScry';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
-import useReactQueryScry from '@/logic/useReactQueryScry';
 
 setAutoFreeze(false);
 
@@ -1119,7 +1119,7 @@ export function useChatSearch(whom: string, query: string) {
     app: 'chat',
     path: `/chat/${whom}/search/text/0/1.000/${query}`,
     options: {
-      enabled: !!query,
+      enabled: query !== '',
     },
   });
 

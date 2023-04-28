@@ -26,8 +26,10 @@ import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder'
 import { useLastReconnect } from '@/state/local';
 import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
+import useMedia from '@/logic/useMedia';
 import ChatSearchResults from './ChatSearch/ChatSearchResults';
 import ChatSearch from './ChatSearch/ChatSearch';
+import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
@@ -62,6 +64,7 @@ function ChatChannel({ title }: ViewProps) {
     : true;
   const needsLoader = messages.size === 0;
   const lastReconnect = useLastReconnect();
+  const isSmall = useMedia('(max-width: 1023px)');
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -117,79 +120,89 @@ function ChatChannel({ title }: ViewProps) {
   }, [groupFlag, group, channel, vessel, navigate, setRecentChannel, canRead]);
 
   return (
-    <>
-      <Layout
-        className="flex-1 bg-white"
-        header={
-          <ChannelHeader
-            flag={groupFlag}
-            nest={nest}
-            prettyAppName="Chat"
-            leave={useChatState.getState().leaveChat}
-          >
-            <Routes>
-              <Route path="search*" element={<ChatSearch />} />
-              <Route
-                path="*"
-                element={
+    <Routes>
+      <Route
+        path="search/:query?"
+        element={
+          <Layout className="flex-1 bg-white" header={<ChatSearch />}>
+            <Helmet>
+              <title>
+                {channel && group
+                  ? `${channel.meta.title} in ${group.meta.title} Search`
+                  : 'Search'}
+              </title>
+            </Helmet>
+            <ChatSearchResults whom={chFlag} />
+          </Layout>
+        }
+      />
+      <Route
+        path="*"
+        element={
+          <>
+            <Layout
+              className="flex-1 bg-white"
+              header={
+                <ChannelHeader
+                  flag={groupFlag}
+                  nest={nest}
+                  prettyAppName="Chat"
+                  leave={useChatState.getState().leaveChat}
+                >
                   <Link
-                    to="search"
+                    to="search/"
                     className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
                     aria-label="Search Chat"
                   >
                     <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
                   </Link>
-                }
-              />
-            </Routes>
-          </ChannelHeader>
-        }
-        footer={
-          <div
-            className={cn(
-              canWrite ? 'border-t-2 border-gray-50 p-3 sm:p-4' : ''
-            )}
-          >
-            {canWrite ? (
-              <ChatInput
-                key={chFlag}
-                whom={chFlag}
-                sendMessage={sendMessage}
-                showReply
-                autoFocus={!inThread}
-              />
-            ) : null}
-          </div>
-        }
-      >
-        <Helmet>
-          <title>
-            {channel && group
-              ? `${channel.meta.title} in ${group.meta.title} ${title}`
-              : title}
-          </title>
-        </Helmet>
-        <Routes>
-          <Route
-            path="search/:query"
-            element={<ChatSearchResults whom={chFlag} messages={messages} />}
-          />
-          <Route
-            path="*"
-            element={
-              loading ? (
+                </ChannelHeader>
+              }
+              footer={
+                <div
+                  className={cn(
+                    canWrite ? 'border-t-2 border-gray-50 p-3 sm:p-4' : ''
+                  )}
+                >
+                  {canWrite ? (
+                    <ChatInput
+                      key={chFlag}
+                      whom={chFlag}
+                      sendMessage={sendMessage}
+                      showReply
+                      autoFocus={!inThread}
+                    />
+                  ) : null}
+                </div>
+              }
+            >
+              <Helmet>
+                <title>
+                  {channel && group
+                    ? `${channel.meta.title} in ${group.meta.title} ${title}`
+                    : title}
+                </title>
+              </Helmet>
+              {loading ? (
                 <div className="h-full">
                   <ChatScrollerPlaceholder count={30} />
                 </div>
               ) : (
                 <ChatWindow whom={chFlag} messages={messages} />
-              )
-            }
-          />
-        </Routes>
-      </Layout>
-      <Outlet />
-    </>
+              )}
+            </Layout>
+            <Routes>
+              {isSmall ? null : (
+                <Route
+                  path="message/:idShip/:idTime"
+                  element={<ChatThread />}
+                />
+              )}
+            </Routes>
+          </>
+        }
+      />
+    </Routes>
   );
 }
 
