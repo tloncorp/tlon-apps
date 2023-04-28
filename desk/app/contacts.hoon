@@ -398,8 +398,8 @@
         --
     ::
     ^+  cor
-    =/  bas  /(scot %p our.bowl)/contact-store/(scot %da now.bowl)/$
-    ?.  .^(? gu+bas)  cor
+    =/  bas  /(scot %p our.bowl)/contact-store/(scot %da now.bowl)
+    ?.  .^(? gu+(weld bas /$))  cor
     =/  ful  .^(rolodex:legacy gx+(weld bas /all/noun))
     ::
     |^  cor(rof us, rol them)
