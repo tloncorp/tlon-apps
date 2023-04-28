@@ -118,7 +118,7 @@ export function useGroup(flag: string, updating = false) {
     }
   }, [flag, updating, subscribe]);
 
-  if (rest.isLoading || rest.isError) {
+  if (rest.isLoading || rest.isError || data === undefined) {
     return undefined;
   }
 
