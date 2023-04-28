@@ -67,7 +67,7 @@ export default function GroupPendingManager() {
         .map(([k]) => k)
     );
 
-    if ('shut' in group.cordon) {
+    if (group.cordon && 'shut' in group.cordon) {
       members = group.cordon.shut.ask.concat(group.cordon.shut.pending);
     }
 
@@ -177,9 +177,13 @@ export default function GroupPendingManager() {
       <ul className="space-y-6 py-2">
         {results.map((m) => {
           const inAsk =
-            'shut' in group.cordon && group.cordon.shut.ask.includes(m);
+            group.cordon &&
+            'shut' in group.cordon &&
+            group.cordon.shut.ask.includes(m);
           const inPending =
-            'shut' in group.cordon && group.cordon.shut.pending.includes(m);
+            group.cordon &&
+            'shut' in group.cordon &&
+            group.cordon.shut.pending.includes(m);
           const contact = contacts[m];
 
           return (

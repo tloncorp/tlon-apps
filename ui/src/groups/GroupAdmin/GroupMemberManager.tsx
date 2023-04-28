@@ -32,7 +32,7 @@ export default function GroupMemberManager() {
       return [];
     }
     return Object.keys(group.fleet).filter((k) => {
-      if ('shut' in group.cordon) {
+      if (group.cordon && 'shut' in group.cordon) {
         return (
           !group.cordon.shut.ask.includes(k) &&
           !group.cordon.shut.pending.includes(k)

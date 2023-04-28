@@ -217,7 +217,7 @@ export function getFlagParts(flag: string) {
 }
 
 export function getPrivacyFromCordon(cordon: Cordon): PrivacyType {
-  if ('shut' in cordon) {
+  if (cordon && 'shut' in cordon) {
     return 'private';
   }
 
