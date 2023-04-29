@@ -519,13 +519,17 @@ export const useChatState = createState<ChatState>(
       });
     },
     delMessage: async (whom, id) => {
-      const isDM = whomIsDm(whom);
       const diff = { del: null };
-      if (isDM) {
+      if (whomIsDm(whom)) {
         await api.trackedPoke<DmAction, ChatAction>(
           dmAction(whom, diff, id),
           { app: 'chat', path: whom },
           (event) => event.flag === id && 'del' in event.update.diff
+        );
+      } else if (whomIsMultiDm(whom)) {
+        await api.trackedPoke<ClubAction>(
+          multiDmAction(whom, { writ: { id, delta: diff } }),
+          { app: 'chat', path: whom }
         );
       } else {
         await api.trackedPoke<ChatAction>(chatWritDiff(whom, id, diff), {

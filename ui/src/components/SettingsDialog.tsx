@@ -1,8 +1,15 @@
 import { useDismissNavigate } from '@/logic/routing';
-import { useCalm, useCalmSettingMutation } from '@/state/settings';
+import {
+  Theme,
+  useCalm,
+  useCalmSettingMutation,
+  useTheme,
+  useThemeMutation,
+} from '@/state/settings';
 import { isTalk } from '@/logic/utils';
 import Dialog from './Dialog';
 import Setting from './Setting';
+import SettingDropdown from './SettingDropdown';
 
 export default function SettingsDialog() {
   const {
@@ -12,6 +19,8 @@ export default function SettingsDialog() {
     disableRemoteContent,
     disableWayfinding,
   } = useCalm();
+  const theme = useTheme();
+  const { mutate, status } = useThemeMutation();
   const dismiss = useDismissNavigate();
   const { mutate: toggleAvatars, status: avatarStatus } =
     useCalmSettingMutation('disableAvatars');
@@ -112,6 +121,31 @@ export default function SettingsDialog() {
               appearing to have content missing.
             </p>
           </Setting>
+        </div>
+        <div className="inner-section relative space-y-2">
+          <div className="flex flex-col">
+            <h2 className="mb-2 text-lg font-bold">Theme</h2>
+          </div>
+          <SettingDropdown
+            name="Set your theme"
+            selected={{
+              label: theme.charAt(0).toUpperCase() + theme.slice(1),
+              value: theme,
+            }}
+            onChecked={(value) => {
+              mutate(value as Theme);
+            }}
+            options={[
+              { label: 'Auto', value: 'auto' },
+              { label: 'Light', value: 'light' },
+              { label: 'Dark', value: 'dark' },
+            ]}
+            status={status}
+          >
+            <p className="leading-5 text-gray-600">
+              Change the color scheme of the {isTalk ? 'Talk' : 'Groups'}{' '}
+            </p>
+          </SettingDropdown>
         </div>
       </div>
     </Dialog>
