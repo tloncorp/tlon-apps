@@ -196,6 +196,9 @@ export default function Login() {
             value={shipUrlInput}
             placeholder="http(s)://your-ship.net"
             keyboardType="url"
+            autoCapitalize="none"
+            autoComplete="off"
+            autoCorrect={false}
           />
           {urlProblem && <Text style={{ color: 'red' }}>{urlProblem}</Text>}
           <View style={{ height: 16 }} />
@@ -225,7 +228,10 @@ export default function Login() {
             placeholder="sampel-ticlyt-migfun-falmel"
             maxLength={27}
             secureTextEntry={!showPassword}
-            keyboardType="visible-password"
+            keyboardType={showPassword ? "visible-password" : "default"}
+            autoCapitalize="none"
+            autoComplete="off"
+            autoCorrect={false}
           />
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}

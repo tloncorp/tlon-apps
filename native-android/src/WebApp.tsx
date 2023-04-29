@@ -111,7 +111,6 @@ export default function WebApp() {
       <WebView
         source={{ uri: `${shipUrl}/apps/talk/` }}
         ref={webviewRef}
-        androidHardwareAccelerationDisabled={false}
         onHttpError={handleUrlError}
         sharedCookiesEnabled
         scalesPageToFit
