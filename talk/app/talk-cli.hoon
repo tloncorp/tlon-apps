@@ -585,15 +585,6 @@
       history  [[target id] history]
       count    +(count)
     ==
-  ::  +notice-remove: delete a target from view
-  ::
-  ++  notice-remove
-    |=  =target
-    ^-  (quip card _session)
-    ?.  (~(has in viewing.session) target)
-      [~ session]
-    :-  [(show-delete:sh-out target) ~]
-    session(viewing (~(del in viewing.session) target))
   ::  +read: command parser
   ::
   ::    parses the command line buffer.
@@ -1285,18 +1276,6 @@
     ?.  ?=(%story -.content.memo)  |
     %+  lien  q.p.content.memo
     (cury test %ship our.bowl)
-  ::  +show-create: print mailbox creation notification
-  ::
-  ++  show-create
-    |=  =target
-    ^-  card
-    (note "new: {~(phat tr target)}")
-  ::  +show-delete: print mailbox deletion notification
-  ::
-  ++  show-delete
-    |=  =target
-    ^-  card
-    (note "del: {~(phat tr target)}")
   ::  +show-glyph: print glyph un/bind notification
   ::
   ++  show-glyph
