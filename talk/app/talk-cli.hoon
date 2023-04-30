@@ -833,9 +833,9 @@
     ::  +act: build action card
     ::
     ++  act
-      |=  [=path app=term =cage]
+      |=  [=wire app=term =cage]
       ^-  card
-      [%pass path %agent [our-self app] %poke cage]
+      [%pass wire %agent [our-self app] %poke cage]
     ::  +set-target: set audience, update prompt
     ::
     ++  set-target
@@ -910,9 +910,9 @@
       ?.  (~(has in viewing) target)  
         [~ state]
       =.  viewing  (~(del in viewing) target)
-      =/  =path  (target-to-path target)
+      =/  =wire  (target-to-path target)
       :_  put-ses
-      [%pass path %agent [our-self %chat] %leave ~]~
+      [%pass wire %agent [our-self %chat] %leave ~]~
     ::  +rsvp: send rsvp response
     ::
     ++  rsvp
