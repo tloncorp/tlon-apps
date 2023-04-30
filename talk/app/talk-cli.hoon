@@ -357,10 +357,16 @@
     =/  missing=(list target)
       %+  murn  ~(tap in viewing.session.i.sez)
       |=  =target
-      ?:  (subscription-check target)  ~
-      ~&  %+  weld  "not subscribed to {~(full tr target)} in "
-          "(scow %ta ses.sole-id.i.sez)}"
-      ~
+      ?:((subscription-check target) ~ `target)
+    ~?  ?~(missing | &)
+      =/  render-missing=tape
+        %+  join  ','
+        %+  turn  missing
+        |=  =target
+        (crip (weld " " ~(full tr target)))
+      %+  weld
+        "these targets in {(scow %ta ses.sole-id.i.sez)} are not subscribed:"
+      render-missing
     $(sez t.sez)
   ==
   ::  +poke-options: +poke-noun will accept the following actions
