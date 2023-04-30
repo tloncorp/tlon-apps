@@ -31,7 +31,7 @@
 +$  selection  $@(rel=@ud [zeros=@u abs=@ud])       ::  pointer selection
 ::
 +$  glyph  char
-++  glyphs  "!@#$%^&()-=_+[]\{}'\\:\",.<>?"
+++  glyphs  "!@$%&()-=_+[]\{}'\\:\",.<>?"
 ::
 +$  command
   $%  [%target target]                              ::  set messaging target
@@ -140,14 +140,23 @@
         |=  bound=(map flag:chat glyph)
         ^-  (map whom:chat glyph)
         %-  malt
-        %+  turn  ~(tap by bound)
+        %+  murn  ~(tap by bound)
         |=  [=flag:chat =glyph]
-        [[%flag flag] glyph]
+        ?:  |(=('^' glyph) =('#' glyph))  ~
+        `[[%flag flag] glyph]
       ::
       ++  binds
         |=  binds=(jug glyph flag:chat)
         ^-  (jug glyph whom:chat)
-        %-  ~(run by binds)
+        =/  glyphs=(list glyph)
+          ~(tap in ~(key by binds))
+        =/  cleaned-binds=(jug glyph flag:chat)
+          |-
+          ?~  glyphs  binds
+          ?.  |(=('^' i.glyphs) =('#' i.glyphs))
+            $(glyphs t.glyphs)
+          $(binds (~(del by binds) i.glyphs), glyphs t.glyphs)
+        %-  ~(run by cleaned-binds)
         |=  flags=(set flag:chat)
         (~(run in flags) (lead %flag))
       ::
@@ -546,9 +555,6 @@
       %+  knee  *command  |.  ~+
       =-  ;~(pose ;~(pfix mic -) message)  
       ;~  pose
-        (stag %thread ;~((glue ace) ;~(sfix nump ket) content))
-        (stag %reference ;~((glue ace) ;~(sfix nump hax) content))
-      ::
         (stag %target targ)
       ::
         ;~((glue ace) (tag %view) targ)
@@ -581,6 +587,8 @@
         ;~(plug (tag %dms) (easy ~))
         ;~(plug (tag %help) (easy ~))
       ::
+        (stag %thread ;~((glue ace) ;~(sfix nump ket) content))
+        (stag %reference ;~((glue ace) ;~(sfix nump hax) content))
         (stag %select nump)
       ::
       ==
