@@ -625,24 +625,19 @@
     ::
     ++  trun-club-id
       =-  (sear - ;~(pfix dot viz:ag))
-      |=  input=@ud
+      |=  original-input=@ud
       ^-  (unit @uv)
-      =|  found=(set club-id)
-      =/  ids=(list club-id)
-        ~(tap in ~(key by get-clubs))
-      |-
-      ?~  ids
-        ?.  =(1 ~(wyt in found))  ~
-        (some -:~(tap in found))
-      =/  have=@uv
-        %+  slav  %uv
-        %-  crip
-        %+  weld  "0v"
-        %+  swag
-          [22 (lent (oust [0 2] (scow %uv input)))]
-        (scow %uv `club-id`i.ids)
-      ?.  =(`@uv`input have)  $(ids t.ids)
-      $(found (~(put in found) i.ids), ids t.ids)
+      =;  found=(list club-id)
+        ?.  =(1 (lent found))  ~
+        (some -:found)
+      %+  murn  ~(tap in ~(key by get-clubs))
+      |=  =club-id
+      =/  input=tape
+        (oust [0 2] (scow %uv original-input))
+      =/  have=tape
+        (swag [22 (lent input)] (scow %uv club-id))
+      ?.  =(have input)  ~
+      `club-id
     ::  +tarl: local flag:chat, as /path
     ::
     ++  tarl  (stag our-self name)
