@@ -489,6 +489,56 @@
     (~(read-post sh i.sez) whom id memo)
   =.  sessions  (~(put by sessions) i.sez)
   $(sez t.sez, cards (weld cards caz))
+::  +bind-default-glyph: bind to default, or random available
+::
+++  bind-default-glyph
+  |=  =target
+  ^-  (quip card _state)
+  =;  =glyph  (bind-glyph glyph target)
+  |^  =/  g=glyph  (choose glyphs)
+      ?.  (~(has by binds) g)  g
+      =/  available=(list glyph)
+        %~  tap  in
+        (~(dif in `(set glyph)`(sy glyphs)) ~(key by binds))
+      ?~  available  g
+      (choose available)
+  ++  choose
+    |=  =(list glyph)
+    =;  i=@ud  (snag i list)
+    (mod (mug target) (lent list))
+  --
+::  +bind-glyph: add binding for glyph
+::
+++  bind-glyph
+  |=  [=glyph =target]
+  ^-  (quip card _state)
+  ::TODO  should send these to settings store eventually
+  ::  if the target was already bound to another glyph, un-bind that
+  ::
+  =?  binds  (~(has by bound) target)
+    (~(del ju binds) (~(got by bound) target) target)
+  =.  bound  (~(put by bound) target glyph)
+  =.  binds  (~(put ju binds) glyph target)
+  [(show-glyph:sh-out glyph `target) state]
+::  +unbind-glyph: remove all binding for glyph
+::
+++  unbind-glyph
+  |=  [=glyph targ=(unit target)]
+  ^-  (quip card _state)
+  ?^  targ
+    =.  binds  (~(del ju binds) glyph u.targ)
+    =.  bound  (~(del by bound) u.targ)
+    [(show-glyph:sh-out glyph ~) state]
+  =/  ole=(set target)
+    (~(get ju binds) glyph)
+  =.  binds  (~(del by binds) glyph)
+  =.  bound
+    |-
+    ?~  ole  bound
+    =.  bound  $(ole l.ole)
+    =.  bound  $(ole r.ole)
+    (~(del by bound) n.ole)
+  [(show-glyph:sh-out glyph ~) state]
 ::  +decode-glyph: find the target that matches a glyph, if any
 ::
 ++  decode-glyph
@@ -833,24 +883,6 @@
         target-cards
         load-history
       ==
-      ::  +bind-default-glyph: bind to default, or random available
-      ::
-      ++  bind-default-glyph
-        |=  =whom:chat
-        ^-  (quip card _state)
-        =;  =glyph  (bind-glyph glyph whom)
-        |^  =/  g=glyph  (choose glyphs)
-            ?.  (~(has by binds) g)  g
-            =/  available=(list glyph)
-              %~  tap  in
-              (~(dif in `(set glyph)`(sy glyphs)) ~(key by binds))
-            ?~  available  g
-            (choose available)
-        ++  choose
-          |=  =(list glyph)
-          =;  i=@ud  (snag i list)
-          (mod (mug whom) (lent list))
-        --
       ::  +build-history: add messages to history and output to session
       ::
       ++  build-history
@@ -997,39 +1029,6 @@
       [~ state]
       ::TODO  why -find.eval??
       :: (say %code txt (eval:store bowl exe))
-    ::  +bind-glyph: add binding for glyph
-    ::
-    ++  bind-glyph
-      |=  [=glyph =target]
-      ^-  (quip card _state)
-      =.  audience  target
-      ::TODO  should send these to settings store eventually
-      ::  if the target was already bound to another glyph, un-bind that
-      ::
-      =?  binds  (~(has by bound) target)
-        (~(del ju binds) (~(got by bound) target) target)
-      =.  bound  (~(put by bound) target glyph)
-      =.  binds  (~(put ju binds) glyph target)
-      [(show-glyph:sh-out glyph `target) put-ses]
-    ::  +unbind-glyph: remove all binding for glyph
-    ::
-    ++  unbind-glyph
-      |=  [=glyph targ=(unit target)]
-      ^-  (quip card _state)
-      ?^  targ
-        =.  binds  (~(del ju binds) glyph u.targ)
-        =.  bound  (~(del by bound) u.targ)
-        [(show-glyph:sh-out glyph ~) put-ses]
-      =/  ole=(set target)
-        (~(get ju binds) glyph)
-      =.  binds  (~(del by binds) glyph)
-      =.  bound
-        |-
-        ?~  ole  bound
-        =.  bound  $(ole l.ole)
-        =.  bound  $(ole r.ole)
-        (~(del by bound) n.ole)
-      [(show-glyph:sh-out glyph ~) put-ses]
     ::  +lookup-glyph: print glyph info for all, glyph or target
     ::
     ++  lookup-glyph
