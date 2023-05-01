@@ -1,7 +1,7 @@
 import { difference } from 'lodash';
 import ob from 'urbit-ob';
 import { useCallback, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 import { ShipOption } from '@/components/ShipSelector';
 import { useChatState, useMultiDms } from '@/state/chat';
@@ -11,6 +11,7 @@ import { createStorageKey, newUv } from './utils';
 
 export default function useMessageSelector() {
   const navigate = useNavigate();
+  const location = useLocation();
   const newClubId = useMemo(() => newUv(), []);
   const [ships, setShips] = useLocalStorage<ShipOption[]>(
     createStorageKey('new-dm-ships'),
@@ -42,6 +43,11 @@ export default function useMessageSelector() {
     const { briefs } = useChatState.getState();
     const clubId = Object.entries(multiDms).reduce<string>((key, [k, v]) => {
       const theShips = [...v.hive, ...v.team].filter((s) => s !== window.our);
+      if (theShips.length < 2) {
+        // not a valid multi-DM
+        return key;
+      }
+
       const sameDM =
         difference(shipValues, theShips).length === 0 &&
         shipValues.length === theShips.length;
@@ -60,10 +66,10 @@ export default function useMessageSelector() {
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {
-      if (existingMultiDm) {
-        navigate(`/dm/${existingMultiDm}`);
-      } else if (existingDm) {
+      if (existingDm) {
         navigate(`/dm/${existingDm}`);
+      } else if (existingMultiDm) {
+        navigate(`/dm/${existingMultiDm}`);
       } else if (isMultiDm) {
         await createClub(
           newClubId,
@@ -114,14 +120,22 @@ export default function useMessageSelector() {
   const isSelectingMessage = useMemo(() => ships.length > 0, [ships]);
 
   useEffect(() => {
+    if (!location.pathname.includes('/dm/new')) {
+      if (existingMultiDm && location.pathname.includes(existingMultiDm)) {
+        navigate(`/dm/new/${existingMultiDm}`);
+      } else if (existingDm && location.pathname.includes(existingDm)) {
+        navigate(`/dm/new/${existingDm}`);
+      }
+      return;
+    }
     if (existingDm) {
-      navigate(`/dm/${existingDm}`);
+      navigate(`/dm/new/${existingDm}`);
     } else if (existingMultiDm) {
-      navigate(`/dm/${existingMultiDm}`);
-    } else if (shipValues.length > 0) {
+      navigate(`/dm/new/${existingMultiDm}`);
+    } else {
       navigate(`/dm/new`);
     }
-  }, [existingDm, existingMultiDm, navigate, shipValues]);
+  }, [existingDm, existingMultiDm, navigate, shipValues, location.pathname]);
 
   return {
     action,

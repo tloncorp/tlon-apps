@@ -19,7 +19,7 @@ cmds='
 source_repo=$(mktemp --dry-run /tmp/repo.janeway.XXXXXXXXX)
 git clone --depth 1 --branch '$ref' git@github.com:'$repo'.git $source_repo
 urbit_repo=$(mktemp --dry-run /tmp/repo.urbit.XXXXXXXXX)
-git clone --depth 1 --branch master git@github.com:urbit/urbit.git $urbit_repo
+git clone --depth 1 git@github.com:urbit/urbit.git $urbit_repo -b '$URBIT_REPO_TAG' --single-branch
 landscape_repo=$(mktemp --dry-run /tmp/repo.landscape.XXXXXXXXX)
 git clone --depth 1 --branch master git@github.com:tloncorp/landscape.git $landscape_repo
 cd $source_repo

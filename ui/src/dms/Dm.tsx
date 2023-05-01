@@ -44,8 +44,13 @@ export default function Dm() {
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
 
-  const { isSelectingMessage, sendDm: sendDmFromMessageSelector } =
-    useMessageSelector();
+  const {
+    isSelectingMessage,
+    sendDm: sendDmFromMessageSelector,
+    existingDm,
+  } = useMessageSelector();
+
+  const isSelecting = isSelectingMessage && existingDm === ship;
 
   useEffect(() => {
     if (ship && canStart) {
@@ -61,7 +66,7 @@ export default function Dm() {
       <Layout
         className="h-full grow"
         header={
-          isSelectingMessage ? (
+          isSelecting ? (
             <MessageSelector />
           ) : (
             <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4">
@@ -114,10 +119,10 @@ export default function Dm() {
                 key={ship}
                 whom={ship}
                 sendMessage={
-                  isSelectingMessage ? sendDmFromMessageSelector : sendMessage
+                  isSelecting ? sendDmFromMessageSelector : sendMessage
                 }
                 showReply
-                autoFocus={!isSelectingMessage}
+                autoFocus={!isSelecting}
               />
             </div>
           ) : null

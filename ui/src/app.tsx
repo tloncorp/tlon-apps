@@ -157,7 +157,10 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           />
           <Route path="/dm/" element={<Dms />}>
             <Route index element={<DMHome />} />
-            <Route path="new" element={<NewDM />} />
+            <Route path="new">
+              <Route index element={<NewDM />} />
+              <Route path=":ship" element={<Message />} />
+            </Route>
             <Route path=":ship" element={<Message />}>
               {isSmall ? null : (
                 <Route
