@@ -17,6 +17,7 @@
     %-  of
     :~  connect-provider+connect-provider
         remove-provider+remove-provider
+        connect-provider-with-binding+connect-provider-with-binding
     ==
     ++  connect-provider
       %-  ot
