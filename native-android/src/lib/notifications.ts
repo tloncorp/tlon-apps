@@ -100,8 +100,8 @@ export const pokeNotify = async (token: string) => {
     app: 'notify',
     mark: 'notify-client-action',
     json: {
-      'connect-provider': {
-        who: 'tilpyl-nodnys-sapdex-diflyx',
+      'connect-provider-with-binding': {
+        who: 'wannec-dozzod-marzod',
         service: 'android',
         address: token,
         binding: Platform.OS === 'android' ? 'fcm' : 'apn',
