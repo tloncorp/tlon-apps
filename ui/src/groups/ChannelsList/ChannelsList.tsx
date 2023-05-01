@@ -47,7 +47,6 @@ export default function ChannelsList() {
       return Object.entries(getSectionedChannels).reduce(
         (acc, [key, section]) => {
           const filteredChannels = section.channels.filter((channelItem) => {
-            console.log({ channelItem });
             const { channel } = channelItem;
             const title = channel?.meta.title.toLowerCase();
             const description = channel?.meta.description.toLowerCase();
