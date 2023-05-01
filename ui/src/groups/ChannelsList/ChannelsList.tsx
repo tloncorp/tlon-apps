@@ -40,7 +40,6 @@ export default function ChannelsList() {
     return sectionedChannels;
   }, [group, vessel]);
 
-  console.log({ channels: getSectionedChannels });
 
   const getFilteredSectionedChannels = useCallback(() => {
     const filteredSectionedChannels: SectionMap = {};
