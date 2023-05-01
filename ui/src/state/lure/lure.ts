@@ -22,6 +22,7 @@ interface Lure {
   fetched: boolean;
   url: string;
   enabled?: boolean;
+  enableAcked?: boolean;
   metadata?: LureMetadata;
 }
 
@@ -135,11 +136,21 @@ export const useLureState = create<LureState>(
           undefined
         );
 
+        const enableAcked = await asyncWithDefault(
+          () =>
+            api.scry<boolean>({
+              app: 'reel',
+              path: `/outstanding-poke/#{flag}`,
+            }),
+          true
+        );
+
         set(
           produce((draft: LureState) => {
             draft.lures[flag] = {
               fetched: true,
               enabled,
+              enableAcked,
               url,
               metadata,
             };
