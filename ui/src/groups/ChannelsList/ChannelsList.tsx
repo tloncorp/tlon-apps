@@ -1,11 +1,13 @@
 import React, { useCallback, useMemo } from 'react';
-import { useGroup, useRouteGroup } from '@/state/groups';
+import { useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import { canReadChannel } from '@/logic/utils';
 import ChannelsListDropContext from './ChannelsListDropContext';
 import { SectionMap } from './types';
 import useChannelSearch from './useChannelSearch';
 
 export default function ChannelsList() {
   const flag = useRouteGroup();
+  const vessel = useVessel(flag, window.our);
   const group = useGroup(flag);
   const { searchInput } = useChannelSearch();
 
@@ -27,14 +29,18 @@ export default function ChannelsList() {
         }));
         if (sectionedChannels[key]) {
           sectionedChannels[key].channels = orderedChannels.filter(
-            (channelItem) => key === channelItem.channel?.zone
+            (channelItem) =>
+              key === channelItem.channel?.zone &&
+              canReadChannel(channelItem.channel, vessel, group.bloc)
           );
         }
       });
     }
 
     return sectionedChannels;
-  }, [group]);
+  }, [group, vessel]);
+
+  console.log({ channels: getSectionedChannels });
 
   const getFilteredSectionedChannels = useCallback(() => {
     const filteredSectionedChannels: SectionMap = {};
@@ -42,6 +48,7 @@ export default function ChannelsList() {
       return Object.entries(getSectionedChannels).reduce(
         (acc, [key, section]) => {
           const filteredChannels = section.channels.filter((channelItem) => {
+            console.log({ channelItem });
             const { channel } = channelItem;
             const title = channel?.meta.title.toLowerCase();
             const description = channel?.meta.description.toLowerCase();
