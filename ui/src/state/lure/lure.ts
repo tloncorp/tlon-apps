@@ -140,7 +140,7 @@ export const useLureState = create<LureState>(
           () =>
             api.scry<boolean>({
               app: 'reel',
-              path: `/outstanding-poke/#{flag}`,
+              path: `/outstanding-poke/${flag}`,
             }),
           true
         );
