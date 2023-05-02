@@ -24,7 +24,7 @@ export default function ProfileBio({ bio }: ProfileBioProps) {
       <div
         ref={bioRef}
         className={cn(
-          'mt-1 max-w-prose text-gray-600 leading-tight',
+          'mt-1 max-w-prose leading-tight text-gray-600',
           truncateBio && 'line-clamp-3'
         )}
       >
