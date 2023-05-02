@@ -40,6 +40,7 @@ export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
         notifications: [],
         mentions: [],
         count: 0,
+        loaded: skeinsStatus === 'error',
       };
     }
 
@@ -52,7 +53,7 @@ export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
       notifications: groupSkeinsByDate(filteredSkeins),
       mentions: unreads.filter((s) => isMention(s.top)),
       count: unreads.length,
-      loaded: skeinsStatus === 'success',
+      loaded: skeinsStatus === 'success' || skeinsStatus === 'error',
     };
   }, [skeins, mentionsOnly, skeinsStatus]);
 };
