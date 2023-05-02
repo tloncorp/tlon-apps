@@ -138,9 +138,9 @@
     ^-  scan:c
     %-  flop
     =<  scan.-
-    %^    (dip:on:writs:c query)
-        wit.pac
-      [sip len ~]
+    %^    (dop:mope query)
+        wit.pac     :: (gas:on:writs:c wit.pac ls)
+      [sip len ~]   :: (gas:on:quilt:h *quilt:h (bat:mope quilt `idx blanket-size))
     |=  $:  =query
             time
             =writ:c
