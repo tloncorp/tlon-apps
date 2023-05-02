@@ -40,5 +40,5 @@ jobs:
         working-directory: ./native-android
         run: eas build --profile preview --platform android --non-interactive
         env:
-          ANDROID_NOTIFY_PROVIDER: ${{ inputs.NOTIFY_PROVIDER }}
-          ANDROID_NOTIFY_SERVICE: ${{ inputs.NOTIFY_SERVICE }}
+          ANDROID_NOTIFY_PROVIDER: ${{ inputs.notifyProvider }}
+          ANDROID_NOTIFY_SERVICE: ${{ inputs.notifyService }}
