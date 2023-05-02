@@ -5,6 +5,7 @@ import WebView from 'react-native-webview';
 import useHarkState from '../state/hark';
 import useStore from '../state/store';
 import storage from './storage';
+import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';
 
 const getHasRequestedNotifications = async () => {
   try {
@@ -101,8 +102,8 @@ export const pokeNotify = async (token: string) => {
     mark: 'notify-client-action',
     json: {
       'connect-provider-with-binding': {
-        who: 'wannec-dozzod-marzod',
-        service: 'android',
+        who: NOTIFY_PROVIDER,
+        service: NOTIFY_SERVICE,
         address: token,
         binding: Platform.OS === 'android' ? 'fcm' : 'apn',
       }

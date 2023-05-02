@@ -1,9 +1,20 @@
 name: Deploy Talk Android
 on:
   workflow_dispatch:
+    inputs:
+      notifyProvider:
+        type: choice
+        description: Select %notify provider
+        options:
+        - rivfur-livmet
+        - wannec-dozzod-marzod
+      notifyService:
+        type: choice
+        description: Select %notify service
+        options:
+        - android
+        - android-dev
   push:
-    branches:
-      - po/add-native-android
     tags:
       - '*-android'
 jobs:
@@ -28,3 +39,6 @@ jobs:
       - name: Build on EAS
         working-directory: ./native-android
         run: eas build --profile preview --platform android --non-interactive
+        env:
+          ANDROID_NOTIFY_PROVIDER: ${{ inputs.NOTIFY_PROVIDER }}
+          ANDROID_NOTIFY_SERVICE: ${{ inputs.NOTIFY_SERVICE }}
