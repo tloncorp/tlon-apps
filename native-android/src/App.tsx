@@ -8,7 +8,7 @@ import {
   Text,
   StatusBar,
   ActivityIndicator,
-  View
+  View,
 } from 'react-native';
 import useStore from './state/store';
 import WebApp from './WebApp';
@@ -26,7 +26,7 @@ export default function App() {
     authCookie,
     loadStore,
     needLogin,
-    setNeedLogin
+    setNeedLogin,
   } = useStore();
   const [connected, setConnected] = useState(false);
   const appState = useRef(AppState.currentState);

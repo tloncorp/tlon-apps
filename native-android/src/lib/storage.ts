@@ -17,7 +17,7 @@ const storage = new Storage({
   // the latest data.
   sync: {
     // we'll talk about the details later.
-  }
+  },
 });
 
 export default storage;

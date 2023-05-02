@@ -7,7 +7,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { SHIP_COOKIE_REGEX, URBIT_HOME_REGEX } from './lib/util';
 import useStore from './state/store';
@@ -24,7 +24,7 @@ export default function Login() {
     addShip,
     clearShip,
     setShipUrl,
-    setShip
+    setShip,
   } = useStore();
   const tailwind = useTailwind();
   const [shipUrlInput, setShipUrlInput] = useState('');
@@ -37,7 +37,7 @@ export default function Login() {
   useEffect(() => {
     if (shipUrl) {
       fetch(shipUrl)
-        .then(async response => {
+        .then(async (response) => {
           const html = await response.text();
 
           if (URBIT_HOME_REGEX.test(html)) {
@@ -51,7 +51,7 @@ export default function Login() {
               addShip({
                 ship,
                 shipUrl,
-                authCookie: authCookieHeader
+                authCookie: authCookieHeader,
               });
             }
           } else {
@@ -91,7 +91,7 @@ export default function Login() {
     } else {
       let isValid = false;
       const response = await fetch(formattedUrl)
-        .then(res => {
+        .then((res) => {
           isValid = true;
           return res;
         })
@@ -110,7 +110,7 @@ export default function Login() {
           addShip({
             ship,
             shipUrl: formattedUrl,
-            authCookie: authCookieHeader
+            authCookie: authCookieHeader,
           });
         } else {
           const html = await response?.text();
@@ -145,11 +145,11 @@ export default function Login() {
       await fetch(`${shipUrl}/~/login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
         },
-        body: formBody
+        body: formBody,
       })
-        .then(async response => {
+        .then(async (response) => {
           const authCookieHeader = response.headers.get('set-cookie') || '';
           if (!authCookieHeader) {
             setLoginProblem('Please enter a valid access key.');
@@ -161,7 +161,7 @@ export default function Login() {
             });
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn('ERROR LOGGING IN');
         });
     }
@@ -175,7 +175,7 @@ export default function Login() {
           display: 'flex',
           height: '100%',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
         }}
       >
         <ActivityIndicator size="large" color="#000000" />
@@ -228,7 +228,7 @@ export default function Login() {
             placeholder="sampel-ticlyt-migfun-falmel"
             maxLength={27}
             secureTextEntry={!showPassword}
-            keyboardType={showPassword ? "visible-password" : "default"}
+            keyboardType={showPassword ? 'visible-password' : 'default'}
             autoCapitalize="none"
             autoComplete="off"
             autoCorrect={false}
@@ -271,16 +271,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 20,
     margin: 16,
-    alignSelf: 'center'
+    alignSelf: 'center',
   },
   showPassword: {
     padding: 4,
     position: 'absolute',
     right: 8,
     top: 18,
-    color: 'gray'
+    color: 'gray',
   },
   showPasswordText: {
-    color: 'black'
-  }
+    color: 'black',
+  },
 });

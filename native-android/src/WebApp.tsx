@@ -6,7 +6,7 @@ import {
   AppStateStatus,
   BackHandler,
   Platform,
-  Alert
+  Alert,
 } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
 import useStore from './state/store';
@@ -23,9 +23,12 @@ export default function WebApp() {
   const tailwind = useTailwind();
   const webviewRef = useRef<WebView>(null);
   const appState = useRef(AppState.currentState);
-  const notificationSubscription = useRef<Notifications.Subscription | null>(null);
-  const notificationResponseSubscription = useRef<Notifications.Subscription | null>(null);
-  
+  const notificationSubscription = useRef<Notifications.Subscription | null>(
+    null
+  );
+  const notificationResponseSubscription =
+    useRef<Notifications.Subscription | null>(null);
+
   const handleBackPressed = useCallback(() => {
     if (webviewRef?.current) {
       webviewRef.current?.goBack();
@@ -43,15 +46,15 @@ export default function WebApp() {
           {
             text: 'Cancel',
             onPress: () => null,
-            style: 'cancel'
+            style: 'cancel',
           },
           {
             text: 'Refresh',
             onPress: () => {
               webviewRef?.current?.reload();
             },
-            style: 'default'
-          }
+            style: 'default',
+          },
         ],
         { cancelable: true }
       );
@@ -80,13 +83,15 @@ export default function WebApp() {
       // useHarkState.getState().start()
       const enabled = await initializePushNotifications();
       if (enabled) {
-        notificationSubscription.current = Notifications.addNotificationReceivedListener(handleNotification);
-        console.debug("Started notification listener");
+        notificationSubscription.current =
+          Notifications.addNotificationReceivedListener(handleNotification);
+        console.debug('Started notification listener');
 
-        notificationResponseSubscription.current = Notifications.addNotificationResponseReceivedListener((response) => {
+        notificationResponseSubscription.current =
+          Notifications.addNotificationResponseReceivedListener((response) => {
             handleNotificationResponse(response, webviewRef);
           });
-        console.debug("Started notification response listener");
+        console.debug('Started notification response listener');
       }
     })();
 
@@ -95,13 +100,17 @@ export default function WebApp() {
       listener.remove();
 
       if (notificationSubscription.current) {
-        Notifications.removeNotificationSubscription(notificationSubscription.current);
-        console.debug("Removed notification listener");
+        Notifications.removeNotificationSubscription(
+          notificationSubscription.current
+        );
+        console.debug('Removed notification listener');
       }
 
       if (notificationResponseSubscription.current) {
-        Notifications.removePushTokenSubscription(notificationResponseSubscription.current);
-        console.debug("Removed notification response listener");
+        Notifications.removePushTokenSubscription(
+          notificationResponseSubscription.current
+        );
+        console.debug('Removed notification response listener');
       }
     };
   }, []);

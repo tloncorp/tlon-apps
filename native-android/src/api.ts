@@ -63,7 +63,7 @@ const api = (ship: string, shipUrl: string) =>
         }
 
         const clientSubscribe = await client.subscribe({
-          ...params
+          ...params,
         });
         useLocalState.setState({ subscription: 'connected' });
         useLocalState.setState({ errorCount: 0 });
@@ -126,7 +126,7 @@ const api = (ship: string, shipUrl: string) =>
     },
     reset() {
       client.reset();
-    }
+    },
   } as Urbit);
 
 export default api;

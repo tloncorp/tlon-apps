@@ -42,7 +42,7 @@ export function emptyCarpet(seam: Seam) {
     seam,
     yarns: {},
     cable: [],
-    stitch: 0
+    stitch: 0,
   };
 }
 
@@ -50,7 +50,7 @@ export function emptyBlanket(seam: Seam) {
   return {
     seam,
     yarns: {},
-    quilt: {}
+    quilt: {},
   };
 }
 
@@ -58,15 +58,15 @@ function harkAction(action: HarkAction) {
   return {
     app: 'hark',
     mark: 'hark-action',
-    json: action
+    json: action,
   };
 }
 
 const useHarkState = create<HarkState>((set, get) => ({
-  set: fn => {
+  set: (fn) => {
     set(produce(get(), fn));
   },
-  batchSet: fn => {
+  batchSet: (fn) => {
     batchUpdates(() => {
       get().set(fn);
     });
@@ -90,17 +90,17 @@ const useHarkState = create<HarkState>((set, get) => ({
         if ('add-yarn' in event) {
           get().update(null);
         }
-      }
+      },
     });
 
     set({ loaded: true });
   },
-  update: async group => {
+  update: async (group) => {
     const { groupSubs, retrieve, retrieveGroup } = get();
     await retrieve();
 
     await asyncForEach(
-      groupSubs.filter(g => !group || group === g),
+      groupSubs.filter((g) => !group || group === g),
       retrieveGroup
     );
   },
@@ -112,7 +112,7 @@ const useHarkState = create<HarkState>((set, get) => ({
     const carpet = await api
       .scry<Carpet>({
         app: 'hark',
-        path: '/desk/talk/latest'
+        path: '/desk/talk/latest',
       })
       .catch(() => emptyCarpet({ desk: 'talk' }));
 
@@ -120,35 +120,35 @@ const useHarkState = create<HarkState>((set, get) => ({
     const blanket = await api
       .scry<Blanket>({
         app: 'hark',
-        path: '/desk/talk/quilt/${quilt}'
+        path: '/desk/talk/quilt/${quilt}',
       })
       .catch(() => emptyBlanket({ desk: 'talk' }));
 
-    get().batchSet(draft => {
+    get().batchSet((draft) => {
       draft.carpet = carpet;
       draft.blanket = blanket;
     });
   },
-  retrieveGroup: async flag => {
+  retrieveGroup: async (flag) => {
     const { api } = useStore.getState();
     if (api === null) {
       return;
     }
     const carpet = await api.scry<Carpet>({
       app: 'hark',
-      path: `/group/${flag}/latest`
+      path: `/group/${flag}/latest`,
     });
 
     const quilt = carpet.stitch === 0 ? '0' : decToUd(carpet.stitch.toString());
     const blanket = await api.scry<Blanket>({
       app: 'hark',
-      path: `/group/${flag}/quilt/${quilt}`
+      path: `/group/${flag}/quilt/${quilt}`,
     });
 
-    get().batchSet(draft => {
+    get().batchSet((draft) => {
       draft.textiles[flag] = {
         carpet,
-        blanket
+        blanket,
       };
 
       if (!get().groupSubs.includes(flag)) {
@@ -156,8 +156,8 @@ const useHarkState = create<HarkState>((set, get) => ({
       }
     });
   },
-  releaseGroup: async flag => {
-    get().batchSet(draft => {
+  releaseGroup: async (flag) => {
+    get().batchSet((draft) => {
       const index = draft.groupSubs.indexOf(flag);
 
       if (index !== -1) {
@@ -172,10 +172,10 @@ const useHarkState = create<HarkState>((set, get) => ({
     }
 
     return new Promise<void>((resolve, reject) => {
-      console.log('saw rope', rope)
+      console.log('saw rope', rope);
       api.poke({
         ...harkAction({
-          'saw-rope': rope
+          'saw-rope': rope,
         }),
         onError: reject,
         onSuccess: async () => {
@@ -194,11 +194,11 @@ const useHarkState = create<HarkState>((set, get) => ({
 
           await get().update(rope.group);
           resolve();
-        }
+        },
       });
     });
   },
-  sawSeam: async seam => {
+  sawSeam: async (seam) => {
     const { api } = useStore.getState();
     if (api === null) {
       return;
@@ -206,7 +206,7 @@ const useHarkState = create<HarkState>((set, get) => ({
     new Promise<void>((resolve, reject) => {
       api.poke({
         ...harkAction({
-          'saw-seam': seam
+          'saw-seam': seam,
         }),
         onError: reject,
         onSuccess: async () => {
@@ -218,10 +218,10 @@ const useHarkState = create<HarkState>((set, get) => ({
 
           await get().update(('group' in seam && seam.group) || null);
           resolve();
-        }
+        },
       });
     });
-  }
+  },
 }));
 
 export default useHarkState;

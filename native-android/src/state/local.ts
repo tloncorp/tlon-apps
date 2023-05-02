@@ -11,16 +11,16 @@ interface LocalState {
 }
 
 export const useLocalState = create<LocalState>((set, get) => ({
-  set: f => set(produce(get(), f)),
+  set: (f) => set(produce(get(), f)),
   subscription: 'connected',
   errorCount: 0,
-  airLockErrorCount: 0
+  airLockErrorCount: 0,
 }));
 
 const selSubscriptionStatus = (s: LocalState) => ({
   subscription: s.subscription,
   errorCount: s.errorCount,
-  airLockErrorCount: s.airLockErrorCount
+  airLockErrorCount: s.airLockErrorCount,
 });
 export function useSubscriptionStatus() {
   return useLocalState(selSubscriptionStatus);

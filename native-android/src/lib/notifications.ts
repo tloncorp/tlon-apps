@@ -9,16 +9,18 @@ import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';
 
 const getHasRequestedNotifications = async () => {
   try {
-    const value = await storage.load<boolean>({ key: "hasRequestedNotifications" });
+    const value = await storage.load<boolean>({
+      key: 'hasRequestedNotifications',
+    });
     return value;
   } catch {
     return false;
   }
-}
+};
 
 const setHasRequestedNotifications = (value: boolean) => {
-  storage.save({ key: "hasRequestedNotifications", data: value });
-}
+  storage.save({ key: 'hasRequestedNotifications', data: value });
+};
 
 export const initializePushNotifications = async () => {
   if (!Device.isDevice) {
@@ -29,8 +31,8 @@ export const initializePushNotifications = async () => {
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldPlaySound: true,
-      shouldSetBadge: false
-    })
+      shouldSetBadge: false,
+    }),
   });
 
   await Notifications.setNotificationCategoryAsync('message', [
@@ -38,16 +40,16 @@ export const initializePushNotifications = async () => {
       identifier: 'reply',
       buttonTitle: 'Reply',
       options: {
-        opensAppToForeground: true
-      }
+        opensAppToForeground: true,
+      },
     },
     {
       identifier: 'dismiss',
       buttonTitle: 'Dismiss',
       options: {
-        opensAppToForeground: false
-      }
-    }
+        opensAppToForeground: false,
+      },
+    },
   ]);
 
   if (Platform.OS === 'android') {
@@ -55,12 +57,15 @@ export const initializePushNotifications = async () => {
       name: 'default',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C'
+      lightColor: '#FF231F7C',
     });
   }
 
   const hasRequestedNotifications = await getHasRequestedNotifications();
-  console.debug('Already asked for notifications permission?', hasRequestedNotifications ? 'Yes' : 'No');
+  console.debug(
+    'Already asked for notifications permission?',
+    hasRequestedNotifications ? 'Yes' : 'No'
+  );
 
   try {
     const { status } = await Notifications.getPermissionsAsync();
@@ -76,7 +81,8 @@ export const initializePushNotifications = async () => {
   }
 
   try {
-    const { status: nextStatus } = await Notifications.requestPermissionsAsync();
+    const { status: nextStatus } =
+      await Notifications.requestPermissionsAsync();
     console.debug('New push notifications setting:', nextStatus);
 
     setHasRequestedNotifications(true);
@@ -93,7 +99,7 @@ export const initializePushNotifications = async () => {
   await pokeNotify(token);
 
   return true;
-}
+};
 
 export const pokeNotify = async (token: string) => {
   const api = useStore.getState().api;
@@ -106,8 +112,8 @@ export const pokeNotify = async (token: string) => {
         service: NOTIFY_SERVICE,
         address: token,
         binding: Platform.OS === 'android' ? 'fcm' : 'apn',
-      }
-    }
+      },
+    },
   });
 };
 

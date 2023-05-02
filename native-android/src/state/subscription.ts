@@ -22,27 +22,27 @@ const useSubscriptionState = create<SubscriptionState>((set, get) => ({
   watchers: {},
   track: (path, hook) =>
     new Promise((resolve, reject) => {
-      set(draft => {
+      set((draft) => {
         draft.watchers[path] = [
           ...(draft.watchers[path] || []),
           {
             id: _.uniqueId(),
             hook,
             resolve,
-            reject
-          }
+            reject,
+          },
         ];
         return draft;
       });
     }),
   remove: (path, id) => {
-    set(draft => {
+    set((draft) => {
       draft.watchers[path] = (draft.watchers[path] || []).filter(
-        w => w.id === id
+        (w) => w.id === id
       );
       return draft;
     });
-  }
+  },
 }));
 
 export default useSubscriptionState;

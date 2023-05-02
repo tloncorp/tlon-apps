@@ -38,14 +38,14 @@ const getNewStore = (
   const shipSet = Boolean(ship && shipUrl && authCookie);
 
   return {
-    ships: [...ships.filter(s => s.ship !== targetShip), shipConnection],
+    ships: [...ships.filter((s) => s.ship !== targetShip), shipConnection],
     ship: shipSet ? ship : shipConnection?.ship || '',
     shipUrl: (shipSet ? shipUrl : shipConnection.shipUrl).toLowerCase(),
-    authCookie: shipSet ? authCookie : shipConnection.authCookie
+    authCookie: shipSet ? authCookie : shipConnection.authCookie,
   };
 };
 
-const useStore = create<Store>(set => ({
+const useStore = create<Store>((set) => ({
   loading: true,
   needLogin: true,
   ship: '',
@@ -67,11 +67,11 @@ const useStore = create<Store>(set => ({
   setShipUrl: (shipUrl: string) => set({ shipUrl }),
   setLoading: (loading: boolean) => set({ loading }),
   addShip: (shipConnection: ShipConnection) =>
-    set(store => {
+    set((store) => {
       const { ship } = shipConnection;
       const newStore: any = getNewStore(store, shipConnection.ship, {
         ...shipConnection,
-        ship: `~${deSig(ship)}`
+        ship: `~${deSig(ship)}`,
       });
 
       storage.save({ key: 'store', data: newStore });
@@ -87,7 +87,7 @@ const useStore = create<Store>(set => ({
         ship: '',
         shipUrl: '',
         authCookie: '',
-        ...(firstShip ? firstShip : {})
+        ...(firstShip ? firstShip : {}),
       };
 
       storage.save({ key: 'store', data: newStore });
@@ -114,7 +114,7 @@ const useStore = create<Store>(set => ({
       storage.save({ key: 'store', data: newStore });
       return newStore;
     }),
-  clearShip: () => set(() => ({ ship: '', shipUrl: '', authCookie: '' }))
+  clearShip: () => set(() => ({ ship: '', shipUrl: '', authCookie: '' })),
 }));
 
 export default useStore;
