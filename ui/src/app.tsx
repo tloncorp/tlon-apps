@@ -264,14 +264,16 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   );
 }
 
+let redirectToFind = !window.location.pathname.startsWith('/apps/groups/find');
 function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   const navigate = useNavigate();
   const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
   const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
 
   useEffect(() => {
-    if (!isInGroups) {
+    if (!isInGroups && redirectToFind) {
       navigate('/find', { replace: true });
+      redirectToFind = false;
     }
   }, [isInGroups, navigate]);
 
@@ -279,7 +281,12 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
     return <MobileGroupsNavHome />;
   }
 
-  return null;
+  return (
+    <Notifications
+      child={GroupNotification}
+      title={`All Notifications • ${appHead('').title}`}
+    />
+  );
 }
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
