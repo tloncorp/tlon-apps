@@ -9,7 +9,7 @@ import {
 import { compose } from 'lodash/fp';
 import _ from 'lodash';
 import create, { GetState, SetState, UseStore } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { PersistOptions, persist } from 'zustand/middleware';
 import Urbit, {
   FatalError,
   SubscriptionRequestInterface,
@@ -136,13 +136,20 @@ export const createState = <T extends Record<string, unknown>>(
   properties:
     | T
     | ((set: SetState<T & BaseState<T>>, get: GetState<T & BaseState<T>>) => T),
-  whitelist: (keyof BaseState<T> | keyof T)[] = [],
+  options: Partial<PersistOptions<T & BaseState<T>>>,
   subscriptions: ((
     set: SetState<T & BaseState<T>>,
     get: GetState<T & BaseState<T>>
   ) => SubscriptionRequestInterface)[] = []
-): UseStore<T & BaseState<T>> =>
-  create<T & BaseState<T>>(
+): UseStore<T & BaseState<T>> => {
+  const persistOptions = {
+    name: stateStorageKey(name),
+    version: storageVersion,
+    migrate: clearStorageMigration,
+    ...options,
+  };
+
+  return create<T & BaseState<T>>(
     persist<T & BaseState<T>>(
       (set, get) => ({
         initialize: async (airlock: Urbit) => {
@@ -172,14 +179,10 @@ export const createState = <T extends Record<string, unknown>>(
           ? (properties as any)(set, get)
           : properties),
       }),
-      {
-        whitelist,
-        name: stateStorageKey(name),
-        version: storageVersion,
-        migrate: clearStorageMigration,
-      }
+      persistOptions
     )
   );
+};
 
 export async function doOptimistically<A, S extends Record<string, unknown>>(
   state: UseStore<S & BaseState<S>>,

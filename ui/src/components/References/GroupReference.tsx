@@ -109,9 +109,9 @@ function GroupReference({
         <div className="flex items-center space-x-3 font-semibold">
           <GroupAvatar {...meta} size="h-12 w-12" />
           <div className="overflow-hidden text-ellipsis text-sm leading-5">
-            <h3>{meta?.title || flag} </h3>
+            <h3 className="line-clamp-1">{meta?.title || flag} </h3>
             {!plain && (
-              <span className="flex space-x-1 text-sm font-semibold text-gray-400">
+              <span className="flex space-x-1 text-sm font-semibold text-gray-400 line-clamp-1">
                 <span>by</span>
                 <ShipName
                   className="overflow-hidden text-ellipsis whitespace-nowrap"

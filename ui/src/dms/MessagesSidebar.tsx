@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import cn from 'classnames';
+import { debounce } from 'lodash';
+import { Link, useLocation } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
 import Filter16Icon from '@/components/icons/Filter16Icon';
@@ -12,24 +14,19 @@ import MenuIcon from '@/components/icons/MenuIcon';
 import ArrowNWIcon from '@/components/icons/ArrowNWIcon';
 import {
   filters,
-  useSettingsState,
   SidebarFilter,
-  SettingsState,
+  useMessagesFilter,
+  usePutEntryMutation,
 } from '@/state/settings';
-import { debounce } from 'lodash';
-import { Link, useLocation } from 'react-router-dom';
 import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
+import PencilSettingsIcon from '@/components/icons/PencilSettingsIcon';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
-
-const selMessagesFilter = (s: SettingsState) => ({
-  messagesFilter: s.talk.messagesFilter,
-});
 
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -89,6 +86,18 @@ export function TalkAppMenu() {
                 About Talk
               </DropdownMenu.Item>
             </Link>
+            <Link
+              to="/settings"
+              className="dropdown-item flex flex-row items-center p-2 no-underline"
+              state={{ backgroundLocation: location }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <PencilSettingsIcon className="h-6 w-6" />
+              </div>
+              <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
+                App Settings
+              </DropdownMenu.Item>
+            </Link>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       }
@@ -117,7 +126,11 @@ export function TalkAppMenu() {
 export default function MessagesSidebar() {
   const [atTop, setAtTop] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
-  const { messagesFilter } = useSettingsState(selMessagesFilter);
+  const messagesFilter = useMessagesFilter();
+  const { mutate } = usePutEntryMutation({
+    bucket: 'talk',
+    key: 'messagesFilter',
+  });
   const pinned = usePinned();
   const groups = useGroups();
   const filteredPins = pinned.filter((p) => {
@@ -130,7 +143,7 @@ export default function MessagesSidebar() {
   });
 
   const setFilterMode = (mode: SidebarFilter) => {
-    useSettingsState.getState().putEntry('talk', 'messagesFilter', mode);
+    mutate({ val: mode });
   };
 
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
@@ -152,7 +165,11 @@ export default function MessagesSidebar() {
         >
           <ShipName showAlias name={window.our} />
         </SidebarItem>
-        <SidebarItem to="/dm/new" icon={<AddIcon className="m-1 h-4 w-4" />}>
+        <SidebarItem
+          to="/dm/new"
+          inexact
+          icon={<AddIcon className="m-1 h-4 w-4" />}
+        >
           New Message
         </SidebarItem>
       </div>

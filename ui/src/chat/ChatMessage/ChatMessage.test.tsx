@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
-import { MemoryRouter } from 'react-router';
 import { unixToDa } from '@urbit/api';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import { render } from '@testing-library/react';
 import ChatMessage from './ChatMessage';
 import { makeFakeChatWrit } from '../../mocks/chat';
+import { render } from '../../../test/utils';
 
 describe('ChatMessage', () => {
   beforeEach(() => {
@@ -28,17 +27,9 @@ describe('ChatMessage', () => {
     );
     const da = unixToDa(date.valueOf());
     const { asFragment } = render(
-      <MemoryRouter>
-        <TooltipProvider>
-          <ChatMessage
-            time={da}
-            whom="~zod/test"
-            writ={writ}
-            newAuthor
-            newDay
-          />
-        </TooltipProvider>
-      </MemoryRouter>
+      <TooltipProvider>
+        <ChatMessage time={da} whom="~zod/test" writ={writ} newAuthor newDay />
+      </TooltipProvider>
     );
     expect(asFragment()).toMatchSnapshot();
   });

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import {
-  useSettingsState,
   useGroupSideBarSort,
+  usePutEntryMutation,
   useSideBarSortMode,
 } from '@/state/settings';
 import useAllBriefs from './useAllBriefs';
@@ -62,21 +62,28 @@ export default function useSidebarSort({
       (flag !== '~' ? groupSideBarSort[flag] ?? DEFAULT : sideBarSort),
     [defaultSort, flag, groupSideBarSort, sideBarSort]
   );
-  const setSideBarSort = (mode: string) => {
-    useSettingsState.getState().putEntry('groups', 'sideBarSort', mode);
-  };
+  const { mutate: mutateSidebar } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'sideBarSort',
+  });
+  const { mutate: mutateGroupSidebar } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'groupSideBarSort',
+  });
+  const setSideBarSort = useCallback(
+    (mode: string) => {
+      mutateSidebar({ val: mode });
+    },
+    [mutateSidebar]
+  );
 
   const setGroupSideBarSort = useCallback(
     (mode: string) => {
-      useSettingsState
-        .getState()
-        .putEntry(
-          'groups',
-          'groupSideBarSort',
-          JSON.stringify({ ...groupSideBarSort, [flag]: mode })
-        );
+      mutateGroupSidebar({
+        val: JSON.stringify({ ...groupSideBarSort, [flag]: mode }),
+      });
     },
-    [flag, groupSideBarSort]
+    [flag, groupSideBarSort, mutateGroupSidebar]
   );
 
   /**
@@ -106,7 +113,7 @@ export default function useSidebarSort({
   const setSortFn = useMemo(
     () => (mode: string) =>
       flag !== '~' ? setGroupSideBarSort(mode) : setSideBarSort(mode),
-    [flag, setGroupSideBarSort]
+    [flag, setGroupSideBarSort, setSideBarSort]
   );
 
   return {

@@ -1,3 +1,4 @@
+import { Status } from '@/logic/status';
 import { nestToFlag, citeToPath, useCopy } from '@/logic/utils';
 import { useGroupFlag } from '@/state/groups';
 import { useHeapState } from '@/state/heap/heap';
@@ -28,10 +29,13 @@ export default function useCurioActions({
   const { doCopy, didCopy } = useCopy(refToken ? refToken : chanPath);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<Status>('idle');
 
   const onDelete = useCallback(async () => {
     setMenuOpen(false);
+    setDeleteStatus('loading');
     await useHeapState.getState().delCurio(chFlag, time);
+    setDeleteStatus('success');
   }, [chFlag, time]);
 
   const onEdit = useCallback(() => {
@@ -54,6 +58,7 @@ export default function useCurioActions({
     menuOpen,
     setMenuOpen,
     onDelete,
+    deleteStatus,
     onEdit,
     onCopy,
     navigateToCurio,

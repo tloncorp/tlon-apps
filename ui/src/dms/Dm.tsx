@@ -44,8 +44,13 @@ export default function Dm() {
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
 
-  const { isSelectingMessage, sendDm: sendDmFromMessageSelector } =
-    useMessageSelector();
+  const {
+    isSelectingMessage,
+    sendDm: sendDmFromMessageSelector,
+    existingDm,
+  } = useMessageSelector();
+
+  const isSelecting = isSelectingMessage && existingDm === ship;
 
   useEffect(() => {
     if (ship && canStart) {
@@ -61,7 +66,7 @@ export default function Dm() {
       <Layout
         className="h-full grow"
         header={
-          isSelectingMessage ? (
+          isSelecting ? (
             <MessageSelector />
           ) : (
             <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4">
@@ -76,7 +81,7 @@ export default function Dm() {
                   {isMobile ? (
                     <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
                   ) : null}
-                  <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
+                  <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 text-center">
                     <Avatar size="xs" ship={ship} />
                   </div>
                   <span className="ellipsis text-gray-200 line-clamp-1">
@@ -114,10 +119,10 @@ export default function Dm() {
                 key={ship}
                 whom={ship}
                 sendMessage={
-                  isSelectingMessage ? sendDmFromMessageSelector : sendMessage
+                  isSelecting ? sendDmFromMessageSelector : sendMessage
                 }
                 showReply
-                autoFocus={!isSelectingMessage}
+                autoFocus={!isSelecting}
               />
             </div>
           ) : null

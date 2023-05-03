@@ -1,0 +1,27 @@
+name: Sync Master
+on:
+  workflow_run:
+    workflows: ["Deploy Groups (livenet)", "Deploy Talk (livenet)"]
+    types:
+      - completed
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    name: "Syncs the latest livenet deploy from develop to master"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+      - name: Set Git config
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "Github Actions"
+      - name: Merge Dev to Master
+        run: |
+          git fetch --unshallow
+          git checkout develop
+          git pull
+          git checkout master
+          git pull
+          git merge --no-ff develop
+          git push

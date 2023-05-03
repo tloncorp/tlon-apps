@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { useParams } from 'react-router';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   MutationFunction,
   useMutation,
@@ -27,8 +27,11 @@ import api from '@/api';
 import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
+import useReactQueryScry from '@/logic/useReactQueryScry';
 
 export const GROUP_ADMIN = 'admin';
+
+export const GROUPS_KEY = 'groups';
 
 function groupAction(flag: string, diff: GroupDiff): Poke<GroupAction> {
   return {
@@ -62,10 +65,13 @@ function groupTrackedPoke(action: Poke<GroupAction>) {
 
 export function useGroups() {
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['groups'],
+    queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
-    initialScryPath: `/groups/light`,
+    scry: `/groups/light`,
+    options: {
+      refetchOnReconnect: false, // handled in bootstrap reconnect flow
+    },
   });
 
   if (rest.isLoading || rest.isError) {
@@ -75,23 +81,44 @@ export function useGroups() {
   return data as Groups;
 }
 
-export function useGroup(flag: string, withMembers = false) {
+export function useGroup(flag: string, updating = false) {
+  const queryClient = useQueryClient();
   const initialData = useGroups();
   const group = initialData?.[flag];
-  const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['groups', flag],
+  const queryKey = useMemo(() => [GROUPS_KEY, flag], [flag]);
+  const subscribe = useCallback(() => {
+    api.subscribe({
+      app: 'groups',
+      path: `/groups/${flag}/ui`,
+      event: _.debounce(
+        () => {
+          queryClient.invalidateQueries(queryKey);
+        },
+        300,
+        { leading: true, trailing: true }
+      ),
+    });
+  }, [flag, queryKey, queryClient]);
+
+  const { data, ...rest } = useReactQueryScry({
+    queryKey,
     app: 'groups',
-    path: `/groups/${flag}/ui`,
-    initialScryPath: `/groups/${flag}`,
-    enabled: !!flag && flag !== '' && withMembers,
-    initialData: group,
+    path: `/groups/${flag}`,
     options: {
-      refetchOnWindowFocus: withMembers,
-      refetchOnMount: withMembers,
+      enabled: !!flag && flag !== '' && updating,
+      initialData: group,
+      refetchOnWindowFocus: updating,
+      refetchOnMount: updating,
     },
   });
 
-  if (rest.isLoading || rest.isError) {
+  useEffect(() => {
+    if (updating && flag) {
+      subscribe();
+    }
+  }, [flag, updating, subscribe]);
+
+  if (rest.isLoading || rest.isError || data === undefined) {
     return undefined;
   }
 
@@ -101,7 +128,7 @@ export function useGroup(flag: string, withMembers = false) {
 }
 
 export function useGroupIsLoading(flag: string) {
-  return useQueryClient().getQueryState(['groups', flag]);
+  return useQueryClient().getQueryState([GROUPS_KEY, flag]);
 }
 
 export function useRouteGroup() {
@@ -173,10 +200,11 @@ export function useGangs() {
     queryKey: ['gangs'],
     app: 'groups',
     path: `/gangs/updates`,
-    initialScryPath: `/gangs`,
+    scry: `/gangs`,
     options: {
       refetchOnWindowFocus: true,
       refetchOnMount: false,
+      refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
   });
 
@@ -233,7 +261,7 @@ export function useChannelList(flag: string): string[] {
 }
 
 export function useAmAdmin(flag: string) {
-  const group = useGroup(flag, false);
+  const group = useGroup(flag);
   const vessel = group?.fleet?.[window.our];
   return vessel && vessel.sects.includes(GROUP_ADMIN);
 }
@@ -331,16 +359,16 @@ export function useGroupMutation<TResponse>(
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['group', variables.flag]);
+      await queryClient.cancelQueries([GROUPS_KEY, variables.flag]);
 
-      const data = await queryClient.getQueryData(['group', variables.flag]);
+      const data = await queryClient.getQueryData([GROUPS_KEY, variables.flag]);
       const previousGroup = data as Group;
 
       const { zone, nest, idx, meta, index, metadata } = variables;
 
       if (metadata) {
         // edit group metadata
-        queryClient.setQueryData(['group', variables.flag], {
+        queryClient.setQueryData([GROUPS_KEY, variables.flag], {
           ...previousGroup,
           meta: {
             ...previousGroup.meta,
@@ -359,7 +387,7 @@ export function useGroupMutation<TResponse>(
               (z) => z !== zone
             );
             newZoneOrd.splice(index, 0, zone);
-            queryClient.setQueryData(['group', variables.flag], {
+            queryClient.setQueryData([GROUPS_KEY, variables.flag], {
               ...previousGroup,
               'zone-ord': newZoneOrd,
             });
@@ -367,7 +395,7 @@ export function useGroupMutation<TResponse>(
 
           if (meta) {
             // edit zone metadata
-            queryClient.setQueryData(['group', variables.flag], {
+            queryClient.setQueryData([GROUPS_KEY, variables.flag], {
               ...previousGroup,
               zones: {
                 ...previousGroup.zones,
@@ -387,7 +415,7 @@ export function useGroupMutation<TResponse>(
             const newIdxArray = previousZone.idx.filter((n) => n !== nest);
             newIdxArray.splice(idx, 0, nest);
 
-            queryClient.setQueryData(['group', variables.flag], {
+            queryClient.setQueryData([GROUPS_KEY, variables.flag], {
               ...previousGroup,
               zones: {
                 ...previousGroup.zones,
@@ -403,7 +431,7 @@ export function useGroupMutation<TResponse>(
           // add a new zone
           const newZoneOrd = previousGroup['zone-ord'];
           newZoneOrd.splice(1, 0, zone);
-          queryClient.setQueryData(['group', variables.flag], {
+          queryClient.setQueryData([GROUPS_KEY, variables.flag], {
             ...previousGroup,
             zones: {
               ...previousGroup.zones,
@@ -420,10 +448,10 @@ export function useGroupMutation<TResponse>(
       return data;
     },
     onError: (err, variables, previousGroup) => {
-      queryClient.setQueryData(['group', variables.flag], previousGroup);
+      queryClient.setQueryData([GROUPS_KEY, variables.flag], previousGroup);
     },
     onSettled: (_data, _error, variables) =>
-      queryClient.invalidateQueries(['group', variables.flag]),
+      queryClient.invalidateQueries([GROUPS_KEY, variables.flag]),
     ...options,
   });
 }
@@ -590,10 +618,20 @@ export function useGroupMoveChannelMutation() {
 
 export function useEditGroupMutation(options: UseMutationOptions = {}) {
   const mutationFn = (variables: { flag: string; metadata: GroupMeta }) =>
-    api.trackedPoke(groupAction(variables.flag, { meta: variables.metadata }), {
-      app: 'groups',
-      path: '/groups/ui',
-    });
+    api.trackedPoke(
+      groupAction(variables.flag, { meta: variables.metadata }),
+      {
+        app: 'groups',
+        path: '/groups/ui',
+      },
+      (event) => {
+        return (
+          event.flag === variables.flag &&
+          'meta' in event.update.diff &&
+          _.isEqual(event.update.diff.meta, variables.metadata)
+        );
+      }
+    );
 
   return useGroupMutation(mutationFn, options);
 }
@@ -657,7 +695,7 @@ export function useGroupJoinMutation() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries(['gangs']);
       queryClient.invalidateQueries(['gangs', variables.flag]);
-      queryClient.invalidateQueries(['groups']);
+      queryClient.invalidateQueries([GROUPS_KEY]);
     },
   });
 }
@@ -675,12 +713,13 @@ export function useGroupLeaveMutation() {
     {
       onSettled: (_data, _error, variables) => {
         queryClient.removeQueries({
-          queryKey: ['group', variables.flag],
+          queryKey: [GROUPS_KEY, variables.flag],
           exact: true,
         });
-        queryClient.invalidateQueries(['groups']);
+        queryClient.invalidateQueries([GROUPS_KEY]);
         queryClient.invalidateQueries(['gangs']);
         queryClient.invalidateQueries(['gangs', variables.flag]);
+        queryClient.invalidateQueries(['gang-preview', variables.flag]);
       },
     }
   );

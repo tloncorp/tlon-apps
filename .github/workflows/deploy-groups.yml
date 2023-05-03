@@ -1,32 +1,55 @@
 name: Deploy Groups
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        required: false
+        default: develop
+        description: Enter the tag to deploy
   push:
     branches:
-      - 'master'
+      - 'develop'
 jobs:
-  deploy:
+  build-frontend:
     runs-on: ubuntu-latest
-    name: "Create and deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    name: 'Build Frontend'
     steps:
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.REPO_TOKEN }}
+          ref: ${{ github.event.inputs.tag }}
       - uses: actions/setup-node@v3
         with:
           node-version-file: ./ui/.nvmrc
+      - working-directory: ./ui
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/upload-artifact@v3
+        with:
+          name: 'ui-dist'
+          path:  ui/dist
+  glob:
+    runs-on: ubuntu-latest
+    name: 'Make a glob'
+    needs: build-frontend
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+          ref: ${{ github.event.inputs.tag }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: 'ui-dist'
+          path: ui/dist
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'
         with:
           credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
-      - name: Build Frontend
-        working-directory: ./ui
-        run: |
-          npm ci
-          npm run build
-      - id: glob
+      - name: 'glob'
         uses: ./.github/actions/glob
         with:
           folder: 'ui/dist/*'
@@ -37,12 +60,30 @@ jobs:
           git config --global user.email github-actions@github.com
           git add desk/desk.docket-0
           git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
-          git pull origin master --rebase --autostash
+          INPUT=${{ github.event.inputs.tag }}
+          BRANCH=${INPUT:-"develop"}
+          git pull origin $BRANCH --rebase --autostash
           git push
+  deploy:
+    runs-on: ubuntu-latest
+    needs: glob
+    name: "Deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+          ref: ${{ github.event.inputs.tag }}
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups wannec-dozzod-marzod us-west1-b
+          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups wannec-dozzod-marzod us-west1-b ${{ github.event.inputs.tag }}
         env:
           SSH_SEC_KEY: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.JANEWAY_SSH_PUB_KEY }}
+          URBIT_REPO_TAG: ${{ vars.URBIT_REPO_TAG }}

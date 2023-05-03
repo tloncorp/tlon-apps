@@ -4,22 +4,28 @@ on:
     inputs:
       tag:
         type: string
+        required: false
+        default: develop
+        description: Enter the target branch
+      version:
+        type: string
         required: true
         description: Enter the version
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: "Bumps versions and pushes to master"
+    name: "Bumps versions and pushes to develop"
     steps:
       - uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.inputs.tag }}
           token: ${{ secrets.REPO_TOKEN }}
       - name: Bump
         run: |
-          sed -i "s/version+\[.*]/version+[${{ github.event.inputs.tag }}]/" desk/desk.docket-0
-          sed -i "s/version+\[.*]/version+[${{ github.event.inputs.tag }}]/" talk/desk.docket-0
+          sed -i "s/version+\[.*]/version+[${{ github.event.inputs.version }}]/" desk/desk.docket-0
+          sed -i "s/version+\[.*]/version+[${{ github.event.inputs.version }}]/" talk/desk.docket-0
       - name: Commit
         uses: EndBug/add-and-commit@v9
         with:
           add: '-A'
-          message: 'version bump: ${{ github.event.inputs.tag }} [skip actions]'
+          message: 'version bump: ${{ github.event.inputs.version }} [skip actions]'

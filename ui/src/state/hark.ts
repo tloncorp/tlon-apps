@@ -26,9 +26,7 @@ export function useCarpet(flag?: Flag) {
     queryKey: ['carpet', flag],
     app: 'hark',
     path: '/ui',
-    initialScryPath: flag
-      ? `/group/${flag}/latest`
-      : `/desk/${window.desk}/latest`,
+    scry: flag ? `/group/${flag}/latest` : `/desk/${window.desk}/latest`,
   });
 
   return {
@@ -48,10 +46,10 @@ export function useBlanket(flag?: Flag) {
     queryKey: ['blanket', flag],
     app: 'hark',
     path: '/ui',
-    initialScryPath: flag
+    scry: flag
       ? `/group/${flag}/quilt/${quilt}`
       : `/desk/${window.desk}/quilt/${quilt}`,
-    enabled: isSuccess,
+    options: { enabled: isSuccess },
   });
 
   return {
@@ -62,12 +60,10 @@ export function useBlanket(flag?: Flag) {
 
 export function useSkeins(flag?: Flag) {
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['skeins', flag ? flag : undefined],
+    queryKey: ['skeins', flag ? flag : window.desk],
     app: 'hark',
     path: '/ui',
-    initialScryPath: flag
-      ? `/group/${flag}/skeins`
-      : `/desk/${window.desk}/skeins`,
+    scry: flag ? `/group/${flag}/skeins` : `/desk/${window.desk}/skeins`,
     options: {
       refetchOnMount: true,
     },
@@ -109,11 +105,19 @@ export function useSawSeamMutation() {
     });
 
   return useMutation(mutationFn, {
-    onMutate: async () => {
-      await queryClient.cancelQueries(['skeins', null]);
+    onMutate: async (variables) => {
+      if ('group' in variables.seam) {
+        await queryClient.cancelQueries(['skeins', variables.seam.group]);
+      } else {
+        await queryClient.cancelQueries(['skeins', window.desk]);
+      }
     },
-    onSettled: async () => {
-      await queryClient.invalidateQueries(['skeins', null]);
+    onSettled: async (_data, _error, variables) => {
+      if ('group' in variables.seam) {
+        await queryClient.invalidateQueries(['skeins', variables.seam.group]);
+      } else {
+        await queryClient.invalidateQueries(['skeins', window.desk]);
+      }
     },
   });
 }

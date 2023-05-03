@@ -1,42 +1,48 @@
-import api from '@/api';
-import useSchedulerStore from '@/state/scheduler';
+import _ from 'lodash';
 import {
   QueryKey,
   useQuery,
   useQueryClient,
   UseQueryOptions,
 } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import api from '@/api';
+import useSchedulerStore from '@/state/scheduler';
 
 export default function useReactQuerySubscription({
   queryKey,
   app,
   path,
-  initialScryPath,
+  scry,
   scryApp = app,
-  enabled = true,
-  initialData,
   priority = 3,
   options,
 }: {
   queryKey: QueryKey;
   app: string;
   path: string;
-  initialScryPath: string;
+  scry: string;
   scryApp?: string;
-  enabled?: boolean;
-  initialData?: any;
   priority?: number;
   options?: UseQueryOptions;
 }): ReturnType<typeof useQuery> {
   const queryClient = useQueryClient();
+  const invalidate = useRef(
+    _.debounce(
+      () => {
+        queryClient.invalidateQueries(queryKey);
+      },
+      300,
+      { leading: true, trailing: true }
+    )
+  );
 
   const fetchData = async () =>
     useSchedulerStore.getState().wait(
       async () =>
         api.scry({
           app: scryApp,
-          path: initialScryPath,
+          path: scry,
         }),
       priority
     );
@@ -45,9 +51,7 @@ export default function useReactQuerySubscription({
     api.subscribe({
       app,
       path,
-      event: () => {
-        queryClient.invalidateQueries(queryKey);
-      },
+      event: invalidate.current,
     });
   }, [app, path, queryClient, queryKey]);
 
@@ -55,8 +59,6 @@ export default function useReactQuerySubscription({
     retryOnMount: false,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
-    enabled,
-    initialData,
     ...options,
   });
 }

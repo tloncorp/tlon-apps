@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
@@ -22,6 +23,7 @@ import {
   ClubDelta,
   Clubs,
   DmAction,
+  Pact,
   Pins,
   WritDelta,
 } from '@/types/chat';
@@ -97,7 +99,7 @@ function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
 function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   return {
     app: 'chat',
-    mark: 'club-action',
+    mark: 'club-action-0',
     json: {
       id,
       diff: {
@@ -517,13 +519,17 @@ export const useChatState = createState<ChatState>(
       });
     },
     delMessage: async (whom, id) => {
-      const isDM = whomIsDm(whom);
       const diff = { del: null };
-      if (isDM) {
+      if (whomIsDm(whom)) {
         await api.trackedPoke<DmAction, ChatAction>(
           dmAction(whom, diff, id),
           { app: 'chat', path: whom },
           (event) => event.flag === id && 'del' in event.update.diff
+        );
+      } else if (whomIsMultiDm(whom)) {
+        await api.trackedPoke<ClubAction>(
+          multiDmAction(whom, { writ: { id, delta: diff } }),
+          { app: 'chat', path: whom }
         );
       } else {
         await api.trackedPoke<ChatAction>(chatWritDiff(whom, id, diff), {
@@ -713,7 +719,20 @@ export const useChatState = createState<ChatState>(
       ).initialize();
     },
   }),
-  ['chats', 'dms', 'pendingDms', 'briefs', 'multiDms', 'pins'],
+  {
+    partialize: (state) => {
+      const saved = _.pick(state, [
+        'chats',
+        'dms',
+        'pendingDms',
+        'briefs',
+        'multiDms',
+        'pins',
+      ]);
+
+      return saved;
+    },
+  },
   []
 );
 
@@ -790,8 +809,9 @@ export function useDmMessages(ship: string) {
   return useMessagesForChat(ship);
 }
 
-export function usePact(whom: string) {
-  return useChatState(useCallback((s) => s.pacts[whom], [whom]));
+const emptyPact = { index: {}, writs: new BigIntOrderedMap<ChatWrit>() };
+export function usePact(whom: string): Pact {
+  return useChatState(useCallback((s) => s.pacts[whom] || emptyPact, [whom]));
 }
 
 const selPacts = (s: ChatState) => s.pacts;
@@ -996,9 +1016,12 @@ export function useWritByFlagAndWritId(
   const refs = useChatState(selLoadedRefs);
   const path = `/said/${chFlag}/msg/${idWrit}`;
   const cached = refs[path];
+  const pact = usePact(chFlag);
+  const writIndex = pact && pact.index[idWrit];
+  const writInPact = writIndex && pact && pact.writs.get(writIndex);
 
   useEffect(() => {
-    if (!isScrolling && shouldLoad(path)) {
+    if (!isScrolling && !writInPact && shouldLoad(path)) {
       newAttempt(path);
       subscribeOnce<UnsubbedWrit>('chat', path)
         .then(({ writ }) => {
@@ -1008,7 +1031,11 @@ export function useWritByFlagAndWritId(
         })
         .finally(() => finished(path));
     }
-  }, [path, isScrolling]);
+  }, [path, isScrolling, writInPact]);
+
+  if (writInPact) {
+    return writInPact;
+  }
 
   return cached;
 }

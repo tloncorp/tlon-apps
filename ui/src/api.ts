@@ -189,8 +189,8 @@ class API {
     this.subscriptions.add(subId);
 
     const eventListener =
-      (listener?: (event: any, mark: string) => void) =>
-      (event: any, mark: string) => {
+      (listener?: (event: any, mark: string, id: number) => void) =>
+      (event: any, mark: string, id?: number) => {
         const path = params.app + params.path;
         const relevantWatchers = this.watchers[path];
 
@@ -204,7 +204,7 @@ class API {
         }
 
         if (listener) {
-          listener(event, mark);
+          listener(event, mark, id || 0);
         }
       };
 
