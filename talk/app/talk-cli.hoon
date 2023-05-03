@@ -879,7 +879,6 @@
       ::
       ?.  (target-exists target)
         (se-emit (note:se-out "no such chat"))
-      =.  se  (set-target target)
       =.  se  (se-emil (rsvp & target))
       ::  send watch card for target not in view
       ::
@@ -891,9 +890,10 @@
         (split (bind-default-glyph target))
       ::  load history if target is not in view
       ::
-      ?:  (~(has in viewing.ses) target)  se
-      =.  se  se(viewing.ses (~(put in viewing.ses) target))
-      (build-history target)
+      =?  se  !(~(has in viewing.ses) target)
+        =.  se  se(viewing.ses (~(put in viewing.ses) target))
+        (build-history target)
+      (set-target target)
       ::  +build-history: add messages to history and output to session
       ::
       ++  build-history
