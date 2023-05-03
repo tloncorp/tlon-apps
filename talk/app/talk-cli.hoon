@@ -206,7 +206,7 @@
     ^-  (quip card _this)
     =^  cards  state
       ?+    wire  ~|(bad-agent-wire/wire !!)
-          [%dm ship=@ ~]  
+          [%dm ship=@ ~]
         ?-   -.sign
             %poke-ack
           ?~  p.sign  [~ state]
@@ -225,8 +225,8 @@
             %fact
           ?.  =(%writ-diff p.cage.sign)
             ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
-          %+  on-update:tc  
-            :-  %ship 
+          %+  on-update:tc
+            :-  %ship
             (slav %p i.t.wire)
           !<(diff:writs:chat q.cage.sign)
         ==
@@ -250,7 +250,7 @@
             %fact
           ?.  =(%writ-diff p.cage.sign)
             ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
-          %+  on-update:tc  
+          %+  on-update:tc
             :-  %club
             (slav %uv i.t.wire)
           !<(diff:writs:chat q.cage.sign)
@@ -277,7 +277,7 @@
           ?.  =(%writ-diff p.cage.sign)
             ~|([dap.bowl %bad-sub-mark wire p.cage.sign] !!)
           %+  on-update:tc
-            :+  %flag  
+            :+  %flag
               (slav %p i.t.wire)
             (slav %tas i.t.t.wire)
           !<(diff:writs:chat q.cage.sign)
@@ -397,12 +397,12 @@
   |=  =sole-id
   ^-  session
   (~(gut by sessions) sole-id %*(. *session audience [%flag [our-self %$]]))
-::  +tor: term ordering for chats 
+::  +tor: term ordering for chats
 ::
 ++  tor
   |=  [[* a=term] [* b=term]]
   (aor a b)
-::  +get-chats: get known chats 
+::  +get-chats: get known chats
 ::
 ++  get-chats  ~+
   ^-  (set flag:chat)
@@ -421,11 +421,11 @@
 ::
 ++  get-clubs  ~+
   ^-  (map club-id crew)
-  =/  clubs  
+  =/  clubs
     (scry-for (map club-id crew) %chat /clubs)
   ::  remove archived
   ::
-  =/  ids=(list club-id)  
+  =/  ids=(list club-id)
     ~(tap in ~(key by clubs))
   |-
   ?~  ids  clubs
@@ -444,7 +444,7 @@
       %club  (~(has by get-clubs) p.target)
       %ship
     %.  p.target
-    %~  has  in 
+    %~  has  in
     (~(uni in get-accepted-dms) get-pending-dms)
   ==
 ::  +message-exists: check whether a message exists
@@ -458,13 +458,13 @@
 ::
 ++  get-messages
   |=  =target
-  ^-  ((mop time writ:chat) lte) 
+  ^-  ((mop time writ:chat) lte)
   %^  scry-for  ((mop time writ:chat) lte)
     %chat
   (weld (target-to-path target) /writs/newest/20)
 ::  +on-update: get new messages
 ::
-++  on-update 
+++  on-update
   |=  [=whom:chat =diff:writs:chat]
   ^-  (quip card _state)
   ?.  ?=(%add -.q.diff)  [~ state]
@@ -475,8 +475,8 @@
 ::
 ++  update-session
   |=  $:  =whom:chat
-          =memo:chat 
-          =id:chat 
+          =memo:chat
+          =id:chat
       ==
   ^-  (quip card _state)
   =/  sez=(list [=sole-id =session])
@@ -565,7 +565,7 @@
 ::
 ++  set-setting
   |=  =term
-  ^-  (quip card _state)    
+  ^-  (quip card _state)
   [~ state(settings (~(put in settings) term))]
 ::  +unset-setting: disable settings flag
 ::
@@ -617,7 +617,7 @@
     |^
       %+  stag  |
       %+  knee  *command  |.  ~+
-      =-  ;~(pose ;~(pfix mic -) message)  
+      =-  ;~(pose ;~(pfix mic -) message)
       ;~  pose
         (stag %target targ)
       ::
@@ -937,7 +937,7 @@
       ::
           %club
         =/  =club-id  +.target
-        =/  crew=(unit crew)  
+        =/  crew=(unit crew)
           (~(get by get-clubs) club-id)
         ?~  crew  ~
         ?.  (~(has in hive.u.crew) our-self)  ~
@@ -946,7 +946,7 @@
           %chat
         :-  %club-action
         !>  ^-  action:club:chat
-        [club-id *uid:club:chat %team our-self ok]   
+        [club-id *uid:club:chat %team our-self ok]
       ==
     ::  +send: make a poke card based on audience
     ::
@@ -956,20 +956,20 @@
               msg=(list inline:chat)
           ==
       ^-  card
-      =/  =memo:chat 
+      =/  =memo:chat
         [replying our.bowl now.bowl %story block msg]
       %^  act  (target-to-path audience.ses)
         %chat
       ?-   -.audience.ses
-          %ship 
+          %ship
         :-  %dm-action
         !>  ^-  action:dm:chat
         [p.audience.ses [our now]:bowl %add memo]
       ::
-          %club   
+          %club
         :-  %club-action
         !>  ^-  action:club:chat
-        [p.audience.ses *uid:club:chat %writ [our now]:bowl %add memo]   
+        [p.audience.ses *uid:club:chat %writ [our now]:bowl %add memo]
       ::
           %flag
         :-  %chat-action-0
@@ -993,8 +993,8 @@
           %|  (se-emit (note:se-out p.pack))
           %&
         ?.  ?=(%flag -.whom.p.pack)
-          %-  se-emit 
-          %-  note:se-out 
+          %-  se-emit
+          %-  note:se-out
           "message referencing is only available in chats from a group"
         =*  seal  -.writ.p.pack
         =*  memo  +.writ.p.pack
@@ -1138,7 +1138,7 @@
       ++  produce
         |=  [number=tape index=@ud]
         ^-  (each [whom:chat writ:chat] tape)
-        =/  [=whom:chat =id:chat]  
+        =/  [=whom:chat =id:chat]
           (snag index history.ses)
         ?.  (message-exists whom id)
           [%| "…{number}: missing message"]
@@ -1170,7 +1170,7 @@
       =/  clubs=(set target)
         (~(run in ~(key by get-clubs)) (lead %club))
       =/  dms=(set target)
-        %-  %~  run  in 
+        %-  %~  run  in
             (~(uni in get-accepted-dms) get-pending-dms)
         (lead %ship)
       (se-emit (show-targets:se-out ~(tap in (~(uni in clubs) dms))))
@@ -1183,7 +1183,7 @@
           :*  "Chats can be selected depending on what kind of chat they are:"
               "chats: ~host/chat"
               "dms: ~ship or .group.chat.id"
-              "" 
+              ""
               "Below, when we say [chat], we mean one of the above selectors."
               ""
               ";[dms / chats] to print available chat channels."
@@ -1299,7 +1299,7 @@
       ++  order
         |=  [a=target b=target]
         ^-  ?
-        ?:  &(?=(%ship -.a) ?=(%ship -.b))  
+        ?:  &(?=(%ship -.a) ?=(%ship -.b))
           (aor (scot %p p.a) (scot %p p.b))
         ?:  ?=(%ship -.a)  &
         ?:  ?=(%ship -.b)  |
@@ -1390,13 +1390,13 @@
           " {(cite:title ship)}"
         =|  out=tape
         =+  tally=0
-        |- 
+        |-
         ?~  members
-          %+  weld 
+          %+  weld
             (snap out 0 '(')
           ?:  (lte tally 4)  ")"
           " +{(scow %ud (sub tally 4))})"
-        ?:  (gte tally 4)  
+        ?:  (gte tally 4)
           $(tally +(tally), members t.members)
         %=  $
           tally    +(tally)
@@ -1426,7 +1426,7 @@
       =/  glyph=(unit glyph)
         (~(get by bound.global) source)
       =/  prepend=tape
-        (runt [14 '-'] ?~(glyph '|' u.glyph) ' ' " ") 
+        (runt [14 '-'] ?~(glyph '|' u.glyph) ' ' " ")
       :+  %sole  %klr
       %+  weld  prepend
       ^-  styx
@@ -1615,14 +1615,14 @@
                 %chat
               (writ-scry-path whom id)
           %-  render-message-block
-          %+  simple-wrap  
+          %+  simple-wrap
             %+  weld
               "{(cite:title -.id)} said: "
             ~(line mr whom +.writ)
           (sub content-width 7)
         ==
       ==
-      :: 
+      ::
       ::  +render-message-block: make a message block
       ::
       ++  render-message-block
