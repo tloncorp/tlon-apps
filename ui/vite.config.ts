@@ -194,6 +194,7 @@ export default ({ mode }: { mode: string }) => {
       environment: 'jsdom',
       setupFiles: './test/setup.ts',
       deps: {},
+      include: ['**/*.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     },
   });
 };
