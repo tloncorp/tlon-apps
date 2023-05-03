@@ -15,7 +15,6 @@
       bound=(map target glyph)                      ::  bound glyphs
       binds=(jug glyph target)                      ::  glyph lookup
       settings=(set term)                           ::  frontend flags
-      width=@ud                                     ::  display width
       timez=(pair ? @ud)                            ::  timezone adjustment
   ==
 ::
@@ -25,6 +24,7 @@
       history=(list [whom:chat id:chat])            ::  scrollback pointers
       count=@ud                                     ::  (lent history)
       audience=target                               ::  active target
+      width=_80                                     ::  display width
   ==
 ::
 +$  target  whom:chat                               ::  polymorphic id for channels
@@ -77,7 +77,7 @@
   ::
   ++  on-init
     ^-  (quip card _this)
-    [~ this(width 80)]
+    [~ this]
   ::
   ++  on-save  !>(state)
   ::
@@ -125,7 +125,6 @@
           (bound bound.state-0)
           (binds binds.state-0)
           settings.state-0
-          width.state-0
           timez.state-0
       ==
       ::
@@ -165,10 +164,12 @@
         ^-  (map sole-id session)
         %-  ~(run by sessions)
         |=  =session-0
-        %=  session-0
-          history   (history history.session-0)
-          audience  `whom:chat`[%flag audience.session-0]
-          viewing   (~(run in viewing.session-0) (lead %flag))
+        ^-  session
+        :*  `(set whom:chat)`(~(run in viewing.session-0) (lead %flag))
+            (history history.session-0)
+            count.session-0
+            `whom:chat`[%flag audience.session-0]
+            80
         ==
       ::
       ++  update-subscriptions
@@ -1415,13 +1416,14 @@
 ++  mr
   |_  $:  source=target
           memo:chat
+          ses=session
       ==
   +*  showtime  (~(has in settings) %showtime)
       notify    (~(has in settings) %notify)
   ::
   ++  content-width
     ::  termwidth, minus author, timestamp, and padding
-    %+  sub  width
+    %+  sub  width.ses
     %+  add  15
     ?:(showtime 11 0)
   ::
@@ -1444,8 +1446,8 @@
       %-  thread-indent
       :-  15
       ?.  showtime
-        ~[(sub width 16)]
-      ~[(sub width 26) 9]
+        ~[(sub width.ses 16)]
+      ~[(sub width.ses 26) 9]
     :+  :-  %t
         %-  crip
         ;:  weld
@@ -1622,7 +1624,7 @@
         %+  simple-wrap  
           %+  weld
             "{(cite:title -.id)} said: "
-          ~(line mr whom +.writ)
+          ~(line mr whom +.writ ses)
         (sub content-width 7)
       ==
     ==
@@ -1685,7 +1687,7 @@
       =+  %^  scry-for-marked  ,[* =writ:chat]
             %chat
           (writ-scry-path source u.replying)
-      [[%txt (weld "^   " ~(line mr source +.writ))]]~
+      [[%txt (weld "^   " ~(line mr source +.writ ses))]]~
       ::  if block is referenced, print it, too
       ::
       ?:  =(~ p.p.content)  ~
