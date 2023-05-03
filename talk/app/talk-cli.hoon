@@ -1185,12 +1185,19 @@
       :_  state
       =-  (turn - print-more:sh-out)
       :~  %-  limo
-          :*  ";[chats / dms] to print available chat channels."
-              ";view [~ship / .group.chat.id / ~host/chat] to print messages for a chat you've already joined."
-              ";flee [~ship / .group.chat.id / ~host/chat] to stop printing messages for a chat."
-              ";[selector] to select a message."
-              ";[selector]# [message] to reference a message with a response (only chats from groups supported)."
-              ";[selector]^ [message] to send a thread response."
+          :*  "Chats can be selected depending on what kind of chat they are:"
+              "chats: ~host/chat"
+              "dms: ~ship or .group.chat.id"
+              "" 
+              "Below, when we say [chat], we mean one of the above selectors."
+              ""
+              ";[dms / chats] to print available chat channels."
+              ";view [chat] to print messages for a chat you've already joined."
+              ";flee [chat] to stop printing messages for a chat."
+              ";[scrollback.pointer] to select a message."
+              ";[scrollback.pointer]^ [message] to send a thread response."
+              ";[scrollback.pointer]# [message] to reference a message with a response (only ~host/chat channels supported)."
+              ""
               "For more details:"
               "https://urbit.org/getting-started/getting-around"
               ~
