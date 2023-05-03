@@ -66,6 +66,7 @@ export function useSkeins(flag?: Flag) {
     scry: flag ? `/group/${flag}/skeins` : `/desk/${window.desk}/skeins`,
     options: {
       refetchOnMount: true,
+      retry: 1,
     },
   });
 

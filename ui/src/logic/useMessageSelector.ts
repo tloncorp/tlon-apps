@@ -135,7 +135,7 @@ export default function useMessageSelector() {
     } else {
       navigate(`/dm/new`);
     }
-  }, [existingDm, existingMultiDm, navigate, shipValues, location.pathname]);
+  }, [existingDm, existingMultiDm, navigate, location.pathname]);
 
   return {
     action,

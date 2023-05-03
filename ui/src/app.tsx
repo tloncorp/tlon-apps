@@ -264,18 +264,20 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   );
 }
 
-function HomeRoute({
-  isMobile = true,
-  isInGroups = false,
-}: {
-  isMobile: boolean;
-  isInGroups: boolean;
-}) {
-  if (!isInGroups) {
-    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
-  }
+let redirectToFind = !window.location.pathname.startsWith('/apps/groups/find');
+function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
+  const navigate = useNavigate();
+  const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
+  const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
 
-  if (isMobile && isInGroups) {
+  useEffect(() => {
+    if (!isInGroups && redirectToFind) {
+      navigate('/find', { replace: true });
+      redirectToFind = false;
+    }
+  }, [isInGroups, navigate]);
+
+  if (isMobile) {
     return <MobileGroupsNavHome />;
   }
 
@@ -287,37 +289,21 @@ function HomeRoute({
   );
 }
 
-function ActivityRoute({ isInGroups = false }: { isInGroups: boolean }) {
-  if (!isInGroups) {
-    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
-  }
-
-  return (
-    <Notifications
-      child={GroupNotification}
-      title={`All Notifications • ${appHead('').title}`}
-    />
-  );
-}
-
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
-  const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
-  const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
-
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<GroupsNav />}>
           <Route element={isMobile ? <MobileSidebar /> : undefined}>
-            <Route
-              index
-              element={
-                <HomeRoute isMobile={isMobile} isInGroups={isInGroups} />
-              }
-            />
+            <Route index element={<HomeRoute isMobile={isMobile} />} />
             <Route
               path="/notifications"
-              element={<ActivityRoute isInGroups={isInGroups} />}
+              element={
+                <Notifications
+                  child={GroupNotification}
+                  title={`All Notifications • ${appHead('').title}`}
+                />
+              }
             />
             {/* Find by Invite URL */}
             <Route

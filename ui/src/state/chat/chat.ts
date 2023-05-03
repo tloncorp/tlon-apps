@@ -468,6 +468,7 @@ export const useChatState = createState<ChatState>(
         if (isNew) {
           set((draft) => ({
             ...draft,
+            dms: [...draft.dms, whom],
             pacts: {
               ...draft.pacts,
               [whom]: { index: {}, writs: new BigIntOrderedMap() },
