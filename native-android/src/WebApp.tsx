@@ -80,7 +80,6 @@ export default function WebApp() {
     const listener = AppState.addEventListener('change', handleAppStateChange);
 
     (async () => {
-      // useHarkState.getState().start()
       const enabled = await initializePushNotifications();
       if (enabled) {
         notificationSubscription.current =

@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import uniqueId from 'lodash/uniqueId';
 import { create } from 'zustand';
 
 type Hook = (event: any, mark: string) => boolean;
@@ -26,7 +26,7 @@ const useSubscriptionState = create<SubscriptionState>((set, get) => ({
         draft.watchers[path] = [
           ...(draft.watchers[path] || []),
           {
-            id: _.uniqueId(),
+            id: uniqueId(),
             hook,
             resolve,
             reject,
