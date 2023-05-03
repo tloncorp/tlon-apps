@@ -293,22 +293,22 @@
   ::
   ++  command-parser
     |=  =sole-id
-    parser:(make:sh:tc sole-id)
+    se-parser:(se-apex:se:tc sole-id state)
   ::
   ++  tab-list
     |=  =sole-id
-    tab-list:sh:tc
+    se-tab-list:se:tc
   ::
   ++  on-command
     |=  [=sole-id =command]
     =^  cards  state
-      (work:(make:sh:tc sole-id) command)
+      se-abet:(se-work:(se-apex:se:tc sole-id state) command)
     [cards this]
   ::
   ++  on-connect
     |=  =sole-id
     ^-  (quip card _this)
-    [[prompt:(make:sh-out:tc sole-id)]~ this]
+    [[prompt:se-out:(se-apex:se:tc sole-id state)]~ this]
   ::
   ++  can-connect     can-connect:des
   ++  on-disconnect   on-disconnect:des
@@ -484,12 +484,12 @@
   =|  cards=(list card)
   |-
   ?~  sez  [cards state]
-  =^  caz  session.i.sez
-    ?.  (~(has in viewing.session.i.sez) whom)
-      [~ session.i.sez]
-    (~(read-post sh i.sez) whom id memo)
-  =.  sessions  (~(put by sessions) i.sez)
+   =^  caz  state
+     ?.  (~(has in viewing.session.i.sez) whom)
+       [~ state]
+     se-abet:(se-read-post:(se-apex:se sole-id.i.sez state) whom id memo)
   $(sez t.sez, cards (weld cards caz))
+  :: $(sez t.sez, cards (weld cards caz))
 ::  +bind-default-glyph: bind to default, or random available
 ::
 ++  bind-default-glyph
@@ -520,7 +520,7 @@
     (~(del ju binds) (~(got by bound) target) target)
   =.  bound  (~(put by bound) target glyph)
   =.  binds  (~(put ju binds) glyph target)
-  [(show-glyph:sh-out glyph `target) state]
+  [(show-glyph:se-out:se glyph `target) state]
 ::  +unbind-glyph: remove all binding for glyph
 ::
 ++  unbind-glyph
@@ -529,7 +529,7 @@
   ?^  targ
     =.  binds  (~(del ju binds) glyph u.targ)
     =.  bound  (~(del by bound) u.targ)
-    [(show-glyph:sh-out glyph ~) state]
+    [(show-glyph:se-out:se glyph ~) state]
   =/  ole=(set target)
     (~(get ju binds) glyph)
   =.  binds  (~(del by binds) glyph)
@@ -539,7 +539,7 @@
     =.  bound  $(ole l.ole)
     =.  bound  $(ole r.ole)
     (~(del by bound) n.ole)
-  [(show-glyph:sh-out glyph ~) state]
+  [(show-glyph:se-out:se glyph ~) state]
 ::  +decode-glyph: find the target that matches a glyph, if any
 ::
 ++  decode-glyph
@@ -561,37 +561,59 @@
   ?:  (~(has in lax) tar)
     tar
   $(history.session t.history.session)
+::  +set-setting: enable settings flag
 ::
-::  +sh: shoe handling
+++  set-setting
+  |=  =term
+  ^-  (quip card _state)    
+  [~ state(settings (~(put in settings) term))]
+::  +unset-setting: disable settings flag
 ::
-++  sh
-  |_  [=sole-id session]
-  +*  session  +<+
-      sh-out   ~(. ^sh-out sole-id session)
-      put-ses  state(sessions (~(put by sessions) sole-id session))
+++  unset-setting
+  |=  =term
+  ^-  (quip card _state)
+  [~ state(settings (~(del in settings) term))]
+::  +set-timezone: configure timestamp printing adjustment
+::
+++  set-timezone
+  |=  tz=[? @ud]
+  [~ state(timez tz)]
+::
+::  +se: session engine
+::
+++  se
+  =|  caz=(list card)
+  |_  [=sole-id ses=session global=_state]
+  +*  se  .
   ::
-  ++  make
-    |=  =^sole-id
-    %_  ..make
-      sole-id  sole-id
-      +<+      (get-session sole-id)
-    ==
-  ::  +read-post: add message to state and show it to user
+  ++  se-apex
+    |=  [=sole-id:shoe s=_state]
+    ^+  se
+    se(sole-id sole-id, ses (get-session sole-id), global s)
   ::
-  ++  read-post
+  ++  se-abet
+    ^-  (quip card _state)
+    :-  (flop caz)
+    global(sessions (~(put by sessions) sole-id ses))
+  ::
+  ++  se-emit  |=(cad=card se(caz [cad caz]))
+  ++  se-emil  |=(cas=(list card) se(caz (weld (flop cas) caz)))
+  ::  +se-read-post: add message to state and show it to user
+  ::
+  ++  se-read-post
     |=  [=target =id:chat =memo:chat]
-    ^-  (quip card _session)
-    :-  (show-post:sh-out target memo) 
-    %_  session
-      history  [[target id] history]
-      count    +(count)
+    ^+  se
+    =.  se  (se-emil (show-post:se-out target memo))
+    %_  se
+      history.ses  [[target id] history.ses]
+      count.ses    +(count.ses)
     ==
-  ::  +read: command parser
+  ::  +se-parser: command parser
   ::
   ::    parses the command line buffer.
   ::    produces commands which can be executed by +work.
   ::
-  ++  parser
+  ++  se-parser
     |^
       %+  stag  |
       %+  knee  *command  |.  ~+
@@ -693,7 +715,7 @@
           (stag %club trun-club-id)
           (stag %ship ship)
         ==
-        (sear (cury decode-glyph session) glyph)
+        (sear (cury decode-glyph ses) glyph)
       ==
     ::  +tars: set of comma-separated targs
     ::
@@ -771,9 +793,9 @@
       %+  stag  (crip q.tub)
       wide:(vang & [&1:% &2:% (scot %da now.bowl) |3:%])
     --
-  ::  +tab-list: command descriptions
+  ::  +se-tab-list: command descriptions
   ::
-  ++  tab-list
+  ++  se-tab-list
     ^-  (list [@t tank])
     :~
       [';view' leaf+";view (glyph / ~ship / .group.chat.id / ~host/chat)"]
@@ -791,11 +813,11 @@
       [';dms' leaf+";dms"]
       [';help' leaf+";help"]
     ==
-  ::  +work: run user command
+  ::  +se-work: run user command
   ::
-  ++  work
+  ++  se-work
     |=  job=command
-    ^-  (quip card _state)
+    ^+  se
     |^  ?-   -.job
             %target     (set-target +.job)
             %say        (say +.job)
@@ -806,15 +828,15 @@
             %view       (view +.job)
             %flee       (flee +.job)
         ::
-            %bind       (bind-glyph +.job)
-            %unbind     (unbind-glyph +.job)
+            %bind       (split (bind-glyph +.job))
+            %unbind     (split (unbind-glyph +.job))
             %what       (lookup-glyph +.job)
         ::
             %settings   show-settings
-            %set        (set-setting +.job)
-            %unset      (unset-setting +.job)
+            %set        (split (set-setting +.job))
+            %unset      (split (unset-setting +.job))
             %width      (set-width +.job)
-            %timezone   (set-timezone +.job)
+            %timezone   (split (set-timezone +.job))
         ::
             %select     (select +.job)
             %chats      chats
@@ -822,6 +844,15 @@
             %help       help
         ::
         ==
+    ::  +split: update session engine's cards and state separately
+    ::
+    ::     called after arms that produce a (quip card _state)
+    ::
+    ++  split
+      |=  [c=(list card) s=_state]
+      ^+  se
+      =.  se  se(global s)
+      (se-emil c)
     ::  +act: build action card
     ::
     ++  act
@@ -832,79 +863,63 @@
     ::
     ++  set-target
       |=  =target
-      ^-  (quip card _state)
-      =.  audience  target
-      [[prompt:sh-out ~] put-ses]
+      ^+  se
+      =.  se  se(audience.ses target)
+      (se-emit prompt:se-out)
     ::  +view: start printing messages from a chat
     ::
     ++  view
       |=  target=$?(~ target)
-      |^  ^-  (quip card _state)
+      |^  ^+  se
       ::  without argument, print all we're viewing
       ::
       ?~  target
-        [[(show-targets:sh-out ~(tap in viewing))]~ state]
+        (se-emit (show-targets:se-out ~(tap in viewing.ses)))
       ::  only view existing chats
       ::
       ?.  (target-exists target)
-        [[(note:sh-out "no such chat")]~ state]
-      =/  rsvp-cards  (rsvp & target)
-      =^  target-cards  state  (set-target target)
+        (se-emit (note:se-out "no such chat"))
+      =.  se  (set-target target)
+      =.  se  (se-emil (rsvp & target))
       ::  send watch card for target not in view
       ::
-      =/  watch-cards
-        ?:  (~(has in viewing) target)  ~
-        (connect target)
+      =?  se  !(~(has in viewing.ses) target)
+        (se-emil (connect target))
       ::  bind an unbound target
       ::
-      =^  bind-cards  state
-        ?:  (~(has by bound) target)  [~ state]
-        (bind-default-glyph target)
-      ::  load history if target is not already in view
+      =?  se  !(~(has by bound) target)
+        (split (bind-default-glyph target))
+      ::  load history if target is not in view
       ::
-      =^  load-history  state
-        ?:  (~(has in viewing) target)  [~ state]
-        =.  viewing  (~(put in viewing) target)
-        (build-history target)
-      :_  state
-      ^-  (list card)
-      ;:  weld
-        rsvp-cards
-        bind-cards
-        watch-cards
-        target-cards
-        load-history
-      ==
+      ?:  (~(has in viewing.ses) target)  se
+      =.  se  se(viewing.ses (~(put in viewing.ses) target))
+      (build-history target)
       ::  +build-history: add messages to history and output to session
       ::
       ++  build-history
         |=  =whom:chat
-        ^-  (quip card _state)
+        ^+  se
         =/  messages
           (flop (bap:on:writs:chat (get-messages whom)))
-        =|  cards=(list card)
         |-
-        ?~  messages  [cards put-ses]
-        =/  =writ:chat  +.i.messages
-        =/  =memo:chat  +.writ
-        %=  $
-          history   [[whom id.writ] history]
-          count     +(count)
-          cards     (weld cards (show-post:sh-out whom memo))
-          messages  t.messages
-        ==
+        ?~  messages  se
+        =/  =writ:chat   +.i.messages
+        =/  =memo:chat   +.writ
+        =.  se  (se-emil (show-post:se-out whom memo))
+        =:  history.ses  [[whom id.writ] history.ses]
+            count.ses    +(count.ses)
+          ==
+        $(messages t.messages)
       --
     ::  +flee: stop printing messages from a chat
     ::
     ++  flee
       |=  =target
-      ^-  (quip card _state)
-      ?.  (~(has in viewing) target)  
-        [~ state]
-      =.  viewing  (~(del in viewing) target)
-      =/  =wire  (target-to-path target)
-      :_  put-ses
-      [%pass wire %agent [our-self %chat] %leave ~]~
+      ^+  se
+      =?  se  (~(has in viewing.ses) target)
+        se(viewing.ses (~(del in viewing.ses) target))
+      %-  se-emit
+      [%pass (target-to-path target) %agent [our-self %chat] %leave ~]
     ::  +rsvp: send rsvp response
     ::
     ++  rsvp
@@ -943,43 +958,44 @@
       ^-  card
       =/  =memo:chat 
         [replying our.bowl now.bowl %story block msg]
-      %^  act  (target-to-path audience)
+      %^  act  (target-to-path audience.ses)
         %chat
-      ?-   -.audience
+      ?-   -.audience.ses
           %ship 
         :-  %dm-action
         !>  ^-  action:dm:chat
-        [p.audience [our now]:bowl %add memo]
+        [p.audience.ses [our now]:bowl %add memo]
       ::
           %club   
         :-  %club-action
         !>  ^-  action:club:chat
-        [p.audience *uid:club:chat %writ [our now]:bowl %add memo]   
+        [p.audience.ses *uid:club:chat %writ [our now]:bowl %add memo]   
       ::
           %flag
         :-  %chat-action-0
         !>  ^-  action:chat
-        [p.audience now.bowl %writs [our now]:bowl %add memo]
+        [p.audience.ses now.bowl %writs [our now]:bowl %add memo]
       ==
     ::  +say: user sends a message
     ::
     ++  say
       |=  msg=(list inline:chat)
-      ^-  (quip card _state)
-      [[(send ~ ~ msg)]~ put-ses]
+      ^+  se
+      (se-emit (send ~ ~ msg))
     ::  +reference: use a pointer to reference a message
     ::
     ++  reference
       |=  [=selection msg=(list inline:chat)]
-      ^-  (quip card _state)
+      ^+  se
       =/  pack=(each [=whom:chat =writ:chat] tape)
         (pointer-to-message selection)
       ?-   -.pack
-          %|  [[(note:sh-out p.pack)]~ state]
+          %|  (se-emit (note:se-out p.pack))
           %&
         ?.  ?=(%flag -.whom.p.pack)
-          :_  state
-          [(note:sh-out "message referencing is only available in chats from a group")]~
+          %-  se-emit 
+          %-  note:se-out 
+          "message referencing is only available in chats from a group"
         =*  seal  -.writ.p.pack
         =*  memo  +.writ.p.pack
         =*  host  p.p.whom.p.pack
@@ -988,18 +1004,17 @@
         =/  wer=path  /msg/(scot %p author.memo)/(scot %ud time)
         =/  =block:chat
           [%cite `cite:cite`[%chan `nest:groups`[%chat [host name]] wer]]
-        :_  put-ses
-        [(send ~ [block]~ ?~(msg ~ msg))]~
+        (se-emit (send ~ [block]~ ?~(msg ~ msg)))
       ==
     ::  +thread: thread reply with pointer reference
     ::
     ++  thread
       |=  [=selection msg=(list inline:chat)]
-      ^-  (quip card _state)
+      ^+  se
       =/  pack=(each [=whom:chat =writ:chat] tape)
         (pointer-to-message selection)
       ?-   -.pack
-          %|  [[(note:sh-out p.pack)]~ state]
+          %|  (se-emit (note:se-out p.pack))
           %&
         =/  replying=(unit id:chat)
           ?~  replying.writ.p.pack
@@ -1007,9 +1022,8 @@
           replying.writ.p.pack
         ::  switch audience to ensure we're replying in-context
         ::
-        =.  audience  whom.p.pack
-        :_  put-ses
-        [(send replying ~ msg)]~
+        =.  se  se(audience.ses whom.p.pack)
+        (se-emit (send replying ~ msg))
       ==
     ::  +eval: run hoon, send code and result as message
     ::
@@ -1017,26 +1031,27 @@
     ::
     ++  eval
       |=  [txt=cord exe=hoon]
+      ^+  se
       ~&  %eval-tmp-disabled
-      [~ state]
+      se
       ::TODO  why -find.eval??
       :: (say %code txt (eval:store bowl exe))
     ::  +lookup-glyph: print glyph info for all, glyph or target
     ::
     ++  lookup-glyph
       |=  qur=(unit $@(glyph target))
-      ^-  (quip card _state)
-      =-  [[- ~] state]
+      ^+  se
+      =-  (se-emit -)
       ?^  qur
         ?^  u.qur
           =+  gyf=(~(get by bound) u.qur)
-          (print:sh-out ?~(gyf "none" [u.gyf]~))
+          (print:se-out ?~(gyf "none" [u.gyf]~))
         :: TODO pass through +nome?
         =+  pan=~(tap in (~(get ju binds) `@t`u.qur))
-        ?:  =(~ pan)  (print:sh-out "~")
-        =<  (effect:sh-out %mor (turn pan .))
+        ?:  =(~ pan)  (print:se-out "~")
+        =<  (effect:se-out %mor (turn pan .))
         |=(t=target [%txt ~(meta tr t)])
-      %-  print-more:sh-out
+      %-  print-more:se-out
       %-  ~(rep by binds)
       |=  $:  [=glyph targets=(set target)]
               lis=(list tape)
@@ -1051,45 +1066,29 @@
     ::  +show-settings: print enabled flags, timezone and width settings
     ::
     ++  show-settings
-      ^-  (quip card _state)
-      :_  state
-      :~  %-  print:sh-out
+      ^+  se
+      %-  se-emil
+      :~  %-  print:se-out
           %-  zing
           ^-  (list tape)
           :-  "flags: "
           %+  join  ", "
           (turn `(list @t)`~(tap in settings) trip)
         ::
-          %-  print:sh-out
+          %-  print:se-out
           %+  weld  "timezone: "
           ^-  tape
           :-  ?:(p.timez '+' '-')
           (scow %ud q.timez)
         ::
-          (print:sh-out "width: {(scow %ud width)}")
+          (print:se-out "width: {(scow %ud width.ses)}")
       ==
-    ::  +set-setting: enable settings flag
-    ::
-    ++  set-setting
-      |=  =term
-      ^-  (quip card _state)
-      [~ state(settings (~(put in settings) term))]
-    ::  +unset-setting: disable settings flag
-    ::
-    ++  unset-setting
-      |=  =term
-      ^-  (quip card _state)
-      [~ state(settings (~(del in settings) term))]
     ::  +set-width: configure cli printing width
     ::
     ++  set-width
       |=  w=@ud
-      [~ state(width (max 40 w))]
-    ::  +set-timezone: configure timestamp printing adjustment
-    ::
-    ++  set-timezone
-      |=  tz=[? @ud]
-      [~ state(timez tz)]
+      ^+  se
+      se(width.ses (max 40 w))
     ::  +select: expand message from number reference
     ::
     ++  select
@@ -1098,22 +1097,21 @@
       ::      (with leading zeros used for precision)
       ::
       |=  =selection
-      ^-  (quip card _state)
+      ^+  se
       =/  pack=(each [=whom:chat =writ:chat] tape)
         (pointer-to-message selection)
       ?-   -.pack
-          %|  [[(note:sh-out p.pack)]~ state]
+          %|  (se-emit (note:se-out p.pack))
           %&
         =/  tum=tape
           ?@  selection
             (scow %s (new:si | +(selection)))
-          (scow %ud (index (dec count) selection))
-        =.  audience  whom.p.pack
-        :_  put-ses
-        ^-  (list card)
-        :~  (print:sh-out ['?' ' ' tum])
-            (effect:sh-out ~(render-activate mr whom.p.pack +.writ.p.pack))
-            prompt:sh-out
+          (scow %ud (index (dec count.ses) selection))
+        =.  se  se(audience.ses whom.p.pack)
+        %-  se-emil
+        :~  (print:se-out ['?' ' ' tum])
+            (effect:se-out ~(render-activate mr whom.p.pack +.writ.p.pack ses))
+            prompt:se-out
         ==
       ==
     ::  +pointer-to-message: get message from number reference
@@ -1124,14 +1122,14 @@
       ^-  (each [whom:chat writ:chat] tape)
       |^  ?@  selection
             =+  tum=(scow %s (new:si | +(selection)))
-            ?:  (gte rel.selection count)
+            ?:  (gte rel.selection count.ses)
               [%| "{tum}: no such message"]
             (produce tum rel.selection)
-          ?.  (gte abs.selection count)
-            ?:  =(count 0)
+          ?.  (gte abs.selection count.ses)
+            ?:  =(count.ses 0)
               [%| "0: no messages"]
-            =+  msg=(index (dec count) selection)
-            (produce (scow %ud msg) (sub count +(msg)))
+            =+  msg=(index (dec count.ses) selection)
+            (produce (scow %ud msg) (sub count.ses +(msg)))
           :-  %|
           %+  weld  "…{(reap zeros.selection '0')}{(scow %ud abs.selection)}: "
           "no such message"
@@ -1141,7 +1139,7 @@
         |=  [number=tape index=@ud]
         ^-  (each [whom:chat writ:chat] tape)
         =/  [=whom:chat =id:chat]  
-          (snag index history)
+          (snag index history.ses)
         ?.  (message-exists whom id)
           [%| "…{number}: missing message"]
         =+  %^  scry-for-marked  ,[* =writ:chat]
@@ -1161,29 +1159,26 @@
     ::  +chats: display list of joined chats
     ::
     ++  chats
-      ^-  (quip card _state)
+      ^+  se
       =/  targets=(set target)
         (~(run in get-chats) (lead %flag))
-      :_  state
-      [(show-targets:sh-out ~(tap in targets))]~ 
+      (se-emit (show-targets:se-out ~(tap in targets)))
     ::  +dms: display list of known dms
     ::
     ++  dms
-      ^-  (quip card _state)
+      ^+  se
       =/  clubs=(set target)
         (~(run in ~(key by get-clubs)) (lead %club))
       =/  dms=(set target)
         %-  %~  run  in 
             (~(uni in get-accepted-dms) get-pending-dms)
         (lead %ship)
-      :_  state
-      [(show-targets:sh-out ~(tap in (~(uni in clubs) dms)))]~
+      (se-emit (show-targets:se-out ~(tap in (~(uni in clubs) dms))))
     ::  +help: print (link to) usage instructions
     ::
     ++  help
-      ^-  (quip card _state)
-      :_  state
-      =-  (turn - print-more:sh-out)
+      ^+  se
+      =-  (se-emil (turn - print-more:se-out))
       :~  %-  limo
           :*  "Chats can be selected depending on what kind of chat they are:"
               "chats: ~host/chat"
@@ -1204,119 +1199,113 @@
           ==
       ==
     --
-  --
-::
-::  +sh-out: ouput to session
-::
-++  sh-out
-  |_  [=sole-id session]
-  ++  make
-    |=  =^sole-id
-    %_  ..make
-      sole-id  sole-id
-      +<+      (get-session sole-id)
-    ==
-  ::  +effex: emit shoe effect card
   ::
-  ++  effex
-    |=  effect=shoe-effect:shoe
-    ^-  card
-    [%shoe ~[sole-id] effect]
-  ::  +effect: emit console effect card
+  ::  +se-out: output to session
   ::
-  ++  effect
-    |=  effect=sole-effect:shoe
-    ^-  card
-    (effex %sole effect)
-  ::  +print: puts some text into the cli as-is
-  ::
-  ++  print
-    |=  txt=tape
-    ^-  card
-    (effect %txt txt)
-  ::  +print-more: puts lines of text into the cli
-  ::
-  ++  print-more
-    |=  txs=(list tape)
-    ^-  card
-    %+  effect  %mor
-    (turn txs |=(t=tape [%txt t]))
-  ::  +note: prints left-padded ---| txt
-  ::
-  ++  note
-    |=  txt=tape
-    ^-  card
-    =+  lis=(simple-wrap txt (sub width 16))
-    %-  print-more
-    =+  ?:((gth (lent lis) 0) (snag 0 lis) "")
-    :-  (runt [14 '-'] '|' ' ' -)
-    %+  turn  (slag 1 lis)
-    |=(a=tape (runt [14 ' '] '|' ' ' a))
-  ::  +prompt: update prompt to display current audience
-  ::
-  ++  prompt
-    ^-  card
-    %+  effect  %pro
-    :+  &  %talk-line
-    =+  ~(show tr audience)
-    ?:(=(1 (lent -)) "{-} " "[{-}] ")
-  ::  +show-post: print incoming message
-  ::
-  ::    every five messages, prints the message number also.
-  ::    if the message mentions the user's ship,
-  ::    and the %notify flag is set, emit a bell.
-  ::
-  ++  show-post
-    |=  [=target =memo:chat]
-    ^-  (list card)
-    %+  weld
-      ^-  (list card)
-      ?.  =(0 (mod count 5))  ~
-      :_  ~
-      =+  num=(scow %ud count)
-      %-  print
-      (runt [(sub 13 (lent num)) '-'] "[{num}]")
-    ^-  (list card)
-    :-  (effex ~(render-inline mr target memo))
-    =;  mentioned=?
-      ?.  mentioned  ~
-      [(effect %bel ~)]~
-    ?.  ?=(%story -.content.memo)  |
-    %+  lien  q.p.content.memo
-    (cury test %ship our.bowl)
-  ::  +show-glyph: print glyph un/bind notification
-  ::
-  ++  show-glyph
-    |=  [=glyph target=(unit target)]
-    ^-  (list card)
-    :_  [prompt ~]
-    %-  note
-    %+  weld  "set: {[glyph ~]} "
-    ?~  target  "unbound"
-    ~(phat tr u.target)
-  ::  +show-targets: print list of targets
-  ::
-  ++  show-targets
-    |=  targets=(list target)
-    |^  ^-  card
-    %-  print-more
-    %+  turn  (sort targets order)
-    |=  =target
-    =/  glyph=(unit tape)
-      ?.  (~(has by bound) target)  ~
-      (some ~(glyph tr target))
-    (weld (fall glyph " ") [' ' ~(meta tr target)])
-    ::  +order: ships go before chats who go before clubs
+  ++  se-out
+    |%
+    ::  +effex: emit shoe effect card
     ::
-    ++  order
-      |=  [a=target b=target]
-      ^-  ?
-      ?:  &(?=(%ship -.a) ?=(%ship -.b))  
-        (aor (scot %p p.a) (scot %p p.b))
-      ?:  ?=(%ship -.a)  &
-      ?:  ?=(%ship -.b)  |
-      ?:  &(?=(%flag -.a) ?=(%flag -.b))  (tor +.a +.b)
-      (gte -.a -.b)  ::  %flag before %club
+    ++  effex
+      |=  effect=shoe-effect:shoe
+      ^-  card
+      [%shoe ~[sole-id] effect]
+    ::  +effect: emit console effect card
+    ::
+    ++  effect
+      |=  effect=sole-effect:shoe
+      ^-  card
+      (effex %sole effect)
+    ::  +print: puts some text into the cli as-is
+    ::
+    ++  print
+      |=  txt=tape
+      ^-  card
+      (effect %txt txt)
+    ::  +print-more: puts lines of text into the cli
+    ::
+    ++  print-more
+      |=  txs=(list tape)
+      ^-  card
+      %+  effect  %mor
+      (turn txs |=(t=tape [%txt t]))
+    ::  +note: prints left-padded ---| txt
+    ::
+    ++  note
+      |=  txt=tape
+      ^-  card
+      =+  lis=(simple-wrap txt (sub width.ses 16))
+      %-  print-more
+      =+  ?:((gth (lent lis) 0) (snag 0 lis) "")
+      :-  (runt [14 '-'] '|' ' ' -)
+      %+  turn  (slag 1 lis)
+      |=(a=tape (runt [14 ' '] '|' ' ' a))
+    ::  +prompt: update prompt to display current audience
+    ::
+    ++  prompt
+      ^-  card
+      %+  effect  %pro
+      :+  &  %talk-line
+      =+  ~(show tr audience.ses)
+      ?:(=(1 (lent -)) "{-} " "[{-}] ")
+    ::  +show-post: print incoming message
+    ::
+    ::    every five messages, prints the message number also.
+    ::    if the message mentions the user's ship,
+    ::    and the %notify flag is set, emit a bell.
+    ::
+    ++  show-post
+      |=  [=target =memo:chat]
+      ^-  (list card)
+      %+  weld
+        ^-  (list card)
+        ?.  =(0 (mod count.ses 5))  ~
+        :_  ~
+        =+  num=(scow %ud count.ses)
+        %-  print
+        (runt [(sub 13 (lent num)) '-'] "[{num}]")
+      ^-  (list card)
+      :-  (effex ~(render-inline mr target memo ses))
+      =;  mentioned=?
+        ?.  mentioned  ~
+        [(effect %bel ~)]~
+      ?.  ?=(%story -.content.memo)  |
+      %+  lien  q.p.content.memo
+      (cury test %ship our.bowl)
+    ::  +show-glyph: print glyph un/bind notification
+    ::
+    ++  show-glyph
+      |=  [=glyph target=(unit target)]
+      ^-  (list card)
+      :_  [prompt ~]
+      %-  note
+      %+  weld  "set: {[glyph ~]} "
+      ?~  target  "unbound"
+      ~(phat tr u.target)
+    ::  +show-targets: print list of targets
+    ::
+    ++  show-targets
+      |=  targets=(list target)
+      |^  ^-  card
+      %-  print-more
+      %+  turn  (sort targets order)
+      |=  =target
+      =/  glyph=(unit tape)
+        ?.  (~(has by bound) target)  ~
+        (some ~(glyph tr target))
+      (weld (fall glyph " ") [' ' ~(meta tr target)])
+      ::  +order: ships go before chats who go before clubs
+      ::
+      ++  order
+        |=  [a=target b=target]
+        ^-  ?
+        ?:  &(?=(%ship -.a) ?=(%ship -.b))  
+          (aor (scot %p p.a) (scot %p p.b))
+        ?:  ?=(%ship -.a)  &
+        ?:  ?=(%ship -.b)  |
+        ?:  &(?=(%flag -.a) ?=(%flag -.b))  (tor +.a +.b)
+        (gte -.a -.b)  ::  %flag before %club
+      --
     --
   --
 ::
