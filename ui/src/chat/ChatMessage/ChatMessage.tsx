@@ -1,10 +1,11 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import cn from 'classnames';
-import _, { debounce } from 'lodash';
+import _ from 'lodash';
+import debounce from 'lodash/debounce';
 import f from 'lodash/fp';
-import bigInt, { BigInteger } from 'big-integer';
-import { daToUnix, udToDec } from '@urbit/api';
+import { BigInteger } from 'big-integer';
+import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
@@ -26,6 +27,7 @@ import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
 import { useChatHovering, useChatInfo, useChatStore } from '../useChatStore';
 
 export interface ChatMessageProps {
@@ -86,6 +88,8 @@ const ChatMessage = React.memo<
       const isThread = idShip && idTime;
       const threadOpId = isThread ? `${idShip}/${idTime}` : '';
       const isThreadOp = threadOpId === seal.id && hideReplies;
+      const isMobile = useIsMobile();
+      const isThreadOnMobile = isThread && isMobile;
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
@@ -182,14 +186,14 @@ const ChatMessage = React.memo<
       );
       const onOver = useCallback(() => {
         // If we're already hovering, don't do anything
-        // If we're the thread op, don't do anything
+        // If we're the thread op and this isn't on mobile, don't do anything
         // This is necessary to prevent the hover from appearing
         // in the thread when the user hovers in the main scroll window.
-        if (hover.current === false && !isThreadOp) {
+        if (hover.current === false && (!isThreadOp || isThreadOnMobile)) {
           hover.current = true;
           setHover.current();
         }
-      }, [isThreadOp]);
+      }, [isThreadOp, isThreadOnMobile]);
       const onOut = useRef(
         debounce(
           () => {
@@ -211,6 +215,7 @@ const ChatMessage = React.memo<
           onMouseEnter={onOver}
           onClick={onOver}
           onMouseLeave={onOut.current}
+          data-testid="chat-message"
         >
           {unread && briefMatches(unread.brief, writ.seal.id) ? (
             <DateDivider
@@ -227,7 +232,7 @@ const ChatMessage = React.memo<
             !hovering ||
             // If we're the thread op, don't show options.
             // Options are shown for the threadOp in the main scroll window.
-            isThreadOp ? null : (
+            (isThreadOp && !isThreadOnMobile) ? null : (
               <ChatMessageOptions
                 hideThreadReply={hideReplies}
                 whom={whom}

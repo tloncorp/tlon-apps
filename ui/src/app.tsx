@@ -253,6 +253,10 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<EmojiPicker />}
               />
               <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
                 path="/dm/:ship/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
@@ -486,10 +490,16 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           {isMobile ? (
-            <Route
-              path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
-              element={<EmojiPicker />}
-            />
+            <>
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+            </>
           ) : null}
         </Routes>
       ) : null}
