@@ -15,6 +15,7 @@
     "build:chat": "tsc && cross-env APP=chat vite build",
     "coverage": "vitest run --coverage",
     "dev": "vite",
+    "dev:native": "cross-env APP=chat vite --mode native --host",
     "dev2": "vite --mode dev2",
     "multi": "concurrently \"vite\" \"vite --mode dev2\"",
     "dev-sw": "vite --mode sw",
