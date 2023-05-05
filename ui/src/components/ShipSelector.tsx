@@ -545,7 +545,7 @@ export default function ShipSelector({
     <CreatableSelect
       ref={selectRef}
       formatCreateLabel={AddNewOption}
-      autoFocus
+      autoFocus={autoFocus}
       isMulti
       className={containerClassName}
       styles={{

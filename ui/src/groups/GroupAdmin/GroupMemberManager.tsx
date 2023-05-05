@@ -78,37 +78,28 @@ export default function GroupMemberManager() {
   }
 
   return (
-    <div className={cn(!amAdmin && 'card', 'flex h-full grow flex-col')}>
-      <div
-        className={cn(
-          amAdmin && 'mt-2',
-          'mb-4 flex w-full items-center justify-between'
-        )}
-      >
-        {(privacy === 'public' || amAdmin) && (
-          <Link
-            to={`/groups/${flag}/invite`}
-            state={{ backgroundLocation: location }}
-            className="button bg-blue px-2 dark:text-black sm:px-4"
-          >
-            {isMobile ? <InviteIcon16 className="h-5 w-5" /> : 'Invite'}
-          </Link>
-        )}
-
+    <div className={cn('card flex h-1/2 flex-col')}>
+      <div className={cn('flex w-full items-center justify-between pb-2')}>
+        <h2 className="flex items-center text-lg font-bold">
+          Members{' '}
+          <div className="ml-2 rounded border border-gray-800 px-2 py-0.5 text-xs font-medium uppercase text-gray-800">
+            {members.length} joined
+          </div>
+        </h2>
         <label className="relative ml-auto flex items-center">
-          <span className="sr-only">Search Prefences</span>
+          <span className="sr-only">Filter Members</span>
           <span className="absolute inset-y-[5px] left-0 flex h-8 w-8 items-center pl-2 text-gray-400">
             <MagnifyingGlass16Icon className="h-4 w-4" />
           </span>
           <input
             className="input h-10 w-[240px] bg-gray-50 pl-7 text-sm mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
-            placeholder={`Filter Members (${members.length} total)`}
+            placeholder={`Filter Members`}
             value={rawInput}
             onChange={onChange}
           />
         </label>
       </div>
-      <div className={cn('grow', amAdmin && 'pb-2')}>
+      <div className={cn('grow')}>
         <MemberScroller members={results} />
       </div>
     </div>

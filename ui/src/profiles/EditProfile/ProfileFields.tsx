@@ -35,7 +35,7 @@ export default function ProfileFields() {
               <ColorPicker
                 color={normalizeUrbitColor(watchSigilColor || '0x0')}
                 setColor={debouncedSetColor}
-                className="z-50"
+                className="z-10"
               />
             </div>
             {errors.color ? (

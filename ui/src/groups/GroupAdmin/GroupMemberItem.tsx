@@ -25,6 +25,7 @@ import { useContact } from '@/state/contact';
 import { Vessel } from '@/types/groups';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import PersonIcon from '@/components/icons/PersonIcon';
 
 interface GroupMemberItemProps {
   member: string;
@@ -134,39 +135,44 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
                   .join(', ')}
             <CaretDown16Icon className="ml-2 h-4 w-4" />
           </Dropdown.Trigger>
-          <Dropdown.Content className="dropdown min-w-52 text-gray-800">
-            {sects.map((s) => (
+          <Dropdown.Portal>
+            <Dropdown.Content className="dropdown z-40 text-gray-800">
+              {sects.map((s) => (
+                <Dropdown.Item
+                  key={s}
+                  className={cn(
+                    'dropdown-item flex items-center',
+                    !vessel.sects.includes(s) && 'text-gray-800'
+                  )}
+                  onSelect={toggleSect(member, s, vessel)}
+                >
+                  {sectStatus === 'loading' ? (
+                    <div className="mr-2 flex h-6 w-6 items-center justify-center">
+                      <LoadingSpinner className="h-4 w-4" />
+                    </div>
+                  ) : sectStatus === 'error' || isOwner ? (
+                    <div className="mr-2 h-6 w-6">
+                      <ExclamationPoint className="h-4 w-4 text-red" />
+                    </div>
+                  ) : vessel.sects.includes(s) ? (
+                    <CheckIcon className="mr-2 h-6 w-6 text-green" />
+                  ) : (
+                    <div className="mr-2 h-6 w-6" />
+                  )}
+                  {getSectTitle(group.cabals, s)}
+                </Dropdown.Item>
+              ))}
               <Dropdown.Item
-                key={s}
                 className={cn(
                   'dropdown-item flex items-center',
-                  !vessel.sects.includes(s) && 'text-gray-800'
+                  'text-gray-800'
                 )}
-                onSelect={toggleSect(member, s, vessel)}
               >
-                {sectStatus === 'loading' ? (
-                  <div className="mr-2 flex h-6 w-6 items-center justify-center">
-                    <LoadingSpinner className="h-4 w-4" />
-                  </div>
-                ) : sectStatus === 'error' || isOwner ? (
-                  <div className="mr-2 h-6 w-6">
-                    <ExclamationPoint className="h-4 w-4 text-red" />
-                  </div>
-                ) : vessel.sects.includes(s) ? (
-                  <CheckIcon className="mr-2 h-6 w-6 text-green" />
-                ) : (
-                  <div className="mr-2 h-6 w-6" />
-                )}
-                {getSectTitle(group.cabals, s)}
+                <CheckIcon className="mr-2 h-6 w-6 text-green" />
+                Member
               </Dropdown.Item>
-            ))}
-            <Dropdown.Item
-              className={cn('dropdown-item flex items-center', 'text-gray-800')}
-            >
-              <CheckIcon className="mr-2 h-6 w-6 text-green" />
-              Member
-            </Dropdown.Item>
-          </Dropdown.Content>
+            </Dropdown.Content>
+          </Dropdown.Portal>
         </Dropdown.Root>
       ) : null}
       {isAdmin && !isHost ? (
@@ -176,44 +182,46 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
               <ElipsisIcon className="h-6 w-6" />
             </Dropdown.Trigger>
           ) : (
-            <div className="h-6 w-6" />
+            <PersonIcon className="h-6 w-6" />
           )}
-          <Dropdown.Content className="dropdown min-w-52 text-gray-800">
-            <Dropdown.Item
-              className="dropdown-item flex items-center text-red"
-              onSelect={() => setShowKickConfirm(true)}
-            >
-              <LeaveIcon className="mr-2 h-6 w-6" />
-              Kick
-            </Dropdown.Item>
-            <Dropdown.Item
-              className="dropdown-item flex items-center text-red"
-              onSelect={() => setShowBanConfirm(true)}
-            >
-              <LeaveIcon className="mr-2 h-6 w-6" />
-              Ban
-            </Dropdown.Item>
-          </Dropdown.Content>
+          <Dropdown.Portal>
+            <Dropdown.Content className="dropdown z-40 text-gray-800">
+              <Dropdown.Item
+                className="dropdown-item flex items-center text-red hover:bg-red-soft"
+                onSelect={() => setShowKickConfirm(true)}
+              >
+                Kick
+              </Dropdown.Item>
+              <Dropdown.Item
+                className="dropdown-item flex items-center text-red hover:bg-red-soft"
+                onSelect={() => setShowBanConfirm(true)}
+              >
+                Ban
+              </Dropdown.Item>
+            </Dropdown.Content>
+          </Dropdown.Portal>
         </Dropdown.Root>
       ) : (
         <Dropdown.Root>
           <Dropdown.Trigger className="default-focus ml-auto rounded text-gray-800">
             <ElipsisIcon className="h-6 w-6" />
           </Dropdown.Trigger>
-          <Dropdown.Content className="dropdown min-w-52 text-gray-800">
-            <Dropdown.Item
-              className="dropdown-item flex items-center"
-              onSelect={() => onViewProfile(member)}
-            >
-              View Profile
-            </Dropdown.Item>
-            <Dropdown.Item
-              className="dropdown-item flex items-center"
-              onSelect={(e) => e.preventDefault}
-            >
-              Send Message
-            </Dropdown.Item>
-          </Dropdown.Content>
+          <Dropdown.Portal>
+            <Dropdown.Content className="dropdown z-40 text-gray-800">
+              <Dropdown.Item
+                className="dropdown-item flex items-center"
+                onSelect={() => onViewProfile(member)}
+              >
+                View Profile
+              </Dropdown.Item>
+              <Dropdown.Item
+                className="dropdown-item flex items-center"
+                onSelect={(e) => e.preventDefault}
+              >
+                Send Message
+              </Dropdown.Item>
+            </Dropdown.Content>
+          </Dropdown.Portal>
         </Dropdown.Root>
       )}
       <ConfirmationModal

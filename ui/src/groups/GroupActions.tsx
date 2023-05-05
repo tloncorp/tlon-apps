@@ -112,7 +112,6 @@ const GroupActions = React.memo(
                   state={{ backgroundLocation: location }}
                   className="flex items-center space-x-2"
                 >
-                  <InviteIcon16 className="h-6 w-6 opacity-60" />
                   <span className="pr-2">Invite People</span>
                 </Link>
               </DropdownMenu.Item>
@@ -123,26 +122,25 @@ const GroupActions = React.memo(
               }
               onSelect={onCopySelect}
             >
-              <LinkIcon16 className="h-6 w-6 opacity-60" />
               <span className="pr-2">{copyItemText}</span>
             </DropdownMenu.Item>
             <DropdownMenu.Item
               className="dropdown-item flex items-center space-x-2"
               onClick={onPinClick}
             >
-              <PinIcon16 className="h-6 w-6 text-gray-600" />
               <span className="pr-2">{isPinned ? 'Unpin' : 'Pin'}</span>
             </DropdownMenu.Item>
-            <DropdownMenu.Item asChild className="dropdown-item">
-              <Link
-                to={`/groups/${flag}/info`}
-                // state={{ backgroundLocation: location }}
-                className="flex items-center space-x-2"
-              >
-                <Person16Icon className="m-1 h-4 w-4 text-gray-600" />
-                <span className="pr-2">Members &amp; Group Info</span>
-              </Link>
-            </DropdownMenu.Item>
+            {isAdmin && (
+              <DropdownMenu.Item asChild className="dropdown-item">
+                <Link
+                  to={`/groups/${flag}/edit`}
+                  state={{ backgroundLocation: location }}
+                  className="flex items-center space-x-2"
+                >
+                  Group Settings
+                </Link>
+              </DropdownMenu.Item>
+            )}
             {flag.includes(ship) ? null : (
               <DropdownMenu.Item asChild className="dropdown-item">
                 <Link
@@ -150,7 +148,6 @@ const GroupActions = React.memo(
                   state={{ backgroundLocation: location }}
                   className="flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
                 >
-                  <LeaveIcon className="h-6 w-6" />
                   <span className="pr-2">Leave Group</span>
                 </Link>
               </DropdownMenu.Item>

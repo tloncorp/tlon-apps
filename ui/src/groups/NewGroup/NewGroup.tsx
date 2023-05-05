@@ -150,7 +150,7 @@ export default function NewGroup() {
       onOpenChange={onOpenChange}
       onInteractOutside={(e) => e.preventDefault()}
       className="sm:inset-y-24"
-      containerClass="w-full h-full sm:max-w-xl"
+      containerClass="w-full h-full sm:max-w-2xl"
     >
       <FormProvider {...form}>
         <div className="flex flex-col">{currentStepComponent}</div>
