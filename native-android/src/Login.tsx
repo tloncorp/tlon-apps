@@ -106,12 +106,14 @@ export default function Login() {
           });
         } else {
           setLoginProblem(
-            'An error occurred while loggin in. Please try again.'
+            'An error occurred while logging in. Please try again.'
           );
         }
       } catch (err) {
         console.error('Error validating access key', err);
-        setLoginProblem('An error occurred while loggin in. Please try again.');
+        setLoginProblem(
+          'An error occurred while logging in. Please try again.'
+        );
       }
     } else {
       setLoginProblem('Please enter a valid access key.');
