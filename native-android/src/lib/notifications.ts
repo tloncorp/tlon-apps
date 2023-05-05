@@ -102,7 +102,7 @@ export const initializePushNotifications = async () => {
 };
 
 export const pokeNotify = async (token: string) => {
-  const api = useStore.getState().api;
+  const { api } = useStore.getState();
   await api?.poke({
     app: 'notify',
     mark: 'notify-client-action',

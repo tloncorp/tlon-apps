@@ -31,7 +31,7 @@
     "husky": "^7.0.4",
     "immer": "^10.0.1",
     "lodash": "^4.17.21",
-    "react": "18.1.0",
+    "react": "^18.2.0",
     "react-native": "^0.71.7",
     "react-native-storage": "^1.0.1",
     "react-native-webview": "11.26.0",
@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@tloncorp/eslint-config": "^0.0.6",
     "@types/lodash": "^4.14.191",
     "@types/react": "^18.0.14",
     "concurrently": "^7.6.0",
