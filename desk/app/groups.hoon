@@ -1049,12 +1049,18 @@
     =.  group  gr
     =.  net  [%sub time & %chi ~]
     =/  create=diff:g  [%create group]
+    =/  readable-channels
+      %-  ~(gas in *(set nest:g))
+      %+  murn  ~(tap in channels.group)
+      |=  [ch=nest:g =channel:g]
+      ?.  (go-can-read our.bowl channel)  ~
+      [~ ch]
     =.  cor
       (give %fact ~[/groups /groups/ui] act:mar !>(`action:g`[flag now.bowl create]))
     =.  cor
       (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
     =.  cor
-      (emil (join-channels:go-pass ~(tap in ~(key by channels.group))))
+      (emil (join-channels:go-pass ~(tap in readable-channels)))
     go-core
   ::
   ++  go-give-update

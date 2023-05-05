@@ -1,5 +1,5 @@
 name: 'glob'
-description: 'Create a glob and push to master'
+description: 'Create a glob and push to develop'
 inputs:
   folder:
     description: "Folder to glob"
@@ -13,7 +13,7 @@ outputs:
     value: ${{ steps.glob.outputs.hash }}
 runs:
   using: "composite"
-  steps: 
+  steps:
     - id: glob
       shell: bash
       run:

@@ -165,7 +165,11 @@ export default function MessagesSidebar() {
         >
           <ShipName showAlias name={window.our} />
         </SidebarItem>
-        <SidebarItem to="/dm/new" icon={<AddIcon className="m-1 h-4 w-4" />}>
+        <SidebarItem
+          to="/dm/new"
+          inexact
+          icon={<AddIcon className="m-1 h-4 w-4" />}
+        >
           New Message
         </SidebarItem>
       </div>

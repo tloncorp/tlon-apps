@@ -12,7 +12,7 @@ import NavigationDots from '@/components/NavigationDots';
 import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
 
-type Role = 'Member' | 'Moderator' | 'Admin';
+export type Role = 'Member' | 'Admin';
 
 interface ShipWithRoles {
   patp: string;
@@ -149,8 +149,8 @@ export default function NewGroup() {
       modal
       onOpenChange={onOpenChange}
       onInteractOutside={(e) => e.preventDefault()}
-      className="w-[500px] sm:inset-y-24"
-      containerClass="w-full h-full sm:max-w-lg"
+      className="sm:inset-y-24"
+      containerClass="w-full h-full sm:max-w-xl"
     >
       <FormProvider {...form}>
         <div className="flex flex-col">{currentStepComponent}</div>

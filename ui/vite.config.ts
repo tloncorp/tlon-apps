@@ -56,7 +56,7 @@ export default ({ mode }: { mode: string }) => {
     switch (app) {
       case 'chat':
         return [
-          mode !== 'sw' ? basicSsl() : null,
+          mode === 'native' || mode === 'sw' ? null : basicSsl(),
           urbitPlugin({
             base: 'talk',
             target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
@@ -86,7 +86,7 @@ export default ({ mode }: { mode: string }) => {
         ];
       default:
         return [
-          mode !== 'sw' ? basicSsl() : null,
+          mode === 'native' || mode === 'sw' ? null : basicSsl(),
           urbitPlugin({
             base: 'groups',
             target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
@@ -162,7 +162,7 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode, app),
     server: {
-      https: mode !== 'sw',
+      https: mode !== 'native' && mode !== 'sw',
       host: 'localhost',
       port: 3000,
     },

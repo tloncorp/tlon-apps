@@ -70,7 +70,7 @@ export default function Author({
             <ShipName
               name={ship}
               showAlias
-              className="text-md font-semibold line-clamp-1"
+              className="text-md font-semibold leading-6 line-clamp-1"
             />
           )}
         </div>
@@ -103,7 +103,7 @@ export default function Author({
           <ShipName
             name={ship}
             showAlias
-            className="text-md break-all font-semibold line-clamp-1"
+            className="text-md break-all font-semibold leading-6 line-clamp-1"
           />
         )}
       </div>

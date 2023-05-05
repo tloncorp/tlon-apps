@@ -23,7 +23,7 @@ const useSchedulerStore = create<SchedulerStore>((set, get) => ({
   phase: 0,
   waiting: {},
   reset: () => {
-    set({ phase: 0 });
+    set({ phase: 0, waiting: {} });
   },
   next: () => {
     const { waiting, phase } = get();

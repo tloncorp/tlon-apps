@@ -158,11 +158,10 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
 
 useLocalState.setState({
   onReconnect: () => {
-    const { reset, wait } = useSchedulerStore.getState();
+    const { reset } = useSchedulerStore.getState();
     reset();
     bootstrap('reset');
 
     useLocalState.setState({ lastReconnect: Date.now() });
-    wait(() => queryClient.invalidateQueries(), 5);
   },
 });

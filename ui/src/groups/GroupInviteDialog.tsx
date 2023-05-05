@@ -69,7 +69,7 @@ export default function GroupInviteDialog() {
       open={true}
       onOpenChange={(isOpen) => !isOpen && dismiss()}
       containerClass="w-full max-w-xl"
-      className="bg-transparent p-0"
+      className="mb-64 bg-transparent p-0"
       close="none"
     >
       <div className="flex flex-col space-y-6">
