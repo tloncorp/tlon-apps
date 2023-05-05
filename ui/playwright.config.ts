@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import shipManifest from './e2e/shipManifest.json';
 
 /**
  * Read environment variables from file.
@@ -24,7 +25,10 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    // baseURL: 'http://127.0.0.1:3000',
+    baseURL:
+      process.env.APP === 'chat'
+        ? 'http://localhost:3000/apps/talk/'
+        : 'http://localhost:3000/apps/groups/',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -32,30 +36,55 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
+    // Setup project
+    { name: 'setup', testMatch: /.*\.setup\.ts/ },
 
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
+    // {
+    // name: 'chromium',
+    // use: {
+    // ...devices['Desktop Chrome'],
+    // storageState: 'e2e/.auth/user.json',
+    // },
+    // dependencies: ['setup'],
+    // },
 
+    // {
+    // name: 'firefox',
+    // use: {
+    // ...devices['Desktop Firefox'],
+    // storageState: 'e2e/.auth/user.json',
+    // },
+    // dependencies: ['setup'],
+    // },
+
+    // Just testing against webkit for now until we figure out how to
+    // reset state before each browser project.
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: 'e2e/.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
 
     /* Test against mobile viewports. */
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    },
+    // {
+    // name: 'Mobile Chrome',
+    // use: {
+    // ...devices['Pixel 5'],
+    // storageState: 'e2e/.auth/user.json',
+    // },
+    // dependencies: ['setup'],
+    // },
+    // {
+    // name: 'Mobile Safari',
+    // use: {
+    // ...devices['iPhone 12'],
+    // storageState: 'e2e/.auth/user.json',
+    // },
+    // dependencies: ['setup'],
+    // },
 
     /* Test against branded browsers. */
     // {
@@ -69,9 +98,21 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://127.0.0.1:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  webServer: {
+    command:
+      process.env.APP === 'chat'
+        ? `cross-env SHIP_URL=${
+            (shipManifest as Record<string, any>)[process.env.SHIP ?? '~zod']
+              .url
+          } npm run chat-no-ssl`
+        : `cross-env SHIP_URL=${
+            (shipManifest as Record<string, any>)[process.env.SHIP ?? '~zod']
+              .url
+          } npm run dev-no-ssl`,
+    url:
+      process.env.APP === 'chat'
+        ? 'http://localhost:3000/apps/talk/'
+        : 'http://localhost:3000/apps/groups/',
+    reuseExistingServer: false,
+  },
 });
