@@ -1,0 +1,29 @@
+name: Deploy Talk Android Update
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - native-android/**
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Push update to native Android existing build
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.REPO_TOKEN }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        working-directory: ./native-android
+        run: npm ci
+      - name: Build on EAS
+        working-directory: ./native-android
+        run: eas update --auto --platform android --channel preview --non-interactive

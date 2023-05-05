@@ -15,6 +15,7 @@
     "build:chat": "tsc && cross-env APP=chat vite build",
     "coverage": "vitest run --coverage",
     "dev": "cross-env SSL=true vite",
+    "dev:native": "cross-env APP=chat vite --mode native --host",
     "dev-no-ssl": "vite",
     "dev2": "cross-env SSL=true vite --mode dev2",
     "multi": "cross-env SSL=true concurrently \"vite\" \"vite --mode dev2\"",

@@ -74,7 +74,7 @@
     |=  =vase
     ^-  (quip card _this)
     =/  old=(unit state-3)
-      (mole |.(!<(state-3 vase)))  
+      (mole |.(!<(state-3 vase)))
     ?~  old
       on-init
     :_  this(state u.old)
@@ -134,6 +134,7 @@
               binding-endpoint.u.entry
               src.bowl
               address.act
+              binding.act
           ==
         =/  =wire  /agentio-watch/notify/(scot %p src.bowl)/[service.act]
         =?  cards  !(~(has by wex.bowl) wire src.bowl %notify)
@@ -177,9 +178,17 @@
       ?>  (team:title our.bowl src.bowl)
       ?-  -.act
           %connect-provider
+        =*  binding  'apn'
         =.  providers.client-state
           (~(put ju providers.client-state) who.act service.act)
-        =/  pact=provider-action  [%client-join service.act address.act]
+        =/  pact=provider-action  [%client-join service.act address.act binding]
+        :_  state
+        [(poke:pass [who.act %notify] %notify-provider-action !>(pact))]~
+      ::
+          %connect-provider-with-binding
+        =.  providers.client-state
+          (~(put ju providers.client-state) who.act service.act)
+        =/  pact=provider-action  [%client-join service.act address.act binding.act]
         :_  state
         [(poke:pass [who.act %notify] %notify-provider-action !>(pact))]~
       ::
@@ -307,10 +316,10 @@
       ?>  ?=(%http-response +<.sign-arvo)
       =*  res  client-response.sign-arvo
       ?>  ?=(%finished -.res)
-      %.  `this  
+      %.  `this
       =*  status  status-code.response-header.res
       ?:  =(200 status)  same
-      %+  slog  
+      %+  slog
         leaf/"Error sending notfication, status: {(scow %ud status)}"
       ?~  full-file.res  ~
       ~[leaf/(trip `@t`q.data.u.full-file.res)]
@@ -402,6 +411,7 @@
 ++  send-notification
   |=  [entry=provider-entry who=@p =update]
   ^-  card
+  ~&  "sending notification to {<who>} with {<update>} with {<notify-endpoint.entry>}"
   =/  params=(list [@t @t])
     :~  identity+(rsh [3 1] (scot %p who))
         action+`@t`action.update
@@ -415,11 +425,12 @@
   ==
 ::
 ++  register-binding
-  |=  [service=term entry=provider-entry url=@t who=@p address=@t]
+  |=  [service=term entry=provider-entry url=@t who=@p address=@t binding=@t]
   ^-  card
+  ~&  "registering binding for {<who>} with {<address>} on {<service>} with {<binding>} with {<url>} and {<notify-endpoint.entry>}"
   =/  params=(list [@t @t])
     :~  identity+(rsh [3 1] (scot %p who))
-        bindingtype+'apn'
+        bindingtype+binding
         address+address
         action+'add'
     ==
