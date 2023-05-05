@@ -15,7 +15,7 @@ const Components: VirtuosoComponents<string> = {
   )),
   Item: forwardRef((props, itemRef) => (
     <div
-      className="flex items-center border-t border-gray-100 py-3 font-semibold hover:bg-gray-50"
+      className="group flex items-center rounded-lg py-3 px-2 hover:bg-gray-50"
       {...props}
       // @ts-expect-error tsc complains about the ref prop, but it's fine
       ref={itemRef}
