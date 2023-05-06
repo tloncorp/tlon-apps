@@ -293,11 +293,11 @@
   ::
   ++  command-parser
     |=  =sole-id
-    se-parser:(se-apex:se:tc sole-id state)
+    parser:(se-apex:se:tc sole-id state)
   ::
   ++  tab-list
     |=  =sole-id
-    se-tab-list:se:tc
+    tab-list:se:tc
   ::
   ++  on-command
     |=  [=sole-id =command]
@@ -608,12 +608,12 @@
       history.ses  [[target id] history.ses]
       count.ses    +(count.ses)
     ==
-  ::  +se-parser: command parser
+  ::  +parser: command parser
   ::
   ::    parses the command line buffer.
   ::    produces commands which can be executed by +work.
   ::
-  ++  se-parser
+  ++  parser
     |^
       %+  stag  |
       %+  knee  *command  |.  ~+
@@ -793,9 +793,9 @@
       %+  stag  (crip q.tub)
       wide:(vang & [&1:% &2:% (scot %da now.bowl) |3:%])
     --
-  ::  +se-tab-list: command descriptions
+  ::  +tab-list: command descriptions
   ::
-  ++  se-tab-list
+  ++  tab-list
     ^-  (list [@t tank])
     :~
       [';view' leaf+";view (glyph / ~ship / .group.chat.id / ~host/chat)"]
