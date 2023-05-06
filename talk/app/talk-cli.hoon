@@ -1304,401 +1304,402 @@
         (gte -.a -.b)  ::  %flag before %club
       --
     --
+  --
+::
+::  +tr: render targets, one of $whom: ship, flag, or club
+::
+++  tr
+  |_  =target
+  ::  +full: render target fully
   ::
-  ::  +tr: render targets, one of $whom: ship, flag, or club
+  ++  full
+    ^-  tape
+    ?-   -.target
+        %ship  "{(scow %p p.target)}"
+        %club  "{(scow %uv p.target)}"
+        %flag  "{(scow %p p.p.target)}/{(trip q.p.target)}"
+    ==
+  ::  +phat: render chat target with local shorthand
   ::
-  ++  tr
-    |_  =target
-    ::  +full: render target fully
-    ::
-    ++  full
-      ^-  tape
-      ?-   -.target
-          %ship  "{(scow %p p.target)}"
-          %club  "{(scow %uv p.target)}"
-          %flag  "{(scow %p p.p.target)}/{(trip q.p.target)}"
-      ==
-    ::  +phat: render chat target with local shorthand
-    ::
-    ::    renders as ~ship/path.
-    ::    for local mailboxes, renders just /path.
-    ::
-    ++  phat
-      ^-  tape
-      ?.  ?=(%flag -.target)
-        ~(full tr target)
+  ::    renders as ~ship/path.
+  ::    for local mailboxes, renders just /path.
+  ::
+  ++  phat
+    ^-  tape
+    ?.  ?=(%flag -.target)
+      ~(full tr target)
+    %+  weld
+      ?:  =(our-self p.p.target)  ~
+      (scow %p p.p.target)
+    "/{(trip q.p.target)}"
+  ::  +show: render as tape, as glyph if we can
+  ::
+  ++  show
+    ^-  tape
+    =+  cha=(~(get by bound) target)
+    ?~  cha  ~(phat tr target)
+    [u.cha ~]
+  ::  +glyph: tape for glyph of target, defaulting to *
+  ::
+  ++  glyph
+    ^-  tape
+    [(~(gut by bound) target '*') ~]
+  ::  +meta: render target with meta data
+  ::
+  ++  meta
+    |^  ^-  tape
+    ?+   -.target  ~(phat tr target)
+        %club
+      =/  =club-id  p.target
+      =/  crew=(unit crew)
+        (~(get by get-clubs) club-id)
+      ?~  crew
+        (weld (truncate-club-id club-id) "  (club does not exist)")
+      =+  team=team.u.crew
+      =+  hive=hive.u.crew
+      ?:  &(=(~ team) =(~ hive))
+        %+  weld  (truncate-club-id club-id)
+        "  (club does not have any members)"
       %+  weld
-        ?:  =(our-self p.p.target)  ~
-        (scow %p p.p.target)
-      "/{(trip q.p.target)}"
-    ::  +show: render as tape, as glyph if we can
+        (truncate-club-id club-id)
+      ?.  =(*cord title.met.u.crew)
+        "  ({(trip title.met.u.crew)})"
+      %+  weld  "  "
+      (render-club-members club-id ?~(team hive team))
+    ==
+    ::  +truncate-club-id: render the last 12 characters of the club id
     ::
-    ++  show
+    ++  truncate-club-id
+      |=  =club-id
       ^-  tape
-      =+  cha=(~(get by bound.global) target)
-      ?~  cha  ~(phat tr target)
-      [u.cha ~]
-    ::  +glyph: tape for glyph of target, defaulting to *
+      %+  swag  [21 12]
+      (scow %uv club-id)
+    ::  +render-club-members: produce club members as tape
     ::
-    ++  glyph
+    ::    print up to four members and produce
+    ::    a count for the rest.
+    ::
+    ++  render-club-members
+      |=  [=club-id members=(set ship)]
       ^-  tape
-      [(~(gut by bound.global) target '*') ~]
-    ::  +meta: render target with meta data
-    ::
-    ++  meta
-      |^  ^-  tape
-      ?+   -.target  ~(phat tr target)
-          %club
-        =/  =club-id  p.target
-        =/  crew=(unit crew)
-          (~(get by get-clubs) club-id)
-        ?~  crew
-          (weld (truncate-club-id club-id) "  (club does not exist)")
-        =+  team=team.u.crew
-        =+  hive=hive.u.crew
-        ?:  &(=(~ team) =(~ hive))
-          %+  weld  (truncate-club-id club-id)
-          "  (club does not have any members)"
+      =/  members=(list tape)
+        %+  turn  (sort ~(tap in members) gth)
+        |=  =ship
+        " {(cite:title ship)}"
+      =|  out=tape
+      =+  tally=0
+      |-
+      ?~  members
         %+  weld
-          (truncate-club-id club-id)
-        ?.  =(*cord title.met.u.crew)
-          "  ({(trip title.met.u.crew)})"
-        %+  weld  "  "
-        (render-club-members club-id ?~(team hive team))
+          (snap out 0 '(')
+        ?:  (lte tally 4)  ")"
+        " +{(scow %ud (sub tally 4))})"
+      ?:  (gte tally 4)
+        $(tally +(tally), members t.members)
+      %=  $
+        tally    +(tally)
+        out      (weld out i.members)
+        members  t.members
       ==
-      ::  +truncate-club-id: render the last 12 characters of the club id
-      ::
-      ++  truncate-club-id
-        |=  =club-id
-        ^-  tape
-        %+  swag  [21 12]
-        (scow %uv club-id)
-      ::  +render-club-members: produce club members as tape
-      ::
-      ::    print up to four members and produce
-      ::    a count for the rest.
-      ::
-      ++  render-club-members
-        |=  [=club-id members=(set ship)]
-        ^-  tape
-        =/  members=(list tape)
-          %+  turn  (sort ~(tap in members) gth)
-          |=  =ship
-          " {(cite:title ship)}"
-        =|  out=tape
-        =+  tally=0
-        |-
-        ?~  members
-          %+  weld
-            (snap out 0 '(')
-          ?:  (lte tally 4)  ")"
-          " +{(scow %ud (sub tally 4))})"
-        ?:  (gte tally 4)
-          $(tally +(tally), members t.members)
-        %=  $
-          tally    +(tally)
-          out      (weld out i.members)
-          members  t.members
+    --
+  --
+::
+::  +mr: render messages
+::
+++  mr
+  |_  $:  source=target
+          memo:chat
+          width=@ud
+      ==
+  +*  showtime  (~(has in settings) %showtime)
+      notify    (~(has in settings) %notify)
+  ::
+  ++  content-width
+    ::  termwidth, minus author, timestamp, and padding
+    %+  sub  width
+    %+  add  15
+    ?:(showtime 11 0)
+  ::
+  ++  render-notice
+    ?>  ?=(%notice -.content)
+    =/  glyph=(unit glyph)
+      (~(get by bound) source)
+    =/  prepend=tape
+      (runt [14 '-'] ?~(glyph '|' u.glyph) ' ' " ")
+    :+  %sole  %klr
+    %+  weld  prepend
+    ^-  styx
+    [[`%un ~ ~] ~[pfix.p.content (scot %p author) sfix.p.content]]~
+  ::
+  ++  render-inline
+    |^  ^-  shoe-effect:shoe
+    ?.  ?=(%story -.content)
+      render-notice
+    :+  %row
+      %-  thread-indent
+      :-  15
+      ?.  showtime
+        ~[(sub width 16)]
+      ~[(sub width 26) 9]
+    :+  :-  %t
+        %-  crip
+        ;:  weld
+          (nome author)
+          ~(glyph tr source)
+          ?~(replying *tape "^")
         ==
-      --
+      t+(crip line)
+    ?.  showtime  ~
+    :_  ~
+    :-  %t
+    =.  sent
+      %-  ?:(p.timez add sub)
+      [sent (mul q.timez ~h1)]
+    =+  dat=(yore sent)
+    =*  t   (d-co:co 2)
+    =,  t.dat
+    %-  crip
+    :(weld "~" (t h) "." (t m) "." (t s))
+    ::  +thread-indent: indent column if $replying:memo is not ~
+    ::  meaning we have a thread message
+    ::
+    ++  thread-indent
+      |=  widths=(list @ud)
+      ^-  (list @ud)
+      ?~  replying  widths
+      %+  turn  widths
+      |=  a=@
+      ?:  =(a 15)  16
+      ?.((gth a 16) a (sub a 1))
     --
   ::
-  ::  +mr: render messages
+  ++  line
+    ^-  tape
+    ?>  ?=(%story -.content)
+    %-  zing
+    %+  join  "\0a"
+    %+  weld
+      `(list tape)`(zing (turn p.p.content block-as-tape))
+      ::(blocks-as-tapes p.p.content)
+    (inlines-as-tapes & q.p.content)
   ::
-  ++  mr
-    |_  $:  source=target
-            memo:chat
-        ==
-    +*  showtime  (~(has in settings) %showtime)
-        notify    (~(has in settings) %notify)
+  ++  inlines-as-tapes
+    |=  [lim=? lis=(list inline:chat)]
+    |^  ^-  (list tape)
+        %-  murn
+        :_  |=(ls=(list tape) ?:(=(~ ls) ~ (some `tape`(zing ls))))
+        (roll lis process-inline)
     ::
-    ++  content-width
-      ::  termwidth, minus author, timestamp, and padding
-      %+  sub  width.ses
-      %+  add  15
-      ?:(showtime 11 0)
-    ::
-    ++  render-notice
-      ?>  ?=(%notice -.content)
-      =/  glyph=(unit glyph)
-        (~(get by bound.global) source)
-      =/  prepend=tape
-        (runt [14 '-'] ?~(glyph '|' u.glyph) ' ' " ")
-      :+  %sole  %klr
-      %+  weld  prepend
-      ^-  styx
-      [[`%un ~ ~] ~[pfix.p.content (scot %p author) sfix.p.content]]~
-    ::
-    ++  render-inline
-      |^  ^-  shoe-effect:shoe
-      ?.  ?=(%story -.content)
-        render-notice
-      :+  %row
-        %-  thread-indent
-        :-  15
-        ?.  showtime
-          ~[(sub width.ses 16)]
-        ~[(sub width.ses 26) 9]
-      :+  :-  %t
-          %-  crip
-          ;:  weld
-            (nome author)
-            ~(glyph tr source)
-            ?~(replying *tape "^")
+    ++  process-inline
+      =/  quote=@ud  0
+      |=  [=inline:chat out=(list (list tape))]
+      ?@  inline  (append-inline out (trip inline))
+      ?-  -.inline
+        %tag    (append-inline out "#{(trip p.inline)}")
+        %block  (append-solo out "[{(trip p.inline)}]")
+        %ship   (append-inline out (scow %p p.inline))
+        %break  ?:  =(0 quote)  (snoc out ~)
+                (snoc out [(snoc (reap quote '>') ' ') ~])
+      ::
+          %code
+        =.  out  (append-solo out "```")
+        =.  out  (append-inline out (trip p.inline))
+        (append-solo out "```")
+      ::
+          ?(%italics %bold %strike %blockquote %inline-code)
+        ~?  ?=(%blockquote -.inline)  inline
+        =/  lim=tape
+          ?-  -.inline
+            %italics      "_"
+            %bold         "**"
+            %strike       "~~"
+            %blockquote   "\""
+            %inline-code  "`"
           ==
-        t+(crip line)
-      ?.  showtime  ~
-      :_  ~
-      :-  %t
-      =.  sent
-        %-  ?:(p.timez add sub)
-        [sent (mul q.timez ~h1)]
-      =+  dat=(yore sent)
-      =*  t   (d-co:co 2)
-      =,  t.dat
-      %-  crip
-      :(weld "~" (t h) "." (t m) "." (t s))
-      ::  +thread-indent: indent column if $replying:memo is not ~
-      ::  meaning we have a thread message
-      ::
-      ++  thread-indent
-        |=  widths=(list @ud)
-        ^-  (list @ud)
-        ?~  replying  widths
-        %+  turn  widths
-        |=  a=@
-        ?:  =(a 15)  16
-        ?.((gth a 16) a (sub a 1))
-      --
-    ::
-    ++  line
-      ^-  tape
-      ?>  ?=(%story -.content)
-      %-  zing
-      %+  join  "\0a"
-      %+  weld
-        `(list tape)`(zing (turn p.p.content block-as-tape))
-        ::(blocks-as-tapes p.p.content)
-      (inlines-as-tapes & q.p.content)
-    ::
-    ++  inlines-as-tapes
-      |=  [lim=? lis=(list inline:chat)]
-      |^  ^-  (list tape)
-          %-  murn
-          :_  |=(ls=(list tape) ?:(=(~ ls) ~ (some `tape`(zing ls))))
-          (roll lis process-inline)
-      ::
-      ++  process-inline
-        =/  quote=@ud  0
-        |=  [=inline:chat out=(list (list tape))]
-        ?@  inline  (append-inline out (trip inline))
-        ?-  -.inline
-          %tag    (append-inline out "#{(trip p.inline)}")
-          %block  (append-solo out "[{(trip p.inline)}]")
-          %ship   (append-inline out (scow %p p.inline))
-          %break  ?:  =(0 quote)  (snoc out ~)
-                  (snoc out [(snoc (reap quote '>') ' ') ~])
-        ::
-            %code
-          =.  out  (append-solo out "```")
-          =.  out  (append-inline out (trip p.inline))
-          (append-solo out "```")
-        ::
-            ?(%italics %bold %strike %blockquote %inline-code)
-          ~?  ?=(%blockquote -.inline)  inline
-          =/  lim=tape
-            ?-  -.inline
-              %italics      "_"
-              %bold         "**"
-              %strike       "~~"
-              %blockquote   "\""
-              %inline-code  "`"
-            ==
-          =?  out  !?=(%blockquote -.inline)
-            (append-inline out lim)
-          =.  out
-            ?:  ?=(%inline-code -.inline)
-              (append-inline out (trip p.inline))
-            =?  quote  ?=(%blockquote -.inline)  +(quote)
-            =?  out    ?=(%blockquote -.inline)  $(inline [%break ~])
-            |-
-            ?~  p.inline  out
-            =.  out  ^$(inline i.p.inline)
-            ::TODO  this still renders a trailing newline before nested quotes
-            ?.  =([%break ~]~ t.p.inline)
-              $(p.inline t.p.inline)
-            $(p.inline t.p.inline, quote (dec quote))
-          ?:  ?=(%blockquote -.inline)  out
+        =?  out  !?=(%blockquote -.inline)
           (append-inline out lim)
-        ::
-            %link
-          =?  out  !=(p.inline q.inline)
-            (append-inline out (snoc (trip q.inline) ' '))
-          ?.  lim
-            (append-solo out (trip p.inline))
-          %+  append-inline  out
-          =+  wyd=content-width
-          =+  ful=(trip p.inline)
-          ::  if the full url fits, just render it.
-          ?:  (gte wyd (lent ful))  ful
-          ::  if it doesn't, prefix with _ and truncate domain with ellipses
-          =.  wyd  (sub wyd 2)
-          :-  '_'
-          =-  (weld - "_")
-          =+  prl=(rust ful aurf:de-purl:html)
-          ?~  prl  (scag wyd ful)
-          =+  hok=r.p.p.u.prl
-          =;  domain=tape
-            %+  swag
-              [(sub (max wyd (lent domain)) wyd) wyd]
-            domain
-          ?.  ?=(%& -.hok)
-            +:(scow %if p.hok)
-          %+  reel  p.hok
-          |=  [a=knot b=tape]
-          ?~  b  (trip a)
-          (welp b '.' (trip a))
-        ==
+        =.  out
+          ?:  ?=(%inline-code -.inline)
+            (append-inline out (trip p.inline))
+          =?  quote  ?=(%blockquote -.inline)  +(quote)
+          =?  out    ?=(%blockquote -.inline)  $(inline [%break ~])
+          |-
+          ?~  p.inline  out
+          =.  out  ^$(inline i.p.inline)
+          ::TODO  this still renders a trailing newline before nested quotes
+          ?.  =([%break ~]~ t.p.inline)
+            $(p.inline t.p.inline)
+          $(p.inline t.p.inline, quote (dec quote))
+        ?:  ?=(%blockquote -.inline)  out
+        (append-inline out lim)
       ::
-      ++  append-solo
-        |=  [content=(list (list tape)) newline=tape]
-        ^+  content
-        %+  weld  content
-        `_content`~[[newline]~ ~]
-      ::
-      ++  append-inline
-        |=  [content=(list (list tape)) inline=tape]
-        ^+  content
-        ?:  =(~ content)
-          ~[~[inline]]
-        =/  last
-          (dec (lent content))
-        =/  old=(list tape)
-          (snag last content)
-        =/  new=(list tape)
-          ?.  =(~ old)  (snoc old inline)
-          ::  clean up leading space, common after solo elements
-          ?:  ?=([%' ' *] inline)  [t.inline]~
-          [inline]~
-        (snap content last new)
-      --
-    ::
-    ++  block-as-tape
-      |=  =block:chat
-      |^  ^-  (list tape)
-      ?-   -.block
-          %image  ["[ #img: {(trip alt.block)} ]"]~
-      ::
-          %cite
-        ?-  -.cite.block
-            %group  =,  cite.block
-          ["[ #group: {(scow %p p.flag)}/{(trip q.flag)} ]"]~
-        ::
-            %desk   =,  cite.block
-          ["[ #desk: {(scow %p p.flag)}/{(trip q.flag)}{(spud wer)} ]"]~
-        ::
-            %bait
-          ["[ #bait: ]"]~  ::TODO  implement once %lure is released
-        ::
-            %chan   =,  cite.block
-          =/  =path   (flop wer)
-          =/  =id:chat
-            :-  (slav %p +<.path)
-            (slav %ud -.path)
-          =/  =whom:chat  [%flag q.nest]
-          ?.  (message-exists whom id)
-            ["[ #chat: missing message ]"]~
-          =+  %^  scry-for-marked  ,[* =writ:chat]
-                %chat
-              (writ-scry-path whom id)
-          %-  render-message-block
-          %+  simple-wrap
-            %+  weld
-              "{(cite:title -.id)} said: "
-            ~(line mr whom +.writ)
-          (sub content-width 7)
-        ==
+          %link
+        =?  out  !=(p.inline q.inline)
+          (append-inline out (snoc (trip q.inline) ' '))
+        ?.  lim
+          (append-solo out (trip p.inline))
+        %+  append-inline  out
+        =+  wyd=content-width
+        =+  ful=(trip p.inline)
+        ::  if the full url fits, just render it.
+        ?:  (gte wyd (lent ful))  ful
+        ::  if it doesn't, prefix with _ and truncate domain with ellipses
+        =.  wyd  (sub wyd 2)
+        :-  '_'
+        =-  (weld - "_")
+        =+  prl=(rust ful aurf:de-purl:html)
+        ?~  prl  (scag wyd ful)
+        =+  hok=r.p.p.u.prl
+        =;  domain=tape
+          %+  swag
+            [(sub (max wyd (lent domain)) wyd) wyd]
+          domain
+        ?.  ?=(%& -.hok)
+          +:(scow %if p.hok)
+        %+  reel  p.hok
+        |=  [a=knot b=tape]
+        ?~  b  (trip a)
+        (welp b '.' (trip a))
       ==
+    ::
+    ++  append-solo
+      |=  [content=(list (list tape)) newline=tape]
+      ^+  content
+      %+  weld  content
+      `_content`~[[newline]~ ~]
+    ::
+    ++  append-inline
+      |=  [content=(list (list tape)) inline=tape]
+      ^+  content
+      ?:  =(~ content)
+        ~[~[inline]]
+      =/  last
+        (dec (lent content))
+      =/  old=(list tape)
+        (snag last content)
+      =/  new=(list tape)
+        ?.  =(~ old)  (snoc old inline)
+        ::  clean up leading space, common after solo elements
+        ?:  ?=([%' ' *] inline)  [t.inline]~
+        [inline]~
+      (snap content last new)
+    --
+  ::
+  ++  block-as-tape
+    |=  =block:chat
+    |^  ^-  (list tape)
+    ?-   -.block
+        %image  ["[ #img: {(trip alt.block)} ]"]~
+    ::
+        %cite
+      ?-  -.cite.block
+          %group  =,  cite.block
+        ["[ #group: {(scow %p p.flag)}/{(trip q.flag)} ]"]~
       ::
-      ::  +render-message-block: make a message block
+          %desk   =,  cite.block
+        ["[ #desk: {(scow %p p.flag)}/{(trip q.flag)}{(spud wer)} ]"]~
       ::
-      ++  render-message-block
-        |=  msg=(list tape)
-        |^  ^-  (list tape)
-        ?~  msg  ~
-        =/  [one=tape two=tape]
-          =+  (scag 2 `(list tape)`msg)
-          [i.msg ?~(t.msg ~ i.t.msg)]
-        =/  wyd=@ud
-          (max (lent one) (lent two))
-        :-  (make-a-line i.msg wyd |)
-        ?~  t.msg  ~
-        :-  (make-a-line i.t.msg wyd ?=(^ t.t.msg))
-        ~
-        ::
-        ++  make-a-line
-          |=  [line=tape wide=@ud more=?]
-          ^-  tape
-          =/  line
-            ?.  (lth (lent line) wide)
-              line
-            %+  weld  line
-            (runt [(sub wide (lent line)) ' '] "")
-          =/  close=tape
-            ?:(more "…]" " ]")
-          (weld "[ " (weld line close))
-        --
-      --
-    ::  +activate: produce sole-effect for printing message details
-    ::
-    ++  render-activate
-      ^-  sole-effect:shoe
-      ~[%mor [%tan meta] body]
-    ::  +meta: render message metadata (serial, timestamp, author, target)
-    ::
-    ++  meta
-      ^-  tang
-      =+  hed=leaf+"sent at {(scow %da sent)}"
-      =/  src=tape  ~(meta tr source)
-      [%rose [" " ~ ~] [hed >author< [%rose [", " "to " ~] [leaf+src]~] ~]]~
-    ::  +body: long-form render of message contents
-    ::
-    ++  body
-      ?.  ?=(%story -.content)
-        +:render-notice
-      |-  ^-  sole-effect:shoe
-      :-  %mor
-      ;:  weld
-        ::  if a part of a thread, print top-level message
-        ::
-        ?~  replying  ~
-        =-  (snoc - [%txt "---"])
-        ?.  (message-exists source u.replying)
-          [txt+"^   …missing message"]~
+          %bait
+        ["[ #bait: ]"]~  ::TODO  implement once %lure is released
+      ::
+          %chan   =,  cite.block
+        =/  =path   (flop wer)
+        =/  =id:chat
+          :-  (slav %p +<.path)
+          (slav %ud -.path)
+        =/  =whom:chat  [%flag q.nest]
+        ?.  (message-exists whom id)
+          ["[ #chat: missing message ]"]~
         =+  %^  scry-for-marked  ,[* =writ:chat]
               %chat
-            (writ-scry-path source u.replying)
-        [[%txt (weld "^   " ~(line mr source +.writ))]]~
-        ::  if block is referenced, print it, too
-        ::
-        ?:  =(~ p.p.content)  ~
-        =-  (snoc - [%txt "---"])
-        %+  turn
-          ^-  (list tape)
-          (zing (turn p.p.content block-as-tape))
-        (lead %txt)
-        ::TODO  we could actually be doing styling here with %klr
-        ::      instead of producing plain %txt output. maybe one day...
-        (turn (inlines-as-tapes | q.p.content) (lead %txt))
+            (writ-scry-path whom id)
+        %-  render-message-block
+        %+  simple-wrap
+          %+  weld
+            "{(cite:title -.id)} said: "
+          ~(line mr whom +.writ width)
+        (sub content-width 7)
       ==
-    ::  +nome: prints a ship name in 14 characters, left-padding with spaces
+    ==
     ::
-    ++  nome
-      |=  =ship
-      ^-  tape
-      =+  raw=(cite:title ship)
-      (runt [(sub 14 (lent raw)) ' '] raw)
+    ::  +render-message-block: make a message block
+    ::
+    ++  render-message-block
+      |=  msg=(list tape)
+      |^  ^-  (list tape)
+      ?~  msg  ~
+      =/  [one=tape two=tape]
+        =+  (scag 2 `(list tape)`msg)
+        [i.msg ?~(t.msg ~ i.t.msg)]
+      =/  wyd=@ud
+        (max (lent one) (lent two))
+      :-  (make-a-line i.msg wyd |)
+      ?~  t.msg  ~
+      :-  (make-a-line i.t.msg wyd ?=(^ t.t.msg))
+      ~
+      ::
+      ++  make-a-line
+        |=  [line=tape wide=@ud more=?]
+        ^-  tape
+        =/  line
+          ?.  (lth (lent line) wide)
+            line
+          %+  weld  line
+          (runt [(sub wide (lent line)) ' '] "")
+        =/  close=tape
+          ?:(more "…]" " ]")
+        (weld "[ " (weld line close))
+      --
     --
+  ::  +activate: produce sole-effect for printing message details
+  ::
+  ++  render-activate
+    ^-  sole-effect:shoe
+    ~[%mor [%tan meta] body]
+  ::  +meta: render message metadata (serial, timestamp, author, target)
+  ::
+  ++  meta
+    ^-  tang
+    =+  hed=leaf+"sent at {(scow %da sent)}"
+    =/  src=tape  ~(meta tr source)
+    [%rose [" " ~ ~] [hed >author< [%rose [", " "to " ~] [leaf+src]~] ~]]~
+  ::  +body: long-form render of message contents
+  ::
+  ++  body
+    ?.  ?=(%story -.content)
+      +:render-notice
+    |-  ^-  sole-effect:shoe
+    :-  %mor
+    ;:  weld
+      ::  if a part of a thread, print top-level message
+      ::
+      ?~  replying  ~
+      =-  (snoc - [%txt "---"])
+      ?.  (message-exists source u.replying)
+        [txt+"^   …missing message"]~
+      =+  %^  scry-for-marked  ,[* =writ:chat]
+            %chat
+          (writ-scry-path source u.replying)
+      [[%txt (weld "^   " ~(line mr source +.writ width))]]~
+      ::  if block is referenced, print it, too
+      ::
+      ?:  =(~ p.p.content)  ~
+      =-  (snoc - [%txt "---"])
+      %+  turn
+        ^-  (list tape)
+        (zing (turn p.p.content block-as-tape))
+      (lead %txt)
+      ::TODO  we could actually be doing styling here with %klr
+      ::      instead of producing plain %txt output. maybe one day...
+      (turn (inlines-as-tapes | q.p.content) (lead %txt))
+    ==
+  ::  +nome: prints a ship name in 14 characters, left-padding with spaces
+  ::
+  ++  nome
+    |=  =ship
+    ^-  tape
+    =+  raw=(cite:title ship)
+    (runt [(sub 14 (lent raw)) ' '] raw)
   --
 ::  +simple-wrap: wrap text
 ::
