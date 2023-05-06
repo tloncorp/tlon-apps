@@ -293,7 +293,7 @@
   ::
   ++  command-parser
     |=  =sole-id
-    parser:(se-apex:se:tc sole-id state)
+    parser:(se-apex:se:tc sole-id)
   ::
   ++  tab-list
     |=  =sole-id
@@ -302,13 +302,13 @@
   ++  on-command
     |=  [=sole-id =command]
     =^  cards  state
-      se-abet:(se-work:(se-apex:se:tc sole-id state) command)
+      se-abet:(se-work:(se-apex:se:tc sole-id) command)
     [cards this]
   ::
   ++  on-connect
     |=  =sole-id
     =^  cards  state
-      se-abet:prompt:se-out:(se-apex:se:tc sole-id state)
+      se-abet:prompt:se-out:(se-apex:se:tc sole-id)
     [cards this]
   ::
   ++  can-connect     can-connect:des
@@ -488,7 +488,7 @@
    =^  caz  state
      ?.  (~(has in viewing.session.i.sez) whom)
        [~ state]
-     se-abet:(se-read-post:(se-apex:se sole-id.i.sez state) whom id memo)
+     se-abet:(se-read-post:(se-apex:se sole-id.i.sez) whom id memo)
   $(sez t.sez, cards (weld cards caz))
   :: $(sez t.sez, cards (weld cards caz))
 ::  +bind-default-glyph: bind to default, or random available
@@ -522,7 +522,7 @@
       (~(del ju binds) (~(got by bound) target) target)
     =.  bound  (~(put by bound) target glyph)
     =.  binds  (~(put ju binds) glyph target)
-    se-abet:(show-glyph:se-out:(se-apex:se sole-id state) glyph `target)
+    se-abet:(show-glyph:se-out:(se-apex:se sole-id) glyph `target)
   [cards state]
 ::  +unbind-glyph: remove all binding for glyph
 ::
@@ -533,7 +533,7 @@
     ?^  targ
       =.  binds  (~(del ju binds) glyph u.targ)
       =.  bound  (~(del by bound) u.targ)
-      se-abet:(show-glyph:se-out:(se-apex:se sole-id state) glyph ~)
+      se-abet:(show-glyph:se-out:(se-apex:se sole-id) glyph ~)
     =/  ole=(set target)
       (~(get ju binds) glyph)
     =.  binds  (~(del by binds) glyph)
@@ -543,7 +543,7 @@
       =.  bound  $(ole l.ole)
       =.  bound  $(ole r.ole)
       (~(del by bound) n.ole)
-    se-abet:(show-glyph:se-out:(se-apex:se sole-id state) glyph ~)
+    se-abet:(show-glyph:se-out:(se-apex:se sole-id) glyph ~)
   [cards state]
 ::  +decode-glyph: find the target that matches a glyph, if any
 ::
@@ -588,18 +588,19 @@
 ::
 ++  se
   =|  caz=(list card)
-  |_  [=sole-id ses=session global=_state]
-  +*  se  .
+  |_  [=sole-id session]
+  +*  se   .
+      ses  +<+
   ::
   ++  se-apex
-    |=  [=sole-id:shoe s=_state]
+    |=  [=sole-id:shoe]
     ^+  se
-    se(sole-id sole-id, ses (get-session sole-id), global s)
+    se(sole-id sole-id, +<+ (get-session sole-id))
   ::
   ++  se-abet
     ^-  (quip card _state)
     :-  (flop caz)
-    global(sessions (~(put by sessions) sole-id ses))
+    state(sessions (~(put by sessions) sole-id ses))
   ::
   ++  se-emit  |=(cad=card se(caz [cad caz]))
   ++  se-emil  |=(cas=(list card) se(caz (weld (flop cas) caz)))
@@ -610,8 +611,8 @@
     ^+  se
     =.  se  (show-post:se-out target memo)
     %_  se
-      history.ses  [[target id] history.ses]
-      count.ses    +(count.ses)
+      history  [[target id] history]
+      count    +(count)
     ==
   ::  +parser: command parser
   ::
@@ -856,7 +857,7 @@
     ++  split
       |=  [c=(list card) s=_state]
       ^+  se
-      =.  se  se(global s)
+      =.  state  s
       (se-emil c)
     ::  +act: build action card
     ::
@@ -869,7 +870,7 @@
     ++  set-target
       |=  =target
       ^+  se
-      =.  se  se(audience.ses target)
+      =.  audience  target
       prompt:se-out
     ::  +view: start printing messages from a chat
     ::
@@ -879,7 +880,7 @@
       ::  without argument, print all we're viewing
       ::
       ?~  target
-        (show-targets:se-out ~(tap in viewing.ses))
+        (show-targets:se-out ~(tap in viewing))
       ::  only view existing chats
       ::
       ?.  (target-exists target)
@@ -887,7 +888,7 @@
       =.  se  (rsvp & target)
       ::  send watch card for target not in view
       ::
-      =?  se  !(~(has in viewing.ses) target)
+      =?  se  !(~(has in viewing) target)
         (se-emil (connect target))
       ::  bind an unbound target
       ::
@@ -895,8 +896,8 @@
         (split (bind-default-glyph sole-id target))
       ::  load history if target is not in view
       ::
-      =?  se  !(~(has in viewing.ses) target)
-        =.  se  se(viewing.ses (~(put in viewing.ses) target))
+      =?  se  !(~(has in viewing) target)
+        =.  viewing  (~(put in viewing) target)
         (build-history target)
       (set-target target)
       ::  +build-history: add messages to history and output to session
@@ -911,8 +912,8 @@
         =/  =writ:chat   +.i.messages
         =/  =memo:chat   +.writ
         =.  se  (show-post:se-out whom memo)
-        =:  history.ses  [[whom id.writ] history.ses]
-            count.ses    +(count.ses)
+        =:  history  [[whom id.writ] history]
+            count    +(count)
           ==
         $(messages t.messages)
       --
@@ -921,7 +922,7 @@
     ++  flee
       |=  =target
       ^+  se
-      =.  viewing.ses  (~(del in viewing.ses) target)
+      =.  viewing  (~(del in viewing) target)
       %-  se-emit
       [%pass (target-to-path target) %agent [our-self %chat] %leave ~]
     ::  +rsvp: send rsvp response
@@ -966,23 +967,23 @@
         (se-emit card)
       =/  =memo:chat
         [replying our.bowl now.bowl %story block msg]
-      %^  act  (target-to-path audience.ses)
+      %^  act  (target-to-path audience)
         %chat
-      ?-   -.audience.ses
+      ?-   -.audience
           %ship
         :-  %dm-action
         !>  ^-  action:dm:chat
-        [p.audience.ses [our now]:bowl %add memo]
+        [p.audience [our now]:bowl %add memo]
       ::
           %club
         :-  %club-action
         !>  ^-  action:club:chat
-        [p.audience.ses *uid:club:chat %writ [our now]:bowl %add memo]
+        [p.audience *uid:club:chat %writ [our now]:bowl %add memo]
       ::
           %flag
         :-  %chat-action-0
         !>  ^-  action:chat
-        [p.audience.ses now.bowl %writs [our now]:bowl %add memo]
+        [p.audience now.bowl %writs [our now]:bowl %add memo]
       ==
     ::  +say: user sends a message
     ::
@@ -1029,7 +1030,7 @@
           replying.writ.p.pack
         ::  switch audience to ensure we're replying in-context
         ::
-        =.  se  se(audience.ses whom.p.pack)
+        =.  audience  whom.p.pack
         (send replying ~ msg)
       ==
     ::  +eval: run hoon, send code and result as message
@@ -1086,13 +1087,13 @@
         ^-  tape
         :-  ?:(p.timez '+' '-')
         (scow %ud q.timez)
-      (print:se-out "width: {(scow %ud width.ses)}")
+      (print:se-out "width: {(scow %ud width)}")
     ::  +set-width: configure cli printing width
     ::
     ++  set-width
       |=  w=@ud
       ^+  se
-      se(width.ses (max 40 w))
+      se(width (max 40 w))
     ::  +select: expand message from number reference
     ::
     ++  select
@@ -1110,10 +1111,12 @@
         =/  tum=tape
           ?@  selection
             (scow %s (new:si | +(selection)))
-          (scow %ud (index (dec count.ses) selection))
-        =.  se  se(audience.ses whom.p.pack)
+          (scow %ud (index (dec count) selection))
+        =.  audience  whom.p.pack
         =.  se  (print:se-out ['?' ' ' tum])
-        =.  se  (effect:se-out ~(render-activate mr whom.p.pack +.writ.p.pack))
+        =.  se
+          %-  effect:se-out
+          ~(render-activate mr whom.p.pack +.writ.p.pack width)
         prompt:se-out
       ==
     ::  +pointer-to-message: get message from number reference
@@ -1124,14 +1127,14 @@
       ^-  (each [whom:chat writ:chat] tape)
       |^  ?@  selection
             =+  tum=(scow %s (new:si | +(selection)))
-            ?:  (gte rel.selection count.ses)
+            ?:  (gte rel.selection count)
               [%| "{tum}: no such message"]
             (produce tum rel.selection)
-          ?.  (gte abs.selection count.ses)
-            ?:  =(count.ses 0)
+          ?.  (gte abs.selection count)
+            ?:  =(count 0)
               [%| "0: no messages"]
-            =+  msg=(index (dec count.ses) selection)
-            (produce (scow %ud msg) (sub count.ses +(msg)))
+            =+  msg=(index (dec count) selection)
+            (produce (scow %ud msg) (sub count +(msg)))
           :-  %|
           %+  weld  "…{(reap zeros.selection '0')}{(scow %ud abs.selection)}: "
           "no such message"
@@ -1141,7 +1144,7 @@
         |=  [number=tape index=@ud]
         ^-  (each [whom:chat writ:chat] tape)
         =/  [=whom:chat =id:chat]
-          (snag index history.ses)
+          (snag index history)
         ?.  (message-exists whom id)
           [%| "…{number}: missing message"]
         =+  %^  scry-for-marked  ,[* =writ:chat]
@@ -1235,7 +1238,7 @@
     ++  note
       |=  txt=tape
       ^+  se
-      =+  lis=(simple-wrap txt (sub width.ses 16))
+      =+  lis=(simple-wrap txt (sub width 16))
       %-  print-more
       =+  ?:((gth (lent lis) 0) (snag 0 lis) "")
       :-  (runt [14 '-'] '|' ' ' -)
@@ -1247,7 +1250,7 @@
       ^+  se
       %+  effect  %pro
       :+  &  %talk-line
-      =+  ~(show tr audience.ses)
+      =+  ~(show tr audience)
       ?:(=(1 (lent -)) "{-} " "[{-}] ")
     ::  +show-post: print incoming message
     ::
@@ -1258,14 +1261,14 @@
     ++  show-post
       |=  [=target =memo:chat]
       ^+  se
-      =?  se  =(0 (mod count.ses 5))
-        =+  num=(scow %ud count.ses)
+      =?  se  =(0 (mod count 5))
+        =+  num=(scow %ud count)
         %-  print
         (runt [(sub 13 (lent num)) '-'] "[{num}]")
       =;  mentioned=?
         =?  se  mentioned
           (effect %bel ~)
-        (effex ~(render-inline mr target memo))
+        (effex ~(render-inline mr target memo width))
       ?.  ?=(%story -.content.memo)  |
       %+  lien  q.p.content.memo
       (cury test %ship our.bowl)
