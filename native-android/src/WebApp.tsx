@@ -13,7 +13,7 @@ import useStore from './state/store';
 import * as Notifications from 'expo-notifications';
 import { WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
 import {
-  handleNotification,
+  BACKGROUND_NOTIFICATION_TASK,
   handleNotificationResponse,
   initializePushNotifications,
 } from './lib/notifications';
@@ -23,9 +23,6 @@ export default function WebApp() {
   const tailwind = useTailwind();
   const webviewRef = useRef<WebView>(null);
   const appState = useRef(AppState.currentState);
-  const notificationSubscription = useRef<Notifications.Subscription | null>(
-    null
-  );
   const notificationResponseSubscription =
     useRef<Notifications.Subscription | null>(null);
 
@@ -82,9 +79,8 @@ export default function WebApp() {
     (async () => {
       const enabled = await initializePushNotifications();
       if (enabled) {
-        notificationSubscription.current =
-          Notifications.addNotificationReceivedListener(handleNotification);
-        console.debug('Started notification listener');
+        await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+        console.debug('Started background notification task');
 
         notificationResponseSubscription.current =
           Notifications.addNotificationResponseReceivedListener((response) => {
@@ -98,12 +94,8 @@ export default function WebApp() {
       BackHandler.removeEventListener('hardwareBackPress', handleBackPressed);
       listener.remove();
 
-      if (notificationSubscription.current) {
-        Notifications.removeNotificationSubscription(
-          notificationSubscription.current
-        );
-        console.debug('Removed notification listener');
-      }
+      Notifications.unregisterTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+      console.debug('Removed notification listener');
 
       if (notificationResponseSubscription.current) {
         Notifications.removePushTokenSubscription(

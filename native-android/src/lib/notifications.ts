@@ -6,6 +6,21 @@ import useHarkState from '../state/hark';
 import useStore from '../state/store';
 import storage from './storage';
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';
+import * as TaskManager from 'expo-task-manager';
+
+export const BACKGROUND_NOTIFICATION_TASK =
+  'io.tlon.android.background-notification-task';
+
+TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, ({ data, error }) => {
+  if (error) {
+    console.error('Error in background notification task:', error);
+    console.log('error occurred');
+  }
+
+  if (data) {
+    console.log('data-----', data);
+  }
+});
 
 const getHasRequestedNotifications = async () => {
   try {
