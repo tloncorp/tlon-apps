@@ -916,8 +916,7 @@
     ++  flee
       |=  =target
       ^+  se
-      =?  se  (~(has in viewing.ses) target)
-        se(viewing.ses (~(del in viewing.ses) target))
+      =.  viewing.ses  (~(del in viewing.ses) target)
       %-  se-emit
       [%pass (target-to-path target) %agent [our-self %chat] %leave ~]
     ::  +rsvp: send rsvp response
